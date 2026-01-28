@@ -1,0 +1,110 @@
+site_name: PraisonAIUI
+site_description: One YAML file, one docs folder, one command — ship a beautiful documentation site
+site_url: https://mervinpraison.github.io/PraisonAIUI
+repo_url: https://github.com/MervinPraison/PraisonAIUI
+repo_name: MervinPraison/PraisonAIUI
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/lightning-bolt
+
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/MervinPraison/PraisonAIUI
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - CLI Usage: getting-started/cli.md
+  - Core Concepts:
+    - YAML Configuration: concepts/configuration.md
+    - Templates & Layouts: concepts/templates.md
+    - Slots & Components: concepts/slots.md
+  - Features:
+    - Content Sources: features/content-sources.md
+    - Navigation: features/navigation.md
+    - Theming: features/theming.md
+    - Dark Mode: features/dark-mode.md
+    - SEO: features/seo.md
+    - Hot Reload: features/hot-reload.md
+  - API Reference:
+    - Python CLI: api/cli.md
+    - Python API: api/python.md
+    - TypeScript SDK: api/typescript.md
+  - TypeScript SDK:
+    - Overview: typescript/index.md
+    - Runtime: typescript/runtime.md
+    - Next.js Adapter: typescript/nextjs.md
+    - Components: typescript/components.md
+  - Examples:
+    - Basic Examples: examples/basic.md
+    - Advanced Examples: examples/advanced.md

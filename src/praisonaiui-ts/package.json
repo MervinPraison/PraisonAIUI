@@ -1,0 +1,83 @@
+{
+    "name": "praisonaiui",
+    "version": "0.1.0",
+    "description": "YAML-driven website generator - React runtime and Next.js adapter",
+    "type": "module",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./runtime": {
+            "types": "./dist/runtime/index.d.ts",
+            "import": "./dist/runtime/index.js"
+        },
+        "./next": {
+            "types": "./dist/next/index.d.ts",
+            "import": "./dist/next/index.js"
+        },
+        "./components": {
+            "types": "./dist/components/index.d.ts",
+            "import": "./dist/components/index.js"
+        }
+    },
+    "bin": {
+        "aiui": "./dist/cli/index.js"
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "lint": "eslint src --ext .ts,.tsx",
+        "typecheck": "tsc --noEmit",
+        "clean": "rm -rf dist"
+    },
+    "peerDependencies": {
+        "next": ">=14.0.0",
+        "react": ">=18.0.0",
+        "react-dom": ">=18.0.0"
+    },
+    "peerDependenciesMeta": {
+        "next": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@types/react": "^18.0.0",
+        "@types/react-dom": "^18.0.0",
+        "@typescript-eslint/eslint-plugin": "^7.0.0",
+        "@typescript-eslint/parser": "^7.0.0",
+        "eslint": "^8.0.0",
+        "react": "^18.0.0",
+        "react-dom": "^18.0.0",
+        "tsup": "^8.0.0",
+        "typescript": "^5.0.0",
+        "vitest": "^1.0.0"
+    },
+    "keywords": [
+        "docs",
+        "website",
+        "generator",
+        "yaml",
+        "nextjs",
+        "react"
+    ],
+    "author": "Mervin Praison <mervin@praison.ai>",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/MervinPraison/PraisonAIUI.git",
+        "directory": "packages/typescript"
+    },
+    "bugs": {
+        "url": "https://github.com/MervinPraison/PraisonAIUI/issues"
+    },
+    "homepage": "https://github.com/MervinPraison/PraisonAIUI#readme"
+}
