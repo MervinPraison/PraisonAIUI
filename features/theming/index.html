@@ -1031,17 +1031,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ui-framework-hint" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        UI Framework Hint
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#advanced-custom-frontend" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1730,17 +1719,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ui-framework-hint" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        UI Framework Hint
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#advanced-custom-frontend" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1774,15 +1752,15 @@
 <h1 id="theming">Theming<a class="headerlink" href="#theming" title="Permanent link">&para;</a></h1>
 <p>Customize the look and feel of your site with YAML configuration.</p>
 <h2 id="theme-presets">Theme Presets<a class="headerlink" href="#theme-presets" title="Permanent link">&para;</a></h2>
-<p>PraisonAIUI includes 12 official <a href="https://ui.shadcn.com/themes">shadcn/ui</a> theme presets:</p>
+<p>PraisonAIUI includes all 22 official <a href="https://tailwindcss.com/docs/colors">Tailwind CSS colors</a> as theme presets:</p>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">site</span><span class="p">:</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">theme</span><span class="p">:</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">preset</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;zinc&quot;</span><span class="w">     </span><span class="c1"># zinc | slate | stone | gray | neutral |</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">                       </span><span class="c1"># red | rose | orange | green | blue | yellow | violet</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="nt">radius</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;md&quot;</span><span class="w">       </span><span class="c1"># none | sm | md | lg | xl</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="nt">darkMode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">preset</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;zinc&quot;</span><span class="w">     </span><span class="c1"># Any Tailwind color name</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nt">radius</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;md&quot;</span><span class="w">       </span><span class="c1"># none | sm | md | lg | xl</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="nt">darkMode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </span></code></pre></div>
 <h3 id="available-presets">Available Presets<a class="headerlink" href="#available-presets" title="Permanent link">&para;</a></h3>
+<p><strong>Neutral Tones</strong></p>
 <table>
 <thead>
 <tr>
@@ -1793,7 +1771,7 @@
 <tbody>
 <tr>
 <td><code>zinc</code></td>
-<td>Clean, neutral gray (default)</td>
+<td>Clean gray (default)</td>
 </tr>
 <tr>
 <td><code>slate</code></td>
@@ -1811,33 +1789,84 @@
 <td><code>neutral</code></td>
 <td>Balanced neutral</td>
 </tr>
+</tbody>
+</table>
+<p><strong>Color Accents</strong></p>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
 <tr>
 <td><code>red</code></td>
-<td>Bold red accent</td>
-</tr>
-<tr>
-<td><code>rose</code></td>
-<td>Soft pink-red</td>
+<td>Bold red</td>
 </tr>
 <tr>
 <td><code>orange</code></td>
 <td>Warm orange</td>
 </tr>
 <tr>
-<td><code>green</code></td>
-<td>Fresh green</td>
-</tr>
-<tr>
-<td><code>blue</code></td>
-<td>Classic blue</td>
+<td><code>amber</code></td>
+<td>Golden amber</td>
 </tr>
 <tr>
 <td><code>yellow</code></td>
 <td>Bright yellow</td>
 </tr>
 <tr>
+<td><code>lime</code></td>
+<td>Fresh lime</td>
+</tr>
+<tr>
+<td><code>green</code></td>
+<td>Classic green</td>
+</tr>
+<tr>
+<td><code>emerald</code></td>
+<td>Rich emerald</td>
+</tr>
+<tr>
+<td><code>teal</code></td>
+<td>Cool teal</td>
+</tr>
+<tr>
+<td><code>cyan</code></td>
+<td>Bright cyan</td>
+</tr>
+<tr>
+<td><code>sky</code></td>
+<td>Light sky blue</td>
+</tr>
+<tr>
+<td><code>blue</code></td>
+<td>Classic blue</td>
+</tr>
+<tr>
+<td><code>indigo</code></td>
+<td>Deep indigo</td>
+</tr>
+<tr>
 <td><code>violet</code></td>
-<td>Purple accent</td>
+<td>Purple violet</td>
+</tr>
+<tr>
+<td><code>purple</code></td>
+<td>Rich purple</td>
+</tr>
+<tr>
+<td><code>fuchsia</code></td>
+<td>Vibrant fuchsia</td>
+</tr>
+<tr>
+<td><code>pink</code></td>
+<td>Soft pink</td>
+</tr>
+<tr>
+<td><code>rose</code></td>
+<td>Warm rose</td>
 </tr>
 </tbody>
 </table>
@@ -1866,7 +1895,7 @@
 <h3 id="developer-portal-sharp">Developer Portal (Sharp)<a class="headerlink" href="#developer-portal-sharp" title="Permanent link">&para;</a></h3>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">site</span><span class="p">:</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">theme</span><span class="p">:</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">preset</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;green&quot;</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">preset</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;emerald&quot;</span>
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">radius</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;none&quot;</span>
 </span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">darkMode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </span></code></pre></div>
@@ -1876,9 +1905,9 @@
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">theme</span><span class="p">:</span>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nt">darkMode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">   </span><span class="c1"># true | false</span>
 </span></code></pre></div>
-<p>The frontend includes a <a href="#theme-toggle">ThemeToggle</a> component that allows users to switch between light/dark/system modes.</p>
+<p>The frontend includes a ThemeToggle component for light/dark/system modes.</p>
 <h2 id="theme-toggle-component">Theme Toggle Component<a class="headerlink" href="#theme-toggle-component" title="Permanent link">&para;</a></h2>
-<p>Add a theme toggle to your header with the built-in component:</p>
+<p>Add a theme toggle to your header:</p>
 <div class="language-tsx highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ThemeToggle</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;@praisonaiui/react&#39;</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="kd">function</span><span class="w"> </span><span class="nx">Header</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
@@ -1890,38 +1919,22 @@
 </span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">  </span><span class="p">)</span>
 </span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>The toggle provides three options:
-- <strong>Light</strong> - Force light mode
-- <strong>Dark</strong> - Force dark mode<br />
-- <strong>System</strong> - Follow OS preference</p>
 <h2 id="custom-css-variables">Custom CSS Variables<a class="headerlink" href="#custom-css-variables" title="Permanent link">&para;</a></h2>
-<p>Theme presets generate CSS variables that you can override:</p>
+<p>Theme presets generate CSS variables you can override:</p>
 <div class="language-css highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="p">:</span><span class="nd">root</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="nv">--background</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">0</span><span class="kt">%</span><span class="w"> </span><span class="mi">100</span><span class="kt">%</span><span class="p">;</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="nv">--foreground</span><span class="p">:</span><span class="w"> </span><span class="mi">240</span><span class="w"> </span><span class="mi">10</span><span class="kt">%</span><span class="w"> </span><span class="mf">3.9</span><span class="kt">%</span><span class="p">;</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span><span class="nv">--primary</span><span class="p">:</span><span class="w"> </span><span class="mi">240</span><span class="w"> </span><span class="mf">5.9</span><span class="kt">%</span><span class="w"> </span><span class="mi">10</span><span class="kt">%</span><span class="p">;</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span><span class="nv">--primary-foreground</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">0</span><span class="kt">%</span><span class="w"> </span><span class="mi">98</span><span class="kt">%</span><span class="p">;</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">  </span><span class="nv">--muted</span><span class="p">:</span><span class="w"> </span><span class="mi">240</span><span class="w"> </span><span class="mf">4.8</span><span class="kt">%</span><span class="w"> </span><span class="mf">95.9</span><span class="kt">%</span><span class="p">;</span>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">  </span><span class="nv">--muted-foreground</span><span class="p">:</span><span class="w"> </span><span class="mi">240</span><span class="w"> </span><span class="mf">3.8</span><span class="kt">%</span><span class="w"> </span><span class="mf">46.1</span><span class="kt">%</span><span class="p">;</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">  </span><span class="nv">--accent</span><span class="p">:</span><span class="w"> </span><span class="mi">240</span><span class="w"> </span><span class="mf">4.8</span><span class="kt">%</span><span class="w"> </span><span class="mf">95.9</span><span class="kt">%</span><span class="p">;</span>
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">  </span><span class="nv">--accent-foreground</span><span class="p">:</span><span class="w"> </span><span class="mi">240</span><span class="w"> </span><span class="mf">5.9</span><span class="kt">%</span><span class="w"> </span><span class="mi">10</span><span class="kt">%</span><span class="p">;</span>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">  </span><span class="nv">--radius</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="kt">rem</span><span class="p">;</span>
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="p">}</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="nv">--background</span><span class="p">:</span><span class="w"> </span><span class="nf">oklch</span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="nv">--foreground</span><span class="p">:</span><span class="w"> </span><span class="nf">oklch</span><span class="p">(</span><span class="mf">0.141</span><span class="w"> </span><span class="mf">0.005</span><span class="w"> </span><span class="mf">285.823</span><span class="p">);</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span><span class="nv">--primary</span><span class="p">:</span><span class="w"> </span><span class="nf">oklch</span><span class="p">(</span><span class="mf">0.21</span><span class="w"> </span><span class="mf">0.006</span><span class="w"> </span><span class="mf">285.885</span><span class="p">);</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span><span class="nv">--radius</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="kt">rem</span><span class="p">;</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="p">}</span>
 </span></code></pre></div>
-<h2 id="ui-framework-hint">UI Framework Hint<a class="headerlink" href="#ui-framework-hint" title="Permanent link">&para;</a></h2>
-<p>The <code>ui</code> field provides a hint for component styling:</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">site</span><span class="p">:</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">ui</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;shadcn&quot;</span><span class="w">    </span><span class="c1"># shadcn | mui | chakra</span>
-</span></code></pre></div>
-<p>This is used by the runtime to apply appropriate styling conventions.</p>
 <h2 id="advanced-custom-frontend">Advanced: Custom Frontend<a class="headerlink" href="#advanced-custom-frontend" title="Permanent link">&para;</a></h2>
-<p>For advanced customization, scaffold a full React project:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>aiui<span class="w"> </span>init<span class="w"> </span>--frontend
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nb">cd</span><span class="w"> </span>frontend
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>pnpm<span class="w"> </span>install
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>pnpm<span class="w"> </span>dev
+<p>For full customization, scaffold a React project:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>aiui<span class="w"> </span>init<span class="w"> </span>--frontend
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">cd</span><span class="w"> </span>frontend
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>pnpm<span class="w"> </span>install
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>pnpm<span class="w"> </span>dev
 </span></code></pre></div>
-<p>This gives you full control over components, styling, and theming.</p>
 
 
 
