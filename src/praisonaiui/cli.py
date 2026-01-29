@@ -613,6 +613,12 @@ def dev(
         </div>
         <div class="divider"></div>
         <div class="group">
+            <label class="label" style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                <input type="checkbox" id="use-yaml-theme" checked onchange="updateTheme()" style="width: 14px; height: 14px;">
+                Use YAML Theme
+            </label>
+        </div>
+        <div class="group">
             <span class="label">Theme</span>
             <select id="theme-select" onchange="updateTheme()">
                 {"".join(f'<option value="{t}">{t}</option>' for t in themes)}
@@ -674,6 +680,7 @@ def dev(
         async function rebuildWithTheme() {{
             const status = document.getElementById('status');
             const iframe = document.getElementById('preview');
+            const useYamlTheme = document.getElementById('use-yaml-theme').checked;
             const theme = document.getElementById('theme-select').value;
             const radius = document.getElementById('radius-select').value;
             const darkMode = document.getElementById('mode-select').value;
@@ -682,12 +689,15 @@ def dev(
             status.className = 'status loading';
             
             try {{
-                const params = new URLSearchParams({{
-                    example: currentExample,
-                    theme: theme,
-                    radius: radius,
-                    darkMode: darkMode
-                }});
+                // If "Use YAML Theme" is checked, don't send theme overrides
+                const params = useYamlTheme 
+                    ? new URLSearchParams({{ example: currentExample }})
+                    : new URLSearchParams({{
+                        example: currentExample,
+                        theme: theme,
+                        radius: radius,
+                        darkMode: darkMode
+                    }});
                 const res = await fetch('/api/switch?' + params);
                 const data = await res.json();
                 if (data.success) {{
