@@ -1,292 +1,135 @@
-// Official shadcn/ui theme presets converted to oklch for Tailwind CSS v4
-// Users can specify these in YAML: site.theme.preset: "zinc"
+// Minimal theme system - no hardcoded colors
+// Colors are loaded from YAML config at build time and injected as CSS variables
+// This follows the principle of not hardcoding designs
 
-export const SHADCN_THEMES: Record<string, { light: Record<string, string>; dark: Record<string, string> }> = {
-    zinc: {
-        light: {
-            '--background': 'oklch(1 0 0)',
-            '--foreground': 'oklch(0.141 0.005 285.823)',
-            '--primary': 'oklch(0.21 0.006 285.885)',
-            '--primary-foreground': 'oklch(0.985 0 0)',
-            '--secondary': 'oklch(0.967 0.001 286.375)',
-            '--muted': 'oklch(0.967 0.001 286.375)',
-            '--muted-foreground': 'oklch(0.55 0.014 285.938)',
-            '--accent': 'oklch(0.967 0.001 286.375)',
-            '--border': 'oklch(0.92 0.004 286.32)',
-            '--card': 'oklch(1 0 0)',
-            '--card-foreground': 'oklch(0.141 0.005 285.823)',
-            '--ring': 'oklch(0.708 0 0)',
-            '--input': 'oklch(0.92 0.004 286.32)',
-        },
-        dark: {
-            '--background': 'oklch(0.141 0.005 285.823)',
-            '--foreground': 'oklch(0.985 0 0)',
-            '--primary': 'oklch(0.985 0 0)',
-            '--primary-foreground': 'oklch(0.21 0.006 285.885)',
-            '--secondary': 'oklch(0.274 0.006 286.033)',
-            '--muted': 'oklch(0.274 0.006 286.033)',
-            '--muted-foreground': 'oklch(0.705 0.015 286.067)',
-            '--accent': 'oklch(0.274 0.006 286.033)',
-            '--border': 'oklch(1 0 0 / 10%)',
-            '--card': 'oklch(0.21 0.006 285.885)',
-            '--card-foreground': 'oklch(0.985 0 0)',
-            '--ring': 'oklch(0.556 0 0)',
-            '--input': 'oklch(1 0 0 / 15%)',
-        },
-    },
-    blue: {
-        light: {
-            '--background': 'oklch(1 0 0)',
-            '--foreground': 'oklch(0.21 0.05 265.754)',
-            '--primary': 'oklch(0.62 0.214 259.78)',
-            '--primary-foreground': 'oklch(0.985 0.016 247.805)',
-            '--secondary': 'oklch(0.97 0.014 254.604)',
-            '--muted': 'oklch(0.97 0.014 254.604)',
-            '--muted-foreground': 'oklch(0.55 0.027 256.847)',
-            '--accent': 'oklch(0.97 0.014 254.604)',
-            '--border': 'oklch(0.928 0.013 255.508)',
-            '--card': 'oklch(1 0 0)',
-            '--card-foreground': 'oklch(0.21 0.05 265.754)',
-            '--ring': 'oklch(0.62 0.214 259.78)',
-            '--input': 'oklch(0.928 0.013 255.508)',
-        },
-        dark: {
-            '--background': 'oklch(0.21 0.05 265.754)',
-            '--foreground': 'oklch(0.985 0.016 247.805)',
-            '--primary': 'oklch(0.691 0.17 254.69)',
-            '--primary-foreground': 'oklch(0.21 0.05 265.754)',
-            '--secondary': 'oklch(0.312 0.048 264.052)',
-            '--muted': 'oklch(0.312 0.048 264.052)',
-            '--muted-foreground': 'oklch(0.71 0.035 256.788)',
-            '--accent': 'oklch(0.312 0.048 264.052)',
-            '--border': 'oklch(1 0 0 / 10%)',
-            '--card': 'oklch(0.28 0.05 265.754)',
-            '--card-foreground': 'oklch(0.985 0.016 247.805)',
-            '--ring': 'oklch(0.691 0.17 254.69)',
-            '--input': 'oklch(1 0 0 / 15%)',
-        },
-    },
-    green: {
-        light: {
-            '--background': 'oklch(1 0 0)',
-            '--foreground': 'oklch(0.145 0 0)',
-            '--primary': 'oklch(0.6 0.19 145.5)',
-            '--primary-foreground': 'oklch(0.982 0.018 155.826)',
-            '--secondary': 'oklch(0.967 0.001 286.375)',
-            '--muted': 'oklch(0.967 0.001 286.375)',
-            '--muted-foreground': 'oklch(0.55 0.014 285.938)',
-            '--accent': 'oklch(0.967 0.001 286.375)',
-            '--border': 'oklch(0.92 0.004 286.32)',
-            '--card': 'oklch(1 0 0)',
-            '--card-foreground': 'oklch(0.145 0 0)',
-            '--ring': 'oklch(0.6 0.19 145.5)',
-            '--input': 'oklch(0.92 0.004 286.32)',
-        },
-        dark: {
-            '--background': 'oklch(0.17 0.02 56.37)',
-            '--foreground': 'oklch(0.95 0 0)',
-            '--primary': 'oklch(0.72 0.19 145.5)',
-            '--primary-foreground': 'oklch(0.28 0.1 145.5)',
-            '--secondary': 'oklch(0.274 0.006 286.033)',
-            '--muted': 'oklch(0.25 0 0)',
-            '--muted-foreground': 'oklch(0.705 0.015 286.067)',
-            '--accent': 'oklch(0.27 0.02 43.4)',
-            '--border': 'oklch(1 0 0 / 10%)',
-            '--card': 'oklch(0.22 0.02 56.37)',
-            '--card-foreground': 'oklch(0.95 0 0)',
-            '--ring': 'oklch(0.72 0.19 145.5)',
-            '--input': 'oklch(1 0 0 / 15%)',
-        },
-    },
-    violet: {
-        light: {
-            '--background': 'oklch(1 0 0)',
-            '--foreground': 'oklch(0.21 0.07 265.754)',
-            '--primary': 'oklch(0.62 0.25 292.68)',
-            '--primary-foreground': 'oklch(0.985 0.016 247.805)',
-            '--secondary': 'oklch(0.967 0.01 264.052)',
-            '--muted': 'oklch(0.967 0.01 264.052)',
-            '--muted-foreground': 'oklch(0.55 0.02 264.052)',
-            '--accent': 'oklch(0.967 0.01 264.052)',
-            '--border': 'oklch(0.92 0.01 264.052)',
-            '--card': 'oklch(1 0 0)',
-            '--card-foreground': 'oklch(0.21 0.07 265.754)',
-            '--ring': 'oklch(0.62 0.25 292.68)',
-            '--input': 'oklch(0.92 0.01 264.052)',
-        },
-        dark: {
-            '--background': 'oklch(0.21 0.07 265.754)',
-            '--foreground': 'oklch(0.985 0.016 247.805)',
-            '--primary': 'oklch(0.55 0.27 292.68)',
-            '--primary-foreground': 'oklch(0.985 0.016 247.805)',
-            '--secondary': 'oklch(0.3 0.05 264.052)',
-            '--muted': 'oklch(0.3 0.05 264.052)',
-            '--muted-foreground': 'oklch(0.71 0.02 264.052)',
-            '--accent': 'oklch(0.3 0.05 264.052)',
-            '--border': 'oklch(1 0 0 / 10%)',
-            '--card': 'oklch(0.26 0.07 265.754)',
-            '--card-foreground': 'oklch(0.985 0.016 247.805)',
-            '--ring': 'oklch(0.55 0.27 292.68)',
-            '--input': 'oklch(1 0 0 / 15%)',
-        },
-    },
-    rose: {
-        light: {
-            '--background': 'oklch(1 0 0)',
-            '--foreground': 'oklch(0.145 0 0)',
-            '--primary': 'oklch(0.6 0.22 12.175)',
-            '--primary-foreground': 'oklch(0.982 0.018 155.826)',
-            '--secondary': 'oklch(0.967 0.001 286.375)',
-            '--muted': 'oklch(0.967 0.001 286.375)',
-            '--muted-foreground': 'oklch(0.55 0.014 285.938)',
-            '--accent': 'oklch(0.967 0.001 286.375)',
-            '--border': 'oklch(0.92 0.004 286.32)',
-            '--card': 'oklch(1 0 0)',
-            '--card-foreground': 'oklch(0.145 0 0)',
-            '--ring': 'oklch(0.6 0.22 12.175)',
-            '--input': 'oklch(0.92 0.004 286.32)',
-        },
-        dark: {
-            '--background': 'oklch(0.17 0.02 56.37)',
-            '--foreground': 'oklch(0.95 0 0)',
-            '--primary': 'oklch(0.6 0.22 12.175)',
-            '--primary-foreground': 'oklch(0.982 0.018 155.826)',
-            '--secondary': 'oklch(0.274 0.006 286.033)',
-            '--muted': 'oklch(0.25 0 0)',
-            '--muted-foreground': 'oklch(0.705 0.015 286.067)',
-            '--accent': 'oklch(0.27 0.02 43.4)',
-            '--border': 'oklch(1 0 0 / 10%)',
-            '--card': 'oklch(0.22 0.02 56.37)',
-            '--card-foreground': 'oklch(0.95 0 0)',
-            '--ring': 'oklch(0.6 0.22 12.175)',
-            '--input': 'oklch(1 0 0 / 15%)',
-        },
-    },
-    orange: {
-        light: {
-            '--background': 'oklch(1 0 0)',
-            '--foreground': 'oklch(0.17 0.02 56.37)',
-            '--primary': 'oklch(0.7 0.2 48)',
-            '--primary-foreground': 'oklch(0.982 0.018 155.826)',
-            '--secondary': 'oklch(0.967 0.001 56.37)',
-            '--muted': 'oklch(0.967 0.001 56.37)',
-            '--muted-foreground': 'oklch(0.55 0.02 56.37)',
-            '--accent': 'oklch(0.967 0.001 56.37)',
-            '--border': 'oklch(0.92 0.01 56.37)',
-            '--card': 'oklch(1 0 0)',
-            '--card-foreground': 'oklch(0.17 0.02 56.37)',
-            '--ring': 'oklch(0.7 0.2 48)',
-            '--input': 'oklch(0.92 0.01 56.37)',
-        },
-        dark: {
-            '--background': 'oklch(0.17 0.02 56.37)',
-            '--foreground': 'oklch(0.982 0.018 155.826)',
-            '--primary': 'oklch(0.65 0.23 38)',
-            '--primary-foreground': 'oklch(0.982 0.018 155.826)',
-            '--secondary': 'oklch(0.27 0.02 43.4)',
-            '--muted': 'oklch(0.27 0.02 43.4)',
-            '--muted-foreground': 'oklch(0.71 0.02 56.37)',
-            '--accent': 'oklch(0.27 0.02 43.4)',
-            '--border': 'oklch(1 0 0 / 10%)',
-            '--card': 'oklch(0.22 0.02 56.37)',
-            '--card-foreground': 'oklch(0.982 0.018 155.826)',
-            '--ring': 'oklch(0.65 0.23 38)',
-            '--input': 'oklch(1 0 0 / 15%)',
-        },
-    },
-    yellow: {
-        light: {
-            '--background': 'oklch(1 0 0)',
-            '--foreground': 'oklch(0.17 0.02 56.37)',
-            '--primary': 'oklch(0.82 0.19 86.047)',
-            '--primary-foreground': 'oklch(0.33 0.08 70)',
-            '--secondary': 'oklch(0.967 0.001 56.37)',
-            '--muted': 'oklch(0.967 0.001 56.37)',
-            '--muted-foreground': 'oklch(0.55 0.02 56.37)',
-            '--accent': 'oklch(0.967 0.001 56.37)',
-            '--border': 'oklch(0.92 0.01 56.37)',
-            '--card': 'oklch(1 0 0)',
-            '--card-foreground': 'oklch(0.17 0.02 56.37)',
-            '--ring': 'oklch(0.82 0.19 86.047)',
-            '--input': 'oklch(0.92 0.01 56.37)',
-        },
-        dark: {
-            '--background': 'oklch(0.17 0.02 56.37)',
-            '--foreground': 'oklch(0.982 0.018 155.826)',
-            '--primary': 'oklch(0.82 0.19 86.047)',
-            '--primary-foreground': 'oklch(0.33 0.08 70)',
-            '--secondary': 'oklch(0.27 0.02 43.4)',
-            '--muted': 'oklch(0.27 0.02 43.4)',
-            '--muted-foreground': 'oklch(0.71 0.02 56.37)',
-            '--accent': 'oklch(0.27 0.02 43.4)',
-            '--border': 'oklch(1 0 0 / 10%)',
-            '--card': 'oklch(0.22 0.02 56.37)',
-            '--card-foreground': 'oklch(0.982 0.018 155.826)',
-            '--ring': 'oklch(0.82 0.19 86.047)',
-            '--input': 'oklch(1 0 0 / 15%)',
-        },
-    },
-    slate: {
-        light: {
-            '--background': 'oklch(1 0 0)',
-            '--foreground': 'oklch(0.21 0.034 264.665)',
-            '--primary': 'oklch(0.25 0.03 264.665)',
-            '--primary-foreground': 'oklch(0.985 0.016 247.805)',
-            '--secondary': 'oklch(0.968 0.007 247.896)',
-            '--muted': 'oklch(0.968 0.007 247.896)',
-            '--muted-foreground': 'oklch(0.551 0.027 264.364)',
-            '--accent': 'oklch(0.968 0.007 247.896)',
-            '--border': 'oklch(0.928 0.011 257.522)',
-            '--card': 'oklch(1 0 0)',
-            '--card-foreground': 'oklch(0.21 0.034 264.665)',
-            '--ring': 'oklch(0.708 0 0)',
-            '--input': 'oklch(0.928 0.011 257.522)',
-        },
-        dark: {
-            '--background': 'oklch(0.21 0.034 264.665)',
-            '--foreground': 'oklch(0.985 0.016 247.805)',
-            '--primary': 'oklch(0.985 0.016 247.805)',
-            '--primary-foreground': 'oklch(0.25 0.03 264.665)',
-            '--secondary': 'oklch(0.296 0.043 264.665)',
-            '--muted': 'oklch(0.296 0.043 264.665)',
-            '--muted-foreground': 'oklch(0.71 0.035 256.788)',
-            '--accent': 'oklch(0.296 0.043 264.665)',
-            '--border': 'oklch(1 0 0 / 10%)',
-            '--card': 'oklch(0.26 0.034 264.665)',
-            '--card-foreground': 'oklch(0.985 0.016 247.805)',
-            '--ring': 'oklch(0.556 0 0)',
-            '--input': 'oklch(1 0 0 / 15%)',
-        },
-    },
-}
+// Available theme presets - these are just identifiers
+// The actual colors come from the generated CSS at build time
+export const THEME_PRESETS = [
+    'zinc',      // Neutral gray
+    'slate',     // Cool gray  
+    'stone',     // Warm gray
+    'neutral',   // True gray
+    'red',       // Red accent
+    'orange',    // Orange accent
+    'amber',     // Amber accent
+    'yellow',    // Yellow accent
+    'lime',      // Lime accent
+    'green',     // Green accent
+    'emerald',   // Emerald accent
+    'teal',      // Teal accent
+    'cyan',      // Cyan accent
+    'sky',       // Sky accent
+    'blue',      // Blue accent
+    'indigo',    // Indigo accent
+    'violet',    // Violet accent
+    'purple',    // Purple accent
+    'fuchsia',   // Fuchsia accent
+    'pink',      // Pink accent
+    'rose',      // Rose accent
+] as const
 
-export const RADIUS_PRESETS: Record<string, string> = {
+export type ThemePreset = typeof THEME_PRESETS[number]
+
+export const RADIUS_PRESETS = {
     none: '0',
     sm: '0.3rem',
     md: '0.5rem',
     lg: '0.75rem',
     xl: '1rem',
+} as const
+
+export type RadiusPreset = keyof typeof RADIUS_PRESETS
+
+// CSS variable names that shadcn/Tailwind expects
+export const CSS_VARIABLE_NAMES = [
+    '--background',
+    '--foreground',
+    '--card',
+    '--card-foreground',
+    '--popover',
+    '--popover-foreground',
+    '--primary',
+    '--primary-foreground',
+    '--secondary',
+    '--secondary-foreground',
+    '--muted',
+    '--muted-foreground',
+    '--accent',
+    '--accent-foreground',
+    '--destructive',
+    '--destructive-foreground',
+    '--border',
+    '--input',
+    '--ring',
+    '--radius',
+] as const
+
+/**
+ * Apply radius preset to the document
+ * Colors are already applied via CSS from build process
+ */
+export function applyRadius(radiusPreset: RadiusPreset): void {
+    const radius = RADIUS_PRESETS[radiusPreset] || RADIUS_PRESETS.md
+    document.documentElement.style.setProperty('--radius', radius)
 }
 
-export function applyTheme(preset: string = 'zinc', darkMode: boolean = true, radius: string = 'md') {
-    const root = document.documentElement
-    const theme = SHADCN_THEMES[preset] || SHADCN_THEMES.zinc
-    const colors = darkMode ? theme.dark : theme.light
-
-    // Apply colors with !important to override CSS file
-    Object.entries(colors).forEach(([key, value]) => {
-        root.style.setProperty(key, value, 'important')
-    })
-
-    // Apply radius
-    root.style.setProperty('--radius', RADIUS_PRESETS[radius] || RADIUS_PRESETS.md, 'important')
-
-    // Toggle dark class
-    if (darkMode) {
+/**
+ * Toggle dark mode class on document
+ */
+export function applyDarkMode(enabled: boolean): void {
+    if (enabled) {
         document.documentElement.classList.add('dark')
     } else {
         document.documentElement.classList.remove('dark')
     }
+}
 
-    console.log(`[Theme] Applied preset: ${preset}, darkMode: ${darkMode}, radius: ${radius}`)
+/**
+ * Check if dark mode is currently enabled
+ */
+export function isDarkMode(): boolean {
+    return document.documentElement.classList.contains('dark')
+}
+
+/**
+ * Get list of available theme presets
+ */
+export function getThemeNames(): readonly string[] {
+    return THEME_PRESETS
+}
+
+/**
+ * Get list of available radius presets
+ */
+export function getRadiusNames(): readonly string[] {
+    return Object.keys(RADIUS_PRESETS) as RadiusPreset[]
+}
+
+// Backward compatibility alias
+export const SHADCN_THEMES = THEME_PRESETS
+
+/**
+ * Apply theme settings to the document.
+ * 
+ * Note: Colors are now applied via CSS at build time, not runtime.
+ * This function only sets radius and dark mode.
+ * 
+ * @param preset - Theme preset name (for future use with dynamic loading)
+ * @param darkMode - Whether to enable dark mode
+ * @param radiusPreset - Border radius preset
+ */
+export function applyTheme(
+    preset: string = 'zinc',
+    darkMode: boolean = true,
+    radiusPreset: string = 'md'
+): void {
+    // Apply dark mode class
+    applyDarkMode(darkMode)
+
+    // Apply radius
+    const radius = RADIUS_PRESETS[radiusPreset as RadiusPreset] || RADIUS_PRESETS.md
+    document.documentElement.style.setProperty('--radius', radius)
+
+    // Store preset for potential dynamic loading
+    document.documentElement.dataset.theme = preset
 }

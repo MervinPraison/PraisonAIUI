@@ -9,6 +9,12 @@ site:
     radius: "md"
     darkMode: true
 
+# Component dependencies - auto-installed at build time
+dependencies:
+  shadcn:
+    - accordion
+    - tabs
+
 content:
   docs:
     dir: "../../docs"

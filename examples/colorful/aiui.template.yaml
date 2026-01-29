@@ -5,7 +5,7 @@ site:
   description: "Vibrant and playful documentation"
   ui: "shadcn"
   theme:
-    preset: "rose"       # zinc, slate, green, blue, violet, orange, rose, yellow
+    preset: "rose"       # zinc, ocean, sage, lavender, rose, amber, sand, slate
     radius: "xl"         # none, sm, md, lg, xl
     darkMode: true
 

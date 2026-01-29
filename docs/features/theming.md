@@ -4,33 +4,49 @@ Customize the look and feel of your site with YAML configuration.
 
 ## Theme Presets
 
-PraisonAIUI includes 12 official [shadcn/ui](https://ui.shadcn.com/themes) theme presets:
+PraisonAIUI includes all 22 official [Tailwind CSS colors](https://tailwindcss.com/docs/colors) as theme presets:
 
 ```yaml
 site:
   theme:
-    preset: "zinc"     # zinc | slate | stone | gray | neutral |
-                       # red | rose | orange | green | blue | yellow | violet
+    preset: "zinc"     # Any Tailwind color name
     radius: "md"       # none | sm | md | lg | xl
     darkMode: true
 ```
 
 ### Available Presets
 
+**Neutral Tones**
+
 | Preset | Description |
 |--------|-------------|
-| `zinc` | Clean, neutral gray (default) |
+| `zinc` | Clean gray (default) |
 | `slate` | Cool blue-gray |
 | `stone` | Warm neutral |
 | `gray` | True gray |
 | `neutral` | Balanced neutral |
-| `red` | Bold red accent |
-| `rose` | Soft pink-red |
+
+**Color Accents**
+
+| Preset | Description |
+|--------|-------------|
+| `red` | Bold red |
 | `orange` | Warm orange |
-| `green` | Fresh green |
-| `blue` | Classic blue |
+| `amber` | Golden amber |
 | `yellow` | Bright yellow |
-| `violet` | Purple accent |
+| `lime` | Fresh lime |
+| `green` | Classic green |
+| `emerald` | Rich emerald |
+| `teal` | Cool teal |
+| `cyan` | Bright cyan |
+| `sky` | Light sky blue |
+| `blue` | Classic blue |
+| `indigo` | Deep indigo |
+| `violet` | Purple violet |
+| `purple` | Rich purple |
+| `fuchsia` | Vibrant fuchsia |
+| `pink` | Soft pink |
+| `rose` | Warm rose |
 
 ## Examples
 
@@ -65,7 +81,7 @@ site:
 ```yaml
 site:
   theme:
-    preset: "green"
+    preset: "emerald"
     radius: "none"
     darkMode: true
 ```
@@ -80,11 +96,11 @@ site:
     darkMode: true   # true | false
 ```
 
-The frontend includes a [ThemeToggle](#theme-toggle) component that allows users to switch between light/dark/system modes.
+The frontend includes a ThemeToggle component for light/dark/system modes.
 
 ## Theme Toggle Component
 
-Add a theme toggle to your header with the built-in component:
+Add a theme toggle to your header:
 
 ```tsx
 import { ThemeToggle } from '@praisonaiui/react'
@@ -99,43 +115,22 @@ function Header() {
 }
 ```
 
-The toggle provides three options:
-- **Light** - Force light mode
-- **Dark** - Force dark mode  
-- **System** - Follow OS preference
-
 ## Custom CSS Variables
 
-Theme presets generate CSS variables that you can override:
+Theme presets generate CSS variables you can override:
 
 ```css
 :root {
-  --background: 0 0% 100%;
-  --foreground: 240 10% 3.9%;
-  --primary: 240 5.9% 10%;
-  --primary-foreground: 0 0% 98%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
-  --accent: 240 4.8% 95.9%;
-  --accent-foreground: 240 5.9% 10%;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.141 0.005 285.823);
+  --primary: oklch(0.21 0.006 285.885);
   --radius: 0.5rem;
 }
 ```
 
-## UI Framework Hint
-
-The `ui` field provides a hint for component styling:
-
-```yaml
-site:
-  ui: "shadcn"    # shadcn | mui | chakra
-```
-
-This is used by the runtime to apply appropriate styling conventions.
-
 ## Advanced: Custom Frontend
 
-For advanced customization, scaffold a full React project:
+For full customization, scaffold a React project:
 
 ```bash
 aiui init --frontend
@@ -143,5 +138,3 @@ cd frontend
 pnpm install
 pnpm dev
 ```
-
-This gives you full control over components, styling, and theming.

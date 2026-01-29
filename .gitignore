@@ -17,6 +17,7 @@ htmlcov/
 
 # JavaScript / Node
 node_modules/
+.next/
 dist/
 .npm/
 npm-debug.log*

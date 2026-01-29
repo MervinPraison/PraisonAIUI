@@ -29,12 +29,26 @@ site:
   routeBaseDocs: "/docs"             # Default: /docs
   ui: "shadcn"                       # Theming hint (shadcn | mui | chakra)
   theme:
-    radius: "md"                     # none | sm | md | lg | full
-    brandColor: "indigo"
+    preset: "zinc"                   # Any Tailwind color (22 options)
+    radius: "md"                     # none | sm | md | lg | xl
     darkMode: true
 ```
 
 > **Note**: The `ui` field is a theming hint. Components are UI-agnostic and use CSS classes you can style with any framework.
+
+## Component Dependencies
+
+Auto-install shadcn components at build time:
+
+```yaml
+dependencies:
+  shadcn:
+    - accordion
+    - tabs
+    - dialog
+```
+
+When you run `aiui build`, any missing components are automatically installed via `npx shadcn add`.
 
 ## Content Sources
 

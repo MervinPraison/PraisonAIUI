@@ -9,10 +9,13 @@ from pydantic import BaseModel, Field
 
 class ThemeConfig(BaseModel):
     """Theme configuration."""
-
+    # All official Tailwind color names
     preset: Literal[
         "zinc", "slate", "stone", "gray", "neutral",
-        "red", "rose", "orange", "green", "blue", "yellow", "violet"
+        "red", "orange", "amber", "yellow", "lime",
+        "green", "emerald", "teal", "cyan", "sky",
+        "blue", "indigo", "violet", "purple", "fuchsia",
+        "pink", "rose"
     ] = "zinc"
     radius: Literal["none", "sm", "md", "lg", "xl"] = "md"
     dark_mode: bool = Field(default=True, alias="darkMode")
@@ -115,6 +118,15 @@ class SEOConfig(BaseModel):
     twitter: Optional[dict[str, str]] = None
 
 
+class DependenciesConfig(BaseModel):
+    """Component dependencies configuration."""
+
+    shadcn: list[str] = Field(
+        default_factory=list,
+        description="List of shadcn/ui component names to install"
+    )
+
+
 class Config(BaseModel):
     """Root configuration model for aiui.template.yaml."""
 
@@ -127,6 +139,7 @@ class Config(BaseModel):
     seo: Optional[SEOConfig] = None
     i18n: Optional[I18nConfig] = None
     a11y: Optional[A11yConfig] = None
+    dependencies: Optional[DependenciesConfig] = None
 
     class Config:
         populate_by_name = True

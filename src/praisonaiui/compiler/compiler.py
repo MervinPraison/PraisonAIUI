@@ -48,6 +48,18 @@ class Compiler:
             errors = "; ".join(e.message for e in validation.errors)
             return CompileResult(success=False, files=[], error=f"Validation failed: {errors}")
 
+        # Install component dependencies if specified
+        if self.config.dependencies and self.config.dependencies.shadcn:
+            from praisonaiui.components import ensure_components
+            # Let ensure_components auto-detect the frontend path
+            installed, failed = ensure_components(self.config.dependencies.shadcn)
+            if failed > 0:
+                return CompileResult(
+                    success=False,
+                    files=[],
+                    error=f"Failed to install {failed} component(s)"
+                )
+
         # Ensure output directory exists
         output_dir.mkdir(parents=True, exist_ok=True)
         files: list[str] = []

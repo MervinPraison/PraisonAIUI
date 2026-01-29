@@ -5,7 +5,7 @@ site:
   description: "Professional business documentation"
   ui: "shadcn"
   theme:
-    preset: "blue"       # zinc, slate, green, blue, violet, orange, rose, yellow
+    preset: "blue"       # zinc, ocean, sage, lavender, rose, amber, sand, slate
     radius: "sm"         # none, sm, md, lg, xl
     darkMode: false
 

@@ -5,7 +5,7 @@ site:
   description: "API-first developer documentation"
   ui: "shadcn"
   theme:
-    preset: "green"      # zinc, slate, green, blue, violet, orange, rose, yellow
+    preset: "green"      # zinc, ocean, sage, lavender, rose, amber, sand, slate
     radius: "none"       # none, sm, md, lg, xl
     darkMode: true
 

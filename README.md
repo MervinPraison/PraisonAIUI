@@ -17,7 +17,7 @@ We integrate best-in-class libraries instead of reinventing them:
 |---------|---------|
 | Markdown | `react-markdown` + `remark-gfm` |
 | UI Components | shadcn/ui |
-| Theming | Tailwind CSS + CSS variables |
+| Theming | Tailwind CSS v4 + CSS variables |
 | Validation | Pydantic |
 
 ## Quick Start
@@ -40,13 +40,19 @@ schemaVersion: 1
 site:
   title: "My Docs"
   theme:
-    preset: "blue"      # zinc, slate, green, blue, violet, orange, rose, yellow
+    preset: "blue"      # 22 Tailwind color presets available
     radius: "md"        # none, sm, md, lg, xl
-    darkMode: false
+    darkMode: true
 
 content:
   docs:
     dir: "./docs"
+
+# Auto-install shadcn components at build time
+dependencies:
+  shadcn:
+    - accordion
+    - tabs
 
 templates:
   docs:
@@ -70,9 +76,11 @@ routes:
 
 ## Theme Presets
 
-8 built-in [shadcn themes](https://ui.shadcn.com/themes): `zinc`, `slate`, `green`, `blue`, `violet`, `orange`, `rose`, `yellow`
+22 official [Tailwind colors](https://tailwindcss.com/docs/colors) available:
 
-Each with light/dark mode support.
+`zinc` `slate` `stone` `gray` `neutral` `red` `orange` `amber` `yellow` `lime` `green` `emerald` `teal` `cyan` `sky` `blue` `indigo` `violet` `purple` `fuchsia` `pink` `rose`
+
+Each with automatic light/dark mode support.
 
 ## CLI Commands
 
@@ -82,6 +90,7 @@ aiui init --frontend   # Scaffold full React project
 aiui validate          # Validate YAML config
 aiui build             # Compile to static site
 aiui serve             # Dev server with hot reload
+aiui dev -e examples   # Dev dashboard with live switching
 ```
 
 ## Architecture

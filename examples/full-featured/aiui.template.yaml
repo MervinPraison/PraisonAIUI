@@ -5,7 +5,7 @@ site:
   description: "Full-featured documentation site"
   ui: "shadcn"
   theme:
-    preset: "violet"     # zinc, slate, green, blue, violet, orange, rose, yellow
+    preset: "violet"     # zinc, ocean, sage, lavender, rose, amber, sand, slate
     radius: "md"         # none, sm, md, lg, xl
     darkMode: true
 

@@ -452,14 +452,44 @@ def dev(
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
         current_example = {"name": examples[0]}
+        current_theme = {"preset": "zinc", "radius": "md", "darkMode": True}
 
-        # Build first example
-        def build_example(name: str) -> bool:
-            """Build an example and copy to temp dir."""
+        # Build example with optional theme override
+        def build_example(name: str, theme_preset: str = None, radius: str = None, dark_mode: bool = None) -> bool:
+            """Build an example and copy to temp dir, optionally overriding theme."""
+            import shutil
+            import yaml
+            
             example_path = examples_dir / name
             if not example_path.exists():
                 return False
+            
             try:
+                # If theme override specified, create a modified config
+                config_file = example_path / "aiui.template.yaml"
+                original_config = None
+                
+                if any([theme_preset, radius, dark_mode is not None]) and config_file.exists():
+                    with open(config_file) as f:
+                        original_config = f.read()
+                    
+                    # Parse and modify
+                    config = yaml.safe_load(original_config)
+                    if "site" not in config:
+                        config["site"] = {}
+                    if "theme" not in config["site"]:
+                        config["site"]["theme"] = {}
+                    
+                    if theme_preset:
+                        config["site"]["theme"]["preset"] = theme_preset
+                    if radius:
+                        config["site"]["theme"]["radius"] = radius
+                    if dark_mode is not None:
+                        config["site"]["theme"]["darkMode"] = dark_mode
+                    
+                    with open(config_file, "w") as f:
+                        yaml.dump(config, f, default_flow_style=False)
+                
                 # Run aiui build in example directory
                 result = subprocess.run(
                     ["aiui", "build", "-o", str(temp_path / "site")],
@@ -467,16 +497,33 @@ def dev(
                     capture_output=True,
                     text=True,
                 )
+                
+                # Restore original config if modified
+                if original_config:
+                    with open(config_file, "w") as f:
+                        f.write(original_config)
+                
+                if result.returncode != 0:
+                    console.print(f"[red]Build failed![/red]")
+                    console.print(f"[dim]Return code: {result.returncode}[/dim]")
+                    console.print(f"[dim]STDOUT: {result.stdout[:1000] if result.stdout else 'None'}[/dim]")
+                    console.print(f"[dim]STDERR: {result.stderr[:1000] if result.stderr else 'None'}[/dim]")
                 return result.returncode == 0
             except Exception as e:
+                import traceback
                 console.print(f"[red]Build error:[/red] {e}")
+                console.print(f"[dim]{traceback.format_exc()}[/dim]")
                 return False
 
         # Initial build
         console.print(f"[yellow]Building {current_example['name']}...[/yellow]")
         build_example(current_example["name"])
 
-        # Dashboard HTML
+        # Official shadcn theme presets (Tailwind color names)
+        themes = ["zinc", "slate", "stone", "neutral", "red", "orange", "amber", "yellow", "lime", "green", "emerald", "teal", "cyan", "sky", "blue", "indigo", "violet", "purple", "fuchsia", "pink", "rose"]
+        radii = ["none", "sm", "md", "lg", "xl"]
+
+        # Dashboard HTML with YAML editor
         dashboard_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -488,58 +535,211 @@ def dev(
         body {{ font-family: system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #fafafa; }}
         .toolbar {{
             position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-            display: flex; align-items: center; gap: 16px;
-            padding: 12px 20px;
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 16px;
             background: linear-gradient(to bottom, rgba(10,10,10,0.98), rgba(10,10,10,0.95));
             border-bottom: 1px solid rgba(255,255,255,0.1);
             backdrop-filter: blur(12px);
         }}
-        .logo {{ display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; }}
+        .logo {{ display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; }}
         .logo-icon {{ 
-            width: 28px; height: 28px; border-radius: 6px;
+            width: 24px; height: 24px; border-radius: 5px;
             background: linear-gradient(135deg, #6366f1, #8b5cf6);
             display: flex; align-items: center; justify-content: center;
-            font-size: 10px; font-weight: 700;
+            font-size: 9px; font-weight: 700;
+        }}
+        .divider {{ width: 1px; height: 24px; background: rgba(255,255,255,0.15); }}
+        .group {{ display: flex; align-items: center; gap: 6px; }}
+        .label {{ font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }}
+        select, .btn {{
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15);
+            color: #fafafa; padding: 6px 10px;
+            border-radius: 6px; font-size: 12px; cursor: pointer;
         }}
         select {{
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15);
-            color: #fafafa; padding: 8px 32px 8px 12px;
-            border-radius: 8px; font-size: 13px; cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23888' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat; background-position: right 10px center;
+            padding-right: 28px; appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%23888' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 8px center;
         }}
-        select:hover {{ border-color: rgba(255,255,255,0.3); }}
-        select:focus {{ outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }}
-        .status {{ font-size: 12px; color: #888; margin-left: auto; }}
+        select:hover, .btn:hover {{ border-color: rgba(255,255,255,0.3); }}
+        select:focus, .btn:focus {{ outline: none; border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }}
+        .btn {{ display: flex; align-items: center; gap: 6px; }}
+        .btn.active {{ background: rgba(99,102,241,0.2); border-color: #6366f1; }}
+        .status {{ font-size: 11px; color: #888; margin-left: auto; }}
         .status.loading {{ color: #f59e0b; }}
         .status.ready {{ color: #22c55e; }}
-        iframe {{
-            position: fixed; top: 53px; left: 0; right: 0; bottom: 0;
-            width: 100%; height: calc(100vh - 53px); border: none;
+        
+        .main-content {{ position: fixed; top: 45px; left: 0; right: 0; bottom: 0; display: flex; }}
+        iframe {{ flex: 1; border: none; }}
+        
+        .yaml-panel {{
+            width: 0; overflow: hidden; transition: width 0.2s ease;
+            background: #111; border-left: 1px solid rgba(255,255,255,0.1);
+            display: flex; flex-direction: column;
         }}
+        .yaml-panel.open {{ width: 500px; }}
+        .yaml-header {{
+            padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex; align-items: center; justify-content: space-between;
+        }}
+        .yaml-header h3 {{ font-size: 13px; font-weight: 600; }}
+        .yaml-actions {{ display: flex; gap: 8px; }}
+        .yaml-editor {{
+            flex: 1; padding: 0;
+        }}
+        .yaml-editor textarea {{
+            width: 100%; height: 100%; padding: 16px;
+            background: transparent; border: none; color: #a5f3fc;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 12px; line-height: 1.6; resize: none;
+        }}
+        .yaml-editor textarea:focus {{ outline: none; }}
+        .btn-primary {{ background: #6366f1; border-color: #6366f1; }}
+        .btn-primary:hover {{ background: #4f46e5; }}
     </style>
 </head>
 <body>
     <div class="toolbar">
         <div class="logo">
             <div class="logo-icon">AI</div>
-            <span>Dev Dashboard</span>
+            <span>Dev</span>
         </div>
-        <select id="example-select" onchange="switchExample(this.value)">
-            {"".join(f'<option value="{e}">{e}</option>' for e in examples)}
-        </select>
+        <div class="divider"></div>
+        <div class="group">
+            <span class="label">Example</span>
+            <select id="example-select" onchange="switchExample(this.value)">
+                {"".join(f'<option value="{e}">{e}</option>' for e in examples)}
+            </select>
+        </div>
+        <div class="divider"></div>
+        <div class="group">
+            <span class="label">Theme</span>
+            <select id="theme-select" onchange="updateTheme()">
+                {"".join(f'<option value="{t}">{t}</option>' for t in themes)}
+            </select>
+        </div>
+        <div class="group">
+            <span class="label">Radius</span>
+            <select id="radius-select" onchange="updateTheme()">
+                {"".join(f'<option value="{r}"{"selected" if r == "md" else ""}>{r}</option>' for r in radii)}
+            </select>
+        </div>
+        <div class="group">
+            <span class="label">Mode</span>
+            <select id="mode-select" onchange="updateTheme()">
+                <option value="true">Dark</option>
+                <option value="false">Light</option>
+            </select>
+        </div>
+        <div class="divider"></div>
+        <button class="btn" id="yaml-btn" onclick="toggleYaml()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+            </svg>
+            YAML
+        </button>
         <span id="status" class="status ready">Ready</span>
     </div>
-    <iframe id="preview" src="/site/"></iframe>
+    
+    <div class="main-content">
+        <iframe id="preview" src="/site/"></iframe>
+        <div class="yaml-panel" id="yaml-panel">
+            <div class="yaml-header">
+                <h3>aiui.template.yaml</h3>
+                <div class="yaml-actions">
+                    <button class="btn" onclick="copyYaml()">Copy</button>
+                    <button class="btn btn-primary" onclick="applyYaml()">Apply & Build</button>
+                </div>
+            </div>
+            <div class="yaml-editor">
+                <textarea id="yaml-content" spellcheck="false" placeholder="Loading YAML..."></textarea>
+            </div>
+        </div>
+    </div>
+    
     <script>
+        let currentExample = '{examples[0]}';
+        let yamlOpen = false;
+        
         async function switchExample(name) {{
+            currentExample = name;
+            await rebuildWithTheme();
+            if (yamlOpen) await loadYaml();
+        }}
+        
+        async function updateTheme() {{
+            await rebuildWithTheme();
+        }}
+        
+        async function rebuildWithTheme() {{
             const status = document.getElementById('status');
             const iframe = document.getElementById('preview');
+            const theme = document.getElementById('theme-select').value;
+            const radius = document.getElementById('radius-select').value;
+            const darkMode = document.getElementById('mode-select').value;
+            
             status.textContent = 'Building...';
             status.className = 'status loading';
+            
             try {{
-                const res = await fetch('/api/switch?example=' + encodeURIComponent(name));
+                const params = new URLSearchParams({{
+                    example: currentExample,
+                    theme: theme,
+                    radius: radius,
+                    darkMode: darkMode
+                }});
+                const res = await fetch('/api/switch?' + params);
+                const data = await res.json();
+                if (data.success) {{
+                    iframe.src = '/site/?t=' + Date.now();
+                    status.textContent = 'Ready';
+                    status.className = 'status ready';
+                }} else {{
+                    status.textContent = 'Build failed';
+                    status.className = 'status';
+                }}
+            }} catch (e) {{
+                status.textContent = 'Error';
+                status.className = 'status';
+            }}
+        }}
+        
+        function toggleYaml() {{
+            yamlOpen = !yamlOpen;
+            document.getElementById('yaml-panel').classList.toggle('open', yamlOpen);
+            document.getElementById('yaml-btn').classList.toggle('active', yamlOpen);
+            if (yamlOpen) loadYaml();
+        }}
+        
+        async function loadYaml() {{
+            const res = await fetch('/api/yaml?example=' + encodeURIComponent(currentExample));
+            const data = await res.json();
+            document.getElementById('yaml-content').value = data.yaml || '';
+        }}
+        
+        function copyYaml() {{
+            const textarea = document.getElementById('yaml-content');
+            textarea.select();
+            document.execCommand('copy');
+            const btn = event.target;
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = 'Copy', 1500);
+        }}
+        
+        async function applyYaml() {{
+            const yaml = document.getElementById('yaml-content').value;
+            const status = document.getElementById('status');
+            const iframe = document.getElementById('preview');
+            
+            status.textContent = 'Building...';
+            status.className = 'status loading';
+            
+            try {{
+                const res = await fetch('/api/yaml', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ example: currentExample, yaml: yaml }})
+                }});
                 const data = await res.json();
                 if (data.success) {{
                     iframe.src = '/site/?t=' + Date.now();
@@ -594,14 +794,39 @@ def dev(
                 # API: switch example
                 if path == "/api/switch":
                     example_name = query.get("example", [None])[0]
+                    theme_preset = query.get("theme", [None])[0]
+                    radius = query.get("radius", [None])[0]
+                    dark_mode_str = query.get("darkMode", [None])[0]
+                    dark_mode = dark_mode_str == "true" if dark_mode_str else None
+                    
                     if example_name and example_name in examples:
-                        console.print(f"[yellow]Switching to {example_name}...[/yellow]")
-                        success = build_example(example_name)
+                        console.print(f"[yellow]Building {example_name} (theme={theme_preset}, radius={radius}, dark={dark_mode})...[/yellow]")
+                        success = build_example(example_name, theme_preset, radius, dark_mode)
                         current_example["name"] = example_name
                         self.send_response(200)
                         self.send_header("Content-type", "application/json")
                         self.end_headers()
                         self.wfile.write(json.dumps({"success": success, "example": example_name}).encode())
+                    else:
+                        self.send_response(400)
+                        self.send_header("Content-type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": "Invalid example"}).encode())
+                    return
+
+                # API: get YAML content
+                if path == "/api/yaml":
+                    example_name = query.get("example", [None])[0]
+                    if example_name and example_name in examples:
+                        yaml_path = examples_dir / example_name / "aiui.template.yaml"
+                        yaml_content = ""
+                        if yaml_path.exists():
+                            with open(yaml_path) as f:
+                                yaml_content = f.read()
+                        self.send_response(200)
+                        self.send_header("Content-type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"yaml": yaml_content, "example": example_name}).encode())
                     else:
                         self.send_response(400)
                         self.send_header("Content-type", "application/json")
@@ -622,6 +847,45 @@ def dev(
                 except Exception:
                     self.send_response(404)
                     self.end_headers()
+
+            def do_POST(self):
+                path = self.path.split("?")[0]
+                
+                # API: save YAML and rebuild
+                if path == "/api/yaml":
+                    content_length = int(self.headers.get('Content-Length', 0))
+                    body = self.rfile.read(content_length).decode('utf-8')
+                    try:
+                        data = json.loads(body)
+                        example_name = data.get("example")
+                        yaml_content = data.get("yaml", "")
+                        
+                        if example_name and example_name in examples:
+                            yaml_path = examples_dir / example_name / "aiui.template.yaml"
+                            # Write the new YAML
+                            with open(yaml_path, "w") as f:
+                                f.write(yaml_content)
+                            console.print(f"[yellow]Rebuilding {example_name} with edited YAML...[/yellow]")
+                            # Rebuild
+                            success = build_example(example_name)
+                            self.send_response(200)
+                            self.send_header("Content-type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"success": success, "example": example_name}).encode())
+                        else:
+                            self.send_response(400)
+                            self.send_header("Content-type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"error": "Invalid example"}).encode())
+                    except json.JSONDecodeError:
+                        self.send_response(400)
+                        self.send_header("Content-type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": "Invalid JSON"}).encode())
+                    return
+                
+                self.send_response(404)
+                self.end_headers()
 
             def log_message(self, format, *args):
                 pass  # Suppress logs
