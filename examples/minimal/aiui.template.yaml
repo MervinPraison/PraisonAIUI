@@ -4,6 +4,10 @@ site:
   title: "Minimal Docs"
   description: "Bare minimum setup"
   ui: "shadcn"
+  theme:
+    preset: "zinc"
+    radius: "md"
+    darkMode: true
 
 content:
   docs:

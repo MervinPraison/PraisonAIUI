@@ -5,8 +5,8 @@ site:
   description: "Professional business documentation"
   ui: "shadcn"
   theme:
-    radius: "sm"
-    brandColor: "blue"
+    preset: "blue"       # zinc, slate, green, blue, violet, orange, rose, yellow
+    radius: "sm"         # none, sm, md, lg, xl
     darkMode: false
 
 content:

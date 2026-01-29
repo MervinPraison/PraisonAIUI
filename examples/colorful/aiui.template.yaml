@@ -5,8 +5,8 @@ site:
   description: "Vibrant and playful documentation"
   ui: "shadcn"
   theme:
-    radius: "full"
-    brandColor: "rose"
+    preset: "rose"       # zinc, slate, green, blue, violet, orange, rose, yellow
+    radius: "xl"         # none, sm, md, lg, xl
     darkMode: true
 
 content:

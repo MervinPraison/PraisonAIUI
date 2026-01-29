@@ -74,6 +74,11 @@ class Compiler:
         self._copy_viewer(output_dir)
         files.append("index.html")
 
+        # Copy docs markdown files for content loading
+        if self.config.content and self.config.content.docs:
+            copied = self._copy_docs(output_dir)
+            files.extend(copied)
+
         return CompileResult(success=True, files=files)
 
     def _generate_ui_config(self) -> dict:
@@ -181,3 +186,28 @@ class Compiler:
                 if assets_dst.exists():
                     shutil.rmtree(assets_dst)
                 shutil.copytree(assets_src, assets_dst)
+
+    def _copy_docs(self, output_dir: Path) -> list[str]:
+        """Copy markdown docs to output directory for content loading."""
+        import shutil
+
+        if not self.config.content or not self.config.content.docs:
+            return []
+
+        docs_config = self.config.content.docs
+        docs_dir = self.base_path / docs_config.dir
+        
+        if not docs_dir.exists():
+            return []
+
+        # Create output docs directory
+        docs_output = output_dir / "docs"
+        if docs_output.exists():
+            shutil.rmtree(docs_output)
+        
+        # Copy the entire docs directory
+        shutil.copytree(docs_dir, docs_output)
+        
+        # Return list of copied files (simplified)
+        return [f"docs/"]
+

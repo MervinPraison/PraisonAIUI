@@ -5,8 +5,8 @@ site:
   description: "API-first developer documentation"
   ui: "shadcn"
   theme:
-    radius: "none"
-    brandColor: "cyan"
+    preset: "green"      # zinc, slate, green, blue, violet, orange, rose, yellow
+    radius: "none"       # none, sm, md, lg, xl
     darkMode: true
 
 content:

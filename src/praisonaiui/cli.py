@@ -53,9 +53,19 @@ def init(
         "-f",
         help="Overwrite existing files",
     ),
+    frontend: bool = typer.Option(
+        False,
+        "--frontend",
+        help="Scaffold a Vite + React + shadcn frontend project for customization",
+    ),
 ) -> None:
     """Initialize a new PraisonAIUI project."""
     config_path = Path.cwd() / "aiui.template.yaml"
+
+    # If --frontend flag, scaffold a frontend project
+    if frontend:
+        _scaffold_frontend(force)
+        return
 
     if config_path.exists() and not force:
         console.print(
@@ -70,6 +80,10 @@ schemaVersion: 1
 site:
   title: "My Documentation"
   description: "Built with PraisonAIUI"
+  theme:
+    preset: "zinc"
+    radius: "md"
+    darkMode: true
 
 content:
   docs:
@@ -110,6 +124,65 @@ routes:
 
     config_path.write_text(minimal_config)
     console.print(Panel(f"[green]✓[/green] Created {config_path}", title="Success"))
+
+
+def _scaffold_frontend(force: bool) -> None:
+    """Scaffold a Vite + React + shadcn frontend project."""
+    import shutil
+    import subprocess
+
+    frontend_dir = Path.cwd() / "frontend"
+
+    if frontend_dir.exists() and not force:
+        console.print(
+            "[red]Error:[/red] frontend/ directory already exists. Use --force to overwrite."
+        )
+        raise typer.Exit(code=1)
+
+    console.print("[blue]Scaffolding Vite + React + shadcn frontend...[/blue]")
+
+    # Copy the src/frontend template
+    template_dir = Path(__file__).parent.parent / "frontend"
+    if template_dir.exists():
+        if frontend_dir.exists():
+            shutil.rmtree(frontend_dir)
+        shutil.copytree(template_dir, frontend_dir, ignore=shutil.ignore_patterns(
+            "node_modules", "dist", ".git", "*.log"
+        ))
+        console.print("[green]✓[/green] Copied frontend template")
+    else:
+        # Create minimal Vite project with npx
+        console.print("[yellow]Creating new Vite project...[/yellow]")
+        try:
+            subprocess.run(
+                ["npx", "-y", "create-vite@latest", "frontend", "--template", "react-ts"],
+                check=True,
+                cwd=Path.cwd(),
+            )
+            console.print("[green]✓[/green] Created Vite + React project")
+
+            # Install shadcn
+            subprocess.run(
+                ["npx", "-y", "shadcn@latest", "init", "-d", "-y"],
+                check=True,
+                cwd=frontend_dir,
+            )
+            console.print("[green]✓[/green] Initialized shadcn/ui")
+
+        except subprocess.CalledProcessError as e:
+            console.print(f"[red]Error:[/red] Failed to scaffold frontend: {e}")
+            raise typer.Exit(code=1)
+
+    console.print(
+        Panel(
+            "[green]✓[/green] Frontend scaffolded!\n\n"
+            "Next steps:\n"
+            "  cd frontend\n"
+            "  pnpm install\n"
+            "  pnpm dev",
+            title="Success",
+        )
+    )
 
 
 @app.command()

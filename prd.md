@@ -4,8 +4,19 @@
 
 **PraisonAIUI** is a YAML-driven website generator that transforms a single configuration file (`aiui.template.yaml`) and a `docs/` folder into a modern, production-ready website with automatic page generation, navigation, and layouts.
 
+### Core Aim
+> **One YAML file to build an entire website.**
+>
+> Users should be able to create, customize, and deploy a complete documentation site by editing a single `aiui.template.yaml` file. No JavaScript knowledge required. Change the theme, layout, colors, and components—all through YAML configuration.
+
 ### Vision
 > "One YAML file, one docs folder, one command — ship a beautiful documentation site."
+
+### Key Principles
+1. **Zero-Code Customization** - Change themes, colors, layouts via YAML
+2. **Instant Preview** - `aiui serve` shows live results
+3. **Production Ready** - Built-in SEO, accessibility, i18n support
+4. **Extensible** - Advanced users can scaffold full React projects with `aiui init --frontend`
 
 ### Distribution
 - `pip install praisonaiui` → Python CLI for scan/validate/build/watch

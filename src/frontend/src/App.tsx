@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -124,23 +126,95 @@ interface ContentProps {
 }
 
 function Content({ config, routes, selectedItem }: ContentProps) {
+  const [markdown, setMarkdown] = useState<string>('')
+  const [loadingContent, setLoadingContent] = useState(false)
   const theme = config.site?.theme
+
+  // Load markdown content when selected item changes
+  useEffect(() => {
+    if (!selectedItem?.path) {
+      setMarkdown('')
+      return
+    }
+
+    const loadContent = async () => {
+      setLoadingContent(true)
+      try {
+        // Convert path like /docs/getting-started/installation to docs/getting-started/installation.md
+        const docPath = (selectedItem.path ?? '').replace(/^\//, '') + '.md'
+        const response = await fetch(`/${docPath}`)
+        if (response.ok) {
+          const content = await response.text()
+          setMarkdown(content)
+        } else {
+          setMarkdown(`*Content for **${selectedItem.title}** not found.*`)
+        }
+      } catch {
+        setMarkdown(`*Failed to load content for **${selectedItem.title}**.*`)
+      } finally {
+        setLoadingContent(false)
+      }
+    }
+
+    loadContent()
+  }, [selectedItem])
+
+  // Custom components for react-markdown with Tailwind styling
+  const markdownComponents = {
+    h1: ({ children }: { children?: React.ReactNode }) => <h1 className="text-3xl font-bold mt-8 mb-4">{children}</h1>,
+    h2: ({ children }: { children?: React.ReactNode }) => <h2 className="text-2xl font-semibold mt-8 mb-4 text-primary">{children}</h2>,
+    h3: ({ children }: { children?: React.ReactNode }) => <h3 className="text-xl font-semibold mt-6 mb-3">{children}</h3>,
+    h4: ({ children }: { children?: React.ReactNode }) => <h4 className="text-lg font-semibold mt-4 mb-2">{children}</h4>,
+    p: ({ children }: { children?: React.ReactNode }) => <p className="my-3 text-muted-foreground leading-relaxed">{children}</p>,
+    a: ({ href, children }: { href?: string; children?: React.ReactNode }) => <a href={href} className="text-primary hover:underline">{children}</a>,
+    ul: ({ children }: { children?: React.ReactNode }) => <ul className="list-disc pl-6 my-4 space-y-1">{children}</ul>,
+    ol: ({ children }: { children?: React.ReactNode }) => <ol className="list-decimal pl-6 my-4 space-y-1">{children}</ol>,
+    li: ({ children }: { children?: React.ReactNode }) => <li className="text-muted-foreground">{children}</li>,
+    blockquote: ({ children }: { children?: React.ReactNode }) => <blockquote className="border-l-4 border-primary pl-4 my-4 italic text-muted-foreground">{children}</blockquote>,
+    code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
+      const isBlock = className?.includes('language-')
+      return isBlock ? (
+        <pre className="bg-muted p-4 rounded-lg text-sm overflow-auto my-4"><code>{children}</code></pre>
+      ) : (
+        <code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-sm">{children}</code>
+      )
+    },
+    pre: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    table: ({ children }: { children?: React.ReactNode }) => <div className="overflow-auto my-4"><table className="w-full border-collapse text-sm">{children}</table></div>,
+    thead: ({ children }: { children?: React.ReactNode }) => <thead className="bg-muted/50">{children}</thead>,
+    tr: ({ children }: { children?: React.ReactNode }) => <tr className="border-b">{children}</tr>,
+    th: ({ children }: { children?: React.ReactNode }) => <th className="px-4 py-2 text-left font-medium">{children}</th>,
+    td: ({ children }: { children?: React.ReactNode }) => <td className="px-4 py-2 text-muted-foreground">{children}</td>,
+    hr: () => <hr className="my-6 border-border" />,
+    strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-semibold text-foreground">{children}</strong>,
+    em: ({ children }: { children?: React.ReactNode }) => <em>{children}</em>,
+  }
 
   if (selectedItem) {
     return (
       <main className="flex-1 p-8 max-w-3xl">
-        <h1 className="text-4xl font-bold tracking-tight mb-4 text-primary">
+        <h1 className="text-4xl font-bold tracking-tight mb-2 text-primary">
           {selectedItem.title}
         </h1>
-        <p className="text-muted-foreground text-lg mb-8">
-          Path: <code className="bg-primary/10 text-primary px-2 py-1 rounded">{selectedItem.path || 'N/A'}</code>
+        <p className="text-muted-foreground text-sm mb-6">
+          <code className="bg-primary/10 text-primary px-2 py-1 rounded">{selectedItem.path || 'N/A'}</code>
         </p>
-        <Separator className="my-8" />
-        <div className="bg-muted/50 border rounded-lg p-6">
-          <p className="text-muted-foreground">
-            Content for <strong className="text-primary">{selectedItem.title}</strong> would be displayed here.
-          </p>
-        </div>
+        <Separator className="my-6" />
+        {loadingContent ? (
+          <div className="text-muted-foreground">Loading content...</div>
+        ) : markdown ? (
+          <article className="prose max-w-none">
+            <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              {markdown}
+            </Markdown>
+          </article>
+        ) : (
+          <div className="bg-muted/50 border rounded-lg p-6">
+            <p className="text-muted-foreground">
+              Content for <strong className="text-primary">{selectedItem.title}</strong> would be displayed here.
+            </p>
+          </div>
+        )}
       </main>
     )
   }

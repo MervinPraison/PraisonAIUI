@@ -1,64 +1,147 @@
 # Theming
 
-Customize the look and feel of your site.
+Customize the look and feel of your site with YAML configuration.
 
-## Component Styling
+## Theme Presets
 
-PraisonAIUI components are **UI-agnostic** — they use semantic CSS classes (e.g., `aiui-header`, `aiui-layout-main`) that you style with your own CSS framework or custom styles.
-
-```css
-/* Example: Style with your preferred approach */
-.aiui-header {
-  background: var(--brand-primary);
-  padding: 1rem 2rem;
-}
-
-.aiui-header-cta {
-  background: var(--accent);
-  border-radius: var(--radius);
-}
-```
-
-## UI Framework Hint
-
-The `ui` field is a **hint** for theming presets, not a hard dependency:
-
-```yaml
-site:
-  ui: "shadcn"    # shadcn | mui | chakra (theming hint)
-```
-
-This can be used by your CSS to apply framework-specific token presets.
-
-## Theme Configuration
+PraisonAIUI includes 12 official [shadcn/ui](https://ui.shadcn.com/themes) theme presets:
 
 ```yaml
 site:
   theme:
-    radius: "md"           # none | sm | md | lg | full
-    brandColor: "indigo"   # Any Tailwind color
+    preset: "zinc"     # zinc | slate | stone | gray | neutral |
+                       # red | rose | orange | green | blue | yellow | violet
+    radius: "md"       # none | sm | md | lg | xl
+    darkMode: true
+```
+
+### Available Presets
+
+| Preset | Description |
+|--------|-------------|
+| `zinc` | Clean, neutral gray (default) |
+| `slate` | Cool blue-gray |
+| `stone` | Warm neutral |
+| `gray` | True gray |
+| `neutral` | Balanced neutral |
+| `red` | Bold red accent |
+| `rose` | Soft pink-red |
+| `orange` | Warm orange |
+| `green` | Fresh green |
+| `blue` | Classic blue |
+| `yellow` | Bright yellow |
+| `violet` | Purple accent |
+
+## Examples
+
+### Minimal (Default)
+```yaml
+site:
+  theme:
+    preset: "zinc"
+    radius: "md"
+    darkMode: true
+```
+
+### Corporate (Light Mode)
+```yaml
+site:
+  theme:
+    preset: "blue"
+    radius: "sm"
+    darkMode: false
+```
+
+### Colorful (Rounded)
+```yaml
+site:
+  theme:
+    preset: "rose"
+    radius: "xl"
+    darkMode: true
+```
+
+### Developer Portal (Sharp)
+```yaml
+site:
+  theme:
+    preset: "green"
+    radius: "none"
     darkMode: true
 ```
 
 ## Dark Mode
 
-Enable dark mode support:
+Enable or disable dark mode:
 
 ```yaml
 site:
   theme:
-    darkMode: true
+    darkMode: true   # true | false
 ```
 
-See [Dark Mode](dark-mode.md) for more details.
+The frontend includes a [ThemeToggle](#theme-toggle) component that allows users to switch between light/dark/system modes.
 
-## Custom CSS
+## Theme Toggle Component
 
-Add custom styles in your Next.js app:
+Add a theme toggle to your header with the built-in component:
 
-```css
-/* globals.css */
-:root {
-  --brand-primary: #0D9373;
+```tsx
+import { ThemeToggle } from '@praisonaiui/react'
+
+function Header() {
+  return (
+    <header>
+      <nav>...</nav>
+      <ThemeToggle />
+    </header>
+  )
 }
 ```
+
+The toggle provides three options:
+- **Light** - Force light mode
+- **Dark** - Force dark mode  
+- **System** - Follow OS preference
+
+## Custom CSS Variables
+
+Theme presets generate CSS variables that you can override:
+
+```css
+:root {
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  --primary: 240 5.9% 10%;
+  --primary-foreground: 0 0% 98%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --accent: 240 4.8% 95.9%;
+  --accent-foreground: 240 5.9% 10%;
+  --radius: 0.5rem;
+}
+```
+
+## UI Framework Hint
+
+The `ui` field provides a hint for component styling:
+
+```yaml
+site:
+  ui: "shadcn"    # shadcn | mui | chakra
+```
+
+This is used by the runtime to apply appropriate styling conventions.
+
+## Advanced: Custom Frontend
+
+For advanced customization, scaffold a full React project:
+
+```bash
+aiui init --frontend
+cd frontend
+pnpm install
+pnpm dev
+```
+
+This gives you full control over components, styling, and theming.

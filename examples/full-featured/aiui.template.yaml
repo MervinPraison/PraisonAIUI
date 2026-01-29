@@ -5,8 +5,8 @@ site:
   description: "Full-featured documentation site"
   ui: "shadcn"
   theme:
-    radius: "md"
-    brandColor: "indigo"
+    preset: "violet"     # zinc, slate, green, blue, violet, orange, rose, yellow
+    radius: "md"         # none, sm, md, lg, xl
     darkMode: true
 
 content:
