@@ -1,0 +1,67 @@
+schemaVersion: 1
+
+site:
+  title: "Developer Portal"
+  description: "API-first developer documentation"
+  ui: "shadcn"
+  theme:
+    radius: "none"
+    brandColor: "cyan"
+    darkMode: true
+
+content:
+  docs:
+    dir: "../../docs"
+    nav:
+      mode: "auto"
+      sort: "alpha"
+      collapsible: true
+
+components:
+  header:
+    type: "Header"
+    props:
+      logoText: "< DevPortal />"
+      links:
+        - label: "Guides"
+          href: "/docs/getting-started/installation"
+        - label: "API Reference"
+          href: "/docs/api/python"
+        - label: "SDK"
+          href: "/docs/typescript/index"
+      cta:
+        label: "API Keys"
+        href: "/dashboard"
+
+  sidebar:
+    type: "DocsSidebar"
+    props:
+      source: "docs-nav"
+      searchable: true
+
+  footer:
+    type: "Footer"
+    props:
+      text: "Built for developers, by developers"
+      links:
+        - label: "Status"
+          href: "/status"
+        - label: "Changelog"
+          href: "/changelog"
+
+templates:
+  docs:
+    layout: "ThreeColumnLayout"
+    slots:
+      header: { ref: "header" }
+      left: { ref: "sidebar" }
+      main: { type: "DocContent" }
+      right: { type: "Toc" }
+      footer: { ref: "footer" }
+
+routes:
+  - match: "/docs/**"
+    template: "docs"
+
+seo:
+  titleTemplate: "%s - DevPortal API Docs"

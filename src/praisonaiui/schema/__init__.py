@@ -1,10 +1,12 @@
 """Schema module - Pydantic models for configuration."""
 
 from praisonaiui.schema.models import (
-    Config,
+    A11yConfig,
     ComponentConfig,
+    Config,
     ContentConfig,
     ContentSourceConfig,
+    I18nConfig,
     NavConfig,
     RouteConfig,
     SEOConfig,
@@ -15,10 +17,12 @@ from praisonaiui.schema.models import (
 )
 
 __all__ = [
-    "Config",
+    "A11yConfig",
     "ComponentConfig",
+    "Config",
     "ContentConfig",
     "ContentSourceConfig",
+    "I18nConfig",
     "NavConfig",
     "RouteConfig",
     "SEOConfig",

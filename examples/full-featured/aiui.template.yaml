@@ -1,0 +1,112 @@
+schemaVersion: 1
+
+site:
+  title: "PraisonAI Docs"
+  description: "Full-featured documentation site"
+  ui: "shadcn"
+  theme:
+    radius: "md"
+    brandColor: "indigo"
+    darkMode: true
+
+content:
+  docs:
+    dir: "../../docs"
+    include:
+      - "**/*.md"
+    exclude:
+      - "**/drafts/**"
+    nav:
+      mode: "auto"
+      sort: "filesystem"
+      collapsible: true
+      maxDepth: 4
+
+components:
+  header:
+    type: "Header"
+    props:
+      logoText: "PraisonAI"
+      logoImage: "/logo.svg"
+      links:
+        - label: "Docs"
+          href: "/docs"
+        - label: "API"
+          href: "/docs/api/cli"
+        - label: "Examples"
+          href: "/docs/examples/basic"
+        - label: "GitHub"
+          href: "https://github.com/MervinPraison/PraisonAIUI"
+      cta:
+        label: "Get Started"
+        href: "/docs/getting-started/installation"
+
+  sidebar:
+    type: "DocsSidebar"
+    props:
+      source: "docs-nav"
+      collapsible: true
+      searchable: true
+
+  toc:
+    type: "Toc"
+    props:
+      maxDepth: 3
+
+  footer:
+    type: "Footer"
+    props:
+      text: "© 2024 Praison Limited"
+      links:
+        - label: "GitHub"
+          href: "https://github.com/MervinPraison/PraisonAIUI"
+        - label: "Twitter"
+          href: "https://twitter.com/praisonai"
+
+templates:
+  docs:
+    layout: "ThreeColumnLayout"
+    slots:
+      header: { ref: "header" }
+      left: { ref: "sidebar" }
+      main: { type: "DocContent" }
+      right: { ref: "toc" }
+      footer: { ref: "footer" }
+
+  # Special template for changelog - no TOC
+  changelog:
+    layout: "ThreeColumnLayout"
+    slots:
+      header: { ref: "header" }
+      left: { ref: "sidebar" }
+      main: { type: "DocContent" }
+      right: null
+      footer: { ref: "footer" }
+
+routes:
+  - match: "/docs/changelog"
+    template: "changelog"
+
+  - match: "/docs/**"
+    template: "docs"
+
+seo:
+  titleTemplate: "%s | PraisonAI"
+  defaultImage: "/og-praisonai.png"
+  twitter:
+    handle: "@praisonai"
+
+i18n:
+  defaultLocale: "en"
+  locales:
+    - "en"
+    - "es"
+    - "ja"
+
+a11y:
+  skipToContent: true
+  focusVisible: true
+  ariaLabels:
+    navigation: "Main Navigation"
+    sidebar: "Documentation Sidebar"
+    search: "Search Documentation"

@@ -1,0 +1,20 @@
+schemaVersion: 1
+
+site:
+  title: "Minimal Docs"
+  description: "Bare minimum setup"
+  ui: "shadcn"
+
+content:
+  docs:
+    dir: "../../docs"
+
+templates:
+  docs:
+    layout: "ThreeColumnLayout"
+    slots:
+      main: { type: "DocContent" }
+
+routes:
+  - match: "/docs/**"
+    template: "docs"

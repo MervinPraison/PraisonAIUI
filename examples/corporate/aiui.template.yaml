@@ -1,0 +1,76 @@
+schemaVersion: 1
+
+site:
+  title: "Corporate Docs"
+  description: "Professional business documentation"
+  ui: "shadcn"
+  theme:
+    radius: "sm"
+    brandColor: "blue"
+    darkMode: false
+
+content:
+  docs:
+    dir: "../../docs"
+    nav:
+      mode: "auto"
+      sort: "filesystem"
+      collapsible: true
+      maxDepth: 3
+
+components:
+  header:
+    type: "Header"
+    props:
+      logoText: "Corporate"
+      logoImage: "/logo-corporate.svg"
+      links:
+        - label: "Documentation"
+          href: "/docs"
+        - label: "Support"
+          href: "/support"
+        - label: "Contact"
+          href: "/contact"
+      cta:
+        label: "Request Demo"
+        href: "/demo"
+
+  sidebar:
+    type: "DocsSidebar"
+    props:
+      source: "docs-nav"
+      collapsible: true
+
+  footer:
+    type: "Footer"
+    props:
+      text: "© 2024 Corporate Inc. All rights reserved."
+      links:
+        - label: "Privacy"
+          href: "/privacy"
+        - label: "Terms"
+          href: "/terms"
+
+templates:
+  docs:
+    layout: "ThreeColumnLayout"
+    slots:
+      header: { ref: "header" }
+      left: { ref: "sidebar" }
+      main: { type: "DocContent" }
+      right: { type: "Toc" }
+      footer: { ref: "footer" }
+
+routes:
+  - match: "/docs/**"
+    template: "docs"
+
+seo:
+  titleTemplate: "%s | Corporate Docs"
+  defaultImage: "/og-corporate.png"
+
+a11y:
+  skipToContent: true
+  ariaLabels:
+    navigation: "Main Navigation"
+    sidebar: "Documentation Sidebar"

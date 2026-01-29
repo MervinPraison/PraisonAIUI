@@ -71,6 +71,23 @@ export interface SEOConfig {
     };
 }
 
+// i18n configuration
+export interface I18nConfig {
+    defaultLocale: string;
+    locales: string[];
+    rtlLocales: string[];
+    fallbackLocale?: string;
+    translationsDir: string;
+}
+
+// Accessibility configuration
+export interface A11yConfig {
+    skipToContent: boolean;
+    focusVisible: boolean;
+    reduceMotion: boolean;
+    ariaLabels: Record<string, string>;
+}
+
 // Root configuration
 export interface Config {
     schemaVersion: number;
@@ -80,6 +97,8 @@ export interface Config {
     templates: Record<string, TemplateConfig>;
     routes: RouteConfig[];
     seo?: SEOConfig;
+    i18n?: I18nConfig;
+    a11y?: A11yConfig;
 }
 
 // Generated manifest types

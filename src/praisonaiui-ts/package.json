@@ -1,6 +1,6 @@
 {
     "name": "praisonaiui",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "YAML-driven website generator - React runtime and Next.js adapter",
     "type": "module",
     "main": "dist/index.js",

@@ -85,6 +85,25 @@ class RouteConfig(BaseModel):
     slots: Optional[dict[str, Optional[SlotRef]]] = None
 
 
+class I18nConfig(BaseModel):
+    """Internationalization configuration."""
+
+    default_locale: str = Field(default="en", alias="defaultLocale")
+    locales: list[str] = Field(default_factory=lambda: ["en"])
+    rtl_locales: list[str] = Field(default_factory=list, alias="rtlLocales")
+    fallback_locale: Optional[str] = Field(default=None, alias="fallbackLocale")
+    translations_dir: str = Field(default="./translations", alias="translationsDir")
+
+
+class A11yConfig(BaseModel):
+    """Accessibility configuration."""
+
+    skip_to_content: bool = Field(default=True, alias="skipToContent")
+    focus_visible: bool = Field(default=True, alias="focusVisible")
+    reduce_motion: bool = Field(default=False, alias="reduceMotion")
+    aria_labels: dict[str, str] = Field(default_factory=dict, alias="ariaLabels")
+
+
 class SEOConfig(BaseModel):
     """SEO configuration."""
 
@@ -103,6 +122,8 @@ class Config(BaseModel):
     templates: dict[str, TemplateConfig] = Field(default_factory=dict)
     routes: list[RouteConfig] = Field(default_factory=list)
     seo: Optional[SEOConfig] = None
+    i18n: Optional[I18nConfig] = None
+    a11y: Optional[A11yConfig] = None
 
     class Config:
         populate_by_name = True

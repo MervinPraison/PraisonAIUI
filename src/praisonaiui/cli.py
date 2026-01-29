@@ -199,7 +199,8 @@ def build(
     result = compiler.compile(output_dir=output, minify=minify)
 
     if result.success:
-        console.print(Panel(f"[green]✓[/green] Built {len(result.files)} files to {output}/", title="Success"))
+        msg = f"[green]✓[/green] Built {len(result.files)} files to {output}/"
+        console.print(Panel(msg, title="Success"))
         for file in result.files:
             console.print(f"  • {file}")
     else:
@@ -224,13 +225,13 @@ def dev(
 ) -> None:
     """Start development mode with file watching."""
     console.print(f"[yellow]⏳[/yellow] Watching {config} for changes...")
-    console.print(f"[dim]Press Ctrl+C to stop[/dim]")
+    console.print("[dim]Press Ctrl+C to stop[/dim]")
 
     try:
         from watchfiles import watch
 
         for changes in watch(config.parent):
-            console.print(f"[blue]↻[/blue] Detected changes, rebuilding...")
+            console.print("[blue]↻[/blue] Detected changes, rebuilding...")
             # Trigger rebuild
             build(config=config, output=Path("aiui"), minify=False)
     except KeyboardInterrupt:

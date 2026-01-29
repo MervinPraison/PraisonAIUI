@@ -1,0 +1,62 @@
+schemaVersion: 1
+
+site:
+  title: "Colorful Docs"
+  description: "Vibrant and playful documentation"
+  ui: "shadcn"
+  theme:
+    radius: "full"
+    brandColor: "rose"
+    darkMode: true
+
+content:
+  docs:
+    dir: "../../docs"
+    nav:
+      mode: "auto"
+      collapsible: true
+
+components:
+  header:
+    type: "Header"
+    props:
+      logoText: "🎨 Colorful"
+      links:
+        - label: "📚 Docs"
+          href: "/docs"
+        - label: "🚀 Examples"
+          href: "/examples"
+        - label: "💬 Community"
+          href: "/community"
+      cta:
+        label: "✨ Start Now"
+        href: "/docs/getting-started/quickstart"
+
+  sidebar:
+    type: "DocsSidebar"
+    props:
+      source: "docs-nav"
+      searchable: true
+
+  footer:
+    type: "Footer"
+    props:
+      text: "Made with ❤️ by Colorful Team"
+
+templates:
+  docs:
+    layout: "ThreeColumnLayout"
+    slots:
+      header: { ref: "header" }
+      left: { ref: "sidebar" }
+      main: { type: "DocContent" }
+      right: { type: "Toc" }
+      footer: { ref: "footer" }
+
+routes:
+  - match: "/docs/**"
+    template: "docs"
+
+a11y:
+  skipToContent: true
+  reduceMotion: false
