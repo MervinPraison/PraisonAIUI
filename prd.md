@@ -1114,6 +1114,13 @@ aiui dev --debug
 - [ ] custom components
 - [ ] theme packs
 
+### v0.5.0 - shadcn Frontend
+- [ ] Vite + React + shadcn/ui frontend package
+- [ ] Pre-built bundle served by `aiui serve`
+- [ ] Real shadcn components (like Chainlit's approach with MUI)
+- [ ] Tailwind CSS integration
+- [ ] Extendable component library
+
 ### v1.0.0 - Production
 - [ ] i18n support
 - [ ] full accessibility

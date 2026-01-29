@@ -266,6 +266,7 @@ def serve(
 ) -> None:
     """Serve the site locally with a built-in HTTP server."""
     import http.server
+    import socket
     import socketserver
     import webbrowser
 
@@ -280,21 +281,55 @@ def serve(
         console.print("Run 'aiui build' first or remove --no-build flag.")
         raise typer.Exit(code=2)
 
-    # Start HTTP server
-    console.print(f"\n[green]🚀[/green] Serving at [link]http://localhost:{port}[/link]")
-    console.print("[dim]Press Ctrl+C to stop[/dim]\n")
+    # Find available port
+    def find_available_port(start_port: int, max_attempts: int = 10) -> int:
+        for i in range(max_attempts):
+            test_port = start_port + i
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.bind(("", test_port))
+                    return test_port
+                except OSError:
+                    continue
+        raise OSError(f"No available port found in range {start_port}-{start_port + max_attempts}")
 
-    # Open browser
-    webbrowser.open(f"http://localhost:{port}")
+    try:
+        actual_port = find_available_port(port)
+    except OSError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=4)
+
+    if actual_port != port:
+        console.print(f"[yellow]⚠️[/yellow] Port {port} in use, using {actual_port}")
 
     # Serve from output directory
     import os
 
     os.chdir(output)
 
-    handler = http.server.SimpleHTTPRequestHandler
+    # Custom SPA handler that falls back to index.html for client-side routes
+    class SPAHandler(http.server.SimpleHTTPRequestHandler):
+        """Handler that serves index.html for SPA routes (no file extension)."""
 
-    with socketserver.TCPServer(("", port), handler) as httpd:
+        def do_GET(self):
+            # If path has no extension and doesn't exist, serve index.html
+            path = self.path.split("?")[0]  # Remove query string
+            if "." not in path.split("/")[-1]:  # No file extension
+                file_path = self.translate_path(path)
+                if not os.path.exists(file_path) or os.path.isdir(file_path):
+                    self.path = "/index.html"
+            return super().do_GET()
+
+    handler = SPAHandler
+
+    # Start HTTP server
+    console.print(f"\n[green]🚀[/green] Serving at [link]http://localhost:{actual_port}[/link]")
+    console.print("[dim]Press Ctrl+C to stop[/dim]\n")
+
+    # Open browser
+    webbrowser.open(f"http://localhost:{actual_port}")
+
+    with socketserver.TCPServer(("", actual_port), handler) as httpd:
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:

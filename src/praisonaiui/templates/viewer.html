@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PraisonAIUI Preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* shadcn/ui dark theme tokens */
+        :root {
+            --background: hsl(222.2 84% 4.9%);
+            --foreground: hsl(210 40% 98%);
+            --card: hsl(222.2 84% 4.9%);
+            --card-foreground: hsl(210 40% 98%);
+            --primary: hsl(210 40% 98%);
+            --primary-foreground: hsl(222.2 47.4% 11.2%);
+            --secondary: hsl(217.2 32.6% 17.5%);
+            --muted: hsl(217.2 32.6% 17.5%);
+            --muted-foreground: hsl(215 20.2% 65.1%);
+            --accent: hsl(217.2 32.6% 17.5%);
+            --border: hsl(217.2 32.6% 17.5%);
+            --radius: 0.5rem;
+            --sidebar-width: 280px;
+            --toc-width: 220px;
+            --header-height: 64px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--background);
+            color: var(--foreground);
+            line-height: 1.6;
+        }
+
+        /* Layout */
+        .layout {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .layout-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--background);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .layout-body {
+            display: flex;
+            flex: 1;
+        }
+
+        .layout-left {
+            width: var(--sidebar-width);
+            flex-shrink: 0;
+            border-right: 1px solid var(--border);
+            position: sticky;
+            top: var(--header-height);
+            height: calc(100vh - var(--header-height));
+            overflow-y: auto;
+        }
+
+        .layout-main {
+            flex: 1;
+            padding: 2rem 3rem;
+            max-width: 900px;
+        }
+
+        .layout-right {
+            width: var(--toc-width);
+            flex-shrink: 0;
+            position: sticky;
+            top: var(--header-height);
+            height: calc(100vh - var(--header-height));
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+
+        .layout-footer {
+            background: var(--secondary);
+            border-top: 1px solid var(--border);
+        }
+
+        /* Header */
+        .header {
+            height: var(--header-height);
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: var(--foreground);
+            text-decoration: none;
+        }
+
+        .header-nav {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .header-nav a {
+            color: var(--muted-foreground);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: color 0.2s;
+        }
+
+        .header-nav a:hover {
+            color: var(--foreground);
+        }
+
+        .header-cta {
+            background: var(--primary);
+            color: var(--primary-foreground);
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: opacity 0.2s;
+        }
+
+        .header-cta:hover {
+            opacity: 0.9;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            padding: 1.5rem 0;
+        }
+
+        .sidebar-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .sidebar-group-title {
+            padding: 0.5rem 1.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted-foreground);
+        }
+
+        .sidebar-item {
+            display: block;
+            padding: 0.5rem 1.5rem;
+            color: var(--muted-foreground);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            border-left: 2px solid transparent;
+        }
+
+        .sidebar-item:hover {
+            background: var(--accent);
+            color: var(--foreground);
+        }
+
+        .sidebar-item.active {
+            color: var(--foreground);
+            background: var(--accent);
+            border-left-color: var(--foreground);
+        }
+
+        .sidebar-children {
+            margin-left: 1rem;
+        }
+
+        /* Content */
+        .content h1 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+        }
+
+        .content h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 2rem 0 1rem;
+            letter-spacing: -0.01em;
+        }
+
+        .content p {
+            color: var(--muted-foreground);
+            margin-bottom: 1rem;
+        }
+
+        .content code {
+            background: var(--secondary);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.875em;
+            font-family: ui-monospace, monospace;
+        }
+
+        .content pre {
+            background: var(--secondary);
+            padding: 1rem 1.5rem;
+            border-radius: var(--radius);
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid var(--border);
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+        }
+
+        /* TOC */
+        .toc-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted-foreground);
+            margin-bottom: 1rem;
+        }
+
+        .toc-item {
+            display: block;
+            padding: 0.25rem 0;
+            color: var(--muted-foreground);
+            text-decoration: none;
+            font-size: 0.8rem;
+            transition: color 0.2s;
+        }
+
+        .toc-item:hover {
+            color: var(--foreground);
+        }
+
+        /* Footer */
+        .footer {
+            padding: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-text {
+            color: var(--muted-foreground);
+            font-size: 0.875rem;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .footer-links a {
+            color: var(--muted-foreground);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: var(--foreground);
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-size: 1.25rem;
+            color: var(--muted-foreground);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .layout-right {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .layout-left {
+                display: none;
+            }
+
+            .layout-main {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" class="loading">Loading...</div>
+
+    <script>
+        class AIUIViewer {
+            constructor() {
+                this.config = null;
+                this.nav = null;
+                this.routes = null;
+            }
+
+            async load() {
+                try {
+                    const [configRes, navRes, routesRes] = await Promise.all([
+                        fetch('ui-config.json'),
+                        fetch('docs-nav.json'),
+                        fetch('route-manifest.json')
+                    ]);
+                    this.config = await configRes.json();
+                    this.nav = await navRes.json();
+                    this.routes = await routesRes.json();
+                    this.render();
+                } catch (error) {
+                    document.getElementById('app').innerHTML = `
+                        <div style="text-align: center; padding: 2rem;">
+                            <h2 style="color: #ef4444;">Failed to load</h2>
+                            <p style="color: var(--muted-foreground);">${error.message}</p>
+                        </div>
+                    `;
+                }
+            }
+
+            render() {
+                const app = document.getElementById('app');
+                app.className = '';
+                const header = this.config.components?.header?.props || {};
+                const footer = this.config.components?.footer?.props || {};
+                document.title = this.config.site?.title || 'PraisonAIUI Preview';
+
+                app.innerHTML = `
+                    <div class="layout">
+                        <div class="layout-header">
+                            <header class="header">
+                                <a href="/" class="header-logo">
+                                    <span>${header.logoText || this.config.site?.title || 'Site'}</span>
+                                </a>
+                                <nav class="header-nav">
+                                    ${(header.links || []).map(l => `<a href="${l.href}">${l.label}</a>`).join('')}
+                                </nav>
+                                ${header.cta ? `<a href="${header.cta.href}" class="header-cta">${header.cta.label}</a>` : ''}
+                            </header>
+                        </div>
+                        <div class="layout-body">
+                            <aside class="layout-left">
+                                <nav class="sidebar">
+                                    ${this.renderNav()}
+                                </nav>
+                            </aside>
+                            <main class="layout-main">
+                                <article class="content">
+                                    <h1>${this.config.site?.title || 'Documentation'}</h1>
+                                    <p>${this.config.site?.description || 'Welcome to the documentation.'}</p>
+                                    <h2>Navigation</h2>
+                                    <p>Your docs folder has <strong>${this.nav?.items?.length || 0}</strong> top-level sections.</p>
+                                    <h2>Routes</h2>
+                                    <p><strong>${this.routes?.routes?.length || 0}</strong> routes configured.</p>
+                                    <pre><code>${JSON.stringify(this.routes?.routes?.slice(0, 5), null, 2)}</code></pre>
+                                </article>
+                            </main>
+                            <aside class="layout-right">
+                                <div class="toc-title">On this page</div>
+                                <a href="#" class="toc-item">Navigation</a>
+                                <a href="#" class="toc-item">Routes</a>
+                            </aside>
+                        </div>
+                        <div class="layout-footer">
+                            <footer class="footer">
+                                <div class="footer-text">${footer.text || '© 2024'}</div>
+                                <div class="footer-links">
+                                    ${(footer.links || []).map(l => `<a href="${l.href}">${l.label}</a>`).join('')}
+                                </div>
+                            </footer>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderNav() {
+                const items = this.nav?.items || [];
+                return items.map(item => {
+                    if (item.children?.length) {
+                        return `
+                            <div class="sidebar-group">
+                                <div class="sidebar-group-title">${item.title}</div>
+                                ${item.children.map(c => `<a href="#${c.href}" class="sidebar-item">${c.title}</a>`).join('')}
+                            </div>
+                        `;
+                    }
+                    return `<a href="#${item.href}" class="sidebar-item">${item.title}</a>`;
+                }).join('');
+            }
+        }
+
+        new AIUIViewer().load();
+    </script>
+</body>
+
+</html>

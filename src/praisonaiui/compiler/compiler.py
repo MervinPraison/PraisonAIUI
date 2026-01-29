@@ -70,6 +70,10 @@ class Compiler:
         self._write_json(output_dir / "route-manifest.json", route_manifest, indent)
         files.append("route-manifest.json")
 
+        # Copy viewer.html for serve command
+        self._copy_viewer(output_dir)
+        files.append("index.html")
+
         return CompileResult(success=True, files=files)
 
     def _generate_ui_config(self) -> dict:
@@ -83,7 +87,7 @@ class Compiler:
                 "theme": (
                     {
                         "radius": self.config.site.theme.radius,
-                        "brandColor": self.config.site.theme.brand_color,
+                        "preset": self.config.site.theme.preset,
                         "darkMode": self.config.site.theme.dark_mode,
                     }
                     if self.config.site.theme
@@ -158,3 +162,22 @@ class Compiler:
     def _write_json(self, path: Path, data: dict, indent: int | None) -> None:
         """Write JSON data to file."""
         path.write_text(json.dumps(data, indent=indent, ensure_ascii=False))
+
+    def _copy_viewer(self, output_dir: Path) -> None:
+        """Copy frontend bundle to output directory."""
+        import shutil
+
+        # Get the templates directory relative to this file
+        templates_dir = Path(__file__).parent.parent / "templates"
+        frontend_dir = templates_dir / "frontend"
+
+        if frontend_dir.exists():
+            # Copy index.html
+            shutil.copy(frontend_dir / "index.html", output_dir / "index.html")
+            # Copy assets folder if exists
+            assets_src = frontend_dir / "assets"
+            if assets_src.exists():
+                assets_dst = output_dir / "assets"
+                if assets_dst.exists():
+                    shutil.rmtree(assets_dst)
+                shutil.copytree(assets_src, assets_dst)

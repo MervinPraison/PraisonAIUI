@@ -10,8 +10,11 @@ from pydantic import BaseModel, Field
 class ThemeConfig(BaseModel):
     """Theme configuration."""
 
-    radius: Literal["none", "sm", "md", "lg", "full"] = "md"
-    brand_color: str = Field(default="indigo", alias="brandColor")
+    preset: Literal[
+        "zinc", "slate", "stone", "gray", "neutral",
+        "red", "rose", "orange", "green", "blue", "yellow", "violet"
+    ] = "zinc"
+    radius: Literal["none", "sm", "md", "lg", "xl"] = "md"
     dark_mode: bool = Field(default=True, alias="darkMode")
 
 

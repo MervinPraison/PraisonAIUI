@@ -5,8 +5,8 @@ site:
   description: "Sleek dark theme with modern aesthetics"
   ui: "shadcn"
   theme:
-    radius: "lg"
-    brandColor: "emerald"
+    preset: "green"  # zinc, slate, green, blue, violet, orange, rose, yellow
+    radius: "lg"     # none, sm, md, lg, xl
     darkMode: true
 
 content:
