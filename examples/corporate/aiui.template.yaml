@@ -63,13 +63,32 @@ components:
 
 templates:
   docs:
-    layout: "ThreeColumnLayout"
-    slots:
-      header: { ref: "header" }
-      left: { ref: "sidebar" }
-      main: { type: "DocContent" }
-      right: { type: "Toc" }
-      footer: { ref: "footer" }
+    layout: "FlexibleLayout"
+    zones:
+      rightSidebar:
+        - type: "Toc"
+        - type: "StatsCard"
+          props:
+            title: "Active Users"
+            value: "15,231"
+            change: "+20.1%"
+            changeType: "positive"
+        - type: "QuickLinks"
+          props:
+            title: "Resources"
+            links:
+              - label: "API Reference"
+                href: "/docs/api"
+              - label: "Examples"
+                href: "/docs/examples"
+      footer:
+        - type: "Newsletter"
+          props:
+            title: "Stay Updated"
+            buttonText: "Subscribe"
+        - type: "Copyright"
+          props:
+            text: "© 2024 Corporate Inc."
 
 routes:
   - match: "/docs/**"

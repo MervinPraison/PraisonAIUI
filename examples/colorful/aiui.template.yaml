@@ -26,40 +26,30 @@ content:
       mode: "auto"
       collapsible: true
 
-components:
-  header:
-    type: "Header"
-    props:
-      logoText: "🎨 Colorful"
-      links:
-        - label: "📚 Docs"
-          href: "/docs"
-        - label: "🚀 Examples"
-          href: "/examples"
-        - label: "💬 Community"
-          href: "/community"
-      cta:
-        label: "✨ Start Now"
-        href: "/docs/getting-started/quickstart"
-
-  sidebar:
-    type: "DocsSidebar"
-    props:
-      source: "docs-nav"
-      searchable: true
-
-  footer:
-    type: "Footer"
-    props:
-      text: "Made with ❤️ by Colorful Team"
-
 templates:
   docs:
-    layout: "CenteredLayout"  # Centered content, no sidebar
-    slots:
-      header: { ref: "header" }
-      main: { type: "DocContent" }
-      footer: { ref: "footer" }
+    layout: "FlexibleLayout"
+    zones:
+      hero:
+        - type: "HeroBanner"
+          props:
+            title: "🎨 Colorful Documentation"
+            subtitle: "Vibrant, playful, and beautifully designed"
+            ctaLabel: "✨ Get Started"
+            ctaHref: "/docs/getting-started/quickstart"
+      rightSidebar:
+        - type: "Toc"
+      footer:
+        - type: "SocialLinks"
+          props:
+            links:
+              - platform: "Twitter"
+                href: "https://twitter.com"
+              - platform: "GitHub"
+                href: "https://github.com"
+        - type: "Copyright"
+          props:
+            text: "Made with ❤️ by Colorful Team"
 
 routes:
   - match: "/docs/**"

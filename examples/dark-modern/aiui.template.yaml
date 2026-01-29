@@ -26,41 +26,37 @@ content:
       mode: "auto"
       collapsible: true
 
-components:
-  header:
-    type: "Header"
-    props:
-      logoText: "Dark Modern"
-      links:
-        - label: "Docs"
-          href: "/docs"
-        - label: "GitHub"
-          href: "https://github.com"
-      cta:
-        label: "Get Started"
-        href: "/docs/getting-started/installation"
-
-  sidebar:
-    type: "DocsSidebar"
-    props:
-      source: "docs-nav"
-      searchable: true
-
-  footer:
-    type: "Footer"
-    props:
-      text: "© 2024 Dark Modern"
-      links:
-        - label: "GitHub"
-          href: "https://github.com"
-
 templates:
   docs:
-    layout: "FullWidthLayout"  # Full width, no sidebar - showcase wide content
-    slots:
-      header: { ref: "header" }
-      main: { type: "DocContent" }
-      footer: { ref: "footer" }
+    layout: "FlexibleLayout"
+    zones:
+      rightSidebar:
+        - type: "Toc"
+        - type: "StatsCard"
+          props:
+            title: "Total Views"
+            value: "42,891"
+            change: "+12%"
+            changeType: "positive"
+        - type: "StatsCard"
+          props:
+            title: "Downloads"
+            value: "8,234"
+            change: "+5.2%"
+            changeType: "positive"
+      bottomNav:
+        - type: "QuickLinks"
+          props:
+            title: "Related"
+            links:
+              - label: "Previous: Installation"
+                href: "/docs/getting-started/installation"
+              - label: "Next: Configuration"
+                href: "/docs/concepts/configuration"
+      footer:
+        - type: "Copyright"
+          props:
+            text: "© 2024 Dark Modern"
 
 routes:
   - match: "/docs/**"

@@ -69,6 +69,33 @@ class SlotRef(BaseModel):
     type: Optional[str] = None
 
 
+class WidgetConfig(BaseModel):
+    """Widget configuration for zone-based layouts."""
+    
+    type: str
+    props: dict[str, Any] = Field(default_factory=dict)
+
+
+# Zone types for WordPress-style widget areas
+ZoneWidgets = list[WidgetConfig]
+
+
+class ZonesConfig(BaseModel):
+    """Widget zones configuration - WordPress-style layout areas."""
+    
+    header: Optional[ZoneWidgets] = None
+    top_nav: Optional[ZoneWidgets] = Field(default=None, alias="topNav")
+    hero: Optional[ZoneWidgets] = None
+    left_sidebar: Optional[ZoneWidgets] = Field(default=None, alias="leftSidebar")
+    main: Optional[ZoneWidgets] = None
+    right_sidebar: Optional[ZoneWidgets] = Field(default=None, alias="rightSidebar")
+    bottom_nav: Optional[ZoneWidgets] = Field(default=None, alias="bottomNav")
+    footer: Optional[ZoneWidgets] = None
+    
+    class Config:
+        populate_by_name = True
+
+
 class ComponentConfig(BaseModel):
     """Component definition."""
 
@@ -77,10 +104,13 @@ class ComponentConfig(BaseModel):
 
 
 class TemplateConfig(BaseModel):
-    """Template definition with layout and slots."""
+    """Template definition with layout, slots (legacy), and zones (widget arrays)."""
 
     layout: str
+    # Legacy slot-based assignment
     slots: dict[str, Optional[SlotRef]] = Field(default_factory=dict)
+    # New zone-based widget assignment (WordPress-style)
+    zones: Optional[ZonesConfig] = None
 
 
 class RouteConfig(BaseModel):
