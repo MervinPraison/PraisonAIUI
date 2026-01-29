@@ -119,10 +119,62 @@ templates:
 
 ### Layouts
 
-| Layout | Slots |
-|--------|-------|
-| `ThreeColumnLayout` | header, left, main, right, footer |
-| `DefaultLayout` | header, hero, main, footer |
+| Layout | Description |
+|--------|-------------|
+| `ThreeColumnLayout` | Sidebar + Content + TOC |
+| `TwoColumnLayout` | Sidebar + Content |
+| `CenteredLayout` | Centered content, no sidebar |
+| `FullWidthLayout` | Full width content |
+| `FlexibleLayout` | WordPress-style widget zones |
+
+## Widget Zones
+
+Place widgets in layout zones without modifying markdown:
+
+```yaml
+templates:
+  docs:
+    layout: "FlexibleLayout"
+    zones:
+      rightSidebar:
+        - type: "Toc"
+        - type: "StatsCard"
+          props:
+            title: "Users"
+            value: "15,231"
+            change: "+20%"
+      footer:
+        - type: "Newsletter"
+        - type: "Copyright"
+          props:
+            text: "© 2024"
+```
+
+### Available Zones
+
+| Zone | Description |
+|------|-------------|
+| `header` | Top header |
+| `topNav` | Below header nav |
+| `hero` | Hero banners |
+| `leftSidebar` | Left column |
+| `main` | Main content |
+| `rightSidebar` | Right column |
+| `bottomNav` | Pagination area |
+| `footer` | Footer widgets |
+
+### Built-in Widgets
+
+| Widget | Description |
+|--------|-------------|
+| `StatsCard` | Metrics display |
+| `QuickLinks` | Navigation links |
+| `Newsletter` | Email signup |
+| `HeroBanner` | Hero section |
+| `SocialLinks` | Social icons |
+| `Copyright` | Copyright text |
+
+See [Widget Zones](../features/widget-zones.md) for full documentation.
 
 ## Routes
 
