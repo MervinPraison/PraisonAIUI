@@ -65,6 +65,12 @@ templates:
   docs:
     layout: "FlexibleLayout"
     zones:
+      hero:
+        - type: "Announcement"
+          props:
+            title: "New Feature"
+            message: "Widget zones are now available!"
+            type: "info"
       rightSidebar:
         - type: "Toc"
         - type: "StatsCard"
@@ -73,6 +79,10 @@ templates:
             value: "15,231"
             change: "+20.1%"
             changeType: "positive"
+        - type: "Progress"
+          props:
+            label: "Documentation"
+            value: 75
         - type: "QuickLinks"
           props:
             title: "Resources"
@@ -81,11 +91,32 @@ templates:
                 href: "/docs/api"
               - label: "Examples"
                 href: "/docs/examples"
+        - type: "RecentPosts"
+          props:
+            title: "Recent Updates"
+            posts:
+              - title: "Widget Zones Released"
+                href: "/blog/widgets"
+                date: "Jan 29, 2024"
+              - title: "Theme System v2"
+                href: "/blog/themes"
+                date: "Jan 25, 2024"
+        - type: "BadgeList"
+          props:
+            title: "Tags"
+            badges: ["React", "TypeScript", "Tailwind", "shadcn"]
       footer:
         - type: "Newsletter"
           props:
             title: "Stay Updated"
             buttonText: "Subscribe"
+        - type: "SocialLinks"
+          props:
+            links:
+              - platform: "GitHub"
+                href: "https://github.com"
+              - platform: "Twitter"
+                href: "https://twitter.com"
         - type: "Copyright"
           props:
             text: "© 2024 Corporate Inc."

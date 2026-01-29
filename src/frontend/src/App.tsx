@@ -437,6 +437,95 @@ function SocialLinksWidget({ props }: { props?: Record<string, unknown> }) {
   )
 }
 
+function ProgressWidget({ props }: { props?: Record<string, unknown> }) {
+  const label = (props?.label as string) || 'Progress'
+  const value = (props?.value as number) || 0
+  const showPercent = (props?.showPercent as boolean) !== false
+
+  return (
+    <Card className="mb-4">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium flex justify-between">
+          <span>{label}</span>
+          {showPercent && <span className="text-muted-foreground">{value}%</span>}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-full bg-primary transition-all"
+            style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function AnnouncementWidget({ props }: { props?: Record<string, unknown> }) {
+  const title = (props?.title as string) || 'Announcement'
+  const message = (props?.message as string) || ''
+  const type = (props?.type as 'info' | 'warning' | 'success') || 'info'
+
+  const colors = {
+    info: 'border-blue-500 bg-blue-500/10',
+    warning: 'border-yellow-500 bg-yellow-500/10',
+    success: 'border-green-500 bg-green-500/10'
+  }
+
+  return (
+    <div className={`mb-4 p-4 rounded-lg border-l-4 ${colors[type]}`}>
+      <h4 className="font-medium text-sm">{title}</h4>
+      {message && <p className="text-sm text-muted-foreground mt-1">{message}</p>}
+    </div>
+  )
+}
+
+function RecentPostsWidget({ props }: { props?: Record<string, unknown> }) {
+  const title = (props?.title as string) || 'Recent Posts'
+  const posts = (props?.posts as { title: string; href: string; date?: string }[]) || []
+
+  return (
+    <Card className="mb-4">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {posts.map((post, i) => (
+          <a key={i} href={post.href} className="block group">
+            <div className="text-sm text-foreground group-hover:text-primary transition-colors">
+              {post.title}
+            </div>
+            {post.date && (
+              <div className="text-xs text-muted-foreground">{post.date}</div>
+            )}
+          </a>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+function BadgeListWidget({ props }: { props?: Record<string, unknown> }) {
+  const title = (props?.title as string) || 'Tags'
+  const badges = (props?.badges as string[]) || []
+
+  return (
+    <Card className="mb-4">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-wrap gap-2">
+        {badges.map((badge, i) => (
+          <span key={i} className="px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
+            {badge}
+          </span>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
 // Widget renderer
 function renderZoneWidget(widget: WidgetConfig, index: number) {
   switch (widget.type) {
@@ -452,6 +541,14 @@ function renderZoneWidget(widget: WidgetConfig, index: number) {
       return <CopyrightWidget key={index} props={widget.props} />
     case 'SocialLinks':
       return <SocialLinksWidget key={index} props={widget.props} />
+    case 'Progress':
+      return <ProgressWidget key={index} props={widget.props} />
+    case 'Announcement':
+      return <AnnouncementWidget key={index} props={widget.props} />
+    case 'RecentPosts':
+      return <RecentPostsWidget key={index} props={widget.props} />
+    case 'BadgeList':
+      return <BadgeListWidget key={index} props={widget.props} />
     case 'Toc':
       return null // Toc is rendered separately
     default:
