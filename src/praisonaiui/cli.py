@@ -238,5 +238,68 @@ def dev(
         console.print("\n[green]Stopped.[/green]")
 
 
+@app.command()
+def serve(
+    config: Path = typer.Option(
+        Path("aiui.template.yaml"),
+        "--config",
+        "-c",
+        help="Path to configuration file",
+    ),
+    port: int = typer.Option(
+        8000,
+        "--port",
+        "-p",
+        help="Port for HTTP server",
+    ),
+    output: Path = typer.Option(
+        Path("aiui"),
+        "--output",
+        "-o",
+        help="Output directory to serve",
+    ),
+    no_build: bool = typer.Option(
+        False,
+        "--no-build",
+        help="Skip build step, serve existing files",
+    ),
+) -> None:
+    """Serve the site locally with a built-in HTTP server."""
+    import http.server
+    import socketserver
+    import webbrowser
+
+    # Build first unless --no-build
+    if not no_build:
+        console.print("[yellow]⏳[/yellow] Building manifests...")
+        build(config=config, output=output, minify=False)
+
+    # Check if output directory exists
+    if not output.exists():
+        console.print(f"[red]Error:[/red] Output directory not found: {output}")
+        console.print("Run 'aiui build' first or remove --no-build flag.")
+        raise typer.Exit(code=2)
+
+    # Start HTTP server
+    console.print(f"\n[green]🚀[/green] Serving at [link]http://localhost:{port}[/link]")
+    console.print("[dim]Press Ctrl+C to stop[/dim]\n")
+
+    # Open browser
+    webbrowser.open(f"http://localhost:{port}")
+
+    # Serve from output directory
+    import os
+
+    os.chdir(output)
+
+    handler = http.server.SimpleHTTPRequestHandler
+
+    with socketserver.TCPServer(("", port), handler) as httpd:
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            console.print("\n[green]Server stopped.[/green]")
+
+
 if __name__ == "__main__":
     app()

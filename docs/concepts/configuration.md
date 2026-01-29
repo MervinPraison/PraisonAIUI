@@ -27,12 +27,14 @@ site:
   title: "My Documentation"          # Required
   description: "Site description"    # Optional
   routeBaseDocs: "/docs"             # Default: /docs
-  ui: "shadcn"                       # shadcn | mui | chakra
+  ui: "shadcn"                       # Theming hint (shadcn | mui | chakra)
   theme:
     radius: "md"                     # none | sm | md | lg | full
     brandColor: "indigo"
     darkMode: true
 ```
+
+> **Note**: The `ui` field is a theming hint. Components are UI-agnostic and use CSS classes you can style with any framework.
 
 ## Content Sources
 

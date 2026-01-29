@@ -94,3 +94,23 @@ import { DocContent } from 'praisonaiui/components';
 
 <DocContent content={htmlContent} />
 ```
+
+## Styling Components
+
+All components use semantic CSS classes prefixed with `aiui-`. Style them with your preferred CSS approach:
+
+| Component | CSS Classes |
+|-----------|-------------|
+| Layouts | `aiui-layout`, `aiui-layout-three-column`, `aiui-layout-header`, `aiui-layout-main` |
+| Header | `aiui-header`, `aiui-header-logo`, `aiui-header-nav`, `aiui-header-cta` |
+| Footer | `aiui-footer`, `aiui-footer-links` |
+| Sidebar | `aiui-sidebar`, `aiui-sidebar-item`, `aiui-sidebar-group` |
+| Toc | `aiui-toc`, `aiui-toc-item` |
+| Content | `aiui-content`, `aiui-content-body` |
+
+```css
+/* Example custom styling */
+.aiui-header {
+  background: linear-gradient(to right, #6366f1, #8b5cf6);
+}
+```
