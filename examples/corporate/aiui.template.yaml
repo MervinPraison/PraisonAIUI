@@ -5,9 +5,19 @@ site:
   description: "Professional business documentation"
   ui: "shadcn"
   theme:
-    preset: "blue"       # zinc, ocean, sage, lavender, rose, amber, sand, slate
-    radius: "sm"         # none, sm, md, lg, xl
+    preset: "blue"
+    radius: "sm"
     darkMode: false
+
+# Business-focused components
+dependencies:
+  shadcn:
+    - card
+    - table
+    - badge
+    - avatar
+    - dialog
+    - dropdown-menu
 
 content:
   docs:

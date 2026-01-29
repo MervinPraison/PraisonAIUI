@@ -5,9 +5,21 @@ site:
   description: "Full-featured documentation site"
   ui: "shadcn"
   theme:
-    preset: "violet"     # zinc, ocean, sage, lavender, rose, amber, sand, slate
-    radius: "md"         # none, sm, md, lg, xl
+    preset: "violet"
+    radius: "md"
     darkMode: true
+
+# Comprehensive component set
+dependencies:
+  shadcn:
+    - card
+    - tabs
+    - accordion
+    - dialog
+    - sheet
+    - navigation-menu
+    - breadcrumb
+    - pagination
 
 content:
   docs:

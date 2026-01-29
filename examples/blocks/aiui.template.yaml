@@ -1,0 +1,52 @@
+schemaVersion: 1
+
+site:
+  title: "Component Blocks Showcase"
+  description: "Showcase of all shadcn UI component blocks - similar to ui.shadcn.com/themes"
+  ui: "shadcn"
+  theme:
+    preset: "zinc"        # All 22 Tailwind colors available
+    radius: "lg"
+    darkMode: true
+
+# Auto-install all required components at build time
+dependencies:
+  shadcn:
+    - card
+    - button
+    - input
+    - label
+    - calendar
+    - avatar
+    - badge
+    - progress
+    - separator
+    - switch
+    - checkbox
+    - radio-group
+    - select
+    - slider
+    - tabs
+    - accordion
+    - dialog
+    - dropdown-menu
+    - popover
+    - tooltip
+    - table
+    - chart
+
+content:
+  docs:
+    dir: "./docs"
+
+templates:
+  blocks:
+    layout: "FullWidthLayout"
+    slots:
+      main: { type: "DocContent" }
+
+routes:
+  - match: "/blocks/**"
+    template: "blocks"
+  - match: "/docs/**"
+    template: "blocks"

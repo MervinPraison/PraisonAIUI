@@ -5,9 +5,19 @@ site:
   description: "API-first developer documentation"
   ui: "shadcn"
   theme:
-    preset: "green"      # zinc, ocean, sage, lavender, rose, amber, sand, slate
-    radius: "none"       # none, sm, md, lg, xl
+    preset: "green"
+    radius: "none"
     darkMode: true
+
+# Developer-focused components
+dependencies:
+  shadcn:
+    - tabs
+    - accordion
+    - command
+    - popover
+    - tooltip
+    - separator
 
 content:
   docs:

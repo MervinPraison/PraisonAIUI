@@ -5,9 +5,19 @@ site:
   description: "Vibrant and playful documentation"
   ui: "shadcn"
   theme:
-    preset: "rose"       # zinc, ocean, sage, lavender, rose, amber, sand, slate
-    radius: "xl"         # none, sm, md, lg, xl
+    preset: "rose"
+    radius: "xl"
     darkMode: true
+
+# Fun, creative components
+dependencies:
+  shadcn:
+    - carousel
+    - avatar
+    - badge
+    - progress
+    - skeleton
+    - hover-card
 
 content:
   docs:
