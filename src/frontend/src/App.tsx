@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { applyTheme, SHADCN_THEMES } from './themes'
 import './index.css'
 
@@ -15,8 +16,8 @@ interface NavItem {
 }
 
 interface ThemeConfig {
-  preset?: string  // zinc, slate, green, blue, violet, orange, rose, yellow
-  radius?: string  // none, sm, md, lg, xl
+  preset?: string
+  radius?: string
   darkMode?: boolean
 }
 
@@ -26,10 +27,32 @@ interface SiteConfig {
   theme?: ThemeConfig
 }
 
+interface WidgetConfig {
+  type: string
+  props?: Record<string, unknown>
+}
+
+interface ZonesConfig {
+  header?: WidgetConfig[]
+  topNav?: WidgetConfig[]
+  hero?: WidgetConfig[]
+  leftSidebar?: WidgetConfig[]
+  main?: WidgetConfig[]
+  rightSidebar?: WidgetConfig[]
+  bottomNav?: WidgetConfig[]
+  footer?: WidgetConfig[]
+}
+
+interface TemplateConfig {
+  layout?: string
+  slots?: Record<string, unknown>
+  zones?: ZonesConfig
+}
+
 interface UIConfig {
   site?: SiteConfig
   components?: Record<string, { props?: Record<string, unknown> }>
-  templates?: Record<string, { layout?: string; slots?: Record<string, unknown> }>
+  templates?: Record<string, TemplateConfig>
 }
 
 interface DocsNav {
@@ -306,44 +329,193 @@ function Content({ config, routes, selectedItem }: ContentProps) {
   )
 }
 
-function Toc({ selectedItem }: { selectedItem: NavItem | null }) {
+// ============ WIDGET COMPONENTS ============
+
+function StatsCardWidget({ props }: { props?: Record<string, unknown> }) {
+  const title = (props?.title as string) || 'Statistics'
+  const value = (props?.value as string) || '0'
+  const change = (props?.change as string) || ''
+  const changeType = (props?.changeType as 'positive' | 'negative') || 'positive'
+
   return (
-    <aside className="w-56 hidden lg:block border-l border-border/50">
-      <div className="sticky top-20 px-4 py-6">
-        <h4 className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-widest mb-4">
-          On this page
-        </h4>
-        <nav className="space-y-2 text-sm">
-          {selectedItem ? (
-            <div className="space-y-2">
-              <a href="#" className="flex items-center gap-2 text-primary font-medium">
-                <span className="w-1 h-1 rounded-full bg-primary" />
-                {selectedItem.title}
-              </a>
-              <a href="#overview" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors pl-3">
-                Overview
-              </a>
-              <a href="#usage" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors pl-3">
-                Usage
-              </a>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <a href="#theme" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                Theme Configuration
-              </a>
-              <a href="#presets" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                Available Presets
-              </a>
-              <a href="#routes" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                Routes
-              </a>
-            </div>
-          )}
-        </nav>
+    <Card className="mb-4">
+      <CardHeader className="pb-2">
+        <CardDescription>{title}</CardDescription>
+        <CardTitle className="text-2xl">{value}</CardTitle>
+      </CardHeader>
+      {change && (
+        <CardContent className="pt-0">
+          <span className={changeType === 'positive' ? 'text-green-500 text-sm' : 'text-red-500 text-sm'}>
+            {change}
+          </span>
+        </CardContent>
+      )}
+    </Card>
+  )
+}
+
+function QuickLinksWidget({ props }: { props?: Record<string, unknown> }) {
+  const title = (props?.title as string) || 'Quick Links'
+  const links = (props?.links as { label: string; href: string }[]) || []
+
+  return (
+    <Card className="mb-4">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1">
+        {links.map((link, i) => (
+          <a
+            key={i}
+            href={link.href}
+            className="block text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {link.label}
+          </a>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+function NewsletterWidget({ props }: { props?: Record<string, unknown> }) {
+  const title = (props?.title as string) || 'Newsletter'
+  const buttonText = (props?.buttonText as string) || 'Subscribe'
+
+  return (
+    <Card className="mb-4">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <CardDescription>Get the latest updates</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <input
+          type="email"
+          placeholder="Enter your email"
+          className="w-full px-3 py-2 text-sm border rounded-md bg-background"
+        />
+        <Button size="sm" className="w-full">{buttonText}</Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+function HeroBannerWidget({ props }: { props?: Record<string, unknown> }) {
+  const title = (props?.title as string) || 'Welcome'
+  const subtitle = (props?.subtitle as string) || ''
+  const ctaLabel = (props?.ctaLabel as string) || ''
+  const ctaHref = (props?.ctaHref as string) || ''
+
+  return (
+    <div className="py-16 px-6 text-center bg-gradient-to-br from-primary/10 to-primary/5 mb-6">
+      <h1 className="text-4xl font-bold mb-4">{title}</h1>
+      {subtitle && <p className="text-xl text-muted-foreground mb-6">{subtitle}</p>}
+      {ctaLabel && ctaHref && (
+        <Button size="lg" asChild>
+          <a href={ctaHref}>{ctaLabel}</a>
+        </Button>
+      )}
+    </div>
+  )
+}
+
+function CopyrightWidget({ props }: { props?: Record<string, unknown> }) {
+  const text = (props?.text as string) || `© ${new Date().getFullYear()}`
+  return <div className="text-center text-sm text-muted-foreground py-2">{text}</div>
+}
+
+function SocialLinksWidget({ props }: { props?: Record<string, unknown> }) {
+  const links = (props?.links as { platform: string; href: string }[]) || []
+  return (
+    <div className="flex gap-4 justify-center py-2">
+      {links.map((link, i) => (
+        <a key={i} href={link.href} className="text-muted-foreground hover:text-foreground text-sm">
+          {link.platform}
+        </a>
+      ))}
+    </div>
+  )
+}
+
+// Widget renderer
+function renderZoneWidget(widget: WidgetConfig, index: number) {
+  switch (widget.type) {
+    case 'StatsCard':
+      return <StatsCardWidget key={index} props={widget.props} />
+    case 'QuickLinks':
+      return <QuickLinksWidget key={index} props={widget.props} />
+    case 'Newsletter':
+      return <NewsletterWidget key={index} props={widget.props} />
+    case 'HeroBanner':
+      return <HeroBannerWidget key={index} props={widget.props} />
+    case 'Copyright':
+      return <CopyrightWidget key={index} props={widget.props} />
+    case 'SocialLinks':
+      return <SocialLinksWidget key={index} props={widget.props} />
+    case 'Toc':
+      return null // Toc is rendered separately
+    default:
+      return (
+        <Card key={index} className="mb-4">
+          <CardContent className="pt-4">
+            <span className="text-muted-foreground text-sm">Widget: {widget.type}</span>
+          </CardContent>
+        </Card>
+      )
+  }
+}
+
+function ZoneWidgets({ widgets }: { widgets?: WidgetConfig[] }) {
+  if (!widgets || widgets.length === 0) return null
+  return <>{widgets.map((w, i) => renderZoneWidget(w, i))}</>
+}
+
+function Toc({ selectedItem, zones }: { selectedItem: NavItem | null; zones?: ZonesConfig }) {
+  const rightSidebarWidgets = zones?.rightSidebar || []
+
+  return (
+    <aside className="w-64 hidden lg:block border-l border-border/50">
+      <div className="sticky top-20 px-4 py-6 space-y-4">
+        {/* Table of Contents */}
+        <div>
+          <h4 className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-widest mb-4">
+            On this page
+          </h4>
+          <nav className="space-y-2 text-sm">
+            {selectedItem ? (
+              <div className="space-y-2">
+                <a href="#" className="flex items-center gap-2 text-primary font-medium">
+                  <span className="w-1 h-1 rounded-full bg-primary" />
+                  {selectedItem.title}
+                </a>
+                <a href="#overview" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors pl-3">
+                  Overview
+                </a>
+                <a href="#usage" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors pl-3">
+                  Usage
+                </a>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <a href="#theme" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+                  <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                  Theme Configuration
+                </a>
+                <a href="#presets" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+                  <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                  Available Presets
+                </a>
+              </div>
+            )}
+          </nav>
+        </div>
+
+        {/* Zone Widgets (excluding Toc) */}
+        {rightSidebarWidgets.filter(w => w.type !== 'Toc').length > 0 && (
+          <div className="pt-4 border-t border-border/50">
+            <ZoneWidgets widgets={rightSidebarWidgets.filter(w => w.type !== 'Toc')} />
+          </div>
+        )}
       </div>
     </aside>
   )
@@ -538,6 +710,7 @@ export default function App() {
 
   // Determine layout from templates config
   const layout = config.templates?.docs?.layout || 'ThreeColumnLayout'
+  const zones = config.templates?.docs?.zones
 
   // Render based on layout type
   const renderLayout = () => {
@@ -555,6 +728,7 @@ export default function App() {
         return (
           <div className="flex justify-center">
             <div className="w-full max-w-4xl px-6">
+              {zones?.hero && <ZoneWidgets widgets={zones.hero} />}
               <Content config={config} routes={routes} selectedItem={selectedItem} />
             </div>
           </div>
@@ -563,17 +737,41 @@ export default function App() {
         // Full width content
         return (
           <div className="px-6">
+            {zones?.hero && <ZoneWidgets widgets={zones.hero} />}
             <Content config={config} routes={routes} selectedItem={selectedItem} />
+          </div>
+        )
+      case 'FlexibleLayout':
+        // WordPress-style zones layout
+        return (
+          <div className="flex flex-col">
+            {zones?.hero && <ZoneWidgets widgets={zones.hero} />}
+            <div className="flex flex-1">
+              {zones?.leftSidebar && (
+                <aside className="w-64 border-r p-4 hidden md:block">
+                  <ZoneWidgets widgets={zones.leftSidebar} />
+                </aside>
+              )}
+              <div className="flex-1">
+                <Content config={config} routes={routes} selectedItem={selectedItem} />
+              </div>
+              <Toc selectedItem={selectedItem} zones={zones} />
+            </div>
+            {zones?.bottomNav && (
+              <div className="border-t p-4 bg-muted/30">
+                <ZoneWidgets widgets={zones.bottomNav} />
+              </div>
+            )}
           </div>
         )
       case 'ThreeColumnLayout':
       default:
-        // Classic: Sidebar + Content + TOC
+        // Classic: Sidebar + Content + TOC with zones
         return (
           <div className="flex">
             <Sidebar nav={nav} activeItem={activeItemPath} onItemClick={handleItemClick} />
             <Content config={config} routes={routes} selectedItem={selectedItem} />
-            <Toc selectedItem={selectedItem} />
+            <Toc selectedItem={selectedItem} zones={zones} />
           </div>
         )
     }

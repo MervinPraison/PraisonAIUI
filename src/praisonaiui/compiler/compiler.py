@@ -116,22 +116,41 @@ class Compiler:
                 for name, comp in self.config.components.items()
             },
             "templates": {
-                name: {
-                    "layout": template.layout,
-                    "slots": {
-                        slot_name: (
-                            {"ref": slot.ref}
-                            if slot and slot.ref
-                            else {"type": slot.type}
-                            if slot and slot.type
-                            else None
-                        )
-                        for slot_name, slot in template.slots.items()
-                    },
-                }
+                name: self._serialize_template(template)
                 for name, template in self.config.templates.items()
             },
         }
+
+    def _serialize_template(self, template) -> dict:
+        """Serialize a template config including slots and zones."""
+        result = {
+            "layout": template.layout,
+            "slots": {
+                slot_name: (
+                    {"ref": slot.ref}
+                    if slot and slot.ref
+                    else {"type": slot.type}
+                    if slot and slot.type
+                    else None
+                )
+                for slot_name, slot in template.slots.items()
+            },
+        }
+        
+        # Add zones if present (WordPress-style widget areas)
+        if template.zones:
+            zones_dict = {}
+            zones_data = template.zones.model_dump(by_alias=True, exclude_none=True)
+            for zone_name, widgets in zones_data.items():
+                if widgets:
+                    zones_dict[zone_name] = [
+                        {"type": w.get("type"), "props": w.get("props", {})}
+                        for w in widgets
+                    ]
+            if zones_dict:
+                result["zones"] = zones_dict
+        
+        return result
 
     def _generate_docs_nav(self) -> dict:
         """Generate docs-nav.json content."""
