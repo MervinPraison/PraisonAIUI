@@ -10,7 +10,14 @@ Templates define the structure of your pages by combining:
 
 ## Layouts
 
-PraisonAIUI provides two layouts:
+PraisonAIUI provides four layouts:
+
+| Layout | Description |
+|--------|-------------|
+| `ThreeColumnLayout` | Sidebar + Content + TOC (classic docs) |
+| `TwoColumnLayout` | Sidebar + Content (no TOC) |
+| `CenteredLayout` | Centered content, no sidebar |
+| `FullWidthLayout` | Full-width content |
 
 ### ThreeColumnLayout
 
@@ -27,17 +34,44 @@ The classic documentation layout with sidebar and TOC.
 └─────────────────────────────────────────────┘
 ```
 
-### DefaultLayout
+### TwoColumnLayout
 
-Simple layout for landing pages.
+Sidebar + Content without the right TOC column.
+
+```
+┌─────────────────────────────────────────────┐
+│                   Header                     │
+├───────┬─────────────────────────────────────┤
+│ Left  │              Main                    │
+│(Side) │           (Content)                  │
+├───────┴─────────────────────────────────────┤
+│                   Footer                     │
+└─────────────────────────────────────────────┘
+```
+
+### CenteredLayout
+
+Centered content with no sidebar, ideal for articles/blogs.
 
 ```
 ┌─────────────────────────────────────────────┐
 │                   Header                     │
 ├─────────────────────────────────────────────┤
-│                    Hero                      │
+│              Main (Centered)                 │
 ├─────────────────────────────────────────────┤
-│                    Main                      │
+│                   Footer                     │
+└─────────────────────────────────────────────┘
+```
+
+### FullWidthLayout
+
+Full-width content without sidebar.
+
+```
+┌─────────────────────────────────────────────┐
+│                   Header                     │
+├─────────────────────────────────────────────┤
+│            Main (Full Width)                 │
 ├─────────────────────────────────────────────┤
 │                   Footer                     │
 └─────────────────────────────────────────────┘

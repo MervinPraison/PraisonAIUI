@@ -46,12 +46,10 @@ components:
 
 templates:
   docs:
-    layout: "ThreeColumnLayout"
+    layout: "FullWidthLayout"  # Full width, no sidebar - showcase wide content
     slots:
       header: { ref: "header" }
-      left: { ref: "sidebar" }
       main: { type: "DocContent" }
-      right: { type: "Toc" }
       footer: { ref: "footer" }
 
 routes:

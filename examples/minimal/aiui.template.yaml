@@ -15,7 +15,7 @@ content:
 
 templates:
   docs:
-    layout: "ThreeColumnLayout"
+    layout: "TwoColumnLayout"  # Sidebar + Content (no TOC)
     slots:
       main: { type: "DocContent" }
 

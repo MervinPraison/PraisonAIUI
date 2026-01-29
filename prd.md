@@ -18,6 +18,26 @@
 3. **Production Ready** - Built-in SEO, accessibility, i18n support
 4. **Extensible** - Advanced users can scaffold full React projects with `aiui init --frontend`
 
+### Core Engineering Philosophy
+
+> **We are a wrapper, not a framework.**
+
+PraisonAIUI is fundamentally a **thin orchestration layer** that integrates best-in-class external libraries. We do not reinvent the wheel.
+
+| Concern | Our Approach |
+|---------|--------------|
+| **Markdown Rendering** | Use `react-markdown` + `remark-gfm`, not custom regex parsers |
+| **UI Components** | Use shadcn/ui components, not custom implementations |
+| **Theming** | Use Tailwind CSS + CSS variables, not custom styling engine |
+| **YAML Parsing** | Use `PyYAML` / `js-yaml`, not custom parsers |
+| **Validation** | Use Pydantic models, not custom validation logic |
+
+**Guiding Rules:**
+1. **Integrate, don't build** - If a mature library exists, use it
+2. **Configuration over code** - Everything configurable in YAML
+3. **Minimal surface area** - Our code is glue between libraries
+4. **Escape hatches** - `aiui init --frontend` for those who need full control
+
 ### Distribution
 - `pip install praisonaiui` → Python CLI for scan/validate/build/watch
 - `npm install praisonaiui` → JS runtime + framework adapters + optional Node CLI

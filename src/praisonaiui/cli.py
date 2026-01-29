@@ -409,5 +409,233 @@ def serve(
             console.print("\n[green]Server stopped.[/green]")
 
 
+@app.command()
+def dev(
+    examples_dir: Path = typer.Option(
+        Path("examples"),
+        "--examples",
+        "-e",
+        help="Directory containing example projects",
+    ),
+    port: int = typer.Option(
+        9000,
+        "--port",
+        "-p",
+        help="Port for dev server",
+    ),
+) -> None:
+    """Development dashboard - switch between examples live."""
+    import http.server
+    import json
+    import os
+    import socket
+    import socketserver
+    import subprocess
+    import tempfile
+    import threading
+    import urllib.parse
+    import webbrowser
+
+    # Find examples
+    if not examples_dir.exists():
+        console.print(f"[red]Error:[/red] Examples directory not found: {examples_dir}")
+        raise typer.Exit(code=1)
+
+    examples = [d.name for d in examples_dir.iterdir() if d.is_dir() and (d / "aiui.template.yaml").exists()]
+    if not examples:
+        console.print(f"[red]Error:[/red] No examples found in {examples_dir}")
+        raise typer.Exit(code=1)
+
+    console.print(f"[green]Found {len(examples)} examples:[/green] {', '.join(examples)}")
+
+    # Create temp directory for built content
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        current_example = {"name": examples[0]}
+
+        # Build first example
+        def build_example(name: str) -> bool:
+            """Build an example and copy to temp dir."""
+            example_path = examples_dir / name
+            if not example_path.exists():
+                return False
+            try:
+                # Run aiui build in example directory
+                result = subprocess.run(
+                    ["aiui", "build", "-o", str(temp_path / "site")],
+                    cwd=example_path,
+                    capture_output=True,
+                    text=True,
+                )
+                return result.returncode == 0
+            except Exception as e:
+                console.print(f"[red]Build error:[/red] {e}")
+                return False
+
+        # Initial build
+        console.print(f"[yellow]Building {current_example['name']}...[/yellow]")
+        build_example(current_example["name"])
+
+        # Dashboard HTML
+        dashboard_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PraisonAIUI Dev Dashboard</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ font-family: system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #fafafa; }}
+        .toolbar {{
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            display: flex; align-items: center; gap: 16px;
+            padding: 12px 20px;
+            background: linear-gradient(to bottom, rgba(10,10,10,0.98), rgba(10,10,10,0.95));
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(12px);
+        }}
+        .logo {{ display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; }}
+        .logo-icon {{ 
+            width: 28px; height: 28px; border-radius: 6px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: 700;
+        }}
+        select {{
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15);
+            color: #fafafa; padding: 8px 32px 8px 12px;
+            border-radius: 8px; font-size: 13px; cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23888' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 10px center;
+        }}
+        select:hover {{ border-color: rgba(255,255,255,0.3); }}
+        select:focus {{ outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }}
+        .status {{ font-size: 12px; color: #888; margin-left: auto; }}
+        .status.loading {{ color: #f59e0b; }}
+        .status.ready {{ color: #22c55e; }}
+        iframe {{
+            position: fixed; top: 53px; left: 0; right: 0; bottom: 0;
+            width: 100%; height: calc(100vh - 53px); border: none;
+        }}
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div class="logo">
+            <div class="logo-icon">AI</div>
+            <span>Dev Dashboard</span>
+        </div>
+        <select id="example-select" onchange="switchExample(this.value)">
+            {"".join(f'<option value="{e}">{e}</option>' for e in examples)}
+        </select>
+        <span id="status" class="status ready">Ready</span>
+    </div>
+    <iframe id="preview" src="/site/"></iframe>
+    <script>
+        async function switchExample(name) {{
+            const status = document.getElementById('status');
+            const iframe = document.getElementById('preview');
+            status.textContent = 'Building...';
+            status.className = 'status loading';
+            try {{
+                const res = await fetch('/api/switch?example=' + encodeURIComponent(name));
+                const data = await res.json();
+                if (data.success) {{
+                    iframe.src = '/site/?t=' + Date.now();
+                    status.textContent = 'Ready';
+                    status.className = 'status ready';
+                }} else {{
+                    status.textContent = 'Build failed';
+                    status.className = 'status';
+                }}
+            }} catch (e) {{
+                status.textContent = 'Error';
+                status.className = 'status';
+            }}
+        }}
+    </script>
+</body>
+</html>"""
+
+        # Find available port
+        def find_port(start: int) -> int:
+            for i in range(10):
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    try:
+                        s.bind(("", start + i))
+                        return start + i
+                    except OSError:
+                        continue
+            raise OSError("No available port")
+
+        actual_port = find_port(port)
+
+        # Custom handler with API
+        class DevHandler(http.server.SimpleHTTPRequestHandler):
+            def __init__(self, *args, **kwargs):
+                # Serve from the site subdirectory
+                site_dir = temp_path / "site"
+                site_dir.mkdir(parents=True, exist_ok=True)
+                super().__init__(*args, directory=str(site_dir), **kwargs)
+
+            def do_GET(self):
+                path = self.path.split("?")[0]
+                query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+
+                # Dashboard
+                if path == "/" or path == "":
+                    self.send_response(200)
+                    self.send_header("Content-type", "text/html")
+                    self.end_headers()
+                    self.wfile.write(dashboard_html.encode())
+                    return
+
+                # API: switch example
+                if path == "/api/switch":
+                    example_name = query.get("example", [None])[0]
+                    if example_name and example_name in examples:
+                        console.print(f"[yellow]Switching to {example_name}...[/yellow]")
+                        success = build_example(example_name)
+                        current_example["name"] = example_name
+                        self.send_response(200)
+                        self.send_header("Content-type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": success, "example": example_name}).encode())
+                    else:
+                        self.send_response(400)
+                        self.send_header("Content-type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": "Invalid example"}).encode())
+                    return
+
+                # Serve built site from /site/ prefix
+                if path.startswith("/site"):
+                    # Strip /site prefix and serve file
+                    self.path = path[5:] if len(path) > 5 else "/"
+                    if self.path == "/" or (self.path and "." not in self.path.split("/")[-1]):
+                        self.path = "/index.html"
+
+                # Default: serve file normally (for assets like /assets/index.js)
+                try:
+                    super().do_GET()
+                except Exception:
+                    self.send_response(404)
+                    self.end_headers()
+
+            def log_message(self, format, *args):
+                pass  # Suppress logs
+
+        console.print(f"\n[green]🚀[/green] Dev dashboard at [link]http://localhost:{actual_port}[/link]")
+        console.print(f"[dim]Switch examples with the dropdown. Press Ctrl+C to stop.[/dim]\n")
+        webbrowser.open(f"http://localhost:{actual_port}")
+
+        with socketserver.TCPServer(("", actual_port), DevHandler) as httpd:
+            try:
+                httpd.serve_forever()
+            except KeyboardInterrupt:
+                console.print("\n[green]Dev server stopped.[/green]")
+
+
 if __name__ == "__main__":
     app()

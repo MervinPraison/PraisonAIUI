@@ -29,6 +29,7 @@ interface SiteConfig {
 interface UIConfig {
   site?: SiteConfig
   components?: Record<string, { props?: Record<string, unknown> }>
+  templates?: Record<string, { layout?: string; slots?: Record<string, unknown> }>
 }
 
 interface DocsNav {
@@ -47,23 +48,48 @@ function Header({ config }: { config: UIConfig }) {
   } | undefined
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-14 items-center px-6">
-        <div className="flex items-center gap-2 font-semibold">
-          <span className="text-primary">{header?.logoText || config.site?.title || 'PraisonAIUI'}</span>
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-16 items-center px-6 max-w-screen-2xl mx-auto">
+        {/* Logo */}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center">
+            <span className="text-primary-foreground text-sm font-bold">AI</span>
+          </div>
+          <span className="font-semibold text-lg tracking-tight">{header?.logoText || config.site?.title || 'PraisonAIUI'}</span>
         </div>
-        <nav className="ml-auto flex items-center gap-4">
+
+        {/* Search (placeholder) */}
+        <div className="hidden md:flex flex-1 max-w-md mx-8">
+          <div className="relative w-full">
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+              <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              placeholder="Search documentation..."
+              className="w-full h-9 pl-10 pr-4 text-sm rounded-lg border border-border/50 bg-muted/30 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
+            />
+            <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex h-5 items-center gap-1 rounded border border-border/50 bg-muted px-1.5 text-[10px] text-muted-foreground">
+              ⌘K
+            </kbd>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="ml-auto flex items-center gap-1">
           {header?.links?.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg transition-all"
             >
               {link.label}
             </a>
           ))}
           {header?.cta && (
-            <Button size="sm" asChild>
+            <Button size="sm" className="ml-2 shadow-sm" asChild>
               <a href={header.cta.href}>{header.cta.label}</a>
             </Button>
           )}
@@ -83,18 +109,26 @@ function Sidebar({ nav, activeItem, onItemClick }: SidebarProps) {
   const renderItem = (item: NavItem, depth = 0) => {
     const itemPath = item.path || item.title
     const isActive = activeItem === itemPath
+    const hasChildren = item.children && item.children.length > 0
 
     return (
       <div key={item.title + (item.path || '')}>
         <button
           onClick={() => onItemClick(item)}
-          className={`w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors ${isActive
-            ? 'bg-primary/10 text-primary font-medium border-l-2 border-primary'
-            : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+          className={`group w-full text-left px-3 py-2 text-sm rounded-lg transition-all duration-150 flex items-center gap-2 ${isActive
+            ? 'bg-primary/10 text-primary font-medium'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
             }`}
-          style={{ paddingLeft: `${12 + depth * 12}px` }}
+          style={{ paddingLeft: `${16 + depth * 16}px` }}
         >
-          {item.title}
+          {/* Indicator dot for active item */}
+          <span className={`w-1.5 h-1.5 rounded-full transition-all ${isActive ? 'bg-primary' : 'bg-transparent group-hover:bg-muted-foreground/30'}`} />
+          <span className="truncate">{item.title}</span>
+          {hasChildren && (
+            <svg className="w-3 h-3 ml-auto text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          )}
         </button>
         {item.children?.map((child) => renderItem(child, depth + 1))}
       </div>
@@ -102,15 +136,17 @@ function Sidebar({ nav, activeItem, onItemClick }: SidebarProps) {
   }
 
   return (
-    <aside className="w-64 border-r">
-      <ScrollArea className="h-[calc(100vh-3.5rem)] py-4">
-        <div className="px-2 space-y-1">
+    <aside className="w-64 border-r border-border/50 bg-muted/20">
+      <ScrollArea className="h-[calc(100vh-4rem)] py-6">
+        <div className="px-3 space-y-6">
           {nav.items?.map((group) => (
-            <div key={group.title} className="mb-4">
-              <h4 className="px-3 mb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <div key={group.title}>
+              <h4 className="px-3 mb-2 text-xs font-semibold text-muted-foreground/70 uppercase tracking-widest">
                 {group.title}
               </h4>
-              {group.children?.map((item) => renderItem(item))}
+              <div className="space-y-0.5">
+                {group.children?.map((item) => renderItem(item))}
+              </div>
             </div>
           ))}
         </div>
@@ -172,14 +208,17 @@ function Content({ config, routes, selectedItem }: ContentProps) {
     li: ({ children }: { children?: React.ReactNode }) => <li className="text-muted-foreground">{children}</li>,
     blockquote: ({ children }: { children?: React.ReactNode }) => <blockquote className="border-l-4 border-primary pl-4 my-4 italic text-muted-foreground">{children}</blockquote>,
     code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
-      const isBlock = className?.includes('language-')
-      return isBlock ? (
-        <pre className="bg-muted p-4 rounded-lg text-sm overflow-auto my-4"><code>{children}</code></pre>
-      ) : (
-        <code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-sm">{children}</code>
-      )
+      // Check if this is inside a pre block (fenced code block)
+      const isInline = !className && String(children).indexOf('\n') === -1
+      if (isInline) {
+        return <code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-sm font-mono">{children}</code>
+      }
+      // Block code - rendered by pre wrapper
+      return <code className="block font-mono">{children}</code>
     },
-    pre: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    pre: ({ children }: { children?: React.ReactNode }) => (
+      <pre className="bg-muted p-4 rounded-lg text-sm overflow-auto my-4 font-mono whitespace-pre">{children}</pre>
+    ),
     table: ({ children }: { children?: React.ReactNode }) => <div className="overflow-auto my-4"><table className="w-full border-collapse text-sm">{children}</table></div>,
     thead: ({ children }: { children?: React.ReactNode }) => <thead className="bg-muted/50">{children}</thead>,
     tr: ({ children }: { children?: React.ReactNode }) => <tr className="border-b">{children}</tr>,
@@ -193,13 +232,6 @@ function Content({ config, routes, selectedItem }: ContentProps) {
   if (selectedItem) {
     return (
       <main className="flex-1 p-8 max-w-3xl">
-        <h1 className="text-4xl font-bold tracking-tight mb-2 text-primary">
-          {selectedItem.title}
-        </h1>
-        <p className="text-muted-foreground text-sm mb-6">
-          <code className="bg-primary/10 text-primary px-2 py-1 rounded">{selectedItem.path || 'N/A'}</code>
-        </p>
-        <Separator className="my-6" />
         {loadingContent ? (
           <div className="text-muted-foreground">Loading content...</div>
         ) : markdown ? (
@@ -276,19 +308,40 @@ function Content({ config, routes, selectedItem }: ContentProps) {
 
 function Toc({ selectedItem }: { selectedItem: NavItem | null }) {
   return (
-    <aside className="w-48 hidden lg:block">
-      <div className="sticky top-20 py-4">
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+    <aside className="w-56 hidden lg:block border-l border-border/50">
+      <div className="sticky top-20 px-4 py-6">
+        <h4 className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-widest mb-4">
           On this page
         </h4>
-        <nav className="space-y-1 text-sm">
+        <nav className="space-y-2 text-sm">
           {selectedItem ? (
-            <span className="block text-primary font-medium">{selectedItem.title}</span>
+            <div className="space-y-2">
+              <a href="#" className="flex items-center gap-2 text-primary font-medium">
+                <span className="w-1 h-1 rounded-full bg-primary" />
+                {selectedItem.title}
+              </a>
+              <a href="#overview" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors pl-3">
+                Overview
+              </a>
+              <a href="#usage" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors pl-3">
+                Usage
+              </a>
+            </div>
           ) : (
-            <>
-              <a href="#" className="block text-muted-foreground hover:text-primary">Theme Configuration</a>
-              <a href="#" className="block text-muted-foreground hover:text-primary">Routes</a>
-            </>
+            <div className="space-y-2">
+              <a href="#theme" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                Theme Configuration
+              </a>
+              <a href="#presets" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                Available Presets
+              </a>
+              <a href="#routes" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                Routes
+              </a>
+            </div>
           )}
         </nav>
       </div>
@@ -303,12 +356,21 @@ function Footer({ config }: { config: UIConfig }) {
   } | undefined
 
   return (
-    <footer className="border-t py-6 px-6">
-      <div className="flex justify-between items-center text-sm text-muted-foreground">
-        <span>{footer?.text || '© 2024'}</span>
-        <nav className="flex gap-4">
+    <footer className="border-t border-border/50 py-8 px-6 bg-muted/20">
+      <div className="max-w-screen-2xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center">
+            <span className="text-primary-foreground text-[8px] font-bold">AI</span>
+          </div>
+          <span>{footer?.text || '© 2024 PraisonAIUI'}</span>
+        </div>
+        <nav className="flex items-center gap-6">
           {footer?.links?.map((link) => (
-            <a key={link.href} href={link.href} className="hover:text-primary">
+            <a
+              key={link.href}
+              href={link.href}
+              className="hover:text-foreground transition-colors"
+            >
               {link.label}
             </a>
           ))}
@@ -474,14 +536,53 @@ export default function App() {
     )
   }
 
+  // Determine layout from templates config
+  const layout = config.templates?.docs?.layout || 'ThreeColumnLayout'
+
+  // Render based on layout type
+  const renderLayout = () => {
+    switch (layout) {
+      case 'TwoColumnLayout':
+        // Sidebar + Content (no TOC)
+        return (
+          <div className="flex">
+            <Sidebar nav={nav} activeItem={activeItemPath} onItemClick={handleItemClick} />
+            <Content config={config} routes={routes} selectedItem={selectedItem} />
+          </div>
+        )
+      case 'CenteredLayout':
+        // Centered content, no sidebar
+        return (
+          <div className="flex justify-center">
+            <div className="w-full max-w-4xl px-6">
+              <Content config={config} routes={routes} selectedItem={selectedItem} />
+            </div>
+          </div>
+        )
+      case 'FullWidthLayout':
+        // Full width content
+        return (
+          <div className="px-6">
+            <Content config={config} routes={routes} selectedItem={selectedItem} />
+          </div>
+        )
+      case 'ThreeColumnLayout':
+      default:
+        // Classic: Sidebar + Content + TOC
+        return (
+          <div className="flex">
+            <Sidebar nav={nav} activeItem={activeItemPath} onItemClick={handleItemClick} />
+            <Content config={config} routes={routes} selectedItem={selectedItem} />
+            <Toc selectedItem={selectedItem} />
+          </div>
+        )
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header config={config} />
-      <div className="flex">
-        <Sidebar nav={nav} activeItem={activeItemPath} onItemClick={handleItemClick} />
-        <Content config={config} routes={routes} selectedItem={selectedItem} />
-        <Toc selectedItem={selectedItem} />
-      </div>
+      {renderLayout()}
       <Footer config={config} />
     </div>
   )

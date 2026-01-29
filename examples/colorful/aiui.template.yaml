@@ -45,12 +45,10 @@ components:
 
 templates:
   docs:
-    layout: "ThreeColumnLayout"
+    layout: "CenteredLayout"  # Centered content, no sidebar
     slots:
       header: { ref: "header" }
-      left: { ref: "sidebar" }
       main: { type: "DocContent" }
-      right: { type: "Toc" }
       footer: { ref: "footer" }
 
 routes:

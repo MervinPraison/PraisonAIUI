@@ -51,12 +51,11 @@ components:
 
 templates:
   docs:
-    layout: "ThreeColumnLayout"
+    layout: "TwoColumnLayout"  # Sidebar + Content, no TOC - developer-focused
     slots:
       header: { ref: "header" }
       left: { ref: "sidebar" }
       main: { type: "DocContent" }
-      right: { type: "Toc" }
       footer: { ref: "footer" }
 
 routes:
