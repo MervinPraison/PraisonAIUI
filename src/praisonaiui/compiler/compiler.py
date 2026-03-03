@@ -217,6 +217,11 @@ class Compiler:
                 if assets_dst.exists():
                     shutil.rmtree(assets_dst)
                 shutil.copytree(assets_src, assets_dst)
+            # Copy root-level static files (icons, favicons, etc.)
+            static_exts = {".svg", ".png", ".ico", ".webmanifest", ".txt"}
+            for f in frontend_dir.iterdir():
+                if f.is_file() and f.suffix in static_exts:
+                    shutil.copy(f, output_dir / f.name)
 
     def _copy_docs(self, output_dir: Path) -> list[str]:
         """Copy markdown docs to output directory for content loading."""

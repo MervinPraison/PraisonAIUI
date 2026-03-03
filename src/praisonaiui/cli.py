@@ -352,6 +352,16 @@ def serve(
         "-w",
         help="Watch for config changes and auto-rebuild",
     ),
+    ssl_certfile: Optional[Path] = typer.Option(
+        None,
+        "--ssl-certfile",
+        help="Path to SSL certificate file for HTTPS",
+    ),
+    ssl_keyfile: Optional[Path] = typer.Option(
+        None,
+        "--ssl-keyfile",
+        help="Path to SSL private key file for HTTPS",
+    ),
 ) -> None:
     """Serve the site locally with a production-ready HTTP server."""
     import socket
@@ -454,13 +464,16 @@ def serve(
         middleware=middleware,
     )
 
-    console.print(f"\n[green]🚀[/green] Serving at [link]http://{host}:{actual_port}[/link]")
+    protocol = "https" if ssl_certfile else "http"
+    console.print(f"\n[green]🚀[/green] Serving at [link]{protocol}://{host}:{actual_port}[/link]")
+    if ssl_certfile:
+        console.print(f"[green]🔒[/green] TLS enabled with {ssl_certfile}")
     console.print("[dim]Press Ctrl+C to stop[/dim]\n")
 
     # Open browser
     import webbrowser
 
-    webbrowser.open(f"http://{host}:{actual_port}")
+    webbrowser.open(f"{protocol}://{host}:{actual_port}")
 
     # Start file watcher in background thread if --watch
     if watch and config.exists():
@@ -486,7 +499,12 @@ def serve(
     # Run Uvicorn
     import uvicorn
 
-    uvicorn.run(starlette_app, host=host, port=actual_port, log_level="info")
+    uvicorn_kwargs: dict = {"host": host, "port": actual_port, "log_level": "info"}
+    if ssl_certfile:
+        uvicorn_kwargs["ssl_certfile"] = str(ssl_certfile)
+    if ssl_keyfile:
+        uvicorn_kwargs["ssl_keyfile"] = str(ssl_keyfile)
+    uvicorn.run(starlette_app, **uvicorn_kwargs)
 
 
 @app.command()
