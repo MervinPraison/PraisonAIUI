@@ -1,0 +1,72 @@
+# PraisonAIUI Chat Application Configuration
+# Run with: aiui run app.py
+
+site:
+  title: AI Chat Assistant
+  description: An interactive AI chat application
+  theme:
+    preset: soft
+    darkMode: false
+    radius: lg
+
+# Use chainlit-style fullscreen chat layout
+style: chainlit
+
+# Chat configuration
+chat:
+  enabled: true
+  name: AI Assistant
+  starters:
+    - label: "Say hello"
+      message: "Hello!"
+      icon: "👋"
+    - label: "Tell me a joke"
+      message: "Tell me a funny joke"
+      icon: "😄"
+    - label: "Help me code"
+      message: "Help me write a Python function"
+      icon: "💻"
+    - label: "Explain something"
+      message: "Explain quantum computing simply"
+      icon: "🔬"
+  profiles:
+    - name: General Assistant
+      description: A helpful general-purpose assistant
+      icon: "🤖"
+      default: true
+    - name: Code Helper
+      description: Specialized in coding tasks
+      icon: "💻"
+    - name: Creative Writer
+      description: Helps with creative writing
+      icon: "✍️"
+  features:
+    streaming: true
+    reasoning: true
+    tools: true
+    multimedia: true
+    feedback: true
+  input:
+    placeholder: "Type your message..."
+    multimodal: false
+
+# Layout configuration
+layout:
+  mode: fullscreen
+
+# Optional widgets for settings panel
+widgets:
+  - type: slider
+    name: temperature
+    label: Temperature
+    default: 0.7
+    min: 0
+    max: 2
+    step: 0.1
+  - type: select
+    name: model
+    label: Model
+    options:
+      - gpt-4o
+      - gpt-4o-mini
+      - claude-3.5-sonnet

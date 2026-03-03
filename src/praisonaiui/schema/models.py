@@ -70,7 +70,7 @@ class SlotRef(BaseModel):
 
 class WidgetConfig(BaseModel):
     """Widget configuration for zone-based layouts."""
-    
+
     type: str
     props: dict[str, Any] = Field(default_factory=dict)
 
@@ -155,15 +155,129 @@ class DependenciesConfig(BaseModel):
     )
 
 
+class ChatProfileConfig(BaseModel):
+    """Chat profile configuration for agent selection."""
+
+    name: str
+    description: Optional[str] = None
+    agent: Optional[str] = None
+    icon: Optional[str] = None
+    default: bool = False
+
+
+class ChatStarterConfig(BaseModel):
+    """Chat starter message configuration."""
+
+    label: str
+    message: str
+    icon: Optional[str] = None
+
+
+class ChatFeaturesConfig(BaseModel):
+    """Chat features configuration."""
+
+    streaming: bool = True
+    file_upload: bool = Field(default=True, alias="fileUpload")
+    audio: bool = False
+    reasoning: bool = True
+    tools: bool = True
+    multimedia: bool = True
+    history: bool = True
+    feedback: bool = False
+    code_execution: bool = Field(default=False, alias="codeExecution")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ChatInputConfig(BaseModel):
+    """Chat input configuration."""
+
+    multimodal: bool = True
+    audio: bool = False
+    file_upload: bool = Field(default=True, alias="fileUpload")
+    placeholder: str = "Type a message..."
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ChatConfig(BaseModel):
+    """Chat configuration for AI chat interfaces."""
+
+    enabled: bool = False
+    name: Optional[str] = None
+    starters: list[ChatStarterConfig] = Field(default_factory=list)
+    profiles: list[ChatProfileConfig] = Field(default_factory=list)
+    features: Optional[ChatFeaturesConfig] = None
+    input: Optional[ChatInputConfig] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class LayoutConfig(BaseModel):
+    """Layout configuration for chat positioning."""
+
+    mode: Literal[
+        "fullscreen", "sidebar", "bottom-right", "bottom-left",
+        "top-right", "top-left", "embedded", "custom"
+    ] = "fullscreen"
+    width: Optional[str] = None
+    height: Optional[str] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class AuthProviderConfig(BaseModel):
+    """OAuth provider configuration."""
+
+    name: str
+    client_id: Optional[str] = Field(default=None, alias="clientId")
+    client_secret: Optional[str] = Field(default=None, alias="clientSecret")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class AuthConfig(BaseModel):
+    """Authentication configuration."""
+
+    enabled: bool = False
+    providers: list[Literal["password", "google", "github", "azure", "auth0"]] = Field(
+        default_factory=lambda: ["password"]
+    )
+    oauth: list[AuthProviderConfig] = Field(default_factory=list)
+    require_auth: bool = Field(default=False, alias="requireAuth")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class InputWidgetConfig(BaseModel):
+    """Input widget configuration for settings panels."""
+
+    type: Literal["slider", "select", "switch", "text", "number", "color"]
+    name: str
+    label: Optional[str] = None
+    default: Optional[Any] = None
+    min: Optional[float] = None
+    max: Optional[float] = None
+    step: Optional[float] = None
+    options: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class Config(BaseModel):
     """Root configuration model for aiui.template.yaml."""
 
     schema_version: int = Field(default=1, alias="schemaVersion")
     site: SiteConfig
+    style: Literal["docs", "chainlit", "agent-ui", "gradio", "custom"] = "docs"
+    layout: Optional[LayoutConfig] = None
     content: Optional[ContentConfig] = None
     components: dict[str, ComponentConfig] = Field(default_factory=dict)
     templates: dict[str, TemplateConfig] = Field(default_factory=dict)
     routes: list[RouteConfig] = Field(default_factory=list)
+    chat: Optional[ChatConfig] = None
+    auth: Optional[AuthConfig] = None
+    widgets: list[InputWidgetConfig] = Field(default_factory=list)
     seo: Optional[SEOConfig] = None
     i18n: Optional[I18nConfig] = None
     a11y: Optional[A11yConfig] = None

@@ -13,3 +13,8 @@ export {
     Copyright,
     HeroBanner
 } from './widgets'
+
+// Chat layouts
+export { ChatLayout } from './ChatLayout'
+export { AgentUILayout } from './AgentUILayout'
+export { CopilotWidget } from './CopilotWidget'

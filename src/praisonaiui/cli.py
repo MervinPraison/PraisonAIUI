@@ -1009,5 +1009,128 @@ def dev(
                 console.print("\n[green]Dev server stopped.[/green]")
 
 
+@app.command()
+def run(
+    app_file: Path = typer.Argument(
+        ...,
+        help="Path to Python app file (e.g., app.py)",
+    ),
+    config: Path = typer.Option(
+        Path("aiui.template.yaml"),
+        "--config",
+        "-c",
+        help="Path to configuration file",
+    ),
+    port: int = typer.Option(
+        8000,
+        "--port",
+        "-p",
+        help="Port for server",
+    ),
+    host: str = typer.Option(
+        "127.0.0.1",
+        "--host",
+        help="Host to bind to",
+    ),
+    reload: bool = typer.Option(
+        False,
+        "--reload",
+        "-r",
+        help="Enable auto-reload on file changes",
+    ),
+    output: Path = typer.Option(
+        Path("aiui"),
+        "--output",
+        "-o",
+        help="Output directory for built static files",
+    ),
+) -> None:
+    """Run the AI chat server with your app.py file.
+
+    Example:
+        aiui run app.py
+        aiui run app.py --port 3000 --reload
+    """
+    import importlib.util
+    import socket
+    import sys
+
+    # Validate app file exists
+    if not app_file.exists():
+        console.print(f"[red]Error:[/red] App file not found: {app_file}")
+        raise typer.Exit(code=1)
+
+    # Build static files if config exists
+    if config.exists():
+        console.print("[yellow]⏳[/yellow] Building static files...")
+        build(config=config, output=output, minify=False)
+
+    # Load the user's app module to register callbacks
+    console.print(f"[yellow]⏳[/yellow] Loading {app_file}...")
+    spec = importlib.util.spec_from_file_location("user_app", app_file)
+    if spec is None or spec.loader is None:
+        console.print(f"[red]Error:[/red] Could not load {app_file}")
+        raise typer.Exit(code=1)
+
+    user_module = importlib.util.module_from_spec(spec)
+    sys.modules["user_app"] = user_module
+    spec.loader.exec_module(user_module)
+
+    # Find available port
+    def find_available_port(start_port: int, max_attempts: int = 10) -> int:
+        for i in range(max_attempts):
+            test_port = start_port + i
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.bind(("", test_port))
+                    return test_port
+                except OSError:
+                    continue
+        raise OSError(f"No available port found in range {start_port}-{start_port + max_attempts}")
+
+    try:
+        actual_port = find_available_port(port)
+    except OSError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=4)
+
+    if actual_port != port:
+        console.print(f"[yellow]⚠️[/yellow] Port {port} in use, using {actual_port}")
+
+    # Create the server app
+    from praisonaiui.server import create_app
+
+    static_dir = output if output.exists() else None
+    server_app = create_app(static_dir=static_dir)
+
+    # Print startup info
+    console.print(
+        Panel(
+            f"[bold green]AI Chat Server Running[/bold green]\n\n"
+            f"🌐 URL: [link]http://{host}:{actual_port}[/link]\n"
+            f"📁 App: {app_file}\n"
+            f"⚙️  Config: {config if config.exists() else 'None'}\n"
+            f"🔄 Reload: {'Enabled' if reload else 'Disabled'}",
+            title="PraisonAIUI",
+            border_style="green",
+        )
+    )
+
+    # Run with uvicorn
+    import uvicorn
+
+    uvicorn_kwargs = {
+        "host": host,
+        "port": actual_port,
+        "log_level": "info",
+        "reload": reload,
+    }
+
+    if reload:
+        uvicorn_kwargs["reload_dirs"] = [str(app_file.parent)]
+
+    uvicorn.run(server_app, **uvicorn_kwargs)
+
+
 if __name__ == "__main__":
     app()

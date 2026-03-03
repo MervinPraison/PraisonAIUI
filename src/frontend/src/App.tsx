@@ -8,6 +8,7 @@ import { Content } from './Content'
 import { ZoneWidgets } from './Widgets'
 import { Toc } from './Toc'
 import { Footer } from './Footer'
+import { ChatLayout, AgentUILayout, CopilotWidget } from './layouts'
 
 export default function App() {
   const [config, setConfig] = useState<UIConfig>({})
@@ -234,11 +235,71 @@ export default function App() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Header config={config} />
-      {renderLayout()}
-      <Footer config={config} />
-    </div>
-  )
+  // Render based on style from config
+  const renderByStyle = () => {
+    const style = config.style || 'docs'
+
+    switch (style) {
+      case 'chainlit':
+        return (
+          <ChatLayout
+            config={config.chat}
+            layout={config.layout}
+            title={config.site?.title}
+          />
+        )
+      case 'agent-ui':
+        return (
+          <AgentUILayout
+            config={config.chat}
+            title={config.site?.title}
+          />
+        )
+      case 'gradio':
+      case 'custom':
+        // For gradio/custom, show docs with copilot widget if chat enabled
+        if (config.chat?.enabled) {
+          return (
+            <div className="min-h-screen bg-background text-foreground">
+              <Header config={config} />
+              {renderLayout()}
+              <Footer config={config} />
+              <CopilotWidget config={config.chat} layout={config.layout} />
+            </div>
+          )
+        }
+        return (
+          <div className="min-h-screen bg-background text-foreground">
+            <Header config={config} />
+            {renderLayout()}
+            <Footer config={config} />
+          </div>
+        )
+      case 'docs':
+      default:
+        // Docs mode - optionally with copilot widget
+        if (config.chat?.enabled) {
+          const layoutMode = config.layout?.mode
+          if (layoutMode && ['bottom-right', 'bottom-left', 'top-right', 'top-left'].includes(layoutMode)) {
+            return (
+              <div className="min-h-screen bg-background text-foreground">
+                <Header config={config} />
+                {renderLayout()}
+                <Footer config={config} />
+                <CopilotWidget config={config.chat} layout={config.layout} />
+              </div>
+            )
+          }
+        }
+        return (
+          <div className="min-h-screen bg-background text-foreground">
+            <Header config={config} />
+            {renderLayout()}
+            <Footer config={config} />
+          </div>
+        )
+    }
+  }
+
+  return renderByStyle()
 }

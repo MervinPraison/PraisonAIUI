@@ -1,0 +1,336 @@
+"""Callbacks module - Python decorator API for AI chat behavior."""
+
+from __future__ import annotations
+
+import asyncio
+from functools import wraps
+from typing import Any, Callable, Optional, TypeVar
+
+from praisonaiui.server import MessageContext, register_callback
+
+F = TypeVar("F", bound=Callable[..., Any])
+
+# Global context for the current message being processed
+_current_context: Optional[MessageContext] = None
+
+
+def _set_context(ctx: MessageContext) -> None:
+    """Set the current message context."""
+    global _current_context
+    _current_context = ctx
+
+
+def _get_context() -> Optional[MessageContext]:
+    """Get the current message context."""
+    return _current_context
+
+
+def welcome(func: F) -> F:
+    """Decorator for chat start handler.
+
+    Called when a user opens the chat.
+
+    Example:
+        @aiui.welcome
+        async def hi():
+            await aiui.say("Hello! How can I help?")
+    """
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        if asyncio.iscoroutine(result):
+            return await result
+        return result
+
+    register_callback("welcome", wrapper)
+    return func
+
+
+def reply(func: F) -> F:
+    """Decorator for message handler.
+
+    Called when a user sends a message.
+
+    Example:
+        @aiui.reply
+        async def go(message):
+            response = await my_llm(message.text)
+            await aiui.say(response)
+    """
+    @wraps(func)
+    async def wrapper(msg: MessageContext):
+        _set_context(msg)
+        try:
+            result = func(msg)
+            if asyncio.iscoroutine(result):
+                return await result
+            return result
+        finally:
+            _set_context(None)
+
+    register_callback("reply", wrapper)
+    return func
+
+
+def goodbye(func: F) -> F:
+    """Decorator for chat end handler.
+
+    Called when a session ends.
+
+    Example:
+        @aiui.goodbye
+        async def bye():
+            await aiui.say("Goodbye!")
+    """
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        if asyncio.iscoroutine(result):
+            return await result
+        return result
+
+    register_callback("goodbye", wrapper)
+    return func
+
+
+def cancel(func: F) -> F:
+    """Decorator for stop/cancel handler.
+
+    Called when user clicks stop.
+
+    Example:
+        @aiui.cancel
+        async def stopped():
+            await aiui.say("Cancelled.")
+    """
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        if asyncio.iscoroutine(result):
+            return await result
+        return result
+
+    register_callback("cancel", wrapper)
+    return func
+
+
+def button(name: str) -> Callable[[F], F]:
+    """Decorator for action button handler.
+
+    Called when user clicks an action button.
+
+    Example:
+        @aiui.button("retry")
+        async def retry_action():
+            await aiui.say("Retrying...")
+    """
+    def decorator(func: F) -> F:
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            result = func(*args, **kwargs)
+            if asyncio.iscoroutine(result):
+                return await result
+            return result
+
+        register_callback(f"button:{name}", wrapper)
+        return func
+
+    return decorator
+
+
+def login(func: F) -> F:
+    """Decorator for login handler.
+
+    Called when user attempts to log in.
+
+    Example:
+        @aiui.login
+        async def auth(username, password):
+            return verify(username, password)
+    """
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        if asyncio.iscoroutine(result):
+            return await result
+        return result
+
+    register_callback("login", wrapper)
+    return func
+
+
+def settings(func: F) -> F:
+    """Decorator for settings update handler.
+
+    Called when user changes settings.
+
+    Example:
+        @aiui.settings
+        async def on_settings(new_settings):
+            print(f"Settings updated: {new_settings}")
+    """
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        if asyncio.iscoroutine(result):
+            return await result
+        return result
+
+    register_callback("settings", wrapper)
+    return func
+
+
+def profiles(func: F) -> F:
+    """Decorator for chat profiles provider.
+
+    Returns list of available chat profiles.
+
+    Example:
+        @aiui.profiles
+        def get_profiles():
+            return [
+                {"name": "General", "description": "General assistant"},
+                {"name": "Code", "description": "Code helper"},
+            ]
+    """
+    register_callback("profiles", func)
+    return func
+
+
+def starters(func: F) -> F:
+    """Decorator for starter messages provider.
+
+    Returns list of starter messages.
+
+    Example:
+        @aiui.starters
+        def get_starters():
+            return [
+                {"label": "Hello", "message": "Say hello"},
+                {"label": "Help", "message": "What can you do?"},
+            ]
+    """
+    register_callback("starters", func)
+    return func
+
+
+# Message sending functions
+
+async def say(content: str) -> None:
+    """Send a message to the UI.
+
+    Example:
+        await aiui.say("Hello!")
+    """
+    ctx = _get_context()
+    if ctx and ctx._stream_queue:
+        await ctx._stream_queue.put({"type": "message", "content": content})
+
+
+async def stream(token: str) -> None:
+    """Stream a token to the UI.
+
+    Example:
+        for token in tokens:
+            await aiui.stream(token)
+    """
+    ctx = _get_context()
+    if ctx:
+        await ctx.stream(token)
+
+
+async def think(step: str) -> None:
+    """Send a thinking/reasoning step to the UI.
+
+    Example:
+        await aiui.think("Analyzing the request...")
+    """
+    ctx = _get_context()
+    if ctx:
+        await ctx.think(step)
+
+
+async def ask(question: str, options: list[str] = None) -> str:
+    """Ask the user a question and wait for response.
+
+    Example:
+        answer = await aiui.ask("What's your name?")
+    """
+    ctx = _get_context()
+    if ctx and ctx._stream_queue:
+        await ctx._stream_queue.put({
+            "type": "ask",
+            "question": question,
+            "options": options or [],
+        })
+    # Note: In a real implementation, this would wait for user response
+    return ""
+
+
+async def tool(name: str, args: dict = None, result: Any = None) -> None:
+    """Send a tool call event to the UI.
+
+    Example:
+        await aiui.tool("search", {"query": "python"}, result=["result1", "result2"])
+    """
+    ctx = _get_context()
+    if ctx:
+        await ctx.tool(name, args, result)
+
+
+async def image(url: str, alt: str = "") -> None:
+    """Send an image to the UI.
+
+    Example:
+        await aiui.image("https://example.com/image.png", "Example image")
+    """
+    ctx = _get_context()
+    if ctx and ctx._stream_queue:
+        await ctx._stream_queue.put({"type": "image", "url": url, "alt": alt})
+
+
+async def audio(url: str) -> None:
+    """Send audio to the UI.
+
+    Example:
+        await aiui.audio("https://example.com/audio.mp3")
+    """
+    ctx = _get_context()
+    if ctx and ctx._stream_queue:
+        await ctx._stream_queue.put({"type": "audio", "url": url})
+
+
+async def video(url: str) -> None:
+    """Send video to the UI.
+
+    Example:
+        await aiui.video("https://example.com/video.mp4")
+    """
+    ctx = _get_context()
+    if ctx and ctx._stream_queue:
+        await ctx._stream_queue.put({"type": "video", "url": url})
+
+
+async def file(url: str, name: str = "") -> None:
+    """Send a file to the UI.
+
+    Example:
+        await aiui.file("https://example.com/doc.pdf", "document.pdf")
+    """
+    ctx = _get_context()
+    if ctx and ctx._stream_queue:
+        await ctx._stream_queue.put({"type": "file", "url": url, "name": name})
+
+
+async def action_buttons(buttons: list[dict]) -> None:
+    """Send action buttons to the UI.
+
+    Example:
+        await aiui.action_buttons([
+            {"name": "retry", "label": "Retry"},
+            {"name": "cancel", "label": "Cancel"},
+        ])
+    """
+    ctx = _get_context()
+    if ctx and ctx._stream_queue:
+        await ctx._stream_queue.put({"type": "actions", "buttons": buttons})
