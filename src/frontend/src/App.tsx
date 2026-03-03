@@ -43,9 +43,15 @@ interface ZonesConfig {
   footer?: WidgetConfig[]
 }
 
+interface SlotConfig {
+  ref?: string
+  type?: string
+  props?: Record<string, unknown>
+}
+
 interface TemplateConfig {
   layout?: string
-  slots?: Record<string, unknown>
+  slots?: Record<string, SlotConfig>
   zones?: ZonesConfig
 }
 
@@ -64,7 +70,13 @@ interface RouteManifest {
 }
 
 function Header({ config }: { config: UIConfig }) {
-  const header = config.components?.header?.props as {
+  // Resolve header component via template slot ref (e.g., header_main)
+  const headerSlot = config.templates?.docs?.slots?.header
+  const headerRef = headerSlot?.ref
+  const headerComponent = headerRef
+    ? config.components?.[headerRef]
+    : config.components?.header
+  const header = (headerComponent?.props || headerSlot?.props) as {
     logoText?: string
     links?: { label: string; href: string }[]
     cta?: { label: string; href: string }
@@ -619,7 +631,13 @@ function Toc({ selectedItem, zones }: { selectedItem: NavItem | null; zones?: Zo
 }
 
 function Footer({ config }: { config: UIConfig }) {
-  const footer = config.components?.footer?.props as {
+  // Resolve footer component via template slot ref (e.g., footer_main)
+  const footerSlot = config.templates?.docs?.slots?.footer
+  const footerRef = footerSlot?.ref
+  const footerComponent = footerRef
+    ? config.components?.[footerRef]
+    : config.components?.footer
+  const footer = (footerComponent?.props || footerSlot?.props) as {
     text?: string
     links?: { label: string; href: string }[]
   } | undefined
@@ -631,7 +649,7 @@ function Footer({ config }: { config: UIConfig }) {
           <div className="w-5 h-5 rounded bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center">
             <span className="text-primary-foreground text-[8px] font-bold">AI</span>
           </div>
-          <span>{footer?.text || '© 2024 PraisonAIUI'}</span>
+          <span>{footer?.text || `© ${new Date().getFullYear()} PraisonAIUI`}</span>
         </div>
         <nav className="flex items-center gap-6">
           {footer?.links?.map((link) => (
