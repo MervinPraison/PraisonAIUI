@@ -1,0 +1,46 @@
+schemaVersion: 1
+
+site:
+  title: "PraisonAIUI Docs"
+  description: "Documentation for PraisonAIUI - YAML-driven website generator"
+  ui: "shadcn"
+  theme:
+    preset: "zinc"
+    radius: "md"
+    darkMode: true
+
+content:
+  docs:
+    dir: "./docs"
+    include:
+      - "**/*.md"
+      - "**/*.mdx"
+
+templates:
+  docs:
+    layout: "ThreeColumnLayout"
+    slots:
+      header: { ref: "header_main" }
+      left: { ref: "sidebar_docs" }
+      main: { type: "DocContent" }
+      footer: { ref: "footer_main" }
+
+components:
+  header_main:
+    type: "Header"
+    props:
+      logoText: "PraisonAIUI"
+
+  footer_main:
+    type: "Footer"
+    props:
+      text: "© 2026 PraisonAI"
+
+  sidebar_docs:
+    type: "DocsSidebar"
+    props:
+      source: "docs-nav"
+
+routes:
+  - match: "/docs/**"
+    template: "docs"
