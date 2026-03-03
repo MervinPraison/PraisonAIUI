@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ThemeConfig(BaseModel):
@@ -58,8 +58,7 @@ class ContentConfig(BaseModel):
     docs: Optional[ContentSourceConfig] = None
     blog: Optional[ContentSourceConfig] = None
 
-    class Config:
-        extra = "allow"  # Allow additional content sources
+    model_config = ConfigDict(extra="allow")
 
 
 class SlotRef(BaseModel):
@@ -91,9 +90,8 @@ class ZonesConfig(BaseModel):
     right_sidebar: Optional[ZoneWidgets] = Field(default=None, alias="rightSidebar")
     bottom_nav: Optional[ZoneWidgets] = Field(default=None, alias="bottomNav")
     footer: Optional[ZoneWidgets] = None
-    
-    class Config:
-        populate_by_name = True
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ComponentConfig(BaseModel):
@@ -171,5 +169,4 @@ class Config(BaseModel):
     a11y: Optional[A11yConfig] = None
     dependencies: Optional[DependenciesConfig] = None
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)

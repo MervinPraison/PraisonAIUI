@@ -25,10 +25,10 @@ jobs:
         run: pip install -e .[dev]
 
       - name: Lint with ruff
-        run: ruff check src/praisonaiui --fix || true
+        run: ruff check src/praisonaiui
 
       - name: Test with pytest
-        run: pytest tests -v || true
+        run: pytest tests -v
 
   docs:
     runs-on: ubuntu-latest
