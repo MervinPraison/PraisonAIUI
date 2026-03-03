@@ -1,6 +1,6 @@
 [project]
 name = "aiui"
-version = "0.2.7"
+version = "0.3.0"
 description = "YAML-driven website generator - CLI and compiler"
 readme = "README.md"
 license = {text = "MIT"}
@@ -10,7 +10,7 @@ authors = [
 requires-python = ">=3.9"
 keywords = ["aiui", "docs", "website", "generator", "yaml", "cli"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -26,6 +26,8 @@ dependencies = [
     "watchfiles>=0.21",
     "rich>=13.0",
     "typer>=0.9",
+    "uvicorn>=0.29",
+    "starlette>=0.37",
 ]
 
 [project.optional-dependencies]

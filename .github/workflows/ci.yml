@@ -28,7 +28,7 @@ jobs:
         run: ruff check src/praisonaiui
 
       - name: Test with pytest
-        run: pytest tests -v
+        run: pytest tests/unit tests/integration -v
 
   docs:
     runs-on: ubuntu-latest

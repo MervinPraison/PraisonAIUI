@@ -336,12 +336,25 @@ def serve(
         "--no-build",
         help="Skip build step, serve existing files",
     ),
+    host: str = typer.Option(
+        "127.0.0.1",
+        "--host",
+        help="Host to bind to",
+    ),
+    cors_origins: str = typer.Option(
+        "",
+        "--cors-origins",
+        help="Comma-separated list of allowed CORS origins (empty = same-origin only)",
+    ),
+    watch: bool = typer.Option(
+        False,
+        "--watch",
+        "-w",
+        help="Watch for config changes and auto-rebuild",
+    ),
 ) -> None:
-    """Serve the site locally with a built-in HTTP server."""
-    import http.server
+    """Serve the site locally with a production-ready HTTP server."""
     import socket
-    import socketserver
-    import webbrowser
 
     # Build first unless --no-build
     if not no_build:
@@ -375,38 +388,105 @@ def serve(
     if actual_port != port:
         console.print(f"[yellow]⚠️[/yellow] Port {port} in use, using {actual_port}")
 
-    # Serve from output directory
-    import os
+    # Build Starlette app with security
+    from starlette.applications import Starlette
+    from starlette.middleware import Middleware
+    from starlette.middleware.cors import CORSMiddleware
+    from starlette.requests import Request
+    from starlette.responses import FileResponse, Response
+    from starlette.routing import Route
 
-    os.chdir(output)
+    output_resolved = output.resolve()
 
-    # Custom SPA handler that falls back to index.html for client-side routes
-    class SPAHandler(http.server.SimpleHTTPRequestHandler):
-        """Handler that serves index.html for SPA routes (no file extension)."""
+    def _is_safe_path(requested: Path) -> bool:
+        """Guard against path traversal — ensure file is inside output dir."""
+        try:
+            requested.resolve().relative_to(output_resolved)
+            return True
+        except ValueError:
+            return False
 
-        def do_GET(self):
-            # If path has no extension and doesn't exist, serve index.html
-            path = self.path.split("?")[0]  # Remove query string
-            if "." not in path.split("/")[-1]:  # No file extension
-                file_path = self.translate_path(path)
-                if not os.path.exists(file_path) or os.path.isdir(file_path):
-                    self.path = "/index.html"
-            return super().do_GET()
+    async def spa_handler(request: Request) -> Response:
+        """SPA handler: serve static files with path-traversal guard and index.html fallback."""
+        import os
 
-    handler = SPAHandler
+        url_path = request.url.path.lstrip("/")
+        file_path = output_resolved / url_path
 
-    # Start HTTP server
-    console.print(f"\n[green]🚀[/green] Serving at [link]http://localhost:{actual_port}[/link]")
+        # Path traversal guard
+        if not _is_safe_path(file_path):
+            return Response("Forbidden", status_code=403)
+
+        # Serve exact file if it exists
+        if file_path.is_file():
+            import mimetypes
+
+            mime, _ = mimetypes.guess_type(str(file_path))
+            return FileResponse(str(file_path), media_type=mime)
+
+        # Try adding index.html for directories
+        if file_path.is_dir():
+            index = file_path / "index.html"
+            if index.is_file():
+                return FileResponse(str(index))
+
+        # Try with .html extension
+        html_path = file_path.with_suffix(".html")
+        if html_path.is_file() and _is_safe_path(html_path):
+            return FileResponse(str(html_path))
+
+        # SPA fallback — serve index.html for client-side routes
+        index_html = output_resolved / "index.html"
+        if index_html.is_file():
+            return FileResponse(str(index_html))
+
+        return Response("Not Found", status_code=404)
+
+    middleware = []
+    if cors_origins:
+        origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
+        middleware.append(
+            Middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET"])
+        )
+
+    starlette_app = Starlette(
+        routes=[Route("/{path:path}", endpoint=spa_handler)],
+        middleware=middleware,
+    )
+
+    console.print(f"\n[green]🚀[/green] Serving at [link]http://{host}:{actual_port}[/link]")
     console.print("[dim]Press Ctrl+C to stop[/dim]\n")
 
     # Open browser
-    webbrowser.open(f"http://localhost:{actual_port}")
+    import webbrowser
 
-    with socketserver.TCPServer(("", actual_port), handler) as httpd:
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            console.print("\n[green]Server stopped.[/green]")
+    webbrowser.open(f"http://{host}:{actual_port}")
+
+    # Start file watcher in background thread if --watch
+    if watch and config.exists():
+        import threading
+
+        def _watch_and_rebuild() -> None:
+            try:
+                from watchfiles import watch as wf_watch
+
+                for _changes in wf_watch(config.parent):
+                    console.print("[blue]↻[/blue] Detected changes, rebuilding...")
+                    try:
+                        build(config=config, output=output, minify=False)
+                        console.print("[green]✓[/green] Rebuild complete")
+                    except Exception as e:
+                        console.print(f"[red]✗[/red] Rebuild failed: {e}")
+            except Exception:
+                pass
+
+        watcher = threading.Thread(target=_watch_and_rebuild, daemon=True)
+        watcher.start()
+
+    # Run Uvicorn
+    import uvicorn
+
+    uvicorn.run(starlette_app, host=host, port=actual_port, log_level="info")
 
 
 @app.command()

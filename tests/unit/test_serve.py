@@ -25,7 +25,7 @@ class TestServeCommand:
         from praisonaiui.cli import app
 
         runner = CliRunner()
-        result = runner.invoke(app, ["serve", "--output", str(tmp_path / "nonexistent")])
+        result = runner.invoke(app, ["serve", "--output", str(tmp_path / "nonexistent"), "--no-build"])
         assert result.exit_code != 0
 
     def test_serve_finds_available_port(self):
