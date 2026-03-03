@@ -1044,12 +1044,19 @@ def run(
         "-o",
         help="Output directory for built static files",
     ),
+    backend: str = typer.Option(
+        "standalone",
+        "--backend",
+        "-b",
+        help="Backend mode: 'standalone' (default) or 'praisonai' (uses WebSocketGateway)",
+    ),
 ) -> None:
     """Run the AI chat server with your app.py file.
 
     Example:
         aiui run app.py
         aiui run app.py --port 3000 --reload
+        aiui run app.py --backend praisonai  # Use praisonai WebSocketGateway
     """
     import importlib.util
     import socket
@@ -1097,39 +1104,85 @@ def run(
     if actual_port != port:
         console.print(f"[yellow]⚠️[/yellow] Port {port} in use, using {actual_port}")
 
-    # Create the server app
-    from praisonaiui.server import create_app
-
     static_dir = output if output.exists() else None
-    server_app = create_app(static_dir=static_dir)
 
-    # Print startup info
-    console.print(
-        Panel(
-            f"[bold green]AI Chat Server Running[/bold green]\n\n"
-            f"🌐 URL: [link]http://{host}:{actual_port}[/link]\n"
-            f"📁 App: {app_file}\n"
-            f"⚙️  Config: {config if config.exists() else 'None'}\n"
-            f"🔄 Reload: {'Enabled' if reload else 'Disabled'}",
-            title="PraisonAIUI",
-            border_style="green",
+    # Check backend mode
+    if backend == "praisonai":
+        # Use praisonai WebSocketGateway backend
+        from praisonaiui.integration import AIUIGateway, check_praisonai_available
+
+        if not check_praisonai_available():
+            console.print(
+                "[red]Error:[/red] praisonai package not installed. "
+                "Install with: pip install praisonai"
+            )
+            raise typer.Exit(code=1)
+
+        # Create gateway
+        gateway = AIUIGateway(
+            host=host,
+            port=actual_port,
+            static_dir=str(static_dir) if static_dir else None,
         )
-    )
 
-    # Run with uvicorn
-    import uvicorn
+        # Register agents from user module
+        if hasattr(user_module, "agent"):
+            gateway.register_agent(user_module.agent)
+        elif hasattr(user_module, "agents"):
+            for agent in user_module.agents:
+                gateway.register_agent(agent)
 
-    uvicorn_kwargs = {
-        "host": host,
-        "port": actual_port,
-        "log_level": "info",
-        "reload": reload,
-    }
+        # Print startup info
+        console.print(
+            Panel(
+                f"[bold green]AI Chat Server Running (praisonai backend)[/bold green]\n\n"
+                f"🌐 HTTP: [link]http://{host}:{actual_port}[/link]\n"
+                f"🔌 WebSocket: ws://{host}:{actual_port}/ws\n"
+                f"📁 App: {app_file}\n"
+                f"⚙️  Config: {config if config.exists() else 'None'}",
+                title="PraisonAIUI + PraisonAI",
+                border_style="cyan",
+            )
+        )
 
-    if reload:
-        uvicorn_kwargs["reload_dirs"] = [str(app_file.parent)]
+        # Run gateway
+        import asyncio
+        asyncio.run(gateway.start())
+    else:
+        # Use standalone server (default)
+        from praisonaiui.server import create_app
 
-    uvicorn.run(server_app, **uvicorn_kwargs)
+        config_path = config if config.exists() else None
+        server_app = create_app(static_dir=static_dir, config_path=config_path)
+
+        # Print startup info
+        config_label = str(config) + " (build + server)" if config_path else "None"
+        console.print(
+            Panel(
+                f"[bold green]AI Chat Server Running[/bold green]\n\n"
+                f"🌐 URL: [link]http://{host}:{actual_port}[/link]\n"
+                f"📁 App: {app_file}\n"
+                f"⚙️  Config: {config_label}\n"
+                f"🔄 Reload: {'Enabled' if reload else 'Disabled'}",
+                title="PraisonAIUI",
+                border_style="green",
+            )
+        )
+
+        # Run with uvicorn
+        import uvicorn
+
+        uvicorn_kwargs = {
+            "host": host,
+            "port": actual_port,
+            "log_level": "info",
+            "reload": reload,
+        }
+
+        if reload:
+            uvicorn_kwargs["reload_dirs"] = [str(app_file.parent)]
+
+        uvicorn.run(server_app, **uvicorn_kwargs)
 
 
 if __name__ == "__main__":

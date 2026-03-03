@@ -211,3 +211,145 @@ class TestRegisterCallback:
         register_callback("test", my_callback)
         assert "test" in _callbacks
         assert _callbacks["test"] == my_callback
+
+
+class TestReplyTypeDispatch:
+    """Tests for @reply decorator type-based dispatch."""
+
+    def test_reply_passes_str_for_str_annotation(self):
+        """Test that @reply passes msg.text when func expects str."""
+        from praisonaiui.callbacks import reply
+        _callbacks.clear()
+        received = {}
+
+        @reply
+        async def handler(message: str):
+            received["value"] = message
+            received["type"] = type(message).__name__
+
+        # Simulate what run_agent does
+        import asyncio
+        from praisonaiui.server import MessageContext
+
+        msg = MessageContext(text="Hello world")
+        msg._stream_queue = asyncio.Queue()
+
+        wrapper = _callbacks["reply"]
+        asyncio.get_event_loop().run_until_complete(wrapper(msg))
+
+        assert received["type"] == "str"
+        assert received["value"] == "Hello world"
+
+    def test_reply_passes_context_for_context_annotation(self):
+        """Test that @reply passes MessageContext when func expects it."""
+        from praisonaiui.callbacks import reply
+        from praisonaiui.server import MessageContext
+        _callbacks.clear()
+        received = {}
+
+        @reply
+        async def handler(msg: MessageContext):
+            received["value"] = msg
+            received["type"] = type(msg).__name__
+
+        import asyncio
+
+        msg = MessageContext(text="Hello")
+        msg._stream_queue = asyncio.Queue()
+
+        wrapper = _callbacks["reply"]
+        asyncio.get_event_loop().run_until_complete(wrapper(msg))
+
+        assert received["type"] == "MessageContext"
+        assert received["value"].text == "Hello"
+
+    def test_reply_passes_context_for_untyped_param(self):
+        """Test that @reply passes MessageContext when func has no annotation."""
+        from praisonaiui.callbacks import reply
+        from praisonaiui.server import MessageContext
+        _callbacks.clear()
+        received = {}
+
+        @reply
+        async def handler(msg):
+            received["value"] = msg
+            received["type"] = type(msg).__name__
+
+        import asyncio
+
+        msg = MessageContext(text="Hello")
+        msg._stream_queue = asyncio.Queue()
+
+        wrapper = _callbacks["reply"]
+        asyncio.get_event_loop().run_until_complete(wrapper(msg))
+
+        assert received["type"] == "MessageContext"
+
+
+class TestStartersEndpoint:
+    """Tests for /starters endpoint."""
+
+    def test_starters_empty(self, client):
+        """Test /starters returns empty list when no callback."""
+        response = client.get("/starters")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["starters"] == []
+
+    def test_starters_with_callback(self, client):
+        """Test /starters returns data from registered callback."""
+        starters_data = [
+            {"label": "Hello", "message": "Say hello", "icon": "👋"},
+            {"label": "Help", "message": "What can you do?", "icon": "❓"},
+        ]
+
+        async def get_starters():
+            return starters_data
+
+        register_callback("starters", get_starters)
+        response = client.get("/starters")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["starters"]) == 2
+        assert data["starters"][0]["label"] == "Hello"
+
+
+class TestProfilesEndpoint:
+    """Tests for /profiles endpoint."""
+
+    def test_profiles_empty(self, client):
+        """Test /profiles returns empty list when no callback."""
+        response = client.get("/profiles")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["profiles"] == []
+
+    def test_profiles_with_callback(self, client):
+        """Test /profiles returns data from registered callback."""
+        profiles_data = [
+            {"name": "General", "description": "General assistant", "icon": "🤖"},
+        ]
+
+        async def get_profiles():
+            return profiles_data
+
+        register_callback("profiles", get_profiles)
+        response = client.get("/profiles")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["profiles"]) == 1
+        assert data["profiles"][0]["name"] == "General"
+
+
+class TestConfigLoading:
+    """Tests for config path loading."""
+
+    def test_create_app_without_config(self):
+        """Test create_app works without config_path."""
+        _callbacks.clear()
+        _sessions.clear()
+        _agents.clear()
+        app = create_app()
+        client = TestClient(app)
+        response = client.get("/health")
+        assert response.status_code == 200

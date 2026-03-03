@@ -18,8 +18,15 @@ interface UseSSEReturn {
 }
 
 export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
+    // Initialize sessionId from URL query param if present
+    const getInitialSessionId = (): string | null => {
+        if (typeof window === 'undefined') return null
+        const params = new URLSearchParams(window.location.search)
+        return params.get('session')
+    }
+
     const [isStreaming, setIsStreaming] = useState(false)
-    const [sessionId, setSessionId] = useState<string | null>(null)
+    const [sessionId, setSessionId] = useState<string | null>(getInitialSessionId)
     const abortControllerRef = useRef<AbortController | null>(null)
 
     const sendMessage = useCallback(async (message: string, agentName?: string) => {
@@ -81,31 +88,66 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
             setIsStreaming(false)
             abortControllerRef.current = null
         }
-    }, [isStreaming, sessionId, options])
+    }, [isStreaming, sessionId]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleEvent = useCallback((event: SSEEvent) => {
         switch (event.type) {
+            // Session events
             case 'session':
                 if (event.session_id) {
                     setSessionId(event.session_id)
+                    // Update URL with session ID for bookmarkability
+                    if (typeof window !== 'undefined') {
+                        const url = new URL(window.location.href)
+                        url.searchParams.set('session', event.session_id)
+                        window.history.replaceState({}, '', url.toString())
+                    }
                 }
                 break
+
+            // Token streaming (legacy + new)
             case 'token':
+            case 'run_content':
+            case 'team_run_content':
                 if (event.token) {
                     options.onToken?.(event.token)
+                } else if (event.content) {
+                    options.onToken?.(event.content)
                 }
                 break
+
+            // Message complete
             case 'message':
+            case 'run_completed':
+            case 'team_run_completed':
                 if (event.content) {
                     options.onMessage?.(event.content)
                 }
                 break
+
+            // Reasoning/thinking (legacy + new)
             case 'thinking':
+            case 'reasoning_step':
+            case 'team_reasoning_step':
                 if (event.step) {
                     options.onThinking?.(event.step)
                 }
                 break
+
+            // Reasoning lifecycle
+            case 'reasoning_started':
+            case 'team_reasoning_started':
+                options.onThinking?.('Starting reasoning...')
+                break
+            case 'reasoning_completed':
+            case 'team_reasoning_completed':
+                options.onThinking?.('Reasoning complete')
+                break
+
+            // Tool calls (legacy + new)
             case 'tool_call':
+            case 'tool_call_started':
+            case 'team_tool_call_started':
                 if (event.name) {
                     options.onToolCall?.({
                         name: event.name,
@@ -114,11 +156,56 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
                     })
                 }
                 break
+            case 'tool_call_completed':
+            case 'team_tool_call_completed':
+                if (event.name) {
+                    options.onToolCall?.({
+                        name: event.name,
+                        args: event.args,
+                        result: event.result,
+                    })
+                }
+                break
+
+            // Memory updates
+            case 'updating_memory':
+            case 'memory_update_started':
+            case 'team_memory_update_started':
+                options.onThinking?.('Updating memory...')
+                break
+            case 'memory_update_completed':
+            case 'team_memory_update_completed':
+                options.onThinking?.('Memory updated')
+                break
+
+            // Run lifecycle
+            case 'run_started':
+            case 'team_run_started':
+                // Run started - could trigger loading state
+                break
+            case 'run_paused':
+                options.onThinking?.('Run paused')
+                break
+            case 'run_continued':
+                options.onThinking?.('Run continued')
+                break
+
+            // Errors
             case 'error':
+            case 'run_error':
+            case 'team_run_error':
                 if (event.error) {
                     options.onError?.(event.error)
                 }
                 break
+
+            // Cancelled
+            case 'run_cancelled':
+            case 'team_run_cancelled':
+                options.onEnd?.()
+                break
+
+            // End events
             case 'end':
             case 'done':
                 options.onEnd?.()
@@ -126,10 +213,24 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
         }
     }, [options])
 
-    const cancel = useCallback(() => {
+    const cancel = useCallback(async () => {
+        // Client-side abort
         abortControllerRef.current?.abort()
         setIsStreaming(false)
-    }, [])
+
+        // Server-side abort - cancel the running task
+        if (sessionId) {
+            try {
+                await fetch('/cancel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId }),
+                })
+            } catch {
+                // Ignore errors - best effort cancellation
+            }
+        }
+    }, [sessionId])
 
     return {
         isStreaming,

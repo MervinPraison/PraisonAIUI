@@ -23,9 +23,13 @@ def __getattr__(name: str):
         "say", "stream", "think", "ask", "tool", "image", "audio",
         "video", "file", "action_buttons",
     }
+    _message_attrs = {"Message", "AskUserMessage", "Step"}
     if name in _callback_attrs:
         from praisonaiui import callbacks
         return getattr(callbacks, name)
+    if name in _message_attrs:
+        from praisonaiui import message
+        return getattr(message, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -63,4 +67,8 @@ __all__ = [
     "video",
     "file",
     "action_buttons",
+    # Message classes (Chainlit pattern)
+    "Message",
+    "AskUserMessage",
+    "Step",
 ]

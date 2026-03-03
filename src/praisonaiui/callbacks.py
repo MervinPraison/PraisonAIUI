@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 from functools import wraps
 from typing import Any, Callable, Optional, TypeVar
 
@@ -53,15 +54,40 @@ def reply(func: F) -> F:
 
     Example:
         @aiui.reply
-        async def go(message):
-            response = await my_llm(message.text)
+        async def go(message: str):
+            await aiui.say(f"You said: {message}")
+
+        # Or with full context:
+        @aiui.reply
+        async def go(msg: MessageContext):
+            response = await my_llm(msg.text)
             await aiui.say(response)
     """
+    # Inspect first parameter to decide what to pass
+    # Use get_type_hints to resolve stringified annotations (PEP 563)
+    _pass_text = False
+    try:
+        import typing
+        hints = typing.get_type_hints(func)
+        if hints:
+            first_hint = next(iter(hints.values()), None)
+            if first_hint is str:
+                _pass_text = True
+    except Exception:
+        # Fallback: check raw annotations
+        sig = inspect.signature(func)
+        params = list(sig.parameters.values())
+        if params:
+            ann = params[0].annotation
+            if ann is str or ann == "str":
+                _pass_text = True
+
     @wraps(func)
     async def wrapper(msg: MessageContext):
         _set_context(msg)
         try:
-            result = func(msg)
+            arg = msg.text if _pass_text else msg
+            result = func(arg)
             if asyncio.iscoroutine(result):
                 return await result
             return result

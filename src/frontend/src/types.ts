@@ -79,6 +79,18 @@ export interface ChatMessage {
     video?: string[]
     files?: FileAttachment[]
     actions?: ActionButton[]
+    // Streaming error state (Agent-UI pattern)
+    streamingError?: boolean
+    errorMessage?: string
+    // Agent/Team info
+    agentId?: string
+    agentName?: string
+    // Extra data
+    extraData?: {
+        references?: unknown[]
+        reasoningSteps?: string[]
+        [key: string]: unknown
+    }
 }
 
 export interface ToolCall {
@@ -166,20 +178,97 @@ export interface InputWidget {
     options?: string[]
 }
 
-// SSE Event types
+// Rich Event Types (27 types matching Agent-UI vocabulary)
+export type RunEventType =
+    // Agent events (13 types)
+    | 'run_started'
+    | 'run_content'
+    | 'run_completed'
+    | 'run_error'
+    | 'run_cancelled'
+    | 'tool_call_started'
+    | 'tool_call_completed'
+    | 'reasoning_started'
+    | 'reasoning_step'
+    | 'reasoning_completed'
+    | 'memory_update_started'
+    | 'memory_update_completed'
+    | 'updating_memory'
+    // Team events (11 types)
+    | 'team_run_started'
+    | 'team_run_content'
+    | 'team_run_completed'
+    | 'team_run_error'
+    | 'team_run_cancelled'
+    | 'team_tool_call_started'
+    | 'team_tool_call_completed'
+    | 'team_reasoning_started'
+    | 'team_reasoning_step'
+    | 'team_reasoning_completed'
+    | 'team_memory_update_started'
+    | 'team_memory_update_completed'
+    // Control events
+    | 'run_paused'
+    | 'run_continued'
+
+// Legacy SSE event types (backward compatible)
+export type LegacyEventType =
+    | 'session'
+    | 'token'
+    | 'message'
+    | 'thinking'
+    | 'tool_call'
+    | 'ask'
+    | 'image'
+    | 'audio'
+    | 'video'
+    | 'file'
+    | 'actions'
+    | 'error'
+    | 'end'
+    | 'done'
+
+// Combined event type (supports both legacy and new)
+export type EventType = RunEventType | LegacyEventType
+
+// SSE Event interface
 export interface SSEEvent {
-    type: 'session' | 'token' | 'message' | 'thinking' | 'tool_call' | 'ask' | 'image' | 'audio' | 'video' | 'file' | 'actions' | 'error' | 'end' | 'done'
+    type: EventType
     session_id?: string
+    // Token streaming
     token?: string
     content?: string
+    // Reasoning
     step?: string
+    reasoning_steps?: string[]
+    // Tool calls
     name?: string
     args?: Record<string, unknown>
     result?: unknown
+    tool_call_id?: string
+    // Ask/interaction
     question?: string
     options?: string[]
+    // Media
     url?: string
     alt?: string
+    images?: string[]
+    videos?: string[]
+    audio_url?: string
+    // Actions
     buttons?: ActionButton[]
+    // Error
     error?: string
+    // Agent/Team info
+    agent_id?: string
+    agent_name?: string
+    team_id?: string
+    // Memory
+    memory_type?: 'short_term' | 'long_term'
+    // Extra data (Agent-UI pattern)
+    extra_data?: {
+        references?: unknown[]
+        reasoning_steps?: string[]
+        [key: string]: unknown
+    }
 }
