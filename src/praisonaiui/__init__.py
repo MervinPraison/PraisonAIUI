@@ -19,8 +19,9 @@ def __getattr__(name: str):
     """Lazy import for callback decorators and functions."""
     _callback_attrs = {
         "welcome", "reply", "goodbye", "cancel", "button", "login",
-        "settings", "profiles", "starters", "say", "stream", "think",
-        "ask", "tool", "image", "audio", "video", "file", "action_buttons",
+        "settings", "profiles", "starters", "on", "resume",
+        "say", "stream", "think", "ask", "tool", "image", "audio",
+        "video", "file", "action_buttons",
     }
     if name in _callback_attrs:
         from praisonaiui import callbacks
@@ -49,6 +50,8 @@ __all__ = [
     "settings",
     "profiles",
     "starters",
+    "on",
+    "resume",
     # Message functions
     "say",
     "stream",

@@ -106,12 +106,27 @@ async def create_session(request: Request) -> JSONResponse:
     return JSONResponse({"session_id": session_id})
 
 
-async def run_agent(request: Request) -> StreamingResponse:
-    """Run an agent with SSE streaming."""
+async def run_agent_by_id(request: Request) -> StreamingResponse:
+    """Run a specific agent by ID with SSE streaming."""
+    agent_id = request.path_params["agent_id"]
     try:
         body = await request.json()
     except Exception:
         return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+
+    body["agent"] = agent_id
+    # Delegate to run_agent
+    request._body = body
+    return await run_agent(request, body)
+
+
+async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
+    """Run an agent with SSE streaming."""
+    if body is None:
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON"}, status_code=400)
 
     message = body.get("message", "")
     session_id = body.get("session_id")
@@ -227,6 +242,8 @@ class MessageContext:
         self.session_id = session_id
         self.agent_name = agent_name
         self._stream_queue: Optional[asyncio.Queue] = None
+        self._response_queue: Optional[asyncio.Queue] = None
+        self._pending_ask: Optional[asyncio.Future] = None
 
     async def stream(self, token: str) -> None:
         """Stream a token to the client."""
@@ -248,11 +265,63 @@ class MessageContext:
                 "result": result,
             })
 
+    async def ask(self, question: str, options: list = None, timeout: float = 300.0) -> str:
+        """Ask user a question and wait for response.
+
+        Args:
+            question: The question to ask
+            options: Optional list of choices
+            timeout: Timeout in seconds (default 5 minutes)
+
+        Returns:
+            The user's response text
+        """
+        if not self._stream_queue:
+            return ""
+
+        # Create a future to wait for the response
+        loop = asyncio.get_event_loop()
+        self._pending_ask = loop.create_future()
+
+        # Send the ask event to the client
+        await self._stream_queue.put({
+            "type": "ask",
+            "question": question,
+            "options": options or [],
+        })
+
+        try:
+            # Wait for user response with timeout
+            response = await asyncio.wait_for(self._pending_ask, timeout=timeout)
+            return response
+        except asyncio.TimeoutError:
+            return ""
+        finally:
+            self._pending_ask = None
+
+    def resolve_ask(self, response: str) -> None:
+        """Resolve a pending ask with the user's response."""
+        if self._pending_ask and not self._pending_ask.done():
+            self._pending_ask.set_result(response)
+
+
+def load_config_from_yaml(config_path: Path) -> Optional[dict]:
+    """Load configuration from YAML file."""
+    if not config_path.exists():
+        return None
+    try:
+        import yaml
+        with open(config_path) as f:
+            return yaml.safe_load(f)
+    except Exception:
+        return None
+
 
 def create_app(
     config: Optional[dict] = None,
     static_dir: Optional[Path] = None,
     require_auth: bool = False,
+    config_path: Optional[Path] = None,
 ) -> Starlette:
     """Create the Starlette application."""
     from praisonaiui.auth import (
@@ -262,6 +331,16 @@ def create_app(
         me_handler,
         register_handler,
     )
+
+    # Load config from YAML if path provided
+    if config_path and config is None:
+        config = load_config_from_yaml(config_path)
+
+    # Extract auth settings from config
+    if config:
+        auth_config = config.get("auth", {})
+        if auth_config.get("requireAuth") or auth_config.get("require_auth"):
+            require_auth = True
 
     middleware = [
         Middleware(
@@ -294,6 +373,7 @@ def create_app(
         Route("/sessions/{session_id}", delete_session, methods=["DELETE"]),
         Route("/sessions/{session_id}/runs", get_session_runs, methods=["GET"]),
         Route("/run", run_agent, methods=["POST"]),
+        Route("/agents/{agent_id}/runs", run_agent_by_id, methods=["POST"]),
     ]
 
     # Add static file serving if static_dir provided

@@ -49,7 +49,7 @@ export interface TemplateConfig {
 
 export interface UIConfig {
     site?: SiteConfig
-    style?: 'docs' | 'chainlit' | 'agent-ui' | 'gradio' | 'custom'
+    style?: 'docs' | 'chat' | 'agents' | 'playground' | 'custom'
     layout?: LayoutConfig
     chat?: ChatConfig
     auth?: AuthConfig

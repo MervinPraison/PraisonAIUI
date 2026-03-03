@@ -1,5 +1,6 @@
+import { useCallback, useState } from 'react'
 import type { ChatConfig, LayoutConfig } from '../types'
-import { ChatArea } from '../chat'
+import { ChatArea, SessionManager } from '../chat'
 
 interface ChatLayoutProps {
     config?: ChatConfig
@@ -9,16 +10,49 @@ interface ChatLayoutProps {
 
 export function ChatLayout({ config, layout, title }: ChatLayoutProps) {
     const mode = layout?.mode || 'fullscreen'
+    const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+    const [showSessions, setShowSessions] = useState(true)
+
+    const handleSessionSelect = useCallback((sessionId: string) => {
+        setCurrentSessionId(sessionId)
+    }, [])
+
+    const handleNewSession = useCallback(() => {
+        setCurrentSessionId(null)
+    }, [])
 
     if (mode === 'fullscreen') {
         return (
-            <div className="flex flex-col h-screen bg-background">
-                <header className="border-b px-4 py-3 flex items-center gap-3">
-                    <h1 className="text-lg font-semibold">{title || config?.name || 'AI Chat'}</h1>
-                </header>
-                <main className="flex-1 overflow-hidden">
-                    <ChatArea config={config} className="h-full" />
-                </main>
+            <div className="flex h-screen bg-background">
+                {/* Session sidebar */}
+                {showSessions && config?.features?.history !== false && (
+                    <aside className="w-64 border-r flex-shrink-0">
+                        <SessionManager
+                            currentSessionId={currentSessionId}
+                            onSessionSelect={handleSessionSelect}
+                            onNewSession={handleNewSession}
+                            className="h-full"
+                        />
+                    </aside>
+                )}
+                <div className="flex-1 flex flex-col">
+                    <header className="border-b px-4 py-3 flex items-center gap-3">
+                        <button
+                            onClick={() => setShowSessions(!showSessions)}
+                            className="p-1.5 rounded-md hover:bg-accent"
+                            title={showSessions ? 'Hide sessions' : 'Show sessions'}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                                <line x1="9" x2="9" y1="3" y2="21" />
+                            </svg>
+                        </button>
+                        <h1 className="text-lg font-semibold">{title || config?.name || 'AI Chat'}</h1>
+                    </header>
+                    <main className="flex-1 overflow-hidden">
+                        <ChatArea config={config} className="h-full" />
+                    </main>
+                </div>
             </div>
         )
     }

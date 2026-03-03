@@ -8,7 +8,7 @@ import { Content } from './Content'
 import { ZoneWidgets } from './Widgets'
 import { Toc } from './Toc'
 import { Footer } from './Footer'
-import { ChatLayout, AgentUILayout, CopilotWidget } from './layouts'
+import { ChatLayout, AgentUILayout, CopilotWidget, PlaygroundLayout } from './layouts'
 
 export default function App() {
   const [config, setConfig] = useState<UIConfig>({})
@@ -240,7 +240,7 @@ export default function App() {
     const style = config.style || 'docs'
 
     switch (style) {
-      case 'chainlit':
+      case 'chat':
         return (
           <ChatLayout
             config={config.chat}
@@ -248,16 +248,23 @@ export default function App() {
             title={config.site?.title}
           />
         )
-      case 'agent-ui':
+      case 'agents':
         return (
           <AgentUILayout
             config={config.chat}
             title={config.site?.title}
           />
         )
-      case 'gradio':
+      case 'playground':
+        // Playground mode - input/output panels
+        return (
+          <PlaygroundLayout
+            config={config.chat}
+            title={config.site?.title}
+          />
+        )
       case 'custom':
-        // For gradio/custom, show docs with copilot widget if chat enabled
+        // For custom, show docs with copilot widget if chat enabled
         if (config.chat?.enabled) {
           return (
             <div className="min-h-screen bg-background text-foreground">

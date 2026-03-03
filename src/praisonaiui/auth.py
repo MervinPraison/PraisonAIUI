@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import secrets
 from datetime import datetime, timedelta
 from typing import Any, Callable, Optional
@@ -18,10 +17,32 @@ _login_callback: Optional[Callable] = None
 
 TOKEN_EXPIRY_HOURS = 24
 
+# Try to import bcrypt, fall back to hashlib if not available
+try:
+    import bcrypt
+    _HAS_BCRYPT = True
+except ImportError:
+    import hashlib
+    _HAS_BCRYPT = False
+
 
 def hash_password(password: str) -> str:
-    """Hash a password using SHA-256."""
+    """Hash a password using bcrypt (preferred) or SHA-256 (fallback)."""
+    if _HAS_BCRYPT:
+        return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    # Fallback to SHA-256 if bcrypt not installed
     return hashlib.sha256(password.encode()).hexdigest()
+
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Verify a password against its hash."""
+    if _HAS_BCRYPT:
+        try:
+            return bcrypt.checkpw(password.encode(), hashed.encode())
+        except ValueError:
+            # If hash is not bcrypt format, try SHA-256 comparison
+            return hashlib.sha256(password.encode()).hexdigest() == hashed
+    return hashlib.sha256(password.encode()).hexdigest() == hashed
 
 
 def create_token(user_id: str) -> str:
@@ -74,7 +95,7 @@ def authenticate_user(username: str, password: str) -> Optional[dict[str, Any]]:
     if username not in _users:
         return None
     user = _users[username]
-    if user["password_hash"] != hash_password(password):
+    if not verify_password(password, user["password_hash"]):
         return None
     return {"id": user["id"], "username": user["username"]}
 

@@ -1,7 +1,7 @@
-import { useState, useCallback, useRef, type KeyboardEvent } from 'react'
+import { useState, useCallback, useRef, type KeyboardEvent, type ChangeEvent } from 'react'
 
 interface ChatInputProps {
-    onSend: (message: string) => void
+    onSend: (message: string, files?: File[]) => void
     onCancel?: () => void
     isStreaming?: boolean
     placeholder?: string
@@ -16,18 +16,38 @@ export function ChatInput({
     enableFileUpload = false,
 }: ChatInputProps) {
     const [input, setInput] = useState('')
+    const [files, setFiles] = useState<File[]>([])
     const textareaRef = useRef<HTMLTextAreaElement>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     const handleSend = useCallback(() => {
         const trimmed = input.trim()
-        if (trimmed && !isStreaming) {
-            onSend(trimmed)
+        if ((trimmed || files.length > 0) && !isStreaming) {
+            onSend(trimmed, files.length > 0 ? files : undefined)
             setInput('')
+            setFiles([])
             if (textareaRef.current) {
                 textareaRef.current.style.height = 'auto'
             }
         }
-    }, [input, isStreaming, onSend])
+    }, [input, files, isStreaming, onSend])
+
+    const handleFileChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+        const selectedFiles = Array.from(e.target.files || [])
+        setFiles((prev) => [...prev, ...selectedFiles])
+        // Reset input so same file can be selected again
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ''
+        }
+    }, [])
+
+    const handleFileClick = useCallback(() => {
+        fileInputRef.current?.click()
+    }, [])
+
+    const removeFile = useCallback((index: number) => {
+        setFiles((prev) => prev.filter((_, i) => i !== index))
+    }, [])
 
     const handleKeyDown = useCallback(
         (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -51,27 +71,58 @@ export function ChatInput({
         <div className="border-t p-4 bg-background">
             <div className="flex items-end gap-2 max-w-4xl mx-auto">
                 {enableFileUpload && (
-                    <button
-                        type="button"
-                        className="p-2 rounded-md hover:bg-accent text-muted-foreground"
-                        title="Attach file"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+                    <>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            multiple
+                            onChange={handleFileChange}
+                            className="hidden"
+                            accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.txt,.csv,.json"
+                        />
+                        <button
+                            type="button"
+                            onClick={handleFileClick}
+                            className="p-2 rounded-md hover:bg-accent text-muted-foreground"
+                            title="Attach file"
                         >
-                            <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                        </svg>
-                    </button>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                            </svg>
+                        </button>
+                    </>
                 )}
                 <div className="flex-1 relative">
+                    {/* File preview chips */}
+                    {files.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                            {files.map((file, index) => (
+                                <span
+                                    key={`${file.name}-${index}`}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md text-xs"
+                                >
+                                    <span className="truncate max-w-[100px]">{file.name}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeFile(index)}
+                                        className="hover:text-destructive"
+                                    >
+                                        ×
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    )}
                     <textarea
                         ref={textareaRef}
                         value={input}

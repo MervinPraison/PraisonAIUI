@@ -95,7 +95,7 @@ class Compiler:
 
     def _generate_ui_config(self) -> dict:
         """Generate ui-config.json content."""
-        return {
+        result = {
             "site": {
                 "title": self.config.site.title,
                 "description": self.config.site.description,
@@ -121,6 +121,72 @@ class Compiler:
             },
         }
 
+        # Add style field
+        if self.config.style:
+            result["style"] = self.config.style
+
+        # Add layout config
+        if self.config.layout:
+            result["layout"] = {
+                "mode": self.config.layout.mode,
+                "width": self.config.layout.width,
+                "height": self.config.layout.height,
+            }
+
+        # Add chat config
+        if self.config.chat:
+            chat_dict = {
+                "enabled": self.config.chat.enabled,
+                "name": self.config.chat.name,
+            }
+            if self.config.chat.starters:
+                chat_dict["starters"] = [
+                    {"label": s.label, "message": s.message, "icon": s.icon}
+                    for s in self.config.chat.starters
+                ]
+            if self.config.chat.profiles:
+                chat_dict["profiles"] = [
+                    {
+                        "name": p.name,
+                        "description": p.description,
+                        "agent": p.agent,
+                        "icon": p.icon,
+                        "default": p.default,
+                    }
+                    for p in self.config.chat.profiles
+                ]
+            if self.config.chat.features:
+                chat_dict["features"] = self.config.chat.features.model_dump(by_alias=True)
+            if self.config.chat.input:
+                chat_dict["input"] = self.config.chat.input.model_dump(by_alias=True)
+            result["chat"] = chat_dict
+
+        # Add auth config
+        if self.config.auth:
+            result["auth"] = {
+                "enabled": self.config.auth.enabled,
+                "providers": self.config.auth.providers,
+                "requireAuth": self.config.auth.require_auth,
+            }
+
+        # Add widgets config
+        if self.config.widgets:
+            result["widgets"] = [
+                {
+                    "type": w.type,
+                    "name": w.name,
+                    "label": w.label,
+                    "default": w.default,
+                    "min": w.min,
+                    "max": w.max,
+                    "step": w.step,
+                    "options": w.options if w.options else None,
+                }
+                for w in self.config.widgets
+            ]
+
+        return result
+
     def _serialize_template(self, template) -> dict:
         """Serialize a template config including slots and zones."""
         result = {
@@ -136,7 +202,7 @@ class Compiler:
                 for slot_name, slot in template.slots.items()
             },
         }
-        
+
         # Add zones if present (WordPress-style widget areas)
         if template.zones:
             zones_dict = {}
@@ -149,7 +215,7 @@ class Compiler:
                     ]
             if zones_dict:
                 result["zones"] = zones_dict
-        
+
         return result
 
     def _generate_docs_nav(self) -> dict:
@@ -232,7 +298,7 @@ class Compiler:
 
         docs_config = self.config.content.docs
         docs_dir = self.base_path / docs_config.dir
-        
+
         if not docs_dir.exists():
             return []
 
@@ -240,10 +306,10 @@ class Compiler:
         docs_output = output_dir / "docs"
         if docs_output.exists():
             shutil.rmtree(docs_output)
-        
+
         # Copy the entire docs directory
         shutil.copytree(docs_dir, docs_output)
-        
+
         # Return list of copied files (simplified)
-        return [f"docs/"]
+        return ["docs/"]
 

@@ -269,7 +269,7 @@ class Config(BaseModel):
 
     schema_version: int = Field(default=1, alias="schemaVersion")
     site: SiteConfig
-    style: Literal["docs", "chainlit", "agent-ui", "gradio", "custom"] = "docs"
+    style: Literal["docs", "chat", "agents", "playground", "custom"] = "docs"
     layout: Optional[LayoutConfig] = None
     content: Optional[ContentConfig] = None
     components: dict[str, ComponentConfig] = Field(default_factory=dict)

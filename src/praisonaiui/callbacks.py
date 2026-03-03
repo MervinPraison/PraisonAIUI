@@ -214,6 +214,55 @@ def starters(func: F) -> F:
     return func
 
 
+def on(event: str) -> Callable[[F], F]:
+    """Generic event decorator.
+
+    Register a handler for any custom event.
+
+    Example:
+        @aiui.on("file_upload")
+        async def handle_upload(file):
+            print(f"Received file: {file.name}")
+
+        @aiui.on("audio_chunk")
+        async def handle_audio(chunk):
+            process_audio(chunk)
+    """
+    def decorator(func: F) -> F:
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            result = func(*args, **kwargs)
+            if asyncio.iscoroutine(result):
+                return await result
+            return result
+
+        register_callback(f"on:{event}", wrapper)
+        return func
+
+    return decorator
+
+
+def resume(func: F) -> F:
+    """Decorator for session resume handler.
+
+    Called when a user resumes an existing session.
+
+    Example:
+        @aiui.resume
+        async def on_resume(session):
+            await aiui.say(f"Welcome back! You have {len(session.messages)} messages.")
+    """
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        if asyncio.iscoroutine(result):
+            return await result
+        return result
+
+    register_callback("resume", wrapper)
+    return func
+
+
 # Message sending functions
 
 async def say(content: str) -> None:
@@ -250,20 +299,27 @@ async def think(step: str) -> None:
         await ctx.think(step)
 
 
-async def ask(question: str, options: list[str] = None) -> str:
+async def ask(question: str, options: list[str] = None, timeout: float = 300.0) -> str:
     """Ask the user a question and wait for response.
+
+    This function sends an ask event to the UI and waits for the user
+    to respond. The response is returned as a string.
+
+    Args:
+        question: The question to ask the user
+        options: Optional list of choices to present
+        timeout: Timeout in seconds (default 5 minutes)
+
+    Returns:
+        The user's response text, or empty string on timeout
 
     Example:
         answer = await aiui.ask("What's your name?")
+        choice = await aiui.ask("Pick one:", options=["A", "B", "C"])
     """
     ctx = _get_context()
-    if ctx and ctx._stream_queue:
-        await ctx._stream_queue.put({
-            "type": "ask",
-            "question": question,
-            "options": options or [],
-        })
-    # Note: In a real implementation, this would wait for user response
+    if ctx:
+        return await ctx.ask(question, options, timeout)
     return ""
 
 

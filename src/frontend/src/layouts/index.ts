@@ -18,3 +18,4 @@ export {
 export { ChatLayout } from './ChatLayout'
 export { AgentUILayout } from './AgentUILayout'
 export { CopilotWidget } from './CopilotWidget'
+export { PlaygroundLayout } from './PlaygroundLayout'

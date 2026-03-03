@@ -199,13 +199,13 @@ class TestConfigWithChat:
     """Tests for Config model with chat features."""
 
     def test_config_with_chat_style(self):
-        """Test config with chainlit style."""
+        """Test config with chat style."""
         config = Config(
             site=SiteConfig(title="My App"),
-            style="chainlit",
+            style="chat",
             chat=ChatConfig(enabled=True),
         )
-        assert config.style == "chainlit"
+        assert config.style == "chat"
         assert config.chat.enabled is True
 
     def test_config_with_layout(self):
