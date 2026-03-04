@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://ui.praison.ai/concepts/slots/">
+        <link rel="canonical" href="https://ui.praison.ai/concepts/providers/">
       
       
-        <link rel="prev" href="../templates/">
+        <link rel="prev" href="../slots/">
       
       
-        <link rel="next" href="../providers/">
+        <link rel="next" href="../../features/content-sources/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Slots & Components - PraisonAIUI</title>
+        <title>Providers - PraisonAIUI</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#slots-components" class="md-skip">
+        <a href="#providers" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Slots & Components
+              Providers
             
           </span>
         </div>
@@ -703,6 +703,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../slots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slots & Components
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -722,7 +750,7 @@
   <span class="md-ellipsis">
     
   
-    Slots & Components
+    Providers
   
 
     
@@ -740,7 +768,7 @@
   <span class="md-ellipsis">
     
   
-    Slots & Components
+    Providers
   
 
     
@@ -766,10 +794,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#slot-system" class="md-nav__link">
+  <a href="#architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Slot System
+        Architecture
       
     </span>
   </a>
@@ -777,66 +805,55 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#built-in-components" class="md-nav__link">
+  <a href="#how-it-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Built-in Components
+        How It Works
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Built-in Components">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#built-in-provider-praisonai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in Provider: PraisonAI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#swapping-providers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Swapping Providers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#writing-a-custom-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing a Custom Provider
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Writing a Custom Provider">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#header" class="md-nav__link">
+  <a href="#with-tool-calls-and-reasoning" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Header
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#footer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Footer
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#docssidebar" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DocsSidebar
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#toc" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Toc
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#doccontent" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DocContent
+        With Tool Calls and Reasoning
       
     </span>
   </a>
@@ -849,13 +866,91 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#custom-components" class="md-nav__link">
+  <a href="#runevent-reference" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Custom Components
+        RunEvent Reference
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="RunEvent Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#event-types-27-total" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event Types (27 total)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#baseprovider-abstract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BaseProvider (abstract)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runevent-dataclass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RunEvent (dataclass)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runeventtype-enum" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RunEventType (enum)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#helper-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Helper Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -863,34 +958,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../providers/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Providers
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -1586,10 +1653,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#slot-system" class="md-nav__link">
+  <a href="#architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Slot System
+        Architecture
       
     </span>
   </a>
@@ -1597,66 +1664,55 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#built-in-components" class="md-nav__link">
+  <a href="#how-it-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Built-in Components
+        How It Works
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Built-in Components">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#built-in-provider-praisonai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in Provider: PraisonAI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#swapping-providers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Swapping Providers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#writing-a-custom-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing a Custom Provider
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Writing a Custom Provider">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#header" class="md-nav__link">
+  <a href="#with-tool-calls-and-reasoning" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Header
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#footer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Footer
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#docssidebar" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DocsSidebar
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#toc" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Toc
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#doccontent" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DocContent
+        With Tool Calls and Reasoning
       
     </span>
   </a>
@@ -1669,13 +1725,91 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#custom-components" class="md-nav__link">
+  <a href="#runevent-reference" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Custom Components
+        RunEvent Reference
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="RunEvent Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#event-types-27-total" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event Types (27 total)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#baseprovider-abstract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BaseProvider (abstract)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runevent-dataclass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RunEvent (dataclass)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runeventtype-enum" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RunEventType (enum)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#helper-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Helper Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1699,75 +1833,329 @@
   
 
 
-<h1 id="slots-components">Slots &amp; Components<a class="headerlink" href="#slots-components" title="Permanent link">&para;</a></h1>
-<p>Understanding the slot system and built-in components.</p>
-<h2 id="slot-system">Slot System<a class="headerlink" href="#slot-system" title="Permanent link">&para;</a></h2>
-<p>Slots are named insertion points in layouts. Each template assigns components to slots:</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">templates</span><span class="p">:</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">docs</span><span class="p">:</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">layout</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;ThreeColumnLayout&quot;</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nt">slots</span><span class="p">:</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">      </span><span class="nt">header</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> ref</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;main_header&quot;</span><span class="w"> </span><span class="p p-Indicator">}</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">      </span><span class="nt">left</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;DocsSidebar&quot;</span><span class="w"> </span><span class="p p-Indicator">}</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">      </span><span class="nt">main</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;DocContent&quot;</span><span class="w"> </span><span class="p p-Indicator">}</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">      </span><span class="nt">right</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Toc&quot;</span><span class="w"> </span><span class="p p-Indicator">}</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">      </span><span class="nt">footer</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> ref</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;main_footer&quot;</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<h1 id="providers">Providers<a class="headerlink" href="#providers" title="Permanent link">&para;</a></h1>
+<p>PraisonAIUI uses a <strong>provider protocol</strong> — a simple abstraction that lets you plug in any AI backend.</p>
+<h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>graph LR
+    subgraph Frontend
+        A["Browser"] --&gt;|SSE events| B["useSSE.ts"]
+        B --&gt; C["ChatMessages"]
+        B --&gt; D["ToolCallDisplay"]
+        B --&gt; E["ThinkingSteps"]
+    end
+
+    subgraph Server
+        F["server.py"] --&gt;|"async for event in provider.run()"| G["BaseProvider"]
+    end
+
+    subgraph Providers
+        G --&gt;|default| H["PraisonAIProvider"]
+        G --&gt;|custom| I["LangChainProvider"]
+        G --&gt;|custom| J["CrewAIProvider"]
+        G --&gt;|custom| K["YourProvider"]
+    end
+
+    A --&gt;|POST /run| F
+    F --&gt;|SSE stream| A</code></pre>
+<h2 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
+<ol>
+<li>User sends a message → <code>POST /run</code></li>
+<li>Server calls <code>provider.run(message)</code> on the active provider</li>
+<li>Provider yields <code>RunEvent</code> objects (start, content, tool calls, reasoning, completion)</li>
+<li>Server serialises each <code>RunEvent</code> to an SSE <code>data:</code> frame</li>
+<li>Frontend <code>useSSE.ts</code> parses events and renders components</li>
+</ol>
+<h2 id="built-in-provider-praisonai">Built-in Provider: PraisonAI<a class="headerlink" href="#built-in-provider-praisonai" title="Permanent link">&para;</a></h2>
+<p>PraisonAI is the default provider. It wraps the <code>@aiui.reply</code> callback system:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">praisonaiui</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">aiui</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nd">@aiui</span><span class="o">.</span><span class="n">reply</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">on_message</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="c1"># Your AI logic here — PraisonAIProvider handles the rest</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="k">await</span> <span class="n">aiui</span><span class="o">.</span><span class="n">say</span><span class="p">(</span><span class="s2">&quot;Hello!&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-<h2 id="built-in-components">Built-in Components<a class="headerlink" href="#built-in-components" title="Permanent link">&para;</a></h2>
-<h3 id="header">Header<a class="headerlink" href="#header" title="Permanent link">&para;</a></h3>
-<p>Site header with logo, navigation, and CTA.</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">components</span><span class="p">:</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">my_header</span><span class="p">:</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Header&quot;</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nt">props</span><span class="p">:</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">      </span><span class="nt">logoText</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;My</span><span class="nv"> </span><span class="s">Site&quot;</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">      </span><span class="nt">logoHref</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/&quot;</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">      </span><span class="nt">links</span><span class="p">:</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">label</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Docs&quot;</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">          </span><span class="nt">href</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/docs&quot;</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">label</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Blog&quot;</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">          </span><span class="nt">href</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/blog&quot;</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">      </span><span class="nt">cta</span><span class="p">:</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">        </span><span class="nt">label</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Get</span><span class="nv"> </span><span class="s">Started&quot;</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">        </span><span class="nt">href</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/docs/quickstart&quot;</span>
+<p>No extra config needed — <code>PraisonAIProvider</code> is used automatically.</p>
+<h2 id="swapping-providers">Swapping Providers<a class="headerlink" href="#swapping-providers" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">praisonaiui</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">aiui</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Use a custom provider:</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">aiui</span><span class="o">.</span><span class="n">set_provider</span><span class="p">(</span><span class="n">MyCustomProvider</span><span class="p">())</span>
 </span></code></pre></div>
-<h3 id="footer">Footer<a class="headerlink" href="#footer" title="Permanent link">&para;</a></h3>
-<p>Site footer with links and copyright.</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">components</span><span class="p">:</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">my_footer</span><span class="p">:</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Footer&quot;</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="nt">props</span><span class="p">:</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">      </span><span class="nt">text</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;©</span><span class="nv"> </span><span class="s">2024</span><span class="nv"> </span><span class="s">My</span><span class="nv"> </span><span class="s">Company&quot;</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">      </span><span class="nt">links</span><span class="p">:</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">label</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;GitHub&quot;</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">          </span><span class="nt">href</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;https://github.com&quot;</span>
+<h2 id="writing-a-custom-provider">Writing a Custom Provider<a class="headerlink" href="#writing-a-custom-provider" title="Permanent link">&para;</a></h2>
+<p>Implement <code>BaseProvider.run()</code> — that's it:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">praisonaiui.provider</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseProvider</span><span class="p">,</span> <span class="n">RunEvent</span><span class="p">,</span> <span class="n">RunEventType</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="k">class</span><span class="w"> </span><span class="nc">EchoProvider</span><span class="p">(</span><span class="n">BaseProvider</span><span class="p">):</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Echoes messages back — minimal example.&quot;&quot;&quot;</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">session_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">agent_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">):</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>        <span class="k">yield</span> <span class="n">RunEvent</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">RunEventType</span><span class="o">.</span><span class="n">RUN_STARTED</span><span class="p">)</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>        <span class="k">yield</span> <span class="n">RunEvent</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">RunEventType</span><span class="o">.</span><span class="n">RUN_CONTENT</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Echo: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>        <span class="k">yield</span> <span class="n">RunEvent</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">RunEventType</span><span class="o">.</span><span class="n">RUN_COMPLETED</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Echo: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-<h3 id="docssidebar">DocsSidebar<a class="headerlink" href="#docssidebar" title="Permanent link">&para;</a></h3>
-<p>Documentation navigation sidebar.</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">components</span><span class="p">:</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">sidebar</span><span class="p">:</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;DocsSidebar&quot;</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">props</span><span class="p">:</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">      </span><span class="nt">source</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;docs-nav&quot;</span><span class="w">    </span><span class="c1"># Uses generated navigation</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">      </span><span class="nt">collapsible</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">      </span><span class="nt">searchable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<h3 id="with-tool-calls-and-reasoning">With Tool Calls and Reasoning<a class="headerlink" href="#with-tool-calls-and-reasoning" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">SmartProvider</span><span class="p">(</span><span class="n">BaseProvider</span><span class="p">):</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">):</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>        <span class="k">yield</span> <span class="n">RunEvent</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">RunEventType</span><span class="o">.</span><span class="n">RUN_STARTED</span><span class="p">)</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>        <span class="c1"># Emit reasoning steps (shown in ThinkingSteps component)</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>        <span class="k">yield</span> <span class="n">RunEvent</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">RunEventType</span><span class="o">.</span><span class="n">REASONING_STARTED</span><span class="p">)</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>        <span class="k">yield</span> <span class="n">RunEvent</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">RunEventType</span><span class="o">.</span><span class="n">REASONING_STEP</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="s2">&quot;Analyzing the question...&quot;</span><span class="p">)</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>        <span class="k">yield</span> <span class="n">RunEvent</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">RunEventType</span><span class="o">.</span><span class="n">REASONING_STEP</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="s2">&quot;Searching knowledge base...&quot;</span><span class="p">)</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>        <span class="k">yield</span> <span class="n">RunEvent</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">RunEventType</span><span class="o">.</span><span class="n">REASONING_COMPLETED</span><span class="p">)</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>        <span class="c1"># Emit tool calls (shown in ToolCallDisplay component)</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>        <span class="k">yield</span> <span class="n">RunEvent</span><span class="p">(</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>            <span class="nb">type</span><span class="o">=</span><span class="n">RunEventType</span><span class="o">.</span><span class="n">TOOL_CALL_STARTED</span><span class="p">,</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;web_search&quot;</span><span class="p">,</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>            <span class="n">args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="n">message</span><span class="p">},</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>        <span class="p">)</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>        <span class="k">yield</span> <span class="n">RunEvent</span><span class="p">(</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>            <span class="nb">type</span><span class="o">=</span><span class="n">RunEventType</span><span class="o">.</span><span class="n">TOOL_CALL_COMPLETED</span><span class="p">,</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;web_search&quot;</span><span class="p">,</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>            <span class="n">result</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;results&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;Found relevant info&quot;</span><span class="p">]},</span>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>        <span class="p">)</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>        <span class="c1"># Stream the response token by token</span>
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>        <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="s2">&quot;Here is the answer&quot;</span><span class="o">.</span><span class="n">split</span><span class="p">():</span>
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>            <span class="k">yield</span> <span class="n">RunEvent</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">RunEventType</span><span class="o">.</span><span class="n">RUN_CONTENT</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="n">word</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span><span class="p">)</span>
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>
+</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>        <span class="k">yield</span> <span class="n">RunEvent</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">RunEventType</span><span class="o">.</span><span class="n">RUN_COMPLETED</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Here is the answer&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-<h3 id="toc">Toc<a class="headerlink" href="#toc" title="Permanent link">&para;</a></h3>
-<p>Table of contents for the current page.</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">slots</span><span class="p">:</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">right</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Toc&quot;</span><span class="w"> </span><span class="p p-Indicator">}</span>
-</span></code></pre></div>
-<h3 id="doccontent">DocContent<a class="headerlink" href="#doccontent" title="Permanent link">&para;</a></h3>
-<p>Renders the markdown content for the current page.</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">slots</span><span class="p">:</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">main</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;DocContent&quot;</span><span class="w"> </span><span class="p p-Indicator">}</span>
-</span></code></pre></div>
-<h2 id="custom-components">Custom Components<a class="headerlink" href="#custom-components" title="Permanent link">&para;</a></h2>
-<p>Override built-in components using the TypeScript SDK:</p>
-<div class="language-typescript highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">SlotRegistry</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;praisonaiui/runtime&#39;</span><span class="p">;</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="nx">SlotRegistry</span><span class="p">.</span><span class="nx">register</span><span class="p">(</span><span class="s1">&#39;Header&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">MyCustomHeader</span><span class="p">);</span>
-</span></code></pre></div>
+<h2 id="runevent-reference">RunEvent Reference<a class="headerlink" href="#runevent-reference" title="Permanent link">&para;</a></h2>
+<p>Every event has a <code>type</code> field and optional payload fields:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Used By</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>type</code></td>
+<td><code>RunEventType</code></td>
+<td>All events</td>
+</tr>
+<tr>
+<td><code>content</code></td>
+<td><code>str</code></td>
+<td><code>RUN_COMPLETED</code>, <code>RUN_CONTENT</code></td>
+</tr>
+<tr>
+<td><code>token</code></td>
+<td><code>str</code></td>
+<td><code>RUN_CONTENT</code> (streaming)</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td><code>str</code></td>
+<td><code>TOOL_CALL_*</code></td>
+</tr>
+<tr>
+<td><code>args</code></td>
+<td><code>dict</code></td>
+<td><code>TOOL_CALL_STARTED</code></td>
+</tr>
+<tr>
+<td><code>result</code></td>
+<td><code>any</code></td>
+<td><code>TOOL_CALL_COMPLETED</code></td>
+</tr>
+<tr>
+<td><code>step</code></td>
+<td><code>str</code></td>
+<td><code>REASONING_STEP</code></td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td><code>str</code></td>
+<td><code>RUN_ERROR</code></td>
+</tr>
+<tr>
+<td><code>agent_name</code></td>
+<td><code>str</code></td>
+<td>Multi-agent events</td>
+</tr>
+<tr>
+<td><code>extra_data</code></td>
+<td><code>dict</code></td>
+<td>Custom payload</td>
+</tr>
+</tbody>
+</table>
+<h3 id="event-types-27-total">Event Types (27 total)<a class="headerlink" href="#event-types-27-total" title="Permanent link">&para;</a></h3>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Agent Events</label><label for="__tabbed_1_2">Team Events</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run_started</code></td>
+<td>Agent run begins</td>
+</tr>
+<tr>
+<td><code>run_content</code></td>
+<td>Streaming token or content chunk</td>
+</tr>
+<tr>
+<td><code>run_completed</code></td>
+<td>Agent run finished</td>
+</tr>
+<tr>
+<td><code>run_error</code></td>
+<td>Error occurred</td>
+</tr>
+<tr>
+<td><code>run_cancelled</code></td>
+<td>User cancelled</td>
+</tr>
+<tr>
+<td><code>tool_call_started</code></td>
+<td>Tool invocation started</td>
+</tr>
+<tr>
+<td><code>tool_call_completed</code></td>
+<td>Tool returned result</td>
+</tr>
+<tr>
+<td><code>reasoning_started</code></td>
+<td>Thinking begun</td>
+</tr>
+<tr>
+<td><code>reasoning_step</code></td>
+<td>Individual reasoning step</td>
+</tr>
+<tr>
+<td><code>reasoning_completed</code></td>
+<td>Thinking finished</td>
+</tr>
+<tr>
+<td><code>memory_update_started</code></td>
+<td>Memory write begun</td>
+</tr>
+<tr>
+<td><code>memory_update_completed</code></td>
+<td>Memory write done</td>
+</tr>
+<tr>
+<td><code>updating_memory</code></td>
+<td>Memory being updated</td>
+</tr>
+<tr>
+<td><code>run_paused</code></td>
+<td>Run paused (e.g. waiting for user)</td>
+</tr>
+<tr>
+<td><code>run_continued</code></td>
+<td>Run resumed</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="tabbed-block">
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>team_run_started</code></td>
+<td>Team run begins</td>
+</tr>
+<tr>
+<td><code>team_run_content</code></td>
+<td>Team streaming content</td>
+</tr>
+<tr>
+<td><code>team_run_completed</code></td>
+<td>Team run finished</td>
+</tr>
+<tr>
+<td><code>team_run_error</code></td>
+<td>Team error</td>
+</tr>
+<tr>
+<td><code>team_run_cancelled</code></td>
+<td>Team cancelled</td>
+</tr>
+<tr>
+<td><code>team_tool_call_started</code></td>
+<td>Team tool call started</td>
+</tr>
+<tr>
+<td><code>team_tool_call_completed</code></td>
+<td>Team tool call done</td>
+</tr>
+<tr>
+<td><code>team_reasoning_started</code></td>
+<td>Team reasoning begun</td>
+</tr>
+<tr>
+<td><code>team_reasoning_step</code></td>
+<td>Team reasoning step</td>
+</tr>
+<tr>
+<td><code>team_reasoning_completed</code></td>
+<td>Team reasoning done</td>
+</tr>
+<tr>
+<td><code>team_memory_update_started</code></td>
+<td>Team memory update started</td>
+</tr>
+<tr>
+<td><code>team_memory_update_completed</code></td>
+<td>Team memory update done</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<h2 id="api-summary">API Summary<a class="headerlink" href="#api-summary" title="Permanent link">&para;</a></h2>
+<h3 id="baseprovider-abstract"><code>BaseProvider</code> (abstract)<a class="headerlink" href="#baseprovider-abstract" title="Permanent link">&para;</a></h3>
+<p>:   Subclass and implement <code>run()</code> to create a custom provider.</p>
+<div class="language-text highlight"><pre><span></span><code>| Method | Description |
+|--------|-------------|
+| `run(message, *, session_id, agent_name, **kw)` | **Required.** Async generator yielding `RunEvent` objects |
+| `list_agents()` | Optional. Returns list of available agents |
+| `health()` | Optional. Returns health check dict |
+</code></pre></div>
+<h3 id="runevent-dataclass"><code>RunEvent</code> (dataclass)<a class="headerlink" href="#runevent-dataclass" title="Permanent link">&para;</a></h3>
+<p>:   Structured event with <code>type: RunEventType</code> and optional payload fields (see table above).</p>
+<div class="language-text highlight"><pre><span></span><code>- `to_dict()` → serialise to JSON-compatible dict matching the frontend `SSEEvent` interface
+</code></pre></div>
+<h3 id="runeventtype-enum"><code>RunEventType</code> (enum)<a class="headerlink" href="#runeventtype-enum" title="Permanent link">&para;</a></h3>
+<p>:   27 string values matching the frontend <code>types.ts</code> — see Agent Events and Team Events tabs above.</p>
+<h3 id="helper-functions">Helper Functions<a class="headerlink" href="#helper-functions" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>praisonaiui.set_provider(provider)</code></td>
+<td>Set the active provider</td>
+</tr>
+<tr>
+<td><code>praisonaiui.get_provider()</code></td>
+<td>Get the active provider (lazy-inits <code>PraisonAIProvider</code>)</td>
+</tr>
+</tbody>
+</table>
 
 
 
