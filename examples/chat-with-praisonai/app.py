@@ -8,6 +8,7 @@ Run:
     aiui run app.py --datastore json   # persist conversation history
 """
 
+import asyncio
 import praisonaiui as aiui
 
 # Lazy agent — only created when first message is sent
@@ -26,8 +27,7 @@ def _get_agent():
 
         _agent = Agent(
             name="Assistant",
-            instructions="You are a helpful, concise assistant. Answer questions clearly.",
-            markdown=True,
+            instructions="You are a helpful, concise assistant. Answer questions clearly. Use markdown formatting.",
         )
     return _agent
 
@@ -55,7 +55,8 @@ async def on_message(message: str):
     await aiui.think("Thinking...")
 
     agent = _get_agent()
-    response = agent.chat(str(message))
+    # Run blocking agent.chat() in thread pool to avoid blocking the event loop
+    response = await asyncio.to_thread(agent.chat, str(message))
 
     await aiui.say(str(response))
 

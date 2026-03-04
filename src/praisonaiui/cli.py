@@ -1,5 +1,6 @@
 """CLI module - Typer-based command line interface."""
 
+import asyncio
 from pathlib import Path
 from typing import Optional
 
@@ -1009,11 +1010,78 @@ def dev(
                 console.print("\n[green]Dev server stopped.[/green]")
 
 
+def _register_yaml_chat(chat_yaml: dict) -> None:
+    """Register chat callbacks from a YAML configuration.
+
+    Supports YAML like::
+
+        name: My Assistant
+        instructions: You are a helpful assistant.
+        starters:
+          - label: Hello
+            message: Hello!
+            icon: 👋
+        datastore: json
+    """
+    from praisonaiui.server import register_callback
+    import praisonaiui as aiui
+
+    agent_name = chat_yaml.get("name", "Assistant")
+    instructions = chat_yaml.get("instructions", "You are a helpful assistant.")
+    welcome_msg = chat_yaml.get("welcome", f"👋 Hi! I'm {agent_name}. How can I help?")
+    starters = chat_yaml.get("starters", [])
+
+    # Lazy agent creation
+    _agent_cache = {}
+
+    def _get_agent():
+        if "agent" not in _agent_cache:
+            try:
+                from praisonaiagents import Agent
+            except ImportError:
+                raise ImportError(
+                    "praisonaiagents package required for YAML chat. "
+                    "Install with: pip install praisonai"
+                )
+            _agent_cache["agent"] = Agent(
+                name=agent_name,
+                instructions=instructions,
+            )
+        return _agent_cache["agent"]
+
+    # Register reply callback
+    async def on_reply(msg):
+        from praisonaiui.callbacks import _set_context
+        _set_context(msg)
+        try:
+            await aiui.think("Thinking...")
+            agent = _get_agent()
+            # Run blocking agent.chat() in thread pool to avoid blocking the event loop
+            response = await asyncio.to_thread(agent.chat, str(msg))
+            await aiui.say(str(response))
+        finally:
+            _set_context(None)
+
+    register_callback("reply", on_reply)
+
+    # Register starters if provided
+    if starters:
+        async def on_starters():
+            return starters
+        register_callback("starters", on_starters)
+
+    # Register welcome
+    async def on_welcome():
+        await aiui.say(welcome_msg)
+
+    register_callback("welcome", on_welcome)
+
+
 @app.command()
 def run(
     app_file: Path = typer.Argument(
         ...,
-        help="Path to Python app file (e.g., app.py)",
+        help="Path to Python app file (e.g., app.py) or YAML chat config (e.g., chat.yaml)",
     ),
     config: Optional[Path] = typer.Option(
         None,
@@ -1056,8 +1124,14 @@ def run(
         "-d",
         help="Data persistence: 'memory' (volatile), 'json' (file-based), or 'json:/path/to/dir'",
     ),
+    style: str = typer.Option(
+        "chat",
+        "--style",
+        "-s",
+        help="UI style: 'chat' (default), 'dashboard' (admin panel), 'agents', 'playground'",
+    ),
 ) -> None:
-    """Run the AI chat server with your app.py file.
+    """Run the AI chat server with your app.py or config.yaml file.
 
     Example:
         aiui run app.py
@@ -1065,6 +1139,7 @@ def run(
         aiui run app.py --backend praisonai  # Use praisonai WebSocketGateway
         aiui run app.py --datastore json     # Persist sessions to ~/.praisonaiui/sessions/
         aiui run app.py --datastore json:/tmp/my-sessions  # Custom persistence path
+        aiui run config.yaml                 # YAML-defined chat agent
     """
     import importlib.util
     import socket
@@ -1075,20 +1150,38 @@ def run(
         console.print(f"[red]Error:[/red] App file not found: {app_file}")
         raise typer.Exit(code=1)
 
-    # Load the user's app module FIRST to register callbacks
-    console.print(f"[yellow]⏳[/yellow] Loading {app_file}...")
-    spec = importlib.util.spec_from_file_location("user_app", app_file)
-    if spec is None or spec.loader is None:
-        console.print(f"[red]Error:[/red] Could not load {app_file}")
-        raise typer.Exit(code=1)
+    is_yaml = app_file.suffix in (".yaml", ".yml")
 
-    user_module = importlib.util.module_from_spec(spec)
-    sys.modules["user_app"] = user_module
-    spec.loader.exec_module(user_module)
+    if is_yaml:
+        # Load YAML chat configuration
+        console.print(f"[yellow]⏳[/yellow] Loading {app_file}...")
+        import yaml as _yaml
 
-    # Check if app.py registered a @reply callback (chat mode)
-    from praisonaiui.server import _callbacks
-    is_chat_mode = "reply" in _callbacks
+        with open(app_file) as f:
+            chat_yaml = _yaml.safe_load(f) or {}
+
+        # Apply config from YAML (override CLI defaults only if present)
+        if "datastore" in chat_yaml and datastore == "memory":
+            datastore = chat_yaml["datastore"]
+
+        # Auto-register callbacks from YAML
+        _register_yaml_chat(chat_yaml)
+        is_chat_mode = True
+    else:
+        # Load the user's app module FIRST to register callbacks
+        console.print(f"[yellow]⏳[/yellow] Loading {app_file}...")
+        spec = importlib.util.spec_from_file_location("user_app", app_file)
+        if spec is None or spec.loader is None:
+            console.print(f"[red]Error:[/red] Could not load {app_file}")
+            raise typer.Exit(code=1)
+
+        user_module = importlib.util.module_from_spec(spec)
+        sys.modules["user_app"] = user_module
+        spec.loader.exec_module(user_module)
+
+        # Check if app.py registered a @reply callback (chat mode)
+        from praisonaiui.server import _callbacks
+        is_chat_mode = "reply" in _callbacks or "on:reply" in _callbacks
 
     # Build static files only if --config was explicitly provided
     if config is not None and config.exists():
@@ -1122,7 +1215,7 @@ def run(
                 "title": "AI Chat",
                 "theme": {"preset": "zinc", "darkMode": True, "radius": "md"},
             },
-            "style": "chat",
+            "style": style,
         }
         with open(ui_config_path, "w") as f:
             _json.dump(ui_cfg, f, indent=2)

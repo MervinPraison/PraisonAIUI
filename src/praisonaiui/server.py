@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import sys
+import time
 import uuid
+from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncGenerator, Callable, Optional
@@ -22,10 +26,26 @@ from praisonaiui.datastore import BaseDataStore, MemoryDataStore
 # Registry for callbacks
 _callbacks: dict[str, Callable] = {}
 _agents: dict[str, dict[str, Any]] = {}
+# Registry for dashboard pages (protocol-driven)
+_pages: dict[str, dict[str, Any]] = {}
 # Pluggable datastore (default: in-memory)
 _datastore: BaseDataStore = MemoryDataStore()
 # Track active tasks per session for server-side abort
 _active_tasks: dict[str, asyncio.Task] = {}
+# Server start time for uptime calculation
+_server_start_time: float = time.time()
+# In-memory log buffer for /api/logs
+_log_buffer: deque = deque(maxlen=500)
+# Usage tracking (token counts per session/model)
+_usage_stats: dict[str, Any] = {
+    "total_requests": 0,
+    "total_tokens": 0,
+    "by_model": {},
+    "by_session": {},
+}
+# Server config path (set during create_app)
+_config_path: Optional[Path] = None
+_config_cache: Optional[dict] = None
 
 
 def set_datastore(store: BaseDataStore) -> None:
@@ -51,6 +71,46 @@ def register_agent(name: str, agent: Any) -> None:
         "agent": agent,
         "created_at": datetime.utcnow().isoformat(),
     }
+
+
+def register_page(
+    id: str,
+    *,
+    title: str,
+    icon: str = "📄",
+    group: str = "Custom",
+    description: str = "",
+    api_endpoint: Optional[str] = None,
+    handler: Optional[Callable] = None,
+    order: int = 100,
+) -> None:
+    """Register a dashboard page.
+
+    Built-in pages and user-defined pages use the same protocol.
+    Users can override built-in pages by registering with the same id.
+
+    Args:
+        id: Unique page identifier (e.g. 'metrics')
+        title: Display title in sidebar
+        icon: Emoji icon for sidebar
+        group: Tab group name (e.g. 'Control', 'Settings', 'Custom')
+        description: Brief subtitle shown in header
+        api_endpoint: API path for page data (default: /api/pages/{id}/data)
+        handler: Optional async function that returns page data as dict
+        order: Sort order within group (lower = first, default 100)
+    """
+    endpoint = api_endpoint or f"/api/pages/{id}/data"
+    _pages[id] = {
+        "id": id,
+        "title": title,
+        "icon": icon,
+        "group": group,
+        "description": description,
+        "api_endpoint": endpoint,
+        "order": order,
+    }
+    if handler:
+        register_callback(f"page:{id}", handler)
 
 
 async def health(request: Request) -> JSONResponse:
@@ -110,6 +170,181 @@ async def create_session(request: Request) -> JSONResponse:
     return JSONResponse({"session_id": session["id"]})
 
 
+async def patch_session(request: Request) -> JSONResponse:
+    """Update session metadata (rename, tag)."""
+    session_id = request.path_params["session_id"]
+    session = await _datastore.get_session(session_id)
+    if session is None:
+        return JSONResponse({"error": "Session not found"}, status_code=404)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+    title = body.get("title")
+    if title is not None:
+        await _datastore.update_session(session_id, title=title)
+    return JSONResponse({"status": "updated", "session_id": session_id})
+
+
+# ---------------------------------------------------------------------------
+# Dashboard API endpoints
+# ---------------------------------------------------------------------------
+
+async def api_overview(request: Request) -> JSONResponse:
+    """Dashboard overview — health, version, stats."""
+    sessions = await _datastore.list_sessions()
+    profiles_cb = _callbacks.get("profiles")
+    profiles = []
+    if profiles_cb:
+        result = profiles_cb()
+        if asyncio.iscoroutine(result):
+            result = await result
+        profiles = result if isinstance(result, list) else []
+    return JSONResponse({
+        "status": "ok",
+        "version": _get_version(),
+        "uptime_seconds": round(time.time() - _server_start_time, 1),
+        "python_version": sys.version,
+        "stats": {
+            "total_sessions": len(sessions),
+            "active_tasks": len(_active_tasks),
+            "registered_agents": len(_agents),
+            "registered_profiles": len(profiles),
+            "total_requests": _usage_stats["total_requests"],
+        },
+        "agents": list(_agents.keys()),
+    })
+
+
+async def api_config_handler(request: Request) -> JSONResponse:
+    """Read or write server config."""
+    global _config_cache
+    if request.method == "GET":
+        config = _config_cache or {}
+        if _config_path and _config_path.exists():
+            config = load_config_from_yaml(_config_path) or {}
+            _config_cache = config
+        return JSONResponse({"config": config, "config_path": str(_config_path) if _config_path else None})
+    elif request.method == "PUT":
+        if not _config_path:
+            return JSONResponse({"error": "No config file path set"}, status_code=400)
+        try:
+            body = await request.json()
+            config_data = body.get("config", body)
+            import yaml
+            with open(_config_path, "w") as f:
+                yaml.dump(config_data, f, default_flow_style=False, allow_unicode=True)
+            _config_cache = config_data
+            return JSONResponse({"status": "saved", "config_path": str(_config_path)})
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+    return JSONResponse({"error": "Method not allowed"}, status_code=405)
+
+
+async def api_logs(request: Request) -> JSONResponse:
+    """Return recent log entries."""
+    level = request.query_params.get("level", "").upper()
+    limit = int(request.query_params.get("limit", "100"))
+    logs = list(_log_buffer)
+    if level:
+        logs = [entry for entry in logs if entry.get("level", "") == level]
+    logs = logs[-limit:]
+    return JSONResponse({"logs": logs, "total": len(_log_buffer)})
+
+
+async def api_usage(request: Request) -> JSONResponse:
+    """Return usage statistics."""
+    return JSONResponse({
+        "usage": _usage_stats,
+        "sessions": {
+            "total": len(await _datastore.list_sessions()),
+            "active": len(_active_tasks),
+        },
+    })
+
+
+async def api_debug(request: Request) -> JSONResponse:
+    """Debug info — versions, env, loaded modules."""
+    import platform
+    pkg_versions = {}
+    for pkg in ["praisonaiui", "praisonaiagents", "openai", "starlette", "uvicorn"]:
+        try:
+            from importlib.metadata import version as pkg_version
+            pkg_versions[pkg] = pkg_version(pkg)
+        except Exception:
+            pkg_versions[pkg] = "not installed"
+    return JSONResponse({
+        "python": sys.version,
+        "platform": platform.platform(),
+        "packages": pkg_versions,
+        "callbacks_registered": list(_callbacks.keys()),
+        "agents_registered": list(_agents.keys()),
+        "datastore_type": type(_datastore).__name__,
+        "config_path": str(_config_path) if _config_path else None,
+        "log_buffer_size": len(_log_buffer),
+    })
+
+
+async def api_pages(request: Request) -> JSONResponse:
+    """List registered dashboard pages (protocol-driven)."""
+    # Sort by order within each group
+    pages = sorted(_pages.values(), key=lambda p: (p.get("order", 100), p["id"]))
+    return JSONResponse({"pages": pages})
+
+
+async def api_page_data(request: Request) -> JSONResponse:
+    """Serve data for a custom user-registered page."""
+    page_id = request.path_params["page_id"]
+    handler = _callbacks.get(f"page:{page_id}")
+    if not handler:
+        return JSONResponse({"error": f"No handler for page '{page_id}'"}, status_code=404)
+    try:
+        import asyncio as _aio
+        result = handler()
+        if _aio.iscoroutine(result):
+            result = await result
+        if not isinstance(result, dict):
+            result = {"data": result}
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+def _get_version() -> str:
+    """Get praisonaiui version."""
+    try:
+        from importlib.metadata import version
+        return version("praisonaiui")
+    except Exception:
+        return "dev"
+
+
+def track_usage(session_id: str = "unknown", model: str = "unknown", tokens: int = 0):
+    """Track token usage stats. Called from callbacks."""
+    _usage_stats["total_requests"] += 1
+    _usage_stats["total_tokens"] += tokens
+    if model not in _usage_stats["by_model"]:
+        _usage_stats["by_model"][model] = {"requests": 0, "tokens": 0}
+    _usage_stats["by_model"][model]["requests"] += 1
+    _usage_stats["by_model"][model]["tokens"] += tokens
+    if session_id not in _usage_stats["by_session"]:
+        _usage_stats["by_session"][session_id] = {"requests": 0, "tokens": 0}
+    _usage_stats["by_session"][session_id]["requests"] += 1
+    _usage_stats["by_session"][session_id]["tokens"] += tokens
+
+
+class LogBufferHandler(logging.Handler):
+    """Logging handler that captures log entries into the in-memory buffer."""
+    def emit(self, record: logging.LogRecord) -> None:
+        entry = {
+            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": self.format(record),
+        }
+        _log_buffer.append(entry)
+
+
 async def get_starters(request: Request) -> JSONResponse:
     """Return starter messages from registered callback."""
     callback = _callbacks.get("starters")
@@ -136,6 +371,34 @@ async def get_profiles(request: Request) -> JSONResponse:
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
     return JSONResponse({"profiles": []})
+
+
+# Track currently selected profile per session
+_selected_profile: dict = {"id": None}
+
+
+async def select_profile(request: Request) -> JSONResponse:
+    """Handle profile selection from UI."""
+    try:
+        body = await request.json()
+        profile_id = body.get("profile_id")
+        if not profile_id:
+            return JSONResponse({"error": "profile_id required"}, status_code=400)
+        _selected_profile["id"] = profile_id
+        # Call profile_select callback if registered
+        callback = _callbacks.get("profile_select")
+        if callback:
+            result = callback(profile_id)
+            if asyncio.iscoroutine(result):
+                await result
+        return JSONResponse({"status": "ok", "profile_id": profile_id})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+def get_selected_profile() -> str | None:
+    """Get the currently selected profile ID."""
+    return _selected_profile.get("id")
 
 
 async def welcome_handler(request: Request) -> StreamingResponse:
@@ -388,6 +651,12 @@ class MessageContext:
         self._response_queue: Optional[asyncio.Queue] = None
         self._pending_ask: Optional[asyncio.Future] = None
 
+    def __str__(self) -> str:
+        return self.text
+
+    def __repr__(self) -> str:
+        return f"MessageContext(text={self.text!r}, session_id={self.session_id!r}, agent_name={self.agent_name!r})"
+
     async def stream(self, token: str) -> None:
         """Stream a token to the client."""
         if self._stream_queue:
@@ -503,6 +772,15 @@ def create_app(
             )
         )
 
+    # Store config path globally for the config endpoint
+    global _config_path, _config_cache
+    _config_path = config_path
+    if config:
+        _config_cache = config
+
+    # Install log buffer handler to capture logs for /api/logs
+    _install_log_handler()
+
     routes = [
         Route("/health", health, methods=["GET"]),
         Route("/login", login_handler, methods=["POST"]),
@@ -512,16 +790,51 @@ def create_app(
         Route("/agents", list_agents, methods=["GET"]),
         Route("/starters", get_starters, methods=["GET"]),
         Route("/profiles", get_profiles, methods=["GET"]),
+        Route("/profiles/select", select_profile, methods=["POST"]),
         Route("/welcome", welcome_handler, methods=["POST"]),
         Route("/sessions", list_sessions, methods=["GET"]),
         Route("/sessions", create_session, methods=["POST"]),
         Route("/sessions/{session_id}", get_session, methods=["GET"]),
+        Route("/sessions/{session_id}", patch_session, methods=["PATCH"]),
         Route("/sessions/{session_id}", delete_session, methods=["DELETE"]),
         Route("/sessions/{session_id}/runs", get_session_runs, methods=["GET"]),
         Route("/run", run_agent, methods=["POST"]),
         Route("/cancel", cancel_run, methods=["POST"]),
         Route("/agents/{agent_id}/runs", run_agent_by_id, methods=["POST"]),
+        # Dashboard API
+        Route("/api/overview", api_overview, methods=["GET"]),
+        Route("/api/config", api_config_handler, methods=["GET", "PUT"]),
+        Route("/api/logs", api_logs, methods=["GET"]),
+        Route("/api/usage", api_usage, methods=["GET"]),
+        Route("/api/debug", api_debug, methods=["GET"]),
+        # Page registry protocol
+        Route("/api/pages", api_pages, methods=["GET"]),
+        Route("/api/pages/{page_id}/data", api_page_data, methods=["GET"]),
     ]
+
+    # Register built-in dashboard pages via the same protocol
+    _builtin_pages = [
+        {"id": "overview", "title": "Overview", "icon": "📊", "group": "Control",
+         "description": "System health and statistics", "order": 10},
+        {"id": "sessions", "title": "Sessions", "icon": "📋", "group": "Control",
+         "description": "Manage conversation sessions", "order": 20},
+        {"id": "usage", "title": "Usage", "icon": "📈", "group": "Control",
+         "description": "Token usage and metrics", "order": 30},
+        {"id": "agents", "title": "Agents", "icon": "🤖", "group": "Agent",
+         "description": "Configured AI agents", "order": 10},
+        {"id": "config", "title": "Config", "icon": "⚙️", "group": "Settings",
+         "description": "Server configuration", "order": 10},
+        {"id": "logs", "title": "Logs", "icon": "📜", "group": "Settings",
+         "description": "Server logs and events", "order": 20},
+        {"id": "debug", "title": "Debug", "icon": "🐛", "group": "Settings",
+         "description": "Debug information", "order": 30},
+    ]
+    for p in _builtin_pages:
+        if p["id"] not in _pages:  # allow user to override
+            _pages[p["id"]] = {
+                **p,
+                "api_endpoint": f"/api/{p['id']}" if p["id"] != "sessions" else "/sessions",
+            }
 
     # Add static file serving if static_dir provided
     if static_dir and static_dir.exists():
@@ -533,3 +846,14 @@ def create_app(
     )
 
     return app
+
+
+def _install_log_handler():
+    """Install the log buffer handler on the root logger."""
+    handler = LogBufferHandler()
+    handler.setFormatter(logging.Formatter("%(name)s - %(message)s"))
+    handler.setLevel(logging.INFO)
+    root = logging.getLogger()
+    # Avoid duplicate handlers
+    if not any(isinstance(h, LogBufferHandler) for h in root.handlers):
+        root.addHandler(handler)

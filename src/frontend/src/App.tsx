@@ -8,7 +8,7 @@ import { Content } from './Content'
 import { ZoneWidgets } from './Widgets'
 import { Toc } from './Toc'
 import { Footer } from './Footer'
-import { ChatLayout, AgentUILayout, CopilotWidget, PlaygroundLayout } from './layouts'
+import { ChatLayout, AgentUILayout, CopilotWidget, PlaygroundLayout, DashboardLayout } from './layouts'
 
 export default function App() {
   const [config, setConfig] = useState<UIConfig>({})
@@ -260,6 +260,15 @@ export default function App() {
         return (
           <PlaygroundLayout
             config={config.chat}
+            title={config.site?.title}
+          />
+        )
+      case 'dashboard':
+        // Dashboard mode - multi-tab admin panel
+        return (
+          <DashboardLayout
+            config={config.chat}
+            layout={config.layout}
             title={config.site?.title}
           />
         )

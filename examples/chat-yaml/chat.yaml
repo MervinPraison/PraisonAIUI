@@ -1,0 +1,30 @@
+# YAML Chat Configuration — No Python needed!
+#
+# Run:
+#   aiui run chat.yaml
+#   aiui run chat.yaml --datastore json   # persist conversations
+
+name: Research Assistant
+instructions: |
+  You are a helpful research assistant. You provide clear,
+  well-structured answers with citations when possible.
+  Use markdown formatting for readability.
+
+welcome: "👋 Hello! I'm your Research Assistant. Ask me anything."
+
+starters:
+  - label: "Explain a concept"
+    message: "Explain the difference between machine learning and deep learning"
+    icon: "🧠"
+  - label: "Summarize a topic"
+    message: "Give me a brief summary of quantum computing"
+    icon: "📝"
+  - label: "Compare options"
+    message: "Compare Python vs JavaScript for backend development"
+    icon: "⚖️"
+  - label: "Code example"
+    message: "Show me how to make an HTTP request in Python"
+    icon: "💻"
+
+# Optional: set datastore in YAML instead of CLI flag
+# datastore: json

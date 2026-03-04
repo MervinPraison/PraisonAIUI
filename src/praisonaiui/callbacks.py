@@ -268,6 +268,45 @@ def on(event: str) -> Callable[[F], F]:
     return decorator
 
 
+def page(
+    id: str,
+    *,
+    title: str,
+    icon: str = "📄",
+    group: str = "Custom",
+    description: str = "",
+    order: int = 100,
+) -> Callable[[F], F]:
+    """Decorator to register a custom dashboard page.
+
+    The decorated function serves as the page's API data handler.
+    It should return a dict that will be served as JSON.
+
+    Example::
+
+        @aiui.page("metrics", title="My Metrics", icon="📊", group="Analytics")
+        async def metrics_handler():
+            return {"kpis": [{"label": "Users", "value": 42}]}
+
+    Args:
+        id: Unique page identifier
+        title: Display title in sidebar
+        icon: Emoji icon for sidebar
+        group: Tab group name (e.g. 'Custom', 'Analytics')
+        description: Brief subtitle shown in page header
+        order: Sort order within group (lower = first)
+    """
+    def decorator(func: F) -> F:
+        from praisonaiui.server import register_page
+        register_page(
+            id, title=title, icon=icon, group=group,
+            description=description, handler=func, order=order,
+        )
+        return func
+
+    return decorator
+
+
 def resume(func: F) -> F:
     """Decorator for session resume handler.
 

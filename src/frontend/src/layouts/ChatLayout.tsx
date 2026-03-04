@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import type { ChatConfig, LayoutConfig } from '../types'
 import { ChatArea, SessionManager } from '../chat'
+import { ProfilePicker } from '../chat/ProfilePicker'
 
 interface ChatLayoutProps {
     config?: ChatConfig
@@ -57,6 +58,7 @@ export function ChatLayout({ config, layout, title }: ChatLayoutProps) {
                             </svg>
                         </button>
                         <h1 className="text-lg font-semibold">{title || config?.name || 'AI Chat'}</h1>
+                        <ProfilePicker />
                     </header>
                     <main className="flex-1 overflow-hidden">
                         <ChatArea

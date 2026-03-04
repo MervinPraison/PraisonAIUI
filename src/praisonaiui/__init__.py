@@ -19,12 +19,14 @@ def __getattr__(name: str):
     """Lazy import for callback decorators and functions."""
     _callback_attrs = {
         "welcome", "reply", "goodbye", "cancel", "button", "login",
-        "settings", "profiles", "starters", "on", "resume",
+        "settings", "profiles", "starters", "on", "resume", "page",
         "say", "stream", "stream_token", "think", "ask", "tool", "image", "audio",
         "video", "file", "action_buttons",
     }
     _message_attrs = {"Message", "AskUserMessage", "Step"}
-    _server_attrs = {"register_agent"}
+    _server_attrs = {"register_agent", "register_page", "set_datastore", "get_datastore"}
+    _datastore_attrs = {"BaseDataStore", "MemoryDataStore", "JSONFileDataStore"}
+    _config_attrs = {"configure"}
     if name in _callback_attrs:
         from praisonaiui import callbacks
         return getattr(callbacks, name)
@@ -34,6 +36,12 @@ def __getattr__(name: str):
     if name in _server_attrs:
         from praisonaiui import server
         return getattr(server, name)
+    if name in _datastore_attrs:
+        from praisonaiui import datastore
+        return getattr(datastore, name)
+    if name in _config_attrs:
+        from praisonaiui import _config
+        return getattr(_config, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -60,6 +68,7 @@ __all__ = [
     "starters",
     "on",
     "resume",
+    "page",
     # Message functions
     "say",
     "stream",
@@ -74,6 +83,15 @@ __all__ = [
     "action_buttons",
     # Server functions
     "register_agent",
+    "register_page",
+    "set_datastore",
+    "get_datastore",
+    # DataStore classes
+    "BaseDataStore",
+    "MemoryDataStore",
+    "JSONFileDataStore",
+    # Configuration
+    "configure",
     # Message classes (Chainlit pattern)
     "Message",
     "AskUserMessage",

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ChatMessage, ChatConfig, ToolCall } from '../types'
+import type { ChatMessage, ChatConfig, ChatStarter, ToolCall } from '../types'
 import { useSSE } from '../hooks/useSSE'
 import { ChatMessages } from './ChatMessages'
 import { ChatInput } from './ChatInput'
@@ -18,12 +18,27 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
     const [thinkingSteps, setThinkingSteps] = useState<string[]>([])
     const [toolCalls, setToolCalls] = useState<ToolCall[]>([])
     const [loadingHistory, setLoadingHistory] = useState(false)
+    const [dynamicStarters, setDynamicStarters] = useState<ChatStarter[]>([])
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     // Refs to avoid stale closures in callbacks
     const currentResponseRef = useRef('')
     const thinkingStepsRef = useRef<string[]>([])
     const toolCallsRef = useRef<ToolCall[]>([])
+
+    // Fetch starters from backend API
+    useEffect(() => {
+        fetch('/starters')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.starters && data.starters.length > 0) {
+                    setDynamicStarters(data.starters)
+                }
+            })
+            .catch(() => {
+                // No starters endpoint — use static config
+            })
+    }, [])
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -175,7 +190,10 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
         [handleSend]
     )
 
-    const showStarters = messages.length === 0 && !loadingHistory && config?.starters && config.starters.length > 0
+    // Use dynamic starters (from API) if available, fallback to static config starters
+    const effectiveStarters = dynamicStarters.length > 0 ? dynamicStarters : (config?.starters || [])
+    const showStarters = messages.length === 0 && !loadingHistory && effectiveStarters.length > 0
+    const showEmpty = messages.length === 0 && !loadingHistory && !showStarters
 
     return (
         <div className={`flex flex-col h-full ${className}`}>
@@ -186,9 +204,19 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
                     </div>
                 ) : showStarters ? (
                     <StarterMessages
-                        starters={config.starters!}
+                        starters={effectiveStarters}
                         onStarterClick={handleStarterClick}
                     />
+                ) : showEmpty ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center">
+                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center text-white mb-4">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" />
+                            </svg>
+                        </div>
+                        <h2 className="text-xl font-semibold mb-1">{config?.name || 'AI Chat'}</h2>
+                        <p className="text-sm text-muted-foreground">How can I help you today?</p>
+                    </div>
                 ) : (
                     <ChatMessages
                         messages={messages}

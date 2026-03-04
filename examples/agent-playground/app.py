@@ -126,7 +126,7 @@ async def on_welcome():
 
 
 @aiui.reply
-async def on_message(message: str):
+async def on_message(message):
     """Route the message to the active agent and stream the response."""
     msg_text = str(message)
     session_id = getattr(message, "session_id", "default")
