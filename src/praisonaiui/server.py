@@ -23,6 +23,7 @@ from starlette.staticfiles import StaticFiles
 
 from praisonaiui.datastore import BaseDataStore, MemoryDataStore
 from praisonaiui.provider import BaseProvider, RunEvent, RunEventType
+from praisonaiui.features import auto_register_defaults, get_features
 
 # Registry for callbacks
 _callbacks: dict[str, Callable] = {}
@@ -356,6 +357,19 @@ async def api_pages(request: Request) -> JSONResponse:
     # Sort by order within each group
     pages = sorted(_pages.values(), key=lambda p: (p.get("order", 100), p["id"]))
     return JSONResponse({"pages": pages})
+
+
+async def api_features(request: Request) -> JSONResponse:
+    """List all registered feature protocols."""
+    features = get_features()
+    infos = []
+    for f in features.values():
+        try:
+            info = await f.info()
+            infos.append(info)
+        except Exception:
+            infos.append({"name": f.name, "status": "error"})
+    return JSONResponse({"features": infos, "count": len(infos)})
 
 
 async def api_page_data(request: Request) -> JSONResponse:
@@ -834,7 +848,14 @@ def create_app(
         # Page registry protocol
         Route("/api/pages", api_pages, methods=["GET"]),
         Route("/api/pages/{page_id}/data", api_page_data, methods=["GET"]),
+        # Feature protocol registry
+        Route("/api/features", api_features, methods=["GET"]),
     ]
+
+    # ── Auto-register and mount feature protocol routes ──────────────
+    auto_register_defaults()
+    for feature in get_features().values():
+        routes.extend(feature.routes())
 
     # Register built-in dashboard pages via the same protocol
     _builtin_pages = [

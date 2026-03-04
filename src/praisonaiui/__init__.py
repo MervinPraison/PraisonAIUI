@@ -30,6 +30,8 @@ def __getattr__(name: str):
     _provider_attrs = {"BaseProvider", "RunEvent", "RunEventType"}
     _providers_attrs = {"PraisonAIProvider"}
     _config_attrs = {"configure"}
+    _features_attrs = {"BaseFeatureProtocol", "register_feature", "get_features",
+                       "get_feature", "auto_register_defaults"}
     if name in _callback_attrs:
         from praisonaiui import callbacks
         return getattr(callbacks, name)
@@ -51,6 +53,9 @@ def __getattr__(name: str):
     if name in _config_attrs:
         from praisonaiui import _config
         return getattr(_config, name)
+    if name in _features_attrs:
+        from praisonaiui import features
+        return getattr(features, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -112,4 +117,10 @@ __all__ = [
     "Message",
     "AskUserMessage",
     "Step",
+    # Feature protocol
+    "BaseFeatureProtocol",
+    "register_feature",
+    "get_features",
+    "get_feature",
+    "auto_register_defaults",
 ]

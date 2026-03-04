@@ -1614,5 +1614,485 @@ def provider_agents(
         raise typer.Exit(code=1)
 
 
+# ---------------------------------------------------------------------------
+# Feature CLI subcommands — protocol-driven, one group per feature
+# ---------------------------------------------------------------------------
+_SERVER_OPT = typer.Option("http://127.0.0.1:8000", "--server", "-s", help="Server URL")
+
+
+def _api_get(server: str, path: str):
+    """Helper: GET from server API."""
+    import json as _json
+    from urllib.request import urlopen
+    with urlopen(f"{server}{path}") as resp:
+        return _json.loads(resp.read())
+
+
+def _api_post(server: str, path: str, body: dict = None):
+    """Helper: POST to server API."""
+    import json as _json
+    from urllib.request import Request as UrlRequest, urlopen
+    data = _json.dumps(body or {}).encode()
+    req = UrlRequest(f"{server}{path}", data=data, headers={"Content-Type": "application/json"})
+    with urlopen(req) as resp:
+        return _json.loads(resp.read())
+
+
+def _api_delete(server: str, path: str):
+    """Helper: DELETE on server API."""
+    import json as _json
+    from urllib.request import Request as UrlRequest, urlopen
+    req = UrlRequest(f"{server}{path}", method="DELETE")
+    with urlopen(req) as resp:
+        return _json.loads(resp.read())
+
+
+def _api_patch(server: str, path: str, body: dict = None):
+    """Helper: PATCH on server API."""
+    import json as _json
+    from urllib.request import Request as UrlRequest, urlopen
+    data = _json.dumps(body or {}).encode()
+    req = UrlRequest(f"{server}{path}", data=data, method="PATCH",
+                     headers={"Content-Type": "application/json"})
+    with urlopen(req) as resp:
+        return _json.loads(resp.read())
+
+
+# ── Features listing ─────────────────────────────────────────────────
+features_app = typer.Typer(name="features", help="List all registered features", add_completion=False)
+app.add_typer(features_app, name="features")
+
+
+@features_app.command("list")
+def features_list(server: str = _SERVER_OPT) -> None:
+    """List all registered protocol features."""
+    try:
+        data = _api_get(server, "/api/features")
+        for f in data.get("features", []):
+            h = f.get("health", {})
+            status = h.get("status", "?")
+            color = "green" if status == "ok" else "red"
+            console.print(f"  [{color}]●[/{color}] {f['name']} — {f.get('description', '')}")
+            if f.get("routes"):
+                console.print(f"    routes: {', '.join(f['routes'])}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+# ── Approvals ────────────────────────────────────────────────────────
+approval_app = typer.Typer(name="approval", help="Manage tool-execution approvals", add_completion=False)
+app.add_typer(approval_app, name="approval")
+
+
+@approval_app.command("list")
+def approval_list(
+    server: str = _SERVER_OPT,
+    status: str = typer.Option("all", "--status", help="Filter: all, pending, resolved"),
+) -> None:
+    """List approvals."""
+    try:
+        data = _api_get(server, f"/api/approvals?status={status}")
+        for a in data.get("approvals", []):
+            console.print(f"  [{a['status']}] {a['id']} — {a.get('tool_name', '?')}")
+        console.print(f"Total: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@approval_app.command("pending")
+def approval_pending(server: str = _SERVER_OPT) -> None:
+    """Show pending approval count."""
+    try:
+        data = _api_get(server, "/api/approvals?status=pending")
+        console.print(f"Pending approvals: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@approval_app.command("resolve")
+def approval_resolve(
+    approval_id: str = typer.Argument(help="Approval ID to resolve"),
+    approved: bool = typer.Option(True, "--approved/--denied", help="Approve or deny"),
+    reason: str = typer.Option("", "--reason", help="Reason for decision"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Resolve a pending approval."""
+    try:
+        data = _api_post(server, f"/api/approvals/{approval_id}/resolve",
+                         {"approved": approved, "reason": reason})
+        color = "green" if data.get("status") == "approved" else "red"
+        console.print(f"[{color}]{data.get('status', '?')}[/{color}] — {approval_id}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+# ── Schedules ────────────────────────────────────────────────────────
+schedule_app = typer.Typer(name="schedule", help="Manage scheduled jobs", add_completion=False)
+app.add_typer(schedule_app, name="schedule")
+
+
+@schedule_app.command("list")
+def schedule_list(server: str = _SERVER_OPT) -> None:
+    """List all scheduled jobs."""
+    try:
+        data = _api_get(server, "/api/schedules")
+        for j in data.get("schedules", []):
+            s = "✓" if j.get("enabled", True) else "✗"
+            console.print(f"  [{s}] {j['id']} — {j.get('name', '?')} ({j.get('schedule', {}).get('kind', '?')})")
+        console.print(f"Total: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@schedule_app.command("add")
+def schedule_add(
+    name: str = typer.Argument(help="Job name"),
+    message: str = typer.Argument(help="Message/payload"),
+    every: int = typer.Option(60, "--every", help="Interval in seconds"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Add a new scheduled job."""
+    try:
+        data = _api_post(server, "/api/schedules", {
+            "name": name, "message": message,
+            "schedule": {"kind": "every", "every_seconds": every},
+        })
+        console.print(f"[green]✓[/green] Added job: {data.get('id')}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@schedule_app.command("remove")
+def schedule_remove(
+    job_id: str = typer.Argument(help="Job ID"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Remove a scheduled job."""
+    try:
+        data = _api_delete(server, f"/api/schedules/{job_id}")
+        console.print(f"[green]✓[/green] Deleted: {data.get('deleted')}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@schedule_app.command("status")
+def schedule_status(server: str = _SERVER_OPT) -> None:
+    """Show scheduler status."""
+    try:
+        data = _api_get(server, "/api/schedules")
+        total = data.get("count", 0)
+        enabled = sum(1 for j in data.get("schedules", []) if j.get("enabled", True))
+        console.print(f"Jobs: {total} total, {enabled} enabled")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+# ── Memory ───────────────────────────────────────────────────────────
+memory_app = typer.Typer(name="memory", help="Manage agent memory", add_completion=False)
+app.add_typer(memory_app, name="memory")
+
+
+@memory_app.command("list")
+def memory_list(
+    server: str = _SERVER_OPT,
+    memory_type: str = typer.Option("all", "--type", help="Filter by type: short, long, entity, all"),
+) -> None:
+    """List all memories."""
+    try:
+        data = _api_get(server, f"/api/memory?type={memory_type}")
+        for m in data.get("memories", []):
+            text = m.get("text", "")
+            preview = text[:60] + "…" if len(text) > 60 else text
+            console.print(f"  [{m.get('memory_type', '?')}] {m['id']} — {preview}")
+        console.print(f"Total: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@memory_app.command("add")
+def memory_add(
+    text: str = typer.Argument(help="Memory text"),
+    memory_type: str = typer.Option("long", "--type", help="Memory type"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Add a memory entry."""
+    try:
+        data = _api_post(server, "/api/memory", {"text": text, "memory_type": memory_type})
+        console.print(f"[green]✓[/green] Added memory: {data.get('id')}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@memory_app.command("search")
+def memory_search(
+    query: str = typer.Argument(help="Search query"),
+    limit: int = typer.Option(10, "--limit", help="Max results"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Search memories."""
+    try:
+        data = _api_post(server, "/api/memory/search", {"query": query, "limit": limit})
+        for m in data.get("results", []):
+            console.print(f"  {m['id']} — {m.get('text', '')[:60]}")
+        console.print(f"Results: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@memory_app.command("clear")
+def memory_clear(
+    memory_type: str = typer.Option("all", "--type", help="Type to clear (or 'all')"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Clear memories."""
+    try:
+        data = _api_delete(server, f"/api/memory?type={memory_type}")
+        console.print(f"[green]✓[/green] Cleared: {data.get('cleared', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@memory_app.command("status")
+def memory_status(server: str = _SERVER_OPT) -> None:
+    """Show memory status."""
+    try:
+        data = _api_get(server, "/api/memory")
+        console.print(f"Total memories: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+# ── Skills ───────────────────────────────────────────────────────────
+skills_app = typer.Typer(name="skills", help="Manage agent skills", add_completion=False)
+app.add_typer(skills_app, name="skills")
+
+
+@skills_app.command("list")
+def skills_list(server: str = _SERVER_OPT) -> None:
+    """List all skills."""
+    try:
+        data = _api_get(server, "/api/skills")
+        for s in data.get("skills", []):
+            console.print(f"  {s['id']} — {s.get('name', '?')} (v{s.get('version', '?')})")
+        console.print(f"Total: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@skills_app.command("status")
+def skills_status(server: str = _SERVER_OPT) -> None:
+    """Show skills status."""
+    try:
+        data = _api_get(server, "/api/skills")
+        console.print(f"Total skills: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@skills_app.command("discover")
+def skills_discover(server: str = _SERVER_OPT) -> None:
+    """Discover available skills."""
+    try:
+        data = _api_post(server, "/api/skills/discover", {})
+        for s in data.get("discovered", []):
+            console.print(f"  {s.get('id', '?')} — {s.get('name', '?')}")
+        console.print(f"Discovered: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+# ── Hooks ────────────────────────────────────────────────────────────
+hooks_app = typer.Typer(name="hooks", help="Manage operation hooks", add_completion=False)
+app.add_typer(hooks_app, name="hooks")
+
+
+@hooks_app.command("list")
+def hooks_list(server: str = _SERVER_OPT) -> None:
+    """List all hooks."""
+    try:
+        data = _api_get(server, "/api/hooks")
+        for h in data.get("hooks", []):
+            console.print(f"  {h['id']} — {h.get('name', '?')} ({h.get('event', '?')}, {h.get('type', '?')})")
+        console.print(f"Total: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@hooks_app.command("trigger")
+def hooks_trigger(
+    hook_id: str = typer.Argument(help="Hook ID to trigger"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Trigger a hook."""
+    try:
+        data = _api_post(server, f"/api/hooks/{hook_id}/trigger", {})
+        console.print(f"[green]✓[/green] Triggered: {data.get('hook_id', hook_id)} → {data.get('result', '?')}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@hooks_app.command("log")
+def hooks_log(
+    limit: int = typer.Option(20, "--limit", help="Number of log entries"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Show hook execution log."""
+    try:
+        data = _api_get(server, f"/api/hooks/log?limit={limit}")
+        for e in data.get("log", []):
+            console.print(f"  {e.get('hook_id', '?')} — {e.get('result', '?')}")
+        console.print(f"Entries: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+# ── Workflows ────────────────────────────────────────────────────────
+workflows_app = typer.Typer(name="workflows", help="Manage multi-step workflows", add_completion=False)
+app.add_typer(workflows_app, name="workflows")
+
+
+@workflows_app.command("list")
+def workflows_list(server: str = _SERVER_OPT) -> None:
+    """List all workflows."""
+    try:
+        data = _api_get(server, "/api/workflows")
+        for w in data.get("workflows", []):
+            console.print(f"  {w['id']} — {w.get('name', '?')} ({w.get('pattern', '?')})")
+        console.print(f"Total: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@workflows_app.command("run")
+def workflows_run(
+    workflow_id: str = typer.Argument(help="Workflow ID to run"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Run a workflow."""
+    try:
+        data = _api_post(server, f"/api/workflows/{workflow_id}/run", {})
+        console.print(f"[green]✓[/green] {data.get('status', '?')} — run {data.get('id', '?')}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@workflows_app.command("status")
+def workflows_status(server: str = _SERVER_OPT) -> None:
+    """Show workflow status."""
+    try:
+        data = _api_get(server, "/api/workflows")
+        console.print(f"Workflows: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@workflows_app.command("runs")
+def workflows_runs(server: str = _SERVER_OPT) -> None:
+    """List workflow run history."""
+    try:
+        data = _api_get(server, "/api/workflows/runs")
+        for r in data.get("runs", []):
+            console.print(f"  {r['id']} — {r.get('workflow_name', r.get('workflow_id', '?'))} ({r.get('status', '?')})")
+        console.print(f"Total runs: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+# ── Config (runtime) ────────────────────────────────────────────────
+config_app = typer.Typer(name="config", help="Manage runtime configuration", add_completion=False)
+app.add_typer(config_app, name="config")
+
+
+@config_app.command("get")
+def config_get(
+    key: str = typer.Argument("", help="Config key (empty = show all)"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Get runtime config."""
+    try:
+        if key:
+            data = _api_get(server, f"/api/config/runtime/{key}")
+            console.print(f"{data.get('key')}: {data.get('value')}")
+        else:
+            data = _api_get(server, "/api/config/runtime")
+            cfg = data.get("config", {})
+            if not cfg:
+                console.print("No runtime config set")
+            else:
+                for k, v in cfg.items():
+                    console.print(f"  {k} = {v}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@config_app.command("set")
+def config_set(
+    key: str = typer.Argument(help="Config key"),
+    value: str = typer.Argument(help="Config value"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Set a runtime config value."""
+    try:
+        data = _api_patch(server, "/api/config/runtime", {key: value})
+        console.print(f"[green]✓[/green] {key} = {value}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@config_app.command("list")
+def config_list(server: str = _SERVER_OPT) -> None:
+    """List all runtime config keys."""
+    try:
+        data = _api_get(server, "/api/config/runtime")
+        cfg = data.get("config", {})
+        for k in sorted(cfg.keys()):
+            console.print(f"  {k}")
+        console.print(f"Keys: {len(cfg)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@config_app.command("history")
+def config_history(
+    limit: int = typer.Option(20, "--limit", help="Number of entries"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Show config change history."""
+    try:
+        data = _api_get(server, f"/api/config/runtime/history?limit={limit}")
+        for e in data.get("history", []):
+            console.print(f"  {e.get('key', '?')}: {e.get('old')} → {e.get('new')}")
+        console.print(f"Entries: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()
