@@ -1015,11 +1015,11 @@ def run(
         ...,
         help="Path to Python app file (e.g., app.py)",
     ),
-    config: Path = typer.Option(
-        Path("aiui.template.yaml"),
+    config: Optional[Path] = typer.Option(
+        None,
         "--config",
         "-c",
-        help="Path to configuration file",
+        help="Path to YAML configuration file (optional for chat mode)",
     ),
     port: int = typer.Option(
         8000,
@@ -1067,12 +1067,7 @@ def run(
         console.print(f"[red]Error:[/red] App file not found: {app_file}")
         raise typer.Exit(code=1)
 
-    # Build static files if config exists
-    if config.exists():
-        console.print("[yellow]⏳[/yellow] Building static files...")
-        build(config=config, output=output, minify=False)
-
-    # Load the user's app module to register callbacks
+    # Load the user's app module FIRST to register callbacks
     console.print(f"[yellow]⏳[/yellow] Loading {app_file}...")
     spec = importlib.util.spec_from_file_location("user_app", app_file)
     if spec is None or spec.loader is None:
@@ -1082,6 +1077,51 @@ def run(
     user_module = importlib.util.module_from_spec(spec)
     sys.modules["user_app"] = user_module
     spec.loader.exec_module(user_module)
+
+    # Check if app.py registered a @reply callback (chat mode)
+    from praisonaiui.server import _callbacks
+    is_chat_mode = "reply" in _callbacks
+
+    # Build static files only if --config was explicitly provided
+    if config is not None and config.exists():
+        console.print("[yellow]⏳[/yellow] Building static files...")
+        build(config=config, output=output, minify=False)
+
+    # If chat mode: set up chat frontend directly from templates
+    if is_chat_mode:
+        import json as _json
+        import shutil
+
+        output.mkdir(parents=True, exist_ok=True)
+
+        # Copy bundled frontend template (has the React SPA with ChatLayout)
+        pkg_frontend = Path(__file__).parent / "templates" / "frontend"
+        if pkg_frontend.exists():
+            # Copy index.html and assets from the package template
+            for item in pkg_frontend.iterdir():
+                dst = output / item.name
+                if item.is_dir():
+                    if dst.exists():
+                        shutil.rmtree(dst)
+                    shutil.copytree(item, dst)
+                else:
+                    shutil.copy2(item, dst)
+
+        # Write chat-mode ui-config.json
+        ui_config_path = output / "ui-config.json"
+        ui_cfg = {
+            "site": {
+                "title": "AI Chat",
+                "theme": {"preset": "zinc", "darkMode": True, "radius": "md"},
+            },
+            "style": "chat",
+        }
+        with open(ui_config_path, "w") as f:
+            _json.dump(ui_cfg, f, indent=2)
+
+        # Write minimal route-manifest and docs-nav so the SPA doesn't error
+        (output / "route-manifest.json").write_text('{"routes": []}')
+        (output / "docs-nav.json").write_text('{"items": []}')
 
     # Find available port
     def find_available_port(start_port: int, max_attempts: int = 10) -> int:
@@ -1139,7 +1179,7 @@ def run(
                 f"🌐 HTTP: [link]http://{host}:{actual_port}[/link]\n"
                 f"🔌 WebSocket: ws://{host}:{actual_port}/ws\n"
                 f"📁 App: {app_file}\n"
-                f"⚙️  Config: {config if config.exists() else 'None'}",
+                f"⚙️  Config: {config if config is not None and config.exists() else 'None'}",
                 title="PraisonAIUI + PraisonAI",
                 border_style="cyan",
             )
@@ -1152,16 +1192,23 @@ def run(
         # Use standalone server (default)
         from praisonaiui.server import create_app
 
-        config_path = config if config.exists() else None
+        config_path = config if config is not None and config.exists() else None
         server_app = create_app(static_dir=static_dir, config_path=config_path)
 
         # Print startup info
-        config_label = str(config) + " (build + server)" if config_path else "None"
+        mode_label = "chat" if is_chat_mode else "docs"
+        if config_path:
+            config_label = f"{config} (build + server)"
+        elif is_chat_mode:
+            config_label = "None (chat mode from app.py)"
+        else:
+            config_label = "None"
         console.print(
             Panel(
                 f"[bold green]AI Chat Server Running[/bold green]\n\n"
                 f"🌐 URL: [link]http://{host}:{actual_port}[/link]\n"
                 f"📁 App: {app_file}\n"
+                f"🎨 Mode: {mode_label}\n"
                 f"⚙️  Config: {config_label}\n"
                 f"🔄 Reload: {'Enabled' if reload else 'Disabled'}",
                 title="PraisonAIUI",

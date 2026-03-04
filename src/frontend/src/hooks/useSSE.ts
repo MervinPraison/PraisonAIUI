@@ -8,12 +8,14 @@ interface UseSSEOptions {
     onToolCall?: (toolCall: ToolCall) => void
     onError?: (error: string) => void
     onEnd?: () => void
+    onSessionId?: (sessionId: string) => void
+    externalSessionId?: string | null
 }
 
 interface UseSSEReturn {
     isStreaming: boolean
     sessionId: string | null
-    sendMessage: (message: string, agentName?: string) => Promise<void>
+    sendMessage: (message: string, agentName?: string) => void
     cancel: () => void
 }
 
@@ -26,8 +28,11 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
     }
 
     const [isStreaming, setIsStreaming] = useState(false)
-    const [sessionId, setSessionId] = useState<string | null>(getInitialSessionId)
+    const [internalSessionId, setInternalSessionId] = useState<string | null>(getInitialSessionId)
     const abortControllerRef = useRef<AbortController | null>(null)
+
+    // Use external session ID if provided, otherwise use internal
+    const sessionId = options.externalSessionId !== undefined ? options.externalSessionId : internalSessionId
 
     const sendMessage = useCallback(async (message: string, agentName?: string) => {
         if (isStreaming) return
@@ -95,7 +100,8 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
             // Session events
             case 'session':
                 if (event.session_id) {
-                    setSessionId(event.session_id)
+                    setInternalSessionId(event.session_id)
+                    options.onSessionId?.(event.session_id)
                     // Update URL with session ID for bookmarkability
                     if (typeof window !== 'undefined') {
                         const url = new URL(window.location.href)

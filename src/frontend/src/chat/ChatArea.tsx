@@ -8,13 +8,16 @@ import { StarterMessages } from './StarterMessages'
 interface ChatAreaProps {
     config?: ChatConfig
     className?: string
+    sessionId?: string | null
+    onSessionChange?: (sessionId: string) => void
 }
 
-export function ChatArea({ config, className = '' }: ChatAreaProps) {
+export function ChatArea({ config, className = '', sessionId: externalSessionId, onSessionChange }: ChatAreaProps) {
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [currentResponse, setCurrentResponse] = useState('')
     const [thinkingSteps, setThinkingSteps] = useState<string[]>([])
     const [toolCalls, setToolCalls] = useState<ToolCall[]>([])
+    const [loadingHistory, setLoadingHistory] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     const scrollToBottom = useCallback(() => {
@@ -25,7 +28,47 @@ export function ChatArea({ config, className = '' }: ChatAreaProps) {
         scrollToBottom()
     }, [messages, currentResponse, scrollToBottom])
 
+    // Load messages when session changes
+    useEffect(() => {
+        if (externalSessionId) {
+            loadSessionMessages(externalSessionId)
+        } else if (externalSessionId === null) {
+            // Explicitly null = new conversation requested
+            setMessages([])
+            setCurrentResponse('')
+            setThinkingSteps([])
+            setToolCalls([])
+        }
+    }, [externalSessionId])
+
+    const loadSessionMessages = async (sid: string) => {
+        try {
+            setLoadingHistory(true)
+            const response = await fetch(`/sessions/${sid}/runs`)
+            if (response.ok) {
+                const data = await response.json()
+                const runs = data.runs || []
+                const loaded: ChatMessage[] = runs.map((run: any) => ({
+                    id: run.id || crypto.randomUUID(),
+                    role: run.role || 'user',
+                    content: run.content || run.message || '',
+                    timestamp: run.timestamp || new Date().toISOString(),
+                }))
+                setMessages(loaded)
+            }
+        } catch {
+            // Silently fail - just show empty chat
+        } finally {
+            setLoadingHistory(false)
+        }
+    }
+
     const { isStreaming, sendMessage, cancel } = useSSE({
+        externalSessionId: externalSessionId,
+        onSessionId: (newSessionId) => {
+            // Notify parent about new session ID from backend
+            onSessionChange?.(newSessionId)
+        },
         onToken: (token) => {
             setCurrentResponse((prev) => prev + token)
         },
@@ -104,12 +147,16 @@ export function ChatArea({ config, className = '' }: ChatAreaProps) {
         [handleSend]
     )
 
-    const showStarters = messages.length === 0 && config?.starters && config.starters.length > 0
+    const showStarters = messages.length === 0 && !loadingHistory && config?.starters && config.starters.length > 0
 
     return (
         <div className={`flex flex-col h-full ${className}`}>
             <div className="flex-1 overflow-y-auto p-4">
-                {showStarters ? (
+                {loadingHistory ? (
+                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                        Loading conversation...
+                    </div>
+                ) : showStarters ? (
                     <StarterMessages
                         starters={config.starters!}
                         onStarterClick={handleStarterClick}

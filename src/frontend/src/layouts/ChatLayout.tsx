@@ -12,6 +12,7 @@ export function ChatLayout({ config, layout, title }: ChatLayoutProps) {
     const mode = layout?.mode || 'fullscreen'
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [showSessions, setShowSessions] = useState(true)
+    const [sessionListKey, setSessionListKey] = useState(0)
 
     const handleSessionSelect = useCallback((sessionId: string) => {
         setCurrentSessionId(sessionId)
@@ -21,6 +22,13 @@ export function ChatLayout({ config, layout, title }: ChatLayoutProps) {
         setCurrentSessionId(null)
     }, [])
 
+    const handleSessionChange = useCallback((sessionId: string) => {
+        // ChatArea received a new session ID from the backend
+        setCurrentSessionId(sessionId)
+        // Refresh the session list to show the new session
+        setSessionListKey((k) => k + 1)
+    }, [])
+
     if (mode === 'fullscreen') {
         return (
             <div className="flex h-screen bg-background">
@@ -28,6 +36,7 @@ export function ChatLayout({ config, layout, title }: ChatLayoutProps) {
                 {showSessions && config?.features?.history !== false && (
                     <aside className="w-64 border-r flex-shrink-0">
                         <SessionManager
+                            key={sessionListKey}
                             currentSessionId={currentSessionId}
                             onSessionSelect={handleSessionSelect}
                             onNewSession={handleNewSession}
@@ -50,7 +59,12 @@ export function ChatLayout({ config, layout, title }: ChatLayoutProps) {
                         <h1 className="text-lg font-semibold">{title || config?.name || 'AI Chat'}</h1>
                     </header>
                     <main className="flex-1 overflow-hidden">
-                        <ChatArea config={config} className="h-full" />
+                        <ChatArea
+                            config={config}
+                            className="h-full"
+                            sessionId={currentSessionId}
+                            onSessionChange={handleSessionChange}
+                        />
                     </main>
                 </div>
             </div>
