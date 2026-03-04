@@ -35,7 +35,6 @@ export function ChatInput({
     const handleFileChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
         const selectedFiles = Array.from(e.target.files || [])
         setFiles((prev) => [...prev, ...selectedFiles])
-        // Reset input so same file can be selected again
         if (fileInputRef.current) {
             fileInputRef.current.value = ''
         }
@@ -68,48 +67,16 @@ export function ChatInput({
     }, [])
 
     return (
-        <div className="border-t p-4 bg-background">
-            <div className="flex items-end gap-2 max-w-4xl mx-auto">
-                {enableFileUpload && (
-                    <>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            multiple
-                            onChange={handleFileChange}
-                            className="hidden"
-                            accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.txt,.csv,.json"
-                        />
-                        <button
-                            type="button"
-                            onClick={handleFileClick}
-                            className="p-2 rounded-md hover:bg-accent text-muted-foreground"
-                            title="Attach file"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            >
-                                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                            </svg>
-                        </button>
-                    </>
-                )}
-                <div className="flex-1 relative">
+        <div className="p-4 pb-6">
+            <div className="max-w-3xl mx-auto">
+                <div className="rounded-2xl border bg-background/80 backdrop-blur-sm shadow-lg">
                     {/* File preview chips */}
                     {files.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mb-2">
+                        <div className="flex flex-wrap gap-1 px-4 pt-3">
                             {files.map((file, index) => (
                                 <span
                                     key={`${file.name}-${index}`}
-                                    className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md text-xs"
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-lg text-xs"
                                 >
                                     <span className="truncate max-w-[100px]">{file.name}</span>
                                     <button
@@ -123,60 +90,70 @@ export function ChatInput({
                             ))}
                         </div>
                     )}
-                    <textarea
-                        ref={textareaRef}
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        onInput={handleInput}
-                        placeholder={placeholder}
-                        disabled={isStreaming}
-                        rows={1}
-                        className="w-full resize-none rounded-lg border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-                        style={{ maxHeight: '200px' }}
-                    />
+                    <div className="flex items-end gap-2 p-2">
+                        {enableFileUpload && (
+                            <>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    multiple
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                    accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.txt,.csv,.json"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleFileClick}
+                                    className="p-2 rounded-xl hover:bg-accent text-muted-foreground transition-colors"
+                                    title="Attach file"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                                    </svg>
+                                </button>
+                            </>
+                        )}
+                        <textarea
+                            ref={textareaRef}
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            onInput={handleInput}
+                            placeholder={placeholder}
+                            disabled={isStreaming}
+                            rows={1}
+                            className="flex-1 resize-none bg-transparent px-3 py-2.5 text-sm focus:outline-none disabled:opacity-50 placeholder:text-muted-foreground/60"
+                            style={{ maxHeight: '200px' }}
+                        />
+                        {isStreaming ? (
+                            <button
+                                type="button"
+                                onClick={onCancel}
+                                className="p-2 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                                title="Stop"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                                </svg>
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={handleSend}
+                                disabled={!input.trim()}
+                                className="p-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                title="Send"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M5 12h14M12 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
                 </div>
-                {isStreaming ? (
-                    <button
-                        type="button"
-                        onClick={onCancel}
-                        className="p-2 rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        title="Stop"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="currentColor"
-                        >
-                            <rect x="6" y="6" width="12" height="12" rx="2" />
-                        </svg>
-                    </button>
-                ) : (
-                    <button
-                        type="button"
-                        onClick={handleSend}
-                        disabled={!input.trim()}
-                        className="p-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Send"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                        >
-                            <path d="m22 2-7 20-4-9-9-4Z" />
-                            <path d="M22 2 11 13" />
-                        </svg>
-                    </button>
-                )}
+                <p className="text-[10px] text-center text-muted-foreground/50 mt-2">
+                    Press Enter to send, Shift+Enter for new line
+                </p>
             </div>
         </div>
     )
