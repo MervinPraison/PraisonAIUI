@@ -1,42 +1,34 @@
-# PraisonAIUI Examples
+# Examples
 
-Example configurations showcasing different site designs, all using the shared `docs/` folder.
+Three core examples, from simplest to full-featured:
 
-## Examples
+## 1. [chat/](chat/) — Basic Chat
 
-| Example | Description | Theme |
-|---------|-------------|-------|
-| [minimal](./minimal) | Bare minimum setup | Default |
-| [dark-modern](./dark-modern) | Sleek dark theme | Emerald, rounded |
-| [corporate](./corporate) | Professional business | Blue, light mode |
-| [colorful](./colorful) | Vibrant and playful | Rose, full radius |
-| [full-featured](./full-featured) | All features enabled | Indigo, dark |
-| [developer-portal](./developer-portal) | API-first dev docs | Cyan, sharp |
-
-## Usage
+Minimal echo chat. **8 lines.** Start here to understand the callback pattern.
 
 ```bash
-# From any example folder
-cd examples/dark-modern
-
-# Validate config
-aiui validate
-
-# Build manifests
-aiui build
-
-# Start dev mode
-aiui dev
+aiui run app.py
 ```
 
-## Config Structure
+## 2. [chat-with-ai/](chat-with-ai/) — Chat with AI
 
-Each example contains:
-- `aiui.template.yaml` - Site configuration pointing to `../../docs`
+LLM-powered chat using OpenAI with streaming, conversation context, and starter messages.
 
-All examples use the same docs content but with different:
-- Color schemes
-- Border radius styles
-- Header/footer components
-- Navigation settings
-- SEO/i18n/a11y configurations
+```bash
+export OPENAI_API_KEY=sk-...
+aiui run app.py
+aiui run app.py --datastore json   # persist history
+```
+
+## 3. [agent-playground/](agent-playground/) — Agent Playground
+
+Multi-agent playground UI:
+- 4 agents (General, Coder, Analyst, Writer) with profile selection
+- Per-agent conversation context
+- Session management + persistence
+- Streaming responses
+
+```bash
+export OPENAI_API_KEY=sk-...
+aiui run app.py --datastore json
+```

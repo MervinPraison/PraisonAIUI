@@ -1050,6 +1050,12 @@ def run(
         "-b",
         help="Backend mode: 'standalone' (default) or 'praisonai' (uses WebSocketGateway)",
     ),
+    datastore: str = typer.Option(
+        "memory",
+        "--datastore",
+        "-d",
+        help="Data persistence: 'memory' (volatile), 'json' (file-based), or 'json:/path/to/dir'",
+    ),
 ) -> None:
     """Run the AI chat server with your app.py file.
 
@@ -1057,6 +1063,8 @@ def run(
         aiui run app.py
         aiui run app.py --port 3000 --reload
         aiui run app.py --backend praisonai  # Use praisonai WebSocketGateway
+        aiui run app.py --datastore json     # Persist sessions to ~/.praisonaiui/sessions/
+        aiui run app.py --datastore json:/tmp/my-sessions  # Custom persistence path
     """
     import importlib.util
     import socket
@@ -1189,6 +1197,22 @@ def run(
         import asyncio
         asyncio.run(gateway.start())
     else:
+        # Set up datastore
+        from praisonaiui.server import set_datastore
+        from praisonaiui.datastore import MemoryDataStore, JSONFileDataStore
+
+        if datastore == "memory":
+            store = MemoryDataStore()
+        elif datastore == "json":
+            store = JSONFileDataStore()
+        elif datastore.startswith("json:"):
+            store = JSONFileDataStore(data_dir=datastore[5:])
+        else:
+            console.print(f"[red]Error:[/red] Unknown datastore: {datastore}")
+            raise typer.Exit(code=1)
+
+        set_datastore(store)
+
         # Use standalone server (default)
         from praisonaiui.server import create_app
 
@@ -1209,6 +1233,7 @@ def run(
                 f"🌐 URL: [link]http://{host}:{actual_port}[/link]\n"
                 f"📁 App: {app_file}\n"
                 f"🎨 Mode: {mode_label}\n"
+                f"💾 DataStore: {datastore}\n"
                 f"⚙️  Config: {config_label}\n"
                 f"🔄 Reload: {'Enabled' if reload else 'Disabled'}",
                 title="PraisonAIUI",
@@ -1216,20 +1241,186 @@ def run(
             )
         )
 
-        # Run with uvicorn
         import uvicorn
 
-        uvicorn_kwargs = {
-            "host": host,
-            "port": actual_port,
-            "log_level": "info",
-            "reload": reload,
-        }
+        uvicorn.run(
+            server_app,
+            host=host,
+            port=actual_port,
+            log_level="info",
+            reload=reload,
+            reload_dirs=[str(app_file.parent)] if reload else None,
+        )
 
-        if reload:
-            uvicorn_kwargs["reload_dirs"] = [str(app_file.parent)]
+# ---------------------------------------------------------------------------
+# Subcommands: sessions
+# ---------------------------------------------------------------------------
+sessions_app = typer.Typer(
+    name="sessions",
+    help="Manage chat sessions (list, create, get, delete, messages)",
+    add_completion=False,
+)
+app.add_typer(sessions_app, name="sessions")
 
-        uvicorn.run(server_app, **uvicorn_kwargs)
+
+@sessions_app.command("list")
+def sessions_list(
+    server: str = typer.Option(
+        "http://127.0.0.1:8000",
+        "--server",
+        "-s",
+        help="Server URL",
+    ),
+) -> None:
+    """List all sessions."""
+    import json as _json
+    from urllib.request import urlopen
+
+    try:
+        with urlopen(f"{server}/sessions") as resp:
+            data = _json.loads(resp.read())
+            sessions = data.get("sessions", [])
+            if not sessions:
+                console.print("[dim]No sessions found.[/dim]")
+                return
+            console.print(f"[bold]Sessions ({len(sessions)}):[/bold]")
+            for s in sessions:
+                console.print(
+                    f"  • {s['id']}  "
+                    f"[dim]{s.get('message_count', 0)} messages  "
+                    f"{s.get('created_at', '?')}[/dim]"
+                )
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@sessions_app.command("create")
+def sessions_create(
+    server: str = typer.Option(
+        "http://127.0.0.1:8000",
+        "--server",
+        "-s",
+        help="Server URL",
+    ),
+) -> None:
+    """Create a new session."""
+    import json as _json
+    from urllib.request import Request, urlopen
+
+    try:
+        req = Request(f"{server}/sessions", method="POST", data=b"")
+        req.add_header("Content-Type", "application/json")
+        with urlopen(req) as resp:
+            data = _json.loads(resp.read())
+            console.print(f"[green]✓[/green] Session created: {data.get('session_id')}")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@sessions_app.command("get")
+def sessions_get(
+    session_id: str = typer.Argument(..., help="Session ID"),
+    server: str = typer.Option(
+        "http://127.0.0.1:8000",
+        "--server",
+        "-s",
+        help="Server URL",
+    ),
+) -> None:
+    """Get session details."""
+    import json as _json
+    from urllib.request import urlopen
+
+    try:
+        with urlopen(f"{server}/sessions/{session_id}") as resp:
+            data = _json.loads(resp.read())
+            console.print_json(_json.dumps(data, indent=2))
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@sessions_app.command("delete")
+def sessions_delete(
+    session_id: str = typer.Argument(..., help="Session ID"),
+    server: str = typer.Option(
+        "http://127.0.0.1:8000",
+        "--server",
+        "-s",
+        help="Server URL",
+    ),
+) -> None:
+    """Delete a session."""
+    import json as _json
+    from urllib.request import Request, urlopen
+
+    try:
+        req = Request(f"{server}/sessions/{session_id}", method="DELETE")
+        with urlopen(req) as resp:
+            data = _json.loads(resp.read())
+            console.print(f"[green]✓[/green] Session {session_id}: {data.get('status')}")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@sessions_app.command("messages")
+def sessions_messages(
+    session_id: str = typer.Argument(..., help="Session ID"),
+    server: str = typer.Option(
+        "http://127.0.0.1:8000",
+        "--server",
+        "-s",
+        help="Server URL",
+    ),
+) -> None:
+    """Get message history for a session."""
+    import json as _json
+    from urllib.request import urlopen
+
+    try:
+        with urlopen(f"{server}/sessions/{session_id}/runs") as resp:
+            data = _json.loads(resp.read())
+            runs = data.get("runs", [])
+            if not runs:
+                console.print("[dim]No messages in this session.[/dim]")
+                return
+            for msg in runs:
+                role = msg.get("role", "?")
+                content = msg.get("content", "")
+                ts = msg.get("timestamp", "")
+                color = "cyan" if role == "user" else "green"
+                console.print(f"  [{color}]{role}[/{color}] {content}  [dim]{ts}[/dim]")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# Subcommand: health
+# ---------------------------------------------------------------------------
+@app.command()
+def health_check(
+    server: str = typer.Option(
+        "http://127.0.0.1:8000",
+        "--server",
+        "-s",
+        help="Server URL",
+    ),
+) -> None:
+    """Check server health."""
+    import json as _json
+    from urllib.request import urlopen
+
+    try:
+        with urlopen(f"{server}/health") as resp:
+            data = _json.loads(resp.read())
+            console.print(f"[green]✓[/green] {data.get('status')}: {data.get('timestamp')}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] Server unreachable: {e}")
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

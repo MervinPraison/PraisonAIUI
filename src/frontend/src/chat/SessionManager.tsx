@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 interface Session {
     id: string
+    title: string
     created_at: string
     updated_at: string
     message_count: number
@@ -113,15 +114,14 @@ export function SessionManager({
                             <button
                                 key={session.id}
                                 onClick={() => onSessionSelect(session.id)}
-                                className={`w-full flex items-center justify-between p-2 rounded-md text-left text-sm transition-colors group ${
-                                    currentSessionId === session.id
+                                className={`w-full flex items-center justify-between p-2 rounded-md text-left text-sm transition-colors group ${currentSessionId === session.id
                                         ? 'bg-accent text-accent-foreground'
                                         : 'hover:bg-accent/50'
-                                }`}
+                                    }`}
                             >
                                 <div className="flex-1 min-w-0">
                                     <div className="truncate font-medium">
-                                        Conversation
+                                        {session.title || 'New conversation'}
                                     </div>
                                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                         <span>{session.message_count} messages</span>

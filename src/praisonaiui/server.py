@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncGenerator, Callable, Optional
 
@@ -17,12 +17,26 @@ from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
+from praisonaiui.datastore import BaseDataStore, MemoryDataStore
+
 # Registry for callbacks
 _callbacks: dict[str, Callable] = {}
 _agents: dict[str, dict[str, Any]] = {}
-_sessions: dict[str, dict[str, Any]] = {}
+# Pluggable datastore (default: in-memory)
+_datastore: BaseDataStore = MemoryDataStore()
 # Track active tasks per session for server-side abort
 _active_tasks: dict[str, asyncio.Task] = {}
+
+
+def set_datastore(store: BaseDataStore) -> None:
+    """Set the datastore implementation (call before server starts)."""
+    global _datastore
+    _datastore = store
+
+
+def get_datastore() -> BaseDataStore:
+    """Get the current datastore instance."""
+    return _datastore
 
 
 def register_callback(event: str, func: Callable) -> None:
@@ -58,54 +72,42 @@ async def list_agents(request: Request) -> JSONResponse:
 
 async def list_sessions(request: Request) -> JSONResponse:
     """List all sessions."""
-    sessions = [
-        {
-            "id": sid,
-            "created_at": info.get("created_at"),
-            "updated_at": info.get("updated_at"),
-            "message_count": len(info.get("messages", [])),
-        }
-        for sid, info in _sessions.items()
-    ]
+    sessions = await _datastore.list_sessions()
     return JSONResponse({"sessions": sessions})
 
 
 async def get_session(request: Request) -> JSONResponse:
     """Get a specific session."""
     session_id = request.path_params["session_id"]
-    if session_id not in _sessions:
+    session = await _datastore.get_session(session_id)
+    if session is None:
         return JSONResponse({"error": "Session not found"}, status_code=404)
-    return JSONResponse(_sessions[session_id])
+    return JSONResponse(session)
 
 
 async def get_session_runs(request: Request) -> JSONResponse:
     """Get runs (message history) for a session."""
     session_id = request.path_params["session_id"]
-    if session_id not in _sessions:
+    session = await _datastore.get_session(session_id)
+    if session is None:
         return JSONResponse({"error": "Session not found"}, status_code=404)
-    return JSONResponse({"runs": _sessions[session_id].get("messages", [])})
+    messages = await _datastore.get_messages(session_id)
+    return JSONResponse({"runs": messages})
 
 
 async def delete_session(request: Request) -> JSONResponse:
     """Delete a session."""
     session_id = request.path_params["session_id"]
-    if session_id not in _sessions:
+    deleted = await _datastore.delete_session(session_id)
+    if not deleted:
         return JSONResponse({"error": "Session not found"}, status_code=404)
-    del _sessions[session_id]
     return JSONResponse({"status": "deleted"})
 
 
 async def create_session(request: Request) -> JSONResponse:
     """Create a new session."""
-    session_id = str(uuid.uuid4())
-    now = datetime.utcnow().isoformat()
-    _sessions[session_id] = {
-        "id": session_id,
-        "created_at": now,
-        "updated_at": now,
-        "messages": [],
-    }
-    return JSONResponse({"session_id": session_id})
+    session = await _datastore.create_session()
+    return JSONResponse({"session_id": session["id"]})
 
 
 async def get_starters(request: Request) -> JSONResponse:
@@ -216,23 +218,20 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
 
     # Create session if not exists
     if not session_id:
-        session_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat()
-        _sessions[session_id] = {
-            "id": session_id,
-            "created_at": now,
-            "updated_at": now,
-            "messages": [],
-        }
+        session = await _datastore.create_session()
+        session_id = session["id"]
+    else:
+        existing = await _datastore.get_session(session_id)
+        if existing is None:
+            session = await _datastore.create_session(session_id)
+            session_id = session["id"]
 
     # Add user message to session
-    if session_id in _sessions:
-        _sessions[session_id]["messages"].append({
-            "role": "user",
-            "content": message,
-            "timestamp": datetime.utcnow().isoformat(),
-        })
-        _sessions[session_id]["updated_at"] = datetime.utcnow().isoformat()
+    await _datastore.add_message(session_id, {
+        "role": "user",
+        "content": message,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
 
     async def event_stream() -> AsyncGenerator[str, None]:
         """Generate SSE events."""
@@ -284,6 +283,13 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
                                 break
                             if event.get("type") == "token":
                                 full_response += event.get("token", "")
+                            elif event.get("type") == "message":
+                                # say() sends full messages — capture as response
+                                content = event.get("content", "")
+                                if content:
+                                    if full_response:
+                                        full_response += "\n"
+                                    full_response += content
                             yield f"data: {json.dumps(event)}\n\n"
                         except asyncio.TimeoutError:
                             yield f"data: {json.dumps({'type': 'error', 'error': 'Timeout'})}\n\n"
@@ -309,11 +315,11 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
                     await task
 
                 # Save assistant response to session
-                if session_id in _sessions and full_response:
-                    _sessions[session_id]["messages"].append({
+                if full_response:
+                    await _datastore.add_message(session_id, {
                         "role": "assistant",
                         "content": full_response,
-                        "timestamp": datetime.utcnow().isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     })
 
             except Exception as e:

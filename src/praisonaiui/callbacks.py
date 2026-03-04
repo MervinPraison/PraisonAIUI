@@ -314,6 +314,10 @@ async def stream(token: str) -> None:
         await ctx.stream(token)
 
 
+# Alias for compatibility — examples use aiui.stream_token()
+stream_token = stream
+
+
 async def think(step: str) -> None:
     """Send a thinking/reasoning step to the UI.
 

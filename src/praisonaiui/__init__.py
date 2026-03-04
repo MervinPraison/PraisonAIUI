@@ -20,16 +20,20 @@ def __getattr__(name: str):
     _callback_attrs = {
         "welcome", "reply", "goodbye", "cancel", "button", "login",
         "settings", "profiles", "starters", "on", "resume",
-        "say", "stream", "think", "ask", "tool", "image", "audio",
+        "say", "stream", "stream_token", "think", "ask", "tool", "image", "audio",
         "video", "file", "action_buttons",
     }
     _message_attrs = {"Message", "AskUserMessage", "Step"}
+    _server_attrs = {"register_agent"}
     if name in _callback_attrs:
         from praisonaiui import callbacks
         return getattr(callbacks, name)
     if name in _message_attrs:
         from praisonaiui import message
         return getattr(message, name)
+    if name in _server_attrs:
+        from praisonaiui import server
+        return getattr(server, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -59,6 +63,7 @@ __all__ = [
     # Message functions
     "say",
     "stream",
+    "stream_token",
     "think",
     "ask",
     "tool",
@@ -67,6 +72,8 @@ __all__ = [
     "video",
     "file",
     "action_buttons",
+    # Server functions
+    "register_agent",
     # Message classes (Chainlit pattern)
     "Message",
     "AskUserMessage",
