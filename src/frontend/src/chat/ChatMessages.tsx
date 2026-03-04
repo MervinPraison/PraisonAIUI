@@ -1,6 +1,5 @@
 import type { ChatMessage, ToolCall } from '../types'
 import { ToolCallDisplay } from './ToolCallDisplay'
-import { ThinkingSteps } from './ThinkingSteps'
 
 interface ChatMessagesProps {
     messages: ChatMessage[]
@@ -25,7 +24,10 @@ export function ChatMessages({
             {isStreaming && (
                 <div className="space-y-2">
                     {thinkingSteps.length > 0 && (
-                        <ThinkingSteps steps={thinkingSteps} />
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground px-4 py-1">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                            <span>{thinkingSteps[thinkingSteps.length - 1]}</span>
+                        </div>
                     )}
                     {toolCalls.length > 0 && (
                         <div className="space-y-1">
@@ -58,15 +60,12 @@ function MessageBubble({ message }: MessageBubbleProps) {
     return (
         <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
             <div
-                className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                    isUser
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
-                }`}
+                className={`max-w-[80%] rounded-lg px-4 py-2 ${isUser
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted'
+                    }`}
             >
-                {message.thinking && message.thinking.length > 0 && (
-                    <ThinkingSteps steps={message.thinking} collapsed />
-                )}
+
                 {message.toolCalls && message.toolCalls.length > 0 && (
                     <div className="mb-2 space-y-1">
                         {message.toolCalls.map((tc, i) => (

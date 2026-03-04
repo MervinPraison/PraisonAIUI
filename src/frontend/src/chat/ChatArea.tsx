@@ -20,6 +20,11 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
     const [loadingHistory, setLoadingHistory] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
+    // Refs to avoid stale closures in callbacks
+    const currentResponseRef = useRef('')
+    const thinkingStepsRef = useRef<string[]>([])
+    const toolCallsRef = useRef<ToolCall[]>([])
+
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [])
@@ -36,8 +41,11 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
             // Explicitly null = new conversation requested
             setMessages([])
             setCurrentResponse('')
+            currentResponseRef.current = ''
             setThinkingSteps([])
+            thinkingStepsRef.current = []
             setToolCalls([])
+            toolCallsRef.current = []
         }
     }, [externalSessionId])
 
@@ -70,7 +78,11 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
             onSessionChange?.(newSessionId)
         },
         onToken: (token) => {
-            setCurrentResponse((prev) => prev + token)
+            setCurrentResponse((prev) => {
+                const next = prev + token
+                currentResponseRef.current = next
+                return next
+            })
         },
         onMessage: (content) => {
             setMessages((prev) => [
@@ -83,12 +95,21 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
                 },
             ])
             setCurrentResponse('')
+            currentResponseRef.current = ''
         },
         onThinking: (step) => {
-            setThinkingSteps((prev) => [...prev, step])
+            setThinkingSteps((prev) => {
+                const next = [...prev, step]
+                thinkingStepsRef.current = next
+                return next
+            })
         },
         onToolCall: (toolCall) => {
-            setToolCalls((prev) => [...prev, toolCall])
+            setToolCalls((prev) => {
+                const next = [...prev, toolCall]
+                toolCallsRef.current = next
+                return next
+            })
         },
         onError: (error) => {
             setMessages((prev) => [
@@ -101,24 +122,29 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
                 },
             ])
             setCurrentResponse('')
+            currentResponseRef.current = ''
         },
         onEnd: () => {
-            if (currentResponse) {
+            // Use refs to avoid stale closure — always read latest values
+            const resp = currentResponseRef.current
+            if (resp) {
                 setMessages((prev) => [
                     ...prev,
                     {
                         id: crypto.randomUUID(),
                         role: 'assistant',
-                        content: currentResponse,
+                        content: resp,
                         timestamp: new Date().toISOString(),
-                        thinking: thinkingSteps.length > 0 ? thinkingSteps : undefined,
-                        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+                        // No thinking/toolCalls stored — they only show during streaming
                     },
                 ])
                 setCurrentResponse('')
-                setThinkingSteps([])
-                setToolCalls([])
+                currentResponseRef.current = ''
             }
+            setThinkingSteps([])
+            thinkingStepsRef.current = []
+            setToolCalls([])
+            toolCallsRef.current = []
         },
     })
 
@@ -134,7 +160,9 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
                 },
             ])
             setThinkingSteps([])
+            thinkingStepsRef.current = []
             setToolCalls([])
+            toolCallsRef.current = []
             await sendMessage(message)
         },
         [sendMessage]
