@@ -1516,5 +1516,103 @@ def health_check(
         raise typer.Exit(code=1)
 
 
+# ---------------------------------------------------------------------------
+# Subcommands: provider
+# ---------------------------------------------------------------------------
+provider_app = typer.Typer(
+    name="provider",
+    help="Inspect the active AI provider (status, health, agents)",
+    add_completion=False,
+)
+app.add_typer(provider_app, name="provider")
+
+
+@provider_app.command("status")
+def provider_status(
+    server: str = typer.Option(
+        "http://127.0.0.1:8000",
+        "--server",
+        "-s",
+        help="Server URL",
+    ),
+) -> None:
+    """Show active provider info and health."""
+    import json as _json
+    from urllib.request import urlopen
+
+    try:
+        with urlopen(f"{server}/api/provider") as resp:
+            data = _json.loads(resp.read())
+            console.print(f"[bold]Provider:[/bold] {data.get('name', 'unknown')}")
+            console.print(f"[bold]Module:[/bold]   {data.get('module', 'unknown')}")
+            status = data.get("status", "unknown")
+            color = "green" if status == "ok" else "red"
+            console.print(f"[bold]Status:[/bold]   [{color}]{status}[/{color}]")
+            agents = data.get("agents", [])
+            if agents:
+                console.print(f"[bold]Agents:[/bold]   {len(agents)}")
+                for a in agents:
+                    console.print(f"  • {a.get('name', 'unnamed')}: {a.get('description', '')}")
+            extra_keys = {k for k in data if k not in {"name", "module", "status", "agents", "provider"}}
+            for k in sorted(extra_keys):
+                console.print(f"[bold]{k}:[/bold] {data[k]}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] Server unreachable: {e}")
+        raise typer.Exit(code=1)
+
+
+@provider_app.command("health")
+def provider_health(
+    server: str = typer.Option(
+        "http://127.0.0.1:8000",
+        "--server",
+        "-s",
+        help="Server URL",
+    ),
+) -> None:
+    """Check provider health."""
+    import json as _json
+    from urllib.request import urlopen
+
+    try:
+        with urlopen(f"{server}/health") as resp:
+            data = _json.loads(resp.read())
+            provider = data.get("provider", {})
+            console.print(f"[green]✓[/green] Provider: {provider.get('name', 'unknown')}")
+            console.print(f"  Status: {provider.get('status', 'ok')}")
+            if "praisonai_version" in provider:
+                console.print(f"  PraisonAI: v{provider['praisonai_version']}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] Server unreachable: {e}")
+        raise typer.Exit(code=1)
+
+
+@provider_app.command("agents")
+def provider_agents(
+    server: str = typer.Option(
+        "http://127.0.0.1:8000",
+        "--server",
+        "-s",
+        help="Server URL",
+    ),
+) -> None:
+    """List agents from the active provider."""
+    import json as _json
+    from urllib.request import urlopen
+
+    try:
+        with urlopen(f"{server}/agents") as resp:
+            data = _json.loads(resp.read())
+            agents = data.get("agents", [])
+            if not agents:
+                console.print("[yellow]No agents registered[/yellow]")
+            else:
+                for a in agents:
+                    console.print(f"  • {a.get('name', 'unnamed')}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] Server unreachable: {e}")
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()

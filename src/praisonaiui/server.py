@@ -22,6 +22,7 @@ from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
 from praisonaiui.datastore import BaseDataStore, MemoryDataStore
+from praisonaiui.provider import BaseProvider, RunEvent, RunEventType
 
 # Registry for callbacks
 _callbacks: dict[str, Callable] = {}
@@ -30,6 +31,8 @@ _agents: dict[str, dict[str, Any]] = {}
 _pages: dict[str, dict[str, Any]] = {}
 # Pluggable datastore (default: in-memory)
 _datastore: BaseDataStore = MemoryDataStore()
+# Pluggable AI provider (default: PraisonAI)
+_provider: Optional[BaseProvider] = None  # lazy-init to avoid circular import
 # Track active tasks per session for server-side abort
 _active_tasks: dict[str, asyncio.Task] = {}
 # Server start time for uptime calculation
@@ -57,6 +60,25 @@ def set_datastore(store: BaseDataStore) -> None:
 def get_datastore() -> BaseDataStore:
     """Get the current datastore instance."""
     return _datastore
+
+
+def set_provider(provider: BaseProvider) -> None:
+    """Set the AI provider (call before server starts).
+
+    Any class implementing ``BaseProvider`` can be plugged in.
+    Default: ``PraisonAIProvider`` (uses the @aiui.reply callback system).
+    """
+    global _provider
+    _provider = provider
+
+
+def get_provider() -> BaseProvider:
+    """Get the current AI provider, lazy-initialising the default."""
+    global _provider
+    if _provider is None:
+        from praisonaiui.providers import PraisonAIProvider
+        _provider = PraisonAIProvider()
+    return _provider
 
 
 def register_callback(event: str, func: Callable) -> None:
@@ -115,11 +137,22 @@ def register_page(
 
 async def health(request: Request) -> JSONResponse:
     """Health check endpoint."""
-    return JSONResponse({"status": "ok", "timestamp": datetime.utcnow().isoformat()})
+    provider = get_provider()
+    provider_info = {"name": type(provider).__name__}
+    try:
+        provider_health = await provider.health()
+        provider_info.update(provider_health)
+    except Exception:
+        pass
+    return JSONResponse({
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+        "provider": provider_info,
+    })
 
 
 async def list_agents(request: Request) -> JSONResponse:
-    """List all registered agents."""
+    """List all registered agents (merges registry + provider)."""
     agents = [
         {
             "name": info["name"],
@@ -127,6 +160,16 @@ async def list_agents(request: Request) -> JSONResponse:
         }
         for info in _agents.values()
     ]
+    # Also ask the provider for agents
+    try:
+        provider = get_provider()
+        provider_agents = await provider.list_agents()
+        existing_names = {a["name"] for a in agents}
+        for pa in provider_agents:
+            if pa.get("name") not in existing_names:
+                agents.append(pa)
+    except Exception:
+        pass
     return JSONResponse({"agents": agents})
 
 
@@ -200,11 +243,14 @@ async def api_overview(request: Request) -> JSONResponse:
         if asyncio.iscoroutine(result):
             result = await result
         profiles = result if isinstance(result, list) else []
+    provider = get_provider()
+    provider_name = type(provider).__name__
     return JSONResponse({
         "status": "ok",
         "version": _get_version(),
         "uptime_seconds": round(time.time() - _server_start_time, 1),
         "python_version": sys.version,
+        "provider": provider_name,
         "stats": {
             "total_sessions": len(sessions),
             "active_tasks": len(_active_tasks),
@@ -283,6 +329,26 @@ async def api_debug(request: Request) -> JSONResponse:
         "config_path": str(_config_path) if _config_path else None,
         "log_buffer_size": len(_log_buffer),
     })
+
+
+async def api_provider(request: Request) -> JSONResponse:
+    """Return provider info: name, health, supported features."""
+    provider = get_provider()
+    info = {
+        "name": type(provider).__name__,
+        "module": type(provider).__module__,
+    }
+    try:
+        health_data = await provider.health()
+        info.update(health_data)
+    except Exception as exc:
+        info["health_error"] = str(exc)
+    try:
+        agents = await provider.list_agents()
+        info["agents"] = agents
+    except Exception:
+        info["agents"] = []
+    return JSONResponse(info)
 
 
 async def api_pages(request: Request) -> JSONResponse:
@@ -497,99 +563,56 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
     })
 
     async def event_stream() -> AsyncGenerator[str, None]:
-        """Generate SSE events."""
+        """Generate SSE events via the pluggable provider."""
         # Send session info
         yield f"data: {json.dumps({'type': 'session', 'session_id': session_id})}\n\n"
 
-        # Call the reply callback if registered
-        reply_callback = _callbacks.get("reply")
-        if reply_callback:
-            try:
-                # Create a message object
-                msg = MessageContext(
-                    text=message,
-                    session_id=session_id,
-                    agent_name=agent_name,
-                )
+        provider = get_provider()
+        full_response = ""
 
-                # Set up streaming context
-                stream_queue: asyncio.Queue = asyncio.Queue()
-                msg._stream_queue = stream_queue
+        try:
+            async for run_event in provider.run(
+                message,
+                session_id=session_id,
+                agent_name=agent_name,
+            ):
+                # Accumulate full response from content events
+                if run_event.type == RunEventType.RUN_CONTENT:
+                    if run_event.token:
+                        full_response += run_event.token
+                    elif run_event.content:
+                        if full_response:
+                            full_response += "\n"
+                        full_response += run_event.content
+                elif run_event.type == RunEventType.RUN_COMPLETED:
+                    if run_event.content and not full_response:
+                        full_response = run_event.content
 
-                # Run callback in background
-                async def run_callback():
-                    try:
-                        result = reply_callback(msg)
-                        if asyncio.iscoroutine(result):
-                            await result
-                    except Exception as e:
-                        await stream_queue.put({"type": "error", "error": str(e)})
-                    finally:
-                        await stream_queue.put({"type": "done"})
+                # Emit the event as SSE
+                yield f"data: {json.dumps(run_event.to_dict())}\n\n"
 
-                task = asyncio.create_task(run_callback())
-                # Track task for server-side abort
-                _active_tasks[session_id] = task
-
-                # Stream events from queue
-                full_response = ""
-                cancelled = False
+        except asyncio.CancelledError:
+            # Client disconnected
+            cancel_cb = _callbacks.get("cancel")
+            if cancel_cb:
                 try:
-                    while True:
-                        try:
-                            event = await asyncio.wait_for(stream_queue.get(), timeout=60.0)
-                            if event.get("type") == "done":
-                                break
-                            if event.get("type") == "cancelled":
-                                cancelled = True
-                                yield f"data: {json.dumps({'type': 'run_cancelled'})}\n\n"
-                                break
-                            if event.get("type") == "token":
-                                full_response += event.get("token", "")
-                            elif event.get("type") == "message":
-                                # say() sends full messages — capture as response
-                                content = event.get("content", "")
-                                if content:
-                                    if full_response:
-                                        full_response += "\n"
-                                    full_response += content
-                            yield f"data: {json.dumps(event)}\n\n"
-                        except asyncio.TimeoutError:
-                            yield f"data: {json.dumps({'type': 'error', 'error': 'Timeout'})}\n\n"
-                            break
-                        except asyncio.CancelledError:
-                            # Client disconnected — call cancel callback
-                            cancel_cb = _callbacks.get("cancel")
-                            if cancel_cb:
-                                try:
-                                    r = cancel_cb()
-                                    if asyncio.iscoroutine(r):
-                                        await r
-                                except Exception:
-                                    pass
-                            cancelled = True
-                            yield f"data: {json.dumps({'type': 'run_cancelled'})}\n\n"
-                            break
-                finally:
-                    # Clean up task tracking
-                    _active_tasks.pop(session_id, None)
+                    r = cancel_cb()
+                    if asyncio.iscoroutine(r):
+                        await r
+                except Exception:
+                    pass
+            yield f"data: {json.dumps({'type': 'run_cancelled'})}\n\n"
 
-                if not cancelled:
-                    await task
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
 
-                # Save assistant response to session
-                if full_response:
-                    await _datastore.add_message(session_id, {
-                        "role": "assistant",
-                        "content": full_response,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    })
-
-            except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
-        else:
-            # No callback registered, return echo
-            yield f"data: {json.dumps({'type': 'message', 'content': f'Echo: {message}'})}\n\n"
+        # Save assistant response to session
+        if full_response:
+            await _datastore.add_message(session_id, {
+                "role": "assistant",
+                "content": full_response,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
 
         yield f"data: {json.dumps({'type': 'end'})}\n\n"
 
@@ -807,6 +830,7 @@ def create_app(
         Route("/api/logs", api_logs, methods=["GET"]),
         Route("/api/usage", api_usage, methods=["GET"]),
         Route("/api/debug", api_debug, methods=["GET"]),
+        Route("/api/provider", api_provider, methods=["GET"]),
         # Page registry protocol
         Route("/api/pages", api_pages, methods=["GET"]),
         Route("/api/pages/{page_id}/data", api_page_data, methods=["GET"]),

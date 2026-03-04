@@ -24,8 +24,11 @@ def __getattr__(name: str):
         "video", "file", "action_buttons",
     }
     _message_attrs = {"Message", "AskUserMessage", "Step"}
-    _server_attrs = {"register_agent", "register_page", "set_datastore", "get_datastore"}
+    _server_attrs = {"register_agent", "register_page", "set_datastore", "get_datastore",
+                      "set_provider", "get_provider"}
     _datastore_attrs = {"BaseDataStore", "MemoryDataStore", "JSONFileDataStore"}
+    _provider_attrs = {"BaseProvider", "RunEvent", "RunEventType"}
+    _providers_attrs = {"PraisonAIProvider"}
     _config_attrs = {"configure"}
     if name in _callback_attrs:
         from praisonaiui import callbacks
@@ -39,6 +42,12 @@ def __getattr__(name: str):
     if name in _datastore_attrs:
         from praisonaiui import datastore
         return getattr(datastore, name)
+    if name in _provider_attrs:
+        from praisonaiui import provider
+        return getattr(provider, name)
+    if name in _providers_attrs:
+        from praisonaiui import providers
+        return getattr(providers, name)
     if name in _config_attrs:
         from praisonaiui import _config
         return getattr(_config, name)
@@ -86,10 +95,17 @@ __all__ = [
     "register_page",
     "set_datastore",
     "get_datastore",
+    "set_provider",
+    "get_provider",
     # DataStore classes
     "BaseDataStore",
     "MemoryDataStore",
     "JSONFileDataStore",
+    # Provider protocol
+    "BaseProvider",
+    "RunEvent",
+    "RunEventType",
+    "PraisonAIProvider",
     # Configuration
     "configure",
     # Message classes (Chainlit pattern)

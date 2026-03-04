@@ -89,6 +89,7 @@ nav:
     - YAML Configuration: concepts/configuration.md
     - Templates & Layouts: concepts/templates.md
     - Slots & Components: concepts/slots.md
+    - Providers: concepts/providers.md
   - Features:
     - Content Sources: features/content-sources.md
     - Navigation: features/navigation.md
