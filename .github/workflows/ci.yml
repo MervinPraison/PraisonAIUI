@@ -33,6 +33,7 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    needs: python
 
     permissions:
       contents: write
@@ -47,11 +48,13 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install MkDocs
-        run: pip install mkdocs-material mkdocstrings[python]
+      - name: Install AIUI
+        run: pip install -e .
 
-      - name: Build docs
-        run: mkdocs build
+      - name: Build docs with AIUI
+        run: |
+          aiui build --output site --minify
+          cp CNAME site/CNAME
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
