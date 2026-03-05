@@ -5,28 +5,41 @@ PraisonAIUI uses a **provider protocol** — a simple abstraction that lets you 
 ## Architecture
 
 ```mermaid
-graph LR
-    subgraph Frontend
-        A["Browser"] -->|SSE events| B["useSSE.ts"]
-        B --> C["ChatMessages"]
-        B --> D["ToolCallDisplay"]
-        B --> E["ThinkingSteps"]
+graph TD
+    subgraph "Frontend (React)"
+        UI["Dashboard / Chat / Agents"]
+        SSE["SSE Stream Consumer"]
+        API["REST API Client"]
     end
 
-    subgraph Server
-        F["server.py"] -->|"async for event in provider.run()"| G["BaseProvider"]
+    subgraph "Server (server.py)"
+        Routes["/run, /agents, /sessions, /api/*"]
+        Provider["get_provider()"]
     end
 
-    subgraph Providers
-        G -->|default| H["PraisonAIProvider"]
-        G -->|custom| I["LangChainProvider"]
-        G -->|custom| J["CrewAIProvider"]
-        G -->|custom| K["YourProvider"]
+    subgraph "Provider Protocol (BaseProvider)"
+        direction LR
+        Run["run() → AsyncIterator[RunEvent]"]
+        List["list_agents() → List[dict]"]
+        Health["health() → dict"]
     end
 
-    A -->|POST /run| F
-    F -->|SSE stream| A
+    subgraph "Pluggable Backends"
+        P1["PraisonAIProvider (default)"]
+        P2["OpenClawProvider"]
+        P3["LangChainProvider"]
+        P4["Custom Provider"]
+    end
+
+    UI --> API --> Routes --> Provider
+    SSE --> Routes
+    Provider --> Run
+    Provider --> List
+    Provider --> Health
+    Run --> P1 & P2 & P3 & P4
 ```
+
+The provider protocol is the **only contract** between the frontend and any AI backend. All dashboard pages (`/api/overview`, `/api/config`, `/api/logs`, etc.) are provider-agnostic — they always work regardless of which backend is active. The provider only handles agent execution (`run()`), agent listing (`list_agents()`), and health checks (`health()`).
 
 ## How It Works
 
