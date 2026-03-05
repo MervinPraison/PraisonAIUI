@@ -1,7 +1,10 @@
 """Basic Chat — Minimal echo-based chat with PraisonAIUI.
 
-This is the simplest possible chat app. It echoes user messages back.
-Use this as a starting point to understand the callback pattern.
+What's New (vs nothing):
+    • @reply decorator — the core callback pattern
+    • aiui.say() — send a message to the UI
+
+This is the simplest possible chat app (8 lines). Start here.
 
 Run:
     aiui run app.py

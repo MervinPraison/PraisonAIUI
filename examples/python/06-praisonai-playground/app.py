@@ -1,8 +1,12 @@
 """Multi-Agent Playground — PraisonAI Agents with profile switching.
 
-Demonstrates multiple PraisonAI Agents with different specializations.
-Users can switch agents via the profiles menu.
+What's New (vs chat-with-praisonai/):
+    • Multiple PraisonAI Agents with different specializations
+    • Profile-based agent switching via @profiles
+    • Context-aware starter messages per agent
+    • Lazy per-agent creation pattern
 
+Requires: pip install praisonai
 Set OPENAI_API_KEY (or your preferred LLM key) before running.
 
 Run:

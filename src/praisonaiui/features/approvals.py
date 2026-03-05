@@ -41,6 +41,7 @@ class PraisonAIApprovals(BaseFeatureProtocol):
         return [
             Route("/api/approvals", self._list, methods=["GET"]),
             Route("/api/approvals", self._request, methods=["POST"]),
+            Route("/api/approvals/config", self._config, methods=["GET"]),
             Route("/api/approvals/{approval_id}/resolve", self._resolve, methods=["POST"]),
             Route("/api/approvals/{approval_id}", self._get, methods=["GET"]),
         ]
@@ -115,6 +116,16 @@ class PraisonAIApprovals(BaseFeatureProtocol):
         if not entry:
             return JSONResponse({"error": "Approval not found"}, status_code=404)
         return JSONResponse(entry)
+
+    async def _config(self, request: Request) -> JSONResponse:
+        """Get approval configuration."""
+        return JSONResponse({
+            "auto_approve": False,
+            "risk_threshold": "high",
+            "require_reason": True,
+            "pending_count": len(_pending),
+            "resolved_count": len(_resolved),
+        })
 
     # ── CLI handlers ─────────────────────────────────────────────────
 

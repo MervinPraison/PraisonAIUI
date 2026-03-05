@@ -1017,10 +1017,21 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
 
         name: My Assistant
         instructions: You are a helpful assistant.
+        model: gpt-4o-mini
+        welcome: "Hi! How can I help?"
+        goodbye: "See you later!"
         starters:
           - label: Hello
             message: Hello!
             icon: 👋
+        profiles:
+          - name: Coder
+            description: Code expert
+            icon: 💻
+        tools:
+          - web_search
+          - calculate
+        features: true
         datastore: json
     """
     from praisonaiui.server import register_callback
@@ -1028,10 +1039,40 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
 
     agent_name = chat_yaml.get("name", "Assistant")
     instructions = chat_yaml.get("instructions", "You are a helpful assistant.")
+    model = chat_yaml.get("model", None)
     welcome_msg = chat_yaml.get("welcome", f"👋 Hi! I'm {agent_name}. How can I help?")
+    goodbye_msg = chat_yaml.get("goodbye", None)
     starters = chat_yaml.get("starters", [])
+    profiles = chat_yaml.get("profiles", [])
+    tool_names = chat_yaml.get("tools", [])
+    features_flag = chat_yaml.get("features", False)
 
-    # Lazy agent creation
+    # ── Features auto-registration ──────────────────────────────────
+    if features_flag:
+        from praisonaiui.features import auto_register_defaults
+        auto_register_defaults()
+
+    # ── Resolve tool functions from names ────────────────────────────
+    _resolved_tools = []
+    for tname in tool_names:
+        if tname == "web_search":
+            def web_search(query: str) -> str:
+                """Search the web for a query."""
+                return f"Results for '{query}': [simulated web results]"
+            _resolved_tools.append(web_search)
+        elif tname == "calculate":
+            def calculate(expression: str) -> str:
+                """Evaluate a math expression safely."""
+                allowed = set("0123456789+-*/.() ")
+                if all(c in allowed for c in expression):
+                    try:
+                        return f"Result: {eval(expression)}"
+                    except Exception as e:
+                        return f"Error: {e}"
+                return "Error: Only basic math operations allowed"
+            _resolved_tools.append(calculate)
+
+    # ── Lazy agent creation ──────────────────────────────────────────
     _agent_cache = {}
 
     def _get_agent():
@@ -1043,20 +1084,24 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
                     "praisonaiagents package required for YAML chat. "
                     "Install with: pip install praisonai"
                 )
-            _agent_cache["agent"] = Agent(
-                name=agent_name,
-                instructions=instructions,
-            )
+            agent_kwargs = {
+                "name": agent_name,
+                "instructions": instructions,
+            }
+            if model:
+                agent_kwargs["model"] = model
+            if _resolved_tools:
+                agent_kwargs["tools"] = _resolved_tools
+            _agent_cache["agent"] = Agent(**agent_kwargs)
         return _agent_cache["agent"]
 
-    # Register reply callback
+    # ── Reply callback ───────────────────────────────────────────────
     async def on_reply(msg):
         from praisonaiui.callbacks import _set_context
         _set_context(msg)
         try:
             await aiui.think("Thinking...")
             agent = _get_agent()
-            # Run blocking agent.chat() in thread pool to avoid blocking the event loop
             response = await asyncio.to_thread(agent.chat, str(msg))
             await aiui.say(str(response))
         finally:
@@ -1064,17 +1109,29 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
 
     register_callback("reply", on_reply)
 
-    # Register starters if provided
+    # ── Starters ─────────────────────────────────────────────────────
     if starters:
         async def on_starters():
             return starters
         register_callback("starters", on_starters)
 
-    # Register welcome
+    # ── Profiles ─────────────────────────────────────────────────────
+    if profiles:
+        def on_profiles():
+            return profiles
+        register_callback("profiles", on_profiles)
+
+    # ── Welcome ──────────────────────────────────────────────────────
     async def on_welcome():
         await aiui.say(welcome_msg)
 
     register_callback("welcome", on_welcome)
+
+    # ── Goodbye ──────────────────────────────────────────────────────
+    if goodbye_msg:
+        async def on_goodbye():
+            await aiui.say(goodbye_msg)
+        register_callback("goodbye", on_goodbye)
 
 
 @app.command()
@@ -1489,6 +1546,7 @@ def sessions_messages(
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=1)
+
 
 
 # ---------------------------------------------------------------------------
@@ -2089,6 +2147,110 @@ def config_history(
         for e in data.get("history", []):
             console.print(f"  {e.get('key', '?')}: {e.get('old')} → {e.get('new')}")
         console.print(f"Entries: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+# ── Sessions Ext ─────────────────────────────────────────────────────
+session_ext_app = typer.Typer(name="session-ext", help="Extended session operations (state, labels, usage)", add_completion=False)
+app.add_typer(session_ext_app, name="session-ext")
+
+
+@session_ext_app.command("state")
+def session_ext_state(
+    session_id: str = typer.Argument("default", help="Session ID"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Get session state."""
+    try:
+        data = _api_get(server, f"/api/sessions/{session_id}/state")
+        state = data.get("state", {})
+        if not state:
+            console.print(f"[dim]No state for session {session_id}[/dim]")
+        else:
+            console.print(f"[bold]Session {session_id} state:[/bold]")
+            for k, v in state.items():
+                if not k.startswith("_"):
+                    console.print(f"  {k} = {v}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@session_ext_app.command("save-state")
+def session_ext_save_state(
+    session_id: str = typer.Argument("default", help="Session ID"),
+    key: str = typer.Option(..., "--key", "-k", help="State key"),
+    value: str = typer.Option(..., "--value", "-v", help="State value"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Save key=value to session state."""
+    try:
+        data = _api_post(server, f"/api/sessions/{session_id}/state",
+                         {"state": {key: value}})
+        console.print(f"[green]✓[/green] Saved {key}={value} to session {session_id}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@session_ext_app.command("labels")
+def session_ext_labels(
+    session_id: str = typer.Argument("default", help="Session ID"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Get session labels."""
+    try:
+        data = _api_get(server, f"/api/sessions/{session_id}/labels")
+        labels = data.get("labels", [])
+        if not labels:
+            console.print(f"[dim]No labels for session {session_id}[/dim]")
+        else:
+            console.print(f"Labels: {', '.join(labels)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@session_ext_app.command("usage")
+def session_ext_usage(
+    session_id: str = typer.Argument("default", help="Session ID"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Get session usage stats."""
+    try:
+        data = _api_get(server, f"/api/sessions/{session_id}/usage")
+        usage = data.get("usage", {})
+        console.print(f"Session {session_id}: {usage.get('tokens', 0)} tokens, {usage.get('requests', 0)} requests")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@session_ext_app.command("compact")
+def session_ext_compact(
+    session_id: str = typer.Argument("default", help="Session ID"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Compact session context."""
+    try:
+        data = _api_post(server, f"/api/sessions/{session_id}/compact", {})
+        console.print(f"[green]✓[/green] Session {session_id} compacted")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@session_ext_app.command("reset")
+def session_ext_reset(
+    session_id: str = typer.Argument("default", help="Session ID"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Reset session state."""
+    try:
+        data = _api_post(server, f"/api/sessions/{session_id}/reset", {"mode": "clear"})
+        console.print(f"[green]✓[/green] Session {session_id} reset")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
         raise typer.Exit(code=1)

@@ -1,0 +1,38 @@
+# YAML Chat with Profiles & Goodbye
+#
+# What's New (vs chat-yaml/):
+#   • profiles — selectable agent personas
+#   • goodbye — farewell message on disconnect
+#
+# Run:
+#   aiui run chat.yaml
+
+name: Multi-Persona Assistant
+instructions: |
+  You are a versatile assistant. Adapt your tone and expertise
+  based on the user's needs. Be concise and helpful.
+
+welcome: "👋 Hi! Choose a profile from the menu, or just ask me anything."
+goodbye: "👋 Thanks for chatting! See you next time."
+
+profiles:
+  - name: Code Expert
+    description: Code review, debugging, and generation
+    icon: 💻
+  - name: Writer
+    description: Creative and technical writing
+    icon: ✍️
+  - name: Data Analyst
+    description: Data analysis and visualization
+    icon: 📊
+
+starters:
+  - label: "Review my code"
+    message: "Can you review this Python function for best practices?"
+    icon: "🔍"
+  - label: "Write a blog post"
+    message: "Help me write a blog post about AI agents"
+    icon: "📝"
+  - label: "Analyze data"
+    message: "How should I visualize this sales dataset?"
+    icon: "📈"

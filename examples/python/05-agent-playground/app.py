@@ -1,14 +1,16 @@
 """Agent Playground — Multi-agent chat UI with PraisonAIUI.
 
-This example demonstrates the agent playground pattern:
-- Multiple agents registered with different capabilities
-- Agent/team selection via profiles
-- Session management with persistence
-- Streaming responses from agents
+What's New (vs chat-with-ai/):
+    • Multiple agents with different system prompts
+    • Profile-based agent switching via @profiles
+    • Per-session, per-agent conversation context
+    • register_agent() for dashboard visibility
+
+Requires: pip install openai
+Set OPENAI_API_KEY before running.
 
 Run:
     aiui run app.py --datastore json
-    aiui run app.py --backend praisonai   # use PraisonAI WebSocketGateway
 """
 
 import os

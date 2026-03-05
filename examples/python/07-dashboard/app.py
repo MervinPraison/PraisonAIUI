@@ -1,8 +1,12 @@
-"""
-Dashboard example — admin panel with full OpenClaw-parity tabs
-plus a custom user-defined page demonstrating the @aiui.page protocol.
+"""Dashboard — Admin panel with custom pages via @aiui.page.
 
-Usage:  aiui run app.py --style dashboard
+What's New (vs agent-playground/):
+    • @page decorator — register custom dashboard pages
+    • @on("event") — alternative event-based callback syntax
+    • Data-driven pages with zero frontend code
+
+Run:
+    aiui run app.py --style dashboard
 """
 import praisonaiui as aiui
 

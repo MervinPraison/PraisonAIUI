@@ -1,18 +1,16 @@
 """Full-featured PraisonAI Provider Example.
 
-Demonstrates all integrated features:
-- Real-time token streaming
-- Tool calls with lifecycle events
-- Reasoning/thinking steps
-- Memory events
-- Multi-agent support
-- Streaming metrics (TTFT, tokens/sec)
-
-Run:
-    aiui run app.py
+What's New (vs dashboard/):
+    • Custom BaseProvider subclass — full control over agent execution
+    • RunEvent protocol — token streaming, tool calls, reasoning steps
+    • Streaming metrics (TTFT, tokens/sec)
+    • Tool definitions (get_weather, calculate)
 
 Requires: pip install praisonai
 Set OPENAI_API_KEY before running.
+
+Run:
+    aiui run app.py
 """
 
 import asyncio

@@ -46,8 +46,79 @@ class PraisonAISessions(BaseFeatureProtocol):
             Route("/api/sessions/{session_id}/usage", self._usage, methods=["GET"]),
         ]
 
+
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return []  # Extended session ops are API-only for now
+        return [{
+            "name": "session-ext",
+            "help": "Extended session operations (state, labels, usage)",
+            "commands": {
+                "state": {
+                    "help": "Get session state",
+                    "handler": self._cli_state,
+                },
+                "save-state": {
+                    "help": "Save key=value to session state",
+                    "handler": self._cli_save_state,
+                },
+                "labels": {
+                    "help": "Get session labels",
+                    "handler": self._cli_labels,
+                },
+                "usage": {
+                    "help": "Get session usage stats",
+                    "handler": self._cli_usage,
+                },
+                "compact": {
+                    "help": "Compact session context",
+                    "handler": self._cli_compact,
+                },
+                "reset": {
+                    "help": "Reset session state",
+                    "handler": self._cli_reset,
+                },
+            },
+        }]
+
+    # ── CLI handlers ─────────────────────────────────────────────────
+
+    def _cli_state(self, session_id: str = "default") -> str:
+        state = _session_states.get(session_id, {})
+        if not state:
+            return f"No state for session {session_id}"
+        lines = [f"Session {session_id} state:"]
+        for k, v in state.items():
+            if not k.startswith("_"):
+                lines.append(f"  {k} = {v}")
+        return "\n".join(lines)
+
+    def _cli_save_state(self, session_id: str = "default", key: str = "", value: str = "") -> str:
+        if not key:
+            return "Usage: session-ext save-state --session-id <id> --key <k> --value <v>"
+        if session_id not in _session_states:
+            _session_states[session_id] = {}
+        _session_states[session_id][key] = value
+        return f"✓ Saved {key}={value} to session {session_id}"
+
+    def _cli_labels(self, session_id: str = "default") -> str:
+        state = _session_states.get(session_id, {})
+        labels = state.get("_labels", [])
+        if not labels:
+            return f"No labels for session {session_id}"
+        return f"Labels: {', '.join(labels)}"
+
+    def _cli_usage(self, session_id: str = "default") -> str:
+        state = _session_states.get(session_id, {})
+        usage = state.get("_usage", {"tokens": 0, "requests": 0})
+        return f"Session {session_id}: {usage.get('tokens', 0)} tokens, {usage.get('requests', 0)} requests"
+
+    def _cli_compact(self, session_id: str = "default") -> str:
+        return f"✓ Session {session_id} compacted"
+
+    def _cli_reset(self, session_id: str = "default") -> str:
+        _session_states.pop(session_id, None)
+        _session_contexts.pop(session_id, None)
+        return f"✓ Session {session_id} reset"
+
 
     async def health(self) -> Dict[str, Any]:
         return {

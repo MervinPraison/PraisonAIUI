@@ -1,34 +1,50 @@
-# Examples
+# PraisonAIUI Examples
 
-Three core examples, from simplest to full-featured:
+Start at **01** and work your way up. Each example adds exactly one new concept.
 
-## 1. [chat/](chat/) — Basic Chat
+---
 
-Minimal echo chat. **8 lines.** Start here to understand the callback pattern.
+## 🐍 Python Track — `python/`
 
-```bash
-aiui run app.py
-```
+Build chat apps with an incremental decorator-based API.
 
-## 2. [chat-with-ai/](chat-with-ai/) — Chat with AI
+| # | Folder | New Concept | Run |
+|---|--------|-------------|-----|
+| 01 | [chat](python/01-chat/) | `@reply`, `aiui.say()` | `aiui run app.py` |
+| 02 | [chat-app](python/02-chat-app/) | `@welcome`, `@button`, `@profiles`, `@starters`, `@goodbye` | `aiui run app.py` |
+| 03 | [chat-with-ai](python/03-chat-with-ai/) | OpenAI streaming, context, lazy client | `aiui run app.py` |
+| 04 | [chat-with-praisonai](python/04-chat-with-praisonai/) | PraisonAI Agent, `asyncio.to_thread()` | `aiui run app.py` |
+| 05 | [agent-playground](python/05-agent-playground/) | Multi-agent profiles, per-session context | `aiui run app.py --datastore json` |
+| 06 | [praisonai-playground](python/06-praisonai-playground/) | Multi PraisonAI Agents, context-aware starters | `aiui run app.py --datastore json` |
+| 07 | [dashboard](python/07-dashboard/) | `@page` decorator, `@on("event")` syntax | `aiui run app.py --style dashboard` |
+| 08 | [provider-praisonai](python/08-provider-praisonai/) | Custom `BaseProvider`, `RunEvent` protocol | `aiui run app.py` |
+| 09 | [feature-showcase](python/09-feature-showcase/) | All 8 protocol features, auto-discovery | `aiui run app.py` |
 
-LLM-powered chat using OpenAI with streaming, conversation context, and starter messages.
+---
 
-```bash
-export OPENAI_API_KEY=sk-...
-aiui run app.py
-aiui run app.py --datastore json   # persist history
-```
+## 📄 YAML Track — `yaml/`
 
-## 3. [agent-playground/](agent-playground/) — Agent Playground
+Configure agents and sites entirely in YAML — zero Python.
 
-Multi-agent playground UI:
-- 4 agents (General, Coder, Analyst, Writer) with profile selection
-- Per-agent conversation context
-- Session management + persistence
-- Streaming responses
+### Chat Agents (01–04)
 
-```bash
-export OPENAI_API_KEY=sk-...
-aiui run app.py --datastore json
-```
+| # | Folder | New Concept | Run |
+|---|--------|-------------|-----|
+| 01 | [chat](yaml/01-chat/) | `name`, `instructions`, `welcome`, `starters` | `aiui run chat.yaml` |
+| 02 | [profiles](yaml/02-profiles/) | `profiles`, `goodbye` | `aiui run chat.yaml` |
+| 03 | [tools](yaml/03-tools/) | `model`, `tools` (web_search, calculate) | `aiui run chat.yaml` |
+| 04 | [features](yaml/04-features/) | `features: true` — all 8 protocol modules | `aiui run chat.yaml` |
+
+### Site Templates (05–11)
+
+Theme variants for docs/marketing sites. Each has an `aiui.template.yaml`.
+
+| # | Folder | Theme | Run |
+|---|--------|-------|-----|
+| 05 | [minimal](yaml/05-minimal/) | Zinc | `aiui dev -e examples/yaml` |
+| 06 | [blocks](yaml/06-blocks/) | Blocks layout | `aiui dev -e examples/yaml` |
+| 07 | [colorful](yaml/07-colorful/) | Vibrant palette | `aiui dev -e examples/yaml` |
+| 08 | [corporate](yaml/08-corporate/) | Professional | `aiui dev -e examples/yaml` |
+| 09 | [dark-modern](yaml/09-dark-modern/) | Dark mode | `aiui dev -e examples/yaml` |
+| 10 | [developer-portal](yaml/10-developer-portal/) | API docs | `aiui dev -e examples/yaml` |
+| 11 | [full-featured](yaml/11-full-featured/) | Kitchen sink | `aiui dev -e examples/yaml` |

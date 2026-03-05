@@ -1,7 +1,13 @@
 """Chat with AI — LLM-powered chat using PraisonAIUI.
 
-Uses OpenAI (or any OpenAI-compatible endpoint) for real AI responses.
-Set OPENAI_API_KEY environment variable before running.
+What's New (vs chat-app/):
+    • OpenAI integration with AsyncOpenAI client
+    • Streaming responses via aiui.stream_token()
+    • Per-session conversation context
+    • Lazy client initialization pattern
+
+Requires: pip install openai
+Set OPENAI_API_KEY before running.
 
 Run:
     aiui run app.py

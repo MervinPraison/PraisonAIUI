@@ -1,6 +1,11 @@
 """Chat with PraisonAI Agents — Agent-powered chat using PraisonAIUI.
 
-Uses PraisonAI Agents framework for AI responses.
+What's New (vs chat-with-ai/):
+    • PraisonAI Agent instead of raw OpenAI client
+    • asyncio.to_thread() for blocking agent.chat() calls
+    • No streaming (agent returns full response)
+
+Requires: pip install praisonai
 Set OPENAI_API_KEY (or your preferred LLM key) before running.
 
 Run:

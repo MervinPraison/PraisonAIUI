@@ -1,0 +1,37 @@
+# YAML Chat with Tools & Model Selection
+#
+# What's New (vs chat-yaml-profiles/):
+#   • model — specify which LLM to use
+#   • tools — give the agent built-in tool capabilities
+#
+# Run:
+#   aiui run chat.yaml
+#
+# Requires: pip install praisonai
+# Set OPENAI_API_KEY before running.
+
+name: Tool-Equipped Assistant
+instructions: |
+  You are a helpful assistant with access to tools.
+  Use web_search when asked about current events.
+  Use calculate for math expressions.
+  Think step by step.
+
+model: gpt-4o-mini
+
+tools:
+  - web_search
+  - calculate
+
+welcome: "🔧 Hi! I have tools for web search and calculation. Try me!"
+
+starters:
+  - label: "Search the web"
+    message: "Search for the latest news about AI agents"
+    icon: "🔍"
+  - label: "Calculate"
+    message: "Calculate 42 * 37 + 15"
+    icon: "🔢"
+  - label: "Compare"
+    message: "Compare React vs Vue for building dashboards"
+    icon: "⚖️"

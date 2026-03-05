@@ -1,0 +1,32 @@
+# YAML Chat with All Protocol Features
+#
+# What's New (vs chat-yaml-tools/):
+#   • features: true — auto-registers all 8 protocol feature modules
+#     (approvals, schedules, memory, sessions, skills, hooks, workflows, config)
+#
+# Run:
+#   aiui run chat.yaml
+#
+# Then interact with features via CLI or API:
+#   curl http://localhost:8000/api/features
+#   aiui features list
+
+name: Full-Featured Assistant
+instructions: |
+  You are a helpful assistant with all platform features enabled.
+  You can manage approvals, schedules, memory, and more.
+
+features: true
+
+welcome: "🚀 All 8 protocol features are active! Ask me anything, or use the API/CLI to explore features."
+
+starters:
+  - label: "List features"
+    message: "What features are available?"
+    icon: "📋"
+  - label: "Check memory"
+    message: "What do you remember about me?"
+    icon: "🧠"
+  - label: "View schedules"
+    message: "Show me the current scheduled jobs"
+    icon: "⏰"

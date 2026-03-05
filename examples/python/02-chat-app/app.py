@@ -1,10 +1,14 @@
-"""Example AI Chat Application using PraisonAIUI.
+"""Chat App — Full callback showcase with PraisonAIUI.
 
-Run with:
+What's New (vs chat/):
+    • @welcome — greet users when they open the chat
+    • @button — handle action button clicks
+    • @profiles — offer selectable agent personas
+    • @starters — suggest conversation starters
+    • @goodbye, @cancel — lifecycle hooks
+
+Run:
     aiui run app.py
-
-Or with reload:
-    aiui run app.py --reload
 """
 
 import praisonaiui as aiui
