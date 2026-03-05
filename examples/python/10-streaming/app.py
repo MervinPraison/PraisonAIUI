@@ -1,11 +1,9 @@
-"""PraisonAI Agent + OpenAI Streaming — Best of both worlds.
+"""PraisonAI Agent Streaming — real-time token-by-token output.
 
-What's New:
-    • Uses PraisonAI Agent for instructions/tools/memory config
-    • Uses AsyncOpenAI streaming for real-time token-by-token output
-    • Tokens appear word-by-word in the browser via aiui.stream_token()
+Uses praisonaiagents.Agent with stream_emitter to stream tokens
+via PraisonAIUI. Tokens appear word-by-word in the browser.
 
-Requires: pip install praisonai openai
+Requires: pip install praisonaiagents praisonaiui
 Set OPENAI_API_KEY before running.
 
 Run:
@@ -13,29 +11,42 @@ Run:
 """
 
 import os
+import asyncio
 
 import praisonaiui as aiui
 
 try:
-    from openai import AsyncOpenAI
+    from praisonaiagents import Agent
+    from praisonaiagents.streaming.events import StreamEventType
 except ImportError:
     raise ImportError(
-        "openai package required. Install with: pip install openai"
+        "praisonaiagents package required. Install with: pip install praisonaiagents"
     )
 
-# Lazy client
-_client = None
-_contexts: dict[str, list[dict]] = {}
+
+def _create_agent():
+    """Create a PraisonAI Agent for streaming chat."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("Set OPENAI_API_KEY to use this example")
+
+    agent = Agent(
+        name="Streaming Assistant",
+        instructions="You are a helpful, concise assistant. Answer questions clearly. Use markdown formatting.",
+        llm="gpt-4o-mini",
+    )
+    return agent
 
 
-def _get_client():
-    global _client
-    if _client is None:
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise RuntimeError("Set OPENAI_API_KEY to use this example")
-        _client = AsyncOpenAI(api_key=api_key)
-    return _client
+# Lazy agent
+_agent = None
+
+
+def _get_agent():
+    global _agent
+    if _agent is None:
+        _agent = _create_agent()
+    return _agent
 
 
 @aiui.starters
@@ -49,37 +60,54 @@ async def get_starters():
 
 @aiui.welcome
 async def on_welcome():
-    await aiui.say("👋 Hi! I'm streaming tokens **in real-time**. Watch them appear word-by-word!")
+    await aiui.say("👋 Hi! I'm streaming tokens **in real-time** using PraisonAI Agent. Watch them appear word-by-word!")
 
 
 @aiui.reply
 async def on_message(message: str):
-    """Stream OpenAI response token-by-token."""
-    session_id = message.session_id if hasattr(message, "session_id") else "default"
+    """Stream PraisonAI Agent response token-by-token via stream_emitter."""
+    agent = _get_agent()
 
-    if session_id not in _contexts:
-        _contexts[session_id] = [
-            {"role": "system", "content": "You are a helpful, concise assistant. Answer questions clearly. Use markdown formatting."}
-        ]
-
-    _contexts[session_id].append({"role": "user", "content": str(message)})
     await aiui.think("Thinking...")
 
-    # Stream from OpenAI
-    stream = await _get_client().chat.completions.create(
-        model="gpt-4o-mini",
-        messages=_contexts[session_id],
-        stream=True,
-    )
+    # Set up a streaming callback that forwards tokens to PraisonAIUI
+    token_queue = asyncio.Queue()
 
-    full_response = ""
-    async for chunk in stream:
-        delta = chunk.choices[0].delta
-        if delta.content:
-            full_response += delta.content
-            await aiui.stream_token(delta.content)
+    def on_stream_event(event):
+        """Callback invoked by the Agent's stream_emitter for each token."""
+        if event.type == StreamEventType.DELTA_TEXT and event.content:
+            token_queue.put_nowait(event.content)
+        elif event.type == StreamEventType.FIRST_TOKEN and event.content:
+            token_queue.put_nowait(event.content)
+        elif event.type == StreamEventType.STREAM_END:
+            token_queue.put_nowait(None)  # Sentinel
 
-    _contexts[session_id].append({"role": "assistant", "content": full_response})
+    # Register callback
+    agent.stream_emitter.add_callback(on_stream_event)
+    agent.stream_emitter.enable_metrics()
+
+    try:
+        # Run agent.chat in a thread (it's synchronous)
+        chat_task = asyncio.get_event_loop().run_in_executor(
+            None, lambda: agent.chat(str(message), stream=True)
+        )
+
+        # Drain tokens as they arrive and stream to UI
+        while True:
+            try:
+                token = await asyncio.wait_for(token_queue.get(), timeout=60.0)
+            except asyncio.TimeoutError:
+                break
+            if token is None:  # Sentinel from STREAM_END
+                break
+            await aiui.stream_token(token)
+
+        # Wait for the chat to fully complete
+        await chat_task
+
+    finally:
+        # Clean up callback
+        agent.stream_emitter.remove_callback(on_stream_event)
 
 
 @aiui.cancel
