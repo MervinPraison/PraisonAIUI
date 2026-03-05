@@ -1,20 +1,19 @@
 /**
  * AIUI Mermaid Plugin
- * 
- * Renders mermaid code blocks (```mermaid) as SVG diagrams.
+ *
+ * Renders mermaid code blocks as SVG diagrams.
  * Uses the official mermaid library loaded from CDN.
+ *
+ * IMPORTANT: Hides the original code block via CSS and inserts
+ * the SVG diagram as a sibling to avoid React reconciler crashes.
  */
 
 let mermaidLoaded = false;
 let mermaidReady = false;
 
-/**
- * Load mermaid.js from CDN.
- */
 async function loadMermaidLib() {
   if (mermaidLoaded) return;
   mermaidLoaded = true;
-
   try {
     const mermaid = await import(
       'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs'
@@ -27,68 +26,77 @@ async function loadMermaidLib() {
     });
     window.__aiuiMermaid = mermaid.default;
     mermaidReady = true;
+    console.debug('[AIUI:mermaid] Mermaid library loaded.');
   } catch (err) {
     console.warn('[AIUI:mermaid] Failed to load mermaid library:', err);
   }
 }
 
 /**
- * Find all unrendered mermaid code blocks and render them.
- * Handles both standard markdown (code.language-mermaid) and
- * Prism.js rendered blocks (code with language-mermaid class).
+ * Detect mermaid syntax in a text string.
+ */
+function isMermaidSyntax(text) {
+  return /^(graph\s+[TBLR]{2}|flowchart\s|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitGraph|journey|mindmap|timeline|sankey|xychart)/m.test(text);
+}
+
+/**
+ * Find and render mermaid code blocks.
+ * Strategy: find code blocks via class OR syntax heuristic,
+ * then HIDE the original and INSERT diagram as sibling.
  */
 async function renderMermaidBlocks(root) {
   if (!mermaidReady || !window.__aiuiMermaid) return;
 
-  // Strategy 1: look for code.language-mermaid (standard + Prism)
-  let codeBlocks = root.querySelectorAll('code.language-mermaid, code[class*="language-mermaid"]');
+  // Find code blocks: by class first, then by syntax heuristic
+  let targets = [];
 
-  // Strategy 2: if none found, look for CodeBlock components that wrap mermaid
-  // The React CodeBlock renders: <div><div(header)><div(code area)><pre><code>
-  if (codeBlocks.length === 0) {
-    // Check all code blocks and see if any parent has mermaid indicator
+  // Strategy 1: language-mermaid class
+  const byClass = root.querySelectorAll('code.language-mermaid, code[class*="language-mermaid"]');
+  byClass.forEach(function (code) { targets.push(code); });
+
+  // Strategy 2: syntax heuristic for all code blocks
+  if (targets.length === 0) {
     const allCode = root.querySelectorAll('pre code, code.block');
-    codeBlocks = Array.from(allCode).filter(code => {
-      const text = code.textContent.trim();
-      // Heuristic: detect mermaid syntax patterns
-      return /^(graph\s+[TBLR]{2}|flowchart\s|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitGraph|journey|mindmap|timeline|sankey|xychart)/m.test(text);
+    allCode.forEach(function (code) {
+      if (isMermaidSyntax(code.textContent.trim())) targets.push(code);
     });
   }
 
-  if (codeBlocks.length === 0) return;
+  if (targets.length === 0) return;
 
-  for (const codeEl of codeBlocks) {
-    // Walk up to find the outermost pre or container
+  for (const codeEl of targets) {
+    // Find the outermost container (CodeBlock component or <pre>)
     let container = codeEl.closest('pre') || codeEl.parentElement;
     if (!container) continue;
 
-    // For the React CodeBlock component, go up to the wrapping div with the header
-    const codeBlockWrapper = container.closest('.relative, [class*="rounded"]');
-    if (codeBlockWrapper && codeBlockWrapper.querySelector('button')) {
-      // This is the full CodeBlock component (with copy button header)
-      container = codeBlockWrapper;
+    // Try to find the full CodeBlock wrapper (has copy button)
+    const wrapper = container.closest('.relative, [class*="rounded"]');
+    if (wrapper && wrapper.querySelector('button')) {
+      container = wrapper;
     }
 
-    // Skip already-rendered blocks
-    if (container.dataset.mermaidRendered) continue;
+    // Skip already-processed blocks
+    if (container.dataset.mermaidProcessed) continue;
+    container.dataset.mermaidProcessed = 'true';
 
-    const graphDefinition = codeEl.textContent.trim();
-    if (!graphDefinition) continue;
+    const graphDef = codeEl.textContent.trim();
+    if (!graphDef) continue;
 
     try {
-      const id = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const { svg } = await window.__aiuiMermaid.render(id, graphDefinition);
+      const id = 'mermaid-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+      const { svg } = await window.__aiuiMermaid.render(id, graphDef);
 
-      // Replace the container with the rendered SVG
+      // HIDE the original code block (don't remove — React still owns it)
+      container.style.display = 'none';
+
+      // INSERT diagram as a sibling AFTER the hidden block
       const diagram = document.createElement('div');
       diagram.className = 'mermaid-diagram';
+      diagram.dataset.aiuiPlugin = 'mermaid';
       diagram.style.cssText = 'display:flex;justify-content:center;margin:1rem 0;overflow-x:auto;';
       diagram.innerHTML = svg;
-
-      container.replaceWith(diagram);
+      container.parentNode.insertBefore(diagram, container.nextSibling);
     } catch (err) {
-      // Mark as attempted to avoid infinite retries
-      container.dataset.mermaidRendered = 'error';
       console.warn('[AIUI:mermaid] Render error:', err.message);
     }
   }
@@ -96,12 +104,15 @@ async function renderMermaidBlocks(root) {
 
 export default {
   name: 'mermaid',
-
-  async init() {
-    await loadMermaidLib();
-  },
-
+  async init() { await loadMermaidLib(); },
   onContentChange(root) {
+    // Clean up previous plugin-generated diagrams on navigation
+    root.querySelectorAll('[data-aiui-plugin="mermaid"]').forEach(function (el) { el.remove(); });
+    // Restore hidden code blocks
+    root.querySelectorAll('[data-mermaid-processed]').forEach(function (el) {
+      el.style.display = '';
+      delete el.dataset.mermaidProcessed;
+    });
     renderMermaidBlocks(root);
   },
 };
