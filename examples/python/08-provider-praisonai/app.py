@@ -1,5 +1,8 @@
 """Full-featured PraisonAI Provider Example.
 
+Demonstrates the protocol-driven provider architecture.
+Any class implementing BaseProvider can be plugged in as the AI backend.
+
 What's New (vs dashboard/):
     • Custom BaseProvider subclass — full control over agent execution
     • RunEvent protocol — token streaming, tool calls, reasoning steps

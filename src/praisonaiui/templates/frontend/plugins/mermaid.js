@@ -202,7 +202,7 @@ async function loadMermaidLib() {
  * Detect mermaid syntax in a text string.
  */
 function isMermaidSyntax(text) {
-  return /^(graph\s+[TBLR]{2}|flowchart\s|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitGraph|journey|mindmap|timeline|sankey|xychart)/m.test(text);
+  return /^(graph\s+(TD|TB|BT|LR|RL)|flowchart\s|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitGraph|journey|mindmap|timeline|sankey|xychart|block-beta|requirement)/m.test(text);
 }
 
 /**

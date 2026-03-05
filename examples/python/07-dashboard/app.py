@@ -4,6 +4,8 @@ What's New (vs agent-playground/):
     • @page decorator — register custom dashboard pages
     • @on("event") — alternative event-based callback syntax
     • Data-driven pages with zero frontend code
+    • Protocol-driven provider system — swap any AI backend:
+        aiui.set_provider(MyProvider())
 
 Run:
     aiui run app.py --style dashboard
