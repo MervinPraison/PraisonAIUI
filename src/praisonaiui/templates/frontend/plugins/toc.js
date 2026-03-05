@@ -2,19 +2,17 @@
  * AIUI Dynamic Table of Contents Plugin
  *
  * Replaces the hardcoded "Overview" / "Usage" links in the
- * "On this page" sidebar with headings extracted from the
- * actual rendered markdown content.
+ * "On this page" sidebar with headings from the actual rendered content.
+ *
+ * IMPORTANT: Hides React-managed ToC content via CSS and appends
+ * new content as siblings to avoid React reconciler crashes.
  */
 
-/**
- * Build a dynamic ToC from article headings and replace the static one.
- */
 function updateToc(root) {
-  // Find the rendered article (markdown content area)
   const article = root.querySelector('article.prose');
   if (!article) return;
 
-  // Find the ToC sidebar nav — it's inside an <aside> with "On this page"
+  // Find the ToC sidebar
   const asides = root.querySelectorAll('aside');
   let tocNav = null;
   for (const aside of asides) {
@@ -25,84 +23,70 @@ function updateToc(root) {
     }
   }
   if (!tocNav) return;
-
-  // Skip if already dynamically populated
   if (tocNav.dataset.tocDynamic) return;
 
-  // Extract headings (h2, h3) from the article
+  // Extract headings
   const headings = article.querySelectorAll('h1, h2, h3');
   if (headings.length === 0) return;
 
-  // Build new ToC links
+  // HIDE the existing React-managed ToC content (don't remove it)
+  Array.from(tocNav.children).forEach(function (child) {
+    child.style.display = 'none';
+  });
+
+  // Build and APPEND new ToC as a sibling container
   const container = document.createElement('div');
   container.className = 'space-y-2';
+  container.dataset.aiuiPlugin = 'toc';
 
-  headings.forEach((heading, i) => {
-    // Ensure heading has an id for anchor linking
+  headings.forEach(function (heading, i) {
     if (!heading.id) {
-      heading.id = heading.textContent
-        .trim()
-        .toLowerCase()
-        .replace(/[^\w\s-]/g, '')
-        .replace(/\s+/g, '-');
+      heading.id = heading.textContent.trim().toLowerCase()
+        .replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
     }
 
     const link = document.createElement('a');
-    link.href = `#${heading.id}`;
-    link.className =
-      'flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors';
+    link.href = '#' + heading.id;
+    link.className = 'flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors';
 
-    // Indent h3 entries
-    const isH1 = heading.tagName === 'H1';
-    const isH3 = heading.tagName === 'H3';
-    if (isH3) {
+    if (heading.tagName === 'H3') {
       link.classList.add('pl-3');
       link.style.fontSize = '0.8rem';
     }
-
-    // First item gets primary styling
     if (i === 0) {
       link.className = 'flex items-center gap-2 text-primary font-medium';
     }
 
-    // Add dot indicator
     const dot = document.createElement('span');
-    dot.className = `w-1 h-1 rounded-full ${i === 0 ? 'bg-primary' : 'bg-muted-foreground/30'}`;
+    dot.className = 'w-1 h-1 rounded-full ' + (i === 0 ? 'bg-primary' : 'bg-muted-foreground/30');
     link.appendChild(dot);
-
-    // Add heading text
     link.appendChild(document.createTextNode(heading.textContent.trim()));
-
     container.appendChild(link);
   });
 
-  // Replace the static ToC content
-  const existingDiv = tocNav.querySelector('div');
-  if (existingDiv) {
-    existingDiv.replaceWith(container);
-  } else {
-    tocNav.innerHTML = '';
-    tocNav.appendChild(container);
-  }
-
+  tocNav.appendChild(container);
   tocNav.dataset.tocDynamic = 'true';
 }
 
 export default {
   name: 'toc',
-
-  init() {
-    console.debug('[AIUI:toc] Dynamic table of contents plugin loaded.');
-  },
-
+  init() { console.debug('[AIUI:toc] Dynamic table of contents plugin loaded.'); },
   onContentChange(root) {
-    // Reset flag so ToC re-generates on SPA navigation
+    // Clean up previous plugin-generated ToC on navigation
+    const old = root.querySelector('[data-aiui-plugin="toc"]');
+    if (old) old.remove();
+    // Reset flag and hidden elements
     const asides = root.querySelectorAll('aside');
     for (const aside of asides) {
       const nav = aside.querySelector('nav');
-      if (nav) delete nav.dataset.tocDynamic;
+      if (nav) {
+        delete nav.dataset.tocDynamic;
+        // Restore hidden React children
+        Array.from(nav.children).forEach(function (child) {
+          if (!child.dataset.aiuiPlugin) child.style.display = '';
+        });
+      }
     }
-    // Small delay to let markdown render complete
-    setTimeout(() => updateToc(root), 200);
+    setTimeout(function () { updateToc(root); }, 250);
   },
 };
