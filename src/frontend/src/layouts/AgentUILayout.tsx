@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { ChatConfig, ChatProfile } from '../types'
 import { ChatArea, SessionManager } from '../chat'
 
@@ -8,11 +8,29 @@ interface AgentUILayoutProps {
 }
 
 export function AgentUILayout({ config, title }: AgentUILayoutProps) {
-    const profiles = config?.profiles || []
+    const [profiles, setProfiles] = useState<ChatProfile[]>(config?.profiles || [])
     const defaultProfile = profiles.find((p) => p.default) || profiles[0]
     const [selectedProfile, setSelectedProfile] = useState<ChatProfile | undefined>(defaultProfile)
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [activeTab, setActiveTab] = useState<'agents' | 'sessions'>('agents')
+
+    // Fetch profiles dynamically from the API (same as ProfilePicker in ChatLayout)
+    useEffect(() => {
+        fetch('/profiles')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.profiles && data.profiles.length > 0) {
+                    setProfiles(data.profiles)
+                    const def = data.profiles.find((p: ChatProfile) => p.default) || data.profiles[0]
+                    if (!selectedProfile) {
+                        setSelectedProfile(def)
+                    }
+                }
+            })
+            .catch(() => {
+                // No profiles endpoint — use config fallback
+            })
+    }, [])
 
     const handleSessionSelect = useCallback((sessionId: string) => {
         setCurrentSessionId(sessionId)
@@ -33,21 +51,19 @@ export function AgentUILayout({ config, title }: AgentUILayoutProps) {
                 <div className="flex border-b">
                     <button
                         onClick={() => setActiveTab('agents')}
-                        className={`flex-1 px-3 py-2 text-sm font-medium ${
-                            activeTab === 'agents'
+                        className={`flex-1 px-3 py-2 text-sm font-medium ${activeTab === 'agents'
                                 ? 'border-b-2 border-primary text-primary'
                                 : 'text-muted-foreground hover:text-foreground'
-                        }`}
+                            }`}
                     >
                         Agents
                     </button>
                     <button
                         onClick={() => setActiveTab('sessions')}
-                        className={`flex-1 px-3 py-2 text-sm font-medium ${
-                            activeTab === 'sessions'
+                        className={`flex-1 px-3 py-2 text-sm font-medium ${activeTab === 'sessions'
                                 ? 'border-b-2 border-primary text-primary'
                                 : 'text-muted-foreground hover:text-foreground'
-                        }`}
+                            }`}
                     >
                         History
                     </button>
@@ -67,11 +83,10 @@ export function AgentUILayout({ config, title }: AgentUILayoutProps) {
                                     <button
                                         key={profile.name}
                                         onClick={() => setSelectedProfile(profile)}
-                                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors ${
-                                            selectedProfile?.name === profile.name
+                                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors ${selectedProfile?.name === profile.name
                                                 ? 'bg-accent'
                                                 : 'hover:bg-accent/50'
-                                        }`}
+                                            }`}
                                     >
                                         {profile.icon && <span>{profile.icon}</span>}
                                         <div className="flex-1 min-w-0">

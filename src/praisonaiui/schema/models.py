@@ -35,6 +35,7 @@ class SiteConfig(BaseModel):
             "mermaid",
             "mkdocs-compat",
             "homepage",
+            "toc",
         ],
         description="List of frontend plugin names to enable",
     )
