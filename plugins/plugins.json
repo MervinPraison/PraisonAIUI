@@ -1,0 +1,8 @@
+{
+  "plugins": [
+    "fetch-retry",
+    "mermaid",
+    "mkdocs-compat",
+    "homepage"
+  ]
+}

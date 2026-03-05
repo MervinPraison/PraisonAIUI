@@ -57,6 +57,40 @@ aiui dev [OPTIONS]
 | `--config, -c` | path | `aiui.template.yaml` | Config file path |
 | `--port, -p` | int | `3000` | Dev server port |
 
+### run
+
+Run the AI chat server with your app or config.
+
+```bash
+aiui run <APP_FILE> [OPTIONS]
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--port, -p` | int | `8000` | Server port |
+| `--host` | string | `127.0.0.1` | Host to bind to |
+| `--reload, -r` | flag | `false` | Auto-reload on file changes |
+| `--style, -s` | string | `chat` | UI style: `chat`, `docs`, `agents`, `playground`, `dashboard`, `custom` |
+| `--backend, -b` | string | `standalone` | Backend: `standalone` or `praisonai` |
+| `--datastore, -d` | string | `memory` | Data persistence: `memory`, `json`, `json:/path` |
+| `--output, -o` | path | `aiui` | Output directory for static files |
+
+**Style auto-detection:** When `--style` is not provided, the style is automatically detected from your code. See [Styles](../features/styles.md) for details.
+
+```bash
+# Auto-detects style from code
+aiui run app.py
+
+# Explicit style
+aiui run app.py --style agents
+
+# With persistence
+aiui run app.py --datastore json
+
+# YAML config
+aiui run chat.yaml
+```
+
 ## Python API
 
 ### Direct Usage
