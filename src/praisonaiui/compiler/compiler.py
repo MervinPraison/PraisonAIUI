@@ -276,6 +276,12 @@ class Compiler:
         if frontend_dir.exists():
             # Copy index.html
             shutil.copy(frontend_dir / "index.html", output_dir / "index.html")
+            # Create 404.html as a copy of index.html for SPA routing
+            # on static hosts like GitHub Pages (serves the SPA shell
+            # for any unknown path, letting the client-side router handle it)
+            shutil.copy(
+                frontend_dir / "index.html", output_dir / "404.html"
+            )
             # Copy assets folder if exists
             assets_src = frontend_dir / "assets"
             if assets_src.exists():

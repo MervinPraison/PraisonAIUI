@@ -335,7 +335,7 @@ class PraisonAIProvider(BaseProvider):
 
         # Attach streaming callback to the agent's emitter
         try:
-            from praisonaiagents.streaming import StreamEventType as SET
+            from praisonaiagents.streaming import StreamEventType as SET  # noqa: F811
 
             _loop = asyncio.get_running_loop()
 

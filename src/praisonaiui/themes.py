@@ -5,9 +5,9 @@ Fetches official shadcn/ui themes and generates CSS variables at build time.
 This follows the principle of not hardcoding designs.
 """
 
-import urllib.request
-import urllib.error
 import json
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Optional
 
@@ -72,10 +72,10 @@ def fetch_themes() -> dict:
     Falls back to cached/fallback themes if network unavailable.
     """
     global _themes_cache
-    
+
     if _themes_cache is not None:
         return _themes_cache
-    
+
     try:
         req = urllib.request.Request(
             SHADCN_THEMES_URL,
@@ -93,44 +93,49 @@ def fetch_themes() -> dict:
 def get_theme_css(preset: str = "zinc", dark_mode: bool = True, radius: str = "0.5rem") -> str:
     """
     Generate CSS variables for a given theme preset.
-    
+
     Args:
         preset: Theme name (e.g., "zinc", "blue", "green")
         dark_mode: Whether to use dark mode colors
         radius: Border radius value
-        
+
     Returns:
         CSS string with :root variables
     """
     themes = fetch_themes()
-    
+
     # Get the theme or fallback to zinc
     theme = themes.get(preset, themes.get("zinc", FALLBACK_THEMES["zinc"]))
-    
+
     mode = "dark" if dark_mode else "light"
     colors = theme.get(mode, theme.get("light", {}))
-    
+
     # Build CSS
     css_lines = [":root {"]
     css_lines.append(f"  --radius: {radius};")
-    
+
     for name, value in colors.items():
         css_lines.append(f"  --{name}: {value};")
-    
+
     css_lines.append("}")
-    
+
     # Add dark mode class if needed
     if dark_mode:
         css_lines.insert(0, ".dark {")
         css_lines.append("")
-    
+
     return "\n".join(css_lines)
 
 
-def inject_theme_css(output_dir: Path, preset: str = "zinc", dark_mode: bool = True, radius: str = "0.5rem") -> None:
+def inject_theme_css(
+    output_dir: Path,
+    preset: str = "zinc",
+    dark_mode: bool = True,
+    radius: str = "0.5rem",
+) -> None:
     """
     Inject theme CSS into the output directory.
-    
+
     Args:
         output_dir: Build output directory
         preset: Theme name
@@ -138,7 +143,7 @@ def inject_theme_css(output_dir: Path, preset: str = "zinc", dark_mode: bool = T
         radius: Border radius
     """
     css = get_theme_css(preset, dark_mode, radius)
-    
+
     # Write to theme.css
     theme_file = output_dir / "assets" / "theme.css"
     theme_file.parent.mkdir(parents=True, exist_ok=True)

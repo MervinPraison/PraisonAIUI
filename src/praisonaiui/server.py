@@ -7,7 +7,6 @@ import json
 import logging
 import sys
 import time
-import uuid
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,8 +21,8 @@ from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
 from praisonaiui.datastore import BaseDataStore, MemoryDataStore
-from praisonaiui.provider import BaseProvider, RunEvent, RunEventType
 from praisonaiui.features import auto_register_defaults, get_features
+from praisonaiui.provider import BaseProvider, RunEventType
 
 # Registry for callbacks
 _callbacks: dict[str, Callable] = {}
@@ -271,7 +270,10 @@ async def api_config_handler(request: Request) -> JSONResponse:
         if _config_path and _config_path.exists():
             config = load_config_from_yaml(_config_path) or {}
             _config_cache = config
-        return JSONResponse({"config": config, "config_path": str(_config_path) if _config_path else None})
+        return JSONResponse({
+            "config": config,
+            "config_path": str(_config_path) if _config_path else None,
+        })
     elif request.method == "PUT":
         if not _config_path:
             return JSONResponse({"error": "No config file path set"}, status_code=400)
@@ -692,7 +694,11 @@ class MessageContext:
         return self.text
 
     def __repr__(self) -> str:
-        return f"MessageContext(text={self.text!r}, session_id={self.session_id!r}, agent_name={self.agent_name!r})"
+        return (
+            f"MessageContext(text={self.text!r}, "
+            f"session_id={self.session_id!r}, "
+            f"agent_name={self.agent_name!r})"
+        )
 
     async def stream(self, token: str) -> None:
         """Stream a token to the client."""
