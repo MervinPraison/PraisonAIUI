@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -107,7 +107,8 @@ class PraisonAIWorkflows(BaseFeatureProtocol):
         if not wf:
             return JSONResponse({"error": "Workflow not found"}, status_code=404)
         run_id = uuid.uuid4().hex[:12]
-        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+        content_type = request.headers.get("content-type")
+        body = await request.json() if content_type == "application/json" else {}
         run_entry = {
             "id": run_id,
             "workflow_id": wf_id,
@@ -169,5 +170,8 @@ class PraisonAIWorkflows(BaseFeatureProtocol):
     def _cli_runs(self) -> str:
         if not _runs:
             return "No workflow runs"
-        lines = [f"  {r['id']} — {r.get('workflow_name', r['workflow_id'])} ({r['status']})" for r in _runs.values()]
+        lines = [
+            f"  {r['id']} — {r.get('workflow_name', r['workflow_id'])} ({r['status']})"
+            for r in _runs.values()
+        ]
         return "\n".join(lines)

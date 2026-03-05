@@ -29,7 +29,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, AsyncIterator, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Event types (matches frontend RunEventType in types.ts exactly)
 # ---------------------------------------------------------------------------

@@ -32,8 +32,8 @@ def configure(
             - ``"json:/custom/path"`` — JSON files at a custom directory
     """
     if datastore is not None:
+        from praisonaiui.datastore import JSONFileDataStore, MemoryDataStore
         from praisonaiui.server import set_datastore
-        from praisonaiui.datastore import MemoryDataStore, JSONFileDataStore
 
         if datastore == "memory":
             set_datastore(MemoryDataStore())

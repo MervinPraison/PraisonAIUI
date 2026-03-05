@@ -7,7 +7,7 @@ startup via ``get_features()`` and mounts their routes automatically.
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict
 
 from ._base import BaseFeatureProtocol
 
@@ -36,13 +36,13 @@ def auto_register_defaults() -> None:
     (idempotent: skips already-registered features).
     """
     from .approvals import PraisonAIApprovals
-    from .schedules import PraisonAISchedules
+    from .config_runtime import PraisonAIConfigRuntime
+    from .hooks import PraisonAIHooks
     from .memory import PraisonAIMemory
+    from .schedules import PraisonAISchedules
     from .sessions_ext import PraisonAISessions
     from .skills import PraisonAISkills
-    from .hooks import PraisonAIHooks
     from .workflows import PraisonAIWorkflows
-    from .config_runtime import PraisonAIConfigRuntime
 
     for cls in (
         PraisonAIApprovals,

@@ -1,0 +1,52 @@
+# YAML Playground — Multi-agent tabbed UI, no Python needed
+#
+# What's New (vs chat-yaml-profiles/):
+#   • style: agents — activates tabbed AgentUILayout (sidebar with Agents/History tabs)
+#   • Multiple agent profiles with different system prompts
+#   • Per-agent starter messages
+#
+# Run:
+#   aiui run chat.yaml --style agents
+#
+# CLI parity:
+#   aiui health-check
+#   aiui provider agents
+#   aiui sessions list
+
+name: AI Playground
+instructions: |
+  You are a helpful, concise assistant in a multi-agent playground.
+  Answer questions clearly and directly.
+
+style: agents
+
+profiles:
+  - name: "General Assistant"
+    description: "A helpful general-purpose assistant"
+    icon: "🤖"
+    default: true
+  - name: "Code Expert"
+    description: "Specialized in writing and debugging code"
+    icon: "💻"
+  - name: "Data Analyst"
+    description: "Analyzes data and provides insights"
+    icon: "📊"
+  - name: "Creative Writer"
+    description: "Helps with creative writing and content"
+    icon: "✍️"
+
+welcome: "👋 Welcome to the AI Playground! Select an agent from the sidebar to get started."
+
+starters:
+  - label: "What can you do?"
+    message: "What are your capabilities?"
+    icon: "❓"
+  - label: "Write code"
+    message: "Write a Python function to calculate Fibonacci numbers"
+    icon: "💻"
+  - label: "Analyze data"
+    message: "How would you approach analyzing customer churn data?"
+    icon: "📊"
+  - label: "Write a story"
+    message: "Write a short story about an AI that learns to dream"
+    icon: "✍️"

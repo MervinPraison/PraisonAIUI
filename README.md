@@ -82,6 +82,38 @@ routes:
 
 Each with automatic light/dark mode support.
 
+## UI Styles
+
+PraisonAIUI supports 5 distinct UI styles, selectable via `--style`:
+
+| Style | Flag | Frontend Layout | Best For |
+|-------|------|----------------|----------|
+| **Docs** | `--style docs` | `ThreeColumnLayout` | Documentation sites, knowledge bases |
+| **Chat** | `--style chat` | `ChatLayout` (fullscreen, sidebar, floating widget) | Conversational AI, customer support, Q&A |
+| **Agents** | `--style agents` | `AgentUILayout` (agent tabs + session history) | Multi-agent playground, agent experimentation |
+| **Playground** | `--style playground` | `PlaygroundLayout` (input/output panels) | Prompt testing, side-by-side comparison |
+| **Custom** | `--style custom` | User-defined | Custom layouts with full control |
+
+### Chat Mode (default for `aiui run`)
+
+```bash
+aiui run app.py                    # fullscreen chat
+aiui run chat.yaml                 # YAML-defined chat
+```
+
+### Agents Mode (multi-agent playground)
+
+```bash
+aiui run app.py --style agents     # tabbed agent UI with sidebar
+```
+
+### Docs Mode (default for `aiui build`)
+
+```bash
+aiui build                         # static documentation site
+aiui serve                         # serve built docs
+```
+
 ## CLI Commands
 
 ```bash

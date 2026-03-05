@@ -5,13 +5,14 @@ What's New (vs chat-with-praisonai/):
     • Profile-based agent switching via @profiles
     • Context-aware starter messages per agent
     • Lazy per-agent creation pattern
+    • --style agents activates tabbed AgentUILayout (sidebar with Agents/History tabs)
 
 Requires: pip install praisonai
 Set OPENAI_API_KEY (or your preferred LLM key) before running.
 
 Run:
-    aiui run app.py
-    aiui run app.py --datastore json
+    aiui run app.py --style agents
+    aiui run app.py --style agents --datastore json
 """
 
 import asyncio

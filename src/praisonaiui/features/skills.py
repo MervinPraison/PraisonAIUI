@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse

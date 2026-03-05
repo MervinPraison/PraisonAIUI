@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -102,7 +102,8 @@ class PraisonAIHooks(BaseFeatureProtocol):
         hook = _hooks.get(hook_id)
         if not hook:
             return JSONResponse({"error": "Hook not found"}, status_code=404)
-        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+        content_type = request.headers.get("content-type")
+        body = await request.json() if content_type == "application/json" else {}
         log_entry = {
             "hook_id": hook_id,
             "hook_name": hook["name"],
@@ -137,5 +138,8 @@ class PraisonAIHooks(BaseFeatureProtocol):
     def _cli_log(self) -> str:
         if not _hook_log:
             return "No hook executions"
-        lines = [f"  {e['hook_id']} — {e.get('result', '?')} at {e['triggered_at']:.0f}" for e in _hook_log[-10:]]
+        lines = [
+            f"  {e['hook_id']} — {e.get('result', '?')} at {e['triggered_at']:.0f}"
+            for e in _hook_log[-10:]
+        ]
         return "\n".join(lines)

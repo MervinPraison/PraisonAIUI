@@ -419,7 +419,6 @@ def serve(
 
     async def spa_handler(request: Request) -> Response:
         """SPA handler: serve static files with path-traversal guard and index.html fallback."""
-        import os
 
         url_path = request.url.path.lstrip("/")
         file_path = output_resolved / url_path
@@ -526,12 +525,10 @@ def dev(
     """Development dashboard - switch between examples live."""
     import http.server
     import json
-    import os
     import socket
     import socketserver
     import subprocess
     import tempfile
-    import threading
     import urllib.parse
     import webbrowser
 
@@ -551,44 +548,42 @@ def dev(
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
         current_example = {"name": examples[0]}
-        current_theme = {"preset": "zinc", "radius": "md", "darkMode": True}
 
         # Build example with optional theme override
         def build_example(name: str, theme_preset: str = None, radius: str = None, dark_mode: bool = None) -> bool:
             """Build an example and copy to temp dir, optionally overriding theme."""
-            import shutil
             import yaml
-            
+
             example_path = examples_dir / name
             if not example_path.exists():
                 return False
-            
+
             try:
                 # If theme override specified, create a modified config
                 config_file = example_path / "aiui.template.yaml"
                 original_config = None
-                
+
                 if any([theme_preset, radius, dark_mode is not None]) and config_file.exists():
                     with open(config_file) as f:
                         original_config = f.read()
-                    
+
                     # Parse and modify
                     config = yaml.safe_load(original_config)
                     if "site" not in config:
                         config["site"] = {}
                     if "theme" not in config["site"]:
                         config["site"]["theme"] = {}
-                    
+
                     if theme_preset:
                         config["site"]["theme"]["preset"] = theme_preset
                     if radius:
                         config["site"]["theme"]["radius"] = radius
                     if dark_mode is not None:
                         config["site"]["theme"]["darkMode"] = dark_mode
-                    
+
                     with open(config_file, "w") as f:
                         yaml.dump(config, f, default_flow_style=False)
-                
+
                 # Run aiui build in example directory
                 result = subprocess.run(
                     ["aiui", "build", "-o", str(temp_path / "site")],
@@ -596,14 +591,14 @@ def dev(
                     capture_output=True,
                     text=True,
                 )
-                
+
                 # Restore original config if modified
                 if original_config:
                     with open(config_file, "w") as f:
                         f.write(original_config)
-                
+
                 if result.returncode != 0:
-                    console.print(f"[red]Build failed![/red]")
+                    console.print("[red]Build failed![/red]")
                     console.print(f"[dim]Return code: {result.returncode}[/dim]")
                     console.print(f"[dim]STDOUT: {result.stdout[:1000] if result.stdout else 'None'}[/dim]")
                     console.print(f"[dim]STDERR: {result.stderr[:1000] if result.stderr else 'None'}[/dim]")
@@ -641,7 +636,7 @@ def dev(
             backdrop-filter: blur(12px);
         }}
         .logo {{ display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; }}
-        .logo-icon {{ 
+        .logo-icon {{
             width: 24px; height: 24px; border-radius: 5px;
             background: linear-gradient(135deg, #6366f1, #8b5cf6);
             display: flex; align-items: center; justify-content: center;
@@ -667,10 +662,10 @@ def dev(
         .status {{ font-size: 11px; color: #888; margin-left: auto; }}
         .status.loading {{ color: #f59e0b; }}
         .status.ready {{ color: #22c55e; }}
-        
+
         .main-content {{ position: fixed; top: 45px; left: 0; right: 0; bottom: 0; display: flex; }}
         iframe {{ flex: 1; border: none; }}
-        
+
         .yaml-panel {{
             width: 0; overflow: hidden; transition: width 0.2s ease;
             background: #111; border-left: 1px solid rgba(255,255,255,0.1);
@@ -745,7 +740,7 @@ def dev(
         </button>
         <span id="status" class="status ready">Ready</span>
     </div>
-    
+
     <div class="main-content">
         <iframe id="preview" src="/site/"></iframe>
         <div class="yaml-panel" id="yaml-panel">
@@ -761,21 +756,21 @@ def dev(
             </div>
         </div>
     </div>
-    
+
     <script>
         let currentExample = '{examples[0]}';
         let yamlOpen = false;
-        
+
         async function switchExample(name) {{
             currentExample = name;
             await rebuildWithTheme();
             if (yamlOpen) await loadYaml();
         }}
-        
+
         async function updateTheme() {{
             await rebuildWithTheme();
         }}
-        
+
         async function rebuildWithTheme() {{
             const status = document.getElementById('status');
             const iframe = document.getElementById('preview');
@@ -783,13 +778,13 @@ def dev(
             const theme = document.getElementById('theme-select').value;
             const radius = document.getElementById('radius-select').value;
             const darkMode = document.getElementById('mode-select').value;
-            
+
             status.textContent = 'Building...';
             status.className = 'status loading';
-            
+
             try {{
                 // If "Use YAML Theme" is checked, don't send theme overrides
-                const params = useYamlTheme 
+                const params = useYamlTheme
                     ? new URLSearchParams({{ example: currentExample }})
                     : new URLSearchParams({{
                         example: currentExample,
@@ -812,20 +807,20 @@ def dev(
                 status.className = 'status';
             }}
         }}
-        
+
         function toggleYaml() {{
             yamlOpen = !yamlOpen;
             document.getElementById('yaml-panel').classList.toggle('open', yamlOpen);
             document.getElementById('yaml-btn').classList.toggle('active', yamlOpen);
             if (yamlOpen) loadYaml();
         }}
-        
+
         async function loadYaml() {{
             const res = await fetch('/api/yaml?example=' + encodeURIComponent(currentExample));
             const data = await res.json();
             document.getElementById('yaml-content').value = data.yaml || '';
         }}
-        
+
         function copyYaml() {{
             const textarea = document.getElementById('yaml-content');
             textarea.select();
@@ -834,15 +829,15 @@ def dev(
             btn.textContent = 'Copied!';
             setTimeout(() => btn.textContent = 'Copy', 1500);
         }}
-        
+
         async function applyYaml() {{
             const yaml = document.getElementById('yaml-content').value;
             const status = document.getElementById('status');
             const iframe = document.getElementById('preview');
-            
+
             status.textContent = 'Building...';
             status.className = 'status loading';
-            
+
             try {{
                 const res = await fetch('/api/yaml', {{
                     method: 'POST',
@@ -907,7 +902,7 @@ def dev(
                     radius = query.get("radius", [None])[0]
                     dark_mode_str = query.get("darkMode", [None])[0]
                     dark_mode = dark_mode_str == "true" if dark_mode_str else None
-                    
+
                     if example_name and example_name in examples:
                         console.print(f"[yellow]Building {example_name} (theme={theme_preset}, radius={radius}, dark={dark_mode})...[/yellow]")
                         success = build_example(example_name, theme_preset, radius, dark_mode)
@@ -959,7 +954,7 @@ def dev(
 
             def do_POST(self):
                 path = self.path.split("?")[0]
-                
+
                 # API: save YAML and rebuild
                 if path == "/api/yaml":
                     content_length = int(self.headers.get('Content-Length', 0))
@@ -968,7 +963,7 @@ def dev(
                         data = json.loads(body)
                         example_name = data.get("example")
                         yaml_content = data.get("yaml", "")
-                        
+
                         if example_name and example_name in examples:
                             yaml_path = examples_dir / example_name / "aiui.template.yaml"
                             # Write the new YAML
@@ -992,7 +987,7 @@ def dev(
                         self.end_headers()
                         self.wfile.write(json.dumps({"error": "Invalid JSON"}).encode())
                     return
-                
+
                 self.send_response(404)
                 self.end_headers()
 
@@ -1000,7 +995,7 @@ def dev(
                 pass  # Suppress logs
 
         console.print(f"\n[green]🚀[/green] Dev dashboard at [link]http://localhost:{actual_port}[/link]")
-        console.print(f"[dim]Switch examples with the dropdown. Press Ctrl+C to stop.[/dim]\n")
+        console.print("[dim]Switch examples with the dropdown. Press Ctrl+C to stop.[/dim]\n")
         webbrowser.open(f"http://localhost:{actual_port}")
 
         with socketserver.TCPServer(("", actual_port), DevHandler) as httpd:
@@ -1034,8 +1029,8 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
         features: true
         datastore: json
     """
-    from praisonaiui.server import register_callback
     import praisonaiui as aiui
+    from praisonaiui.server import register_callback
 
     agent_name = chat_yaml.get("name", "Assistant")
     instructions = chat_yaml.get("instructions", "You are a helpful assistant.")
@@ -1245,7 +1240,7 @@ def run(
         "chat",
         "--style",
         "-s",
-        help="UI style: 'chat' (default), 'dashboard' (admin panel), 'agents', 'playground'",
+        help="UI style: 'chat' (default), 'docs', 'agents' (tabbed multi-agent), 'playground' (input/output panels), 'dashboard', 'custom'",
     ),
 ) -> None:
     """Run the AI chat server with your app.py or config.yaml file.
@@ -1408,8 +1403,8 @@ def run(
         asyncio.run(gateway.start())
     else:
         # Set up datastore
+        from praisonaiui.datastore import JSONFileDataStore, MemoryDataStore
         from praisonaiui.server import set_datastore
-        from praisonaiui.datastore import MemoryDataStore, JSONFileDataStore
 
         if datastore == "memory":
             store = MemoryDataStore()
@@ -1749,7 +1744,8 @@ def _api_get(server: str, path: str):
 def _api_post(server: str, path: str, body: dict = None):
     """Helper: POST to server API."""
     import json as _json
-    from urllib.request import Request as UrlRequest, urlopen
+    from urllib.request import Request as UrlRequest
+    from urllib.request import urlopen
     data = _json.dumps(body or {}).encode()
     req = UrlRequest(f"{server}{path}", data=data, headers={"Content-Type": "application/json"})
     with urlopen(req) as resp:
@@ -1759,7 +1755,8 @@ def _api_post(server: str, path: str, body: dict = None):
 def _api_delete(server: str, path: str):
     """Helper: DELETE on server API."""
     import json as _json
-    from urllib.request import Request as UrlRequest, urlopen
+    from urllib.request import Request as UrlRequest
+    from urllib.request import urlopen
     req = UrlRequest(f"{server}{path}", method="DELETE")
     with urlopen(req) as resp:
         return _json.loads(resp.read())
@@ -1768,7 +1765,8 @@ def _api_delete(server: str, path: str):
 def _api_patch(server: str, path: str, body: dict = None):
     """Helper: PATCH on server API."""
     import json as _json
-    from urllib.request import Request as UrlRequest, urlopen
+    from urllib.request import Request as UrlRequest
+    from urllib.request import urlopen
     data = _json.dumps(body or {}).encode()
     req = UrlRequest(f"{server}{path}", data=data, method="PATCH",
                      headers={"Content-Type": "application/json"})
@@ -2193,7 +2191,7 @@ def config_set(
 ) -> None:
     """Set a runtime config value."""
     try:
-        data = _api_patch(server, "/api/config/runtime", {key: value})
+        _api_patch(server, "/api/config/runtime", {key: value})
         console.print(f"[green]✓[/green] {key} = {value}")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
@@ -2265,7 +2263,7 @@ def session_ext_save_state(
 ) -> None:
     """Save key=value to session state."""
     try:
-        data = _api_post(server, f"/api/sessions/{session_id}/state",
+        _api_post(server, f"/api/sessions/{session_id}/state",
                          {"state": {key: value}})
         console.print(f"[green]✓[/green] Saved {key}={value} to session {session_id}")
     except Exception as e:
@@ -2313,7 +2311,7 @@ def session_ext_compact(
 ) -> None:
     """Compact session context."""
     try:
-        data = _api_post(server, f"/api/sessions/{session_id}/compact", {})
+        _api_post(server, f"/api/sessions/{session_id}/compact", {})
         console.print(f"[green]✓[/green] Session {session_id} compacted")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
@@ -2327,7 +2325,7 @@ def session_ext_reset(
 ) -> None:
     """Reset session state."""
     try:
-        data = _api_post(server, f"/api/sessions/{session_id}/reset", {"mode": "clear"})
+        _api_post(server, f"/api/sessions/{session_id}/reset", {"mode": "clear"})
         console.print(f"[green]✓[/green] Session {session_id} reset")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")

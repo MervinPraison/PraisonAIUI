@@ -6,10 +6,9 @@ add, list, remove, toggle, and trigger cron/interval/one-shot jobs.
 
 from __future__ import annotations
 
-import json
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse

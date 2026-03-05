@@ -32,7 +32,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-
 # ---------------------------------------------------------------------------
 # Abstract base class – implement this for any database
 # ---------------------------------------------------------------------------
@@ -211,7 +210,11 @@ class JSONFileDataStore(BaseDataStore):
 
     async def list_sessions(self) -> list[dict[str, Any]]:
         sessions = []
-        for path in sorted(self._data_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+        for path in sorted(
+            self._data_dir.glob("*.json"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        ):
             data = self._read_session(path)
             if data:
                 sessions.append({

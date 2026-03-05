@@ -7,7 +7,7 @@ operations beyond the basic CRUD already in server.py.
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -109,7 +109,9 @@ class PraisonAISessions(BaseFeatureProtocol):
     def _cli_usage(self, session_id: str = "default") -> str:
         state = _session_states.get(session_id, {})
         usage = state.get("_usage", {"tokens": 0, "requests": 0})
-        return f"Session {session_id}: {usage.get('tokens', 0)} tokens, {usage.get('requests', 0)} requests"
+        tokens = usage.get('tokens', 0)
+        requests = usage.get('requests', 0)
+        return f"Session {session_id}: {tokens} tokens, {requests} requests"
 
     def _cli_compact(self, session_id: str = "default") -> str:
         return f"✓ Session {session_id} compacted"
@@ -174,7 +176,8 @@ class PraisonAISessions(BaseFeatureProtocol):
 
     async def _reset(self, request: Request) -> JSONResponse:
         sid = request.path_params["session_id"]
-        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+        content_type = request.headers.get("content-type")
+        body = await request.json() if content_type == "application/json" else {}
         mode = body.get("mode", "clear")  # "clear" or "new"
         if mode == "clear":
             _session_states.pop(sid, None)

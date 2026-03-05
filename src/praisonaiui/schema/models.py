@@ -81,7 +81,7 @@ ZoneWidgets = list[WidgetConfig]
 
 class ZonesConfig(BaseModel):
     """Widget zones configuration - WordPress-style layout areas."""
-    
+
     header: Optional[ZoneWidgets] = None
     top_nav: Optional[ZoneWidgets] = Field(default=None, alias="topNav")
     hero: Optional[ZoneWidgets] = None
