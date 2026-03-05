@@ -29,6 +29,15 @@ class SiteConfig(BaseModel):
     route_base_docs: str = Field(default="/docs", alias="routeBaseDocs")
     ui: Literal["shadcn", "mui", "chakra"] = "shadcn"
     theme: Optional[ThemeConfig] = None
+    plugins: list[str] = Field(
+        default_factory=lambda: [
+            "fetch-retry",
+            "mermaid",
+            "mkdocs-compat",
+            "homepage",
+        ],
+        description="List of frontend plugin names to enable",
+    )
 
 
 class NavConfig(BaseModel):

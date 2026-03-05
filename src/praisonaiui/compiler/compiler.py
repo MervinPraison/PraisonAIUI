@@ -275,12 +275,15 @@ class Compiler:
 
         if frontend_dir.exists():
             # Copy index.html
-            shutil.copy(frontend_dir / "index.html", output_dir / "index.html")
-            # Create 404.html as a copy of index.html for SPA routing
-            # on static hosts like GitHub Pages (serves the SPA shell
-            # for any unknown path, letting the client-side router handle it)
             shutil.copy(
-                frontend_dir / "index.html", output_dir / "404.html"
+                frontend_dir / "index.html",
+                output_dir / "index.html",
+            )
+            # Create 404.html as a copy of index.html for SPA routing
+            # on static hosts like GitHub Pages
+            shutil.copy(
+                frontend_dir / "index.html",
+                output_dir / "404.html",
             )
             # Copy assets folder if exists
             assets_src = frontend_dir / "assets"
@@ -290,10 +293,60 @@ class Compiler:
                     shutil.rmtree(assets_dst)
                 shutil.copytree(assets_src, assets_dst)
             # Copy root-level static files (icons, favicons, etc.)
-            static_exts = {".svg", ".png", ".ico", ".webmanifest", ".txt"}
+            static_exts = {
+                ".svg", ".png", ".ico", ".webmanifest", ".txt",
+            }
             for f in frontend_dir.iterdir():
                 if f.is_file() and f.suffix in static_exts:
                     shutil.copy(f, output_dir / f.name)
+
+            # Copy plugins directory and generate plugins.json
+            self._copy_plugins(output_dir, frontend_dir)
+
+    def _copy_plugins(
+        self, output_dir: Path, frontend_dir: Path
+    ) -> None:
+        """Copy frontend plugins and generate plugins.json config."""
+        import shutil
+
+        plugins_src = frontend_dir / "plugins"
+        if not plugins_src.exists():
+            return
+
+        plugins_dst = output_dir / "plugins"
+        if plugins_dst.exists():
+            shutil.rmtree(plugins_dst)
+        plugins_dst.mkdir(parents=True)
+
+        # Always copy the plugin loader (core infrastructure)
+        loader = plugins_src / "plugin-loader.js"
+        if loader.exists():
+            shutil.copy(loader, plugins_dst / "plugin-loader.js")
+
+        # Get enabled plugins from site config
+        enabled_plugins = []
+        if self.config.site and hasattr(self.config.site, "plugins"):
+            enabled_plugins = list(self.config.site.plugins)
+
+        # Copy each enabled plugin file
+        for plugin_name in enabled_plugins:
+            plugin_file = plugins_src / f"{plugin_name}.js"
+            if plugin_file.exists():
+                shutil.copy(plugin_file, plugins_dst / plugin_file.name)
+
+        # Generate plugins.json (consumed by plugin-loader.js)
+        # fetch-retry must load first to intercept fetches
+        ordered = []
+        if "fetch-retry" in enabled_plugins:
+            ordered.append("fetch-retry")
+        for p in enabled_plugins:
+            if p != "fetch-retry":
+                ordered.append(p)
+
+        plugins_config = {"plugins": ordered}
+        (plugins_dst / "plugins.json").write_text(
+            json.dumps(plugins_config, indent=2)
+        )
 
     def _copy_docs(self, output_dir: Path) -> list[str]:
         """Copy markdown docs to output directory for content loading."""
