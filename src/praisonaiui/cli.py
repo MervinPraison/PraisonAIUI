@@ -1738,6 +1738,24 @@ def features_list(server: str = _SERVER_OPT) -> None:
         raise typer.Exit(code=1)
 
 
+@features_app.command("status")
+def features_status(server: str = _SERVER_OPT) -> None:
+    """Show feature health summary."""
+    try:
+        data = _api_get(server, "/api/features")
+        features = data.get("features", [])
+        ok = sum(1 for f in features if f.get("health", {}).get("status") == "ok")
+        console.print(f"Features: {ok}/{len(features)} healthy")
+        for f in features:
+            h = f.get("health", {})
+            status = h.get("status", "?")
+            color = "green" if status == "ok" else "red"
+            console.print(f"  [{color}]●[/{color}] {f['name']}: {status}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
 # ── Approvals ────────────────────────────────────────────────────────
 approval_app = typer.Typer(name="approval", help="Manage tool-execution approvals", add_completion=False)
 app.add_typer(approval_app, name="approval")
