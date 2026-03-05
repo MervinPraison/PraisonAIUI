@@ -3,6 +3,7 @@
     "fetch-retry",
     "mermaid",
     "mkdocs-compat",
-    "homepage"
+    "homepage",
+    "toc"
   ]
 }
