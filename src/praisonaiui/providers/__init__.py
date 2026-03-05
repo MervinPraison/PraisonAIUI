@@ -337,14 +337,13 @@ class PraisonAIProvider(BaseProvider):
         try:
             from praisonaiagents.streaming import StreamEventType as SET
 
+            _loop = asyncio.get_running_loop()
+
             def _on_stream_event(stream_event):
-                """Sync callback from StreamEventEmitter → queue."""
+                """Sync callback from StreamEventEmitter → queue (thread-safe)."""
                 run_evt = _stream_event_to_run_event(stream_event)
                 if run_evt:
-                    try:
-                        event_queue.put_nowait(run_evt)
-                    except Exception:
-                        pass
+                    _loop.call_soon_threadsafe(event_queue.put_nowait, run_evt)
 
             emitter = agent.stream_emitter
             emitter.add_callback(_on_stream_event)
@@ -385,25 +384,53 @@ class PraisonAIProvider(BaseProvider):
         except ImportError:
             pass
 
-        # Run the agent in a thread (agent.chat is synchronous)
+        # Run agent.chat in a background thread while draining the
+        # event queue concurrently so tokens stream in real-time.
         full_response = ""
-        try:
-            response = await asyncio.to_thread(agent.chat, message)
-            full_response = str(response)
-        except Exception as exc:
-            yield RunEvent(type=RunEventType.RUN_ERROR, error=str(exc))
-            return
+        _chat_error = None
+        _streamed_tokens = 0
 
-        # Drain any remaining queued streaming events
+        async def _run_chat():
+            nonlocal full_response, _chat_error
+            try:
+                response = await asyncio.to_thread(agent.chat, message, stream=True)
+                full_response = str(response)
+            except Exception as exc:
+                _chat_error = exc
+            finally:
+                # Sentinel to tell the drain loop the chat is done
+                await event_queue.put(None)
+
+        chat_task = asyncio.create_task(_run_chat())
+
+        # Drain tokens as they arrive from the streaming callback
+        while True:
+            try:
+                run_evt = await asyncio.wait_for(event_queue.get(), timeout=120.0)
+            except asyncio.TimeoutError:
+                break
+            if run_evt is None:  # Sentinel — chat finished
+                break
+            _streamed_tokens += 1
+            yield run_evt
+
+        # Drain any remaining events that arrived after sentinel
         while not event_queue.empty():
             try:
                 run_evt = event_queue.get_nowait()
-                yield run_evt
+                if run_evt is not None:
+                    yield run_evt
             except asyncio.QueueEmpty:
                 break
 
+        await chat_task
+
+        if _chat_error:
+            yield RunEvent(type=RunEventType.RUN_ERROR, error=str(_chat_error))
+            return
+
         # If no streaming events were captured, emit the full response
-        if event_queue.empty() and not _has_streaming:
+        if _streamed_tokens == 0:
             yield RunEvent(type=RunEventType.RUN_CONTENT, content=full_response)
 
         # Emit metrics if available

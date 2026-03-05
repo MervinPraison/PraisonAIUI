@@ -1095,15 +1095,75 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
             _agent_cache["agent"] = Agent(**agent_kwargs)
         return _agent_cache["agent"]
 
-    # ── Reply callback ───────────────────────────────────────────────
     async def on_reply(msg):
         from praisonaiui.callbacks import _set_context
         _set_context(msg)
         try:
             await aiui.think("Thinking...")
             agent = _get_agent()
-            response = await asyncio.to_thread(agent.chat, str(msg))
-            await aiui.say(str(response))
+
+            # Stream tokens via stream_emitter → aiui.stream_token()
+            token_queue = asyncio.Queue()
+            _has_streaming = False
+
+            try:
+                from praisonaiagents.streaming.events import StreamEventType
+
+                _loop = asyncio.get_running_loop()
+
+                def _on_stream_event(event):
+                    if event.type == StreamEventType.DELTA_TEXT and event.content:
+                        _loop.call_soon_threadsafe(token_queue.put_nowait, event.content)
+                    elif event.type == StreamEventType.FIRST_TOKEN and event.content:
+                        _loop.call_soon_threadsafe(token_queue.put_nowait, event.content)
+                    elif event.type == StreamEventType.STREAM_END:
+                        _loop.call_soon_threadsafe(token_queue.put_nowait, None)
+
+                agent.stream_emitter.add_callback(_on_stream_event)
+                _has_streaming = True
+            except (ImportError, AttributeError):
+                pass
+
+            if _has_streaming:
+                # Run chat in thread, drain tokens concurrently
+                full_response = ""
+                _chat_error = None
+
+                async def _run_chat():
+                    nonlocal full_response, _chat_error
+                    try:
+                        response = await asyncio.to_thread(agent.chat, str(msg), stream=True)
+                        full_response = str(response)
+                    except Exception as exc:
+                        _chat_error = exc
+                    finally:
+                        await token_queue.put(None)
+
+                chat_task = asyncio.create_task(_run_chat())
+
+                while True:
+                    try:
+                        token = await asyncio.wait_for(token_queue.get(), timeout=120.0)
+                    except asyncio.TimeoutError:
+                        break
+                    if token is None:
+                        break
+                    await aiui.stream_token(token)
+
+                await chat_task
+
+                if _chat_error:
+                    await aiui.say(f"Error: {_chat_error}")
+
+                # Clean up callback
+                try:
+                    agent.stream_emitter.remove_callback(_on_stream_event)
+                except Exception:
+                    pass
+            else:
+                # Fallback: non-streaming
+                response = await asyncio.to_thread(agent.chat, str(msg))
+                await aiui.say(str(response))
         finally:
             _set_context(None)
 
