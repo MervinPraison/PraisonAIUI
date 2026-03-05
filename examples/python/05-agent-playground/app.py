@@ -5,14 +5,15 @@ What's New (vs chat-with-ai/):
     • Profile-based agent switching via @profiles
     • Per-session, per-agent conversation context
     • register_agent() for dashboard visibility
-    • --style agents activates tabbed AgentUILayout (sidebar with Agents/History tabs)
+    • Style auto-detected as 'agents' from @profiles + register_agent()
 
 Requires: pip install openai
 Set OPENAI_API_KEY before running.
 
 Run:
-    aiui run app.py --style agents
-    aiui run app.py --style agents --datastore json
+    aiui run app.py                    # auto-detects --style agents
+    aiui run app.py --style agents     # explicit (same result)
+    aiui run app.py --datastore json   # with persistence
 """
 
 import os

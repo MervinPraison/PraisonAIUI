@@ -1295,6 +1295,20 @@ def run(
         from praisonaiui.server import _callbacks
         is_chat_mode = "reply" in _callbacks or "on:reply" in _callbacks
 
+    # ── Resolve final style ──────────────────────────────────────
+    # Priority: CLI explicit --style > aiui.set_style() > auto-detect
+    # Only auto-detect when CLI used the default value ("chat")
+    from praisonaiui.server import get_style, detect_style
+    if style == "chat":
+        explicit = get_style()
+        if explicit:
+            style = explicit
+        else:
+            detected = detect_style()
+            if detected != "chat":
+                console.print(f"[cyan]ℹ️[/cyan] Auto-detected style: [bold]{detected}[/bold]")
+            style = detected
+
     # Build static files only if --config was explicitly provided
     if config is not None and config.exists():
         console.print("[yellow]⏳[/yellow] Building static files...")

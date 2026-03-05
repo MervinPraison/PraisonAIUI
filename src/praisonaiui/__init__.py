@@ -25,7 +25,7 @@ def __getattr__(name: str):
     }
     _message_attrs = {"Message", "AskUserMessage", "Step"}
     _server_attrs = {"register_agent", "register_page", "set_datastore", "get_datastore",
-                      "set_provider", "get_provider"}
+                      "set_provider", "get_provider", "set_style"}
     _datastore_attrs = {"BaseDataStore", "MemoryDataStore", "JSONFileDataStore"}
     _provider_attrs = {"BaseProvider", "RunEvent", "RunEventType"}
     _providers_attrs = {"PraisonAIProvider"}
@@ -102,6 +102,7 @@ __all__ = [
     "get_datastore",
     "set_provider",
     "get_provider",
+    "set_style",
     # DataStore classes
     "BaseDataStore",
     "MemoryDataStore",

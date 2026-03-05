@@ -49,6 +49,43 @@ _usage_stats: dict[str, Any] = {
 # Server config path (set during create_app)
 _config_path: Optional[Path] = None
 _config_cache: Optional[dict] = None
+# Explicit style set via aiui.set_style() — None means "not set"
+_style: Optional[str] = None
+
+
+def set_style(style: str) -> None:
+    """Set the UI style from Python code (call before server starts).
+
+    Valid values: 'chat', 'agents', 'playground', 'dashboard', 'docs', 'custom'.
+    This takes priority over auto-detection but is overridden by CLI --style.
+    """
+    global _style
+    _style = style
+
+
+def get_style() -> Optional[str]:
+    """Get the explicitly set style, or None if not set."""
+    return _style
+
+
+def detect_style() -> str:
+    """Auto-detect the best UI style from registered callbacks and agents.
+
+    Detection heuristics (in priority order):
+      1. profiles callback + registered agents → 'agents'
+      2. page:* callbacks registered → 'dashboard'
+      3. reply callback → 'chat'
+      4. fallback → 'chat'
+    """
+    has_profiles = "profiles" in _callbacks
+    has_agents = bool(_agents)
+    has_pages = any(k.startswith("page:") for k in _callbacks)
+
+    if has_profiles and has_agents:
+        return "agents"
+    if has_pages:
+        return "dashboard"
+    return "chat"
 
 
 def set_datastore(store: BaseDataStore) -> None:
