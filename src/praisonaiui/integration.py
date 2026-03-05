@@ -116,7 +116,13 @@ class AIUIGateway:
         )
 
     async def start(self) -> None:
-        """Start the gateway server with static file serving."""
+        """Start the gateway server with static file serving.
+
+        Delegates to ``server.create_app()`` which provides all dashboard
+        API endpoints, CORS, auth, sessions CRUD, feature protocols, and
+        the pluggable provider system.  The gateway adds a ``/ws`` WebSocket
+        route on top and registers its agents with the server's provider.
+        """
         if self._is_running:
             logger.warning("Gateway already running")
             return
@@ -126,10 +132,7 @@ class AIUIGateway:
 
         try:
             import uvicorn
-            from starlette.applications import Starlette
-            from starlette.responses import FileResponse, JSONResponse, Response
-            from starlette.routing import Mount, Route, WebSocketRoute
-            from starlette.staticfiles import StaticFiles
+            from starlette.routing import WebSocketRoute
             from starlette.websockets import WebSocket, WebSocketDisconnect
         except ImportError:
             raise ImportError(
@@ -137,49 +140,29 @@ class AIUIGateway:
                 "Install with: pip install starlette uvicorn"
             )
 
-        # Build routes
-        routes = []
+        # ── Register gateway agents with the server's provider system ──
+        from praisonaiui.server import create_app, register_agent, set_provider
 
-        # Health endpoint
-        async def health(request):
-            return JSONResponse(self._gateway.health())
-        routes.append(Route("/health", health, methods=["GET"]))
+        # Expose gateway agents to the server registry
+        gateway_agents = []
+        for aid in self._gateway.list_agents():
+            agent = self._gateway.get_agent(aid)
+            if agent:
+                register_agent(aid, agent)
+                gateway_agents.append(agent)
 
-        # Info endpoint
-        async def info(request):
-            return JSONResponse({
-                "name": "PraisonAIUI Gateway",
-                "version": "1.0.0",
-                "agents": self._gateway.list_agents(),
-                "sessions": len(self._gateway._sessions),
-                "clients": len(self._gateway._clients),
-            })
-        routes.append(Route("/info", info, methods=["GET"]))
+        # Set up the PraisonAI provider with gateway agents
+        from praisonaiui.providers import PraisonAIProvider
+        set_provider(PraisonAIProvider(agents=gateway_agents))
 
-        # UI config endpoint
-        async def ui_config(request):
-            return JSONResponse(self._ui_config)
-        routes.append(Route("/ui-config.json", ui_config, methods=["GET"]))
+        # ── Build the app via server.create_app() ──────────────────────
+        static_path = self._static_dir if self._static_dir and self._static_dir.exists() else None
+        app = create_app(
+            config=self._ui_config or None,
+            static_dir=static_path,
+        )
 
-        # Agents list endpoint (REST API)
-        async def agents_list(request):
-            agents = []
-            for aid in self._gateway.list_agents():
-                agent = self._gateway.get_agent(aid)
-                if agent:
-                    agents.append({
-                        "id": aid,
-                        "name": getattr(agent, "name", aid),
-                        "description": getattr(agent, "instructions", "")[:100],
-                    })
-            return JSONResponse({"agents": agents})
-        routes.append(Route("/agents", agents_list, methods=["GET"]))
-
-        # WebSocket endpoint - delegate to gateway
-        async def websocket_endpoint(websocket: WebSocket):
-            await self._gateway._handle_websocket(websocket)
-
-        # Override gateway's websocket handler
+        # ── Add WebSocket route for the gateway ────────────────────────
         import uuid
 
         async def ws_handler(websocket: WebSocket):
@@ -216,37 +199,8 @@ class AIUIGateway:
                     source=client_id,
                 ))
 
-        routes.append(WebSocketRoute("/ws", ws_handler))
-
-        # Static files for React SPA
-        if self._static_dir and self._static_dir.exists():
-            # Serve index.html for SPA routes
-            async def spa_fallback(request):
-                index_path = self._static_dir / "index.html"
-                if index_path.exists():
-                    return FileResponse(index_path)
-                return Response("Not Found", status_code=404)
-
-            # Mount static assets
-            assets_dir = self._static_dir / "assets"
-            if assets_dir.exists():
-                routes.append(
-                    Mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
-                )
-
-            # Serve specific static files
-            for static_file in ["icon.svg", "favicon.ico", "manifest.json"]:
-                file_path = self._static_dir / static_file
-                if file_path.exists():
-                    async def serve_file(request, path=file_path):
-                        return FileResponse(path)
-                    routes.append(Route(f"/{static_file}", serve_file, methods=["GET"]))
-
-            # SPA fallback for all other routes
-            routes.append(Route("/{path:path}", spa_fallback, methods=["GET"]))
-            routes.append(Route("/", spa_fallback, methods=["GET"]))
-
-        app = Starlette(routes=routes)
+        # Prepend the /ws route so it takes priority over static catch-all
+        app.routes.insert(0, WebSocketRoute("/ws", ws_handler))
 
         config = uvicorn.Config(
             app,

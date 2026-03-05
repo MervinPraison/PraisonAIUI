@@ -282,12 +282,18 @@ async def api_overview(request: Request) -> JSONResponse:
         profiles = result if isinstance(result, list) else []
     provider = get_provider()
     provider_name = type(provider).__name__
+    # Fetch provider health data for richer dashboard info
+    try:
+        provider_health = await provider.health()
+    except Exception:
+        provider_health = {"status": "unknown"}
     return JSONResponse({
         "status": "ok",
         "version": _get_version(),
         "uptime_seconds": round(time.time() - _server_start_time, 1),
         "python_version": sys.version,
         "provider": provider_name,
+        "provider_health": provider_health,
         "stats": {
             "total_sessions": len(sessions),
             "active_tasks": len(_active_tasks),
