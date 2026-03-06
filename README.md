@@ -23,7 +23,7 @@ We integrate best-in-class libraries instead of reinventing them:
 ## Quick Start
 
 ```bash
-pip install praisonaiui
+pip install aiui
 aiui init
 aiui build
 aiui serve
