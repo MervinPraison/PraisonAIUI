@@ -12,18 +12,20 @@ graph TD
     C --> E["CLI commands registered"]
     C --> F["Health checks wired"]
     
-    subgraph "8 Built-in Features"
+    subgraph "10 Built-in Features"
         F1["Approvals"]
-        F2["Schedules"]
-        F3["Memory"]
-        F4["Sessions Ext"]
-        F5["Skills"]
-        F6["Hooks"]
-        F7["Workflows"]
-        F8["Config Runtime"]
+        F2["Channels"]
+        F3["Schedules"]
+        F4["Memory"]
+        F5["Nodes"]
+        F6["Sessions Ext"]
+        F7["Skills"]
+        F8["Hooks"]
+        F9["Workflows"]
+        F10["Config Runtime"]
     end
     
-    C --> F1 & F2 & F3 & F4 & F5 & F6 & F7 & F8
+    C --> F1 & F2 & F3 & F4 & F5 & F6 & F7 & F8 & F9 & F10
 ```
 
 ## Quick Start
@@ -103,7 +105,7 @@ from praisonaiui.features import (
     register_feature,        # Register a feature instance
     get_features,            # Get all registered features (dict)
     get_feature,             # Get a single feature by name
-    auto_register_defaults,  # Register all 8 built-in features
+    auto_register_defaults,  # Register all 10 built-in features
 )
 ```
 
@@ -123,7 +125,24 @@ Manage tool-execution approval requests.
 
 **CLI:** `aiui approval list`, `aiui approval pending`, `aiui approval resolve <id>`
 
-### 2. Schedules
+### 2. Channels
+
+Multi-platform messaging channel management (Discord, Slack, Telegram, WhatsApp, etc.).
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/channels` | GET | List all channels (enriched with gateway status) |
+| `/api/channels` | POST | Add a channel |
+| `/api/channels/platforms` | GET | List supported platforms |
+| `/api/channels/{id}` | GET | Get channel details |
+| `/api/channels/{id}` | PUT | Update channel |
+| `/api/channels/{id}` | DELETE | Remove channel |
+| `/api/channels/{id}/toggle` | POST | Enable/disable |
+| `/api/channels/{id}/status` | GET | Live status (gateway-enriched) |
+
+**CLI:** `aiui channel list`, `aiui channel status`, `aiui channel platforms`
+
+### 3. Schedules
 
 Manage scheduled jobs (cron, interval, one-shot).
 
@@ -138,7 +157,7 @@ Manage scheduled jobs (cron, interval, one-shot).
 
 **CLI:** `aiui schedule list`, `aiui schedule add <name> <msg>`, `aiui schedule remove <id>`, `aiui schedule status`
 
-### 3. Memory
+### 4. Memory
 
 Agent memory management (short-term, long-term, entity).
 
@@ -153,7 +172,25 @@ Agent memory management (short-term, long-term, entity).
 
 **CLI:** `aiui memory list`, `aiui memory add <text>`, `aiui memory search <query>`, `aiui memory clear`, `aiui memory status`
 
-### 4. Extended Sessions
+### 5. Nodes
+
+Execution node registration, agent bindings, and instance presence.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/nodes` | GET | List all nodes |
+| `/api/nodes` | POST | Register a node |
+| `/api/nodes/{id}` | GET | Get node details |
+| `/api/nodes/{id}` | PUT | Update node |
+| `/api/nodes/{id}` | DELETE | Remove node |
+| `/api/nodes/{id}/status` | GET | Node status (gateway-enriched) |
+| `/api/nodes/{id}/agents` | GET/PUT | Get/set agent bindings |
+| `/api/instances` | GET | List connected instances |
+| `/api/instances/heartbeat` | POST | Record presence heartbeat |
+
+**CLI:** `aiui node list`, `aiui node status`, `aiui node instances`
+
+### 6. Extended Sessions
 
 Advanced session management (state, context, labels, usage).
 
@@ -167,7 +204,7 @@ Advanced session management (state, context, labels, usage).
 | `/api/sessions/{id}/labels` | GET/POST | Get/set labels |
 | `/api/sessions/{id}/usage` | GET | Get usage stats |
 
-### 5. Skills
+### 7. Skills
 
 Agent skill registration and discovery.
 
@@ -182,7 +219,7 @@ Agent skill registration and discovery.
 
 **CLI:** `aiui skills list`, `aiui skills status`, `aiui skills discover`
 
-### 6. Hooks
+### 8. Hooks
 
 Pre/post operation hooks for tool calls, agent runs, etc.
 
@@ -197,7 +234,7 @@ Pre/post operation hooks for tool calls, agent runs, etc.
 
 **CLI:** `aiui hooks list`, `aiui hooks trigger <id>`, `aiui hooks log`
 
-### 7. Workflows
+### 9. Workflows
 
 Multi-step workflow orchestration (Pipeline, Route, Parallel, Loop).
 
@@ -214,7 +251,7 @@ Multi-step workflow orchestration (Pipeline, Route, Parallel, Loop).
 
 **CLI:** `aiui workflows list`, `aiui workflows run <id>`, `aiui workflows status`, `aiui workflows runs`
 
-### 8. Config Runtime
+### 10. Config Runtime
 
 Live runtime configuration without server restart.
 
