@@ -35,12 +35,16 @@ def auto_register_defaults() -> None:
     Called once by ``create_app()`` — safe to call multiple times
     (idempotent: skips already-registered features).
     """
+    from .agents import PraisonAIAgentsFeature
     from .approvals import PraisonAIApprovals
     from .channels import PraisonAIChannels
+    from .openai_api import PraisonAIOpenAIAPI
     from .config_runtime import PraisonAIConfigRuntime
     from .hooks import PraisonAIHooks
     from .jobs import PraisonAIJobs
+    from .logs import PraisonAILogs
     from .memory import PraisonAIMemory
+    from .usage import PraisonAIUsage
     from .nodes import PraisonAINodes
     from .schedules import PraisonAISchedules
     from .sessions_ext import PraisonAISessions
@@ -48,9 +52,12 @@ def auto_register_defaults() -> None:
     from .workflows import PraisonAIWorkflows
 
     for cls in (
+        PraisonAIAgentsFeature,
         PraisonAIApprovals,
         PraisonAIChannels,
         PraisonAIJobs,
+        PraisonAILogs,
+        PraisonAIOpenAIAPI,
         PraisonAISchedules,
         PraisonAIMemory,
         PraisonAINodes,
@@ -59,6 +66,7 @@ def auto_register_defaults() -> None:
         PraisonAIHooks,
         PraisonAIWorkflows,
         PraisonAIConfigRuntime,
+        PraisonAIUsage,
     ):
         if cls.feature_name not in _features:
             register_feature(cls())

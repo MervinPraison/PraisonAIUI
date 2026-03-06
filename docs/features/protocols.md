@@ -12,7 +12,7 @@ graph TD
     C --> E["CLI commands registered"]
     C --> F["Health checks wired"]
     
-    subgraph "10 Built-in Features"
+    subgraph "15 Built-in Features"
         F1["Approvals"]
         F2["Channels"]
         F3["Schedules"]
@@ -23,9 +23,14 @@ graph TD
         F8["Hooks"]
         F9["Workflows"]
         F10["Config Runtime"]
+        F11["Jobs"]
+        F12["Usage"]
+        F13["Agents"]
+        F14["OpenAI API"]
+        F15["Logs"]
     end
     
-    C --> F1 & F2 & F3 & F4 & F5 & F6 & F7 & F8 & F9 & F10
+    C --> F1 & F2 & F3 & F4 & F5 & F6 & F7 & F8 & F9 & F10 & F11 & F12 & F13 & F14 & F15
 ```
 
 ## Quick Start
@@ -113,17 +118,22 @@ from praisonaiui.features import (
 
 ### 1. Approvals
 
-Manage tool-execution approval requests.
+Tool-execution approval management with policies, history, and SSE streaming.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/approvals` | GET | List approvals (filter: `?status=pending\|resolved\|all`) |
+| `/api/approvals` | GET | List all approvals |
 | `/api/approvals` | POST | Create approval request |
+| `/api/approvals/pending` | GET | List pending approvals |
+| `/api/approvals/history` | GET | List resolved approvals |
+| `/api/approvals/policies` | GET | Get auto-approve/deny policies |
+| `/api/approvals/policies` | PUT | Update policies |
+| `/api/approvals/stream` | GET | SSE stream for real-time updates |
 | `/api/approvals/{id}` | GET | Get single approval |
-| `/api/approvals/{id}/resolve` | POST | Approve/deny |
-| `/api/approvals/config` | GET | Get approval config |
+| `/api/approvals/{id}/approve` | POST | Approve request |
+| `/api/approvals/{id}/deny` | POST | Deny request |
 
-**CLI:** `aiui approval list`, `aiui approval pending`, `aiui approval resolve <id>`
+**CLI:** `aiui approval list`, `aiui approval pending`
 
 ### 2. Channels
 
@@ -152,9 +162,12 @@ Manage scheduled jobs (cron, interval, one-shot).
 | `/api/schedules` | GET | List all jobs |
 | `/api/schedules` | POST | Add a job |
 | `/api/schedules/{id}` | GET | Get job details |
+| `/api/schedules/{id}` | PUT | Update schedule config |
 | `/api/schedules/{id}` | DELETE | Remove job |
 | `/api/schedules/{id}/toggle` | POST | Enable/disable |
 | `/api/schedules/{id}/run` | POST | Trigger immediately |
+| `/api/schedules/{id}/stop` | POST | Stop running schedule |
+| `/api/schedules/{id}/stats` | GET | Get execution statistics |
 
 **CLI:** `aiui schedule list`, `aiui schedule add <name> <msg>`, `aiui schedule remove <id>`, `aiui schedule status`
 
@@ -211,14 +224,16 @@ Agent skill registration and discovery.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/skills` | GET | List skills |
-| `/api/skills` | POST | Register skill |
-| `/api/skills/discover` | POST | Discover available skills |
-| `/api/skills/{id}` | GET | Get skill details |
-| `/api/skills/{id}/status` | GET | Get skill status |
-| `/api/skills/{id}` | DELETE | Remove skill |
+| `/api/skills` | GET | List all tools (filter: `?category=`, `?enabled=`, `?search=`) |
+| `/api/skills` | POST | Register custom skill |
+| `/api/skills/categories` | GET | List tool categories |
+| `/api/skills/{id}` | GET | Get tool details |
+| `/api/skills/{id}` | PUT | Update custom skill |
+| `/api/skills/{id}` | DELETE | Remove custom skill |
+| `/api/skills/{id}/toggle` | POST | Toggle enabled/disabled |
+| `/api/skills/{id}/config` | PUT | Set tool configuration/API keys |
 
-**CLI:** `aiui skills list`, `aiui skills status`, `aiui skills discover`
+**CLI:** `aiui skills list`, `aiui skills status`
 
 ### 8. Hooks
 
@@ -267,6 +282,91 @@ Live runtime configuration without server restart.
 | `/api/config/runtime/{key}` | DELETE | Delete key |
 
 **CLI:** `aiui config get [key]`, `aiui config set <key> <value>`, `aiui config list`, `aiui config history`
+
+### 11. Jobs
+
+Async job submission and monitoring with real-time SSE streaming.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/jobs` | GET | List jobs (filter: `?status=`, `?limit=`, `?offset=`) |
+| `/api/jobs` | POST | Submit job (returns 202) |
+| `/api/jobs/stats` | GET | Executor statistics |
+| `/api/jobs/{id}` | GET | Get job details |
+| `/api/jobs/{id}` | DELETE | Delete completed job |
+| `/api/jobs/{id}/status` | GET | Get status + progress |
+| `/api/jobs/{id}/result` | GET | Get result (409 if not complete) |
+| `/api/jobs/{id}/cancel` | POST | Cancel running job |
+| `/api/jobs/{id}/stream` | GET | SSE stream (status/progress/result/error events) |
+
+**CLI:** `aiui job list`, `aiui job status [id]`, `aiui job stats`
+
+### 12. Usage
+
+Usage analytics with per-model cost tracking, time-series data, and breakdowns.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/usage` | GET | Summary (totals, averages) |
+| `/api/usage/details` | GET | Detailed usage records |
+| `/api/usage/models` | GET | Per-model breakdown |
+| `/api/usage/sessions` | GET | Per-session breakdown |
+| `/api/usage/agents` | GET | Per-agent breakdown |
+| `/api/usage/timeseries` | GET | Time-series data for charts |
+| `/api/usage/costs` | GET | Cost table (21 models) |
+| `/api/usage/track` | POST | Track usage event |
+
+**CLI:** `aiui usage summary`, `aiui usage models`, `aiui usage cost`
+
+### 13. Agents
+
+Agent definition CRUD with model selection, system prompts, and duplication.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/agents/definitions` | GET | List all agent definitions |
+| `/api/agents/definitions` | POST | Create new agent |
+| `/api/agents/definitions/{id}` | GET | Get agent details |
+| `/api/agents/definitions/{id}` | PUT | Update agent |
+| `/api/agents/definitions/{id}` | DELETE | Delete agent |
+| `/api/agents/models` | GET | List available models (13 models) |
+| `/api/agents/duplicate/{id}` | POST | Duplicate an agent |
+
+**CLI:** `aiui agents list`, `aiui agents create`
+
+### 14. OpenAI API
+
+OpenAI-compatible `/v1/*` API routes wrapping `praisonai.capabilities`.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1` | GET | API info / endpoint list |
+| `/v1/chat/completions` | POST | Chat completions |
+| `/v1/completions` | POST | Legacy text completions |
+| `/v1/embeddings` | POST | Create embeddings |
+| `/v1/images/generations` | POST | Generate images |
+| `/v1/audio/transcriptions` | POST | Transcribe audio |
+| `/v1/audio/speech` | POST | Text to speech |
+| `/v1/moderations` | POST | Content moderation |
+| `/v1/models` | GET | List available models |
+| `/v1/models/{id}` | GET | Get model info |
+| `/v1/responses` | POST | OpenAI Responses API |
+| `/v1/files` | GET/POST | File management |
+| `/v1/files/{id}` | GET/DELETE | File operations |
+| `/v1/assistants` | GET/POST | Assistants API |
+
+### 15. Logs
+
+Real-time log streaming via WebSocket with level filtering.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/logs/stream` | WS | WebSocket for real-time log streaming |
+| `/api/logs/levels` | GET | Available log levels with colors |
+| `/api/logs/stats` | GET | Log buffer statistics |
+| `/api/logs/clear` | POST | Clear log buffer |
+
+**CLI:** `aiui logs tail`, `aiui logs clear`
 
 ## Route Ordering
 

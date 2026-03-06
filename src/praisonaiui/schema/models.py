@@ -35,6 +35,7 @@ class SiteConfig(BaseModel):
             "fetch-retry",
             "mermaid",
             "mkdocs-compat",
+            "content-loader",
             "homepage",
             "toc",
             "topnav",

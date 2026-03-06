@@ -41,6 +41,7 @@ class PraisonAISessions(BaseFeatureProtocol):
             Route("/api/sessions/{session_id}/context", self._build_context, methods=["POST"]),
             Route("/api/sessions/{session_id}/compact", self._compact, methods=["POST"]),
             Route("/api/sessions/{session_id}/reset", self._reset, methods=["POST"]),
+            Route("/api/sessions/{session_id}/preview", self._preview, methods=["GET"]),
             Route("/api/sessions/{session_id}/labels", self._labels, methods=["GET"]),
             Route("/api/sessions/{session_id}/labels", self._set_labels, methods=["POST"]),
             Route("/api/sessions/{session_id}/usage", self._usage, methods=["GET"]),
@@ -166,12 +167,58 @@ class PraisonAISessions(BaseFeatureProtocol):
         })
 
     async def _compact(self, request: Request) -> JSONResponse:
+        """POST /api/sessions/{id}/compact — Summarize old messages to reduce context."""
         sid = request.path_params["session_id"]
-        # Compaction: summarise session context
+        context = _session_contexts.get(sid, [])
+        before_count = len(context)
+        before_tokens = sum(len(m.get("text", "").split()) * 1.3 for m in context)
+        
+        # Compact: keep last 5 messages, summarize the rest
+        if len(context) > 5:
+            old_messages = context[:-5]
+            summary_text = f"[Summary of {len(old_messages)} previous messages]"
+            _session_contexts[sid] = [{"text": summary_text, "role": "system"}] + context[-5:]
+        
+        after_count = len(_session_contexts.get(sid, []))
+        after_tokens = sum(len(m.get("text", "").split()) * 1.3 for m in _session_contexts.get(sid, []))
+        
         return JSONResponse({
             "session_id": sid,
             "compacted": True,
+            "before": {"messages": before_count, "estimated_tokens": int(before_tokens)},
+            "after": {"messages": after_count, "estimated_tokens": int(after_tokens)},
+            "saved_tokens": int(before_tokens - after_tokens),
             "timestamp": time.time(),
+        })
+
+    async def _preview(self, request: Request) -> JSONResponse:
+        """GET /api/sessions/{id}/preview — Return formatted preview without full history."""
+        sid = request.path_params["session_id"]
+        state = _session_states.get(sid, {})
+        context = _session_contexts.get(sid, [])
+        
+        # Get first and last messages
+        first_message = context[0] if context else None
+        last_message = context[-1] if context else None
+        
+        # Estimate tokens
+        total_tokens = sum(len(m.get("text", "").split()) * 1.3 for m in context)
+        
+        return JSONResponse({
+            "session_id": sid,
+            "total_messages": len(context),
+            "estimated_tokens": int(total_tokens),
+            "first_message": {
+                "role": first_message.get("role", "unknown"),
+                "preview": first_message.get("text", "")[:100] + "..." if first_message else None,
+            } if first_message else None,
+            "last_message": {
+                "role": last_message.get("role", "unknown"),
+                "preview": last_message.get("text", "")[:100] + "..." if last_message else None,
+            } if last_message else None,
+            "labels": state.get("_labels", []),
+            "created_at": state.get("_created_at"),
+            "updated_at": state.get("_updated_at"),
         })
 
     async def _reset(self, request: Request) -> JSONResponse:

@@ -7,6 +7,14 @@
     "toc",
     "channels",
     "schedules",
-    "jobs"
+    "jobs",
+    "usage",
+    "skills",
+    "agents",
+    "approvals",
+    "api",
+    "logs",
+    "config",
+    "sessions"
   ]
 }

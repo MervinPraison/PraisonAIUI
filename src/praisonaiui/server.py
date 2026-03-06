@@ -891,7 +891,7 @@ def create_app(
         Route("/api/overview", api_overview, methods=["GET"]),
         Route("/api/config", api_config_handler, methods=["GET", "PUT"]),
         Route("/api/logs", api_logs, methods=["GET"]),
-        Route("/api/usage", api_usage, methods=["GET"]),
+        # Note: /api/usage is now provided by PraisonAIUsage feature
         Route("/api/debug", api_debug, methods=["GET"]),
         Route("/api/provider", api_provider, methods=["GET"]),
         # Page registry protocol
@@ -922,6 +922,10 @@ def create_app(
          "description": "Scheduled jobs", "order": 35},
         {"id": "jobs", "title": "Jobs", "icon": "📋", "group": "Control",
          "description": "Async agent jobs", "order": 40},
+        {"id": "approvals", "title": "Approvals", "icon": "✅", "group": "Control",
+         "description": "Execution approval queue", "order": 45},
+        {"id": "api", "title": "API", "icon": "🔌", "group": "Control",
+         "description": "OpenAI-compatible API endpoints", "order": 50},
         {"id": "agents", "title": "Agents", "icon": "🤖", "group": "Agent",
          "description": "Configured AI agents", "order": 10},
         {"id": "skills", "title": "Skills", "icon": "⚡", "group": "Agent",
