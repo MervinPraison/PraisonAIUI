@@ -181,11 +181,12 @@ function injectStyles() {
       ry: 8;
     }
 
-    /* ===== Page title fix ===== */
-    /* The h1 title uses a gradient/opacity that's nearly invisible in dark mode */
-    article.prose h1,
-    main h1,
-    .prose h1 {
+    /* ===== Heading visibility fix ===== */
+    /* Headings use gradient/opacity that's nearly invisible in dark mode */
+    article.prose h1, article.prose h2, article.prose h3,
+    article.prose h4, article.prose h5, article.prose h6,
+    main h1, main h2, main h3, main h4, main h5, main h6,
+    .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
       color: #f1f5f9 !important;
       opacity: 1 !important;
       -webkit-text-fill-color: #f1f5f9 !important;
