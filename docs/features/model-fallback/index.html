@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Model Fallback - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Model Fallback | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/model-fallback" />
+  <meta property="og:title" content="Model Fallback | PraisonAIUI Docs" />
+  <meta property="og:description" content="Model Fallback - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/model-fallback" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Model Fallback | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Model Fallback - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Model Fallback</h1>
+<p>Configure **model fallback chains** for high availability — if the primary LLM fails, automatically try the next model in the chain.</p>
+<p>![Model Fallback Configuration](../images/model-fallback.png)</p>
+<h2>Quick Start</h2>
+<h2>How It Works</h2>
+<p>When a request is sent:</p>
+<p>1. Try the **primary model** first</p>
+<p>2. If it fails (rate limit, timeout, error), try **fallback 1**</p>
+<p>3. Continue down the chain until a model responds</p>
+<p>4. If all models fail, return an error</p>
+<h2>Model Discovery</h2>
+<p>The `ModelFallbackManager` tries to discover models automatically:</p>
+<p>1. **LiteLLM** — If installed, reads `litellm.model_list` for configured models</p>
+<p>2. **Static catalog** — Falls back to common models (gpt-4o, gpt-4o-mini, claude-3-5-sonnet, gemini-2.0-flash)</p>
+<h2>Configuration</h2>
+<h2>REST API</h2>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/models` | GET | List available models + current fallback chain |</p>
+<p>| `/api/models/fallback` | PUT | Set the fallback chain |</p>
+<h3>List Models</h3>
+<h2>Related</h2>
+<li>[Gateway Chat](gateway-chat.md) — Chat uses models via fallback chain</li>
+<li>[Providers](../concepts/providers.md) — LLM provider configuration</li></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

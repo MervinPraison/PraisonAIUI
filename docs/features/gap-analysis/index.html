@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Gap Analysis — Validated Against praisonai SDK - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Gap Analysis — Validated Against praisonai SDK | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/gap-analysis" />
+  <meta property="og:title" content="Gap Analysis — Validated Against praisonai SDK | PraisonAIUI Docs" />
+  <meta property="og:description" content="Gap Analysis — Validated Against praisonai SDK - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/gap-analysis" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Gap Analysis — Validated Against praisonai SDK | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Gap Analysis — Validated Against praisonai SDK - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Gap Analysis — Validated Against praisonai SDK</h1>
+<p>> **Last validated**: 2026-03-06 — Cross-referenced against both `praisonaiui` and `praisonai` SDK codebases</p>
+<h2>Executive Summary</h2>
+<p>After thorough validation against the **praisonai SDK** codebase, most originally-reported gaps are **either already implemented in the SDK or are UI-only concerns**. The SDK has comprehensive memory (1,874 lines), all major chat bots (Discord, Telegram, Slack, WhatsApp), and full media understanding (VisionAgent, OCRAgent).</p>
+<p>---</p>
+<h2>Status Overview</h2>
+<p>| Gap | Feature | Original Status | **Validated Status** | SDK Work Needed? |</p>
+<p>|-----|---------|----------------|---------------------|-----------------|</p>
+<p>| 9 | OpenAI Responses API | ✅ Exists | ✅ Exists in praisonaiui | ❌ No |</p>
+<p>| 11 | Memory/Knowledge Search | 🟡 Partial | ✅ **Fully implemented in SDK** | ❌ No (UI wiring only) |</p>
+<p>| 12 | Additional Channels | 🟡 Partial | ✅ **Slack + WhatsApp exist in SDK** | ❌ No |</p>
+<p>| 13 | Plugin Marketplace UI | 🔴 Missing | 🔴 Missing (UI-only) | ❌ No |</p>
+<p>| 16 | Code Execution View | 🟡 Partial | 🟡 UI-only | ❌ No |</p>
+<p>| 18 | i18n Framework | 🔴 Missing | 🔴 Missing (UI-only) | ❌ No |</p>
+<p>| 20 | PWA / Mobile | 🔴 Missing | 🔴 Missing (UI-only) | ❌ No |</p>
+<p>| 21 | TTS Integration | 🔴 Missing | 🟡 **Mostly exists** | 🟡 Minor (`tts_tool`) |</p>
+<p>| 23 | Media Understanding | 🔴 Missing | ✅ **VisionAgent + OCRAgent exist** | ❌ No |</p>
+<p>| 24 | Device Pairing | 🔴 Missing | 🔴 Missing (UI-only) | ❌ No |</p>
+<p>---</p>
+<h2>Gap 9: OpenAI Responses API — ✅ NOT A GAP</h2>
+<p>Already exists in `praisonaiui/features/openai_api.py` (606 lines, 17 routes including `/v1/responses`). No SDK work needed.</p>
+<p>---</p>
+<h2>Gap 11: Memory/Knowledge Search — ✅ NOT A REAL GAP</h2>
+<h3>What Actually Exists in praisonai SDK</h3>
+<p>| Component | File | Lines | Status |</p>
+<p>|-----------|------|-------|--------|</p>
+<p>| `Memory` class | `praisonaiagents/memory/memory.py` | **1,874** | ✅ Complete |</p>
+<p>| `FileMemory` | `praisonaiagents/memory/file_memory.py` | **1,619** | ✅ Zero-dependency |</p>
+<p>| Short/Long-term memory | `store_short_term()`, `store_long_term()`, `search_*()` | — | ✅ |</p>
+<p>| Entity memory | `store_entity()`, `get_entity()` | — | ✅ |</p>
+<p>| ChromaDB vector search | `_init_chroma()`, embedding-based search | — | ✅ |</p>
+<p>| MongoDB support | `_init_mongodb()`, Atlas Vector Search | — | ✅ |</p>
+<p>| Mem0 integration | `_init_mem0()`, graph memory | — | ✅ |</p>
+<p>| Agent integration | `Agent._init_memory()`, `get_memory_context()` | — | ✅ |</p>
+<p>| Quality scoring | `compute_quality_score()`, `search_with_quality()` | — | ✅ |</p>
+<p>| Auto-promote | `FileMemory.config["auto_promote"]` | — | ✅ |</p>
+<p>> [!IMPORTANT]</p>
+<p>> The "Chat → Memory bridge" already exists: `Agent.get_memory_context(query)` injects memory into prompts automatically. The "auto-save" already exists: `FileMemory.config["auto_promote"]` promotes important short-term to long-term.</p>
+<h3>What's Left (UI-only)</h3>
+<li>Memory sidebar component in `chat.js` to display relevant memories</li>
+<li>Wire praisonaiui's `memory.py` to use the SDK's `Memory` class instead of the in-memory dict</li>
+<p>---</p>
+<h2>Gap 12: Additional Channels — ✅ MOSTLY NOT A GAP</h2>
+<h3>What Actually Exists in praisonai SDK</h3>
+<p>| Bot | File | Lines | Status |</p>
+<p>|-----|------|-------|--------|</p>
+<p>| `DiscordBot` | `praisonai/bots/discord.py` | **487** | ✅ Complete |</p>
+<p>| `TelegramBot` | `praisonai/bots/telegram.py` | **710** | ✅ Complete |</p>
+<p>| `SlackBot` | `praisonai/bots/slack.py` | **593** | ✅ **Already implemented** |</p>
+<p>| `WhatsAppBot` | `praisonai/bots/whatsapp.py` | **959** | ✅ **Already implemented** (Cloud API + Web mode) |</p>
+<p>All four major bots include: full message handling, session management, STT/audio support, rate limiting, and resilience (reconnection, backoff).</p>
+<h3>What's Left (Low Value)</h3>
+<p>| Channel | Difficulty | Value | Recommendation |</p>
+<p>|---------|-----------|-------|----------------|</p>
+<p>| Google Chat | Medium | Low (niche enterprise) | Defer |</p>
+<p>| Signal | High (signal-cli) | Low | Defer |</p>
+<p>| Nostr | Medium | Very Low | Defer |</p>
+<p>| iMessage | High (macOS-only, AppleScript) | Low | Defer |</p>
+<h3>What's Left (UI-only)</h3>
+<li>Wire praisonaiui's `channels.py` to launch actual SDK bots instead of config-only management</li>
+<p>---</p>
+<h2>Gap 13: Plugin Marketplace UI — 🔴 UI-ONLY</h2>
+<p>The SDK already has `praisonaiagents/plugins/` with plugin manager, hook-based architecture, and tool registration. The missing piece is a **frontend marketplace page** in praisonaiui for browsing/installing plugins.</p>
+<h3>TODO (praisonaiui only)</h3>
+<p>| Task | Where | Priority |</p>
+<p>|------|-------|----------|</p>
+<p>| Create marketplace frontend view | `views/marketplace.js` | Medium |</p>
+<p>| Create plugin registry API | `features/marketplace.py` | Medium |</p>
+<p>---</p>
+<h2>Gap 16: Code Execution View — 🟡 UI-ONLY</h2>
+<p>The SDK has `execute_code` tool with sandboxed execution and security hooks. The gap is a **dedicated code editor page** in the dashboard.</p>
+<h3>TODO (praisonaiui only)</h3>
+<p>| Task | Where | Priority |</p>
+<p>|------|-------|----------|</p>
+<p>| Create code editor frontend (Monaco/CodeMirror) | `views/code-editor.js` | Low |</p>
+<p>| Create execution API | `features/code_execution.py` | Low |</p>
+<p>---</p>
+<h2>Gap 18: i18n Framework — 🔴 UI-ONLY</h2>
+<p>No SDK work needed. Frontend-only: extract strings, create locale files, add language switcher.</p>
+<p>---</p>
+<h2>Gap 20: PWA / Mobile — 🔴 UI-ONLY</h2>
+<p>No SDK work needed. Frontend-only: `manifest.json`, service worker, responsive CSS.</p>
+<p>---</p>
+<h2>Gap 21: TTS Integration — 🟡 MINOR SDK GAP</h2>
+<h3>What Exists in praisonai SDK</h3>
+<p>| Component | Where | Status |</p>
+<p>|-----------|-------|--------|</p>
+<p>| TTS in Telegram bot | `_send_response_with_media()`, `send_voice()` | ✅ |</p>
+<p>| TTS in Slack bot | `_send_response_with_media()`, `files_upload_v2()` | ✅ |</p>
+<p>| STT tool | `praisonai/tools/audio.py` → `stt_tool` | ✅ |</p>
+<p>| Media parsing | `split_media_from_output()`, `is_audio_file()` | ✅ |</p>
+<h3>What's Missing (Minor)</h3>
+<p>A standalone `tts_tool` that wraps OpenAI's TTS API:</p>
+<h3>TODO</h3>
+<p>| Task | Where | Priority |</p>
+<p>|------|-------|----------|</p>
+<p>| Add `tts_tool` wrapping OpenAI TTS API | `praisonai/tools/audio.py` | Low |</p>
+<p>| Add 🔊 button to chat messages | `views/chat.js` (UI-only) | Low |</p>
+<p>---</p>
+<h2>Gap 23: Media Understanding — ✅ NOT A GAP</h2>
+<h3>What Actually Exists in praisonai SDK</h3>
+<p>| Component | File | Lines | Status |</p>
+<p>|-----------|------|-------|--------|</p>
+<p>| `VisionAgent` | `praisonaiagents/agent/vision_agent.py` | **449** | ✅ Complete |</p>
+<p>| `OCRAgent` | `praisonaiagents/agent/ocr_agent.py` | **298** | ✅ Complete |</p>
+<p>**VisionAgent capabilities:** `describe()`, `analyze()`, `compare()` (multi-image), `extract_text()`. Supports GPT-4o, Claude 3.5, Gemini 1.5.</p>
+<p>**OCRAgent capabilities:** PDF and image OCR, Mistral OCR model, page-by-page extraction.</p>
+<h3>What's Left (UI-only)</h3>
+<li>Wire image attachments in chat to VisionAgent for inline analysis</li>
+<li>Add image preview/analysis UI in chat messages</li>
+<p>---</p>
+<h2>Gap 24: Device Pairing — 🔴 UI-ONLY</h2>
+<p>Not an SDK concern. QR codes, session sync, and device management are UI/infrastructure features.</p>
+<p>---</p>
+<h2>Corrected Priority Matrix</h2>
+<p>Since nearly all SDK gaps are resolved, the remaining work is **praisonaiui frontend only**:</p>
+<p>| Priority | Feature | Type | Effort |</p>
+<p>|----------|---------|------|--------|</p>
+<p>| P1 | Wire `memory.py` to SDK's `Memory` class | UI integration | Low |</p>
+<p>| P1 | Wire `channels.py` to launch SDK bots | UI integration | Medium |</p>
+<p>| P1 | Wire chat attachments to `VisionAgent` | UI integration | Low |</p>
+<p>| P2 | Plugin marketplace frontend | UI feature | High |</p>
+<p>| P2 | Code execution editor page | UI feature | Medium |</p>
+<p>| P3 | `tts_tool` addition | SDK (minor) | Low |</p>
+<p>| P3 | PWA manifest + service worker | UI feature | Medium |</p>
+<p>| P3 | i18n framework | UI feature | Medium |</p>
+<p>| P3 | Device pairing | UI feature | High |</p>
+<p>> [!NOTE]</p>
+<p>> The **only SDK work** remaining is adding a `tts_tool` (low priority). Everything else is praisonaiui frontend integration work — wiring existing SDK capabilities into the dashboard UI.</p></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

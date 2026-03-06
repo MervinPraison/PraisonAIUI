@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Browser Automation - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Browser Automation | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/browser-automation" />
+  <meta property="og:title" content="Browser Automation | PraisonAIUI Docs" />
+  <meta property="og:description" content="Browser Automation - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/browser-automation" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Browser Automation | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Browser Automation - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Browser Automation</h1>
+<p>Expose **browser agent capabilities** (CDP, Playwright) through the dashboard — run browser tasks from the UI.</p>
+<h2>Quick Start</h2>
+<h2>How It Works</h2>
+<h2>Prerequisites</h2>
+<p>Browser automation requires `praisonai[browser]`:</p>
+<p>This installs the Playwright and/or CDP backends.</p>
+<h2>Status</h2>
+<p>The status endpoint reports which backends are available:</p>
+<h2>REST API</h2>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/browser/status` | GET | Check availability and stats |</p>
+<p>| `/api/browser/run` | POST | Execute a browser task |</p>
+<h3>Run Task</h3>
+<h2>Related</h2>
+<li>[Gateway Chat](gateway-chat.md) — Chat can trigger browser tasks via tools</li>
+<li>[Protocols](protocols.md) — Feature protocol system</li></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

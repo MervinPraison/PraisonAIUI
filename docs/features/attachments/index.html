@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Chat Attachments - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Chat Attachments | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/attachments" />
+  <meta property="og:title" content="Chat Attachments | PraisonAIUI Docs" />
+  <meta property="og:description" content="Chat Attachments - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/attachments" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Chat Attachments | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Chat Attachments - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Chat Attachments</h1>
+<p>Upload files to include with chat messages — PDFs, CSVs, images, and text files up to 50 MB per file.</p>
+<p>![Attachments Panel](../images/attachments-panel.png)</p>
+<h2>Quick Start</h2>
+<h2>How It Works</h2>
+<h2>Supported File Types</h2>
+<p>| Category | Extensions |</p>
+<p>|----------|-----------|</p>
+<p>| Documents | `.pdf`, `.doc`, `.docx`, `.txt`, `.md` |</p>
+<p>| Data | `.csv`, `.json`, `.xml`, `.yaml`, `.yml` |</p>
+<p>| Images | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg` |</p>
+<p>| Code | `.py`, `.js`, `.ts`, `.html`, `.css` |</p>
+<p>!!! warning "Blocked Types"</p>
+<p>Executable files (`.exe`, `.sh`, `.bat`, `.cmd`, `.com`) are rejected by default.</p>
+<h2>Configuration</h2>
+<h2>REST API</h2>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/chat/attachments` | POST | Upload a file |</p>
+<p>| `/api/chat/attachments` | GET | List attachments for a session |</p>
+<p>| `/api/chat/attachments/{id}` | DELETE | Delete an attachment |</p>
+<h3>Upload</h3>
+<p>Response:</p>
+<h3>List</h3>
+<h2>Related</h2>
+<li>[Gateway Chat](gateway-chat.md) — Chat interface</li>
+<li>[Sessions](sessions.md) — Session management</li></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

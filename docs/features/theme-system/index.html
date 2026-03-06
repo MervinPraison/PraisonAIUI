@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Theme System - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Theme System | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/theme-system" />
+  <meta property="og:title" content="Theme System | PraisonAIUI Docs" />
+  <meta property="og:description" content="Theme System - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/theme-system" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Theme System | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Theme System - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Theme System</h1>
+<p>Switch between **dark**, **light**, and **custom themes** using CSS custom properties — applied across all dashboard pages including chat.</p>
+<p>![Theme Comparison](../images/theme-comparison.png)</p>
+<h2>Quick Start</h2>
+<h2>Built-in Themes</h2>
+<h3>Dark (Default)</h3>
+<p>| Variable | Value | Usage |</p>
+<p>|----------|-------|-------|</p>
+<p>| `--chat-bg` | `#0d1117` | Background |</p>
+<p>| `--chat-text` | `#e6edf3` | Primary text |</p>
+<p>| `--chat-user-bg` | `#1f6feb` | User message bubble |</p>
+<p>| `--chat-assistant-bg` | `#161b22` | Assistant message bubble |</p>
+<p>| `--chat-input-bg` | `#0d1117` | Input area |</p>
+<p>| `--chat-border` | `#30363d` | Borders |</p>
+<p>| `--chat-accent` | `#58a6ff` | Links and accents |</p>
+<p>| `--chat-code-bg` | `#161b22` | Code blocks |</p>
+<h3>Light</h3>
+<p>| Variable | Value | Usage |</p>
+<p>|----------|-------|-------|</p>
+<p>| `--chat-bg` | `#ffffff` | Background |</p>
+<p>| `--chat-text` | `#1f2328` | Primary text |</p>
+<p>| `--chat-user-bg` | `#ddf4ff` | User message bubble |</p>
+<p>| `--chat-assistant-bg` | `#f6f8fa` | Assistant message bubble |</p>
+<p>| `--chat-input-bg` | `#ffffff` | Input area |</p>
+<p>| `--chat-border` | `#d1d9e0` | Borders |</p>
+<p>| `--chat-accent` | `#0969da` | Links and accents |</p>
+<p>| `--chat-code-bg` | `#f6f8fa` | Code blocks |</p>
+<h2>Custom Themes</h2>
+<p>Register a custom theme from Python:</p>
+<p>Or via API:</p>
+<h2>REST API</h2>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/theme` | GET | Get current theme and CSS variables |</p>
+<p>| `/api/theme` | PUT | Set the active theme |</p>
+<p>| `/api/theme/list` | GET | List all available themes |</p>
+<p>| `/api/theme/custom` | POST | Register a custom theme |</p>
+<h2>How CSS Variables Work</h2>
+<p>The theme system injects CSS custom properties into the `:root` element. All chat and dashboard CSS uses `var(--chat-*)` references, so switching themes instantly updates the entire UI.</p>
+<h2>Related</h2>
+<li>[Gateway Chat](gateway-chat.md) — Chat interface (themed)</li>
+<li>[Theming](theming.md) — General theming concepts</li>
+<li>[Dark Mode](dark-mode.md) — Dark mode toggle</li></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

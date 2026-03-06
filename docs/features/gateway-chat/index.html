@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Gateway Chat - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Gateway Chat | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/gateway-chat" />
+  <meta property="og:title" content="Gateway Chat | PraisonAIUI Docs" />
+  <meta property="og:description" content="Gateway Chat - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/gateway-chat" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Gateway Chat | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Gateway Chat - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Gateway Chat</h1>
+<p>Real-time AI agent chat with **WebSocket streaming**, markdown rendering, tool call display, and session management.</p>
+<p>![Chat Interface](../images/chat-interface.png)</p>
+<h2>Quick Start</h2>
+<h2>How It Works</h2>
+<h2>Architecture</h2>
+<h2>Features</h2>
+<h3>Markdown Rendering</h3>
+<p>Assistant messages are rendered with full markdown support:</p>
+<li>**Bold**, *italic*, ~~strikethrough~~</li>
+<li>Inline `code` and fenced code blocks with syntax highlighting</li>
+<li>Ordered and unordered lists</li>
+<li>Links (auto-detected and rendered safely)</li>
+<h3>Tool Call Display</h3>
+<p>![Tool Call Streaming](../images/tool-streaming.png)</p>
+<p>When agents use tools, each call is displayed as a collapsible card:</p>
+<li>Tool name and status indicator (running/completed/failed)</li>
+<li>Input arguments (JSON)</li>
+<li>Output results (rendered in code blocks)</li>
+<h3>Session Management</h3>
+<li>**New Session**: Click "New Chat" to create a fresh session</li>
+<li>**Session History**: Switch between sessions in the sidebar</li>
+<li>**Message History**: Full conversation history per session via REST API</li>
+<h3>Message Abort</h3>
+<li>Click the **Stop** button (or send `chat_abort` via WebSocket) to cancel an in-progress agent run</li>
+<li>The partial response is preserved in history</li>
+<h3>File Attachments</h3>
+<p>Upload files to include with your chat messages — see [Attachments](attachments.md) for details.</p>
+<h2>Chat Message Model</h2>
+<h2>WebSocket Protocol</h2>
+<h3>Client → Server</h3>
+<h3>Server → Client</h3>
+<h2>REST API</h2>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/chat/send` | POST | Send a message (non-streaming) |</p>
+<p>| `/api/chat/history/{session_id}` | GET | Get message history for a session |</p>
+<p>| `/api/chat/abort` | POST | Abort an active run |</p>
+<p>| `/api/chat/ws` | WebSocket | Real-time chat streaming |</p>
+<h3>Send Message</h3>
+<h3>Get History</h3>
+<h2>Frontend (chat.js)</h2>
+<p>The chat frontend is a vanilla JavaScript plugin that auto-loads as a dashboard page:</p>
+<p>| Feature | Implementation |</p>
+<p>|---------|---------------|</p>
+<p>| WebSocket streaming | `connectWebSocket()` with auto-reconnect |</p>
+<p>| Markdown rendering | `renderMarkdown()` — custom, zero-dependency |</p>
+<p>| Code highlighting | CSS-based syntax styles in `chat.css` |</p>
+<p>| Tool call display | `appendToolCall()` — collapsible cards |</p>
+<p>| Sanitization | `escapeHtml()` — XSS prevention |</p>
+<p>| Session management | Sidebar with create/switch/delete |</p>
+<p>| Abort button | Sends `chat_abort` over WebSocket |</p>
+<h2>Theming</h2>
+<p>The chat UI supports dark and light themes via CSS custom properties — see [Theme System](theme-system.md).</p>
+<h2>Related</h2>
+<li>[Attachments](attachments.md) — File uploads in chat</li>
+<li>[Theme System](theme-system.md) — Dark/light mode</li>
+<li>[Protocol Versioning](protocol-versioning.md) — WebSocket protocol negotiation</li>
+<li>[Subagent Tree](subagent-tree.md) — Agent hierarchy visualization</li></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>
