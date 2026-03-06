@@ -31,6 +31,7 @@ class SiteConfig(BaseModel):
     theme: Optional[ThemeConfig] = None
     plugins: list[str] = Field(
         default_factory=lambda: [
+            "nav-intercept",
             "fetch-retry",
             "mermaid",
             "mkdocs-compat",

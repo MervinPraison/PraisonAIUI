@@ -11,6 +11,15 @@
 let mermaidLoaded = false;
 let mermaidReady = false;
 
+/** Inject CSS for hiding mermaid originals (React-safe, no inline style mutations). */
+function ensureMermaidCSS() {
+  if (document.getElementById('aiui-mermaid-css')) return;
+  const s = document.createElement('style');
+  s.id = 'aiui-mermaid-css';
+  s.textContent = '.aiui-mermaid-hidden { display: none !important; }';
+  document.head.appendChild(s);
+}
+
 /**
  * High-contrast dark theme — Mintlify-inspired vibrant colors.
  */
@@ -271,8 +280,9 @@ async function renderMermaidBlocks(root) {
       const id = 'mermaid-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
       const { svg } = await window.__aiuiMermaid.render(id, graphDef);
 
-      // HIDE original (React still owns it)
-      container.style.display = 'none';
+      // HIDE original via CSS class (don't use style.display — breaks React reconciler)
+      ensureMermaidCSS();
+      container.classList.add('aiui-mermaid-hidden');
 
       // INSERT diagram as sibling
       const diagram = document.createElement('div');
@@ -299,7 +309,7 @@ export default {
       lastUrl = currentUrl;
       root.querySelectorAll('[data-aiui-plugin="mermaid"]').forEach(function (el) { el.remove(); });
       root.querySelectorAll('[data-mermaid-processed]').forEach(function (el) {
-        el.style.display = '';
+        el.classList.remove('aiui-mermaid-hidden');
         delete el.dataset.mermaidProcessed;
       });
     }

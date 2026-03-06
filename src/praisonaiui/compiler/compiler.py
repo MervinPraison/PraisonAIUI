@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -90,6 +91,12 @@ class Compiler:
         if self.config.content and self.config.content.docs:
             copied = self._copy_docs(output_dir)
             files.extend(copied)
+
+        # Generate per-route HTML pages (SPA fallback + SEO)
+        if self.config.content and self.config.content.docs:
+            nav = self._generate_docs_nav()
+            route_files = self._generate_route_pages(output_dir, nav)
+            files.extend(route_files)
 
         return CompileResult(success=True, files=files)
 
@@ -418,6 +425,190 @@ class Compiler:
         plugins_config = {"plugins": ordered}
         (plugins_dst / "plugins.json").write_text(
             json.dumps(plugins_config, indent=2)
+        )
+
+    def _generate_route_pages(
+        self, output_dir: Path, nav: dict
+    ) -> list[str]:
+        """Generate per-route HTML files for SPA fallback and SEO.
+
+        For each page in the docs navigation, creates an index.html at
+        the route path (e.g. _site/docs/concepts/configuration/index.html).
+        Each file is a copy of the SPA shell with page-specific:
+          - <title> tag
+          - <meta name="description">
+          - <link rel="canonical">
+          - Open Graph tags (og:title, og:description, og:url)
+          - Pre-rendered markdown content in <noscript> for SEO crawlers
+        """
+
+        template_path = output_dir / "index.html"
+        if not template_path.exists():
+            return []
+
+        template_html = template_path.read_text()
+        site_title = self.config.site.title
+        site_desc = self.config.site.description or f"Documentation built with {site_title}"
+        files: list[str] = []
+
+        # Collect all pages from nav (including nested children)
+        pages = self._collect_nav_pages(nav)
+
+        for page in pages:
+            path = page["path"]     # e.g. "/docs/concepts/configuration"
+            title = page["title"]   # e.g. "YAML Configuration"
+
+            # Build file system path
+            relative = path.lstrip("/")
+            page_dir = output_dir / relative
+            page_dir.mkdir(parents=True, exist_ok=True)
+            page_file = page_dir / "index.html"
+
+            # Build page-specific HTML
+            page_title = f"{title} | {site_title}"
+            page_desc = f"{title} - {site_desc}"
+
+            html = template_html
+
+            # Replace <title>
+            html = html.replace(
+                "<title>Documentation</title>",
+                f"<title>{self._escape_html(page_title)}</title>",
+            )
+
+            # Replace meta description
+            html = html.replace(
+                'content="Documentation built with PraisonAIUI"',
+                f'content="{self._escape_html(page_desc)}"',
+            )
+
+            # Add canonical URL, OG tags, and noscript content before </head>
+            seo_tags = self._build_seo_tags(path, page_title, page_desc)
+
+            # Try to load markdown content for noscript pre-rendering
+            noscript_content = self._get_noscript_content(output_dir, path)
+
+            # Inject SEO tags before </head>
+            html = html.replace(
+                "</head>",
+                f"{seo_tags}\n</head>",
+            )
+
+            # Inject noscript block inside <div id="root">
+            if noscript_content:
+                html = html.replace(
+                    '<div id="root"></div>',
+                    f'<div id="root"><noscript>{noscript_content}</noscript></div>',
+                )
+
+            page_file.write_text(html)
+            files.append(f"{relative}/index.html")
+
+        return files
+
+    def _collect_nav_pages(self, nav: dict) -> list[dict]:
+        """Recursively collect all pages from docs-nav.json."""
+        pages: list[dict] = []
+        for item in nav.get("items", []):
+            if item.get("path"):
+                pages.append({"path": item["path"], "title": item.get("title", "")})
+            for child in item.get("children", []):
+                if child.get("path"):
+                    pages.append({"path": child["path"], "title": child.get("title", "")})
+                # Handle deeper nesting if present
+                for grandchild in child.get("children", []):
+                    if grandchild.get("path"):
+                        pages.append({"path": grandchild["path"], "title": grandchild.get("title", "")})
+        return pages
+
+    def _build_seo_tags(self, path: str, title: str, description: str) -> str:
+        """Build canonical, OG, and Twitter meta tags."""
+        t = self._escape_html(title)
+        d = self._escape_html(description)
+        p = self._escape_html(path)
+        return (
+            f'  <link rel="canonical" href="{p}" />\n'
+            f'  <meta property="og:title" content="{t}" />\n'
+            f'  <meta property="og:description" content="{d}" />\n'
+            f'  <meta property="og:url" content="{p}" />\n'
+            f'  <meta name="twitter:card" content="summary" />\n'
+            f'  <meta name="twitter:title" content="{t}" />\n'
+            f'  <meta name="twitter:description" content="{d}" />'
+        )
+
+    def _get_noscript_content(self, output_dir: Path, path: str) -> str:
+        """Load markdown file and convert to simple HTML for noscript block."""
+        # Try to find the corresponding markdown file
+        relative = path.lstrip("/")
+        md_candidates = [
+            output_dir / relative / "index.md",
+            output_dir / f"{relative}.md",
+        ]
+
+        md_content = None
+        for candidate in md_candidates:
+            if candidate.exists():
+                md_content = candidate.read_text()
+                break
+
+        if not md_content:
+            return ""
+
+        # Simple markdown-to-HTML conversion for SEO (headings, paragraphs, lists)
+        return self._simple_md_to_html(md_content)
+
+    @staticmethod
+    def _simple_md_to_html(md: str) -> str:
+        """Minimal markdown to HTML for noscript SEO content."""
+        lines = md.split("\n")
+        result: list[str] = []
+        in_code = False
+
+        for line in lines:
+            stripped = line.strip()
+
+            # Skip frontmatter
+            if stripped == "---" and not result:
+                continue
+
+            # Code blocks
+            if stripped.startswith("```"):
+                in_code = not in_code
+                continue
+            if in_code:
+                continue
+
+            # Headings
+            hm = re.match(r"^(#{1,6})\s+(.+)", stripped)
+            if hm:
+                level = len(hm.group(1))
+                text = hm.group(2)
+                result.append(f"<h{level}>{text}</h{level}>")
+                continue
+
+            # Empty lines
+            if not stripped:
+                continue
+
+            # List items
+            if re.match(r"^[-*+]\s+", stripped):
+                text = re.sub(r"^[-*+]\s+", "", stripped)
+                result.append(f"<li>{text}</li>")
+                continue
+
+            # Paragraphs
+            result.append(f"<p>{stripped}</p>")
+
+        return "\n".join(result)
+
+    @staticmethod
+    def _escape_html(text: str) -> str:
+        """Escape HTML special characters for meta tags."""
+        return (
+            text.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
         )
 
     def _copy_docs(self, output_dir: Path) -> list[str]:

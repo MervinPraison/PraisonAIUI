@@ -51,6 +51,7 @@ class PraisonAIChannels(BaseFeatureProtocol):
             Route("/api/channels/{channel_id}", self._delete, methods=["DELETE"]),
             Route("/api/channels/{channel_id}/toggle", self._toggle, methods=["POST"]),
             Route("/api/channels/{channel_id}/status", self._status, methods=["GET"]),
+            Route("/api/channels/{channel_id}/restart", self._restart, methods=["POST"]),
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
@@ -186,6 +187,65 @@ class PraisonAIChannels(BaseFeatureProtocol):
     async def _platforms(self, request: Request) -> JSONResponse:
         """List supported platforms."""
         return JSONResponse({"platforms": SUPPORTED_PLATFORMS})
+
+    async def _restart(self, request: Request) -> JSONResponse:
+        """Restart a channel bot via the gateway.
+        
+        Attempts to stop and restart the bot for the specified channel.
+        Requires a gateway connection to actually restart the bot.
+        """
+        channel_id = request.path_params["channel_id"]
+        channel = _channels.get(channel_id)
+        if not channel:
+            return JSONResponse({"error": "Channel not found"}, status_code=404)
+        
+        # Try to restart via gateway
+        try:
+            from ._gateway_ref import get_gateway
+            gw = get_gateway()
+            if gw is not None:
+                # Check if gateway has restart capability
+                if hasattr(gw, 'restart_channel'):
+                    await gw.restart_channel(channel_id)
+                    channel["running"] = True
+                    return JSONResponse({
+                        "id": channel_id,
+                        "status": "restarted",
+                        "running": True,
+                        "message": f"Channel '{channel_id}' restart initiated",
+                    })
+                elif hasattr(gw, '_channel_bots'):
+                    # Direct bot access - stop and restart
+                    bot = gw._channel_bots.get(channel_id)
+                    if bot:
+                        if hasattr(bot, 'stop'):
+                            await bot.stop()
+                        if hasattr(bot, 'start'):
+                            await bot.start()
+                        channel["running"] = True
+                        return JSONResponse({
+                            "id": channel_id,
+                            "status": "restarted",
+                            "running": True,
+                            "message": f"Channel '{channel_id}' restarted successfully",
+                        })
+        except Exception as e:
+            return JSONResponse({
+                "id": channel_id,
+                "status": "error",
+                "error": str(e),
+                "message": f"Failed to restart channel: {e}",
+            }, status_code=500)
+        
+        # No gateway or bot not found - just toggle enabled state
+        channel["enabled"] = True
+        channel["running"] = False
+        return JSONResponse({
+            "id": channel_id,
+            "status": "pending",
+            "running": False,
+            "message": "Channel marked for restart (no gateway connected)",
+        })
 
     # ── CLI handlers ─────────────────────────────────────────────────
 

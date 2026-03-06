@@ -933,7 +933,7 @@ def create_app(
         {"id": "debug", "title": "Debug", "icon": "🐛", "group": "Settings",
          "description": "Debug information", "order": 30},
     ]
-    _page_api_overrides = {"sessions": "/sessions", "cron": "/api/schedules"}
+    _page_api_overrides = {"sessions": "/sessions", "cron": "/api/schedules", "channels": "/api/channels"}
     for p in _builtin_pages:
         if p["id"] not in _pages:  # allow user to override
             _pages[p["id"]] = {

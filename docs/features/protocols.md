@@ -139,6 +139,7 @@ Multi-platform messaging channel management (Discord, Slack, Telegram, WhatsApp,
 | `/api/channels/{id}` | DELETE | Remove channel |
 | `/api/channels/{id}/toggle` | POST | Enable/disable |
 | `/api/channels/{id}/status` | GET | Live status (gateway-enriched) |
+| `/api/channels/{id}/restart` | POST | Restart channel bot (via gateway) |
 
 **CLI:** `aiui channel list`, `aiui channel status`, `aiui channel platforms`
 

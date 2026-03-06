@@ -1,0 +1,10 @@
+{
+  "plugins": [
+    "topnav",
+    "syntax-highlight",
+    "code-copy",
+    "mermaid",
+    "toc",
+    "channels"
+  ]
+}

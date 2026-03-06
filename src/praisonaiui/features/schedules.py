@@ -39,9 +39,12 @@ class PraisonAISchedules(BaseFeatureProtocol):
             Route("/api/schedules", self._list, methods=["GET"]),
             Route("/api/schedules", self._add, methods=["POST"]),
             Route("/api/schedules/{job_id}", self._get, methods=["GET"]),
+            Route("/api/schedules/{job_id}", self._update, methods=["PUT"]),
             Route("/api/schedules/{job_id}", self._delete, methods=["DELETE"]),
             Route("/api/schedules/{job_id}/toggle", self._toggle, methods=["POST"]),
             Route("/api/schedules/{job_id}/run", self._run, methods=["POST"]),
+            Route("/api/schedules/{job_id}/stop", self._stop, methods=["POST"]),
+            Route("/api/schedules/{job_id}/stats", self._stats, methods=["GET"]),
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
@@ -122,7 +125,99 @@ class PraisonAISchedules(BaseFeatureProtocol):
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
         job["last_run_at"] = time.time()
+        job["run_count"] = job.get("run_count", 0) + 1
         return JSONResponse({"triggered": job_id, "last_run_at": job["last_run_at"]})
+
+    async def _update(self, request: Request) -> JSONResponse:
+        """Update a schedule configuration."""
+        job_id = request.path_params["job_id"]
+        job = _jobs.get(job_id)
+        if not job:
+            return JSONResponse({"error": "Job not found"}, status_code=404)
+        body = await request.json()
+        for key in ("name", "message", "schedule", "agent_id", "session_target", "enabled"):
+            if key in body:
+                job[key] = body[key]
+        return JSONResponse(job)
+
+    async def _stop(self, request: Request) -> JSONResponse:
+        """Stop a running scheduled job."""
+        job_id = request.path_params["job_id"]
+        job = _jobs.get(job_id)
+        if not job:
+            return JSONResponse({"error": "Job not found"}, status_code=404)
+        
+        # Mark as stopped
+        job["enabled"] = False
+        job["status"] = "stopped"
+        job["stopped_at"] = time.time()
+        
+        # Try to stop via AgentScheduler if connected
+        scheduler = job.get("_scheduler")
+        if scheduler and hasattr(scheduler, 'stop'):
+            try:
+                scheduler.stop()
+            except Exception as e:
+                return JSONResponse({
+                    "id": job_id,
+                    "status": "error",
+                    "error": str(e),
+                }, status_code=500)
+        
+        return JSONResponse({
+            "id": job_id,
+            "status": "stopped",
+            "stopped_at": job["stopped_at"],
+        })
+
+    async def _stats(self, request: Request) -> JSONResponse:
+        """Get execution statistics for a scheduled job."""
+        job_id = request.path_params["job_id"]
+        job = _jobs.get(job_id)
+        if not job:
+            return JSONResponse({"error": "Job not found"}, status_code=404)
+        
+        # Get stats from AgentScheduler if available
+        scheduler = job.get("_scheduler")
+        if scheduler and hasattr(scheduler, 'get_stats'):
+            try:
+                stats = scheduler.get_stats()
+                return JSONResponse({
+                    "id": job_id,
+                    "name": job.get("name", ""),
+                    **stats,
+                })
+            except Exception:
+                pass
+        
+        # Return basic stats from job record
+        created_at = job.get("created_at", 0)
+        last_run_at = job.get("last_run_at")
+        run_count = job.get("run_count", 0)
+        
+        return JSONResponse({
+            "id": job_id,
+            "name": job.get("name", ""),
+            "enabled": job.get("enabled", True),
+            "total_runs": run_count,
+            "successful_runs": job.get("success_count", run_count),
+            "failed_runs": job.get("failure_count", 0),
+            "created_at": created_at,
+            "last_run_at": last_run_at,
+            "next_run_at": self._calculate_next_run(job),
+            "uptime_seconds": time.time() - created_at if created_at else 0,
+        })
+
+    def _calculate_next_run(self, job: Dict[str, Any]) -> float | None:
+        """Calculate next scheduled run time."""
+        if not job.get("enabled", True):
+            return None
+        schedule = job.get("schedule", {})
+        every_seconds = schedule.get("every_seconds")
+        if every_seconds:
+            last_run = job.get("last_run_at") or job.get("created_at", time.time())
+            return last_run + every_seconds
+        return None
 
     # ── CLI handlers ─────────────────────────────────────────────────
 
