@@ -4,6 +4,8 @@
     "mermaid",
     "mkdocs-compat",
     "homepage",
-    "toc"
+    "toc",
+    "topnav",
+    "code-copy"
   ]
 }
