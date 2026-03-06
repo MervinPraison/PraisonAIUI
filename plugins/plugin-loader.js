@@ -26,8 +26,9 @@
     try {
       const url = `${PLUGINS_BASE}${name}.js`;
       const mod = await import(url);
-      const plugin = mod.default || mod;
-      plugin.name = plugin.name || name;
+      // ESM module namespaces are frozen — spread into a mutable object
+      const raw = mod.default || mod;
+      const plugin = { ...raw, name: raw.name || name };
 
       if (typeof plugin.init === 'function') {
         await plugin.init();
