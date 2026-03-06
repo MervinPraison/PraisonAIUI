@@ -129,11 +129,18 @@ export default {
   name: 'homepage',
   init() { console.debug('[AIUI:homepage] Homepage plugin loaded.'); },
   onContentChange(root) {
-    // Reset if navigated away and back
+    // Restore hidden content when navigating away from homepage
     if (!isHomepage() && hasRendered) {
       hasRendered = false;
       const old = document.querySelector('[data-aiui-plugin="homepage"]');
       if (old) old.remove();
+      // CRITICAL: restore the hidden React-managed children
+      const main = root.querySelector('main.flex-1');
+      if (main) {
+        Array.from(main.children).forEach(function (child) {
+          if (child.style.display === 'none') child.style.display = '';
+        });
+      }
     }
     replaceHomepage(root);
   },
