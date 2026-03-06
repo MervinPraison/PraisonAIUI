@@ -68,25 +68,32 @@ function updateToc(root) {
   tocNav.dataset.tocDynamic = 'true';
 }
 
+let lastUrl = '';
+
 export default {
   name: 'toc',
   init() { console.debug('[AIUI:toc] Dynamic table of contents plugin loaded.'); },
   onContentChange(root) {
-    // Clean up previous plugin-generated ToC on navigation
-    const old = root.querySelector('[data-aiui-plugin="toc"]');
-    if (old) old.remove();
-    // Reset flag and hidden elements
-    const asides = root.querySelectorAll('aside');
-    for (const aside of asides) {
-      const nav = aside.querySelector('nav');
-      if (nav) {
-        delete nav.dataset.tocDynamic;
-        // Restore hidden React children
-        Array.from(nav.children).forEach(function (child) {
-          if (!child.dataset.aiuiPlugin) child.style.display = '';
-        });
+    const currentUrl = location.pathname + location.hash;
+
+    // Only tear down on actual navigation
+    if (currentUrl !== lastUrl) {
+      lastUrl = currentUrl;
+      const old = root.querySelector('[data-aiui-plugin="toc"]');
+      if (old) old.remove();
+      const asides = root.querySelectorAll('aside');
+      for (const aside of asides) {
+        const nav = aside.querySelector('nav');
+        if (nav) {
+          delete nav.dataset.tocDynamic;
+          Array.from(nav.children).forEach(function (child) {
+            if (!child.dataset.aiuiPlugin) child.style.display = '';
+          });
+        }
       }
     }
+
+    // Build ToC if not already built (idempotent — tocDynamic flag prevents rebuild)
     setTimeout(function () { updateToc(root); }, 250);
   },
 };
