@@ -49,3 +49,18 @@ async def metrics_page():
             "llama-3": "300 requests",
         },
     }
+
+
+@aiui.page("getting-started", title="Getting Started", icon="🚀",
+           group="Docs", description="Quick start guide", order=20)
+async def docs_page():
+    """@page works for documentation content too — not just analytics."""
+    return {
+        "title": "Getting Started with PraisonAIUI",
+        "sections": [
+            {"heading": "Installation", "content": "pip install praisonaiui"},
+            {"heading": "First App",    "content": "@aiui.reply → aiui.say()"},
+            {"heading": "Dashboard",    "content": "@aiui.page() for custom pages"},
+        ],
+    }
+
