@@ -185,6 +185,78 @@ class Compiler:
                 for w in self.config.widgets
             ]
 
+        # ── Mintlify-parity fields ──
+
+        # Navigation with tabs
+        if self.config.navigation and self.config.navigation.tabs:
+            result["navigation"] = {
+                "tabs": [
+                    {
+                        "tab": t.tab,
+                        "url": t.url,
+                        "groups": [
+                            {
+                                "group": g.group,
+                                "icon": g.icon,
+                                "prefix": g.prefix,
+                                "pages": g.pages,
+                            }
+                            for g in t.groups
+                        ],
+                    }
+                    for t in self.config.navigation.tabs
+                ],
+            }
+
+        # Logo
+        if self.config.logo:
+            result["logo"] = {
+                "light": self.config.logo.light,
+                "dark": self.config.logo.dark,
+                "href": self.config.logo.href,
+            }
+
+        # Navbar
+        if self.config.navbar:
+            navbar_dict: dict = {}
+            if self.config.navbar.primary:
+                navbar_dict["primary"] = {
+                    "type": self.config.navbar.primary.type,
+                    "label": self.config.navbar.primary.label,
+                    "href": self.config.navbar.primary.href,
+                }
+            if self.config.navbar.links:
+                navbar_dict["links"] = [
+                    {"label": lnk.label, "href": lnk.href}
+                    for lnk in self.config.navbar.links
+                ]
+            result["navbar"] = navbar_dict
+
+        # Footer
+        if self.config.footer:
+            footer_dict: dict = {}
+            if self.config.footer.socials:
+                footer_dict["socials"] = self.config.footer.socials
+            if self.config.footer.links:
+                footer_dict["links"] = [
+                    {
+                        "header": col.header,
+                        "items": [
+                            {"label": item.label, "href": item.href}
+                            for item in col.items
+                        ],
+                    }
+                    for col in self.config.footer.links
+                ]
+            result["footer"] = footer_dict
+
+        # Search
+        if self.config.search:
+            result["search"] = {
+                "enabled": self.config.search.enabled,
+                "provider": self.config.search.provider,
+            }
+
         return result
 
     def _serialize_template(self, template) -> dict:

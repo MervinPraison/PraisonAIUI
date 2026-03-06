@@ -36,6 +36,8 @@ class SiteConfig(BaseModel):
             "mkdocs-compat",
             "homepage",
             "toc",
+            "topnav",
+            "code-copy",
         ],
         description="List of frontend plugin names to enable",
     )
@@ -165,6 +167,91 @@ class DependenciesConfig(BaseModel):
     )
 
 
+# ──────────────────────────────────────────────────────────────
+# Mintlify-parity models (logo, nav tabs, navbar, footer, search)
+# ──────────────────────────────────────────────────────────────
+
+class LogoConfig(BaseModel):
+    """Logo configuration with light/dark variants."""
+
+    light: Optional[str] = None
+    dark: Optional[str] = None
+    href: str = "/"
+
+
+class NavGroupConfig(BaseModel):
+    """A navigation group within a tab."""
+
+    group: str
+    icon: Optional[str] = None
+    prefix: Optional[str] = None
+    pages: list[str] = Field(default_factory=list)
+
+
+class NavTabConfig(BaseModel):
+    """A top-level navigation tab."""
+
+    tab: str
+    url: Optional[str] = None
+    groups: list[NavGroupConfig] = Field(default_factory=list)
+
+
+class NavigationConfig(BaseModel):
+    """Top-level navigation with tabs."""
+
+    tabs: list[NavTabConfig] = Field(default_factory=list)
+
+
+class NavbarLinkConfig(BaseModel):
+    """A link in the top navbar."""
+
+    label: str
+    href: str
+
+
+class NavbarPrimaryConfig(BaseModel):
+    """Primary navbar action button."""
+
+    type: Literal["button", "github"] = "button"
+    label: Optional[str] = None
+    href: str
+
+
+class NavbarConfig(BaseModel):
+    """Top navbar configuration."""
+
+    primary: Optional[NavbarPrimaryConfig] = None
+    links: list[NavbarLinkConfig] = Field(default_factory=list)
+
+
+class FooterLinkItemConfig(BaseModel):
+    """A single link in a footer column."""
+
+    label: str
+    href: str
+
+
+class FooterLinkColumnConfig(BaseModel):
+    """A column of links in the footer."""
+
+    header: str
+    items: list[FooterLinkItemConfig] = Field(default_factory=list)
+
+
+class FooterConfig(BaseModel):
+    """Footer configuration with socials and link columns."""
+
+    socials: dict[str, str] = Field(default_factory=dict)
+    links: list[FooterLinkColumnConfig] = Field(default_factory=list)
+
+
+class SearchConfig(BaseModel):
+    """Search configuration."""
+
+    enabled: bool = True
+    provider: Literal["fusejs", "lunrjs", "pagefind"] = "fusejs"
+
+
 class ChatProfileConfig(BaseModel):
     """Chat profile configuration for agent selection."""
 
@@ -292,5 +379,11 @@ class Config(BaseModel):
     i18n: Optional[I18nConfig] = None
     a11y: Optional[A11yConfig] = None
     dependencies: Optional[DependenciesConfig] = None
+    # Mintlify-parity fields
+    logo: Optional[LogoConfig] = None
+    navigation: Optional[NavigationConfig] = None
+    navbar: Optional[NavbarConfig] = None
+    footer: Optional[FooterConfig] = None
+    search: Optional[SearchConfig] = None
 
     model_config = ConfigDict(populate_by_name=True)

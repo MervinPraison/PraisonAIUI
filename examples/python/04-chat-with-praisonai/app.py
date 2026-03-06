@@ -3,7 +3,8 @@
 What's New (vs chat-with-ai/):
     • PraisonAI Agent instead of raw OpenAI client
     • asyncio.to_thread() for blocking agent.chat() calls
-    • No streaming (agent returns full response)
+    • Non-streaming by default (agent returns full response)
+    • Tip: pass stream=False explicitly for guaranteed non-streaming
 
 Requires: pip install praisonai
 Set OPENAI_API_KEY (or your preferred LLM key) before running.

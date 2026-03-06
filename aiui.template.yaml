@@ -9,6 +9,107 @@ site:
     radius: "md"
     darkMode: true
 
+# Top navigation tabs (Mintlify-style)
+navigation:
+  tabs:
+    - tab: "Home"
+      url: "/"
+    - tab: "Getting Started"
+      groups:
+        - group: "Getting Started"
+          icon: "rocket"
+          prefix: "getting-started"
+          pages:
+            - getting-started/installation
+            - getting-started/quickstart
+            - getting-started/cli
+            - getting-started/github-pages
+    - tab: "Core Concepts"
+      groups:
+        - group: "Core Concepts"
+          icon: "lightbulb"
+          prefix: "concepts"
+          pages:
+            - concepts/architecture
+            - concepts/configuration
+            - concepts/templates
+            - concepts/slots
+            - concepts/providers
+    - tab: "Features"
+      groups:
+        - group: "Features"
+          icon: "sparkles"
+          prefix: "features"
+          pages:
+            - features/content-sources
+            - features/navigation
+            - features/theming
+            - features/dark-mode
+            - features/seo
+            - features/hot-reload
+            - features/protocols
+    - tab: "API"
+      groups:
+        - group: "API Reference"
+          icon: "code"
+          prefix: "api"
+          pages:
+            - api/cli
+            - api/python
+            - api/typescript
+    - tab: "TypeScript"
+      groups:
+        - group: "TypeScript SDK"
+          icon: "file-code"
+          prefix: "typescript"
+          pages:
+            - typescript/index
+            - typescript/runtime
+            - typescript/nextjs
+            - typescript/components
+    - tab: "Examples"
+      groups:
+        - group: "Examples"
+          icon: "folder-open"
+          prefix: "examples"
+          pages:
+            - examples/basic
+            - examples/advanced
+
+# Navbar actions
+navbar:
+  primary:
+    type: "github"
+    href: "https://github.com/MervinPraison/PraisonAIUI"
+  links:
+    - label: "Submit Issues"
+      href: "https://github.com/MervinPraison/PraisonAIUI/issues"
+
+# Footer
+footer:
+  socials:
+    github: "https://github.com/MervinPraison/PraisonAI"
+    x: "https://x.com/MervinPraison"
+    youtube: "https://youtube.com/@MervinPraison"
+  links:
+    - header: "Resources"
+      items:
+        - label: "GitHub"
+          href: "https://github.com/MervinPraison/PraisonAI"
+        - label: "Documentation"
+          href: "https://docs.praisonai.com"
+    - header: "Community"
+      items:
+        - label: "Twitter"
+          href: "https://x.com/MervinPraison"
+        - label: "YouTube"
+          href: "https://youtube.com/@MervinPraison"
+
+# Search
+search:
+  enabled: true
+  provider: "fusejs"
+
 content:
   docs:
     dir: "./docs"
