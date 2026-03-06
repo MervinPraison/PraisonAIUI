@@ -271,21 +271,60 @@ class PraisonAIUsage(BaseFeatureProtocol):
     # ── API handlers ─────────────────────────────────────────────────
 
     async def _summary(self, request: Request) -> JSONResponse:
-        """Return usage summary with totals and averages."""
+        """Return usage summary with totals and averages.
+        
+        Response format matches the dashboard frontend expectations:
+        {"usage": {..., "by_model": {...}, "by_session": {...}}, "sessions": {...}}
+        """
         total_reqs = _aggregates["total_requests"]
         total_cost = _aggregates["total_cost"]
+        total_tokens = _aggregates["total_input_tokens"] + _aggregates["total_output_tokens"]
         avg_cost = total_cost / total_reqs if total_reqs > 0 else 0
         
+        # Build by_model with 'tokens' key for dashboard compatibility
+        by_model = {}
+        for model, stats in _aggregates["by_model"].items():
+            by_model[model] = {
+                "requests": stats["requests"],
+                "tokens": stats["input_tokens"] + stats["output_tokens"],
+                "input_tokens": stats["input_tokens"],
+                "output_tokens": stats["output_tokens"],
+                "cost": round(stats["cost"], 4),
+            }
+        
+        # Build by_session with 'tokens' key for dashboard compatibility
+        by_session = {}
+        for session_id, stats in _aggregates["by_session"].items():
+            by_session[session_id] = {
+                "requests": stats["requests"],
+                "tokens": stats["input_tokens"] + stats["output_tokens"],
+                "input_tokens": stats["input_tokens"],
+                "output_tokens": stats["output_tokens"],
+                "cost": round(stats["cost"], 4),
+            }
+        
         return JSONResponse({
+            # Top-level fields for direct API consumers
             "total_requests": total_reqs,
             "total_input_tokens": _aggregates["total_input_tokens"],
             "total_output_tokens": _aggregates["total_output_tokens"],
-            "total_tokens": _aggregates["total_input_tokens"] + _aggregates["total_output_tokens"],
+            "total_tokens": total_tokens,
             "total_cost_usd": round(total_cost, 4),
             "avg_cost_per_request": round(avg_cost, 6),
             "models_count": len(_aggregates["by_model"]),
             "sessions_count": len(_aggregates["by_session"]),
             "agents_count": len(_aggregates["by_agent"]),
+            # Dashboard-compatible nested structure
+            "usage": {
+                "total_requests": total_reqs,
+                "total_tokens": total_tokens,
+                "by_model": by_model,
+                "by_session": by_session,
+            },
+            "sessions": {
+                "total": len(_aggregates["by_session"]),
+                "active": 0,  # Feature doesn't track active tasks
+            },
         })
 
     async def _details(self, request: Request) -> JSONResponse:

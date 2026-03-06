@@ -949,7 +949,16 @@ def create_app(
                 "api_endpoint": _page_api_overrides.get(p["id"], f"/api/{p['id']}"),
             }
 
-    # Add static file serving if static_dir provided
+    # Always mount built-in frontend plugins and assets BEFORE catch-all /
+    _frontend_dir = Path(__file__).parent / "templates" / "frontend"
+    _plugins_dir = _frontend_dir / "plugins"
+    _assets_dir = _frontend_dir / "assets"
+    if _plugins_dir.exists():
+        routes.append(Mount("/plugins", app=StaticFiles(directory=str(_plugins_dir))))
+    if _assets_dir.exists():
+        routes.append(Mount("/assets", app=StaticFiles(directory=str(_assets_dir))))
+
+    # Add static file serving if static_dir provided (catch-all, must be last)
     if static_dir and static_dir.exists():
         routes.append(Mount("/", app=StaticFiles(directory=str(static_dir), html=True)))
 
