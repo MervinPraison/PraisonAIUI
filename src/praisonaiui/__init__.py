@@ -32,6 +32,7 @@ def __getattr__(name: str):
     _config_attrs = {"configure"}
     _features_attrs = {"BaseFeatureProtocol", "register_feature", "get_features",
                        "get_feature", "auto_register_defaults"}
+    _ui_attrs = {"layout", "card", "columns", "chart", "table", "text"}
     if name in _callback_attrs:
         from praisonaiui import callbacks
         return getattr(callbacks, name)
@@ -56,6 +57,9 @@ def __getattr__(name: str):
     if name in _features_attrs:
         from praisonaiui import features
         return getattr(features, name)
+    if name in _ui_attrs:
+        from praisonaiui import ui
+        return getattr(ui, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -124,4 +128,11 @@ __all__ = [
     "get_features",
     "get_feature",
     "auto_register_defaults",
+    # UI component API
+    "layout",
+    "card",
+    "columns",
+    "chart",
+    "table",
+    "text",
 ]

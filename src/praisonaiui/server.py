@@ -16,7 +16,7 @@ from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse, StreamingResponse
+from starlette.responses import HTMLResponse, JSONResponse, StreamingResponse
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
@@ -86,6 +86,62 @@ def detect_style() -> str:
     if has_pages:
         return "dashboard"
     return "chat"
+
+
+# ── Dynamic HTML & plugin config generation ─────────────────────────
+
+def _build_html(style: str) -> str:
+    """Generate the host HTML based on style. No template files needed.
+
+    The SDK owns the HTML — just like Chainlit. Users never write HTML.
+    """
+    title = "PraisonAIUI Dashboard" if style == "dashboard" else "PraisonAIUI"
+    cache_bust = int(_server_start_time)
+    return (
+        '<!doctype html><html lang="en"><head>'
+        '<meta charset="UTF-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1.0">'
+        f'<link rel="stylesheet" href="/assets/index.css?v={cache_bust}">'
+        f'<title>{title}</title>'
+        '</head><body>'
+        '<div id="root"></div>'
+        f'<script src="/plugins/plugin-loader.js?v={cache_bust}"></script>'
+        '</body></html>'
+    )
+
+
+async def _plugins_config(request: Request) -> JSONResponse:
+    """Dynamic plugins.json — style-aware, protocol-driven.
+
+    Replaces the static plugins.json file. Each style loads only the
+    plugins it needs, keeping the frontend lean.
+    """
+    style = get_style() or detect_style()
+    # Base plugins (always loaded)
+    plugins: list[str] = ["fetch-retry"]
+    if style == "dashboard":
+        plugins += [
+            "dashboard", "channels", "schedules", "jobs",
+            "usage", "skills", "agents", "approvals", "api",
+            "logs", "config", "sessions", "auth",
+        ]
+    elif style == "docs":
+        plugins += [
+            "topnav", "syntax-highlight", "code-copy",
+            "content-loader", "toc", "mermaid",
+            "nav-intercept", "mkdocs-compat", "homepage",
+        ]
+    else:
+        # chat / agents / playground — minimal plugins
+        plugins += ["syntax-highlight", "code-copy"]
+    return JSONResponse({"plugins": plugins})
+
+
+async def _serve_index(request: Request) -> HTMLResponse:
+    """Serve dynamically generated HTML based on active style."""
+    style = get_style() or detect_style()
+    return HTMLResponse(_build_html(style))
+
 
 
 def set_datastore(store: BaseDataStore) -> None:
@@ -953,6 +1009,11 @@ def create_app(
     _frontend_dir = Path(__file__).parent / "templates" / "frontend"
     _plugins_dir = _frontend_dir / "plugins"
     _assets_dir = _frontend_dir / "assets"
+
+    # Dynamic plugins.json route — MUST come before static /plugins mount
+    # so the dynamic endpoint takes priority over the static file.
+    routes.append(Route("/plugins/plugins.json", _plugins_config, methods=["GET"]))
+
     if _plugins_dir.exists():
         routes.append(Mount("/plugins", app=StaticFiles(directory=str(_plugins_dir))))
     if _assets_dir.exists():
@@ -961,6 +1022,9 @@ def create_app(
     # Add static file serving if static_dir provided (catch-all, must be last)
     if static_dir and static_dir.exists():
         routes.append(Mount("/", app=StaticFiles(directory=str(static_dir), html=True)))
+    else:
+        # No static_dir — serve SDK-generated HTML (dashboard, chat, etc.)
+        routes.append(Route("/", _serve_index, methods=["GET"]))
 
     app = Starlette(
         routes=routes,
