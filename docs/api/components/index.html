@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Component API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Component API Reference | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/api/components" />
+  <meta property="og:title" content="Component API Reference | PraisonAIUI Docs" />
+  <meta property="og:description" content="Component API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/api/components" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Component API Reference | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Component API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Component API Reference</h1>
+<p>Python functions for building dashboard UIs. Each function returns a dict that the frontend renders as a real UI element.</p>
+<h2>`aiui.layout(children)`</h2>
+<p>Wrap components in a renderable container.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `children` | `Sequence[dict]` | ✅ | List of component dicts |</p>
+<p>**Returns:** `dict` with `_components` key — triggers structured rendering in the frontend.</p>
+<p>---</p>
+<h2>`aiui.card(title, *, value, footer)`</h2>
+<p>A metric/stat card.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `title` | `str` | ✅ | Card header label |</p>
+<p>| `value` | `Any` | ❌ | Main display value |</p>
+<p>| `footer` | `str` | ❌ | Small text below the value |</p>
+<p>---</p>
+<h2>`aiui.columns(children)`</h2>
+<p>Arrange components in a responsive grid row.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `children` | `Sequence[dict]` | ✅ | Component dicts to lay out side-by-side |</p>
+<p>---</p>
+<h2>`aiui.table(*, headers, rows)`</h2>
+<p>A data table.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `headers` | `Sequence[str]` | ✅ | Column header labels |</p>
+<p>| `rows` | `Sequence[Sequence[Any]]` | ✅ | Row data arrays |</p>
+<p>---</p>
+<h2>`aiui.text(content)`</h2>
+<p>A text block.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `content` | `str` | ✅ | Text content |</p>
+<p>---</p>
+<h2>`aiui.chart(title, *, data, chart_type)`</h2>
+<p>A chart placeholder.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `title` | `str` | ✅ | — | Chart title |</p>
+<p>| `data` | `Sequence[dict]` | ❌ | `[]` | Data points |</p>
+<p>| `chart_type` | `str` | ❌ | `"bar"` | Chart type (`bar`, `line`, `pie`) |</p>
+<p>---</p>
+<h2>Composition</h2>
+<p>Components are designed to compose. Use `columns()` for horizontal layout within a `layout()`:</p>
+<h2>Custom Component Types</h2>
+<p>The `dashboard.js` renderer supports any dict with a `type` key. Unknown types render as formatted JSON, making it safe to experiment:</p></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>
