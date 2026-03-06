@@ -18,7 +18,14 @@ Build chat apps with an incremental decorator-based API.
 | 06 | [praisonai-playground](python/06-praisonai-playground/) | Multi PraisonAI Agents, context-aware starters | `aiui run app.py --datastore json` |
 | 07 | [dashboard](python/07-dashboard/) | `@page` decorator, `@on("event")` syntax | `aiui run app.py --style dashboard` |
 | 08 | [provider-praisonai](python/08-provider-praisonai/) | Custom `BaseProvider`, `RunEvent` protocol | `aiui run app.py` |
-| 09 | [feature-showcase](python/09-feature-showcase/) | All 8 protocol features, auto-discovery | `aiui run app.py` |
+| 09 | [feature-showcase](python/09-feature-showcase/) | All 10 protocol features, auto-discovery | `aiui run app.py` |
+| 10 | [streaming](python/10-streaming/) | PraisonAI Agent streaming, `stream_emitter` | `aiui run app.py` |
+| 11 | [non-streaming](python/11-non-streaming/) | Explicit non-streaming, `agent.chat(stream=False)` | `aiui run app.py` |
+| 12 | [widget](python/12-widget/) | Copilot widget/sidebar mode, floating panel | `aiui run app.py` |
+| 13 | [full-dashboard](python/13-full-dashboard/) | All features seeded, server via `create_app()` | `python app.py` |
+| 14 | [docs-site](python/14-docs-site/) | `@page` docs, structured content, groups | `aiui run app.py` |
+| 15 | [ui-integration](python/15-ui-integration/) | Gradio/Streamlit mount, REST embedding | `python app.py` |
+| 16 | [agent-dashboard](python/16-agent-dashboard/) | OpenClaw-style admin panel, sidebar nav | `python app.py` |
 
 ---
 
