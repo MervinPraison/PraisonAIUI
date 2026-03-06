@@ -12,7 +12,7 @@ graph TD
     C --> E["CLI commands registered"]
     C --> F["Health checks wired"]
     
-    subgraph "15 Built-in Features"
+    subgraph "16 Built-in Features"
         F1["Approvals"]
         F2["Channels"]
         F3["Schedules"]
@@ -28,9 +28,10 @@ graph TD
         F13["Agents"]
         F14["OpenAI API"]
         F15["Logs"]
+        F16["Auth"]
     end
     
-    C --> F1 & F2 & F3 & F4 & F5 & F6 & F7 & F8 & F9 & F10 & F11 & F12 & F13 & F14 & F15
+    C --> F1 & F2 & F3 & F4 & F5 & F6 & F7 & F8 & F9 & F10 & F11 & F12 & F13 & F14 & F15 & F16
 ```
 
 ## Quick Start
@@ -213,8 +214,9 @@ Advanced session management (state, context, labels, usage).
 | `/api/sessions/{id}/state` | GET | Get session state |
 | `/api/sessions/{id}/state` | POST | Save session state |
 | `/api/sessions/{id}/context` | POST | Build context |
-| `/api/sessions/{id}/compact` | POST | Compact session |
+| `/api/sessions/{id}/compact` | POST | Compact session (with stats) |
 | `/api/sessions/{id}/reset` | POST | Reset session |
+| `/api/sessions/{id}/preview` | GET | Formatted preview |
 | `/api/sessions/{id}/labels` | GET/POST | Get/set labels |
 | `/api/sessions/{id}/usage` | GET | Get usage stats |
 
@@ -280,6 +282,10 @@ Live runtime configuration without server restart.
 | `/api/config/runtime/{key}` | GET | Get single key |
 | `/api/config/runtime/{key}` | PUT | Set single key |
 | `/api/config/runtime/{key}` | DELETE | Delete key |
+| `/api/config/schema` | GET | JSON Schema for form rendering |
+| `/api/config/validate` | POST | Validate config without applying |
+| `/api/config/apply` | POST | Validate and apply config |
+| `/api/config/defaults` | GET | Get default values from schema |
 
 **CLI:** `aiui config get [key]`, `aiui config set <key> <value>`, `aiui config list`, `aiui config history`
 
@@ -320,7 +326,7 @@ Usage analytics with per-model cost tracking, time-series data, and breakdowns.
 
 ### 13. Agents
 
-Agent definition CRUD with model selection, system prompts, and duplication.
+Agent definition CRUD with model selection, execution via `praisonaiagents.Agent`.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -331,6 +337,7 @@ Agent definition CRUD with model selection, system prompts, and duplication.
 | `/api/agents/definitions/{id}` | DELETE | Delete agent |
 | `/api/agents/models` | GET | List available models (13 models) |
 | `/api/agents/duplicate/{id}` | POST | Duplicate an agent |
+| `/api/agents/run/{id}` | POST | Execute agent via `Agent.start()` |
 
 **CLI:** `aiui agents list`, `aiui agents create`
 
@@ -367,6 +374,23 @@ Real-time log streaming via WebSocket with level filtering.
 | `/api/logs/clear` | POST | Clear log buffer |
 
 **CLI:** `aiui logs tail`, `aiui logs clear`
+
+### 16. Auth
+
+Multi-mode authentication (none, api_key, session, password).
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/auth/status` | GET | Current auth status |
+| `/api/auth/config` | GET | Get auth config |
+| `/api/auth/config` | PUT | Set auth config |
+| `/api/auth/keys` | GET | List API keys |
+| `/api/auth/keys` | POST | Create API key |
+| `/api/auth/keys/{id}` | DELETE | Revoke API key |
+| `/api/auth/login` | POST | Login with password |
+| `/api/auth/logout` | POST | Logout session |
+| `/api/auth/sessions` | GET | List active sessions |
+| `/api/auth/password` | POST | Set/change password |
 
 ## Route Ordering
 

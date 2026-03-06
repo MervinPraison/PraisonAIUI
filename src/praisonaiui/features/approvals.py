@@ -2,11 +2,14 @@
 
 Provides API endpoints for tool-execution approval management:
 pending queue, approve/deny actions, policies, and history with SSE.
+
+DRY: Uses praisonaiagents.approval.ApprovalRegistry for backend integration.
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 import uuid
 from collections import deque
@@ -18,11 +21,31 @@ from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
 
+logger = logging.getLogger(__name__)
+
 # Risk levels
 RISK_LEVELS = ["low", "medium", "high", "critical"]
 RISK_ICONS = {"low": "✅", "medium": "⚠️", "high": "🟠", "critical": "🔴"}
 
-# In-memory stores
+# Lazy-loaded approval registry from praisonaiagents
+_approval_registry = None
+
+
+def _get_approval_registry():
+    """Lazy-load the praisonaiagents approval registry (DRY)."""
+    global _approval_registry
+    if _approval_registry is None:
+        try:
+            from praisonaiagents.approval import get_approval_registry
+            _approval_registry = get_approval_registry()
+            logger.info("Using praisonaiagents.approval.ApprovalRegistry")
+        except ImportError:
+            logger.warning("praisonaiagents.approval not available")
+            _approval_registry = None
+    return _approval_registry
+
+
+# In-memory stores (UI-specific, synced with registry)
 _pending: Dict[str, Dict[str, Any]] = {}
 _history: deque = deque(maxlen=500)  # Last 500 resolved approvals
 _policies: Dict[str, Any] = {

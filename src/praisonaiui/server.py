@@ -934,6 +934,8 @@ def create_app(
          "description": "Execution nodes & approvals", "order": 30},
         {"id": "config", "title": "Config", "icon": "⚙️", "group": "Settings",
          "description": "Server configuration", "order": 10},
+        {"id": "auth", "title": "Auth", "icon": "🔐", "group": "Settings",
+         "description": "Authentication settings", "order": 15},
         {"id": "logs", "title": "Logs", "icon": "📜", "group": "Settings",
          "description": "Server logs and events", "order": 20},
         {"id": "debug", "title": "Debug", "icon": "🐛", "group": "Settings",

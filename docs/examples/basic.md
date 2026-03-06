@@ -20,6 +20,8 @@ Each example teaches exactly **one new concept** — no overlap.
 | 10 | feature-showcase | All protocol features seeded, `create_app()` | `python app.py` |
 | 11 | ui-integration | Gradio ASGI mount, Streamlit iframe, REST embedding | `python app.py` |
 | 12 | agent-dashboard | OpenClaw-style rendered HTML admin panel | `python app.py` |
+| 13 | real-dashboard | Production dashboard with seeded data | `python app.py` |
+| 14 | all-features | Comprehensive 16-feature API test suite | `python app.py` |
 
 ## Minimal Docs Site
 

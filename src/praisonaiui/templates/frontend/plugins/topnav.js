@@ -72,6 +72,10 @@ function sectionBelongsToTab(section, tab) {
   for (const grp of tab.groups) {
     const groupName = grp.group.toLowerCase();
     if (section.headerText === groupName) return true;
+
+    // Also match by prefix: prefix "api" matches sidebar header "api"
+    if (grp.prefix && section.headerText === grp.prefix.toLowerCase()) return true;
+
     if (section.isStandalone && grp.pages) {
       for (const page of grp.pages) {
         const slug = page.split('/').pop().replace(/-/g, ' ');
@@ -101,12 +105,6 @@ function filterSidebarCSS(tabIndex) {
     styleEl = document.createElement('style');
     styleEl.id = 'aiui-topnav-filter';
     document.head.appendChild(styleEl);
-  }
-
-  // Home tab or tab with url="/" → show everything
-  if (tab.url === '/') {
-    styleEl.textContent = '';
-    return;
   }
 
   // Find which children indices to HIDE
@@ -212,6 +210,9 @@ function renderTabBar(root) {
 
   bar.appendChild(inner);
   header.insertAdjacentElement('afterend', bar);
+
+  // Apply sidebar filtering immediately on first render
+  filterSidebarCSS(activeIdx);
 }
 
 function updateActiveHighlight() {

@@ -9,29 +9,21 @@ site:
     radius: "md"
     darkMode: true
 
-# Top navigation tabs (Mintlify-style)
+# Mintlify-style navigation: few tabs, many groups per tab
 navigation:
   tabs:
-    - tab: "Home"
-      url: "/"
-      groups:
-        - group: "Home"
-          pages:
-            - index
-            - testing
-    - tab: "Getting Started"
+    - tab: "Documentation"
       groups:
         - group: "Getting Started"
           icon: "rocket"
           prefix: "getting-started"
           pages:
+            - index
             - getting-started/installation
             - getting-started/quickstart
             - getting-started/cli
             - getting-started/github-pages
-    - tab: "Core Concepts"
-      groups:
-        - group: "Concepts"
+        - group: "Core Concepts"
           icon: "lightbulb"
           prefix: "concepts"
           pages:
@@ -40,8 +32,6 @@ navigation:
             - concepts/templates
             - concepts/slots
             - concepts/providers
-    - tab: "Features"
-      groups:
         - group: "Features"
           icon: "sparkles"
           prefix: "features"
@@ -53,9 +43,23 @@ navigation:
             - features/seo
             - features/hot-reload
             - features/protocols
-    - tab: "API"
+        - group: "TypeScript"
+          icon: "file-code"
+          prefix: "typescript"
+          pages:
+            - typescript/index
+            - typescript/runtime
+            - typescript/nextjs
+            - typescript/components
+        - group: "Examples"
+          icon: "folder-open"
+          prefix: "examples"
+          pages:
+            - examples/basic
+            - examples/advanced
+    - tab: "API Reference"
       groups:
-        - group: "Api"
+        - group: "API Reference"
           icon: "code"
           prefix: "api"
           pages:
@@ -64,27 +68,6 @@ navigation:
             - api/python
             - api/sessions
             - api/typescript
-    - tab: "TypeScript"
-      groups:
-        - group: "Typescript"
-          icon: "file-code"
-          prefix: "typescript"
-          pages:
-            - typescript/index
-            - typescript/runtime
-            - typescript/nextjs
-            - typescript/components
-        - group: "TypeScript SDK Overview"
-          prefix: "typescript-sdk"
-          pages: []
-    - tab: "Examples"
-      groups:
-        - group: "Examples"
-          icon: "folder-open"
-          prefix: "examples"
-          pages:
-            - examples/basic
-            - examples/advanced
 
 
 # Navbar actions

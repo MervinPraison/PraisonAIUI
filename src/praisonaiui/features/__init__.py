@@ -37,6 +37,7 @@ def auto_register_defaults() -> None:
     """
     from .agents import PraisonAIAgentsFeature
     from .approvals import PraisonAIApprovals
+    from .auth import PraisonAIAuth
     from .channels import PraisonAIChannels
     from .openai_api import PraisonAIOpenAIAPI
     from .config_runtime import PraisonAIConfigRuntime
@@ -54,6 +55,7 @@ def auto_register_defaults() -> None:
     for cls in (
         PraisonAIAgentsFeature,
         PraisonAIApprovals,
+        PraisonAIAuth,
         PraisonAIChannels,
         PraisonAIJobs,
         PraisonAILogs,

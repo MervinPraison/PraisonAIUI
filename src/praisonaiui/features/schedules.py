@@ -2,10 +2,13 @@
 
 Provides API endpoints and CLI commands for scheduled job management:
 add, list, remove, toggle, and trigger cron/interval/one-shot jobs.
+
+DRY: Uses praisonaiagents.scheduler.FileScheduleStore for persistence.
 """
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 from typing import Any, Dict, List
@@ -16,8 +19,104 @@ from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
 
-# In-memory schedule store (mirrors praisonaiagents.scheduler.store)
-_jobs: Dict[str, Dict[str, Any]] = {}
+logger = logging.getLogger(__name__)
+
+# Lazy-loaded schedule store from praisonaiagents
+_schedule_store = None
+
+
+def _get_schedule_store():
+    """Lazy-load the praisonaiagents schedule store (DRY)."""
+    global _schedule_store
+    if _schedule_store is None:
+        try:
+            from praisonaiagents.scheduler import FileScheduleStore
+            _schedule_store = FileScheduleStore()
+            logger.info("Using praisonaiagents.scheduler.FileScheduleStore for persistence")
+        except ImportError:
+            logger.warning("praisonaiagents.scheduler not available, using in-memory fallback")
+            _schedule_store = _InMemoryScheduleStore()
+    return _schedule_store
+
+
+def _create_schedule_job(job_dict: Dict[str, Any]):
+    """Create a ScheduleJob from a dict, using praisonaiagents if available."""
+    try:
+        from praisonaiagents.scheduler import ScheduleJob, Schedule
+        sched_data = job_dict.get("schedule", {})
+        schedule = Schedule(
+            kind=sched_data.get("kind", "every"),
+            every_seconds=sched_data.get("every_seconds"),
+            cron_expr=sched_data.get("cron_expr"),
+            at=sched_data.get("at"),
+        )
+        return ScheduleJob(
+            id=job_dict.get("id", uuid.uuid4().hex[:12]),
+            name=job_dict.get("name", ""),
+            schedule=schedule,
+            message=job_dict.get("message", ""),
+            agent_id=job_dict.get("agent_id"),
+            session_target=job_dict.get("session_target", "isolated"),
+            enabled=job_dict.get("enabled", True),
+            delete_after_run=job_dict.get("delete_after_run", False),
+        )
+    except ImportError:
+        return job_dict
+
+
+def _to_dict(obj) -> Dict[str, Any]:
+    """Convert dataclass/pydantic object to dict for JSON serialization."""
+    if obj is None:
+        return {}
+    if isinstance(obj, dict):
+        return obj
+    if hasattr(obj, 'model_dump'):
+        return obj.model_dump()
+    if hasattr(obj, '__dataclass_fields__'):
+        from dataclasses import asdict
+        return asdict(obj)
+    if hasattr(obj, '__dict__'):
+        return vars(obj)
+    return {"value": str(obj)}
+
+
+class _InMemoryScheduleStore:
+    """Fallback in-memory store if praisonaiagents not available."""
+    
+    def __init__(self):
+        self._jobs: Dict[str, Dict[str, Any]] = {}
+    
+    def add(self, job_id: str, schedule: str, action: str, **kwargs) -> Dict[str, Any]:
+        job = {
+            "id": job_id,
+            "schedule": schedule,
+            "action": action,
+            "enabled": True,
+            "created_at": time.time(),
+            "last_run": None,
+            "run_count": 0,
+            **kwargs,
+        }
+        self._jobs[job_id] = job
+        return job
+    
+    def get(self, job_id: str) -> Dict[str, Any]:
+        return self._jobs.get(job_id)
+    
+    def list(self) -> List[Dict[str, Any]]:
+        return list(self._jobs.values())
+    
+    def remove(self, job_id: str) -> bool:
+        if job_id in self._jobs:
+            del self._jobs[job_id]
+            return True
+        return False
+    
+    def update(self, job_id: str, **kwargs) -> Dict[str, Any]:
+        if job_id in self._jobs:
+            self._jobs[job_id].update(kwargs)
+            return self._jobs[job_id]
+        return None
 
 
 class PraisonAISchedules(BaseFeatureProtocol):
@@ -60,18 +159,23 @@ class PraisonAISchedules(BaseFeatureProtocol):
         }]
 
     async def health(self) -> Dict[str, Any]:
-        enabled = sum(1 for j in _jobs.values() if j.get("enabled", True))
+        store = _get_schedule_store()
+        jobs = store.list() if hasattr(store, 'list') else []
+        enabled = sum(1 for j in jobs if j.get("enabled", True))
         return {
             "status": "ok",
             "feature": self.name,
-            "total_jobs": len(_jobs),
+            "total_jobs": len(jobs),
             "enabled_jobs": enabled,
         }
 
     # ── API handlers ─────────────────────────────────────────────────
 
     async def _list(self, request: Request) -> JSONResponse:
-        return JSONResponse({"schedules": list(_jobs.values()), "count": len(_jobs)})
+        store = _get_schedule_store()
+        jobs_raw = store.list() if hasattr(store, 'list') else []
+        jobs = [_to_dict(j) for j in jobs_raw]
+        return JSONResponse({"schedules": jobs, "count": len(jobs)})
 
     async def _add(self, request: Request) -> JSONResponse:
         body = await request.json()
@@ -94,66 +198,97 @@ class PraisonAISchedules(BaseFeatureProtocol):
             "created_at": time.time(),
             "last_run_at": None,
         }
-        _jobs[job_id] = job
+        store = _get_schedule_store()
+        if hasattr(store, 'add'):
+            schedule_job = _create_schedule_job(job)
+            try:
+                store.add(schedule_job)
+            except Exception as e:
+                logger.warning(f"Failed to add schedule to store: {e}")
         return JSONResponse(job, status_code=201)
 
     async def _get(self, request: Request) -> JSONResponse:
         job_id = request.path_params["job_id"]
-        job = _jobs.get(job_id)
+        store = _get_schedule_store()
+        job = store.get(job_id) if hasattr(store, 'get') else None
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
-        return JSONResponse(job)
+        return JSONResponse(_to_dict(job))
 
     async def _delete(self, request: Request) -> JSONResponse:
         job_id = request.path_params["job_id"]
-        if job_id not in _jobs:
-            return JSONResponse({"error": "Job not found"}, status_code=404)
-        del _jobs[job_id]
+        store = _get_schedule_store()
+        if hasattr(store, 'remove'):
+            if not store.remove(job_id):
+                return JSONResponse({"error": "Job not found"}, status_code=404)
         return JSONResponse({"deleted": job_id})
 
     async def _toggle(self, request: Request) -> JSONResponse:
         job_id = request.path_params["job_id"]
-        job = _jobs.get(job_id)
+        store = _get_schedule_store()
+        job = store.get(job_id) if hasattr(store, 'get') else None
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
-        job["enabled"] = not job["enabled"]
-        return JSONResponse(job)
+        # Toggle enabled state
+        if hasattr(job, 'enabled'):
+            job.enabled = not job.enabled
+            if hasattr(store, 'update'):
+                store.update(job)
+        else:
+            job["enabled"] = not job.get("enabled", True)
+        return JSONResponse(_to_dict(job))
 
     async def _run(self, request: Request) -> JSONResponse:
         job_id = request.path_params["job_id"]
-        job = _jobs.get(job_id)
+        store = _get_schedule_store()
+        job = store.get(job_id) if hasattr(store, 'get') else None
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
-        job["last_run_at"] = time.time()
-        job["run_count"] = job.get("run_count", 0) + 1
-        return JSONResponse({"triggered": job_id, "last_run_at": job["last_run_at"]})
+        last_run_at = time.time()
+        # Update last_run_at on the job
+        if hasattr(job, 'last_run_at'):
+            job.last_run_at = last_run_at
+            if hasattr(store, 'update'):
+                store.update(job)
+        return JSONResponse({"triggered": job_id, "last_run_at": last_run_at})
 
     async def _update(self, request: Request) -> JSONResponse:
         """Update a schedule configuration."""
         job_id = request.path_params["job_id"]
-        job = _jobs.get(job_id)
+        store = _get_schedule_store()
+        job = store.get(job_id) if hasattr(store, 'get') else None
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
         body = await request.json()
-        for key in ("name", "message", "schedule", "agent_id", "session_target", "enabled"):
+        # Update fields on the job object
+        for key in ("name", "message", "agent_id", "session_target", "enabled"):
             if key in body:
-                job[key] = body[key]
-        return JSONResponse(job)
+                if hasattr(job, key):
+                    setattr(job, key, body[key])
+                elif isinstance(job, dict):
+                    job[key] = body[key]
+        if hasattr(store, 'update'):
+            store.update(job)
+        return JSONResponse(_to_dict(job))
 
     async def _stop(self, request: Request) -> JSONResponse:
         """Stop a running scheduled job."""
         job_id = request.path_params["job_id"]
-        job = _jobs.get(job_id)
+        store = _get_schedule_store()
+        job = store.get(job_id) if hasattr(store, 'get') else None
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
         
         # Mark as stopped
-        job["enabled"] = False
-        job["status"] = "stopped"
-        job["stopped_at"] = time.time()
+        if hasattr(job, 'enabled'):
+            job.enabled = False
+            if hasattr(store, 'update'):
+                store.update(job)
+        elif isinstance(job, dict):
+            job["enabled"] = False
         
         # Try to stop via AgentScheduler if connected
-        scheduler = job.get("_scheduler")
+        scheduler = job.get("_scheduler") if isinstance(job, dict) else None
         if scheduler and hasattr(scheduler, 'stop'):
             try:
                 scheduler.stop()
@@ -173,7 +308,8 @@ class PraisonAISchedules(BaseFeatureProtocol):
     async def _stats(self, request: Request) -> JSONResponse:
         """Get execution statistics for a scheduled job."""
         job_id = request.path_params["job_id"]
-        job = _jobs.get(job_id)
+        store = _get_schedule_store()
+        job = store.get(job_id) if hasattr(store, 'get') else None
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
         
@@ -222,29 +358,39 @@ class PraisonAISchedules(BaseFeatureProtocol):
     # ── CLI handlers ─────────────────────────────────────────────────
 
     def _cli_list(self) -> str:
-        if not _jobs:
+        store = _get_schedule_store()
+        jobs = store.list() if hasattr(store, 'list') else []
+        if not jobs:
             return "No scheduled jobs"
         lines = []
-        for j in _jobs.values():
+        for j in jobs:
             status = "✓" if j.get("enabled", True) else "✗"
-            lines.append(f"  [{status}] {j['id']} — {j['name']} ({j['schedule']['kind']})")
+            sched = j.get('schedule', {})
+            kind = sched.get('kind', 'unknown') if isinstance(sched, dict) else str(sched)
+            lines.append(f"  [{status}] {j.get('id', '?')} — {j.get('name', '')} ({kind})")
         return "\n".join(lines)
 
     def _cli_add(self, name: str, message: str, every_seconds: int = 60) -> str:
         job_id = uuid.uuid4().hex[:12]
-        _jobs[job_id] = {
+        store = _get_schedule_store()
+        job = {
             "id": job_id, "name": name, "message": message,
             "schedule": {"kind": "every", "every_seconds": every_seconds},
             "enabled": True, "created_at": time.time(), "last_run_at": None,
         }
+        if hasattr(store, 'add'):
+            store.add(job_id, f"*/{every_seconds}s", message, **job)
         return f"Added job {job_id}: {name}"
 
     def _cli_remove(self, job_id: str) -> str:
-        if job_id not in _jobs:
-            return f"Job {job_id} not found"
-        del _jobs[job_id]
+        store = _get_schedule_store()
+        if hasattr(store, 'remove'):
+            if not store.remove(job_id):
+                return f"Job {job_id} not found"
         return f"Removed job {job_id}"
 
     def _cli_status(self) -> str:
-        enabled = sum(1 for j in _jobs.values() if j.get("enabled", True))
-        return f"Jobs: {len(_jobs)} total, {enabled} enabled"
+        store = _get_schedule_store()
+        jobs = store.list() if hasattr(store, 'list') else []
+        enabled = sum(1 for j in jobs if j.get("enabled", True))
+        return f"Jobs: {len(jobs)} total, {enabled} enabled"

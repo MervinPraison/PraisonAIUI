@@ -2,11 +2,14 @@
 
 Provides API endpoints for submitting, monitoring, and managing async agent jobs.
 Mirrors the praisonai.jobs API but adapted for Starlette.
+
+DRY: Uses praisonaiagents.Agent for real agent execution.
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 import uuid
 from datetime import datetime
@@ -18,6 +21,8 @@ from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
+
+logger = logging.getLogger(__name__)
 
 
 class JobStatus(str, Enum):
@@ -210,22 +215,57 @@ class PraisonAIJobs(BaseFeatureProtocol):
                     job["status"] = JobStatus.FAILED.value
                     job["error"] = praison_job.error
             else:
-                # Mock execution for demo
-                for i in range(5):
-                    if job.get("_cancel_requested"):
-                        job["status"] = JobStatus.CANCELLED.value
-                        job["completed_at"] = time.time()
-                        await self._notify_progress(job_id)
-                        return
-
-                    job["progress_percentage"] = (i + 1) * 20
-                    job["progress_step"] = f"Step {i + 1}/5"
+                # Try to use praisonaiagents.Agent for real execution (DRY)
+                try:
+                    from praisonaiagents import Agent
+                    
+                    job["progress_percentage"] = 10
+                    job["progress_step"] = "Creating agent..."
                     await self._notify_progress(job_id)
-                    await asyncio.sleep(0.5)
+                    
+                    # Create agent from job config
+                    agent_name = job.get("config", {}).get("name", "assistant")
+                    instructions = job.get("config", {}).get("instructions", "")
+                    model = job.get("config", {}).get("model", "gpt-4o-mini")
+                    
+                    agent = Agent(
+                        name=agent_name,
+                        instructions=instructions,
+                        llm=model,
+                    )
+                    
+                    job["progress_percentage"] = 30
+                    job["progress_step"] = "Executing agent..."
+                    await self._notify_progress(job_id)
+                    
+                    # Execute in thread pool
+                    loop = asyncio.get_running_loop()
+                    result = await loop.run_in_executor(None, agent.start, job["prompt"])
+                    
+                    job["progress_percentage"] = 100
+                    job["progress_step"] = "Complete"
+                    job["status"] = JobStatus.SUCCEEDED.value
+                    job["result"] = result
+                    job["metrics"] = {"model": model}
+                    
+                except ImportError:
+                    logger.warning("praisonaiagents not available, using mock execution")
+                    # Fallback to mock execution
+                    for i in range(5):
+                        if job.get("_cancel_requested"):
+                            job["status"] = JobStatus.CANCELLED.value
+                            job["completed_at"] = time.time()
+                            await self._notify_progress(job_id)
+                            return
 
-                job["status"] = JobStatus.SUCCEEDED.value
-                job["result"] = f"Completed: {job['prompt'][:50]}..."
-                job["metrics"] = {"tokens": 100, "cost": 0.001}
+                        job["progress_percentage"] = (i + 1) * 20
+                        job["progress_step"] = f"Step {i + 1}/5"
+                        await self._notify_progress(job_id)
+                        await asyncio.sleep(0.5)
+
+                    job["status"] = JobStatus.SUCCEEDED.value
+                    job["result"] = f"Completed: {job['prompt'][:50]}..."
+                    job["metrics"] = {"tokens": 100, "cost": 0.001}
 
         except Exception as e:
             job["status"] = JobStatus.FAILED.value

@@ -2,11 +2,15 @@
 
 Provides API endpoints for creating, reading, updating, and deleting agents
 with persistence to YAML/JSON files.
+
+DRY: Uses praisonaiagents.Agent for real agent execution.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import time
 import uuid
 from pathlib import Path
@@ -17,6 +21,8 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
+
+logger = logging.getLogger(__name__)
 
 # Default models available
 AVAILABLE_MODELS = [
@@ -182,6 +188,7 @@ class PraisonAIAgentsFeature(BaseFeatureProtocol):
             Route("/api/agents/definitions/{agent_id}", self._delete, methods=["DELETE"]),
             Route("/api/agents/models", self._models, methods=["GET"]),
             Route("/api/agents/duplicate/{agent_id}", self._duplicate, methods=["POST"]),
+            Route("/api/agents/run/{agent_id}", self._run, methods=["POST"]),
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
@@ -316,3 +323,55 @@ class PraisonAIAgentsFeature(BaseFeatureProtocol):
 
     def _cli_create(self) -> str:
         return "Use the dashboard or API to create agents"
+
+    # ── Agent Execution (DRY: uses praisonaiagents.Agent) ─────────────
+
+    async def _run(self, request: Request) -> JSONResponse:
+        """Execute an agent with a prompt using praisonaiagents.Agent."""
+        agent_id = request.path_params["agent_id"]
+        agent_def = get_agent(agent_id)
+        
+        if not agent_def:
+            return JSONResponse({"error": "Agent not found"}, status_code=404)
+        
+        body = await request.json()
+        prompt = body.get("prompt", "").strip()
+        
+        if not prompt:
+            return JSONResponse({"error": "Prompt is required"}, status_code=400)
+        
+        try:
+            # Lazy import praisonaiagents.Agent (DRY)
+            from praisonaiagents import Agent
+            
+            # Create real Agent from definition
+            agent = Agent(
+                name=agent_def.get("name", "assistant"),
+                instructions=agent_def.get("instructions", "") or agent_def.get("system_prompt", ""),
+                llm=agent_def.get("model", "gpt-4o-mini"),
+            )
+            
+            # Execute in thread pool to not block event loop
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(None, agent.start, prompt)
+            
+            return JSONResponse({
+                "agent_id": agent_id,
+                "prompt": prompt,
+                "result": result,
+                "model": agent_def.get("model", "gpt-4o-mini"),
+                "timestamp": time.time(),
+            })
+            
+        except ImportError:
+            logger.warning("praisonaiagents not available for agent execution")
+            return JSONResponse({
+                "error": "praisonaiagents not installed",
+                "hint": "pip install praisonaiagents",
+            }, status_code=501)
+        except Exception as e:
+            logger.exception("Agent execution failed")
+            return JSONResponse({
+                "error": str(e),
+                "agent_id": agent_id,
+            }, status_code=500)

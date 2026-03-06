@@ -15,6 +15,7 @@
     "api",
     "logs",
     "config",
-    "sessions"
+    "sessions",
+    "auth"
   ]
 }
