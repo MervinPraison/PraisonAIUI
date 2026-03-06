@@ -14,6 +14,11 @@ navigation:
   tabs:
     - tab: "Home"
       url: "/"
+      groups:
+        - group: "Home"
+          pages:
+            - index
+            - testing
     - tab: "Getting Started"
       groups:
         - group: "Getting Started"
@@ -26,7 +31,7 @@ navigation:
             - getting-started/github-pages
     - tab: "Core Concepts"
       groups:
-        - group: "Core Concepts"
+        - group: "Concepts"
           icon: "lightbulb"
           prefix: "concepts"
           pages:
@@ -50,16 +55,18 @@ navigation:
             - features/protocols
     - tab: "API"
       groups:
-        - group: "API Reference"
+        - group: "Api"
           icon: "code"
           prefix: "api"
           pages:
             - api/cli
+            - api/features-api
             - api/python
+            - api/sessions
             - api/typescript
     - tab: "TypeScript"
       groups:
-        - group: "TypeScript SDK"
+        - group: "Typescript"
           icon: "file-code"
           prefix: "typescript"
           pages:
@@ -67,6 +74,9 @@ navigation:
             - typescript/runtime
             - typescript/nextjs
             - typescript/components
+        - group: "TypeScript SDK Overview"
+          prefix: "typescript-sdk"
+          pages: []
     - tab: "Examples"
       groups:
         - group: "Examples"
@@ -75,6 +85,7 @@ navigation:
           pages:
             - examples/basic
             - examples/advanced
+
 
 # Navbar actions
 navbar:

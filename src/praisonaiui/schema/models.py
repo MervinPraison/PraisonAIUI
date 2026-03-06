@@ -38,6 +38,7 @@ class SiteConfig(BaseModel):
             "toc",
             "topnav",
             "code-copy",
+            "syntax-highlight",
         ],
         description="List of frontend plugin names to enable",
     )

@@ -18,6 +18,7 @@
 | 10 | [feature-showcase](python/10-feature-showcase/) | All protocol features seeded, `create_app()` | `python app.py` |
 | 11 | [ui-integration](python/11-ui-integration/) | Gradio ASGI mount, Streamlit iframe, REST embedding | `python app.py` |
 | 12 | [agent-dashboard](python/12-agent-dashboard/) | OpenClaw-style rendered HTML admin panel | `python app.py` |
+| 13 | [real-dashboard](python/13-real-dashboard/) | Real PraisonAI Agent + native dashboard + live metrics | `aiui run app.py --style dashboard` |
 
 ---
 
