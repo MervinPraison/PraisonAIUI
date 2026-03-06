@@ -12,7 +12,7 @@ export async function render(container) {
     features = data.features || [];
   } catch(e) { /* ignore */ }
 
-  const healthy = features.filter(f => f.status === 'active').length;
+  const healthy = features.filter(f => f.health?.status === 'ok').length;
   const total = features.length;
   const uptimeMs = Date.now() - (window.__aiuiLoadTime || Date.now());
   const uptime = uptimeMs < 60000 ? `${Math.round(uptimeMs/1000)}s` : `${Math.round(uptimeMs/60000)}m`;
@@ -49,9 +49,9 @@ export async function render(container) {
             <div style="font-size:13px;font-weight:500">${f.name || 'unknown'}</div>
             <div style="font-size:11px;color:var(--db-text-dim)">${f.description || ''}</div>
           </div>
-          <span style="font-size:12px;padding:3px 10px;border-radius:20px;${f.status === 'active' 
+          <span style="font-size:12px;padding:3px 10px;border-radius:20px;${f.health?.status === 'ok' 
             ? 'background:rgba(34,197,94,0.15);color:#22c55e' 
-            : 'background:rgba(239,68,68,0.15);color:#ef4444'}">${f.status === 'active' ? '● active' : '○ inactive'}</span>
+            : 'background:rgba(239,68,68,0.15);color:#ef4444'}">${f.health?.status === 'ok' ? '● active' : '○ inactive'}</span>
         </div>
       `).join('')}
     </div>

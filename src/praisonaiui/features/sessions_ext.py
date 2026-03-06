@@ -214,9 +214,20 @@ class PraisonAISessions(BaseFeatureProtocol):
         """GET /api/sessions — List all known sessions."""
         store = _get_session_store()
         session_ids = set()
-        # Get IDs from store
+        # Get IDs from store (upstream may crash on sort)
         if hasattr(store, 'list_sessions'):
-            session_ids.update(store.list_sessions())
+            try:
+                result = store.list_sessions()
+                # Result may be list of strings or list of dicts
+                for item in (result or []):
+                    if isinstance(item, str):
+                        session_ids.add(item)
+                    elif isinstance(item, dict):
+                        session_ids.add(item.get("session_id", item.get("id", str(item))))
+                    else:
+                        session_ids.add(str(getattr(item, 'session_id', getattr(item, 'id', item))))
+            except Exception as e:
+                logger.warning(f"store.list_sessions() failed: {e}")
         # Get IDs from metadata
         session_ids.update(_session_metadata.keys())
         sessions = []

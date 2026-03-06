@@ -319,6 +319,9 @@ class PraisonAIUsage(BaseFeatureProtocol):
             "usage": {
                 "total_requests": total_reqs,
                 "total_tokens": total_tokens,
+                "total_cost": round(total_cost, 4),
+                "total_input_tokens": _aggregates["total_input_tokens"],
+                "total_output_tokens": _aggregates["total_output_tokens"],
                 "by_model": by_model,
                 "by_session": by_session,
             },

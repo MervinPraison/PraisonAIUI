@@ -232,7 +232,7 @@ function buildSidebar(pages) {
 
   const testBtn = document.createElement('div');
   testBtn.className = 'db-nav-item';
-  testBtn.innerHTML = '<span class="db-nav-icon">🧪</span> Test All Features';
+  testBtn.innerHTML = '<span class="db-nav-icon">🔍</span> Feature Inspector';
   testBtn.addEventListener('click', () => showTestPanel());
   testBtn.style.borderTop = '1px solid var(--db-border)';
   testBtn.style.marginTop = '8px';
@@ -411,105 +411,300 @@ function renderText(comp) {
 
 async function showTestPanel() {
   activePageId = '__test__';
-
-  // Clear active nav
   document.querySelectorAll('.db-nav-item').forEach(el => el.classList.remove('active'));
-
   const main = document.getElementById('db-main-content');
   if (!main) return;
 
   main.innerHTML = `
     <div class="db-page-header">
-      <h1 class="db-page-title">🧪 Test All Features</h1>
-      <p class="db-page-desc">Auto-discovers features from /api/features and tests each endpoint.</p>
+      <h1 class="db-page-title">🔍 Feature Inspector</h1>
+      <p class="db-page-desc">Interactive data flow debugger — click a feature to inspect its API endpoints and see raw request/response data.</p>
     </div>
-    <div class="db-test-panel">
-      <div class="db-test-grid" id="db-test-grid">
-        <div class="db-loading"><div class="db-spinner"></div></div>
-      </div>
+    <div id="fi-container">
+      <div class="db-loading"><div class="db-spinner"></div></div>
     </div>
+    <!-- Debug Modal -->
+    <div id="fi-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px)"></div>
   `;
 
   try {
     const res = await fetch('/api/features');
     const data = await res.json();
     const features = data.features || [];
-    const grid = document.getElementById('db-test-grid');
-    grid.innerHTML = '';
+    const container = document.getElementById('fi-container');
 
     if (features.length === 0) {
-      grid.innerHTML = '<div class="db-viewer"><pre>No features registered.</pre></div>';
+      container.innerHTML = '<div class="db-viewer"><pre>No features registered.</pre></div>';
       return;
     }
 
-    // Test each feature
-    for (const feature of features) {
-      const card = document.createElement('div');
-      card.className = 'db-test-card';
-      card.innerHTML = `
-        <div>
-          <div class="db-test-name">${feature.name || 'Unknown'}</div>
-          <div style="font-size:11px;color:var(--db-text-dim);">${feature.description || ''}</div>
-        </div>
-        <span class="db-test-status db-test-pending">testing…</span>
-      `;
-      grid.appendChild(card);
+    // Summary bar
+    const healthy = features.filter(f => f.health?.status === 'ok').length;
+    container.innerHTML = `
+      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+        <div class="db-card" style="padding:12px 18px;flex:1;min-width:120px"><div class="db-card-title">Features</div><div class="db-card-value">${features.length}</div></div>
+        <div class="db-card" style="padding:12px 18px;flex:1;min-width:120px"><div class="db-card-title">Healthy</div><div class="db-card-value" style="color:#22c55e">${healthy}</div></div>
+        <div class="db-card" style="padding:12px 18px;flex:1;min-width:120px"><div class="db-card-title">Failing</div><div class="db-card-value" style="color:${features.length - healthy > 0 ? '#ef4444' : '#22c55e'}">${features.length - healthy}</div></div>
+        <div class="db-card" style="padding:12px 18px;flex:1;min-width:120px"><div class="db-card-title">Total Routes</div><div class="db-card-value">${features.reduce((s, f) => s + (f.routes?.length || 0), 0)}</div></div>
+      </div>
+      <div id="fi-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px"></div>
+      <div id="fi-detail" style="display:none;margin-top:20px"></div>
+    `;
 
-      // Test the endpoint
-      testFeature(feature, card);
+    const grid = document.getElementById('fi-grid');
+    for (const feature of features) {
+      const routes = feature.routes || [];
+      const ok = feature.health?.status === 'ok';
+      const card = document.createElement('div');
+      card.className = 'db-card';
+      card.style.cssText = 'padding:16px 20px;cursor:pointer;transition:border-color 0.2s,box-shadow 0.2s';
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+          <div style="font-weight:600;font-size:14px">${feature.name}</div>
+          <span style="font-size:11px;padding:3px 10px;border-radius:12px;${ok ? 'background:rgba(34,197,94,0.15);color:#22c55e' : 'background:rgba(239,68,68,0.15);color:#ef4444'}">${ok ? '● healthy' : '○ error'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--db-text-dim);margin-bottom:10px">${feature.description || ''}</div>
+        <div style="display:flex;gap:16px;font-size:11px;color:var(--db-text-dim)">
+          <span>📡 ${routes.length} route${routes.length !== 1 ? 's' : ''}</span>
+          ${feature.health?.total_agents !== undefined ? `<span>🤖 ${feature.health.total_agents} agents</span>` : ''}
+          ${feature.health?.total_jobs !== undefined ? `<span>📋 ${feature.health.total_jobs} jobs</span>` : ''}
+          ${feature.health?.total_requests !== undefined ? `<span>📊 ${feature.health.total_requests} reqs</span>` : ''}
+        </div>
+      `;
+      card.addEventListener('mouseenter', () => card.style.borderColor = 'var(--db-accent)');
+      card.addEventListener('mouseleave', () => card.style.borderColor = '');
+      card.addEventListener('click', () => showFeatureDetail(feature));
+      grid.appendChild(card);
     }
   } catch (e) {
-    document.getElementById('db-test-grid').innerHTML =
-      '<div class="db-viewer"><pre>Failed to load features.</pre></div>';
+    document.getElementById('fi-container').innerHTML =
+      '<div class="db-viewer"><pre>Failed to load features: ' + e.message + '</pre></div>';
   }
 }
 
-async function testFeature(feature, card) {
-  const statusEl = card.querySelector('.db-test-status');
-  try {
-    // If the feature itself errored during info() (e.g. schedules)
-    if (feature.status === 'error') {
-      statusEl.textContent = '✗ fail';
-      statusEl.className = 'db-test-status db-test-fail';
-      return;
-    }
+async function showFeatureDetail(feature) {
+  const detail = document.getElementById('fi-detail');
+  const grid = document.getElementById('fi-grid');
+  grid.style.display = 'none';
+  detail.style.display = 'block';
 
-    // Check health status from the API response
-    const healthStatus = feature.health?.status;
-    if (healthStatus === 'ok') {
-      // Health is ok — try one route to verify it's reachable
-      const routes = feature.routes || [];
-      // Find first GET-able route (no path params)
-      const testableRoute = routes.find(r => !r.includes('{') && !r.includes('stream'));
-      if (testableRoute) {
-        try {
-          const res = await fetch(testableRoute);
-          if (res.ok || res.status === 401 || res.status === 405) {
-            // 401 = auth required, 405 = POST-only route, still counts as "working"
-            statusEl.textContent = '✓ pass';
-            statusEl.className = 'db-test-status db-test-pass';
-          } else {
-            statusEl.textContent = `✗ ${res.status}`;
-            statusEl.className = 'db-test-status db-test-fail';
-          }
-        } catch(e) {
-          // Network error on individual route, but health was ok
-          statusEl.textContent = '✓ pass';
-          statusEl.className = 'db-test-status db-test-pass';
-        }
-      } else {
-        // No testable routes but health is ok
-        statusEl.textContent = '✓ pass';
-        statusEl.className = 'db-test-status db-test-pass';
-      }
-    } else {
-      statusEl.textContent = '✗ fail';
-      statusEl.className = 'db-test-status db-test-fail';
-    }
-  } catch (e) {
-    statusEl.textContent = '✗ error';
-    statusEl.className = 'db-test-status db-test-fail';
+  const routes = feature.routes || [];
+  const ok = feature.health?.status === 'ok';
+
+  detail.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <button id="fi-back" style="background:transparent;border:1px solid var(--db-border);color:var(--db-text);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px">← Back</button>
+      <h2 style="margin:0;font-size:20px;font-weight:600">${feature.name}</h2>
+      <span style="font-size:11px;padding:3px 10px;border-radius:12px;${ok ? 'background:rgba(34,197,94,0.15);color:#22c55e' : 'background:rgba(239,68,68,0.15);color:#ef4444'}">${ok ? '● healthy' : '○ error'}</span>
+    </div>
+    <p style="font-size:13px;color:var(--db-text-dim);margin:0 0 12px">${feature.description || ''}</p>
+
+    <!-- Health Data -->
+    <div class="db-card" style="padding:14px 18px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="db-card-title" style="margin:0">Health Status</div>
+        <button class="fi-info-btn" data-json='${JSON.stringify(feature.health || {}).replace(/'/g, "&#39;")}' style="background:transparent;border:1px solid var(--db-border);color:var(--db-accent);padding:2px 8px;border-radius:4px;cursor:pointer;font-size:11px" title="View raw health JSON">ℹ️ Raw</button>
+      </div>
+      <pre style="font-size:12px;color:var(--db-text-dim);margin:0;white-space:pre-wrap;max-height:100px;overflow-y:auto">${JSON.stringify(feature.health, null, 2)}</pre>
+    </div>
+
+    <!-- Data Flow Diagram -->
+    <div class="db-card" style="padding:16px 20px;margin-bottom:20px">
+      <div class="db-card-title">Data Flow</div>
+      <div style="display:flex;align-items:center;gap:0;margin-top:12px;flex-wrap:wrap">
+        <div style="text-align:center;padding:10px 16px;background:rgba(99,102,241,0.15);border-radius:8px;font-size:12px;font-weight:500;color:#818cf8">🖥️ Frontend<br><span style="font-size:10px;opacity:0.7">dashboard.js</span></div>
+        <div style="font-size:18px;color:var(--db-text-dim);padding:0 8px">→</div>
+        <div style="text-align:center;padding:10px 16px;background:rgba(34,197,94,0.15);border-radius:8px;font-size:12px;font-weight:500;color:#22c55e">📡 API<br><span style="font-size:10px;opacity:0.7">/api/features</span></div>
+        <div style="font-size:18px;color:var(--db-text-dim);padding:0 8px">→</div>
+        <div style="text-align:center;padding:10px 16px;background:rgba(251,146,60,0.15);border-radius:8px;font-size:12px;font-weight:500;color:#fb923c">⚙️ Backend<br><span style="font-size:10px;opacity:0.7">${feature.name}.py</span></div>
+        <div style="font-size:18px;color:var(--db-text-dim);padding:0 8px">→</div>
+        <div style="text-align:center;padding:10px 16px;background:rgba(168,85,247,0.15);border-radius:8px;font-size:12px;font-weight:500;color:#a855f7">📦 Response<br><span style="font-size:10px;opacity:0.7">JSON</span></div>
+      </div>
+    </div>
+
+    <!-- Endpoints -->
+    <h3 style="font-size:15px;margin:0 0 12px;font-weight:600">Endpoints (${routes.length})</h3>
+    <div style="font-size:11px;color:var(--db-text-dim);margin-bottom:12px">Click ▶ to test an endpoint live. Click ℹ️ to see raw request/response JSON.</div>
+    <div id="fi-endpoints"></div>
+  `;
+
+  // Back button
+  detail.querySelector('#fi-back').addEventListener('click', () => {
+    detail.style.display = 'none';
+    grid.style.display = 'grid';
+  });
+
+  // Info button for health
+  detail.querySelectorAll('.fi-info-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showDebugModal('Health Status', {}, JSON.parse(btn.dataset.json.replace(/&#39;/g, "'")));
+    });
+  });
+
+  // Render endpoints
+  const endpointsEl = detail.querySelector('#fi-endpoints');
+  if (routes.length === 0) {
+    endpointsEl.innerHTML = '<div style="font-size:13px;color:var(--db-text-dim)">No routes registered for this feature.</div>';
+    return;
   }
+
+  routes.forEach((route, i) => {
+    const hasParam = route.includes('{');
+    const row = document.createElement('div');
+    row.className = 'db-card';
+    row.style.cssText = 'padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between';
+    row.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;flex:1">
+        <code style="font-size:13px;font-weight:500;color:var(--db-text)">${route}</code>
+        ${hasParam ? '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(251,146,60,0.15);color:#fb923c">param</span>' : ''}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span id="fi-status-${i}" style="font-size:11px;color:var(--db-text-dim)"></span>
+        <span id="fi-time-${i}" style="font-size:10px;color:var(--db-text-dim)"></span>
+        ${!hasParam ? `<button class="fi-test-btn" data-route="${route}" data-idx="${i}" style="background:transparent;border:1px solid var(--db-border);color:#22c55e;padding:3px 10px;border-radius:5px;cursor:pointer;font-size:11px" title="Test this endpoint">▶</button>` : ''}
+        <button class="fi-debug-btn" data-route="${route}" data-idx="${i}" style="background:transparent;border:1px solid var(--db-border);color:var(--db-accent);padding:3px 10px;border-radius:5px;cursor:pointer;font-size:11px" title="Debug: view raw data">ℹ️</button>
+      </div>
+    `;
+    endpointsEl.appendChild(row);
+  });
+
+  // Wire test buttons
+  endpointsEl.querySelectorAll('.fi-test-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const route = btn.dataset.route;
+      const idx = btn.dataset.idx;
+      const statusEl = detail.querySelector(`#fi-status-${idx}`);
+      const timeEl = detail.querySelector(`#fi-time-${idx}`);
+      statusEl.textContent = '⏳';
+      statusEl.style.color = 'var(--db-text-dim)';
+      const start = performance.now();
+      try {
+        const res = await fetch(route);
+        const ms = Math.round(performance.now() - start);
+        timeEl.textContent = `${ms}ms`;
+        if (res.ok) {
+          statusEl.textContent = `✓ ${res.status}`;
+          statusEl.style.color = '#22c55e';
+        } else if (res.status === 401 || res.status === 405) {
+          statusEl.textContent = `✓ ${res.status}`;
+          statusEl.style.color = '#fb923c';
+        } else {
+          statusEl.textContent = `✗ ${res.status}`;
+          statusEl.style.color = '#ef4444';
+        }
+        // Store response for debug
+        try { btn._lastResponse = await res.clone().json(); } catch(e) { btn._lastResponse = await res.clone().text(); }
+        btn._lastStatus = res.status;
+        btn._lastMs = ms;
+      } catch(err) {
+        statusEl.textContent = '✗ error';
+        statusEl.style.color = '#ef4444';
+        btn._lastResponse = { error: err.message };
+        btn._lastStatus = 0;
+      }
+    });
+  });
+
+  // Wire debug buttons
+  endpointsEl.querySelectorAll('.fi-debug-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const route = btn.dataset.route;
+      const idx = btn.dataset.idx;
+      const hasParam = route.includes('{');
+
+      if (hasParam) {
+        showDebugModal(`${route}`, { method: 'GET', note: 'Route has path parameters — provide an ID to test' }, { info: 'This route requires path parameters. Test it manually or via curl.' });
+        return;
+      }
+
+      // Fetch live data
+      const statusEl = detail.querySelector(`#fi-status-${idx}`);
+      const timeEl = detail.querySelector(`#fi-time-${idx}`);
+      statusEl.textContent = '⏳';
+      const start = performance.now();
+      try {
+        const res = await fetch(route);
+        const ms = Math.round(performance.now() - start);
+        timeEl.textContent = `${ms}ms`;
+        let body;
+        try { body = await res.json(); } catch(e) { body = await res.text(); }
+        statusEl.textContent = res.ok ? `✓ ${res.status}` : `${res.status}`;
+        statusEl.style.color = res.ok ? '#22c55e' : (res.status === 401 || res.status === 405 ? '#fb923c' : '#ef4444');
+        showDebugModal(route, { method: 'GET', url: route, headers: { accept: 'application/json' } }, body, res.status, ms);
+      } catch(err) {
+        statusEl.textContent = '✗ error';
+        statusEl.style.color = '#ef4444';
+        showDebugModal(route, { method: 'GET', url: route }, { error: err.message }, 0, 0);
+      }
+    });
+  });
+}
+
+function showDebugModal(title, request, response, status, ms) {
+  const modal = document.getElementById('fi-modal');
+  modal.style.display = 'flex';
+
+  const statusColor = status >= 200 && status < 300 ? '#22c55e' : (status === 401 || status === 405 ? '#fb923c' : '#ef4444');
+  const responseStr = typeof response === 'string' ? response : JSON.stringify(response, null, 2);
+  const requestStr = typeof request === 'string' ? request : JSON.stringify(request, null, 2);
+
+  modal.innerHTML = `
+    <div style="background:var(--db-sidebar-bg);border:1px solid var(--db-border);border-radius:14px;padding:24px;width:680px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div>
+          <h3 style="margin:0;font-size:16px;font-weight:600">ℹ️ Debug Inspector</h3>
+          <code style="font-size:12px;color:var(--db-text-dim)">${title}</code>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          ${status ? `<span style="font-size:12px;padding:3px 10px;border-radius:6px;background:${statusColor}22;color:${statusColor};font-weight:600">${status}</span>` : ''}
+          ${ms ? `<span style="font-size:11px;color:var(--db-text-dim)">${ms}ms</span>` : ''}
+          <button id="fi-modal-close" style="background:transparent;border:none;color:var(--db-text-dim);font-size:18px;cursor:pointer;padding:4px 8px">✕</button>
+        </div>
+      </div>
+
+      <div style="flex:1;overflow-y:auto">
+        <!-- Flow Diagram -->
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap;font-size:11px">
+          <span style="padding:4px 10px;background:rgba(99,102,241,0.15);color:#818cf8;border-radius:6px">🖥️ Browser</span>
+          <span style="color:var(--db-text-dim)">→ fetch("${title}")</span>
+          <span style="color:var(--db-text-dim)">→</span>
+          <span style="padding:4px 10px;background:rgba(34,197,94,0.15);color:#22c55e;border-radius:6px">📡 Starlette</span>
+          <span style="color:var(--db-text-dim)">→</span>
+          <span style="padding:4px 10px;background:rgba(251,146,60,0.15);color:#fb923c;border-radius:6px">⚙️ Handler</span>
+          <span style="color:var(--db-text-dim)">→</span>
+          <span style="padding:4px 10px;background:${statusColor}22;color:${statusColor};border-radius:6px">${status ? status : '?'}</span>
+        </div>
+
+        <!-- Request -->
+        <div style="margin-bottom:14px">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--db-text-dim);margin-bottom:6px">Request</div>
+          <pre style="background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:8px;padding:12px;font-size:12px;color:var(--db-text);margin:0;white-space:pre-wrap;overflow-x:auto;max-height:120px">${requestStr}</pre>
+        </div>
+
+        <!-- Response -->
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--db-text-dim)">Response</div>
+            <button id="fi-copy" style="font-size:10px;padding:2px 8px;background:transparent;border:1px solid var(--db-border);color:var(--db-text-dim);border-radius:4px;cursor:pointer">📋 Copy</button>
+          </div>
+          <pre id="fi-response-pre" style="background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:8px;padding:12px;font-size:12px;color:var(--db-text);margin:0;white-space:pre-wrap;overflow-x:auto;max-height:350px;overflow-y:auto">${responseStr}</pre>
+        </div>
+      </div>
+    </div>
+  `;
+
+  modal.querySelector('#fi-modal-close').addEventListener('click', () => modal.style.display = 'none');
+  modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
+  modal.querySelector('#fi-copy')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(responseStr).then(() => {
+      const btn = modal.querySelector('#fi-copy');
+      btn.textContent = '✓ Copied';
+      setTimeout(() => btn.textContent = '📋 Copy', 1500);
+    });
+  });
 }
 
 function onContentChange(root) {

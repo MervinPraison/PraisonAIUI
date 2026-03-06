@@ -23,10 +23,11 @@ export async function render(container) {
     card.className = 'db-card';
     card.style.cssText = 'margin-bottom:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between';
     const enabled = j.enabled !== false;
-    card.innerHTML = `
+        const sched = typeof j.schedule === 'object' && j.schedule ? (j.schedule.cron_expr || (j.schedule.every_seconds ? `every ${j.schedule.every_seconds}s` : j.schedule.kind || '')) : (j.schedule || j.cron || j.interval || '');
+        card.innerHTML = `
       <div style="flex:1">
         <div style="font-weight:500;font-size:14px">${j.name || j.job_id || j.id || 'Unnamed'}</div>
-        <div style="font-size:12px;color:var(--db-text-dim);margin-top:4px">${j.schedule || j.cron || j.interval || ''} · ${j.action || j.task || ''}</div>
+        <div style="font-size:12px;color:var(--db-text-dim);margin-top:4px">${sched} · ${j.message || j.action || j.task || ''}</div>
         ${j.next_run ? `<div style="font-size:11px;color:var(--db-text-dim);margin-top:2px">Next: ${j.next_run}</div>` : ''}
       </div>
       <div style="display:flex;gap:8px;align-items:center">

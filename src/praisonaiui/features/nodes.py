@@ -40,15 +40,16 @@ class PraisonAINodes(BaseFeatureProtocol):
             # Nodes
             Route("/api/nodes", self._list_nodes, methods=["GET"]),
             Route("/api/nodes", self._register_node, methods=["POST"]),
+            # Instances / Presence (MUST be before {node_id} wildcard routes)
+            Route("/api/nodes/instances", self._list_instances, methods=["GET"]),
+            Route("/api/instances", self._list_instances, methods=["GET"]),
+            Route("/api/instances/heartbeat", self._heartbeat, methods=["POST"]),
+            # Wildcard routes
             Route("/api/nodes/{node_id}", self._get_node, methods=["GET"]),
             Route("/api/nodes/{node_id}", self._update_node, methods=["PUT"]),
             Route("/api/nodes/{node_id}", self._delete_node, methods=["DELETE"]),
             Route("/api/nodes/{node_id}/status", self._node_status, methods=["GET"]),
             Route("/api/nodes/{node_id}/agents", self._node_agents, methods=["GET", "PUT"]),
-            # Instances / Presence
-            Route("/api/instances", self._list_instances, methods=["GET"]),
-            Route("/api/nodes/instances", self._list_instances, methods=["GET"]),
-            Route("/api/instances/heartbeat", self._heartbeat, methods=["POST"]),
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
