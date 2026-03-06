@@ -94,6 +94,14 @@ nav:
     - Providers: concepts/providers.md
   - Features:
     - Dashboard: features/dashboard.md
+    - Gateway Chat: features/gateway-chat.md
+    - Attachments: features/attachments.md
+    - Theme System: features/theme-system.md
+    - Model Fallback: features/model-fallback.md
+    - Subagent Tree: features/subagent-tree.md
+    - Config Hot-Reload: features/config-hot-reload.md
+    - Browser Automation: features/browser-automation.md
+    - Protocol Versioning: features/protocol-versioning.md
     - UI Styles: features/styles.md
     - Protocols: features/protocols.md
     - Sessions: features/sessions.md
@@ -104,6 +112,9 @@ nav:
     - SEO: features/seo.md
     - Hot Reload: features/hot-reload.md
     - Widget Zones: features/widget-zones.md
+    - Feature Inventory: features/feature-inventory.md
+    - Gap Analysis: features/gap-analysis.md
+    - Comparison (OpenClaw): features/comparison-openclaw.md
   - API Reference:
     - Python CLI: api/cli.md
     - Python API: api/python.md
