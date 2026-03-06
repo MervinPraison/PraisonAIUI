@@ -66,12 +66,56 @@
 <p>List all scheduled jobs.</p>
 <h3>GET /api/schedules/{id}</h3>
 <p>Get job details.</p>
+<h3>PUT /api/schedules/{id}</h3>
+<p>Update schedule configuration. Body fields: `name`, `message`, `schedule`, `enabled`.</p>
 <h3>DELETE /api/schedules/{id}</h3>
 <p>Remove a job.</p>
 <h3>POST /api/schedules/{id}/toggle</h3>
 <p>Toggle job enabled/disabled.</p>
 <h3>POST /api/schedules/{id}/run</h3>
 <p>Trigger job immediately.</p>
+<h3>POST /api/schedules/{id}/stop</h3>
+<p>Stop a running scheduled job. Attempts to cancel via `AgentScheduler` if available.</p>
+<h3>GET /api/schedules/{id}/stats</h3>
+<p>Get execution statistics for a schedule.</p>
+<p>---</p>
+<h2>Jobs</h2>
+<h3>POST /api/jobs</h3>
+<p>Submit a new async job. Returns 202 Accepted.</p>
+<h3>GET /api/jobs</h3>
+<p>List jobs with optional filters. Query: `?status=running`, `?limit=50`, `?offset=0`</p>
+<h3>GET /api/jobs/stats</h3>
+<p>Get executor statistics.</p>
+<h3>GET /api/jobs/{id}</h3>
+<p>Get full job details.</p>
+<h3>GET /api/jobs/{id}/status</h3>
+<p>Get job status with progress info.</p>
+<h3>GET /api/jobs/{id}/result</h3>
+<p>Get job result. Returns 409 if not yet complete.</p>
+<h3>POST /api/jobs/{id}/cancel</h3>
+<p>Cancel a running or queued job. Returns 409 if already complete.</p>
+<h3>DELETE /api/jobs/{id}</h3>
+<p>Delete a completed job. Returns 409 if still running.</p>
+<h3>GET /api/jobs/{id}/stream</h3>
+<p>SSE stream for real-time job updates. Events: `status`, `progress`, `result`, `error`, `done`.</p>
+<p>---</p>
+<h2>Usage</h2>
+<h3>GET /api/usage</h3>
+<p>Usage summary with totals and averages.</p>
+<h3>POST /api/usage/track</h3>
+<p>Track a usage event.</p>
+<h3>GET /api/usage/details</h3>
+<p>Detailed usage records. Query: `?limit=100`, `?offset=0`</p>
+<h3>GET /api/usage/models</h3>
+<p>Per-model breakdown (tokens, cost, request count).</p>
+<h3>GET /api/usage/sessions</h3>
+<p>Per-session breakdown.</p>
+<h3>GET /api/usage/agents</h3>
+<p>Per-agent breakdown.</p>
+<h3>GET /api/usage/timeseries</h3>
+<p>Time-series data for charts. Query: `?hours=24`, `?bucket_minutes=60`</p>
+<h3>GET /api/usage/costs</h3>
+<p>Get the model cost table (per-1K token rates for 21 models).</p>
 <p>---</p>
 <h2>Memory</h2>
 <h3>POST /api/memory</h3>
@@ -104,18 +148,23 @@
 <p>Get session usage statistics.</p>
 <p>---</p>
 <h2>Skills</h2>
-<h3>POST /api/skills</h3>
-<p>Register a skill.</p>
+<p>Tool catalog with 18 built-in tools across 7 categories (search, crawl, file, code, shell, skills, schedule).</p>
 <h3>GET /api/skills</h3>
-<p>List all skills.</p>
-<h3>POST /api/skills/discover</h3>
-<p>Discover available skills.</p>
+<p>List all tools. Query: `?category=search`, `?enabled=true`, `?search=web`</p>
+<h3>GET /api/skills/categories</h3>
+<p>List tool categories.</p>
+<h3>POST /api/skills</h3>
+<p>Register a custom skill.</p>
 <h3>GET /api/skills/{id}</h3>
-<p>Get skill details.</p>
-<h3>GET /api/skills/{id}/status</h3>
-<p>Get skill status.</p>
+<p>Get tool details including required API keys.</p>
+<h3>PUT /api/skills/{id}</h3>
+<p>Update a custom skill.</p>
 <h3>DELETE /api/skills/{id}</h3>
-<p>Remove skill.</p>
+<p>Remove a custom skill (builtin tools cannot be deleted).</p>
+<h3>POST /api/skills/{id}/toggle</h3>
+<p>Toggle tool enabled/disabled.</p>
+<h3>PUT /api/skills/{id}/config</h3>
+<p>Set tool configuration or API keys.</p>
 <p>---</p>
 <h2>Hooks</h2>
 <h3>POST /api/hooks</h3>
@@ -163,7 +212,24 @@
 <h3>PUT /api/config/runtime/{key}</h3>
 <p>Set single config key.</p>
 <h3>DELETE /api/config/runtime/{key}</h3>
-<p>Delete config key.</p></noscript></div>
+<p>Delete config key.</p>
+<p>---</p>
+<h2>Agents</h2>
+<p>Agent definition CRUD with model selection, system prompts, and duplication.</p>
+<h3>GET /api/agents/definitions</h3>
+<p>List all agent definitions.</p>
+<h3>POST /api/agents/definitions</h3>
+<p>Create a new agent.</p>
+<h3>GET /api/agents/definitions/{id}</h3>
+<p>Get agent details.</p>
+<h3>PUT /api/agents/definitions/{id}</h3>
+<p>Update agent. Body fields: `name`, `description`, `model`, `temperature`, `system_prompt`, `instructions`, `tools`, `icon`.</p>
+<h3>DELETE /api/agents/definitions/{id}</h3>
+<p>Delete agent.</p>
+<h3>GET /api/agents/models</h3>
+<p>List available models (13 models across OpenAI, Anthropic, Google).</p>
+<h3>POST /api/agents/duplicate/{id}</h3>
+<p>Duplicate an existing agent.</p></noscript></div>
   <script>
     // AIUI Plugin System — inline bootstrap
     (function () {

@@ -42,15 +42,20 @@
 <h2>Registry Functions</h2>
 <h2>Built-in Features Reference</h2>
 <h3>1. Approvals</h3>
-<p>Manage tool-execution approval requests.</p>
+<p>Tool-execution approval management with policies, history, and SSE streaming.</p>
 <p>| Endpoint | Method | Description |</p>
 <p>|----------|--------|-------------|</p>
-<p>| `/api/approvals` | GET | List approvals (filter: `?status=pending\|resolved\|all`) |</p>
+<p>| `/api/approvals` | GET | List all approvals |</p>
 <p>| `/api/approvals` | POST | Create approval request |</p>
+<p>| `/api/approvals/pending` | GET | List pending approvals |</p>
+<p>| `/api/approvals/history` | GET | List resolved approvals |</p>
+<p>| `/api/approvals/policies` | GET | Get auto-approve/deny policies |</p>
+<p>| `/api/approvals/policies` | PUT | Update policies |</p>
+<p>| `/api/approvals/stream` | GET | SSE stream for real-time updates |</p>
 <p>| `/api/approvals/{id}` | GET | Get single approval |</p>
-<p>| `/api/approvals/{id}/resolve` | POST | Approve/deny |</p>
-<p>| `/api/approvals/config` | GET | Get approval config |</p>
-<p>**CLI:** `aiui approval list`, `aiui approval pending`, `aiui approval resolve <id>`</p>
+<p>| `/api/approvals/{id}/approve` | POST | Approve request |</p>
+<p>| `/api/approvals/{id}/deny` | POST | Deny request |</p>
+<p>**CLI:** `aiui approval list`, `aiui approval pending`</p>
 <h3>2. Channels</h3>
 <p>Multi-platform messaging channel management (Discord, Slack, Telegram, WhatsApp, etc.).</p>
 <p>| Endpoint | Method | Description |</p>
@@ -72,9 +77,12 @@
 <p>| `/api/schedules` | GET | List all jobs |</p>
 <p>| `/api/schedules` | POST | Add a job |</p>
 <p>| `/api/schedules/{id}` | GET | Get job details |</p>
+<p>| `/api/schedules/{id}` | PUT | Update schedule config |</p>
 <p>| `/api/schedules/{id}` | DELETE | Remove job |</p>
 <p>| `/api/schedules/{id}/toggle` | POST | Enable/disable |</p>
 <p>| `/api/schedules/{id}/run` | POST | Trigger immediately |</p>
+<p>| `/api/schedules/{id}/stop` | POST | Stop running schedule |</p>
+<p>| `/api/schedules/{id}/stats` | GET | Get execution statistics |</p>
 <p>**CLI:** `aiui schedule list`, `aiui schedule add <name> <msg>`, `aiui schedule remove <id>`, `aiui schedule status`</p>
 <h3>4. Memory</h3>
 <p>Agent memory management (short-term, long-term, entity).</p>
@@ -116,13 +124,15 @@
 <p>Agent skill registration and discovery.</p>
 <p>| Endpoint | Method | Description |</p>
 <p>|----------|--------|-------------|</p>
-<p>| `/api/skills` | GET | List skills |</p>
-<p>| `/api/skills` | POST | Register skill |</p>
-<p>| `/api/skills/discover` | POST | Discover available skills |</p>
-<p>| `/api/skills/{id}` | GET | Get skill details |</p>
-<p>| `/api/skills/{id}/status` | GET | Get skill status |</p>
-<p>| `/api/skills/{id}` | DELETE | Remove skill |</p>
-<p>**CLI:** `aiui skills list`, `aiui skills status`, `aiui skills discover`</p>
+<p>| `/api/skills` | GET | List all tools (filter: `?category=`, `?enabled=`, `?search=`) |</p>
+<p>| `/api/skills` | POST | Register custom skill |</p>
+<p>| `/api/skills/categories` | GET | List tool categories |</p>
+<p>| `/api/skills/{id}` | GET | Get tool details |</p>
+<p>| `/api/skills/{id}` | PUT | Update custom skill |</p>
+<p>| `/api/skills/{id}` | DELETE | Remove custom skill |</p>
+<p>| `/api/skills/{id}/toggle` | POST | Toggle enabled/disabled |</p>
+<p>| `/api/skills/{id}/config` | PUT | Set tool configuration/API keys |</p>
+<p>**CLI:** `aiui skills list`, `aiui skills status`</p>
 <h3>8. Hooks</h3>
 <p>Pre/post operation hooks for tool calls, agent runs, etc.</p>
 <p>| Endpoint | Method | Description |</p>
@@ -159,6 +169,72 @@
 <p>| `/api/config/runtime/{key}` | PUT | Set single key |</p>
 <p>| `/api/config/runtime/{key}` | DELETE | Delete key |</p>
 <p>**CLI:** `aiui config get [key]`, `aiui config set <key> <value>`, `aiui config list`, `aiui config history`</p>
+<h3>11. Jobs</h3>
+<p>Async job submission and monitoring with real-time SSE streaming.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/jobs` | GET | List jobs (filter: `?status=`, `?limit=`, `?offset=`) |</p>
+<p>| `/api/jobs` | POST | Submit job (returns 202) |</p>
+<p>| `/api/jobs/stats` | GET | Executor statistics |</p>
+<p>| `/api/jobs/{id}` | GET | Get job details |</p>
+<p>| `/api/jobs/{id}` | DELETE | Delete completed job |</p>
+<p>| `/api/jobs/{id}/status` | GET | Get status + progress |</p>
+<p>| `/api/jobs/{id}/result` | GET | Get result (409 if not complete) |</p>
+<p>| `/api/jobs/{id}/cancel` | POST | Cancel running job |</p>
+<p>| `/api/jobs/{id}/stream` | GET | SSE stream (status/progress/result/error events) |</p>
+<p>**CLI:** `aiui job list`, `aiui job status [id]`, `aiui job stats`</p>
+<h3>12. Usage</h3>
+<p>Usage analytics with per-model cost tracking, time-series data, and breakdowns.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/usage` | GET | Summary (totals, averages) |</p>
+<p>| `/api/usage/details` | GET | Detailed usage records |</p>
+<p>| `/api/usage/models` | GET | Per-model breakdown |</p>
+<p>| `/api/usage/sessions` | GET | Per-session breakdown |</p>
+<p>| `/api/usage/agents` | GET | Per-agent breakdown |</p>
+<p>| `/api/usage/timeseries` | GET | Time-series data for charts |</p>
+<p>| `/api/usage/costs` | GET | Cost table (21 models) |</p>
+<p>| `/api/usage/track` | POST | Track usage event |</p>
+<p>**CLI:** `aiui usage summary`, `aiui usage models`, `aiui usage cost`</p>
+<h3>13. Agents</h3>
+<p>Agent definition CRUD with model selection, system prompts, and duplication.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/agents/definitions` | GET | List all agent definitions |</p>
+<p>| `/api/agents/definitions` | POST | Create new agent |</p>
+<p>| `/api/agents/definitions/{id}` | GET | Get agent details |</p>
+<p>| `/api/agents/definitions/{id}` | PUT | Update agent |</p>
+<p>| `/api/agents/definitions/{id}` | DELETE | Delete agent |</p>
+<p>| `/api/agents/models` | GET | List available models (13 models) |</p>
+<p>| `/api/agents/duplicate/{id}` | POST | Duplicate an agent |</p>
+<p>**CLI:** `aiui agents list`, `aiui agents create`</p>
+<h3>14. OpenAI API</h3>
+<p>OpenAI-compatible `/v1/*` API routes wrapping `praisonai.capabilities`.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/v1` | GET | API info / endpoint list |</p>
+<p>| `/v1/chat/completions` | POST | Chat completions |</p>
+<p>| `/v1/completions` | POST | Legacy text completions |</p>
+<p>| `/v1/embeddings` | POST | Create embeddings |</p>
+<p>| `/v1/images/generations` | POST | Generate images |</p>
+<p>| `/v1/audio/transcriptions` | POST | Transcribe audio |</p>
+<p>| `/v1/audio/speech` | POST | Text to speech |</p>
+<p>| `/v1/moderations` | POST | Content moderation |</p>
+<p>| `/v1/models` | GET | List available models |</p>
+<p>| `/v1/models/{id}` | GET | Get model info |</p>
+<p>| `/v1/responses` | POST | OpenAI Responses API |</p>
+<p>| `/v1/files` | GET/POST | File management |</p>
+<p>| `/v1/files/{id}` | GET/DELETE | File operations |</p>
+<p>| `/v1/assistants` | GET/POST | Assistants API |</p>
+<h3>15. Logs</h3>
+<p>Real-time log streaming via WebSocket with level filtering.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/logs/stream` | WS | WebSocket for real-time log streaming |</p>
+<p>| `/api/logs/levels` | GET | Available log levels with colors |</p>
+<p>| `/api/logs/stats` | GET | Log buffer statistics |</p>
+<p>| `/api/logs/clear` | POST | Clear log buffer |</p>
+<p>**CLI:** `aiui logs tail`, `aiui logs clear`</p>
 <h2>Route Ordering</h2>
 <p>> **Important:** When defining routes with parametric paths (e.g., `/{id}`), always place literal paths (e.g., `/log`, `/runs`) **before** the parametric route. Starlette matches routes in order, and a parametric route will capture literal segments as parameter values.</p>
 <h2>Integration Example</h2></noscript></div>
