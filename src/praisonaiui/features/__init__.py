@@ -37,38 +37,54 @@ def auto_register_defaults() -> None:
     """
     from .agents import PraisonAIAgentsFeature
     from .approvals import PraisonAIApprovals
+    from .attachments import PraisonAIAttachments
     from .auth import PraisonAIAuth
+    from .browser_automation import PraisonAIBrowserAutomation
     from .channels import PraisonAIChannels
-    from .openai_api import PraisonAIOpenAIAPI
+    from .chat import PraisonAIChat
+    from .config_hot_reload import PraisonAIConfigHotReload
     from .config_runtime import PraisonAIConfigRuntime
     from .hooks import PraisonAIHooks
     from .jobs import PraisonAIJobs
     from .logs import PraisonAILogs
     from .memory import PraisonAIMemory
-    from .usage import PraisonAIUsage
+    from .model_fallback import PraisonAIModelFallback
     from .nodes import PraisonAINodes
+    from .openai_api import PraisonAIOpenAIAPI
+    from .protocol_version import PraisonAIProtocol
     from .schedules import PraisonAISchedules
     from .sessions_ext import PraisonAISessions
     from .skills import PraisonAISkills
+    from .subagents import PraisonAISubagents
+    from .theme import PraisonAITheme
+    from .usage import PraisonAIUsage
     from .workflows import PraisonAIWorkflows
 
     for cls in (
         PraisonAIAgentsFeature,
         PraisonAIApprovals,
+        PraisonAIAttachments,
         PraisonAIAuth,
+        PraisonAIBrowserAutomation,
         PraisonAIChannels,
+        PraisonAIChat,
+        PraisonAIConfigHotReload,
+        PraisonAIConfigRuntime,
+        PraisonAIHooks,
         PraisonAIJobs,
         PraisonAILogs,
-        PraisonAIOpenAIAPI,
-        PraisonAISchedules,
         PraisonAIMemory,
+        PraisonAIModelFallback,
         PraisonAINodes,
+        PraisonAIOpenAIAPI,
+        PraisonAIProtocol,
+        PraisonAISchedules,
         PraisonAISessions,
         PraisonAISkills,
-        PraisonAIHooks,
-        PraisonAIWorkflows,
-        PraisonAIConfigRuntime,
+        PraisonAISubagents,
+        PraisonAITheme,
         PraisonAIUsage,
+        PraisonAIWorkflows,
     ):
         if cls.feature_name not in _features:
             register_feature(cls())
