@@ -39,6 +39,7 @@ def auto_register_defaults() -> None:
     from .channels import PraisonAIChannels
     from .config_runtime import PraisonAIConfigRuntime
     from .hooks import PraisonAIHooks
+    from .jobs import PraisonAIJobs
     from .memory import PraisonAIMemory
     from .nodes import PraisonAINodes
     from .schedules import PraisonAISchedules
@@ -49,6 +50,7 @@ def auto_register_defaults() -> None:
     for cls in (
         PraisonAIApprovals,
         PraisonAIChannels,
+        PraisonAIJobs,
         PraisonAISchedules,
         PraisonAIMemory,
         PraisonAINodes,

@@ -5,6 +5,8 @@
     "code-copy",
     "mermaid",
     "toc",
-    "channels"
+    "channels",
+    "schedules",
+    "jobs"
   ]
 }

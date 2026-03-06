@@ -920,6 +920,8 @@ def create_app(
          "description": "Token usage and metrics", "order": 30},
         {"id": "cron", "title": "Cron", "icon": "⏰", "group": "Control",
          "description": "Scheduled jobs", "order": 35},
+        {"id": "jobs", "title": "Jobs", "icon": "📋", "group": "Control",
+         "description": "Async agent jobs", "order": 40},
         {"id": "agents", "title": "Agents", "icon": "🤖", "group": "Agent",
          "description": "Configured AI agents", "order": 10},
         {"id": "skills", "title": "Skills", "icon": "⚡", "group": "Agent",
