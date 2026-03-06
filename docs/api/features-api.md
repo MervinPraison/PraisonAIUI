@@ -19,7 +19,7 @@ List all registered features with health status.
       "routes": ["/api/approvals", "/api/approvals/{id}", ...]
     }
   ],
-  "count": 13
+  "count": 16
 }
 ```
 
@@ -27,33 +27,55 @@ List all registered features with health status.
 
 ## Approvals
 
+Tool-execution approval management with policies, history, and SSE streaming.
+
+### GET /api/approvals
+List all approvals.
+
 ### POST /api/approvals
 Create an approval request.
 
 ```json
 // Request
-{"tool_name": "execute_code", "arguments": {"code": "..."}, "risk_level": "high", "agent_name": "TestAgent"}
+{"tool_name": "execute_command", "arguments": {"command": "rm -rf /tmp/test"}, "risk_level": "high", "agent_name": "SystemAgent"}
 
 // Response (201)
-{"id": "abc123", "tool_name": "execute_code", "status": "pending", "created_at": 1709000000.0}
+{"id": "abc123", "tool_name": "execute_command", "status": "pending", "risk_level": "high", "risk_icon": "🟠", "created_at": 1709000000.0}
 ```
 
-### GET /api/approvals
-List approvals. Query: `?status=pending|resolved|all`
+### GET /api/approvals/pending
+List pending approvals only.
+
+### GET /api/approvals/history
+List resolved approvals.
+
+### GET /api/approvals/policies
+Get auto-approve/deny policies.
+
+```json
+// Response
+{"auto_approve_tools": ["read_file"], "always_deny_tools": [], "auto_approve_agents": [], "risk_threshold": "high"}
+```
+
+### PUT /api/approvals/policies
+Update policies.
+
+### GET /api/approvals/stream
+SSE stream for real-time approval notifications.
 
 ### GET /api/approvals/{id}
 Get single approval by ID.
 
-### POST /api/approvals/{id}/resolve
-Resolve a pending approval.
+### POST /api/approvals/{id}/approve
+Approve a pending request. Body: `{"reason": "...", "always": false}`
 
 ```json
-// Request
-{"approved": true, "reason": "Looks safe"}
-
 // Response
-{"id": "abc123", "status": "approved", "resolved_at": 1709000001.0}
+{"id": "abc123", "status": "approved", "resolved_at": 1709000001.0, "resolved_by": "admin"}
 ```
+
+### POST /api/approvals/{id}/deny
+Deny a pending request. Body: `{"reason": "...", "always": false}`
 
 ---
 
@@ -355,10 +377,13 @@ Build context from session state + memory.
 ```
 
 ### POST /api/sessions/{session_id}/compact
-Compact session data.
+Compact session data. Returns before/after stats.
 
 ### POST /api/sessions/{session_id}/reset
 Reset session. Body: `{"mode": "clear"}`
+
+### GET /api/sessions/{session_id}/preview
+Formatted session preview without full history.
 
 ### GET/POST /api/sessions/{session_id}/labels
 Get or set session labels.
@@ -539,6 +564,31 @@ Set single config key.
 ### DELETE /api/config/runtime/{key}
 Delete config key.
 
+### GET /api/config/schema
+JSON Schema for schema-driven form rendering.
+
+```json
+// Response
+{"sections": {"provider": {"type": "object", "properties": {"name": {"type": "string", "enum": ["openai", "anthropic", "google"]}}}, ...}}
+```
+
+### POST /api/config/validate
+Validate config without applying.
+
+```json
+// Request
+{"provider": "openai", "model": "gpt-4o"}
+
+// Response
+{"valid": true, "errors": []}
+```
+
+### POST /api/config/apply
+Validate and apply config changes.
+
+### GET /api/config/defaults
+Get default values from schema.
+
 ---
 
 ## Agents
@@ -581,6 +631,17 @@ List available models (13 models across OpenAI, Anthropic, Google).
 {"models": [{"id": "gpt-4o", "name": "GPT-4o", "provider": "openai"}, ...], "count": 13}
 ```
 
+### POST /api/agents/run/{id}
+Execute an agent via `praisonaiagents.Agent.start()`.
+
+```json
+// Request
+{"prompt": "Research the latest AI trends"}
+
+// Response
+{"result": "...", "model": "gpt-4o", "agent_id": "agent_abc"}
+```
+
 ### POST /api/agents/duplicate/{id}
 Duplicate an existing agent.
 
@@ -588,3 +649,158 @@ Duplicate an existing agent.
 // Response (201)
 {"id": "agent_xyz", "name": "Research Assistant (copy)", "model": "gpt-4o", "status": "active"}
 ```
+
+---
+
+## OpenAI-Compatible API
+
+Drop-in replacement for OpenAI SDK. Use `base_url="http://localhost:8000/v1"`.
+
+### GET /v1
+API info with available endpoint list.
+
+### POST /v1/chat/completions
+Chat completions (OpenAI-compatible).
+
+```json
+// Request
+{"model": "gpt-4o-mini", "messages": [{"role": "user", "content": "Hello!"}]}
+
+// Response
+{"id": "chatcmpl-xxx", "object": "chat.completion", "model": "gpt-4o-mini", "choices": [{"message": {"role": "assistant", "content": "..."}}]}
+```
+
+### POST /v1/completions
+Legacy text completions.
+
+### POST /v1/embeddings
+Create embeddings.
+
+```json
+// Request
+{"model": "text-embedding-3-small", "input": "Hello world"}
+```
+
+### POST /v1/images/generations
+Generate images (DALL-E).
+
+### POST /v1/audio/transcriptions
+Transcribe audio (Whisper).
+
+### POST /v1/audio/speech
+Text to speech.
+
+### POST /v1/moderations
+Content moderation.
+
+### GET /v1/models
+List available models (13 models).
+
+### GET /v1/models/{id}
+Get model info.
+
+### POST /v1/responses
+OpenAI Responses API.
+
+### GET/POST /v1/files
+File management.
+
+### GET/DELETE /v1/files/{id}
+File operations.
+
+### GET/POST /v1/assistants
+Assistants API.
+
+---
+
+## Logs
+
+Real-time log streaming via WebSocket.
+
+### WS /api/logs/stream
+WebSocket for real-time log streaming. Query: `?level=INFO`, `?search=agent`
+
+```json
+// Messages received
+{"type": "initial", "data": [...], "total": 100}
+{"type": "log", "data": {"timestamp": "...", "level": "INFO", "logger": "...", "message": "..."}}
+
+// Send filter update
+{"type": "filter", "level": "ERROR", "search": "error"}
+```
+
+### GET /api/logs/levels
+Available log levels with colors.
+
+```json
+// Response
+{"levels": [{"name": "DEBUG", "color": "#6b7280", "priority": 10}, {"name": "INFO", "color": "#3b82f6", "priority": 20}, ...]}
+```
+
+### GET /api/logs/stats
+Log buffer statistics.
+
+### POST /api/logs/clear
+Clear the log buffer.
+
+---
+
+## Auth
+
+Multi-mode authentication (none, api_key, session, password).
+
+### GET /api/auth/status
+Check current auth status.
+
+```json
+// Response
+{"authenticated": true, "mode": "api_key", "user": "admin"}
+```
+
+### GET /api/auth/config
+Get auth configuration.
+
+```json
+// Response
+{"mode": "api_key", "session_timeout_hours": 24, "max_api_keys": 10}
+```
+
+### PUT /api/auth/config
+Set auth configuration. Body: `{"mode": "session", "session_timeout_hours": 48}`
+
+### GET /api/auth/keys
+List API keys.
+
+### POST /api/auth/keys
+Create API key.
+
+```json
+// Request
+{"name": "CI/CD Key", "expires_days": 90}
+
+// Response (201)
+{"id": "key_abc", "name": "CI/CD Key", "key": "sk-xxx", "created_at": 1709000000.0}
+```
+
+### DELETE /api/auth/keys/{id}
+Revoke API key.
+
+### POST /api/auth/login
+Login with password.
+
+```json
+// Request
+{"password": "..."}
+
+// Response
+{"token": "sess_xxx", "expires_at": 1709086400.0}
+```
+
+### POST /api/auth/logout
+Logout current session.
+
+### GET /api/auth/sessions
+List active sessions.
+
+### POST /api/auth/password
+Set or change password.

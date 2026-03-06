@@ -116,8 +116,9 @@
 <p>| `/api/sessions/{id}/state` | GET | Get session state |</p>
 <p>| `/api/sessions/{id}/state` | POST | Save session state |</p>
 <p>| `/api/sessions/{id}/context` | POST | Build context |</p>
-<p>| `/api/sessions/{id}/compact` | POST | Compact session |</p>
+<p>| `/api/sessions/{id}/compact` | POST | Compact session (with stats) |</p>
 <p>| `/api/sessions/{id}/reset` | POST | Reset session |</p>
+<p>| `/api/sessions/{id}/preview` | GET | Formatted preview |</p>
 <p>| `/api/sessions/{id}/labels` | GET/POST | Get/set labels |</p>
 <p>| `/api/sessions/{id}/usage` | GET | Get usage stats |</p>
 <h3>7. Skills</h3>
@@ -168,6 +169,10 @@
 <p>| `/api/config/runtime/{key}` | GET | Get single key |</p>
 <p>| `/api/config/runtime/{key}` | PUT | Set single key |</p>
 <p>| `/api/config/runtime/{key}` | DELETE | Delete key |</p>
+<p>| `/api/config/schema` | GET | JSON Schema for form rendering |</p>
+<p>| `/api/config/validate` | POST | Validate config without applying |</p>
+<p>| `/api/config/apply` | POST | Validate and apply config |</p>
+<p>| `/api/config/defaults` | GET | Get default values from schema |</p>
 <p>**CLI:** `aiui config get [key]`, `aiui config set <key> <value>`, `aiui config list`, `aiui config history`</p>
 <h3>11. Jobs</h3>
 <p>Async job submission and monitoring with real-time SSE streaming.</p>
@@ -197,7 +202,7 @@
 <p>| `/api/usage/track` | POST | Track usage event |</p>
 <p>**CLI:** `aiui usage summary`, `aiui usage models`, `aiui usage cost`</p>
 <h3>13. Agents</h3>
-<p>Agent definition CRUD with model selection, system prompts, and duplication.</p>
+<p>Agent definition CRUD with model selection, execution via `praisonaiagents.Agent`.</p>
 <p>| Endpoint | Method | Description |</p>
 <p>|----------|--------|-------------|</p>
 <p>| `/api/agents/definitions` | GET | List all agent definitions |</p>
@@ -207,6 +212,7 @@
 <p>| `/api/agents/definitions/{id}` | DELETE | Delete agent |</p>
 <p>| `/api/agents/models` | GET | List available models (13 models) |</p>
 <p>| `/api/agents/duplicate/{id}` | POST | Duplicate an agent |</p>
+<p>| `/api/agents/run/{id}` | POST | Execute agent via `Agent.start()` |</p>
 <p>**CLI:** `aiui agents list`, `aiui agents create`</p>
 <h3>14. OpenAI API</h3>
 <p>OpenAI-compatible `/v1/*` API routes wrapping `praisonai.capabilities`.</p>
@@ -235,6 +241,20 @@
 <p>| `/api/logs/stats` | GET | Log buffer statistics |</p>
 <p>| `/api/logs/clear` | POST | Clear log buffer |</p>
 <p>**CLI:** `aiui logs tail`, `aiui logs clear`</p>
+<h3>16. Auth</h3>
+<p>Multi-mode authentication (none, api_key, session, password).</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/auth/status` | GET | Current auth status |</p>
+<p>| `/api/auth/config` | GET | Get auth config |</p>
+<p>| `/api/auth/config` | PUT | Set auth config |</p>
+<p>| `/api/auth/keys` | GET | List API keys |</p>
+<p>| `/api/auth/keys` | POST | Create API key |</p>
+<p>| `/api/auth/keys/{id}` | DELETE | Revoke API key |</p>
+<p>| `/api/auth/login` | POST | Login with password |</p>
+<p>| `/api/auth/logout` | POST | Logout session |</p>
+<p>| `/api/auth/sessions` | GET | List active sessions |</p>
+<p>| `/api/auth/password` | POST | Set/change password |</p>
 <h2>Route Ordering</h2>
 <p>> **Important:** When defining routes with parametric paths (e.g., `/{id}`), always place literal paths (e.g., `/log`, `/runs`) **before** the parametric route. Starlette matches routes in order, and a parametric route will capture literal segments as parameter values.</p>
 <h2>Integration Example</h2></noscript></div>

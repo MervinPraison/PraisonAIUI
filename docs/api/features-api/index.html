@@ -30,14 +30,27 @@
 <p>**Response:**</p>
 <p>---</p>
 <h2>Approvals</h2>
+<p>Tool-execution approval management with policies, history, and SSE streaming.</p>
+<h3>GET /api/approvals</h3>
+<p>List all approvals.</p>
 <h3>POST /api/approvals</h3>
 <p>Create an approval request.</p>
-<h3>GET /api/approvals</h3>
-<p>List approvals. Query: `?status=pending|resolved|all`</p>
+<h3>GET /api/approvals/pending</h3>
+<p>List pending approvals only.</p>
+<h3>GET /api/approvals/history</h3>
+<p>List resolved approvals.</p>
+<h3>GET /api/approvals/policies</h3>
+<p>Get auto-approve/deny policies.</p>
+<h3>PUT /api/approvals/policies</h3>
+<p>Update policies.</p>
+<h3>GET /api/approvals/stream</h3>
+<p>SSE stream for real-time approval notifications.</p>
 <h3>GET /api/approvals/{id}</h3>
 <p>Get single approval by ID.</p>
-<h3>POST /api/approvals/{id}/resolve</h3>
-<p>Resolve a pending approval.</p>
+<h3>POST /api/approvals/{id}/approve</h3>
+<p>Approve a pending request. Body: `{"reason": "...", "always": false}`</p>
+<h3>POST /api/approvals/{id}/deny</h3>
+<p>Deny a pending request. Body: `{"reason": "...", "always": false}`</p>
 <p>---</p>
 <h2>Channels</h2>
 <h3>GET /api/channels</h3>
@@ -139,9 +152,11 @@
 <h3>POST /api/sessions/{session_id}/context</h3>
 <p>Build context from session state + memory.</p>
 <h3>POST /api/sessions/{session_id}/compact</h3>
-<p>Compact session data.</p>
+<p>Compact session data. Returns before/after stats.</p>
 <h3>POST /api/sessions/{session_id}/reset</h3>
 <p>Reset session. Body: `{"mode": "clear"}`</p>
+<h3>GET /api/sessions/{session_id}/preview</h3>
+<p>Formatted session preview without full history.</p>
 <h3>GET/POST /api/sessions/{session_id}/labels</h3>
 <p>Get or set session labels.</p>
 <h3>GET /api/sessions/{session_id}/usage</h3>
@@ -213,6 +228,14 @@
 <p>Set single config key.</p>
 <h3>DELETE /api/config/runtime/{key}</h3>
 <p>Delete config key.</p>
+<h3>GET /api/config/schema</h3>
+<p>JSON Schema for schema-driven form rendering.</p>
+<h3>POST /api/config/validate</h3>
+<p>Validate config without applying.</p>
+<h3>POST /api/config/apply</h3>
+<p>Validate and apply config changes.</p>
+<h3>GET /api/config/defaults</h3>
+<p>Get default values from schema.</p>
 <p>---</p>
 <h2>Agents</h2>
 <p>Agent definition CRUD with model selection, system prompts, and duplication.</p>
@@ -228,8 +251,75 @@
 <p>Delete agent.</p>
 <h3>GET /api/agents/models</h3>
 <p>List available models (13 models across OpenAI, Anthropic, Google).</p>
+<h3>POST /api/agents/run/{id}</h3>
+<p>Execute an agent via `praisonaiagents.Agent.start()`.</p>
 <h3>POST /api/agents/duplicate/{id}</h3>
-<p>Duplicate an existing agent.</p></noscript></div>
+<p>Duplicate an existing agent.</p>
+<p>---</p>
+<h2>OpenAI-Compatible API</h2>
+<p>Drop-in replacement for OpenAI SDK. Use `base_url="http://localhost:8000/v1"`.</p>
+<h3>GET /v1</h3>
+<p>API info with available endpoint list.</p>
+<h3>POST /v1/chat/completions</h3>
+<p>Chat completions (OpenAI-compatible).</p>
+<h3>POST /v1/completions</h3>
+<p>Legacy text completions.</p>
+<h3>POST /v1/embeddings</h3>
+<p>Create embeddings.</p>
+<h3>POST /v1/images/generations</h3>
+<p>Generate images (DALL-E).</p>
+<h3>POST /v1/audio/transcriptions</h3>
+<p>Transcribe audio (Whisper).</p>
+<h3>POST /v1/audio/speech</h3>
+<p>Text to speech.</p>
+<h3>POST /v1/moderations</h3>
+<p>Content moderation.</p>
+<h3>GET /v1/models</h3>
+<p>List available models (13 models).</p>
+<h3>GET /v1/models/{id}</h3>
+<p>Get model info.</p>
+<h3>POST /v1/responses</h3>
+<p>OpenAI Responses API.</p>
+<h3>GET/POST /v1/files</h3>
+<p>File management.</p>
+<h3>GET/DELETE /v1/files/{id}</h3>
+<p>File operations.</p>
+<h3>GET/POST /v1/assistants</h3>
+<p>Assistants API.</p>
+<p>---</p>
+<h2>Logs</h2>
+<p>Real-time log streaming via WebSocket.</p>
+<h3>WS /api/logs/stream</h3>
+<p>WebSocket for real-time log streaming. Query: `?level=INFO`, `?search=agent`</p>
+<h3>GET /api/logs/levels</h3>
+<p>Available log levels with colors.</p>
+<h3>GET /api/logs/stats</h3>
+<p>Log buffer statistics.</p>
+<h3>POST /api/logs/clear</h3>
+<p>Clear the log buffer.</p>
+<p>---</p>
+<h2>Auth</h2>
+<p>Multi-mode authentication (none, api_key, session, password).</p>
+<h3>GET /api/auth/status</h3>
+<p>Check current auth status.</p>
+<h3>GET /api/auth/config</h3>
+<p>Get auth configuration.</p>
+<h3>PUT /api/auth/config</h3>
+<p>Set auth configuration. Body: `{"mode": "session", "session_timeout_hours": 48}`</p>
+<h3>GET /api/auth/keys</h3>
+<p>List API keys.</p>
+<h3>POST /api/auth/keys</h3>
+<p>Create API key.</p>
+<h3>DELETE /api/auth/keys/{id}</h3>
+<p>Revoke API key.</p>
+<h3>POST /api/auth/login</h3>
+<p>Login with password.</p>
+<h3>POST /api/auth/logout</h3>
+<p>Logout current session.</p>
+<h3>GET /api/auth/sessions</h3>
+<p>List active sessions.</p>
+<h3>POST /api/auth/password</h3>
+<p>Set or change password.</p></noscript></div>
   <script>
     // AIUI Plugin System — inline bootstrap
     (function () {
