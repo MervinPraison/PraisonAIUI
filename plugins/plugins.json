@@ -6,6 +6,7 @@
     "homepage",
     "toc",
     "topnav",
-    "code-copy"
+    "code-copy",
+    "syntax-highlight"
   ]
 }

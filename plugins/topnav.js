@@ -1,17 +1,16 @@
 /**
  * AIUI Top Navigation Plugin
  *
- * Renders a Mintlify-style top tab bar below the header.
- * Reads tab configuration from ui-config.json and highlights
- * the active tab based on the current page path.
- *
- * Navigation: Clicks the matching sidebar link (React-managed)
- * to trigger proper SPA routing instead of full page reload.
+ * Implements Mintlify-style tab navigation:
+ *  – Renders a tab bar below the header
+ *  – Clicking a tab filters the sidebar (hides non-matching groups, shows matching ones)
+ *  – Does NOT click sidebar buttons (that would break the React app)
+ *  – Auto-detects the active tab from which sidebar group contains the current page
  */
 
 let tabConfig = null;
 let configLoaded = false;
-let lastRenderedUrl = '';
+let currentTabIndex = 0;
 
 async function loadConfig() {
   if (configLoaded) return;
@@ -22,95 +21,161 @@ async function loadConfig() {
     const config = await resp.json();
     tabConfig = config.navigation;
   } catch (e) {
-    console.warn('[AIUI:topnav] Failed to load config:', e);
+    console.warn('[AIUI:topnav] Config load error:', e);
   }
 }
 
-function getActiveTabIndex(tabs) {
-  const path = window.location.pathname;
-
-  for (let i = 0; i < tabs.length; i++) {
-    const tab = tabs[i];
-    // Direct URL match
-    if (tab.url && (path === tab.url || path === tab.url + '/')) return i;
-
-    if (tab.groups) {
-      for (const group of tab.groups) {
-        if (group.prefix) {
-          const prefix = '/docs/' + group.prefix;
-          if (path.startsWith(prefix + '/') || path === prefix) return i;
-        }
-        if (group.pages) {
-          for (const page of group.pages) {
-            const pagePath = '/docs/' + page;
-            if (path === pagePath || path === pagePath + '/') return i;
-          }
-        }
-      }
-    }
-  }
-
-  if (path === '/' || path === '' || path === '/index.html') return 0;
-  return 0;
-}
-
-function getFirstPagePath(tab) {
-  if (tab.groups) {
-    for (const group of tab.groups) {
-      if (group.pages && group.pages.length > 0) {
-        return '/docs/' + group.pages[0];
-      }
-    }
-  }
-  return null;
-}
+/* ------------------------------------------------------------------ */
+/*  Sidebar group discovery                                            */
+/* ------------------------------------------------------------------ */
 
 /**
- * Navigate by finding a sidebar link that matches the target path
- * and clicking it — this triggers React's internal routing.
- * Falls back to window.location if no sidebar link is found.
+ * Find all sidebar sections in the DOM.
+ * The sidebar structure is:
+ *   <nav>
+ *     <button>PraisonAIUI</button>          ← standalone page
+ *     <button>Testing</button>              ← standalone page
+ *     <div>                                 ← GROUP section
+ *       <div class="uppercase">Api</div>    ← group header
+ *       <div class="space-y-0.5">           ← group items
+ *         <button>CLI API Reference</button>
+ *       </div>
+ *     </div>
+ *   </nav>
  */
-function navigateToPage(targetPath) {
-  // First, look for a sidebar link with matching href
-  const sidebarLinks = document.querySelectorAll('aside a[href], nav a[href]');
-  for (const link of sidebarLinks) {
-    const href = link.getAttribute('href');
-    if (href === targetPath || href === targetPath + '/' || 
-        targetPath === href + '/' ||
-        (href && targetPath && href.endsWith(targetPath.replace('/docs/', '')))) {
-      link.click();
-      return;
+function getSidebarSections() {
+  const nav = document.querySelector('aside nav');
+  if (!nav) return [];
+
+  const sections = [];
+  for (const child of nav.children) {
+    if (child.tagName === 'BUTTON') {
+      sections.push({
+        headerText: child.textContent.trim().toLowerCase(),
+        element: child,
+        isStandalone: true,
+      });
+    } else if (child.tagName === 'DIV') {
+      // Group section – find the header element (has 'uppercase' in class)
+      const headerEl = child.querySelector('[class*="uppercase"]');
+      if (headerEl) {
+        sections.push({
+          headerText: headerEl.textContent.trim().toLowerCase(),
+          element: child,
+          isStandalone: false,
+        });
+      }
     }
   }
-
-  // Also try matching by text content of sidebar buttons
-  const buttons = document.querySelectorAll('aside button, nav button');
-  for (const btn of buttons) {
-    const text = btn.textContent.trim().toLowerCase();
-    const targetName = targetPath.split('/').pop().replace(/-/g, ' ');
-    if (text === targetName) {
-      btn.click();
-      return;
-    }
-  }
-
-  // Last resort: full page navigation
-  window.location.href = targetPath;
+  return sections;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Tab ↔ sidebar group matching                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Check if a sidebar section belongs to a tab.
+ */
+function sectionBelongsToTab(section, tab) {
+  if (!tab.groups) return false;
+
+  for (const grp of tab.groups) {
+    const groupName = grp.group.toLowerCase();
+    
+    // Direct match on group name
+    if (section.headerText === groupName) return true;
+    
+    // Match standalone pages by name
+    if (section.isStandalone) {
+      if (grp.pages) {
+        for (const page of grp.pages) {
+          const slug = page.split('/').pop().replace(/-/g, ' ');
+          if (section.headerText === slug) return true;
+          // Also match exact page name
+          if (section.headerText === page.toLowerCase()) return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Active tab detection                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Detect which tab is active based on which sidebar button is highlighted.
+ */
+function detectActiveTab(tabs) {
+  const activeBtn = document.querySelector(
+    'aside button[class*="font-medium"], aside button[class*="bg-accent"]'
+  );
+  if (!activeBtn) return 0;
+
+  const sections = getSidebarSections();
+
+  for (const section of sections) {
+    // Check if this section contains the active button
+    const containsActive = section.isStandalone
+      ? section.element === activeBtn
+      : section.element.contains(activeBtn);
+
+    if (containsActive) {
+      for (let i = 0; i < tabs.length; i++) {
+        if (sectionBelongsToTab(section, tabs[i])) return i;
+      }
+    }
+  }
+
+  return currentTabIndex;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Tab switching: sidebar filter only (NO navigation)                  */
+/* ------------------------------------------------------------------ */
+
+function filterSidebar(tabIndex) {
+  const tabs = tabConfig.tabs;
+  const tab = tabs[tabIndex];
+  const sections = getSidebarSections();
+  
+  if (sections.length === 0) return;
+
+  currentTabIndex = tabIndex;
+
+  // Home tab or tab with url="/" → show everything
+  if (tab.url === '/') {
+    for (const section of sections) {
+      section.element.style.display = '';
+    }
+    return;
+  }
+
+  // Filter: show only sections belonging to this tab
+  for (const section of sections) {
+    const belongs = sectionBelongsToTab(section, tab);
+    section.element.style.display = belongs ? '' : 'none';
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Tab bar rendering                                                   */
+/* ------------------------------------------------------------------ */
 
 function renderTabBar(root) {
   if (!tabConfig || !tabConfig.tabs || tabConfig.tabs.length === 0) return;
 
-  const newUrl = window.location.pathname;
-  if (lastRenderedUrl === newUrl && document.querySelector('[data-aiui-plugin="topnav"]')) return;
-  lastRenderedUrl = newUrl;
-
-  // Remove old tab bar
-  const old = document.querySelector('[data-aiui-plugin="topnav"]');
-  if (old) old.remove();
+  const existing = document.querySelector('[data-aiui-plugin="topnav"]');
+  if (existing) {
+    // Just update active state
+    updateActiveHighlight();
+    return;
+  }
 
   const tabs = tabConfig.tabs;
-  const activeIdx = getActiveTabIndex(tabs);
+  const activeIdx = detectActiveTab(tabs);
 
   const header = root.querySelector('header');
   if (!header) return;
@@ -123,34 +188,46 @@ function renderTabBar(root) {
   inner.className = 'aiui-topnav-inner';
 
   tabs.forEach(function (tab, idx) {
-    const a = document.createElement('a');
-    const firstPage = getFirstPagePath(tab);
-    a.href = tab.url || firstPage || '/';
-    a.className = 'aiui-topnav-tab' + (idx === activeIdx ? ' aiui-topnav-active' : '');
-    a.textContent = tab.tab;
+    const el = document.createElement('button');
+    el.className = 'aiui-topnav-tab' + (idx === activeIdx ? ' aiui-topnav-active' : '');
+    el.textContent = tab.tab;
+    el.dataset.tabIndex = idx;
 
-    a.addEventListener('click', function (e) {
+    el.addEventListener('click', function (e) {
       e.preventDefault();
-      const target = tab.url || firstPage;
-      if (!target || target === '/') {
-        // Home tab — navigate to root
-        window.location.href = '/';
-        return;
-      }
-      navigateToPage(target);
-      // Update active state immediately
-      inner.querySelectorAll('.aiui-topnav-tab').forEach(function (t) {
-        t.classList.remove('aiui-topnav-active');
-      });
-      a.classList.add('aiui-topnav-active');
+      e.stopPropagation();
+
+      // Update active styling on tabs
+      inner.querySelectorAll('.aiui-topnav-tab').forEach(t =>
+        t.classList.remove('aiui-topnav-active')
+      );
+      el.classList.add('aiui-topnav-active');
+
+      // Filter sidebar to show only this tab's groups
+      filterSidebar(idx);
     });
 
-    inner.appendChild(a);
+    inner.appendChild(el);
   });
 
   bar.appendChild(inner);
   header.insertAdjacentElement('afterend', bar);
 }
+
+function updateActiveHighlight() {
+  if (!tabConfig || !tabConfig.tabs) return;
+  const bar = document.querySelector('[data-aiui-plugin="topnav"]');
+  if (!bar) return;
+
+  const activeIdx = detectActiveTab(tabConfig.tabs);
+  bar.querySelectorAll('.aiui-topnav-tab').forEach((tab, idx) => {
+    tab.classList.toggle('aiui-topnav-active', idx === activeIdx);
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Styles                                                              */
+/* ------------------------------------------------------------------ */
 
 function injectStyles() {
   if (document.querySelector('#aiui-topnav-styles')) return;
@@ -187,12 +264,14 @@ function injectStyles() {
       font-size: 0.8125rem;
       font-weight: 500;
       color: rgba(148, 163, 184, 0.75);
-      text-decoration: none;
-      white-space: nowrap;
+      background: none;
+      border: none;
       border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      cursor: pointer;
       transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
       letter-spacing: 0.01em;
-      cursor: pointer;
+      font-family: inherit;
     }
 
     .aiui-topnav-tab:hover {
@@ -207,24 +286,23 @@ function injectStyles() {
     }
 
     @media (max-width: 768px) {
-      .aiui-topnav-inner {
-        padding: 0 0.75rem;
-      }
-      .aiui-topnav-tab {
-        padding: 0.5rem 0.625rem;
-        font-size: 0.75rem;
-      }
+      .aiui-topnav-inner { padding: 0 0.75rem; }
+      .aiui-topnav-tab { padding: 0.5rem 0.625rem; font-size: 0.75rem; }
     }
   `;
   document.head.appendChild(style);
 }
+
+/* ------------------------------------------------------------------ */
+/*  Plugin export                                                       */
+/* ------------------------------------------------------------------ */
 
 export default {
   name: 'topnav',
   async init() {
     injectStyles();
     await loadConfig();
-    console.debug('[AIUI:topnav] Top navigation plugin loaded.');
+    console.debug('[AIUI:topnav] Loaded.', tabConfig ? tabConfig.tabs.length + ' tabs' : 'No tabs');
   },
   onContentChange(root) {
     if (!tabConfig) return;
