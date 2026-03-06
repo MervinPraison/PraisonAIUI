@@ -87,6 +87,7 @@ nav:
     - CLI Usage: getting-started/cli.md
     - GitHub Pages: getting-started/github-pages.md
   - Core Concepts:
+    - Architecture: concepts/architecture.md
     - YAML Configuration: concepts/configuration.md
     - Templates & Layouts: concepts/templates.md
     - Slots & Components: concepts/slots.md

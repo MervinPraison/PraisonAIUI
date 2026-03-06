@@ -15,13 +15,8 @@ Run:
     # Dashboard at http://localhost:8082
 """
 
-from praisonaiui import PraisonAIUI
-
-# Create the UI with all features auto-registered
-ui = PraisonAIUI(
-    title="Full Dashboard",
-    description="All features demo",
-)
+from praisonaiui.server import create_app
+import uvicorn
 
 
 # ── Seed some demo data ──────────────────────────────────────────────
@@ -163,4 +158,5 @@ def seed_demo_data():
 seed_demo_data()
 
 if __name__ == "__main__":
-    ui.start(port=8082)
+    app = create_app()
+    uvicorn.run(app, host="0.0.0.0", port=8082, log_level="info")

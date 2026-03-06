@@ -2,8 +2,7 @@
  * AIUI Mermaid Plugin
  *
  * Renders mermaid code blocks as beautiful SVG diagrams with
- * transparent backgrounds and a premium color palette that
- * matches the dark documentation theme.
+ * high-contrast, Mintlify-inspired styling and transparent backgrounds.
  *
  * IMPORTANT: Hides the original code block via CSS and inserts
  * the SVG diagram as a sibling to avoid React reconciler crashes.
@@ -13,64 +12,64 @@ let mermaidLoaded = false;
 let mermaidReady = false;
 
 /**
- * Premium color palette for dark mode mermaid diagrams.
+ * High-contrast dark theme — Mintlify-inspired vibrant colors.
  */
 const DARK_THEME = {
   theme: 'base',
   themeVariables: {
-    // Background — fully transparent
+    // Background
     background: 'transparent',
-    mainBkg: 'transparent',
+    mainBkg: '#0d9488',          // Vibrant teal for primary nodes
 
-    // Primary nodes — teal/cyan gradient feel
-    primaryColor: '#1a3a4a',
-    primaryBorderColor: '#38bdf8',
-    primaryTextColor: '#e2e8f0',
+    // Primary nodes — teal (like Mintlify green)
+    primaryColor: '#0d9488',
+    primaryBorderColor: '#14b8a6',
+    primaryTextColor: '#ffffff',
 
-    // Secondary nodes — purple accent
-    secondaryColor: '#2d1f4e',
-    secondaryBorderColor: '#a78bfa',
-    secondaryTextColor: '#e2e8f0',
+    // Secondary nodes — indigo/purple
+    secondaryColor: '#6366f1',
+    secondaryBorderColor: '#818cf8',
+    secondaryTextColor: '#ffffff',
 
-    // Tertiary nodes — emerald accent
-    tertiaryColor: '#1a3a2a',
-    tertiaryBorderColor: '#34d399',
-    tertiaryTextColor: '#e2e8f0',
+    // Tertiary nodes — rose/red
+    tertiaryColor: '#e11d48',
+    tertiaryBorderColor: '#fb7185',
+    tertiaryTextColor: '#ffffff',
 
-    // Text and labels
-    textColor: '#e2e8f0',
-    labelTextColor: '#cbd5e1',
+    // Text and labels — high contrast white
+    textColor: '#f1f5f9',
+    labelTextColor: '#f1f5f9',
 
-    // Lines and arrows
-    lineColor: '#64748b',
-    arrowheadColor: '#94a3b8',
+    // Lines and arrows — visible but not harsh
+    lineColor: '#94a3b8',
+    arrowheadColor: '#cbd5e1',
 
-    // Flowchart specific
-    nodeBorder: '#38bdf8',
-    clusterBkg: 'rgba(56, 189, 248, 0.06)',
-    clusterBorder: 'rgba(56, 189, 248, 0.25)',
-    defaultLinkColor: '#64748b',
-    edgeLabelBackground: 'rgba(15, 23, 42, 0.8)',
-    nodeTextColor: '#e2e8f0',
+    // Flowchart
+    nodeBorder: '#14b8a6',
+    clusterBkg: 'rgba(13, 148, 136, 0.08)',
+    clusterBorder: 'rgba(20, 184, 166, 0.4)',
+    defaultLinkColor: '#94a3b8',
+    edgeLabelBackground: 'rgba(15, 23, 42, 0.85)',
+    nodeTextColor: '#ffffff',
 
     // Sequence diagram
-    actorBkg: '#1a3a4a',
-    actorBorder: '#38bdf8',
-    actorTextColor: '#e2e8f0',
-    actorLineColor: '#475569',
-    signalColor: '#94a3b8',
-    signalTextColor: '#e2e8f0',
-    activationBorderColor: '#38bdf8',
-    activationBkgColor: 'rgba(56, 189, 248, 0.1)',
-    sequenceNumberColor: '#0f172a',
+    actorBkg: '#0d9488',
+    actorBorder: '#14b8a6',
+    actorTextColor: '#ffffff',
+    actorLineColor: '#64748b',
+    signalColor: '#cbd5e1',
+    signalTextColor: '#f1f5f9',
+    activationBorderColor: '#14b8a6',
+    activationBkgColor: 'rgba(13, 148, 136, 0.2)',
+    sequenceNumberColor: '#ffffff',
 
-    // Notes
-    noteBkgColor: 'rgba(167, 139, 250, 0.15)',
-    noteBorderColor: '#a78bfa',
-    noteTextColor: '#e2e8f0',
+    // Notes — purple tint
+    noteBkgColor: 'rgba(99, 102, 241, 0.2)',
+    noteBorderColor: '#818cf8',
+    noteTextColor: '#f1f5f9',
 
     // Title
-    titleColor: '#f1f5f9',
+    titleColor: '#f8fafc',
 
     // Fonts
     fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
@@ -82,41 +81,41 @@ const LIGHT_THEME = {
   theme: 'base',
   themeVariables: {
     background: 'transparent',
-    mainBkg: 'transparent',
+    mainBkg: '#0d9488',
 
-    primaryColor: '#dbeafe',
-    primaryBorderColor: '#3b82f6',
-    primaryTextColor: '#1e293b',
+    primaryColor: '#0d9488',
+    primaryBorderColor: '#0f766e',
+    primaryTextColor: '#ffffff',
 
-    secondaryColor: '#ede9fe',
-    secondaryBorderColor: '#8b5cf6',
-    secondaryTextColor: '#1e293b',
+    secondaryColor: '#6366f1',
+    secondaryBorderColor: '#4f46e5',
+    secondaryTextColor: '#ffffff',
 
-    tertiaryColor: '#d1fae5',
-    tertiaryBorderColor: '#10b981',
-    tertiaryTextColor: '#1e293b',
+    tertiaryColor: '#e11d48',
+    tertiaryBorderColor: '#be123c',
+    tertiaryTextColor: '#ffffff',
 
     textColor: '#1e293b',
-    labelTextColor: '#475569',
+    labelTextColor: '#334155',
     lineColor: '#94a3b8',
     arrowheadColor: '#64748b',
 
-    nodeBorder: '#3b82f6',
-    clusterBkg: 'rgba(59, 130, 246, 0.06)',
-    clusterBorder: 'rgba(59, 130, 246, 0.25)',
+    nodeBorder: '#0f766e',
+    clusterBkg: 'rgba(13, 148, 136, 0.06)',
+    clusterBorder: 'rgba(15, 118, 110, 0.3)',
     defaultLinkColor: '#94a3b8',
     edgeLabelBackground: 'rgba(255, 255, 255, 0.9)',
-    nodeTextColor: '#1e293b',
+    nodeTextColor: '#ffffff',
 
-    actorBkg: '#dbeafe',
-    actorBorder: '#3b82f6',
-    actorTextColor: '#1e293b',
+    actorBkg: '#0d9488',
+    actorBorder: '#0f766e',
+    actorTextColor: '#ffffff',
     actorLineColor: '#cbd5e1',
     signalColor: '#64748b',
     signalTextColor: '#1e293b',
 
-    noteBkgColor: 'rgba(139, 92, 246, 0.1)',
-    noteBorderColor: '#8b5cf6',
+    noteBkgColor: 'rgba(99, 102, 241, 0.1)',
+    noteBorderColor: '#6366f1',
     noteTextColor: '#1e293b',
 
     titleColor: '#0f172a',
@@ -126,49 +125,73 @@ const LIGHT_THEME = {
 };
 
 /**
- * Inject CSS for mermaid diagram containers.
+ * Inject CSS for mermaid diagram containers + page title fix.
  */
 function injectStyles() {
   if (document.getElementById('aiui-mermaid-styles')) return;
   const style = document.createElement('style');
   style.id = 'aiui-mermaid-styles';
   style.textContent = `
+    /* Mermaid diagram container */
     .mermaid-diagram {
       display: flex;
       justify-content: center;
       margin: 1.5rem 0;
       padding: 1.5rem;
       border-radius: 12px;
-      background: rgba(56, 189, 248, 0.04);
-      border: 1px solid rgba(56, 189, 248, 0.12);
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.15);
       overflow-x: auto;
       transition: border-color 0.3s ease, box-shadow 0.3s ease;
     }
     .mermaid-diagram:hover {
-      border-color: rgba(56, 189, 248, 0.3);
-      box-shadow: 0 0 20px rgba(56, 189, 248, 0.08);
+      border-color: rgba(20, 184, 166, 0.4);
+      box-shadow: 0 0 24px rgba(13, 148, 136, 0.12);
     }
     .mermaid-diagram svg {
       max-width: 100%;
       height: auto;
     }
-    /* Make text crisper */
+    /* Force high-contrast text in nodes */
     .mermaid-diagram .nodeLabel,
-    .mermaid-diagram .edgeLabel,
-    .mermaid-diagram .label {
+    .mermaid-diagram .label div,
+    .mermaid-diagram .cluster-label .nodeLabel {
+      color: #ffffff !important;
+      fill: #ffffff !important;
       font-family: "Inter", system-ui, -apple-system, sans-serif !important;
+      font-weight: 500 !important;
     }
-    /* Smooth node borders */
+    .mermaid-diagram .edgeLabel {
+      color: #e2e8f0 !important;
+      fill: #e2e8f0 !important;
+      background-color: rgba(15, 23, 42, 0.85) !important;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    /* Cluster / subgraph labels */
+    .mermaid-diagram .cluster-label .nodeLabel {
+      font-weight: 600 !important;
+      font-size: 0.95em;
+    }
+    /* Rounded nodes */
     .mermaid-diagram .node rect,
     .mermaid-diagram .node circle,
     .mermaid-diagram .node polygon {
       rx: 8;
       ry: 8;
     }
-    /* Subgraph labels */
-    .mermaid-diagram .cluster-label .nodeLabel {
-      font-weight: 600;
-      font-size: 0.9em;
+
+    /* ===== Page title fix ===== */
+    /* The h1 title uses a gradient/opacity that's nearly invisible in dark mode */
+    article.prose h1,
+    main h1,
+    .prose h1 {
+      color: #f1f5f9 !important;
+      opacity: 1 !important;
+      -webkit-text-fill-color: #f1f5f9 !important;
+      background: none !important;
+      -webkit-background-clip: unset !important;
+      background-clip: unset !important;
     }
   `;
   document.head.appendChild(style);
