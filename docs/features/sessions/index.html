@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Session Management - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Session Management | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/sessions" />
+  <meta property="og:title" content="Session Management | PraisonAIUI Docs" />
+  <meta property="og:description" content="Session Management - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/sessions" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Session Management | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Session Management - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Session Management</h1>
+<p>PraisonAIUI provides full session management for chat conversations — create, switch, view history, and delete sessions.</p>
+<h2>Quick Start</h2>
+<h2>Data Persistence Options</h2>
+<p>| Mode | Flag | Persists? | Best For |</p>
+<p>|------|------|-----------|----------|</p>
+<p>| Memory | `--datastore memory` (default) | ❌ Lost on restart | Development, testing |</p>
+<p>| JSON Files | `--datastore json` | ✅ `~/.praisonaiui/sessions/` | Single-user, local |</p>
+<p>| JSON (custom path) | `--datastore json:/path/to/dir` | ✅ Custom directory | Custom setups |</p>
+<p>| Custom DB | Implement `BaseDataStore` | ✅ Your database | Production |</p>
+<h2>REST API</h2>
+<h3>List Sessions</h3>
+<h3>Create Session</h3>
+<h3>Get Session Details</h3>
+<h3>Get Message History</h3>
+<h3>Delete Session</h3>
+<h3>Send Message</h3>
+<h2>CLI Commands</h2>
+<p>Every API endpoint has a CLI equivalent:</p>
+<p>Use `--server` to target a different server:</p>
+<h2>Custom Data Store</h2>
+<p>Implement `BaseDataStore` for any database (SQLite, PostgreSQL, Redis, MongoDB, etc.):</p>
+<p>Register before the server starts:</p>
+<h2>Backend Modes</h2>
+<p>| Mode | Command | Transport | Session Source |</p>
+<p>|------|---------|-----------|---------------|</p>
+<p>| Standalone (default) | `aiui run app.py` | SSE over HTTP | DataStore |</p>
+<p>| PraisonAI | `aiui run app.py --backend praisonai` | WebSocket | WebSocketGateway |</p>
+<p>In **standalone** mode, sessions are managed by the configurable DataStore.</p>
+<p>In **praisonai** mode, sessions are managed by the `WebSocketGateway` from the praisonai package.</p></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

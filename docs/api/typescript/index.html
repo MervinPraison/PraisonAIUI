@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="TypeScript SDK Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>TypeScript SDK Reference | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/api/typescript" />
+  <meta property="og:title" content="TypeScript SDK Reference | PraisonAIUI Docs" />
+  <meta property="og:description" content="TypeScript SDK Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/api/typescript" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="TypeScript SDK Reference | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="TypeScript SDK Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>TypeScript SDK Reference</h1>
+<p>Complete API reference for the TypeScript/React runtime.</p>
+<h2>Installation</h2>
+<h2>Core Functions</h2>
+<h3>createAIUI</h3>
+<p>Initialize the runtime with manifests.</p>
+<h3>resolveTemplate</h3>
+<p>Match a route to a template.</p>
+<h2>SlotRegistry</h2>
+<p>Register custom components for slots.</p>
+<h2>Next.js Adapter</h2>
+<h3>withAIUI</h3>
+<p>Wrap your Next.js config:</p>
+<h3>getDocsPageProps</h3>
+<p>Get props for docs pages:</p>
+<h2>Types</h2></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

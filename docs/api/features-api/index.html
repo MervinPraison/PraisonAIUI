@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Features REST API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Features REST API Reference | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/api/features-api" />
+  <meta property="og:title" content="Features REST API Reference | PraisonAIUI Docs" />
+  <meta property="og:description" content="Features REST API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/api/features-api" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Features REST API Reference | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Features REST API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Features REST API Reference</h1>
+<p>Complete API reference for all PraisonAIUI feature protocol endpoints.</p>
+<h2>Feature Registry</h2>
+<h3>GET /api/features</h3>
+<p>List all registered features with health status.</p>
+<p>**Response:**</p>
+<p>---</p>
+<h2>Approvals</h2>
+<h3>POST /api/approvals</h3>
+<p>Create an approval request.</p>
+<h3>GET /api/approvals</h3>
+<p>List approvals. Query: `?status=pending|resolved|all`</p>
+<h3>GET /api/approvals/{id}</h3>
+<p>Get single approval by ID.</p>
+<h3>POST /api/approvals/{id}/resolve</h3>
+<p>Resolve a pending approval.</p>
+<p>---</p>
+<h2>Channels</h2>
+<h3>GET /api/channels</h3>
+<p>List all configured channels with live gateway status.</p>
+<h3>POST /api/channels</h3>
+<p>Add a channel.</p>
+<h3>GET /api/channels/platforms</h3>
+<p>List supported platforms.</p>
+<h3>GET /api/channels/{id}</h3>
+<p>Get channel details.</p>
+<h3>PUT /api/channels/{id}</h3>
+<p>Update channel configuration. Body fields: `name`, `platform`, `enabled`, `config`.</p>
+<h3>DELETE /api/channels/{id}</h3>
+<p>Remove a channel.</p>
+<h3>POST /api/channels/{id}/toggle</h3>
+<p>Toggle channel enabled/disabled.</p>
+<h3>GET /api/channels/{id}/status</h3>
+<p>Get live channel status (enriched via gateway).</p>
+<h3>POST /api/channels/{id}/restart</h3>
+<p>Restart a channel bot via the gateway. Returns status of restart attempt.</p>
+<p>---</p>
+<h2>Schedules</h2>
+<h3>POST /api/schedules</h3>
+<p>Add a scheduled job.</p>
+<h3>GET /api/schedules</h3>
+<p>List all scheduled jobs.</p>
+<h3>GET /api/schedules/{id}</h3>
+<p>Get job details.</p>
+<h3>DELETE /api/schedules/{id}</h3>
+<p>Remove a job.</p>
+<h3>POST /api/schedules/{id}/toggle</h3>
+<p>Toggle job enabled/disabled.</p>
+<h3>POST /api/schedules/{id}/run</h3>
+<p>Trigger job immediately.</p>
+<p>---</p>
+<h2>Memory</h2>
+<h3>POST /api/memory</h3>
+<p>Add a memory entry.</p>
+<h3>POST /api/memory/search</h3>
+<p>Search memories.</p>
+<h3>GET /api/memory</h3>
+<p>List all memories. Query: `?type=short|long|entity|all`</p>
+<h3>GET /api/memory/{id}</h3>
+<p>Get single memory.</p>
+<h3>DELETE /api/memory/{id}</h3>
+<p>Delete single memory.</p>
+<h3>DELETE /api/memory</h3>
+<p>Clear memories. Query: `?type=all`</p>
+<p>---</p>
+<h2>Extended Sessions</h2>
+<h3>GET /api/sessions/{session_id}/state</h3>
+<p>Get session state.</p>
+<h3>POST /api/sessions/{session_id}/state</h3>
+<p>Save session state.</p>
+<h3>POST /api/sessions/{session_id}/context</h3>
+<p>Build context from session state + memory.</p>
+<h3>POST /api/sessions/{session_id}/compact</h3>
+<p>Compact session data.</p>
+<h3>POST /api/sessions/{session_id}/reset</h3>
+<p>Reset session. Body: `{"mode": "clear"}`</p>
+<h3>GET/POST /api/sessions/{session_id}/labels</h3>
+<p>Get or set session labels.</p>
+<h3>GET /api/sessions/{session_id}/usage</h3>
+<p>Get session usage statistics.</p>
+<p>---</p>
+<h2>Skills</h2>
+<h3>POST /api/skills</h3>
+<p>Register a skill.</p>
+<h3>GET /api/skills</h3>
+<p>List all skills.</p>
+<h3>POST /api/skills/discover</h3>
+<p>Discover available skills.</p>
+<h3>GET /api/skills/{id}</h3>
+<p>Get skill details.</p>
+<h3>GET /api/skills/{id}/status</h3>
+<p>Get skill status.</p>
+<h3>DELETE /api/skills/{id}</h3>
+<p>Remove skill.</p>
+<p>---</p>
+<h2>Hooks</h2>
+<h3>POST /api/hooks</h3>
+<p>Register a hook.</p>
+<h3>GET /api/hooks</h3>
+<p>List all hooks.</p>
+<h3>GET /api/hooks/log</h3>
+<p>View hook execution log. Query: `?limit=20`</p>
+<h3>GET /api/hooks/{id}</h3>
+<p>Get hook details.</p>
+<h3>POST /api/hooks/{id}/trigger</h3>
+<p>Trigger a hook manually.</p>
+<h3>DELETE /api/hooks/{id}</h3>
+<p>Remove hook.</p>
+<p>---</p>
+<h2>Workflows</h2>
+<h3>POST /api/workflows</h3>
+<p>Create a workflow.</p>
+<h3>GET /api/workflows</h3>
+<p>List all workflows.</p>
+<h3>GET /api/workflows/runs</h3>
+<p>List all workflow runs.</p>
+<h3>GET /api/workflows/runs/{run_id}</h3>
+<p>Get run details.</p>
+<h3>GET /api/workflows/{id}</h3>
+<p>Get workflow details.</p>
+<h3>POST /api/workflows/{id}/run</h3>
+<p>Execute a workflow.</p>
+<h3>GET /api/workflows/{id}/status</h3>
+<p>Get workflow status (total runs, last run).</p>
+<h3>DELETE /api/workflows/{id}</h3>
+<p>Delete workflow.</p>
+<p>---</p>
+<h2>Config Runtime</h2>
+<h3>GET /api/config/runtime</h3>
+<p>Get all runtime config.</p>
+<h3>PATCH /api/config/runtime</h3>
+<p>Merge config values.</p>
+<h3>PUT /api/config/runtime</h3>
+<p>Replace entire config.</p>
+<h3>GET /api/config/runtime/history</h3>
+<p>Config change history. Query: `?limit=50`</p>
+<h3>GET /api/config/runtime/{key}</h3>
+<p>Get single config key.</p>
+<h3>PUT /api/config/runtime/{key}</h3>
+<p>Set single config key.</p>
+<h3>DELETE /api/config/runtime/{key}</h3>
+<p>Delete config key.</p></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

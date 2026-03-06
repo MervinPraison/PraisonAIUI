@@ -3,9 +3,12 @@
  *
  * Implements Mintlify-style tab navigation:
  *  – Renders a tab bar below the header
- *  – Clicking a tab filters the sidebar (hides non-matching groups, shows matching ones)
- *  – Does NOT click sidebar buttons (that would break the React app)
+ *  – Clicking a tab filters the sidebar via CSS (no React DOM mutation)
  *  – Auto-detects the active tab from which sidebar group contains the current page
+ *
+ * CRITICAL: This plugin NEVER sets style.display or modifies attributes on
+ * React-managed elements. All visibility is controlled via an injected <style>
+ * tag with nth-child selectors. This prevents React reconciler crashes.
  */
 
 let tabConfig = null;
@@ -30,38 +33,28 @@ async function loadConfig() {
 /* ------------------------------------------------------------------ */
 
 /**
- * Find all sidebar sections in the DOM.
- * The sidebar structure is:
- *   <nav>
- *     <button>PraisonAIUI</button>          ← standalone page
- *     <button>Testing</button>              ← standalone page
- *     <div>                                 ← GROUP section
- *       <div class="uppercase">Api</div>    ← group header
- *       <div class="space-y-0.5">           ← group items
- *         <button>CLI API Reference</button>
- *       </div>
- *     </div>
- *   </nav>
+ * Find all sidebar sections in the DOM (read-only, no mutations).
  */
 function getSidebarSections() {
   const nav = document.querySelector('aside nav');
   if (!nav) return [];
 
   const sections = [];
-  for (const child of nav.children) {
+  const children = nav.children;
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
     if (child.tagName === 'BUTTON') {
       sections.push({
+        index: i,
         headerText: child.textContent.trim().toLowerCase(),
-        element: child,
         isStandalone: true,
       });
     } else if (child.tagName === 'DIV') {
-      // Group section – find the header element (has 'uppercase' in class)
       const headerEl = child.querySelector('[class*="uppercase"]');
       if (headerEl) {
         sections.push({
+          index: i,
           headerText: headerEl.textContent.trim().toLowerCase(),
-          element: child,
           isStandalone: false,
         });
       }
@@ -74,27 +67,16 @@ function getSidebarSections() {
 /*  Tab ↔ sidebar group matching                                       */
 /* ------------------------------------------------------------------ */
 
-/**
- * Check if a sidebar section belongs to a tab.
- */
 function sectionBelongsToTab(section, tab) {
   if (!tab.groups) return false;
-
   for (const grp of tab.groups) {
     const groupName = grp.group.toLowerCase();
-    
-    // Direct match on group name
     if (section.headerText === groupName) return true;
-    
-    // Match standalone pages by name
-    if (section.isStandalone) {
-      if (grp.pages) {
-        for (const page of grp.pages) {
-          const slug = page.split('/').pop().replace(/-/g, ' ');
-          if (section.headerText === slug) return true;
-          // Also match exact page name
-          if (section.headerText === page.toLowerCase()) return true;
-        }
+    if (section.isStandalone && grp.pages) {
+      for (const page of grp.pages) {
+        const slug = page.split('/').pop().replace(/-/g, ' ');
+        if (section.headerText === slug) return true;
+        if (section.headerText === page.toLowerCase()) return true;
       }
     }
   }
@@ -102,25 +84,72 @@ function sectionBelongsToTab(section, tab) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Active tab detection                                                */
+/*  CSS-only sidebar filtering (NEVER touches React DOM)               */
 /* ------------------------------------------------------------------ */
 
 /**
- * Detect which tab is active based on which sidebar button is highlighted.
+ * Inject/update a <style> tag that hides sidebar items by nth-child.
+ * This is React-safe because we only modify our own <style> element.
  */
+function filterSidebarCSS(tabIndex) {
+  const tabs = tabConfig.tabs;
+  const tab = tabs[tabIndex];
+  currentTabIndex = tabIndex;
+
+  let styleEl = document.getElementById('aiui-topnav-filter');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'aiui-topnav-filter';
+    document.head.appendChild(styleEl);
+  }
+
+  // Home tab or tab with url="/" → show everything
+  if (tab.url === '/') {
+    styleEl.textContent = '';
+    return;
+  }
+
+  // Find which children indices to HIDE
+  const sections = getSidebarSections();
+  const hiddenIndices = [];
+
+  for (const section of sections) {
+    if (!sectionBelongsToTab(section, tab)) {
+      hiddenIndices.push(section.index);
+    }
+  }
+
+  // Generate CSS rules using nth-child (1-indexed)
+  if (hiddenIndices.length > 0) {
+    const rules = hiddenIndices.map(
+      (i) => `aside nav > :nth-child(${i + 1})`
+    ).join(',\n');
+    styleEl.textContent = `${rules} { display: none !important; }`;
+  } else {
+    styleEl.textContent = '';
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Active tab detection (read-only)                                    */
+/* ------------------------------------------------------------------ */
+
 function detectActiveTab(tabs) {
   const activeBtn = document.querySelector(
     'aside button[class*="font-medium"], aside button[class*="bg-accent"]'
   );
-  if (!activeBtn) return 0;
+  if (!activeBtn) return currentTabIndex;
 
+  const nav = document.querySelector('aside nav');
+  if (!nav) return currentTabIndex;
+
+  // Walk up from activeBtn to find which nav child contains it
   const sections = getSidebarSections();
-
   for (const section of sections) {
-    // Check if this section contains the active button
+    const child = nav.children[section.index];
     const containsActive = section.isStandalone
-      ? section.element === activeBtn
-      : section.element.contains(activeBtn);
+      ? child === activeBtn
+      : child.contains(activeBtn);
 
     if (containsActive) {
       for (let i = 0; i < tabs.length; i++) {
@@ -133,34 +162,6 @@ function detectActiveTab(tabs) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Tab switching: sidebar filter only (NO navigation)                  */
-/* ------------------------------------------------------------------ */
-
-function filterSidebar(tabIndex) {
-  const tabs = tabConfig.tabs;
-  const tab = tabs[tabIndex];
-  const sections = getSidebarSections();
-  
-  if (sections.length === 0) return;
-
-  currentTabIndex = tabIndex;
-
-  // Home tab or tab with url="/" → show everything
-  if (tab.url === '/') {
-    for (const section of sections) {
-      section.element.style.display = '';
-    }
-    return;
-  }
-
-  // Filter: show only sections belonging to this tab
-  for (const section of sections) {
-    const belongs = sectionBelongsToTab(section, tab);
-    section.element.style.display = belongs ? '' : 'none';
-  }
-}
-
-/* ------------------------------------------------------------------ */
 /*  Tab bar rendering                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -169,7 +170,6 @@ function renderTabBar(root) {
 
   const existing = document.querySelector('[data-aiui-plugin="topnav"]');
   if (existing) {
-    // Just update active state
     updateActiveHighlight();
     return;
   }
@@ -180,6 +180,7 @@ function renderTabBar(root) {
   const header = root.querySelector('header');
   if (!header) return;
 
+  // Create tab bar OUTSIDE React's managed tree (insertAdjacentElement is safe)
   const bar = document.createElement('nav');
   bar.dataset.aiuiPlugin = 'topnav';
   bar.className = 'aiui-topnav';
@@ -197,14 +198,13 @@ function renderTabBar(root) {
       e.preventDefault();
       e.stopPropagation();
 
-      // Update active styling on tabs
       inner.querySelectorAll('.aiui-topnav-tab').forEach(t =>
         t.classList.remove('aiui-topnav-active')
       );
       el.classList.add('aiui-topnav-active');
 
-      // Filter sidebar to show only this tab's groups
-      filterSidebar(idx);
+      // Filter sidebar with CSS only — no React DOM mutation
+      filterSidebarCSS(idx);
     });
 
     inner.appendChild(el);

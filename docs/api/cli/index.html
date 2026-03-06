@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CLI API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>CLI API Reference | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/api/cli" />
+  <meta property="og:title" content="CLI API Reference | PraisonAIUI Docs" />
+  <meta property="og:description" content="CLI API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/api/cli" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="CLI API Reference | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="CLI API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>CLI API Reference</h1>
+<p>Complete reference for the `aiui` Python CLI.</p>
+<h2>Commands</h2>
+<h3>init</h3>
+<p>Initialize a new project.</p>
+<p>| Option | Type | Default | Description |</p>
+<p>|--------|------|---------|-------------|</p>
+<p>| `--template, -t` | string | `minimal` | Template: minimal, docs, marketing |</p>
+<p>| `--force, -f` | flag | `false` | Overwrite existing files |</p>
+<h3>validate</h3>
+<p>Validate configuration file.</p>
+<p>| Option | Type | Default | Description |</p>
+<p>|--------|------|---------|-------------|</p>
+<p>| `--config, -c` | path | `aiui.template.yaml` | Config file path |</p>
+<p>| `--strict` | flag | `false` | Strict validation mode |</p>
+<h3>build</h3>
+<p>Build manifests from configuration.</p>
+<p>| Option | Type | Default | Description |</p>
+<p>|--------|------|---------|-------------|</p>
+<p>| `--config, -c` | path | `aiui.template.yaml` | Config file path |</p>
+<p>| `--output, -o` | path | `aiui` | Output directory |</p>
+<p>| `--minify` | flag | `false` | Minify JSON output |</p>
+<h3>dev</h3>
+<p>Start development mode with file watching.</p>
+<p>| Option | Type | Default | Description |</p>
+<p>|--------|------|---------|-------------|</p>
+<p>| `--config, -c` | path | `aiui.template.yaml` | Config file path |</p>
+<p>| `--port, -p` | int | `3000` | Dev server port |</p>
+<h3>run</h3>
+<p>Run the AI chat server with your app or config.</p>
+<p>| Option | Type | Default | Description |</p>
+<p>|--------|------|---------|-------------|</p>
+<p>| `--port, -p` | int | `8000` | Server port |</p>
+<p>| `--host` | string | `127.0.0.1` | Host to bind to |</p>
+<p>| `--reload, -r` | flag | `false` | Auto-reload on file changes |</p>
+<p>| `--style, -s` | string | `chat` | UI style: `chat`, `docs`, `agents`, `playground`, `dashboard`, `custom` |</p>
+<p>| `--backend, -b` | string | `standalone` | Backend: `standalone` or `praisonai` |</p>
+<p>| `--datastore, -d` | string | `memory` | Data persistence: `memory`, `json`, `json:/path` |</p>
+<p>| `--output, -o` | path | `aiui` | Output directory for static files |</p>
+<p>**Style auto-detection:** When `--style` is not provided, the style is automatically detected from your code. See [Styles](../features/styles.md) for details.</p>
+<h2>Python API</h2>
+<h3>Direct Usage</h3>
+<h3>Schema Models</h3>
+<p>---</p>
+<h2>Feature Commands</h2>
+<p>All feature commands talk to a running PraisonAIUI server (default: `http://127.0.0.1:8000`). Use `--server` / `-s` to override.</p>
+<h3>features</h3>
+<h3>approval</h3>
+<h3>schedule</h3>
+<h3>memory</h3>
+<h3>skills</h3>
+<h3>hooks</h3>
+<h3>workflows</h3>
+<h3>config</h3>
+<h3>provider</h3>
+<h3>health-check</h3></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

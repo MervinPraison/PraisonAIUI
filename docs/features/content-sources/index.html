@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Content Sources - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Content Sources | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/content-sources" />
+  <meta property="og:title" content="Content Sources | PraisonAIUI Docs" />
+  <meta property="og:description" content="Content Sources - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/content-sources" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Content Sources | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Content Sources - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Content Sources</h1>
+<p>Configure where PraisonAIUI discovers your documentation content.</p>
+<h2>Docs Directory</h2>
+<h2>Include/Exclude Patterns</h2>
+<p>Control which files are processed:</p>
+<h2>Index Files</h2>
+<p>Files treated as directory index:</p>
+<h2>Frontmatter</h2>
+<p>Control page metadata with YAML frontmatter:</p>
+<h3>Supported Fields</h3>
+<p>| Field | Description |</p>
+<p>|-------|-------------|</p>
+<p>| `title` | Page title (overrides heading) |</p>
+<p>| `order` | Sort order in navigation |</p>
+<p>| `hidden` | Hide from navigation |</p>
+<p>| `description` | SEO meta description |</p>
+<h2>Numbered Prefixes</h2>
+<p>Files with numbered prefixes are auto-sorted:</p>
+<p>The prefix is stripped from the URL slug.</p></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Testing - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Testing | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/testing" />
+  <meta property="og:title" content="Testing | PraisonAIUI Docs" />
+  <meta property="og:description" content="Testing - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/testing" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Testing | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Testing - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Testing</h1>
+<p>PraisonAIUI uses [pytest](https://pytest.org) for all testing. Tests are split into unit and integration categories.</p>
+<h2>Running Tests</h2>
+<h2>Test Categories</h2>
+<h3>Unit Tests (`tests/unit/`)</h3>
+<p>Fast, isolated tests that do not start servers or make network calls.</p>
+<p>| Module | File | Count | Description |</p>
+<p>|--------|------|-------|-------------|</p>
+<p>| Schema Models | `test_schema.py` | 9 | Validates all Pydantic models: `SiteConfig`, `ContentConfig`, `TemplateConfig`, `RouteConfig`, `Config`. Covers defaults, all-fields, and `model_validate()` |</p>
+<p>| Validators | `test_validators.py` | 4 | Tests `validate_config()` — broken component refs, missing template refs in routes, missing docs directories |</p>
+<p>| Compiler | `test_compiler.py` | 16 | Tests the full compilation pipeline: `ui-config.json`, `route-manifest.json`, template slot serialization, validation failures, output files, minification, `docs-nav.json` |</p>
+<p>| Docs Scanner | `test_scanner.py` | 7 | Tests `DocsScanner` — empty dirs, frontmatter extraction, index files, nested structures, exclude patterns, number-prefix ordering |</p>
+<p>| Serve | `test_serve.py` | 9 | Tests serve command registration, port handling, SPA fallback, JSON manifest serving, auto-build toggle |</p>
+<p>| Plugins | `test_plugins.py` | 8 | Tests `PluginManager` registration, hooks, chaining, `BasePlugin` defaults, global singleton |</p>
+<p>| i18n & a11y | `test_i18n_a11y.py` | 9 | Tests internationalization and accessibility config models |</p>
+<p>**Total: 62 unit tests**</p>
+<h3>Integration Tests (`tests/integration/`)</h3>
+<p>End-to-end tests that exercise the full CLI pipeline using temporary directories.</p>
+<p>| Module | File | Count | Description |</p>
+<p>|--------|------|-------|-------------|</p>
+<p>| CLI Pipeline | `test_cli.py` | 11 | Full `validate → build → serve` pipeline, init command, error handling |</p>
+<p>**Total: 11 integration tests**</p>
+<h3>Manual / Browser Tests</h3>
+<p>These are not automated but are documented here for completeness:</p>
+<p>| Test | How to Run | What to Verify |</p>
+<p>|------|-----------|----------------|</p>
+<p>| Live serve | `aiui build && aiui serve` | Page loads, sidebar navigates, TOC updates |</p>
+<p>| SPA routing | Click sidebar items | URL updates without page reload |</p>
+<p>| Path traversal | `curl --path-as-is 'http://localhost:8000/%2e%2e/etc/passwd'` | Returns 403 |</p>
+<p>| CORS | `curl -sI -H 'Origin: http://evil.com' http://localhost:8000/` | No access-control headers |</p>
+<p>| SSL | `aiui serve --ssl-certfile cert.pem --ssl-keyfile key.pem` | HTTPS URL shown in output |</p>
+<p>| All docs serve | Visit each sidebar link | Markdown content renders |</p>
+<p>| Favicon | Check browser tab | SVG icon visible |</p>
+<h2>Architecture Diagram</h2>
+<h2>Writing Tests</h2>
+<p>See [tests/README.md](../tests/README.md) for conventions, examples, and templates.</p></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

@@ -4,9 +4,9 @@
  * Replaces the hardcoded debug/developer landing page with actual
  * documentation content from docs/index.md.
  *
- * IMPORTANT: Does NOT use replaceWith/removeChild on React-managed
- * nodes to avoid crashing React's reconciler. Instead, hides the
- * debug content via CSS and appends new content as a sibling.
+ * CRITICAL: Does NOT set style.display or any properties on React-managed
+ * DOM nodes. All visibility is controlled via a <style> tag with CSS
+ * selectors. This prevents React reconciler crashes (removeChild errors).
  */
 
 let hasRendered = false;
@@ -24,6 +24,32 @@ function isDebugHomepage(root) {
   return false;
 }
 
+/**
+ * Inject CSS that hides the debug homepage content.
+ * Uses a body class + CSS so we NEVER touch React elements directly.
+ */
+function setHomepageMode(active) {
+  let styleEl = document.getElementById('aiui-homepage-css');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'aiui-homepage-css';
+    document.head.appendChild(styleEl);
+  }
+
+  if (active) {
+    // Hide all direct children of main EXCEPT our injected article
+    styleEl.textContent = `
+      body.aiui-homepage-active main.flex-1 > :not([data-aiui-plugin="homepage"]) {
+        display: none !important;
+      }
+    `;
+    document.body.classList.add('aiui-homepage-active');
+  } else {
+    styleEl.textContent = '';
+    document.body.classList.remove('aiui-homepage-active');
+  }
+}
+
 async function replaceHomepage(root) {
   if (hasRendered) return;
   if (!isHomepage()) return;
@@ -39,12 +65,10 @@ async function replaceHomepage(root) {
     const main = root.querySelector('main.flex-1');
     if (!main) return;
 
-    // HIDE React's debug content instead of removing it
-    Array.from(main.children).forEach(function (child) {
-      child.style.display = 'none';
-    });
+    // Hide React's debug content via CSS (not inline styles)
+    setHomepageMode(true);
 
-    // Append our content as a new child (React won't try to reconcile it)
+    // Append our content as a new child (React won't reconcile it)
     const article = document.createElement('article');
     article.className = 'prose max-w-none dark:prose-invert p-6';
     article.dataset.aiuiPlugin = 'homepage';
@@ -129,18 +153,14 @@ export default {
   name: 'homepage',
   init() { console.debug('[AIUI:homepage] Homepage plugin loaded.'); },
   onContentChange(root) {
-    // Restore hidden content when navigating away from homepage
+    // When navigating away from homepage, clean up
     if (!isHomepage() && hasRendered) {
       hasRendered = false;
+      // Remove our injected article (this is OUR element, not React's)
       const old = document.querySelector('[data-aiui-plugin="homepage"]');
       if (old) old.remove();
-      // CRITICAL: restore the hidden React-managed children
-      const main = root.querySelector('main.flex-1');
-      if (main) {
-        Array.from(main.children).forEach(function (child) {
-          if (child.style.display === 'none') child.style.display = '';
-        });
-      }
+      // Lift the CSS hiding rule
+      setHomepageMode(false);
     }
     replaceHomepage(root);
   },

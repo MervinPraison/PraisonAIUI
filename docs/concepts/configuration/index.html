@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="YAML Configuration - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>YAML Configuration | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/concepts/configuration" />
+  <meta property="og:title" content="YAML Configuration | PraisonAIUI Docs" />
+  <meta property="og:description" content="YAML Configuration - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/concepts/configuration" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="YAML Configuration | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="YAML Configuration - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>YAML Configuration</h1>
+<p>Complete guide to the `aiui.template.yaml` configuration schema.</p>
+<h2>Overview</h2>
+<p>PraisonAIUI uses a single YAML file to configure your entire site. This file defines:</p>
+<li>**Site metadata** - Title, description, theme</li>
+<li>**Content sources** - Where to find your docs</li>
+<li>**Components** - Reusable UI elements</li>
+<li>**Templates** - Page layouts with slots</li>
+<li>**Routes** - URL patterns to template mappings</li>
+<h2>Schema Version</h2>
+<p>Always specify the schema version:</p>
+<h2>Site Configuration</h2>
+<p>> **Note**: The `ui` field is a theming hint. Components are UI-agnostic and use CSS classes you can style with any framework.</p>
+<h2>Component Dependencies</h2>
+<p>Auto-install shadcn components at build time:</p>
+<p>When you run `aiui build`, any missing components are automatically installed via `npx shadcn add`.</p>
+<h2>Content Sources</h2>
+<h2>Components</h2>
+<p>Define reusable components:</p>
+<h3>Built-in Component Types</h3>
+<p>| Type | Description |</p>
+<p>|------|-------------|</p>
+<p>| `Header` | Site header with logo, nav, CTA |</p>
+<p>| `Footer` | Site footer |</p>
+<p>| `DocsSidebar` | Documentation sidebar navigation |</p>
+<p>| `Toc` | Table of contents |</p>
+<p>| `DocContent` | Rendered markdown content |</p>
+<h2>Templates</h2>
+<p>Templates combine a layout with slot assignments:</p>
+<h3>Layouts</h3>
+<p>| Layout | Description |</p>
+<p>|--------|-------------|</p>
+<p>| `ThreeColumnLayout` | Sidebar + Content + TOC |</p>
+<p>| `TwoColumnLayout` | Sidebar + Content |</p>
+<p>| `CenteredLayout` | Centered content, no sidebar |</p>
+<p>| `FullWidthLayout` | Full width content |</p>
+<p>| `FlexibleLayout` | WordPress-style widget zones |</p>
+<h2>Widget Zones</h2>
+<p>Place widgets in layout zones without modifying markdown:</p>
+<h3>Available Zones</h3>
+<p>| Zone | Description |</p>
+<p>|------|-------------|</p>
+<p>| `header` | Top header |</p>
+<p>| `topNav` | Below header nav |</p>
+<p>| `hero` | Hero banners |</p>
+<p>| `leftSidebar` | Left column |</p>
+<p>| `main` | Main content |</p>
+<p>| `rightSidebar` | Right column |</p>
+<p>| `bottomNav` | Pagination area |</p>
+<p>| `footer` | Footer widgets |</p>
+<h3>Built-in Widgets</h3>
+<p>| Widget | Description |</p>
+<p>|--------|-------------|</p>
+<p>| `StatsCard` | Metrics display |</p>
+<p>| `QuickLinks` | Navigation links |</p>
+<p>| `Newsletter` | Email signup |</p>
+<p>| `HeroBanner` | Hero section |</p>
+<p>| `SocialLinks` | Social icons |</p>
+<p>| `Copyright` | Copyright text |</p>
+<p>See [Widget Zones](../features/widget-zones.md) for full documentation.</p>
+<h2>Routes</h2>
+<p>Map URL patterns to templates:</p>
+<p>Route matching uses glob patterns:</p>
+<li>`*` - Single segment</li>
+<li>`**` - Multiple segments</li>
+<h2>Complete Example</h2></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

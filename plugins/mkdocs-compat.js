@@ -86,7 +86,8 @@ function cleanMkDocsContent(root) {
     for (const p of rawDivNodes) {
       const text = p.textContent.trim();
       if (/^<\/?div[\s>]/.test(text) || text === '</div>') {
-        p.style.display = 'none';
+        // Clear text instead of hiding — safer for React reconciliation
+        p.textContent = '';
         changed = true;
       }
     }

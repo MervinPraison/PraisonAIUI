@@ -4,24 +4,52 @@
  * Replaces the hardcoded "Overview" / "Usage" links in the
  * "On this page" sidebar with headings from the actual rendered content.
  *
- * IMPORTANT: Hides React-managed ToC content via CSS and appends
- * new content as siblings to avoid React reconciler crashes.
+ * CRITICAL: Does NOT set style.display or any properties on React-managed
+ * DOM nodes. All visibility is controlled via a <style> tag so React's
+ * reconciler is never confused about the DOM state.
  */
+
+/**
+ * Use CSS to hide the React-managed ToC items.
+ * We target "the nav inside the aside that has an h4 with 'On this page'"
+ * by giving it a data attribute (which is safe since React doesn't track
+ * custom data-* attrs), then hiding its original children via CSS.
+ */
+function setTocHidingCSS(active) {
+  let styleEl = document.getElementById('aiui-toc-css');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'aiui-toc-css';
+    document.head.appendChild(styleEl);
+  }
+
+  if (active) {
+    styleEl.textContent = `
+      nav[data-aiui-toc-managed] > :not([data-aiui-plugin="toc"]) {
+        display: none !important;
+      }
+    `;
+  } else {
+    styleEl.textContent = '';
+  }
+}
+
+function findTocNav(root) {
+  const asides = root.querySelectorAll('aside');
+  for (const aside of asides) {
+    const heading = aside.querySelector('h4');
+    if (heading && heading.textContent.trim().toLowerCase().includes('on this page')) {
+      return aside.querySelector('nav');
+    }
+  }
+  return null;
+}
 
 function updateToc(root) {
   const article = root.querySelector('article.prose');
   if (!article) return;
 
-  // Find the ToC sidebar
-  const asides = root.querySelectorAll('aside');
-  let tocNav = null;
-  for (const aside of asides) {
-    const heading = aside.querySelector('h4');
-    if (heading && heading.textContent.trim().toLowerCase().includes('on this page')) {
-      tocNav = aside.querySelector('nav');
-      break;
-    }
-  }
+  const tocNav = findTocNav(root);
   if (!tocNav) return;
   if (tocNav.dataset.tocDynamic) return;
 
@@ -29,10 +57,11 @@ function updateToc(root) {
   const headings = article.querySelectorAll('h1, h2, h3');
   if (headings.length === 0) return;
 
-  // HIDE the existing React-managed ToC content (don't remove it)
-  Array.from(tocNav.children).forEach(function (child) {
-    child.style.display = 'none';
-  });
+  // Mark the nav so our CSS can target it (data-* attributes are React-safe)
+  tocNav.dataset.aiuiTocManaged = 'true';
+
+  // Activate CSS hiding rule
+  setTocHidingCSS(true);
 
   // Build and APPEND new ToC as a sibling container
   const container = document.createElement('div');
@@ -79,21 +108,20 @@ export default {
     // Only tear down on actual navigation
     if (currentUrl !== lastUrl) {
       lastUrl = currentUrl;
+      // Remove OUR injected element (not React's)
       const old = root.querySelector('[data-aiui-plugin="toc"]');
       if (old) old.remove();
-      const asides = root.querySelectorAll('aside');
-      for (const aside of asides) {
-        const nav = aside.querySelector('nav');
-        if (nav) {
-          delete nav.dataset.tocDynamic;
-          Array.from(nav.children).forEach(function (child) {
-            if (!child.dataset.aiuiPlugin) child.style.display = '';
-          });
-        }
+
+      // Clear the managed flag and CSS hiding
+      const tocNav = findTocNav(root);
+      if (tocNav) {
+        delete tocNav.dataset.tocDynamic;
+        delete tocNav.dataset.aiuiTocManaged;
       }
+      setTocHidingCSS(false);
     }
 
-    // Build ToC if not already built (idempotent — tocDynamic flag prevents rebuild)
+    // Build ToC if not already built
     setTimeout(function () { updateToc(root); }, 250);
   },
 };

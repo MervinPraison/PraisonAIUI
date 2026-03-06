@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Feature Protocols - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Feature Protocols | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/protocols" />
+  <meta property="og:title" content="Feature Protocols | PraisonAIUI Docs" />
+  <meta property="og:description" content="Feature Protocols - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/protocols" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Feature Protocols | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Feature Protocols - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Feature Protocols</h1>
+<p>PraisonAIUI uses a **protocol-driven architecture** to wire features into the server. Every feature module implements the `BaseFeatureProtocol` ABC, which auto-registers API routes, CLI commands, and health checks.</p>
+<h2>Architecture</h2>
+<h2>Quick Start</h2>
+<h3>List All Features</h3>
+<h3>Python — Create a Custom Feature</h3>
+<h2>BaseFeatureProtocol API</h2>
+<p>Every feature module must implement:</p>
+<p>| Method | Return | Required | Description |</p>
+<p>|--------|--------|----------|-------------|</p>
+<p>| `name` | `str` | ✓ | Unique feature identifier |</p>
+<p>| `description` | `str` | ✓ | Human-readable description |</p>
+<p>| `routes()` | `List[Route]` | ✓ | Starlette routes to mount |</p>
+<p>| `cli_commands()` | `List[dict]` | ○ | CLI command metadata |</p>
+<p>| `health()` | `dict` | ○ | Health check (default: `{"status": "ok"}`) |</p>
+<p>| `info()` | `dict` | ○ | Metadata for `/api/features` listing |</p>
+<h3>`cli_commands()` Format</h3>
+<h2>Registry Functions</h2>
+<h2>Built-in Features Reference</h2>
+<h3>1. Approvals</h3>
+<p>Manage tool-execution approval requests.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/approvals` | GET | List approvals (filter: `?status=pending\|resolved\|all`) |</p>
+<p>| `/api/approvals` | POST | Create approval request |</p>
+<p>| `/api/approvals/{id}` | GET | Get single approval |</p>
+<p>| `/api/approvals/{id}/resolve` | POST | Approve/deny |</p>
+<p>| `/api/approvals/config` | GET | Get approval config |</p>
+<p>**CLI:** `aiui approval list`, `aiui approval pending`, `aiui approval resolve <id>`</p>
+<h3>2. Channels</h3>
+<p>Multi-platform messaging channel management (Discord, Slack, Telegram, WhatsApp, etc.).</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/channels` | GET | List all channels (enriched with gateway status) |</p>
+<p>| `/api/channels` | POST | Add a channel |</p>
+<p>| `/api/channels/platforms` | GET | List supported platforms |</p>
+<p>| `/api/channels/{id}` | GET | Get channel details |</p>
+<p>| `/api/channels/{id}` | PUT | Update channel |</p>
+<p>| `/api/channels/{id}` | DELETE | Remove channel |</p>
+<p>| `/api/channels/{id}/toggle` | POST | Enable/disable |</p>
+<p>| `/api/channels/{id}/status` | GET | Live status (gateway-enriched) |</p>
+<p>| `/api/channels/{id}/restart` | POST | Restart channel bot (via gateway) |</p>
+<p>**CLI:** `aiui channel list`, `aiui channel status`, `aiui channel platforms`</p>
+<h3>3. Schedules</h3>
+<p>Manage scheduled jobs (cron, interval, one-shot).</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/schedules` | GET | List all jobs |</p>
+<p>| `/api/schedules` | POST | Add a job |</p>
+<p>| `/api/schedules/{id}` | GET | Get job details |</p>
+<p>| `/api/schedules/{id}` | DELETE | Remove job |</p>
+<p>| `/api/schedules/{id}/toggle` | POST | Enable/disable |</p>
+<p>| `/api/schedules/{id}/run` | POST | Trigger immediately |</p>
+<p>**CLI:** `aiui schedule list`, `aiui schedule add <name> <msg>`, `aiui schedule remove <id>`, `aiui schedule status`</p>
+<h3>4. Memory</h3>
+<p>Agent memory management (short-term, long-term, entity).</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/memory` | GET | List memories (filter: `?type=short\|long\|entity\|all`) |</p>
+<p>| `/api/memory` | POST | Add memory entry |</p>
+<p>| `/api/memory/search` | POST | Search memories |</p>
+<p>| `/api/memory/{id}` | GET | Get single memory |</p>
+<p>| `/api/memory/{id}` | DELETE | Delete memory |</p>
+<p>| `/api/memory` | DELETE | Clear memories (filter: `?type=all`) |</p>
+<p>**CLI:** `aiui memory list`, `aiui memory add <text>`, `aiui memory search <query>`, `aiui memory clear`, `aiui memory status`</p>
+<h3>5. Nodes</h3>
+<p>Execution node registration, agent bindings, and instance presence.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/nodes` | GET | List all nodes |</p>
+<p>| `/api/nodes` | POST | Register a node |</p>
+<p>| `/api/nodes/{id}` | GET | Get node details |</p>
+<p>| `/api/nodes/{id}` | PUT | Update node |</p>
+<p>| `/api/nodes/{id}` | DELETE | Remove node |</p>
+<p>| `/api/nodes/{id}/status` | GET | Node status (gateway-enriched) |</p>
+<p>| `/api/nodes/{id}/agents` | GET/PUT | Get/set agent bindings |</p>
+<p>| `/api/instances` | GET | List connected instances |</p>
+<p>| `/api/instances/heartbeat` | POST | Record presence heartbeat |</p>
+<p>**CLI:** `aiui node list`, `aiui node status`, `aiui node instances`</p>
+<h3>6. Extended Sessions</h3>
+<p>Advanced session management (state, context, labels, usage).</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/sessions/{id}/state` | GET | Get session state |</p>
+<p>| `/api/sessions/{id}/state` | POST | Save session state |</p>
+<p>| `/api/sessions/{id}/context` | POST | Build context |</p>
+<p>| `/api/sessions/{id}/compact` | POST | Compact session |</p>
+<p>| `/api/sessions/{id}/reset` | POST | Reset session |</p>
+<p>| `/api/sessions/{id}/labels` | GET/POST | Get/set labels |</p>
+<p>| `/api/sessions/{id}/usage` | GET | Get usage stats |</p>
+<h3>7. Skills</h3>
+<p>Agent skill registration and discovery.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/skills` | GET | List skills |</p>
+<p>| `/api/skills` | POST | Register skill |</p>
+<p>| `/api/skills/discover` | POST | Discover available skills |</p>
+<p>| `/api/skills/{id}` | GET | Get skill details |</p>
+<p>| `/api/skills/{id}/status` | GET | Get skill status |</p>
+<p>| `/api/skills/{id}` | DELETE | Remove skill |</p>
+<p>**CLI:** `aiui skills list`, `aiui skills status`, `aiui skills discover`</p>
+<h3>8. Hooks</h3>
+<p>Pre/post operation hooks for tool calls, agent runs, etc.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/hooks` | GET | List hooks |</p>
+<p>| `/api/hooks` | POST | Register hook |</p>
+<p>| `/api/hooks/log` | GET | View execution log |</p>
+<p>| `/api/hooks/{id}` | GET | Get hook details |</p>
+<p>| `/api/hooks/{id}` | DELETE | Remove hook |</p>
+<p>| `/api/hooks/{id}/trigger` | POST | Trigger manually |</p>
+<p>**CLI:** `aiui hooks list`, `aiui hooks trigger <id>`, `aiui hooks log`</p>
+<h3>9. Workflows</h3>
+<p>Multi-step workflow orchestration (Pipeline, Route, Parallel, Loop).</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/workflows` | GET | List workflows |</p>
+<p>| `/api/workflows` | POST | Create workflow |</p>
+<p>| `/api/workflows/runs` | GET | List all runs |</p>
+<p>| `/api/workflows/runs/{id}` | GET | Get run details |</p>
+<p>| `/api/workflows/{id}` | GET | Get workflow |</p>
+<p>| `/api/workflows/{id}` | DELETE | Delete workflow |</p>
+<p>| `/api/workflows/{id}/run` | POST | Execute workflow |</p>
+<p>| `/api/workflows/{id}/status` | GET | Workflow status |</p>
+<p>**CLI:** `aiui workflows list`, `aiui workflows run <id>`, `aiui workflows status`, `aiui workflows runs`</p>
+<h3>10. Config Runtime</h3>
+<p>Live runtime configuration without server restart.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/config/runtime` | GET | Get all config |</p>
+<p>| `/api/config/runtime` | PATCH | Merge config values |</p>
+<p>| `/api/config/runtime` | PUT | Replace all config |</p>
+<p>| `/api/config/runtime/history` | GET | Change history |</p>
+<p>| `/api/config/runtime/{key}` | GET | Get single key |</p>
+<p>| `/api/config/runtime/{key}` | PUT | Set single key |</p>
+<p>| `/api/config/runtime/{key}` | DELETE | Delete key |</p>
+<p>**CLI:** `aiui config get [key]`, `aiui config set <key> <value>`, `aiui config list`, `aiui config history`</p>
+<h2>Route Ordering</h2>
+<p>> **Important:** When defining routes with parametric paths (e.g., `/{id}`), always place literal paths (e.g., `/log`, `/runs`) **before** the parametric route. Starlette matches routes in order, and a parametric route will capture literal segments as parameter values.</p>
+<h2>Integration Example</h2></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

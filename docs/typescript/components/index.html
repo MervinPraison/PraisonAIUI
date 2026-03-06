@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Components - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Components | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/typescript/components" />
+  <meta property="og:title" content="Components | PraisonAIUI Docs" />
+  <meta property="og:description" content="Components - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/typescript/components" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Components | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Components - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Components</h1>
+<p>Built-in React components for PraisonAIUI.</p>
+<h2>Layout Components</h2>
+<h3>ThreeColumnLayout</h3>
+<p>Documentation layout with sidebar and TOC.</p>
+<h3>DefaultLayout</h3>
+<p>Simple layout for landing pages.</p>
+<h2>Slot Components</h2>
+<h3>Header</h3>
+<h3>Footer</h3>
+<h3>DocsSidebar</h3>
+<h3>Toc</h3>
+<h3>DocContent</h3>
+<h2>Styling Components</h2>
+<p>All components use semantic CSS classes prefixed with `aiui-`. Style them with your preferred CSS approach:</p>
+<p>| Component | CSS Classes |</p>
+<p>|-----------|-------------|</p>
+<p>| Layouts | `aiui-layout`, `aiui-layout-three-column`, `aiui-layout-header`, `aiui-layout-main` |</p>
+<p>| Header | `aiui-header`, `aiui-header-logo`, `aiui-header-nav`, `aiui-header-cta` |</p>
+<p>| Footer | `aiui-footer`, `aiui-footer-links` |</p>
+<p>| Sidebar | `aiui-sidebar`, `aiui-sidebar-item`, `aiui-sidebar-group` |</p>
+<p>| Toc | `aiui-toc`, `aiui-toc-item` |</p>
+<p>| Content | `aiui-content`, `aiui-content-body` |</p></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

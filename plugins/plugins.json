@@ -1,6 +1,7 @@
 {
   "plugins": [
     "fetch-retry",
+    "nav-intercept",
     "mermaid",
     "mkdocs-compat",
     "homepage",

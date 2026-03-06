@@ -57,6 +57,73 @@ Resolve a pending approval.
 
 ---
 
+## Channels
+
+### GET /api/channels
+List all configured channels with live gateway status.
+
+```json
+// Response
+{
+  "channels": [
+    {"id": "tg1", "name": "Support Bot", "platform": "telegram", "enabled": true, "running": true, "last_activity": 1709000000.0}
+  ],
+  "count": 1
+}
+```
+
+### POST /api/channels
+Add a channel.
+
+```json
+// Request
+{"name": "Discord Bot", "platform": "discord", "enabled": true, "config": {"token": "..."}}
+
+// Response (201)
+{"id": "abc123", "name": "Discord Bot", "platform": "discord", "enabled": true, "running": false, "created_at": 1709000000.0}
+```
+
+### GET /api/channels/platforms
+List supported platforms.
+
+```json
+// Response
+{"platforms": ["discord", "slack", "telegram", "whatsapp", "imessage", "signal", "googlechat", "nostr"]}
+```
+
+### GET /api/channels/{id}
+Get channel details.
+
+### PUT /api/channels/{id}
+Update channel configuration. Body fields: `name`, `platform`, `enabled`, `config`.
+
+### DELETE /api/channels/{id}
+Remove a channel.
+
+### POST /api/channels/{id}/toggle
+Toggle channel enabled/disabled.
+
+### GET /api/channels/{id}/status
+Get live channel status (enriched via gateway).
+
+```json
+// Response
+{"id": "tg1", "name": "Support Bot", "platform": "telegram", "enabled": true, "running": true, "last_activity": 1709000000.0}
+```
+
+### POST /api/channels/{id}/restart
+Restart a channel bot via the gateway. Returns status of restart attempt.
+
+```json
+// Response (gateway connected)
+{"id": "tg1", "status": "restarted", "running": true, "message": "Channel 'tg1' restarted successfully"}
+
+// Response (no gateway)
+{"id": "tg1", "status": "pending", "running": false, "message": "Channel marked for restart (no gateway connected)"}
+```
+
+---
+
 ## Schedules
 
 ### POST /api/schedules

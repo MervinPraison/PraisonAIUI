@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CLI Usage - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>CLI Usage | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/getting-started/cli" />
+  <meta property="og:title" content="CLI Usage | PraisonAIUI Docs" />
+  <meta property="og:description" content="CLI Usage - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/getting-started/cli" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="CLI Usage | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="CLI Usage - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>CLI Usage</h1>
+<p>Complete reference for the `aiui` command-line interface.</p>
+<h2>Commands</h2>
+<h3>`aiui init`</h3>
+<p>Initialize a new PraisonAIUI project.</p>
+<p>| Option | Description | Default |</p>
+<p>|--------|-------------|---------|</p>
+<p>| `--template, -t` | Template: minimal, docs, marketing | `minimal` |</p>
+<p>| `--force, -f` | Overwrite existing files | `false` |</p>
+<p>**Example:**</p>
+<p>---</p>
+<h3>`aiui validate`</h3>
+<p>Validate your configuration file.</p>
+<p>| Option | Description | Default |</p>
+<p>|--------|-------------|---------|</p>
+<p>| `--config, -c` | Path to config file | `aiui.template.yaml` |</p>
+<p>| `--strict` | Enable strict validation | `false` |</p>
+<p>**Example:**</p>
+<p>---</p>
+<h3>`aiui build`</h3>
+<p>Build manifests from configuration.</p>
+<p>| Option | Description | Default |</p>
+<p>|--------|-------------|---------|</p>
+<p>| `--config, -c` | Path to config file | `aiui.template.yaml` |</p>
+<p>| `--output, -o` | Output directory | `aiui` |</p>
+<p>| `--minify` | Minify JSON output | `false` |</p>
+<p>**Example:**</p>
+<p>---</p>
+<h3>`aiui dev`</h3>
+<p>Start development mode with file watching.</p>
+<p>| Option | Description | Default |</p>
+<p>|--------|-------------|---------|</p>
+<p>| `--config, -c` | Path to config file | `aiui.template.yaml` |</p>
+<p>| `--port, -p` | Development server port | `3000` |</p>
+<p>**Example:**</p>
+<p>---</p>
+<h2>Exit Codes</h2>
+<p>| Code | Meaning |</p>
+<p>|------|---------|</p>
+<p>| `0` | Success |</p>
+<p>| `1` | Configuration error |</p>
+<p>| `2` | File not found |</p>
+<p>| `3` | Build error |</p>
+<h2>Environment Variables</h2>
+<p>| Variable | Description |</p>
+<p>|----------|-------------|</p>
+<p>| `AIUI_CONFIG` | Default config file path |</p>
+<p>| `AIUI_OUTPUT` | Default output directory |</p></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

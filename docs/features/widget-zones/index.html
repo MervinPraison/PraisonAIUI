@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Widget Zones - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Widget Zones | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/widget-zones" />
+  <meta property="og:title" content="Widget Zones | PraisonAIUI Docs" />
+  <meta property="og:description" content="Widget Zones - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/widget-zones" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Widget Zones | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Widget Zones - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Widget Zones</h1>
+<p>WordPress-style widget areas for placing UI components in layout zones via YAML configuration.</p>
+<h2>Zone Layout</h2>
+<h2>Configuration</h2>
+<p>Use the `zones` property in your template configuration:</p>
+<h2>Available Zones</h2>
+<p>| Zone | Location | Description |</p>
+<p>|------|----------|-------------|</p>
+<p>| `header` | Top | Site header area |</p>
+<p>| `topNav` | Below header | Secondary navigation |</p>
+<p>| `hero` | Above main | Hero banners, announcements |</p>
+<p>| `leftSidebar` | Left column | Navigation, filters |</p>
+<p>| `main` | Center | Primary content |</p>
+<p>| `rightSidebar` | Right column | TOC, widgets |</p>
+<p>| `bottomNav` | Below main | Pagination, related |</p>
+<p>| `footer` | Bottom | Footer widgets |</p>
+<h2>Built-in Widgets</h2>
+<h3>StatsCard</h3>
+<p>Display metrics and statistics.</p>
+<h3>QuickLinks</h3>
+<p>Navigation links widget.</p>
+<h3>Newsletter</h3>
+<p>Email subscription form.</p>
+<h3>HeroBanner</h3>
+<p>Landing page hero section.</p>
+<h3>SocialLinks</h3>
+<p>Social media links.</p>
+<h3>Copyright</h3>
+<p>Copyright notice.</p>
+<h2>Layouts Supporting Zones</h2>
+<p>| Layout | Supported Zones |</p>
+<p>|--------|-----------------|</p>
+<p>| `FlexibleLayout` | All 8 zones |</p>
+<p>| `ThreeColumnLayout` | rightSidebar only |</p>
+<p>| `CenteredLayout` | hero only |</p>
+<p>| `FullWidthLayout` | hero only |</p>
+<h2>Example: Corporate Dashboard</h2></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>
