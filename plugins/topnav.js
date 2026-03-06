@@ -133,15 +133,38 @@ function filterSidebarCSS(tabIndex) {
 /* ------------------------------------------------------------------ */
 
 function detectActiveTab(tabs) {
+  // 1. URL-based detection (highest priority)
+  //    Check more-specific tabs first by iterating in reverse
+  //    (API Reference has prefix "api" — more specific than Documentation's many groups)
+  const path = window.location.pathname.toLowerCase();
+  // Find the best match: prefer the tab whose prefix appears latest in the URL
+  // e.g. /docs/api/features-api/ should match "api" prefix
+  let bestMatch = -1;
+  let bestMatchLen = 0;
+
+  for (let i = 0; i < tabs.length; i++) {
+    const tab = tabs[i];
+    if (!tab.groups) continue;
+    for (const grp of tab.groups) {
+      if (!grp.prefix) continue;
+      const needle = '/' + grp.prefix.toLowerCase() + '/';
+      if (path.includes(needle) && needle.length > bestMatchLen) {
+        bestMatch = i;
+        bestMatchLen = needle.length;
+      }
+    }
+  }
+  if (bestMatch >= 0) return bestMatch;
+
+  // 2. DOM-based detection (fallback)
   const activeBtn = document.querySelector(
     'aside button[class*="font-medium"], aside button[class*="bg-accent"]'
   );
-  if (!activeBtn) return currentTabIndex;
+  if (!activeBtn) return 0; // Default to first tab
 
   const nav = document.querySelector('aside nav');
-  if (!nav) return currentTabIndex;
+  if (!nav) return 0;
 
-  // Walk up from activeBtn to find which nav child contains it
   const sections = getSidebarSections();
   for (const section of sections) {
     const child = nav.children[section.index];
@@ -156,7 +179,7 @@ function detectActiveTab(tabs) {
     }
   }
 
-  return currentTabIndex;
+  return 0; // Default to first tab
 }
 
 /* ------------------------------------------------------------------ */
@@ -224,6 +247,9 @@ function updateActiveHighlight() {
   bar.querySelectorAll('.aiui-topnav-tab').forEach((tab, idx) => {
     tab.classList.toggle('aiui-topnav-active', idx === activeIdx);
   });
+
+  // Also re-apply sidebar filtering for the detected tab
+  filterSidebarCSS(activeIdx);
 }
 
 /* ------------------------------------------------------------------ */

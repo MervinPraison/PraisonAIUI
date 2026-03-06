@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="API Testing Guide - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>API Testing Guide | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/api/testing" />
+  <meta property="og:title" content="API Testing Guide | PraisonAIUI Docs" />
+  <meta property="og:description" content="API Testing Guide - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/api/testing" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="API Testing Guide | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="API Testing Guide - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>API Testing Guide</h1>
+<p>Test all 16 PraisonAIUI feature APIs using curl. Each example creates real data and verifies backend processing.</p>
+<h2>Quick Start</h2>
+<p>---</p>
+<h2>1. Channels</h2>
+<h2>2. Agents</h2>
+<h2>3. Approvals</h2>
+<h2>4. Jobs</h2>
+<h2>5. Schedules</h2>
+<h2>6. Usage</h2>
+<h2>7. Skills</h2>
+<h2>8. Config</h2>
+<h2>9. Auth</h2>
+<h2>10. OpenAI-Compatible API</h2>
+<h2>11. Logs</h2>
+<h2>12. Sessions</h2>
+<h2>13–15. Memory, Hooks, Workflows</h2>
+<h2>16. Features (Meta)</h2>
+<p>---</p>
+<h2>Running the Full Test Suite</h2>
+<p>Use the example at `examples/python/14-all-features/app.py` which tests all 16 features programmatically:</p>
+<h2>Expected Results</h2>
+<p>| Feature | Endpoints | Expected |</p>
+<p>|---------|-----------|----------|</p>
+<p>| Channels | 4 | All 200/201 |</p>
+<p>| Agents | 3+ | 201 create, 200 list, 501 run (no praisonaiagents) |</p>
+<p>| Approvals | 6 | Auto-approve low-risk, manual approve high-risk |</p>
+<p>| Jobs | 3 | 202 submit, 200 list/stats |</p>
+<p>| Schedules | 2 | 201 create, 200 list |</p>
+<p>| Usage | 4+ | 201 track, 200 summary with by_model breakdown |</p>
+<p>| Skills | 2 | 18 skills, 7 categories |</p>
+<p>| Config | 5 | Schema, defaults, validate, runtime set/get |</p>
+<p>| Auth | 4 | API key generation, multi-mode auth |</p>
+<p>| OpenAI API | 2 | 11 endpoints, 13 models |</p>
+<p>| Logs | 2 | 5 log levels |</p>
+<p>| Sessions | 3 | State save/get/preview |</p>
+<p>| Memory | 1 | 200 (empty until agents run) |</p>
+<p>| Hooks | 1 | 200 (empty until registered) |</p>
+<p>| Workflows | 1 | 200 (empty until created) |</p>
+<p>| Features | 1 | 16 features registered |</p></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>
