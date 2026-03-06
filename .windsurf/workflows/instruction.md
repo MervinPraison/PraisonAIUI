@@ -218,3 +218,6 @@ Hard Rules:
 * Every claim must reference specific files/symbols/test results.
 * You may only conclude when you provide evidence that missing = 0.
 * MUST include all deliverables: detailed analysis, detailed review, detailed gap analysis, detailed critical review, detailed plan, and detailed proposal — in BOTH Phase 1 and Phase 3.
+dont use Sending termination request to command to terminate a process
+
+kill port instead when terminating 

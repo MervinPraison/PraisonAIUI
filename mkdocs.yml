@@ -93,16 +93,25 @@ nav:
     - Slots & Components: concepts/slots.md
     - Providers: concepts/providers.md
   - Features:
+    - Dashboard: features/dashboard.md
+    - UI Styles: features/styles.md
+    - Protocols: features/protocols.md
+    - Sessions: features/sessions.md
     - Content Sources: features/content-sources.md
     - Navigation: features/navigation.md
     - Theming: features/theming.md
     - Dark Mode: features/dark-mode.md
     - SEO: features/seo.md
     - Hot Reload: features/hot-reload.md
+    - Widget Zones: features/widget-zones.md
   - API Reference:
     - Python CLI: api/cli.md
     - Python API: api/python.md
+    - Component API: api/components.md
     - TypeScript SDK: api/typescript.md
+    - Features API: api/features-api.md
+    - Sessions: api/sessions.md
+    - Testing: api/testing.md
   - TypeScript SDK:
     - Overview: typescript/index.md
     - Runtime: typescript/runtime.md

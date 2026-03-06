@@ -2,8 +2,44 @@
  * Dashboard Plugin — reads /api/pages, builds sidebar + page containers.
  *
  * Protocol-driven: all data comes from API endpoints.
- * Feature plugins auto-bind to [data-page="xxx"] containers.
+ * Extensible: register custom views via window.aiui.registerView(pageId, renderFn)
+ * Feature views auto-bind to [data-page="xxx"] containers.
  */
+
+// Record load time for overview stats
+window.__aiuiLoadTime = window.__aiuiLoadTime || Date.now();
+
+// ── Extensible View Registry ─────────────────────────────────────────
+// Maps page IDs to view modules. Each module exports render(container).
+// Built-in views are loaded via dynamic import from ./views/
+const VIEW_REGISTRY = {};
+let _activeCleanup = null; // cleanup function for the active view
+
+// Built-in page-to-module mapping (protocol-first: page IDs come from /api/pages)
+// Paths are relative to /plugins/ where dashboard.js is served from
+const BUILTIN_VIEWS = {
+  overview:       '/plugins/views/overview.js',
+  agents:         '/plugins/views/agents.js',
+  sessions:       '/plugins/views/sessions.js',
+  logs:           '/plugins/views/logs.js',
+  schedules:      '/plugins/views/schedules.js',
+  cron:           '/plugins/views/schedules.js',
+  config:         '/plugins/views/config.js',
+  config_runtime: '/plugins/views/config.js',
+  approvals:      '/plugins/views/approvals.js',
+  usage:          '/plugins/views/usage.js',
+  channels:       '/plugins/views/channels.js',
+  skills:         '/plugins/views/skills.js',
+  tools:          '/plugins/views/skills.js',
+  nodes:          '/plugins/views/nodes.js',
+};
+
+// Public API for extending the dashboard (protocol-first, extendable)
+window.aiui = window.aiui || {};
+window.aiui.registerView = function(pageId, renderFn, cleanupFn) {
+  VIEW_REGISTRY[pageId] = { render: renderFn, cleanup: cleanupFn || null };
+};
+window.aiui.views = VIEW_REGISTRY;
 
 const DASHBOARD_STYLE = `
   /* ── Dashboard layout ───────────────────────────────────── */
@@ -204,7 +240,10 @@ function buildSidebar(pages) {
   return sidebar;
 }
 
-function selectPage(pageId) {
+async function selectPage(pageId) {
+  // Cleanup previous view if it has a cleanup function
+  if (_activeCleanup) { try { _activeCleanup(); } catch(e) {} _activeCleanup = null; }
+
   activePageId = pageId;
 
   // Update nav active state
@@ -225,18 +264,44 @@ function selectPage(pageId) {
     <div data-page="${pageId}" id="db-page-content"></div>
   `;
 
-  // Notify plugins of content change (triggers plugin binding)
   const container = document.querySelector(`[data-page="${pageId}"]`);
-  if (container) {
-    // Give plugins 2s to render; if nothing, show generic viewer
-    setTimeout(() => {
-      if (container.children.length === 0) {
-        loadGenericViewer(page, container);
-      }
-    }, 2000);
+  if (!container) return;
+
+  // ── View Resolution (protocol-first, extensible) ──────────────
+  // 1. Check custom registered views first (highest priority)
+  // 2. Try dynamic import from built-in view map
+  // 3. Fall back to generic JSON viewer
+  let rendered = false;
+
+  // Priority 1: Custom registered view
+  if (VIEW_REGISTRY[pageId]) {
+    try {
+      await VIEW_REGISTRY[pageId].render(container);
+      _activeCleanup = VIEW_REGISTRY[pageId].cleanup || null;
+      rendered = true;
+    } catch (e) { console.warn(`View '${pageId}' render error:`, e); }
   }
 
-  // Dispatch a custom event so other plugins can react
+  // Priority 2: Built-in view module (dynamic import)
+  if (!rendered && BUILTIN_VIEWS[pageId]) {
+    try {
+      const mod = await import(BUILTIN_VIEWS[pageId]);
+      if (mod.render) {
+        await mod.render(container);
+        _activeCleanup = mod.cleanup || null;
+        rendered = true;
+        // Cache for future use
+        VIEW_REGISTRY[pageId] = { render: mod.render, cleanup: mod.cleanup || null };
+      }
+    } catch (e) { console.warn(`Built-in view '${pageId}' import error:`, e); }
+  }
+
+  // Priority 3: Generic JSON viewer fallback
+  if (!rendered) {
+    loadGenericViewer(page, container);
+  }
+
+  // Dispatch event so other plugins can react
   window.dispatchEvent(new CustomEvent('aiui:page-change', { detail: { pageId, page } }));
 }
 
