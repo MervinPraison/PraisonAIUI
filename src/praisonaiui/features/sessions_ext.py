@@ -112,6 +112,7 @@ class PraisonAISessions(BaseFeatureProtocol):
 
     def routes(self) -> List[Route]:
         return [
+            Route("/api/sessions", self._list_sessions, methods=["GET"]),
             Route("/api/sessions/{session_id}/state", self._get_state, methods=["GET"]),
             Route("/api/sessions/{session_id}/state", self._save_state, methods=["POST"]),
             Route("/api/sessions/{session_id}/context", self._build_context, methods=["POST"]),
@@ -208,6 +209,31 @@ class PraisonAISessions(BaseFeatureProtocol):
         }
 
     # ── API handlers ─────────────────────────────────────────────────
+
+    async def _list_sessions(self, request: Request) -> JSONResponse:
+        """GET /api/sessions — List all known sessions."""
+        store = _get_session_store()
+        session_ids = set()
+        # Get IDs from store
+        if hasattr(store, 'list_sessions'):
+            session_ids.update(store.list_sessions())
+        # Get IDs from metadata
+        session_ids.update(_session_metadata.keys())
+        sessions = []
+        for sid in sorted(session_ids):
+            meta = _get_metadata(sid)
+            store_session = store.get_session(sid) if hasattr(store, 'get_session') else {}
+            messages = store.get_chat_history(sid) if hasattr(store, 'get_chat_history') else []
+            sessions.append({
+                "id": sid,
+                "session_id": sid,
+                "is_active": True,
+                "message_count": len(messages),
+                "labels": meta.get("_labels", []),
+                "created_at": meta.get("_created_at"),
+                "updated_at": meta.get("_updated_at"),
+            })
+        return JSONResponse({"sessions": sessions, "count": len(sessions)})
 
     async def _get_state(self, request: Request) -> JSONResponse:
         sid = request.path_params["session_id"]

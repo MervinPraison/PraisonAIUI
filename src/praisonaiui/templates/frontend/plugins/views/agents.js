@@ -1,17 +1,26 @@
 /**
  * Agents View — CRUD agent management
- * API: /api/agents
+ * API: /api/agents/definitions, /api/agents/models
  */
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
   
   let agents = [];
+  let models = ['gpt-4o-mini'];
   try {
-    const res = await fetch('/api/agents');
+    const res = await fetch('/api/agents/definitions');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     agents = data.agents || data || [];
     if (!Array.isArray(agents)) agents = Object.values(agents);
-  } catch(e) { container.innerHTML = '<div class="db-viewer"><pre>Failed to load agents</pre></div>'; return; }
+  } catch(e) {
+    // Show empty state on error
+    agents = [];
+  }
+  try {
+    const mRes = await fetch('/api/agents/models');
+    if (mRes.ok) { const md = await mRes.json(); models = md.models || models; }
+  } catch(e) {}
 
   container.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
@@ -19,7 +28,7 @@ export async function render(container) {
       <button id="agent-add-btn" style="background:var(--db-accent);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px">+ New Agent</button>
     </div>
     <div id="agents-grid" class="db-columns" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))"></div>
-    <div id="agent-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;display:none;align-items:center;justify-content:center"></div>
+    <div id="agent-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center"></div>
   `;
 
   const grid = container.querySelector('#agents-grid');
@@ -51,25 +60,33 @@ export async function render(container) {
   });
 
   if (agents.length === 0) {
-    grid.innerHTML = '<div class="db-viewer"><pre>No agents configured. Click "+ New Agent" to create one.</pre></div>';
+    grid.innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:60px 20px">
+        <div style="font-size:48px;margin-bottom:12px;opacity:0.5">🤖</div>
+        <h3 style="margin:0 0 8px;font-size:18px;color:var(--db-text)">No Agents</h3>
+        <p style="margin:0 0 16px;color:var(--db-text-dim);font-size:14px">Create your first agent to get started.</p>
+        <button onclick="document.getElementById('agent-add-btn')?.click()" style="background:var(--db-accent);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px">Create Agent</button>
+      </div>
+    `;
   }
 
   // Add agent button
-  container.querySelector('#agent-add-btn')?.addEventListener('click', () => showAgentForm(container));
+  container.querySelector('#agent-add-btn')?.addEventListener('click', () => showAgentForm(container, models));
 
   // Delete handlers
   container.querySelectorAll('.agent-del-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       if (!confirm('Delete this agent?')) return;
-      try { await fetch(`/api/agents/${btn.dataset.id}`, {method:'DELETE'}); render(container); } catch(e) {}
+      try { await fetch(`/api/agents/definitions/${btn.dataset.id}`, {method:'DELETE'}); render(container); } catch(e) {}
     });
   });
 }
 
-function showAgentForm(container) {
+function showAgentForm(container, models) {
   const modal = container.querySelector('#agent-modal');
   modal.style.display = 'flex';
+  const modelOptions = (models || ['gpt-4o-mini']).map(m => `<option value="${m}">${m}</option>`).join('');
   modal.innerHTML = `
     <div style="background:var(--db-sidebar-bg);border:1px solid var(--db-border);border-radius:12px;padding:28px;width:440px;max-height:80vh;overflow-y:auto">
       <h3 style="margin:0 0 20px;font-size:18px">New Agent</h3>
@@ -83,7 +100,7 @@ function showAgentForm(container) {
       </label>
       <label style="display:block;margin-bottom:20px">
         <span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">Model</span>
-        <input id="af-model" value="gpt-4o-mini" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box" />
+        <select id="af-model" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box">${modelOptions}</select>
       </label>
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button id="af-cancel" style="padding:8px 16px;border:1px solid var(--db-border);background:transparent;color:var(--db-text);border-radius:8px;cursor:pointer">Cancel</button>
@@ -94,7 +111,7 @@ function showAgentForm(container) {
   modal.querySelector('#af-cancel').addEventListener('click', () => modal.style.display = 'none');
   modal.querySelector('#af-save').addEventListener('click', async () => {
     const body = { name: modal.querySelector('#af-name').value, instructions: modal.querySelector('#af-instructions').value, model: modal.querySelector('#af-model').value };
-    try { await fetch('/api/agents', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)}); modal.style.display='none'; render(container); } catch(e) { alert('Failed to create agent'); }
+    try { await fetch('/api/agents/definitions', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)}); modal.style.display='none'; render(container); } catch(e) { alert('Failed to create agent'); }
   });
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
 }

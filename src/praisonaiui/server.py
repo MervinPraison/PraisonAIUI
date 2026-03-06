@@ -121,9 +121,7 @@ async def _plugins_config(request: Request) -> JSONResponse:
     plugins: list[str] = ["fetch-retry"]
     if style == "dashboard":
         plugins += [
-            "dashboard", "channels", "schedules", "jobs",
-            "usage", "skills", "agents", "approvals", "api",
-            "logs", "config", "sessions", "auth",
+            "dashboard",
         ]
     elif style == "docs":
         plugins += [

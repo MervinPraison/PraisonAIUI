@@ -25,6 +25,13 @@ logger = logging.getLogger(__name__)
 _schedule_store = None
 
 
+def _getattr_or_get(obj, key, default=None):
+    """Get attribute from both dict and dataclass/pydantic objects."""
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+
 def _get_schedule_store():
     """Lazy-load the praisonaiagents schedule store (DRY)."""
     global _schedule_store
@@ -161,7 +168,7 @@ class PraisonAISchedules(BaseFeatureProtocol):
     async def health(self) -> Dict[str, Any]:
         store = _get_schedule_store()
         jobs = store.list() if hasattr(store, 'list') else []
-        enabled = sum(1 for j in jobs if j.get("enabled", True))
+        enabled = sum(1 for j in jobs if _getattr_or_get(j, "enabled", True))
         return {
             "status": "ok",
             "feature": self.name,
@@ -181,6 +188,8 @@ class PraisonAISchedules(BaseFeatureProtocol):
         body = await request.json()
         job_id = uuid.uuid4().hex[:12]
         schedule = body.get("schedule", {})
+        if not isinstance(schedule, dict):
+            schedule = {"kind": "every", "every_seconds": 60}
         job = {
             "id": job_id,
             "name": body.get("name", ""),
@@ -364,10 +373,10 @@ class PraisonAISchedules(BaseFeatureProtocol):
             return "No scheduled jobs"
         lines = []
         for j in jobs:
-            status = "✓" if j.get("enabled", True) else "✗"
-            sched = j.get('schedule', {})
+            status = "✓" if _getattr_or_get(j, "enabled", True) else "✗"
+            sched = _getattr_or_get(j, 'schedule', {})
             kind = sched.get('kind', 'unknown') if isinstance(sched, dict) else str(sched)
-            lines.append(f"  [{status}] {j.get('id', '?')} — {j.get('name', '')} ({kind})")
+            lines.append(f"  [{status}] {_getattr_or_get(j, 'id', '?')} — {_getattr_or_get(j, 'name', '')} ({kind})")
         return "\n".join(lines)
 
     def _cli_add(self, name: str, message: str, every_seconds: int = 60) -> str:
@@ -392,5 +401,5 @@ class PraisonAISchedules(BaseFeatureProtocol):
     def _cli_status(self) -> str:
         store = _get_schedule_store()
         jobs = store.list() if hasattr(store, 'list') else []
-        enabled = sum(1 for j in jobs if j.get("enabled", True))
+        enabled = sum(1 for j in jobs if _getattr_or_get(j, "enabled", True))
         return f"Jobs: {len(jobs)} total, {enabled} enabled"

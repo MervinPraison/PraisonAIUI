@@ -239,6 +239,7 @@ class PraisonAIUsage(BaseFeatureProtocol):
     def routes(self) -> List[Route]:
         return [
             Route("/api/usage", self._summary, methods=["GET"]),
+            Route("/api/usage/summary", self._summary, methods=["GET"]),
             Route("/api/usage/details", self._details, methods=["GET"]),
             Route("/api/usage/models", self._models, methods=["GET"]),
             Route("/api/usage/sessions", self._sessions, methods=["GET"]),

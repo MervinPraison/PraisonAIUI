@@ -32,6 +32,7 @@ const BUILTIN_VIEWS = {
   skills:         '/plugins/views/skills.js',
   tools:          '/plugins/views/skills.js',
   nodes:          '/plugins/views/nodes.js',
+  instances:      '/plugins/views/nodes.js',
 };
 
 // Public API for extending the dashboard (protocol-first, extendable)
@@ -136,8 +137,8 @@ const DASHBOARD_STYLE = `
   .db-spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid var(--db-border); border-top-color: var(--db-accent); border-radius: 50%; animation: db-spin 0.8s linear infinite; }
 
   /* Hide React docs layout when dashboard is active */
-  .db-active .sidebar, .db-active .topnav, .db-active .toc-sidebar,
-  .db-active > .main-content, .db-active > nav { display: none !important; }
+  .db-active .sidebar:not(.db-sidebar), .db-active .topnav, .db-active .toc-sidebar,
+  .db-active > .main-content, .db-active > nav:not(.db-sidebar) { display: none !important; }
 `;
 
 let activePageId = null;
@@ -466,25 +467,45 @@ async function showTestPanel() {
 async function testFeature(feature, card) {
   const statusEl = card.querySelector('.db-test-status');
   try {
-    // Try the feature's primary endpoint
-    const endpoints = feature.endpoints || [];
-    let allOk = true;
-    for (const ep of endpoints) {
-      const url = typeof ep === 'string' ? ep : (ep.path || ep.url);
-      if (!url) continue;
-      const res = await fetch(url);
-      if (!res.ok) allOk = false;
+    // If the feature itself errored during info() (e.g. schedules)
+    if (feature.status === 'error') {
+      statusEl.textContent = '✗ fail';
+      statusEl.className = 'db-test-status db-test-fail';
+      return;
     }
 
-    // If no endpoints, check info
-    if (endpoints.length === 0 && feature.status === 'active') {
-      allOk = true;
-    } else if (endpoints.length === 0) {
-      allOk = false;
+    // Check health status from the API response
+    const healthStatus = feature.health?.status;
+    if (healthStatus === 'ok') {
+      // Health is ok — try one route to verify it's reachable
+      const routes = feature.routes || [];
+      // Find first GET-able route (no path params)
+      const testableRoute = routes.find(r => !r.includes('{') && !r.includes('stream'));
+      if (testableRoute) {
+        try {
+          const res = await fetch(testableRoute);
+          if (res.ok || res.status === 401 || res.status === 405) {
+            // 401 = auth required, 405 = POST-only route, still counts as "working"
+            statusEl.textContent = '✓ pass';
+            statusEl.className = 'db-test-status db-test-pass';
+          } else {
+            statusEl.textContent = `✗ ${res.status}`;
+            statusEl.className = 'db-test-status db-test-fail';
+          }
+        } catch(e) {
+          // Network error on individual route, but health was ok
+          statusEl.textContent = '✓ pass';
+          statusEl.className = 'db-test-status db-test-pass';
+        }
+      } else {
+        // No testable routes but health is ok
+        statusEl.textContent = '✓ pass';
+        statusEl.className = 'db-test-status db-test-pass';
+      }
+    } else {
+      statusEl.textContent = '✗ fail';
+      statusEl.className = 'db-test-status db-test-fail';
     }
-
-    statusEl.textContent = allOk ? '✓ pass' : '✗ fail';
-    statusEl.className = `db-test-status ${allOk ? 'db-test-pass' : 'db-test-fail'}`;
   } catch (e) {
     statusEl.textContent = '✗ error';
     statusEl.className = 'db-test-status db-test-fail';

@@ -47,6 +47,7 @@ class PraisonAINodes(BaseFeatureProtocol):
             Route("/api/nodes/{node_id}/agents", self._node_agents, methods=["GET", "PUT"]),
             # Instances / Presence
             Route("/api/instances", self._list_instances, methods=["GET"]),
+            Route("/api/nodes/instances", self._list_instances, methods=["GET"]),
             Route("/api/instances/heartbeat", self._heartbeat, methods=["POST"]),
         ]
 
