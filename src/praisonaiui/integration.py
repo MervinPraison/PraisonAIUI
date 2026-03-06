@@ -211,6 +211,14 @@ class AIUIGateway:
         self._server = uvicorn.Server(config)
 
         self._is_running = True
+
+        # Publish gateway reference so feature modules can access live state
+        try:
+            from praisonaiui.features._gateway_ref import set_gateway
+            set_gateway(self._gateway)
+        except ImportError:
+            pass
+
         logger.info(f"AIUI Gateway started on http://{self._host}:{self._port}")
 
         await self._server.serve()
@@ -229,6 +237,13 @@ class AIUIGateway:
             self._server.should_exit = True
 
         logger.info("AIUI Gateway stopped")
+
+        # Clear gateway reference
+        try:
+            from praisonaiui.features._gateway_ref import set_gateway
+            set_gateway(None)
+        except ImportError:
+            pass
 
 
 def create_gateway_from_yaml(

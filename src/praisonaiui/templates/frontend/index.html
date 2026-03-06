@@ -46,10 +46,9 @@
           }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
         })).then(function () {
           observe();
-          // Staggered notifications: React render → Prism highlight → CDN load
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
           setTimeout(notify, 300);
-          setTimeout(notify, 1500);
-          setTimeout(notify, 4000);
+          setTimeout(notify, 3000);
           console.debug('[AIUI]', plugins.length, 'plugin(s) active');
         });
       }).catch(function () { });

@@ -262,16 +262,25 @@ async function renderMermaidBlocks(root) {
   }
 }
 
+let lastUrl = '';
+
 export default {
   name: 'mermaid',
   async init() { await loadMermaidLib(); },
   onContentChange(root) {
-    // Clean up previous diagrams on navigation
-    root.querySelectorAll('[data-aiui-plugin="mermaid"]').forEach(function (el) { el.remove(); });
-    root.querySelectorAll('[data-mermaid-processed]').forEach(function (el) {
-      el.style.display = '';
-      delete el.dataset.mermaidProcessed;
-    });
+    const currentUrl = location.pathname + location.hash;
+
+    // Only tear down on actual navigation
+    if (currentUrl !== lastUrl) {
+      lastUrl = currentUrl;
+      root.querySelectorAll('[data-aiui-plugin="mermaid"]').forEach(function (el) { el.remove(); });
+      root.querySelectorAll('[data-mermaid-processed]').forEach(function (el) {
+        el.style.display = '';
+        delete el.dataset.mermaidProcessed;
+      });
+    }
+
+    // Render any unprocessed blocks (idempotent — skips already-processed)
     renderMermaidBlocks(root);
   },
 };

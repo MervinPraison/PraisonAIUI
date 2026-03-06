@@ -1,4 +1,4 @@
-"""End-to-end test for all 8 feature modules.
+"""End-to-end test for all 10 feature modules.
 
 Tests every API endpoint for each feature through the Starlette TestClient.
 """
@@ -46,8 +46,8 @@ r = client.get("/api/features")
 check("GET /api/features", r, 200, ["features", "count"])
 data = r.json()
 feature_names = [f["name"] for f in data["features"]]
-assert len(feature_names) == 8, f"Expected 8 features, got {len(feature_names)}: {feature_names}"
-print(f"  ✓ All 8 features registered: {', '.join(feature_names)}")
+assert len(feature_names) == 10, f"Expected 10 features, got {len(feature_names)}: {feature_names}"
+print(f"  ✓ All 10 features registered: {', '.join(feature_names)}")
 passed += 1
 
 # ═══════════════════════════════════════════════════════════════════════

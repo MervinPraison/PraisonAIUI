@@ -36,9 +36,11 @@ def auto_register_defaults() -> None:
     (idempotent: skips already-registered features).
     """
     from .approvals import PraisonAIApprovals
+    from .channels import PraisonAIChannels
     from .config_runtime import PraisonAIConfigRuntime
     from .hooks import PraisonAIHooks
     from .memory import PraisonAIMemory
+    from .nodes import PraisonAINodes
     from .schedules import PraisonAISchedules
     from .sessions_ext import PraisonAISessions
     from .skills import PraisonAISkills
@@ -46,8 +48,10 @@ def auto_register_defaults() -> None:
 
     for cls in (
         PraisonAIApprovals,
+        PraisonAIChannels,
         PraisonAISchedules,
         PraisonAIMemory,
+        PraisonAINodes,
         PraisonAISessions,
         PraisonAISkills,
         PraisonAIHooks,

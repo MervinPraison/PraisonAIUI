@@ -910,12 +910,22 @@ def create_app(
     _builtin_pages = [
         {"id": "overview", "title": "Overview", "icon": "📊", "group": "Control",
          "description": "System health and statistics", "order": 10},
+        {"id": "channels", "title": "Channels", "icon": "📡", "group": "Control",
+         "description": "Messaging platform connections", "order": 15},
         {"id": "sessions", "title": "Sessions", "icon": "📋", "group": "Control",
          "description": "Manage conversation sessions", "order": 20},
+        {"id": "instances", "title": "Instances", "icon": "📻", "group": "Control",
+         "description": "Connected instances & presence", "order": 25},
         {"id": "usage", "title": "Usage", "icon": "📈", "group": "Control",
          "description": "Token usage and metrics", "order": 30},
+        {"id": "cron", "title": "Cron", "icon": "⏰", "group": "Control",
+         "description": "Scheduled jobs", "order": 35},
         {"id": "agents", "title": "Agents", "icon": "🤖", "group": "Agent",
          "description": "Configured AI agents", "order": 10},
+        {"id": "skills", "title": "Skills", "icon": "⚡", "group": "Agent",
+         "description": "Agent skills & plugins", "order": 20},
+        {"id": "nodes", "title": "Nodes", "icon": "🖥️", "group": "Agent",
+         "description": "Execution nodes & approvals", "order": 30},
         {"id": "config", "title": "Config", "icon": "⚙️", "group": "Settings",
          "description": "Server configuration", "order": 10},
         {"id": "logs", "title": "Logs", "icon": "📜", "group": "Settings",
@@ -923,11 +933,12 @@ def create_app(
         {"id": "debug", "title": "Debug", "icon": "🐛", "group": "Settings",
          "description": "Debug information", "order": 30},
     ]
+    _page_api_overrides = {"sessions": "/sessions", "cron": "/api/schedules"}
     for p in _builtin_pages:
         if p["id"] not in _pages:  # allow user to override
             _pages[p["id"]] = {
                 **p,
-                "api_endpoint": f"/api/{p['id']}" if p["id"] != "sessions" else "/sessions",
+                "api_endpoint": _page_api_overrides.get(p["id"], f"/api/{p['id']}"),
             }
 
     # Add static file serving if static_dir provided
