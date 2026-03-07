@@ -1,6 +1,6 @@
 # Feature Inventory
 
-> **Last validated**: 2026-03-06 — programmatically verified against running codebase
+> **Last validated**: 2026-03-07 — programmatically verified against running codebase (31 features, 128 tests pass)
 
 Complete inventory of **every feature** in PraisonAIUI: what's implemented, what's partial, and what's missing.
 
@@ -10,14 +10,14 @@ Complete inventory of **every feature** in PraisonAIUI: what's implemented, what
 
 | Category | Count |
 |----------|-------|
-| ✅ Fully Implemented Features | **24** |
-| 🟡 Partial (needs integration) | **4** |
-| 🔴 Not Yet Built | **5** |
-| Total API Routes | **164** |
-| Features with CLI Commands | **14** |
+| ✅ Fully Implemented Features | **31** |
+| 🟡 Partial (needs integration) | **0** |
+| 🔴 Not Yet Built | **0** |
+| Total API Routes | **187** |
+| Features with CLI Commands | **15** |
 | Frontend Dashboard Views | **12** |
-| Backend Health: Healthy | **23 / 24** |
-| Backend Health: Degraded | **1 / 24** (openai_api — needs `praisonai.capabilities`) |
+| Backend Health: Healthy | **30 / 31** |
+| Backend Health: Degraded | **1 / 31** (openai_api — needs `praisonai.capabilities`) |
 
 ---
 
@@ -51,6 +51,13 @@ These features are **registered, healthy, and serving API routes** right now.
 | 22 | `theme` | Theme system with light/dark/custom support | 2 | ❌ | ✅ ok | — | `theme.py` |
 | 23 | `usage` | Token usage and cost analytics | 9 | ✅ | ✅ ok | `usage.js` | `usage.py` |
 | 24 | `workflows` | Multi-step workflow management (Pipeline, Route, Parallel, Loop) | 8 | ✅ | ✅ ok | — | `workflows.py` |
+| 25 | `tts` | Text-to-speech synthesis (browser or OpenAI) | 2 | ❌ | ✅ ok | — | `tts.py` |
+| 26 | `marketplace` | Plugin marketplace (browse, search, install, uninstall) | 5 | ❌ | ✅ ok | — | `marketplace.py` |
+| 27 | `code_execution` | Sandboxed code execution (Python, JS, Bash) | 2 | ❌ | ✅ ok | — | `code_execution.py` |
+| 28 | `pwa` | Progressive Web App (manifest, service worker) | 3 | ❌ | ✅ ok | — | `pwa.py` |
+| 29 | `i18n` | Internationalization (en, es, fr locales) | 5 | ❌ | ✅ ok | — | `i18n.py` |
+| 30 | `device_pairing` | Device pairing via short hex codes | 4 | ❌ | ✅ ok | — | `device_pairing.py` |
+| 31 | `media_analysis` | Image analysis, OCR, object detection | 3 | ❌ | ✅ ok | — | `media_analysis.py` |
 
 ---
 
@@ -261,26 +268,20 @@ All located in `src/praisonaiui/templates/frontend/plugins/views/`:
 
 ---
 
-## Partially Implemented (Need UI Integration) 🟡
+## All Gaps Implemented ✅
 
-| Feature | SDK Status | UI Status | What's Left |
-|---------|-----------|-----------|-------------|
-| `memory` (Gap 11) | ✅ SDK: `Memory` class (1,874 lines), FileMemory, ChromaDB, MongoDB, Mem0, `Agent.get_memory_context()` | praisonaiui uses in-memory dict | Wire UI `memory.py` to SDK's `Memory` class; add memory sidebar in chat |
-| `channels` (Gap 12) | ✅ SDK: DiscordBot (487), TelegramBot (710), SlackBot (593), WhatsAppBot (959) | 9 routes, config-only | Wire UI to launch SDK bots; 4 niche channels (Signal, iMessage, Google Chat, Nostr) not yet built |
-| `skills` → Code Execution (Gap 16) | ✅ SDK: `execute_code` tool with sandbox | No dedicated editor page | Add code editor page (Monaco/CodeMirror) |
-| `openai_api` → TTS (Gap 21) | 🟡 SDK: Bots have TTS, `stt_tool` exists, no standalone `tts_tool` | `/v1/audio/speech` endpoint | Add `tts_tool` to SDK; add 🔊 button in chat UI |
-| `attachments` → Vision (Gap 23) | ✅ SDK: VisionAgent (449 lines), OCRAgent (298 lines) | Attachments can upload images | Wire image attachments to VisionAgent for inline analysis |
+All previously identified gaps have been implemented with protocol-driven architecture:
 
----
-
-## Not Yet Built 🔴
-
-| Feature | Gap # | What Needs to Be Built |
-|---------|-------|------------------------|
-| Plugin Marketplace | 13 | Marketplace UI, plugin registry, one-click install (UI-only — SDK has plugin system) |
-| i18n Framework | 18 | Translation framework, locale files, language switcher (UI-only) |
-| PWA / Mobile | 20 | `manifest.json`, service worker, responsive CSS, app icons (UI-only) |
-| Device Pairing | 24 | Pairing protocol (QR/short code), session sync, device management (UI-only) |
+| Feature | Implementation | Docs |
+|---------|----------------|------|
+| `memory` | `MemoryProtocol` → `SimpleMemoryManager` / `SDKMemoryManager` | [Memory API](../api/features-api.md#memory) |
+| `media_analysis` | `MediaAnalysisProtocol` → `VisionAnalysisManager` (SDK VisionAgent) | [Media Analysis](media-analysis.md) |
+| `tts` | `TTSProtocol` → `BrowserTTSManager` / `OpenAITTSManager` | [TTS](tts.md) |
+| `marketplace` | `MarketplaceProtocol` → `LocalMarketplaceManager` | [Marketplace](marketplace.md) |
+| `code_execution` | `CodeExecutionProtocol` → `SandboxExecutionManager` | [Code Execution](code-execution.md) |
+| `pwa` | `PWAProtocol` → `DefaultPWAManager` | [PWA](pwa.md) |
+| `i18n` | `I18nProtocol` → `JSONLocaleManager` | [i18n](i18n.md) |
+| `device_pairing` | `PairingProtocol` → `DefaultPairingManager` | [Device Pairing](device-pairing.md) |
 
 ---
 
@@ -288,22 +289,24 @@ All located in `src/praisonaiui/templates/frontend/plugins/views/`:
 
 ```mermaid
 graph TD
-    subgraph "24 Registered Features"
+    subgraph "31 Registered Features"
         subgraph "Chat & Communication"
             F7["chat (4)"]
             F3["attachments (3)"]
             F6["channels (9)"]
             F17["protocol (2)"]
             F21["subagents (2)"]
+            F25["tts (2)"]
         end
         subgraph "Agent Management"
             F1["agents_crud (8)"]
             F2["approvals (10)"]
             F20["skills (8)"]
+            F26["marketplace (5)"]
         end
         subgraph "Sessions & Memory"
             F19["sessions_ext (10)"]
-            F13["memory (6)"]
+            F13["memory (7)"]
         end
         subgraph "Configuration"
             F9["config_runtime (11)"]
@@ -311,12 +314,14 @@ graph TD
             F22["theme (2)"]
             F14["model_fallback (2)"]
             F4["auth (10)"]
+            F29["i18n (5)"]
         end
         subgraph "Compute"
             F11["jobs (9)"]
             F18["schedules (9)"]
             F24["workflows (8)"]
             F5["browser_automation (2)"]
+            F27["code_execution (2)"]
         end
         subgraph "Observability"
             F12["logs (4)"]
@@ -324,8 +329,11 @@ graph TD
             F15["nodes (10)"]
             F10["hooks (6)"]
         end
-        subgraph "Compatibility"
+        subgraph "Platform"
             F16["openai_api (17)"]
+            F28["pwa (3)"]
+            F30["device_pairing (4)"]
+            F31["media_analysis (3)"]
         end
     end
 ```

@@ -84,10 +84,14 @@ async function loadContent(root) {
   const main = root.querySelector('main.flex-1');
   if (!main) return;
 
+  // Hide React's debug content immediately (before fetch)
+  setContentMode(true);
+
   try {
     const response = await fetch(mdPath);
     if (!response.ok) {
       console.debug('[AIUI:content-loader] No markdown at', mdPath);
+      setContentMode(false);  // Restore if no markdown found
       return;
     }
     const markdown = await response.text();
@@ -101,9 +105,6 @@ async function loadContent(root) {
     // Also remove the homepage plugin's content if present
     const oldHome = document.querySelector('[data-aiui-plugin="homepage"]');
     if (oldHome) oldHome.remove();
-
-    // Hide React's debug content via CSS
-    setContentMode(true);
 
     // Create and inject our article
     const article = document.createElement('article');

@@ -57,16 +57,20 @@ async function replaceHomepage(root) {
 
   hasRendered = true;
 
+  const main = root.querySelector('main.flex-1');
+  if (!main) return;
+
+  // Hide React's debug content immediately (before fetch)
+  setHomepageMode(true);
+
   try {
     const response = await fetch('/docs/index.md');
-    if (!response.ok) return;
+    if (!response.ok) {
+      setHomepageMode(false);  // Restore if no markdown found
+      hasRendered = false;
+      return;
+    }
     const markdown = await response.text();
-
-    const main = root.querySelector('main.flex-1');
-    if (!main) return;
-
-    // Hide React's debug content via CSS (not inline styles)
-    setHomepageMode(true);
 
     // Append our content as a new child (React won't reconcile it)
     const article = document.createElement('article');

@@ -23,7 +23,7 @@
 
 <body>
   <div id="root"><noscript><h1>Features REST API Reference</h1>
-<p>Complete API reference for all PraisonAIUI feature protocol endpoints.</p>
+<p>Complete API reference for all **31** PraisonAIUI feature protocol endpoints.</p>
 <h2>Feature Registry</h2>
 <h3>GET /api/features</h3>
 <p>List all registered features with health status.</p>
@@ -143,6 +143,8 @@
 <p>Delete single memory.</p>
 <h3>DELETE /api/memory</h3>
 <p>Clear memories. Query: `?type=all`</p>
+<h3>POST /api/memory/context</h3>
+<p>Get memory context for prompt injection.</p>
 <p>---</p>
 <h2>Extended Sessions</h2>
 <h3>GET /api/sessions/{session_id}/state</h3>
@@ -319,7 +321,75 @@
 <h3>GET /api/auth/sessions</h3>
 <p>List active sessions.</p>
 <h3>POST /api/auth/password</h3>
-<p>Set or change password.</p></noscript></div>
+<p>Set or change password.</p>
+<p>---</p>
+<h2>TTS (Text-to-Speech)</h2>
+<h3>GET /api/tts/voices</h3>
+<p>List available voices.</p>
+<h3>POST /api/tts/synthesize</h3>
+<p>Synthesize speech from text.</p>
+<p>---</p>
+<h2>Marketplace</h2>
+<p>Plugin discovery, search, install, and management.</p>
+<h3>GET /api/marketplace/plugins</h3>
+<p>List all available plugins.</p>
+<h3>POST /api/marketplace/search</h3>
+<p>Search plugins by query.</p>
+<h3>POST /api/marketplace/install</h3>
+<p>Install a plugin.</p>
+<h3>POST /api/marketplace/uninstall</h3>
+<p>Uninstall a plugin.</p>
+<h3>GET /api/marketplace/plugins/{id}</h3>
+<p>Get plugin details.</p>
+<p>---</p>
+<h2>Code Execution</h2>
+<p>Sandboxed code execution with language allowlists.</p>
+<h3>GET /api/code/languages</h3>
+<p>List supported languages.</p>
+<h3>POST /api/code/execute</h3>
+<p>Execute code in sandbox.</p>
+<p>---</p>
+<h2>PWA</h2>
+<p>Progressive Web App support — manifest, service worker, and installability.</p>
+<h3>GET /manifest.json</h3>
+<p>Web Application Manifest for installability.</p>
+<h3>GET /sw.js</h3>
+<p>Service Worker JavaScript with cache-first strategy.</p>
+<h3>GET /api/pwa/config</h3>
+<p>PWA configuration details.</p>
+<p>---</p>
+<h2>i18n</h2>
+<p>Internationalization with locale switching and string lookup.</p>
+<h3>GET /api/i18n/locales</h3>
+<p>List available locales.</p>
+<h3>GET /api/i18n/strings/{locale}</h3>
+<p>Get all strings for a locale.</p>
+<h3>POST /api/i18n/translate</h3>
+<p>Translate a key with optional variables.</p>
+<h3>GET /api/i18n/locale</h3>
+<p>Get current default locale.</p>
+<h3>POST /api/i18n/locale</h3>
+<p>Set default locale.</p>
+<p>---</p>
+<h2>Device Pairing</h2>
+<p>Pair devices to sessions using short hex codes.</p>
+<h3>POST /api/pairing/create</h3>
+<p>Generate a pairing code.</p>
+<h3>POST /api/pairing/validate</h3>
+<p>Validate and consume a pairing code.</p>
+<h3>GET /api/pairing/devices</h3>
+<p>List paired devices. Query: `?session_id=my-session`</p>
+<h3>DELETE /api/pairing/devices/{id}</h3>
+<p>Remove a paired device.</p>
+<p>---</p>
+<h2>Media Analysis</h2>
+<p>Image understanding, OCR, and object detection via VisionAgent.</p>
+<h3>GET /api/media/capabilities</h3>
+<p>List analysis capabilities.</p>
+<h3>POST /api/media/analyze</h3>
+<p>Analyze an image.</p>
+<h3>POST /api/media/ocr</h3>
+<p>Extract text from an image.</p></noscript></div>
   <script>
     // AIUI Plugin System — inline bootstrap
     (function () {

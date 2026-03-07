@@ -80,6 +80,14 @@
   }
 
   /**
+   * Remove the server-injected anti-flicker CSS after plugins have rendered.
+   */
+  function removeAntiFlicker() {
+    const el = document.getElementById('aiui-anti-flicker');
+    if (el) el.remove();
+  }
+
+  /**
    * Main entry point — fetch config, load plugins, observe changes.
    */
   async function main() {
@@ -87,13 +95,17 @@
       const res = await fetch(PLUGINS_CONFIG);
       if (!res.ok) {
         console.debug('[AIUI] No plugins.json found, skipping plugins.');
+        removeAntiFlicker();
         return;
       }
 
       const config = await res.json();
       const pluginNames = config.plugins || [];
 
-      if (pluginNames.length === 0) return;
+      if (pluginNames.length === 0) {
+        removeAntiFlicker();
+        return;
+      }
 
       // Load all plugins in parallel
       await Promise.allSettled(pluginNames.map(loadPlugin));
@@ -101,12 +113,16 @@
       // Set up observer for SPA content changes
       observeContentChanges();
 
-      // Initial content change notification (content may already be loaded)
-      setTimeout(notifyContentChange, 500);
+      // Initial content change — immediate, no delay
+      notifyContentChange();
+
+      // Remove the anti-flicker CSS now that plugins have rendered
+      removeAntiFlicker();
 
       console.debug(`[AIUI] ${loadedPlugins.length} plugin(s) active.`);
     } catch (err) {
       console.warn('[AIUI] Plugin loader error:', err);
+      removeAntiFlicker();
     }
   }
 

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Device Pairing - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Device Pairing | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/device-pairing" />
+  <meta property="og:title" content="Device Pairing | PraisonAIUI Docs" />
+  <meta property="og:description" content="Device Pairing - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/device-pairing" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Device Pairing | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Device Pairing - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Device Pairing</h1>
+<p>Pair devices to sessions using **short hex codes** — scan and sync across mobile, tablet, and desktop.</p>
+<h2>Quick Start</h2>
+<h2>How It Works</h2>
+<p>1. **Desktop** requests a pairing code for its session</p>
+<p>2. Code is displayed on screen (6-char hex, 5-minute TTL)</p>
+<p>3. **Mobile** enters the code to validate and pair</p>
+<p>4. Server links the mobile device to the desktop's session</p>
+<p>5. Both devices can now access the same conversation</p>
+<h3>Security</h3>
+<li>Codes are **single-use** — reusing returns `{"valid": false, "error": "Code already used"}`</li>
+<li>Codes **expire** after 5 minutes (configurable TTL)</li>
+<li>Max 5 devices per session (configurable)</li>
+<h2>Configuration</h2>
+<h2>REST API</h2>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/pairing/create` | POST | Generate a pairing code |</p>
+<p>| `/api/pairing/validate` | POST | Validate and consume a code |</p>
+<p>| `/api/pairing/devices` | GET | List paired devices for session |</p>
+<p>| `/api/pairing/devices/{id}` | DELETE | Remove a paired device |</p>
+<h3>POST /api/pairing/create</h3>
+<h3>POST /api/pairing/validate</h3>
+<h2>Related</h2>
+<li>[Sessions](sessions.md) — Sessions that paired devices share</li></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

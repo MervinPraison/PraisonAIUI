@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Plugin Marketplace - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Plugin Marketplace | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/marketplace" />
+  <meta property="og:title" content="Plugin Marketplace | PraisonAIUI Docs" />
+  <meta property="og:description" content="Plugin Marketplace - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/marketplace" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Plugin Marketplace | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Plugin Marketplace - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Plugin Marketplace</h1>
+<p>Browse, search, install, and manage **plugins** from a registry. Supports local plugin discovery with a swappable backend for remote registries.</p>
+<h2>Quick Start</h2>
+<h2>How It Works</h2>
+<p>The marketplace uses a **protocol-driven** architecture. The default `LocalMarketplaceManager` ships with a built-in catalog of common plugins. Custom implementations can connect to remote registries.</p>
+<h2>Built-in Plugins</h2>
+<p>| Plugin | Category | Description |</p>
+<p>|--------|----------|-------------|</p>
+<p>| `web_search` | tools | Search the web using DuckDuckGo |</p>
+<p>| `code_executor` | tools | Execute Python code in sandbox |</p>
+<p>| `file_manager` | tools | Read, write, and manage files |</p>
+<p>| `memory_plugin` | memory | Persistent agent memory with ChromaDB |</p>
+<h2>REST API</h2>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/marketplace/plugins` | GET | List all plugins |</p>
+<p>| `/api/marketplace/search` | POST | Search plugins by query |</p>
+<p>| `/api/marketplace/install` | POST | Install a plugin |</p>
+<p>| `/api/marketplace/uninstall` | POST | Uninstall a plugin |</p>
+<p>| `/api/marketplace/plugins/{id}` | GET | Get plugin details |</p>
+<h3>POST /api/marketplace/install</h3>
+<h3>POST /api/marketplace/search</h3>
+<h2>Related</h2>
+<li>[Skills](../api/features-api.md#skills) — Tool catalog that marketplace plugins extend</li></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

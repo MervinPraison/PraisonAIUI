@@ -1,27 +1,27 @@
 # Gap Analysis — Validated Against praisonai SDK
 
-> **Last validated**: 2026-03-06 — Cross-referenced against both `praisonaiui` and `praisonai` SDK codebases
+> **Last validated**: 2026-03-07 — All gaps resolved. 31 features, 128 tests pass.
 
 ## Executive Summary
 
-After thorough validation against the **praisonai SDK** codebase, most originally-reported gaps are **either already implemented in the SDK or are UI-only concerns**. The SDK has comprehensive memory (1,874 lines), all major chat bots (Discord, Telegram, Slack, WhatsApp), and full media understanding (VisionAgent, OCRAgent).
+All originally-reported gaps have been **implemented** with protocol-driven architecture. Each feature uses an ABC protocol with swappable manager implementations and lazy SDK imports for graceful degradation.
 
 ---
 
 ## Status Overview
 
-| Gap | Feature | Original Status | **Validated Status** | SDK Work Needed? |
-|-----|---------|----------------|---------------------|-----------------|
-| 9 | OpenAI Responses API | ✅ Exists | ✅ Exists in praisonaiui | ❌ No |
-| 11 | Memory/Knowledge Search | 🟡 Partial | ✅ **Fully implemented in SDK** | ❌ No (UI wiring only) |
-| 12 | Additional Channels | 🟡 Partial | ✅ **Slack + WhatsApp exist in SDK** | ❌ No |
-| 13 | Plugin Marketplace UI | 🔴 Missing | 🔴 Missing (UI-only) | ❌ No |
-| 16 | Code Execution View | 🟡 Partial | 🟡 UI-only | ❌ No |
-| 18 | i18n Framework | 🔴 Missing | 🔴 Missing (UI-only) | ❌ No |
-| 20 | PWA / Mobile | 🔴 Missing | 🔴 Missing (UI-only) | ❌ No |
-| 21 | TTS Integration | 🔴 Missing | 🟡 **Mostly exists** | 🟡 Minor (`tts_tool`) |
-| 23 | Media Understanding | 🔴 Missing | ✅ **VisionAgent + OCRAgent exist** | ❌ No |
-| 24 | Device Pairing | 🔴 Missing | 🔴 Missing (UI-only) | ❌ No |
+| Gap | Feature | Original Status | **Current Status** | Docs |
+|-----|---------|----------------|--------------------|----|
+| 9 | OpenAI Responses API | ✅ Exists | ✅ Exists in praisonaiui | [API Ref](../api/features-api.md#openai-compatible-api) |
+| 11 | Memory/Knowledge Search | 🟡 Partial | ✅ **Implemented** — `MemoryProtocol` + `SDKMemoryManager` | [API Ref](../api/features-api.md#memory) |
+| 12 | Additional Channels | 🟡 Partial | ✅ **SDK bots exist** | [API Ref](../api/features-api.md#channels) |
+| 13 | Plugin Marketplace UI | 🔴 Missing | ✅ **Implemented** — `MarketplaceProtocol` + `LocalMarketplaceManager` | [Marketplace](marketplace.md) |
+| 16 | Code Execution View | 🟡 Partial | ✅ **Implemented** — `CodeExecutionProtocol` + `SandboxExecutionManager` | [Code Execution](code-execution.md) |
+| 18 | i18n Framework | 🔴 Missing | ✅ **Implemented** — `I18nProtocol` + `JSONLocaleManager` (en/es/fr) | [i18n](i18n.md) |
+| 20 | PWA / Mobile | 🔴 Missing | ✅ **Implemented** — `PWAProtocol` + `DefaultPWAManager` | [PWA](pwa.md) |
+| 21 | TTS Integration | 🔴 Missing | ✅ **Implemented** — `TTSProtocol` + `BrowserTTSManager` / `OpenAITTSManager` | [TTS](tts.md) |
+| 23 | Media Understanding | 🔴 Missing | ✅ **Implemented** — `MediaAnalysisProtocol` + `VisionAnalysisManager` | [Media Analysis](media-analysis.md) |
+| 24 | Device Pairing | 🔴 Missing | ✅ **Implemented** — `PairingProtocol` + `DefaultPairingManager` | [Device Pairing](device-pairing.md) |
 
 ---
 

@@ -316,6 +316,13 @@ function injectStyles() {
       .aiui-topnav-inner { padding: 0 0.75rem; }
       .aiui-topnav-tab { padding: 0.5rem 0.625rem; font-size: 0.75rem; }
     }
+
+    /* Active sidebar item indicator */
+    aside nav button[class*="font-medium"],
+    aside nav a[class*="bg-accent"] {
+      border-left: 3px solid #38bdf8;
+      padding-left: calc(1rem - 3px);
+    }
   `;
   document.head.appendChild(style);
 }

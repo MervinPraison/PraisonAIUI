@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Text-to-Speech (TTS) - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Text-to-Speech (TTS) | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/tts" />
+  <meta property="og:title" content="Text-to-Speech (TTS) | PraisonAIUI Docs" />
+  <meta property="og:description" content="Text-to-Speech (TTS) - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/tts" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Text-to-Speech (TTS) | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Text-to-Speech (TTS) - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Text-to-Speech (TTS)</h1>
+<p>Synthesize speech from text using **swappable backends** — browser-native (zero cost) or OpenAI TTS API.</p>
+<h2>Quick Start</h2>
+<h2>How It Works</h2>
+<p>**Default**: `BrowserTTSManager` — uses the browser's built-in Web Speech API, requires no API key, runs entirely client-side.</p>
+<p>**Optional**: `OpenAITTSManager` — uses OpenAI's TTS API for higher-quality voices (alloy, echo, fable, onyx, nova, shimmer). Requires `openai` package and API key.</p>
+<h2>Configuration</h2>
+<h2>REST API</h2>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/tts/voices` | GET | List available voices |</p>
+<p>| `/api/tts/synthesize` | POST | Synthesize speech from text |</p>
+<h3>GET /api/tts/voices</h3>
+<h3>POST /api/tts/synthesize</h3>
+<h2>Related</h2>
+<li>[Gateway Chat](gateway-chat.md) — Chat can use TTS for voice responses</li></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) return;
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js').then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
+          setTimeout(notify, 300);
+          setTimeout(notify, 3000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

@@ -23,20 +23,20 @@
 
 <body>
   <div id="root"><noscript><h1>Feature Inventory</h1>
-<p>> **Last validated**: 2026-03-06 — programmatically verified against running codebase</p>
+<p>> **Last validated**: 2026-03-07 — programmatically verified against running codebase (31 features, 128 tests pass)</p>
 <p>Complete inventory of **every feature** in PraisonAIUI: what's implemented, what's partial, and what's missing.</p>
 <p>---</p>
 <h2>Summary Scorecard</h2>
 <p>| Category | Count |</p>
 <p>|----------|-------|</p>
-<p>| ✅ Fully Implemented Features | **24** |</p>
-<p>| 🟡 Partial (needs integration) | **4** |</p>
-<p>| 🔴 Not Yet Built | **5** |</p>
-<p>| Total API Routes | **164** |</p>
-<p>| Features with CLI Commands | **14** |</p>
+<p>| ✅ Fully Implemented Features | **31** |</p>
+<p>| 🟡 Partial (needs integration) | **0** |</p>
+<p>| 🔴 Not Yet Built | **0** |</p>
+<p>| Total API Routes | **187** |</p>
+<p>| Features with CLI Commands | **15** |</p>
 <p>| Frontend Dashboard Views | **12** |</p>
-<p>| Backend Health: Healthy | **23 / 24** |</p>
-<p>| Backend Health: Degraded | **1 / 24** (openai_api — needs `praisonai.capabilities`) |</p>
+<p>| Backend Health: Healthy | **30 / 31** |</p>
+<p>| Backend Health: Degraded | **1 / 31** (openai_api — needs `praisonai.capabilities`) |</p>
 <p>---</p>
 <h2>All Implemented Features (Validated ✅)</h2>
 <p>These features are **registered, healthy, and serving API routes** right now.</p>
@@ -66,6 +66,13 @@
 <p>| 22 | `theme` | Theme system with light/dark/custom support | 2 | ❌ | ✅ ok | — | `theme.py` |</p>
 <p>| 23 | `usage` | Token usage and cost analytics | 9 | ✅ | ✅ ok | `usage.js` | `usage.py` |</p>
 <p>| 24 | `workflows` | Multi-step workflow management (Pipeline, Route, Parallel, Loop) | 8 | ✅ | ✅ ok | — | `workflows.py` |</p>
+<p>| 25 | `tts` | Text-to-speech synthesis (browser or OpenAI) | 2 | ❌ | ✅ ok | — | `tts.py` |</p>
+<p>| 26 | `marketplace` | Plugin marketplace (browse, search, install, uninstall) | 5 | ❌ | ✅ ok | — | `marketplace.py` |</p>
+<p>| 27 | `code_execution` | Sandboxed code execution (Python, JS, Bash) | 2 | ❌ | ✅ ok | — | `code_execution.py` |</p>
+<p>| 28 | `pwa` | Progressive Web App (manifest, service worker) | 3 | ❌ | ✅ ok | — | `pwa.py` |</p>
+<p>| 29 | `i18n` | Internationalization (en, es, fr locales) | 5 | ❌ | ✅ ok | — | `i18n.py` |</p>
+<p>| 30 | `device_pairing` | Device pairing via short hex codes | 4 | ❌ | ✅ ok | — | `device_pairing.py` |</p>
+<p>| 31 | `media_analysis` | Image analysis, OCR, object detection | 3 | ❌ | ✅ ok | — | `media_analysis.py` |</p>
 <p>---</p>
 <h2>Frontend Dashboard Views (12 Views)</h2>
 <p>All located in `src/praisonaiui/templates/frontend/plugins/views/`:</p>
@@ -254,22 +261,18 @@
 <p>| `/api/nodes/instances` | GET | nodes |</p>
 <p>| `/api/instances` | GET | nodes |</p>
 <p>---</p>
-<h2>Partially Implemented (Need UI Integration) 🟡</h2>
-<p>| Feature | SDK Status | UI Status | What's Left |</p>
-<p>|---------|-----------|-----------|-------------|</p>
-<p>| `memory` (Gap 11) | ✅ SDK: `Memory` class (1,874 lines), FileMemory, ChromaDB, MongoDB, Mem0, `Agent.get_memory_context()` | praisonaiui uses in-memory dict | Wire UI `memory.py` to SDK's `Memory` class; add memory sidebar in chat |</p>
-<p>| `channels` (Gap 12) | ✅ SDK: DiscordBot (487), TelegramBot (710), SlackBot (593), WhatsAppBot (959) | 9 routes, config-only | Wire UI to launch SDK bots; 4 niche channels (Signal, iMessage, Google Chat, Nostr) not yet built |</p>
-<p>| `skills` → Code Execution (Gap 16) | ✅ SDK: `execute_code` tool with sandbox | No dedicated editor page | Add code editor page (Monaco/CodeMirror) |</p>
-<p>| `openai_api` → TTS (Gap 21) | 🟡 SDK: Bots have TTS, `stt_tool` exists, no standalone `tts_tool` | `/v1/audio/speech` endpoint | Add `tts_tool` to SDK; add 🔊 button in chat UI |</p>
-<p>| `attachments` → Vision (Gap 23) | ✅ SDK: VisionAgent (449 lines), OCRAgent (298 lines) | Attachments can upload images | Wire image attachments to VisionAgent for inline analysis |</p>
-<p>---</p>
-<h2>Not Yet Built 🔴</h2>
-<p>| Feature | Gap # | What Needs to Be Built |</p>
-<p>|---------|-------|------------------------|</p>
-<p>| Plugin Marketplace | 13 | Marketplace UI, plugin registry, one-click install (UI-only — SDK has plugin system) |</p>
-<p>| i18n Framework | 18 | Translation framework, locale files, language switcher (UI-only) |</p>
-<p>| PWA / Mobile | 20 | `manifest.json`, service worker, responsive CSS, app icons (UI-only) |</p>
-<p>| Device Pairing | 24 | Pairing protocol (QR/short code), session sync, device management (UI-only) |</p>
+<h2>All Gaps Implemented ✅</h2>
+<p>All previously identified gaps have been implemented with protocol-driven architecture:</p>
+<p>| Feature | Implementation | Docs |</p>
+<p>|---------|----------------|------|</p>
+<p>| `memory` | `MemoryProtocol` → `SimpleMemoryManager` / `SDKMemoryManager` | [Memory API](../api/features-api.md#memory) |</p>
+<p>| `media_analysis` | `MediaAnalysisProtocol` → `VisionAnalysisManager` (SDK VisionAgent) | [Media Analysis](media-analysis.md) |</p>
+<p>| `tts` | `TTSProtocol` → `BrowserTTSManager` / `OpenAITTSManager` | [TTS](tts.md) |</p>
+<p>| `marketplace` | `MarketplaceProtocol` → `LocalMarketplaceManager` | [Marketplace](marketplace.md) |</p>
+<p>| `code_execution` | `CodeExecutionProtocol` → `SandboxExecutionManager` | [Code Execution](code-execution.md) |</p>
+<p>| `pwa` | `PWAProtocol` → `DefaultPWAManager` | [PWA](pwa.md) |</p>
+<p>| `i18n` | `I18nProtocol` → `JSONLocaleManager` | [i18n](i18n.md) |</p>
+<p>| `device_pairing` | `PairingProtocol` → `DefaultPairingManager` | [Device Pairing](device-pairing.md) |</p>
 <p>---</p>
 <h2>Feature Architecture</h2>
 <p>> Numbers in parentheses = API route count per feature</p></noscript></div>
