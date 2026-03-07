@@ -187,6 +187,25 @@ class PraisonAIProvider(BaseProvider):
             "instructions": "You are a helpful assistant. Use markdown formatting.",
             "memory": True,
         }
+
+        # Check CRUD-defined agents for matching name
+        if agent_name:
+            try:
+                from praisonaiui.features.agents import _agent_definitions
+                for _def in _agent_definitions.values():
+                    if _def.get("name") == agent_name:
+                        kwargs["name"] = _def["name"]
+                        kwargs["instructions"] = (
+                            _def.get("instructions")
+                            or _def.get("system_prompt")
+                            or kwargs["instructions"]
+                        )
+                        if _def.get("model"):
+                            kwargs["llm"] = _def["model"]
+                        break
+            except ImportError:
+                pass
+
         kwargs.update(self._agent_kwargs)
         agent = Agent(**kwargs)
 

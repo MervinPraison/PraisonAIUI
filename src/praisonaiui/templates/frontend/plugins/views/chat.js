@@ -291,6 +291,23 @@ async function loadAgents() {
     const resp = await fetch('/agents');
     const data = await resp.json();
     agents = data.agents || data || [];
+
+    // Merge CRUD-defined agents from /api/agents/definitions
+    try {
+      const crudResp = await fetch('/api/agents/definitions');
+      const crudData = await crudResp.json();
+      const crudAgents = crudData.agents || crudData || [];
+      crudAgents.forEach((a) => {
+        const name = a.name || a.id;
+        const nameLower = name.toLowerCase();
+        if (!agents.some((x) => ((typeof x === 'string' ? x : x.name || x.id) || '').toLowerCase() === nameLower)) {
+          agents.push(a);
+        }
+      });
+    } catch (e) {
+      // CRUD endpoint may not exist in minimal setups
+    }
+
     const selector = document.getElementById('chat-agent-selector');
     if (selector) {
       agents.forEach((a) => {
@@ -403,6 +420,12 @@ function newSession() {
 
 // ── WebSocket ────────────────────────────────────────────────────
 function connectWebSocket() {
+  // Close any existing connection to prevent duplicate events
+  if (ws) {
+    try { ws.onclose = null; ws.close(); } catch (e) {}
+    ws = null;
+  }
+
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = protocol + '//' + location.host + '/api/chat/ws';
 
@@ -421,6 +444,10 @@ function connectWebSocket() {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        // Only process events for our session (ignore other sessions)
+        if (data.session_id && currentSessionId && data.session_id !== currentSessionId) {
+          return;
+        }
         handleWsMessage(data);
       } catch (e) {
         console.warn('[Chat] Invalid WS message:', e);
@@ -820,12 +847,6 @@ async function loadMemories() {
   } catch (err) {
     listEl.innerHTML = `<span class="chat-mem-empty">Error: ${err.message}</span>`;
   }
-}
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
 }
 
 // ── Send / Queue / Abort ────────────────────────────────────────

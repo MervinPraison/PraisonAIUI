@@ -103,8 +103,7 @@ def _build_html(style: str) -> str:
     if style == "docs":
         anti_flicker = (
             '<style id="aiui-anti-flicker">'
-            '#root main.flex-1 > :not([data-aiui-plugin]) { opacity: 0; }'
-            'header + nav[data-aiui-plugin="topnav"] ~ * { }'  # no-op, reserves DOM slot
+            '#root main.flex-1 > div { opacity: 0; transition: opacity 0.15s; }'
             '</style>'
         )
 

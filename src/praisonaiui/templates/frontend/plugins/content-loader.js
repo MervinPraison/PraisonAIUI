@@ -46,9 +46,13 @@ function setContentMode(active) {
   }
 
   if (active) {
+    // Use opacity + absolute positioning instead of display:none
+    // to prevent layout collapse (the "black flash")
     styleEl.textContent = `
-      body.aiui-content-loaded main.flex-1 > :not([data-aiui-plugin="content-loader"]) {
-        display: none !important;
+      body.aiui-content-loaded main.flex-1 > :not([data-aiui-plugin]) {
+        opacity: 0 !important;
+        position: absolute !important;
+        pointer-events: none !important;
       }
     `;
     document.body.classList.add('aiui-content-loaded');
@@ -84,14 +88,10 @@ async function loadContent(root) {
   const main = root.querySelector('main.flex-1');
   if (!main) return;
 
-  // Hide React's debug content immediately (before fetch)
-  setContentMode(true);
-
   try {
     const response = await fetch(mdPath);
     if (!response.ok) {
       console.debug('[AIUI:content-loader] No markdown at', mdPath);
-      setContentMode(false);  // Restore if no markdown found
       return;
     }
     const markdown = await response.text();
@@ -106,12 +106,15 @@ async function loadContent(root) {
     const oldHome = document.querySelector('[data-aiui-plugin="homepage"]');
     if (oldHome) oldHome.remove();
 
-    // Create and inject our article
+    // Create and inject our article FIRST
     const article = document.createElement('article');
     article.className = 'prose max-w-none dark:prose-invert p-6';
     article.dataset.aiuiPlugin = 'content-loader';
     article.innerHTML = markdownToHtml(markdown);
     main.appendChild(article);
+
+    // NOW hide React's debug content — our article is already in the DOM
+    setContentMode(true);
 
     // Update the "On This Page" ToC if toc plugin is active
     updateTocSidebar(article);

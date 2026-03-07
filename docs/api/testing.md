@@ -238,11 +238,50 @@ curl http://localhost:8082/api/sessions/test-session/state
 curl http://localhost:8082/api/sessions/test-session/preview
 ```
 
-## 13–15. Memory, Hooks, Workflows
+## 13. Memory
+
+```bash
+# List all memories
+curl http://localhost:8082/api/memory
+# → {"memories":[],"count":0}
+
+# Add a memory
+curl -X POST http://localhost:8082/api/memory \
+  -H "Content-Type: application/json" \
+  -d '{"text":"User prefers dark mode","memory_type":"preference"}'
+
+# Search memories
+curl -X POST http://localhost:8082/api/memory/search \
+  -H "Content-Type: application/json" \
+  -d '{"query":"dark mode"}'
+
+# Get memory context for a prompt
+curl -X POST http://localhost:8082/api/memory/context \
+  -H "Content-Type: application/json" \
+  -d '{"query":"what theme does user prefer?"}'
+
+# List memories for a specific session
+curl http://localhost:8082/api/memory/session/{session_id}
+# → {"memories":[...],"count":0,"session_id":"..."}
+
+# Memory backend status and health
+curl http://localhost:8082/api/memory/status
+# → {"total":0,"by_type":{},"backend":"...","status":"ok"}
+
+# Get a specific memory
+curl http://localhost:8082/api/memory/{memory_id}
+
+# Delete a specific memory
+curl -X DELETE http://localhost:8082/api/memory/{memory_id}
+
+# Clear all memories
+curl -X DELETE http://localhost:8082/api/memory
+```
+
+## 14–15. Hooks, Workflows
 
 ```bash
 # These return empty lists until data is created through agent execution
-curl http://localhost:8082/api/memory
 curl http://localhost:8082/api/hooks
 curl http://localhost:8082/api/workflows
 ```
@@ -257,7 +296,86 @@ curl http://localhost:8082/api/features
 
 ---
 
-## Running the Full Test Suite
+## CLI Integration Tests (`aiui test`)
+
+PraisonAIUI includes built-in integration tests via
+`aiui test`. These run against a live server and verify chat, memory, sessions,
+and API endpoint health.
+
+### Quick Start
+
+```bash
+# Start the server
+aiui run app.py --port 8082
+
+# In another terminal, run all tests
+aiui test all --server http://127.0.0.1:8082
+```
+
+### Available Subcommands
+
+| Command | What It Tests |
+|---------|---------------|
+| `aiui test endpoints` | API endpoint availability (/health, /api/features, /api/sessions, /api/chat) |
+| `aiui test chat` | Message sending, session history isolation, context recall |
+| `aiui test memory` | Cross-session persistent memory (store + recall facts) |
+| `aiui test sessions` | Session file persistence (survives server restarts) |
+| `aiui test all` | Runs all of the above in sequence |
+
+### Options
+
+- `--server` / `-s` — Server URL (default: `http://127.0.0.1:8082`)
+- `--timeout` / `-t` — Response timeout in seconds (default: `30`)
+
+### Example Output
+
+```
+╭───────────────────── Endpoint Tests ──────────────────────╮
+│ 6 passed, 0 failed, 2 skipped                            │
+╰───────────────────────────────────────────────────────────╯
+
+╭──────────────────────── Chat Tests ───────────────────────╮
+│ 8 passed, 0 failed                                       │
+╰───────────────────────────────────────────────────────────╯
+
+╭─────────────────────── Memory Tests ──────────────────────╮
+│ 2 passed, 0 failed                                       │
+╰───────────────────────────────────────────────────────────╯
+
+╭──────────────────── Sessions Tests ───────────────────────╮
+│ 4 passed, 0 failed                                       │
+╰───────────────────────────────────────────────────────────╯
+
+All tests passed! ✓
+```
+
+### Test Details
+
+**Endpoints** (6 checks, 2 optional skips):
+- `GET /api/features` — Feature registry health
+- `GET /api/sessions` — Session listing
+- `GET /api/chat/history` — Empty session history
+- `POST /api/chat/send` — Chat message dispatch
+- `GET /api/provider/health` — _(optional, skipped if no provider)_
+- `GET /api/provider/agents` — _(optional, skipped if no provider)_
+- `GET /health` — Server health check
+
+**Chat** (8 checks):
+- Sends a message to Session A, verifies response in history
+- Creates Session B, verifies history isolation (no cross-session leakage)
+- Verifies Session A retains context from earlier messages
+
+**Memory** (2 checks):
+- Sends a fact to Session 1 ("remember my name")
+- Asks a recall question in Session 2, verifies cross-session memory
+
+**Sessions** (4 checks):
+- Sends a message and verifies session file is created on disk
+- Verifies history API returns persisted messages
+
+---
+
+## Running the Full API Test Suite
 
 Use the example at `examples/python/14-all-features/app.py` which tests all 16 features programmatically:
 
@@ -283,7 +401,7 @@ python app.py
 | OpenAI API | 2 | 11 endpoints, 13 models |
 | Logs | 2 | 5 log levels |
 | Sessions | 3 | State save/get/preview |
-| Memory | 1 | 200 (empty until agents run) |
+| Memory | 6 | List, add, search, context, session-scoped, status |
 | Hooks | 1 | 200 (empty until registered) |
 | Workflows | 1 | 200 (empty until created) |
 | Features | 1 | 16 features registered |
