@@ -218,17 +218,44 @@ class PraisonAIConfigRuntime(BaseFeatureProtocol):
         }]
 
     async def health(self) -> Dict[str, Any]:
+        gateway_connected = False
+        gateway_agent_count = 0
+        try:
+            from ._gateway_ref import get_gateway
+            gw = get_gateway()
+            if gw is not None:
+                gateway_connected = True
+                gateway_agent_count = len(list(gw.list_agents()))
+        except (ImportError, Exception):
+            pass
         return {
             "status": "ok",
             "feature": self.name,
             "keys": len(_runtime_config),
             "changes": len(_config_history),
+            "gateway_connected": gateway_connected,
+            "gateway_agent_count": gateway_agent_count,
         }
 
     # ── API handlers ─────────────────────────────────────────────────
 
     async def _get(self, request: Request) -> JSONResponse:
-        return JSONResponse({"config": _runtime_config})
+        # Include gateway info in config response
+        gateway_info = {"connected": False, "agents": []}
+        try:
+            from ._gateway_ref import get_gateway
+            gw = get_gateway()
+            if gw is not None:
+                gateway_info["connected"] = True
+                for aid in gw.list_agents():
+                    agent = gw.get_agent(aid)
+                    name = getattr(agent, "name", aid) if agent else aid
+                    gateway_info["agents"].append({"id": aid, "name": name})
+        except (ImportError, Exception):
+            pass
+        config_with_gateway = dict(_runtime_config)
+        config_with_gateway["gateway"] = gateway_info
+        return JSONResponse({"config": config_with_gateway})
 
     async def _patch(self, request: Request) -> JSONResponse:
         body = await request.json()

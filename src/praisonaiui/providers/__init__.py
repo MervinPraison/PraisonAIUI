@@ -158,11 +158,13 @@ class PraisonAIProvider(BaseProvider):
     ):
         """Get or lazily create a PraisonAI Agent.
 
-        When session_id is provided and no named/pre-configured agent
-        is matched, a per-session Agent is created so that each session
-        has its own isolated chat_history.
+        Priority order:
+          1. Pre-configured agent matching name (from __init__)
+          2. Gateway-registered agent (has memory, history, tools)
+          3. Per-session cached agent
+          4. Lazy-create new agent (with CRUD definition if matched)
         """
-        # If specific agent requested and we have a list
+        # 1. If specific agent requested and we have a pre-configured list
         if agent_name and self._agents:
             for a in self._agents:
                 if getattr(a, "name", None) == agent_name:
@@ -172,11 +174,30 @@ class PraisonAIProvider(BaseProvider):
         if self._agent is not None:
             return self._agent
 
-        # Per-session agent: return cached or create new
+        # 2. Check gateway-registered agents (they have memory/history)
+        try:
+            from praisonaiui.features._gateway_ref import get_gateway
+            gw = get_gateway()
+            if gw is not None:
+                # Try to find by agent_name first
+                if agent_name:
+                    for aid in gw.list_agents():
+                        gw_agent = gw.get_agent(aid)
+                        if gw_agent and getattr(gw_agent, "name", None) == agent_name:
+                            return gw_agent
+                # If session_id matches a gateway agent ID, use it
+                if session_id:
+                    gw_agent = gw.get_agent(session_id)
+                    if gw_agent is not None:
+                        return gw_agent
+        except (ImportError, Exception):
+            pass
+
+        # 3. Per-session agent: return cached if available
         if session_id and session_id in self._session_agents:
             return self._session_agents[session_id]
 
-        # Lazy-create agent for this session
+        # 4. Lazy-create agent for this session
         try:
             from praisonaiagents import Agent
         except ImportError:
@@ -509,6 +530,23 @@ class PraisonAIProvider(BaseProvider):
                 await asyncio.to_thread(agent.store_memory, summary)
             except Exception:
                 pass  # Memory store failures should not break chat
+
+        # Auto-track usage for analytics (Gap 8 — bridges to usage feature)
+        try:
+            from praisonaiui.features.usage import track_usage
+            agent_model = getattr(agent, "llm", "unknown")
+            # Estimate tokens from response length (rough heuristic)
+            input_tokens = max(1, len(message) // 4)
+            output_tokens = max(1, len(full_response) // 4)
+            track_usage(
+                model=str(agent_model),
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                session_id=session_id or "unknown",
+                agent_name=getattr(agent, "name", agent_name or "unknown"),
+            )
+        except (ImportError, Exception):
+            pass  # Usage tracking failures should not break chat
 
     async def list_agents(self) -> List[Dict[str, Any]]:
         """List agents from both the UI registry and configured agents."""

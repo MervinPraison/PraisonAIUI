@@ -217,12 +217,24 @@ class PraisonAISkills(BaseFeatureProtocol):
 
     async def health(self) -> Dict[str, Any]:
         enabled_count = sum(1 for s in _tool_state.values() if s.get("enabled", True))
+        gateway_agents_with_tools = 0
+        try:
+            from ._gateway_ref import get_gateway
+            gw = get_gateway()
+            if gw is not None:
+                for aid in gw.list_agents():
+                    gw_agent = gw.get_agent(aid)
+                    if gw_agent and getattr(gw_agent, "tools", None):
+                        gateway_agents_with_tools += 1
+        except (ImportError, Exception):
+            pass
         return {
             "status": "ok",
             "feature": self.name,
             "total_tools": len(TOOL_CATALOG),
             "custom_skills": len(_custom_skills),
             "enabled_tools": enabled_count,
+            "gateway_agents_with_tools": gateway_agents_with_tools,
         }
 
     # ── API handlers ─────────────────────────────────────────────────

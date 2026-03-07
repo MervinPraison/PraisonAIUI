@@ -22,6 +22,8 @@ const BUILTIN_VIEWS = {
   overview:       '/plugins/views/overview.js',
   agents:         '/plugins/views/agents.js',
   sessions:       '/plugins/views/sessions.js',
+  memory:         '/plugins/views/memory.js',
+  knowledge:      '/plugins/views/memory.js',
   logs:           '/plugins/views/logs.js',
   schedules:      '/plugins/views/schedules.js',
   cron:           '/plugins/views/schedules.js',

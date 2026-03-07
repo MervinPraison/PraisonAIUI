@@ -56,7 +56,9 @@ const FEATURES = [
     ]},
     { name: "memory",         endpoints: [
       { label: "List",          method: "GET",  url: "/api/memory" },
+      { label: "Status",        method: "GET",  url: "/api/memory/status" },
       { label: "Store",         method: "POST", url: "/api/memory", body: { key: "demo", value: "Hello Explorer!" } },
+      { label: "Search",        method: "POST", url: "/api/memory/search", body: { query: "demo", limit: 5 } },
       { label: "Context",       method: "POST", url: "/api/memory/context", body: { query: "demo", limit: 5 } },
     ]},
   ]},
@@ -105,6 +107,8 @@ const FEATURES = [
   { group: "Observability", items: [
     { name: "logs",           endpoints: [
       { label: "Recent Logs",   method: "GET",  url: "/api/logs" },
+      { label: "Stats",         method: "GET",  url: "/api/logs/stats" },
+      { label: "Levels",        method: "GET",  url: "/api/logs/levels" },
     ]},
     { name: "usage",          endpoints: [
       { label: "Summary",       method: "GET",  url: "/api/usage/summary" },
@@ -138,6 +142,13 @@ const FEATURES = [
       { label: "All Features",  method: "GET",  url: "/api/features" },
       { label: "Pages",         method: "GET",  url: "/api/pages" },
       { label: "Health",        method: "GET",  url: "/api/health" },
+    ]},
+    { name: "gateway",        endpoints: [
+      { label: "Status",        method: "GET",  url: "/api/gateway/status" },
+    ]},
+    { name: "config",         endpoints: [
+      { label: "Get Config",    method: "GET",  url: "/api/config" },
+      { label: "Schema",        method: "GET",  url: "/api/config/schema" },
     ]},
   ]},
 ];

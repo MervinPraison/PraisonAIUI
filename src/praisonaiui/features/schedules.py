@@ -259,7 +259,42 @@ class PraisonAISchedules(BaseFeatureProtocol):
             job.last_run_at = last_run_at
             if hasattr(store, 'update'):
                 store.update(job)
-        return JSONResponse({"triggered": job_id, "last_run_at": last_run_at})
+        elif isinstance(job, dict):
+            job["last_run_at"] = last_run_at
+
+        # Try to execute the action via a gateway-registered agent
+        result = None
+        action = _getattr_or_get(job, "action", "")
+        agent_name = _getattr_or_get(job, "agent_name", None)
+        if action:
+            try:
+                from praisonaiui.features._gateway_ref import get_gateway
+                gw = get_gateway()
+                agent = None
+                if gw is not None:
+                    for aid in gw.list_agents():
+                        gw_agent = gw.get_agent(aid)
+                        if agent_name and gw_agent and getattr(gw_agent, "name", None) == agent_name:
+                            agent = gw_agent
+                            break
+                    # If no specific agent named, use first available
+                    if agent is None:
+                        agent_ids = gw.list_agents()
+                        if agent_ids:
+                            agent = gw.get_agent(agent_ids[0])
+
+                if agent is not None:
+                    import asyncio
+                    result = await asyncio.to_thread(agent.chat, action)
+                    result = str(result)
+            except (ImportError, Exception) as e:
+                logger.warning("Schedule execution failed: %s", e)
+
+        return JSONResponse({
+            "triggered": job_id,
+            "last_run_at": last_run_at,
+            "result": result,
+        })
 
     async def _update(self, request: Request) -> JSONResponse:
         """Update a schedule configuration."""

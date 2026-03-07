@@ -59,11 +59,25 @@ class VisionAnalysisManager(MediaAnalysisProtocol):
         if not url and not base64_data:
             return {"error": "No image provided", "status": "error"}
 
-        # Try SDK VisionAgent
+        # Try gateway-registered agent first, then fall back to fresh Agent()
+        agent = None
         try:
-            from praisonaiagents import Agent
-            agent = Agent(name="VisionAnalyst", role="Image Analyst",
-                         llm="gpt-4o-mini", self_reflect=False)
+            from ._gateway_ref import get_gateway
+            gw = get_gateway()
+            if gw is not None:
+                for aid in gw.list_agents():
+                    gw_agent = gw.get_agent(aid)
+                    if gw_agent and getattr(gw_agent, "name", None) == "VisionAnalyst":
+                        agent = gw_agent
+                        break
+        except (ImportError, Exception):
+            pass
+
+        try:
+            if agent is None:
+                from praisonaiagents import Agent
+                agent = Agent(name="VisionAnalyst", role="Image Analyst",
+                             llm="gpt-4o-mini", self_reflect=False)
             # If URL provided, format message with image
             if url:
                 result = agent.chat(f"{prompt}\n\nImage: {url}")
@@ -86,10 +100,24 @@ class VisionAnalysisManager(MediaAnalysisProtocol):
         }
 
     def ocr(self, *, url: Optional[str] = None, base64_data: Optional[str] = None) -> Dict[str, Any]:
+        agent = None
         try:
-            from praisonaiagents import Agent
-            agent = Agent(name="OCRAgent", role="OCR Specialist",
-                         llm="gpt-4o-mini", self_reflect=False)
+            from ._gateway_ref import get_gateway
+            gw = get_gateway()
+            if gw is not None:
+                for aid in gw.list_agents():
+                    gw_agent = gw.get_agent(aid)
+                    if gw_agent and getattr(gw_agent, "name", None) == "OCRAgent":
+                        agent = gw_agent
+                        break
+        except (ImportError, Exception):
+            pass
+
+        try:
+            if agent is None:
+                from praisonaiagents import Agent
+                agent = Agent(name="OCRAgent", role="OCR Specialist",
+                             llm="gpt-4o-mini", self_reflect=False)
             source = url or "[base64 data]"
             result = agent.chat(f"Extract all text from this image: {source}")
             return {"text": str(result), "status": "success", "provider": "sdk"}

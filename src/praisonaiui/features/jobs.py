@@ -174,7 +174,7 @@ class PraisonAIJobs(BaseFeatureProtocol):
         })
 
     async def _execute_job(self, job_id: str) -> None:
-        """Execute a job (mock implementation)."""
+        """Execute a job using gateway-registered agents when available."""
         job = _jobs.get(job_id)
         if not job:
             return
@@ -215,42 +215,58 @@ class PraisonAIJobs(BaseFeatureProtocol):
                     job["status"] = JobStatus.FAILED.value
                     job["error"] = praison_job.error
             else:
-                # Try to use praisonaiagents.Agent for real execution (DRY)
+                # Try gateway-registered agent first (has memory, tools, state)
+                agent = None
+                agent_name = job.get("config", {}).get("name", "assistant")
                 try:
-                    from praisonaiagents import Agent
-                    
+                    from praisonaiui.features._gateway_ref import get_gateway
+                    gw = get_gateway()
+                    if gw is not None:
+                        for aid in gw.list_agents():
+                            gw_agent = gw.get_agent(aid)
+                            if gw_agent and getattr(gw_agent, "name", None) == agent_name:
+                                agent = gw_agent
+                                break
+                except (ImportError, Exception):
+                    pass
+
+                if agent is None:
+                    # Fallback: create fresh Agent
+                    try:
+                        from praisonaiagents import Agent
+
+                        instructions = job.get("config", {}).get("instructions", "")
+                        model = job.get("config", {}).get("model", "gpt-4o-mini")
+                        agent = Agent(
+                            name=agent_name,
+                            instructions=instructions,
+                            llm=model,
+                        )
+                    except ImportError:
+                        agent = None
+
+                if agent is not None:
                     job["progress_percentage"] = 10
                     job["progress_step"] = "Creating agent..."
                     await self._notify_progress(job_id)
-                    
-                    # Create agent from job config
-                    agent_name = job.get("config", {}).get("name", "assistant")
-                    instructions = job.get("config", {}).get("instructions", "")
-                    model = job.get("config", {}).get("model", "gpt-4o-mini")
-                    
-                    agent = Agent(
-                        name=agent_name,
-                        instructions=instructions,
-                        llm=model,
-                    )
-                    
+
                     job["progress_percentage"] = 30
                     job["progress_step"] = "Executing agent..."
                     await self._notify_progress(job_id)
-                    
+
                     # Execute in thread pool
                     loop = asyncio.get_running_loop()
                     result = await loop.run_in_executor(None, agent.start, job["prompt"])
-                    
+
+                    model = getattr(agent, "llm", "unknown")
                     job["progress_percentage"] = 100
                     job["progress_step"] = "Complete"
                     job["status"] = JobStatus.SUCCEEDED.value
                     job["result"] = result
                     job["metrics"] = {"model": model}
-                    
-                except ImportError:
-                    logger.warning("praisonaiagents not available, using mock execution")
-                    # Fallback to mock execution
+                else:
+                    # Mock fallback
+                    logger.warning("No agent available, using mock execution")
                     for i in range(5):
                         if job.get("_cancel_requested"):
                             job["status"] = JobStatus.CANCELLED.value

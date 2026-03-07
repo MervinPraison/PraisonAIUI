@@ -235,6 +235,19 @@ class SDKMemoryManager(MemoryProtocol):
             "created_at": time.time(),
         }
 
+        # Bridge to gateway agent's memory if agent_id provided
+        if agent_id:
+            try:
+                from ._gateway_ref import get_gateway
+                gw = get_gateway()
+                if gw is not None:
+                    gw_agent = gw.get_agent(agent_id)
+                    if gw_agent and hasattr(gw_agent, "store_memory"):
+                        gw_agent.store_memory(text)
+                        entry["gateway_synced"] = True
+            except (ImportError, Exception) as e:
+                logger.debug("Gateway memory bridge skipped: %s", e)
+
         sdk = self._get_sdk_memory()
         if sdk is not None:
             try:

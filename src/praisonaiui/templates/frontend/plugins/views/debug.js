@@ -9,13 +9,13 @@
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
 
-  let features = [], health = {}, config = {}, chatHealth = {};
+  let features = [], health = {}, config = {}, gatewayData = {};
   let wsStatus = 'unknown', wsLatency = null;
 
   try { const r = await fetch('/api/features'); const d = await r.json(); features = d.features || d || []; if (!Array.isArray(features)) features = []; } catch(e) {}
   try { const r = await fetch('/api/health'); health = await r.json(); } catch(e) { health = { status: 'unreachable' }; }
   try { const r = await fetch('/api/config'); config = await r.json(); } catch(e) {}
-  try { const r = await fetch('/api/chat/health'); chatHealth = await r.json(); } catch(e) { chatHealth = { status: 'unavailable' }; }
+  try { const r = await fetch('/api/gateway/status'); gatewayData = await r.json(); } catch(e) { gatewayData = { status: 'unavailable', connected: false, agents: [], agent_count: 0 }; }
 
   // Test WebSocket
   try {
@@ -30,7 +30,9 @@ export async function render(container) {
   } catch(e) { wsStatus = 'error'; }
 
   const serverStatus = health.status === 'ok' || health.status === 'healthy' ? 'healthy' : health.status || 'unknown';
-  const gatewayStatus = chatHealth.status || chatHealth.gateway || 'unknown';
+  const gatewayConnected = gatewayData.connected === true;
+  const gatewayStatus = gatewayConnected ? 'connected' : gatewayData.status || 'unknown';
+  const gatewayAgents = gatewayData.agents || [];
 
   container.innerHTML = `
     <!-- System Status Cards -->
@@ -42,8 +44,8 @@ export async function render(container) {
       </div>
       <div class="db-card">
         <div class="db-card-title">Gateway</div>
-        <div style="font-size:20px;font-weight:700;margin:6px 0;color:${gatewayStatus === 'ok' || gatewayStatus === 'healthy' ? '#22c55e' : gatewayStatus === 'unavailable' ? '#ef4444' : '#eab308'}">${gatewayStatus === 'ok' || gatewayStatus === 'healthy' ? '● Connected' : '○ ' + gatewayStatus}</div>
-        <div style="font-size:11px;color:var(--db-text-dim)">Chat engine status</div>
+        <div style="font-size:20px;font-weight:700;margin:6px 0;color:${gatewayConnected ? '#22c55e' : '#ef4444'}">${gatewayConnected ? '● Connected' : '○ ' + gatewayStatus}</div>
+        <div style="font-size:11px;color:var(--db-text-dim)">${gatewayAgents.length} agent${gatewayAgents.length !== 1 ? 's' : ''} registered</div>
       </div>
       <div class="db-card">
         <div class="db-card-title">WebSocket</div>
@@ -110,6 +112,20 @@ export async function render(container) {
       </div>
     </div>
 
+    <!-- Gateway Agents -->
+    ${gatewayAgents.length > 0 ? `
+      <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">Gateway Agents</h3>
+      <div class="db-viewer" style="margin-bottom:24px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <tr>
+            <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase">ID</th>
+            <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase">Name</th>
+          </tr>
+          ${gatewayAgents.map(a => `<tr><td style="padding:8px 12px;border-bottom:1px solid var(--db-border);font-family:monospace;font-size:12px">${a.id}</td><td style="padding:8px 12px;border-bottom:1px solid var(--db-border);font-weight:500">${a.name}</td></tr>`).join('')}
+        </table>
+      </div>
+    ` : ''}
+
     <!-- Actions -->
     <div style="display:flex;gap:8px">
       <button id="debug-refresh" style="padding:6px 14px;background:var(--db-accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500">⟳ Refresh All</button>
@@ -123,7 +139,7 @@ export async function render(container) {
     const report = {
       timestamp: new Date().toISOString(),
       server: { status: serverStatus, uptime: health.uptime },
-      gateway: { status: gatewayStatus },
+      gateway: { status: gatewayStatus, connected: gatewayConnected, agents: gatewayAgents.length },
       websocket: { status: wsStatus, latency: wsLatency },
       features: features.length,
       featureList: features.map(f => typeof f === 'string' ? f : f.name || f.feature),

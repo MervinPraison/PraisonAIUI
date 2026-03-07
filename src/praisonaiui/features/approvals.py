@@ -184,6 +184,22 @@ class PraisonAIApprovals(BaseFeatureProtocol):
             "status": "pending",
             "created_at": time.time(),
         }
+
+        # Validate agent exists in gateway (Gap 6 bridge)
+        if agent_name:
+            try:
+                from ._gateway_ref import get_gateway
+                gw = get_gateway()
+                if gw is not None:
+                    for aid in gw.list_agents():
+                        gw_agent = gw.get_agent(aid)
+                        if gw_agent and getattr(gw_agent, "name", None) == agent_name:
+                            entry["gateway_agent_found"] = True
+                            break
+                    else:
+                        entry["gateway_agent_found"] = False
+            except (ImportError, Exception):
+                pass
         
         # Check for auto-action
         auto_action = _check_auto_action(tool_name, agent_name, risk_level)

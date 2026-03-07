@@ -127,11 +127,20 @@ class PraisonAILogs(BaseFeatureProtocol):
         }]
 
     async def health(self) -> Dict[str, Any]:
+        gateway_agent_count = 0
+        try:
+            from ._gateway_ref import get_gateway
+            gw = get_gateway()
+            if gw is not None:
+                gateway_agent_count = len(list(gw.list_agents()))
+        except (ImportError, Exception):
+            pass
         return {
             "status": "ok",
             "feature": self.name,
             "buffer_size": len(_log_buffer),
             "connected_clients": len(_ws_clients),
+            "gateway_agent_count": gateway_agent_count,
         }
 
     # ── WebSocket endpoint ───────────────────────────────────────────
@@ -232,11 +241,20 @@ class PraisonAILogs(BaseFeatureProtocol):
             if level in level_counts:
                 level_counts[level] += 1
         
+        gateway_agent_count = 0
+        try:
+            from ._gateway_ref import get_gateway
+            gw = get_gateway()
+            if gw is not None:
+                gateway_agent_count = len(list(gw.list_agents()))
+        except (ImportError, Exception):
+            pass
         return JSONResponse({
             "total": len(_log_buffer),
             "by_level": level_counts,
             "connected_clients": len(_ws_clients),
             "buffer_max": _log_buffer.maxlen,
+            "gateway_agent_count": gateway_agent_count,
         })
 
     # ── CLI handlers ─────────────────────────────────────────────────

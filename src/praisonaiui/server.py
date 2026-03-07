@@ -483,6 +483,43 @@ async def api_features(request: Request) -> JSONResponse:
     return JSONResponse({"features": infos, "count": len(infos)})
 
 
+async def api_gateway_status(request: Request) -> JSONResponse:
+    """GET /api/gateway/status — real gateway connectivity and agent info."""
+    try:
+        from praisonaiui.features._gateway_ref import get_gateway
+        gw = get_gateway()
+        if gw is None:
+            return JSONResponse({
+                "status": "not_connected",
+                "connected": False,
+                "agents": [],
+                "agent_count": 0,
+                "message": "Gateway instance not initialized",
+            })
+        agents = []
+        try:
+            for aid in gw.list_agents():
+                agent = gw.get_agent(aid)
+                name = getattr(agent, "name", aid) if agent else aid
+                agents.append({"id": aid, "name": name})
+        except Exception:
+            pass
+        return JSONResponse({
+            "status": "connected",
+            "connected": True,
+            "agents": agents,
+            "agent_count": len(agents),
+        })
+    except ImportError:
+        return JSONResponse({
+            "status": "unavailable",
+            "connected": False,
+            "agents": [],
+            "agent_count": 0,
+            "message": "Gateway module not installed",
+        })
+
+
 async def api_page_data(request: Request) -> JSONResponse:
     """Serve data for a custom user-registered page."""
     page_id = request.path_params["page_id"]
@@ -965,6 +1002,8 @@ def create_app(
         Route("/api/pages/{page_id}/data", api_page_data, methods=["GET"]),
         # Feature protocol registry
         Route("/api/features", api_features, methods=["GET"]),
+        # Gateway status
+        Route("/api/gateway/status", api_gateway_status, methods=["GET"]),
     ]
 
     # ── Auto-register and mount feature protocol routes ──────────────
@@ -998,6 +1037,8 @@ def create_app(
          "description": "Configured AI agents", "order": 10},
         {"id": "skills", "title": "Skills", "icon": "⚡", "group": "Agent",
          "description": "Agent skills & plugins", "order": 20},
+        {"id": "memory", "title": "Memory", "icon": "🧠", "group": "Agent",
+         "description": "Agent memory & knowledge store", "order": 25},
         {"id": "nodes", "title": "Nodes", "icon": "🖥️", "group": "Agent",
          "description": "Execution nodes & approvals", "order": 30},
         {"id": "config", "title": "Config", "icon": "⚙️", "group": "Settings",

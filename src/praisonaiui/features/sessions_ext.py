@@ -202,10 +202,19 @@ class PraisonAISessions(BaseFeatureProtocol):
 
 
     async def health(self) -> Dict[str, Any]:
+        gateway_sessions = 0
+        try:
+            from ._gateway_ref import get_gateway
+            gw = get_gateway()
+            if gw is not None:
+                gateway_sessions = len(list(gw.list_agents()))
+        except (ImportError, Exception):
+            pass
         return {
             "status": "ok",
             "feature": self.name,
             "sessions_with_state": len(_session_metadata),
+            "gateway_agent_sessions": gateway_sessions,
         }
 
     # ── API handlers ─────────────────────────────────────────────────
@@ -230,6 +239,17 @@ class PraisonAISessions(BaseFeatureProtocol):
                 logger.warning(f"store.list_sessions() failed: {e}")
         # Get IDs from metadata
         session_ids.update(_session_metadata.keys())
+        # Merge gateway agent IDs as sessions
+        try:
+            from ._gateway_ref import get_gateway
+            gw = get_gateway()
+            if gw is not None:
+                for aid in gw.list_agents():
+                    agent = gw.get_agent(aid)
+                    name = getattr(agent, "name", aid) if agent else aid
+                    session_ids.add(f"agent:{name}")
+        except (ImportError, Exception):
+            pass
         sessions = []
         for sid in sorted(session_ids):
             meta = _get_metadata(sid)
@@ -275,6 +295,21 @@ class PraisonAISessions(BaseFeatureProtocol):
             content = m.get("content", "") or m.get("text", "")
             if content:
                 context_parts.append(content)
+        # Include gateway agent context if session maps to an agent
+        try:
+            from ._gateway_ref import get_gateway
+            gw = get_gateway()
+            if gw is not None:
+                for aid in gw.list_agents():
+                    agent = gw.get_agent(aid)
+                    name = getattr(agent, "name", aid) if agent else aid
+                    if sid == f"agent:{name}" or sid == name:
+                        role = getattr(agent, "role", "")
+                        if role:
+                            context_parts.append(f"Agent role: {role}")
+                        break
+        except (ImportError, Exception):
+            pass
         return JSONResponse({
             "session_id": sid,
             "query": query,
