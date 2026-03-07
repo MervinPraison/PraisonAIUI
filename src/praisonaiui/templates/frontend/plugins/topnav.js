@@ -14,6 +14,7 @@
 let tabConfig = null;
 let configLoaded = false;
 let currentTabIndex = 0;
+let userClickedTab = false;  // Prevents auto-detection from overriding manual tab clicks
 
 async function loadConfig() {
   if (configLoaded) return;
@@ -191,7 +192,8 @@ function renderTabBar(root) {
 
   const existing = document.querySelector('[data-aiui-plugin="topnav"]');
   if (existing) {
-    updateActiveHighlight();
+    // Don't auto-detect tab if user manually clicked one
+    // (updateActiveHighlight only runs on aiui:navigate events)
     return;
   }
 
@@ -219,10 +221,14 @@ function renderTabBar(root) {
       e.preventDefault();
       e.stopPropagation();
 
+      // Mark as user-clicked to prevent auto-detection override
+      userClickedTab = true;
+
       inner.querySelectorAll('.aiui-topnav-tab').forEach(t =>
         t.classList.remove('aiui-topnav-active')
       );
       el.classList.add('aiui-topnav-active');
+      currentTabIndex = idx;
 
       // Filter sidebar with CSS only — no React DOM mutation
       filterSidebarCSS(idx);
@@ -329,66 +335,50 @@ function injectStyles() {
  * React doesn't add active classes to sidebar items, so we do it via CSS.
  */
 function highlightActiveSidebarItem() {
-  // Clean up any previous highlight
+  // Clear previous highlights — remove data attribute from all buttons
+  document.querySelectorAll('[data-aiui-active-sidebar]').forEach(
+    el => el.removeAttribute('data-aiui-active-sidebar')
+  );
+
+  // Ensure highlight CSS exists
   let styleEl = document.getElementById('aiui-sidebar-highlight');
   if (!styleEl) {
     styleEl = document.createElement('style');
     styleEl.id = 'aiui-sidebar-highlight';
+    styleEl.textContent = `
+      [data-aiui-active-sidebar="true"] {
+        border-left: 3px solid #38bdf8 !important;
+        padding-left: calc(1rem - 3px) !important;
+        color: #e2e8f0 !important;
+        font-weight: 500 !important;
+        background: rgba(56, 189, 248, 0.08) !important;
+      }
+    `;
     document.head.appendChild(styleEl);
   }
 
   const path = window.location.pathname.replace(/\/$/, '') || '/';
   
   // Homepage doesn't have a sidebar item to highlight
-  if (path === '/' || path === '/index.html') {
-    styleEl.textContent = '';
-    return;
-  }
+  if (path === '/' || path === '/index.html') return;
 
   // Extract the page slug from the URL
-  // e.g. /docs/getting-started/installation → "installation"
-  // e.g. /features/model-fallback → "model fallback"
   const slug = path.split('/').pop().replace(/-/g, ' ').toLowerCase();
-  if (!slug) {
-    styleEl.textContent = '';
-    return;
-  }
+  if (!slug) return;
 
-  // Find all sidebar nav buttons
+  // Find the matching sidebar button and directly mark it
   const nav = document.querySelector('aside nav');
   if (!nav) return;
 
   const buttons = nav.querySelectorAll('button');
-  let matchIndex = -1;
-
-  for (let i = 0; i < buttons.length; i++) {
-    const btnText = buttons[i].textContent.trim().toLowerCase();
+  for (const btn of buttons) {
+    const btnText = btn.textContent.trim().toLowerCase();
     if (btnText === slug) {
-      // Find this button's index among nav's children (for nth-child)
-      // Walk up to find the parent child index in nav
-      let el = buttons[i];
-      while (el.parentElement && el.parentElement !== nav) {
-        el = el.parentElement;
-      }
-      const children = Array.from(nav.children);
-      matchIndex = children.indexOf(el);
+      btn.setAttribute('data-aiui-active-sidebar', 'true');
+      // Scroll the active item into view in the sidebar
+      btn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       break;
     }
-  }
-
-  if (matchIndex >= 0) {
-    // Target the specific nav child and any button inside it
-    styleEl.textContent = `
-      aside nav > :nth-child(${matchIndex + 1}) button,
-      aside nav > :nth-child(${matchIndex + 1}).aiui-sidebar-active-item {
-        border-left: 3px solid #38bdf8 !important;
-        padding-left: calc(1rem - 3px) !important;
-        color: #e2e8f0 !important;
-        font-weight: 500 !important;
-      }
-    `;
-  } else {
-    styleEl.textContent = '';
   }
 }
 
@@ -401,6 +391,17 @@ export default {
   async init() {
     injectStyles();
     await loadConfig();
+
+    // Listen for SPA navigation events
+    window.addEventListener('aiui:navigate', function () {
+      // Reset the user-clicked flag so tab auto-detection works for new pages
+      userClickedTab = false;
+      if (tabConfig) {
+        updateActiveHighlight();
+      }
+      highlightActiveSidebarItem();
+    });
+
     console.debug('[AIUI:topnav] Loaded.', tabConfig ? tabConfig.tabs.length + ' tabs' : 'No tabs');
   },
   onContentChange(root) {
@@ -409,4 +410,3 @@ export default {
     highlightActiveSidebarItem();
   },
 };
-

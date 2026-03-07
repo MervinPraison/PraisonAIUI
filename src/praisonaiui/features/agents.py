@@ -86,6 +86,48 @@ def set_agents_data_file(path: Path) -> None:
     _load_agents()
 
 
+def _sync_to_gateway(agent_def: Dict[str, Any]) -> None:
+    """Create a real praisonaiagents.Agent and register it with the gateway."""
+    try:
+        from ._gateway_ref import get_gateway
+        gw = get_gateway()
+        if gw is None:
+            return
+
+        from praisonaiagents import Agent
+        agent = Agent(
+            name=agent_def.get("name", "assistant"),
+            instructions=(
+                agent_def.get("instructions")
+                or agent_def.get("system_prompt")
+                or "You are a helpful assistant."
+            ),
+            llm=agent_def.get("model", "gpt-4o-mini"),
+            memory=True,
+        )
+        gw.register_agent(agent, agent_id=agent_def["id"])
+        logger.info(f"Agent synced to gateway: {agent_def['id']} ({agent_def.get('name')})")
+    except ImportError:
+        pass
+    except Exception as e:
+        logger.warning(f"Failed to sync agent to gateway: {e}")
+
+
+def _unsync_from_gateway(agent_id: str) -> None:
+    """Unregister an agent from the gateway."""
+    try:
+        from ._gateway_ref import get_gateway
+        gw = get_gateway()
+        if gw is None:
+            return
+        gw.unregister_agent(agent_id)
+        logger.info(f"Agent unsynced from gateway: {agent_id}")
+    except ImportError:
+        pass
+    except Exception as e:
+        logger.warning(f"Failed to unsync agent from gateway: {e}")
+
+
 def create_agent(
     name: str,
     description: str = "",
@@ -119,6 +161,7 @@ def create_agent(
     
     _agent_definitions[agent_id] = agent
     _save_agents()
+    _sync_to_gateway(agent)
     return agent
 
 
@@ -142,6 +185,7 @@ def update_agent(agent_id: str, **updates) -> Dict[str, Any] | None:
     agent["updated_at"] = time.time()
     _agent_definitions[agent_id] = agent
     _save_agents()
+    _sync_to_gateway(agent)  # Re-register with updated config
     return agent
 
 
@@ -150,6 +194,7 @@ def delete_agent(agent_id: str) -> bool:
     if agent_id not in _agent_definitions:
         return False
     
+    _unsync_from_gateway(agent_id)
     del _agent_definitions[agent_id]
     _save_agents()
     return True
@@ -341,16 +386,26 @@ class PraisonAIAgentsFeature(BaseFeatureProtocol):
             return JSONResponse({"error": "Prompt is required"}, status_code=400)
         
         try:
-            # Lazy import praisonaiagents.Agent (DRY)
-            from praisonaiagents import Agent
-            
-            # Create real Agent from definition
-            agent = Agent(
-                name=agent_def.get("name", "assistant"),
-                instructions=agent_def.get("instructions", "") or agent_def.get("system_prompt", ""),
-                llm=agent_def.get("model", "gpt-4o-mini"),
-            )
-            
+            agent = None
+
+            # Prefer the gateway-registered agent (has memory, history)
+            try:
+                from ._gateway_ref import get_gateway
+                gw = get_gateway()
+                if gw is not None:
+                    agent = gw.get_agent(agent_id)
+            except ImportError:
+                pass
+
+            # Fallback: create a fresh agent
+            if agent is None:
+                from praisonaiagents import Agent
+                agent = Agent(
+                    name=agent_def.get("name", "assistant"),
+                    instructions=agent_def.get("instructions", "") or agent_def.get("system_prompt", ""),
+                    llm=agent_def.get("model", "gpt-4o-mini"),
+                )
+
             # Execute in thread pool to not block event loop
             loop = asyncio.get_running_loop()
             result = await loop.run_in_executor(None, agent.start, prompt)
