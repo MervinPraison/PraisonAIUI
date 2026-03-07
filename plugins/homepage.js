@@ -161,7 +161,30 @@ function escapeHtml(text) {
 
 export default {
   name: 'homepage',
-  init() { console.debug('[AIUI:homepage] Homepage plugin loaded.'); },
+  init() {
+    // Listen for SPA navigation events
+    window.addEventListener('aiui:navigate', function (e) {
+      const path = e.detail && e.detail.path;
+      if (!path) return;
+
+      const normalized = (path || '/').replace(/\/$/, '') || '/';
+
+      if (normalized === '/' || normalized === '/index.html') {
+        // Navigating TO homepage
+        hasRendered = false;
+        const root = document.getElementById('root');
+        if (root) replaceHomepage(root);
+      } else if (hasRendered) {
+        // Navigating AWAY from homepage
+        hasRendered = false;
+        const old = document.querySelector('[data-aiui-plugin="homepage"]');
+        if (old) old.remove();
+        setHomepageMode(false);
+      }
+    });
+
+    console.debug('[AIUI:homepage] Homepage plugin loaded.');
+  },
   onContentChange(root) {
     // When navigating away from homepage, clean up
     if (!isHomepage() && hasRendered) {

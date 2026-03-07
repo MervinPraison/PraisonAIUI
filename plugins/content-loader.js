@@ -297,13 +297,83 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, function (m) { return map[m]; });
 }
 
+/**
+ * Navigate to new content via SPA (called from aiui:navigate event).
+ * Unlike loadContent(), this doesn't check isDefaultView() — we know we need to swap.
+ */
+async function navigateToContent(targetPath) {
+  // Map the target path to a markdown file
+  let mdPath;
+  const path = targetPath || '/';
+  if (path === '/' || path === '/index.html' || path === '') {
+    mdPath = '/docs/index.md';
+  } else {
+    mdPath = path.replace(/\/$/, '').replace(/\/index$/, '') + '.md';
+  }
+
+  // Don't reload the same content
+  if (mdPath === loadedPath) return;
+
+  const root = document.getElementById('root');
+  if (!root) return;
+  const main = root.querySelector('main.flex-1');
+  if (!main) return;
+
+  try {
+    const response = await fetch(mdPath);
+    if (!response.ok) {
+      console.debug('[AIUI:content-loader] No markdown at', mdPath);
+      return;
+    }
+    const markdown = await response.text();
+
+    loadedPath = mdPath;
+    currentPath = window.location.pathname;
+
+    // Remove any previously injected content
+    const old = document.querySelector('[data-aiui-plugin="content-loader"]');
+    if (old) old.remove();
+
+    // Also remove the homepage plugin's content if present
+    const oldHome = document.querySelector('[data-aiui-plugin="homepage"]');
+    if (oldHome) oldHome.remove();
+
+    // Create and inject our article
+    const article = document.createElement('article');
+    article.className = 'prose max-w-none dark:prose-invert p-6';
+    article.dataset.aiuiPlugin = 'content-loader';
+    article.innerHTML = markdownToHtml(markdown);
+    main.appendChild(article);
+
+    // Hide React's debug content
+    setContentMode(true);
+
+    // Update the "On This Page" ToC
+    updateTocSidebar(article);
+
+    console.debug('[AIUI:content-loader] SPA navigated to', mdPath);
+  } catch (err) {
+    console.warn('[AIUI:content-loader] Failed to navigate:', mdPath, err);
+  }
+}
+
 export default {
   name: 'content-loader',
   init() {
     currentPath = window.location.pathname;
+
+    // Listen for SPA navigation events
+    window.addEventListener('aiui:navigate', function (e) {
+      const path = e.detail && e.detail.path;
+      if (path) {
+        navigateToContent(path);
+      }
+    });
+
     console.debug('[AIUI:content-loader] Plugin loaded for path:', currentPath);
   },
   onContentChange(root) {
     loadContent(root);
   },
 };
+
