@@ -33,6 +33,7 @@ const BUILTIN_VIEWS = {
   tools:          '/plugins/views/skills.js',
   nodes:          '/plugins/views/nodes.js',
   instances:      '/plugins/views/nodes.js',
+  explorer:       '/plugins/views/explorer.js',
 };
 
 // Public API for extending the dashboard (protocol-first, extendable)
