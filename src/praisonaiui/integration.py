@@ -219,6 +219,14 @@ class AIUIGateway:
         except ImportError:
             pass
 
+        # Wire agent CRUD persistence to default data file
+        try:
+            from praisonaiui.features.agents import set_agents_data_file
+            default_data_dir = Path.home() / ".praisonaiui"
+            set_agents_data_file(default_data_dir / "agents.json")
+        except ImportError:
+            pass
+
         logger.info(f"AIUI Gateway started on http://{self._host}:{self._port}")
 
         await self._server.serve()

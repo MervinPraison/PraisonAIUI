@@ -62,12 +62,12 @@ def _save_agents() -> None:
                 "agents": _agent_definitions,
                 "saved_at": time.time(),
             }, f, indent=2)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to save agents to {_data_file}: {e}")
 
 
 def _load_agents() -> None:
-    """Load agent definitions from disk."""
+    """Load agent definitions from disk and sync to gateway."""
     global _agent_definitions
     if not _data_file or not _data_file.exists():
         return
@@ -75,8 +75,13 @@ def _load_agents() -> None:
         with open(_data_file) as f:
             data = json.load(f)
         _agent_definitions = data.get("agents", {})
-    except Exception:
-        pass
+        # Sync all loaded agents to gateway so they're available for execution
+        for agent_def in _agent_definitions.values():
+            _sync_to_gateway(agent_def)
+        if _agent_definitions:
+            logger.info(f"Loaded {len(_agent_definitions)} agents from {_data_file}")
+    except Exception as e:
+        logger.warning(f"Failed to load agents from {_data_file}: {e}")
 
 
 def set_agents_data_file(path: Path) -> None:
@@ -95,16 +100,25 @@ def _sync_to_gateway(agent_def: Dict[str, Any]) -> None:
             return
 
         from praisonaiagents import Agent
-        agent = Agent(
-            name=agent_def.get("name", "assistant"),
-            instructions=(
+
+        # Build Agent kwargs from definition — pass through tools & temperature
+        agent_kwargs: Dict[str, Any] = {
+            "name": agent_def.get("name", "assistant"),
+            "instructions": (
                 agent_def.get("instructions")
                 or agent_def.get("system_prompt")
                 or "You are a helpful assistant."
             ),
-            llm=agent_def.get("model", "gpt-4o-mini"),
-            memory=True,
-        )
+            "llm": agent_def.get("model", "gpt-4o-mini"),
+            "memory": True,
+        }
+
+        # Pass tools if specified
+        tool_names = agent_def.get("tools", [])
+        if tool_names:
+            agent_kwargs["tools"] = tool_names
+
+        agent = Agent(**agent_kwargs)
         gw.register_agent(agent, agent_id=agent_def["id"])
         logger.info(f"Agent synced to gateway: {agent_def['id']} ({agent_def.get('name')})")
     except ImportError:
@@ -201,8 +215,30 @@ def delete_agent(agent_id: str) -> bool:
 
 
 def get_agent(agent_id: str) -> Dict[str, Any] | None:
-    """Get an agent definition by ID."""
-    return _agent_definitions.get(agent_id)
+    """Get an agent definition by ID, falling back to gateway."""
+    agent = _agent_definitions.get(agent_id)
+    if agent is not None:
+        return agent
+
+    # Fallback: check gateway-registered agents
+    try:
+        from ._gateway_ref import get_gateway
+        gw = get_gateway()
+        if gw is not None:
+            gw_agent = gw.get_agent(agent_id)
+            if gw_agent is not None:
+                return {
+                    "id": agent_id,
+                    "name": getattr(gw_agent, "name", agent_id),
+                    "description": getattr(gw_agent, "backstory", ""),
+                    "instructions": getattr(gw_agent, "instructions", ""),
+                    "model": getattr(gw_agent, "llm", "gpt-4o-mini"),
+                    "source": "gateway",
+                    "status": "active",
+                }
+    except Exception:
+        pass
+    return None
 
 
 def list_agents_definitions() -> List[Dict[str, Any]]:
@@ -248,20 +284,52 @@ class PraisonAIAgentsFeature(BaseFeatureProtocol):
 
     async def health(self) -> Dict[str, Any]:
         active = sum(1 for a in _agent_definitions.values() if a.get("status") == "active")
+        gateway_synced = 0
+        try:
+            from ._gateway_ref import get_gateway
+            gw = get_gateway()
+            if gw is not None:
+                gw_ids = set(gw.list_agents())
+                gateway_synced = sum(1 for aid in _agent_definitions if aid in gw_ids)
+        except Exception:
+            pass
         return {
             "status": "ok",
             "feature": self.name,
             "total_agents": len(_agent_definitions),
             "active_agents": active,
+            "gateway_synced": gateway_synced,
         }
 
     # ── API handlers ─────────────────────────────────────────────────
 
     async def _list(self, request: Request) -> JSONResponse:
-        """List all agent definitions."""
+        """List all agent definitions, merged with gateway-registered agents."""
         status_filter = request.query_params.get("status")
         agents = list_agents_definitions()
-        
+        crud_ids = {a["id"] for a in agents}
+
+        # Merge gateway-only agents (registered programmatically, not via CRUD)
+        try:
+            from ._gateway_ref import get_gateway
+            gw = get_gateway()
+            if gw is not None:
+                for aid in gw.list_agents():
+                    if aid not in crud_ids:
+                        gw_agent = gw.get_agent(aid)
+                        agents.append({
+                            "id": aid,
+                            "name": getattr(gw_agent, "name", aid) if gw_agent else aid,
+                            "description": getattr(gw_agent, "backstory", "") if gw_agent else "",
+                            "instructions": getattr(gw_agent, "instructions", "") if gw_agent else "",
+                            "model": getattr(gw_agent, "llm", "gpt-4o-mini") if gw_agent else "gpt-4o-mini",
+                            "source": "gateway",
+                            "status": "active",
+                            "created_at": time.time(),
+                        })
+        except Exception:
+            pass
+
         if status_filter:
             agents = [a for a in agents if a.get("status") == status_filter]
         
@@ -340,17 +408,12 @@ class PraisonAIAgentsFeature(BaseFeatureProtocol):
         if not original:
             return JSONResponse({"error": "Agent not found"}, status_code=404)
         
-        # Create a copy with new name
-        new_agent = create_agent(
-            name=f"{original['name']} (Copy)",
-            description=original.get("description", ""),
-            instructions=original.get("instructions", ""),
-            system_prompt=original.get("system_prompt", ""),
-            model=original.get("model", "gpt-4o-mini"),
-            temperature=original.get("temperature", 0.7),
-            tools=original.get("tools", []),
-            icon=original.get("icon", "🤖"),
-        )
+        # Copy all fields except id/timestamps, preserving any extra kwargs
+        skip_fields = {"id", "created_at", "updated_at"}
+        copy_kwargs = {k: v for k, v in original.items() if k not in skip_fields}
+        copy_kwargs["name"] = f"{original['name']} (Copy)"
+        
+        new_agent = create_agent(**copy_kwargs)
         
         return JSONResponse(new_agent, status_code=201)
 
