@@ -10,6 +10,13 @@
   <meta property="og:locale" content="en_US" />
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <title>Testing | PraisonAIUI Docs</title>
+  <!-- Anti-flicker: hide React's debug/default view until plugins render -->
+  <style id="aiui-anti-flicker">
+    #root main.flex-1>div {
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+  </style>
   <script type="module" crossorigin src="/assets/index.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/index.css">
   <link rel="canonical" href="/docs/testing" />
@@ -77,9 +84,13 @@
         new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
           .observe(root, { childList: true, subtree: true });
       }
+      function removeAntiFlicker() {
+        var af = document.getElementById('aiui-anti-flicker');
+        if (af) af.remove();
+      }
       fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
         var names = cfg.plugins || [];
-        if (!names.length) return;
+        if (!names.length) { removeAntiFlicker(); return; }
         Promise.allSettled(names.map(function (name) {
           return import('/plugins/' + name + '.js').then(function (mod) {
             var p = mod.default || mod; p.name = p.name || name;
@@ -88,12 +99,15 @@
           }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
         })).then(function () {
           observe();
-          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
-          setTimeout(notify, 300);
-          setTimeout(notify, 3000);
+          // Immediate first pass — no delay
+          notify();
+          // Remove anti-flicker now that plugins have rendered
+          removeAntiFlicker();
+          // Delayed pass for CDN-loaded plugins (mermaid, syntax-highlight)
+          setTimeout(notify, 2000);
           console.debug('[AIUI]', plugins.length, 'plugin(s) active');
         });
-      }).catch(function () { });
+      }).catch(function () { removeAntiFlicker(); });
     })();
   </script>
 </body>

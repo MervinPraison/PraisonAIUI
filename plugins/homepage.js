@@ -37,10 +37,13 @@ function setHomepageMode(active) {
   }
 
   if (active) {
-    // Hide all direct children of main EXCEPT our injected article
+    // Use opacity + absolute positioning instead of display:none
+    // to prevent layout collapse (the "black flash")
     styleEl.textContent = `
-      body.aiui-homepage-active main.flex-1 > :not([data-aiui-plugin="homepage"]) {
-        display: none !important;
+      body.aiui-homepage-active main.flex-1 > :not([data-aiui-plugin]) {
+        opacity: 0 !important;
+        position: absolute !important;
+        pointer-events: none !important;
       }
     `;
     document.body.classList.add('aiui-homepage-active');
@@ -57,28 +60,31 @@ async function replaceHomepage(root) {
 
   hasRendered = true;
 
-  const main = root.querySelector('main.flex-1');
-  if (!main) return;
-
-  // Hide React's debug content immediately (before fetch)
-  setHomepageMode(true);
-
   try {
     const response = await fetch('/docs/index.md');
     if (!response.ok) {
-      setHomepageMode(false);  // Restore if no markdown found
       hasRendered = false;
       return;
     }
     const markdown = await response.text();
 
-    // Append our content as a new child (React won't reconcile it)
+    const main = root.querySelector('main.flex-1');
+    if (!main) {
+      hasRendered = false;
+      return;
+    }
+
+    // Create article FIRST, then hide-old + show-new atomically
     const article = document.createElement('article');
     article.className = 'prose max-w-none dark:prose-invert p-6';
     article.dataset.aiuiPlugin = 'homepage';
     article.innerHTML = simpleMarkdownToHtml(markdown);
     main.appendChild(article);
+
+    // NOW safe to hide the debug content — our article is already visible
+    setHomepageMode(true);
   } catch (err) {
+    hasRendered = false;
     console.warn('[AIUI:homepage] Failed to load homepage content:', err);
   }
 }

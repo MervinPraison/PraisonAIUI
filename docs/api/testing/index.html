@@ -10,6 +10,13 @@
   <meta property="og:locale" content="en_US" />
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <title>API Testing Guide | PraisonAIUI Docs</title>
+  <!-- Anti-flicker: hide React's debug/default view until plugins render -->
+  <style id="aiui-anti-flicker">
+    #root main.flex-1>div {
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+  </style>
   <script type="module" crossorigin src="/assets/index.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/index.css">
   <link rel="canonical" href="/docs/api/testing" />
@@ -38,10 +45,48 @@
 <h2>10. OpenAI-Compatible API</h2>
 <h2>11. Logs</h2>
 <h2>12. Sessions</h2>
-<h2>13–15. Memory, Hooks, Workflows</h2>
+<h2>13. Memory</h2>
+<h2>14–15. Hooks, Workflows</h2>
 <h2>16. Features (Meta)</h2>
 <p>---</p>
-<h2>Running the Full Test Suite</h2>
+<h2>CLI Integration Tests (`aiui test`)</h2>
+<p>PraisonAIUI includes built-in integration tests via</p>
+<p>`aiui test`. These run against a live server and verify chat, memory, sessions,</p>
+<p>and API endpoint health.</p>
+<h3>Quick Start</h3>
+<h3>Available Subcommands</h3>
+<p>| Command | What It Tests |</p>
+<p>|---------|---------------|</p>
+<p>| `aiui test endpoints` | API endpoint availability (/health, /api/features, /api/sessions, /api/chat) |</p>
+<p>| `aiui test chat` | Message sending, session history isolation, context recall |</p>
+<p>| `aiui test memory` | Cross-session persistent memory (store + recall facts) |</p>
+<p>| `aiui test sessions` | Session file persistence (survives server restarts) |</p>
+<p>| `aiui test all` | Runs all of the above in sequence |</p>
+<h3>Options</h3>
+<li>`--server` / `-s` — Server URL (default: `http://127.0.0.1:8082`)</li>
+<li>`--timeout` / `-t` — Response timeout in seconds (default: `30`)</li>
+<h3>Example Output</h3>
+<h3>Test Details</h3>
+<p>**Endpoints** (6 checks, 2 optional skips):</p>
+<li>`GET /api/features` — Feature registry health</li>
+<li>`GET /api/sessions` — Session listing</li>
+<li>`GET /api/chat/history` — Empty session history</li>
+<li>`POST /api/chat/send` — Chat message dispatch</li>
+<li>`GET /api/provider/health` — _(optional, skipped if no provider)_</li>
+<li>`GET /api/provider/agents` — _(optional, skipped if no provider)_</li>
+<li>`GET /health` — Server health check</li>
+<p>**Chat** (8 checks):</p>
+<li>Sends a message to Session A, verifies response in history</li>
+<li>Creates Session B, verifies history isolation (no cross-session leakage)</li>
+<li>Verifies Session A retains context from earlier messages</li>
+<p>**Memory** (2 checks):</p>
+<li>Sends a fact to Session 1 ("remember my name")</li>
+<li>Asks a recall question in Session 2, verifies cross-session memory</li>
+<p>**Sessions** (4 checks):</p>
+<li>Sends a message and verifies session file is created on disk</li>
+<li>Verifies history API returns persisted messages</li>
+<p>---</p>
+<h2>Running the Full API Test Suite</h2>
 <p>Use the example at `examples/python/14-all-features/app.py` which tests all 16 features programmatically:</p>
 <h2>Expected Results</h2>
 <p>| Feature | Endpoints | Expected |</p>
@@ -58,7 +103,7 @@
 <p>| OpenAI API | 2 | 11 endpoints, 13 models |</p>
 <p>| Logs | 2 | 5 log levels |</p>
 <p>| Sessions | 3 | State save/get/preview |</p>
-<p>| Memory | 1 | 200 (empty until agents run) |</p>
+<p>| Memory | 6 | List, add, search, context, session-scoped, status |</p>
 <p>| Hooks | 1 | 200 (empty until registered) |</p>
 <p>| Workflows | 1 | 200 (empty until created) |</p>
 <p>| Features | 1 | 16 features registered |</p></noscript></div>
@@ -81,9 +126,13 @@
         new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
           .observe(root, { childList: true, subtree: true });
       }
+      function removeAntiFlicker() {
+        var af = document.getElementById('aiui-anti-flicker');
+        if (af) af.remove();
+      }
       fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
         var names = cfg.plugins || [];
-        if (!names.length) return;
+        if (!names.length) { removeAntiFlicker(); return; }
         Promise.allSettled(names.map(function (name) {
           return import('/plugins/' + name + '.js').then(function (mod) {
             var p = mod.default || mod; p.name = p.name || name;
@@ -92,12 +141,15 @@
           }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
         })).then(function () {
           observe();
-          // Two-stage: immediate for fast plugins, delayed for CDN loads (mermaid)
-          setTimeout(notify, 300);
-          setTimeout(notify, 3000);
+          // Immediate first pass — no delay
+          notify();
+          // Remove anti-flicker now that plugins have rendered
+          removeAntiFlicker();
+          // Delayed pass for CDN-loaded plugins (mermaid, syntax-highlight)
+          setTimeout(notify, 2000);
           console.debug('[AIUI]', plugins.length, 'plugin(s) active');
         });
-      }).catch(function () { });
+      }).catch(function () { removeAntiFlicker(); });
     })();
   </script>
 </body>

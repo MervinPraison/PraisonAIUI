@@ -316,15 +316,80 @@ function injectStyles() {
       .aiui-topnav-inner { padding: 0 0.75rem; }
       .aiui-topnav-tab { padding: 0.5rem 0.625rem; font-size: 0.75rem; }
     }
-
-    /* Active sidebar item indicator */
-    aside nav button[class*="font-medium"],
-    aside nav a[class*="bg-accent"] {
-      border-left: 3px solid #38bdf8;
-      padding-left: calc(1rem - 3px);
-    }
   `;
   document.head.appendChild(style);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Active sidebar item highlighting (URL-based)                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Highlight the sidebar button that matches the current URL.
+ * React doesn't add active classes to sidebar items, so we do it via CSS.
+ */
+function highlightActiveSidebarItem() {
+  // Clean up any previous highlight
+  let styleEl = document.getElementById('aiui-sidebar-highlight');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'aiui-sidebar-highlight';
+    document.head.appendChild(styleEl);
+  }
+
+  const path = window.location.pathname.replace(/\/$/, '') || '/';
+  
+  // Homepage doesn't have a sidebar item to highlight
+  if (path === '/' || path === '/index.html') {
+    styleEl.textContent = '';
+    return;
+  }
+
+  // Extract the page slug from the URL
+  // e.g. /docs/getting-started/installation → "installation"
+  // e.g. /features/model-fallback → "model fallback"
+  const slug = path.split('/').pop().replace(/-/g, ' ').toLowerCase();
+  if (!slug) {
+    styleEl.textContent = '';
+    return;
+  }
+
+  // Find all sidebar nav buttons
+  const nav = document.querySelector('aside nav');
+  if (!nav) return;
+
+  const buttons = nav.querySelectorAll('button');
+  let matchIndex = -1;
+
+  for (let i = 0; i < buttons.length; i++) {
+    const btnText = buttons[i].textContent.trim().toLowerCase();
+    if (btnText === slug) {
+      // Find this button's index among nav's children (for nth-child)
+      // Walk up to find the parent child index in nav
+      let el = buttons[i];
+      while (el.parentElement && el.parentElement !== nav) {
+        el = el.parentElement;
+      }
+      const children = Array.from(nav.children);
+      matchIndex = children.indexOf(el);
+      break;
+    }
+  }
+
+  if (matchIndex >= 0) {
+    // Target the specific nav child and any button inside it
+    styleEl.textContent = `
+      aside nav > :nth-child(${matchIndex + 1}) button,
+      aside nav > :nth-child(${matchIndex + 1}).aiui-sidebar-active-item {
+        border-left: 3px solid #38bdf8 !important;
+        padding-left: calc(1rem - 3px) !important;
+        color: #e2e8f0 !important;
+        font-weight: 500 !important;
+      }
+    `;
+  } else {
+    styleEl.textContent = '';
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -341,5 +406,7 @@ export default {
   onContentChange(root) {
     if (!tabConfig) return;
     renderTabBar(root);
+    highlightActiveSidebarItem();
   },
 };
+
