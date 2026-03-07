@@ -1231,10 +1231,10 @@ def run(
         help="Backend mode: 'standalone' (default) or 'praisonai' (uses WebSocketGateway)",
     ),
     datastore: str = typer.Option(
-        "memory",
+        "json",
         "--datastore",
         "-d",
-        help="Data persistence: 'memory' (volatile), 'json' (file-based), or 'json:/path/to/dir'",
+        help="Data persistence: 'json' (file-based, default), 'memory' (volatile), or 'json:/path/to/dir'",
     ),
     style: str = typer.Option(
         "chat",
@@ -2363,6 +2363,12 @@ def session_ext_reset(
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
         raise typer.Exit(code=1)
+
+# ---------------------------------------------------------------------------
+# Test runner — ``aiui test chat|memory|sessions|endpoints|all``
+# ---------------------------------------------------------------------------
+from praisonaiui.test_runner import test_app
+app.add_typer(test_app, name="test")
 
 
 if __name__ == "__main__":

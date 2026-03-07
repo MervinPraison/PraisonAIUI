@@ -18,6 +18,7 @@ let _activeCleanup = null; // cleanup function for the active view
 // Built-in page-to-module mapping (protocol-first: page IDs come from /api/pages)
 // Paths are relative to /plugins/ where dashboard.js is served from
 const BUILTIN_VIEWS = {
+  chat:           '/plugins/views/chat.js',
   overview:       '/plugins/views/overview.js',
   agents:         '/plugins/views/agents.js',
   sessions:       '/plugins/views/sessions.js',
@@ -34,6 +35,7 @@ const BUILTIN_VIEWS = {
   nodes:          '/plugins/views/nodes.js',
   instances:      '/plugins/views/nodes.js',
   explorer:       '/plugins/views/explorer.js',
+  debug:          '/plugins/views/debug.js',
 };
 
 // Public API for extending the dashboard (protocol-first, extendable)

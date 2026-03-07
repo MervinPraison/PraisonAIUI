@@ -373,6 +373,8 @@ class PraisonAIMemory(BaseFeatureProtocol):
             Route("/api/memory", self._add, methods=["POST"]),
             Route("/api/memory/search", self._search, methods=["POST"]),
             Route("/api/memory/context", self._get_context, methods=["POST"]),
+            Route("/api/memory/session/{session_id}", self._list_by_session, methods=["GET"]),
+            Route("/api/memory/status", self._status, methods=["GET"]),
             Route("/api/memory", self._clear, methods=["DELETE"]),
             Route("/api/memory/{memory_id}", self._get, methods=["GET"]),
             Route("/api/memory/{memory_id}", self._delete, methods=["DELETE"]),
@@ -457,6 +459,31 @@ class PraisonAIMemory(BaseFeatureProtocol):
         if not mgr.delete(mem_id):
             return JSONResponse({"error": "Memory not found"}, status_code=404)
         return JSONResponse({"deleted": mem_id})
+
+    async def _list_by_session(self, request: Request) -> JSONResponse:
+        """GET /api/memory/session/{session_id} — list memories for a session."""
+        mgr = get_memory_manager()
+        session_id = request.path_params["session_id"]
+        all_items = mgr.list_all()
+        # Filter by session_id
+        items = [m for m in all_items if m.get("session_id") == session_id]
+        return JSONResponse({"memories": items, "count": len(items), "session_id": session_id})
+
+    async def _status(self, request: Request) -> JSONResponse:
+        """GET /api/memory/status — memory stats and health."""
+        mgr = get_memory_manager()
+        items = mgr.list_all()
+        by_type: Dict[str, int] = {}
+        for m in items:
+            t = m.get("memory_type", "unknown")
+            by_type[t] = by_type.get(t, 0) + 1
+        h = mgr.health()
+        return JSONResponse({
+            "total": len(items),
+            "by_type": by_type,
+            "backend": h.get("backend", "unknown"),
+            "status": h.get("status", "ok"),
+        })
 
     # ── CLI handlers ─────────────────────────────────────────────────
 

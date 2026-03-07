@@ -147,20 +147,36 @@ class PraisonAIProvider(BaseProvider):
         self._agent = agent
         self._agents = agents or []
         self._agent_kwargs = agent_kwargs
+        # Per-session agent cache: each session gets its own Agent
+        # so chat_history is isolated between sessions
+        self._session_agents: Dict[str, Any] = {}
 
-    def _get_or_create_agent(self, agent_name: Optional[str] = None):
-        """Get or lazily create a PraisonAI Agent."""
+    def _get_or_create_agent(
+        self,
+        agent_name: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ):
+        """Get or lazily create a PraisonAI Agent.
+
+        When session_id is provided and no named/pre-configured agent
+        is matched, a per-session Agent is created so that each session
+        has its own isolated chat_history.
+        """
         # If specific agent requested and we have a list
         if agent_name and self._agents:
             for a in self._agents:
                 if getattr(a, "name", None) == agent_name:
                     return a
 
-        # Use provided agent
+        # Use provided single agent (backward compat)
         if self._agent is not None:
             return self._agent
 
-        # Lazy-create default agent
+        # Per-session agent: return cached or create new
+        if session_id and session_id in self._session_agents:
+            return self._session_agents[session_id]
+
+        # Lazy-create agent for this session
         try:
             from praisonaiagents import Agent
         except ImportError:
@@ -169,10 +185,19 @@ class PraisonAIProvider(BaseProvider):
         kwargs = {
             "name": "Assistant",
             "instructions": "You are a helpful assistant. Use markdown formatting.",
+            "memory": True,
         }
         kwargs.update(self._agent_kwargs)
-        self._agent = Agent(**kwargs)
-        return self._agent
+        agent = Agent(**kwargs)
+
+        # Cache per session if session_id provided
+        if session_id:
+            self._session_agents[session_id] = agent
+        else:
+            # No session — store as singleton fallback
+            self._agent = agent
+
+        return agent
 
     async def run(
         self,
@@ -316,7 +341,7 @@ class PraisonAIProvider(BaseProvider):
         **kwargs: Any,
     ) -> AsyncIterator[RunEvent]:
         """Execute via PraisonAI Agent directly with streaming bridge."""
-        agent = self._get_or_create_agent(agent_name)
+        agent = self._get_or_create_agent(agent_name, session_id)
         if agent is None:
             # No praisonaiagents installed — echo fallback
             yield RunEvent(type=RunEventType.RUN_STARTED)
@@ -457,6 +482,14 @@ class PraisonAIProvider(BaseProvider):
             content=full_response,
             agent_name=getattr(agent, "name", agent_name),
         )
+
+        # Auto-store conversation turn to memory for long-term recall
+        if hasattr(agent, 'memory') and agent.memory and hasattr(agent, 'store_memory'):
+            try:
+                summary = f"User: {message}\nAssistant: {full_response[:500]}"
+                await asyncio.to_thread(agent.store_memory, summary)
+            except Exception:
+                pass  # Memory store failures should not break chat
 
     async def list_agents(self) -> List[Dict[str, Any]]:
         """List agents from both the UI registry and configured agents."""

@@ -174,6 +174,19 @@ class ChatManager(ChatProtocol):
         if task and not task.done():
             task.cancel()
             self._active_runs.pop(run_id, None)
+
+            # Invoke registered @aiui.cancel callback
+            try:
+                from praisonaiui.server import _callbacks
+                cancel_cb = _callbacks.get("cancel")
+                if cancel_cb:
+                    import asyncio
+                    r = cancel_cb()
+                    if asyncio.iscoroutine(r):
+                        await r
+            except Exception:
+                pass
+
             return {"status": "aborted", "run_id": run_id}
         return {"status": "no_active_run", "run_id": run_id}
 
@@ -238,6 +251,19 @@ async def _chat_send(request: Request) -> JSONResponse:
         attachments=attachments,
     )
 
+    # Persist user message to datastore
+    from praisonaiui.server import _datastore
+    try:
+        existing = await _datastore.get_session(session_id)
+        if existing is None:
+            await _datastore.create_session(session_id)
+        await _datastore.add_message(session_id, {
+            "role": "user",
+            "content": content,
+        })
+    except Exception:
+        pass
+
     # Also run the provider and stream results to WS clients
     asyncio.create_task(_run_and_broadcast(content, session_id, agent_name))
 
@@ -287,6 +313,13 @@ async def _run_and_broadcast(
                 payload["result"] = event.result
             elif event.type in (RunEventType.REASONING_STARTED, RunEventType.REASONING_STEP, RunEventType.REASONING_COMPLETED):
                 payload["step"] = event.step
+            elif event.type == RunEventType.RUN_PAUSED:
+                extra = getattr(event, "extra_data", {}) or {}
+                payload["question"] = extra.get("question", "The agent needs your input")
+                payload["options"] = extra.get("options", [])
+            elif event.type in (RunEventType.MEMORY_UPDATE_STARTED, RunEventType.UPDATING_MEMORY, RunEventType.MEMORY_UPDATE_COMPLETED):
+                if event.extra_data:
+                    payload["memory_data"] = event.extra_data
 
             if event.agent_name:
                 payload["agent_name"] = event.agent_name
@@ -331,9 +364,19 @@ async def _chat_history(request: Request) -> JSONResponse:
     """GET /api/chat/history/{session_id} — get message history."""
     session_id = request.path_params["session_id"]
     limit = int(request.query_params.get("limit", "50"))
-    mgr = get_chat_manager()
-    history = await mgr.get_history(session_id, limit=limit)
-    return JSONResponse({"messages": history, "session_id": session_id})
+
+    # Read from persistent datastore first
+    from praisonaiui.server import _datastore
+    messages = await _datastore.get_messages(session_id)
+
+    if not messages:
+        # Fall back to in-memory ChatManager for backward compat
+        mgr = get_chat_manager()
+        messages = await mgr.get_history(session_id, limit=limit)
+    else:
+        messages = messages[-limit:]
+
+    return JSONResponse({"messages": messages, "session_id": session_id})
 
 
 async def _chat_abort(request: Request) -> JSONResponse:
@@ -369,12 +412,24 @@ async def _chat_ws(websocket: WebSocket) -> None:
                 agent_name = data.get("agent_name") or data.get("agent")
 
                 if content:
-                    # Store user message
+                    # Store user message in ChatManager
                     await mgr.send_message(
                         content,
                         session_id=session_id,
                         agent_name=agent_name,
                     )
+                    # Also persist user message to datastore
+                    from praisonaiui.server import _datastore
+                    try:
+                        existing = await _datastore.get_session(session_id)
+                        if existing is None:
+                            await _datastore.create_session(session_id)
+                        await _datastore.add_message(session_id, {
+                            "role": "user",
+                            "content": content,
+                        })
+                    except Exception:
+                        pass
                     # Run agent and broadcast
                     asyncio.create_task(
                         _run_and_broadcast(content, session_id, agent_name)
@@ -384,6 +439,23 @@ async def _chat_ws(websocket: WebSocket) -> None:
                 run_id = data.get("run_id", "")
                 result = await mgr.abort_run(run_id)
                 await websocket.send_json(result)
+
+            elif msg_type == "ask_response":
+                response = data.get("response", "")
+                session_id = data.get("session_id", "")
+                run_id = data.get("run_id", "")
+                logger.info(f"Ask response received: {response[:100]} (session={session_id})")
+                # Forward to provider's ask response queue if available
+                from praisonaiui.server import get_provider
+                provider = get_provider()
+                if hasattr(provider, 'submit_ask_response'):
+                    await provider.submit_ask_response(session_id, run_id, response)
+                # Acknowledge
+                await websocket.send_json({
+                    "type": "ask_response_ack",
+                    "session_id": session_id,
+                    "status": "received",
+                })
 
             elif msg_type == "ping":
                 await websocket.send_json({"type": "pong"})

@@ -20,7 +20,7 @@ from starlette.responses import HTMLResponse, JSONResponse, StreamingResponse
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from praisonaiui.datastore import BaseDataStore, MemoryDataStore
+from praisonaiui.datastore import BaseDataStore, JSONFileDataStore, MemoryDataStore
 from praisonaiui.features import auto_register_defaults, get_features
 from praisonaiui.provider import BaseProvider, RunEventType
 
@@ -29,8 +29,8 @@ _callbacks: dict[str, Callable] = {}
 _agents: dict[str, dict[str, Any]] = {}
 # Registry for dashboard pages (protocol-driven)
 _pages: dict[str, dict[str, Any]] = {}
-# Pluggable datastore (default: in-memory)
-_datastore: BaseDataStore = MemoryDataStore()
+# Pluggable datastore (default: persistent JSON file store)
+_datastore: BaseDataStore = JSONFileDataStore()
 # Pluggable AI provider (default: PraisonAI)
 _provider: Optional[BaseProvider] = None  # lazy-init to avoid circular import
 # Track active tasks per session for server-side abort
@@ -975,6 +975,8 @@ def create_app(
 
     # Register built-in dashboard pages via the same protocol
     _builtin_pages = [
+        {"id": "chat", "title": "Chat", "icon": "💬", "group": "Control",
+         "description": "Real-time agent chat", "order": 5},
         {"id": "overview", "title": "Overview", "icon": "📊", "group": "Control",
          "description": "System health and statistics", "order": 10},
         {"id": "channels", "title": "Channels", "icon": "📡", "group": "Control",
