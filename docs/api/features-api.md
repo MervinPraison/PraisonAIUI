@@ -1,6 +1,6 @@
 # Features REST API Reference
 
-Complete API reference for all PraisonAIUI feature protocol endpoints.
+Complete API reference for all **31** PraisonAIUI feature protocol endpoints.
 
 ## Feature Registry
 
@@ -352,6 +352,17 @@ Delete single memory.
 
 ### DELETE /api/memory
 Clear memories. Query: `?type=all`
+
+### POST /api/memory/context
+Get memory context for prompt injection.
+
+```json
+// Request
+{"query": "user preferences", "limit": 5}
+
+// Response
+{"context": "Relevant memories:\n- The user prefers dark mode\n- User likes Python"}
+```
 
 ---
 
@@ -804,3 +815,315 @@ List active sessions.
 
 ### POST /api/auth/password
 Set or change password.
+
+---
+
+## TTS (Text-to-Speech)
+
+### GET /api/tts/voices
+List available voices.
+
+```json
+// Response
+{"voices": [
+    {"id": "default", "name": "Default", "lang": "en-US"},
+    {"id": "google-us", "name": "Google US English", "lang": "en-US"},
+    {"id": "google-uk", "name": "Google UK English", "lang": "en-GB"}
+], "count": 3}
+```
+
+### POST /api/tts/synthesize
+Synthesize speech from text.
+
+```json
+// Request
+{"text": "Hello from PraisonAI", "voice": "default"}
+
+// Response (browser)
+{"type": "browser_speech", "text": "Hello from PraisonAI", "voice": "default",
+ "instruction": "Use window.speechSynthesis.speak(new SpeechSynthesisUtterance(text))"}
+```
+
+---
+
+## Marketplace
+
+Plugin discovery, search, install, and management.
+
+### GET /api/marketplace/plugins
+List all available plugins.
+
+```json
+// Response
+{"plugins": [
+    {"id": "web_search", "name": "Web Search", "category": "tools", "version": "1.0.0", "installed": false},
+    {"id": "code_executor", "name": "Code Executor", "category": "tools", "version": "1.0.0", "installed": false},
+    {"id": "file_manager", "name": "File Manager", "category": "tools", "version": "1.0.0", "installed": false},
+    {"id": "memory_plugin", "name": "Memory Plugin", "category": "memory", "version": "1.0.0", "installed": false}
+], "count": 4}
+```
+
+### POST /api/marketplace/search
+Search plugins by query.
+
+```json
+// Request
+{"query": "search", "limit": 20}
+
+// Response
+{"results": [{"id": "web_search", "name": "Web Search", ...}], "count": 1}
+```
+
+### POST /api/marketplace/install
+Install a plugin.
+
+```json
+// Request
+{"plugin_id": "web_search"}
+
+// Response
+{"status": "installed", "plugin": "web_search"}
+```
+
+### POST /api/marketplace/uninstall
+Uninstall a plugin.
+
+```json
+// Request
+{"plugin_id": "web_search"}
+
+// Response
+{"status": "uninstalled", "plugin": "web_search"}
+```
+
+### GET /api/marketplace/plugins/{id}
+Get plugin details.
+
+```json
+// Response
+{"id": "web_search", "name": "Web Search", "category": "tools",
+ "version": "1.0.0", "description": "Search the web using DuckDuckGo", "installed": true}
+```
+
+---
+
+## Code Execution
+
+Sandboxed code execution with language allowlists.
+
+### GET /api/code/languages
+List supported languages.
+
+```json
+// Response
+{"languages": [
+    {"id": "python", "name": "Python", "version": "3.x"},
+    {"id": "javascript", "name": "JavaScript", "version": "ES2020"},
+    {"id": "bash", "name": "Bash", "version": "5.x"}
+], "count": 3}
+```
+
+### POST /api/code/execute
+Execute code in sandbox.
+
+```json
+// Request
+{"code": "print('hello')", "language": "python", "timeout": 30}
+
+// Response (simulated)
+{"language": "python", "status": "simulated",
+ "output": "[Sandbox] Code received (15 chars, python)",
+ "sandbox": true, "note": "Install praisonaiagents for real execution"}
+
+// Response (disallowed language → 400)
+{"status": "error", "error": "Language 'ruby' not allowed",
+ "allowed": ["python", "bash", "javascript"]}
+```
+
+---
+
+## PWA
+
+Progressive Web App support — manifest, service worker, and installability.
+
+### GET /manifest.json
+Web Application Manifest for installability.
+
+```json
+// Response
+{"name": "PraisonAI", "short_name": "AI", "start_url": "/",
+ "display": "standalone", "theme_color": "#1a1a2e", "background_color": "#16213e",
+ "icons": [{"src": "/api/pwa/icon/192", "sizes": "192x192", "type": "image/png"}, ...],
+ "orientation": "portrait-primary", "scope": "/"}
+```
+
+### GET /sw.js
+Service Worker JavaScript with cache-first strategy.
+
+### GET /api/pwa/config
+PWA configuration details.
+
+```json
+// Response
+{"manifest": {...}, "has_sw": true}
+```
+
+---
+
+## i18n
+
+Internationalization with locale switching and string lookup.
+
+### GET /api/i18n/locales
+List available locales.
+
+```json
+// Response
+{"locales": [
+    {"code": "en", "name": "English", "native": "English"},
+    {"code": "es", "name": "Spanish", "native": "Español"},
+    {"code": "fr", "name": "French", "native": "Français"}
+], "count": 3}
+```
+
+### GET /api/i18n/strings/{locale}
+Get all strings for a locale.
+
+```json
+// Response
+{"locale": "es", "strings": {
+    "app.title": "PraisonAI", "app.welcome": "Bienvenido a PraisonAI",
+    "chat.send": "Enviar", "nav.dashboard": "Panel", ...
+}, "count": 11}
+```
+
+### POST /api/i18n/translate
+Translate a key with optional variables.
+
+```json
+// Request
+{"key": "app.welcome", "locale": "fr"}
+
+// Response
+{"key": "app.welcome", "text": "Bienvenue sur PraisonAI"}
+```
+
+### GET /api/i18n/locale
+Get current default locale.
+
+```json
+// Response
+{"locale": "en"}
+```
+
+### POST /api/i18n/locale
+Set default locale.
+
+```json
+// Request
+{"locale": "fr"}
+
+// Response
+{"locale": "fr"}
+```
+
+---
+
+## Device Pairing
+
+Pair devices to sessions using short hex codes.
+
+### POST /api/pairing/create
+Generate a pairing code.
+
+```json
+// Request
+{"session_id": "my-session"}
+
+// Response (201)
+{"code": "723BE2", "session_id": "my-session",
+ "created_at": 1772834103.42, "expires_at": 1772834403.42, "used": false}
+```
+
+### POST /api/pairing/validate
+Validate and consume a pairing code.
+
+```json
+// Request
+{"code": "723BE2"}
+
+// Response (valid)
+{"valid": true, "device_id": "f408fdebd954d8da", "session_id": "my-session"}
+
+// Response (reused → 400)
+{"valid": false, "error": "Code already used"}
+
+// Response (expired → 400)
+{"valid": false, "error": "Code expired"}
+```
+
+### GET /api/pairing/devices
+List paired devices. Query: `?session_id=my-session`
+
+```json
+// Response
+{"devices": [{"device_id": "f408fdebd954d8da", "session_id": "my-session",
+  "paired_at": 1772834103.56, "user_agent": "unknown"}], "count": 1}
+```
+
+### DELETE /api/pairing/devices/{id}
+Remove a paired device.
+
+```json
+// Response
+{"deleted": "f408fdebd954d8da"}
+
+// Response (not found → 404)
+{"error": "Device not found"}
+```
+
+---
+
+## Media Analysis
+
+Image understanding, OCR, and object detection via VisionAgent.
+
+### GET /api/media/capabilities
+List analysis capabilities.
+
+```json
+// Response
+{"capabilities": ["image_description", "ocr", "object_detection", "image_qa"], "count": 4}
+```
+
+### POST /api/media/analyze
+Analyze an image.
+
+```json
+// Request
+{"url": "https://example.com/photo.jpg", "prompt": "What is in this image?"}
+// or
+{"base64_data": "iVBORw0KGgo...", "mime_type": "image/png"}
+
+// Response (SDK available)
+{"analysis": "The image shows a sunset...", "status": "success", "provider": "sdk"}
+
+// Response (simulated)
+{"analysis": "[Simulated] Image analysis for: ...",
+ "status": "simulated", "provider": "fallback",
+ "note": "Install praisonaiagents for real analysis"}
+
+// Response (no image → 400)
+{"error": "No image provided", "status": "error"}
+```
+
+### POST /api/media/ocr
+Extract text from an image.
+
+```json
+// Request
+{"url": "https://example.com/document.png"}
+
+// Response
+{"text": "Extracted text from the document...", "status": "success", "provider": "sdk"}
+```

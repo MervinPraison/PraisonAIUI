@@ -97,14 +97,27 @@ def _build_html(style: str) -> str:
     """
     title = "PraisonAIUI Dashboard" if style == "dashboard" else "PraisonAIUI"
     cache_bust = int(_server_start_time)
+
+    # Anti-flicker: hide React's debug/default view until plugins render
+    anti_flicker = ""
+    if style == "docs":
+        anti_flicker = (
+            '<style id="aiui-anti-flicker">'
+            '#root main.flex-1 > :not([data-aiui-plugin]) { opacity: 0; }'
+            'header + nav[data-aiui-plugin="topnav"] ~ * { }'  # no-op, reserves DOM slot
+            '</style>'
+        )
+
     return (
         '<!doctype html><html lang="en"><head>'
         '<meta charset="UTF-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1.0">'
         f'<link rel="stylesheet" href="/assets/index.css?v={cache_bust}">'
+        f'{anti_flicker}'
         f'<title>{title}</title>'
         '</head><body>'
         '<div id="root"></div>'
+        f'<script type="module" crossorigin src="/assets/index.js?v={cache_bust}"></script>'
         f'<script src="/plugins/plugin-loader.js?v={cache_bust}"></script>'
         '</body></html>'
     )

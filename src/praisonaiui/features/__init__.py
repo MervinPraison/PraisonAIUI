@@ -42,21 +42,28 @@ def auto_register_defaults() -> None:
     from .browser_automation import PraisonAIBrowserAutomation
     from .channels import PraisonAIChannels
     from .chat import PraisonAIChat
+    from .code_execution import PraisonAICodeExecution
     from .config_hot_reload import PraisonAIConfigHotReload
     from .config_runtime import PraisonAIConfigRuntime
+    from .device_pairing import PraisonAIDevicePairing
     from .hooks import PraisonAIHooks
+    from .i18n import PraisonAII18n
     from .jobs import PraisonAIJobs
     from .logs import PraisonAILogs
+    from .marketplace import PraisonAIMarketplace
+    from .media_analysis import PraisonAIMediaAnalysis
     from .memory import PraisonAIMemory
     from .model_fallback import PraisonAIModelFallback
     from .nodes import PraisonAINodes
     from .openai_api import PraisonAIOpenAIAPI
     from .protocol_version import PraisonAIProtocol
+    from .pwa import PraisonAIPWA
     from .schedules import PraisonAISchedules
     from .sessions_ext import PraisonAISessions
     from .skills import PraisonAISkills
     from .subagents import PraisonAISubagents
     from .theme import PraisonAITheme
+    from .tts import PraisonAITTS
     from .usage import PraisonAIUsage
     from .workflows import PraisonAIWorkflows
 
@@ -68,21 +75,28 @@ def auto_register_defaults() -> None:
         PraisonAIBrowserAutomation,
         PraisonAIChannels,
         PraisonAIChat,
+        PraisonAICodeExecution,
         PraisonAIConfigHotReload,
         PraisonAIConfigRuntime,
+        PraisonAIDevicePairing,
         PraisonAIHooks,
+        PraisonAII18n,
         PraisonAIJobs,
         PraisonAILogs,
+        PraisonAIMarketplace,
+        PraisonAIMediaAnalysis,
         PraisonAIMemory,
         PraisonAIModelFallback,
         PraisonAINodes,
         PraisonAIOpenAIAPI,
         PraisonAIProtocol,
+        PraisonAIPWA,
         PraisonAISchedules,
         PraisonAISessions,
         PraisonAISkills,
         PraisonAISubagents,
         PraisonAITheme,
+        PraisonAITTS,
         PraisonAIUsage,
         PraisonAIWorkflows,
     ):

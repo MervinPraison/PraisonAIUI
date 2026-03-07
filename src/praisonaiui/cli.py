@@ -2023,6 +2023,25 @@ def memory_status(server: str = _SERVER_OPT) -> None:
         raise typer.Exit(code=1)
 
 
+@memory_app.command("context")
+def memory_context(
+    query: str = typer.Argument(help="Query to get context for"),
+    limit: int = typer.Option(5, "--limit", help="Max memories to include"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Get memory context for a query (for prompt injection)."""
+    try:
+        data = _api_post(server, "/api/memory/context", {"query": query, "limit": limit})
+        ctx = data.get("context", "")
+        if ctx:
+            console.print(ctx)
+        else:
+            console.print("[dim]No relevant memories found[/dim]")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
 # ── Skills ───────────────────────────────────────────────────────────
 skills_app = typer.Typer(name="skills", help="Manage agent skills", add_completion=False)
 app.add_typer(skills_app, name="skills")
