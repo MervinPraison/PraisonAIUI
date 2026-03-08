@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" style="background:#0f172a;color:#e2e8f0">
 
 <head>
   <meta charset="UTF-8" />
@@ -10,11 +10,17 @@
   <meta property="og:locale" content="en_US" />
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <title>API Testing Guide | PraisonAIUI Docs</title>
-  <!-- Anti-flicker: hide React's debug/default view until plugins render -->
+  <!-- Instant dark background — prevents white flash between page loads -->
   <style id="aiui-anti-flicker">
-    #root main.flex-1>div {
+    html,
+    body {
+      background: #0f172a !important;
+      color: #e2e8f0;
+    }
+
+    #root>* {
       opacity: 0;
-      transition: opacity 0.15s;
+      transition: opacity 0.15s ease;
     }
   </style>
   <script type="module" crossorigin src="/assets/index.js"></script>
@@ -28,7 +34,7 @@
   <meta name="twitter:description" content="API Testing Guide - Documentation for PraisonAIUI - YAML-driven website generator" />
 </head>
 
-<body>
+<body style="background:#0f172a;margin:0">
   <div id="root"><noscript><h1>API Testing Guide</h1>
 <p>Test all 16 PraisonAIUI feature APIs using curl. Each example creates real data and verifies backend processing.</p>
 <h2>Quick Start</h2>
