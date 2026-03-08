@@ -30,7 +30,7 @@
 
 <body>
   <div id="root"><noscript><h1>Features REST API Reference</h1>
-<p>Complete API reference for all **31** PraisonAIUI feature protocol endpoints.</p>
+<p>Complete API reference for all **36** PraisonAIUI feature protocol endpoints.</p>
 <h2>Feature Registry</h2>
 <h3>GET /api/features</h3>
 <p>List all registered features with health status.</p>
@@ -396,7 +396,70 @@
 <h3>POST /api/media/analyze</h3>
 <p>Analyze an image.</p>
 <h3>POST /api/media/ocr</h3>
-<p>Extract text from an image.</p></noscript></div>
+<p>Extract text from an image.</p>
+<p>---</p>
+<h2>Guardrails</h2>
+<p>Input/output safety guardrails — validation rules, violation tracking, and registration.</p>
+<h3>GET /api/guardrails</h3>
+<p>List all registered guardrails.</p>
+<h3>GET /api/guardrails/status</h3>
+<p>Guardrails feature health.</p>
+<h3>GET /api/guardrails/violations</h3>
+<p>List guardrail violations.</p>
+<h3>POST /api/guardrails/register</h3>
+<p>Register a guardrail rule.</p>
+<p>---</p>
+<h2>Eval</h2>
+<p>Agent evaluation — accuracy scoring, judge models, and evaluation runs.</p>
+<h3>GET /api/eval</h3>
+<p>Overview of evaluation state.</p>
+<h3>GET /api/eval/status</h3>
+<p>Eval feature health.</p>
+<h3>GET /api/eval/scores</h3>
+<p>Get evaluation scores.</p>
+<h3>GET /api/eval/judges</h3>
+<p>List configured judge models.</p>
+<h3>POST /api/eval/run</h3>
+<p>Run an evaluation.</p>
+<p>---</p>
+<h2>Telemetry</h2>
+<p>Performance monitoring — metrics collection, performance stats, and profiling.</p>
+<h3>GET /api/telemetry</h3>
+<p>Telemetry overview.</p>
+<h3>GET /api/telemetry/status</h3>
+<p>Telemetry feature health.</p>
+<h3>GET /api/telemetry/metrics</h3>
+<p>Get collected metrics.</p>
+<h3>GET /api/telemetry/performance</h3>
+<p>Get performance statistics.</p>
+<h3>GET /api/telemetry/profiling</h3>
+<p>Get profiling data.</p>
+<h3>POST /api/telemetry/record</h3>
+<p>Record a telemetry event.</p>
+<p>---</p>
+<h2>Traces</h2>
+<p>Distributed tracing and observability — span recording, trace lookup, and span details.</p>
+<h3>GET /api/traces</h3>
+<p>List recent traces.</p>
+<h3>GET /api/traces/status</h3>
+<p>Tracing feature health.</p>
+<h3>GET /api/traces/spans</h3>
+<p>List trace spans.</p>
+<h3>POST /api/traces/record</h3>
+<p>Record a trace span.</p>
+<h3>GET /api/traces/{trace_id}</h3>
+<p>Get full trace details.</p>
+<p>---</p>
+<h2>Security</h2>
+<p>Security monitoring — audit logging, configuration review, and access control.</p>
+<h3>GET /api/security</h3>
+<p>Security overview.</p>
+<h3>GET /api/security/status</h3>
+<p>Security feature health.</p>
+<h3>GET /api/security/audit</h3>
+<p>Get audit log entries.</p>
+<h3>GET /api/security/config</h3>
+<p>Get security configuration.</p></noscript></div>
   <script>
     // AIUI Plugin System — inline bootstrap
     (function () {

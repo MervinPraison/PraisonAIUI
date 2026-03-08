@@ -300,24 +300,34 @@ function escapeHtml(text) {
 /**
  * Navigate to new content via SPA (called from aiui:navigate event).
  * Unlike loadContent(), this doesn't check isDefaultView() — we know we need to swap.
+ * Resilient: if React has cleared the DOM, we wait and retry.
  */
 async function navigateToContent(targetPath) {
   // Map the target path to a markdown file
-  let mdPath;
-  const path = targetPath || '/';
-  if (path === '/' || path === '/index.html' || path === '') {
-    mdPath = '/docs/index.md';
-  } else {
-    mdPath = path.replace(/\/$/, '').replace(/\/index$/, '') + '.md';
-  }
+  let path = (targetPath || '/').replace(/\/$/, '') || '/';
+
+  // Skip homepage — handled by homepage.js
+  if (path === '/' || path === '/index.html') return;
+
+  const mdPath = path.replace(/\/index$/, '') + '.md';
 
   // Don't reload the same content
   if (mdPath === loadedPath) return;
 
-  const root = document.getElementById('root');
+  // Find the main container — retry if React is mid-render
+  let root = document.getElementById('root');
   if (!root) return;
-  const main = root.querySelector('main.flex-1');
-  if (!main) return;
+
+  let main = root.querySelector('main.flex-1');
+
+  // If main doesn't exist, React may have unmounted. Wait and retry.
+  if (!main) {
+    await new Promise(r => setTimeout(r, 100));
+    main = root.querySelector('main.flex-1');
+  }
+
+  // If still no main, append directly to root as fallback
+  const container = main || root;
 
   try {
     const response = await fetch(mdPath);
@@ -343,13 +353,17 @@ async function navigateToContent(targetPath) {
     article.className = 'prose max-w-none dark:prose-invert p-6';
     article.dataset.aiuiPlugin = 'content-loader';
     article.innerHTML = markdownToHtml(markdown);
-    main.appendChild(article);
+    container.appendChild(article);
 
-    // Hide React's debug content
-    setContentMode(true);
+    // Hide React's debug content (only if main exists)
+    if (main) setContentMode(true);
 
     // Update the "On This Page" ToC
     updateTocSidebar(article);
+
+    // Remove anti-flicker CSS if still present
+    const antiFlicker = document.getElementById('aiui-anti-flicker');
+    if (antiFlicker) antiFlicker.remove();
 
     console.debug('[AIUI:content-loader] SPA navigated to', mdPath);
   } catch (err) {

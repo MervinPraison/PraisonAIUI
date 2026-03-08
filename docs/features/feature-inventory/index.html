@@ -30,20 +30,20 @@
 
 <body>
   <div id="root"><noscript><h1>Feature Inventory</h1>
-<p>> **Last validated**: 2026-03-07 — programmatically verified against running codebase (31 features, 128 tests pass)</p>
+<p>> **Last validated**: 2026-03-08 — programmatically verified against running codebase (36 features, 128 tests pass)</p>
 <p>Complete inventory of **every feature** in PraisonAIUI: what's implemented, what's partial, and what's missing.</p>
 <p>---</p>
 <h2>Summary Scorecard</h2>
 <p>| Category | Count |</p>
 <p>|----------|-------|</p>
-<p>| ✅ Fully Implemented Features | **31** |</p>
+<p>| ✅ Fully Implemented Features | **36** |</p>
 <p>| 🟡 Partial (needs integration) | **0** |</p>
 <p>| 🔴 Not Yet Built | **0** |</p>
-<p>| Total API Routes | **187** |</p>
+<p>| Total API Routes | **210+** |</p>
 <p>| Features with CLI Commands | **15** |</p>
-<p>| Frontend Dashboard Views | **12** |</p>
-<p>| Backend Health: Healthy | **30 / 31** |</p>
-<p>| Backend Health: Degraded | **1 / 31** (openai_api — needs `praisonai.capabilities`) |</p>
+<p>| Frontend Dashboard Views | **17** |</p>
+<p>| Backend Health: Healthy | **35 / 36** |</p>
+<p>| Backend Health: Degraded | **1 / 36** (openai_api — needs `praisonai.capabilities`) |</p>
 <p>---</p>
 <h2>All Implemented Features (Validated ✅)</h2>
 <p>These features are **registered, healthy, and serving API routes** right now.</p>
@@ -80,8 +80,13 @@
 <p>| 29 | `i18n` | Internationalization (en, es, fr locales) | 5 | ❌ | ✅ ok | — | `i18n.py` |</p>
 <p>| 30 | `device_pairing` | Device pairing via short hex codes | 4 | ❌ | ✅ ok | — | `device_pairing.py` |</p>
 <p>| 31 | `media_analysis` | Image analysis, OCR, object detection | 3 | ❌ | ✅ ok | — | `media_analysis.py` |</p>
+<p>| 32 | `guardrails` | Input/output safety guardrails, violation tracking | 4 | ❌ | ✅ ok | `guardrails.js` | `guardrails.py` |</p>
+<p>| 33 | `eval` | Agent evaluation, accuracy scoring, judge models | 5 | ❌ | ✅ ok | `eval.js` | `eval.py` |</p>
+<p>| 34 | `telemetry` | Performance metrics, profiling, monitoring | 6 | ❌ | ✅ ok | `telemetry.js` | `telemetry.py` |</p>
+<p>| 35 | `tracing` | Distributed tracing, span recording, observability | 5 | ❌ | ✅ ok | `tracing.js` | `tracing.py` |</p>
+<p>| 36 | `security` | Security monitoring, audit logging, access control | 4 | ❌ | ✅ ok | `security.js` | `security.py` |</p>
 <p>---</p>
-<h2>Frontend Dashboard Views (12 Views)</h2>
+<h2>Frontend Dashboard Views (17 Views)</h2>
 <p>All located in `src/praisonaiui/templates/frontend/plugins/views/`:</p>
 <p>| View | File | Routes It Consumes |</p>
 <p>|------|------|--------------------|</p>
@@ -97,6 +102,11 @@
 <p>| Sessions | `sessions.js` | `/api/sessions/*` |</p>
 <p>| Skills | `skills.js` | `/api/skills/*` |</p>
 <p>| Usage | `usage.js` | `/api/usage/*` |</p>
+<p>| Guardrails | `guardrails.js` | `/api/guardrails/*` |</p>
+<p>| Eval | `eval.js` | `/api/eval/*` |</p>
+<p>| Telemetry | `telemetry.js` | `/api/telemetry/*` |</p>
+<p>| Traces | `tracing.js` | `/api/traces/*` |</p>
+<p>| Security | `security.js` | `/api/security/*` |</p>
 <p>---</p>
 <h2>API Route Inventory (164 Routes)</h2>
 <h3>Chat & Communication (20 routes)</h3>

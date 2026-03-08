@@ -1,6 +1,6 @@
 # Features REST API Reference
 
-Complete API reference for all **31** PraisonAIUI feature protocol endpoints.
+Complete API reference for all **36** PraisonAIUI feature protocol endpoints.
 
 ## Feature Registry
 
@@ -19,7 +19,7 @@ List all registered features with health status.
       "routes": ["/api/approvals", "/api/approvals/{id}", ...]
     }
   ],
-  "count": 16
+  "count": 36
 }
 ```
 
@@ -1127,3 +1127,236 @@ Extract text from an image.
 // Response
 {"text": "Extracted text from the document...", "status": "success", "provider": "sdk"}
 ```
+
+---
+
+## Guardrails
+
+Input/output safety guardrails — validation rules, violation tracking, and registration.
+
+### GET /api/guardrails
+List all registered guardrails.
+
+```json
+// Response
+{"guardrails": [], "total": 0, "gateway_connected": true}
+```
+
+### GET /api/guardrails/status
+Guardrails feature health.
+
+```json
+// Response
+{"status": "ok", "feature": "guardrails", "gateway_connected": true, "gateway_agent_count": 2}
+```
+
+### GET /api/guardrails/violations
+List guardrail violations.
+
+```json
+// Response
+{"violations": [], "total": 0, "time_window": "24h"}
+```
+
+### POST /api/guardrails/register
+Register a guardrail rule.
+
+```json
+// Request
+{"name": "no-pii", "type": "output", "pattern": "\\b\\d{3}-\\d{2}-\\d{4}\\b", "action": "block"}
+
+// Response (201)
+{"id": "gr_abc", "name": "no-pii", "type": "output", "status": "active"}
+```
+
+---
+
+## Eval
+
+Agent evaluation — accuracy scoring, judge models, and evaluation runs.
+
+### GET /api/eval
+Overview of evaluation state.
+
+```json
+// Response
+{"evaluations": [], "total": 0, "gateway_connected": true}
+```
+
+### GET /api/eval/status
+Eval feature health.
+
+```json
+// Response
+{"status": "ok", "feature": "eval", "gateway_connected": true, "gateway_agent_count": 2}
+```
+
+### GET /api/eval/scores
+Get evaluation scores.
+
+```json
+// Response
+{"scores": [], "total": 0, "avg_score": null}
+```
+
+### GET /api/eval/judges
+List configured judge models.
+
+```json
+// Response
+{"judges": ["gpt-4o", "claude-3-5-sonnet"], "total": 2}
+```
+
+### POST /api/eval/run
+Run an evaluation.
+
+```json
+// Request
+{"agent_name": "assistant", "test_cases": [{"input": "What is 2+2?", "expected": "4"}]}
+
+// Response
+{"run_id": "eval_abc", "status": "completed", "scores": [{"accuracy": 1.0}]}
+```
+
+---
+
+## Telemetry
+
+Performance monitoring — metrics collection, performance stats, and profiling.
+
+### GET /api/telemetry
+Telemetry overview.
+
+```json
+// Response
+{"metrics": [], "total": 0, "collection_active": true, "gateway_connected": true}
+```
+
+### GET /api/telemetry/status
+Telemetry feature health.
+
+```json
+// Response
+{"status": "ok", "feature": "telemetry", "gateway_connected": true, "gateway_agent_count": 2}
+```
+
+### GET /api/telemetry/metrics
+Get collected metrics.
+
+```json
+// Response
+{"metrics": [], "total": 0, "types": ["counter", "gauge", "histogram"]}
+```
+
+### GET /api/telemetry/performance
+Get performance statistics.
+
+```json
+// Response
+{"performance": {"avg_response_time_ms": null, "p95_response_time_ms": null, "total_requests": 0}}
+```
+
+### GET /api/telemetry/profiling
+Get profiling data.
+
+```json
+// Response
+{"profiles": [], "total": 0, "profiling_enabled": false}
+```
+
+### POST /api/telemetry/record
+Record a telemetry event.
+
+```json
+// Request
+{"metric": "response_time", "value": 150, "tags": {"agent": "assistant"}}
+
+// Response (201)
+{"id": "tel_abc", "metric": "response_time", "recorded_at": 1709000000.0}
+```
+
+---
+
+## Traces
+
+Distributed tracing and observability — span recording, trace lookup, and span details.
+
+### GET /api/traces
+List recent traces.
+
+```json
+// Response
+{"traces": [], "total": 0, "gateway_connected": true}
+```
+
+### GET /api/traces/status
+Tracing feature health.
+
+```json
+// Response
+{"status": "ok", "feature": "tracing", "gateway_connected": true, "gateway_agent_count": 2}
+```
+
+### GET /api/traces/spans
+List trace spans.
+
+```json
+// Response
+{"spans": [], "total": 0, "filters": ["agent_name", "status", "duration"]}
+```
+
+### POST /api/traces/record
+Record a trace span.
+
+```json
+// Request
+{"trace_id": "tr_abc", "span_name": "agent.chat", "duration_ms": 250, "status": "ok"}
+
+// Response (201)
+{"id": "span_abc", "trace_id": "tr_abc", "recorded_at": 1709000000.0}
+```
+
+### GET /api/traces/{trace_id}
+Get full trace details.
+
+```json
+// Response
+{"trace_id": "tr_abc", "spans": [{"id": "span_abc", "name": "agent.chat", "duration_ms": 250}], "total_duration_ms": 250}
+```
+
+---
+
+## Security
+
+Security monitoring — audit logging, configuration review, and access control.
+
+### GET /api/security
+Security overview.
+
+```json
+// Response
+{"audit_events": [], "total": 0, "security_level": "standard", "gateway_connected": true}
+```
+
+### GET /api/security/status
+Security feature health.
+
+```json
+// Response
+{"status": "ok", "feature": "security", "gateway_connected": true, "gateway_agent_count": 2}
+```
+
+### GET /api/security/audit
+Get audit log entries.
+
+```json
+// Response
+{"events": [], "total": 0, "filters": ["severity", "actor", "action", "timestamp"]}
+```
+
+### GET /api/security/config
+Get security configuration.
+
+```json
+// Response
+{"config": {"auth_mode": "none", "rate_limiting": false, "cors_origins": ["*"]}, "recommendations": []}
