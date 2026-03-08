@@ -45,8 +45,10 @@ export async function render(container) {
     const platform = (ch.platform || ch.type || ch.id || '').toLowerCase();
     const meta = platformMeta[platform] || { icon: '📡', color: 'var(--db-accent)', fields: [] };
     const enabled = ch.enabled !== false;
-    const status = ch.status || (enabled ? 'connected' : 'disconnected');
-    const isConnected = status === 'connected' || status === 'running';
+    const isRunning = ch.running === true;
+    const hasError = ch.start_error && ch.start_error !== '';
+    const statusLabel = !enabled ? 'Disabled' : isRunning ? 'Connected' : hasError ? 'Error' : 'Stopped';
+    const isConnected = isRunning;
 
     card.innerHTML = `
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
@@ -55,7 +57,7 @@ export async function render(container) {
           <div style="font-weight:600;font-size:15px">${ch.name || ch.id || platform}</div>
           <div style="font-size:12px;color:var(--db-text-dim);margin-top:1px">${platform.charAt(0).toUpperCase() + platform.slice(1)}</div>
         </div>
-        <span style="font-size:11px;padding:3px 10px;border-radius:12px;${isConnected ? 'background:rgba(34,197,94,.15);color:#22c55e' : 'background:rgba(239,68,68,.15);color:#ef4444'}">${isConnected ? '● Connected' : '○ ' + status}</span>
+        <span style="font-size:11px;padding:3px 10px;border-radius:12px;${isConnected ? 'background:rgba(34,197,94,.15);color:#22c55e' : hasError ? 'background:rgba(234,179,8,.15);color:#eab308' : 'background:rgba(239,68,68,.15);color:#ef4444'}">${isConnected ? '●' : hasError ? '⚠' : '○'} ${statusLabel}</span>
       </div>
       ${ch.last_message ? `<div style="font-size:11px;color:var(--db-text-dim);margin-bottom:8px;padding:6px 10px;background:rgba(0,0,0,.03);border-radius:6px">Last: ${ch.last_message}</div>` : ''}
       <div style="display:flex;gap:6px;margin-top:8px">

@@ -30,6 +30,8 @@ SUPPORTED_PLATFORMS = [
 
 # In-memory channel registry
 _channels: Dict[str, Dict[str, Any]] = {}
+# Local bot lifecycle tracking (bot instance + asyncio.Task)
+_live_bots: Dict[str, Dict[str, Any]] = {}
 
 
 class PraisonAIChannels(BaseFeatureProtocol):
@@ -96,110 +98,194 @@ class PraisonAIChannels(BaseFeatureProtocol):
             return None
 
     def _sync_running_status(self) -> None:
-        """Sync running status from gateway's live _channel_bots dict."""
+        """Sync running status from local _live_bots + gateway _channel_bots."""
+        # Merge gateway bots and local bots
+        all_bots: Dict[str, Any] = {}
         gw = self._get_gateway()
-        if gw is None:
-            return
-        channel_bots = getattr(gw, "_channel_bots", {})
+        if gw is not None:
+            all_bots.update(getattr(gw, "_channel_bots", {}))
+        for ch_id, info in _live_bots.items():
+            all_bots.setdefault(ch_id, info.get("bot"))
+
         for ch_id, ch in _channels.items():
-            bot = channel_bots.get(ch_id)
+            bot = all_bots.get(ch_id)
             if bot is not None and hasattr(bot, "is_running"):
                 ch["running"] = bot.is_running
             elif bot is not None:
-                ch["running"] = True
+                # Check if the task is still alive
+                info = _live_bots.get(ch_id, {})
+                task = info.get("task")
+                ch["running"] = task is not None and not task.done()
             else:
                 ch["running"] = False
 
     async def _start_channel_bot(self, channel_id: str, entry: Dict[str, Any]) -> Optional[str]:
-        """Start a bot for the given channel via the gateway.
+        """Start a bot for the given channel.
+
+        Tries, in order:
+        1. Gateway's _create_bot() if gateway + praisonai installed
+        2. Direct import from praisonai.bots.<platform>
+        3. Direct import from praisonaiagents.bots.<platform>  (future)
 
         Returns None on success, or an error string on failure.
         """
-        gw = self._get_gateway()
-        if gw is None:
-            return "No gateway connected"
-
         platform = entry["platform"]
         config = entry.get("config", {})
         token = config.get("bot_token", "")
         if not token:
             return "No bot_token in channel config"
 
-        # Get default agent from gateway
-        agents = getattr(gw, "_agents", {})
-        if not agents:
-            return "No agents registered in gateway"
-        agent = list(agents.values())[0]
-
-        # Build ch_cfg dict matching gateway's _create_bot expectations
-        ch_cfg: Dict[str, Any] = {"token": token}
-        # Slack needs app_token
-        if platform == "slack":
-            ch_cfg["app_token"] = config.get("app_token", os.environ.get("SLACK_APP_TOKEN", ""))
-        # WhatsApp needs extra fields
-        if platform == "whatsapp":
-            ch_cfg["phone_number_id"] = config.get("phone_number_id", "")
-            ch_cfg["verify_token"] = config.get("verify_token", "")
-            ch_cfg["mode"] = config.get("mode", "cloud")
-            ch_cfg["webhook_port"] = config.get("webhook_port", 8080)
-
+        # Create or find the agent
+        agent = None
         try:
-            from praisonaiagents.bots import BotConfig
-            bot_config = BotConfig(token=token)
+            from praisonaiagents import Agent
+            agent = Agent(
+                name="assistant",
+                instructions="You are a helpful assistant.",
+                llm=os.environ.get("PRAISONAI_MODEL", "gpt-4o-mini"),
+            )
         except ImportError:
-            return "praisonaiagents.bots not available"
+            pass  # agent may be None — some bots can work without one
 
-        # Use gateway's _create_bot factory if available
-        if hasattr(gw, "_create_bot"):
+        bot = None
+        # ── Strategy 1: via gateway _create_bot ─────────────────────────
+        gw = self._get_gateway()
+        if gw is not None and hasattr(gw, "_create_bot"):
             try:
-                bot = gw._create_bot(platform, token, agent, bot_config, ch_cfg)
+                from praisonaiagents.bots import BotConfig
+                bot_config = BotConfig(token=token)
+                ch_cfg: Dict[str, Any] = {"token": token}
+                if platform == "slack":
+                    ch_cfg["app_token"] = config.get("app_token",
+                                                     os.environ.get("SLACK_APP_TOKEN", ""))
+                if platform == "whatsapp":
+                    for k in ("phone_number_id", "verify_token", "mode", "webhook_port"):
+                        ch_cfg[k] = config.get(k, "")
+                # Use first agent registered in gateway, or our fresh one
+                gw_agents = getattr(gw, "_agents", {})
+                gw_agent = list(gw_agents.values())[0] if gw_agents else agent
+                if gw_agent is None:
+                    pass  # fall through to strategy 2
+                else:
+                    bot = gw._create_bot(platform, token, gw_agent, bot_config, ch_cfg)
             except Exception as e:
-                return f"Failed to create bot: {e}"
-            if bot is None:
-                return f"Unsupported platform for bot creation: {platform}"
-        else:
-            return "Gateway does not support _create_bot"
+                logger.debug(f"Gateway _create_bot failed: {e}")
 
-        # Register and start the bot as an async task
-        channel_bots = getattr(gw, "_channel_bots", None)
-        channel_tasks = getattr(gw, "_channel_tasks", None)
-        if channel_bots is None or channel_tasks is None:
-            return "Gateway missing _channel_bots/_channel_tasks"
+        # ── Strategy 2: direct import from praisonai.bots ───────────────
+        if bot is None:
+            bot = self._create_bot_direct(platform, token, agent, config)
 
-        channel_bots[channel_id] = bot
-        if hasattr(gw, "_run_bot_safe"):
-            task = asyncio.create_task(gw._run_bot_safe(channel_id, bot))
-        else:
-            task = asyncio.create_task(bot.start())
-        channel_tasks.append(task)
+        if bot is None:
+            return f"Could not create {platform} bot — required packages may not be installed"
+
+        # ── Start the bot as an asyncio task ─────────────────────────────
+        async def _run_safe(name: str, b: Any) -> None:
+            try:
+                await b.start()
+            except asyncio.CancelledError:
+                pass
+            except Exception as e:
+                logger.error(f"Bot '{name}' crashed: {e}")
+                entry["running"] = False
+                entry["start_error"] = str(e)
+
+        task = asyncio.create_task(_run_safe(channel_id, bot))
+        _live_bots[channel_id] = {"bot": bot, "task": task}
+
+        # Also register in gateway if available
+        if gw is not None:
+            channel_bots = getattr(gw, "_channel_bots", None)
+            channel_tasks = getattr(gw, "_channel_tasks", None)
+            if channel_bots is not None:
+                channel_bots[channel_id] = bot
+            if channel_tasks is not None:
+                channel_tasks.append(task)
 
         entry["running"] = True
+        entry.pop("start_error", None)
         logger.info(f"Started {platform} bot for channel '{channel_id}'")
         return None  # success
+
+    @staticmethod
+    def _create_bot_direct(platform: str, token: str, agent: Any,
+                           config: Dict[str, Any]) -> Any:
+        """Try to directly instantiate a bot class by platform name."""
+        bot_classes: Dict[str, List[str]] = {
+            "discord": [
+                "praisonai.bots.discord.DiscordBot",
+                "praisonaiagents.bots.discord.DiscordBot",
+            ],
+            "telegram": [
+                "praisonai.bots.telegram.TelegramBot",
+                "praisonaiagents.bots.telegram.TelegramBot",
+            ],
+            "slack": [
+                "praisonai.bots.slack.SlackBot",
+                "praisonaiagents.bots.slack.SlackBot",
+            ],
+            "whatsapp": [
+                "praisonai.bots.whatsapp.WhatsAppBot",
+                "praisonaiagents.bots.whatsapp.WhatsAppBot",
+            ],
+        }
+        paths = bot_classes.get(platform, [])
+        for fqn in paths:
+            try:
+                module_path, class_name = fqn.rsplit(".", 1)
+                import importlib
+                mod = importlib.import_module(module_path)
+                cls = getattr(mod, class_name)
+                # All bot constructors accept (token=, agent=, config=)
+                kwargs: Dict[str, Any] = {"token": token}
+                if agent is not None:
+                    kwargs["agent"] = agent
+                if platform == "slack":
+                    kwargs["app_token"] = config.get("app_token",
+                                                     os.environ.get("SLACK_APP_TOKEN", ""))
+                bot = cls(**kwargs)
+                logger.info(f"Created {platform} bot via {fqn}")
+                return bot
+            except ImportError:
+                continue
+            except Exception as e:
+                logger.debug(f"Failed to create {platform} bot via {fqn}: {e}")
+                continue
+        return None
 
     async def _stop_channel_bot(self, channel_id: str) -> Optional[str]:
         """Stop a running bot for the given channel.
 
         Returns None on success, or an error string on failure.
         """
-        gw = self._get_gateway()
-        if gw is None:
-            return "No gateway connected"
+        # Find the bot in local registry or gateway
+        info = _live_bots.get(channel_id)
+        bot = info.get("bot") if info else None
 
-        channel_bots = getattr(gw, "_channel_bots", {})
-        bot = channel_bots.get(channel_id)
+        if bot is None:
+            gw = self._get_gateway()
+            if gw is not None:
+                channel_bots = getattr(gw, "_channel_bots", {})
+                bot = channel_bots.get(channel_id)
+
         if bot is None:
             return None  # no bot to stop, not an error
 
         try:
             if hasattr(bot, "stop"):
                 await bot.stop()
+            # Cancel the task if still running
+            if info and info.get("task") and not info["task"].done():
+                info["task"].cancel()
             logger.info(f"Stopped bot for channel '{channel_id}'")
         except Exception as e:
             logger.error(f"Error stopping bot for '{channel_id}': {e}")
             return str(e)
 
-        channel_bots.pop(channel_id, None)
+        # Clean up from both registries
+        _live_bots.pop(channel_id, None)
+        gw = self._get_gateway()
+        if gw is not None:
+            getattr(gw, "_channel_bots", {}).pop(channel_id, None)
 
         # Update local state
         ch = _channels.get(channel_id)
@@ -346,14 +432,16 @@ class PraisonAIChannels(BaseFeatureProtocol):
         if not channel:
             return JSONResponse({"error": "Channel not found"}, status_code=404)
 
-        gw = self._get_gateway()
-        if gw is None:
-            return JSONResponse({"success": False, "error": "No gateway connected"})
-
-        channel_bots = getattr(gw, "_channel_bots", {})
-        bot = channel_bots.get(channel_id)
+        # Find the bot in local registry or gateway
+        info = _live_bots.get(channel_id)
+        bot = info.get("bot") if info else None
         if bot is None:
-            return JSONResponse({"success": False, "error": "Bot not running"})
+            gw = self._get_gateway()
+            if gw is not None:
+                bot = getattr(gw, "_channel_bots", {}).get(channel_id)
+        if bot is None:
+            err = channel.get("start_error", "Bot not running")
+            return JSONResponse({"success": False, "error": err})
 
         # Use probe() if available (tests API connectivity)
         if hasattr(bot, "probe"):
