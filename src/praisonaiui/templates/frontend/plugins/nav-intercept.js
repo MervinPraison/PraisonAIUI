@@ -5,13 +5,21 @@
  * Instead of full page reloads, intercepts sidebar clicks and
  * swaps content in-place — just like Mintlify.
  *
- * Strategy:
- *  1. Intercept sidebar button clicks in the capturing phase
- *  2. Prevent React's default routing (which crashes on static hosting)
- *  3. Update URL via pushState (no reload)
- *  4. Dispatch 'aiui:navigate' custom event so other plugins can react
- *  5. Handle browser back/forward via popstate listener
+ * Key design:
+ *  - Uses History.prototype.pushState (the NATIVE one) to update URLs
+ *    WITHOUT triggering React Router's internal listener, which would
+ *    unmount the entire DOM and cause a black screen.
+ *  - Intercepts sidebar button clicks in the capturing phase
+ *  - Dispatches 'aiui:navigate' custom event so other plugins react
+ *  - Handles browser back/forward via popstate listener
+ *  - All paths normalized with trailing slash
  */
+
+// Save a reference to the REAL native pushState before anyone patches it.
+// React Router patches history.pushState, so using history.pushState
+// from within our patch triggers React's re-render → DOM wipe.
+const nativePushState = History.prototype.pushState;
+const nativeReplaceState = History.prototype.replaceState;
 
 let navData = null;
 let knownPaths = new Set();
@@ -23,17 +31,22 @@ async function loadNavData() {
     if (!resp.ok) return;
     navData = await resp.json();
 
-    // Collect all known doc paths and their titles
     function collectPaths(items) {
       for (const item of items) {
         if (item.path) {
-          knownPaths.add(item.path);
-          if (item.title) pathToTitle.set(item.path, item.title);
+          // Store paths both with and without trailing slash
+          const normalized = item.path.replace(/\/$/, '');
+          knownPaths.add(normalized);
+          if (item.title) pathToTitle.set(normalized, item.title);
         }
         if (item.children) collectPaths(item.children);
       }
     }
     collectPaths(navData.items || []);
+
+    // Also add the homepage
+    knownPaths.add('');
+    knownPaths.add('/');
 
     console.debug('[AIUI:nav-intercept] Loaded', knownPaths.size, 'known paths');
   } catch (e) {
@@ -42,17 +55,28 @@ async function loadNavData() {
 }
 
 /**
+ * Normalize a path: remove trailing slash (except for root '/').
+ */
+function normalizePath(p) {
+  const cleaned = (p || '/').replace(/\/$/, '');
+  return cleaned || '/';
+}
+
+/**
  * Navigate to a doc path client-side (no full page reload).
+ * Uses native pushState to bypass React Router completely.
  */
 function navigateTo(path) {
-  const normalized = path.replace(/\/$/, '') || '/';
-  const current = window.location.pathname.replace(/\/$/, '') || '/';
+  const normalized = normalizePath(path);
+  const current = normalizePath(window.location.pathname);
 
   // Already on this page
   if (normalized === current) return;
 
-  // Update URL without reload
-  history.pushState(null, '', normalized + '/');
+  // Use NATIVE pushState to update URL WITHOUT triggering React Router.
+  // Always use trailing slash for consistency with static hosting.
+  const urlWithSlash = normalized === '/' ? '/' : normalized + '/';
+  nativePushState.call(history, null, '', urlWithSlash);
 
   // Notify all plugins about the navigation
   window.dispatchEvent(new CustomEvent('aiui:navigate', {
@@ -68,100 +92,100 @@ function navigateTo(path) {
 /**
  * Intercept sidebar clicks in the capturing phase.
  * This fires BEFORE React's own handlers.
+ * Uses stopImmediatePropagation to prevent React from seeing the event at all.
  */
 function interceptSidebarClicks() {
   document.addEventListener('click', function (e) {
-    // Find the closest button or anchor
+    // Find the closest button or anchor inside the sidebar
     const btn = e.target.closest('aside button, aside a');
     if (!btn) return;
 
-    // Skip if it's a section header (has uppercase class = group header)
-    if (btn.className && btn.className.includes('uppercase')) return;
+    // Skip section headers (group labels in the sidebar)
+    const text = btn.textContent.trim();
+    if (!text) return;
 
-    // For sidebar buttons, find the matching nav path by text
-    const text = btn.textContent.trim().toLowerCase();
-    const slug = text.replace(/\s+/g, '-');
+    // Skip if this is a group header (usually uppercase styled)
+    if (btn.className && /uppercase/.test(btn.className)) return;
 
-    // Search known paths for a match
+    // Convert button text to a slug and search known paths
+    const slug = text.toLowerCase().replace(/\s+/g, '-');
+
+    // Search all known paths for one that ends with this slug
     for (const knownPath of knownPaths) {
       const pathSlug = knownPath.split('/').pop();
       if (pathSlug === slug) {
         e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation(); // Prevent React from seeing this
         navigateTo(knownPath);
         return;
       }
     }
 
-    // Also check for <a> tags with href
+    // Also check <a> tags with href attributes
     if (btn.tagName === 'A' && btn.href) {
       try {
         const url = new URL(btn.href, window.location.origin);
-        const normalized = url.pathname.replace(/\/$/, '') || '/';
+        const normalized = normalizePath(url.pathname);
         if (knownPaths.has(normalized)) {
           e.preventDefault();
           e.stopPropagation();
+          e.stopImmediatePropagation();
           navigateTo(normalized);
           return;
         }
-      } catch (err) {
-        // Not a valid URL, let it through
-      }
+      } catch (err) {}
     }
-  }, true); // true = capturing phase (before React)
+  }, true); // true = capturing phase
 
   console.debug('[AIUI:nav-intercept] Sidebar click interception active');
 }
 
 /**
- * Monkey-patch pushState/replaceState to intercept React Router navigations.
- * Instead of full page reloads, do client-side navigation.
+ * Patch history.pushState/replaceState to intercept React Router navigations.
+ * When React Router tries to navigate to a doc path, we do SPA content swap
+ * instead of letting React unmount everything.
  */
 function patchHistoryMethods() {
-  const originalPushState = history.pushState.bind(history);
-  const originalReplaceState = history.replaceState.bind(history);
+  const currentPushState = history.pushState.bind(history);
+  const currentReplaceState = history.replaceState.bind(history);
 
   history.pushState = function (state, title, url) {
     if (url && typeof url === 'string') {
       let path = url;
-      try {
-        const parsed = new URL(url, window.location.origin);
-        path = parsed.pathname;
-      } catch (e) {}
+      try { path = new URL(url, window.location.origin).pathname; } catch (e) {}
 
-      const normalized = path.replace(/\/$/, '') || '/';
-      const current = window.location.pathname.replace(/\/$/, '') || '/';
+      const normalized = normalizePath(path);
+      const current = normalizePath(window.location.pathname);
 
-      // If React Router is trying to navigate to a known doc path,
-      // do SPA navigation instead of a full reload
       if (knownPaths.has(normalized) && normalized !== current) {
-        // Use original pushState to update URL
-        originalPushState(state, title, url);
-        // Dispatch navigate event for SPA content swap
+        // Use native pushState to update URL without React knowing
+        const urlWithSlash = normalized === '/' ? '/' : normalized + '/';
+        nativePushState.call(history, state, title, urlWithSlash);
+
         window.dispatchEvent(new CustomEvent('aiui:navigate', {
           detail: { path: normalized, fromPath: current }
         }));
         window.scrollTo(0, 0);
-        console.debug('[AIUI:nav-intercept] SPA pushState:', current, '→', normalized);
+        console.debug('[AIUI:nav-intercept] Intercepted pushState:', normalized);
         return;
       }
     }
-    return originalPushState(state, title, url);
+    return currentPushState(state, title, url);
   };
 
   history.replaceState = function (state, title, url) {
     if (url && typeof url === 'string') {
       let path = url;
-      try {
-        const parsed = new URL(url, window.location.origin);
-        path = parsed.pathname;
-      } catch (e) {}
+      try { path = new URL(url, window.location.origin).pathname; } catch (e) {}
 
-      const normalized = path.replace(/\/$/, '') || '/';
-      const current = window.location.pathname.replace(/\/$/, '') || '/';
+      const normalized = normalizePath(path);
+      const current = normalizePath(window.location.pathname);
 
       if (knownPaths.has(normalized) && normalized !== current) {
-        originalReplaceState(state, title, url);
+        const urlWithSlash = normalized === '/' ? '/' : normalized + '/';
+        nativeReplaceState.call(history, state, title, urlWithSlash);
+
         window.dispatchEvent(new CustomEvent('aiui:navigate', {
           detail: { path: normalized, fromPath: current }
         }));
@@ -169,10 +193,10 @@ function patchHistoryMethods() {
         return;
       }
     }
-    return originalReplaceState(state, title, url);
+    return currentReplaceState(state, title, url);
   };
 
-  console.debug('[AIUI:nav-intercept] History methods patched for SPA navigation');
+  console.debug('[AIUI:nav-intercept] History methods patched (native bypass)');
 }
 
 /**
@@ -180,7 +204,7 @@ function patchHistoryMethods() {
  */
 function handlePopState() {
   window.addEventListener('popstate', function () {
-    const normalized = window.location.pathname.replace(/\/$/, '') || '/';
+    const normalized = normalizePath(window.location.pathname);
     window.dispatchEvent(new CustomEvent('aiui:navigate', {
       detail: { path: normalized, fromPath: null }
     }));

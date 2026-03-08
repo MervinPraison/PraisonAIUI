@@ -1,6 +1,6 @@
 # Feature Inventory
 
-> **Last validated**: 2026-03-07 — programmatically verified against running codebase (31 features, 128 tests pass)
+> **Last validated**: 2026-03-08 — programmatically verified against running codebase (36 features, 128 tests pass)
 
 Complete inventory of **every feature** in PraisonAIUI: what's implemented, what's partial, and what's missing.
 
@@ -10,14 +10,14 @@ Complete inventory of **every feature** in PraisonAIUI: what's implemented, what
 
 | Category | Count |
 |----------|-------|
-| ✅ Fully Implemented Features | **31** |
+| ✅ Fully Implemented Features | **36** |
 | 🟡 Partial (needs integration) | **0** |
 | 🔴 Not Yet Built | **0** |
-| Total API Routes | **187** |
+| Total API Routes | **210+** |
 | Features with CLI Commands | **15** |
-| Frontend Dashboard Views | **12** |
-| Backend Health: Healthy | **30 / 31** |
-| Backend Health: Degraded | **1 / 31** (openai_api — needs `praisonai.capabilities`) |
+| Frontend Dashboard Views | **17** |
+| Backend Health: Healthy | **35 / 36** |
+| Backend Health: Degraded | **1 / 36** (openai_api — needs `praisonai.capabilities`) |
 
 ---
 
@@ -58,10 +58,15 @@ These features are **registered, healthy, and serving API routes** right now.
 | 29 | `i18n` | Internationalization (en, es, fr locales) | 5 | ❌ | ✅ ok | — | `i18n.py` |
 | 30 | `device_pairing` | Device pairing via short hex codes | 4 | ❌ | ✅ ok | — | `device_pairing.py` |
 | 31 | `media_analysis` | Image analysis, OCR, object detection | 3 | ❌ | ✅ ok | — | `media_analysis.py` |
+| 32 | `guardrails` | Input/output safety guardrails, violation tracking | 4 | ❌ | ✅ ok | `guardrails.js` | `guardrails.py` |
+| 33 | `eval` | Agent evaluation, accuracy scoring, judge models | 5 | ❌ | ✅ ok | `eval.js` | `eval.py` |
+| 34 | `telemetry` | Performance metrics, profiling, monitoring | 6 | ❌ | ✅ ok | `telemetry.js` | `telemetry.py` |
+| 35 | `tracing` | Distributed tracing, span recording, observability | 5 | ❌ | ✅ ok | `tracing.js` | `tracing.py` |
+| 36 | `security` | Security monitoring, audit logging, access control | 4 | ❌ | ✅ ok | `security.js` | `security.py` |
 
 ---
 
-## Frontend Dashboard Views (12 Views)
+## Frontend Dashboard Views (17 Views)
 
 All located in `src/praisonaiui/templates/frontend/plugins/views/`:
 
@@ -79,6 +84,11 @@ All located in `src/praisonaiui/templates/frontend/plugins/views/`:
 | Sessions | `sessions.js` | `/api/sessions/*` |
 | Skills | `skills.js` | `/api/skills/*` |
 | Usage | `usage.js` | `/api/usage/*` |
+| Guardrails | `guardrails.js` | `/api/guardrails/*` |
+| Eval | `eval.js` | `/api/eval/*` |
+| Telemetry | `telemetry.js` | `/api/telemetry/*` |
+| Traces | `tracing.js` | `/api/traces/*` |
+| Security | `security.js` | `/api/security/*` |
 
 ---
 
@@ -289,7 +299,7 @@ All previously identified gaps have been implemented with protocol-driven archit
 
 ```mermaid
 graph TD
-    subgraph "31 Registered Features"
+    subgraph "36 Registered Features"
         subgraph "Chat & Communication"
             F7["chat (4)"]
             F3["attachments (3)"]
@@ -334,6 +344,13 @@ graph TD
             F28["pwa (3)"]
             F30["device_pairing (4)"]
             F31["media_analysis (3)"]
+        end
+        subgraph "SDK Features (Wave 3)"
+            F32["guardrails (4)"]
+            F33["eval (5)"]
+            F34["telemetry (6)"]
+            F35["tracing (5)"]
+            F36["security (4)"]
         end
     end
 ```
