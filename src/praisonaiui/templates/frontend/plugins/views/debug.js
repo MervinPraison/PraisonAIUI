@@ -4,7 +4,7 @@
  * New view (Gap 7). Provides: system info, feature health matrix,
  *  gateway connectivity, WebSocket status, environment info, error logs.
  *
- * API: /api/features, /api/health, /api/config, /api/chat/health
+ * API: /api/features, /api/health, /api/config, /api/gateway/status
  */
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';

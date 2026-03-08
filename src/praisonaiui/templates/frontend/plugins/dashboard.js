@@ -38,6 +38,11 @@ const BUILTIN_VIEWS = {
   instances:      '/plugins/views/nodes.js',
   explorer:       '/plugins/views/explorer.js',
   debug:          '/plugins/views/debug.js',
+  guardrails:     '/plugins/views/guardrails.js',
+  eval:           '/plugins/views/eval.js',
+  telemetry:      '/plugins/views/telemetry.js',
+  traces:         '/plugins/views/traces.js',
+  security:       '/plugins/views/security.js',
 };
 
 // Public API for extending the dashboard (protocol-first, extendable)

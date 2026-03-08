@@ -918,6 +918,53 @@ def load_config_from_yaml(config_path: Path) -> Optional[dict]:
         return None
 
 
+def _init_gateway_standalone(config: Optional[dict] = None) -> None:
+    """Initialize gateway in standalone mode if not already set.
+    
+    Gap S1: When running standalone (not via AIUIGateway.start()), we need to
+    initialize a gateway so that gateway-dependent features work.
+    
+    This is called by create_app() to ensure the gateway singleton is set.
+    """
+    try:
+        from praisonaiui.features._gateway_ref import get_gateway, set_gateway
+        
+        # Skip if gateway already initialized (e.g., by AIUIGateway.start())
+        if get_gateway() is not None:
+            return
+        
+        # Try to create a gateway from config or use defaults
+        try:
+            from praisonai.gateway import WebSocketGateway
+            
+            # Check if config has gateway settings
+            gateway_config = {}
+            if config and isinstance(config, dict):
+                gateway_config = config.get("gateway", {})
+            
+            # Create gateway with config or defaults
+            if gateway_config:
+                gw = WebSocketGateway(
+                    host=gateway_config.get("host", "127.0.0.1"),
+                    port=gateway_config.get("port", 8765),
+                )
+            else:
+                gw = WebSocketGateway()
+            
+            set_gateway(gw)
+            logging.getLogger(__name__).info(
+                "Gateway auto-initialized in standalone mode"
+            )
+        except ImportError:
+            # praisonai wrapper not installed - gateway features won't work
+            logging.getLogger(__name__).debug(
+                "praisonai not installed, gateway features disabled"
+            )
+    except ImportError:
+        # _gateway_ref module not available
+        pass
+
+
 def create_app(
     config: Optional[dict] = None,
     static_dir: Optional[Path] = None,
@@ -1006,6 +1053,11 @@ def create_app(
         Route("/api/gateway/status", api_gateway_status, methods=["GET"]),
     ]
 
+    # ── Gap S1: Auto-initialize gateway in standalone mode ──────────
+    # When running standalone (not via AIUIGateway.start()), we need to
+    # initialize a gateway so that gateway-dependent features work.
+    _init_gateway_standalone(config)
+    
     # ── Auto-register and mount feature protocol routes ──────────────
     auto_register_defaults()
     for feature in get_features().values():
@@ -1049,6 +1101,16 @@ def create_app(
          "description": "Server logs and events", "order": 20},
         {"id": "debug", "title": "Debug", "icon": "🐛", "group": "Settings",
          "description": "Debug information", "order": 30},
+        {"id": "guardrails", "title": "Guardrails", "icon": "🛡️", "group": "Agent",
+         "description": "Input/output safety guardrails", "order": 35},
+        {"id": "eval", "title": "Eval", "icon": "📊", "group": "Agent",
+         "description": "Agent evaluation & accuracy", "order": 40},
+        {"id": "telemetry", "title": "Telemetry", "icon": "📈", "group": "Settings",
+         "description": "Performance monitoring & profiling", "order": 25},
+        {"id": "traces", "title": "Traces", "icon": "🔍", "group": "Settings",
+         "description": "Distributed tracing & observability", "order": 27},
+        {"id": "security", "title": "Security", "icon": "🔒", "group": "Settings",
+         "description": "Security monitoring & audit log", "order": 12},
     ]
     _page_api_overrides = {"sessions": "/sessions", "cron": "/api/schedules", "channels": "/api/channels"}
     for p in _builtin_pages:

@@ -120,6 +120,35 @@ const FEATURES = [
     { name: "hooks",          endpoints: [
       { label: "List Hooks",    method: "GET",  url: "/api/hooks" },
     ]},
+    { name: "guardrails",     endpoints: [
+      { label: "Status",        method: "GET",  url: "/api/guardrails/status" },
+      { label: "List",          method: "GET",  url: "/api/guardrails" },
+      { label: "Violations",    method: "GET",  url: "/api/guardrails/violations" },
+    ]},
+    { name: "eval",           endpoints: [
+      { label: "Status",        method: "GET",  url: "/api/eval/status" },
+      { label: "Evaluations",   method: "GET",  url: "/api/eval" },
+      { label: "Scores",        method: "GET",  url: "/api/eval/scores" },
+      { label: "Judges",        method: "GET",  url: "/api/eval/judges" },
+    ]},
+    { name: "telemetry",      endpoints: [
+      { label: "Status",        method: "GET",  url: "/api/telemetry/status" },
+      { label: "Overview",      method: "GET",  url: "/api/telemetry" },
+      { label: "Metrics",       method: "GET",  url: "/api/telemetry/metrics" },
+      { label: "Performance",   method: "GET",  url: "/api/telemetry/performance" },
+      { label: "Profiling",     method: "GET",  url: "/api/telemetry/profiling" },
+    ]},
+    { name: "tracing",        endpoints: [
+      { label: "Status",        method: "GET",  url: "/api/traces/status" },
+      { label: "Traces",        method: "GET",  url: "/api/traces" },
+      { label: "Spans",         method: "GET",  url: "/api/traces/spans" },
+    ]},
+    { name: "security",       endpoints: [
+      { label: "Status",        method: "GET",  url: "/api/security/status" },
+      { label: "Overview",      method: "GET",  url: "/api/security" },
+      { label: "Audit Log",     method: "GET",  url: "/api/security/audit" },
+      { label: "Config",        method: "GET",  url: "/api/security/config" },
+    ]},
   ]},
   { group: "Platform", items: [
     { name: "openai_api",     endpoints: [

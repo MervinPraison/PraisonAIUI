@@ -66,6 +66,11 @@ def auto_register_defaults() -> None:
     from .tts import PraisonAITTS
     from .usage import PraisonAIUsage
     from .workflows import PraisonAIWorkflows
+    from .guardrails import PraisonAIGuardrails
+    from .eval import PraisonAIEval
+    from .telemetry import PraisonAITelemetry
+    from .tracing import PraisonAITracing
+    from .security import PraisonAISecurity
 
     for cls in (
         PraisonAIAgentsFeature,
@@ -99,6 +104,11 @@ def auto_register_defaults() -> None:
         PraisonAITTS,
         PraisonAIUsage,
         PraisonAIWorkflows,
+        PraisonAIGuardrails,
+        PraisonAIEval,
+        PraisonAITelemetry,
+        PraisonAITracing,
+        PraisonAISecurity,
     ):
         if cls.feature_name not in _features:
             register_feature(cls())
