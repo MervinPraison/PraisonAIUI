@@ -7,6 +7,7 @@ live status from the gateway when available.
 
 from __future__ import annotations
 
+import os
 import time
 import uuid
 from typing import Any, Dict, List
@@ -41,11 +42,19 @@ class PraisonAIChannels(BaseFeatureProtocol):
     def description(self) -> str:
         return self.feature_description
 
+    # Map platform -> env var name for auto-detection
+    ENV_TOKEN_MAP = {
+        "discord": "DISCORD_BOT_TOKEN",
+        "telegram": "TELEGRAM_BOT_TOKEN",
+        "slack": "SLACK_BOT_TOKEN",
+    }
+
     def routes(self) -> List[Route]:
         return [
             Route("/api/channels", self._list, methods=["GET"]),
             Route("/api/channels", self._add, methods=["POST"]),
             Route("/api/channels/platforms", self._platforms, methods=["GET"]),
+            Route("/api/channels/env-tokens", self._env_tokens, methods=["GET"]),
             Route("/api/channels/{channel_id}", self._get, methods=["GET"]),
             Route("/api/channels/{channel_id}", self._update, methods=["PUT"]),
             Route("/api/channels/{channel_id}", self._delete, methods=["DELETE"]),
@@ -119,13 +128,26 @@ class PraisonAIChannels(BaseFeatureProtocol):
                 {"error": f"Unsupported platform: {platform}. Supported: {SUPPORTED_PLATFORMS}"},
                 status_code=400,
             )
+        config = body.get("config", {})
+        # Auto-resolve env: references in config values
+        for key, val in list(config.items()):
+            if isinstance(val, str) and val.startswith("env:"):
+                env_var = val[4:]
+                config[key] = os.environ.get(env_var, "")
+        # Auto-detect bot token from env if not provided
+        if "bot_token" not in config or not config["bot_token"]:
+            env_var = self.ENV_TOKEN_MAP.get(platform)
+            if env_var:
+                token = os.environ.get(env_var, "")
+                if token:
+                    config["bot_token"] = token
         entry = {
             "id": channel_id,
             "name": body.get("name", channel_id),
             "platform": platform,
             "enabled": body.get("enabled", True),
             "running": False,
-            "config": body.get("config", {}),
+            "config": config,
             "created_at": time.time(),
             "last_activity": None,
         }
@@ -187,6 +209,17 @@ class PraisonAIChannels(BaseFeatureProtocol):
     async def _platforms(self, request: Request) -> JSONResponse:
         """List supported platforms."""
         return JSONResponse({"platforms": SUPPORTED_PLATFORMS})
+
+    async def _env_tokens(self, request: Request) -> JSONResponse:
+        """Report which bot tokens are available in environment (without exposing values)."""
+        available = {}
+        for platform, env_var in self.ENV_TOKEN_MAP.items():
+            token = os.environ.get(env_var, "")
+            available[platform] = {
+                "env_var": env_var,
+                "available": bool(token),
+            }
+        return JSONResponse({"env_tokens": available})
 
     async def _restart(self, request: Request) -> JSONResponse:
         """Restart a channel bot via the gateway.

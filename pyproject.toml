@@ -26,7 +26,7 @@ dependencies = [
     "watchfiles>=0.21",
     "rich>=13.0",
     "typer>=0.9",
-    "uvicorn>=0.29",
+    "uvicorn[standard]>=0.29",
     "starlette>=0.37",
 ]
 

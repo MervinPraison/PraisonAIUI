@@ -245,7 +245,7 @@ class PraisonAISessions(BaseFeatureProtocol):
         except (ImportError, Exception):
             pass
         sessions = []
-        for sid in sorted(session_ids):
+        for sid in sorted((s for s in session_ids if s is not None), key=str):
             meta = _get_metadata(sid)
             store_session = store.get_session(sid) if hasattr(store, 'get_session') else {}
             messages = store.get_chat_history(sid) if hasattr(store, 'get_chat_history') else []

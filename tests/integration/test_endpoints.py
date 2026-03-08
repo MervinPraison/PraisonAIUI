@@ -18,7 +18,7 @@ from praisonaiui.server import (
     MessageContext,
     _agents,
     _callbacks,
-    _sessions,
+    _datastore,
     create_app,
     register_agent,
     register_callback,
@@ -34,11 +34,9 @@ def _clear_state():
     """Reset global state before each test."""
     _agents.clear()
     _callbacks.clear()
-    _sessions.clear()
     yield
     _agents.clear()
     _callbacks.clear()
-    _sessions.clear()
 
 
 @pytest.fixture
@@ -266,7 +264,12 @@ class TestRunEndpoint:
         r = str_app.post("/run", json={"message": "Hi"})
         events = _parse_sse(r.text)
         session_id = events[0]["session_id"]
-        assert session_id in _sessions
+        # Verify session exists via the datastore
+        import asyncio
+        session = asyncio.get_event_loop().run_until_complete(
+            _datastore.get_session(session_id)
+        )
+        assert session is not None
 
     def test_uses_existing_session(self, str_app):
         # Create session first

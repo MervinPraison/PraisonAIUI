@@ -52,8 +52,9 @@ function normalizePath(p) {
 }
 
 /**
- * Show a seamless overlay that captures the current page visual state.
- * This prevents the black flash during full page reload.
+ * Show a seamless overlay that covers the viewport instantly.
+ * This prevents the flash during full page reload — the dark overlay
+ * appears immediately (no transition), hiding the page teardown.
  */
 function showTransitionOverlay() {
   // If an overlay already exists, skip
@@ -70,15 +71,9 @@ function showTransitionOverlay() {
     z-index: 99999;
     background: #0f172a;
     pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.1s ease;
+    opacity: 1;
   `;
   document.body.appendChild(overlay);
-
-  // Fade in the overlay quickly
-  requestAnimationFrame(() => {
-    overlay.style.opacity = '1';
-  });
 }
 
 /**
