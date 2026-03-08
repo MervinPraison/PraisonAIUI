@@ -14,21 +14,17 @@ export async function render(container) {
   try { const r = await fetch('/api/channels'); const d = await r.json(); channels = d.channels || d || []; if (!Array.isArray(channels)) channels = Object.entries(channels).map(([id,c]) => ({id,...(typeof c==='object'?c:{platform:c})})); } catch(e) {}
   try { const r = await fetch('/api/channels/platforms'); const d = await r.json(); platforms = d.platforms || d || []; } catch(e) {}
 
-  // envKey: env var name to auto-fill from .env
+  // envKey kept for reference only (not auto-filled)
   const platformMeta = {
-    discord:    { icon: '🎮', color: '#5865F2', fields: ['Bot Token'], envKey: 'DISCORD_BOT_TOKEN' },
-    slack:      { icon: '💬', color: '#4A154B', fields: ['Bot Token', 'Signing Secret'], envKey: 'SLACK_BOT_TOKEN' },
-    telegram:   { icon: '✈️', color: '#229ED9', fields: ['Bot Token'], envKey: 'TELEGRAM_BOT_TOKEN' },
+    discord:    { icon: '🎮', color: '#5865F2', fields: ['Bot Token'] },
+    slack:      { icon: '💬', color: '#4A154B', fields: ['Bot Token', 'Signing Secret'] },
+    telegram:   { icon: '✈️', color: '#229ED9', fields: ['Bot Token'] },
     whatsapp:   { icon: '📱', color: '#25D366', fields: ['Phone Number ID', 'Access Token', 'Verify Token'] },
     imessage:   { icon: '🍎', color: '#007AFF', fields: ['Apple ID', 'Handler Path'] },
     signal:     { icon: '🔒', color: '#3A76F0', fields: ['Phone Number', 'API URL'] },
     googlechat: { icon: '💼', color: '#00AC47', fields: ['Service Account', 'Space Name'] },
     nostr:      { icon: '🟣', color: '#9B59B6', fields: ['Private Key (nsec)', 'Relay URL'] },
   };
-
-  // Try to load env token availability for auto-fill
-  let envTokens = {};
-  try { const r = await fetch('/api/channels/env-tokens'); const d = await r.json(); envTokens = d.env_tokens || {}; } catch(e) {}
 
   container.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
@@ -116,20 +112,12 @@ export async function render(container) {
       const fieldsDiv = m.querySelector('#chf-fields');
       const hintDiv = m.querySelector('#chf-setup-hint');
 
-      // Check if env var has a token for this platform
-      const envInfo = envTokens[platform] || {};
-      const hasEnv = envInfo.available === true;
-      const envKey = envInfo.env_var || '';
-
       fieldsDiv.innerHTML = pm.fields.map((f, i) => {
         const fieldKey = f.toLowerCase().replace(/\s+/g, '_');
         const isToken = f.toLowerCase().includes('token') || f.toLowerCase().includes('secret') || f.toLowerCase().includes('key');
-        // Auto-fill bot_token from .env if available
-        const autoVal = (fieldKey === 'bot_token' && hasEnv) ? 'from .env' : '';
-        const autoAttr = (fieldKey === 'bot_token' && hasEnv) ? `value="env:${envKey}" disabled` : '';
         return `<label style="display:block;margin-bottom:10px">
-          <span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">${f}${autoVal ? ' <span style="color:#22c55e;font-size:11px">(✓ loaded from .env)</span>' : ''}</span>
-          <input class="chf-field" data-field="${fieldKey}" type="${isToken ? 'password' : 'text'}" placeholder="${f}" ${autoAttr} style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box">
+          <span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">${f}</span>
+          <input class="chf-field" data-field="${fieldKey}" type="${isToken ? 'password' : 'text'}" placeholder="${f}" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box">
         </label>`;
       }).join('');
 
@@ -147,13 +135,8 @@ export async function render(container) {
     m.querySelector('#chf-cancel').addEventListener('click', () => m.style.display = 'none');
     m.querySelector('#chf-save').addEventListener('click', async () => {
       const platform = m.querySelector('#chf-platform').value;
-      const pm = platformMeta[platform] || {};
       const config = {};
-      m.querySelectorAll('.chf-field').forEach(f => {
-        const val = f.value;
-        // For env: references, resolve to actual env var name for backend
-        config[f.dataset.field] = val.startsWith('env:') ? val : val;
-      });
+      m.querySelectorAll('.chf-field').forEach(f => { config[f.dataset.field] = f.value; });
       const body = { platform, name: m.querySelector('#chf-name').value || platform + '-bot', config };
       try { await fetch('/api/channels', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); m.style.display='none'; render(container); } catch(e){}
     });
