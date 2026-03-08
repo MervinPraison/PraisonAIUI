@@ -80,8 +80,9 @@
       fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
         var names = cfg.plugins || [];
         if (!names.length) { removeAntiFlicker(); return; }
+        var v = Date.now(); // Cache-busting version parameter
         Promise.allSettled(names.map(function (name) {
-          return import('/plugins/' + name + '.js').then(function (mod) {
+          return import('/plugins/' + name + '.js?v=' + v).then(function (mod) {
             var p = mod.default || mod; p.name = p.name || name;
             if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
             plugins.push(p);

@@ -24,7 +24,7 @@
    */
   async function loadPlugin(name) {
     try {
-      const url = `${PLUGINS_BASE}${name}.js`;
+      const url = `${PLUGINS_BASE}${name}.js?v=${Date.now()}`;
       const mod = await import(url);
       // ESM module namespaces are frozen — spread into a mutable object
       const raw = mod.default || mod;
