@@ -42,9 +42,9 @@ class PraisonAITracing(BaseFeatureProtocol):
         trace_available = False
         obs_available = False
         try:
-            from praisonaiagents.trace import Trace  # noqa: F401
+            from praisonaiagents.trace import ActionEvent  # noqa: F401
             trace_available = True
-        except ImportError:
+        except (ImportError, AttributeError):
             pass
         try:
             from praisonaiagents.obs import Span, Trace as ObsTrace  # noqa: F401

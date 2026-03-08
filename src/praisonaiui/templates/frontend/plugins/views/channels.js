@@ -17,9 +17,9 @@ export async function render(container) {
   // envKey kept for reference only (not auto-filled)
   const platformMeta = {
     discord:    { icon: '🎮', color: '#5865F2', fields: ['Bot Token'] },
-    slack:      { icon: '💬', color: '#4A154B', fields: ['Bot Token', 'Signing Secret'] },
+    slack:      { icon: '💬', color: '#4A154B', fields: ['Bot Token', 'App Token', 'Signing Secret (Optional)'] },
     telegram:   { icon: '✈️', color: '#229ED9', fields: ['Bot Token'] },
-    whatsapp:   { icon: '📱', color: '#25D366', fields: ['Phone Number ID', 'Access Token', 'Verify Token'] },
+    whatsapp:   { icon: '📱', color: '#25D366', fields: ['Access Token', 'Phone Number ID', 'Verify Token (Optional)', 'Webhook Port (Optional)'] },
     imessage:   { icon: '🍎', color: '#007AFF', fields: ['Apple ID', 'Handler Path'] },
     signal:     { icon: '🔒', color: '#3A76F0', fields: ['Phone Number', 'API URL'] },
     googlechat: { icon: '💼', color: '#00AC47', fields: ['Service Account', 'Space Name'] },
@@ -99,7 +99,7 @@ export async function render(container) {
           }).join('')}
         </select>
       </label>
-      <label style="display:block;margin-bottom:14px"><span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">Channel Name</span><input id="chf-name" placeholder="my-bot" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box"></label>
+      <label style="display:block;margin-bottom:14px"><span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">Channel Name <span style="opacity:.5">(Optional)</span></span><input id="chf-name" placeholder="my-bot" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box"></label>
       <div id="chf-fields" style="margin-bottom:14px"></div>
       <div id="chf-setup-hint" style="margin-bottom:20px;padding:10px 14px;background:rgba(var(--db-accent-rgb,100,100,255),.06);border-radius:8px;font-size:12px;color:var(--db-text-dim)"></div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
@@ -115,17 +115,20 @@ export async function render(container) {
       const hintDiv = m.querySelector('#chf-setup-hint');
 
       fieldsDiv.innerHTML = pm.fields.map((f, i) => {
-        const fieldKey = f.toLowerCase().replace(/\s+/g, '_');
+        const isOptional = f.includes('(Optional)');
+        const cleanName = f.replace(' (Optional)', '');
+        const fieldKey = cleanName.toLowerCase().replace(/\s+/g, '_');
         const isToken = f.toLowerCase().includes('token') || f.toLowerCase().includes('secret') || f.toLowerCase().includes('key');
+        const optTag = isOptional ? ' <span style="opacity:.5">(Optional)</span>' : '';
         return `<label style="display:block;margin-bottom:10px">
-          <span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">${f}</span>
-          <input class="chf-field" data-field="${fieldKey}" type="${isToken ? 'password' : 'text'}" placeholder="${f}" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box">
+          <span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">${cleanName}${optTag}</span>
+          <input class="chf-field" data-field="${fieldKey}" type="${isToken ? 'password' : 'text'}" placeholder="${cleanName}" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box">
         </label>`;
       }).join('');
 
       const hints = {
         discord: '1. Create a Bot at discord.com/developers\n2. Enable Message Content Intent\n3. Copy the Bot Token\n4. Invite bot to your server\n\nServer ID and Channel ID are auto-discovered.',
-        slack: '1. Create a Slack App at api.slack.com\n2. Add Bot Token Scopes (chat:write, app_mentions:read)\n3. Install to workspace\n4. Copy Bot Token and Signing Secret',
+        slack: '1. Create a Slack App at api.slack.com\n2. Add Bot Token Scopes (chat:write, app_mentions:read)\n3. Enable Socket Mode → copy App Token (xapp-...)\n4. Install to workspace\n5. Copy Bot Token (xoxb-...)',
         telegram: '1. Message @BotFather on Telegram\n2. Create a new bot with /newbot\n3. Copy the Bot Token\n\nChat ID is auto-detected when users message the bot.',
         whatsapp: '1. Create a Meta Business App\n2. Set up WhatsApp Business API\n3. Copy Phone Number ID and Access Token',
       };
