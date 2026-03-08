@@ -500,10 +500,13 @@ class PraisonAIChat(BaseFeatureProtocol):
         ]
 
     async def health(self) -> Dict[str, Any]:
+        from ._gateway_helpers import gateway_health
+
         mgr = get_chat_manager()
         return {
             "status": "ok",
             "feature": self.name,
             "active_clients": len(mgr._ws_clients),
             "sessions_cached": len(mgr._history),
+            **gateway_health(),
         }

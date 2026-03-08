@@ -166,6 +166,8 @@ class PraisonAISchedules(BaseFeatureProtocol):
         }]
 
     async def health(self) -> Dict[str, Any]:
+        from ._gateway_helpers import gateway_health
+
         store = _get_schedule_store()
         jobs = store.list() if hasattr(store, 'list') else []
         enabled = sum(1 for j in jobs if _getattr_or_get(j, "enabled", True))
@@ -174,6 +176,7 @@ class PraisonAISchedules(BaseFeatureProtocol):
             "feature": self.name,
             "total_jobs": len(jobs),
             "enabled_jobs": enabled,
+            **gateway_health(),
         }
 
     # ── API handlers ─────────────────────────────────────────────────

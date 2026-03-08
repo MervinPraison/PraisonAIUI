@@ -261,12 +261,15 @@ class PraisonAIUsage(BaseFeatureProtocol):
         }]
 
     async def health(self) -> Dict[str, Any]:
+        from ._gateway_helpers import gateway_health
+
         return {
             "status": "ok",
             "feature": self.name,
             "total_requests": _aggregates["total_requests"],
             "total_cost": round(_aggregates["total_cost"], 4),
             "models_tracked": len(_aggregates["by_model"]),
+            **gateway_health(),
         }
 
     # ── API handlers ─────────────────────────────────────────────────

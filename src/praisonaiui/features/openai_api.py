@@ -96,11 +96,14 @@ class PraisonAIOpenAIAPI(BaseFeatureProtocol):
         }]
 
     async def health(self) -> Dict[str, Any]:
+        from ._gateway_helpers import gateway_health
+
         caps = _get_capabilities()
         return {
             "status": "ok" if caps else "degraded",
             "feature": self.name,
             "capabilities_available": caps is not None,
+            **gateway_health(),
         }
 
     # ── Core endpoints ───────────────────────────────────────────────

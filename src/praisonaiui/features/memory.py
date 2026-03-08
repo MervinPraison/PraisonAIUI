@@ -408,9 +408,12 @@ class PraisonAIMemory(BaseFeatureProtocol):
         }]
 
     async def health(self) -> Dict[str, Any]:
+        from ._gateway_helpers import gateway_health
+
         mgr = get_memory_manager()
         h = mgr.health()
         h["feature"] = self.name
+        h.update(gateway_health())
         return h
 
     # ── API handlers ─────────────────────────────────────────────────

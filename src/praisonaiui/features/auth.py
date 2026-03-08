@@ -141,12 +141,15 @@ class PraisonAIAuth(BaseFeatureProtocol):
         }]
 
     async def health(self) -> Dict[str, Any]:
+        from ._gateway_helpers import gateway_health
+
         return {
             "status": "ok",
             "feature": self.name,
             "mode": _auth_config.get("mode", "none"),
             "api_keys": len(_auth_config.get("api_keys", {})),
             "active_sessions": len(_active_sessions),
+            **gateway_health(),
         }
 
     # ── Auth status ──────────────────────────────────────────────────

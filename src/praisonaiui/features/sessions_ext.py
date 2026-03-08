@@ -202,19 +202,13 @@ class PraisonAISessions(BaseFeatureProtocol):
 
 
     async def health(self) -> Dict[str, Any]:
-        gateway_sessions = 0
-        try:
-            from ._gateway_ref import get_gateway
-            gw = get_gateway()
-            if gw is not None:
-                gateway_sessions = len(list(gw.list_agents()))
-        except (ImportError, Exception):
-            pass
+        from ._gateway_helpers import gateway_health
+
         return {
             "status": "ok",
             "feature": self.name,
             "sessions_with_state": len(_session_metadata),
-            "gateway_agent_sessions": gateway_sessions,
+            **gateway_health(),
         }
 
     # ── API handlers ─────────────────────────────────────────────────

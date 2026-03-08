@@ -78,6 +78,8 @@ class PraisonAIJobs(BaseFeatureProtocol):
         }]
 
     async def health(self) -> Dict[str, Any]:
+        from ._gateway_helpers import gateway_health
+
         running = sum(1 for j in _jobs.values() if j.get("status") == JobStatus.RUNNING.value)
         queued = sum(1 for j in _jobs.values() if j.get("status") == JobStatus.QUEUED.value)
         return {
@@ -86,6 +88,7 @@ class PraisonAIJobs(BaseFeatureProtocol):
             "total_jobs": len(_jobs),
             "running_jobs": running,
             "queued_jobs": queued,
+            **gateway_health(),
         }
 
     # ── API handlers ─────────────────────────────────────────────────

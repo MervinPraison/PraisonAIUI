@@ -36,27 +36,18 @@ class PraisonAIGuardrails(BaseFeatureProtocol):
         return self.feature_description
 
     async def health(self) -> Dict[str, Any]:
-        gateway_connected = False
-        gateway_agent_count = 0
+        from ._gateway_helpers import gateway_health, gateway_agents
+
         active_guardrails = 0
         total_violations = len(_violations)
-        try:
-            from ._gateway_ref import get_gateway
-            gw = get_gateway()
-            if gw is not None:
-                gateway_connected = True
-                gateway_agent_count = len(list(gw.list_agents()))
-                # Count agents that have guardrails configured
-                for aid in gw.list_agents():
-                    agent = gw.get_agent(aid)
-                    if agent and (
-                        getattr(agent, "guardrail", None)
-                        or getattr(agent, "guardrails", None)
-                        or getattr(agent, "output_guardrail", None)
-                    ):
-                        active_guardrails += 1
-        except (ImportError, Exception):
-            pass
+        # Count agents that have guardrails configured
+        for agent in gateway_agents():
+            if (
+                getattr(agent, "guardrail", None)
+                or getattr(agent, "guardrails", None)
+                or getattr(agent, "output_guardrail", None)
+            ):
+                active_guardrails += 1
         # Also count registered guardrails
         active_guardrails += len(_guardrail_registry)
         return {
@@ -64,8 +55,7 @@ class PraisonAIGuardrails(BaseFeatureProtocol):
             "feature": self.name,
             "active_guardrails": active_guardrails,
             "total_violations": total_violations,
-            "gateway_connected": gateway_connected,
-            "gateway_agent_count": gateway_agent_count,
+            **gateway_health(),
         }
 
     def routes(self) -> List[Route]:

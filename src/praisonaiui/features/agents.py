@@ -283,6 +283,8 @@ class PraisonAIAgentsFeature(BaseFeatureProtocol):
         }]
 
     async def health(self) -> Dict[str, Any]:
+        from ._gateway_helpers import gateway_health
+
         active = sum(1 for a in _agent_definitions.values() if a.get("status") == "active")
         gateway_synced = 0
         try:
@@ -299,6 +301,7 @@ class PraisonAIAgentsFeature(BaseFeatureProtocol):
             "total_agents": len(_agent_definitions),
             "active_agents": active,
             "gateway_synced": gateway_synced,
+            **gateway_health(),
         }
 
     # ── API handlers ─────────────────────────────────────────────────

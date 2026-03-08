@@ -40,16 +40,7 @@ class PraisonAISecurity(BaseFeatureProtocol):
         return self.feature_description
 
     async def health(self) -> Dict[str, Any]:
-        gateway_connected = False
-        gateway_agent_count = 0
-        try:
-            from ._gateway_ref import get_gateway
-            gw = get_gateway()
-            if gw is not None:
-                gateway_connected = True
-                gateway_agent_count = len(list(gw.list_agents()))
-        except (ImportError, Exception):
-            pass
+        from ._gateway_helpers import gateway_health
 
         # Check if security module is available
         security_available = False
@@ -72,8 +63,7 @@ class PraisonAISecurity(BaseFeatureProtocol):
             "injection_defense": _security_config.get("injection_defense", False),
             "audit_logging": _security_config.get("audit_logging", False),
             "audit_entries": len(_audit_log),
-            "gateway_connected": gateway_connected,
-            "gateway_agent_count": gateway_agent_count,
+            **gateway_health(),
         }
 
     def routes(self) -> List[Route]:

@@ -36,16 +36,7 @@ class PraisonAIEval(BaseFeatureProtocol):
         return self.feature_description
 
     async def health(self) -> Dict[str, Any]:
-        gateway_connected = False
-        gateway_agent_count = 0
-        try:
-            from ._gateway_ref import get_gateway
-            gw = get_gateway()
-            if gw is not None:
-                gateway_connected = True
-                gateway_agent_count = len(list(gw.list_agents()))
-        except (ImportError, Exception):
-            pass
+        from ._gateway_helpers import gateway_health
 
         # Check if eval module is available
         eval_available = False
@@ -66,8 +57,7 @@ class PraisonAIEval(BaseFeatureProtocol):
             "evaluator_classes": evaluator_classes,
             "total_evaluations": len(_eval_results),
             "active_judges": len(_eval_judges),
-            "gateway_connected": gateway_connected,
-            "gateway_agent_count": gateway_agent_count,
+            **gateway_health(),
         }
 
     def routes(self) -> List[Route]:

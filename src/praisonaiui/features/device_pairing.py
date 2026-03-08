@@ -161,9 +161,12 @@ class PraisonAIDevicePairing(BaseFeatureProtocol):
         ]
 
     async def health(self) -> Dict[str, Any]:
+        from ._gateway_helpers import gateway_health
+
         mgr = get_pairing_manager()
         h = mgr.health()
         h["feature"] = self.name
+        h.update(gateway_health())
         return h
 
     async def _create(self, request: Request) -> JSONResponse:

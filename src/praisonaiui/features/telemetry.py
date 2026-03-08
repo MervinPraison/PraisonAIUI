@@ -36,16 +36,7 @@ class PraisonAITelemetry(BaseFeatureProtocol):
         return self.feature_description
 
     async def health(self) -> Dict[str, Any]:
-        gateway_connected = False
-        gateway_agent_count = 0
-        try:
-            from ._gateway_ref import get_gateway
-            gw = get_gateway()
-            if gw is not None:
-                gateway_connected = True
-                gateway_agent_count = len(list(gw.list_agents()))
-        except (ImportError, Exception):
-            pass
+        from ._gateway_helpers import gateway_health
 
         # Check SDK telemetry availability
         telemetry_available = False
@@ -68,8 +59,7 @@ class PraisonAITelemetry(BaseFeatureProtocol):
             "profiling_available": profiling_available,
             "total_metrics": len(_metrics),
             "total_snapshots": len(_perf_snapshots),
-            "gateway_connected": gateway_connected,
-            "gateway_agent_count": gateway_agent_count,
+            **gateway_health(),
         }
 
     def routes(self) -> List[Route]:

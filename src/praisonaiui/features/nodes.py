@@ -64,6 +64,8 @@ class PraisonAINodes(BaseFeatureProtocol):
         }]
 
     async def health(self) -> Dict[str, Any]:
+        from ._gateway_helpers import gateway_health
+
         online = sum(1 for n in _nodes.values() if n.get("status") == "online")
         return {
             "status": "ok",
@@ -71,6 +73,7 @@ class PraisonAINodes(BaseFeatureProtocol):
             "total_nodes": len(_nodes),
             "online_nodes": online,
             "connected_instances": len(_instances),
+            **gateway_health(),
         }
 
     # ── Node API handlers ────────────────────────────────────────────

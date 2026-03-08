@@ -129,11 +129,14 @@ class PraisonAIApprovals(BaseFeatureProtocol):
         }]
 
     async def health(self) -> Dict[str, Any]:
+        from ._gateway_helpers import gateway_health
+
         return {
             "status": "ok",
             "feature": self.name,
             "pending_count": len(_pending),
             "history_count": len(_history),
+            **gateway_health(),
         }
 
     # ── API handlers ─────────────────────────────────────────────────

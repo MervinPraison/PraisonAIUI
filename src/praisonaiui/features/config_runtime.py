@@ -218,23 +218,14 @@ class PraisonAIConfigRuntime(BaseFeatureProtocol):
         }]
 
     async def health(self) -> Dict[str, Any]:
-        gateway_connected = False
-        gateway_agent_count = 0
-        try:
-            from ._gateway_ref import get_gateway
-            gw = get_gateway()
-            if gw is not None:
-                gateway_connected = True
-                gateway_agent_count = len(list(gw.list_agents()))
-        except (ImportError, Exception):
-            pass
+        from ._gateway_helpers import gateway_health
+
         return {
             "status": "ok",
             "feature": self.name,
             "keys": len(_runtime_config),
             "changes": len(_config_history),
-            "gateway_connected": gateway_connected,
-            "gateway_agent_count": gateway_agent_count,
+            **gateway_health(),
         }
 
     # ── API handlers ─────────────────────────────────────────────────
