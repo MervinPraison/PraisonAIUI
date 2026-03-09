@@ -207,7 +207,6 @@ class PraisonAIProvider(BaseProvider):
             "name": "Assistant",
             "instructions": "You are a helpful assistant. Use markdown formatting.",
             "memory": True,
-            "reflection": True,  # G2: Enable reflection/interactive mode by default
         }
 
         # G2: Resolve default tools via praisonai wrapper
@@ -479,7 +478,11 @@ class PraisonAIProvider(BaseProvider):
         async def _run_chat():
             nonlocal full_response, _chat_error
             try:
-                response = await asyncio.to_thread(agent.chat, message, stream=True)
+                chat_kwargs = {"stream": True}
+                # Forward attachment file paths for SDK native multimodal handling
+                if "attachments" in kwargs and kwargs["attachments"]:
+                    chat_kwargs["attachments"] = kwargs["attachments"]
+                response = await asyncio.to_thread(agent.chat, message, **chat_kwargs)
                 full_response = str(response)
             except Exception as exc:
                 _chat_error = exc

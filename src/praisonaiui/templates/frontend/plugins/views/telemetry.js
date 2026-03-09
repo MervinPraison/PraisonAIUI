@@ -3,6 +3,8 @@
  * Shows LLM call latency, token throughput, profiling data.
  * API: /api/telemetry, /api/telemetry/status, /api/telemetry/metrics, /api/telemetry/performance
  */
+import { helpBanner } from '/plugins/views/_helpers.js';
+
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
 
@@ -94,5 +96,12 @@ export async function render(container) {
               </tbody></table>`
         }
       </div>
+      ${helpBanner({
+        title: 'Telemetry',
+        what: 'Performance dashboard for your AI agents. See how fast they respond, how many tokens they use, and track usage over time.',
+        howToUse: 'Metrics appear automatically as your agents handle conversations. The cards above show totals, and the table below shows individual calls with timing details.',
+        tip: 'High latency? Check which agent or model is slowest in the "By Agent" table to identify bottlenecks.',
+        collapsed: true,
+      })}
     </div>`;
 }

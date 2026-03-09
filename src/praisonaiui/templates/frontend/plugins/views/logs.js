@@ -2,6 +2,8 @@
  * Logs View — real-time WebSocket log viewer
  * API: /api/logs/stream (WebSocket), /api/logs/levels, /api/logs/stats
  */
+import { helpBanner } from '/plugins/views/_helpers.js';
+
 let ws = null;
 
 export async function render(container) {
@@ -43,6 +45,13 @@ export async function render(container) {
       </div>
     </div>
     <div id="log-output" style="background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:10px;padding:16px;height:calc(100vh - 400px);overflow-y:auto;font-family:monospace;font-size:12px;line-height:1.8"></div>
+    ${helpBanner({
+      title: 'Logs',
+      what: 'A live feed of everything happening on your server. See agent activity, errors, and system messages as they happen.',
+      howToUse: 'Logs stream automatically — just watch! Use the <b>level filter</b> to show only errors or warnings, and the <b>search box</b> to find specific messages.',
+      tip: 'This page is always useful for troubleshooting. If something isn\'t working, check here first.',
+      collapsed: true,
+    })}
   `;
 
   const output = container.querySelector('#log-output');

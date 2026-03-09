@@ -6,6 +6,8 @@
  *
  * API: /api/schedules
  */
+import { helpBanner } from '/plugins/views/_helpers.js';
+
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
 
@@ -59,6 +61,14 @@ export async function render(container) {
         </div>
       </div>
     </div>
+
+    ${helpBanner({
+      title: 'Jobs & Schedules',
+      what: 'Set up your AI agents to run tasks automatically on a schedule — like daily reports, regular check-ins, or periodic data updates.',
+      howToUse: 'Click <b>+ Add Schedule</b> above to create a new recurring task. Give it a name, choose how often it runs (e.g. every hour, daily at 9am), and describe what the agent should do. You can pause, resume, or run any job instantly with the buttons on each card.',
+      tip: 'You can also ask your agent in chat: <i>"Remind me every morning at 9am to check the dashboard"</i> to create schedules conversationally.',
+      collapsed: true,
+    })}
 
     <div id="sched-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center"></div>
   `;

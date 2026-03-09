@@ -6,6 +6,7 @@
  *
  * API: /api/config, /api/config/schema, /api/config/history
  */
+import { helpBanner } from '/plugins/views/_helpers.js';
 
 let currentSection = null;
 let rawMode = false;
@@ -73,6 +74,13 @@ export async function render(container) {
         </div>
       </div>
     </div>
+    ${helpBanner({
+      title: 'Configuration',
+      what: 'This is your settings panel. You can adjust how your AI agents behave, which AI model they use, and how the server runs.',
+      howToUse: 'Browse sections in the left sidebar, change any value, and click <b>Save & Apply</b>. Changes take effect immediately — no restart needed.',
+      tip: 'Use the search box to quickly find a setting. Toggle between Form and Raw JSON mode at the bottom of the sidebar.',
+      collapsed: true,
+    })}
   `;
 
   // Bind section navigation

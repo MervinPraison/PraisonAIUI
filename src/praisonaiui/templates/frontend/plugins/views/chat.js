@@ -21,6 +21,7 @@ let focusMode = false;
 let containerRef = null;
 let currentDeltaEl = null;
 let currentDeltaText = '';
+let pendingAttachments = [];  // { id, filename, content_type, preview_url }
 
 // ── Helpers ──────────────────────────────────────────────────────
 function escapeHtml(str) {
@@ -174,6 +175,17 @@ function injectStyles() {
     .chat-send-btn { padding:8px 18px; background:var(--db-accent); color:#fff; border:none; border-radius:10px; cursor:pointer; font-size:14px; font-weight:600; transition:all .15s; }
     .chat-send-btn:hover { filter:brightness(1.1); }
     .chat-send-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+    .chat-attach-btn { padding:8px 10px; background:transparent; border:1px solid var(--db-border); border-radius:10px; cursor:pointer; font-size:16px; color:var(--db-text-dim); transition:all .15s; display:flex; align-items:center; }
+    .chat-attach-btn:hover { background:rgba(var(--db-accent-rgb,100,100,255),.1); color:var(--db-accent); border-color:var(--db-accent); }
+    .chat-attach-strip { display:flex; flex-wrap:wrap; gap:6px; padding:0; margin:0; }
+    .chat-attach-strip:empty { display:none; }
+    .chat-attach-item { display:flex; align-items:center; gap:6px; padding:4px 10px; background:rgba(var(--db-accent-rgb,100,100,255),.08); border:1px solid rgba(var(--db-accent-rgb,100,100,255),.2); border-radius:8px; font-size:12px; color:var(--db-text); max-width:200px; }
+    .chat-attach-item .attach-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+    .chat-attach-item .attach-icon { font-size:14px; }
+    .chat-attach-item .attach-remove { cursor:pointer; color:var(--db-text-dim); font-size:14px; padding:0 2px; border:none; background:none; line-height:1; }
+    .chat-attach-item .attach-remove:hover { color:#ef4444; }
+    .chat-attach-item img.attach-thumb { width:24px; height:24px; object-fit:cover; border-radius:4px; }
   `;
   document.head.appendChild(style);
 }
@@ -227,7 +239,10 @@ export async function render(container) {
           </div>
         </div>
         <div class="chat-compose">
+          <div class="chat-attach-strip" id="chat-attach-strip"></div>
           <div class="chat-compose-row">
+            <button class="chat-attach-btn" id="chat-attach-btn" title="Attach file (PDF, image)">📎</button>
+            <input type="file" id="chat-file-input" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,image/*,application/pdf" multiple style="display:none" />
             <textarea id="chat-input" placeholder="Type a message…" rows="1"></textarea>
             <div class="chat-compose-actions">
               <button class="chat-send-btn" id="chat-send-btn">Send ↵</button>
@@ -248,6 +263,8 @@ export async function render(container) {
   const memRefreshBtn = document.getElementById('chat-mem-refresh');
   const memCloseBtn = document.getElementById('chat-mem-close');
   const agentSelector = document.getElementById('chat-agent-selector');
+  const attachBtn = document.getElementById('chat-attach-btn');
+  const fileInput = document.getElementById('chat-file-input');
 
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -260,6 +277,10 @@ export async function render(container) {
   abortBtn.addEventListener('click', abortRun);
   newBtn.addEventListener('click', newSession);
   agentSelector.addEventListener('change', (e) => { currentAgentName = e.target.value || null; });
+
+  // File upload
+  attachBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => handleFileUpload(fileInput));
 
   focusBtn.addEventListener('click', () => {
     focusMode = !focusMode;
@@ -956,11 +977,104 @@ async function loadMemories() {
   }
 }
 
+// ── File Upload & Attachments ───────────────────────────────────
+async function handleFileUpload(fileInput) {
+  const files = Array.from(fileInput.files);
+  if (!files.length) return;
+  fileInput.value = '';  // reset so same file can be re-selected
+
+  // Ensure session exists
+  if (!currentSessionId) {
+    currentSessionId = crypto.randomUUID ? crypto.randomUUID() :
+      'xxxx-xxxx-xxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16));
+  }
+
+  for (const file of files) {
+    // Validate type
+    const allowed = ['application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+    if (!allowed.includes(file.type) && !file.type.startsWith('image/')) {
+      appendMessage('system', `❌ Unsupported file type: ${file.name} (${file.type})`);
+      continue;
+    }
+
+    // Validate size (10 MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      appendMessage('system', `❌ File too large: ${file.name} (max 10 MB)`);
+      continue;
+    }
+
+    // Upload
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('session_id', currentSessionId);
+
+    try {
+      const resp = await fetch('/api/chat/attachments', { method: 'POST', body: formData });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: resp.statusText }));
+        appendMessage('system', `❌ Upload failed: ${err.error || err.detail || resp.statusText}`);
+        continue;
+      }
+      const data = await resp.json();
+
+      // Create thumbnail preview for images
+      let preview_url = null;
+      if (file.type.startsWith('image/')) {
+        preview_url = URL.createObjectURL(file);
+      }
+
+      pendingAttachments.push({
+        id: data.attachment_id || data.id || file.name,
+        filename: file.name,
+        content_type: file.type,
+        preview_url,
+      });
+    } catch (e) {
+      appendMessage('system', `❌ Upload error: ${e.message}`);
+    }
+  }
+
+  renderAttachmentStrip();
+}
+
+function renderAttachmentStrip() {
+  const strip = document.getElementById('chat-attach-strip');
+  if (!strip) return;
+  strip.innerHTML = pendingAttachments.map((a, i) => {
+    const icon = a.content_type === 'application/pdf' ? '📄' : '🖼️';
+    const thumb = a.preview_url
+      ? `<img class="attach-thumb" src="${a.preview_url}" alt="" />`
+      : `<span class="attach-icon">${icon}</span>`;
+    return `<div class="chat-attach-item" data-idx="${i}">
+      ${thumb}
+      <span class="attach-name" title="${escapeHtml(a.filename)}">${escapeHtml(a.filename)}</span>
+      <button class="attach-remove" data-idx="${i}" title="Remove">✕</button>
+    </div>`;
+  }).join('');
+
+  // Bind remove buttons
+  strip.querySelectorAll('.attach-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const idx = parseInt(btn.dataset.idx);
+      const removed = pendingAttachments.splice(idx, 1)[0];
+      if (removed && removed.preview_url) URL.revokeObjectURL(removed.preview_url);
+      renderAttachmentStrip();
+    });
+  });
+}
+
+function clearAttachments() {
+  pendingAttachments.forEach(a => { if (a.preview_url) URL.revokeObjectURL(a.preview_url); });
+  pendingAttachments = [];
+  renderAttachmentStrip();
+}
+
 // ── Send / Queue / Abort ────────────────────────────────────────
 function sendMessage() {
   const input = document.getElementById('chat-input');
   const content = input.value.trim();
-  if (!content) return;
+  if (!content && pendingAttachments.length === 0) return;
 
   // Generate session ID if needed
   if (!currentSessionId) {
@@ -968,30 +1082,40 @@ function sendMessage() {
       'xxxx-xxxx-xxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16));
   }
 
+  // Build attachment info for display
+  const attachInfo = pendingAttachments.length > 0
+    ? '\n\n📎 ' + pendingAttachments.map(a => a.filename).join(', ')
+    : '';
+
   // If streaming, queue the message
   if (isStreaming) {
-    messageQueue.push({ content, session_id: currentSessionId, agent_name: currentAgentName });
+    messageQueue.push({ content, session_id: currentSessionId, agent_name: currentAgentName, attachment_ids: pendingAttachments.map(a => a.id) });
     updateQueueBadge();
-    appendMessage('user', content);
+    appendMessage('user', (content || '') + attachInfo);
     appendMessage('system', '📥 Message queued (' + messageQueue.length + ' pending)');
     input.value = '';
     input.style.height = 'auto';
+    clearAttachments();
     return;
   }
 
   // Display user message immediately
-  appendMessage('user', content);
+  appendMessage('user', (content || '') + attachInfo);
   input.value = '';
   input.style.height = 'auto';
 
   // Send via WebSocket if connected
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({
+    const payload = {
       type: 'chat',
-      content: content,
+      content: content || '',
       session_id: currentSessionId,
       agent_name: currentAgentName,
-    }));
+    };
+    if (pendingAttachments.length > 0) {
+      payload.attachment_ids = pendingAttachments.map(a => a.id);
+    }
+    ws.send(JSON.stringify(payload));
     setStreaming(true);
     setStatus('streaming');
   } else {
@@ -1001,9 +1125,10 @@ function sendMessage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        content: content,
+        content: content || '',
         session_id: currentSessionId,
         agent_name: currentAgentName,
+        attachment_ids: pendingAttachments.map(a => a.id),
       }),
     }).then((r) => r.json()).then((data) => {
       if (data.error) {
@@ -1018,7 +1143,8 @@ function sendMessage() {
     });
   }
 
-  // Refresh sessions list
+  // Clear attachments and refresh sessions
+  clearAttachments();
   setTimeout(loadSessions, 500);
 }
 

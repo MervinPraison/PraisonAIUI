@@ -55,16 +55,10 @@ const FEATURES = [
     ]},
   ]},
   { group: "Chat & Communication", items: [
-    { name: "chat",           endpoints: [
-      { label: "Health",        method: "GET",  url: "/api/chat/health" },
-    ]},
     { name: "attachments",    endpoints: [
       { label: "List Files",    method: "GET",  url: "/api/attachments" },
     ]},
-    { name: "channels",       endpoints: [
-      { label: "List Channels", method: "GET",  url: "/api/channels" },
-      { label: "Supported",     method: "GET",  url: "/api/channels/supported" },
-    ]},
+
     { name: "protocol",       endpoints: [
       { label: "Version",       method: "GET",  url: "/api/protocol/version" },
     ]},
@@ -76,6 +70,13 @@ const FEATURES = [
     ]},
   ]},
   { group: "Agent Management", items: [
+    { name: "chat",           endpoints: [
+      { label: "Health",        method: "GET",  url: "/api/chat/health" },
+    ]},
+    { name: "channels",       endpoints: [
+      { label: "List Channels", method: "GET",  url: "/api/channels" },
+      { label: "Platforms",     method: "GET",  url: "/api/channels/platforms" },
+    ]},
     { name: "agents_crud",    endpoints: [
       { label: "All Agents",    method: "GET",  url: "/api/agents" },
       { label: "Definitions",   method: "GET",  url: "/api/agents/definitions" },
@@ -95,6 +96,9 @@ const FEATURES = [
   { group: "Sessions & Memory", items: [
     { name: "sessions_ext",   endpoints: [
       { label: "List Sessions", method: "GET",  url: "/api/sessions" },
+    ]},
+    { name: "instances",      endpoints: [
+      { label: "List Instances",method: "GET",  url: "/api/instances" },
     ]},
     { name: "memory",         endpoints: [
       { label: "List",          method: "GET",  url: "/api/memory" },
@@ -156,6 +160,10 @@ const FEATURES = [
     ]},
     { name: "usage",          endpoints: [
       { label: "Summary",       method: "GET",  url: "/api/usage/summary" },
+      { label: "Models",        method: "GET",  url: "/api/usage/models" },
+      { label: "Timeseries",    method: "GET",  url: "/api/usage/timeseries" },
+      { label: "By Agent",      method: "GET",  url: "/api/usage/agents" },
+      { label: "By Session",    method: "GET",  url: "/api/usage/sessions" },
     ]},
     { name: "nodes",          endpoints: [
       { label: "List Nodes",    method: "GET",  url: "/api/nodes" },
@@ -415,7 +423,8 @@ export async function render(container) {
         const text = await res.text();
         data = { _content_type: ct, _length: text.length, _preview: text.substring(0, 300) + (text.length > 300 ? '...' : '') };
       } else {
-        try { data = await res.json(); } catch { data = { _raw: await res.text() }; }
+        const cloned = res.clone();
+        try { data = await res.json(); } catch { data = { _raw: await cloned.text() }; }
       }
 
       const statusClass = res.ok ? 'ok' : 'err';

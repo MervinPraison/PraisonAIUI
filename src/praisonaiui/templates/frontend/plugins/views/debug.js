@@ -11,8 +11,10 @@ export async function render(container) {
 
   let features = [], health = {}, config = {}, gatewayData = {};
   let wsStatus = 'unknown', wsLatency = null;
+  const apiStart = Date.now();
 
   try { const r = await fetch('/api/features'); const d = await r.json(); features = d.features || d || []; if (!Array.isArray(features)) features = []; } catch(e) {}
+  const apiLatency = Date.now() - apiStart;
   try { const r = await fetch('/api/health'); if (r.ok) { health = await r.json(); } else { health = { status: 'ok', note: 'no /api/health endpoint' }; } } catch(e) { health = { status: 'unreachable' }; }
   try { const r = await fetch('/api/config'); config = await r.json(); } catch(e) {}
   try { const r = await fetch('/api/gateway/status'); gatewayData = await r.json(); } catch(e) { gatewayData = { status: 'unavailable', connected: false, agents: [], agent_count: 0 }; }
@@ -34,13 +36,20 @@ export async function render(container) {
   const gatewayStatus = gatewayConnected ? 'connected' : gatewayData.status || 'unknown';
   const gatewayAgents = gatewayData.agents || [];
 
+  // Overview stats
+  const healthy = features.filter(f => typeof f === 'object' && f.healthy !== false).length;
+  const total = features.length;
+  const healthPct = total > 0 ? Math.round(healthy / total * 100) : 0;
+  const uptimeMs = Date.now() - (window.__aiuiLoadTime || Date.now());
+  const uptime = uptimeMs < 60000 ? `${Math.round(uptimeMs/1000)}s` : `${Math.round(uptimeMs/60000)}m`;
+
   container.innerHTML = `
     <!-- System Status Cards -->
-    <div class="db-columns" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
+    <div class="db-columns" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:24px">
       <div class="db-card">
         <div class="db-card-title">Server</div>
         <div style="font-size:20px;font-weight:700;margin:6px 0;color:${serverStatus === 'healthy' ? '#22c55e' : '#ef4444'}">${serverStatus === 'healthy' ? '● Healthy' : '○ ' + serverStatus}</div>
-        <div style="font-size:11px;color:var(--db-text-dim)">${health.uptime ? 'Uptime: ' + formatUptime(health.uptime) : location.origin}</div>
+        <div style="font-size:11px;color:var(--db-text-dim)">Uptime: ${health.uptime ? formatUptime(health.uptime) : uptime}</div>
       </div>
       <div class="db-card">
         <div class="db-card-title">Gateway</div>
@@ -54,8 +63,18 @@ export async function render(container) {
       </div>
       <div class="db-card">
         <div class="db-card-title">Features</div>
-        <div style="font-size:20px;font-weight:700;margin:6px 0">${features.length}</div>
-        <div style="font-size:11px;color:var(--db-text-dim)">registered features</div>
+        <div style="font-size:20px;font-weight:700;margin:6px 0">${total}</div>
+        <div style="font-size:11px;color:var(--db-text-dim)">${healthy} active</div>
+      </div>
+      <div class="db-card">
+        <div class="db-card-title">Health</div>
+        <div style="font-size:20px;font-weight:700;margin:6px 0;color:${healthPct >= 80 ? '#22c55e' : healthPct >= 50 ? '#eab308' : '#ef4444'}">${healthPct}%</div>
+        <div style="font-size:11px;color:var(--db-text-dim)">${total - healthy} degraded</div>
+      </div>
+      <div class="db-card">
+        <div class="db-card-title">API Latency</div>
+        <div style="font-size:20px;font-weight:700;margin:6px 0">${apiLatency}ms</div>
+        <div style="font-size:11px;color:var(--db-text-dim)">/api/features</div>
       </div>
     </div>
 

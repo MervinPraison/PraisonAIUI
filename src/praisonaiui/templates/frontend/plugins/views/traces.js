@@ -3,6 +3,8 @@
  * Shows execution traces, spans, call trees.
  * API: /api/traces, /api/traces/status, /api/traces/spans
  */
+import { helpBanner } from '/plugins/views/_helpers.js';
+
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
 
@@ -94,5 +96,12 @@ export async function render(container) {
               </tbody></table>`
         }
       </div>
+      ${helpBanner({
+        title: 'Traces',
+        what: 'Traces show the step-by-step journey of each agent request — what happened, in what order, and how long each step took.',
+        howToUse: 'Traces are recorded automatically when agents process requests. Browse recent traces in the table below and click to see detailed timing breakdowns.',
+        tip: 'No traces showing? Make sure you have agents connected and have sent at least one message through chat.',
+        collapsed: true,
+      })}
     </div>`;
 }

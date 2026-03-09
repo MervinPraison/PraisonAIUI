@@ -28,9 +28,33 @@ dependencies = [
     "typer>=0.9",
     "uvicorn[standard]>=0.29",
     "starlette>=0.37",
+    "pypdf>=4.0",
 ]
 
 [project.optional-dependencies]
+memory = [
+    "chromadb>=1.0.0",
+    "litellm>=1.81.0",
+]
+
+knowledge = [
+    "mem0ai>=0.1.0",
+    "chromadb>=1.0.0",
+    "markitdown[all]>=0.1.0",
+    "chonkie>=1.0.2",
+]
+
+graph = [
+    "mem0ai[graph]>=0.1.0",
+    "chromadb>=1.0.0",
+]
+
+all = [
+    "aiui[memory]",
+    "aiui[knowledge]",
+    "aiui[graph]",
+]
+
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",

@@ -274,10 +274,65 @@ async def _run_and_broadcast(
     content: str,
     session_id: str,
     agent_name: Optional[str],
+    attachment_ids: Optional[List[str]] = None,
 ) -> None:
     """Run the provider and broadcast streaming events to WS clients."""
     from praisonaiui.server import get_provider, _datastore
     from praisonaiui.provider import RunEventType
+
+    # Load attachment content and prepare for provider
+    sdk_attachments = []  # Image file paths → passed to Agent.chat(attachments=[...])
+    if attachment_ids:
+        try:
+            from praisonaiui.features.attachments import get_attachment_manager
+            att_mgr = get_attachment_manager()
+            pdf_context_parts = []
+            for att_id in attachment_ids:
+                meta = att_mgr.get(att_id)
+                if not meta:
+                    continue
+                path = meta.get("path", "")
+                ct = meta.get("content_type", "")
+                fname = meta.get("filename", "file")
+
+                if ct.startswith("image/"):
+                    # Images → pass file path to SDK's native multimodal handling
+                    sdk_attachments.append(path)
+                elif ct == "application/pdf":
+                    # PDFs → extract text and prepend to message
+                    try:
+                        try:
+                            from pypdf import PdfReader
+                        except ImportError:
+                            from PyPDF2 import PdfReader
+                        reader = PdfReader(path)
+                        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+                        pdf_context_parts.append(
+                            f"--- Attached PDF: {fname} ---\n{text}\n--- End of {fname} ---"
+                        )
+                    except ImportError:
+                        import os
+                        pdf_context_parts.append(
+                            f"[PDF file: {fname}, {os.path.getsize(path)} bytes "
+                            f"— install pypdf for text extraction]"
+                        )
+                    except Exception as e:
+                        pdf_context_parts.append(f"[Error reading {fname}: {e}]")
+                else:
+                    # Other text-based files → read and prepend
+                    try:
+                        with open(path, "r", errors="replace") as f:
+                            text = f.read()
+                        pdf_context_parts.append(
+                            f"--- Attached File: {fname} ---\n{text}\n--- End of {fname} ---"
+                        )
+                    except Exception as e:
+                        pdf_context_parts.append(f"[Error reading {fname}: {e}]")
+
+            if pdf_context_parts:
+                content = "\n\n".join(pdf_context_parts) + "\n\nUser message: " + content
+        except Exception as e:
+            logger.warning(f"Failed to load attachments: {e}")
 
     mgr = get_chat_manager()
     provider = get_provider()
@@ -285,10 +340,15 @@ async def _run_and_broadcast(
     run_id = str(uuid.uuid4())
 
     try:
+        # Pass image attachments to provider for SDK native multimodal handling
+        run_kwargs = {}
+        if sdk_attachments:
+            run_kwargs["attachments"] = sdk_attachments
         async for event in provider.run(
             content,
             session_id=session_id,
             agent_name=agent_name,
+            **run_kwargs,
         ):
             # Build broadcast payload
             payload: Dict[str, Any] = {
@@ -430,9 +490,11 @@ async def _chat_ws(websocket: WebSocket) -> None:
                         })
                     except Exception:
                         pass
+                    # Extract attachment_ids
+                    att_ids = data.get("attachment_ids") or []
                     # Run agent and broadcast
                     asyncio.create_task(
-                        _run_and_broadcast(content, session_id, agent_name)
+                        _run_and_broadcast(content, session_id, agent_name, att_ids)
                     )
 
             elif msg_type == "chat_abort":

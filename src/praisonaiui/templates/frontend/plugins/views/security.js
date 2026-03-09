@@ -3,6 +3,8 @@
  * Shows security status, audit entries, agent security config.
  * API: /api/security, /api/security/status, /api/security/audit, /api/security/config
  */
+import { helpBanner } from '/plugins/views/_helpers.js';
+
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
 
@@ -94,5 +96,12 @@ export async function render(container) {
               </tbody></table>`
         }
       </div>
+      ${helpBanner({
+        title: 'Security',
+        what: 'This page shows the security status of your AI agents — whether safety guardrails are active, and a log of security-related events.',
+        howToUse: 'Security monitoring activates automatically when you connect agents that have guardrails configured. The audit log below tracks all security events in real time.',
+        tip: 'If everything shows "Off" or "Not Connected", make sure you have agents running and connected to the gateway.',
+        collapsed: true,
+      })}
     </div>`;
 }
