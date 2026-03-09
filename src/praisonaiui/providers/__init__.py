@@ -194,8 +194,10 @@ class PraisonAIProvider(BaseProvider):
             pass
 
         # 3. Per-session agent: return cached if available
-        if session_id and session_id in self._session_agents:
-            return self._session_agents[session_id]
+        # Key includes agent_name so switching agents creates a new instance
+        cache_key = f"{session_id}:{agent_name or ''}"
+        if session_id and cache_key in self._session_agents:
+            return self._session_agents[cache_key]
 
         # 4. Lazy-create agent for this session
         try:
@@ -207,7 +209,7 @@ class PraisonAIProvider(BaseProvider):
             "name": "Assistant",
             "instructions": "You are a helpful assistant. Use markdown formatting.",
             "memory": True,
-            "self_reflect": False,
+            "reflection": False,
         }
 
         # G2: Resolve default tools via praisonai wrapper
@@ -251,9 +253,9 @@ class PraisonAIProvider(BaseProvider):
         kwargs.update(self._agent_kwargs)
         agent = Agent(**kwargs)
 
-        # Cache per session if session_id provided
+        # Cache per session+agent if session_id provided
         if session_id:
-            self._session_agents[session_id] = agent
+            self._session_agents[cache_key] = agent
         else:
             # No session — store as singleton fallback
             self._agent = agent

@@ -6,7 +6,6 @@ from starlette.testclient import TestClient
 from praisonaiui.server import (
     _agents,
     _callbacks,
-    _sessions,
     create_app,
     register_agent,
     register_callback,
@@ -19,7 +18,6 @@ def client():
     # Clear state before each test
     _agents.clear()
     _callbacks.clear()
-    _sessions.clear()
     app = create_app()
     return TestClient(app)
 
@@ -347,7 +345,6 @@ class TestConfigLoading:
     def test_create_app_without_config(self):
         """Test create_app works without config_path."""
         _callbacks.clear()
-        _sessions.clear()
         _agents.clear()
         app = create_app()
         client = TestClient(app)

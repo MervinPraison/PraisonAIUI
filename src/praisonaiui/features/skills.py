@@ -164,6 +164,41 @@ _sdk_tool_catalog: Dict[str, Dict[str, Any]] | None = None
 # In-memory state (enabled/disabled, config)
 _tool_state: Dict[str, Dict[str, Any]] = {}
 _custom_skills: Dict[str, Dict[str, Any]] = {}
+_skills_loaded = False
+
+
+def _ensure_skills_loaded() -> None:
+    """Lazy-load skills state from config store."""
+    global _skills_loaded, _tool_state, _custom_skills
+    if _skills_loaded:
+        return
+    _skills_loaded = True
+    try:
+        from praisonaiui.config_store import get_config_store
+        store = get_config_store()
+        skills_data = store.get_section("skills")
+        if isinstance(skills_data, dict):
+            _custom_skills.update(skills_data.get("custom", {}))
+            # Restore tool state (enabled/disabled toggles)
+            for tool_id, state in skills_data.get("tool_state", {}).items():
+                _tool_state[tool_id] = state
+            if _custom_skills:
+                logger.info("Loaded %d custom skills from config store", len(_custom_skills))
+    except Exception as e:
+        logger.debug("Config store not available for skills: %s", e)
+
+
+def _save_skills() -> None:
+    """Persist skills state to config store."""
+    try:
+        from praisonaiui.config_store import get_config_store
+        store = get_config_store()
+        store.set_section("skills", {
+            "custom": _custom_skills,
+            "tool_state": _tool_state,
+        })
+    except Exception as e:
+        logger.warning("Failed to save skills to config store: %s", e)
 
 
 def get_tool_catalog() -> Dict[str, Dict[str, Any]]:
@@ -302,6 +337,7 @@ class PraisonAISkills(BaseFeatureProtocol):
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health, gateway_agents
+        _ensure_skills_loaded()
 
         enabled_count = sum(1 for s in _tool_state.values() if s.get("enabled", True))
         gateway_agents_with_tools = sum(
@@ -322,6 +358,7 @@ class PraisonAISkills(BaseFeatureProtocol):
 
     async def _list(self, request: Request) -> JSONResponse:
         """List all available tools and skills."""
+        _ensure_skills_loaded()
         category_filter = request.query_params.get("category")
         search = request.query_params.get("search", "").lower()
         
@@ -359,6 +396,7 @@ class PraisonAISkills(BaseFeatureProtocol):
 
     async def _categories(self, request: Request) -> JSONResponse:
         """List all tool categories."""
+        _ensure_skills_loaded()
         categories = {}
         for info in get_tool_catalog().values():
             cat = info.get("category", "other")
@@ -385,10 +423,12 @@ class PraisonAISkills(BaseFeatureProtocol):
             "registered_at": time.time(),
         }
         _custom_skills[skill_id] = entry
+        _save_skills()
         return JSONResponse(entry, status_code=201)
 
     async def _get(self, request: Request) -> JSONResponse:
         """Get details for a specific tool/skill."""
+        _ensure_skills_loaded()
         skill_id = request.path_params["skill_id"]
         
         # Check catalog first
@@ -428,6 +468,7 @@ class PraisonAISkills(BaseFeatureProtocol):
             if key in body:
                 _custom_skills[skill_id][key] = body[key]
         
+        _save_skills()
         return JSONResponse(_custom_skills[skill_id])
 
     async def _delete(self, request: Request) -> JSONResponse:
@@ -440,6 +481,7 @@ class PraisonAISkills(BaseFeatureProtocol):
         
         del _custom_skills[skill_id]
         _tool_state.pop(skill_id, None)
+        _save_skills()
         return JSONResponse({"deleted": skill_id})
 
     async def _toggle(self, request: Request) -> JSONResponse:
@@ -454,6 +496,7 @@ class PraisonAISkills(BaseFeatureProtocol):
         
         _tool_state[skill_id]["enabled"] = not _tool_state[skill_id].get("enabled", True)
         
+        _save_skills()
         return JSONResponse({
             "id": skill_id,
             "enabled": _tool_state[skill_id]["enabled"],
@@ -473,6 +516,7 @@ class PraisonAISkills(BaseFeatureProtocol):
         
         _tool_state[skill_id]["config"] = body.get("config", {})
         
+        _save_skills()
         # Note: In production, API keys would be set in environment
         # This is just for tracking configuration state
         
@@ -484,6 +528,7 @@ class PraisonAISkills(BaseFeatureProtocol):
     # ── CLI handlers ─────────────────────────────────────────────────
 
     def _cli_list(self) -> str:
+        _ensure_skills_loaded()
         lines = []
         for tool_id, info in get_tool_catalog().items():
             status = _get_tool_status(tool_id)
@@ -492,5 +537,6 @@ class PraisonAISkills(BaseFeatureProtocol):
         return "\n".join(lines) if lines else "No tools available"
 
     def _cli_status(self) -> str:
+        _ensure_skills_loaded()
         enabled = sum(1 for s in _tool_state.values() if s.get("enabled", True))
         return f"Tools: {len(get_tool_catalog())} builtin, {len(_custom_skills)} custom, {enabled} enabled"

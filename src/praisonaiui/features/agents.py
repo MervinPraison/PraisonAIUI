@@ -80,41 +80,45 @@ class AgentRegistryProtocol(ABC):
 
 
 class SimpleAgentRegistry(AgentRegistryProtocol):
-    """In-memory + file registry — zero SDK dependencies."""
+    """In-memory registry backed by the unified YAML config store."""
 
     def __init__(self) -> None:
         self._definitions: Dict[str, Dict[str, Any]] = {}
-        self._data_file: Optional[Path] = None
+        self._config_loaded = False
 
     def set_data_file(self, path: Path) -> None:
-        self._data_file = path
-        self._load_agents()
+        """Legacy no-op — persistence is now via YAMLConfigStore."""
+        pass
+
+    def _ensure_loaded(self) -> None:
+        """Lazy-load agents from config store on first access."""
+        if self._config_loaded:
+            return
+        self._config_loaded = True
+        try:
+            from praisonaiui.config_store import get_config_store
+            store = get_config_store()
+            agents = store.get_section("agents")
+            if isinstance(agents, dict) and agents:
+                self._definitions = dict(agents)
+                for agent_def in self._definitions.values():
+                    if isinstance(agent_def, dict):
+                        _sync_to_gateway(agent_def)
+                logger.info("Loaded %d agents from config store", len(self._definitions))
+        except Exception as e:
+            logger.debug("Config store not available yet: %s", e)
 
     def _save(self) -> None:
-        if not self._data_file:
-            return
+        """Persist current definitions to the YAML config store."""
         try:
-            self._data_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self._data_file, "w") as f:
-                json.dump({"agents": self._definitions, "saved_at": time.time()}, f, indent=2)
+            from praisonaiui.config_store import get_config_store
+            store = get_config_store()
+            store.set_section("agents", self._definitions)
         except Exception as e:
-            logger.warning(f"Failed to save agents to {self._data_file}: {e}")
-
-    def _load_agents(self) -> None:
-        if not self._data_file or not self._data_file.exists():
-            return
-        try:
-            with open(self._data_file) as f:
-                data = json.load(f)
-            self._definitions = data.get("agents", {})
-            for agent_def in self._definitions.values():
-                _sync_to_gateway(agent_def)
-            if self._definitions:
-                logger.info(f"Loaded {len(self._definitions)} agents from {self._data_file}")
-        except Exception as e:
-            logger.warning(f"Failed to load agents from {self._data_file}: {e}")
+            logger.warning("Failed to save agents to config store: %s", e)
 
     def create(self, agent_def: Dict[str, Any]) -> Dict[str, Any]:
+        self._ensure_loaded()
         agent_id = agent_def.get("id", f"agent_{uuid.uuid4().hex[:8]}")
         now = time.time()
         agent = {
@@ -141,6 +145,7 @@ class SimpleAgentRegistry(AgentRegistryProtocol):
         return agent
 
     def get(self, agent_id: str) -> Optional[Dict[str, Any]]:
+        self._ensure_loaded()
         agent = self._definitions.get(agent_id)
         if agent is not None:
             return agent
@@ -165,6 +170,7 @@ class SimpleAgentRegistry(AgentRegistryProtocol):
         return None
 
     def update(self, agent_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        self._ensure_loaded()
         if agent_id not in self._definitions:
             return None
         agent = self._definitions[agent_id]
@@ -180,6 +186,7 @@ class SimpleAgentRegistry(AgentRegistryProtocol):
         return agent
 
     def delete(self, agent_id: str) -> bool:
+        self._ensure_loaded()
         if agent_id not in self._definitions:
             return False
         _unsync_from_gateway(agent_id)
@@ -188,9 +195,11 @@ class SimpleAgentRegistry(AgentRegistryProtocol):
         return True
 
     def list_all(self) -> List[Dict[str, Any]]:
+        self._ensure_loaded()
         return list(self._definitions.values())
 
     def health(self) -> Dict[str, Any]:
+        self._ensure_loaded()
         active = sum(1 for a in self._definitions.values() if a.get("status") == "active")
         return {
             "status": "ok",
@@ -274,7 +283,7 @@ def _sync_to_gateway(agent_def: Dict[str, Any]) -> None:
             ),
             "llm": agent_def.get("model", "gpt-4o-mini"),
             "memory": True,
-            "reflection": agent_def.get("reflection", True),
+            "reflection": agent_def.get("reflection", False),
         }
 
         # G8: Resolve tool name strings to callables via ToolResolver
@@ -324,10 +333,8 @@ def _unsync_from_gateway(agent_id: str) -> None:
 
 
 def set_agents_data_file(path: Path) -> None:
-    """Set the data file path for persistence."""
-    reg = get_agent_registry()
-    if hasattr(reg, "set_data_file"):
-        reg.set_data_file(path)
+    """Legacy shim — persistence is now via YAMLConfigStore."""
+    pass
 
 
 def create_agent(name: str, description: str = "", instructions: str = "",
@@ -609,7 +616,7 @@ class PraisonAIAgentsFeature(BaseFeatureProtocol):
                     instructions=agent_def.get("instructions", "") or agent_def.get("system_prompt", ""),
                     llm=agent_def.get("model", "gpt-4o-mini"),
                     tools=agent_tools if agent_tools else None,
-                    reflection=agent_def.get("reflection", True),
+                    reflection=agent_def.get("reflection", False),
                 )
 
             # Execute in thread pool to not block event loop

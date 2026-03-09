@@ -1123,7 +1123,59 @@ def create_app(
     # When running standalone (not via AIUIGateway.start()), we need to
     # initialize a gateway so that gateway-dependent features work.
     _init_gateway_standalone(config)
-    
+
+    # ── Initialize unified YAML config store ────────────────────────
+    # All CRUD features (agents, skills, etc.) persist their state to
+    # a single YAML file (~/.praisonaiui/config.yaml).  Features load
+    # lazily via get_config_store() on first access.
+    try:
+        from praisonaiui.config_store import init_config_store
+        _default_data_dir = Path.home() / ".praisonaiui"
+        _config_store = init_config_store(_default_data_dir / "config.yaml")
+
+        # Connect hot-reload watcher to the config store YAML file
+        try:
+            from praisonaiui.features.config_hot_reload import (
+                ConfigWatcher, set_config_watcher,
+            )
+            def _on_config_reload():
+                """Reload config store and reset feature lazy-load flags."""
+                _config_store.reload()
+                # Reset agent registry so it re-reads from store
+                try:
+                    from praisonaiui.features.agents import get_agent_registry
+                    reg = get_agent_registry()
+                    if hasattr(reg, "_config_loaded"):
+                        reg._config_loaded = False
+                except Exception:
+                    pass
+                # Reset skills lazy-load
+                try:
+                    from praisonaiui.features import skills as _skills_mod
+                    _skills_mod._skills_loaded = False
+                except Exception:
+                    pass
+
+            watcher = ConfigWatcher(
+                config_path=_config_store.path,
+                poll_interval=3.0,
+            )
+            watcher.on_reload(_on_config_reload)
+            set_config_watcher(watcher)
+        except Exception:
+            pass
+    except Exception as e:
+        import logging as _log
+        _log.getLogger(__name__).warning("Failed to init config store: %s", e)
+
+    # Legacy: keep usage persistence via its own JSON (not yet migrated)
+    try:
+        from praisonaiui.features.usage import set_data_file as set_usage_data_file
+        _default_data_dir = Path.home() / ".praisonaiui"
+        set_usage_data_file(_default_data_dir / "usage.json")
+    except ImportError:
+        pass
+
     # ── Auto-register and mount feature protocol routes ──────────────
     auto_register_defaults()
     for feature in get_features().values():
@@ -1141,7 +1193,7 @@ def create_app(
          "description": "Connected instances & presence", "order": 25},
         {"id": "usage", "title": "Usage", "icon": "📈", "group": "Control",
          "description": "Token usage and metrics", "order": 30},
-        {"id": "cron", "title": "Cron", "icon": "⏰", "group": "Control",
+        {"id": "cron", "title": "Cron", "icon": "⏰", "group": "Agent",
          "description": "Scheduled jobs", "order": 35},
         {"id": "jobs", "title": "Jobs", "icon": "📋", "group": "Control",
          "description": "Async agent jobs", "order": 40},
@@ -1149,8 +1201,6 @@ def create_app(
          "description": "Execution approval queue", "order": 45},
         {"id": "api", "title": "API", "icon": "🔌", "group": "Control",
          "description": "OpenAI-compatible API endpoints", "order": 50},
-        {"id": "chat", "title": "Chat", "icon": "💬", "group": "Agent",
-         "description": "Real-time agent chat", "order": 1},
         {"id": "agents", "title": "Agents", "icon": "🤖", "group": "Agent",
          "description": "Configured AI agents", "order": 10},
         {"id": "skills", "title": "Skills", "icon": "⚡", "group": "Agent",
@@ -1171,7 +1221,7 @@ def create_app(
          "description": "Debug information", "order": 30},
         {"id": "guardrails", "title": "Guardrails", "icon": "🛡️", "group": "Agent",
          "description": "Input/output safety guardrails", "order": 35},
-        {"id": "eval", "title": "Eval", "icon": "📊", "group": "Agent",
+        {"id": "eval", "title": "Eval", "icon": "📊", "group": "Control",
          "description": "Agent evaluation & accuracy", "order": 40},
         {"id": "telemetry", "title": "Telemetry", "icon": "📈", "group": "Settings",
          "description": "Performance monitoring & profiling", "order": 25},
