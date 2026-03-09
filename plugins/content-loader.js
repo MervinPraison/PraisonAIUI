@@ -12,6 +12,7 @@
 
 let currentPath = '';
 let loadedPath = '';
+let spaNavigating = false;  // Guard: prevent loadContent from racing with SPA nav
 
 /**
  * Map the current URL to a markdown file path.
@@ -77,6 +78,9 @@ function isDefaultView(root) {
  * Fetch markdown and render into the content area
  */
 async function loadContent(root) {
+  // Skip if SPA navigation is in progress
+  if (spaNavigating) return;
+
   const mdPath = getMarkdownPath();
   
   // Don't reload the same content
@@ -98,13 +102,9 @@ async function loadContent(root) {
     
     loadedPath = mdPath;
     
-    // Remove any previously injected content
-    const old = document.querySelector('[data-aiui-plugin="content-loader"]');
-    if (old) old.remove();
-    
-    // Also remove the homepage plugin's content if present
-    const oldHome = document.querySelector('[data-aiui-plugin="homepage"]');
-    if (oldHome) oldHome.remove();
+    // Remove ALL previously injected content
+    document.querySelectorAll('[data-aiui-plugin="content-loader"]').forEach(el => el.remove());
+    document.querySelectorAll('[data-aiui-plugin="homepage"]').forEach(el => el.remove());
 
     // Create and inject our article FIRST
     const article = document.createElement('article');
@@ -115,6 +115,10 @@ async function loadContent(root) {
 
     // NOW hide React's debug content — our article is already in the DOM
     setContentMode(true);
+
+    // Remove anti-flicker CSS (ensures content is visible)
+    const af = document.getElementById('aiui-anti-flicker');
+    if (af) af.remove();
 
     // Update the "On This Page" ToC if toc plugin is active
     updateTocSidebar(article);
@@ -302,38 +306,47 @@ function escapeHtml(text) {
  * Unlike loadContent(), this doesn't check isDefaultView() — we know we need to swap.
  */
 async function navigateToContent(targetPath) {
-  // Map the target path to a markdown file
-  let path = (targetPath || '/').replace(/\/+$/, '') || '/';
-
-  // Skip homepage — handled by homepage.js
-  if (path === '/' || path === '/index.html') return;
-
-  const mdPath = path.replace(/\/index$/, '') + '.md';
-
-  // Don't reload the same content
-  if (mdPath === loadedPath) return;
-
-  // Find the main container
-  let root = document.getElementById('root');
-  if (!root) return;
-
-  let main = root.querySelector('main.flex-1');
-
-  // If main doesn't exist, React may have unmounted. Wait and retry.
-  if (!main) {
-    await new Promise(r => setTimeout(r, 150));
-    root = document.getElementById('root');
-    if (!root) return;
-    main = root.querySelector('main.flex-1');
-  }
-
-  // If still no main, append directly to root as fallback
-  const container = main || root;
+  // Set guard to prevent loadContent from racing
+  spaNavigating = true;
 
   try {
+    // Map the target path to a markdown file
+    let path = (targetPath || '/').replace(/\/+$/, '') || '/';
+
+    // Skip homepage — handled by homepage.js
+    if (path === '/' || path === '/index.html') {
+      spaNavigating = false;
+      return;
+    }
+
+    const mdPath = path + '.md';
+
+    // Don't reload the same content
+    if (mdPath === loadedPath) {
+      spaNavigating = false;
+      return;
+    }
+
+    // Find the main container
+    let root = document.getElementById('root');
+    if (!root) { spaNavigating = false; return; }
+
+    let main = root.querySelector('main.flex-1');
+
+    // If main doesn't exist, wait and retry
+    if (!main) {
+      await new Promise(r => setTimeout(r, 200));
+      root = document.getElementById('root');
+      if (!root) { spaNavigating = false; return; }
+      main = root.querySelector('main.flex-1');
+    }
+
+    const container = main || root;
+
     const response = await fetch(mdPath);
     if (!response.ok) {
       console.debug('[AIUI:content-loader] No markdown at', mdPath);
+      spaNavigating = false;
       return;
     }
     const markdown = await response.text();
@@ -341,13 +354,8 @@ async function navigateToContent(targetPath) {
     loadedPath = mdPath;
     currentPath = window.location.pathname;
 
-    // Remove any previously injected content
-    const old = document.querySelector('[data-aiui-plugin="content-loader"]');
-    if (old) old.remove();
-
-    // Also remove the homepage plugin's content if present
-    const oldHome = document.querySelector('[data-aiui-plugin="homepage"]');
-    if (oldHome) oldHome.remove();
+    // Remove ALL previously injected plugin content
+    document.querySelectorAll('[data-aiui-plugin]').forEach(el => el.remove());
 
     // Create and inject our article
     const article = document.createElement('article');
@@ -356,7 +364,7 @@ async function navigateToContent(targetPath) {
     article.innerHTML = markdownToHtml(markdown);
     container.appendChild(article);
 
-    // Hide React's debug content (only if main exists)
+    // Hide React's debug content
     if (main) setContentMode(true);
 
     // Update page title from first heading
@@ -368,13 +376,16 @@ async function navigateToContent(targetPath) {
     // Update the "On This Page" ToC
     updateTocSidebar(article);
 
-    // Remove anti-flicker CSS if still present
-    const antiFlicker = document.getElementById('aiui-anti-flicker');
-    if (antiFlicker) antiFlicker.remove();
+    // Remove anti-flicker CSS (critical: ensures content is visible)
+    const af = document.getElementById('aiui-anti-flicker');
+    if (af) af.remove();
 
     console.debug('[AIUI:content-loader] SPA navigated to', mdPath);
   } catch (err) {
-    console.warn('[AIUI:content-loader] Failed to navigate:', mdPath, err);
+    console.warn('[AIUI:content-loader] Failed to navigate:', targetPath, err);
+  } finally {
+    // Always clear the guard after a short delay
+    setTimeout(() => { spaNavigating = false; }, 300);
   }
 }
 
