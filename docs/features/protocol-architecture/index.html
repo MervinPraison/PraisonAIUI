@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en" style="background:#0f172a;color:#e2e8f0">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Protocol Architecture Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Protocol Architecture Reference | PraisonAIUI Docs</title>
+  <!-- Instant dark background — prevents white flash between page loads -->
+  <style id="aiui-anti-flicker">
+    html,
+    body {
+      background: #0f172a !important;
+      color: #e2e8f0;
+    }
+
+    #root>* {
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/protocol-architecture" />
+  <meta property="og:title" content="Protocol Architecture Reference | PraisonAIUI Docs" />
+  <meta property="og:description" content="Protocol Architecture Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/protocol-architecture" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Protocol Architecture Reference | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Protocol Architecture Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body style="background:#0f172a;margin:0">
+  <div id="root"><noscript><h1>Protocol Architecture Reference</h1>
+<p>All feature modules in PraisonAIUI implement a **Protocol ABC** pattern for type-safe, swappable backends.</p>
+<h2>Pattern</h2>
+<h2>Batch 1: Full SDK Wrappers</h2>
+<p>| File | Protocol | SDK Class | Fallback | Getter |</p>
+<p>|------|----------|-----------|----------|--------|</p>
+<p>| `guardrails.py` | `GuardrailProtocol` | `SDKGuardrailManager` | `SimpleGuardrailManager` | `get_guardrail_manager()` |</p>
+<p>| `tracing.py` | `TracingProtocol` | `SDKTracingManager` | `SimpleTracingManager` | `get_tracing_manager()` |</p>
+<p>| `eval.py` | `EvalProtocol` | `SDKEvalManager` | `SimpleEvalManager` | `get_eval_manager()` |</p>
+<p>| `approvals.py` | `ApprovalProtocol` | `SDKApprovalManager` | `SimpleApprovalManager` | `get_approval_manager()` |</p>
+<h2>Batch 2: SDK Wrappers + Refactored Stores</h2>
+<p>| File | Protocol | SDK Class | Fallback | Getter |</p>
+<p>|------|----------|-----------|----------|--------|</p>
+<p>| `security.py` | `SecurityProtocol` | `SDKSecurityManager` | `SimpleSecurityManager` | `get_security_manager()` |</p>
+<p>| `telemetry.py` | `TelemetryProtocol` | `SDKTelemetryManager` | `SimpleTelemetryManager` | `get_telemetry_manager()` |</p>
+<p>| `jobs.py` | `JobStoreProtocol` | `SDKJobStore` | `SimpleJobStore` | `get_job_store()` |</p>
+<p>| `agents.py` | `AgentRegistryProtocol` | `SDKAgentRegistry` | `SimpleAgentRegistry` | `get_agent_registry()` |</p>
+<h2>Batch 3: Formalized ABCs</h2>
+<p>| File | Protocol | Notes |</p>
+<p>|------|----------|-------|</p>
+<p>| `sessions_ext.py` | `SessionProtocol` | Formalized existing SDK-first pattern |</p>
+<p>| `schedules.py` | `ScheduleProtocol` | Formalized existing SDK-first pattern |</p>
+<p>| `channels.py` | `ChannelProtocol` | SDK gap: no channel management API |</p>
+<p>| `usage.py` | `UsageProtocol` | SDK gap: no token/cost tracking API |</p>
+<p>| `logs.py` | `LogProtocol` | UI-only by design |</p>
+<p>| `auth.py` | `AuthProtocol` | SDK gap: no auth API |</p>
+<p>| `config_runtime.py` | `ConfigProtocol` | UI-only by design |</p>
+<p>| `nodes.py` | `NodeProtocol` | SDK gap: no node/cluster API |</p>
+<h2>Pre-existing</h2>
+<p>| File | Protocol | Notes |</p>
+<p>|------|----------|-------|</p>
+<p>| `memory.py` | `MemoryProtocol` | P0 fix: SDK-first default |</p>
+<p>| `skills.py` | `BaseFeatureProtocol` | P1 fix: `get_tool_catalog()` |</p>
+<h2>SDK Gaps</h2>
+<p>Features where `praisonaiagents` SDK lacks backend support:</p>
+<p>| Feature | Gap | Recommendation |</p>
+<p>|---------|-----|----------------|</p>
+<p>| **Usage** | No token/cost tracking API | Add `UsageTracker` to `praisonaiagents.telemetry` |</p>
+<p>| **Auth** | No authentication module | Add `praisonaiagents.auth` with key/session persistence |</p>
+<p>| **Nodes** | No node/cluster management | Add `praisonaiagents.nodes` for node discovery |</p>
+<p>| **Channels** | No channel management API | Add `praisonaiagents.channels` with `ChannelStore` |</p>
+<p>| **Config** | No runtime config persistence | Add `praisonaiagents.config` with file-backed store |</p></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      function removeAntiFlicker() {
+        var af = document.getElementById('aiui-anti-flicker');
+        if (af) af.remove();
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) { removeAntiFlicker(); return; }
+        var v = Date.now(); // Cache-busting version parameter
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js?v=' + v).then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Immediate first pass — no delay
+          notify();
+          // Remove anti-flicker now that plugins have rendered
+          removeAntiFlicker();
+          // Delayed pass for CDN-loaded plugins (mermaid, syntax-highlight)
+          setTimeout(notify, 2000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { removeAntiFlicker(); });
+    })();
+  </script>
+</body>
+
+</html>
