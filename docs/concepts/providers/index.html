@@ -48,6 +48,10 @@
 <h2>Built-in Provider: PraisonAI</h2>
 <p>PraisonAI is the default provider. It wraps the `@aiui.reply` callback system:</p>
 <p>No extra config needed — `PraisonAIProvider` is used automatically.</p>
+<h3>Agent Tools and Reflection</h3>
+<p>The default provider resolves tools for agents using `ToolResolver` from the `praisonai` package. Agents created via the CRUD API or YAML config get their tool names (strings) automatically resolved to callable Python functions:</p>
+<p>When no tools are configured, the provider gives agents sensible defaults (`internet_search`).</p>
+<p>Agents also support `reflection: true` (default) for self-reflection mode, where the agent evaluates its own response quality before returning.</p>
 <h2>Swapping Providers</h2>
 <h2>Writing a Custom Provider</h2>
 <p>Implement `BaseProvider.run()` — that's it:</p>

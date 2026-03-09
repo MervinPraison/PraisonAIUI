@@ -60,6 +60,58 @@ graph TD
     H --> L["WS /api/chat/ws"]
 ```
 
+## Agent Tool Resolution
+
+Agents created via YAML config, CRUD API, jobs, or channel bots automatically get tools resolved through the `ToolResolver`. Tool names in config are resolved to callable Python functions from 4 sources:
+
+1. Local `tools.py` file (backward compatibility)
+2. `praisonaiagents.tools.TOOL_MAPPINGS` (built-in tools)
+3. `praisonai_tools` package (community tools)
+4. Tool registry (programmatically registered tools)
+
+### YAML Configuration
+
+```yaml
+# gateway.yaml or aiui.template.yaml
+agents:
+  researcher:
+    instructions: "Research topics thoroughly."
+    model: gpt-4o-mini
+    tools:
+      - internet_search        # Resolved to callable function
+      - wikipedia_search
+    reflection: true            # Enable self-reflection (default: true)
+    role: "Senior Researcher"   # Optional CrewAI-style params
+    goal: "Find accurate info"
+    backstory: "Expert researcher"
+```
+
+### CRUD API
+
+Agents created via `POST /api/agents` also support tools:
+
+```json
+{
+  "name": "researcher",
+  "instructions": "Research topics thoroughly.",
+  "model": "gpt-4o-mini",
+  "tools": ["internet_search"],
+  "reflection": true
+}
+```
+
+### Where Tool Resolution Applies
+
+| Component | Tool Resolution |
+|-----------|----------------|
+| Gateway `_create_agents_from_config()` | ✅ `ToolResolver` |
+| Integration `create_gateway_from_yaml()` | ✅ `ToolResolver` |
+| Provider `_get_or_create_agent()` | ✅ Default tools |
+| Channel bot `_start_channel_bot()` | ✅ Default tools |
+| Jobs `_execute_job()` fallback | ✅ `ToolResolver` |
+| CRUD agents `_run()` fallback | ✅ `ToolResolver` |
+| CRUD agents `_sync_to_gateway()` | ✅ `ToolResolver` |
+
 ## Features
 
 ### Markdown Rendering

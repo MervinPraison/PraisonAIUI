@@ -64,6 +64,25 @@ async def on_message(message: str):
 
 No extra config needed — `PraisonAIProvider` is used automatically.
 
+### Agent Tools and Reflection
+
+The default provider resolves tools for agents using `ToolResolver` from the `praisonai` package. Agents created via the CRUD API or YAML config get their tool names (strings) automatically resolved to callable Python functions:
+
+```python
+# Agent definition with tools (via CRUD API or YAML):
+# tools: ["internet_search", "wikipedia_search"]
+#
+# ToolResolver resolves these names from 4 sources:
+# 1. Local tools.py file
+# 2. praisonaiagents.tools.TOOL_MAPPINGS (built-in)
+# 3. praisonai_tools package (community)
+# 4. Tool registry (programmatic)
+```
+
+When no tools are configured, the provider gives agents sensible defaults (`internet_search`).
+
+Agents also support `reflection: true` (default) for self-reflection mode, where the agent evaluates its own response quality before returning.
+
 ## Swapping Providers
 
 ```python

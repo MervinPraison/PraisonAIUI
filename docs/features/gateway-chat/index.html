@@ -41,6 +41,25 @@
 <h2>Quick Start</h2>
 <h2>How It Works</h2>
 <h2>Architecture</h2>
+<h2>Agent Tool Resolution</h2>
+<p>Agents created via YAML config, CRUD API, jobs, or channel bots automatically get tools resolved through the `ToolResolver`. Tool names in config are resolved to callable Python functions from 4 sources:</p>
+<p>1. Local `tools.py` file (backward compatibility)</p>
+<p>2. `praisonaiagents.tools.TOOL_MAPPINGS` (built-in tools)</p>
+<p>3. `praisonai_tools` package (community tools)</p>
+<p>4. Tool registry (programmatically registered tools)</p>
+<h3>YAML Configuration</h3>
+<h3>CRUD API</h3>
+<p>Agents created via `POST /api/agents` also support tools:</p>
+<h3>Where Tool Resolution Applies</h3>
+<p>| Component | Tool Resolution |</p>
+<p>|-----------|----------------|</p>
+<p>| Gateway `_create_agents_from_config()` | ✅ `ToolResolver` |</p>
+<p>| Integration `create_gateway_from_yaml()` | ✅ `ToolResolver` |</p>
+<p>| Provider `_get_or_create_agent()` | ✅ Default tools |</p>
+<p>| Channel bot `_start_channel_bot()` | ✅ Default tools |</p>
+<p>| Jobs `_execute_job()` fallback | ✅ `ToolResolver` |</p>
+<p>| CRUD agents `_run()` fallback | ✅ `ToolResolver` |</p>
+<p>| CRUD agents `_sync_to_gateway()` | ✅ `ToolResolver` |</p>
 <h2>Features</h2>
 <h3>Markdown Rendering</h3>
 <p>Assistant messages are rendered with full markdown support:</p>
