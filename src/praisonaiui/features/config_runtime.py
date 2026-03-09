@@ -45,8 +45,17 @@ class ConfigProtocol(ABC):
         return {"status": "ok", "provider": self.__class__.__name__}
 
 # In-memory runtime config (overlays the static YAML config)
-_runtime_config: Dict[str, Any] = {}
+# Loaded from ~/.praisonaiui/config_runtime.yaml on startup
+from ._persistence import load_yaml, save_yaml
+
+_PERSIST_FILE = "config_runtime.yaml"
+_runtime_config: Dict[str, Any] = load_yaml(_PERSIST_FILE)
 _config_history: List[Dict[str, Any]] = []
+
+
+def _persist_config() -> None:
+    """Save runtime config to disk."""
+    save_yaml(_PERSIST_FILE, dict(_runtime_config))
 
 # JSON Schema for config form editor
 CONFIG_SCHEMA = {
@@ -194,8 +203,8 @@ def validate_config(config: Dict[str, Any], schema: Dict[str, Any] = None) -> Li
             if "enum" in prop_schema and value not in prop_schema["enum"]:
                 errors.append(f"{key}: must be one of {prop_schema['enum']}")
             
-            # Range validation
-            if prop_type in ("number", "integer"):
+            # Range validation (only for actual numbers)
+            if prop_type in ("number", "integer") and isinstance(value, (int, float)):
                 if "minimum" in prop_schema and value < prop_schema["minimum"]:
                     errors.append(f"{key}: must be >= {prop_schema['minimum']}")
                 if "maximum" in prop_schema and value > prop_schema["maximum"]:
@@ -286,6 +295,7 @@ class PraisonAIConfigRuntime(BaseFeatureProtocol):
             _config_history.append({
                 "key": k, "old": old, "new": v, "timestamp": time.time(),
             })
+        _persist_config()
         return JSONResponse({"config": _runtime_config, "applied": len(changes)})
 
     async def _set(self, request: Request) -> JSONResponse:
@@ -298,6 +308,7 @@ class PraisonAIConfigRuntime(BaseFeatureProtocol):
         })
         _runtime_config.clear()
         _runtime_config.update(body)
+        _persist_config()
         return JSONResponse({"config": _runtime_config})
 
     async def _history(self, request: Request) -> JSONResponse:
@@ -328,6 +339,7 @@ class PraisonAIConfigRuntime(BaseFeatureProtocol):
         _config_history.append({
             "key": key, "old": old, "new": None, "action": "delete", "timestamp": time.time(),
         })
+        _persist_config()
         return JSONResponse({"deleted": key})
 
     # ── Schema-driven form editor endpoints ──────────────────────────
@@ -368,7 +380,8 @@ class PraisonAIConfigRuntime(BaseFeatureProtocol):
         })
         _runtime_config.clear()
         _runtime_config.update(config)
-        
+        _persist_config()
+
         return JSONResponse({
             "applied": True,
             "config": _runtime_config,

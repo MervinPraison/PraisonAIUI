@@ -60,10 +60,24 @@ SUPPORTED_PLATFORMS = [
     "imessage", "signal", "googlechat", "nostr",
 ]
 
-# In-memory channel registry
-_channels: Dict[str, Dict[str, Any]] = {}
+# In-memory channel registry — loaded from disk on startup
+from ._persistence import load_yaml, save_yaml
+
+_CHANNELS_FILE = "channels.yaml"
+_channels: Dict[str, Dict[str, Any]] = load_yaml(_CHANNELS_FILE).get("channels", {})
 # Local bot lifecycle tracking (bot instance + asyncio.Task)
 _live_bots: Dict[str, Dict[str, Any]] = {}
+
+# Runtime-only fields that should NOT be persisted
+_RUNTIME_FIELDS = {"running", "start_error"}
+
+
+def _persist_channels() -> None:
+    """Save channel configs (without runtime state) to disk."""
+    data = {}
+    for cid, ch in _channels.items():
+        data[cid] = {k: v for k, v in ch.items() if k not in _RUNTIME_FIELDS}
+    save_yaml(_CHANNELS_FILE, {"channels": data})
 
 
 class PraisonAIChannels(BaseFeatureProtocol):
@@ -516,6 +530,7 @@ class PraisonAIChannels(BaseFeatureProtocol):
 
         # Sync live status before responding so the frontend sees the real state
         self._sync_running_status()
+        _persist_channels()
         return JSONResponse(entry, status_code=201)
 
     async def _get(self, request: Request) -> JSONResponse:
@@ -535,6 +550,7 @@ class PraisonAIChannels(BaseFeatureProtocol):
         for key in ("name", "platform", "enabled", "config"):
             if key in body:
                 channel[key] = body[key]
+        _persist_channels()
         return JSONResponse(channel)
 
     async def _delete(self, request: Request) -> JSONResponse:
@@ -545,6 +561,7 @@ class PraisonAIChannels(BaseFeatureProtocol):
         # Stop the bot first
         await self._stop_channel_bot(channel_id)
         del _channels[channel_id]
+        _persist_channels()
         return JSONResponse({"deleted": channel_id})
 
     async def _toggle(self, request: Request) -> JSONResponse:

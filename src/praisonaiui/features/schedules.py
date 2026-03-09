@@ -260,11 +260,19 @@ def _to_dict(obj) -> Dict[str, Any]:
 
 
 class _InMemoryScheduleStore(ScheduleProtocol):
-    """Fallback in-memory store if praisonaiagents not available."""
-    
+    """Fallback in-memory store with YAML persistence."""
+
+    _PERSIST_FILE = "schedules.yaml"
+
     def __init__(self):
-        self._jobs: Dict[str, Dict[str, Any]] = {}
-    
+        from ._persistence import load_yaml
+        saved = load_yaml(self._PERSIST_FILE)
+        self._jobs: Dict[str, Dict[str, Any]] = saved.get("jobs", {})
+
+    def _persist(self) -> None:
+        from ._persistence import save_yaml
+        save_yaml(self._PERSIST_FILE, {"jobs": dict(self._jobs)})
+
     def add(self, job_id_or_obj=None, schedule=None, action=None, **kwargs) -> Dict[str, Any]:
         # Accept single dict/object (from _add handler) or positional args (from CLI)
         if schedule is None and action is None and job_id_or_obj is not None:
@@ -277,6 +285,7 @@ class _InMemoryScheduleStore(ScheduleProtocol):
                 obj = {"id": str(job_id_or_obj)}
             jid = obj.get("id", f"j_{int(time.time())}")
             self._jobs[jid] = obj
+            self._persist()
             return obj
         # Old positional-arg pattern
         job = {
@@ -290,23 +299,26 @@ class _InMemoryScheduleStore(ScheduleProtocol):
             **kwargs,
         }
         self._jobs[job["id"]] = job
+        self._persist()
         return job
-    
+
     def get(self, job_id: str) -> Dict[str, Any]:
         return self._jobs.get(job_id)
-    
+
     def list(self) -> List[Dict[str, Any]]:
         return list(self._jobs.values())
-    
+
     def remove(self, job_id: str) -> bool:
         if job_id in self._jobs:
             del self._jobs[job_id]
+            self._persist()
             return True
         return False
-    
+
     def update(self, job_id: str, **kwargs) -> Dict[str, Any]:
         if job_id in self._jobs:
             self._jobs[job_id].update(kwargs)
+            self._persist()
             return self._jobs[job_id]
         return None
 

@@ -60,11 +60,15 @@ class GuardrailProtocol(ABC):
 
 
 class SimpleGuardrailManager(GuardrailProtocol):
-    """In-memory guardrail manager — zero dependencies, volatile."""
+    """In-memory guardrail manager with YAML persistence."""
+
+    _PERSIST_FILE = "guardrails.yaml"
 
     def __init__(self) -> None:
         self._violations: deque = deque(maxlen=200)
-        self._registry: Dict[str, Dict[str, Any]] = {}
+        from ._persistence import load_yaml
+        saved = load_yaml(self._PERSIST_FILE)
+        self._registry: Dict[str, Dict[str, Any]] = saved.get("registry", {})
 
     def list_guardrails(self) -> List[Dict[str, Any]]:
         return [{"id": gid, "source": "local", **info} for gid, info in self._registry.items()]
@@ -86,7 +90,12 @@ class SimpleGuardrailManager(GuardrailProtocol):
 
     def register_guardrail(self, guardrail_id: str, info: Dict[str, Any]) -> str:
         self._registry[guardrail_id] = {**info, "created_at": time.time()}
+        self._persist()
         return guardrail_id
+
+    def _persist(self) -> None:
+        from ._persistence import save_yaml
+        save_yaml(self._PERSIST_FILE, {"registry": self._registry})
 
     def health(self) -> Dict[str, Any]:
         return {
