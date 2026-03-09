@@ -85,8 +85,8 @@ AGENTS = [
     "explorer",
     title="Feature Explorer",
     icon="🔬",
-    group="Tools",
-    order=0,
+    group="Control",
+    order=55,
 )
 async def explorer_page():
     """Three-column feature explorer — custom view renders in JS."""

@@ -80,6 +80,144 @@ def _get_schedule_store() -> ScheduleProtocol:
     return _schedule_store
 
 
+# ── Background scheduler loop ────────────────────────────────────────
+
+_scheduler_task: Optional[Any] = None  # asyncio.Task
+_scheduler_running = False
+
+
+def _is_job_due(job) -> bool:
+    """Check if a job is due to run based on its schedule config."""
+    if not _getattr_or_get(job, "enabled", True):
+        return False
+    schedule = _getattr_or_get(job, "schedule", {})
+    if not isinstance(schedule, dict):
+        return False
+
+    now = time.time()
+    last_run = _getattr_or_get(job, "last_run_at") or _getattr_or_get(job, "created_at", 0)
+
+    # Interval-based: every_seconds
+    every_seconds = schedule.get("every_seconds")
+    if every_seconds and every_seconds > 0:
+        return (now - last_run) >= every_seconds
+
+    # Cron-based: cron_expr (requires croniter)
+    cron_expr = schedule.get("cron_expr")
+    if cron_expr:
+        try:
+            from croniter import croniter
+            cron = croniter(cron_expr, last_run)
+            next_run = cron.get_next(float)
+            return now >= next_run
+        except ImportError:
+            logger.debug("croniter not installed — cron_expr scheduling unavailable")
+        except Exception as e:
+            logger.debug(f"Cron parse error for '{cron_expr}': {e}")
+
+    return False
+
+
+async def _execute_job(job_id: str, job) -> None:
+    """Execute a scheduled job (same logic as _run endpoint)."""
+    started_at = time.time()
+    action = _getattr_or_get(job, "action", "") or _getattr_or_get(job, "message", "")
+    agent_name = _getattr_or_get(job, "agent_name", None)
+    result = None
+    status = "succeeded"
+
+    if action:
+        try:
+            from praisonaiui.features._gateway_ref import get_gateway
+            gw = get_gateway()
+            agent = None
+            if gw is not None:
+                for aid in gw.list_agents():
+                    gw_agent = gw.get_agent(aid)
+                    if agent_name and gw_agent and getattr(gw_agent, "name", None) == agent_name:
+                        agent = gw_agent
+                        break
+                if agent is None:
+                    agent_ids = gw.list_agents()
+                    if agent_ids:
+                        agent = gw.get_agent(agent_ids[0])
+
+            if agent is not None:
+                import asyncio
+                result = await asyncio.to_thread(agent.chat, action)
+                result = str(result)
+        except (ImportError, Exception) as e:
+            logger.warning("Scheduled job '%s' execution failed: %s", job_id, e)
+            status = "failed"
+            result = str(e)
+    else:
+        status = "skipped"
+        result = "No action configured"
+
+    # Update job metadata
+    if hasattr(job, "last_run_at"):
+        job.last_run_at = started_at
+        store = _get_schedule_store()
+        if hasattr(store, "update"):
+            store.update(job)
+    elif isinstance(job, dict):
+        job["last_run_at"] = started_at
+        job["run_count"] = job.get("run_count", 0) + 1
+
+    duration = round(time.time() - started_at, 2)
+    _run_history.insert(0, {
+        "job_id": job_id,
+        "name": _getattr_or_get(job, "name", ""),
+        "action": action,
+        "status": status,
+        "result": result,
+        "timestamp": started_at,
+        "duration": duration,
+        "auto": True,
+    })
+    if len(_run_history) > 200:
+        _run_history[:] = _run_history[:200]
+    logger.info("Auto-executed job '%s': %s (%.1fs)", job_id, status, duration)
+
+
+async def _scheduler_loop() -> None:
+    """Background loop that checks and triggers due jobs every 15s."""
+    global _scheduler_running
+    import asyncio
+    _scheduler_running = True
+    logger.info("Background scheduler started")
+    try:
+        while _scheduler_running:
+            try:
+                store = _get_schedule_store()
+                jobs = store.list() if hasattr(store, "list") else []
+                for j in jobs:
+                    jid = _getattr_or_get(j, "id", "")
+                    if jid and _is_job_due(j):
+                        asyncio.create_task(_execute_job(jid, j))
+            except Exception as e:
+                logger.debug("Scheduler tick error: %s", e)
+            await asyncio.sleep(15)
+    except asyncio.CancelledError:
+        pass
+    finally:
+        _scheduler_running = False
+        logger.info("Background scheduler stopped")
+
+
+def _ensure_scheduler_started() -> None:
+    """Start the scheduler loop if not already running."""
+    global _scheduler_task
+    if _scheduler_task is not None and not _scheduler_task.done():
+        return
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+        _scheduler_task = loop.create_task(_scheduler_loop())
+    except RuntimeError:
+        pass  # no event loop — scheduler will start on first async call
+
+
 def _create_schedule_job(job_dict: Dict[str, Any]):
     """Create a ScheduleJob from a dict, using praisonaiagents if available."""
     try:
@@ -127,9 +265,22 @@ class _InMemoryScheduleStore(ScheduleProtocol):
     def __init__(self):
         self._jobs: Dict[str, Dict[str, Any]] = {}
     
-    def add(self, job_id: str, schedule: str, action: str, **kwargs) -> Dict[str, Any]:
+    def add(self, job_id_or_obj=None, schedule=None, action=None, **kwargs) -> Dict[str, Any]:
+        # Accept single dict/object (from _add handler) or positional args (from CLI)
+        if schedule is None and action is None and job_id_or_obj is not None:
+            # Single argument: treat as a job dict or dataclass
+            if isinstance(job_id_or_obj, dict):
+                obj = job_id_or_obj
+            elif hasattr(job_id_or_obj, '__dict__'):
+                obj = vars(job_id_or_obj)
+            else:
+                obj = {"id": str(job_id_or_obj)}
+            jid = obj.get("id", f"j_{int(time.time())}")
+            self._jobs[jid] = obj
+            return obj
+        # Old positional-arg pattern
         job = {
-            "id": job_id,
+            "id": job_id_or_obj or f"j_{int(time.time())}",
             "schedule": schedule,
             "action": action,
             "enabled": True,
@@ -138,7 +289,7 @@ class _InMemoryScheduleStore(ScheduleProtocol):
             "run_count": 0,
             **kwargs,
         }
-        self._jobs[job_id] = job
+        self._jobs[job["id"]] = job
         return job
     
     def get(self, job_id: str) -> Dict[str, Any]:
@@ -217,12 +368,14 @@ class PraisonAISchedules(BaseFeatureProtocol):
     # ── API handlers ─────────────────────────────────────────────────
 
     async def _list(self, request: Request) -> JSONResponse:
+        _ensure_scheduler_started()
         store = _get_schedule_store()
         jobs_raw = store.list() if hasattr(store, 'list') else []
         jobs = [_to_dict(j) for j in jobs_raw]
         return JSONResponse({"schedules": jobs, "count": len(jobs)})
 
     async def _add(self, request: Request) -> JSONResponse:
+        _ensure_scheduler_started()
         body = await request.json()
         job_id = uuid.uuid4().hex[:12]
         schedule = body.get("schedule", {})

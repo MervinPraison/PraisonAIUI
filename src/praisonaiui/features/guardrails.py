@@ -237,16 +237,78 @@ class PraisonAIGuardrails(BaseFeatureProtocol):
         })
 
     async def _register(self, request: Request) -> JSONResponse:
-        """Register or log a guardrail event."""
+        """Register a new guardrail — supports LLM-based guardrails from the UI.
+
+        Accepts JSON with:
+          - description (str): Natural language validation criteria
+          - type (str): "llm" or "custom" (default: "llm")
+          - agent_name (str): Target agent (applies to all if empty)
+          - id (str): Optional guardrail ID
+
+        When type="llm", creates an LLMGuardrail from the SDK and
+        attaches it to matching gateway agents.
+        """
         mgr = get_guardrail_manager()
         body = await request.json()
         gid = body.get("id", f"gr_{int(time.time())}")
-        mgr.register_guardrail(gid, {
-            "type": body.get("type", "custom"),
-            "guardrail": body.get("guardrail", "unknown"),
-            "agent_name": body.get("agent_name", ""),
+        gr_type = body.get("type", "llm")
+        description = body.get("description", "")
+        agent_name = body.get("agent_name", "")
+
+        if not description:
+            return JSONResponse(
+                {"error": "description is required"},
+                status_code=400,
+            )
+
+        info: Dict[str, Any] = {
+            "type": gr_type,
+            "description": description,
+            "agent_name": agent_name,
+            "guardrail": "LLMGuardrail" if gr_type == "llm" else body.get("guardrail", "custom"),
+        }
+
+        # Attempt to create a live LLMGuardrail and attach to agents
+        attached_to: List[str] = []
+        if gr_type == "llm":
+            try:
+                from praisonaiagents.guardrails.llm_guardrail import LLMGuardrail
+                import os
+
+                llm_model = body.get("llm", os.getenv("PRAISONAI_MODEL", "gpt-4o-mini"))
+                guardrail_fn = LLMGuardrail(description=description, llm=llm_model)
+                info["llm_model"] = llm_model
+
+                # Attach to gateway agents
+                try:
+                    from ._gateway_ref import get_gateway
+                    gw = get_gateway()
+                    if gw is not None:
+                        for aid in gw.list_agents():
+                            ag = gw.get_agent(aid)
+                            if ag is None:
+                                continue
+                            name = getattr(ag, "name", aid)
+                            if agent_name and name != agent_name:
+                                continue
+                            # Append to agent's guardrails list
+                            existing = getattr(ag, "guardrails", None)
+                            if existing is None:
+                                ag.guardrails = [guardrail_fn]
+                            elif isinstance(existing, list):
+                                existing.append(guardrail_fn)
+                            attached_to.append(name)
+                except (ImportError, Exception) as e:
+                    logger.debug(f"Failed to attach guardrail to gateway agents: {e}")
+            except ImportError:
+                logger.warning("LLMGuardrail not available — registering metadata only")
+
+        mgr.register_guardrail(gid, info)
+        return JSONResponse({
+            "registered": gid,
+            "info": info,
+            "attached_to": attached_to,
         })
-        return JSONResponse({"registered": gid})
 
 
 def log_violation(agent_id: str, guardrail: str, message: str,

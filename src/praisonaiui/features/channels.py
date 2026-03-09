@@ -141,13 +141,17 @@ class PraisonAIChannels(BaseFeatureProtocol):
 
         for ch_id, ch in _channels.items():
             bot = all_bots.get(ch_id)
+            info = _live_bots.get(ch_id, {})
+            task = info.get("task")
+            task_alive = task is not None and not task.done()
+
             if bot is not None and hasattr(bot, "is_running"):
-                ch["running"] = bot.is_running
+                # Use bot.is_running, but also treat the channel as running
+                # if the asyncio task is still alive (e.g. during startup
+                # handshake before is_running flips to True).
+                ch["running"] = bot.is_running or task_alive
             elif bot is not None:
-                # Check if the task is still alive
-                info = _live_bots.get(ch_id, {})
-                task = info.get("task")
-                ch["running"] = task is not None and not task.done()
+                ch["running"] = task_alive
             else:
                 ch["running"] = False
 
@@ -375,6 +379,10 @@ class PraisonAIChannels(BaseFeatureProtocol):
                             await _datastore.add_message(session_id, {
                                 "role": "user",
                                 "content": f"[{sender_name}] {content}" if sender_name else content,
+                                "platform": platform,
+                                "icon": icon,
+                                "sender": sender_name,
+                                "channel_id": channel_id,
                             })
                         except Exception as e:
                             logger.debug(f"Chat bridge broadcast error: {e}")
@@ -413,6 +421,9 @@ class PraisonAIChannels(BaseFeatureProtocol):
                             "role": "assistant",
                             "content": response,
                             "agent_name": getattr(agent, "name", "assistant"),
+                            "platform": platform,
+                            "icon": icon,
+                            "channel_id": channel_id,
                         })
                     except Exception as e:
                         logger.debug(f"Chat bridge response broadcast error: {e}")
@@ -503,6 +514,8 @@ class PraisonAIChannels(BaseFeatureProtocol):
             entry["start_error"] = error
             logger.warning(f"Channel '{channel_id}' saved but bot not started: {error}")
 
+        # Sync live status before responding so the frontend sees the real state
+        self._sync_running_status()
         return JSONResponse(entry, status_code=201)
 
     async def _get(self, request: Request) -> JSONResponse:
