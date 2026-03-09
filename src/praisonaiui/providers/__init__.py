@@ -223,8 +223,8 @@ class PraisonAIProvider(BaseProvider):
         # Check CRUD-defined agents for matching name
         if agent_name:
             try:
-                from praisonaiui.features.agents import _agent_definitions
-                for _def in _agent_definitions.values():
+                from praisonaiui.features.agents import get_agent_registry
+                for _def in get_agent_registry().list_all():
                     if _def.get("name") == agent_name:
                         kwargs["name"] = _def["name"]
                         kwargs["instructions"] = (

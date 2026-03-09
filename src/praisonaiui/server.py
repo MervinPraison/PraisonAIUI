@@ -1018,6 +1018,27 @@ def create_app(
     # Install log buffer handler to capture logs for /api/logs
     _install_log_handler()
 
+    # ── Dynamic JSON config endpoints ──────────────────────────────
+    # The React frontend ALWAYS fetches these 3 JSON files before rendering.
+    # In docs mode the compiler generates static files. In dashboard/chat/agents
+    # modes we serve dynamic responses so the frontend knows which style to use.
+    effective_style = _style or "dashboard"  # default when running server directly
+    if config and isinstance(config, dict):
+        effective_style = config.get("style", effective_style)
+
+    async def _ui_config_json(request: Request) -> JSONResponse:
+        return JSONResponse({
+            "style": effective_style,
+            "site": {"title": "PraisonAI"},
+            "chat": {"enabled": effective_style in ("chat", "agents", "playground", "dashboard")},
+        })
+
+    async def _docs_nav_json(request: Request) -> JSONResponse:
+        return JSONResponse({"items": []})
+
+    async def _route_manifest_json(request: Request) -> JSONResponse:
+        return JSONResponse({})
+
     routes = [
         Route("/health", health, methods=["GET"]),
         Route("/login", login_handler, methods=["POST"]),
@@ -1052,6 +1073,10 @@ def create_app(
         Route("/api/features", api_features, methods=["GET"]),
         # Gateway status
         Route("/api/gateway/status", api_gateway_status, methods=["GET"]),
+        # Frontend config JSON (dynamic fallback — static files override if present)
+        Route("/ui-config.json", _ui_config_json, methods=["GET"]),
+        Route("/docs-nav.json", _docs_nav_json, methods=["GET"]),
+        Route("/route-manifest.json", _route_manifest_json, methods=["GET"]),
     ]
 
     # ── Gap S1: Auto-initialize gateway in standalone mode ──────────

@@ -131,20 +131,24 @@ def _register_agents_in_dashboard():
     This bridges the gateway's internal agent registry with the
     dashboard CRUD feature, so agents appear in the Agents page.
     """
-    from praisonaiui.features.agents import create_agent, _agent_definitions
+    from praisonaiui.features.agents import get_agent_registry
+
+    registry = get_agent_registry()
+    existing = registry.list_all()
+    existing_names = {a.get("name") for a in existing}
 
     for agent_def in AGENTS:
         # Skip if already registered
-        if any(a.get("name") == agent_def["name"] for a in _agent_definitions.values()):
+        if agent_def["name"] in existing_names:
             continue
 
-        create_agent(
-            name=agent_def["name"],
-            description=agent_def["description"],
-            instructions=agent_def["instructions"],
-            model=agent_def["model"],
-            icon=agent_def["icon"],
-        )
+        registry.create({
+            "name": agent_def["name"],
+            "description": agent_def["description"],
+            "instructions": agent_def["instructions"],
+            "model": agent_def["model"],
+            "icon": agent_def["icon"],
+        })
         print(f"   ✓ Dashboard: {agent_def['icon']} {agent_def['name']}")
 
 

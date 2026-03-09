@@ -99,18 +99,22 @@ async def explorer_page():
 
 def _register_agents_in_dashboard():
     """Bridge gateway agents into the dashboard agents_crud feature."""
-    from praisonaiui.features.agents import create_agent, _agent_definitions
+    from praisonaiui.features.agents import get_agent_registry
+
+    registry = get_agent_registry()
+    existing = registry.list_all()
+    existing_names = {a.get("name") for a in existing}
 
     for agent_def in AGENTS:
-        if any(a.get("name") == agent_def["name"] for a in _agent_definitions.values()):
+        if agent_def["name"] in existing_names:
             continue
-        create_agent(
-            name=agent_def["name"],
-            description=agent_def["description"],
-            instructions=agent_def["instructions"],
-            model=agent_def["model"],
-            icon=agent_def["icon"],
-        )
+        registry.create({
+            "name": agent_def["name"],
+            "description": agent_def["description"],
+            "instructions": agent_def["instructions"],
+            "model": agent_def["model"],
+            "icon": agent_def["icon"],
+        })
         print(f"   ✓ Agent: {agent_def['icon']} {agent_def['name']}")
 
 
