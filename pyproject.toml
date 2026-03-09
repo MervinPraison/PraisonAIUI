@@ -1,6 +1,6 @@
 [project]
 name = "aiui"
-version = "0.3.37"
+version = "0.3.39"
 description = "YAML-driven website generator - CLI and compiler"
 readme = "README.md"
 license = {text = "MIT"}

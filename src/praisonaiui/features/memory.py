@@ -350,10 +350,16 @@ _memory_manager: Optional[MemoryProtocol] = None
 
 
 def get_memory_manager() -> MemoryProtocol:
-    """Get the active memory manager (lazy init SimpleMemoryManager)."""
+    """Get the active memory manager (SDK-first, fallback to SimpleMemoryManager)."""
     global _memory_manager
     if _memory_manager is None:
-        _memory_manager = SimpleMemoryManager()
+        # P0 Fix: Try SDK first for agent-UI memory sync
+        try:
+            _memory_manager = SDKMemoryManager()
+            logger.info("Using SDKMemoryManager for agent-UI memory sync")
+        except Exception as e:
+            logger.debug("SDKMemoryManager init failed (%s), using SimpleMemoryManager", e)
+            _memory_manager = SimpleMemoryManager()
     return _memory_manager
 
 

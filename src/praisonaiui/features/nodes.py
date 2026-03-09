@@ -21,6 +21,34 @@ _nodes: Dict[str, Dict[str, Any]] = {}
 _instances: Dict[str, Dict[str, Any]] = {}
 
 
+def _auto_register_local() -> None:
+    """Auto-register the local node so the Nodes page isn't empty."""
+    import platform
+    import sys
+    _nodes["local"] = {
+        "id": "local",
+        "name": f"{platform.node()} (local)",
+        "host": "localhost",
+        "platform": f"{platform.system()} {platform.release()}",
+        "python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        "status": "online",
+        "agents": [],
+        "created_at": time.time(),
+        "last_heartbeat": time.time(),
+    }
+    _instances["local"] = {
+        "id": "local",
+        "host": "localhost",
+        "platform": platform.system(),
+        "version": f"{sys.version_info.major}.{sys.version_info.minor}",
+        "roles": ["server"],
+        "mode": "server",
+        "last_seen": time.time(),
+    }
+
+_auto_register_local()
+
+
 class PraisonAINodes(BaseFeatureProtocol):
     """Node management and instance presence monitoring."""
 
@@ -167,6 +195,9 @@ class PraisonAINodes(BaseFeatureProtocol):
     # ── Instance / Presence API handlers ─────────────────────────────
 
     async def _list_instances(self, request: Request) -> JSONResponse:
+        # Refresh local instance heartbeat so it's never pruned
+        if "local" in _instances:
+            _instances["local"]["last_seen"] = time.time()
         # Clean up stale instances (> 5 min no heartbeat)
         now = time.time()
         stale = [k for k, v in _instances.items() if now - v.get("last_seen", 0) > 300]

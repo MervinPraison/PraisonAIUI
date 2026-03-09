@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 # Lazy-loaded schedule store from praisonaiagents
 _schedule_store = None
 
+# In-memory run history (newest first, capped at 200)
+_run_history: list = []
+
 
 def _getattr_or_get(obj, key, default=None):
     """Get attribute from both dict and dataclass/pydantic objects."""
@@ -144,6 +147,7 @@ class PraisonAISchedules(BaseFeatureProtocol):
         return [
             Route("/api/schedules", self._list, methods=["GET"]),
             Route("/api/schedules", self._add, methods=["POST"]),
+            Route("/api/schedules/history", self._history, methods=["GET"]),
             Route("/api/schedules/{job_id}", self._get, methods=["GET"]),
             Route("/api/schedules/{job_id}", self._update, methods=["PUT"]),
             Route("/api/schedules/{job_id}", self._delete, methods=["DELETE"]),
@@ -202,13 +206,17 @@ class PraisonAISchedules(BaseFeatureProtocol):
                 "cron_expr": schedule.get("cron_expr"),
                 "at": schedule.get("at"),
             },
-            "message": body.get("message", ""),
+            "action": body.get("action", "") or body.get("message", ""),
+            "message": body.get("message", "") or body.get("action", ""),
             "agent_id": body.get("agent_id"),
+            "agent_name": body.get("agent_name"),
+            "channel": body.get("channel"),
             "session_target": body.get("session_target", "isolated"),
             "enabled": body.get("enabled", True),
             "delete_after_run": body.get("delete_after_run", False),
             "created_at": time.time(),
             "last_run_at": None,
+            "run_count": 0,
         }
         store = _get_schedule_store()
         if hasattr(store, 'add'):
@@ -250,24 +258,30 @@ class PraisonAISchedules(BaseFeatureProtocol):
             job["enabled"] = not job.get("enabled", True)
         return JSONResponse(_to_dict(job))
 
+    async def _history(self, request: Request) -> JSONResponse:
+        """Return execution history for all scheduled jobs."""
+        return JSONResponse({"history": _run_history})
+
     async def _run(self, request: Request) -> JSONResponse:
         job_id = request.path_params["job_id"]
         store = _get_schedule_store()
         job = store.get(job_id) if hasattr(store, 'get') else None
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
-        last_run_at = time.time()
+        started_at = time.time()
         # Update last_run_at on the job
         if hasattr(job, 'last_run_at'):
-            job.last_run_at = last_run_at
+            job.last_run_at = started_at
             if hasattr(store, 'update'):
                 store.update(job)
         elif isinstance(job, dict):
-            job["last_run_at"] = last_run_at
+            job["last_run_at"] = started_at
+            job["run_count"] = job.get("run_count", 0) + 1
 
         # Try to execute the action via a gateway-registered agent
         result = None
-        action = _getattr_or_get(job, "action", "")
+        status = "succeeded"
+        action = _getattr_or_get(job, "action", "") or _getattr_or_get(job, "message", "")
         agent_name = _getattr_or_get(job, "agent_name", None)
         if action:
             try:
@@ -292,11 +306,35 @@ class PraisonAISchedules(BaseFeatureProtocol):
                     result = str(result)
             except (ImportError, Exception) as e:
                 logger.warning("Schedule execution failed: %s", e)
+                status = "failed"
+                result = str(e)
+        else:
+            status = "skipped"
+            result = "No action configured"
+
+        duration = round(time.time() - started_at, 2)
+
+        # Store run in history
+        history_entry = {
+            "job_id": job_id,
+            "name": _getattr_or_get(job, "name", ""),
+            "action": action,
+            "status": status,
+            "result": result,
+            "timestamp": started_at,
+            "duration": duration,
+        }
+        _run_history.insert(0, history_entry)
+        # Cap history at 200 entries
+        if len(_run_history) > 200:
+            _run_history[:] = _run_history[:200]
 
         return JSONResponse({
             "triggered": job_id,
-            "last_run_at": last_run_at,
+            "last_run_at": started_at,
             "result": result,
+            "status": status,
+            "duration": duration,
         })
 
     async def _update(self, request: Request) -> JSONResponse:

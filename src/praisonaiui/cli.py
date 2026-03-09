@@ -1309,6 +1309,16 @@ def run(
                 console.print(f"[cyan]ℹ️[/cyan] Auto-detected style: [bold]{detected}[/bold]")
             style = detected
 
+    # ── Resolve output directory relative to app file ──────────────
+    # When using the default output ("aiui"), resolve it relative to the
+    # app file's directory so `aiui run examples/foo/app.py` won't pick
+    # up a stale build in CWD's ./aiui/ (which may be a docs site).
+    if output == Path("aiui") and not is_yaml:
+        app_parent = app_file.resolve().parent
+        cwd = Path.cwd().resolve()
+        if app_parent != cwd:
+            output = app_parent / "aiui"
+
     # Build static files only if --config was explicitly provided
     if config is not None and config.exists():
         console.print("[yellow]⏳[/yellow] Building static files...")
@@ -1439,7 +1449,7 @@ def run(
         server_app = create_app(static_dir=static_dir, config_path=config_path)
 
         # Print startup info
-        mode_label = "chat" if is_chat_mode else "docs"
+        mode_label = style
         if config_path:
             config_label = f"{config} (build + server)"
         elif is_chat_mode:

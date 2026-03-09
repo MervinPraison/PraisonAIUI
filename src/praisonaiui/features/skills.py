@@ -2,10 +2,13 @@
 
 Provides API endpoints for listing available tools, enable/disable,
 and configuration with API keys.
+
+P1 Fix: Reads from SDK's TOOL_MAPPINGS (101 tools) with fallback to hardcoded catalog.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 import uuid
@@ -17,8 +20,10 @@ from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
 
-# Tool catalog with metadata
-TOOL_CATALOG = {
+logger = logging.getLogger(__name__)
+
+# Fallback tool catalog (used when SDK not available)
+_FALLBACK_TOOL_CATALOG = {
     # Search Tools
     "internet_search": {
         "name": "Internet Search",
@@ -153,9 +158,89 @@ TOOL_CATALOG = {
     },
 }
 
+# Cached SDK tool catalog
+_sdk_tool_catalog: Dict[str, Dict[str, Any]] | None = None
+
 # In-memory state (enabled/disabled, config)
 _tool_state: Dict[str, Dict[str, Any]] = {}
 _custom_skills: Dict[str, Dict[str, Any]] = {}
+
+
+def get_tool_catalog() -> Dict[str, Dict[str, Any]]:
+    """Get tool catalog from SDK TOOL_MAPPINGS with fallback to hardcoded catalog.
+    
+    P1 Fix: Reads from praisonaiagents.tools.TOOL_MAPPINGS (101 tools) first,
+    falls back to _FALLBACK_TOOL_CATALOG if SDK not available.
+    """
+    global _sdk_tool_catalog
+    
+    if _sdk_tool_catalog is not None:
+        return _sdk_tool_catalog
+    
+    try:
+        from praisonaiagents.tools import TOOL_MAPPINGS
+        
+        # Convert TOOL_MAPPINGS to catalog format
+        catalog: Dict[str, Dict[str, Any]] = {}
+        for tool_name, tool_func in TOOL_MAPPINGS.items():
+            # Extract metadata from tool function if available
+            doc = getattr(tool_func, "__doc__", "") or ""
+            description = doc.split("\n")[0] if doc else f"{tool_name} tool"
+            
+            # Categorize based on tool name patterns
+            category = "general"
+            icon = "🔧"
+            if "search" in tool_name.lower():
+                category = "search"
+                icon = "🔍"
+            elif "crawl" in tool_name.lower() or "scrape" in tool_name.lower():
+                category = "crawl"
+                icon = "🕷️"
+            elif "file" in tool_name.lower() or "read" in tool_name.lower() or "write" in tool_name.lower():
+                category = "file"
+                icon = "📁"
+            elif "code" in tool_name.lower() or "execute" in tool_name.lower():
+                category = "code"
+                icon = "🐍"
+            elif "shell" in tool_name.lower() or "command" in tool_name.lower():
+                category = "shell"
+                icon = "💻"
+            elif "memory" in tool_name.lower():
+                category = "memory"
+                icon = "🧠"
+            elif "image" in tool_name.lower() or "vision" in tool_name.lower():
+                category = "vision"
+                icon = "👁️"
+            elif "audio" in tool_name.lower() or "speech" in tool_name.lower():
+                category = "audio"
+                icon = "🔊"
+            elif "time" in tool_name.lower() or "date" in tool_name.lower():
+                category = "utility"
+                icon = "⏰"
+            
+            catalog[tool_name] = {
+                "name": tool_name.replace("_", " ").title(),
+                "description": description[:200] if description else f"{tool_name} tool",
+                "category": category,
+                "icon": icon,
+                "required_keys": [],
+                "sdk_tool": True,
+            }
+        
+        _sdk_tool_catalog = catalog
+        logger.info(f"Loaded {len(catalog)} tools from SDK TOOL_MAPPINGS")
+        return catalog
+        
+    except ImportError:
+        logger.debug("praisonaiagents.tools not available, using fallback catalog")
+        return _FALLBACK_TOOL_CATALOG
+    except Exception as e:
+        logger.warning(f"Failed to load SDK tools: {e}, using fallback catalog")
+        return _FALLBACK_TOOL_CATALOG
+
+
+# Backward compatibility alias
+TOOL_CATALOG = get_tool_catalog
 
 
 def _check_api_key(key: str) -> bool:
@@ -165,7 +250,7 @@ def _check_api_key(key: str) -> bool:
 
 def _get_tool_status(tool_id: str) -> Dict[str, Any]:
     """Get the status of a tool including enabled state and API key status."""
-    catalog_entry = TOOL_CATALOG.get(tool_id, {})
+    catalog_entry = get_tool_catalog().get(tool_id, {})
     state = _tool_state.get(tool_id, {})
     
     required_keys = catalog_entry.get("required_keys", [])
@@ -226,7 +311,7 @@ class PraisonAISkills(BaseFeatureProtocol):
         return {
             "status": "ok",
             "feature": self.name,
-            "total_tools": len(TOOL_CATALOG),
+            "total_tools": len(get_tool_catalog()),
             "custom_skills": len(_custom_skills),
             "enabled_tools": enabled_count,
             "gateway_agents_with_tools": gateway_agents_with_tools,
@@ -241,7 +326,7 @@ class PraisonAISkills(BaseFeatureProtocol):
         search = request.query_params.get("search", "").lower()
         
         tools = []
-        for tool_id, info in TOOL_CATALOG.items():
+        for tool_id, info in get_tool_catalog().items():
             if category_filter and info.get("category") != category_filter:
                 continue
             if search and search not in info.get("name", "").lower() and search not in info.get("description", "").lower():
@@ -275,7 +360,7 @@ class PraisonAISkills(BaseFeatureProtocol):
     async def _categories(self, request: Request) -> JSONResponse:
         """List all tool categories."""
         categories = {}
-        for info in TOOL_CATALOG.values():
+        for info in get_tool_catalog().values():
             cat = info.get("category", "other")
             categories[cat] = categories.get(cat, 0) + 1
         
@@ -307,8 +392,9 @@ class PraisonAISkills(BaseFeatureProtocol):
         skill_id = request.path_params["skill_id"]
         
         # Check catalog first
-        if skill_id in TOOL_CATALOG:
-            info = TOOL_CATALOG[skill_id]
+        catalog = get_tool_catalog()
+        if skill_id in catalog:
+            info = catalog[skill_id]
             status = _get_tool_status(skill_id)
             return JSONResponse({
                 "id": skill_id,
@@ -347,7 +433,7 @@ class PraisonAISkills(BaseFeatureProtocol):
     async def _delete(self, request: Request) -> JSONResponse:
         """Delete a custom skill."""
         skill_id = request.path_params["skill_id"]
-        if skill_id in TOOL_CATALOG:
+        if skill_id in get_tool_catalog():
             return JSONResponse({"error": "Cannot delete builtin tool"}, status_code=400)
         if skill_id not in _custom_skills:
             return JSONResponse({"error": "Skill not found"}, status_code=404)
@@ -360,7 +446,7 @@ class PraisonAISkills(BaseFeatureProtocol):
         """Toggle a tool/skill enabled state."""
         skill_id = request.path_params["skill_id"]
         
-        if skill_id not in TOOL_CATALOG and skill_id not in _custom_skills:
+        if skill_id not in get_tool_catalog() and skill_id not in _custom_skills:
             return JSONResponse({"error": "Skill not found"}, status_code=404)
         
         if skill_id not in _tool_state:
@@ -377,7 +463,7 @@ class PraisonAISkills(BaseFeatureProtocol):
         """Set configuration for a tool (e.g., API keys)."""
         skill_id = request.path_params["skill_id"]
         
-        if skill_id not in TOOL_CATALOG and skill_id not in _custom_skills:
+        if skill_id not in get_tool_catalog() and skill_id not in _custom_skills:
             return JSONResponse({"error": "Skill not found"}, status_code=404)
         
         body = await request.json()
@@ -399,7 +485,7 @@ class PraisonAISkills(BaseFeatureProtocol):
 
     def _cli_list(self) -> str:
         lines = []
-        for tool_id, info in TOOL_CATALOG.items():
+        for tool_id, info in get_tool_catalog().items():
             status = _get_tool_status(tool_id)
             icon = "✓" if status["enabled"] else "✗"
             lines.append(f"  [{icon}] {info['icon']} {info['name']}")
@@ -407,4 +493,4 @@ class PraisonAISkills(BaseFeatureProtocol):
 
     def _cli_status(self) -> str:
         enabled = sum(1 for s in _tool_state.values() if s.get("enabled", True))
-        return f"Tools: {len(TOOL_CATALOG)} builtin, {len(_custom_skills)} custom, {enabled} enabled"
+        return f"Tools: {len(get_tool_catalog())} builtin, {len(_custom_skills)} custom, {enabled} enabled"
