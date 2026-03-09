@@ -207,6 +207,7 @@ class PraisonAIProvider(BaseProvider):
             "name": "Assistant",
             "instructions": "You are a helpful assistant. Use markdown formatting.",
             "memory": True,
+            "self_reflect": False,
         }
 
         # G2: Resolve default tools via praisonai wrapper
