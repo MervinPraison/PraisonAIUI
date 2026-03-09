@@ -1136,8 +1136,20 @@ def create_app(
         routes.append(Mount("/assets", app=StaticFiles(directory=str(_assets_dir))))
 
     # Add static file serving if static_dir provided (catch-all, must be last)
+    # Wrap StaticFiles so WebSocket requests don't crash with AssertionError
+    # (StaticFiles only handles HTTP, not WebSocket scope types)
     if static_dir and static_dir.exists():
-        routes.append(Mount("/", app=StaticFiles(directory=str(static_dir), html=True)))
+        _static_app = StaticFiles(directory=str(static_dir), html=True)
+
+        async def _http_only_static(scope, receive, send):
+            if scope["type"] != "http":
+                # Reject non-HTTP (WebSocket) gracefully instead of crashing
+                if scope["type"] == "websocket":
+                    await send({"type": "websocket.close", "code": 1008})
+                return
+            await _static_app(scope, receive, send)
+
+        routes.append(Mount("/", app=_http_only_static))
     else:
         # No static_dir — serve SDK-generated HTML (dashboard, chat, etc.)
         routes.append(Route("/", _serve_index, methods=["GET"]))
