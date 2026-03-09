@@ -159,6 +159,13 @@ function injectStyles() {
     .chat-mem-item .mem-text { color:var(--db-text); }
     .chat-mem-empty { color:var(--db-text-dim); font-style:italic; font-size:12px; }
 
+    .chat-channel-badge { display:inline-flex; align-items:center; gap:4px; font-size:10px; padding:1px 6px; border-radius:6px; background:rgba(var(--db-accent-rgb,100,100,255),.1); color:var(--db-accent); font-weight:600; text-transform:uppercase; letter-spacing:.3px; }
+    .chat-msg-channel .chat-msg-content { border-left:3px solid var(--db-accent); background:rgba(var(--db-accent-rgb,100,100,255),.04); }
+    .chat-msg-channel .chat-msg-avatar { background:rgba(var(--db-accent-rgb,100,100,255),.15); font-size:14px; }
+    .chat-msg-channel-sender { font-size:11px; font-weight:600; color:var(--db-text-dim); margin-bottom:2px; display:flex; align-items:center; gap:6px; }
+    .chat-sess-item .sess-platform-badge { font-size:10px; padding:1px 5px; border-radius:4px; background:rgba(var(--db-accent-rgb,100,100,255),.1); color:var(--db-accent); font-weight:600; }
+    .chat-sess-item .sess-unread { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--db-accent); margin-left:4px; animation:blink 1.5s infinite; }
+
     .chat-compose { padding:14px 16px; border-top:1px solid var(--db-border); }
     .chat-compose-row { display:flex; gap:8px; align-items:flex-end; }
     .chat-compose textarea { flex:1; resize:none; padding:10px 14px; background:var(--db-sidebar-bg,var(--db-card-bg)); border:1px solid var(--db-border); border-radius:10px; color:var(--db-text); font-size:14px; font-family:inherit; line-height:1.5; max-height:150px; outline:none; transition:border .15s; }
@@ -444,8 +451,10 @@ function connectWebSocket() {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        // Only process events for our session (ignore other sessions)
-        if (data.session_id && currentSessionId && data.session_id !== currentSessionId) {
+        const isChannelMsg = data.type === 'channel_message' || data.type === 'channel_response';
+        // Allow channel messages through regardless of current session;
+        // for regular chat events, filter by session.
+        if (!isChannelMsg && data.session_id && currentSessionId && data.session_id !== currentSessionId) {
           return;
         }
         handleWsMessage(data);
@@ -574,6 +583,16 @@ function handleWsMessage(data) {
     case 'pong':
       break;
 
+    case 'channel_message':
+      // Incoming message from a channel bot (Slack/Discord/Telegram user)
+      _handleChannelMessage(data);
+      break;
+
+    case 'channel_response':
+      // Agent response sent back through a channel bot
+      _handleChannelResponse(data);
+      break;
+
     default:
       // Handle metrics from run_content events
       if (data.metrics) {
@@ -581,6 +600,94 @@ function handleWsMessage(data) {
       }
       console.log('[Chat] Unknown message type:', type, data);
   }
+}
+
+// ── Channel Message Handlers ────────────────────────────────────
+// These render messages from platform bots (Slack, Discord, Telegram)
+// into the Chat UI. They auto-switch to the channel session or show
+// an unread notification dot if the user is viewing a different session.
+
+function _handleChannelMessage(data) {
+  const sessionId = data.session_id;
+  const isViewing = currentSessionId === sessionId;
+
+  // If user is on a fresh/empty chat, auto-switch to channel session
+  if (!currentSessionId) {
+    currentSessionId = sessionId;
+  }
+
+  if (currentSessionId === sessionId) {
+    _appendChannelMsg('user', data);
+  } else {
+    // Mark unread in sidebar
+    _markSessionUnread(sessionId);
+  }
+
+  // Refresh sessions to show new channel session
+  setTimeout(loadSessions, 300);
+}
+
+function _handleChannelResponse(data) {
+  const sessionId = data.session_id;
+
+  if (currentSessionId === sessionId) {
+    _appendChannelMsg('assistant', data);
+  } else {
+    _markSessionUnread(sessionId);
+  }
+}
+
+function _appendChannelMsg(role, data) {
+  const messagesEl = document.getElementById('chat-messages');
+  const welcome = document.getElementById('chat-welcome');
+  if (welcome) welcome.style.display = 'none';
+
+  const msgEl = document.createElement('div');
+  msgEl.className = 'chat-msg chat-msg-' + role + ' chat-msg-channel';
+
+  const avatarEl = document.createElement('div');
+  avatarEl.className = 'chat-msg-avatar';
+  avatarEl.textContent = (data.icon || '📨');
+
+  const bodyEl = document.createElement('div');
+  bodyEl.className = 'chat-msg-body';
+
+  // Sender/agent name with platform badge
+  const senderEl = document.createElement('div');
+  senderEl.className = 'chat-msg-channel-sender';
+  const badge = '<span class="chat-channel-badge">' + escapeHtml(data.platform || 'channel') + '</span>';
+  const name = role === 'user'
+    ? (data.sender || 'User')
+    : (data.agent_name || 'Assistant');
+  senderEl.innerHTML = badge + ' ' + escapeHtml(name);
+  bodyEl.appendChild(senderEl);
+
+  const contentEl = document.createElement('div');
+  contentEl.className = 'chat-msg-content';
+  contentEl.innerHTML = renderMarkdown(data.content || '');
+  bodyEl.appendChild(contentEl);
+
+  msgEl.appendChild(avatarEl);
+  msgEl.appendChild(bodyEl);
+  messagesEl.appendChild(msgEl);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  // Update header to show channel session
+  const title = document.getElementById('chat-header-title');
+  if (title && currentSessionId === data.session_id) {
+    title.textContent = (data.icon || '📨') + ' ' + (data.platform || 'Channel').charAt(0).toUpperCase() + (data.platform || 'Channel').slice(1);
+  }
+}
+
+function _markSessionUnread(sessionId) {
+  // Add unread dot to matching session item in sidebar
+  document.querySelectorAll('.chat-sess-item').forEach((el) => {
+    if (el.title === sessionId && !el.querySelector('.sess-unread')) {
+      const dot = document.createElement('span');
+      dot.className = 'sess-unread';
+      el.querySelector('.sess-title')?.appendChild(dot);
+    }
+  });
 }
 
 // ── Message Rendering ───────────────────────────────────────────

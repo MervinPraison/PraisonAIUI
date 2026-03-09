@@ -207,7 +207,18 @@ class PraisonAIProvider(BaseProvider):
             "name": "Assistant",
             "instructions": "You are a helpful assistant. Use markdown formatting.",
             "memory": True,
+            "reflection": True,  # G2: Enable reflection/interactive mode by default
         }
+
+        # G2: Resolve default tools via praisonai wrapper
+        try:
+            from praisonai.tool_resolver import ToolResolver
+            resolver = ToolResolver()
+            default_tools = resolver.resolve_many(["internet_search", "get_current_time"])
+            if default_tools:
+                kwargs["tools"] = default_tools
+        except ImportError:
+            pass  # praisonai not installed — no tools
 
         # Check CRUD-defined agents for matching name
         if agent_name:
@@ -223,6 +234,16 @@ class PraisonAIProvider(BaseProvider):
                         )
                         if _def.get("model"):
                             kwargs["llm"] = _def["model"]
+                        # Also get tools from CRUD definition if specified
+                        if _def.get("tools"):
+                            try:
+                                from praisonai.tool_resolver import ToolResolver
+                                resolver = ToolResolver()
+                                crud_tools = resolver.resolve_many(_def["tools"])
+                                if crud_tools:
+                                    kwargs["tools"] = crud_tools
+                            except ImportError:
+                                pass
                         break
             except ImportError:
                 pass

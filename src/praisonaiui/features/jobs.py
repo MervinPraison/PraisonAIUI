@@ -234,16 +234,34 @@ class PraisonAIJobs(BaseFeatureProtocol):
                     pass
 
                 if agent is None:
-                    # Fallback: create fresh Agent
+                    # G6: Fallback — create agent with tools (same pattern as G1/G5)
                     try:
                         from praisonaiagents import Agent
 
                         instructions = job.get("config", {}).get("instructions", "")
                         model = job.get("config", {}).get("model", "gpt-4o-mini")
+
+                        # Resolve tools from job config
+                        agent_tools = []
+                        tool_names = job.get("config", {}).get("tools", [])
+                        if tool_names:
+                            try:
+                                from praisonai.tool_resolver import ToolResolver
+                                resolver = ToolResolver()
+                                for tn in tool_names:
+                                    if isinstance(tn, str) and tn.strip():
+                                        resolved = resolver.resolve(tn.strip())
+                                        if resolved:
+                                            agent_tools.append(resolved)
+                            except ImportError:
+                                pass
+
                         agent = Agent(
                             name=agent_name,
                             instructions=instructions,
                             llm=model,
+                            tools=agent_tools if agent_tools else None,
+                            reflection=job.get("config", {}).get("reflection", True),
                         )
                     except ImportError:
                         agent = None

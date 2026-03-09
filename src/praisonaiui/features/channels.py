@@ -139,10 +139,22 @@ class PraisonAIChannels(BaseFeatureProtocol):
         agent = None
         try:
             from praisonaiagents import Agent
+            
+            # G3: Resolve tools via praisonai wrapper
+            agent_tools = []
+            try:
+                from praisonai.tool_resolver import ToolResolver
+                resolver = ToolResolver()
+                agent_tools = resolver.resolve_many(["internet_search", "get_current_time"])
+            except ImportError:
+                pass  # praisonai not installed — no tools
+            
             agent = Agent(
                 name="assistant",
-                instructions="You are a helpful assistant.",
+                instructions="You are a helpful assistant with tool capabilities.",
                 llm=os.environ.get("PRAISONAI_MODEL", "gpt-4o-mini"),
+                tools=agent_tools if agent_tools else None,
+                reflection=True,  # G3: Enable reflection/interactive mode
             )
         except ImportError:
             pass  # agent may be None — some bots can work without one
@@ -188,6 +200,11 @@ class PraisonAIChannels(BaseFeatureProtocol):
                 logger.error(f"Bot '{name}' crashed: {e}")
                 entry["running"] = False
                 entry["start_error"] = str(e)
+
+        # ── Attach chat bridge BEFORE starting ──────────────────────────
+        # Hooks into the bot's message lifecycle to broadcast messages
+        # to the Chat UI in real-time (fire-and-forget, zero perf impact).
+        self._attach_chat_bridge(channel_id, bot, platform)
 
         task = asyncio.create_task(_run_safe(channel_id, bot))
         _live_bots[channel_id] = {"bot": bot, "task": task}
@@ -251,6 +268,129 @@ class PraisonAIChannels(BaseFeatureProtocol):
                 logger.debug(f"Failed to create {platform} bot via {fqn}: {e}")
                 continue
         return None
+
+    def _attach_chat_bridge(
+        self,
+        channel_id: str,
+        bot: Any,
+        platform: str,
+    ) -> None:
+        """Attach a message bridge so channel bot conversations appear in the Chat UI.
+
+        Architecture (fire-and-forget, zero performance impact):
+        ┌──────────┐   on_message    ┌───────────┐  broadcast   ┌──────────┐
+        │ Slack /  │ ──────────────► │ channels  │ ──────────► │ Chat WS  │
+        │ Discord/ │                 │   .py     │  (create_   │ clients  │
+        │ Telegram │                 │  bridge   │   task)     │  (UI)    │
+        └──────────┘                 └───────────┘             └──────────┘
+               │                          ▲
+               │   _session.chat()        │ wrapped to also
+               └──────────────────────────┘ broadcast response
+
+        Every broadcast is dispatched via ``asyncio.create_task`` so the
+        bot's original message handling is **never** blocked or slowed.
+        Errors in broadcasting are logged and swallowed — the bot keeps
+        running normally even if no Chat UI clients are connected.
+
+        Each channel gets a dedicated session ID: ``channel-{channel_id}``.
+        Messages are persisted to the datastore for history on page reload.
+        """
+        session_id = f"channel-{channel_id}"
+
+        # ── Platform icons for the Chat UI ───────────────────────────
+        _PLATFORM_ICONS = {
+            "slack": "💬", "discord": "🎮", "telegram": "✈️",
+            "whatsapp": "📱", "imessage": "🍎", "signal": "🔒",
+            "googlechat": "💚", "nostr": "🟣",
+        }
+        icon = _PLATFORM_ICONS.get(platform, "📨")
+
+        # ── 1. Hook into on_message to capture incoming user messages ─
+        if hasattr(bot, "on_message"):
+            @bot.on_message
+            async def _bridge_incoming(msg: Any) -> None:
+                """Forward incoming channel message to Chat UI (fire-and-forget)."""
+                try:
+                    content = getattr(msg, "content", "") or str(msg)
+                    sender_name = ""
+                    if hasattr(msg, "sender") and msg.sender:
+                        sender_name = (
+                            getattr(msg.sender, "display_name", "")
+                            or getattr(msg.sender, "username", "")
+                            or getattr(msg.sender, "user_id", "")
+                        )
+
+                    async def _do_broadcast() -> None:
+                        try:
+                            from .chat import get_chat_manager
+                            mgr = get_chat_manager()
+                            await mgr.broadcast(session_id, {
+                                "type": "channel_message",
+                                "session_id": session_id,
+                                "channel_id": channel_id,
+                                "platform": platform,
+                                "icon": icon,
+                                "content": content,
+                                "sender": sender_name,
+                                "timestamp": time.time(),
+                            })
+
+                            # Persist to datastore for history
+                            from praisonaiui.server import _datastore
+                            existing = await _datastore.get_session(session_id)
+                            if existing is None:
+                                await _datastore.create_session(session_id)
+                            await _datastore.add_message(session_id, {
+                                "role": "user",
+                                "content": f"[{sender_name}] {content}" if sender_name else content,
+                            })
+                        except Exception as e:
+                            logger.debug(f"Chat bridge broadcast error: {e}")
+
+                    asyncio.create_task(_do_broadcast())
+                except Exception as e:
+                    logger.debug(f"Chat bridge incoming error: {e}")
+
+        # ── 2. Wrap _session.chat() to capture agent responses ────────
+        if hasattr(bot, "_session") and hasattr(bot._session, "chat"):
+            _original_chat = bot._session.chat
+
+            async def _wrapped_chat(agent: Any, user_id: str, text: str) -> str:
+                """Wrap agent chat to broadcast responses to Chat UI."""
+                response = await _original_chat(agent, user_id, text)
+
+                # Fire-and-forget broadcast of the agent response
+                async def _broadcast_response() -> None:
+                    try:
+                        from .chat import get_chat_manager
+                        mgr = get_chat_manager()
+                        await mgr.broadcast(session_id, {
+                            "type": "channel_response",
+                            "session_id": session_id,
+                            "channel_id": channel_id,
+                            "platform": platform,
+                            "icon": icon,
+                            "content": response,
+                            "agent_name": getattr(agent, "name", "assistant"),
+                            "timestamp": time.time(),
+                        })
+
+                        # Persist response to datastore
+                        from praisonaiui.server import _datastore
+                        await _datastore.add_message(session_id, {
+                            "role": "assistant",
+                            "content": response,
+                            "agent_name": getattr(agent, "name", "assistant"),
+                        })
+                    except Exception as e:
+                        logger.debug(f"Chat bridge response broadcast error: {e}")
+
+                asyncio.create_task(_broadcast_response())
+                return response  # return original response untouched
+
+            bot._session.chat = _wrapped_chat
+
+        logger.info(f"Chat bridge attached for {platform} channel '{channel_id}' → session '{session_id}'")
 
     async def _stop_channel_bot(self, channel_id: str) -> Optional[str]:
         """Stop a running bot for the given channel.

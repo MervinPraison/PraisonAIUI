@@ -288,6 +288,14 @@ def create_gateway_from_yaml(
         ui_config=config,
     )
 
+    # G5: Resolve tool names to callables (same pattern as gateway G1 fix)
+    tool_resolver = None
+    try:
+        from praisonai.tool_resolver import ToolResolver
+        tool_resolver = ToolResolver()
+    except ImportError:
+        logger.debug("ToolResolver not available, agents will have no tools")
+
     # Create agents from config
     agents_cfg = config.get("agents", {})
     for agent_id, agent_def in agents_cfg.items():
@@ -295,14 +303,26 @@ def create_gateway_from_yaml(
             logger.warning("praisonai not available, skipping agent creation")
             break
 
+        # G5: Resolve tools from config
+        agent_tools = []
+        for tool_name in agent_def.get("tools", []):
+            if tool_resolver and isinstance(tool_name, str) and tool_name.strip():
+                resolved = tool_resolver.resolve(tool_name.strip())
+                if resolved:
+                    agent_tools.append(resolved)
+                else:
+                    logger.warning(f"Tool '{tool_name}' not found for agent '{agent_id}'")
+
         agent = PraisonAgent(
             name=agent_id,
             instructions=agent_def.get("instructions", ""),
             llm=agent_def.get("model"),
             memory=agent_def.get("memory", False),
+            tools=agent_tools if agent_tools else None,
+            reflection=agent_def.get("reflection", True),
         )
         gateway.register_agent(agent, agent_id=agent_id)
-        logger.info(f"Created agent '{agent_id}'")
+        logger.info(f"Created agent '{agent_id}' (tools={len(agent_tools)}, reflection={agent_def.get('reflection', True)})")
 
     return gateway
 

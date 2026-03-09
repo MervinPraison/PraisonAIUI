@@ -101,7 +101,7 @@ def _sync_to_gateway(agent_def: Dict[str, Any]) -> None:
 
         from praisonaiagents import Agent
 
-        # Build Agent kwargs from definition — pass through tools & temperature
+        # Build Agent kwargs from definition
         agent_kwargs: Dict[str, Any] = {
             "name": agent_def.get("name", "assistant"),
             "instructions": (
@@ -111,16 +111,31 @@ def _sync_to_gateway(agent_def: Dict[str, Any]) -> None:
             ),
             "llm": agent_def.get("model", "gpt-4o-mini"),
             "memory": True,
+            "reflection": agent_def.get("reflection", True),
         }
 
-        # Pass tools if specified
+        # G8: Resolve tool name strings to callables via ToolResolver
         tool_names = agent_def.get("tools", [])
         if tool_names:
-            agent_kwargs["tools"] = tool_names
+            agent_tools = []
+            try:
+                from praisonai.tool_resolver import ToolResolver
+                resolver = ToolResolver()
+                for tn in tool_names:
+                    if isinstance(tn, str) and tn.strip():
+                        resolved = resolver.resolve(tn.strip())
+                        if resolved:
+                            agent_tools.append(resolved)
+                        else:
+                            logger.warning(f"Tool '{tn}' not found for agent '{agent_def.get('id')}'")
+            except ImportError:
+                logger.debug("ToolResolver not available, skipping tool resolution")
+            if agent_tools:
+                agent_kwargs["tools"] = agent_tools
 
         agent = Agent(**agent_kwargs)
         gw.register_agent(agent, agent_id=agent_def["id"])
-        logger.info(f"Agent synced to gateway: {agent_def['id']} ({agent_def.get('name')})")
+        logger.info(f"Agent synced to gateway: {agent_def['id']} ({agent_def.get('name')}, tools={len(agent_kwargs.get('tools', []))})")
     except ImportError:
         pass
     except Exception as e:
@@ -463,13 +478,31 @@ class PraisonAIAgentsFeature(BaseFeatureProtocol):
             except ImportError:
                 pass
 
-            # Fallback: create a fresh agent
+            # G7: Fallback — create agent with tools from CRUD definition
             if agent is None:
                 from praisonaiagents import Agent
+
+                # Resolve tools from CRUD definition
+                agent_tools = []
+                tool_names = agent_def.get("tools", [])
+                if tool_names:
+                    try:
+                        from praisonai.tool_resolver import ToolResolver
+                        resolver = ToolResolver()
+                        for tn in tool_names:
+                            if isinstance(tn, str) and tn.strip():
+                                resolved = resolver.resolve(tn.strip())
+                                if resolved:
+                                    agent_tools.append(resolved)
+                    except ImportError:
+                        pass
+
                 agent = Agent(
                     name=agent_def.get("name", "assistant"),
                     instructions=agent_def.get("instructions", "") or agent_def.get("system_prompt", ""),
                     llm=agent_def.get("model", "gpt-4o-mini"),
+                    tools=agent_tools if agent_tools else None,
+                    reflection=agent_def.get("reflection", True),
                 )
 
             # Execute in thread pool to not block event loop
