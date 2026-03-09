@@ -76,7 +76,54 @@
 <p>| **Auth** | No authentication module | Add `praisonaiagents.auth` with key/session persistence |</p>
 <p>| **Nodes** | No node/cluster management | Add `praisonaiagents.nodes` for node discovery |</p>
 <p>| **Channels** | No channel management API | Add `praisonaiagents.channels` with `ChannelStore` |</p>
-<p>| **Config** | No runtime config persistence | Add `praisonaiagents.config` with file-backed store |</p></noscript></div>
+<p>| **Config** | No runtime config persistence | Add `praisonaiagents.config` with file-backed store |</p>
+<p>---</p>
+<h2>Building & Extending — Key Rules</h2>
+<h3>Agent Registration API</h3>
+<p>> [!CAUTION]</p>
+<p>> The old `create_agent()` function and `_agent_definitions` dict were **removed**. All agent registration now goes through the Protocol ABC.</p>
+<h3>Frontend Manifest Requirement</h3>
+<p>> [!IMPORTANT]</p>
+<p>> The React frontend **always** fetches 3 JSON files before rendering, regardless of style:</p>
+<p>> - `/ui-config.json` — must return `{"style": "dashboard"}` (or `"chat"`, `"agents"`, etc.)</p>
+<p>> - `/docs-nav.json` — sidebar nav (can be `{"items": []}` for non-docs modes)</p>
+<p>> - `/route-manifest.json` — URL routing (can be `{}` for non-docs modes)</p>
+<p>></p>
+<p>> If any of these 404, the user sees **"Failed to load manifests"** and the dashboard never renders.</p>
+<p>In `server.py`, `create_app()` provides dynamic fallback handlers for these. If you are running</p>
+<p>via `AIUIGateway`, these handlers are included automatically. If writing a custom server, ensure</p>
+<p>these routes exist.</p>
+<h3>Style System</h3>
+<p>The `style` field in `/ui-config.json` controls which React component renders:</p>
+<p>| Style | Component | Use Case |</p>
+<p>|-------|-----------|----------|</p>
+<p>| `"docs"` | Three-column docs layout | Documentation sites |</p>
+<p>| `"dashboard"` | Full sidebar + pages | Feature management dashboard |</p>
+<p>| `"chat"` | Chat-focused interface | Chat-only applications |</p>
+<p>| `"agents"` | Agent selector + chat | Multi-agent interfaces |</p>
+<p>| `"playground"` | Split-pane playground | Agent experimentation |</p>
+<p>| `"custom"` | Flexible layout | Custom configurations |</p>
+<p>Set via Python: `aiui.set_style("dashboard")`</p>
+<h3>Feature Protocol — How to Add a New Feature</h3>
+<p>Every feature follows the same 4-step pattern:</p>
+<p>1. **Define the Protocol ABC** — abstract methods for the capability</p>
+<p>2. **Implement `SimpleXxxManager`** — in-memory fallback, zero dependencies</p>
+<p>3. **Implement `SDKXxxManager`** — wraps `praisonaiagents` SDK (if available)</p>
+<p>4. **Provide `get_xxx_manager()`** — factory function, SDK-first with fallback</p>
+<h3>Data Persistence</h3>
+<li>**Sessions**: JSON files in `~/.praisonaiui/sessions/{session_id}.json`</li>
+<li>**Agents**: In-memory by default; `SimpleAgentRegistry` persists to data file if `set_data_file()` called</li>
+<li>**Schedules**: `FileScheduleStore` from `praisonaiagents` SDK persists to disk</li>
+<li>**Config**: Runtime config via `/api/config_runtime`, not persisted by default</li>
+<h3>Common Pitfalls</h3>
+<p>| Pitfall | Solution |</p>
+<p>|---------|----------|</p>
+<p>| `ImportError: _agent_definitions` | Use `get_agent_registry()` instead |</p>
+<p>| "Failed to load manifests" in browser | Ensure `/ui-config.json` route exists and returns valid JSON with `style` field |</p>
+<p>| Port already in use | `lsof -ti :PORT \| xargs kill -9` before starting |</p>
+<p>| Chat returns no response | Check `OPENAI_API_KEY` is set in the running process |</p>
+<p>| `praisonai_agents: false` in `/health` | Install `praisonaiagents` package |</p>
+<p>| Features show 0 count | Features auto-register on import; check `server.py` initializes them |</p></noscript></div>
   <script>
     // AIUI Plugin System — inline bootstrap
     (function () {
