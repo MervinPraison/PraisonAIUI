@@ -112,6 +112,8 @@
 <p>4. **Provide `get_xxx_manager()`** — factory function, SDK-first with fallback</p>
 <h3>Data Persistence</h3>
 <li>**Sessions**: JSON files in `~/.praisonaiui/sessions/{session_id}.json`</li>
+<li>**Memory**: Auto-stored from chat (every user + assistant message → `short` type memory via SDK `Memory.store_short_term()`). Searchable via `/api/memory/search`. Filterable by `session_id` via `/api/memory/session/{id}`</li>
+<li>**Knowledge**: Stored via `/api/knowledge` (text) or `/api/knowledge/add-file` (file ingest). Searched via `/api/knowledge/search`. Context auto-injected into chat prompts when relevant entries exist. Uses SDK `Knowledge` class with RAG pipeline when `[knowledge]` extras installed</li>
 <li>**Agents**: In-memory by default; `SimpleAgentRegistry` persists to data file if `set_data_file()` called</li>
 <li>**Schedules**: `FileScheduleStore` from `praisonaiagents` SDK persists to disk</li>
 <li>**Config**: Runtime config via `/api/config_runtime`, not persisted by default</li>
