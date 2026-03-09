@@ -733,9 +733,28 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
         provider = get_provider()
         full_response = ""
 
+        # Inject knowledge context if available (non-blocking)
+        augmented_message = message
+        try:
+            from praisonaiui.features.knowledge import get_knowledge_manager
+            k_mgr = get_knowledge_manager()
+            k_entries = k_mgr.list_all()
+            if k_entries:
+                k_results = k_mgr.search(message, limit=5)
+                if k_results:
+                    context_lines = [r.get("text", "") for r in k_results if r.get("text")]
+                    if context_lines:
+                        context_block = "\n".join(context_lines)
+                        augmented_message = (
+                            f"[Knowledge Context]\n{context_block}\n"
+                            f"[/Knowledge Context]\n\n{message}"
+                        )
+        except Exception:
+            pass  # Knowledge failures must never break chat
+
         try:
             async for run_event in provider.run(
-                message,
+                augmented_message,
                 session_id=session_id,
                 agent_name=agent_name,
             ):
@@ -776,6 +795,27 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
                 "content": full_response,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
+
+            # Auto-store conversation turn in memory (non-blocking)
+            try:
+                from praisonaiui.features.memory import get_memory_manager
+                mgr = get_memory_manager()
+                mgr.store(
+                    message,
+                    memory_type="short",
+                    session_id=session_id,
+                    agent_id=agent_name,
+                    metadata={"role": "user"},
+                )
+                mgr.store(
+                    full_response,
+                    memory_type="short",
+                    session_id=session_id,
+                    agent_id=agent_name,
+                    metadata={"role": "assistant"},
+                )
+            except Exception:
+                pass  # Memory failures must never break chat
 
         yield f"data: {json.dumps({'type': 'end'})}\n\n"
 
@@ -1117,6 +1157,8 @@ def create_app(
          "description": "Agent skills & plugins", "order": 20},
         {"id": "memory", "title": "Memory", "icon": "🧠", "group": "Agent",
          "description": "Agent memory & knowledge store", "order": 25},
+        {"id": "knowledge", "title": "Knowledge", "icon": "📚", "group": "Agent",
+         "description": "Knowledge base & RAG", "order": 27},
         {"id": "nodes", "title": "Nodes", "icon": "🖥️", "group": "Agent",
          "description": "Execution nodes & approvals", "order": 30},
         {"id": "config", "title": "Config", "icon": "⚙️", "group": "Settings",
@@ -1178,6 +1220,8 @@ def create_app(
     else:
         # No static_dir — serve SDK-generated HTML (dashboard, chat, etc.)
         routes.append(Route("/", _serve_index, methods=["GET"]))
+        # Catch-all for SPA path-based routing (e.g. /chat, /memory, /knowledge)
+        routes.append(Route("/{path:path}", _serve_index, methods=["GET"]))
 
     app = Starlette(
         routes=routes,

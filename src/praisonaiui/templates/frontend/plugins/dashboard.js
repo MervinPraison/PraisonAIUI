@@ -23,7 +23,7 @@ const BUILTIN_VIEWS = {
   agents:         '/plugins/views/agents.js',
   sessions:       '/plugins/views/sessions.js',
   memory:         '/plugins/views/memory.js',
-  knowledge:      '/plugins/views/memory.js',
+  knowledge:      '/plugins/views/knowledge.js',
   logs:           '/plugins/views/logs.js',
   schedules:      '/plugins/views/schedules.js',
   cron:           '/plugins/views/schedules.js',
@@ -194,10 +194,20 @@ async function buildDashboard() {
   root.appendChild(sidebar);
   root.appendChild(main);
 
-  // Select first page
-  if (pagesData.length > 0) {
-    selectPage(pagesData[0].id);
-  }
+  // Resolve initial page from URL path or default to first page
+  const pathId = location.pathname.replace(/^\//, '') || '';
+  const initialPage = pathId && pagesData.find(p => p.id === pathId)
+    ? pathId
+    : (pagesData.length > 0 ? pagesData[0].id : null);
+  if (initialPage) selectPage(initialPage);
+
+  // Listen for browser back/forward
+  window.addEventListener('popstate', () => {
+    const id = location.pathname.replace(/^\//, '') || '';
+    if (id && pagesData.find(p => p.id === id)) {
+      selectPage(id);
+    }
+  });
 }
 
 function buildSidebar(pages) {
@@ -256,6 +266,11 @@ async function selectPage(pageId) {
   if (_activeCleanup) { try { _activeCleanup(); } catch(e) {} _activeCleanup = null; }
 
   activePageId = pageId;
+
+  // Sync URL path (skip if already matching to avoid extra history entries)
+  if (location.pathname !== `/${pageId}`) {
+    history.pushState({ pageId }, '', `/${pageId}`);
+  }
 
   // Update nav active state
   document.querySelectorAll('.db-nav-item').forEach(el => el.classList.remove('active'));
@@ -421,6 +436,11 @@ function renderText(comp) {
 
 async function showTestPanel() {
   activePageId = '__test__';
+
+  // Sync URL path for Feature Inspector
+  if (location.pathname !== '/explorer') {
+    history.pushState({ pageId: '__test__' }, '', '/explorer');
+  }
   document.querySelectorAll('.db-nav-item').forEach(el => el.classList.remove('active'));
   const main = document.getElementById('db-main-content');
   if (!main) return;

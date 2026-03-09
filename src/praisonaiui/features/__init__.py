@@ -53,6 +53,7 @@ def auto_register_defaults() -> None:
     from .marketplace import PraisonAIMarketplace
     from .media_analysis import PraisonAIMediaAnalysis
     from .memory import PraisonAIMemory
+    from .knowledge import PraisonAIKnowledge
     from .model_fallback import PraisonAIModelFallback
     from .nodes import PraisonAINodes
     from .openai_api import PraisonAIOpenAIAPI
@@ -91,6 +92,7 @@ def auto_register_defaults() -> None:
         PraisonAIMarketplace,
         PraisonAIMediaAnalysis,
         PraisonAIMemory,
+        PraisonAIKnowledge,
         PraisonAIModelFallback,
         PraisonAINodes,
         PraisonAIOpenAIAPI,

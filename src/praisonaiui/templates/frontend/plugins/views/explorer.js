@@ -8,8 +8,52 @@
  * Renders into [data-page="explorer"]
  */
 
-// ── All 31 features with their endpoints ──────────────────────
+// ── All features with their endpoints ──────────────────────────
 const FEATURES = [
+  { group: "PraisonAI Gateway", items: [
+    { name: "health",           endpoints: [
+      { label: "Health",        method: "GET",  url: "/health" },
+    ]},
+    { name: "agents_list",      endpoints: [
+      { label: "List Agents",   method: "GET",  url: "/agents" },
+    ]},
+    { name: "sessions",         endpoints: [
+      { label: "List Sessions", method: "GET",  url: "/sessions" },
+    ]},
+    { name: "run",              endpoints: [
+      { label: "Run Agent",     method: "POST", url: "/run", body: { message: "Hello!", session_id: "test" } },
+      { label: "Cancel Run",    method: "POST", url: "/cancel", body: { run_id: "test" } },
+    ]},
+    { name: "starters",         endpoints: [
+      { label: "Get Starters",  method: "GET",  url: "/starters" },
+    ]},
+    { name: "profiles",         endpoints: [
+      { label: "List Profiles", method: "GET",  url: "/profiles" },
+    ]},
+    { name: "auth_core",        endpoints: [
+      { label: "Current User",  method: "GET",  url: "/me" },
+    ]},
+    { name: "provider",         endpoints: [
+      { label: "Provider Info", method: "GET",  url: "/api/provider" },
+    ]},
+    { name: "overview",         endpoints: [
+      { label: "Overview",      method: "GET",  url: "/api/overview" },
+    ]},
+    { name: "debug_api",        endpoints: [
+      { label: "Debug Info",    method: "GET",  url: "/api/debug" },
+    ]},
+    { name: "gateway_status",   endpoints: [
+      { label: "Status",        method: "GET",  url: "/api/gateway/status" },
+    ]},
+    { name: "openai_compat",    endpoints: [
+      { label: "Models",        method: "GET",  url: "/v1/models" },
+    ]},
+    { name: "manifests",        endpoints: [
+      { label: "UI Config",     method: "GET",  url: "/ui-config.json" },
+      { label: "Route Manifest",method: "GET",  url: "/route-manifest.json" },
+      { label: "Plugins",       method: "GET",  url: "/plugins/plugins.json" },
+    ]},
+  ]},
   { group: "Chat & Communication", items: [
     { name: "chat",           endpoints: [
       { label: "Health",        method: "GET",  url: "/api/chat/health" },
@@ -29,12 +73,12 @@ const FEATURES = [
     ]},
     { name: "tts",            endpoints: [
       { label: "Voices",        method: "GET",  url: "/api/tts/voices" },
-      { label: "Synthesize",    method: "POST", url: "/api/tts/synthesize", body: { text: "Hello from PraisonAI", voice: "default" } },
     ]},
   ]},
   { group: "Agent Management", items: [
     { name: "agents_crud",    endpoints: [
-      { label: "List Agents",   method: "GET",  url: "/api/agents" },
+      { label: "All Agents",    method: "GET",  url: "/api/agents" },
+      { label: "Definitions",   method: "GET",  url: "/api/agents/definitions" },
     ]},
     { name: "approvals",      endpoints: [
       { label: "Pending",       method: "GET",  url: "/api/approvals/pending" },
@@ -46,8 +90,6 @@ const FEATURES = [
     ]},
     { name: "marketplace",    endpoints: [
       { label: "Plugins",       method: "GET",  url: "/api/marketplace/plugins" },
-      { label: "Search",        method: "POST", url: "/api/marketplace/search", body: { query: "search" } },
-      { label: "Install",       method: "POST", url: "/api/marketplace/install", body: { plugin_id: "web_search" } },
     ]},
   ]},
   { group: "Sessions & Memory", items: [
@@ -60,6 +102,11 @@ const FEATURES = [
       { label: "Store",         method: "POST", url: "/api/memory", body: { key: "demo", value: "Hello Explorer!" } },
       { label: "Search",        method: "POST", url: "/api/memory/search", body: { query: "demo", limit: 5 } },
       { label: "Context",       method: "POST", url: "/api/memory/context", body: { query: "demo", limit: 5 } },
+    ]},
+    { name: "knowledge",      endpoints: [
+      { label: "List",          method: "GET",  url: "/api/knowledge" },
+      { label: "Status",        method: "GET",  url: "/api/knowledge/status" },
+      { label: "Search",        method: "POST", url: "/api/knowledge/search", body: { query: "test", limit: 5 } },
     ]},
   ]},
   { group: "Configuration", items: [
@@ -82,8 +129,6 @@ const FEATURES = [
     { name: "i18n",           endpoints: [
       { label: "Locales",       method: "GET",  url: "/api/i18n/locales" },
       { label: "Strings (EN)",  method: "GET",  url: "/api/i18n/strings/en" },
-      { label: "Strings (ES)",  method: "GET",  url: "/api/i18n/strings/es" },
-      { label: "Translate",     method: "POST", url: "/api/i18n/translate", body: { key: "app.welcome", locale: "fr" } },
     ]},
   ]},
   { group: "Compute & Execution", items: [
@@ -101,7 +146,6 @@ const FEATURES = [
     ]},
     { name: "code_execution", endpoints: [
       { label: "Languages",     method: "GET",  url: "/api/code/languages" },
-      { label: "Execute",       method: "POST", url: "/api/code/execute", body: { code: "print('Hello from PraisonAI!')", language: "python" } },
     ]},
   ]},
   { group: "Observability", items: [
@@ -136,7 +180,6 @@ const FEATURES = [
       { label: "Overview",      method: "GET",  url: "/api/telemetry" },
       { label: "Metrics",       method: "GET",  url: "/api/telemetry/metrics" },
       { label: "Performance",   method: "GET",  url: "/api/telemetry/performance" },
-      { label: "Profiling",     method: "GET",  url: "/api/telemetry/profiling" },
     ]},
     { name: "tracing",        endpoints: [
       { label: "Status",        method: "GET",  url: "/api/traces/status" },
@@ -150,34 +193,20 @@ const FEATURES = [
       { label: "Config",        method: "GET",  url: "/api/security/config" },
     ]},
   ]},
-  { group: "Platform", items: [
-    { name: "openai_api",     endpoints: [
-      { label: "Models",        method: "GET",  url: "/v1/models" },
+  { group: "System", items: [
+    { name: "features",       endpoints: [
+      { label: "All Features",  method: "GET",  url: "/api/features" },
+      { label: "Pages",         method: "GET",  url: "/api/pages" },
     ]},
     { name: "pwa",            endpoints: [
       { label: "Manifest",      method: "GET",  url: "/manifest.json" },
       { label: "PWA Config",    method: "GET",  url: "/api/pwa/config" },
     ]},
     { name: "device_pairing", endpoints: [
-      { label: "Create Code",   method: "POST", url: "/api/pairing/create", body: { session_id: "demo-session-" + Date.now() } },
       { label: "Devices",       method: "GET",  url: "/api/pairing/devices?session_id=demo-session" },
     ]},
     { name: "media_analysis", endpoints: [
       { label: "Capabilities",  method: "GET",  url: "/api/media/capabilities" },
-    ]},
-  ]},
-  { group: "System", items: [
-    { name: "features",       endpoints: [
-      { label: "All Features",  method: "GET",  url: "/api/features" },
-      { label: "Pages",         method: "GET",  url: "/api/pages" },
-      { label: "Health",        method: "GET",  url: "/api/health" },
-    ]},
-    { name: "gateway",        endpoints: [
-      { label: "Status",        method: "GET",  url: "/api/gateway/status" },
-    ]},
-    { name: "config",         endpoints: [
-      { label: "Get Config",    method: "GET",  url: "/api/config" },
-      { label: "Schema",        method: "GET",  url: "/api/config/schema" },
     ]},
   ]},
 ];

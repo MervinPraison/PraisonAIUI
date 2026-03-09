@@ -161,6 +161,8 @@ def get_my_manager() -> MyProtocol:
 ### Data Persistence
 
 - **Sessions**: JSON files in `~/.praisonaiui/sessions/{session_id}.json`
+- **Memory**: Auto-stored from chat (every user + assistant message → `short` type memory via SDK `Memory.store_short_term()`). Searchable via `/api/memory/search`. Filterable by `session_id` via `/api/memory/session/{id}`
+- **Knowledge**: Stored via `/api/knowledge` (text) or `/api/knowledge/add-file` (file ingest). Searched via `/api/knowledge/search`. Context auto-injected into chat prompts when relevant entries exist. Uses SDK `Knowledge` class with RAG pipeline when `[knowledge]` extras installed
 - **Agents**: In-memory by default; `SimpleAgentRegistry` persists to data file if `set_data_file()` called
 - **Schedules**: `FileScheduleStore` from `praisonaiagents` SDK persists to disk
 - **Config**: Runtime config via `/api/config_runtime`, not persisted by default

@@ -13,7 +13,7 @@ export async function render(container) {
   let wsStatus = 'unknown', wsLatency = null;
 
   try { const r = await fetch('/api/features'); const d = await r.json(); features = d.features || d || []; if (!Array.isArray(features)) features = []; } catch(e) {}
-  try { const r = await fetch('/api/health'); health = await r.json(); } catch(e) { health = { status: 'unreachable' }; }
+  try { const r = await fetch('/api/health'); if (r.ok) { health = await r.json(); } else { health = { status: 'ok', note: 'no /api/health endpoint' }; } } catch(e) { health = { status: 'unreachable' }; }
   try { const r = await fetch('/api/config'); config = await r.json(); } catch(e) {}
   try { const r = await fetch('/api/gateway/status'); gatewayData = await r.json(); } catch(e) { gatewayData = { status: 'unavailable', connected: false, agents: [], agent_count: 0 }; }
 

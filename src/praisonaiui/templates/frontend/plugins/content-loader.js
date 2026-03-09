@@ -300,11 +300,10 @@ function escapeHtml(text) {
 /**
  * Navigate to new content via SPA (called from aiui:navigate event).
  * Unlike loadContent(), this doesn't check isDefaultView() — we know we need to swap.
- * Resilient: if React has cleared the DOM, we wait and retry.
  */
 async function navigateToContent(targetPath) {
   // Map the target path to a markdown file
-  let path = (targetPath || '/').replace(/\/$/, '') || '/';
+  let path = (targetPath || '/').replace(/\/+$/, '') || '/';
 
   // Skip homepage — handled by homepage.js
   if (path === '/' || path === '/index.html') return;
@@ -314,7 +313,7 @@ async function navigateToContent(targetPath) {
   // Don't reload the same content
   if (mdPath === loadedPath) return;
 
-  // Find the main container — retry if React is mid-render
+  // Find the main container
   let root = document.getElementById('root');
   if (!root) return;
 
@@ -322,7 +321,9 @@ async function navigateToContent(targetPath) {
 
   // If main doesn't exist, React may have unmounted. Wait and retry.
   if (!main) {
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise(r => setTimeout(r, 150));
+    root = document.getElementById('root');
+    if (!root) return;
     main = root.querySelector('main.flex-1');
   }
 
@@ -357,6 +358,12 @@ async function navigateToContent(targetPath) {
 
     // Hide React's debug content (only if main exists)
     if (main) setContentMode(true);
+
+    // Update page title from first heading
+    const h1 = article.querySelector('h1');
+    if (h1) {
+      document.title = h1.textContent.trim() + ' | PraisonAIUI Docs';
+    }
 
     // Update the "On This Page" ToC
     updateTocSidebar(article);

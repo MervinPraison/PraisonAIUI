@@ -132,11 +132,18 @@ def get_attachment_manager() -> AttachmentManager:
 # ── HTTP Handlers ────────────────────────────────────────────────
 
 async def _upload_attachment(request: Request) -> JSONResponse:
-    """POST /api/chat/attachments — upload a file."""
+    """POST /api/chat/attachments — upload a file.
+
+    Form fields:
+      - file: the uploaded file (required)
+      - session_id: chat session ID (optional)
+      - index_to_knowledge: "true" or "1" to also index into knowledge base
+    """
     try:
         form = await request.form()
         file = form.get("file")
         session_id = form.get("session_id", "")
+        index_to_knowledge = str(form.get("index_to_knowledge", "")).lower() in ("true", "1", "yes")
 
         if not file:
             return JSONResponse({"error": "No file provided"}, status_code=400)
@@ -149,6 +156,57 @@ async def _upload_attachment(request: Request) -> JSONResponse:
             content_type=file.content_type or "application/octet-stream",
             session_id=session_id,
         )
+
+        # Index into knowledge base if requested
+        if index_to_knowledge:
+            try:
+                from .knowledge import get_knowledge_manager
+                k_mgr = get_knowledge_manager()
+                filename = file.filename or "upload"
+                content_type = file.content_type or ""
+
+                # Try SDK file ingest first (handles PDF/DOCX chunking)
+                if hasattr(k_mgr, "add_file"):
+                    result = k_mgr.add_file(
+                        file_path=meta["path"],
+                        user_id=None,
+                        metadata={"filename": filename, "session_id": session_id},
+                    )
+                    if result.get("status") == "ok":
+                        meta["knowledge_indexed"] = True
+                        meta["knowledge_method"] = "file_ingest"
+                    else:
+                        # SDK file ingest failed — fall back to text storage
+                        if content_type.startswith("text/") or content_type in (
+                            "application/json", "text/markdown", "text/csv",
+                        ):
+                            text_content = data.decode("utf-8", errors="replace")
+                            k_mgr.store(
+                                text=f"[File: {filename}]\n{text_content}",
+                                metadata={"filename": filename, "session_id": session_id, "source": "upload"},
+                            )
+                            meta["knowledge_indexed"] = True
+                            meta["knowledge_method"] = "text_content"
+                        else:
+                            meta["knowledge_indexed"] = False
+                            meta["knowledge_error"] = result.get("error", "SDK not available for binary files")
+                else:
+                    # Simple manager — store text content only
+                    if content_type.startswith("text/"):
+                        text_content = data.decode("utf-8", errors="replace")
+                        k_mgr.store(
+                            text=f"[File: {filename}]\n{text_content}",
+                            metadata={"filename": filename, "session_id": session_id, "source": "upload"},
+                        )
+                        meta["knowledge_indexed"] = True
+                    else:
+                        meta["knowledge_indexed"] = False
+                        meta["knowledge_error"] = "Text-only storage available; install SDK for PDF/binary support"
+            except Exception as e:
+                logger.warning("Knowledge indexing failed for %s: %s", file.filename, e)
+                meta["knowledge_indexed"] = False
+                meta["knowledge_error"] = str(e)
+
         return JSONResponse(meta)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)

@@ -205,7 +205,8 @@ class SDKMemoryManager(MemoryProtocol):
         if self._sdk_memory is None:
             try:
                 from praisonaiagents.memory import Memory
-                self._sdk_memory = Memory(config=self._config) if self._config else Memory()
+                # SDK Memory requires config dict (can be empty for defaults)
+                self._sdk_memory = Memory(config=self._config or {})
                 logger.info("SDK Memory initialized: %s", type(self._sdk_memory).__name__)
             except ImportError:
                 logger.warning("praisonaiagents not installed; falling back to local index")
@@ -274,17 +275,44 @@ class SDKMemoryManager(MemoryProtocol):
         sdk = self._get_sdk_memory()
         if sdk is not None:
             try:
-                method = {
-                    "short": "search_short_term",
-                    "long": "search_long_term",
-                }.get(memory_type, "search_long_term")
-                if hasattr(sdk, method):
-                    results = getattr(sdk, method)(query, limit=limit)
-                    if isinstance(results, list):
-                        return [
-                            {"id": str(i), "text": str(r), "memory_type": memory_type, "score": 1.0}
-                            for i, r in enumerate(results[:limit])
-                        ]
+                if memory_type == "all":
+                    # SDK generic search() only covers long-term/vector.
+                    # Combine short + long results for a full "all" search.
+                    combined = []
+                    for mtype, meth in [("short", "search_short_term"), ("long", "search_long_term")]:
+                        if hasattr(sdk, meth):
+                            try:
+                                hits = getattr(sdk, meth)(query, limit=limit)
+                                if isinstance(hits, list):
+                                    for r in hits:
+                                        combined.append({
+                                            "id": str(r.get("id", "")),
+                                            "text": r.get("text", str(r)),
+                                            "memory_type": mtype,
+                                            "metadata": r.get("metadata", {}),
+                                            "score": 1.0,
+                                        })
+                            except Exception:
+                                pass
+                    return combined[:limit]
+                else:
+                    method = {
+                        "short": "search_short_term",
+                        "long": "search_long_term",
+                    }.get(memory_type, "search")
+                    if hasattr(sdk, method):
+                        results = getattr(sdk, method)(query, limit=limit)
+                        if isinstance(results, list):
+                            return [
+                                {
+                                    "id": str(r.get("id", i)),
+                                    "text": r.get("text", str(r)),
+                                    "memory_type": memory_type,
+                                    "metadata": r.get("metadata", {}),
+                                    "score": 1.0,
+                                }
+                                for i, r in enumerate(results[:limit])
+                            ]
             except Exception as e:
                 logger.warning("SDK search failed: %s; falling back to local", e)
 
@@ -503,7 +531,7 @@ class PraisonAIMemory(BaseFeatureProtocol):
         return JSONResponse({
             "total": len(items),
             "by_type": by_type,
-            "backend": h.get("backend", "unknown"),
+            "backend": h.get("provider", "unknown"),
             "status": h.get("status", "ok"),
         })
 
