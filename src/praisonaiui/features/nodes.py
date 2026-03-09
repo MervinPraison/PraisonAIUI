@@ -1,20 +1,52 @@
-"""Nodes feature — execution node and instance/presence management.
+"""Nodes feature — protocol-driven execution node management.
 
-Provides API endpoints and CLI commands for managing distributed
-execution nodes, device pairing, and connected instance presence.
+Architecture:
+    NodeProtocol (ABC)               <- any backend implements this
+      └── SimpleNodeManager         <- default in-memory (no deps)
+
+    SDK gap: no node/cluster management API in praisonaiagents.
+
+    PraisonAINodes (BaseFeatureProtocol)
+      └── delegates to in-memory _nodes + _instances dicts
 """
 
 from __future__ import annotations
 
 import time
 import uuid
-from typing import Any, Dict, List
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
+
+
+# ── Node Protocol ────────────────────────────────────────────────────
+
+
+class NodeProtocol(ABC):
+    """Protocol interface for node backends."""
+
+    @abstractmethod
+    def list_nodes(self) -> List[Dict[str, Any]]: ...
+
+    @abstractmethod
+    def register_node(self, entry: Dict[str, Any]) -> Dict[str, Any]: ...
+
+    @abstractmethod
+    def get_node(self, node_id: str) -> Optional[Dict[str, Any]]: ...
+
+    @abstractmethod
+    def delete_node(self, node_id: str) -> bool: ...
+
+    @abstractmethod
+    def heartbeat(self, node_id: str, data: Dict[str, Any] = None) -> Optional[Dict[str, Any]]: ...
+
+    def health(self) -> Dict[str, Any]:
+        return {"status": "ok", "provider": self.__class__.__name__}
 
 # In-memory node & instance registries
 _nodes: Dict[str, Dict[str, Any]] = {}

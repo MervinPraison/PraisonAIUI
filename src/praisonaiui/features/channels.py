@@ -1,8 +1,13 @@
-"""Channels feature — multi-platform messaging channel management.
+"""Channels feature — protocol-driven multi-platform messaging management.
 
-Provides API endpoints and CLI commands for managing communication
-channels (Discord, Slack, Telegram, WhatsApp, etc.) and wiring them
-to the gateway's bot runtime for actual message handling.
+Architecture:
+    ChannelProtocol (ABC)           <- any backend implements this
+      └── SimpleChannelManager     <- default in-memory (no deps)
+
+    SDK gap: no channel management API in praisonaiagents.
+
+    PraisonAIChannels (BaseFeatureProtocol)
+      └── delegates to active ChannelProtocol implementation
 """
 
 from __future__ import annotations
@@ -12,6 +17,7 @@ import logging
 import os
 import time
 import uuid
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
 from starlette.requests import Request
@@ -21,6 +27,32 @@ from starlette.routing import Route
 from ._base import BaseFeatureProtocol
 
 logger = logging.getLogger(__name__)
+
+
+# ── Channel Protocol ─────────────────────────────────────────────────
+
+
+class ChannelProtocol(ABC):
+    """Protocol interface for channel backends."""
+
+    @abstractmethod
+    def list_channels(self) -> List[Dict[str, Any]]: ...
+
+    @abstractmethod
+    def add_channel(self, entry: Dict[str, Any]) -> Dict[str, Any]: ...
+
+    @abstractmethod
+    def get_channel(self, channel_id: str) -> Optional[Dict[str, Any]]: ...
+
+    @abstractmethod
+    def update_channel(self, channel_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]: ...
+
+    @abstractmethod
+    def delete_channel(self, channel_id: str) -> bool: ...
+
+    def health(self) -> Dict[str, Any]:
+        return {"status": "ok", "provider": self.__class__.__name__}
+
 
 # Supported channel platforms
 SUPPORTED_PLATFORMS = [

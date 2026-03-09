@@ -1,19 +1,48 @@
-"""Config runtime feature — live config management without restart.
+"""Config runtime feature — protocol-driven live config management.
 
-Provides API endpoints and CLI commands for runtime configuration:
-get, set, patch, schema-driven form editing, and validation.
+Architecture:
+    ConfigProtocol (ABC)             <- any backend implements this
+      └── SimpleConfigManager       <- default in-memory with session overlays
+
+    UI-only by design — runtime config is session-scoped.
+
+    PraisonAIConfigRuntime (BaseFeatureProtocol)
+      └── delegates to module-level _runtime_config dict
 """
 
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
+
+
+# ── Config Protocol ──────────────────────────────────────────────────
+
+
+class ConfigProtocol(ABC):
+    """Protocol interface for config backends."""
+
+    @abstractmethod
+    def get(self, key: str = "") -> Any: ...
+
+    @abstractmethod
+    def set(self, key: str, value: Any) -> None: ...
+
+    @abstractmethod
+    def patch(self, updates: Dict[str, Any]) -> Dict[str, Any]: ...
+
+    @abstractmethod
+    def validate(self, config: Dict[str, Any]) -> List[str]: ...
+
+    def health(self) -> Dict[str, Any]:
+        return {"status": "ok", "provider": self.__class__.__name__}
 
 # In-memory runtime config (overlays the static YAML config)
 _runtime_config: Dict[str, Any] = {}

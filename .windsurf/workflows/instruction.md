@@ -21,6 +21,11 @@ CORE ENGINEERING PRINCIPLES (MUST)
 * Protocol-driven core: core components MUST remain lightweight and protocol-first:
     * protocols/hooks/adapters live in core
     * heavy implementations live in extensions/wrappers only
+* Protocol Architecture Strategy (SDK-first):
+    * Every feature MUST define a `FeatureProtocol` ABC (abstract interface)
+    * Provide `SDKFeatureManager` (wraps `praisonaiagents` SDK, lazy-imported) + `SimpleFeatureManager` (in-memory fallback)
+    * Factory `get_feature_manager()` tries SDK first, falls back to Simple — zero config needed
+    * See `docs/features/protocol-architecture.md` for the full reference
 * No performance impact: prevent regressions in import time, runtime hot paths, and memory.
     * lazy import everywhere heavy
     * optional dependencies only

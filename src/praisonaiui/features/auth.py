@@ -1,6 +1,13 @@
-"""Auth feature — multi-mode authentication for PraisonAIUI.
+"""Auth feature — protocol-driven multi-mode authentication for PraisonAIUI.
 
-Supports API key auth, session token auth, and configurable auth modes.
+Architecture:
+    AuthProtocol (ABC)               <- any backend implements this
+      └── SimpleAuthManager          <- default in-memory (API key, session, password)
+
+    SDK gap: no auth API in praisonaiagents.
+
+    PraisonAIAuth (BaseFeatureProtocol)
+      └── delegates to module-level functions (SimpleAuthManager pattern)
 """
 
 from __future__ import annotations
@@ -8,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 import time
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
 from starlette.requests import Request
@@ -15,6 +23,31 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
+
+
+# ── Auth Protocol ────────────────────────────────────────────────────
+
+
+class AuthProtocol(ABC):
+    """Protocol interface for auth backends."""
+
+    @abstractmethod
+    def check_auth(self, request: Any) -> Optional[Dict[str, Any]]: ...
+
+    @abstractmethod
+    def create_key(self, name: str = "API Key") -> Dict[str, Any]: ...
+
+    @abstractmethod
+    def verify_key(self, key: str) -> Optional[Dict[str, Any]]: ...
+
+    @abstractmethod
+    def get_config(self) -> Dict[str, Any]: ...
+
+    @abstractmethod
+    def set_config(self, updates: Dict[str, Any]) -> Dict[str, Any]: ...
+
+    def health(self) -> Dict[str, Any]:
+        return {"status": "ok", "provider": self.__class__.__name__}
 
 # Auth configuration
 _auth_config: Dict[str, Any] = {

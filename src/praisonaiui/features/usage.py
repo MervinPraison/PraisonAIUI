@@ -1,12 +1,20 @@
-"""Usage analytics feature — enhanced token and cost tracking for PraisonAIUI.
+"""Usage analytics feature — protocol-driven token and cost tracking.
 
-Provides per-model cost tracking, time-series data, and rich analytics endpoints.
+Architecture:
+    UsageProtocol (ABC)              <- any backend implements this
+      └── SimpleUsageManager         <- default in-memory with disk persistence
+
+    SDK gap: no token/cost tracking API in praisonaiagents.
+
+    PraisonAIUsage (BaseFeatureProtocol)
+      └── delegates to module-level functions (SimpleUsageManager pattern)
 """
 
 from __future__ import annotations
 
 import json
 import time
+from abc import ABC, abstractmethod
 from collections import deque
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -17,6 +25,26 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
+
+
+# ── Usage Protocol ───────────────────────────────────────────────────
+
+
+class UsageProtocol(ABC):
+    """Protocol interface for usage tracking backends."""
+
+    @abstractmethod
+    def track_usage(self, model: str, input_tokens: int, output_tokens: int,
+                    session_id: str = "unknown", agent_name: str = "unknown") -> Dict[str, Any]: ...
+
+    @abstractmethod
+    def get_summary(self) -> Dict[str, Any]: ...
+
+    @abstractmethod
+    def list_records(self, *, limit: int = 100) -> List[Dict[str, Any]]: ...
+
+    def health(self) -> Dict[str, Any]:
+        return {"status": "ok", "provider": self.__class__.__name__}
 
 # Default cost table (USD per 1K tokens)
 DEFAULT_COST_TABLE = {

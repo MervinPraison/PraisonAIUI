@@ -1,9 +1,12 @@
-"""Schedules feature — wire praisonaiagents.scheduler into PraisonAIUI.
+"""Schedules feature — protocol-driven scheduled job management for PraisonAIUI.
 
-Provides API endpoints and CLI commands for scheduled job management:
-add, list, remove, toggle, and trigger cron/interval/one-shot jobs.
+Architecture:
+    ScheduleProtocol (ABC)           <- any backend implements this
+      ├── _InMemoryScheduleStore     <- default in-memory (no deps)
+      └── praisonaiagents.scheduler  <- SDK FileScheduleStore
 
-DRY: Uses praisonaiagents.scheduler.FileScheduleStore for persistence.
+    PraisonAISchedules (BaseFeatureProtocol)
+      └── delegates to active ScheduleProtocol implementation
 """
 
 from __future__ import annotations
@@ -11,7 +14,8 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from typing import Any, Dict, List
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -21,8 +25,34 @@ from ._base import BaseFeatureProtocol
 
 logger = logging.getLogger(__name__)
 
+
+# ── Schedule Protocol ────────────────────────────────────────────────
+
+
+class ScheduleProtocol(ABC):
+    """Protocol interface for schedule backends."""
+
+    @abstractmethod
+    def add(self, job_id: str, schedule: str, action: str, **kwargs) -> Dict[str, Any]: ...
+
+    @abstractmethod
+    def get(self, job_id: str) -> Optional[Dict[str, Any]]: ...
+
+    @abstractmethod
+    def list(self) -> List[Dict[str, Any]]: ...
+
+    @abstractmethod
+    def remove(self, job_id: str) -> bool: ...
+
+    @abstractmethod
+    def update(self, job_id: str, **kwargs) -> Optional[Dict[str, Any]]: ...
+
+    def health(self) -> Dict[str, Any]:
+        return {"status": "ok", "provider": self.__class__.__name__}
+
+
 # Lazy-loaded schedule store from praisonaiagents
-_schedule_store = None
+_schedule_store: Optional[ScheduleProtocol] = None
 
 # In-memory run history (newest first, capped at 200)
 _run_history: list = []
@@ -35,7 +65,8 @@ def _getattr_or_get(obj, key, default=None):
     return getattr(obj, key, default)
 
 
-def _get_schedule_store():
+
+def _get_schedule_store() -> ScheduleProtocol:
     """Lazy-load the praisonaiagents schedule store (DRY)."""
     global _schedule_store
     if _schedule_store is None:
@@ -90,7 +121,7 @@ def _to_dict(obj) -> Dict[str, Any]:
     return {"value": str(obj)}
 
 
-class _InMemoryScheduleStore:
+class _InMemoryScheduleStore(ScheduleProtocol):
     """Fallback in-memory store if praisonaiagents not available."""
     
     def __init__(self):

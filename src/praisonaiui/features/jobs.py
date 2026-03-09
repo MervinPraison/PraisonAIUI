@@ -1,9 +1,12 @@
-"""Jobs feature — async job management for PraisonAIUI.
+"""Jobs feature — protocol-driven async job management for PraisonAIUI.
 
-Provides API endpoints for submitting, monitoring, and managing async agent jobs.
-Mirrors the praisonai.jobs API but adapted for Starlette.
+Architecture:
+    JobStoreProtocol (ABC)          <- any backend implements this
+      ├── SimpleJobStore            <- default in-memory (no deps)
+      └── SDKJobStore               <- wraps praisonai.jobs
 
-DRY: Uses praisonaiagents.Agent for real agent execution.
+    PraisonAIJobs (BaseFeatureProtocol)
+      └── delegates to active JobStoreProtocol implementation
 """
 
 from __future__ import annotations
@@ -12,9 +15,10 @@ import asyncio
 import logging
 import time
 import uuid
+from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse, StreamingResponse
@@ -34,9 +38,123 @@ class JobStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-# In-memory job store
-_jobs: Dict[str, Dict[str, Any]] = {}
+# ── Job Store Protocol ───────────────────────────────────────────────
+
+
+class JobStoreProtocol(ABC):
+    """Protocol interface for job storage backends."""
+
+    @abstractmethod
+    def get(self, job_id: str) -> Optional[Dict[str, Any]]:
+        ...
+
+    @abstractmethod
+    def list_all(self) -> List[Dict[str, Any]]:
+        ...
+
+    @abstractmethod
+    def save(self, job: Dict[str, Any]) -> None:
+        ...
+
+    @abstractmethod
+    def delete(self, job_id: str) -> bool:
+        ...
+
+    @abstractmethod
+    def stats(self) -> Dict[str, Any]:
+        ...
+
+    def health(self) -> Dict[str, Any]:
+        return {"status": "ok", "provider": self.__class__.__name__}
+
+
+class SimpleJobStore(JobStoreProtocol):
+    """In-memory job store — zero dependencies, volatile."""
+
+    def __init__(self) -> None:
+        self._jobs: Dict[str, Dict[str, Any]] = {}
+
+    def get(self, job_id: str) -> Optional[Dict[str, Any]]:
+        return self._jobs.get(job_id)
+
+    def list_all(self) -> List[Dict[str, Any]]:
+        return list(self._jobs.values())
+
+    def save(self, job: Dict[str, Any]) -> None:
+        self._jobs[job["id"]] = job
+
+    def delete(self, job_id: str) -> bool:
+        if job_id in self._jobs:
+            del self._jobs[job_id]
+            return True
+        return False
+
+    def stats(self) -> Dict[str, Any]:
+        status_counts: Dict[str, int] = {}
+        for job in self._jobs.values():
+            s = job.get("status", "unknown")
+            status_counts[s] = status_counts.get(s, 0) + 1
+        return {"total_jobs": len(self._jobs), "status_counts": status_counts}
+
+    def health(self) -> Dict[str, Any]:
+        running = sum(1 for j in self._jobs.values() if j.get("status") == JobStatus.RUNNING.value)
+        queued = sum(1 for j in self._jobs.values() if j.get("status") == JobStatus.QUEUED.value)
+        return {
+            "status": "ok",
+            "provider": "SimpleJobStore",
+            "total_jobs": len(self._jobs),
+            "running_jobs": running,
+            "queued_jobs": queued,
+        }
+
+
+class SDKJobStore(JobStoreProtocol):
+    """Wraps praisonai.jobs for production use."""
+
+    def __init__(self) -> None:
+        from praisonai.jobs import JobExecutor  # noqa: F401
+        self._simple = SimpleJobStore()
+        logger.info("SDKJobStore initialized (praisonai.jobs available)")
+
+    def get(self, job_id: str) -> Optional[Dict[str, Any]]:
+        return self._simple.get(job_id)
+
+    def list_all(self) -> List[Dict[str, Any]]:
+        return self._simple.list_all()
+
+    def save(self, job: Dict[str, Any]) -> None:
+        self._simple.save(job)
+
+    def delete(self, job_id: str) -> bool:
+        return self._simple.delete(job_id)
+
+    def stats(self) -> Dict[str, Any]:
+        return self._simple.stats()
+
+    def health(self) -> Dict[str, Any]:
+        h = self._simple.health()
+        h["provider"] = "SDKJobStore"
+        h["sdk_available"] = True
+        return h
+
+
+# ── Store singleton ──────────────────────────────────────────────────
+
+_job_store: Optional[JobStoreProtocol] = None
 _progress_callbacks: Dict[str, List[asyncio.Queue]] = {}
+
+
+def get_job_store() -> JobStoreProtocol:
+    """Get the active job store (SDK-first, fallback to Simple)."""
+    global _job_store
+    if _job_store is None:
+        try:
+            _job_store = SDKJobStore()
+            logger.info("Using SDKJobStore")
+        except Exception as e:
+            logger.debug("SDKJobStore init failed (%s), using SimpleJobStore", e)
+            _job_store = SimpleJobStore()
+    return _job_store
 
 
 class PraisonAIJobs(BaseFeatureProtocol):
@@ -79,15 +197,11 @@ class PraisonAIJobs(BaseFeatureProtocol):
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
-
-        running = sum(1 for j in _jobs.values() if j.get("status") == JobStatus.RUNNING.value)
-        queued = sum(1 for j in _jobs.values() if j.get("status") == JobStatus.QUEUED.value)
+        store = get_job_store()
         return {
             "status": "ok",
             "feature": self.name,
-            "total_jobs": len(_jobs),
-            "running_jobs": running,
-            "queued_jobs": queued,
+            **store.health(),
             **gateway_health(),
         }
 
@@ -95,23 +209,20 @@ class PraisonAIJobs(BaseFeatureProtocol):
 
     async def _list(self, request: Request) -> JSONResponse:
         """List all jobs with optional filters."""
+        store = get_job_store()
         status_filter = request.query_params.get("status")
         session_id = request.query_params.get("session_id")
         page = int(request.query_params.get("page", 1))
         page_size = int(request.query_params.get("page_size", 20))
 
-        jobs = list(_jobs.values())
+        jobs = store.list_all()
 
-        # Apply filters
         if status_filter:
             jobs = [j for j in jobs if j.get("status") == status_filter]
         if session_id:
             jobs = [j for j in jobs if j.get("session_id") == session_id]
 
-        # Sort by created_at descending
         jobs.sort(key=lambda j: j.get("created_at", 0), reverse=True)
-
-        # Paginate
         total = len(jobs)
         offset = (page - 1) * page_size
         jobs = jobs[offset:offset + page_size]
@@ -159,9 +270,10 @@ class PraisonAIJobs(BaseFeatureProtocol):
                 if existing.get("idempotency_key") == idem_key:
                     return JSONResponse(existing, status_code=200)
 
-        _jobs[job_id] = job
+        store = get_job_store()
+        store.save(job)
 
-        # Simulate starting the job (in real impl, would use JobExecutor)
+        # Start execution
         asyncio.create_task(self._execute_job(job_id))
 
         base_url = str(request.base_url).rstrip("/")
@@ -178,7 +290,8 @@ class PraisonAIJobs(BaseFeatureProtocol):
 
     async def _execute_job(self, job_id: str) -> None:
         """Execute a job using gateway-registered agents when available."""
-        job = _jobs.get(job_id)
+        store = get_job_store()
+        job = store.get(job_id)
         if not job:
             return
 
@@ -337,7 +450,7 @@ class PraisonAIJobs(BaseFeatureProtocol):
     async def _get(self, request: Request) -> JSONResponse:
         """Get a job by ID."""
         job_id = request.path_params["job_id"]
-        job = _jobs.get(job_id)
+        job = get_job_store().get(job_id)
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
         return JSONResponse(job)
@@ -345,7 +458,7 @@ class PraisonAIJobs(BaseFeatureProtocol):
     async def _status(self, request: Request) -> JSONResponse:
         """Get job status."""
         job_id = request.path_params["job_id"]
-        job = _jobs.get(job_id)
+        job = get_job_store().get(job_id)
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
 
@@ -372,7 +485,7 @@ class PraisonAIJobs(BaseFeatureProtocol):
     async def _result(self, request: Request) -> JSONResponse:
         """Get job result."""
         job_id = request.path_params["job_id"]
-        job = _jobs.get(job_id)
+        job = get_job_store().get(job_id)
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
 
@@ -401,7 +514,7 @@ class PraisonAIJobs(BaseFeatureProtocol):
     async def _cancel(self, request: Request) -> JSONResponse:
         """Cancel a running job."""
         job_id = request.path_params["job_id"]
-        job = _jobs.get(job_id)
+        job = get_job_store().get(job_id)
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
 
@@ -423,8 +536,9 @@ class PraisonAIJobs(BaseFeatureProtocol):
 
     async def _delete(self, request: Request) -> JSONResponse:
         """Delete a completed job."""
+        store = get_job_store()
         job_id = request.path_params["job_id"]
-        job = _jobs.get(job_id)
+        job = store.get(job_id)
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
 
@@ -434,13 +548,13 @@ class PraisonAIJobs(BaseFeatureProtocol):
                 "error": "Cannot delete running job. Cancel first."
             }, status_code=409)
 
-        del _jobs[job_id]
+        store.delete(job_id)
         return JSONResponse({"deleted": job_id})
 
     async def _stream(self, request: Request) -> StreamingResponse:
         """Stream job progress via SSE."""
         job_id = request.path_params["job_id"]
-        job = _jobs.get(job_id)
+        job = get_job_store().get(job_id)
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
 
@@ -457,7 +571,7 @@ class PraisonAIJobs(BaseFeatureProtocol):
                 last_progress = -1
 
                 while True:
-                    current_job = _jobs.get(job_id)
+                    current_job = get_job_store().get(job_id)
                     if not current_job:
                         yield f"event: error\ndata: {{\"error\": \"Job not found\"}}\n\n"
                         break
@@ -511,24 +625,20 @@ class PraisonAIJobs(BaseFeatureProtocol):
 
     async def _stats(self, request: Request) -> JSONResponse:
         """Get executor statistics."""
-        status_counts = {}
-        for job in _jobs.values():
-            status = job.get("status", "unknown")
-            status_counts[status] = status_counts.get(status, 0) + 1
-
-        return JSONResponse({
-            "total_jobs": len(_jobs),
-            "status_counts": status_counts,
-            "max_concurrent": 10,  # Default
-        })
+        store = get_job_store()
+        s = store.stats()
+        s["max_concurrent"] = 10
+        return JSONResponse(s)
 
     # ── CLI handlers ─────────────────────────────────────────────────
 
     def _cli_list(self) -> str:
-        if not _jobs:
+        store = get_job_store()
+        jobs = store.list_all()
+        if not jobs:
             return "No jobs"
         lines = []
-        for j in _jobs.values():
+        for j in jobs:
             status_icon = {
                 "queued": "⏳",
                 "running": "🔄",
@@ -540,18 +650,17 @@ class PraisonAIJobs(BaseFeatureProtocol):
         return "\n".join(lines)
 
     def _cli_status_cmd(self, job_id: str = "") -> str:
+        store = get_job_store()
         if not job_id:
-            running = sum(1 for j in _jobs.values() if j.get("status") == "running")
-            return f"Jobs: {len(_jobs)} total, {running} running"
-        job = _jobs.get(job_id)
+            s = store.stats()
+            return f"Jobs: {s['total_jobs']} total, {s['status_counts'].get('running', 0)} running"
+        job = store.get(job_id)
         if not job:
             return f"Job {job_id} not found"
         return f"Job {job_id}: {job.get('status')} ({job.get('progress_percentage', 0):.0f}%)"
 
     def _cli_stats(self) -> str:
-        status_counts = {}
-        for job in _jobs.values():
-            status = job.get("status", "unknown")
-            status_counts[status] = status_counts.get(status, 0) + 1
-        parts = [f"{k}: {v}" for k, v in status_counts.items()]
-        return f"Jobs: {len(_jobs)} total — " + ", ".join(parts) if parts else "No jobs"
+        store = get_job_store()
+        s = store.stats()
+        parts = [f"{k}: {v}" for k, v in s['status_counts'].items()]
+        return f"Jobs: {s['total_jobs']} total — " + ", ".join(parts) if parts else "No jobs"

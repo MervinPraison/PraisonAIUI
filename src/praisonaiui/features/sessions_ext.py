@@ -1,16 +1,20 @@
-"""Extended sessions feature — wire praisonaiagents.session into PraisonAIUI.
+"""Extended sessions feature — protocol-driven session management for PraisonAIUI.
 
-Adds state save/restore, memory/knowledge context, and advanced session
-operations beyond the basic CRUD already in server.py.
+Architecture:
+    SessionProtocol (ABC)            <- any backend implements this
+      ├── _InMemorySessionStore      <- default in-memory (no deps)
+      └── praisonaiagents.session    <- SDK DefaultSessionStore
 
-DRY: Uses praisonaiagents.session.DefaultSessionStore for persistence.
+    PraisonAISessions (BaseFeatureProtocol)
+      └── delegates to active SessionProtocol implementation
 """
 
 from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, List
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -20,11 +24,40 @@ from ._base import BaseFeatureProtocol
 
 logger = logging.getLogger(__name__)
 
+
+# ── Session Protocol ─────────────────────────────────────────────────
+
+
+class SessionProtocol(ABC):
+    """Protocol interface for session backends."""
+
+    @abstractmethod
+    def get_session(self, session_id: str) -> Dict[str, Any]: ...
+
+    @abstractmethod
+    def get_chat_history(self, session_id: str, max_messages: int = None) -> List[Dict]: ...
+
+    @abstractmethod
+    def add_message(self, session_id: str, role: str, content: str, metadata: Dict = None): ...
+
+    @abstractmethod
+    def clear_session(self, session_id: str): ...
+
+    @abstractmethod
+    def delete_session(self, session_id: str): ...
+
+    @abstractmethod
+    def list_sessions(self) -> List[str]: ...
+
+    def health(self) -> Dict[str, Any]:
+        return {"status": "ok", "provider": self.__class__.__name__}
+
+
 # Lazy-loaded session store from praisonaiagents
-_session_store = None
+_session_store: Optional[SessionProtocol] = None
 
 
-def _get_session_store():
+def _get_session_store() -> SessionProtocol:
     """Lazy-load the praisonaiagents session store (DRY)."""
     global _session_store
     if _session_store is None:
@@ -38,7 +71,7 @@ def _get_session_store():
     return _session_store
 
 
-class _InMemorySessionStore:
+class _InMemorySessionStore(SessionProtocol):
     """Fallback in-memory store if praisonaiagents not available."""
     
     def __init__(self):

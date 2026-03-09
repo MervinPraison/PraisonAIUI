@@ -1,7 +1,13 @@
-"""Logs feature — real-time log streaming via WebSocket for PraisonAIUI.
+"""Logs feature — protocol-driven real-time log streaming for PraisonAIUI.
 
-Provides WebSocket endpoint for real-time log tailing with level filtering
-and search capabilities.
+Architecture:
+    LogProtocol (ABC)                <- any backend implements this
+      └── _log_buffer (deque)        <- default in-memory (Python logging)
+
+    UI-only by design — Python's logging is inherently process-local.
+
+    PraisonAILogs (BaseFeatureProtocol)
+      └── manages _log_buffer + WebSocket broadcast
 """
 
 from __future__ import annotations
@@ -9,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from abc import ABC, abstractmethod
 from collections import deque
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Set
@@ -19,6 +26,25 @@ from starlette.routing import Route
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from ._base import BaseFeatureProtocol
+
+
+# ── Log Protocol ─────────────────────────────────────────────────────
+
+
+class LogProtocol(ABC):
+    """Protocol interface for log backends."""
+
+    @abstractmethod
+    def get_buffer(self, *, limit: int = 100) -> List[Dict[str, Any]]: ...
+
+    @abstractmethod
+    def clear(self) -> None: ...
+
+    @abstractmethod
+    def get_stats(self) -> Dict[str, Any]: ...
+
+    def health(self) -> Dict[str, Any]:
+        return {"status": "ok", "provider": self.__class__.__name__}
 
 # Log levels with colors
 LOG_LEVELS = {

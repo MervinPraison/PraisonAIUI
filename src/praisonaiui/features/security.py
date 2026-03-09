@@ -1,14 +1,21 @@
-"""Security feature — security monitoring and audit log for PraisonAIUI.
+"""Security feature — protocol-driven security monitoring for PraisonAIUI.
 
-Surfaces security status, audit log entries, injection defense stats,
-and security configuration from praisonai.security via gateway.
+Architecture:
+    SecurityProtocol (ABC)          <- any backend implements this
+      ├── SimpleSecurityManager     <- default in-memory (no deps)
+      └── SDKSecurityManager        <- wraps praisonai.security
+
+    PraisonAISecurity (BaseFeatureProtocol)
+      └── delegates to active SecurityProtocol implementation
 """
 
 from __future__ import annotations
 
+import logging
 import time
+from abc import ABC, abstractmethod
 from collections import deque
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -16,13 +23,155 @@ from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
 
-# In-memory audit log
-_audit_log: deque = deque(maxlen=500)
-_security_config: Dict[str, Any] = {
-    "injection_defense": False,
-    "audit_logging": False,
-    "content_filtering": False,
-}
+logger = logging.getLogger(__name__)
+
+
+# ── Security Protocol ────────────────────────────────────────────────
+
+
+class SecurityProtocol(ABC):
+    """Protocol interface for security backends."""
+
+    @abstractmethod
+    def get_config(self) -> Dict[str, Any]:
+        ...
+
+    @abstractmethod
+    def set_config(self, updates: Dict[str, Any]) -> Dict[str, Any]:
+        ...
+
+    @abstractmethod
+    def log_event(self, event_type: str, data: Any = None,
+                  agent_id: str = "", severity: str = "info") -> None:
+        ...
+
+    @abstractmethod
+    def list_audit_log(self, *, limit: int = 50, event_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        ...
+
+    def health(self) -> Dict[str, Any]:
+        return {"status": "ok", "provider": self.__class__.__name__}
+
+
+# ── Simple Security Manager ──────────────────────────────────────────
+
+
+class SimpleSecurityManager(SecurityProtocol):
+    """In-memory security manager — zero dependencies, volatile."""
+
+    def __init__(self) -> None:
+        self._audit_log: deque = deque(maxlen=500)
+        self._config: Dict[str, Any] = {
+            "injection_defense": False,
+            "audit_logging": False,
+            "content_filtering": False,
+        }
+
+    def get_config(self) -> Dict[str, Any]:
+        return dict(self._config)
+
+    def set_config(self, updates: Dict[str, Any]) -> Dict[str, Any]:
+        for key in ("injection_defense", "audit_logging", "content_filtering"):
+            if key in updates:
+                self._config[key] = bool(updates[key])
+        return dict(self._config)
+
+    def log_event(self, event_type: str, data: Any = None,
+                  agent_id: str = "", severity: str = "info") -> None:
+        self._audit_log.append({
+            "timestamp": time.time(),
+            "event_type": event_type,
+            "agent_id": agent_id,
+            "severity": severity,
+            "data": data or {},
+        })
+
+    def list_audit_log(self, *, limit: int = 50, event_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        items = list(self._audit_log)
+        if event_type:
+            items = [e for e in items if e.get("event_type") == event_type]
+        return items[-limit:]
+
+    def health(self) -> Dict[str, Any]:
+        return {
+            "status": "ok",
+            "provider": "SimpleSecurityManager",
+            "audit_entries": len(self._audit_log),
+            **self._config,
+        }
+
+
+# ── SDK Security Manager ─────────────────────────────────────────────
+
+
+class SDKSecurityManager(SecurityProtocol):
+    """Wraps praisonai.security for production use."""
+
+    def __init__(self) -> None:
+        from praisonai.security import enable_security  # noqa: F401
+        self._simple = SimpleSecurityManager()
+        self._sdk_funcs = {}
+        try:
+            from praisonai.security import enable_audit_log, enable_injection_defense
+            self._sdk_funcs["audit"] = enable_audit_log
+            self._sdk_funcs["injection"] = enable_injection_defense
+        except ImportError:
+            pass
+        logger.info("SDKSecurityManager initialized (praisonai.security available)")
+
+    def get_config(self) -> Dict[str, Any]:
+        return self._simple.get_config()
+
+    def set_config(self, updates: Dict[str, Any]) -> Dict[str, Any]:
+        config = self._simple.set_config(updates)
+        # Apply to SDK
+        applied = []
+        if config.get("injection_defense") and "injection" in self._sdk_funcs:
+            try:
+                self._sdk_funcs["injection"]()
+                applied.append("injection_defense")
+            except Exception:
+                pass
+        if config.get("audit_logging") and "audit" in self._sdk_funcs:
+            try:
+                self._sdk_funcs["audit"]()
+                applied.append("audit_logging")
+            except Exception:
+                pass
+        config["applied_to_sdk"] = applied
+        return config
+
+    def log_event(self, event_type: str, data: Any = None,
+                  agent_id: str = "", severity: str = "info") -> None:
+        self._simple.log_event(event_type, data, agent_id, severity)
+
+    def list_audit_log(self, *, limit: int = 50, event_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        return self._simple.list_audit_log(limit=limit, event_type=event_type)
+
+    def health(self) -> Dict[str, Any]:
+        h = self._simple.health()
+        h["provider"] = "SDKSecurityManager"
+        h["sdk_available"] = True
+        h["sdk_functions"] = list(self._sdk_funcs.keys())
+        return h
+
+
+# ── Manager singleton ────────────────────────────────────────────────
+
+_security_manager: Optional[SecurityProtocol] = None
+
+
+def get_security_manager() -> SecurityProtocol:
+    """Get the active security manager (SDK-first, fallback to Simple)."""
+    global _security_manager
+    if _security_manager is None:
+        try:
+            _security_manager = SDKSecurityManager()
+            logger.info("Using SDKSecurityManager")
+        except Exception as e:
+            logger.debug("SDKSecurityManager init failed (%s), using SimpleSecurityManager", e)
+            _security_manager = SimpleSecurityManager()
+    return _security_manager
 
 
 class PraisonAISecurity(BaseFeatureProtocol):
@@ -41,28 +190,11 @@ class PraisonAISecurity(BaseFeatureProtocol):
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
-
-        # Check if security module is available
-        security_available = False
-        security_features: List[str] = []
-        try:
-            from praisonai.security import (
-                enable_security, enable_audit_log, enable_injection_defense,
-            )
-            security_available = True
-            security_features = ["enable_security", "enable_audit_log",
-                                 "enable_injection_defense"]
-        except ImportError:
-            pass
-
+        mgr = get_security_manager()
         return {
             "status": "ok",
             "feature": self.name,
-            "security_available": security_available,
-            "security_features": security_features,
-            "injection_defense": _security_config.get("injection_defense", False),
-            "audit_logging": _security_config.get("audit_logging", False),
-            "audit_entries": len(_audit_log),
+            **mgr.health(),
             **gateway_health(),
         }
 
@@ -76,7 +208,7 @@ class PraisonAISecurity(BaseFeatureProtocol):
         ]
 
     async def _overview(self, request: Request) -> JSONResponse:
-        """Security overview — status, recent events, agent security."""
+        mgr = get_security_manager()
         agent_security = []
         try:
             from ._gateway_ref import get_gateway
@@ -97,90 +229,56 @@ class PraisonAISecurity(BaseFeatureProtocol):
                         "name": name,
                         "has_guardrail": has_guardrail,
                         "has_tools": has_tools,
-                        "tool_count": len(
-                            getattr(agent, "tools", None) or []
-                        ),
+                        "tool_count": len(getattr(agent, "tools", None) or []),
                     })
         except (ImportError, Exception):
             pass
 
-        recent_audit = list(_audit_log)[-10:]
-
+        recent_audit = mgr.list_audit_log(limit=10)
         return JSONResponse({
-            "config": _security_config,
+            "config": mgr.get_config(),
             "agent_security": agent_security,
             "recent_audit": recent_audit,
-            "total_audit_entries": len(_audit_log),
+            "total_audit_entries": len(mgr.list_audit_log(limit=10000)),
         })
 
     async def _status(self, request: Request) -> JSONResponse:
-        """Security system status."""
         health = await self.health()
         return JSONResponse(health)
 
     async def _audit(self, request: Request) -> JSONResponse:
-        """List audit log entries."""
+        mgr = get_security_manager()
         limit = int(request.query_params.get("limit", "50"))
         event_type = request.query_params.get("type", None)
+        items = mgr.list_audit_log(limit=limit, event_type=event_type)
 
-        items = list(_audit_log)
-        if event_type:
-            items = [e for e in items if e.get("event_type") == event_type]
-        items = items[-limit:]
-
-        # Event type counts
+        # Event type counts from full log
+        all_items = mgr.list_audit_log(limit=10000)
         type_counts: Dict[str, int] = {}
-        for e in _audit_log:
+        for e in all_items:
             et = e.get("event_type", "unknown")
             type_counts[et] = type_counts.get(et, 0) + 1
 
         return JSONResponse({
             "entries": items,
             "count": len(items),
-            "total": len(_audit_log),
+            "total": len(all_items),
             "by_type": type_counts,
         })
 
     async def _get_config(self, request: Request) -> JSONResponse:
-        """Get security configuration."""
-        return JSONResponse({"config": _security_config})
+        mgr = get_security_manager()
+        return JSONResponse({"config": mgr.get_config()})
 
     async def _set_config(self, request: Request) -> JSONResponse:
-        """Update security configuration."""
+        mgr = get_security_manager()
         body = await request.json()
-        for key in ("injection_defense", "audit_logging", "content_filtering"):
-            if key in body:
-                _security_config[key] = bool(body[key])
-
-        # Try to apply SDK security settings
-        applied = []
-        try:
-            from praisonai.security import (
-                enable_security, enable_audit_log, enable_injection_defense,
-            )
-            if _security_config.get("injection_defense"):
-                enable_injection_defense()
-                applied.append("injection_defense")
-            if _security_config.get("audit_logging"):
-                enable_audit_log()
-                applied.append("audit_logging")
-        except (ImportError, Exception):
-            pass
-
-        log_audit_event("security_config_update", body)
-        return JSONResponse({
-            "config": _security_config,
-            "applied_to_sdk": applied,
-        })
+        config = mgr.set_config(body)
+        mgr.log_event("security_config_update", body)
+        return JSONResponse({"config": config})
 
 
 def log_audit_event(event_type: str, data: Any = None,
                     agent_id: str = "", severity: str = "info") -> None:
     """Log a security audit event (callable from hooks)."""
-    _audit_log.append({
-        "timestamp": time.time(),
-        "event_type": event_type,
-        "agent_id": agent_id,
-        "severity": severity,
-        "data": data or {},
-    })
+    get_security_manager().log_event(event_type, data, agent_id, severity)

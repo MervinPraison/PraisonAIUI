@@ -14,6 +14,11 @@ Core Engineering Principles (MUST apply in detailed analysis and detailed propos
 * No performance impact: proposals must preserve performance characteristics; heavy dependencies must remain optional and lazily loaded.
 * Safety by default: async-safe, thread-safe, and error-resilient patterns.
 * Clear separation of concerns: distinguish between core functionality, extensions, integrations, and documentation.
+* Protocol Architecture Strategy (SDK-first):
+    * Every feature MUST define a `FeatureProtocol` ABC (abstract interface)
+    * Provide `SDKFeatureManager` (wraps `praisonaiagents` SDK, lazy-imported) + `SimpleFeatureManager` (in-memory fallback)
+    * Factory `get_feature_manager()` tries SDK first, falls back to Simple — zero config needed
+    * See `docs/features/protocol-architecture.md` for the full reference
 
 MANDATORY PROCESS (NO IMPLEMENTATION)
 You MUST follow these steps in order, and output the required deliverables at the end.

@@ -1,9 +1,12 @@
-"""Agents feature — full CRUD for agent management in PraisonAIUI.
+"""Agents feature — protocol-driven agent CRUD for PraisonAIUI.
 
-Provides API endpoints for creating, reading, updating, and deleting agents
-with persistence to YAML/JSON files.
+Architecture:
+    AgentRegistryProtocol (ABC)     <- any backend implements this
+      ├── SimpleAgentRegistry       <- default in-memory + file (no deps)
+      └── SDKAgentRegistry          <- wraps praisonaiagents.Agent
 
-DRY: Uses praisonaiagents.Agent for real agent execution.
+    PraisonAIAgentsFeature (BaseFeatureProtocol)
+      └── delegates to active AgentRegistryProtocol implementation
 """
 
 from __future__ import annotations
@@ -13,8 +16,9 @@ import json
 import logging
 import time
 import uuid
+from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -41,54 +45,213 @@ AVAILABLE_MODELS = [
     "o3-mini",
 ]
 
-# In-memory agent definitions (persisted to file)
-_agent_definitions: Dict[str, Dict[str, Any]] = {}
-_data_file: Path | None = None
+
+# ── Agent Registry Protocol ─────────────────────────────────────────
 
 
-def _generate_agent_id() -> str:
-    """Generate a unique agent ID."""
-    return f"agent_{uuid.uuid4().hex[:8]}"
+class AgentRegistryProtocol(ABC):
+    """Protocol interface for agent registry backends."""
+
+    @abstractmethod
+    def create(self, agent_def: Dict[str, Any]) -> Dict[str, Any]:
+        ...
+
+    @abstractmethod
+    def get(self, agent_id: str) -> Optional[Dict[str, Any]]:
+        ...
+
+    @abstractmethod
+    def update(self, agent_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        ...
+
+    @abstractmethod
+    def delete(self, agent_id: str) -> bool:
+        ...
+
+    @abstractmethod
+    def list_all(self) -> List[Dict[str, Any]]:
+        ...
+
+    def health(self) -> Dict[str, Any]:
+        return {"status": "ok", "provider": self.__class__.__name__}
 
 
-def _save_agents() -> None:
-    """Save agent definitions to disk."""
-    if not _data_file:
-        return
-    try:
-        _data_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(_data_file, "w") as f:
-            json.dump({
-                "agents": _agent_definitions,
-                "saved_at": time.time(),
-            }, f, indent=2)
-    except Exception as e:
-        logger.warning(f"Failed to save agents to {_data_file}: {e}")
+# ── Simple Agent Registry ──────────────────────────────────────────
 
 
-def _load_agents() -> None:
-    """Load agent definitions from disk and sync to gateway."""
-    global _agent_definitions
-    if not _data_file or not _data_file.exists():
-        return
-    try:
-        with open(_data_file) as f:
-            data = json.load(f)
-        _agent_definitions = data.get("agents", {})
-        # Sync all loaded agents to gateway so they're available for execution
-        for agent_def in _agent_definitions.values():
-            _sync_to_gateway(agent_def)
-        if _agent_definitions:
-            logger.info(f"Loaded {len(_agent_definitions)} agents from {_data_file}")
-    except Exception as e:
-        logger.warning(f"Failed to load agents from {_data_file}: {e}")
+class SimpleAgentRegistry(AgentRegistryProtocol):
+    """In-memory + file registry — zero SDK dependencies."""
+
+    def __init__(self) -> None:
+        self._definitions: Dict[str, Dict[str, Any]] = {}
+        self._data_file: Optional[Path] = None
+
+    def set_data_file(self, path: Path) -> None:
+        self._data_file = path
+        self._load_agents()
+
+    def _save(self) -> None:
+        if not self._data_file:
+            return
+        try:
+            self._data_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self._data_file, "w") as f:
+                json.dump({"agents": self._definitions, "saved_at": time.time()}, f, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed to save agents to {self._data_file}: {e}")
+
+    def _load_agents(self) -> None:
+        if not self._data_file or not self._data_file.exists():
+            return
+        try:
+            with open(self._data_file) as f:
+                data = json.load(f)
+            self._definitions = data.get("agents", {})
+            for agent_def in self._definitions.values():
+                _sync_to_gateway(agent_def)
+            if self._definitions:
+                logger.info(f"Loaded {len(self._definitions)} agents from {self._data_file}")
+        except Exception as e:
+            logger.warning(f"Failed to load agents from {self._data_file}: {e}")
+
+    def create(self, agent_def: Dict[str, Any]) -> Dict[str, Any]:
+        agent_id = agent_def.get("id", f"agent_{uuid.uuid4().hex[:8]}")
+        now = time.time()
+        agent = {
+            "id": agent_id,
+            "name": agent_def.get("name", "assistant"),
+            "description": agent_def.get("description", ""),
+            "instructions": agent_def.get("instructions", ""),
+            "system_prompt": agent_def.get("system_prompt", ""),
+            "model": agent_def.get("model", "gpt-4o-mini"),
+            "temperature": agent_def.get("temperature", 0.7),
+            "tools": agent_def.get("tools", []),
+            "icon": agent_def.get("icon", "🤖"),
+            "created_at": now,
+            "updated_at": now,
+            "status": "active",
+        }
+        # Include any extra kwargs
+        for k, v in agent_def.items():
+            if k not in agent:
+                agent[k] = v
+        self._definitions[agent_id] = agent
+        self._save()
+        _sync_to_gateway(agent)
+        return agent
+
+    def get(self, agent_id: str) -> Optional[Dict[str, Any]]:
+        agent = self._definitions.get(agent_id)
+        if agent is not None:
+            return agent
+        # Fallback: check gateway
+        try:
+            from ._gateway_ref import get_gateway
+            gw = get_gateway()
+            if gw is not None:
+                gw_agent = gw.get_agent(agent_id)
+                if gw_agent is not None:
+                    return {
+                        "id": agent_id,
+                        "name": getattr(gw_agent, "name", agent_id),
+                        "description": getattr(gw_agent, "backstory", ""),
+                        "instructions": getattr(gw_agent, "instructions", ""),
+                        "model": getattr(gw_agent, "llm", "gpt-4o-mini"),
+                        "source": "gateway",
+                        "status": "active",
+                    }
+        except Exception:
+            pass
+        return None
+
+    def update(self, agent_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if agent_id not in self._definitions:
+            return None
+        agent = self._definitions[agent_id]
+        allowed_fields = {"name", "description", "instructions", "system_prompt",
+                          "model", "temperature", "tools", "icon", "status"}
+        for key, value in updates.items():
+            if key in allowed_fields:
+                agent[key] = value
+        agent["updated_at"] = time.time()
+        self._definitions[agent_id] = agent
+        self._save()
+        _sync_to_gateway(agent)
+        return agent
+
+    def delete(self, agent_id: str) -> bool:
+        if agent_id not in self._definitions:
+            return False
+        _unsync_from_gateway(agent_id)
+        del self._definitions[agent_id]
+        self._save()
+        return True
+
+    def list_all(self) -> List[Dict[str, Any]]:
+        return list(self._definitions.values())
+
+    def health(self) -> Dict[str, Any]:
+        active = sum(1 for a in self._definitions.values() if a.get("status") == "active")
+        return {
+            "status": "ok",
+            "provider": "SimpleAgentRegistry",
+            "total_agents": len(self._definitions),
+            "active_agents": active,
+        }
 
 
-def set_agents_data_file(path: Path) -> None:
-    """Set the data file path for persistence."""
-    global _data_file
-    _data_file = path
-    _load_agents()
+# ── SDK Agent Registry ────────────────────────────────────────────
+
+
+class SDKAgentRegistry(AgentRegistryProtocol):
+    """Wraps praisonaiagents.Agent for production use."""
+
+    def __init__(self) -> None:
+        from praisonaiagents import Agent  # noqa: F401
+        self._simple = SimpleAgentRegistry()
+        logger.info("SDKAgentRegistry initialized (praisonaiagents available)")
+
+    def set_data_file(self, path: Path) -> None:
+        self._simple.set_data_file(path)
+
+    def create(self, agent_def: Dict[str, Any]) -> Dict[str, Any]:
+        return self._simple.create(agent_def)
+
+    def get(self, agent_id: str) -> Optional[Dict[str, Any]]:
+        return self._simple.get(agent_id)
+
+    def update(self, agent_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        return self._simple.update(agent_id, updates)
+
+    def delete(self, agent_id: str) -> bool:
+        return self._simple.delete(agent_id)
+
+    def list_all(self) -> List[Dict[str, Any]]:
+        return self._simple.list_all()
+
+    def health(self) -> Dict[str, Any]:
+        h = self._simple.health()
+        h["provider"] = "SDKAgentRegistry"
+        h["sdk_available"] = True
+        return h
+
+
+# ── Registry singleton ───────────────────────────────────────────
+
+_agent_registry: Optional[AgentRegistryProtocol] = None
+
+
+def get_agent_registry() -> AgentRegistryProtocol:
+    """Get the active agent registry (SDK-first, fallback to Simple)."""
+    global _agent_registry
+    if _agent_registry is None:
+        try:
+            _agent_registry = SDKAgentRegistry()
+            logger.info("Using SDKAgentRegistry")
+        except Exception as e:
+            logger.debug("SDKAgentRegistry init failed (%s), using SimpleAgentRegistry", e)
+            _agent_registry = SimpleAgentRegistry()
+    return _agent_registry
 
 
 def _sync_to_gateway(agent_def: Dict[str, Any]) -> None:
@@ -157,23 +320,22 @@ def _unsync_from_gateway(agent_id: str) -> None:
         logger.warning(f"Failed to unsync agent from gateway: {e}")
 
 
-def create_agent(
-    name: str,
-    description: str = "",
-    instructions: str = "",
-    system_prompt: str = "",
-    model: str = "gpt-4o-mini",
-    temperature: float = 0.7,
-    tools: List[str] | None = None,
-    icon: str = "🤖",
-    **kwargs,
-) -> Dict[str, Any]:
+# ── Module-level compatibility functions ───────────────────────────
+
+
+def set_agents_data_file(path: Path) -> None:
+    """Set the data file path for persistence."""
+    reg = get_agent_registry()
+    if hasattr(reg, "set_data_file"):
+        reg.set_data_file(path)
+
+
+def create_agent(name: str, description: str = "", instructions: str = "",
+                 system_prompt: str = "", model: str = "gpt-4o-mini",
+                 temperature: float = 0.7, tools: Optional[List[str]] = None,
+                 icon: str = "🤖", **kwargs) -> Dict[str, Any]:
     """Create a new agent definition."""
-    agent_id = _generate_agent_id()
-    now = time.time()
-    
-    agent = {
-        "id": agent_id,
+    return get_agent_registry().create({
         "name": name,
         "description": description,
         "instructions": instructions,
@@ -182,83 +344,28 @@ def create_agent(
         "temperature": temperature,
         "tools": tools or [],
         "icon": icon,
-        "created_at": now,
-        "updated_at": now,
-        "status": "active",
         **kwargs,
-    }
-    
-    _agent_definitions[agent_id] = agent
-    _save_agents()
-    _sync_to_gateway(agent)
-    return agent
+    })
 
 
-def update_agent(agent_id: str, **updates) -> Dict[str, Any] | None:
+def update_agent(agent_id: str, **updates) -> Optional[Dict[str, Any]]:
     """Update an existing agent definition."""
-    if agent_id not in _agent_definitions:
-        return None
-    
-    agent = _agent_definitions[agent_id]
-    
-    # Update allowed fields
-    allowed_fields = {
-        "name", "description", "instructions", "system_prompt",
-        "model", "temperature", "tools", "icon", "status"
-    }
-    
-    for key, value in updates.items():
-        if key in allowed_fields:
-            agent[key] = value
-    
-    agent["updated_at"] = time.time()
-    _agent_definitions[agent_id] = agent
-    _save_agents()
-    _sync_to_gateway(agent)  # Re-register with updated config
-    return agent
+    return get_agent_registry().update(agent_id, updates)
 
 
 def delete_agent(agent_id: str) -> bool:
     """Delete an agent definition."""
-    if agent_id not in _agent_definitions:
-        return False
-    
-    _unsync_from_gateway(agent_id)
-    del _agent_definitions[agent_id]
-    _save_agents()
-    return True
+    return get_agent_registry().delete(agent_id)
 
 
-def get_agent(agent_id: str) -> Dict[str, Any] | None:
-    """Get an agent definition by ID, falling back to gateway."""
-    agent = _agent_definitions.get(agent_id)
-    if agent is not None:
-        return agent
-
-    # Fallback: check gateway-registered agents
-    try:
-        from ._gateway_ref import get_gateway
-        gw = get_gateway()
-        if gw is not None:
-            gw_agent = gw.get_agent(agent_id)
-            if gw_agent is not None:
-                return {
-                    "id": agent_id,
-                    "name": getattr(gw_agent, "name", agent_id),
-                    "description": getattr(gw_agent, "backstory", ""),
-                    "instructions": getattr(gw_agent, "instructions", ""),
-                    "model": getattr(gw_agent, "llm", "gpt-4o-mini"),
-                    "source": "gateway",
-                    "status": "active",
-                }
-    except Exception:
-        pass
-    return None
+def get_agent(agent_id: str) -> Optional[Dict[str, Any]]:
+    """Get an agent definition by ID."""
+    return get_agent_registry().get(agent_id)
 
 
 def list_agents_definitions() -> List[Dict[str, Any]]:
     """List all agent definitions."""
-    return list(_agent_definitions.values())
+    return get_agent_registry().list_all()
 
 
 class PraisonAIAgentsFeature(BaseFeatureProtocol):
@@ -299,22 +406,22 @@ class PraisonAIAgentsFeature(BaseFeatureProtocol):
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
-
-        active = sum(1 for a in _agent_definitions.values() if a.get("status") == "active")
+        reg = get_agent_registry()
+        h = reg.health()
         gateway_synced = 0
         try:
             from ._gateway_ref import get_gateway
             gw = get_gateway()
             if gw is not None:
                 gw_ids = set(gw.list_agents())
-                gateway_synced = sum(1 for aid in _agent_definitions if aid in gw_ids)
+                all_defs = reg.list_all()
+                gateway_synced = sum(1 for a in all_defs if a.get("id") in gw_ids)
         except Exception:
             pass
         return {
             "status": "ok",
             "feature": self.name,
-            "total_agents": len(_agent_definitions),
-            "active_agents": active,
+            **h,
             "gateway_synced": gateway_synced,
             **gateway_health(),
         }
