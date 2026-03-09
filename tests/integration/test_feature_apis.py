@@ -31,11 +31,11 @@ from praisonaiui.server import create_app
 
 @pytest.fixture(autouse=True)
 def _isolate_persistence(tmp_path, monkeypatch):
-    """Redirect all YAML persistence to a temp dir and reset in-memory state."""
-    monkeypatch.setenv("PRAISONAIUI_DATA_DIR", str(tmp_path))
-    # Reset the cached data dir
-    import praisonaiui.features._persistence as _p
-    _p._DATA_DIR = None
+    """Redirect unified config.yaml to a temp dir and reset in-memory state."""
+    # Point the config store to a temp config.yaml
+    import praisonaiui.config_store as cs
+    store = cs.YAMLConfigStore(tmp_path / "config.yaml")
+    cs.set_config_store(store)
 
     # Clear channels
     try:
@@ -748,36 +748,38 @@ class TestPagesAPI:
 
 
 class TestPersistence:
-    """Verify settings survive a simulated server restart."""
+    """Verify settings survive a simulated server restart via unified config.yaml."""
 
     def test_config_survives_restart(self, client, tmp_path, monkeypatch):
-        """PATCH config → clear in-memory → reload from disk → verify."""
+        """PATCH config → clear in-memory → reload from unified YAML → verify."""
         client.patch("/api/config/runtime", json={"persist_test": "yes"})
 
         # Simulate restart: clear in-memory state
         from praisonaiui.features.config_runtime import _runtime_config
         _runtime_config.clear()
 
-        # Reload from YAML (same tmp_path dir the fixture set up)
-        from praisonaiui.features._persistence import load_yaml
-        restored = load_yaml("config_runtime.yaml")
+        # Reload from unified config.yaml
+        import praisonaiui.config_store as cs
+        store = cs.get_config_store()
+        store.reload()
+        restored = store.get_section("runtime_config")
         assert restored.get("persist_test") == "yes"
 
     def test_guardrails_survive_restart(self, client, tmp_path, monkeypatch):
-        """Register guardrail → clear in-memory → reload from disk → verify."""
+        """Register guardrail → clear → reload → verify."""
         client.post("/api/guardrails/register", json={
             "type": "llm",
             "description": "Must be polite",
         })
 
-        # Simulate restart: new manager instance
+        # Simulate restart: new manager reads from unified config.yaml
         from praisonaiui.features.guardrails import SimpleGuardrailManager
         fresh = SimpleGuardrailManager()
         guardrails = fresh.list_guardrails()
         assert any("Must be polite" in g.get("description", "") for g in guardrails)
 
     def test_channels_survive_restart(self, client, tmp_path, monkeypatch):
-        """Add channel → clear in-memory → reload from disk → verify."""
+        """Add channel → clear → reload from unified YAML → verify."""
         r = client.post("/api/channels", json={
             "name": "Persist Bot",
             "platform": "telegram",
@@ -789,16 +791,17 @@ class TestPersistence:
         from praisonaiui.features.channels import _channels
         _channels.clear()
 
-        from praisonaiui.features._persistence import load_yaml
-        restored = load_yaml("channels.yaml")
-        ch_data = restored.get("channels", {})
+        import praisonaiui.config_store as cs
+        store = cs.get_config_store()
+        store.reload()
+        ch_data = store.get_section("channels")
         assert ch_id in ch_data
         assert ch_data[ch_id]["name"] == "Persist Bot"
         # Runtime fields should NOT be in the YAML
         assert "running" not in ch_data[ch_id]
 
     def test_schedules_survive_restart(self, client, tmp_path, monkeypatch):
-        """Add schedule → clear in-memory → reload from disk → verify."""
+        """Add schedule → clear → reload → verify."""
         r = client.post("/api/schedules", json={
             "name": "Persistent Job",
             "message": "persist test",
@@ -806,8 +809,36 @@ class TestPersistence:
         })
         job_id = r.json()["id"]
 
-        # Simulate restart
+        # Simulate restart: new store reads from unified config.yaml
         from praisonaiui.features.schedules import _InMemoryScheduleStore
         fresh = _InMemoryScheduleStore()
         jobs = fresh.list()
         assert any(j.get("id") == job_id or j.get("name") == "Persistent Job" for j in jobs)
+
+    def test_all_sections_in_single_file(self, client, tmp_path):
+        """Verify all features write to the SAME config.yaml file."""
+        # Create data in multiple features
+        client.patch("/api/config/runtime", json={"unified": True})
+        client.post("/api/channels", json={
+            "name": "Ch1", "platform": "telegram",
+            "config": {"bot_token": "t"},
+        })
+        client.post("/api/guardrails/register", json={
+            "type": "llm", "description": "be nice",
+        })
+
+        # Read the single config.yaml from the store's actual path
+        import yaml
+        import praisonaiui.config_store as cs
+        config_path = cs.get_config_store().path
+        assert config_path.exists(), "config.yaml should exist"
+        with open(config_path) as f:
+            data = yaml.safe_load(f)
+
+        # All sections should be present in the single file
+        assert "runtime_config" in data
+        assert data["runtime_config"]["unified"] is True
+        assert "channels" in data
+        assert len(data["channels"]) >= 1
+        assert "guardrails" in data
+        assert "registry" in data["guardrails"]

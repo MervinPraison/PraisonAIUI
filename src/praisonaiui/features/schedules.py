@@ -260,18 +260,18 @@ def _to_dict(obj) -> Dict[str, Any]:
 
 
 class _InMemoryScheduleStore(ScheduleProtocol):
-    """Fallback in-memory store with YAML persistence."""
+    """Fallback in-memory store with unified YAML persistence."""
 
-    _PERSIST_FILE = "schedules.yaml"
+    _SECTION = "schedules"
 
     def __init__(self):
-        from ._persistence import load_yaml
-        saved = load_yaml(self._PERSIST_FILE)
-        self._jobs: Dict[str, Dict[str, Any]] = saved.get("jobs", {})
+        from ._persistence import load_section
+        saved = load_section(self._SECTION)
+        self._jobs: Dict[str, Dict[str, Any]] = saved.get("jobs", {}) if isinstance(saved, dict) else {}
 
     def _persist(self) -> None:
-        from ._persistence import save_yaml
-        save_yaml(self._PERSIST_FILE, {"jobs": dict(self._jobs)})
+        from ._persistence import save_section
+        save_section(self._SECTION, {"jobs": dict(self._jobs)})
 
     def add(self, job_id_or_obj=None, schedule=None, action=None, **kwargs) -> Dict[str, Any]:
         # Accept single dict/object (from _add handler) or positional args (from CLI)

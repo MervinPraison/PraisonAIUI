@@ -45,17 +45,17 @@ class ConfigProtocol(ABC):
         return {"status": "ok", "provider": self.__class__.__name__}
 
 # In-memory runtime config (overlays the static YAML config)
-# Loaded from ~/.praisonaiui/config_runtime.yaml on startup
-from ._persistence import load_yaml, save_yaml
+# Loaded from the 'runtime_config' section of ~/.praisonaiui/config.yaml
+from ._persistence import load_section, save_section
 
-_PERSIST_FILE = "config_runtime.yaml"
-_runtime_config: Dict[str, Any] = load_yaml(_PERSIST_FILE)
+_SECTION = "runtime_config"
+_runtime_config: Dict[str, Any] = load_section(_SECTION)
 _config_history: List[Dict[str, Any]] = []
 
 
 def _persist_config() -> None:
-    """Save runtime config to disk."""
-    save_yaml(_PERSIST_FILE, dict(_runtime_config))
+    """Save runtime config to the unified config.yaml."""
+    save_section(_SECTION, dict(_runtime_config))
 
 # JSON Schema for config form editor
 CONFIG_SCHEMA = {

@@ -60,11 +60,11 @@ SUPPORTED_PLATFORMS = [
     "imessage", "signal", "googlechat", "nostr",
 ]
 
-# In-memory channel registry — loaded from disk on startup
-from ._persistence import load_yaml, save_yaml
+# In-memory channel registry — loaded from unified config.yaml
+from ._persistence import load_section, save_section
 
-_CHANNELS_FILE = "channels.yaml"
-_channels: Dict[str, Dict[str, Any]] = load_yaml(_CHANNELS_FILE).get("channels", {})
+_CHANNELS_SECTION = "channels"
+_channels: Dict[str, Dict[str, Any]] = load_section(_CHANNELS_SECTION)
 # Local bot lifecycle tracking (bot instance + asyncio.Task)
 _live_bots: Dict[str, Dict[str, Any]] = {}
 
@@ -73,11 +73,11 @@ _RUNTIME_FIELDS = {"running", "start_error"}
 
 
 def _persist_channels() -> None:
-    """Save channel configs (without runtime state) to disk."""
+    """Save channel configs (without runtime state) to unified config.yaml."""
     data = {}
     for cid, ch in _channels.items():
         data[cid] = {k: v for k, v in ch.items() if k not in _RUNTIME_FIELDS}
-    save_yaml(_CHANNELS_FILE, {"channels": data})
+    save_section(_CHANNELS_SECTION, data)
 
 
 class PraisonAIChannels(BaseFeatureProtocol):
