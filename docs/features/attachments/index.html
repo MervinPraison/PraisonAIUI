@@ -36,10 +36,20 @@
 
 <body style="background:#0f172a;margin:0">
   <div id="root"><noscript><h1>Chat Attachments</h1>
-<p>Upload files to include with chat messages — PDFs, CSVs, images, and text files up to 50 MB per file.</p>
+<p>Upload files to include with chat messages — PDFs, CSVs, images, and text files up to 50 MB per file. Uploaded files are **automatically processed** and their content is injected into the agent's prompt.</p>
 <p>![Attachments Panel](../images/attachments-panel.png)</p>
 <h2>Quick Start</h2>
+<p>The agent will receive the extracted PDF text prepended to the user message and can answer questions about the document's content.</p>
 <h2>How It Works</h2>
+<h2>File Processing by Type</h2>
+<p>When you send a chat message with `attachment_ids`, each attachment is processed based on its type:</p>
+<p>| File Type | Processing | What the Agent Sees |</p>
+<p>|-----------|-----------|-------------------|</p>
+<p>| **PDF** (`.pdf`) | Text extracted via `pypdf` | Full text content prepended to prompt |</p>
+<p>| **Images** (`.png`, `.jpg`, etc.) | Passed to SDK multimodal handler | Image sent as base64 to vision-capable LLMs |</p>
+<p>| **Text/Code** (`.txt`, `.py`, `.csv`, etc.) | File contents read directly | Full file content prepended to prompt |</p>
+<p>!!! note "PDF Dependency"</p>
+<p>PDF text extraction requires the `pypdf` package (`pip install pypdf`). If `pypdf` is not installed, a fallback message is shown instead of the extracted text. `pypdf` is included in PraisonAIUI's dependencies by default.</p>
 <h2>Supported File Types</h2>
 <p>| Category | Extensions |</p>
 <p>|----------|-----------|</p>
@@ -58,7 +68,11 @@
 <p>| `/api/chat/attachments/{id}` | DELETE | Delete an attachment |</p>
 <h3>Upload</h3>
 <p>Response:</p>
+<h3>Send Chat with Attachments</h3>
+<p>The `attachment_ids` array links uploaded files to the chat message. The server extracts content from each attachment and prepends it to the user's message before sending to the agent.</p>
 <h3>List</h3>
+<h2>WebSocket</h2>
+<p>When sending messages via WebSocket, include `attachment_ids` in the message payload:</p>
 <h2>Related</h2>
 <li>[Gateway Chat](gateway-chat.md) — Chat interface</li>
 <li>[Sessions](sessions.md) — Session management</li></noscript></div>
