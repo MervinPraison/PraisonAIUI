@@ -72,7 +72,7 @@ Agents created via YAML config, CRUD API, jobs, or channel bots automatically ge
 ### YAML Configuration
 
 ```yaml
-# gateway.yaml or aiui.template.yaml
+# ~/.praisonaiui/config.yaml (unified runtime config)
 agents:
   researcher:
     instructions: "Research topics thoroughly."

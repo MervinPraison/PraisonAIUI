@@ -238,7 +238,8 @@ async def _chat_send(request: Request) -> JSONResponse:
     content = body.get("content") or body.get("message", "")
     session_id = body.get("session_id", str(uuid.uuid4()))
     agent_name = body.get("agent_name") or body.get("agent")
-    attachments = body.get("attachments")
+    attachment_ids = body.get("attachment_ids") or body.get("attachments") or []
+    attachments = attachment_ids  # compat alias for send_message
 
     if not content:
         return JSONResponse({"error": "content required"}, status_code=400)
@@ -265,7 +266,7 @@ async def _chat_send(request: Request) -> JSONResponse:
         pass
 
     # Also run the provider and stream results to WS clients
-    asyncio.create_task(_run_and_broadcast(content, session_id, agent_name))
+    asyncio.create_task(_run_and_broadcast(content, session_id, agent_name, attachment_ids or None))
 
     return JSONResponse(result)
 

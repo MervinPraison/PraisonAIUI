@@ -73,6 +73,17 @@ export async function render(container) {
   // Add agent button
   container.querySelector('#agent-add-btn')?.addEventListener('click', () => showAgentForm(container, models));
 
+  // Run: navigate to Chat with this agent pre-selected
+  container.querySelectorAll('.agent-run-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const agentId = btn.dataset.id;
+      const chatUrl = '/chat?agent=' + encodeURIComponent(agentId);
+      history.pushState({ pageId: 'chat' }, '', chatUrl);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+  });
+
   // Delete handlers
   container.querySelectorAll('.agent-del-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {

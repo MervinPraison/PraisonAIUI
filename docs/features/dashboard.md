@@ -191,6 +191,34 @@ When style is set to `dashboard`, **16 built-in pages** are auto-registered from
 
 Custom pages added via `@aiui.page()` appear alongside built-in pages.
 
+## Agent Run Button
+
+Each agent card on the **Agents** page includes a **▶ Run** button. Clicking it navigates to the **Chat** page with that agent automatically pre-selected in the agent dropdown.
+
+### How It Works
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as Agents View
+    participant D as Dashboard
+    participant C as Chat View
+
+    U->>A: Click "▶ Run" on agent card
+    A->>D: pushState('/chat?agent=X')
+    A->>D: dispatch popstate
+    D->>C: selectPage('chat') → render()
+    C->>C: loadAgents() → populate dropdown
+    C->>C: Read ?agent=X → pre-select agent
+    C->>C: replaceState('/chat') → clean URL
+```
+
+1. The Run button reads the agent name from its `data-id` attribute
+2. It pushes `/chat?agent=<name>` to browser history and dispatches `popstate`
+3. The dashboard's `popstate` listener calls `selectPage('chat')`, loading the Chat view
+4. Chat's `render()` calls `loadAgents()`, then checks `URLSearchParams` for `?agent=`
+5. If found, it sets the dropdown value and `currentAgentName`, then cleans the URL
+
 ## Test Panel
 
 Every dashboard includes a **Test All Features** link at the bottom of the sidebar. It auto-discovers all registered features from `/api/features` and tests each endpoint, showing pass/fail results in a grid.

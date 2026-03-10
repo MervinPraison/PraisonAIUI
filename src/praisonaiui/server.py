@@ -1185,6 +1185,8 @@ def create_app(
     _builtin_pages = [
         {"id": "overview", "title": "Overview", "icon": "📊", "group": "Control",
          "description": "System health and statistics", "order": 10},
+        {"id": "chat", "title": "Chat", "icon": "💬", "group": "Agent",
+         "description": "AI agent chat", "order": 1},
         {"id": "channels", "title": "Channels", "icon": "📡", "group": "Agent",
          "description": "Messaging platform connections", "order": 5},
         {"id": "sessions", "title": "Sessions", "icon": "📋", "group": "Control",

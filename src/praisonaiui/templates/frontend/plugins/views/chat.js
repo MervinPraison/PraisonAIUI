@@ -298,6 +298,24 @@ export async function render(container) {
   });
 
   await loadAgents();
+
+  // Pre-select agent if passed via URL query param (from Agents page "Run" button)
+  const urlAgent = new URLSearchParams(window.location.search).get('agent');
+  if (urlAgent) {
+    const selector = document.getElementById('chat-agent-selector');
+    if (selector) {
+      for (const opt of selector.options) {
+        if (opt.value.toLowerCase() === urlAgent.toLowerCase()) {
+          selector.value = opt.value;
+          currentAgentName = opt.value;
+          break;
+        }
+      }
+    }
+    // Clean the query param from URL to avoid stale state on refresh
+    history.replaceState(history.state, '', window.location.pathname);
+  }
+
   await loadSessions();
   connectWebSocket();
 }
@@ -395,7 +413,18 @@ async function loadSession(sessionId) {
     const messages = data.messages || [];
 
     messagesEl.innerHTML = '';
-    messages.forEach((m) => appendMessage(m.role, m.content, m.agent_name));
+    let sessionPlatform = null;
+    let sessionIcon = null;
+    messages.forEach((m) => {
+      if (m.platform) {
+        // Channel message — render with platform badge and icon
+        sessionPlatform = m.platform;
+        sessionIcon = m.icon;
+        _appendChannelMsg(m.role === 'assistant' ? 'assistant' : 'user', m);
+      } else {
+        appendMessage(m.role, m.content, m.agent_name);
+      }
+    });
 
     // Update sidebar active state
     document.querySelectorAll('.chat-sess-item').forEach((el) => {
@@ -403,7 +432,11 @@ async function loadSession(sessionId) {
     });
 
     const title = document.getElementById('chat-header-title');
-    if (title) title.textContent = 'Session ' + sessionId.substring(0, 8);
+    if (sessionPlatform) {
+      title.textContent = (sessionIcon || '📨') + ' ' + sessionPlatform.charAt(0).toUpperCase() + sessionPlatform.slice(1);
+    } else if (title) {
+      title.textContent = 'Session ' + sessionId.substring(0, 8);
+    }
   } catch (e) {
     console.warn('[Chat] Failed to load session:', e);
   }
@@ -421,7 +454,21 @@ async function restoreSessionHistory(sessionId) {
       if (messages.length > 0) {
         const welcome = document.getElementById('chat-welcome');
         if (welcome) welcome.style.display = 'none';
-        messages.forEach((m) => appendMessage(m.role, m.content, m.agent_name));
+        let sessionPlatform = null;
+        let sessionIcon = null;
+        messages.forEach((m) => {
+          if (m.platform) {
+            sessionPlatform = m.platform;
+            sessionIcon = m.icon;
+            _appendChannelMsg(m.role === 'assistant' ? 'assistant' : 'user', m);
+          } else {
+            appendMessage(m.role, m.content, m.agent_name);
+          }
+        });
+        if (sessionPlatform) {
+          const title = document.getElementById('chat-header-title');
+          if (title) title.textContent = (sessionIcon || '📨') + ' ' + sessionPlatform.charAt(0).toUpperCase() + sessionPlatform.slice(1);
+        }
       }
     } catch (e) {
       console.warn('[Chat] Failed to restore session:', e);

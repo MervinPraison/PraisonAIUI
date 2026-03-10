@@ -177,6 +177,9 @@ curl -X PATCH http://localhost:8082/api/config/runtime \
 
 # Get runtime config
 curl http://localhost:8082/api/config/runtime
+
+# All config changes are persisted to ~/.praisonaiui/config.yaml
+# and survive server restarts. See: concepts/configuration.md
 ```
 
 ## 9. Auth

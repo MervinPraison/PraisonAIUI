@@ -66,7 +66,7 @@ No extra config needed — `PraisonAIProvider` is used automatically.
 
 ### Agent Tools and Reflection
 
-The default provider resolves tools for agents using `ToolResolver` from the `praisonai` package. Agents created via the CRUD API or YAML config get their tool names (strings) automatically resolved to callable Python functions:
+The default provider resolves tools for agents using `ToolResolver` from the `praisonai` package. Agents created via the CRUD API or `~/.praisonaiui/config.yaml` get their tool names (strings) automatically resolved to callable Python functions:
 
 ```python
 # Agent definition with tools (via CRUD API or YAML):
