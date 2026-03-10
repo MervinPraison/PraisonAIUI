@@ -16,10 +16,12 @@ Config-driven:
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 import uuid
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from starlette.requests import Request
@@ -368,10 +370,69 @@ class SDKMemoryManager(MemoryProtocol):
                     return sdk_entries
             except Exception as e:
                 logger.warning("SDK get_all_memories failed: %s; using local index", e)
-        # Fallback to local index
+
+        # Fallback: read from FileMemory JSON files (SDK stores conversation
+        # memories here via its FileMemory subsystem, but get_all_memories
+        # only queries the SQLite databases which may be empty).
+        file_entries = self._read_file_memory_entries(memory_type)
+        if file_entries:
+            # Merge with local index
+            seen_ids = {e["id"] for e in file_entries}
+            for entry in self._local_index.values():
+                if entry["id"] not in seen_ids:
+                    if memory_type == "all" or entry.get("memory_type") == memory_type:
+                        file_entries.append(entry)
+            return file_entries
+
+        # Final fallback to local index
         if memory_type == "all":
             return list(self._local_index.values())
         return [m for m in self._local_index.values() if m.get("memory_type") == memory_type]
+
+    def _read_file_memory_entries(self, memory_type: str = "all") -> List[Dict[str, Any]]:
+        """Read memory entries from FileMemory JSON files (.praisonai/memory/)."""
+        import glob
+        entries = []
+        # Look for memory JSON files in .praisonai/memory/
+        memory_dirs = [
+            Path.cwd() / ".praisonai" / "memory",
+            Path.home() / ".praisonai" / "memory",
+        ]
+        for mem_dir in memory_dirs:
+            if not mem_dir.exists():
+                continue
+            for json_file in mem_dir.rglob("*.json"):
+                if json_file.name == "config.json":
+                    continue
+                try:
+                    data = json.loads(json_file.read_text())
+                    if not isinstance(data, list):
+                        continue
+                    # Determine type from filename
+                    fname = json_file.stem.lower()
+                    if "short" in fname:
+                        mtype = "short"
+                    elif "long" in fname:
+                        mtype = "long"
+                    elif "episodic" in fname:
+                        mtype = "episodic"
+                    else:
+                        mtype = "short"
+                    if memory_type != "all" and mtype != memory_type:
+                        continue
+                    for item in data:
+                        if not isinstance(item, dict):
+                            continue
+                        entries.append({
+                            "id": str(item.get("id", "")),
+                            "text": item.get("content", item.get("text", str(item))),
+                            "memory_type": mtype,
+                            "metadata": item.get("metadata", {}),
+                            "created_at": item.get("created_at"),
+                        })
+                except Exception as e:
+                    logger.debug("Failed to read memory file %s: %s", json_file, e)
+        return entries
 
     def get(self, memory_id: str) -> Optional[Dict[str, Any]]:
         # Try local first

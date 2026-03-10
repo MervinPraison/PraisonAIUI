@@ -311,7 +311,8 @@ async function selectPage(pageId) {
   // Priority 2: Built-in view module (dynamic import)
   if (!rendered && BUILTIN_VIEWS[pageId]) {
     try {
-      const mod = await import(BUILTIN_VIEWS[pageId]);
+      const viewUrl = BUILTIN_VIEWS[pageId] + '?v=' + Date.now();
+      const mod = await import(viewUrl);
       if (mod.render) {
         await mod.render(container);
         _activeCleanup = mod.cleanup || null;

@@ -118,6 +118,60 @@ def _is_job_due(job) -> bool:
     return False
 
 
+async def _get_agent_for_execution(job_id: str, agent_name: Optional[str] = None) -> tuple:
+    """Get or create agent for job execution (DRY helper).
+    
+    Returns:
+        tuple: (agent, gateway, error_message)
+        - agent: The agent instance or None
+        - gateway: The gateway instance or None
+        - error_message: Error string if agent creation failed, else None
+    """
+    from praisonaiui.features._gateway_ref import get_gateway
+    
+    gw = get_gateway()
+    agent = None
+    error = None
+    
+    # Try gateway-registered agents first
+    if gw is not None:
+        for aid in gw.list_agents():
+            gw_agent = gw.get_agent(aid)
+            if agent_name and gw_agent and getattr(gw_agent, "name", None) == agent_name:
+                agent = gw_agent
+                break
+        if agent is None:
+            agent_ids = gw.list_agents()
+            if agent_ids:
+                agent = gw.get_agent(agent_ids[0])
+    
+    # Fallback: create agent via provider (same path as chat)
+    if agent is None:
+        try:
+            from praisonaiui.server import get_provider
+            provider = get_provider()
+            agent = provider._get_or_create_agent(
+                agent_name=agent_name,
+                session_id=f"cron_{job_id}",
+            )
+            # Register with gateway for future calls
+            if agent is not None and gw is not None:
+                a_name = getattr(agent, "name", None) or "cron_agent"
+                gw.register_agent(agent, agent_id=a_name)
+        except Exception as prov_err:
+            logger.debug("Provider agent fallback failed: %s", prov_err)
+            error = str(prov_err)
+    
+    # Set error message if no agent found
+    if agent is None and error is None:
+        if gw is None:
+            error = "No gateway available — agent provider not configured"
+        else:
+            error = f"No agent found for job '{job_id}'"
+    
+    return agent, gw, error
+
+
 async def _execute_job(job_id: str, job) -> None:
     """Execute a scheduled job (same logic as _run endpoint)."""
     started_at = time.time()
@@ -128,46 +182,15 @@ async def _execute_job(job_id: str, job) -> None:
 
     if action:
         try:
-            from praisonaiui.features._gateway_ref import get_gateway
-            gw = get_gateway()
-            agent = None
-            if gw is not None:
-                for aid in gw.list_agents():
-                    gw_agent = gw.get_agent(aid)
-                    if agent_name and gw_agent and getattr(gw_agent, "name", None) == agent_name:
-                        agent = gw_agent
-                        break
-                if agent is None:
-                    agent_ids = gw.list_agents()
-                    if agent_ids:
-                        agent = gw.get_agent(agent_ids[0])
-
-            # Fallback: create agent via provider (same path as chat)
-            if agent is None:
-                try:
-                    from praisonaiui.server import get_provider
-                    provider = get_provider()
-                    agent = provider._get_or_create_agent(
-                        agent_name=agent_name,
-                        session_id=f"cron_{job_id}",
-                    )
-                    # Register with gateway for future calls
-                    if agent is not None and gw is not None:
-                        a_name = getattr(agent, "name", None) or "cron_agent"
-                        gw.register_agent(a_name, agent)
-                except Exception as prov_err:
-                    logger.debug("Provider agent fallback failed: %s", prov_err)
-
+            agent, gw, error = await _get_agent_for_execution(job_id, agent_name)
+            
             if agent is not None:
                 import asyncio
                 result = await asyncio.to_thread(agent.chat, action)
                 result = str(result)
-            elif gw is None:
-                status = "failed"
-                result = "No gateway available — agent provider not configured"
             else:
                 status = "failed"
-                result = f"No agent found to execute action: '{action}'"
+                result = error or f"No agent found to execute action: '{action}'"
         except (ImportError, Exception) as e:
             logger.warning("Scheduled job '%s' execution failed: %s", job_id, e)
             status = "failed"
@@ -325,10 +348,19 @@ class _InMemoryScheduleStore(ScheduleProtocol):
         return job
 
     def get(self, job_id: str) -> Dict[str, Any]:
+        self._reload()
         return self._jobs.get(job_id)
 
     def list(self) -> List[Dict[str, Any]]:
+        self._reload()
         return list(self._jobs.values())
+
+    def _reload(self) -> None:
+        """Reload from persistence to pick up external changes."""
+        from ._persistence import load_section
+        saved = load_section(self._SECTION)
+        if isinstance(saved, dict):
+            self._jobs = saved.get("jobs", {})
 
     def remove(self, job_id: str) -> bool:
         if job_id in self._jobs:
@@ -496,54 +528,22 @@ class PraisonAISchedules(BaseFeatureProtocol):
             job["last_run_at"] = started_at
             job["run_count"] = job.get("run_count", 0) + 1
 
-        # Try to execute the action via a gateway-registered agent
+        # Try to execute the action via a gateway-registered agent (DRY: uses shared helper)
         result = None
         status = "succeeded"
         action = _getattr_or_get(job, "action", "") or _getattr_or_get(job, "message", "")
         agent_name = _getattr_or_get(job, "agent_name", None)
         if action:
             try:
-                from praisonaiui.features._gateway_ref import get_gateway
-                gw = get_gateway()
-                agent = None
-                if gw is not None:
-                    for aid in gw.list_agents():
-                        gw_agent = gw.get_agent(aid)
-                        if agent_name and gw_agent and getattr(gw_agent, "name", None) == agent_name:
-                            agent = gw_agent
-                            break
-                    # If no specific agent named, use first available
-                    if agent is None:
-                        agent_ids = gw.list_agents()
-                        if agent_ids:
-                            agent = gw.get_agent(agent_ids[0])
-
-                # Fallback: create agent via provider (same path as chat)
-                if agent is None:
-                    try:
-                        from praisonaiui.server import get_provider
-                        provider = get_provider()
-                        agent = provider._get_or_create_agent(
-                            agent_name=agent_name,
-                            session_id=f"cron_{job_id}",
-                        )
-                        # Register with gateway for future calls
-                        if agent is not None and gw is not None:
-                            a_name = getattr(agent, "name", None) or "cron_agent"
-                            gw.register_agent(a_name, agent)
-                    except Exception as prov_err:
-                        logger.debug("Provider agent fallback failed: %s", prov_err)
-
+                agent, gw, error = await _get_agent_for_execution(job_id, agent_name)
+                
                 if agent is not None:
                     import asyncio
                     result = await asyncio.to_thread(agent.chat, action)
                     result = str(result)
-                elif gw is None:
-                    status = "failed"
-                    result = "No gateway available — agent provider not configured"
                 else:
                     status = "failed"
-                    result = f"No agent found to execute action: '{action}'"
+                    result = error or f"No agent found to execute action: '{action}'"
             except (ImportError, Exception) as e:
                 logger.warning("Schedule execution failed: %s", e)
                 status = "failed"

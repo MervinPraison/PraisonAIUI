@@ -1074,6 +1074,11 @@ def create_app(
     # Store config path globally for the config endpoint
     global _config_path, _config_cache
     _config_path = config_path
+    # Default to standard config location if not explicitly provided
+    if _config_path is None:
+        _default_cfg = Path.home() / ".praisonaiui" / "config.yaml"
+        if _default_cfg.exists():
+            _config_path = _default_cfg
     if config:
         _config_cache = config
 
@@ -1306,7 +1311,11 @@ def create_app(
 
 
 def _install_log_handler():
-    """Install the log buffer handler on the root logger."""
+    """Install the log buffer handler on the root logger.
+
+    Installs BOTH the server-local LogBufferHandler (for /api/logs legacy)
+    and the feature's WebSocketLogHandler (for the Logs page websocket).
+    """
     handler = LogBufferHandler()
     handler.setFormatter(logging.Formatter("%(name)s - %(message)s"))
     handler.setLevel(logging.INFO)
@@ -1314,3 +1323,10 @@ def _install_log_handler():
     # Avoid duplicate handlers
     if not any(isinstance(h, LogBufferHandler) for h in root.handlers):
         root.addHandler(handler)
+
+    # Also install the feature WebSocket handler so the /logs page works
+    try:
+        from praisonaiui.features.logs import install_log_handler as _install_ws
+        _install_ws()
+    except ImportError:
+        pass

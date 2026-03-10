@@ -450,17 +450,17 @@ class PraisonAIAgentsFeature(BaseFeatureProtocol):
                     if aid not in crud_ids:
                         gw_agent = gw.get_agent(aid)
                         agents.append({
-                            "id": aid,
-                            "name": getattr(gw_agent, "name", aid) if gw_agent else aid,
-                            "description": getattr(gw_agent, "backstory", "") if gw_agent else "",
-                            "instructions": getattr(gw_agent, "instructions", "") if gw_agent else "",
-                            "model": getattr(gw_agent, "llm", "gpt-4o-mini") if gw_agent else "gpt-4o-mini",
+                            "id": str(aid),
+                            "name": str(getattr(gw_agent, "name", aid) if gw_agent else aid),
+                            "description": str(getattr(gw_agent, "backstory", "") if gw_agent else ""),
+                            "instructions": str(getattr(gw_agent, "instructions", "") if gw_agent else ""),
+                            "model": str(getattr(gw_agent, "llm", "gpt-4o-mini") if gw_agent else "gpt-4o-mini"),
                             "source": "gateway",
                             "status": "active",
                             "created_at": time.time(),
                         })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Gateway merge failed: %s", e)
 
         if status_filter:
             agents = [a for a in agents if a.get("status") == status_filter]
@@ -468,9 +468,21 @@ class PraisonAIAgentsFeature(BaseFeatureProtocol):
         # Sort by created_at descending
         agents.sort(key=lambda x: x.get("created_at", 0), reverse=True)
         
+        # Defensive serialization — ensure all values are JSON-safe
+        def _safe(v):
+            if isinstance(v, (str, int, float, bool, type(None))):
+                return v
+            if isinstance(v, (list, tuple)):
+                return [_safe(x) for x in v]
+            if isinstance(v, dict):
+                return {str(k): _safe(val) for k, val in v.items()}
+            return str(v)
+
+        safe_agents = [_safe(a) for a in agents]
+
         return JSONResponse({
-            "agents": agents,
-            "count": len(agents),
+            "agents": safe_agents,
+            "count": len(safe_agents),
         })
 
     async def _create(self, request: Request) -> JSONResponse:

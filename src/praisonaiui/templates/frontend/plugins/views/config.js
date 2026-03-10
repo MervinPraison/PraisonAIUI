@@ -1,7 +1,7 @@
 /**
  * Config View — Schema-driven runtime configuration editor.
  *
- * Enhanced with: sidebar section navigation, search/filter, Form/Raw JSON toggle,
+ * Enhanced with: sidebar section navigation, search/filter, Form/Raw YAML toggle,
  *                section collapse/expand, change history, validation feedback.
  *
  * API: /api/config, /api/config/schema, /api/config/history
@@ -40,7 +40,7 @@ export async function render(container) {
           ${sections.length === 0 ? '<div style="padding:12px;font-size:12px;color:var(--db-text-dim)">No schema available</div>' : ''}
         </div>
         <div style="padding:8px;border-top:1px solid var(--db-border)">
-          <button id="cfg-mode-toggle" style="width:100%;padding:6px;border:1px solid var(--db-border);background:transparent;color:var(--db-text);border-radius:6px;cursor:pointer;font-size:11px;font-weight:500">${rawMode ? '📝 Form Mode' : '{ } Raw JSON'}</button>
+          <button id="cfg-mode-toggle" style="width:100%;padding:6px;border:1px solid var(--db-border);background:transparent;color:var(--db-text);border-radius:6px;cursor:pointer;font-size:11px;font-weight:500">${rawMode ? '📝 Form Mode' : '📄 Raw YAML'}</button>
         </div>
       </div>
 
@@ -78,7 +78,7 @@ export async function render(container) {
       title: 'Configuration',
       what: 'This is your settings panel. You can adjust how your AI agents behave, which AI model they use, and how the server runs.',
       howToUse: 'Browse sections in the left sidebar, change any value, and click <b>Save & Apply</b>. Changes take effect immediately — no restart needed.',
-      tip: 'Use the search box to quickly find a setting. Toggle between Form and Raw JSON mode at the bottom of the sidebar.',
+      tip: 'Use the search box to quickly find a setting. Toggle between Form and Raw YAML mode at the bottom of the sidebar.',
       collapsed: true,
     })}
   `;
@@ -134,7 +134,7 @@ export async function render(container) {
 function renderFormEditor(config, properties, section) {
   if (!section || !properties[section]) {
     if (Object.keys(properties).length === 0) {
-      return `<div class="db-viewer"><pre>${JSON.stringify(config, null, 2)}</pre></div>`;
+      return `<div class="db-viewer"><pre>${toYaml(config.config || config)}</pre></div>`;
     }
     return '<div style="color:var(--db-text-dim);font-size:13px">Select a section from the sidebar</div>';
   }
@@ -176,7 +176,8 @@ function renderFormEditor(config, properties, section) {
 }
 
 function renderRawEditor(config) {
-  return `<textarea id="cfg-raw-editor" style="width:100%;height:400px;padding:12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:8px;color:var(--db-text);font-family:monospace;font-size:12px;line-height:1.6;resize:vertical;box-sizing:border-box">${JSON.stringify(config, null, 2)}</textarea>`;
+  const yamlContent = toYaml(config.config || config);
+  return `<textarea id="cfg-raw-editor" style="width:100%;height:400px;padding:12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:8px;color:var(--db-text);font-family:monospace;font-size:12px;line-height:1.6;resize:vertical;box-sizing:border-box">${yamlContent}</textarea>`;
 }
 
 function collectFormData(form) {
@@ -192,5 +193,89 @@ function collectFormData(form) {
 
 function collectRawData(container) {
   const textarea = container.querySelector('#cfg-raw-editor');
-  try { return JSON.parse(textarea?.value || '{}'); } catch(e) { return {}; }
+  try {
+    const text = textarea?.value || '';
+    // Try JSON first (backward compat), then parse YAML-like
+    try { return JSON.parse(text); } catch(_) {}
+    return parseSimpleYaml(text);
+  } catch(e) { return {}; }
+}
+
+// ── Lightweight YAML serializer/parser (no external deps) ──────────
+
+/** Convert a JS object to human-readable YAML string. */
+function toYaml(obj, indent = 0) {
+  if (obj === null || obj === undefined) return 'null';
+  if (typeof obj === 'string') return obj.includes('\n') ? `|\n${obj.split('\n').map(l => '  '.repeat(indent + 1) + l).join('\n')}` : quoteIfNeeded(obj);
+  if (typeof obj === 'number' || typeof obj === 'boolean') return String(obj);
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) return '[]';
+    return obj.map(item => {
+      const val = toYaml(item, indent + 1);
+      if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
+        const lines = val.split('\n');
+        return '  '.repeat(indent) + '- ' + lines[0] + (lines.length > 1 ? '\n' + lines.slice(1).map(l => '  '.repeat(indent) + '  ' + l).join('\n') : '');
+      }
+      return '  '.repeat(indent) + '- ' + val;
+    }).join('\n');
+  }
+  if (typeof obj === 'object') {
+    const entries = Object.entries(obj);
+    if (entries.length === 0) return '{}';
+    return entries.map(([k, v]) => {
+      const val = toYaml(v, indent + 1);
+      if (typeof v === 'object' && v !== null && val.includes('\n')) {
+        return '  '.repeat(indent) + k + ':\n' + val;
+      }
+      return '  '.repeat(indent) + k + ': ' + val;
+    }).join('\n');
+  }
+  return String(obj);
+}
+
+function quoteIfNeeded(s) {
+  if (s === '' || s === 'true' || s === 'false' || s === 'null' || /^[\d.]+$/.test(s) || /[:#{}\[\],&*?|<>=!%@`]/.test(s)) {
+    return '"' + s.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+  }
+  return s;
+}
+
+/** Parse simple YAML (flat key: value, one level of nesting). */
+function parseSimpleYaml(text) {
+  const result = {};
+  let currentKey = null;
+  for (const line of text.split('\n')) {
+    const trimmed = line.trimEnd();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const topMatch = trimmed.match(/^(\w[\w.-]*):\s*(.*)$/);
+    if (topMatch && !line.startsWith(' ')) {
+      currentKey = topMatch[1];
+      const val = topMatch[2].trim();
+      if (val) {
+        result[currentKey] = parseYamlValue(val);
+        currentKey = null;
+      } else {
+        result[currentKey] = {};
+      }
+    } else if (currentKey && line.startsWith('  ')) {
+      const nested = trimmed.trim().match(/^(\w[\w.-]*):\s*(.*)$/);
+      if (nested) {
+        if (typeof result[currentKey] !== 'object') result[currentKey] = {};
+        result[currentKey][nested[1]] = parseYamlValue(nested[2].trim());
+      }
+    }
+  }
+  return result;
+}
+
+function parseYamlValue(s) {
+  if (s === 'true') return true;
+  if (s === 'false') return false;
+  if (s === 'null' || s === '~') return null;
+  if (s === '[]') return [];
+  if (s === '{}') return {};
+  if (/^-?\d+$/.test(s)) return parseInt(s, 10);
+  if (/^-?\d+\.\d+$/.test(s)) return parseFloat(s);
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) return s.slice(1, -1);
+  return s;
 }

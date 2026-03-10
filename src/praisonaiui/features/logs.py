@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Set
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from starlette.routing import Route
+from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from ._base import BaseFeatureProtocol
@@ -136,7 +136,7 @@ class PraisonAILogs(BaseFeatureProtocol):
 
     def routes(self) -> List[Route]:
         return [
-            Route("/api/logs/stream", self._websocket_stream),
+            WebSocketRoute("/api/logs/stream", self._websocket_stream),
             Route("/api/logs/levels", self._levels, methods=["GET"]),
             Route("/api/logs/clear", self._clear, methods=["POST"]),
             Route("/api/logs/stats", self._stats, methods=["GET"]),

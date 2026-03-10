@@ -2,12 +2,12 @@
 
 When the ``praisonai`` wrapper package is not importable (e.g. Python
 version mismatch), this provides a minimal gateway object that satisfies
-the same API surface used by feature modules:
+the same API surface as ``WebSocketGateway``:
 
-    gw.register_agent(name, agent)
-    gw.unregister_agent(name)
+    gw.register_agent(agent, agent_id=None) -> str
+    gw.unregister_agent(agent_id)
     gw.list_agents() -> list[str]
-    gw.get_agent(name) -> agent | None
+    gw.get_agent(agent_id) -> agent | None
     gw.health() -> dict
     gw._create_bot(platform, config, agent) -> bot | None
 
@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import uuid
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -34,22 +35,30 @@ class StandaloneGateway:
 
     # -- Agent registry --------------------------------------------------
 
-    def register_agent(self, name: str, agent: Any) -> None:
+    def register_agent(
+        self,
+        agent: Any,
+        agent_id: Optional[str] = None,
+        **kwargs,
+    ) -> str:
+        """Register an agent. Matches WebSocketGateway.register_agent API."""
+        aid = agent_id or getattr(agent, "name", None) or str(uuid.uuid4())
         with self._lock:
-            self._agents[name] = agent
-            logger.debug("StandaloneGateway: registered agent '%s'", name)
+            self._agents[aid] = agent
+            logger.debug("StandaloneGateway: registered agent '%s'", aid)
+        return aid
 
-    def unregister_agent(self, name: str) -> None:
+    def unregister_agent(self, agent_id: str) -> None:
         with self._lock:
-            self._agents.pop(name, None)
+            self._agents.pop(agent_id, None)
 
     def list_agents(self) -> List[str]:
         with self._lock:
             return list(self._agents.keys())
 
-    def get_agent(self, name: str) -> Optional[Any]:
+    def get_agent(self, agent_id: str) -> Optional[Any]:
         with self._lock:
-            return self._agents.get(name)
+            return self._agents.get(agent_id)
 
     # -- Health -----------------------------------------------------------
 
