@@ -10,7 +10,7 @@
  *   DELETE /api/knowledge          — clear all
  *   DELETE /api/knowledge/{id}     — delete entry
  */
-import { showToast } from '../toast.js';
+import { showToast, showConfirm } from '../toast.js';
 // ── Styles ──────────────────────────────────────────────────────
 function injectStyles() {
   if (document.getElementById('knowledge-view-styles')) return;
@@ -279,7 +279,7 @@ async function deleteEntry(id) {
 }
 
 async function clearAll() {
-  if (!confirm('Clear ALL knowledge entries? This cannot be undone.')) return;
+  if (!await showConfirm('Clear Knowledge', 'Clear ALL knowledge entries? This cannot be undone.')) return;
   try {
     await fetch('/api/knowledge', { method: 'DELETE' });
     await loadStatus();

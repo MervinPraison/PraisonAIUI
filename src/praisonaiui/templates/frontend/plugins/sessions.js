@@ -3,6 +3,7 @@
  *
  * Enhanced session management with reset, compact, and preview.
  */
+import { showToast, showConfirm } from './toast.js';
 
 let sessions = [];
 let selectedSession = null;
@@ -21,7 +22,7 @@ async function fetchSessions() {
 }
 
 async function resetSession(sessionId) {
-  if (!confirm(`Reset session "${sessionId}"? This will clear all messages but keep the session.`)) return;
+  if (!await showConfirm('Reset Session', `Reset session "${sessionId}"? This will clear all messages but keep the session.`)) return;
   
   try {
     const resp = await fetch(`/api/sessions/${sessionId}/reset`, {
@@ -30,10 +31,10 @@ async function resetSession(sessionId) {
       body: JSON.stringify({ mode: 'clear' }),
     });
     const data = await resp.json();
-    alert(`Session reset at ${new Date(data.timestamp * 1000).toLocaleTimeString()}`);
+    showToast(`Session reset at ${new Date(data.timestamp * 1000).toLocaleTimeString()}`, 'success');
     renderSessionsUI();
   } catch (e) {
-    alert('Failed to reset session: ' + e.message);
+    showToast('Failed to reset session: ' + e.message, 'error');
   }
 }
 
@@ -46,10 +47,10 @@ async function compactSession(sessionId) {
     const before = data.before?.messages || 0;
     const after = data.after?.messages || 0;
     
-    alert(`Compacted session:\n• Messages: ${before} → ${after}\n• Tokens saved: ~${saved}`);
+    showToast(`Compacted session: Messages: ${before} → ${after}, Tokens saved: ~${saved}`, 'success');
     renderSessionsUI();
   } catch (e) {
-    alert('Failed to compact session: ' + e.message);
+    showToast('Failed to compact session: ' + e.message, 'error');
   }
 }
 
@@ -99,12 +100,12 @@ async function previewSession(sessionId) {
     document.body.appendChild(modal);
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
   } catch (e) {
-    alert('Failed to preview session: ' + e.message);
+    showToast('Failed to preview session: ' + e.message, 'error');
   }
 }
 
 async function deleteSession(sessionId) {
-  if (!confirm(`Delete session "${sessionId}"? This cannot be undone.`)) return;
+  if (!await showConfirm('Delete Session', `Delete session "${sessionId}"? This cannot be undone.`)) return;
   
   try {
     const resp = await fetch(`/sessions/${sessionId}`, { method: 'DELETE' });
@@ -113,7 +114,7 @@ async function deleteSession(sessionId) {
       renderSessionsUI();
     }
   } catch (e) {
-    alert('Failed to delete session: ' + e.message);
+    showToast('Failed to delete session: ' + e.message, 'error');
   }
 }
 

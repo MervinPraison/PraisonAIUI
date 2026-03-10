@@ -52,6 +52,11 @@ class GuardrailProtocol(ABC):
         """Register a guardrail. Returns the ID."""
         ...
 
+    @abstractmethod
+    def delete_guardrail(self, guardrail_id: str) -> bool:
+        """Delete a guardrail by ID. Returns True if deleted."""
+        ...
+
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
 
@@ -92,6 +97,13 @@ class SimpleGuardrailManager(GuardrailProtocol):
         self._registry[guardrail_id] = {**info, "created_at": time.time()}
         self._persist()
         return guardrail_id
+
+    def delete_guardrail(self, guardrail_id: str) -> bool:
+        if guardrail_id in self._registry:
+            del self._registry[guardrail_id]
+            self._persist()
+            return True
+        return False
 
     def _persist(self) -> None:
         from ._persistence import save_section
@@ -162,6 +174,26 @@ class SDKGuardrailManager(GuardrailProtocol):
     def register_guardrail(self, guardrail_id: str, info: Dict[str, Any]) -> str:
         return self._simple.register_guardrail(guardrail_id, info)
 
+    def delete_guardrail(self, guardrail_id: str) -> bool:
+        deleted = self._simple.delete_guardrail(guardrail_id)
+        if deleted:
+            # Also try to detach from gateway agents
+            try:
+                from ._gateway_ref import get_gateway
+                gw = get_gateway()
+                if gw is not None:
+                    for aid in gw.list_agents():
+                        ag = gw.get_agent(aid)
+                        if ag is None:
+                            continue
+                        grs = getattr(ag, "guardrails", None)
+                        if grs and isinstance(grs, list):
+                            ag.guardrails = [g for g in grs
+                                             if getattr(g, "_aiui_id", None) != guardrail_id]
+            except (ImportError, Exception):
+                pass
+        return deleted
+
     def health(self) -> Dict[str, Any]:
         h = self._simple.health()
         h["provider"] = "SDKGuardrailManager"
@@ -221,6 +253,7 @@ class PraisonAIGuardrails(BaseFeatureProtocol):
             Route("/api/guardrails/status", self._status, methods=["GET"]),
             Route("/api/guardrails/violations", self._violations, methods=["GET"]),
             Route("/api/guardrails/register", self._register, methods=["POST"]),
+            Route("/api/guardrails/{guardrail_id}", self._delete, methods=["DELETE"]),
         ]
 
     async def _list(self, request: Request) -> JSONResponse:
@@ -319,8 +352,90 @@ class PraisonAIGuardrails(BaseFeatureProtocol):
             "attached_to": attached_to,
         })
 
+    async def _delete(self, request: Request) -> JSONResponse:
+        """Delete a guardrail by ID."""
+        guardrail_id = request.path_params["guardrail_id"]
+        mgr = get_guardrail_manager()
+        deleted = mgr.delete_guardrail(guardrail_id)
+        if not deleted:
+            return JSONResponse({"error": "Not found"}, status_code=404)
+        return JSONResponse({"deleted": guardrail_id})
+
 
 def log_violation(agent_id: str, guardrail: str, message: str,
                   level: str = "WARNING") -> None:
     """Log a guardrail violation (callable from hooks/guardrails)."""
     get_guardrail_manager().log_violation(agent_id, guardrail, message, level)
+
+
+async def check_guardrails(text: str, agent_name: str = "",
+                           direction: str = "input") -> Optional[Dict[str, Any]]:
+    """Check text against registered LLM guardrails.
+
+    Returns None if text passes, or a dict with violation info if blocked.
+    Logs the violation automatically.
+    """
+    mgr = get_guardrail_manager()
+    guardrails_list = mgr.list_guardrails()
+    if not guardrails_list:
+        return None
+
+    for gr_info in guardrails_list:
+        gr_type = gr_info.get("type", "")
+        if gr_type != "llm":
+            continue
+        description = gr_info.get("description", "")
+        if not description:
+            continue
+        # Only check if agent matches (or guardrail applies to all)
+        target_agent = gr_info.get("agent_name", "")
+        if target_agent and target_agent != agent_name:
+            continue
+
+        try:
+            from praisonaiagents.guardrails.llm_guardrail import LLMGuardrail
+            import os
+            llm_model = gr_info.get("llm_model", os.getenv("PRAISONAI_MODEL", "gpt-4o-mini"))
+            guardrail_fn = LLMGuardrail(description=description, llm=llm_model)
+
+            result = guardrail_fn(text)
+
+            # LLMGuardrail returns Tuple[bool, Union[str, TaskOutput]]
+            if isinstance(result, tuple) and len(result) == 2:
+                passed, detail = result
+                if not passed:
+                    violation_msg = str(detail) if detail else description
+                    mgr.log_violation(
+                        agent_id=agent_name or "unknown",
+                        guardrail=gr_info.get("id", "unknown"),
+                        message=f"[{direction}] {violation_msg}",
+                        level="WARNING",
+                    )
+                    return {
+                        "blocked": True,
+                        "guardrail_id": gr_info.get("id", ""),
+                        "description": description,
+                        "reason": violation_msg,
+                    }
+            elif hasattr(result, "safe"):
+                # Future-proof: if SDK changes to return an object
+                if not result.safe:
+                    violation_msg = getattr(result, "reason", description)
+                    mgr.log_violation(
+                        agent_id=agent_name or "unknown",
+                        guardrail=gr_info.get("id", "unknown"),
+                        message=f"[{direction}] {violation_msg}",
+                        level="WARNING",
+                    )
+                    return {
+                        "blocked": True,
+                        "guardrail_id": gr_info.get("id", ""),
+                        "description": description,
+                        "reason": violation_msg,
+                    }
+        except ImportError:
+            logger.debug("LLMGuardrail not available for checking")
+        except Exception as e:
+            logger.debug(f"Guardrail check failed: {e}")
+
+    return None

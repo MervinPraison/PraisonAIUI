@@ -2,6 +2,7 @@
  * Nodes View — execution nodes and instance presence
  * API: /api/nodes, /api/nodes/instances
  */
+import { showConfirm } from '../toast.js';
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
 
@@ -65,7 +66,7 @@ export async function render(container) {
   if (instances.length === 0) instList.innerHTML = '<div style="font-size:13px;color:var(--db-text-dim)">No instances connected</div>';
 
   container.querySelectorAll('.node-del').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('Remove node?')) return;
+    if (!await showConfirm('Remove Node', 'Remove this node?')) return;
     try { await fetch(`/api/nodes/${b.dataset.id}`, {method:'DELETE'}); render(container); } catch(e) {}
   }));
 }

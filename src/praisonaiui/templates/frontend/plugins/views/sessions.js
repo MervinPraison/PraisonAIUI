@@ -7,6 +7,7 @@
  * API: /api/sessions, /api/sessions/{id}/state, /api/sessions/{id}/preview,
  *      /api/sessions/{id}/labels, /api/sessions/{id}/usage
  */
+import { showConfirm } from '../toast.js';
 
 let filterStatus = 'all';
 let filterAgent = '';
@@ -109,7 +110,7 @@ export async function render(container) {
   container.querySelectorAll('.sess-delete-btn').forEach(b => {
     b.addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (!confirm('Delete this session?')) return;
+      if (!await showConfirm('Delete Session', 'Delete this session?')) return;
       try { await fetch(`/api/sessions/${b.dataset.id}`, {method:'DELETE'}); render(container); } catch(e) {}
     });
   });
@@ -186,7 +187,7 @@ async function showSessionDetail(container, session) {
   });
 
   detail.querySelector('#sess-reset')?.addEventListener('click', async () => {
-    if (!confirm('Reset this session?')) return;
+    if (!await showConfirm('Reset Session', 'Reset this session? All messages will be cleared.')) return;
     try { await fetch(`/api/sessions/${id}/reset`, {method:'POST'}); render(container); } catch(e) {}
   });
   detail.querySelector('#sess-compact')?.addEventListener('click', async () => {

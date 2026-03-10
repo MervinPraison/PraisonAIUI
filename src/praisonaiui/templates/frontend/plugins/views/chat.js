@@ -14,6 +14,7 @@ let ws = null;
 let currentSessionId = null;
 let currentAgentName = null;
 let isStreaming = false;
+let streamingSessionId = null;  // tracks which session is actively streaming
 let currentRunId = null;
 let agents = [];
 let messageQueue = [];
@@ -424,6 +425,7 @@ async function loadSessions() {
 
 async function loadSession(sessionId) {
   currentSessionId = sessionId;
+  refreshStreamingUI();
   const messagesEl = document.getElementById('chat-messages');
   const welcome = document.getElementById('chat-welcome');
   if (welcome) welcome.style.display = 'none';
@@ -512,6 +514,7 @@ function newSession() {
   const title = document.getElementById('chat-header-title');
   if (title) title.textContent = 'New Chat';
   document.querySelectorAll('.chat-sess-item').forEach((el) => el.classList.remove('active'));
+  refreshStreamingUI();
 }
 
 // ── WebSocket ────────────────────────────────────────────────────
@@ -585,6 +588,7 @@ function handleWsMessage(data) {
 
     case 'run_started':
       isStreaming = true;
+      streamingSessionId = data.session_id || currentSessionId;
       currentRunId = data.run_id;
       setStatus('streaming');
       setStreaming(true);
@@ -635,6 +639,7 @@ function handleWsMessage(data) {
 
     case 'team_run_started':
       appendMessage('system', '🤝 Team run started' + (data.agent_name ? ` — Agent: ${data.agent_name}` : ''));
+      streamingSessionId = data.session_id || currentSessionId;
       setStatus('streaming');
       setStreaming(true);
       break;
@@ -1155,8 +1160,9 @@ function sendMessage() {
     ? '\n\n📎 ' + pendingAttachments.map(a => a.filename).join(', ')
     : '';
 
-  // If streaming, queue the message
-  if (isStreaming) {
+  // If currently streaming in THIS session, queue the message.
+  // Messages to a different session go through immediately.
+  if (isStreaming && streamingSessionId === currentSessionId) {
     messageQueue.push({ content, session_id: currentSessionId, agent_name: currentAgentName, attachment_ids: pendingAttachments.map(a => a.id) });
     updateQueueBadge();
     appendMessage('user', (content || '') + attachInfo);
@@ -1256,15 +1262,25 @@ function setStatus(status) {
 
 function setStreaming(val) {
   isStreaming = val;
-  const abortBtn = document.getElementById('chat-abort-btn');
-  const sendBtn = document.getElementById('chat-send-btn');
-  if (abortBtn) abortBtn.style.display = val ? '' : 'none';
-  if (sendBtn) {
-    sendBtn.textContent = val ? 'Queue ↵' : 'Send ↵';
-  }
+  if (!val) streamingSessionId = null;
+  refreshStreamingUI();
   if (!val) {
     currentRunId = null;
     currentDeltaEl = null;
     currentDeltaText = '';
+  }
+}
+
+// Re-evaluate UI state for the *current* session.
+// If another session is streaming but we're not in it, show "Send" / "connected".
+function refreshStreamingUI() {
+  const inStreamingSession = isStreaming && streamingSessionId === currentSessionId;
+  const abortBtn = document.getElementById('chat-abort-btn');
+  const sendBtn = document.getElementById('chat-send-btn');
+  if (abortBtn) abortBtn.style.display = inStreamingSession ? '' : 'none';
+  if (sendBtn) sendBtn.textContent = inStreamingSession ? 'Queue ↵' : 'Send ↵';
+  // Update status badge too
+  if (!inStreamingSession && isStreaming) {
+    setStatus('connected');  // other session streaming, but we're not in it
   }
 }

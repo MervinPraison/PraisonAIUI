@@ -244,6 +244,22 @@ async def _chat_send(request: Request) -> JSONResponse:
     if not content:
         return JSONResponse({"error": "content required"}, status_code=400)
 
+    # ── Guardrail pre-check (lazy import) ────────────────────────
+    try:
+        from .guardrails import check_guardrails
+        violation = await check_guardrails(content, agent_name=agent_name or "", direction="input")
+        if violation and violation.get("blocked"):
+            return JSONResponse({
+                "guardrail_blocked": True,
+                "reason": violation.get("reason", ""),
+                "guardrail_id": violation.get("guardrail_id", ""),
+                "description": violation.get("description", ""),
+            }, status_code=422)
+    except ImportError:
+        pass
+    except Exception:
+        pass  # fail-open: don't block chat if guardrail system errors
+
     mgr = get_chat_manager()
     result = await mgr.send_message(
         content,
@@ -473,6 +489,30 @@ async def _chat_ws(websocket: WebSocket) -> None:
                 agent_name = data.get("agent_name") or data.get("agent")
 
                 if content:
+                    # ── Guardrail pre-check ──────────────────────
+                    guardrail_blocked = False
+                    try:
+                        from .guardrails import check_guardrails
+                        violation = await check_guardrails(
+                            content, agent_name=agent_name or "", direction="input",
+                        )
+                        if violation and violation.get("blocked"):
+                            guardrail_blocked = True
+                            await websocket.send_json({
+                                "type": "run_error",
+                                "session_id": session_id,
+                                "guardrail_blocked": True,
+                                "error": f"🛡️ Guardrail violation: {violation.get('reason', violation.get('description', 'Blocked by guardrail'))}",
+                                "guardrail_id": violation.get("guardrail_id", ""),
+                            })
+                    except ImportError:
+                        pass
+                    except Exception:
+                        pass  # fail-open
+
+                    if guardrail_blocked:
+                        continue  # skip agent run, wait for next message
+
                     # Store user message in ChatManager
                     await mgr.send_message(
                         content,

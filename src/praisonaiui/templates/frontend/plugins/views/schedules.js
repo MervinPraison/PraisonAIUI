@@ -1,3 +1,4 @@
+import { showConfirm } from '../toast.js';
 /**
  * Schedules View — Cron/interval job management with run history.
  *
@@ -96,7 +97,7 @@ export async function render(container) {
           </div>
           <div style="font-size:12px;color:var(--db-text-dim);margin-top:6px">
             <span style="margin-right:12px">📅 ${sched}</span>
-            ${j.message || j.action || j.task ? `<span style="margin-right:12px">📝 ${j.message || j.action || j.task}</span>` : ''}
+            ${j.message ? `<span style="margin-right:12px">📝 ${j.message}</span>` : ''}
             ${channel ? `<span style="margin-right:12px">📢 ${channel}</span>` : ''}
           </div>
           ${nextRunStr ? `<div style="font-size:11px;color:var(--db-accent);margin-top:4px">⏱ Next: ${nextRunStr}</div>` : ''}
@@ -116,7 +117,7 @@ export async function render(container) {
   // Event listeners
   container.querySelectorAll('.sched-toggle').forEach(b => b.addEventListener('click', async () => { try { await fetch(`/api/schedules/${b.dataset.id}/toggle`, {method:'POST'}); render(container); } catch(e){} }));
   container.querySelectorAll('.sched-run').forEach(b => b.addEventListener('click', async () => { try { await fetch(`/api/schedules/${b.dataset.id}/run`, {method:'POST'}); setTimeout(() => render(container), 1000); } catch(e){} }));
-  container.querySelectorAll('.sched-del').forEach(b => b.addEventListener('click', async () => { if (!confirm('Delete this schedule?')) return; try { await fetch(`/api/schedules/${b.dataset.id}`, {method:'DELETE'}); render(container); } catch(e){} }));
+  container.querySelectorAll('.sched-del').forEach(b => b.addEventListener('click', async () => { if (!await showConfirm('Delete Schedule', 'Delete this schedule?')) return; try { await fetch(`/api/schedules/${b.dataset.id}`, {method:'DELETE'}); render(container); } catch(e){} }));
 
   // Add Schedule Modal
   container.querySelector('#sched-add')?.addEventListener('click', () => {
@@ -133,7 +134,7 @@ export async function render(container) {
         </label>
         <label style="flex:2"><span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px" id="sf-schedule-label">Cron Expression</span><input id="sf-schedule" placeholder="*/5 * * * *" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box"></label>
       </div>
-      <label style="display:block;margin-bottom:14px"><span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">Action / Message</span><input id="sf-action" placeholder="Send daily report" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box"></label>
+      <label style="display:block;margin-bottom:14px"><span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">Message</span><input id="sf-message" placeholder="Send daily report" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box"></label>
       <label style="display:block;margin-bottom:20px"><span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">Target Channel (optional)</span><input id="sf-channel" placeholder="slack, discord, etc." style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box"></label>
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button id="sf-cancel" style="padding:8px 16px;border:1px solid var(--db-border);background:transparent;color:var(--db-text);border-radius:8px;cursor:pointer">Cancel</button>
@@ -163,7 +164,7 @@ export async function render(container) {
       const body = {
         name: m.querySelector('#sf-name').value,
         schedule: type === 'interval' ? { every_seconds: parseInt(schedVal) || 60 } : schedVal,
-        action: m.querySelector('#sf-action').value,
+        message: m.querySelector('#sf-message').value,
         channel: m.querySelector('#sf-channel').value || undefined,
       };
       try { await fetch('/api/schedules', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); m.style.display='none'; render(container); } catch(e){}

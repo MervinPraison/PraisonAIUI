@@ -3,6 +3,7 @@
  *
  * Authentication management UI with API keys and session management.
  */
+import { showToast, showConfirm } from './toast.js';
 
 let authConfig = null;
 let apiKeys = [];
@@ -44,7 +45,7 @@ async function setAuthMode(mode) {
       renderAuthUI();
     }
   } catch (e) {
-    alert('Failed to set auth mode: ' + e.message);
+    showToast('Failed to set auth mode: ' + e.message, 'error');
   }
 }
 
@@ -61,17 +62,17 @@ async function createApiKey() {
     const data = await resp.json();
     
     if (data.key) {
-      alert(`API Key created!\n\nKey: ${data.key}\n\n⚠️ Copy this key now - it won't be shown again!`);
+      showToast(`API Key created! Key: ${data.key} — Copy this key now, it won't be shown again!`, 'success', 10000);
       await fetchApiKeys();
       renderAuthUI();
     }
   } catch (e) {
-    alert('Failed to create API key: ' + e.message);
+    showToast('Failed to create API key: ' + e.message, 'error');
   }
 }
 
 async function revokeApiKey(keyId) {
-  if (!confirm('Revoke this API key? This cannot be undone.')) return;
+  if (!await showConfirm('Revoke API Key', 'Revoke this API key? This cannot be undone.')) return;
   
   try {
     const resp = await fetch(`/api/auth/keys/${keyId}`, { method: 'DELETE' });
@@ -80,14 +81,14 @@ async function revokeApiKey(keyId) {
       renderAuthUI();
     }
   } catch (e) {
-    alert('Failed to revoke API key: ' + e.message);
+    showToast('Failed to revoke API key: ' + e.message, 'error');
   }
 }
 
 async function setPassword() {
   const password = prompt('Enter new password (min 8 characters):');
   if (!password || password.length < 8) {
-    alert('Password must be at least 8 characters');
+    showToast('Password must be at least 8 characters', 'error');
     return;
   }
   
@@ -98,12 +99,12 @@ async function setPassword() {
       body: JSON.stringify({ password }),
     });
     if (resp.ok) {
-      alert('Password set successfully!');
+      showToast('Password set successfully!', 'success');
       await fetchAuthConfig();
       renderAuthUI();
     }
   } catch (e) {
-    alert('Failed to set password: ' + e.message);
+    showToast('Failed to set password: ' + e.message, 'error');
   }
 }
 

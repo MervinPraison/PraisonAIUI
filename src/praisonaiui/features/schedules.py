@@ -33,7 +33,7 @@ class ScheduleProtocol(ABC):
     """Protocol interface for schedule backends."""
 
     @abstractmethod
-    def add(self, job_id: str, schedule: str, action: str, **kwargs) -> Dict[str, Any]: ...
+    def add(self, job_id: str, schedule: str, message: str, **kwargs) -> Dict[str, Any]: ...
 
     @abstractmethod
     def get(self, job_id: str) -> Optional[Dict[str, Any]]: ...
@@ -53,6 +53,7 @@ class ScheduleProtocol(ABC):
 
 # Lazy-loaded schedule store from praisonaiagents
 _schedule_store: Optional[ScheduleProtocol] = None
+_schedule_runner: Optional[Any] = None  # ScheduleRunner from SDK
 
 # In-memory run history (newest first, capped at 200)
 _run_history: list = []
@@ -65,19 +66,55 @@ def _getattr_or_get(obj, key, default=None):
     return getattr(obj, key, default)
 
 
-
 def _get_schedule_store() -> ScheduleProtocol:
-    """Lazy-load the praisonaiagents schedule store (DRY)."""
+    """Lazy-load the config.yaml-backed schedule store.
+
+    Uses _InMemoryScheduleStore (backed by unified config.yaml) as the
+    primary store so that schedules live alongside agents, guardrails, etc.
+    On first load, migrates any jobs from the old FileScheduleStore.
+    """
     global _schedule_store
     if _schedule_store is None:
+        _schedule_store = _InMemoryScheduleStore()
+        logger.info("Using config.yaml-backed schedule store for persistence")
+        # One-time migration from old SDK FileScheduleStore
         try:
             from praisonaiagents.scheduler import FileScheduleStore
-            _schedule_store = FileScheduleStore()
-            logger.info("Using praisonaiagents.scheduler.FileScheduleStore for persistence")
+            old_store = FileScheduleStore()
+            old_jobs = old_store.list()
+            if old_jobs and not _schedule_store.list():
+                logger.info(f"Migrating {len(old_jobs)} jobs from FileScheduleStore → config.yaml")
+                for job in old_jobs:
+                    _schedule_store.add(job)
         except ImportError:
-            logger.warning("praisonaiagents.scheduler not available, using in-memory fallback")
-            _schedule_store = _InMemoryScheduleStore()
+            pass
+        except Exception as e:
+            logger.debug(f"FileScheduleStore migration skipped: {e}")
     return _schedule_store
+
+
+def _get_schedule_runner():
+    """Lazy-load the SDK ScheduleRunner.
+
+    Returns None when using the config-backed dict store, because the
+    SDK ScheduleRunner expects ScheduleJob dataclasses with attribute
+    access (.enabled, .schedule, etc.) — dicts would cause AttributeError.
+    The fallback _is_job_due() handles both dicts and dataclasses.
+    """
+    global _schedule_runner
+    if _schedule_runner is None:
+        store = _get_schedule_store()
+        # Only use SDK runner with FileScheduleStore (returns ScheduleJob objects)
+        if isinstance(store, _InMemoryScheduleStore):
+            logger.debug("Config-backed store uses dict jobs — skipping SDK ScheduleRunner")
+            return None
+        try:
+            from praisonaiagents.scheduler import ScheduleRunner
+            _schedule_runner = ScheduleRunner(store)
+            logger.info("SDK ScheduleRunner wired for due-job checking")
+        except ImportError:
+            logger.debug("ScheduleRunner not available — using fallback _is_job_due")
+    return _schedule_runner
 
 
 # ── Background scheduler loop ────────────────────────────────────────
@@ -87,11 +124,14 @@ _scheduler_running = False
 
 
 def _is_job_due(job) -> bool:
-    """Check if a job is due to run based on its schedule config."""
+    """Fallback due-check for when SDK ScheduleRunner is not available."""
     if not _getattr_or_get(job, "enabled", True):
         return False
     schedule = _getattr_or_get(job, "schedule", {})
-    if not isinstance(schedule, dict):
+    # Convert Schedule dataclass to dict for uniform handling
+    if hasattr(schedule, "to_dict"):
+        schedule = schedule.to_dict()
+    elif not isinstance(schedule, dict):
         return False
 
     now = time.time()
@@ -175,45 +215,47 @@ async def _get_agent_for_execution(job_id: str, agent_name: Optional[str] = None
 async def _execute_job(job_id: str, job) -> None:
     """Execute a scheduled job (same logic as _run endpoint)."""
     started_at = time.time()
-    action = _getattr_or_get(job, "action", "") or _getattr_or_get(job, "message", "")
-    agent_name = _getattr_or_get(job, "agent_name", None)
+    message = _getattr_or_get(job, "message", "")
+    agent_name = _getattr_or_get(job, "agent_name", None) or _getattr_or_get(job, "agent_id", None)
     result = None
     status = "succeeded"
 
-    if action:
+    if message:
         try:
             agent, gw, error = await _get_agent_for_execution(job_id, agent_name)
             
             if agent is not None:
                 import asyncio
-                result = await asyncio.to_thread(agent.chat, action)
+                result = await asyncio.to_thread(agent.chat, message)
                 result = str(result)
             else:
                 status = "failed"
-                result = error or f"No agent found to execute action: '{action}'"
+                result = error or f"No agent found to execute message: '{message}'"
         except (ImportError, Exception) as e:
             logger.warning("Scheduled job '%s' execution failed: %s", job_id, e)
             status = "failed"
             result = str(e)
     else:
         status = "skipped"
-        result = "No action configured"
+        result = "No message configured"
 
-    # Update job metadata
-    if hasattr(job, "last_run_at"):
-        job.last_run_at = started_at
-        store = _get_schedule_store()
-        if hasattr(store, "update"):
-            store.update(job)
-    elif isinstance(job, dict):
+    # Update job metadata and persist
+    store = _get_schedule_store()
+    if isinstance(job, dict):
         job["last_run_at"] = started_at
         job["run_count"] = job.get("run_count", 0) + 1
+        if hasattr(store, "update"):
+            store.update(job)
+    elif hasattr(job, "last_run_at"):
+        job.last_run_at = started_at
+        if hasattr(store, "update"):
+            store.update(job)
 
     duration = round(time.time() - started_at, 2)
     _run_history.insert(0, {
         "job_id": job_id,
         "name": _getattr_or_get(job, "name", ""),
-        "action": action,
+        "message": message,
         "status": status,
         "result": result,
         "timestamp": started_at,
@@ -226,7 +268,12 @@ async def _execute_job(job_id: str, job) -> None:
 
 
 async def _scheduler_loop() -> None:
-    """Background loop that checks and triggers due jobs every 15s."""
+    """Background loop that checks and triggers due jobs every 15s.
+
+    Uses SDK ScheduleRunner.get_due_jobs() when available (handles
+    ScheduleJob dataclasses + cron/interval/at natively), falling
+    back to the local _is_job_due() for in-memory stores.
+    """
     global _scheduler_running
     import asyncio
     _scheduler_running = True
@@ -234,12 +281,23 @@ async def _scheduler_loop() -> None:
     try:
         while _scheduler_running:
             try:
-                store = _get_schedule_store()
-                jobs = store.list() if hasattr(store, "list") else []
-                for j in jobs:
-                    jid = _getattr_or_get(j, "id", "")
-                    if jid and _is_job_due(j):
-                        asyncio.create_task(_execute_job(jid, j))
+                runner = _get_schedule_runner()
+                if runner is not None:
+                    # ── SDK path: delegate to ScheduleRunner ────────
+                    due_jobs = runner.get_due_jobs()
+                    for job in due_jobs:
+                        jid = _getattr_or_get(job, "id", "")
+                        if jid:
+                            asyncio.create_task(_execute_job(jid, job))
+                            runner.mark_run(job)
+                else:
+                    # ── Fallback: in-memory store, manual due-check ─
+                    store = _get_schedule_store()
+                    jobs = store.list() if hasattr(store, "list") else []
+                    for j in jobs:
+                        jid = _getattr_or_get(j, "id", "")
+                        if jid and _is_job_due(j):
+                            asyncio.create_task(_execute_job(jid, j))
             except Exception as e:
                 logger.debug("Scheduler tick error: %s", e)
             await asyncio.sleep(15)
@@ -318,9 +376,9 @@ class _InMemoryScheduleStore(ScheduleProtocol):
         from ._persistence import save_section
         save_section(self._SECTION, {"jobs": dict(self._jobs)})
 
-    def add(self, job_id_or_obj=None, schedule=None, action=None, **kwargs) -> Dict[str, Any]:
+    def add(self, job_id_or_obj=None, schedule=None, message=None, **kwargs) -> Dict[str, Any]:
         # Accept single dict/object (from _add handler) or positional args (from CLI)
-        if schedule is None and action is None and job_id_or_obj is not None:
+        if schedule is None and message is None and job_id_or_obj is not None:
             # Single argument: treat as a job dict or dataclass
             if isinstance(job_id_or_obj, dict):
                 obj = job_id_or_obj
@@ -336,7 +394,7 @@ class _InMemoryScheduleStore(ScheduleProtocol):
         job = {
             "id": job_id_or_obj or f"j_{int(time.time())}",
             "schedule": schedule,
-            "action": action,
+            "message": message,
             "enabled": True,
             "created_at": time.time(),
             "last_run": None,
@@ -369,11 +427,25 @@ class _InMemoryScheduleStore(ScheduleProtocol):
             return True
         return False
 
-    def update(self, job_id: str, **kwargs) -> Dict[str, Any]:
-        if job_id in self._jobs:
-            self._jobs[job_id].update(kwargs)
+    def update(self, job_id_or_obj=None, **kwargs) -> Dict[str, Any]:
+        # Accept a single job object (dict or dataclass) or (job_id, **kwargs)
+        if isinstance(job_id_or_obj, str):
+            job_id = job_id_or_obj
+            if job_id in self._jobs:
+                self._jobs[job_id].update(kwargs)
+                self._persist()
+                return self._jobs[job_id]
+            return None
+        # Single object: extract id and store as dict
+        obj = job_id_or_obj
+        if obj is None:
+            return None
+        d = _to_dict(obj) if not isinstance(obj, dict) else obj
+        jid = d.get("id")
+        if jid and jid in self._jobs:
+            self._jobs[jid] = d
             self._persist()
-            return self._jobs[job_id]
+            return d
         return None
 
 
@@ -456,7 +528,6 @@ class PraisonAISchedules(BaseFeatureProtocol):
                 "cron_expr": schedule.get("cron_expr"),
                 "at": schedule.get("at"),
             },
-            "action": body.get("action", "") or body.get("message", ""),
             "message": body.get("message", "") or body.get("action", ""),
             "agent_id": body.get("agent_id"),
             "agent_name": body.get("agent_name"),
@@ -500,12 +571,14 @@ class PraisonAISchedules(BaseFeatureProtocol):
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
         # Toggle enabled state
-        if hasattr(job, 'enabled'):
+        if hasattr(job, 'enabled') and not isinstance(job, dict):
             job.enabled = not job.enabled
             if hasattr(store, 'update'):
                 store.update(job)
         else:
             job["enabled"] = not job.get("enabled", True)
+            if hasattr(store, 'update'):
+                store.update(job)
         return JSONResponse(_to_dict(job))
 
     async def _history(self, request: Request) -> JSONResponse:
@@ -531,26 +604,26 @@ class PraisonAISchedules(BaseFeatureProtocol):
         # Try to execute the action via a gateway-registered agent (DRY: uses shared helper)
         result = None
         status = "succeeded"
-        action = _getattr_or_get(job, "action", "") or _getattr_or_get(job, "message", "")
+        message = _getattr_or_get(job, "message", "")
         agent_name = _getattr_or_get(job, "agent_name", None)
-        if action:
+        if message:
             try:
                 agent, gw, error = await _get_agent_for_execution(job_id, agent_name)
                 
                 if agent is not None:
                     import asyncio
-                    result = await asyncio.to_thread(agent.chat, action)
+                    result = await asyncio.to_thread(agent.chat, message)
                     result = str(result)
                 else:
                     status = "failed"
-                    result = error or f"No agent found to execute action: '{action}'"
+                    result = error or f"No agent found to execute message: '{message}'"
             except (ImportError, Exception) as e:
                 logger.warning("Schedule execution failed: %s", e)
                 status = "failed"
                 result = str(e)
         else:
             status = "skipped"
-            result = "No action configured"
+            result = "No message configured"
 
         duration = round(time.time() - started_at, 2)
 
@@ -558,7 +631,7 @@ class PraisonAISchedules(BaseFeatureProtocol):
         history_entry = {
             "job_id": job_id,
             "name": _getattr_or_get(job, "name", ""),
-            "action": action,
+            "message": message,
             "status": status,
             "result": result,
             "timestamp": started_at,

@@ -3,6 +3,7 @@
  *
  * Provides full CRUD for agent management with an editor interface.
  */
+import { showConfirm } from './toast.js';
 
 let agentsData = null;
 let modelsData = null;
@@ -76,7 +77,7 @@ async function updateAgent(agentId, data) {
 }
 
 async function deleteAgent(agentId, agentName) {
-  if (!confirm(`Delete agent "${agentName}"? This cannot be undone.`)) return;
+  if (!await showConfirm('Delete Agent', `Delete agent "${agentName}"? This cannot be undone.`)) return;
   
   try {
     const resp = await fetch(`/api/agents/definitions/${agentId}`, {

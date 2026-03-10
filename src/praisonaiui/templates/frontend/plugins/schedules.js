@@ -4,6 +4,7 @@
  * Renders a dashboard view for scheduled jobs (cron, interval, one-shot).
  * Shows job status, execution stats, and provides start/stop/run-now controls.
  */
+import { showConfirm } from './toast.js';
 
 let schedulesData = null;
 let refreshInterval = null;
@@ -86,7 +87,7 @@ async function toggleJob(jobId) {
 }
 
 async function deleteJob(jobId) {
-  if (!confirm(`Delete job "${jobId}"?`)) return;
+  if (!await showConfirm('Delete Job', `Delete job "${jobId}"?`)) return;
   try {
     const resp = await fetch(`/api/schedules/${jobId}`, { method: 'DELETE' });
     if (resp.ok) {

@@ -139,21 +139,50 @@ export async function render(container) {
     }
   });
 
-  // Store handler
-  container.querySelector('#mem-store-btn')?.addEventListener('click', async () => {
-    const text = prompt('Enter memory text:');
-    if (!text) return;
-    const type = prompt('Memory type (short/long):', 'long') || 'long';
-    try {
-      await fetch('/api/memory', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, memory_type: type }),
-      });
-      render(container);
-    } catch(e) {
-      showToast('Failed to store: ' + e.message, 'error');
-    }
+  // Store handler — inline form (no prompt())
+  container.querySelector('#mem-store-btn')?.addEventListener('click', () => {
+    // Toggle inline store form
+    let form = container.querySelector('#mem-store-form');
+    if (form) { form.remove(); return; }
+
+    const storeBtn = container.querySelector('#mem-store-btn');
+    form = document.createElement('div');
+    form.id = 'mem-store-form';
+    form.style.cssText = 'margin:16px 0;padding:16px;background:var(--db-card-bg,#1a1a2e);border:1px solid var(--db-border,#333);border-radius:10px;';
+    form.innerHTML = `
+      <div style="margin-bottom:10px;font-weight:600;font-size:14px">Add Memory</div>
+      <textarea id="mem-store-text" placeholder="Enter memory text..." rows="3"
+        style="width:100%;padding:10px;background:var(--db-input-bg,#0d0d1a);color:var(--db-text,#e0e0e0);border:1px solid var(--db-border,#333);border-radius:8px;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>
+      <div style="margin-top:8px;display:flex;gap:10px;align-items:center">
+        <select id="mem-store-type" style="padding:6px 10px;background:var(--db-input-bg,#0d0d1a);color:var(--db-text,#e0e0e0);border:1px solid var(--db-border,#333);border-radius:6px;">
+          <option value="long">Long-term</option>
+          <option value="short">Short-term</option>
+          <option value="entity">Entity</option>
+        </select>
+        <button id="mem-store-save" style="padding:6px 16px;background:var(--db-accent,#6366f1);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600">Save</button>
+        <button id="mem-store-cancel" style="padding:6px 16px;background:transparent;color:var(--db-text-dim,#888);border:1px solid var(--db-border,#333);border-radius:6px;cursor:pointer">Cancel</button>
+      </div>
+    `;
+    storeBtn.parentElement.insertAdjacentElement('afterend', form);
+
+    form.querySelector('#mem-store-save').addEventListener('click', async () => {
+      const text = form.querySelector('#mem-store-text').value.trim();
+      if (!text) { form.querySelector('#mem-store-text').focus(); return; }
+      const type = form.querySelector('#mem-store-type').value;
+      try {
+        await fetch('/api/memory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, memory_type: type }),
+        });
+        render(container);
+      } catch(e) {
+        showToast('Failed to store: ' + e.message, 'error');
+      }
+    });
+
+    form.querySelector('#mem-store-cancel').addEventListener('click', () => form.remove());
+    form.querySelector('#mem-store-text').focus();
   });
 
   // Enter key = search

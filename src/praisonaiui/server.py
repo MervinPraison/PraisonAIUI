@@ -1218,8 +1218,6 @@ def create_app(
          "description": "Messaging platform connections", "order": 5},
         {"id": "sessions", "title": "Sessions", "icon": "📋", "group": "Control",
          "description": "Manage conversation sessions", "order": 20},
-        {"id": "instances", "title": "Instances", "icon": "📻", "group": "Control",
-         "description": "Connected instances & presence", "order": 25},
         {"id": "usage", "title": "Usage", "icon": "📈", "group": "Control",
          "description": "Token usage and metrics", "order": 30},
         {"id": "cron", "title": "Cron", "icon": "⏰", "group": "Agent",

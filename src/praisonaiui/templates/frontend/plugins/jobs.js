@@ -4,6 +4,7 @@
  * Renders a dashboard view for async agent jobs.
  * Shows job status, progress, results with real-time SSE updates.
  */
+import { showConfirm } from './toast.js';
 
 let jobsData = null;
 let refreshInterval = null;
@@ -47,7 +48,7 @@ async function cancelJob(jobId) {
 }
 
 async function deleteJob(jobId) {
-  if (!confirm(`Delete job "${jobId}"?`)) return;
+  if (!await showConfirm('Delete Job', `Delete job "${jobId}"?`)) return;
   try {
     const resp = await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
     if (resp.ok) {

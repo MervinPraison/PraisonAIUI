@@ -3,6 +3,7 @@
  *
  * Schema-driven form editor with YAML view toggle.
  */
+import { showToast, showConfirm } from './toast.js';
 
 let schema = null;
 let config = {};
@@ -237,7 +238,7 @@ window.aiuiSaveConfig = async function() {
   const result = await applyConfig(config);
   if (result.applied) {
     errors = [];
-    alert('Configuration saved successfully!');
+    showToast('Configuration saved successfully!', 'success');
   } else {
     errors = result.errors || ['Failed to save configuration'];
   }
@@ -245,7 +246,7 @@ window.aiuiSaveConfig = async function() {
 };
 
 window.aiuiResetDefaults = async function() {
-  if (!confirm('Reset all settings to defaults?')) return;
+  if (!await showConfirm('Reset Defaults', 'Reset all settings to defaults?')) return;
   config = await fetchDefaults();
   errors = [];
   renderConfigUI();
@@ -268,7 +269,7 @@ window.aiuiValidateConfig = async function() {
   const result = await validateConfig(config);
   if (result.valid) {
     errors = [];
-    alert('Configuration is valid!');
+    showToast('Configuration is valid!', 'success');
   } else {
     errors = result.errors || ['Validation failed'];
   }
