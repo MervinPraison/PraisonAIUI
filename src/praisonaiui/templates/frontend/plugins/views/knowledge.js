@@ -10,7 +10,7 @@
  *   DELETE /api/knowledge          — clear all
  *   DELETE /api/knowledge/{id}     — delete entry
  */
-
+import { showToast } from '../toast.js';
 // ── Styles ──────────────────────────────────────────────────────
 function injectStyles() {
   if (document.getElementById('knowledge-view-styles')) return;
@@ -241,11 +241,11 @@ async function uploadFile(file) {
       await loadStatus();
       await loadEntries();
     } else {
-      alert('File uploaded but could not be indexed: ' + (data.knowledge_error || 'Unknown error'));
+      showToast('File uploaded but could not be indexed: ' + (data.knowledge_error || 'Unknown error'), 'error');
     }
   } catch (e) {
     console.warn('[Knowledge] Upload failed:', e);
-    alert('Upload failed: ' + e.message);
+    showToast('Upload failed: ' + e.message, 'error');
   }
 }
 

@@ -142,10 +142,32 @@ async def _execute_job(job_id: str, job) -> None:
                     if agent_ids:
                         agent = gw.get_agent(agent_ids[0])
 
+            # Fallback: create agent via provider (same path as chat)
+            if agent is None:
+                try:
+                    from praisonaiui.server import get_provider
+                    provider = get_provider()
+                    agent = provider._get_or_create_agent(
+                        agent_name=agent_name,
+                        session_id=f"cron_{job_id}",
+                    )
+                    # Register with gateway for future calls
+                    if agent is not None and gw is not None:
+                        a_name = getattr(agent, "name", None) or "cron_agent"
+                        gw.register_agent(a_name, agent)
+                except Exception as prov_err:
+                    logger.debug("Provider agent fallback failed: %s", prov_err)
+
             if agent is not None:
                 import asyncio
                 result = await asyncio.to_thread(agent.chat, action)
                 result = str(result)
+            elif gw is None:
+                status = "failed"
+                result = "No gateway available — agent provider not configured"
+            else:
+                status = "failed"
+                result = f"No agent found to execute action: '{action}'"
         except (ImportError, Exception) as e:
             logger.warning("Scheduled job '%s' execution failed: %s", job_id, e)
             status = "failed"
@@ -496,10 +518,32 @@ class PraisonAISchedules(BaseFeatureProtocol):
                         if agent_ids:
                             agent = gw.get_agent(agent_ids[0])
 
+                # Fallback: create agent via provider (same path as chat)
+                if agent is None:
+                    try:
+                        from praisonaiui.server import get_provider
+                        provider = get_provider()
+                        agent = provider._get_or_create_agent(
+                            agent_name=agent_name,
+                            session_id=f"cron_{job_id}",
+                        )
+                        # Register with gateway for future calls
+                        if agent is not None and gw is not None:
+                            a_name = getattr(agent, "name", None) or "cron_agent"
+                            gw.register_agent(a_name, agent)
+                    except Exception as prov_err:
+                        logger.debug("Provider agent fallback failed: %s", prov_err)
+
                 if agent is not None:
                     import asyncio
                     result = await asyncio.to_thread(agent.chat, action)
                     result = str(result)
+                elif gw is None:
+                    status = "failed"
+                    result = "No gateway available — agent provider not configured"
+                else:
+                    status = "failed"
+                    result = f"No agent found to execute action: '{action}'"
             except (ImportError, Exception) as e:
                 logger.warning("Schedule execution failed: %s", e)
                 status = "failed"

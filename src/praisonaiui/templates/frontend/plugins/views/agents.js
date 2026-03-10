@@ -2,6 +2,8 @@
  * Agents View — CRUD agent management
  * API: /api/agents/definitions, /api/agents/models
  */
+import { showToast, showConfirm } from '../toast.js';
+
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
   
@@ -88,7 +90,7 @@ export async function render(container) {
   container.querySelectorAll('.agent-del-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (!confirm('Delete this agent?')) return;
+      if (!await showConfirm('Delete agent?', 'This action cannot be undone.')) return;
       try { await fetch(`/api/agents/definitions/${btn.dataset.id}`, {method:'DELETE'}); render(container); } catch(e) {}
     });
   });
@@ -122,7 +124,7 @@ function showAgentForm(container, models) {
   modal.querySelector('#af-cancel').addEventListener('click', () => modal.style.display = 'none');
   modal.querySelector('#af-save').addEventListener('click', async () => {
     const body = { name: modal.querySelector('#af-name').value, instructions: modal.querySelector('#af-instructions').value, model: modal.querySelector('#af-model').value };
-    try { await fetch('/api/agents/definitions', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)}); modal.style.display='none'; render(container); } catch(e) { alert('Failed to create agent'); }
+    try { await fetch('/api/agents/definitions', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)}); modal.style.display='none'; render(container); } catch(e) { showToast('Failed to create agent', 'error'); }
   });
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
 }

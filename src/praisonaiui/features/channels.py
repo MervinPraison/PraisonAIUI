@@ -661,6 +661,11 @@ class PraisonAIChannels(BaseFeatureProtocol):
         if not channel:
             return JSONResponse({"error": "Channel not found"}, status_code=404)
 
+        def _mark_healthy():
+            """Clear start_error so UI badge updates from Error → Stopped."""
+            channel.pop("start_error", None)
+            _persist_channels()
+
         # Find the bot in local registry or gateway
         info = _live_bots.get(channel_id)
         bot = info.get("bot") if info else None
@@ -668,21 +673,86 @@ class PraisonAIChannels(BaseFeatureProtocol):
             gw = self._get_gateway()
             if gw is not None:
                 bot = getattr(gw, "_channel_bots", {}).get(channel_id)
-        if bot is None:
-            err = channel.get("start_error", "Bot not running")
-            return JSONResponse({"success": False, "error": err})
 
-        # Use probe() if available (tests API connectivity)
-        if hasattr(bot, "probe"):
-            try:
-                result = await bot.probe()
-                return JSONResponse({"success": True, "probe": result})
-            except Exception as e:
-                return JSONResponse({"success": False, "error": str(e)})
+        # ── If bot is running, use its probe/status ──────────────────
+        if bot is not None:
+            if hasattr(bot, "probe"):
+                try:
+                    result = await bot.probe()
+                    _mark_healthy()
+                    return JSONResponse({"success": True, "probe": result})
+                except Exception as e:
+                    return JSONResponse({"success": False, "error": str(e)})
+            running = bot.is_running if hasattr(bot, "is_running") else False
+            return JSONResponse({"success": running, "running": running})
 
-        # Fallback: check is_running
-        running = bot.is_running if hasattr(bot, "is_running") else False
-        return JSONResponse({"success": running, "running": running})
+        # ── Fallback: direct API token validation ────────────────────
+        # Bot not running (import paths may be unavailable), but we can
+        # still test the token against the platform API directly.
+        platform = channel.get("platform", "")
+        config = channel.get("config", {})
+        token = config.get("token", config.get("bot_token", ""))
+
+        if not token:
+            return JSONResponse({"success": False,
+                                 "error": "No token configured for this channel"})
+
+        try:
+            if platform == "telegram":
+                from telegram import Bot as TGBot
+                tg = TGBot(token=token)
+                me = await tg.get_me()
+                _mark_healthy()
+                return JSONResponse({
+                    "success": True,
+                    "probe": {"bot_name": me.first_name,
+                              "username": me.username,
+                              "id": me.id},
+                })
+            elif platform == "discord":
+                import aiohttp
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(
+                        "https://discord.com/api/v10/users/@me",
+                        headers={"Authorization": f"Bot {token}"},
+                    ) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            _mark_healthy()
+                            return JSONResponse({
+                                "success": True,
+                                "probe": {"bot_name": data.get("username"),
+                                          "id": data.get("id")},
+                            })
+                        return JSONResponse({
+                            "success": False,
+                            "error": f"Discord API returned {resp.status}",
+                        })
+            elif platform == "slack":
+                from slack_sdk.web.async_client import AsyncWebClient
+                client = AsyncWebClient(token=token)
+                result = await client.auth_test()
+                if result.get("ok", False):
+                    _mark_healthy()
+                return JSONResponse({
+                    "success": result.get("ok", False),
+                    "probe": {"team": result.get("team"),
+                              "user": result.get("user"),
+                              "bot_id": result.get("bot_id")},
+                })
+            else:
+                return JSONResponse({
+                    "success": False,
+                    "error": f"Direct test not supported for '{platform}'",
+                })
+        except ImportError:
+            return JSONResponse({
+                "success": False,
+                "error": (f"Could not test {platform} — required packages "
+                          f"may not be installed"),
+            })
+        except Exception as e:
+            return JSONResponse({"success": False, "error": str(e)})
 
     # ── CLI handlers ─────────────────────────────────────────────────
 

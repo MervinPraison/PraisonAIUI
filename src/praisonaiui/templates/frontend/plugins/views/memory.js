@@ -3,6 +3,8 @@
  *
  * API: /api/memory, /api/memory/search, /api/memory/status, /api/memory/context
  */
+import { showToast, showConfirm } from '../toast.js';
+
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
 
@@ -80,33 +82,33 @@ export async function render(container) {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const memId = btn.dataset.id;
-      if (!confirm('Delete this memory entry?')) return;
+      if (!await showConfirm('Delete memory?', 'This entry will be permanently removed.')) return;
       try {
         const r = await fetch(`/api/memory/${memId}`, { method: 'DELETE' });
         if (r.ok) {
           render(container);
         } else {
           const d = await r.json();
-          alert('Delete failed: ' + (d.error || r.statusText));
+          showToast('Delete failed: ' + (d.error || r.statusText), 'error');
         }
       } catch(err) {
-        alert('Delete failed: ' + err.message);
+        showToast('Delete failed: ' + err.message, 'error');
       }
     });
   });
 
   // Clear All handler
   container.querySelector('#mem-clear-btn')?.addEventListener('click', async () => {
-    if (!confirm('Clear ALL memories? This cannot be undone.')) return;
+    if (!await showConfirm('Clear ALL memories?', 'This cannot be undone.')) return;
     try {
       const r = await fetch('/api/memory', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ memory_type: 'all' }) });
       if (r.ok) {
         render(container);
       } else {
-        alert('Clear failed');
+        showToast('Clear failed', 'error');
       }
     } catch(e) {
-      alert('Clear failed: ' + e.message);
+      showToast('Clear failed: ' + e.message, 'error');
     }
   });
 
@@ -150,7 +152,7 @@ export async function render(container) {
       });
       render(container);
     } catch(e) {
-      alert('Failed to store: ' + e.message);
+      showToast('Failed to store: ' + e.message, 'error');
     }
   });
 

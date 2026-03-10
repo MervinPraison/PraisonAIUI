@@ -7,6 +7,8 @@
  *
  * API: /api/channels, /api/channels/platforms
  */
+import { showToast, showConfirm } from '../toast.js';
+
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
 
@@ -79,10 +81,11 @@ export async function render(container) {
     try {
       const r = await fetch(`/api/channels/${b.dataset.id}/test`, {method:'POST'});
       const d = await r.json();
-      alert(d.success ? '✓ Connection test passed!' : '✗ Test failed: ' + (d.error || 'Unknown error'));
-    } catch(e) { alert('✗ Test failed'); }
+      showToast(d.success ? 'Connection test passed!' : 'Test failed: ' + (d.error || 'Unknown error'), d.success ? 'success' : 'error');
+      if (d.success) render(container);
+    } catch(e) { showToast('Test failed', 'error'); }
   }));
-  container.querySelectorAll('.ch-del').forEach(b => b.addEventListener('click', async () => { if (!confirm('Delete this channel?')) return; try { await fetch(`/api/channels/${b.dataset.id}`, {method:'DELETE'}); render(container); } catch(e){} }));
+  container.querySelectorAll('.ch-del').forEach(b => b.addEventListener('click', async () => { if (!await showConfirm('Delete channel?', 'This action cannot be undone.')) return; try { await fetch(`/api/channels/${b.dataset.id}`, {method:'DELETE'}); render(container); } catch(e){} }));
 
   // Add Channel Modal with platform-specific forms
   container.querySelector('#ch-add')?.addEventListener('click', () => {

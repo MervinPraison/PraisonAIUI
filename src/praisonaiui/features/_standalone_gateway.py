@@ -1,0 +1,102 @@
+"""Lightweight in-process gateway — no praisonai wrapper needed.
+
+When the ``praisonai`` wrapper package is not importable (e.g. Python
+version mismatch), this provides a minimal gateway object that satisfies
+the same API surface used by feature modules:
+
+    gw.register_agent(name, agent)
+    gw.unregister_agent(name)
+    gw.list_agents() -> list[str]
+    gw.get_agent(name) -> agent | None
+    gw.health() -> dict
+    gw._create_bot(platform, config, agent) -> bot | None
+
+This allows cron, channels, agents, and other features to work without
+the full WebSocketGateway from the praisonai wrapper.
+"""
+
+from __future__ import annotations
+
+import logging
+import threading
+from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
+
+
+class StandaloneGateway:
+    """Minimal gateway that stores agents in-process."""
+
+    def __init__(self) -> None:
+        self._agents: Dict[str, Any] = {}
+        self._channel_bots: Dict[str, Any] = {}
+        self._lock = threading.Lock()
+
+    # -- Agent registry --------------------------------------------------
+
+    def register_agent(self, name: str, agent: Any) -> None:
+        with self._lock:
+            self._agents[name] = agent
+            logger.debug("StandaloneGateway: registered agent '%s'", name)
+
+    def unregister_agent(self, name: str) -> None:
+        with self._lock:
+            self._agents.pop(name, None)
+
+    def list_agents(self) -> List[str]:
+        with self._lock:
+            return list(self._agents.keys())
+
+    def get_agent(self, name: str) -> Optional[Any]:
+        with self._lock:
+            return self._agents.get(name)
+
+    # -- Health -----------------------------------------------------------
+
+    def health(self) -> dict:
+        return {
+            "type": "StandaloneGateway",
+            "agents": len(self._agents),
+            "bots": len(self._channel_bots),
+        }
+
+    # -- Bot creation (channel feature) -----------------------------------
+
+    def _create_bot(
+        self,
+        platform: str,
+        config: dict,
+        agent: Any,
+    ) -> Optional[Any]:
+        """Try to create a platform bot using praisonai or praisonaiagents."""
+        bot = None
+        # Strategy 1: praisonai wrapper (has TelegramBot, DiscordBot, etc.)
+        try:
+            mod = __import__(
+                f"praisonai.bots.{platform}",
+                fromlist=[f"{platform.title()}Bot"],
+            )
+            bot_cls = getattr(mod, f"{platform.title()}Bot", None)
+            if bot_cls:
+                bot = bot_cls(agent=agent, **config)
+        except (ImportError, Exception):
+            pass
+
+        # Strategy 2: praisonaiagents bots
+        if bot is None:
+            try:
+                mod = __import__(
+                    f"praisonaiagents.bots.{platform}",
+                    fromlist=[f"{platform.title()}Bot"],
+                )
+                bot_cls = getattr(mod, f"{platform.title()}Bot", None)
+                if bot_cls:
+                    bot = bot_cls(agent=agent, **config)
+            except (ImportError, Exception):
+                pass
+
+        if bot is not None:
+            with self._lock:
+                self._channel_bots[f"{platform}_{id(bot)}"] = bot
+
+        return bot

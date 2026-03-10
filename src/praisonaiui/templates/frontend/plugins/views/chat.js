@@ -39,14 +39,35 @@ function renderMarkdown(text) {
   });
   // Inline code
   html = html.replace(/`([^`]+)`/g, '<code class="chat-inline-code">$1</code>');
+  // Headers (must be before bold/italic — process line by line)
+  html = html.replace(/^#### (.+)$/gm, '<h4 style="font-size:14px;font-weight:600;margin:12px 0 4px">$1</h4>');
+  html = html.replace(/^### (.+)$/gm, '<h3 style="font-size:15px;font-weight:600;margin:14px 0 6px">$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2 style="font-size:17px;font-weight:600;margin:16px 0 6px">$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1 style="font-size:20px;font-weight:700;margin:18px 0 8px">$1</h1>');
+  // Horizontal rules
+  html = html.replace(/^---$/gm, '<hr style="border:none;border-top:1px solid var(--db-border,#333);margin:12px 0">');
   // Bold
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   // Italic
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // Strikethrough
+  html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
   // Links
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-  // Line breaks
+  // Unordered list items (- item)
+  html = html.replace(/^- (.+)$/gm, '<li style="margin-left:16px;list-style:disc">$1</li>');
+  // Ordered list items (1. item)
+  html = html.replace(/^\d+\. (.+)$/gm, '<li style="margin-left:16px;list-style:decimal">$1</li>');
+  // Wrap consecutive <li> elements in <ul>/<ol>
+  html = html.replace(/((?:<li[^>]*>.*?<\/li>\n?)+)/g, '<ul style="padding-left:8px;margin:4px 0">$1</ul>');
+  // Line breaks (skip lines that are already block elements)
   html = html.replace(/\n/g, '<br>');
+  // Clean up <br> right after block elements
+  html = html.replace(/(<\/h[1-4]>)<br>/g, '$1');
+  html = html.replace(/(<\/li>)<br>/g, '$1');
+  html = html.replace(/(<\/ul>)<br>/g, '$1');
+  html = html.replace(/(<\/pre>)<br>/g, '$1');
+  html = html.replace(/(<hr[^>]*>)<br>/g, '$1');
   return html;
 }
 

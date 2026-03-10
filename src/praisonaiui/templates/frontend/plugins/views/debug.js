@@ -6,6 +6,8 @@
  *
  * API: /api/features, /api/health, /api/config, /api/gateway/status
  */
+import { showToast } from '../toast.js';
+
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
 
@@ -165,7 +167,7 @@ export async function render(container) {
       browser: { userAgent: navigator.userAgent, host: location.host, protocol: location.protocol },
     };
     navigator.clipboard.writeText(JSON.stringify(report, null, 2)).then(() => {
-      alert('Diagnostics copied to clipboard!');
+      showToast('Diagnostics copied to clipboard!', 'success');
     }).catch(() => {
       // Fallback
       const ta = document.createElement('textarea');
@@ -174,7 +176,7 @@ export async function render(container) {
       ta.select();
       document.execCommand('copy');
       document.body.removeChild(ta);
-      alert('Diagnostics copied!');
+      showToast('Diagnostics copied!', 'success');
     });
   });
 }

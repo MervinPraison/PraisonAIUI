@@ -961,29 +961,31 @@ def load_config_from_yaml(config_path: Path) -> Optional[dict]:
 
 def _init_gateway_standalone(config: Optional[dict] = None) -> None:
     """Initialize gateway in standalone mode if not already set.
-    
+
     Gap S1: When running standalone (not via AIUIGateway.start()), we need to
     initialize a gateway so that gateway-dependent features work.
-    
-    This is called by create_app() to ensure the gateway singleton is set.
+
+    Tries ``praisonai.gateway.WebSocketGateway`` first (full gateway), then
+    falls back to ``StandaloneGateway`` (in-process, no wrapper needed).
     """
+    _log = logging.getLogger(__name__)
     try:
         from praisonaiui.features._gateway_ref import get_gateway, set_gateway
-        
+
         # Skip if gateway already initialized (e.g., by AIUIGateway.start())
         if get_gateway() is not None:
             return
-        
-        # Try to create a gateway from config or use defaults
+
+        gw = None
+
+        # Strategy 1: Full WebSocketGateway from praisonai wrapper
         try:
             from praisonai.gateway import WebSocketGateway
-            
-            # Check if config has gateway settings
+
             gateway_config = {}
             if config and isinstance(config, dict):
                 gateway_config = config.get("gateway", {})
-            
-            # Create gateway with config or defaults
+
             if gateway_config:
                 gw = WebSocketGateway(
                     host=gateway_config.get("host", "127.0.0.1"),
@@ -991,15 +993,35 @@ def _init_gateway_standalone(config: Optional[dict] = None) -> None:
                 )
             else:
                 gw = WebSocketGateway()
-            
+
             set_gateway(gw)
-            logging.getLogger(__name__).info(
-                "Gateway auto-initialized in standalone mode"
+            _log.info("Gateway auto-initialized (WebSocketGateway)")
+        except ImportError as exc:
+            _log.info(
+                "praisonai.gateway not available (%s) — using StandaloneGateway",
+                exc,
             )
-        except ImportError:
-            # praisonai wrapper not installed - gateway features won't work
-            logging.getLogger(__name__).debug(
-                "praisonai not installed, gateway features disabled"
+
+        # Strategy 2: Lightweight StandaloneGateway (no praisonai needed)
+        if gw is None:
+            try:
+                from praisonaiui.features._standalone_gateway import (
+                    StandaloneGateway,
+                )
+
+                gw = StandaloneGateway()
+                set_gateway(gw)
+                _log.info(
+                    "Gateway auto-initialized (StandaloneGateway — "
+                    "in-process, no praisonai wrapper)"
+                )
+            except Exception as exc:
+                _log.warning("Could not create StandaloneGateway: %s", exc)
+
+        if gw is None:
+            _log.warning(
+                "No gateway available — 35+ gateway-dependent features "
+                "will be degraded (cron, channels, agents, etc.)"
             )
     except ImportError:
         # _gateway_ref module not available

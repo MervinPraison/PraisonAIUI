@@ -205,7 +205,20 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         if self._sdk_knowledge is None:
             try:
                 from praisonaiagents.knowledge import Knowledge
-                self._sdk_knowledge = Knowledge(config=self._config or None)
+                # Use fixed collection name + persist path so data survives restarts.
+                # Without this, Knowledge() generates a random collection name each time.
+                knowledge_config = {
+                    "vector_store": {
+                        "provider": "chroma",
+                        "config": {
+                            "collection_name": "praisonaiui_knowledge",
+                            "path": ".praisonai",
+                        },
+                    },
+                }
+                if self._config:
+                    knowledge_config.update(self._config)
+                self._sdk_knowledge = Knowledge(config=knowledge_config)
                 logger.info("SDK Knowledge initialized: %s", type(self._sdk_knowledge).__name__)
             except ImportError:
                 logger.info("praisonaiagents not installed; using local knowledge index")
@@ -404,12 +417,23 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         if sdk is not None:
             try:
                 stats = sdk.get_corpus_stats()
-                if stats:
+                if stats and getattr(stats, "chunk_count", 0) > 0:
                     return {
-                        "total": getattr(stats, "chunk_count", len(self._local_index)),
+                        "total": getattr(stats, "chunk_count", 0),
                         "files": getattr(stats, "file_count", 0),
                         "backend": "SDK",
                     }
+            except Exception:
+                pass
+            # Fallback: count entries directly
+            try:
+                entries = self.list_all()
+                file_entries = [e for e in entries if (e.get("metadata") or {}).get("filename")]
+                return {
+                    "total": len(entries),
+                    "files": len(set(e.get("metadata", {}).get("filename", "") for e in file_entries)),
+                    "backend": "SDK",
+                }
             except Exception:
                 pass
         return {"total": len(self._local_index), "backend": "local"}
