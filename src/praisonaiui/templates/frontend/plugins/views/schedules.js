@@ -54,6 +54,7 @@ export async function render(container) {
                   </div>
                   <div style="color:var(--db-text-dim);font-size:11px;margin-top:2px">${h.timestamp ? new Date(typeof h.timestamp === 'number' ? h.timestamp * 1000 : h.timestamp).toLocaleString() : ''}</div>
                   ${h.duration ? `<div style="color:var(--db-text-dim);font-size:11px">Duration: ${h.duration}s</div>` : ''}
+                  ${h.result ? `<div style="margin-top:4px;padding:6px 8px;background:var(--db-card-bg);border-radius:4px;font-size:11px;color:var(--db-text);max-height:80px;overflow-y:auto;white-space:pre-wrap;word-break:break-word">${String(h.result).substring(0, 500)}</div>` : ''}
                 </div>
               `).join('')
             }

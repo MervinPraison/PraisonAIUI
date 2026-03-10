@@ -256,7 +256,7 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         sdk = self._get_sdk_knowledge()
         if sdk is not None:
             try:
-                sdk.store(text, user_id=user_id, agent_id=agent_id, metadata=metadata or {})
+                sdk.store(text, user_id=user_id or "praisonaiui", agent_id=agent_id, metadata=metadata or {})
                 entry["sdk_synced"] = True
             except Exception as e:
                 logger.warning("SDK knowledge store failed: %s", e)
@@ -273,7 +273,7 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         sdk = self._get_sdk_knowledge()
         if sdk is not None:
             try:
-                results = sdk.search(query, limit=limit)
+                results = sdk.search(query, limit=limit, user_id="praisonaiui")
                 if isinstance(results, list) and results:
                     return [
                         {
@@ -307,7 +307,28 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         sdk = self._get_sdk_knowledge()
         if sdk is not None:
             try:
-                result = sdk.add(file_path, user_id=user_id, metadata=metadata or {})
+                result = sdk.add(file_path, user_id=user_id or "praisonaiui", metadata=metadata or {})
+                # Parse SDK result and store entries in local index so they appear in listings
+                sdk_results = []
+                if isinstance(result, dict):
+                    sdk_results = result.get("results", [])
+                elif isinstance(result, list):
+                    sdk_results = result
+                import os, time, hashlib
+                for r in sdk_results:
+                    if isinstance(r, dict) and r.get("event") == "ADD":
+                        entry_id = r.get("id", hashlib.md5(str(r).encode()).hexdigest()[:12])
+                        text = r.get("memory", r.get("text", ""))
+                        file_meta = dict(metadata or {})
+                        file_meta["source"] = "file_ingest"
+                        file_meta["filename"] = os.path.basename(file_path)
+                        self._local_index[entry_id] = {
+                            "id": entry_id,
+                            "text": text,
+                            "metadata": file_meta,
+                            "created_at": time.time(),
+                            "sdk_synced": True,
+                        }
                 return {"status": "ok", "file": file_path, "result": str(result)}
             except Exception as e:
                 return {"status": "error", "file": file_path, "error": str(e)}
@@ -317,9 +338,12 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         sdk = self._get_sdk_knowledge()
         if sdk is not None:
             try:
-                all_items = sdk.get_all()
+                all_items = sdk.get_all(user_id="praisonaiui")
+                # Handle dict response format: {'results': [...]}
+                if isinstance(all_items, dict):
+                    all_items = all_items.get("results", [])
                 if isinstance(all_items, list) and all_items:
-                    return [
+                    sdk_entries = [
                         {
                             "id": str(r.get("id", i)),
                             "text": r.get("memory", r.get("text", str(r))),
@@ -327,6 +351,12 @@ class SDKKnowledgeManager(KnowledgeProtocol):
                         }
                         for i, r in enumerate(all_items)
                     ]
+                    # Merge with local index (local entries may have more metadata)
+                    seen_ids = {e["id"] for e in sdk_entries}
+                    for entry in self._local_index.values():
+                        if entry["id"] not in seen_ids:
+                            sdk_entries.append(entry)
+                    return sdk_entries
             except Exception as e:
                 logger.warning("SDK get_all failed: %s; using local index", e)
         return list(self._local_index.values())

@@ -250,6 +250,7 @@ class SDKMemoryManager(MemoryProtocol):
                 logger.debug("Gateway memory bridge skipped: %s", e)
 
         sdk = self._get_sdk_memory()
+        sdk_stored = False
         if sdk is not None:
             try:
                 method = {
@@ -259,10 +260,14 @@ class SDKMemoryManager(MemoryProtocol):
                 }.get(memory_type, "store_long_term")
                 if hasattr(sdk, method):
                     getattr(sdk, method)(text, metadata=metadata or {})
+                    sdk_stored = True
+                    entry["sdk_synced"] = True
             except Exception as e:
                 logger.warning("SDK store failed: %s", e)
 
-        self._local_index[mem_id] = entry
+        # Only add to local index if SDK store failed (SDK entries are read via get_all_memories)
+        if not sdk_stored:
+            self._local_index[mem_id] = entry
         return entry
 
     def search(
@@ -329,28 +334,115 @@ class SDKMemoryManager(MemoryProtocol):
         return results
 
     def list_all(self, *, memory_type: str = "all") -> List[Dict[str, Any]]:
+        # Query SDK backend first for persistent memories
+        sdk = self._get_sdk_memory()
+        if sdk is not None and hasattr(sdk, "get_all_memories"):
+            try:
+                all_items = sdk.get_all_memories()
+                if isinstance(all_items, list) and all_items:
+                    sdk_entries = []
+                    for r in all_items:
+                        if not isinstance(r, dict):
+                            continue
+                        mtype = r.get("type", r.get("memory_type", "long"))
+                        # Map SDK type names to our convention
+                        if mtype == "short_term":
+                            mtype = "short"
+                        elif mtype == "long_term":
+                            mtype = "long"
+                        if memory_type != "all" and mtype != memory_type:
+                            continue
+                        sdk_entries.append({
+                            "id": str(r.get("id", "")),
+                            "text": r.get("text", r.get("memory", str(r))),
+                            "memory_type": mtype,
+                            "metadata": r.get("metadata", {}),
+                            "created_at": r.get("created_at"),
+                        })
+                    # Merge with local index (local entries may have extra fields)
+                    seen_ids = {e["id"] for e in sdk_entries}
+                    for entry in self._local_index.values():
+                        if entry["id"] not in seen_ids:
+                            if memory_type == "all" or entry.get("memory_type") == memory_type:
+                                sdk_entries.append(entry)
+                    return sdk_entries
+            except Exception as e:
+                logger.warning("SDK get_all_memories failed: %s; using local index", e)
+        # Fallback to local index
         if memory_type == "all":
             return list(self._local_index.values())
         return [m for m in self._local_index.values() if m.get("memory_type") == memory_type]
 
     def get(self, memory_id: str) -> Optional[Dict[str, Any]]:
-        return self._local_index.get(memory_id)
+        # Try local first
+        local = self._local_index.get(memory_id)
+        if local:
+            return local
+        # Try SDK
+        sdk = self._get_sdk_memory()
+        if sdk is not None and hasattr(sdk, "get_all_memories"):
+            try:
+                for m in sdk.get_all_memories():
+                    if str(m.get("id")) == memory_id:
+                        mtype = m.get("type", m.get("memory_type", "long"))
+                        if mtype == "short_term":
+                            mtype = "short"
+                        elif mtype == "long_term":
+                            mtype = "long"
+                        return {
+                            "id": str(m["id"]),
+                            "text": m.get("text", ""),
+                            "memory_type": mtype,
+                            "metadata": m.get("metadata", {}),
+                            "created_at": m.get("created_at"),
+                        }
+            except Exception:
+                pass
+        return None
 
     def delete(self, memory_id: str) -> bool:
-        if memory_id in self._local_index:
-            del self._local_index[memory_id]
-            return True
-        return False
+        deleted = memory_id in self._local_index
+        self._local_index.pop(memory_id, None)
+        # Also delete from SDK persistent storage
+        sdk = self._get_sdk_memory()
+        if sdk is not None:
+            try:
+                if hasattr(sdk, "delete_memory"):
+                    sdk.delete_memory(memory_id)
+                    deleted = True
+                else:
+                    # Try type-specific delete
+                    for meth in ["delete_short_term", "delete_long_term"]:
+                        if hasattr(sdk, meth):
+                            try:
+                                getattr(sdk, meth)(memory_id)
+                                deleted = True
+                            except Exception:
+                                pass
+            except Exception as e:
+                logger.warning("SDK delete_memory failed: %s", e)
+        return deleted
 
     def clear(self, memory_type: str = "all") -> int:
+        count = len(self._local_index) if memory_type == "all" else len(
+            [v for v in self._local_index.values() if v.get("memory_type") == memory_type]
+        )
         if memory_type == "all":
-            count = len(self._local_index)
             self._local_index.clear()
-            return count
-        to_remove = [k for k, v in self._local_index.items() if v.get("memory_type") == memory_type]
-        for k in to_remove:
-            del self._local_index[k]
-        return len(to_remove)
+        else:
+            to_remove = [k for k, v in self._local_index.items() if v.get("memory_type") == memory_type]
+            for k in to_remove:
+                del self._local_index[k]
+        # Also clear SDK persistent storage
+        sdk = self._get_sdk_memory()
+        if sdk is not None:
+            try:
+                if memory_type == "all" and hasattr(sdk, "reset_all"):
+                    sdk.reset_all()
+                    logger.info("SDK memory reset_all completed")
+            except Exception as e:
+                logger.warning("SDK reset_all failed: %s", e)
+        return count
 
     def get_context(self, query: str, *, limit: int = 5) -> str:
         """Use SDK's get_memory_context if available."""

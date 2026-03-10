@@ -1,13 +1,13 @@
 [project]
 name = "aiui"
-version = "0.3.48"
+version = "0.3.50"
 description = "YAML-driven website generator - CLI and compiler"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "Mervin Praison"}
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 keywords = ["aiui", "docs", "website", "generator", "yaml", "cli"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -49,10 +49,24 @@ graph = [
     "chromadb>=1.0.0",
 ]
 
+praisonai = [
+    "praisonaiagents[knowledge]>=1.5.0",
+    "praisonai>=2.0.0",
+]
+
+bot = [
+    "python-telegram-bot>=20.0",
+    "discord.py>=2.0.0",
+    "slack_sdk>=3.0.0",
+    "slack-bolt>=1.18.0",
+]
+
 all = [
     "aiui[memory]",
     "aiui[knowledge]",
     "aiui[graph]",
+    "aiui[praisonai]",
+    "aiui[bot]",
 ]
 
 dev = [

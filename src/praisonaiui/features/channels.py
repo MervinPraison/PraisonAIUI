@@ -85,6 +85,7 @@ class PraisonAIChannels(BaseFeatureProtocol):
 
     feature_name = "channels"
     feature_description = "Multi-platform messaging channel management"
+    _auto_started = False
 
     @property
     def name(self) -> str:
@@ -132,6 +133,30 @@ class PraisonAIChannels(BaseFeatureProtocol):
             "supported_platforms": SUPPORTED_PLATFORMS,
             **gw,
         }
+
+    async def _auto_start_enabled_channels(self) -> None:
+        """Auto-start all enabled channels on server startup (runs once)."""
+        if PraisonAIChannels._auto_started:
+            return
+        PraisonAIChannels._auto_started = True
+
+        enabled = [(cid, ch) for cid, ch in _channels.items() if ch.get("enabled", False)]
+        if not enabled:
+            return
+
+        logger.info("Auto-starting %d enabled channel(s)...", len(enabled))
+        for channel_id, entry in enabled:
+            try:
+                error = await self._start_channel_bot(channel_id, entry)
+                if error:
+                    entry["start_error"] = error
+                    logger.warning("Auto-start '%s' failed: %s", channel_id, error)
+                else:
+                    logger.info("Auto-started channel '%s' (%s)", channel_id, entry.get("platform"))
+            except Exception as e:
+                entry["start_error"] = str(e)
+                logger.warning("Auto-start '%s' exception: %s", channel_id, e)
+        self._sync_running_status()
 
     # ── Gateway integration ──────────────────────────────────────────
 
@@ -495,6 +520,8 @@ class PraisonAIChannels(BaseFeatureProtocol):
 
     async def _list(self, request: Request) -> JSONResponse:
         """List all configured channels with live status."""
+        # Auto-start enabled channels on first request (lazy startup)
+        await self._auto_start_enabled_channels()
         self._sync_running_status()
         channels = list(_channels.values())
         return JSONResponse({"channels": channels, "count": len(channels)})
