@@ -240,3 +240,93 @@ routes:
   - match: "/docs/**"
     template: "docs"
 ```
+
+---
+
+## Runtime Persistence (`config.yaml`)
+
+> **Single source of truth** for all runtime feature state.
+
+In addition to `aiui.template.yaml` (which drives static site generation), PraisonAIUI uses a **unified runtime config file** at `~/.praisonaiui/config.yaml`. This file stores all feature state — agents, channels, guardrails, schedules, and runtime settings — in a single YAML file that persists across server restarts.
+
+This is compatible with the `gateway.yaml` schema used by `praisonai gateway start --config`.
+
+### Schema
+
+```yaml
+# ~/.praisonaiui/config.yaml (auto-generated)
+schemaVersion: 2
+
+server:
+  host: "127.0.0.1"
+  port: 8003
+
+provider:
+  name: "openai"
+  model: "gpt-4o-mini"
+
+gateway:
+  host: "127.0.0.1"
+  port: 8765
+
+# Agent definitions (same schema as gateway.yaml)
+agents:
+  personal:
+    name: "Personal Assistant"
+    instructions: "You are a friendly personal assistant."
+    model: "gpt-4o-mini"
+    tools: ["internet_search"]
+
+# Messaging channels
+channels:
+  telegram_bot:
+    name: "My Bot"
+    platform: "telegram"
+    config:
+      bot_token: "${TELEGRAM_BOT_TOKEN}"
+
+# Runtime configuration (set via /api/config/runtime)
+runtime_config:
+  model: "gpt-4o"
+  temperature: 0.7
+
+# Guardrail definitions
+guardrails:
+  registry:
+    polite_check:
+      description: "Output must be polite"
+
+# Scheduled jobs
+schedules:
+  jobs:
+    daily_report:
+      name: "Daily Report"
+      schedule:
+        kind: every
+        every_seconds: 86400
+```
+
+### How It Works
+
+All CRUD operations (dashboard, REST API, CLI) **automatically write back** to this file:
+
+| Feature | Section | Written On |
+|---------|---------|------------|
+| Config Runtime | `runtime_config` | PATCH, PUT, DELETE, apply |
+| Guardrails | `guardrails` | Register |
+| Channels | `channels` | Add, update, delete |
+| Schedules | `schedules` | Add, remove, update |
+| Agents | `agents` | Create, update, delete |
+
+- **Atomic writes**: Uses `tempfile` + `os.rename()` to prevent corruption.
+- **Hot reload**: The [Config Hot-Reload](../features/config-hot-reload.md) feature watches this file for external changes.
+- **Environment variables**: Use `${ENV_VAR}` syntax for secrets (never stored in plaintext).
+- **Custom path**: Set `PRAISONAIUI_CONFIG_PATH` to use a different file location.
+
+### Relationship to `aiui.template.yaml`
+
+| File | Purpose | Used By |
+|------|---------|---------|
+| `aiui.template.yaml` | Static site layout, components, routes | `aiui build`, `aiui dev` |
+| `~/.praisonaiui/config.yaml` | Runtime feature state (agents, channels, config) | `aiui run`, dashboard API |
+| `gateway.yaml` | Subset of `config.yaml` (legacy compatibility) | `praisonai gateway start` |

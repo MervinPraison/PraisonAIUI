@@ -100,7 +100,32 @@
 <p>Route matching uses glob patterns:</p>
 <li>`*` - Single segment</li>
 <li>`**` - Multiple segments</li>
-<h2>Complete Example</h2></noscript></div>
+<h2>Complete Example</h2>
+<p>---</p>
+<h2>Runtime Persistence (`config.yaml`)</h2>
+<p>> **Single source of truth** for all runtime feature state.</p>
+<p>In addition to `aiui.template.yaml` (which drives static site generation), PraisonAIUI uses a **unified runtime config file** at `~/.praisonaiui/config.yaml`. This file stores all feature state — agents, channels, guardrails, schedules, and runtime settings — in a single YAML file that persists across server restarts.</p>
+<p>This is compatible with the `gateway.yaml` schema used by `praisonai gateway start --config`.</p>
+<h3>Schema</h3>
+<h3>How It Works</h3>
+<p>All CRUD operations (dashboard, REST API, CLI) **automatically write back** to this file:</p>
+<p>| Feature | Section | Written On |</p>
+<p>|---------|---------|------------|</p>
+<p>| Config Runtime | `runtime_config` | PATCH, PUT, DELETE, apply |</p>
+<p>| Guardrails | `guardrails` | Register |</p>
+<p>| Channels | `channels` | Add, update, delete |</p>
+<p>| Schedules | `schedules` | Add, remove, update |</p>
+<p>| Agents | `agents` | Create, update, delete |</p>
+<li>**Atomic writes**: Uses `tempfile` + `os.rename()` to prevent corruption.</li>
+<li>**Hot reload**: The [Config Hot-Reload](../features/config-hot-reload.md) feature watches this file for external changes.</li>
+<li>**Environment variables**: Use `${ENV_VAR}` syntax for secrets (never stored in plaintext).</li>
+<li>**Custom path**: Set `PRAISONAIUI_CONFIG_PATH` to use a different file location.</li>
+<h3>Relationship to `aiui.template.yaml`</h3>
+<p>| File | Purpose | Used By |</p>
+<p>|------|---------|---------|</p>
+<p>| `aiui.template.yaml` | Static site layout, components, routes | `aiui build`, `aiui dev` |</p>
+<p>| `~/.praisonaiui/config.yaml` | Runtime feature state (agents, channels, config) | `aiui run`, dashboard API |</p>
+<p>| `gateway.yaml` | Subset of `config.yaml` (legacy compatibility) | `praisonai gateway start` |</p></noscript></div>
   <script>
     // AIUI Plugin System — inline bootstrap
     (function () {

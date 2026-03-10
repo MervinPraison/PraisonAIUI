@@ -90,6 +90,7 @@ sequenceDiagram
 | `features/channels.py` | Channel CRUD + live status enrichment from gateway |
 | `features/nodes.py` | Node CRUD + gateway health enrichment |
 | `integration.py` | Calls `set_gateway()` on start, clears on stop |
+| `config_store.py` | Unified `~/.praisonaiui/config.yaml` — single source of truth for all feature state |
 
 ### API Endpoints
 

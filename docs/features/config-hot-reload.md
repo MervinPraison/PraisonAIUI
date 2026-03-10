@@ -85,5 +85,5 @@ curl -X POST http://localhost:8083/api/config/reload
 
 ## Related
 
-- [YAML Configuration](../concepts/configuration.md) — Config file format
+- [YAML Configuration](../concepts/configuration.md) — Config file format (incl. unified runtime persistence)
 - [Protocols](protocols.md) — Feature protocol system
