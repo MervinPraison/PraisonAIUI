@@ -220,7 +220,7 @@ class ChannelsFeature(BaseFeatureProtocol):
             try:
                 from praisonai.tool_resolver import ToolResolver
                 resolver = ToolResolver()
-                agent_tools = resolver.resolve_many(["internet_search", "get_current_time"])
+                agent_tools = resolver.resolve_many(["internet_search"])
             except ImportError:
                 pass  # praisonai not installed — no tools
             
@@ -679,8 +679,21 @@ class ChannelsFeature(BaseFeatureProtocol):
             if hasattr(bot, "probe"):
                 try:
                     result = await bot.probe()
+                    # Convert dataclass/namedtuple to dict for JSON serialization
+                    if hasattr(result, "__dict__") and not isinstance(result, dict):
+                        try:
+                            import dataclasses
+                            probe_data = dataclasses.asdict(result)
+                        except (TypeError, Exception):
+                            probe_data = result.__dict__
+                    elif hasattr(result, "_asdict"):
+                        probe_data = result._asdict()
+                    elif isinstance(result, dict):
+                        probe_data = result
+                    else:
+                        probe_data = str(result)
                     _mark_healthy()
-                    return JSONResponse({"success": True, "probe": result})
+                    return JSONResponse({"success": True, "probe": probe_data})
                 except Exception as e:
                     return JSONResponse({"success": False, "error": str(e)})
             running = bot.is_running if hasattr(bot, "is_running") else False

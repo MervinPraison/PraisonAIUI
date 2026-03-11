@@ -16,3 +16,16 @@ examples
 !README.md
 .windsurf
 .cursor
+.agent
+.praisonai
+.vscode
+_site
+site
+aiui
+uv.lock
+prd.md
+AGENTS.md
+CNAME
+mkdocs.yml
+.env
+.DS_Store

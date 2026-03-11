@@ -216,7 +216,7 @@ class PraisonAIProvider(BaseProvider):
         try:
             from praisonai.tool_resolver import ToolResolver
             resolver = ToolResolver()
-            default_tools = resolver.resolve_many(["internet_search", "get_current_time"])
+            default_tools = resolver.resolve_many(["internet_search"])
             if default_tools:
                 kwargs["tools"] = default_tools
         except ImportError:
