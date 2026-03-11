@@ -106,4 +106,7 @@ def _register_agents_in_dashboard():
         })
         print(f"   ✓ Agent: {agent_def['icon']} {agent_def['name']}")
 
-_register_agents_in_dashboard()
+try:
+    _register_agents_in_dashboard()
+except Exception as e:
+    print(f"   ⚠️  Agent registration failed (non-fatal): {e}")

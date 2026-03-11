@@ -229,7 +229,7 @@ class ChannelsFeature(BaseFeatureProtocol):
                 instructions="You are a helpful assistant with tool capabilities.",
                 llm=os.environ.get("PRAISONAI_MODEL", "gpt-4o-mini"),
                 tools=agent_tools if agent_tools else None,
-                reflection=True,  # G3: Enable reflection/interactive mode
+                reflection=False,
             )
         except ImportError:
             pass  # agent may be None — some bots can work without one

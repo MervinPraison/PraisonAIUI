@@ -374,7 +374,7 @@ class JobsFeature(BaseFeatureProtocol):
                             instructions=instructions,
                             llm=model,
                             tools=agent_tools if agent_tools else None,
-                            reflection=job.get("config", {}).get("reflection", True),
+                            reflection=job.get("config", {}).get("reflection", False),
                         )
                     except ImportError:
                         agent = None

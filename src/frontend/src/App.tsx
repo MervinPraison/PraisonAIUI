@@ -8,7 +8,7 @@ import { Content } from './Content'
 import { ZoneWidgets } from './Widgets'
 import { Toc } from './Toc'
 import { Footer } from './Footer'
-import { ChatLayout, AgentUILayout, CopilotWidget, PlaygroundLayout, DashboardLayout } from './layouts'
+import { ChatLayout, AgentUILayout, CopilotWidget, PlaygroundLayout } from './layouts'
 
 export default function App() {
   const [config, setConfig] = useState<UIConfig>({})
@@ -264,15 +264,8 @@ export default function App() {
           />
         )
       case 'dashboard':
-        // Dashboard mode - multi-tab admin panel
-        return (
-          <DashboardLayout
-            config={config.chat}
-            layout={config.layout}
-            title={config.site?.title}
-            logo={config.site?.logo}
-          />
-        )
+        // Dashboard is handled entirely by plugin dashboard.js — React yields
+        return null
       case 'custom':
         // For custom, show docs with copilot widget if chat enabled
         if (config.chat?.enabled) {
