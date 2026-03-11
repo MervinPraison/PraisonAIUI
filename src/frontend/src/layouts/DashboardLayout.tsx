@@ -9,6 +9,7 @@ interface DashboardLayoutProps {
     config?: ChatConfig
     layout?: LayoutConfig
     title?: string
+    logo?: string
 }
 
 /** Build sidebar tab groups from flat page list, preserving order */
@@ -30,7 +31,7 @@ function buildTabGroups(pages: DashboardPageDef[]): DashboardTabGroup[] {
     return groups
 }
 
-export function DashboardLayout({ config, layout: _layout, title }: DashboardLayoutProps) {
+export function DashboardLayout({ config, layout: _layout, title, logo }: DashboardLayoutProps) {
     const [activeTab, setActiveTab] = useState('chat')
     const [navCollapsed, setNavCollapsed] = useState(false)
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
@@ -142,8 +143,7 @@ export function DashboardLayout({ config, layout: _layout, title }: DashboardLay
                     </button>
                     {!navCollapsed && (
                         <div>
-                            <div className="text-sm font-bold tracking-wider">{title || 'PraisonAI'}</div>
-                            <div className="text-[10px] text-muted-foreground">Dashboard</div>
+                            <div className="text-sm font-bold tracking-wider">{title || 'PraisonAI'} {logo || '🦞'}</div>
                         </div>
                     )}
                 </div>

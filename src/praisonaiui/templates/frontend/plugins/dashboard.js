@@ -214,11 +214,17 @@ function buildSidebar(pages) {
   const sidebar = document.createElement('nav');
   sidebar.className = 'db-sidebar';
 
-  // Header
+  // Header — branding from /ui-config.json (configurable via app.py or YAML)
   const header = document.createElement('div');
   header.className = 'db-sidebar-header';
-  header.innerHTML = '<span class="logo">⚡</span> PraisonAIUI';
+  header.innerHTML = 'PraisonAI <span class="logo">🦞</span>';
   sidebar.appendChild(header);
+  // Update branding from config asynchronously
+  fetch('/ui-config.json').then(r => r.json()).then(cfg => {
+    const title = cfg.site?.title || 'PraisonAI';
+    const logo = cfg.site?.logo || '🦞';
+    header.innerHTML = `${title} <span class="logo">${logo}</span>`;
+  }).catch(() => {});
 
   // Group pages
   const groups = {};
@@ -245,18 +251,32 @@ function buildSidebar(pages) {
     });
   }
 
-  // Test All button at bottom
-  const spacer = document.createElement('div');
-  spacer.style.cssText = 'flex:1';
-  sidebar.appendChild(spacer);
+  // Footer pages — render any page with position='footer' at the sidebar bottom
+  fetch('/api/pages').then(r => r.json()).then(d => {
+    const footerPages = (d.pages || []).filter(p => p.position === 'footer');
+    if (!footerPages.length) return;
 
-  const testBtn = document.createElement('div');
-  testBtn.className = 'db-nav-item';
-  testBtn.innerHTML = '<span class="db-nav-icon">🔍</span> Inspector';
-  testBtn.addEventListener('click', () => showTestPanel());
-  testBtn.style.borderTop = '1px solid var(--db-border)';
-  testBtn.style.marginTop = '8px';
-  sidebar.appendChild(testBtn);
+    const spacer = document.createElement('div');
+    spacer.style.cssText = 'flex:1';
+    sidebar.appendChild(spacer);
+
+    for (const page of footerPages) {
+      const btn = document.createElement('div');
+      btn.className = 'db-nav-item';
+      btn.innerHTML = `<span class="db-nav-icon">${page.icon || '�'}</span> ${page.title}`;
+      btn.addEventListener('click', () => {
+        // Use built-in handler if available, otherwise navigate to page
+        if (page.id === 'inspector') {
+          showTestPanel();
+        } else {
+          selectPage(page.id);
+        }
+      });
+      btn.style.borderTop = '1px solid var(--db-border)';
+      btn.style.marginTop = '8px';
+      sidebar.appendChild(btn);
+    }
+  }).catch(() => {});
 
   return sidebar;
 }

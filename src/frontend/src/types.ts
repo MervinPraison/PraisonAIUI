@@ -15,6 +15,7 @@ export interface ThemeConfig {
 
 export interface SiteConfig {
     title?: string
+    logo?: string
     description?: string
     theme?: ThemeConfig
 }

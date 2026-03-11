@@ -65,6 +65,8 @@ _config_path: Optional[Path] = None
 _config_cache: Optional[dict] = None
 # Explicit style set via aiui.set_style() — None means "not set"
 _style: Optional[str] = None
+# Branding config set via aiui.set_branding() — overrides YAML/defaults
+_branding: dict[str, str] = {"title": "PraisonAI", "logo": "🦞"}
 
 
 def set_style(style: str) -> None:
@@ -75,6 +77,20 @@ def set_style(style: str) -> None:
     """
     global _style
     _style = style
+
+
+def set_branding(title: str = "PraisonAI", logo: str = "🦞") -> None:
+    """Set the sidebar branding (title and logo emoji).
+
+    Configurable from ``app.py`` or ``config.yaml`` (under ``site.title``
+    and ``site.logo``).  Call before the server starts.
+
+    Example::
+
+        aiui.set_branding(title="MyApp", logo="🚀")
+    """
+    global _branding
+    _branding = {"title": title, "logo": logo}
 
 
 def set_pages(page_ids: list[str]) -> None:
@@ -137,14 +153,16 @@ def _build_html(style: str) -> str:
 
     The SDK owns the HTML — just like Chainlit. Users never write HTML.
     """
-    # Config-driven title with fallback to "AIUI"
+    # Branding-driven title: set_branding() → YAML config → default
+    _site_title = _branding["title"]
     try:
         from praisonaiui.config_store import get_config_store
         _cs = get_config_store()
         _site_section = _cs.get_section("site") if _cs else {}
-        _site_title = _site_section.get("title", "AIUI") if _site_section else "AIUI"
+        if _site_section:
+            _site_title = _site_section.get("title", _site_title)
     except Exception:
-        _site_title = "AIUI"
+        pass
     title = f"{_site_title} Dashboard" if style == "dashboard" else _site_title
     cache_bust = int(_server_start_time)
 
@@ -1197,17 +1215,21 @@ def create_app(
         effective_style = config.get("style", effective_style)
 
     async def _ui_config_json(request: Request) -> JSONResponse:
-        # Config-driven site title with fallback to "AIUI"
+        # Branding: YAML config overrides defaults, set_branding() overrides YAML
+        _title = _branding["title"]
+        _logo = _branding["logo"]
         try:
             from praisonaiui.config_store import get_config_store
             _cs = get_config_store()
             _site_section = _cs.get_section("site") if _cs else {}
-            _site_title = _site_section.get("title", "AIUI") if _site_section else "AIUI"
+            if _site_section:
+                _title = _site_section.get("title", _title)
+                _logo = _site_section.get("logo", _logo)
         except Exception:
-            _site_title = "AIUI"
+            pass
         return JSONResponse({
             "style": effective_style,
-            "site": {"title": _site_title},
+            "site": {"title": _title, "logo": _logo},
             "chat": {"enabled": effective_style in ("chat", "agents", "playground", "dashboard")},
         })
 
@@ -1381,6 +1403,8 @@ def create_app(
          "description": "Distributed tracing & observability", "order": 27},
         {"id": "security", "title": "Security", "icon": "🔒", "group": "Settings",
          "description": "Security monitoring & audit log", "order": 12},
+        {"id": "inspector", "title": "Inspector", "icon": "🔍", "group": "Control",
+         "description": "Interactive API inspector", "order": 99, "position": "footer"},
     ]
     _page_api_overrides = {"sessions": "/sessions", "cron": "/api/schedules", "channels": "/api/channels"}
 

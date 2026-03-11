@@ -270,6 +270,7 @@ export default function App() {
             config={config.chat}
             layout={config.layout}
             title={config.site?.title}
+            logo={config.site?.logo}
           />
         )
       case 'custom':
