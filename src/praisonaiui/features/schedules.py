@@ -445,6 +445,9 @@ def _to_dict(obj) -> Dict[str, Any]:
         return {}
     if isinstance(obj, dict):
         return obj
+    # Prefer explicit to_dict() — ScheduleJob/DeliveryTarget implement this
+    if hasattr(obj, 'to_dict'):
+        return obj.to_dict()
     if hasattr(obj, 'model_dump'):
         return obj.model_dump()
     if hasattr(obj, '__dataclass_fields__'):
@@ -467,7 +470,9 @@ class _InMemoryScheduleStore(ScheduleProtocol):
 
     def _persist(self) -> None:
         from ._persistence import save_section
-        save_section(self._SECTION, {"jobs": dict(self._jobs)})
+        # Ensure all values are plain dicts (no dataclass objects) for safe YAML
+        clean = {k: _to_dict(v) for k, v in self._jobs.items()}
+        save_section(self._SECTION, {"jobs": clean})
 
     def add(self, job_id_or_obj=None, schedule=None, message=None, **kwargs) -> Dict[str, Any]:
         # Accept single dict/object (from _add handler) or positional args (from CLI)
@@ -475,8 +480,10 @@ class _InMemoryScheduleStore(ScheduleProtocol):
             # Single argument: treat as a job dict or dataclass
             if isinstance(job_id_or_obj, dict):
                 obj = job_id_or_obj
+            elif hasattr(job_id_or_obj, 'to_dict'):
+                obj = job_id_or_obj.to_dict()
             elif hasattr(job_id_or_obj, '__dict__'):
-                obj = vars(job_id_or_obj)
+                obj = _to_dict(job_id_or_obj)
             else:
                 obj = {"id": str(job_id_or_obj)}
             jid = obj.get("id", f"j_{int(time.time())}")
@@ -915,20 +922,71 @@ class PraisonAISchedules(BaseFeatureProtocol):
             status = "✓" if _getattr_or_get(j, "enabled", True) else "✗"
             sched = _getattr_or_get(j, 'schedule', {})
             kind = sched.get('kind', 'unknown') if isinstance(sched, dict) else str(sched)
-            lines.append(f"  [{status}] {_getattr_or_get(j, 'id', '?')} — {_getattr_or_get(j, 'name', '')} ({kind})")
+            # Delivery info
+            delivery = _getattr_or_get(j, 'delivery', None)
+            delivery_str = ""
+            if delivery and isinstance(delivery, dict):
+                ch = delivery.get("channel", "")
+                cid = delivery.get("channel_id", "")
+                if ch or cid:
+                    delivery_str = f" → {ch}:{cid}"
+            agent_id = _getattr_or_get(j, 'agent_id', None)
+            agent_str = f" [agent:{agent_id}]" if agent_id else ""
+            lines.append(f"  [{status}] {_getattr_or_get(j, 'id', '?')} — {_getattr_or_get(j, 'name', '')} ({kind}){delivery_str}{agent_str}")
         return "\n".join(lines)
 
-    def _cli_add(self, name: str, message: str, every_seconds: int = 60) -> str:
+    def _cli_add(
+        self,
+        name: str,
+        message: str,
+        every_seconds: int = 60,
+        cron: str = "",
+        channel: str = "",
+        channel_id: str = "",
+        agent_id: str = "",
+        session_target: str = "isolated",
+    ) -> str:
         job_id = uuid.uuid4().hex[:12]
         store = _get_schedule_store()
+        # Build schedule
+        if cron:
+            schedule = {"kind": "cron", "cron_expr": cron}
+        else:
+            schedule = {"kind": "every", "every_seconds": every_seconds}
+        # Build delivery
+        delivery = None
+        if channel_id:
+            delivery = {
+                "channel": channel,
+                "channel_id": channel_id,
+                "session_id": None,
+                "thread_id": None,
+            }
         job = {
-            "id": job_id, "name": name, "message": message,
-            "schedule": {"kind": "every", "every_seconds": every_seconds},
-            "enabled": True, "created_at": time.time(), "last_run_at": None,
+            "id": job_id,
+            "name": name,
+            "message": message,
+            "schedule": schedule,
+            "agent_id": agent_id or None,
+            "session_target": session_target,
+            "delivery": delivery,
+            "enabled": True,
+            "created_at": time.time(),
+            "last_run_at": None,
+            "run_count": 0,
         }
         if hasattr(store, 'add'):
-            store.add(job_id, f"*/{every_seconds}s", message, **job)
-        return f"Added job {job_id}: {name}"
+            store.add(job)
+        parts = [f"Added job {job_id}: {name}"]
+        if cron:
+            parts.append(f"  cron: {cron}")
+        else:
+            parts.append(f"  interval: {every_seconds}s")
+        if delivery:
+            parts.append(f"  delivery: {channel}→{channel_id}")
+        if agent_id:
+            parts.append(f"  agent: {agent_id}")
+        return "\n".join(parts)
 
     def _cli_remove(self, job_id: str) -> str:
         store = _get_schedule_store()

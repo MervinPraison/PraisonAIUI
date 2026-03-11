@@ -207,6 +207,53 @@ class PraisonAISecurity(BaseFeatureProtocol):
             Route("/api/security/config", self._set_config, methods=["POST"]),
         ]
 
+    def cli_commands(self) -> List[Dict[str, Any]]:
+        return [{
+            "name": "security",
+            "help": "Security monitoring and audit",
+            "commands": {
+                "status": {"help": "Show security status", "handler": self._cli_status},
+                "audit": {"help": "Show audit log", "handler": self._cli_audit},
+                "config": {"help": "Show security configuration", "handler": self._cli_config},
+            },
+        }]
+
+    # ── CLI handlers ─────────────────────────────────────────────────
+
+    def _cli_status(self) -> str:
+        mgr = get_security_manager()
+        h = mgr.health()
+        config = mgr.get_config()
+        lines = [
+            f"Status: {h.get('status', 'ok')}",
+            f"Provider: {h.get('provider', 'unknown')}",
+            f"Audit entries: {h.get('audit_entries', 0)}",
+            f"Injection defense: {'✓' if config.get('injection_defense') else '✗'}",
+            f"Audit logging: {'✓' if config.get('audit_logging') else '✗'}",
+            f"Content filtering: {'✓' if config.get('content_filtering') else '✗'}",
+        ]
+        return "\n".join(lines)
+
+    def _cli_audit(self, limit: int = 20) -> str:
+        mgr = get_security_manager()
+        items = mgr.list_audit_log(limit=limit)
+        if not items:
+            return "No audit log entries"
+        lines = []
+        for e in items:
+            severity = e.get("severity", "info")
+            etype = e.get("event_type", "?")
+            agent = e.get("agent_id", "")
+            agent_str = f" agent={agent}" if agent else ""
+            lines.append(f"  [{severity}] {etype}{agent_str}")
+        return f"{len(items)} entries:\n" + "\n".join(lines)
+
+    def _cli_config(self) -> str:
+        mgr = get_security_manager()
+        config = mgr.get_config()
+        lines = [f"  {k}: {'✓' if v else '✗'}" for k, v in config.items()]
+        return "Security config:\n" + "\n".join(lines)
+
     async def _overview(self, request: Request) -> JSONResponse:
         mgr = get_security_manager()
         agent_security = []

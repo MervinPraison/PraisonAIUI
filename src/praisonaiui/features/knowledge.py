@@ -495,6 +495,78 @@ class PraisonAIKnowledge(BaseFeatureProtocol):
             Route("/api/knowledge/{entry_id}", self._delete, methods=["DELETE"]),
         ]
 
+    def cli_commands(self) -> List[Dict[str, Any]]:
+        return [{
+            "name": "knowledge",
+            "help": "Manage knowledge base",
+            "commands": {
+                "list": {"help": "List all knowledge entries", "handler": self._cli_list},
+                "add": {"help": "Add a knowledge entry", "handler": self._cli_add},
+                "search": {"help": "Search knowledge base", "handler": self._cli_search},
+                "remove": {"help": "Remove a knowledge entry", "handler": self._cli_remove},
+                "status": {"help": "Show knowledge base status", "handler": self._cli_status},
+            },
+        }]
+
+    # ── CLI handlers ─────────────────────────────────────────────────
+
+    def _cli_list(self) -> str:
+        mgr = get_knowledge_manager()
+        items = mgr.list_all()
+        if not items:
+            return "No knowledge entries"
+        lines = []
+        for e in items:
+            eid = e.get("id", "?")
+            text = (e.get("text", "") or "")[:60]
+            meta = e.get("metadata", {})
+            source = meta.get("filename") or meta.get("source", "")
+            source_str = f" [{source}]" if source else ""
+            lines.append(f"  {eid}{source_str} — {text}")
+        return f"{len(items)} entries:\n" + "\n".join(lines)
+
+    def _cli_add(self, text: str, agent_id: str = "", user_id: str = "") -> str:
+        mgr = get_knowledge_manager()
+        entry = mgr.store(
+            text=text,
+            user_id=user_id or None,
+            agent_id=agent_id or None,
+        )
+        return f"Stored entry {entry.get('id', '?')}: {text[:60]}"
+
+    def _cli_search(self, query: str, limit: int = 10) -> str:
+        mgr = get_knowledge_manager()
+        results = mgr.search(query=query, limit=limit)
+        if not results:
+            return f"No results for: {query}"
+        lines = []
+        for r in results:
+            rid = r.get("id", "?")
+            text = (r.get("text", "") or "")[:60]
+            score = r.get("score", "")
+            score_str = f" (score={score:.2f})" if isinstance(score, float) else ""
+            lines.append(f"  {rid}{score_str} — {text}")
+        return f"{len(results)} results:\n" + "\n".join(lines)
+
+    def _cli_remove(self, entry_id: str) -> str:
+        mgr = get_knowledge_manager()
+        deleted = mgr.delete(entry_id)
+        if not deleted:
+            return f"Entry {entry_id} not found"
+        return f"Removed entry {entry_id}"
+
+    def _cli_status(self) -> str:
+        mgr = get_knowledge_manager()
+        stats = mgr.get_stats()
+        h = mgr.health()
+        lines = [
+            f"Status: {h.get('status', 'ok')}",
+            f"Backend: {h.get('provider', stats.get('backend', 'unknown'))}",
+            f"Total entries: {stats.get('total', 0)}",
+            f"Files ingested: {stats.get('files', 0)}",
+        ]
+        return "\n".join(lines)
+
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
 

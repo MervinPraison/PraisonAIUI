@@ -6,6 +6,8 @@ description: Project information and deployment reference for PraisonAIUI
 
 YAML-driven website/docs generator. One YAML file, one docs folder, one command — ship a beautiful documentation site.
 
+**Aim**: AIUI is a standardised, protocol-driven UI framework for building *any* AI-powered interface — not hardcoded to PraisonAI.
+
 ## Key Files
 
 | File | Purpose |

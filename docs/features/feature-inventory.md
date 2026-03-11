@@ -14,7 +14,7 @@ Complete inventory of **every feature** in PraisonAIUI: what's implemented, what
 | 🟡 Partial (needs integration) | **0** |
 | 🔴 Not Yet Built | **0** |
 | Total API Routes | **210+** |
-| Features with CLI Commands | **15** |
+| Features with CLI Commands | **19** |
 | Frontend Dashboard Views | **17** |
 | Backend Health: Healthy | **35 / 36** |
 | Backend Health: Degraded | **1 / 36** (openai_api — needs `praisonai.capabilities`) |
@@ -58,11 +58,11 @@ These features are **registered, healthy, and serving API routes** right now.
 | 29 | `i18n` | Internationalization (en, es, fr locales) | 5 | ❌ | ✅ ok | — | `i18n.py` |
 | 30 | `device_pairing` | Device pairing via short hex codes | 4 | ❌ | ✅ ok | — | `device_pairing.py` |
 | 31 | `media_analysis` | Image analysis, OCR, object detection | 3 | ❌ | ✅ ok | — | `media_analysis.py` |
-| 32 | `guardrails` | Input/output safety guardrails, violation tracking | 4 | ❌ | ✅ ok | `guardrails.js` | `guardrails.py` |
+| 32 | `guardrails` | Input/output safety guardrails, violation tracking | 4 | ✅ | ✅ ok | `guardrails.js` | `guardrails.py` |
 | 33 | `eval` | Agent evaluation, accuracy scoring, judge models | 5 | ❌ | ✅ ok | `eval.js` | `eval.py` |
-| 34 | `telemetry` | Performance metrics, profiling, monitoring | 6 | ❌ | ✅ ok | `telemetry.js` | `telemetry.py` |
+| 34 | `telemetry` | Performance metrics, profiling, monitoring | 6 | ✅ | ✅ ok | `telemetry.js` | `telemetry.py` |
 | 35 | `tracing` | Distributed tracing, span recording, observability | 5 | ❌ | ✅ ok | `tracing.js` | `tracing.py` |
-| 36 | `security` | Security monitoring, audit logging, access control | 4 | ❌ | ✅ ok | `security.js` | `security.py` |
+| 36 | `security` | Security monitoring, audit logging, access control | 4 | ✅ | ✅ ok | `security.js` | `security.py` |
 
 ---
 

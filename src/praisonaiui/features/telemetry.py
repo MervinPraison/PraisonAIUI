@@ -217,6 +217,58 @@ class PraisonAITelemetry(BaseFeatureProtocol):
             Route("/api/telemetry/profiling", self._profiling, methods=["GET"]),
         ]
 
+    def cli_commands(self) -> List[Dict[str, Any]]:
+        return [{
+            "name": "telemetry",
+            "help": "Performance monitoring and metrics",
+            "commands": {
+                "status": {"help": "Show telemetry status", "handler": self._cli_status},
+                "metrics": {"help": "Show recent metrics", "handler": self._cli_metrics},
+                "overview": {"help": "Show telemetry overview", "handler": self._cli_overview},
+            },
+        }]
+
+    # ── CLI handlers ─────────────────────────────────────────────────
+
+    def _cli_status(self) -> str:
+        mgr = get_telemetry_manager()
+        h = mgr.health()
+        lines = [
+            f"Status: {h.get('status', 'ok')}",
+            f"Provider: {h.get('provider', 'unknown')}",
+            f"Total metrics: {h.get('total_metrics', 0)}",
+        ]
+        return "\n".join(lines)
+
+    def _cli_metrics(self, limit: int = 20, agent_id: str = "") -> str:
+        mgr = get_telemetry_manager()
+        items = mgr.list_metrics(limit=limit, agent_id=agent_id or None)
+        if not items:
+            return "No metrics recorded"
+        lines = []
+        for m in items:
+            mtype = m.get("type", "?")
+            agent = m.get("agent_id", "?")
+            latency = m.get("latency_ms", 0)
+            tokens = m.get("tokens", 0)
+            lines.append(f"  {mtype} agent={agent} latency={latency}ms tokens={tokens}")
+        return f"{len(items)} metrics:\n" + "\n".join(lines)
+
+    def _cli_overview(self) -> str:
+        mgr = get_telemetry_manager()
+        overview = mgr.get_overview()
+        lines = [
+            f"Total calls: {overview.get('total_calls', 0)}",
+            f"Avg latency: {overview.get('avg_latency_ms', 'N/A')}ms",
+            f"Total tokens: {overview.get('total_tokens', 0)}",
+        ]
+        by_agent = overview.get("by_agent", {})
+        if by_agent:
+            lines.append("By agent:")
+            for aid, stats in by_agent.items():
+                lines.append(f"  {aid}: {stats.get('calls', 0)} calls, avg {stats.get('avg_latency_ms', 0):.0f}ms")
+        return "\n".join(lines)
+
     async def _overview(self, request: Request) -> JSONResponse:
         mgr = get_telemetry_manager()
         overview = mgr.get_overview()

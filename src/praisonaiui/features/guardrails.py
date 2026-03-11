@@ -256,6 +256,88 @@ class PraisonAIGuardrails(BaseFeatureProtocol):
             Route("/api/guardrails/{guardrail_id}", self._delete, methods=["DELETE"]),
         ]
 
+    def cli_commands(self) -> List[Dict[str, Any]]:
+        return [{
+            "name": "guardrails",
+            "help": "Manage safety guardrails",
+            "commands": {
+                "list": {"help": "List all registered guardrails", "handler": self._cli_list},
+                "add": {"help": "Register a new guardrail", "handler": self._cli_add},
+                "remove": {"help": "Remove a guardrail by ID", "handler": self._cli_remove},
+                "status": {"help": "Show guardrails system status", "handler": self._cli_status},
+                "violations": {"help": "Show recent guardrail violations", "handler": self._cli_violations},
+            },
+        }]
+
+    # ── CLI handlers ─────────────────────────────────────────────────
+
+    def _cli_list(self) -> str:
+        mgr = get_guardrail_manager()
+        guardrails = mgr.list_guardrails()
+        if not guardrails:
+            return "No guardrails registered"
+        lines = []
+        for g in guardrails:
+            gid = g.get("id", "?")
+            gtype = g.get("type", "?")
+            desc = g.get("description", "")[:60]
+            agent = g.get("agent_name", "all") or "all"
+            lines.append(f"  {gid} [{gtype}] agent={agent} — {desc}")
+        return "\n".join(lines)
+
+    def _cli_add(
+        self,
+        description: str,
+        type: str = "llm",
+        agent_name: str = "",
+        llm_model: str = "gpt-4o-mini",
+    ) -> str:
+        mgr = get_guardrail_manager()
+        gid = f"gr_{int(time.time())}"
+        info = {
+            "type": type,
+            "description": description,
+            "agent_name": agent_name,
+            "guardrail": "LLMGuardrail" if type == "llm" else "custom",
+            "llm_model": llm_model,
+            "created_at": time.time(),
+        }
+        mgr.register_guardrail(gid, info)
+        return f"Registered guardrail {gid}: {description[:60]}"
+
+    def _cli_remove(self, guardrail_id: str) -> str:
+        mgr = get_guardrail_manager()
+        deleted = mgr.delete_guardrail(guardrail_id)
+        if not deleted:
+            return f"Guardrail {guardrail_id} not found"
+        return f"Removed guardrail {guardrail_id}"
+
+    def _cli_status(self) -> str:
+        mgr = get_guardrail_manager()
+        guardrails = mgr.list_guardrails()
+        violations = mgr.get_violations(limit=5)
+        h = mgr.health()
+        lines = [
+            f"Status: {h.get('status', 'ok')}",
+            f"Active guardrails: {len(guardrails)}",
+            f"Recent violations: {len(violations)}",
+        ]
+        return "\n".join(lines)
+
+    def _cli_violations(self, limit: int = 20) -> str:
+        mgr = get_guardrail_manager()
+        violations = mgr.get_violations(limit=limit)
+        if not violations:
+            return "No violations recorded"
+        lines = []
+        for v in violations:
+            ts = v.get("timestamp", "?")
+            agent = v.get("agent_id", "?")
+            msg = v.get("message", "")[:60]
+            level = v.get("level", "?")
+            lines.append(f"  [{level}] {ts} agent={agent} — {msg}")
+        return "\n".join(lines)
+
     async def _list(self, request: Request) -> JSONResponse:
         """List all active guardrails across agents."""
         mgr = get_guardrail_manager()

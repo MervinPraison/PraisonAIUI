@@ -147,10 +147,77 @@ aiui approval resolve <ID> [--approved/--denied] [--reason TEXT]
 ### schedule
 
 ```bash
-aiui schedule list                    # List all jobs
-aiui schedule add <NAME> <MESSAGE> [--every 60]  # Add interval job
+aiui schedule list                    # List all jobs (shows delivery + agent info)
+aiui schedule add <NAME> <MESSAGE> [OPTIONS]  # Add a scheduled job
 aiui schedule remove <JOB_ID>        # Remove job
 aiui schedule status                  # Show scheduler status
+```
+
+**Schedule add options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--every` | int | `60` | Interval in seconds |
+| `--cron` | string | | Cron expression (e.g. `*/5 * * * *`) |
+| `--channel` | string | | Delivery channel (e.g. `telegram`, `slack`) |
+| `--channel-id` | string | | Delivery channel/room ID |
+| `--agent-id` | string | | Agent to handle the job |
+| `--session-target` | string | `isolated` | Session: `isolated` or `main` |
+
+```bash
+# Simple interval job
+aiui schedule add "Daily Report" "Generate summary" --every 86400
+
+# Cron job with delivery
+aiui schedule add "Slack Update" "Post metrics" \
+  --cron "0 9 * * 1-5" \
+  --channel slack --channel-id C123456 \
+  --agent-id analyst
+```
+
+### guardrails
+
+```bash
+aiui guardrails list                  # List all registered guardrails
+aiui guardrails add --description "Block profanity" [OPTIONS]  # Register guardrail
+aiui guardrails remove <GUARDRAIL_ID> # Remove a guardrail
+aiui guardrails status                # Show system status
+aiui guardrails violations [--limit 20]  # Show recent violations
+```
+
+**Guardrails add options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--description` | string | *required* | Natural language validation criteria |
+| `--type` | string | `llm` | Guardrail type: `llm` or `custom` |
+| `--agent-name` | string | | Target agent (all agents if empty) |
+| `--llm-model` | string | `gpt-4o-mini` | LLM model for evaluation |
+
+### knowledge
+
+```bash
+aiui knowledge list                   # List all knowledge entries
+aiui knowledge add <TEXT> [--agent-id ID] [--user-id ID]  # Store entry
+aiui knowledge search <QUERY> [--limit 10]  # Search knowledge base
+aiui knowledge remove <ENTRY_ID>      # Delete an entry
+aiui knowledge status                 # Show backend info + stats
+```
+
+### security
+
+```bash
+aiui security status                  # Show security posture
+aiui security audit [--limit 20]      # Show audit log entries
+aiui security config                  # Show security configuration
+```
+
+### telemetry
+
+```bash
+aiui telemetry status                 # Show telemetry status
+aiui telemetry metrics [--limit 20] [--agent-id ID]  # Show recent metrics
+aiui telemetry overview               # Aggregate stats with per-agent breakdown
 ```
 
 ### memory
