@@ -125,7 +125,27 @@
 <p>| Port already in use | `lsof -ti :PORT \| xargs kill -9` before starting |</p>
 <p>| Chat returns no response | Check `OPENAI_API_KEY` is set in the running process |</p>
 <p>| `praisonai_agents: false` in `/health` | Install `praisonaiagents` package |</p>
-<p>| Features show 0 count | Features auto-register on import; check `server.py` initializes them |</p></noscript></div>
+<p>| Features show 0 count | Features auto-register on import; check `server.py` initializes them |</p>
+<p>---</p>
+<h2>Naming Convention</h2>
+<p>All feature classes MUST follow the `{Name}Feature` pattern:</p>
+<p>| ✅ Correct | ❌ Incorrect |</p>
+<p>|-----------|------------|</p>
+<p>| `SchedulesFeature` | `PraisonAISchedules` |</p>
+<p>| `KnowledgeFeature` | `PraisonAIKnowledge` |</p>
+<p>| `AgentsCrudFeature` | `PraisonAIAgentsFeature` |</p>
+<p>| `MemoryFeature` | `PraisonAIMemory` |</p>
+<h3>Rules</h3>
+<p>1. **Class name**: `{Name}Feature` — PascalCase, ends with `Feature`</p>
+<p>2. **`feature_name`**: `lowercase_snake` — this is the registry key, **never change it**</p>
+<p>3. **Module file**: `{name}.py` — matches `feature_name`</p>
+<p>4. **Backward-compat aliases**: old `PraisonAI{Name}` names are kept as aliases</p>
+<h3>Example</h3>
+<h3>Why This Convention?</h3>
+<li>**AIUI is a universal UI framework**, not PraisonAI-specific</li>
+<li>**Class names signal framework identity** to third-party developers</li>
+<li>**`feature_name` stays unchanged** for backward compatibility with existing configs</li>
+<li>**Aliases preserve imports** for existing code using old names</li></noscript></div>
   <script>
     // AIUI Plugin System — inline bootstrap
     (function () {

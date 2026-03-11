@@ -177,3 +177,45 @@ def get_my_manager() -> MyProtocol:
 | Chat returns no response | Check `OPENAI_API_KEY` is set in the running process |
 | `praisonai_agents: false` in `/health` | Install `praisonaiagents` package |
 | Features show 0 count | Features auto-register on import; check `server.py` initializes them |
+
+---
+
+## Naming Convention
+
+All feature classes MUST follow the `{Name}Feature` pattern:
+
+| ✅ Correct | ❌ Incorrect |
+|-----------|------------|
+| `SchedulesFeature` | `PraisonAISchedules` |
+| `KnowledgeFeature` | `PraisonAIKnowledge` |
+| `AgentsCrudFeature` | `PraisonAIAgentsFeature` |
+| `MemoryFeature` | `PraisonAIMemory` |
+
+### Rules
+
+1. **Class name**: `{Name}Feature` — PascalCase, ends with `Feature`
+2. **`feature_name`**: `lowercase_snake` — this is the registry key, **never change it**
+3. **Module file**: `{name}.py` — matches `feature_name`
+4. **Backward-compat aliases**: old `PraisonAI{Name}` names are kept as aliases
+
+### Example
+
+```python
+# In features/schedules.py
+
+class SchedulesFeature(BaseFeatureProtocol):
+    feature_name = "schedules"  # Registry key — never change
+    
+    def routes(self):
+        return [Route("/api/schedules", ...)]
+
+# Backward-compat alias (at end of file)
+PraisonAISchedules = SchedulesFeature
+```
+
+### Why This Convention?
+
+- **AIUI is a universal UI framework**, not PraisonAI-specific
+- **Class names signal framework identity** to third-party developers
+- **`feature_name` stays unchanged** for backward compatibility with existing configs
+- **Aliases preserve imports** for existing code using old names
