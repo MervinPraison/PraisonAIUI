@@ -1253,6 +1253,18 @@ def create_app(
                     _skills_mod._skills_loaded = False
                 except Exception:
                     pass
+                # Reload channels from config and reset auto-start flag
+                try:
+                    from praisonaiui.features.channels import (
+                        _channels, _CHANNELS_SECTION, ChannelsFeature,
+                    )
+                    from praisonaiui.features._persistence import load_section
+                    updated = load_section(_CHANNELS_SECTION)
+                    _channels.clear()
+                    _channels.update(updated)
+                    ChannelsFeature._auto_started = False
+                except Exception:
+                    pass
 
             watcher = ConfigWatcher(
                 config_path=_config_store.path,
