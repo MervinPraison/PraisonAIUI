@@ -129,7 +129,7 @@ def _get_metadata(session_id: str) -> Dict[str, Any]:
     return _session_metadata[session_id]
 
 
-class PraisonAISessions(BaseFeatureProtocol):
+class SessionsFeature(BaseFeatureProtocol):
     """Extended session management wired to praisonaiagents.session."""
 
     feature_name = "sessions_ext"
@@ -438,3 +438,7 @@ class PraisonAISessions(BaseFeatureProtocol):
             "session_id": sid,
             "usage": meta.get("_usage", {"tokens": 0, "requests": 0}),
         })
+
+
+# Backward-compat alias
+PraisonAISessions = SessionsFeature

@@ -22,7 +22,7 @@ _workflows: Dict[str, Dict[str, Any]] = {}
 _runs: Dict[str, Dict[str, Any]] = {}
 
 
-class PraisonAIWorkflows(BaseFeatureProtocol):
+class WorkflowsFeature(BaseFeatureProtocol):
     """Workflow management wired to praisonaiagents.workflows."""
 
     feature_name = "workflows"
@@ -175,3 +175,7 @@ class PraisonAIWorkflows(BaseFeatureProtocol):
             for r in _runs.values()
         ]
         return "\n".join(lines)
+
+
+# Backward-compat alias
+PraisonAIWorkflows = WorkflowsFeature

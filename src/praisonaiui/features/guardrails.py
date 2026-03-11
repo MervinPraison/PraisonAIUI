@@ -219,7 +219,7 @@ def get_guardrail_manager() -> GuardrailProtocol:
     return _guardrail_manager
 
 
-class PraisonAIGuardrails(BaseFeatureProtocol):
+class GuardrailsFeature(BaseFeatureProtocol):
     """Guardrails safety dashboard feature."""
 
     feature_name = "guardrails"
@@ -521,3 +521,7 @@ async def check_guardrails(text: str, agent_name: str = "",
             logger.debug(f"Guardrail check failed: {e}")
 
     return None
+
+
+# Backward-compat alias
+PraisonAIGuardrails = GuardrailsFeature

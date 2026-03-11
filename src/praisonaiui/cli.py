@@ -1639,6 +1639,12 @@ def health_check(
         "-s",
         help="Server URL",
     ),
+    detailed: bool = typer.Option(
+        False,
+        "--detailed",
+        "-d",
+        help="Show per-feature health",
+    ),
 ) -> None:
     """Check server health."""
     import json as _json
@@ -1647,10 +1653,38 @@ def health_check(
     try:
         with urlopen(f"{server}/health") as resp:
             data = _json.loads(resp.read())
-            console.print(f"[green]✓[/green] {data.get('status')}: {data.get('timestamp')}")
+            status = data.get("status", "unknown")
+            ts = data.get("timestamp", "")
+            if status == "healthy":
+                console.print(Panel.fit(
+                    f"Server: [green]healthy[/green] ({ts})",
+                    title="Health Check",
+                    border_style="green",
+                ))
+            else:
+                console.print(Panel.fit(
+                    f"Server: [yellow]{status}[/yellow] ({ts})",
+                    title="Health Check",
+                    border_style="yellow",
+                ))
     except Exception as e:
         console.print(f"[red]✗[/red] Server unreachable: {e}")
         raise typer.Exit(code=1)
+
+    if detailed:
+        try:
+            features_data = _api_get(server, "/api/features")
+            if features_data and "features" in features_data:
+                console.print("\n[bold]Feature Health:[/bold]")
+                for feat in features_data["features"]:
+                    name = feat.get("name", "unknown")
+                    health = feat.get("health", {})
+                    healthy = health.get("healthy", True)
+                    detail = health.get("detail", "ok")
+                    icon = "[green]✅[/green]" if healthy else "[yellow]⚠️[/yellow]"
+                    console.print(f"  {icon} {name}: {detail}")
+        except Exception as e:
+            console.print(f"[yellow]⚠️[/yellow] Could not fetch feature health: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -2373,6 +2407,128 @@ def session_ext_reset(
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
         raise typer.Exit(code=1)
+
+# ---------------------------------------------------------------------------
+# Doctor command — ``aiui doctor`` structured diagnostics
+# ---------------------------------------------------------------------------
+
+@app.command()
+def doctor(
+    server: str = typer.Option(
+        "http://127.0.0.1:8000",
+        "--server",
+        "-s",
+        help="Server URL to diagnose",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Output results as JSON",
+    ),
+):
+    """Run structured diagnostics against a running AIUI server."""
+    import json as _json
+
+    checks = []
+
+    def _check(name: str, path: str, extractor=None):
+        """Run a single diagnostic check."""
+        try:
+            data = _api_get(server, path)
+            if extractor:
+                status, detail = extractor(data)
+            else:
+                status, detail = "pass", "ok"
+            return {"name": name, "status": status, "detail": detail}
+        except Exception as e:
+            return {"name": name, "status": "fail", "detail": str(e)}
+
+    # Check 1: Server Health
+    def _health_extractor(data):
+        status = data.get("status", "unknown")
+        if status == "healthy":
+            return "pass", f"running on {server.split('://')[-1]}"
+        return "warn", f"status: {status}"
+    checks.append(_check("Server Health", "/health", _health_extractor))
+
+    # Check 2: Provider Status
+    def _provider_extractor(data):
+        name = data.get("name", "unknown")
+        return "pass", f"{name} (active)"
+    checks.append(_check("Provider Status", "/api/provider", _provider_extractor))
+
+    # Check 3: Gateway Status
+    def _gateway_extractor(data):
+        gw_type = data.get("type", "unknown")
+        agents = data.get("agents", 0)
+        return "pass", f"{gw_type} ({agents} agents)"
+    checks.append(_check("Gateway Status", "/api/provider/health", _gateway_extractor))
+
+    # Check 4: Features Loaded
+    def _features_extractor(data):
+        features = data.get("features", [])
+        count = len(features)
+        return "pass", f"{count}/37 features registered"
+    checks.append(_check("Features Loaded", "/api/features", _features_extractor))
+
+    # Check 5: Config Store
+    def _config_extractor(data):
+        if "config" in data or "error" not in data:
+            return "pass", "config store active"
+        return "warn", data.get("error", "unknown")
+    checks.append(_check("Config Store", "/api/config", _config_extractor))
+
+    # Check 6: Datastore
+    def _datastore_extractor(data):
+        sessions = data if isinstance(data, list) else data.get("sessions", [])
+        count = len(sessions)
+        return "pass", f"JSONFileDataStore ({count} sessions)"
+    checks.append(_check("Datastore", "/sessions", _datastore_extractor))
+
+    # Check 7: Channels
+    def _channels_extractor(data):
+        channels = data.get("channels", [])
+        if not channels:
+            return "warn", "no channels configured"
+        active = sum(1 for c in channels if c.get("enabled", True))
+        return "pass", f"{active}/{len(channels)} channels active"
+    checks.append(_check("Channels", "/api/channels", _channels_extractor))
+
+    # Calculate summary
+    passed = sum(1 for c in checks if c["status"] == "pass")
+    warnings = sum(1 for c in checks if c["status"] == "warn")
+    failed = sum(1 for c in checks if c["status"] == "fail")
+
+    if json_output:
+        result = {
+            "checks": checks,
+            "summary": {"passed": passed, "warnings": warnings, "failed": failed},
+        }
+        console.print(_json.dumps(result, indent=2))
+        return
+
+    # Rich formatted output
+    console.print()
+    console.print(Panel.fit(
+        "[bold cyan]AIUI Doctor — Instance Diagnostic[/bold cyan]",
+        border_style="cyan",
+    ))
+    console.print()
+
+    status_icons = {"pass": "[green]✅[/green]", "warn": "[yellow]⚠️[/yellow]", "fail": "[red]❌[/red]"}
+
+    for i, check in enumerate(checks, 1):
+        icon = status_icons.get(check["status"], "❓")
+        console.print(f"▶ {i}. {check['name']:20} {icon} {check['detail']}")
+
+    console.print()
+    console.print("═" * 43)
+    console.print(f"  SUMMARY: [green]{passed} passed[/green], [yellow]{warnings} warning{'s' if warnings != 1 else ''}[/yellow], [red]{failed} failed[/red]")
+    console.print("═" * 43)
+
+    if failed > 0:
+        raise typer.Exit(code=1)
+
 
 # ---------------------------------------------------------------------------
 # Test runner — ``aiui test chat|memory|sessions|endpoints|all``

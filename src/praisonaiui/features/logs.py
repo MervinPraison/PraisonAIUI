@@ -120,7 +120,7 @@ def get_log_buffer() -> deque:
     return _log_buffer
 
 
-class PraisonAILogs(BaseFeatureProtocol):
+class LogsFeature(BaseFeatureProtocol):
     """Real-time log streaming feature."""
 
     feature_name = "logs"
@@ -293,3 +293,7 @@ class PraisonAILogs(BaseFeatureProtocol):
     def _cli_clear(self) -> str:
         _log_buffer.clear()
         return "Log buffer cleared"
+
+
+# Backward-compat alias
+PraisonAILogs = LogsFeature

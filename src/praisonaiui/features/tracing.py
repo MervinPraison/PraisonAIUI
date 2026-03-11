@@ -173,7 +173,7 @@ def get_tracing_manager() -> TracingProtocol:
     return _tracing_manager
 
 
-class PraisonAITracing(BaseFeatureProtocol):
+class TracingFeature(BaseFeatureProtocol):
     """Tracing and observability feature."""
 
     feature_name = "tracing"
@@ -288,3 +288,7 @@ def record_span(trace_id: str, agent_id: str, name: str,
         "attributes": attributes or {},
         "events": [],
     })
+
+
+# Backward-compat alias
+PraisonAITracing = TracingFeature

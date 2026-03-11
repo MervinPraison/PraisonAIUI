@@ -126,7 +126,7 @@ def set_marketplace_manager(manager: MarketplaceProtocol) -> None:
 # ── Feature class ────────────────────────────────────────────────────
 
 
-class PraisonAIMarketplace(BaseFeatureProtocol):
+class MarketplaceFeature(BaseFeatureProtocol):
     """Plugin marketplace — browse, install, manage plugins."""
 
     feature_name = "marketplace"
@@ -188,3 +188,7 @@ class PraisonAIMarketplace(BaseFeatureProtocol):
         if not plugin:
             return JSONResponse({"error": "Plugin not found"}, status_code=404)
         return JSONResponse(plugin)
+
+
+# Backward-compat alias
+PraisonAIMarketplace = MarketplaceFeature

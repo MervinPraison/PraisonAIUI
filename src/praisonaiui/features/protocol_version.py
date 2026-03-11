@@ -119,7 +119,7 @@ async def _negotiate_handler(request: Request) -> JSONResponse:
 
 # ── Feature ──────────────────────────────────────────────────────
 
-class PraisonAIProtocol(BaseFeatureProtocol):
+class ProtocolFeature(BaseFeatureProtocol):
     """Protocol versioning feature — version negotiation and typed events."""
 
     feature_name = "protocol"
@@ -138,3 +138,7 @@ class PraisonAIProtocol(BaseFeatureProtocol):
             Route("/api/protocol", _protocol_handler, methods=["GET"]),
             Route("/api/protocol/negotiate", _negotiate_handler, methods=["POST"]),
         ]
+
+
+# Backward-compat alias
+PraisonAIProtocol = ProtocolFeature

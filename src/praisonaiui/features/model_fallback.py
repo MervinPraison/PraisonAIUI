@@ -114,7 +114,7 @@ async def _set_fallback(request: Request) -> JSONResponse:
 
 # ── Feature ──────────────────────────────────────────────────────
 
-class PraisonAIModelFallback(BaseFeatureProtocol):
+class ModelFallbackFeature(BaseFeatureProtocol):
     """Model fallback feature — configure model fallback chains."""
 
     feature_name = "model_fallback"
@@ -133,3 +133,7 @@ class PraisonAIModelFallback(BaseFeatureProtocol):
             Route("/api/models", _list_models, methods=["GET"]),
             Route("/api/models/fallback", _set_fallback, methods=["PUT"]),
         ]
+
+
+# Backward-compat alias
+PraisonAIModelFallback = ModelFallbackFeature

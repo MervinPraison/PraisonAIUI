@@ -375,7 +375,7 @@ def list_agents_definitions() -> List[Dict[str, Any]]:
     return get_agent_registry().list_all()
 
 
-class PraisonAIAgentsFeature(BaseFeatureProtocol):
+class AgentsCrudFeature(BaseFeatureProtocol):
     """Full CRUD for agent management."""
 
     feature_name = "agents_crud"
@@ -655,3 +655,7 @@ class PraisonAIAgentsFeature(BaseFeatureProtocol):
                 "error": str(e),
                 "agent_id": agent_id,
             }, status_code=500)
+
+
+# Backward-compat alias
+PraisonAIAgentsFeature = AgentsCrudFeature

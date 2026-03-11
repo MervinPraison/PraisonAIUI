@@ -119,7 +119,7 @@ def set_execution_manager(manager: CodeExecutionProtocol) -> None:
 # ── Feature class ────────────────────────────────────────────────────
 
 
-class PraisonAICodeExecution(BaseFeatureProtocol):
+class CodeExecutionFeature(BaseFeatureProtocol):
     """Code execution — sandboxed with approval hooks integration."""
 
     feature_name = "code_execution"
@@ -160,3 +160,7 @@ class PraisonAICodeExecution(BaseFeatureProtocol):
         mgr = get_execution_manager()
         languages = mgr.list_languages()
         return JSONResponse({"languages": languages, "count": len(languages)})
+
+
+# Backward-compat alias
+PraisonAICodeExecution = CodeExecutionFeature

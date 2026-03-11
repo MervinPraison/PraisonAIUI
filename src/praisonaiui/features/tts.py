@@ -132,7 +132,7 @@ def set_tts_manager(manager: TTSProtocol) -> None:
 # ── Feature class ────────────────────────────────────────────────────
 
 
-class PraisonAITTS(BaseFeatureProtocol):
+class TTSFeature(BaseFeatureProtocol):
     """Text-to-speech — delegates to TTSProtocol backend."""
 
     feature_name = "tts"
@@ -192,3 +192,7 @@ class PraisonAITTS(BaseFeatureProtocol):
         mgr = get_tts_manager()
         result = mgr.synthesize(text=text, voice=voice)
         return f"TTS result: {result.get('type', 'unknown')}"
+
+
+# Backward-compat alias
+PraisonAITTS = TTSFeature

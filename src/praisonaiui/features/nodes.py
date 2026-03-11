@@ -81,7 +81,7 @@ def _auto_register_local() -> None:
 _auto_register_local()
 
 
-class PraisonAINodes(BaseFeatureProtocol):
+class NodesFeature(BaseFeatureProtocol):
     """Node management and instance presence monitoring."""
 
     feature_name = "nodes"
@@ -279,3 +279,7 @@ class PraisonAINodes(BaseFeatureProtocol):
     def _cli_status(self) -> str:
         online = sum(1 for n in _nodes.values() if n.get("status") == "online")
         return f"Nodes: {len(_nodes)} total, {online} online | Instances: {len(_instances)} connected"
+
+
+# Backward-compat alias
+PraisonAINodes = NodesFeature

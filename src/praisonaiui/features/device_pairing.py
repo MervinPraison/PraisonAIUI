@@ -138,7 +138,7 @@ def set_pairing_manager(manager: PairingProtocol) -> None:
 # ── Feature class ────────────────────────────────────────────────────
 
 
-class PraisonAIDevicePairing(BaseFeatureProtocol):
+class DevicePairingFeature(BaseFeatureProtocol):
     """Device pairing — short codes, session sync, device management."""
 
     feature_name = "device_pairing"
@@ -194,3 +194,7 @@ class PraisonAIDevicePairing(BaseFeatureProtocol):
         if not mgr.remove_device(device_id):
             return JSONResponse({"error": "Device not found"}, status_code=404)
         return JSONResponse({"deleted": device_id})
+
+
+# Backward-compat alias
+PraisonAIDevicePairing = DevicePairingFeature

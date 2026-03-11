@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import sys
 import time
 from collections import deque
@@ -37,6 +38,15 @@ _provider: Optional[BaseProvider] = None  # lazy-init to avoid circular import
 _active_tasks: dict[str, asyncio.Task] = {}
 # Server start time for uptime calculation
 _server_start_time: float = time.time()
+
+
+def _get_data_dir() -> Path:
+    """Return the AIUI data directory, configurable via AIUI_DATA_DIR env var."""
+    data_dir = Path(os.environ.get("AIUI_DATA_DIR", str(Path.home() / ".praisonaiui")))
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return data_dir
+
+
 # In-memory log buffer for /api/logs
 _log_buffer: deque = deque(maxlen=500)
 # Usage tracking (token counts per session/model)
@@ -95,7 +105,15 @@ def _build_html(style: str) -> str:
 
     The SDK owns the HTML — just like Chainlit. Users never write HTML.
     """
-    title = "PraisonAIUI Dashboard" if style == "dashboard" else "PraisonAIUI"
+    # Config-driven title with fallback to "AIUI"
+    try:
+        from praisonaiui.config_store import get_config_store
+        _cs = get_config_store()
+        _site_section = _cs.get_section("site") if _cs else {}
+        _site_title = _site_section.get("title", "AIUI") if _site_section else "AIUI"
+    except Exception:
+        _site_title = "AIUI"
+    title = f"{_site_title} Dashboard" if style == "dashboard" else _site_title
     cache_bust = int(_server_start_time)
 
     # Anti-flicker: dark background + hide React content until plugins render
@@ -1028,6 +1046,48 @@ def _init_gateway_standalone(config: Optional[dict] = None) -> None:
         pass
 
 
+class AuthEnforcementMiddleware:
+    """Optional middleware that enforces auth on /api/* routes when AUTH_ENFORCE=true."""
+
+    EXEMPT_PATHS = {
+        "/health", "/api/health",
+        "/api/auth/login", "/login",
+        "/api/protocol", "/api/protocol/negotiate",
+    }
+
+    def __init__(self, app):
+        self.app = app
+        self.enforce = os.environ.get("AUTH_ENFORCE", "").lower() in ("true", "1", "yes")
+
+    async def __call__(self, scope, receive, send):
+        if self.enforce and scope["type"] == "http":
+            path = scope.get("path", "")
+            if path.startswith("/api/") and path not in self.EXEMPT_PATHS:
+                # Check for Bearer token in Authorization header
+                headers = dict(scope.get("headers", []))
+                auth_header = headers.get(b"authorization", b"").decode()
+                if not auth_header.startswith("Bearer "):
+                    # Return 401 Unauthorized
+                    response = JSONResponse(
+                        {"error": "Authorization required",
+                         "hint": "Set Authorization: Bearer <token>"},
+                        status_code=401,
+                    )
+                    await response(scope, receive, send)
+                    return
+                else:
+                    token = auth_header[7:]
+                    from praisonaiui.features.auth import verify_api_key
+                    if not verify_api_key(token):
+                        response = JSONResponse(
+                            {"error": "Invalid or expired token"},
+                            status_code=401,
+                        )
+                        await response(scope, receive, send)
+                        return
+        await self.app(scope, receive, send)
+
+
 def create_app(
     config: Optional[dict] = None,
     static_dir: Optional[Path] = None,
@@ -1062,6 +1122,9 @@ def create_app(
         ),
     ]
 
+    # Add optional AUTH_ENFORCE middleware (env var driven)
+    middleware.append(Middleware(AuthEnforcementMiddleware))
+
     if require_auth:
         middleware.append(
             Middleware(
@@ -1076,7 +1139,7 @@ def create_app(
     _config_path = config_path
     # Default to standard config location if not explicitly provided
     if _config_path is None:
-        _default_cfg = Path.home() / ".praisonaiui" / "config.yaml"
+        _default_cfg = _get_data_dir() / "config.yaml"
         if _default_cfg.exists():
             _config_path = _default_cfg
     if config:
@@ -1094,9 +1157,17 @@ def create_app(
         effective_style = config.get("style", effective_style)
 
     async def _ui_config_json(request: Request) -> JSONResponse:
+        # Config-driven site title with fallback to "AIUI"
+        try:
+            from praisonaiui.config_store import get_config_store
+            _cs = get_config_store()
+            _site_section = _cs.get_section("site") if _cs else {}
+            _site_title = _site_section.get("title", "AIUI") if _site_section else "AIUI"
+        except Exception:
+            _site_title = "AIUI"
         return JSONResponse({
             "style": effective_style,
-            "site": {"title": "PraisonAI"},
+            "site": {"title": _site_title},
             "chat": {"enabled": effective_style in ("chat", "agents", "playground", "dashboard")},
         })
 
@@ -1153,11 +1224,11 @@ def create_app(
 
     # ── Initialize unified YAML config store ────────────────────────
     # All CRUD features (agents, skills, etc.) persist their state to
-    # a single YAML file (~/.praisonaiui/config.yaml).  Features load
-    # lazily via get_config_store() on first access.
+    # a single YAML file (AIUI_DATA_DIR/config.yaml or ~/.praisonaiui/config.yaml).
+    # Features load lazily via get_config_store() on first access.
     try:
         from praisonaiui.config_store import init_config_store
-        _default_data_dir = Path.home() / ".praisonaiui"
+        _default_data_dir = _get_data_dir()
         _config_store = init_config_store(_default_data_dir / "config.yaml")
 
         # Connect hot-reload watcher to the config store YAML file
@@ -1198,8 +1269,7 @@ def create_app(
     # Legacy: keep usage persistence via its own JSON (not yet migrated)
     try:
         from praisonaiui.features.usage import set_data_file as set_usage_data_file
-        _default_data_dir = Path.home() / ".praisonaiui"
-        set_usage_data_file(_default_data_dir / "usage.json")
+        set_usage_data_file(_get_data_dir() / "usage.json")
     except ImportError:
         pass
 

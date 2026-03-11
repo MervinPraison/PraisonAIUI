@@ -183,7 +183,7 @@ def get_telemetry_manager() -> TelemetryProtocol:
     return _telemetry_manager
 
 
-class PraisonAITelemetry(BaseFeatureProtocol):
+class TelemetryFeature(BaseFeatureProtocol):
     """Telemetry and performance monitoring feature."""
 
     feature_name = "telemetry"
@@ -347,3 +347,7 @@ def record_metric(agent_id: str, metric_type: str = "llm_call",
         "tokens": tokens,
         "model": model,
     })
+
+
+# Backward-compat alias
+PraisonAITelemetry = TelemetryFeature

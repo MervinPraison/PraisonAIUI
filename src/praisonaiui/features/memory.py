@@ -553,7 +553,7 @@ def set_memory_manager(manager: MemoryProtocol) -> None:
 # ── Feature class ────────────────────────────────────────────────────
 
 
-class PraisonAIMemory(BaseFeatureProtocol):
+class MemoryFeature(BaseFeatureProtocol):
     """Memory management — delegates to MemoryProtocol backend."""
 
     feature_name = "memory"
@@ -732,3 +732,7 @@ class PraisonAIMemory(BaseFeatureProtocol):
     def _cli_context(self, query: str) -> str:
         mgr = get_memory_manager()
         return mgr.get_context(query) or "No relevant memories found"
+
+
+# Backward-compat alias
+PraisonAIMemory = MemoryFeature

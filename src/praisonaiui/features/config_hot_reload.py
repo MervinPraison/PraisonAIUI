@@ -159,7 +159,7 @@ async def _force_reload(request: Request) -> JSONResponse:
 
 # ── Feature ──────────────────────────────────────────────────────
 
-class PraisonAIConfigHotReload(BaseFeatureProtocol):
+class ConfigHotReloadFeature(BaseFeatureProtocol):
     """Config hot-reload feature — watches config files for changes."""
 
     feature_name = "config_hot_reload"
@@ -180,3 +180,7 @@ class PraisonAIConfigHotReload(BaseFeatureProtocol):
             Route("/api/config/watcher/stop", _watcher_stop, methods=["POST"]),
             Route("/api/config/reload", _force_reload, methods=["POST"]),
         ]
+
+
+# Backward-compat alias
+PraisonAIConfigHotReload = ConfigHotReloadFeature

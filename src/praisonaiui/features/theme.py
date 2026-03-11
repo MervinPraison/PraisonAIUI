@@ -153,7 +153,7 @@ async def _set_theme(request: Request) -> JSONResponse:
 
 # ── Feature ──────────────────────────────────────────────────────
 
-class PraisonAITheme(BaseFeatureProtocol):
+class ThemeFeature(BaseFeatureProtocol):
     """Theme feature — light/dark/custom theme system."""
 
     feature_name = "theme"
@@ -172,3 +172,7 @@ class PraisonAITheme(BaseFeatureProtocol):
             Route("/api/theme", _get_theme, methods=["GET"]),
             Route("/api/theme", _set_theme, methods=["PUT"]),
         ]
+
+
+# Backward-compat alias
+PraisonAITheme = ThemeFeature

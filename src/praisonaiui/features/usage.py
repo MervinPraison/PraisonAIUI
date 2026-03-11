@@ -250,7 +250,7 @@ def set_cost_table(table: Dict[str, Dict[str, float]]) -> None:
     _cost_table.update(table)
 
 
-class PraisonAIUsage(BaseFeatureProtocol):
+class UsageFeature(BaseFeatureProtocol):
     """Enhanced usage analytics with cost tracking and time-series data."""
 
     feature_name = "usage"
@@ -489,3 +489,7 @@ class PraisonAIUsage(BaseFeatureProtocol):
 
     def _cli_cost(self) -> str:
         return f"Total cost: ${_aggregates['total_cost']:.4f} USD"
+
+
+# Backward-compat alias
+PraisonAIUsage = UsageFeature

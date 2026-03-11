@@ -469,7 +469,7 @@ def get_knowledge_manager() -> KnowledgeProtocol:
 # ── Feature Class (wires routes + health) ────────────────────────────
 
 
-class PraisonAIKnowledge(BaseFeatureProtocol):
+class KnowledgeFeature(BaseFeatureProtocol):
     """Knowledge management feature — store, search, and retrieve knowledge."""
 
     feature_name = "knowledge"
@@ -660,3 +660,7 @@ class PraisonAIKnowledge(BaseFeatureProtocol):
             "backend": h.get("provider", "unknown"),
             "status": h.get("status", "ok"),
         })
+
+
+# Backward-compat alias
+PraisonAIKnowledge = KnowledgeFeature

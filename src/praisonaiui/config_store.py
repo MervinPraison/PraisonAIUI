@@ -25,8 +25,13 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Default config path
-DEFAULT_CONFIG_DIR = Path.home() / ".praisonaiui"
+# Default config path (configurable via AIUI_DATA_DIR env var)
+def _get_default_config_dir() -> Path:
+    """Return the default config directory, configurable via AIUI_DATA_DIR env var."""
+    return Path(os.environ.get("AIUI_DATA_DIR", str(Path.home() / ".praisonaiui")))
+
+
+DEFAULT_CONFIG_DIR = _get_default_config_dir()
 DEFAULT_CONFIG_PATH = DEFAULT_CONFIG_DIR / "config.yaml"
 
 # Schema version for forward-compatibility

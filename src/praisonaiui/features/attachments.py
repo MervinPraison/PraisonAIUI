@@ -235,7 +235,7 @@ async def _delete_attachment(request: Request) -> JSONResponse:
 
 # ── Feature ──────────────────────────────────────────────────────
 
-class PraisonAIAttachments(BaseFeatureProtocol):
+class AttachmentsFeature(BaseFeatureProtocol):
     """Chat attachments feature — file upload for agent context."""
 
     feature_name = "attachments"
@@ -255,3 +255,7 @@ class PraisonAIAttachments(BaseFeatureProtocol):
             Route("/api/chat/attachments/{session_id}", _list_attachments, methods=["GET"]),
             Route("/api/chat/attachments/{attachment_id}", _delete_attachment, methods=["DELETE"]),
         ]
+
+
+# Backward-compat alias
+PraisonAIAttachments = AttachmentsFeature

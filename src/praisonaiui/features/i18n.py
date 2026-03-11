@@ -163,7 +163,7 @@ def set_i18n_manager(manager: I18nProtocol) -> None:
 # ── Feature class ────────────────────────────────────────────────────
 
 
-class PraisonAII18n(BaseFeatureProtocol):
+class I18nFeature(BaseFeatureProtocol):
     """Internationalization — locale loading, translation, switcher."""
 
     feature_name = "i18n"
@@ -220,3 +220,7 @@ class PraisonAII18n(BaseFeatureProtocol):
         body = await request.json()
         mgr.set_locale(body.get("locale", "en"))
         return JSONResponse({"locale": mgr.get_locale()})
+
+
+# Backward-compat alias
+PraisonAII18n = I18nFeature

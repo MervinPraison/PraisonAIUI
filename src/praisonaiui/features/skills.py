@@ -299,7 +299,7 @@ def _get_tool_status(tool_id: str) -> Dict[str, Any]:
     }
 
 
-class PraisonAISkills(BaseFeatureProtocol):
+class SkillsFeature(BaseFeatureProtocol):
     """Skills/Tools management for PraisonAIUI."""
 
     feature_name = "skills"
@@ -540,3 +540,7 @@ class PraisonAISkills(BaseFeatureProtocol):
         _ensure_skills_loaded()
         enabled = sum(1 for s in _tool_state.values() if s.get("enabled", True))
         return f"Tools: {len(get_tool_catalog())} builtin, {len(_custom_skills)} custom, {enabled} enabled"
+
+
+# Backward-compat alias
+PraisonAISkills = SkillsFeature

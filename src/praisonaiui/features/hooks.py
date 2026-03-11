@@ -21,7 +21,7 @@ _hooks: Dict[str, Dict[str, Any]] = {}
 _hook_log: List[Dict[str, Any]] = []
 
 
-class PraisonAIHooks(BaseFeatureProtocol):
+class HooksFeature(BaseFeatureProtocol):
     """Hooks management wired to praisonaiagents.hooks."""
 
     feature_name = "hooks"
@@ -143,3 +143,7 @@ class PraisonAIHooks(BaseFeatureProtocol):
             for e in _hook_log[-10:]
         ]
         return "\n".join(lines)
+
+
+# Backward-compat alias
+PraisonAIHooks = HooksFeature

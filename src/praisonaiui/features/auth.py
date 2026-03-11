@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+import threading
 import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
@@ -49,6 +50,9 @@ class AuthProtocol(ABC):
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
 
+# Thread-safety lock for auth state
+_auth_lock = threading.Lock()
+
 # Auth configuration
 _auth_config: Dict[str, Any] = {
     "mode": "none",  # none, api_key, session, password
@@ -77,23 +81,25 @@ def hash_password(password: str) -> str:
 
 
 def verify_api_key(key: str) -> Optional[Dict[str, Any]]:
-    """Verify an API key and return its info."""
-    if key in _auth_config["api_keys"]:
-        info = _auth_config["api_keys"][key]
-        info["last_used"] = time.time()
-        return info
+    """Verify an API key and return its info (thread-safe)."""
+    with _auth_lock:
+        if key in _auth_config["api_keys"]:
+            info = _auth_config["api_keys"][key]
+            info["last_used"] = time.time()
+            return dict(info)  # Return copy to avoid external mutation
     return None
 
 
 def verify_session_token(token: str) -> Optional[Dict[str, Any]]:
-    """Verify a session token and return its info."""
-    if token in _active_sessions:
-        session = _active_sessions[token]
-        if session.get("expires_at", 0) > time.time():
-            return session
-        else:
-            # Expired
-            del _active_sessions[token]
+    """Verify a session token and return its info (thread-safe)."""
+    with _auth_lock:
+        if token in _active_sessions:
+            session = _active_sessions[token]
+            if session.get("expires_at", 0) > time.time():
+                return dict(session)  # Return copy
+            else:
+                # Expired
+                del _active_sessions[token]
     return None
 
 
@@ -129,7 +135,7 @@ def check_auth(request: Request) -> Optional[Dict[str, Any]]:
     return None
 
 
-class PraisonAIAuth(BaseFeatureProtocol):
+class AuthFeature(BaseFeatureProtocol):
     """Multi-mode authentication feature."""
 
     feature_name = "auth"
@@ -211,15 +217,16 @@ class PraisonAIAuth(BaseFeatureProtocol):
         })
 
     async def _set_config(self, request: Request) -> JSONResponse:
-        """PUT /api/auth/config — Update auth configuration."""
+        """PUT /api/auth/config — Update auth configuration (thread-safe)."""
         body = await request.json()
-        
+
         if "mode" in body:
             mode = body["mode"]
             if mode not in ("none", "api_key", "session", "password"):
                 return JSONResponse({"error": "Invalid mode"}, status_code=400)
-            _auth_config["mode"] = mode
-        
+            with _auth_lock:
+                _auth_config["mode"] = mode
+
         return JSONResponse({
             "mode": _auth_config.get("mode"),
             "updated": True,
@@ -240,80 +247,88 @@ class PraisonAIAuth(BaseFeatureProtocol):
         return JSONResponse({"keys": keys})
 
     async def _create_key(self, request: Request) -> JSONResponse:
-        """POST /api/auth/keys — Create a new API key."""
+        """POST /api/auth/keys — Create a new API key (thread-safe)."""
         body = await request.json()
         name = body.get("name", "API Key")
-        
+
         key = generate_api_key()
-        _auth_config["api_keys"][key] = {
-            "name": name,
-            "created_at": time.time(),
-            "last_used": None,
-        }
-        
+        created_at = time.time()
+        with _auth_lock:
+            _auth_config["api_keys"][key] = {
+                "name": name,
+                "created_at": created_at,
+                "last_used": None,
+            }
+
         return JSONResponse({
             "key": key,  # Only shown once!
             "name": name,
-            "created_at": time.time(),
+            "created_at": created_at,
         })
 
     async def _revoke_key(self, request: Request) -> JSONResponse:
-        """DELETE /api/auth/keys/{key_id} — Revoke an API key."""
+        """DELETE /api/auth/keys/{key_id} — Revoke an API key (thread-safe)."""
         key_id = request.path_params["key_id"]
-        
+
         # Find and delete key by prefix
-        for key in list(_auth_config.get("api_keys", {}).keys()):
-            if key.startswith(key_id.replace("...", "")):
-                del _auth_config["api_keys"][key]
-                return JSONResponse({"revoked": True})
-        
+        with _auth_lock:
+            for key in list(_auth_config.get("api_keys", {}).keys()):
+                if key.startswith(key_id.replace("...", "")):
+                    del _auth_config["api_keys"][key]
+                    return JSONResponse({"revoked": True})
+
         return JSONResponse({"error": "Key not found"}, status_code=404)
 
     # ── Sessions ─────────────────────────────────────────────────────
 
     async def _login(self, request: Request) -> JSONResponse:
-        """POST /api/auth/login — Login with password."""
+        """POST /api/auth/login — Login with password (thread-safe)."""
         body = await request.json()
         password = body.get("password", "")
-        
+
         mode = _auth_config.get("mode", "none")
-        
+
         if mode == "none":
             # No auth required
             token = generate_session_token()
-            _active_sessions[token] = {
-                "user": "anonymous",
-                "created_at": time.time(),
-                "expires_at": time.time() + 86400,  # 24 hours
-            }
+            now = time.time()
+            with _auth_lock:
+                _active_sessions[token] = {
+                    "user": "anonymous",
+                    "created_at": now,
+                    "expires_at": now + 86400,  # 24 hours
+                }
             return JSONResponse({"token": token, "expires_in": 86400})
-        
+
         if mode == "password":
             stored_hash = _auth_config.get("password_hash")
             if stored_hash and hash_password(password) == stored_hash:
                 token = generate_session_token()
-                _active_sessions[token] = {
-                    "user": "admin",
-                    "created_at": time.time(),
-                    "expires_at": time.time() + 86400,
-                }
+                now = time.time()
+                with _auth_lock:
+                    _active_sessions[token] = {
+                        "user": "admin",
+                        "created_at": now,
+                        "expires_at": now + 86400,
+                    }
                 return JSONResponse({"token": token, "expires_in": 86400})
             return JSONResponse({"error": "Invalid password"}, status_code=401)
-        
+
         return JSONResponse({"error": "Login not supported in this mode"}, status_code=400)
 
     async def _logout(self, request: Request) -> JSONResponse:
-        """POST /api/auth/logout — Logout current session."""
+        """POST /api/auth/logout — Logout current session (thread-safe)."""
         auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:]
-            if token in _active_sessions:
-                del _active_sessions[token]
-        
-        session_cookie = request.cookies.get("aiui_session")
-        if session_cookie and session_cookie in _active_sessions:
-            del _active_sessions[session_cookie]
-        
+        with _auth_lock:
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+                if token in _active_sessions:
+                    del _active_sessions[token]
+
+            session_cookie = request.cookies.get("aiui_session")
+            if session_cookie and session_cookie in _active_sessions:
+                del _active_sessions[session_cookie]
+
         return JSONResponse({"logged_out": True})
 
     async def _list_sessions(self, request: Request) -> JSONResponse:
@@ -331,14 +346,18 @@ class PraisonAIAuth(BaseFeatureProtocol):
     # ── Password ─────────────────────────────────────────────────────
 
     async def _set_password(self, request: Request) -> JSONResponse:
-        """POST /api/auth/password — Set or change password."""
+        """POST /api/auth/password — Set or change password (thread-safe)."""
         body = await request.json()
         new_password = body.get("password", "")
-        
+
         if len(new_password) < 8:
-            return JSONResponse({"error": "Password must be at least 8 characters"}, status_code=400)
-        
-        _auth_config["password_hash"] = hash_password(new_password)
+            return JSONResponse(
+                {"error": "Password must be at least 8 characters"},
+                status_code=400,
+            )
+
+        with _auth_lock:
+            _auth_config["password_hash"] = hash_password(new_password)
         return JSONResponse({"password_set": True})
 
     # ── CLI handlers ─────────────────────────────────────────────────
@@ -372,3 +391,7 @@ class PraisonAIAuth(BaseFeatureProtocol):
             return f"Invalid mode: {mode}. Use: none, api_key, session, password"
         _auth_config["mode"] = mode
         return f"Auth mode set to: {mode}"
+
+
+# Backward-compat alias
+PraisonAIAuth = AuthFeature

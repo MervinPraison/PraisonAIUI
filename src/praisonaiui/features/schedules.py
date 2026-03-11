@@ -549,7 +549,7 @@ class _InMemoryScheduleStore(ScheduleProtocol):
         return None
 
 
-class PraisonAISchedules(BaseFeatureProtocol):
+class SchedulesFeature(BaseFeatureProtocol):
     """Schedule/cron management wired to praisonaiagents.scheduler."""
 
     feature_name = "schedules"
@@ -1000,3 +1000,7 @@ class PraisonAISchedules(BaseFeatureProtocol):
         jobs = store.list() if hasattr(store, 'list') else []
         enabled = sum(1 for j in jobs if _getattr_or_get(j, "enabled", True))
         return f"Jobs: {len(jobs)} total, {enabled} enabled"
+
+
+# Backward-compat alias
+PraisonAISchedules = SchedulesFeature

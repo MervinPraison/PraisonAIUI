@@ -117,7 +117,7 @@ async def _browser_run(request: Request) -> JSONResponse:
 
 # ── Feature ──────────────────────────────────────────────────────
 
-class PraisonAIBrowserAutomation(BaseFeatureProtocol):
+class BrowserAutomationFeature(BaseFeatureProtocol):
     """Browser automation feature — expose browser agent in dashboard."""
 
     feature_name = "browser_automation"
@@ -136,3 +136,7 @@ class PraisonAIBrowserAutomation(BaseFeatureProtocol):
             Route("/api/browser/status", _browser_status, methods=["GET"]),
             Route("/api/browser/run", _browser_run, methods=["POST"]),
         ]
+
+
+# Backward-compat alias
+PraisonAIBrowserAutomation = BrowserAutomationFeature

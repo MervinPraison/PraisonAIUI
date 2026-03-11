@@ -213,7 +213,7 @@ def validate_config(config: Dict[str, Any], schema: Dict[str, Any] = None) -> Li
     return errors
 
 
-class PraisonAIConfigRuntime(BaseFeatureProtocol):
+class ConfigRuntimeFeature(BaseFeatureProtocol):
     """Runtime configuration management."""
 
     feature_name = "config_runtime"
@@ -425,3 +425,7 @@ class PraisonAIConfigRuntime(BaseFeatureProtocol):
             return "No config changes"
         lines = [f"  {e['key']}: {e.get('old')} → {e.get('new')}" for e in _config_history[-10:]]
         return "\n".join(lines)
+
+
+# Backward-compat alias
+PraisonAIConfigRuntime = ConfigRuntimeFeature

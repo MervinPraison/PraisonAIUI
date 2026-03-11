@@ -174,7 +174,7 @@ def get_security_manager() -> SecurityProtocol:
     return _security_manager
 
 
-class PraisonAISecurity(BaseFeatureProtocol):
+class SecurityFeature(BaseFeatureProtocol):
     """Security monitoring and audit log feature."""
 
     feature_name = "security"
@@ -329,3 +329,7 @@ def log_audit_event(event_type: str, data: Any = None,
                     agent_id: str = "", severity: str = "info") -> None:
     """Log a security audit event (callable from hooks)."""
     get_security_manager().log_event(event_type, data, agent_id, severity)
+
+
+# Backward-compat alias
+PraisonAISecurity = SecurityFeature

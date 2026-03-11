@@ -573,7 +573,7 @@ async def _chat_ws(websocket: WebSocket) -> None:
 
 # ── Feature Protocol Implementation ─────────────────────────────────
 
-class PraisonAIChat(BaseFeatureProtocol):
+class ChatFeature(BaseFeatureProtocol):
     """Chat feature — protocol-driven, config-driven (like Chainlit).
 
     Provides:
@@ -613,3 +613,7 @@ class PraisonAIChat(BaseFeatureProtocol):
             "sessions_cached": len(mgr._history),
             **gateway_health(),
         }
+
+
+# Backward-compat alias
+PraisonAIChat = ChatFeature

@@ -163,7 +163,7 @@ def set_analysis_manager(manager: MediaAnalysisProtocol) -> None:
 # ── Feature class ────────────────────────────────────────────────────
 
 
-class PraisonAIMediaAnalysis(BaseFeatureProtocol):
+class MediaAnalysisFeature(BaseFeatureProtocol):
     """Media analysis — image understanding, OCR, object detection."""
 
     feature_name = "media_analysis"
@@ -212,3 +212,7 @@ class PraisonAIMediaAnalysis(BaseFeatureProtocol):
         mgr = get_analysis_manager()
         caps = mgr.list_capabilities()
         return JSONResponse({"capabilities": caps, "count": len(caps)})
+
+
+# Backward-compat alias
+PraisonAIMediaAnalysis = MediaAnalysisFeature

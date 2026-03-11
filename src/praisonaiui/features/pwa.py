@@ -125,7 +125,7 @@ def set_pwa_manager(manager: PWAProtocol) -> None:
 # ── Feature class ────────────────────────────────────────────────────
 
 
-class PraisonAIPWA(BaseFeatureProtocol):
+class PWAFeature(BaseFeatureProtocol):
     """Progressive Web App — manifest, service worker, offline support."""
 
     feature_name = "pwa"
@@ -168,3 +168,7 @@ class PraisonAIPWA(BaseFeatureProtocol):
     async def _config(self, request: Request) -> JSONResponse:
         mgr = get_pwa_manager()
         return JSONResponse({"manifest": mgr.get_manifest(), "has_sw": True})
+
+
+# Backward-compat alias
+PraisonAIPWA = PWAFeature

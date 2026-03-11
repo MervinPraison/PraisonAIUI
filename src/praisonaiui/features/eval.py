@@ -197,7 +197,7 @@ def get_eval_manager() -> EvalProtocol:
     return _eval_manager
 
 
-class PraisonAIEval(BaseFeatureProtocol):
+class EvalFeature(BaseFeatureProtocol):
     """Agent evaluation and accuracy feature."""
 
     feature_name = "eval"
@@ -260,3 +260,7 @@ class PraisonAIEval(BaseFeatureProtocol):
         mgr = get_eval_manager()
         scores = mgr.get_scores()
         return JSONResponse({"scores": scores})
+
+
+# Backward-compat alias
+PraisonAIEval = EvalFeature

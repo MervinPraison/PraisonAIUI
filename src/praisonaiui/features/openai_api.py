@@ -40,7 +40,7 @@ def _result_to_dict(result) -> Dict[str, Any]:
     return result if isinstance(result, dict) else {"result": str(result)}
 
 
-class PraisonAIOpenAIAPI(BaseFeatureProtocol):
+class OpenAIAPIFeature(BaseFeatureProtocol):
     """OpenAI-compatible API endpoints at /v1/*."""
 
     feature_name = "openai_api"
@@ -606,3 +606,7 @@ class PraisonAIOpenAIAPI(BaseFeatureProtocol):
         caps = _get_capabilities()
         status = "✓ Available" if caps else "✗ Not available"
         return f"OpenAI-Compatible API: {status}\nBase URL: /v1/"
+
+
+# Backward-compat alias
+PraisonAIOpenAIAPI = OpenAIAPIFeature

@@ -157,7 +157,7 @@ def get_job_store() -> JobStoreProtocol:
     return _job_store
 
 
-class PraisonAIJobs(BaseFeatureProtocol):
+class JobsFeature(BaseFeatureProtocol):
     """Async job management for agent execution."""
 
     feature_name = "jobs"
@@ -664,3 +664,7 @@ class PraisonAIJobs(BaseFeatureProtocol):
         s = store.stats()
         parts = [f"{k}: {v}" for k, v in s['status_counts'].items()]
         return f"Jobs: {s['total_jobs']} total — " + ", ".join(parts) if parts else "No jobs"
+
+
+# Backward-compat alias
+PraisonAIJobs = JobsFeature

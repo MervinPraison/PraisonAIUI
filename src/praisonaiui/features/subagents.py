@@ -122,7 +122,7 @@ async def _subagent_list(request: Request) -> JSONResponse:
 
 # ── Feature ──────────────────────────────────────────────────────
 
-class PraisonAISubagents(BaseFeatureProtocol):
+class SubagentsFeature(BaseFeatureProtocol):
     """Subagent tree view — tracks and visualizes agent hierarchy."""
 
     feature_name = "subagents"
@@ -141,3 +141,7 @@ class PraisonAISubagents(BaseFeatureProtocol):
             Route("/api/subagents", _subagent_list, methods=["GET"]),
             Route("/api/subagents/{session_id}", _subagent_tree, methods=["GET"]),
         ]
+
+
+# Backward-compat alias
+PraisonAISubagents = SubagentsFeature

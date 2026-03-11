@@ -261,7 +261,7 @@ async def _notify_subscribers(event: str, data: Dict[str, Any]) -> None:
             pass
 
 
-class PraisonAIApprovals(BaseFeatureProtocol):
+class ApprovalsFeature(BaseFeatureProtocol):
     """Execution approval management for PraisonAIUI."""
 
     feature_name = "approvals"
@@ -477,3 +477,7 @@ class PraisonAIApprovals(BaseFeatureProtocol):
         if entry is None:
             return f"Approval {approval_id} not found"
         return f"Approval {approval_id} → {entry['status']}"
+
+
+# Backward-compat alias
+PraisonAIApprovals = ApprovalsFeature

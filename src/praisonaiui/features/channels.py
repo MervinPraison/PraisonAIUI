@@ -80,7 +80,7 @@ def _persist_channels() -> None:
     save_section(_CHANNELS_SECTION, data)
 
 
-class PraisonAIChannels(BaseFeatureProtocol):
+class ChannelsFeature(BaseFeatureProtocol):
     """Channel management wired to praisonai gateway bots."""
 
     feature_name = "channels"
@@ -136,9 +136,9 @@ class PraisonAIChannels(BaseFeatureProtocol):
 
     async def _auto_start_enabled_channels(self) -> None:
         """Auto-start all enabled channels on server startup (runs once)."""
-        if PraisonAIChannels._auto_started:
+        if ChannelsFeature._auto_started:
             return
-        PraisonAIChannels._auto_started = True
+        ChannelsFeature._auto_started = True
 
         enabled = [(cid, ch) for cid, ch in _channels.items() if ch.get("enabled", False)]
         if not enabled:
@@ -771,3 +771,7 @@ class PraisonAIChannels(BaseFeatureProtocol):
 
     def _cli_platforms(self) -> str:
         return "Supported: " + ", ".join(SUPPORTED_PLATFORMS)
+
+
+# Backward-compat alias
+PraisonAIChannels = ChannelsFeature

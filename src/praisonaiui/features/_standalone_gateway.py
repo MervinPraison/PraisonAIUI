@@ -20,9 +20,22 @@ from __future__ import annotations
 import logging
 import threading
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+# Pluggable bot factory registry
+_bot_factories: Dict[str, Callable] = {}
+
+
+def register_bot_factory(platform: str, factory: Callable) -> None:
+    """Register a custom bot factory for a platform.
+
+    Args:
+        platform: Platform name (e.g., "telegram", "discord")
+        factory: Callable(agent, **config) -> bot instance
+    """
+    _bot_factories[platform] = factory
 
 
 class StandaloneGateway:
@@ -77,19 +90,28 @@ class StandaloneGateway:
         config: dict,
         agent: Any,
     ) -> Optional[Any]:
-        """Try to create a platform bot using praisonai or praisonaiagents."""
+        """Try to create a platform bot using pluggable registry or fallback imports."""
         bot = None
+
+        # Strategy 0: Check pluggable registry first
+        if platform in _bot_factories:
+            try:
+                bot = _bot_factories[platform](agent=agent, **config)
+            except Exception:
+                pass
+
         # Strategy 1: praisonai wrapper (has TelegramBot, DiscordBot, etc.)
-        try:
-            mod = __import__(
-                f"praisonai.bots.{platform}",
-                fromlist=[f"{platform.title()}Bot"],
-            )
-            bot_cls = getattr(mod, f"{platform.title()}Bot", None)
-            if bot_cls:
-                bot = bot_cls(agent=agent, **config)
-        except (ImportError, Exception):
-            pass
+        if bot is None:
+            try:
+                mod = __import__(
+                    f"praisonai.bots.{platform}",
+                    fromlist=[f"{platform.title()}Bot"],
+                )
+                bot_cls = getattr(mod, f"{platform.title()}Bot", None)
+                if bot_cls:
+                    bot = bot_cls(agent=agent, **config)
+            except (ImportError, Exception):
+                pass
 
         # Strategy 2: praisonaiagents bots
         if bot is None:
