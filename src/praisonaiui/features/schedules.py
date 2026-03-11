@@ -158,9 +158,20 @@ def _is_job_due(job) -> bool:
     return False
 
 
-async def _get_agent_for_execution(job_id: str, agent_name: Optional[str] = None) -> tuple:
+async def _get_agent_for_execution(
+    job_id: str,
+    agent_name: Optional[str] = None,
+    session_id: Optional[str] = None,
+) -> tuple:
     """Get or create agent for job execution (DRY helper).
-    
+
+    Args:
+        job_id: The job ID (used for fallback session).
+        agent_name: Optional agent name to look up.
+        session_id: Optional session ID from delivery target. When provided,
+                    the agent is created with this session to preserve
+                    conversation context. Falls back to ``cron_{job_id}``.
+
     Returns:
         tuple: (agent, gateway, error_message)
         - agent: The agent instance or None
@@ -168,11 +179,11 @@ async def _get_agent_for_execution(job_id: str, agent_name: Optional[str] = None
         - error_message: Error string if agent creation failed, else None
     """
     from praisonaiui.features._gateway_ref import get_gateway
-    
+
     gw = get_gateway()
     agent = None
     error = None
-    
+
     # Try gateway-registered agents first
     if gw is not None:
         for aid in gw.list_agents():
@@ -184,15 +195,16 @@ async def _get_agent_for_execution(job_id: str, agent_name: Optional[str] = None
             agent_ids = gw.list_agents()
             if agent_ids:
                 agent = gw.get_agent(agent_ids[0])
-    
+
     # Fallback: create agent via provider (same path as chat)
     if agent is None:
         try:
             from praisonaiui.server import get_provider
             provider = get_provider()
+            effective_session = session_id or f"cron_{job_id}"
             agent = provider._get_or_create_agent(
                 agent_name=agent_name,
-                session_id=f"cron_{job_id}",
+                session_id=effective_session,
             )
             # Register with gateway for future calls
             if agent is not None and gw is not None:
@@ -201,29 +213,95 @@ async def _get_agent_for_execution(job_id: str, agent_name: Optional[str] = None
         except Exception as prov_err:
             logger.debug("Provider agent fallback failed: %s", prov_err)
             error = str(prov_err)
-    
+
     # Set error message if no agent found
     if agent is None and error is None:
         if gw is None:
             error = "No gateway available — agent provider not configured"
         else:
             error = f"No agent found for job '{job_id}'"
-    
+
     return agent, gw, error
 
 
+async def _deliver_result(delivery_dict: dict, text: str) -> bool:
+    """Deliver scheduled job result to the originating platform.
+
+    Looks up a running bot from the channels registry that matches the
+    delivery platform, then calls ``bot.send_message()``.
+
+    Returns:
+        True if delivery succeeded, False otherwise.
+    """
+    try:
+        from .channels import _live_bots, _channels
+    except ImportError:
+        logger.warning("Cannot deliver: channels module not available")
+        return False
+
+    platform = delivery_dict.get("channel", "")
+    channel_id = delivery_dict.get("channel_id", "")
+    thread_id = delivery_dict.get("thread_id")
+
+    if not platform or not channel_id:
+        logger.warning("Delivery skipped: missing channel or channel_id")
+        return False
+
+    # Find a running bot whose platform matches the delivery channel
+    bot = None
+    for ch_id, info in _live_bots.items():
+        ch_entry = _channels.get(ch_id, {})
+        ch_platform = ch_entry.get("platform", ch_id).lower()
+        if ch_platform == platform.lower():
+            bot = info.get("bot")
+            if bot is not None:
+                break
+
+    if bot is None:
+        logger.warning("No running %s bot for scheduled delivery to %s", platform, channel_id)
+        return False
+
+    try:
+        await bot.send_message(channel_id, text, thread_id=thread_id)
+        logger.info("Delivered scheduled result to %s/%s", platform, channel_id)
+        return True
+    except Exception as e:
+        logger.error("Delivery to %s/%s failed: %s", platform, channel_id, e)
+        return False
+
+
+def _extract_delivery_dict(job) -> Optional[dict]:
+    """Extract delivery info from a job as a plain dict (works for both dataclass and dict jobs)."""
+    delivery = _getattr_or_get(job, "delivery", None)
+    if delivery is None:
+        return None
+    if isinstance(delivery, dict):
+        return delivery if delivery.get("channel_id") else None
+    if hasattr(delivery, "to_dict"):
+        d = delivery.to_dict()
+        return d if d.get("channel_id") else None
+    return None
+
+
 async def _execute_job(job_id: str, job) -> None:
-    """Execute a scheduled job (same logic as _run endpoint)."""
+    """Execute a scheduled job and deliver the result to the originating platform."""
     started_at = time.time()
     message = _getattr_or_get(job, "message", "")
     agent_name = _getattr_or_get(job, "agent_name", None) or _getattr_or_get(job, "agent_id", None)
     result = None
     status = "succeeded"
+    delivered = False
+
+    # Extract delivery target for session + routing
+    delivery_dict = _extract_delivery_dict(job)
+    session_id = delivery_dict.get("session_id") if delivery_dict else None
 
     if message:
         try:
-            agent, gw, error = await _get_agent_for_execution(job_id, agent_name)
-            
+            agent, gw, error = await _get_agent_for_execution(
+                job_id, agent_name, session_id=session_id,
+            )
+
             if agent is not None:
                 import asyncio
                 result = await asyncio.to_thread(agent.chat, message)
@@ -238,6 +316,10 @@ async def _execute_job(job_id: str, job) -> None:
     else:
         status = "skipped"
         result = "No message configured"
+
+    # Deliver result to originating platform
+    if result and status == "succeeded" and delivery_dict:
+        delivered = await _deliver_result(delivery_dict, str(result))
 
     # Update job metadata and persist
     store = _get_schedule_store()
@@ -258,13 +340,14 @@ async def _execute_job(job_id: str, job) -> None:
         "message": message,
         "status": status,
         "result": result,
+        "delivered": delivered,
         "timestamp": started_at,
         "duration": duration,
         "auto": True,
     })
     if len(_run_history) > 200:
         _run_history[:] = _run_history[:200]
-    logger.info("Auto-executed job '%s': %s (%.1fs)", job_id, status, duration)
+    logger.info("Auto-executed job '%s': %s delivered=%s (%.1fs)", job_id, status, delivered, duration)
 
 
 async def _scheduler_loop() -> None:
@@ -322,9 +405,13 @@ def _ensure_scheduler_started() -> None:
 
 
 def _create_schedule_job(job_dict: Dict[str, Any]):
-    """Create a ScheduleJob from a dict, using praisonaiagents if available."""
+    """Create a ScheduleJob from a dict, using praisonaiagents if available.
+
+    Maps the ``delivery`` dict (if present) to the SDK's ``DeliveryTarget``
+    dataclass for structured serialization and roundtrip support.
+    """
     try:
-        from praisonaiagents.scheduler import ScheduleJob, Schedule
+        from praisonaiagents.scheduler import ScheduleJob, Schedule, DeliveryTarget
         sched_data = job_dict.get("schedule", {})
         schedule = Schedule(
             kind=sched_data.get("kind", "every"),
@@ -332,6 +419,11 @@ def _create_schedule_job(job_dict: Dict[str, Any]):
             cron_expr=sched_data.get("cron_expr"),
             at=sched_data.get("at"),
         )
+        # Map delivery dict → SDK DeliveryTarget
+        delivery_data = job_dict.get("delivery")
+        delivery = None
+        if isinstance(delivery_data, dict) and delivery_data.get("channel_id"):
+            delivery = DeliveryTarget.from_dict(delivery_data)
         return ScheduleJob(
             id=job_dict.get("id", uuid.uuid4().hex[:12]),
             name=job_dict.get("name", ""),
@@ -341,6 +433,7 @@ def _create_schedule_job(job_dict: Dict[str, Any]):
             session_target=job_dict.get("session_target", "isolated"),
             enabled=job_dict.get("enabled", True),
             delete_after_run=job_dict.get("delete_after_run", False),
+            delivery=delivery,
         )
     except ImportError:
         return job_dict
@@ -517,8 +610,22 @@ class PraisonAISchedules(BaseFeatureProtocol):
         body = await request.json()
         job_id = uuid.uuid4().hex[:12]
         schedule = body.get("schedule", {})
-        if not isinstance(schedule, dict):
+        if isinstance(schedule, str):
+            # Frontend may send cron as a raw string — parse it
+            schedule = {"kind": "cron", "cron_expr": schedule}
+        elif not isinstance(schedule, dict):
             schedule = {"kind": "every", "every_seconds": 60}
+        # Build delivery target dict (matches SDK gateway.yaml schema)
+        delivery = None
+        channel = body.get("channel", "")
+        channel_id = body.get("channel_id", "")
+        if channel_id:
+            delivery = {
+                "channel": channel,
+                "channel_id": channel_id,
+                "session_id": body.get("session_id"),
+                "thread_id": body.get("thread_id"),
+            }
         job = {
             "id": job_id,
             "name": body.get("name", ""),
@@ -531,10 +638,10 @@ class PraisonAISchedules(BaseFeatureProtocol):
             "message": body.get("message", "") or body.get("action", ""),
             "agent_id": body.get("agent_id"),
             "agent_name": body.get("agent_name"),
-            "channel": body.get("channel"),
             "session_target": body.get("session_target", "isolated"),
             "enabled": body.get("enabled", True),
             "delete_after_run": body.get("delete_after_run", False),
+            "delivery": delivery,
             "created_at": time.time(),
             "last_run_at": None,
             "run_count": 0,
@@ -604,12 +711,18 @@ class PraisonAISchedules(BaseFeatureProtocol):
         # Try to execute the action via a gateway-registered agent (DRY: uses shared helper)
         result = None
         status = "succeeded"
+        delivered = False
         message = _getattr_or_get(job, "message", "")
-        agent_name = _getattr_or_get(job, "agent_name", None)
+        agent_name = _getattr_or_get(job, "agent_name", None) or _getattr_or_get(job, "agent_id", None)
+        delivery_dict = _extract_delivery_dict(job)
+        session_id = delivery_dict.get("session_id") if delivery_dict else None
+
         if message:
             try:
-                agent, gw, error = await _get_agent_for_execution(job_id, agent_name)
-                
+                agent, gw, error = await _get_agent_for_execution(
+                    job_id, agent_name, session_id=session_id,
+                )
+
                 if agent is not None:
                     import asyncio
                     result = await asyncio.to_thread(agent.chat, message)
@@ -625,6 +738,10 @@ class PraisonAISchedules(BaseFeatureProtocol):
             status = "skipped"
             result = "No message configured"
 
+        # Deliver result to originating platform
+        if result and status == "succeeded" and delivery_dict:
+            delivered = await _deliver_result(delivery_dict, str(result))
+
         duration = round(time.time() - started_at, 2)
 
         # Store run in history
@@ -634,6 +751,7 @@ class PraisonAISchedules(BaseFeatureProtocol):
             "message": message,
             "status": status,
             "result": result,
+            "delivered": delivered,
             "timestamp": started_at,
             "duration": duration,
         }
@@ -647,6 +765,7 @@ class PraisonAISchedules(BaseFeatureProtocol):
             "last_run_at": started_at,
             "result": result,
             "status": status,
+            "delivered": delivered,
             "duration": duration,
         })
 
@@ -658,13 +777,44 @@ class PraisonAISchedules(BaseFeatureProtocol):
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
         body = await request.json()
-        # Update fields on the job object
+        # Update simple fields on the job object
         for key in ("name", "message", "agent_id", "session_target", "enabled"):
             if key in body:
                 if hasattr(job, key):
                     setattr(job, key, body[key])
                 elif isinstance(job, dict):
                     job[key] = body[key]
+        # Update delivery target (structured dict → SDK DeliveryTarget)
+        if "delivery" in body:
+            delivery_data = body["delivery"]
+            if hasattr(job, "delivery") and not isinstance(job, dict):
+                # SDK ScheduleJob — set DeliveryTarget from dict
+                try:
+                    from praisonaiagents.scheduler import DeliveryTarget
+                    if isinstance(delivery_data, dict) and delivery_data.get("channel_id"):
+                        job.delivery = DeliveryTarget.from_dict(delivery_data)
+                    else:
+                        job.delivery = None
+                except ImportError:
+                    setattr(job, "delivery", delivery_data)
+            elif isinstance(job, dict):
+                job["delivery"] = delivery_data
+        # Also support flat channel/channel_id fields for convenience
+        if "channel_id" in body and "delivery" not in body:
+            delivery_data = {
+                "channel": body.get("channel", ""),
+                "channel_id": body["channel_id"],
+                "session_id": body.get("session_id"),
+                "thread_id": body.get("thread_id"),
+            }
+            if isinstance(job, dict):
+                job["delivery"] = delivery_data
+            elif hasattr(job, "delivery"):
+                try:
+                    from praisonaiagents.scheduler import DeliveryTarget
+                    job.delivery = DeliveryTarget.from_dict(delivery_data)
+                except ImportError:
+                    setattr(job, "delivery", delivery_data)
         if hasattr(store, 'update'):
             store.update(job)
         return JSONResponse(_to_dict(job))

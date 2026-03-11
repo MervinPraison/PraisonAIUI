@@ -49,6 +49,8 @@ _DEFAULT_CONFIG: Dict[str, Any] = {
     },
     "agents": {},
     "channels": {},
+    "schedules": {},
+    "guardrails": {},
     "skills": {
         "enabled": [],
         "custom": {},

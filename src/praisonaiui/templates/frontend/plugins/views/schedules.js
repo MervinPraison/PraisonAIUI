@@ -52,6 +52,7 @@ export async function render(container) {
                   <div style="display:flex;justify-content:space-between;align-items:center">
                     <span style="font-weight:500">${h.name || h.job_id || 'unknown'}</span>
                     <span style="font-size:10px;padding:2px 6px;border-radius:8px;${h.status === 'succeeded' || h.status === 'success' ? 'background:rgba(34,197,94,.15);color:#22c55e' : h.status === 'failed' ? 'background:rgba(239,68,68,.15);color:#ef4444' : 'background:rgba(59,130,246,.15);color:#3b82f6'}">${h.status || 'unknown'}</span>
+                    ${h.delivered ? '<span style="font-size:10px;padding:2px 6px;border-radius:8px;background:rgba(168,85,247,.15);color:#a855f7;margin-left:4px">📤 delivered</span>' : ''}
                   </div>
                   <div style="color:var(--db-text-dim);font-size:11px;margin-top:2px">${h.timestamp ? new Date(typeof h.timestamp === 'number' ? h.timestamp * 1000 : h.timestamp).toLocaleString() : ''}</div>
                   ${h.duration ? `<div style="color:var(--db-text-dim);font-size:11px">Duration: ${h.duration}s</div>` : ''}
@@ -86,7 +87,8 @@ export async function render(container) {
       : (j.schedule || j.cron || j.interval || '');
     const nextRun = j.next_run ? new Date(typeof j.next_run === 'number' ? j.next_run * 1000 : j.next_run) : null;
     const nextRunStr = nextRun ? formatCountdown(nextRun) : '';
-    const channel = j.channel || j.target_channel || '';
+    const channel = j.delivery ? `${j.delivery.channel || ''}→${j.delivery.channel_id || ''}` : (j.channel || j.target_channel || '');
+    const agentId = j.agent_id || '';
 
     card.innerHTML = `
       <div style="display:flex;align-items:flex-start;justify-content:space-between">
@@ -99,6 +101,7 @@ export async function render(container) {
             <span style="margin-right:12px">📅 ${sched}</span>
             ${j.message ? `<span style="margin-right:12px">📝 ${j.message}</span>` : ''}
             ${channel ? `<span style="margin-right:12px">📢 ${channel}</span>` : ''}
+            ${agentId ? `<span style="margin-right:12px">🤖 ${agentId}</span>` : ''}
           </div>
           ${nextRunStr ? `<div style="font-size:11px;color:var(--db-accent);margin-top:4px">⏱ Next: ${nextRunStr}</div>` : ''}
         </div>
@@ -122,7 +125,7 @@ export async function render(container) {
   // Add Schedule Modal
   container.querySelector('#sched-add')?.addEventListener('click', () => {
     const m = container.querySelector('#sched-modal'); m.style.display = 'flex';
-    m.innerHTML = `<div style="background:var(--db-sidebar-bg);border:1px solid var(--db-border);border-radius:12px;padding:28px;width:460px">
+    m.innerHTML = `<div style="background:var(--db-sidebar-bg);border:1px solid var(--db-border);border-radius:12px;padding:28px;width:460px;max-height:85vh;overflow-y:auto">
       <h3 style="margin:0 0 20px;font-size:18px">New Schedule</h3>
       <label style="display:block;margin-bottom:14px"><span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">Name</span><input id="sf-name" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box"></label>
       <div style="display:flex;gap:12px;margin-bottom:14px">
@@ -135,7 +138,17 @@ export async function render(container) {
         <label style="flex:2"><span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px" id="sf-schedule-label">Cron Expression</span><input id="sf-schedule" placeholder="*/5 * * * *" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box"></label>
       </div>
       <label style="display:block;margin-bottom:14px"><span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">Message</span><input id="sf-message" placeholder="Send daily report" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box"></label>
-      <label style="display:block;margin-bottom:20px"><span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">Target Channel (optional)</span><input id="sf-channel" placeholder="slack, discord, etc." style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box"></label>
+      <label style="display:block;margin-bottom:14px"><span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">Agent ID <span style="opacity:.5">(optional)</span></span><input id="sf-agent" placeholder="support" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box"></label>
+      <div style="display:flex;gap:12px;margin-bottom:14px">
+        <label style="flex:1"><span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">Channel <span style="opacity:.5">(platform)</span></span><input id="sf-channel" placeholder="telegram" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box"></label>
+        <label style="flex:1"><span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">Channel ID <span style="opacity:.5">(chat ID)</span></span><input id="sf-channel-id" placeholder="12345" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box"></label>
+      </div>
+      <label style="display:block;margin-bottom:20px"><span style="font-size:12px;color:var(--db-text-dim);display:block;margin-bottom:4px">Session Mode</span>
+        <select id="sf-session" style="width:100%;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:6px;color:var(--db-text);font-size:14px;box-sizing:border-box">
+          <option value="isolated">Isolated (fresh context each run)</option>
+          <option value="main">Main (preserve conversation context)</option>
+        </select>
+      </label>
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button id="sf-cancel" style="padding:8px 16px;border:1px solid var(--db-border);background:transparent;color:var(--db-text);border-radius:8px;cursor:pointer">Cancel</button>
         <button id="sf-save" style="padding:8px 16px;background:var(--db-accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:500">Create</button>
@@ -161,11 +174,16 @@ export async function render(container) {
     m.querySelector('#sf-save').addEventListener('click', async () => {
       const type = m.querySelector('#sf-type').value;
       const schedVal = m.querySelector('#sf-schedule').value;
+      const channel = m.querySelector('#sf-channel').value;
+      const channelId = m.querySelector('#sf-channel-id').value;
       const body = {
         name: m.querySelector('#sf-name').value,
         schedule: type === 'interval' ? { every_seconds: parseInt(schedVal) || 60 } : schedVal,
         message: m.querySelector('#sf-message').value,
-        channel: m.querySelector('#sf-channel').value || undefined,
+        agent_id: m.querySelector('#sf-agent').value || undefined,
+        channel: channel || undefined,
+        channel_id: channelId || undefined,
+        session_target: m.querySelector('#sf-session').value,
       };
       try { await fetch('/api/schedules', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); m.style.display='none'; render(container); } catch(e){}
     });
