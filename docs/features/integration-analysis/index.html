@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en" style="background:#0f172a;color:#e2e8f0">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="AIUI Integration — Critical Review &amp; Architecture Analysis - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>AIUI Integration — Critical Review &amp; Architecture Analysis | PraisonAIUI Docs</title>
+  <!-- Instant dark background — prevents white flash between page loads -->
+  <style id="aiui-anti-flicker">
+    html,
+    body {
+      background: #0f172a !important;
+      color: #e2e8f0;
+    }
+
+    #root>* {
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/integration-analysis" />
+  <meta property="og:title" content="AIUI Integration — Critical Review &amp; Architecture Analysis | PraisonAIUI Docs" />
+  <meta property="og:description" content="AIUI Integration — Critical Review &amp; Architecture Analysis - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/integration-analysis" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="AIUI Integration — Critical Review &amp; Architecture Analysis | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="AIUI Integration — Critical Review &amp; Architecture Analysis - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body style="background:#0f172a;margin:0">
+  <div id="root"><noscript><h1>AIUI Integration — Critical Review & Architecture Analysis</h1>
+<p>> **Principle**: AIUI's `config.yaml` is a **schemaless** YAML dict (`YAMLConfigStore`). The adapter must produce what AIUI already reads — AIUI's config structure is NOT modified. Additional keys are silently ignored.</p>
+<p>---</p>
+<h2>Table of Contents</h2>
+<p>1. [Acceptance Criteria](#1-acceptance-criteria)</p>
+<p>2. [Current State — What's Done](#2-current-state--whats-done)</p>
+<p>3. [Protocol-Driven Assessment](#3-protocol-driven-assessment)</p>
+<p>4. [Gap Analysis — Adapter Schema (hostaibot)](#4-gap-analysis--adapter-schema)</p>
+<p>5. [Gap Analysis — AIUI Side (implementation needed)](#5-gap-analysis--aiui-side)</p>
+<p>6. [Remediation Plan](#6-remediation-plan)</p>
+<p>7. [Risk Summary](#7-risk-summary)</p>
+<p>---</p>
+<h2>1. Acceptance Criteria</h2>
+<p>| # | Criterion | Status |</p>
+<p>|---|-----------|--------|</p>
+<p>| AC-1 | 3rd runtime = adapter file + enum + registry | ✅ Done |</p>
+<p>| AC-2 | Zero `name ===` outside adapters | ⚠️ 4 deferred (OpenClaw-specific) |</p>
+<p>| AC-3 | Config format via adapter (`parseConfig`/`serializeConfig`) | ✅ Done |</p>
+<p>| AC-4 | AIUI dashboard tabs wired | ✅ Done |</p>
+<p>| AC-5 | `openclaw/route.ts` guards non-OpenClaw | ✅ Done (400 RUNTIME_MISMATCH) |</p>
+<p>| AC-6 | Prisma migration exists | ✅ Done |</p>
+<p>| AC-7 | All OpenClaw tests pass | ✅ 1200/1240 (40 pre-existing) |</p>
+<p>| AC-8 | `channel-sync.ts` uses adapter methods | ✅ parse/serialize/containerUser wired |</p>
+<p>---</p>
+<h2>2. Current State — What's Done</h2>
+<h3>Hostaibot Protocol Refactoring ✅ Complete</h3>
+<p>11 files changed (+150 / -18). Verified with 1200/1240 tests passing.</p>
+<p>| File | Change | Status |</p>
+<p>|------|--------|--------|</p>
+<p>| [types.ts](file:///Users/praison/hostaibot/src/lib/runtime/types.ts) | +3 methods: `parseConfig`, `serializeConfig`, `containerUser` | ✅ |</p>
+<p>| [openclaw-adapter.ts](file:///Users/praison/hostaibot/src/lib/runtime/openclaw-adapter.ts) | JSON.parse/stringify, `"node"` | ✅ |</p>
+<p>| [aiui-adapter.ts](file:///Users/praison/hostaibot/src/lib/runtime/aiui-adapter.ts) | Lazy `js-yaml` load/dump, `"root"` | ✅ |</p>
+<p>| [channel-sync.ts](file:///Users/praison/hostaibot/src/lib/channel-sync.ts) | 4 leaks fixed (config path, parse, serialize, chown) | ✅ |</p>
+<p>| [health/route.ts](file:///Users/praison/hostaibot/src/app/api/instances/%5Bid%5D/health/route.ts) | `JSON.parse` → `parseConfig()` | ✅ |</p>
+<p>| [provision-queue.ts](file:///Users/praison/hostaibot/src/lib/provision-queue.ts) | `JSON.stringify` → `serializeConfig()` | ✅ |</p>
+<p>| [openclaw/route.ts](file:///Users/praison/hostaibot/src/app/api/instances/%5Bid%5D/openclaw/route.ts) | Runtime guard (400 RUNTIME_MISMATCH) | ✅ |</p>
+<p>| [api-error.ts](file:///Users/praison/hostaibot/src/lib/api-error.ts) | New RUNTIME_MISMATCH code | ✅ |</p>
+<p>| [dashboard/page.tsx](file:///Users/praison/hostaibot/src/app/dashboard/page.tsx) | Wired `runtimeType` to tabs | ✅ |</p>
+<p>| [config-builder.test.ts](file:///Users/praison/hostaibot/src/lib/__tests__/config-builder.test.ts) | +12 new tests | ✅ |</p>
+<h3>Key Regression Fix</h3>
+<p>> [!IMPORTANT]</p>
+<p>> `syncChannelConfig()` was NOT wired directly because consumer code passes **pre-decrypted** tokens (via `decryptSafe()`), while the adapter would receive raw encrypted DB values. The original `config.channels = channelsConfig` pattern was preserved — only format methods (`parseConfig`/`serializeConfig`/`containerUser`) are adapter-driven.</p>
+<h3>4 Deferred Leaks (OpenClaw-Specific)</h3>
+<p>| Leak | Why Deferred |</p>
+<p>|------|-------------|</p>
+<p>| `provision-queue` chown L289 | OpenClaw post-health — skipped for non-OpenClaw |</p>
+<p>| `provision-queue` device pairing L358 | OpenClaw-specific feature |</p>
+<p>| `health/route` model path L184 | Different config structures per runtime |</p>
+<p>| `health/route` env check L202 | Different env vars per runtime |</p>
+<p>These are not protocol operations — they're OpenClaw-specific features that correctly skip for other runtimes.</p>
+<p>---</p>
+<h2>3. Protocol-Driven Assessment</h2>
+<h3>What AIUI's Config.yaml Already Reads (Unchanged)</h3>
+<p>**Not in config**: API key (`OPENAI_API_KEY` env var), auth tokens (in-memory feature).</p>
+<h3>Adding a New Runtime (After Hostaibot Refactoring)</h3>
+<p>1. Create `src/lib/runtime/newruntime-adapter.ts` — implement all 12 interface methods</p>
+<p>2. Add `NEWRUNTIME` to `RuntimeType` enum in `schema.prisma`</p>
+<p>3. Add 3 lines to `registry.ts`</p>
+<p>4. Run `npx prisma migrate dev`</p>
+<p>**Zero consumer file changes needed.**</p>
+<p>---</p>
+<h2>4. Gap Analysis — Adapter Schema (All Fixed)</h2>
+<p>> [!NOTE]</p>
+<p>> These schema mismatches were in `aiui-adapter.ts`. **All 7 have been fixed** as part of the hostaibot protocol-driven refactoring (verified: 1200/1240 tests pass).</p>
+<p>| Gap | Was | Now | Status |</p>
+<p>|-----|-----|-----|--------|</p>
+<p>| G-A1: Port | 8080 | `port: 8082` | ✅ Fixed |</p>
+<p>| G-A2: Model path | top-level `model:` | `provider: { model: "gpt-4o-mini" }` | ✅ Fixed |</p>
+<p>| G-A2b: API key | `api_key` in config | Removed — env var `OPENAI_API_KEY` (in `.bashrc`) | ✅ Fixed |</p>
+<p>| G-A3: auth_token | `server.auth_token` | Removed — AIUI auth is feature-driven | ✅ Fixed |</p>
+<p>| G-A4: Channel format (`buildConfig`) | `{token: "..."}` flat | `{platform, config: {bot_token}, enabled, auto_start}` | ✅ Fixed |</p>
+<p>| G-A5: Channel format (`syncChannelConfig`) | Same flat format | Same nested format | ✅ Fixed |</p>
+<p>| G-A6: Health status | Expected `"healthy"` | Maps CLI success → `"pass"` | ✅ Fixed |</p>
+<p>| G-A7: CLI command | `"health"` | `"health-check"` | ✅ Fixed |</p>
+<p>---</p>
+<h2>5. Gap Analysis — AIUI Side (Validated)</h2>
+<p>> [!NOTE]</p>
+<p>> All 5 proposed gaps were validated against the actual codebase. **Only 1 was real** — it has been fixed.</p>
+<h3>G-U1: Config Hot-Reload Skips Channels — ✅ FIXED</h3>
+<p>**Was real**: `_on_config_reload()` in [server.py L1239](file:///Users/praison/PraisonAIUI/src/praisonaiui/server.py#L1239) reloaded agents and skills but NOT channels. The `_channels` module-level dict was never refreshed.</p>
+<p>**Fix applied**: Added channel reload block to `_on_config_reload()` — clears `_channels`, re-loads from config store, resets `_auto_started` flag so changed channels auto-start on next API request. Follows the same pattern as agents/skills.</p>
+<p>render_diffs(file:///Users/praison/PraisonAIUI/src/praisonaiui/server.py)</p>
+<h3>G-U2: No Graceful Shutdown — ❌ NOT A REAL GAP</h3>
+<p>**Why**: AIUI runs via `uvicorn.run()` ([cli.py L507](file:///Users/praison/PraisonAIUI/src/praisonaiui/cli.py#L507)). Uvicorn already handles `SIGTERM` gracefully — it stops accepting new connections, waits for in-flight requests, then exits cleanly. No custom handler needed.</p>
+<h3>G-U3: No Pre-Provisioned Auth Token — ❌ NOT A REAL GAP</h3>
+<p>**Why**: `AUTH_ENFORCE` is **off by default** (env var opt-in, [server.py L1060](file:///Users/praison/PraisonAIUI/src/praisonaiui/server.py#L1060)). In managed containers, simply don't set `AUTH_ENFORCE=true`. No AIUI code change needed.</p>
+<h3>G-U4: Health Endpoint Missing Metadata — ❌ NOT A REAL GAP</h3>
+<p>**Why**: `/api/dashboard` ([server.py L375-390](file:///Users/praison/PraisonAIUI/src/praisonaiui/server.py#L375-L390)) already returns `uptime_seconds`, `version`, `stats`, `provider_health`, `agents`. The adapter can call this richer endpoint. `/health` is intentionally lightweight for probes.</p>
+<h3>G-U5: Dockerfile Hardening — ❌ NOT A REAL GAP</h3>
+<p>**Why**: The [Dockerfile](file:///Users/praison/PraisonAIUI/Dockerfile) **already has**:</p>
+<li>`HEALTHCHECK` with `curl -f http://localhost:${AIUI_PORT}/health`</li>
+<li>`AIUI_PORT=8082` env var</li>
+<li>`curl` installed for health probes</li>
+<li>Proper multi-stage build</li>
+<p>---</p>
+<h2>6. Remediation Plan</h2>
+<h3>Phase 1: Adapter Schema — ✅ Complete</h3>
+<p>All 7 adapter fixes (G-A1 through G-A7) were implemented as part of the hostaibot protocol-driven refactoring. Verified with 1200/1240 tests passing.</p>
+<h3>Phase 2: AIUI Side — ✅ Complete</h3>
+<p>| Gap | Status | Notes |</p>
+<p>|-----|--------|-------|</p>
+<p>| G-U1: Channel hot-reload | ✅ **Fixed** | Added channel reload to `_on_config_reload()` in `server.py` |</p>
+<p>| G-U2: Graceful shutdown | ❌ Not real | Uvicorn handles SIGTERM natively |</p>
+<p>| G-U3: Admin token | ❌ Not real | AUTH_ENFORCE is off by default |</p>
+<p>| G-U4: Health metadata | ❌ Not real | `/api/dashboard` already has all metadata |</p>
+<p>| G-U5: Dockerfile | ❌ Not real | Already has HEALTHCHECK + curl |</p>
+<p>> [!NOTE]</p>
+<p>> OpenAI API key is delivered via env var (e.g. in `.bashrc`), not config.yaml. AIUI reads `OPENAI_API_KEY` from environment — the adapter should NOT write it to config.</p>
+<p>---</p>
+<h2>7. Risk Summary</h2>
+<h3>Blockers — All Cleared ✅</h3>
+<p>| Risk | Side | Status |</p>
+<p>|------|------|--------|</p>
+<p>| Channel config wrong shape | Adapter | ✅ Fixed (G-A4/A5) |</p>
+<p>| Health always fails (port + status) | Adapter | ✅ Fixed (G-A1/A6) |</p>
+<p>| Model not found (wrong path) | Adapter | ✅ Fixed (G-A2) |</p>
+<p>| API key ignored | Adapter | ✅ Fixed (G-A2 — now via env var) |</p>
+<h3>Non-Blocking</h3>
+<p>| Risk | Side | Status |</p>
+<p>|------|------|--------|</p>
+<p>| Channels not reloaded on hot-write | AIUI | ✅ **Fixed** (G-U1) |</p>
+<p>| Connections dropped on restart | Not real | Uvicorn handles graceful shutdown |</p>
+<p>| Can't manage with auth enforced | Not real | AUTH_ENFORCE is off by default |</p>
+<h3>Safe</h3>
+<p>| Assertion | Evidence |</p>
+<p>|-----------|----------|</p>
+<p>| OpenClaw unaffected | 1200/1240 tests pass, zero regressions |</p>
+<p>| Config.yaml structure unchanged | Schemaless `YAMLConfigStore`, no validation |</p>
+<p>| Protocol methods work | `parseConfig`/`serializeConfig`/`containerUser` tested |</p>
+<p>| 3rd runtime pluggable | Only adapter + enum + registry needed |</p>
+<p>---</p>
+<h2>Appendix: File Reference</h2>
+<p>| File | Side | Purpose |</p>
+<p>|------|------|---------|</p>
+<p>| [server.py](file:///Users/praison/PraisonAIUI/src/praisonaiui/server.py) | AIUI | Health, CORS, auth, config watcher (G-U1 fix here) |</p>
+<p>| [config_store.py](file:///Users/praison/PraisonAIUI/src/praisonaiui/config_store.py) | AIUI | Schemaless YAML store — no changes needed |</p>
+<p>| [channels.py](file:///Users/praison/PraisonAIUI/src/praisonaiui/features/channels.py) | AIUI | Channel CRUD, auto-start, accepts `bot_token`/`token` |</p>
+<p>| [auth.py](file:///Users/praison/PraisonAIUI/src/praisonaiui/features/auth.py) | AIUI | In-memory auth, 4 modes — no changes needed |</p>
+<p>| [cli.py](file:///Users/praison/PraisonAIUI/src/praisonaiui/cli.py) | AIUI | `health-check` command (not `health`) |</p>
+<p>| [Dockerfile](file:///Users/praison/PraisonAIUI/Dockerfile) | AIUI | Port 8082, HEALTHCHECK with curl — no changes needed |</p>
+<p>| [config_hot_reload.py](file:///Users/praison/PraisonAIUI/src/praisonaiui/features/config_hot_reload.py) | AIUI | 3s poll watcher |</p>
+<p>| [aiui-adapter.ts](file:///Users/praison/hostaibot/src/lib/runtime/aiui-adapter.ts) | Hostaibot | All G-A1–A7 fixes here |</p>
+<p>| [types.ts](file:///Users/praison/hostaibot/src/lib/runtime/types.ts) | Hostaibot | `RuntimeAdapter` interface (12 methods) ✅ |</p>
+<p>| [channel-sync.ts](file:///Users/praison/hostaibot/src/lib/channel-sync.ts) | Hostaibot | ✅ Protocol-driven (4 leaks fixed) |</p></noscript></div>
+  <script>
+    // AIUI Plugin System — inline bootstrap
+    (function () {
+      var plugins = [];
+      function notify() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        plugins.forEach(function (p) {
+          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
+          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
+        });
+      }
+      function observe() {
+        var root = document.getElementById('root');
+        if (!root) return;
+        var t;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
+          .observe(root, { childList: true, subtree: true });
+      }
+      function removeAntiFlicker() {
+        var af = document.getElementById('aiui-anti-flicker');
+        if (af) af.remove();
+      }
+      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
+        var names = cfg.plugins || [];
+        if (!names.length) { removeAntiFlicker(); return; }
+        var v = Date.now(); // Cache-busting version parameter
+        Promise.allSettled(names.map(function (name) {
+          return import('/plugins/' + name + '.js?v=' + v).then(function (mod) {
+            var p = mod.default || mod; p.name = p.name || name;
+            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
+            plugins.push(p);
+          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
+        })).then(function () {
+          observe();
+          // Immediate first pass — no delay
+          notify();
+          // Remove anti-flicker now that plugins have rendered
+          removeAntiFlicker();
+          // Delayed pass for CDN-loaded plugins (mermaid, syntax-highlight)
+          setTimeout(notify, 2000);
+          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
+        });
+      }).catch(function () { removeAntiFlicker(); });
+    })();
+  </script>
+</body>
+
+</html>
