@@ -30,6 +30,10 @@ _callbacks: dict[str, Callable] = {}
 _agents: dict[str, dict[str, Any]] = {}
 # Registry for dashboard pages (protocol-driven)
 _pages: dict[str, dict[str, Any]] = {}
+# User-defined page whitelist — None means "show all built-in pages"
+_enabled_pages: Optional[set[str]] = None
+# Track which page IDs were added by @aiui.page() (always shown)
+_custom_page_ids: set[str] = set()
 # Pluggable datastore (default: persistent JSON file store)
 _datastore: BaseDataStore = JSONFileDataStore()
 # Pluggable AI provider (default: PraisonAI)
@@ -71,6 +75,34 @@ def set_style(style: str) -> None:
     """
     global _style
     _style = style
+
+
+def set_pages(page_ids: list[str]) -> None:
+    """Whitelist which built-in sidebar pages to show.
+
+    Only the specified built-in page IDs will appear in the sidebar.
+    Custom pages registered via ``@aiui.page()`` always appear regardless.
+    Call before the server starts (typically in your ``app.py``).
+
+    Example::
+
+        import praisonaiui as aiui
+        aiui.set_pages(["chat", "sessions", "agents", "usage", "config"])
+
+    Pass an empty list to hide **all** built-in pages (only custom pages shown).
+    If never called, all built-in pages are shown (backward compatible).
+    """
+    global _enabled_pages
+    _enabled_pages = set(page_ids)
+
+
+def remove_page(page_id: str) -> None:
+    """Remove a page from the sidebar by its ID.
+
+    Works for both built-in and custom pages.
+    """
+    _pages.pop(page_id, None)
+    _custom_page_ids.discard(page_id)
 
 
 def get_style() -> Optional[str]:
@@ -253,6 +285,7 @@ def register_page(
         "api_endpoint": endpoint,
         "order": order,
     }
+    _custom_page_ids.add(id)
     if handler:
         register_callback(f"page:{id}", handler)
 
@@ -905,6 +938,13 @@ class MessageContext:
             f"agent_name={self.agent_name!r})"
         )
 
+    def reply(self, text: str) -> str:
+        """Return a reply string.
+
+        Convenience helper so handlers can write ``return msg.reply('...')``.
+        """
+        return text
+
     async def stream(self, token: str) -> None:
         """Stream a token to the client."""
         if self._stream_queue:
@@ -1179,11 +1219,13 @@ def create_app(
 
     routes = [
         Route("/health", health, methods=["GET"]),
+        Route("/api/health", health, methods=["GET"]),
         Route("/login", login_handler, methods=["POST"]),
         Route("/register", register_handler, methods=["POST"]),
         Route("/logout", logout_handler, methods=["POST"]),
         Route("/me", me_handler, methods=["GET"]),
         Route("/agents", list_agents, methods=["GET"]),
+        Route("/api/agents", list_agents, methods=["GET"]),
         Route("/starters", get_starters, methods=["GET"]),
         Route("/profiles", get_profiles, methods=["GET"]),
         Route("/profiles/select", select_profile, methods=["POST"]),
@@ -1197,6 +1239,7 @@ def create_app(
         Route("/run", run_agent, methods=["POST"]),
         Route("/cancel", cancel_run, methods=["POST"]),
         Route("/agents/{agent_id}/runs", run_agent_by_id, methods=["POST"]),
+        Route("/api/agents/{agent_id}/runs", run_agent_by_id, methods=["POST"]),
         # Dashboard API
         Route("/api/overview", api_overview, methods=["GET"]),
         Route("/api/config", api_config_handler, methods=["GET", "PUT"]),
@@ -1340,12 +1383,34 @@ def create_app(
          "description": "Security monitoring & audit log", "order": 12},
     ]
     _page_api_overrides = {"sessions": "/sessions", "cron": "/api/schedules", "channels": "/api/channels"}
+
+    # Read page whitelist from config.yaml if set_pages() was not called
+    if _enabled_pages is None:
+        try:
+            from praisonaiui.config_store import get_config_store
+            _cfg = get_config_store()
+            _pages_cfg = _cfg.get("pages", {}) if _cfg else {}
+            if isinstance(_pages_cfg, dict):
+                _enabled_list = _pages_cfg.get("enabled")
+                _disabled_list = _pages_cfg.get("disabled")
+                if _enabled_list and isinstance(_enabled_list, list):
+                    set_pages(_enabled_list)
+                elif _disabled_list and isinstance(_disabled_list, list):
+                    # Blacklist: all pages except disabled ones
+                    set_pages([p["id"] for p in _builtin_pages if p["id"] not in _disabled_list])
+        except (ImportError, Exception):
+            pass
+
     for p in _builtin_pages:
-        if p["id"] not in _pages:  # allow user to override
-            _pages[p["id"]] = {
-                **p,
-                "api_endpoint": _page_api_overrides.get(p["id"], f"/api/{p['id']}"),
-            }
+        if p["id"] in _pages:  # user already overrode this page
+            continue
+        # If whitelist is set, skip pages not in the whitelist
+        if _enabled_pages is not None and p["id"] not in _enabled_pages:
+            continue
+        _pages[p["id"]] = {
+            **p,
+            "api_endpoint": _page_api_overrides.get(p["id"], f"/api/{p['id']}"),
+        }
 
     # Always mount built-in frontend plugins and assets BEFORE catch-all /
     _frontend_dir = Path(__file__).parent / "templates" / "frontend"

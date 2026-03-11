@@ -2408,6 +2408,242 @@ def session_ext_reset(
         console.print(f"[red]✗[/red] {e}")
         raise typer.Exit(code=1)
 
+# ── Eval ─────────────────────────────────────────────────────────────
+eval_app = typer.Typer(name="eval", help="Manage agent evaluations (list, scores, judges, run)", add_completion=False)
+app.add_typer(eval_app, name="eval")
+
+
+@eval_app.command("status")
+def eval_status(server: str = _SERVER_OPT) -> None:
+    """Show eval status and judge count."""
+    try:
+        data = _api_get(server, "/api/eval/status")
+        console.print(f"Provider: {data.get('provider', '?')}")
+        console.print(f"Total evaluations: {data.get('total_evaluations', 0)}")
+        console.print(f"Active judges: {data.get('active_judges', 0)}")
+        if data.get('sdk_available'):
+            console.print(f"SDK: available ({', '.join(data.get('evaluator_classes', []))})")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@eval_app.command("list")
+def eval_list(
+    limit: int = typer.Option(20, "--limit", help="Max results"),
+    agent_id: str = typer.Option("", "--agent-id", help="Filter by agent"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """List recent evaluations."""
+    try:
+        path = f"/api/eval?limit={limit}"
+        if agent_id:
+            path += f"&agent_id={agent_id}"
+        data = _api_get(server, path)
+        for ev in data.get("evaluations", []):
+            score = ev.get("score", "—")
+            passed = "✓" if ev.get("passed") else ("✗" if ev.get("passed") is False else "—")
+            console.print(f"  [{ev.get('id','')}] agent={ev.get('agent_id','?')} score={score} passed={passed}")
+        console.print(f"Total: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@eval_app.command("scores")
+def eval_scores(server: str = _SERVER_OPT) -> None:
+    """Show aggregated scores by agent."""
+    try:
+        data = _api_get(server, "/api/eval/scores")
+        scores = data.get("scores", [])
+        if not scores:
+            console.print("[dim]No scores yet — run some evaluations first.[/dim]")
+            return
+        for s in scores:
+            avg = f"{s['avg_score']:.2f}" if s.get("avg_score") is not None else "—"
+            console.print(f"  {s['agent_id']}: avg={avg} passed={s['passed']}/{s['total']}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@eval_app.command("judges")
+def eval_judges(server: str = _SERVER_OPT) -> None:
+    """List registered judges."""
+    try:
+        data = _api_get(server, "/api/eval/judges")
+        judges = data.get("judges", [])
+        if not judges:
+            console.print("[dim]No judges registered.[/dim]")
+            return
+        for j in judges:
+            console.print(f"  {j.get('name','?')} (source={j.get('source','?')})")
+        console.print(f"Total: {len(judges)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@eval_app.command("run")
+def eval_run(
+    input_text: str = typer.Option(..., "--input", help="Input text"),
+    output_text: str = typer.Option(..., "--output", help="Output text"),
+    expected: str = typer.Option("", "--expected", help="Expected text"),
+    agent_id: str = typer.Option("cli", "--agent-id", help="Agent ID"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Run an evaluation."""
+    try:
+        data = _api_post(server, "/api/eval/run", {
+            "agent_id": agent_id, "input": input_text,
+            "output": output_text, "expected": expected,
+        })
+        result = data.get("result", {})
+        score = result.get("score", "—")
+        passed = "✓" if result.get("passed") else ("✗" if result.get("passed") is False else "—")
+        console.print(f"[green]✓[/green] Evaluation {result.get('id','?')}: score={score} passed={passed}")
+        console.print(f"  Feedback: {result.get('feedback', '—')}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+# ── Traces ───────────────────────────────────────────────────────────
+traces_app = typer.Typer(name="traces", help="Manage distributed traces (list, spans, get)", add_completion=False)
+app.add_typer(traces_app, name="traces")
+
+
+@traces_app.command("status")
+def traces_status(server: str = _SERVER_OPT) -> None:
+    """Show tracing status."""
+    try:
+        data = _api_get(server, "/api/traces/status")
+        console.print(f"Provider: {data.get('provider', '?')}")
+        console.print(f"Total traces: {data.get('total_traces', 0)}")
+        console.print(f"Total spans: {data.get('total_spans', 0)}")
+        if "trace_available" in data:
+            console.print(f"SDK trace: {'available' if data['trace_available'] else 'unavailable'}")
+        if "obs_available" in data:
+            console.print(f"SDK obs: {'available' if data['obs_available'] else 'unavailable'}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@traces_app.command("list")
+def traces_list(
+    limit: int = typer.Option(20, "--limit", help="Max results"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """List recent traces."""
+    try:
+        data = _api_get(server, f"/api/traces?limit={limit}")
+        traces = data.get("traces", [])
+        if not traces:
+            console.print("[dim]No traces recorded yet.[/dim]")
+            return
+        for t in traces:
+            console.print(
+                f"  [{t.get('id','')}] {t.get('name','')} "
+                f"status={t.get('status','?')} {t.get('duration_ms',0)}ms "
+                f"spans={t.get('span_count',0)}"
+            )
+        console.print(f"Total: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@traces_app.command("spans")
+def traces_spans(
+    limit: int = typer.Option(20, "--limit", help="Max results"),
+    trace_id: str = typer.Option("", "--trace-id", help="Filter by trace ID"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """List recent spans."""
+    try:
+        path = f"/api/traces/spans?limit={limit}"
+        if trace_id:
+            path += f"&trace_id={trace_id}"
+        data = _api_get(server, path)
+        spans = data.get("spans", [])
+        if not spans:
+            console.print("[dim]No spans recorded yet.[/dim]")
+            return
+        for s in spans:
+            console.print(f"  [{s.get('id','')}] {s.get('name','')} kind={s.get('kind','?')} {s.get('duration_ms',0)}ms")
+        console.print(f"Total: {data.get('count', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@traces_app.command("get")
+def traces_get(
+    trace_id: str = typer.Argument(help="Trace ID"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Get a specific trace by ID."""
+    try:
+        data = _api_get(server, f"/api/traces/{trace_id}")
+        trace = data.get("trace", {})
+        spans = data.get("spans", [])
+        console.print(f"[bold]Trace: {trace.get('id', '')}[/bold]")
+        console.print(f"  Agent: {trace.get('agent_id', '?')}")
+        console.print(f"  Name: {trace.get('name', '')}")
+        console.print(f"  Status: {trace.get('status', '?')}")
+        console.print(f"  Duration: {trace.get('duration_ms', 0)}ms")
+        console.print(f"  Spans ({len(spans)}):")
+        for s in spans:
+            console.print(f"    [{s.get('id','')}] {s.get('name','')} {s.get('duration_ms',0)}ms")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+# ── Pages ────────────────────────────────────────────────────────────
+pages_app = typer.Typer(name="pages", help="Manage sidebar pages (list, ids)", add_completion=False)
+app.add_typer(pages_app, name="pages")
+
+
+@pages_app.command("list")
+def pages_list(server: str = _SERVER_OPT) -> None:
+    """List all registered sidebar pages."""
+    try:
+        data = _api_get(server, "/api/pages")
+        pages = data.get("pages", [])
+        if not pages:
+            console.print("[dim]No pages registered.[/dim]")
+            return
+        current_group = ""
+        for p in pages:
+            group = p.get("group", "Other")
+            if group != current_group:
+                console.print(f"\n[bold]{group}[/bold]")
+                current_group = group
+            console.print(
+                f"  {p.get('icon', '📄')} {p.get('title', p.get('id', '?')):20s} "
+                f"id={p.get('id', '?'):15s} order={p.get('order', 100)}"
+            )
+        console.print(f"\nTotal: {len(pages)} pages")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@pages_app.command("ids")
+def pages_ids(server: str = _SERVER_OPT) -> None:
+    """Print all page IDs (useful for aiui.set_pages() whitelist)."""
+    try:
+        data = _api_get(server, "/api/pages")
+        pages = data.get("pages", [])
+        ids = [p.get("id", "?") for p in pages]
+        console.print(", ".join(ids))
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
 # ---------------------------------------------------------------------------
 # Doctor command — ``aiui doctor`` structured diagnostics
 # ---------------------------------------------------------------------------

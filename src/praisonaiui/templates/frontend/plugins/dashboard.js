@@ -252,7 +252,7 @@ function buildSidebar(pages) {
 
   const testBtn = document.createElement('div');
   testBtn.className = 'db-nav-item';
-  testBtn.innerHTML = '<span class="db-nav-icon">🔍</span> Feature Inspector';
+  testBtn.innerHTML = '<span class="db-nav-icon">🔍</span> Inspector';
   testBtn.addEventListener('click', () => showTestPanel());
   testBtn.style.borderTop = '1px solid var(--db-border)';
   testBtn.style.marginTop = '8px';
@@ -438,9 +438,9 @@ function renderText(comp) {
 async function showTestPanel() {
   activePageId = '__test__';
 
-  // Sync URL path for Feature Inspector
-  if (location.pathname !== '/explorer') {
-    history.pushState({ pageId: '__test__' }, '', '/explorer');
+  // Sync URL path for Inspector
+  if (location.pathname !== '/inspector') {
+    history.pushState({ pageId: '__test__' }, '', '/inspector');
   }
   document.querySelectorAll('.db-nav-item').forEach(el => el.classList.remove('active'));
   const main = document.getElementById('db-main-content');
@@ -448,7 +448,7 @@ async function showTestPanel() {
 
   main.innerHTML = `
     <div class="db-page-header">
-      <h1 class="db-page-title">🔍 Feature Inspector</h1>
+      <h1 class="db-page-title">🔍 Inspector</h1>
       <p class="db-page-desc">Interactive data flow debugger — click a feature to inspect its API endpoints and see raw request/response data.</p>
     </div>
     <div id="fi-container">

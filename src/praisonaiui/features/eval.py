@@ -230,6 +230,92 @@ class EvalFeature(BaseFeatureProtocol):
             Route("/api/eval/scores", self._scores, methods=["GET"]),
         ]
 
+    def cli_commands(self) -> List[Dict[str, Any]]:
+        return [{
+            "name": "eval",
+            "help": "Manage agent evaluations (list, scores, judges, run)",
+            "commands": {
+                "status": {
+                    "help": "Show eval status and judge count",
+                    "handler": self._cli_status,
+                },
+                "list": {
+                    "help": "List recent evaluations",
+                    "handler": self._cli_list,
+                },
+                "scores": {
+                    "help": "Show aggregated scores by agent",
+                    "handler": self._cli_scores,
+                },
+                "judges": {
+                    "help": "List registered judges",
+                    "handler": self._cli_judges,
+                },
+                "run": {
+                    "help": "Run an evaluation (--input, --output, --expected)",
+                    "handler": self._cli_run,
+                },
+            },
+        }]
+
+    # ── CLI handlers ─────────────────────────────────────────────────
+
+    def _cli_status(self) -> str:
+        mgr = get_eval_manager()
+        h = mgr.health()
+        lines = ["Eval Status:"]
+        lines.append(f"  Provider: {h.get('provider', 'unknown')}")
+        lines.append(f"  Total evaluations: {h.get('total_evaluations', 0)}")
+        lines.append(f"  Active judges: {h.get('active_judges', 0)}")
+        if h.get('sdk_available'):
+            lines.append(f"  SDK: available ({', '.join(h.get('evaluator_classes', []))})")
+        return "\n".join(lines)
+
+    def _cli_list(self, limit: int = 20, agent_id: str = "") -> str:
+        mgr = get_eval_manager()
+        items = mgr.list_results(limit=limit, agent_id=agent_id or None)
+        if not items:
+            return "No evaluations recorded yet."
+        lines = [f"Evaluations ({len(items)}):"]
+        for ev in items:
+            score = ev.get('score', '—')
+            passed = '✓' if ev.get('passed') else ('✗' if ev.get('passed') is False else '—')
+            agent = ev.get('agent_id', 'unknown')
+            lines.append(f"  [{ev.get('id','')}] agent={agent} score={score} passed={passed}")
+        return "\n".join(lines)
+
+    def _cli_scores(self) -> str:
+        mgr = get_eval_manager()
+        scores = mgr.get_scores()
+        if not scores:
+            return "No scores yet — run some evaluations first."
+        lines = ["Agent Scores:"]
+        for s in scores:
+            avg = f"{s['avg_score']:.2f}" if s.get('avg_score') is not None else '—'
+            lines.append(f"  {s['agent_id']}: avg={avg} passed={s['passed']}/{s['total']}")
+        return "\n".join(lines)
+
+    def _cli_judges(self) -> str:
+        mgr = get_eval_manager()
+        judges = mgr.list_judges()
+        if not judges:
+            return "No judges registered."
+        lines = [f"Judges ({len(judges)}):"]
+        for j in judges:
+            lines.append(f"  {j.get('name','?')} (source={j.get('source','?')})")
+        return "\n".join(lines)
+
+    def _cli_run(self, input: str = "", output: str = "", expected: str = "", agent_id: str = "cli") -> str:
+        if not input:
+            return "Usage: eval run --input <text> --output <text> --expected <text>"
+        mgr = get_eval_manager()
+        result = mgr.run_evaluation({
+            "agent_id": agent_id, "input": input, "output": output, "expected": expected,
+        })
+        score = result.get('score', '—')
+        passed = '✓' if result.get('passed') else ('✗' if result.get('passed') is False else '—')
+        return f"✓ Evaluation {result['id']}: score={score} passed={passed}\n  Feedback: {result.get('feedback', '—')}"
+
     async def _list(self, request: Request) -> JSONResponse:
         mgr = get_eval_manager()
         limit = int(request.query_params.get("limit", "50"))

@@ -83,12 +83,12 @@ export async function render(container) {
     <!-- Feature Health Matrix -->
     <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">Feature Health Matrix</h3>
     <div class="db-viewer" style="margin-bottom:24px">
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed">
         <tr>
-          <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase">Feature</th>
-          <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase">Status</th>
+          <th style="width:160px;text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase">Feature</th>
+          <th style="width:80px;text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase">Status</th>
           <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase">Routes</th>
-          <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase">Description</th>
+          <th style="width:200px;text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase">Description</th>
         </tr>
         ${features.map(f => {
           const name = typeof f === 'string' ? f : f.name || f.feature || 'unknown';
@@ -100,7 +100,7 @@ export async function render(container) {
             <td style="padding:8px 12px;border-bottom:1px solid var(--db-border)">
               <span style="font-size:11px;padding:2px 8px;border-radius:8px;${status === 'healthy' ? 'background:rgba(34,197,94,.15);color:#22c55e' : status === 'unhealthy' ? 'background:rgba(239,68,68,.15);color:#ef4444' : 'background:rgba(234,179,8,.15);color:#eab308'}">${status}</span>
             </td>
-            <td style="padding:8px 12px;border-bottom:1px solid var(--db-border);font-size:12px;color:var(--db-text-dim)">${routes}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid var(--db-border);font-size:12px;color:var(--db-text-dim);word-break:break-all;overflow-wrap:break-word">${routes}</td>
             <td style="padding:8px 12px;border-bottom:1px solid var(--db-border);font-size:12px;color:var(--db-text-dim)">${desc}</td>
           </tr>`;
         }).join('') || '<tr><td colspan="4" style="padding:8px 12px;color:var(--db-text-dim)">No features registered</td></tr>'}

@@ -247,26 +247,38 @@ class SessionsFeature(BaseFeatureProtocol):
     # ── API handlers ─────────────────────────────────────────────────
 
     async def _list_sessions(self, request: Request) -> JSONResponse:
-        """GET /api/sessions — List all known sessions."""
-        store = _get_session_store()
-        session_ids = set()
-        # Get IDs from store (upstream may crash on sort)
-        if hasattr(store, 'list_sessions'):
-            try:
-                result = store.list_sessions()
-                # Result may be list of strings or list of dicts
-                for item in (result or []):
-                    if isinstance(item, str):
-                        session_ids.add(item)
-                    elif isinstance(item, dict):
-                        session_ids.add(item.get("session_id", item.get("id", str(item))))
-                    else:
-                        session_ids.add(str(getattr(item, 'session_id', getattr(item, 'id', item))))
-            except Exception as e:
-                logger.warning(f"store.list_sessions() failed: {e}")
-        # Get IDs from metadata
-        session_ids.update(_session_metadata.keys())
-        # Merge gateway agent IDs as sessions
+        """GET /api/sessions — List all known sessions.
+
+        Uses the same _datastore as the Chat page so both views are consistent.
+        """
+        sessions = []
+
+        # Primary source: the server's own datastore (same as /sessions for Chat)
+        try:
+            from praisonaiui.server import get_datastore
+            ds = get_datastore()
+            ds_sessions = await ds.list_sessions()
+            for s in (ds_sessions or []):
+                sid = s.get("id", s.get("session_id", ""))
+                if not sid:
+                    continue
+                meta = _get_metadata(sid)
+                sessions.append({
+                    "id": sid,
+                    "session_id": sid,
+                    "is_active": True,
+                    "message_count": s.get("message_count", len(s.get("messages", []))),
+                    "labels": meta.get("_labels", []),
+                    "created_at": s.get("created_at", meta.get("_created_at")),
+                    "updated_at": s.get("updated_at", meta.get("_updated_at")),
+                    "title": s.get("title", ""),
+                })
+        except Exception as e:
+            logger.warning(f"datastore.list_sessions() failed: {e}")
+
+        seen_ids = {s["id"] for s in sessions}
+
+        # Merge gateway agent IDs as virtual sessions
         try:
             from ._gateway_ref import get_gateway
             gw = get_gateway()
@@ -274,23 +286,21 @@ class SessionsFeature(BaseFeatureProtocol):
                 for aid in gw.list_agents():
                     agent = gw.get_agent(aid)
                     name = getattr(agent, "name", aid) if agent else aid
-                    session_ids.add(f"agent:{name}")
+                    vsid = f"agent:{name}"
+                    if vsid not in seen_ids:
+                        meta = _get_metadata(vsid)
+                        sessions.append({
+                            "id": vsid,
+                            "session_id": vsid,
+                            "is_active": True,
+                            "message_count": 0,
+                            "labels": meta.get("_labels", []),
+                            "created_at": meta.get("_created_at"),
+                            "updated_at": meta.get("_updated_at"),
+                        })
         except (ImportError, Exception):
             pass
-        sessions = []
-        for sid in sorted((s for s in session_ids if s is not None), key=str):
-            meta = _get_metadata(sid)
-            store_session = store.get_session(sid) if hasattr(store, 'get_session') else {}
-            messages = store.get_chat_history(sid) if hasattr(store, 'get_chat_history') else []
-            sessions.append({
-                "id": sid,
-                "session_id": sid,
-                "is_active": True,
-                "message_count": len(messages),
-                "labels": meta.get("_labels", []),
-                "created_at": meta.get("_created_at"),
-                "updated_at": meta.get("_updated_at"),
-            })
+
         return JSONResponse({"sessions": sessions, "count": len(sessions)})
 
     async def _get_state(self, request: Request) -> JSONResponse:

@@ -206,6 +206,90 @@ class TracingFeature(BaseFeatureProtocol):
             Route("/api/traces/{trace_id:path}", self._get_trace, methods=["GET"]),
         ]
 
+    def cli_commands(self) -> List[Dict[str, Any]]:
+        return [{
+            "name": "traces",
+            "help": "Manage distributed traces (list, spans, get)",
+            "commands": {
+                "status": {
+                    "help": "Show tracing status",
+                    "handler": self._cli_status,
+                },
+                "list": {
+                    "help": "List recent traces",
+                    "handler": self._cli_list,
+                },
+                "spans": {
+                    "help": "List recent spans",
+                    "handler": self._cli_spans,
+                },
+                "get": {
+                    "help": "Get a specific trace by ID",
+                    "handler": self._cli_get,
+                },
+            },
+        }]
+
+    # ── CLI handlers ─────────────────────────────────────────────────
+
+    def _cli_status(self) -> str:
+        mgr = get_tracing_manager()
+        h = mgr.health()
+        lines = ["Tracing Status:"]
+        lines.append(f"  Provider: {h.get('provider', 'unknown')}")
+        lines.append(f"  Total traces: {h.get('total_traces', 0)}")
+        lines.append(f"  Total spans: {h.get('total_spans', 0)}")
+        if 'trace_available' in h:
+            lines.append(f"  SDK trace: {'available' if h['trace_available'] else 'unavailable'}")
+        if 'obs_available' in h:
+            lines.append(f"  SDK obs: {'available' if h['obs_available'] else 'unavailable'}")
+        return "\n".join(lines)
+
+    def _cli_list(self, limit: int = 20) -> str:
+        mgr = get_tracing_manager()
+        items = mgr.list_traces(limit=limit)
+        if not items:
+            return "No traces recorded yet."
+        lines = [f"Traces ({len(items)}):"]
+        for t in items:
+            name = t.get('name', '')
+            status = t.get('status', '?')
+            dur = t.get('duration_ms', 0)
+            spans = t.get('span_count', 0)
+            lines.append(f"  [{t.get('id','')}] {name} status={status} {dur}ms spans={spans}")
+        return "\n".join(lines)
+
+    def _cli_spans(self, limit: int = 20, trace_id: str = "") -> str:
+        mgr = get_tracing_manager()
+        items = mgr.list_spans(limit=limit, trace_id=trace_id or None)
+        if not items:
+            return "No spans recorded yet."
+        lines = [f"Spans ({len(items)}):"]
+        for s in items:
+            name = s.get('name', '')
+            kind = s.get('kind', '?')
+            dur = s.get('duration_ms', 0)
+            lines.append(f"  [{s.get('id','')}] {name} kind={kind} {dur}ms")
+        return "\n".join(lines)
+
+    def _cli_get(self, trace_id: str = "") -> str:
+        if not trace_id:
+            return "Usage: traces get --trace-id <id>"
+        mgr = get_tracing_manager()
+        trace = mgr.get_trace(trace_id)
+        if trace is None:
+            return f"Trace {trace_id} not found."
+        spans = mgr.list_spans(trace_id=trace_id)
+        lines = [f"Trace: {trace.get('id', '')}"]
+        lines.append(f"  Agent: {trace.get('agent_id', '?')}")
+        lines.append(f"  Name: {trace.get('name', '')}")
+        lines.append(f"  Status: {trace.get('status', '?')}")
+        lines.append(f"  Duration: {trace.get('duration_ms', 0)}ms")
+        lines.append(f"  Spans ({len(spans)}):")
+        for s in spans:
+            lines.append(f"    [{s.get('id','')}] {s.get('name','')} {s.get('duration_ms',0)}ms")
+        return "\n".join(lines)
+
     async def _list_traces(self, request: Request) -> JSONResponse:
         mgr = get_tracing_manager()
         limit = int(request.query_params.get("limit", "50"))

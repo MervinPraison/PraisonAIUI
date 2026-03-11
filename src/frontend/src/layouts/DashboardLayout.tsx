@@ -45,8 +45,10 @@ export function DashboardLayout({ config, layout: _layout, title }: DashboardLay
             .then((res) => res.json())
             .then((data) => {
                 const pageList: DashboardPageDef[] = data.pages || []
+                // Exclude 'chat' — it's already hardcoded in the sidebar
+                const filtered = pageList.filter((p) => p.id !== 'chat')
                 setPages(pageList)
-                setTabGroups(buildTabGroups(pageList))
+                setTabGroups(buildTabGroups(filtered))
             })
             .catch(() => {
                 // Fallback: if /api/pages not available, show empty
