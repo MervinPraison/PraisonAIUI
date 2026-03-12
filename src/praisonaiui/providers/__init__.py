@@ -207,20 +207,28 @@ class PraisonAIProvider(BaseProvider):
 
         kwargs = {
             "name": "Assistant",
-            "instructions": "You are a helpful assistant. Use markdown formatting.",
+            "instructions": (
+                "You are a helpful assistant with access to tools for file operations, "
+                "command execution, and web search. Use markdown formatting. "
+                "For multi-step tasks, use the appropriate tools to complete each step."
+            ),
             "memory": True,
             "reflection": False,
         }
 
-        # G2: Resolve default tools via praisonai wrapper
+        # G2: Resolve default tools via SDK profiles + praisonai wrapper
         try:
+            from praisonaiagents.tools.profiles import resolve_profiles
             from praisonai.tool_resolver import ToolResolver
+
+            # SDK profiles: auto-syncs with SDK tool updates
+            tool_names = resolve_profiles("file_ops", "shell", "web")
             resolver = ToolResolver()
-            default_tools = resolver.resolve_many(["internet_search"])
+            default_tools = resolver.resolve_many(tool_names)
             if default_tools:
                 kwargs["tools"] = default_tools
         except ImportError:
-            pass  # praisonai not installed — no tools
+            pass  # praisonai/praisonaiagents not installed — no tools
 
         # Check CRUD-defined agents for matching name
         if agent_name:
