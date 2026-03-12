@@ -194,6 +194,14 @@ class ChannelsFeature(BaseFeatureProtocol):
             else:
                 ch["running"] = False
 
+    @staticmethod
+    def _resolve_slack_app_token(config: Dict[str, Any]) -> str:
+        """Resolve Slack app_token from channel config or SLACK_APP_TOKEN env var.
+
+        Returns the token string, or empty string if absent.
+        """
+        return config.get("app_token") or os.environ.get("SLACK_APP_TOKEN", "")
+
     async def _start_channel_bot(self, channel_id: str, entry: Dict[str, Any]) -> Optional[str]:
         """Start a bot for the given channel.
 
@@ -211,8 +219,7 @@ class ChannelsFeature(BaseFeatureProtocol):
             return "No bot_token in channel config"
         # Slack Socket Mode requires an app_token (xapp-...)
         if platform == "slack":
-            app_token = config.get("app_token") or os.environ.get("SLACK_APP_TOKEN", "")
-            if not app_token:
+            if not self._resolve_slack_app_token(config):
                 return (
                     "Slack Socket Mode requires an app_token (xapp-...). "
                     "Set it in channel config or SLACK_APP_TOKEN env var."
@@ -251,8 +258,7 @@ class ChannelsFeature(BaseFeatureProtocol):
                 bot_config = BotConfig(token=token)
                 ch_cfg: Dict[str, Any] = {"token": token}
                 if platform == "slack":
-                    ch_cfg["app_token"] = config.get("app_token",
-                                                     os.environ.get("SLACK_APP_TOKEN", ""))
+                    ch_cfg["app_token"] = self._resolve_slack_app_token(config)
                 if platform == "whatsapp":
                     for k in ("phone_number_id", "verify_token", "mode", "webhook_port"):
                         ch_cfg[k] = config.get(k, "")
@@ -340,8 +346,7 @@ class ChannelsFeature(BaseFeatureProtocol):
                 if agent is not None:
                     kwargs["agent"] = agent
                 if platform == "slack":
-                    kwargs["app_token"] = config.get("app_token",
-                                                     os.environ.get("SLACK_APP_TOKEN", ""))
+                    kwargs["app_token"] = ChannelsFeature._resolve_slack_app_token(config)
                 bot = cls(**kwargs)
                 logger.info(f"Created {platform} bot via {fqn}")
                 return bot
