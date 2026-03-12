@@ -321,6 +321,19 @@ All CRUD operations (dashboard, REST API, CLI) **automatically write back** to t
 - **Atomic writes**: Uses `tempfile` + `os.rename()` to prevent corruption.
 - **Hot reload**: The [Config Hot-Reload](../features/config-hot-reload.md) feature watches this file for external changes.
 - **Environment variables**: Use `${ENV_VAR}` syntax for secrets (never stored in plaintext).
+
+#### Environment Variable vs Config File
+
+| | Env Variable | Config File |
+|---|---|---|
+| **Security** | ✅ Not in source control | ⚠️ Risk of committing secrets to git |
+| **12-Factor App** | ✅ Standard practice | ❌ Violates config-as-env principle |
+| **CI/CD** | ✅ Easy to inject per environment | ❌ Needs file management |
+| **Docker/K8s** | ✅ Native secret support | ❌ Requires volume mounts |
+| **Multiple envs** | ✅ Different key per env (dev/staging/prod) | ⚠️ Need separate config files |
+
+**Rule of thumb**: Secrets (API keys, tokens) → environment variables. Preferences (model, theme, branding) → config file.
+
 - **Custom path**: Set `PRAISONAIUI_CONFIG_PATH` to use a different file location.
 
 ### Relationship to `aiui.template.yaml`

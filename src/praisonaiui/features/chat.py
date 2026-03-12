@@ -165,7 +165,7 @@ class ChatManager(ChatProtocol):
         before: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Return message history for a session."""
-        messages = self._history.get(session_id, [])
+        messages = list(self._history.get(session_id, []))  # snapshot
         return [m.to_dict() for m in messages[-limit:]]
 
     async def abort_run(self, run_id: str) -> Dict[str, Any]:
@@ -197,10 +197,16 @@ class ChatManager(ChatProtocol):
         self._ws_clients.pop(client_id, None)
 
     async def broadcast(self, session_id: str, event: Dict[str, Any]) -> None:
-        """Broadcast an event to all WS clients watching a session."""
+        """Broadcast an event to all WS clients watching a session.
+
+        Uses ``list()`` snapshot of ``_ws_clients`` to prevent
+        ``RuntimeError: dictionary changed size during iteration``
+        when clients connect/disconnect during the async yield in
+        ``ws.send_text()``.
+        """
         data = json.dumps(event)
         dead = []
-        for cid, ws in self._ws_clients.items():
+        for cid, ws in list(self._ws_clients.items()):  # snapshot — mutation-safe
             try:
                 await ws.send_text(data)
             except Exception:

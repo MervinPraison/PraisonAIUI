@@ -209,6 +209,14 @@ class ChannelsFeature(BaseFeatureProtocol):
         token = config.get("bot_token", "")
         if not token:
             return "No bot_token in channel config"
+        # Slack Socket Mode requires an app_token (xapp-...)
+        if platform == "slack":
+            app_token = config.get("app_token") or os.environ.get("SLACK_APP_TOKEN", "")
+            if not app_token:
+                return (
+                    "Slack Socket Mode requires an app_token (xapp-...). "
+                    "Set it in channel config or SLACK_APP_TOKEN env var."
+                )
 
         # Create or find the agent
         agent = None
