@@ -26,6 +26,7 @@ Example – custom SQLite store::
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
@@ -191,7 +192,13 @@ class JSONFileDataStore(BaseDataStore):
     """
 
     def __init__(self, data_dir: Optional[str] = None) -> None:
-        self._data_dir = Path(data_dir) if data_dir else Path.home() / ".praisonaiui" / "sessions"
+        if data_dir:
+            self._data_dir = Path(data_dir)
+        else:
+            # Respect AIUI_DATA_DIR env var (e.g. /data on Fly containers with
+            # persistent volumes), falling back to ~/.praisonaiui/sessions/.
+            base = Path(os.environ.get("AIUI_DATA_DIR", str(Path.home() / ".praisonaiui")))
+            self._data_dir = base / "sessions"
         self._data_dir.mkdir(parents=True, exist_ok=True)
 
     def _session_path(self, session_id: str) -> Path:
