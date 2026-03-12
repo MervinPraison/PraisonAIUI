@@ -214,6 +214,7 @@ class PraisonAIProvider(BaseProvider):
             ),
             "memory": True,
             "reflection": False,
+            "approval": True,  # Auto-approve tool calls (no TTY in server context; container is sandboxed)
         }
 
         # G2: Resolve default tools via SDK profiles + praisonai wrapper
