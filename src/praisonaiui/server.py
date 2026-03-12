@@ -423,13 +423,32 @@ async def api_overview(request: Request) -> JSONResponse:
         provider_health = await provider.health()
     except Exception:
         provider_health = {"status": "unknown"}
+
+    # Gather loaded features and channel status
+    features = get_features()
+    channels_info = {"total": 0, "running": 0}
+    for feat in features.values():
+        if feat.name == "channels":
+            try:
+                h = await feat.health()
+                channels_info = {
+                    "total": h.get("total_channels", 0),
+                    "running": h.get("running_channels", 0),
+                }
+            except Exception:
+                pass
+            break
+
     return JSONResponse({
         "status": "ok",
+        "runtimeType": "AIUI",
         "version": _get_version(),
         "uptime_seconds": round(time.time() - _server_start_time, 1),
         "python_version": sys.version,
         "provider": provider_name,
         "provider_health": provider_health,
+        "features_loaded": len(features),
+        "channels": channels_info,
         "stats": {
             "total_sessions": len(sessions),
             "active_tasks": len(_active_tasks),
@@ -438,6 +457,10 @@ async def api_overview(request: Request) -> JSONResponse:
             "total_requests": _usage_stats["total_requests"],
         },
         "agents": list(_agents.keys()),
+        "config": {
+            "model": os.environ.get("PRAISONAI_MODEL", os.environ.get("DEFAULT_AI_MODEL", "gpt-4o-mini")),
+            "data_dir": str(_get_data_dir()),
+        },
     })
 
 
@@ -1264,6 +1287,7 @@ def create_app(
         Route("/api/agents/{agent_id}/runs", run_agent_by_id, methods=["POST"]),
         # Dashboard API
         Route("/api/overview", api_overview, methods=["GET"]),
+        Route("/api/status", api_overview, methods=["GET"]),  # alias for CLI parity
         Route("/api/config", api_config_handler, methods=["GET", "PUT"]),
         Route("/api/logs", api_logs, methods=["GET"]),
         # Note: /api/usage is now provided by PraisonAIUsage feature
