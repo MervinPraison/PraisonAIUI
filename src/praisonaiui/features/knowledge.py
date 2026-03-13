@@ -224,7 +224,7 @@ class SDKKnowledgeManager(KnowledgeProtocol):
                 logger.info("praisonaiagents not installed; using local knowledge index")
                 self._sdk_probed = True
                 return None
-            except Exception as e:
+            except BaseException as e:
                 logger.info("SDK Knowledge init failed: %s; using local index", e)
                 self._sdk_probed = True
                 return None
@@ -232,7 +232,7 @@ class SDKKnowledgeManager(KnowledgeProtocol):
             # Probe: verify backend packages are actually available
             try:
                 self._sdk_knowledge.search("__probe__", limit=1)
-            except Exception as e:
+            except BaseException as e:
                 err_msg = str(e)
                 if "not installed" in err_msg or "Required packages" in err_msg:
                     logger.info(
@@ -297,7 +297,7 @@ class SDKKnowledgeManager(KnowledgeProtocol):
                         }
                         for i, r in enumerate(results[:limit])
                     ]
-            except Exception as e:
+            except BaseException as e:
                 logger.warning("SDK knowledge search failed: %s; falling back to local", e)
 
         # Fallback to local text search
@@ -370,7 +370,7 @@ class SDKKnowledgeManager(KnowledgeProtocol):
                         if entry["id"] not in seen_ids:
                             sdk_entries.append(entry)
                     return sdk_entries
-            except Exception as e:
+            except BaseException as e:
                 logger.warning("SDK get_all failed: %s; using local index", e)
         return list(self._local_index.values())
 

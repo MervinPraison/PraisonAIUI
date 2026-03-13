@@ -824,6 +824,8 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
 
         provider = get_provider()
         full_response = ""
+        tool_step_counter = 0
+        seen_tool_ids: set = set()
 
         # Inject knowledge context if available (non-blocking)
         augmented_message = message
@@ -841,8 +843,8 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
                             f"[Knowledge Context]\n{context_block}\n"
                             f"[/Knowledge Context]\n\n{message}"
                         )
-        except Exception:
-            pass  # Knowledge failures must never break chat
+        except BaseException:
+            pass  # Knowledge failures (incl. pyo3 Rust panics) must never break chat
 
         try:
             async for run_event in provider.run(
@@ -862,8 +864,38 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
                     if run_event.content and not full_response:
                         full_response = run_event.content
 
-                # Emit the event as SSE
-                yield f"data: {json.dumps(run_event.to_dict())}\n\n"
+                # Enrich tool call events with description/icon/step_number
+                if run_event.type in (
+                    RunEventType.TOOL_CALL_STARTED,
+                    RunEventType.TOOL_CALL_COMPLETED,
+                    RunEventType.TEAM_TOOL_CALL_STARTED,
+                    RunEventType.TEAM_TOOL_CALL_COMPLETED,
+                ):
+                    payload = run_event.to_dict()
+                    is_completed = run_event.type in (
+                        RunEventType.TOOL_CALL_COMPLETED,
+                        RunEventType.TEAM_TOOL_CALL_COMPLETED,
+                    )
+                    if not is_completed:
+                        tc_id = payload.get("tool_call_id")
+                        if tc_id and tc_id not in seen_tool_ids:
+                            tool_step_counter += 1
+                            seen_tool_ids.add(tc_id)
+                        elif not tc_id:
+                            tool_step_counter += 1
+                    try:
+                        from praisonaiui.features.chat import _enrich_tool_payload
+                        _enrich_tool_payload(payload, tool_step_counter, is_completed=is_completed)
+                    except ImportError:
+                        # Fallback: basic enrichment if chat module unavailable
+                        name = payload.get("name", "")
+                        payload.setdefault("icon", "🔧")
+                        payload.setdefault("description", f"🔧 Using {name}")
+                        payload.setdefault("step_number", tool_step_counter)
+                    yield f"data: {json.dumps(payload)}\n\n"
+                else:
+                    # Emit the event as SSE
+                    yield f"data: {json.dumps(run_event.to_dict())}\n\n"
 
         except asyncio.CancelledError:
             # Client disconnected

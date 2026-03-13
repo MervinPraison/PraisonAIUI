@@ -121,6 +121,16 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
         },
         onToolCall: (toolCall) => {
             setToolCalls((prev) => {
+                // Upsert by tool_call_id to avoid duplicating started+completed
+                if (toolCall.tool_call_id) {
+                    const idx = prev.findIndex(tc => tc.tool_call_id === toolCall.tool_call_id)
+                    if (idx >= 0) {
+                        const next = [...prev]
+                        next[idx] = { ...next[idx], ...toolCall }
+                        toolCallsRef.current = next
+                        return next
+                    }
+                }
                 const next = [...prev, toolCall]
                 toolCallsRef.current = next
                 return next
@@ -142,15 +152,16 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
         onEnd: () => {
             // Use refs to avoid stale closure — always read latest values
             const resp = currentResponseRef.current
-            if (resp) {
+            const tcs = toolCallsRef.current
+            if (resp || tcs.length > 0) {
                 setMessages((prev) => [
                     ...prev,
                     {
                         id: crypto.randomUUID(),
                         role: 'assistant',
-                        content: resp,
+                        content: resp || '',
                         timestamp: new Date().toISOString(),
-                        // No thinking/toolCalls stored — they only show during streaming
+                        toolCalls: tcs.length > 0 ? [...tcs] : undefined,
                     },
                 ])
                 setCurrentResponse('')

@@ -157,8 +157,12 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
                 if (event.name) {
                     options.onToolCall?.({
                         name: event.name,
+                        description: event.description,
+                        icon: event.icon,
+                        step_number: event.step_number,
+                        status: 'running',
+                        tool_call_id: event.tool_call_id,
                         args: event.args,
-                        result: event.result,
                     })
                 }
                 break
@@ -167,6 +171,12 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
                 if (event.name) {
                     options.onToolCall?.({
                         name: event.name,
+                        description: event.description,
+                        icon: event.icon,
+                        step_number: event.step_number,
+                        status: 'done',
+                        tool_call_id: event.tool_call_id,
+                        formatted_result: event.formatted_result,
                         args: event.args,
                         result: event.result,
                     })

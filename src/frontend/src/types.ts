@@ -96,6 +96,12 @@ export interface ChatMessage {
 
 export interface ToolCall {
     name: string
+    description?: string
+    icon?: string
+    step_number?: number
+    status?: 'running' | 'done' | 'error'
+    tool_call_id?: string
+    formatted_result?: string
     args?: Record<string, unknown>
     result?: unknown
     error?: string
@@ -244,6 +250,10 @@ export interface SSEEvent {
     reasoning_steps?: string[]
     // Tool calls
     name?: string
+    description?: string
+    icon?: string
+    step_number?: number
+    formatted_result?: string
     args?: Record<string, unknown>
     result?: unknown
     tool_call_id?: string
