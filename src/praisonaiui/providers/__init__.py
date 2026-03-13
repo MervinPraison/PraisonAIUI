@@ -26,8 +26,18 @@ logger = logging.getLogger(__name__)
 # StreamEvent → RunEvent bridge
 # ---------------------------------------------------------------------------
 
-def _stream_event_to_run_event(stream_event) -> Optional[RunEvent]:
-    """Translate a praisonaiagents StreamEvent to a RunEvent."""
+# Module-level cached mapping (built once on first call, avoids per-event overhead)
+_STREAM_EVENT_MAPPING = None
+_MAPPING_WARNED_TYPES: set = set()  # Track already-warned unknown types
+
+
+def _build_stream_event_mapping():
+    """Build the StreamEvent → RunEvent mapping dict.
+
+    Uses hasattr() guards for SDK enum members that may not exist in all
+    versions (e.g. TOOL_CALL_START, TOOL_CALL_RESULT added in SDK >= 1.6).
+    This prevents AttributeError crashes that silently kill ALL streaming.
+    """
     from praisonaiagents.streaming import StreamEventType as SET
 
     mapping = {
@@ -51,29 +61,11 @@ def _stream_event_to_run_event(stream_event) -> Optional[RunEvent]:
             if e.tool_call and e.tool_call.get("name")
             else None
         ),
-        SET.TOOL_CALL_START: lambda e: RunEvent(
-            # Fires from execute_tool() with COMPLETE parsed args dict.
-            # Preferred over DELTA_TOOL_CALL for display (has keywords).
-            type=RunEventType.TOOL_CALL_STARTED,
-            name=e.tool_call.get("name") if e.tool_call else None,
-            args=e.tool_call.get("arguments") if e.tool_call else None,
-            tool_call_id=e.tool_call.get("id") if e.tool_call else None,
-            extra_data={"has_complete_args": True},
-        ),
         SET.TOOL_CALL_END: lambda e: RunEvent(
             type=RunEventType.TOOL_CALL_COMPLETED,
             name=e.tool_call.get("name") if e.tool_call else None,
             result=e.tool_call.get("result") if e.tool_call else None,
             tool_call_id=e.tool_call.get("id") if e.tool_call else None,
-        ),
-        SET.TOOL_CALL_RESULT: lambda e: RunEvent(
-            # Fires from execute_tool() with result summary.
-            type=RunEventType.TOOL_CALL_COMPLETED,
-            name=e.tool_call.get("name") if e.tool_call else None,
-            args=e.tool_call.get("arguments") if e.tool_call else None,
-            result=e.tool_call.get("result") if e.tool_call else None,
-            tool_call_id=e.tool_call.get("id") if e.tool_call else None,
-            extra_data={"has_complete_args": True},
         ),
         SET.FIRST_TOKEN: lambda e: RunEvent(
             type=RunEventType.RUN_CONTENT,
@@ -90,9 +82,44 @@ def _stream_event_to_run_event(stream_event) -> Optional[RunEvent]:
         ),
     }
 
-    handler = mapping.get(stream_event.type)
+    # Conditionally add newer event types (SDK >= 1.6)
+    # These provide richer tool-call data with complete parsed args/results.
+    if hasattr(SET, "TOOL_CALL_START"):
+        mapping[SET.TOOL_CALL_START] = lambda e: RunEvent(
+            type=RunEventType.TOOL_CALL_STARTED,
+            name=e.tool_call.get("name") if e.tool_call else None,
+            args=e.tool_call.get("arguments") if e.tool_call else None,
+            tool_call_id=e.tool_call.get("id") if e.tool_call else None,
+            extra_data={"has_complete_args": True},
+        )
+    if hasattr(SET, "TOOL_CALL_RESULT"):
+        mapping[SET.TOOL_CALL_RESULT] = lambda e: RunEvent(
+            type=RunEventType.TOOL_CALL_COMPLETED,
+            name=e.tool_call.get("name") if e.tool_call else None,
+            args=e.tool_call.get("arguments") if e.tool_call else None,
+            result=e.tool_call.get("result") if e.tool_call else None,
+            tool_call_id=e.tool_call.get("id") if e.tool_call else None,
+            extra_data={"has_complete_args": True},
+        )
+
+    return mapping
+
+
+def _stream_event_to_run_event(stream_event) -> Optional[RunEvent]:
+    """Translate a praisonaiagents StreamEvent to a RunEvent."""
+    global _STREAM_EVENT_MAPPING
+    if _STREAM_EVENT_MAPPING is None:
+        _STREAM_EVENT_MAPPING = _build_stream_event_mapping()
+
+    handler = _STREAM_EVENT_MAPPING.get(stream_event.type)
     if handler:
         return handler(stream_event)
+
+    # Log once per unknown event type (avoids log spam)
+    evt_type = getattr(stream_event.type, "value", str(stream_event.type))
+    if evt_type not in _MAPPING_WARNED_TYPES:
+        _MAPPING_WARNED_TYPES.add(evt_type)
+        logger.debug("Unmapped StreamEventType: %s (ignored)", evt_type)
     return None
 
 
@@ -464,9 +491,17 @@ class PraisonAIProvider(BaseProvider):
 
             def _on_stream_event(stream_event):
                 """Sync callback from StreamEventEmitter → queue (thread-safe)."""
-                run_evt = _stream_event_to_run_event(stream_event)
-                if run_evt:
-                    _loop.call_soon_threadsafe(event_queue.put_nowait, run_evt)
+                try:
+                    run_evt = _stream_event_to_run_event(stream_event)
+                    if run_evt:
+                        _loop.call_soon_threadsafe(event_queue.put_nowait, run_evt)
+                except Exception:
+                    # Log once to avoid spam — mapping errors must be visible
+                    logger.warning(
+                        "Stream event mapping error for %s",
+                        getattr(stream_event, "type", "unknown"),
+                        exc_info=True,
+                    )
 
             emitter = agent.stream_emitter
             emitter.add_callback(_on_stream_event)
@@ -481,8 +516,15 @@ class PraisonAIProvider(BaseProvider):
         try:
             from praisonaiagents.hooks import HookEvent
 
-            if hasattr(agent, "hooks") and agent.hooks is not None:
-                hooks = agent.hooks
+            # Resolve the hook registry — Agent exposes _hook_runner.registry
+            # (no public .hooks attribute). Try multiple paths for compatibility.
+            _hook_registry = None
+            if hasattr(agent, "_hook_runner") and agent._hook_runner:
+                _hook_registry = getattr(agent._hook_runner, "registry", None)
+            if _hook_registry is None and hasattr(agent, "hooks") and agent.hooks is not None:
+                _hook_registry = agent.hooks  # Future SDK compat
+
+            if _hook_registry and hasattr(_hook_registry, "on"):
 
                 def _on_hook(event_data, event_name=None):
                     """Hook callback → queue (thread-safe)."""
@@ -498,7 +540,7 @@ class PraisonAIProvider(BaseProvider):
                     try:
                         hook_event = getattr(HookEvent, hook_name.upper(), None)
                         if hook_event:
-                            hooks.on(hook_event)(
+                            _hook_registry.on(hook_event)(
                                 lambda data, n=hook_name: _on_hook(data, n)
                             )
                             _hook_callback = True
@@ -507,11 +549,37 @@ class PraisonAIProvider(BaseProvider):
         except ImportError:
             pass
 
+        # Register llm_content callback to capture intermediate narrative text
+        _prev_llm_content_cb = None
+        try:
+            from praisonaiagents.main import sync_display_callbacks, register_display_callback
+
+            _prev_llm_content_cb = sync_display_callbacks.get("llm_content")
+
+            def _on_llm_content(content=None, **kw):
+                """llm_content callback → queue (thread-safe)."""
+                if content:
+                    run_evt = RunEvent(
+                        type=RunEventType.LLM_CONTENT,
+                        content=content,
+                    )
+                    try:
+                        _loop.call_soon_threadsafe(event_queue.put_nowait, run_evt)
+                    except Exception:
+                        pass
+
+            register_display_callback("llm_content", _on_llm_content)
+        except ImportError:
+            pass
+
         # Run agent.chat in a background thread while draining the
         # event queue concurrently so tokens stream in real-time.
         full_response = ""
         _chat_error = None
         _streamed_tokens = 0
+        # Track tool calls that were started but not yet completed,
+        # so we can synthesize COMPLETED events if the SDK omits them.
+        _pending_tool_calls: Dict[str, RunEvent] = {}
 
         async def _run_chat():
             nonlocal full_response, _chat_error
@@ -539,6 +607,16 @@ class PraisonAIProvider(BaseProvider):
             if run_evt is None:  # Sentinel — chat finished
                 break
             _streamed_tokens += 1
+            # Track pending tool calls
+            if run_evt.type == RunEventType.TOOL_CALL_STARTED and run_evt.name:
+                key = run_evt.tool_call_id or run_evt.name
+                _pending_tool_calls[key] = run_evt
+            elif run_evt.type == RunEventType.TOOL_CALL_COMPLETED:
+                key = run_evt.tool_call_id or run_evt.name or ""
+                _pending_tool_calls.pop(key, None)
+                # Also try name as secondary key
+                if run_evt.name:
+                    _pending_tool_calls.pop(run_evt.name, None)
             yield run_evt
 
         # Drain any remaining events that arrived after sentinel
@@ -546,6 +624,15 @@ class PraisonAIProvider(BaseProvider):
             try:
                 run_evt = event_queue.get_nowait()
                 if run_evt is not None:
+                    # Track pending tool calls in drain phase too
+                    if run_evt.type == RunEventType.TOOL_CALL_STARTED and run_evt.name:
+                        key = run_evt.tool_call_id or run_evt.name
+                        _pending_tool_calls[key] = run_evt
+                    elif run_evt.type == RunEventType.TOOL_CALL_COMPLETED:
+                        key = run_evt.tool_call_id or run_evt.name or ""
+                        _pending_tool_calls.pop(key, None)
+                        if run_evt.name:
+                            _pending_tool_calls.pop(run_evt.name, None)
                     yield run_evt
             except asyncio.QueueEmpty:
                 break
@@ -559,6 +646,22 @@ class PraisonAIProvider(BaseProvider):
         # If no streaming events were captured, emit the full response
         if _streamed_tokens == 0:
             yield RunEvent(type=RunEventType.RUN_CONTENT, content=full_response)
+
+        # Synthesize TOOL_CALL_COMPLETED for any tool calls that were started
+        # but never received a completion event (SDK gap: TOOL_CALL_END not
+        # emitted by praisonaiagents <= 1.5.x, and hooks may not fire).
+        for _tc_key, started_evt in list(_pending_tool_calls.items()):
+            logger.debug(
+                "Synthesizing TOOL_CALL_COMPLETED for '%s' (SDK did not emit TOOL_CALL_END)",
+                started_evt.name,
+            )
+            yield RunEvent(
+                type=RunEventType.TOOL_CALL_COMPLETED,
+                name=started_evt.name,
+                tool_call_id=started_evt.tool_call_id,
+                result="✓ Done",
+            )
+        _pending_tool_calls.clear()
 
         # Emit metrics if available
         try:
@@ -576,6 +679,16 @@ class PraisonAIProvider(BaseProvider):
         try:
             if _on_stream_event and _has_streaming:
                 agent.stream_emitter.remove_callback(_on_stream_event)
+        except Exception:
+            pass
+
+        # Restore previous llm_content callback (or remove ours)
+        try:
+            from praisonaiagents.main import sync_display_callbacks
+            if _prev_llm_content_cb is not None:
+                sync_display_callbacks["llm_content"] = _prev_llm_content_cb
+            else:
+                sync_display_callbacks.pop("llm_content", None)
         except Exception:
             pass
 

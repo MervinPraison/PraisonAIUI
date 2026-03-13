@@ -528,6 +528,9 @@ async def _run_and_broadcast(
             elif event.type in (RunEventType.MEMORY_UPDATE_STARTED, RunEventType.UPDATING_MEMORY, RunEventType.MEMORY_UPDATE_COMPLETED):
                 if event.extra_data:
                     payload["memory_data"] = event.extra_data
+            elif event.type == RunEventType.LLM_CONTENT:
+                # Intermediate narrative text between tool calls
+                payload["content"] = event.content or ""
 
             if event.agent_name:
                 payload["agent_name"] = event.agent_name

@@ -1,6 +1,6 @@
 [project]
 name = "aiui"
-version = "0.3.75"
+version = "0.3.76"
 description = "YAML-driven website generator - CLI and compiler"
 readme = "README.md"
 license = {text = "MIT"}
@@ -51,7 +51,7 @@ graph = [
 
 praisonai = [
     # Core agents SDK with knowledge support
-    "praisonaiagents[knowledge,search]>=1.5.0",
+    "praisonaiagents[knowledge,search]>=1.5.56",
     # PraisonAI wrapper (includes CLI, bots, gateway support)
     "praisonai[bot,api,os]>=2.0.0",
     # Gateway dependencies

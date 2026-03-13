@@ -1551,7 +1551,47 @@ def create_app(
                 if scope["type"] == "websocket":
                     await send({"type": "websocket.close", "code": 1008})
                 return
-            await _static_app(scope, receive, send)
+
+            # Try StaticFiles first; on 404, fall back to SPA index
+            # (paths like /chat, /memory don't have static files but need
+            # the SPA shell so JS routing can take over).
+            response_started = False
+            response_status = 0
+            response_headers = []
+            response_body = b""
+
+            async def _capture_send(message):
+                nonlocal response_started, response_status, response_headers, response_body
+                if message["type"] == "http.response.start":
+                    response_status = message.get("status", 200)
+                    response_headers = message.get("headers", [])
+                    response_started = True
+                elif message["type"] == "http.response.body":
+                    response_body += message.get("body", b"")
+
+            try:
+                await _static_app(scope, receive, _capture_send)
+            except Exception:
+                response_status = 404
+
+            if response_status == 404:
+                # SPA fallback — serve the generated index page
+                from starlette.responses import HTMLResponse
+                style = _effective_style  # Single source of truth
+                html_content = _build_html(style)
+                response = HTMLResponse(html_content)
+                await response(scope, receive, send)
+            else:
+                # Forward the captured response as-is
+                await send({
+                    "type": "http.response.start",
+                    "status": response_status,
+                    "headers": response_headers,
+                })
+                await send({
+                    "type": "http.response.body",
+                    "body": response_body,
+                })
 
         routes.append(Mount("/", app=_http_only_static))
     else:
