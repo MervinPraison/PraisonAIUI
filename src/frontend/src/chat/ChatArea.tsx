@@ -76,6 +76,7 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
                     role: run.role || 'user',
                     content: run.content || run.message || '',
                     timestamp: run.timestamp || new Date().toISOString(),
+                    ...(run.toolCalls ? { toolCalls: run.toolCalls } : {}),
                 }))
                 setMessages(loaded)
             }

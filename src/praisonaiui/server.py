@@ -831,6 +831,7 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
         full_response = ""
         tool_step_counter = 0
         seen_tool_ids: set = set()
+        collected_tool_calls: list = []  # Collect for persistence
 
         # Inject knowledge context if available (non-blocking)
         augmented_message = message
@@ -897,6 +898,7 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
                         payload.setdefault("icon", "🔧")
                         payload.setdefault("description", f"🔧 Using {name}")
                         payload.setdefault("step_number", tool_step_counter)
+                    collected_tool_calls.append(payload)
                     yield f"data: {json.dumps(payload)}\n\n"
                 else:
                     # Emit the event as SSE
@@ -917,13 +919,16 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
 
-        # Save assistant response to session
+        # Save assistant response to session (include tool calls for persistence)
         if full_response:
-            await _datastore.add_message(session_id, {
+            msg_data: dict = {
                 "role": "assistant",
                 "content": full_response,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
+            }
+            if collected_tool_calls:
+                msg_data["toolCalls"] = collected_tool_calls
+            await _datastore.add_message(session_id, msg_data)
 
             # Auto-store conversation turn in memory (non-blocking)
             try:
@@ -1280,6 +1285,7 @@ def create_app(
         # Branding: YAML config overrides defaults, set_branding() overrides YAML
         _title = _branding["title"]
         _logo = _branding["logo"]
+        _debug = True
         try:
             from praisonaiui.config_store import get_config_store
             _cs = get_config_store()
@@ -1287,12 +1293,18 @@ def create_app(
             if _site_section:
                 _title = _site_section.get("title", _title)
                 _logo = _site_section.get("logo", _logo)
+            # Read debug flag from config.yaml top-level key (default: True)
+            if _cs:
+                _dbg_val = _cs.get_section("debug")
+                if _dbg_val is not None:
+                    _debug = bool(_dbg_val)
         except Exception:
             pass
         return JSONResponse({
             "style": effective_style,
             "site": {"title": _title, "logo": _logo},
             "chat": {"enabled": effective_style in ("chat", "agents", "playground", "dashboard")},
+            "debug": _debug,
         })
 
     async def _docs_nav_json(request: Request) -> JSONResponse:
