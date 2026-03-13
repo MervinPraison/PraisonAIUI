@@ -141,12 +141,19 @@ function injectStyles() {
     .chat-msg-content code.chat-inline-code { background:rgba(0,0,0,.1); padding:1px 5px; border-radius:4px; font-size:12px; }
     .chat-msg-content a { color:var(--db-accent); text-decoration:underline; }
 
-    .chat-tool-call { margin:8px 0; padding:10px 14px; border-left:3px solid var(--db-accent); background:rgba(var(--db-accent-rgb,100,100,255),.05); border-radius:0 8px 8px 0; font-size:12px; }
-    .chat-tool-header { display:flex; align-items:center; gap:6px; font-weight:600; }
-    .chat-tool-status { font-weight:400; color:var(--db-text-dim); }
+    .chat-tool-call { margin:6px 0; padding:10px 16px; border-left:3px solid rgba(var(--db-accent-rgb,100,100,255),.4); background:rgba(var(--db-accent-rgb,100,100,255),.04); border-radius:0 10px 10px 0; font-size:13px; transition:all .3s ease; }
+    .chat-tool-call:hover { background:rgba(var(--db-accent-rgb,100,100,255),.08); }
+    .chat-tool-header { display:flex; align-items:center; gap:8px; }
+    .chat-tool-step { font-weight:700; color:var(--db-text-dim); font-size:11px; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; }
+    .chat-tool-desc { font-weight:500; flex:1; color:var(--db-text); }
+    .chat-tool-badge { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px; white-space:nowrap; }
+    .chat-tool-running .chat-tool-badge { background:rgba(245,158,11,.12); color:#f59e0b; }
+    .chat-tool-running { border-left-color:#f59e0b; }
+    .chat-tool-done .chat-tool-badge { background:rgba(34,197,94,.12); color:#22c55e; }
+    .chat-tool-done { border-left-color:#22c55e; }
+    .chat-tool-badge .tool-spinner { width:10px; height:10px; border:2px solid rgba(245,158,11,.25); border-top-color:#f59e0b; border-radius:50%; animation:spin .7s linear infinite; }
     .chat-tool-args, .chat-tool-result { margin-top:6px; }
     .chat-tool-args pre, .chat-tool-result pre { margin:0; font-size:11px; white-space:pre-wrap; }
-    .chat-tool-done { border-left-color:#22c55e; }
 
     .chat-reasoning { margin:6px 0; padding:8px 12px; background:rgba(234,179,8,.08); border-radius:8px; font-size:12px; color:var(--db-text-dim); font-style:italic; }
 
@@ -871,45 +878,63 @@ function finalizeDelta(content, agentName) {
 
 function appendToolCall(data, status) {
   const messagesEl = document.getElementById('chat-messages');
+
+  // Use tool_call_id for unique element IDs
+  const uniqueId = data.tool_call_id || ('tool-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6));
+  const elId = 'tc-' + uniqueId.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  // Check if this tool call already has an element (re-broadcast with richer args)
+  const existing = document.getElementById(elId);
+  if (existing) {
+    // Update description in-place with richer keyword text
+    const icon = data.icon || '🔧';
+    const description = data.description || (icon + ' ' + escapeHtml(data.name || 'tool'));
+    const descEl = existing.querySelector('.chat-tool-desc');
+    if (descEl) descEl.innerHTML = description;
+    return;
+  }
+
   const el = document.createElement('div');
   el.className = 'chat-tool-call chat-tool-' + status;
+  el.id = elId;
 
-  // Use tool_call_id for unique element IDs (fixes collision when same tool runs multiple times)
-  const uniqueId = data.tool_call_id || ('tool-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6));
-  el.id = 'tc-' + uniqueId.replace(/[^a-zA-Z0-9_-]/g, '_');
-
-  // Use enriched display fields from backend (DRY — labels defined once in Python SDK)
+  // Enriched display fields from backend
   const icon = data.icon || '🔧';
   const description = data.description || (icon + ' ' + escapeHtml(data.name || 'tool'));
   const stepNum = data.step_number;
-  const stepPrefix = stepNum ? 'Step ' + stepNum + ': ' : '';
+
+  // Build status badge with spinner for running
+  const badgeContent = status === 'running'
+    ? '<span class="tool-spinner"></span>running'
+    : '✓ done';
 
   el.innerHTML =
     '<div class="chat-tool-header">' +
-    '<span class="chat-tool-name">' + escapeHtml(stepPrefix) + description + '</span> ' +
-    '<span class="chat-tool-status">' + status + '</span>' +
+      (stepNum ? '<span class="chat-tool-step">Step ' + stepNum + '</span>' : '') +
+      '<span class="chat-tool-desc">' + description + '</span>' +
+      '<span class="chat-tool-badge">' + badgeContent + '</span>' +
     '</div>';
   messagesEl.appendChild(el);
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
 function updateToolCall(data, status) {
-  // Try find by tool_call_id first; fall back to most recent running tool
+  // Find by tool_call_id first, fall back to most recent running
   let el = null;
   if (data.tool_call_id) {
     el = document.getElementById('tc-' + data.tool_call_id.replace(/[^a-zA-Z0-9_-]/g, '_'));
   }
   if (!el) {
-    // Fall back: find last tool call with 'running' status
     const all = document.querySelectorAll('.chat-tool-call.chat-tool-running');
     if (all.length > 0) el = all[all.length - 1];
   }
   if (el) {
     el.className = 'chat-tool-call chat-tool-' + status;
-    const statusEl = el.querySelector('.chat-tool-status');
-    // Use formatted result from backend, or fallback
-    const displayResult = data.formatted_result || (data.result ? '✓ Done' : '✓ Done');
-    if (statusEl) statusEl.textContent = displayResult;
+    const badge = el.querySelector('.chat-tool-badge');
+    if (badge) {
+      const displayResult = data.formatted_result || '✓ Done';
+      badge.innerHTML = '✓ ' + escapeHtml(displayResult.replace(/^✓\s*/, ''));
+    }
   }
 }
 

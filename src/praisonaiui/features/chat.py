@@ -416,6 +416,10 @@ async def _run_and_broadcast(
     full_response = ""
     run_id = str(uuid.uuid4())
     tool_step_counter = 0  # Step numbering (resets per user message)
+    # Dedup: both stream deltas AND hook events fire for the same tool call.
+    # Track which tool calls we've already broadcast to avoid duplicates.
+    _seen_tool_started: set = set()   # tool_call_id or name we've sent STARTED for
+    _seen_tool_completed: set = set() # tool_call_id or name we've sent COMPLETED for
 
     try:
         # Pass image attachments to provider for SDK native multimodal handling
@@ -446,12 +450,55 @@ async def _run_and_broadcast(
             elif event.type == RunEventType.RUN_ERROR:
                 payload["error"] = event.error or "Unknown error"
             elif event.type == RunEventType.TOOL_CALL_STARTED:
-                tool_step_counter += 1
-                payload["name"] = event.name
-                payload["args"] = event.args
-                payload["tool_call_id"] = event.tool_call_id or str(uuid.uuid4())
-                _enrich_tool_payload(payload, tool_step_counter, is_completed=False)
+                # Skip events without a name
+                if not event.name:
+                    continue
+
+                # Check if this is a rich event with complete parsed args
+                # (from TOOL_CALL_START, not DELTA_TOOL_CALL)
+                has_complete_args = (
+                    getattr(event, "extra_data", None) or {}
+                ).get("has_complete_args", False)
+
+                # Dedup key: prefer tool_call_id (stream), fall back to name (hook)
+                dedup_key = event.tool_call_id or event.name
+                if dedup_key in _seen_tool_started:
+                    if has_complete_args:
+                        # This is a TOOL_CALL_START update with complete args —
+                        # re-broadcast to update the step's description with
+                        # keyword-rich text (e.g., "Searching for 'Django'")
+                        payload["name"] = event.name
+                        payload["args"] = event.args
+                        payload["tool_call_id"] = event.tool_call_id or dedup_key
+                        _enrich_tool_payload(payload, tool_step_counter, is_completed=False)
+                        # Broadcast update but don't increment step counter
+                    else:
+                        continue  # True duplicate
+                else:
+                    _seen_tool_started.add(dedup_key)
+                    # Also add name as secondary key so hook won't re-fire
+                    if event.name:
+                        _seen_tool_started.add(event.name)
+
+                    tool_step_counter += 1
+                    payload["name"] = event.name
+                    payload["args"] = event.args
+                    payload["tool_call_id"] = event.tool_call_id or str(uuid.uuid4())
+                    _enrich_tool_payload(payload, tool_step_counter, is_completed=False)
             elif event.type == RunEventType.TOOL_CALL_COMPLETED:
+                # Dedup completed events
+                dedup_key = event.tool_call_id or event.name or ""
+                if dedup_key and dedup_key in _seen_tool_completed:
+                    # Allow TOOL_CALL_RESULT (has_complete_args) to update
+                    has_complete_args = (
+                        getattr(event, "extra_data", None) or {}
+                    ).get("has_complete_args", False)
+                    if not has_complete_args:
+                        continue
+                if dedup_key:
+                    _seen_tool_completed.add(dedup_key)
+                    if event.name:
+                        _seen_tool_completed.add(event.name)
                 payload["name"] = event.name
                 payload["args"] = event.args
                 payload["result"] = event.result

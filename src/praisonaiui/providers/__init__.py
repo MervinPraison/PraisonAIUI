@@ -37,17 +37,43 @@ def _stream_event_to_run_event(stream_event) -> Optional[RunEvent]:
             token=e.content,
             step=e.content if e.is_reasoning else None,
         ),
-        SET.DELTA_TOOL_CALL: lambda e: RunEvent(
+        SET.DELTA_TOOL_CALL: lambda e: (
+            # Only emit TOOL_CALL_STARTED for the first delta that carries
+            # the tool name.  Subsequent deltas are just argument-JSON chunks
+            # (name=None, id=None) and must be suppressed to avoid flooding
+            # the UI with hundreds of "Step N: 🔧 Using" entries.
+            RunEvent(
+                type=RunEventType.TOOL_CALL_STARTED,
+                name=e.tool_call.get("name"),
+                args=e.tool_call.get("arguments"),
+                tool_call_id=e.tool_call.get("id") or str(uuid.uuid4()),
+            )
+            if e.tool_call and e.tool_call.get("name")
+            else None
+        ),
+        SET.TOOL_CALL_START: lambda e: RunEvent(
+            # Fires from execute_tool() with COMPLETE parsed args dict.
+            # Preferred over DELTA_TOOL_CALL for display (has keywords).
             type=RunEventType.TOOL_CALL_STARTED,
             name=e.tool_call.get("name") if e.tool_call else None,
             args=e.tool_call.get("arguments") if e.tool_call else None,
-            tool_call_id=e.tool_call.get("id") if e.tool_call else str(uuid.uuid4()),
+            tool_call_id=e.tool_call.get("id") if e.tool_call else None,
+            extra_data={"has_complete_args": True},
         ),
         SET.TOOL_CALL_END: lambda e: RunEvent(
             type=RunEventType.TOOL_CALL_COMPLETED,
             name=e.tool_call.get("name") if e.tool_call else None,
             result=e.tool_call.get("result") if e.tool_call else None,
             tool_call_id=e.tool_call.get("id") if e.tool_call else None,
+        ),
+        SET.TOOL_CALL_RESULT: lambda e: RunEvent(
+            # Fires from execute_tool() with result summary.
+            type=RunEventType.TOOL_CALL_COMPLETED,
+            name=e.tool_call.get("name") if e.tool_call else None,
+            args=e.tool_call.get("arguments") if e.tool_call else None,
+            result=e.tool_call.get("result") if e.tool_call else None,
+            tool_call_id=e.tool_call.get("id") if e.tool_call else None,
+            extra_data={"has_complete_args": True},
         ),
         SET.FIRST_TOKEN: lambda e: RunEvent(
             type=RunEventType.RUN_CONTENT,
@@ -459,11 +485,11 @@ class PraisonAIProvider(BaseProvider):
                 hooks = agent.hooks
 
                 def _on_hook(event_data, event_name=None):
-                    """Hook callback → queue."""
+                    """Hook callback → queue (thread-safe)."""
                     if event_name:
                         for run_evt in _hook_event_to_run_events(event_name, event_data):
                             try:
-                                event_queue.put_nowait(run_evt)
+                                _loop.call_soon_threadsafe(event_queue.put_nowait, run_evt)
                             except Exception:
                                 pass
 
