@@ -30,6 +30,8 @@ def configure(
             - ``"memory"`` — in-memory (default, volatile)
             - ``"json"``   — JSON files at ``~/.praisonaiui/sessions/``
             - ``"json:/custom/path"`` — JSON files at a custom directory
+            - ``"sdk"``   — SDK-backed store at ``~/.praisonai/sessions/``
+              (unifies with praisonai-agents session persistence)
     """
     if datastore is not None:
         from praisonaiui.datastore import JSONFileDataStore, MemoryDataStore
@@ -41,8 +43,14 @@ def configure(
             set_datastore(JSONFileDataStore())
         elif datastore.startswith("json:"):
             set_datastore(JSONFileDataStore(data_dir=datastore[5:]))
+        elif datastore == "sdk":
+            from praisonaiui.datastore_sdk import SDKFileDataStore
+            set_datastore(SDKFileDataStore())
+        elif datastore.startswith("sdk:"):
+            from praisonaiui.datastore_sdk import SDKFileDataStore
+            set_datastore(SDKFileDataStore(session_dir=datastore[4:]))
         else:
             raise ValueError(
                 f"Unknown datastore: {datastore!r}. "
-                f"Use 'memory', 'json', or 'json:/path/to/dir'."
+                f"Use 'memory', 'json', 'json:/path', 'sdk', or 'sdk:/path'."
             )

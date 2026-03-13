@@ -51,6 +51,9 @@ class RunEventType(str, Enum):
     TOOL_CALL_STARTED = "tool_call_started"
     TOOL_CALL_COMPLETED = "tool_call_completed"
 
+    # --- LLM intermediate content (narrative between tool calls) ---
+    LLM_CONTENT = "llm_content"
+
     # --- Reasoning / Thinking ---
     REASONING_STARTED = "reasoning_started"
     REASONING_STEP = "reasoning_step"

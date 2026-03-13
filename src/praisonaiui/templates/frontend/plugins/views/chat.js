@@ -141,19 +141,25 @@ function injectStyles() {
     .chat-msg-content code.chat-inline-code { background:rgba(0,0,0,.1); padding:1px 5px; border-radius:4px; font-size:12px; }
     .chat-msg-content a { color:var(--db-accent); text-decoration:underline; }
 
-    .chat-tool-call { margin:6px 0; padding:10px 16px; border-left:3px solid rgba(var(--db-accent-rgb,100,100,255),.4); background:rgba(var(--db-accent-rgb,100,100,255),.04); border-radius:0 10px 10px 0; font-size:13px; transition:all .3s ease; }
+    .chat-tool-call { margin:6px 0; padding:10px 16px; border-left:3px solid rgba(var(--db-accent-rgb,100,100,255),.4); background:rgba(var(--db-accent-rgb,100,100,255),.04); border-radius:0 10px 10px 0; font-size:13px; transition:all .3s ease; cursor:pointer; }
     .chat-tool-call:hover { background:rgba(var(--db-accent-rgb,100,100,255),.08); }
     .chat-tool-header { display:flex; align-items:center; gap:8px; }
     .chat-tool-step { font-weight:700; color:var(--db-text-dim); font-size:11px; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; }
     .chat-tool-desc { font-weight:500; flex:1; color:var(--db-text); }
     .chat-tool-badge { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px; white-space:nowrap; }
+    .chat-tool-chevron { font-size:10px; color:var(--db-text-dim); transition:transform .2s ease; margin-left:4px; }
+    .chat-tool-call.expanded .chat-tool-chevron { transform:rotate(90deg); }
     .chat-tool-running .chat-tool-badge { background:rgba(245,158,11,.12); color:#f59e0b; }
     .chat-tool-running { border-left-color:#f59e0b; }
     .chat-tool-done .chat-tool-badge { background:rgba(34,197,94,.12); color:#22c55e; }
     .chat-tool-done { border-left-color:#22c55e; }
     .chat-tool-badge .tool-spinner { width:10px; height:10px; border:2px solid rgba(245,158,11,.25); border-top-color:#f59e0b; border-radius:50%; animation:spin .7s linear infinite; }
-    .chat-tool-args, .chat-tool-result { margin-top:6px; }
-    .chat-tool-args pre, .chat-tool-result pre { margin:0; font-size:11px; white-space:pre-wrap; }
+    .chat-tool-details { display:none; margin-top:8px; padding:8px 12px; background:rgba(0,0,0,.12); border-radius:8px; font-size:12px; max-height:600px; overflow-y:auto; }
+    .chat-tool-call.expanded .chat-tool-details { display:block; }
+    .chat-tool-details pre { margin:0; white-space:pre-wrap; word-break:break-word; color:var(--db-text-dim); font-size:11px; line-height:1.5; }
+    .chat-tool-details .tool-detail-label { font-weight:600; color:var(--db-text); font-size:11px; text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px; }
+    .chat-tool-details .tool-detail-section { margin-bottom:8px; }
+    .chat-tool-details .tool-detail-section:last-child { margin-bottom:0; }
 
     .chat-reasoning { margin:6px 0; padding:8px 12px; background:rgba(234,179,8,.08); border-radius:8px; font-size:12px; color:var(--db-text-dim); font-style:italic; }
 
@@ -294,6 +300,11 @@ export async function render(container) {
   const agentSelector = document.getElementById('chat-agent-selector');
   const attachBtn = document.getElementById('chat-attach-btn');
   const fileInput = document.getElementById('chat-file-input');
+  // Guard: if DOM elements aren't present yet (race condition), bail out
+  if (!input || !sendBtn) {
+    console.warn('[chat] DOM elements not ready — skipping event binding');
+    return;
+  }
 
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -452,6 +463,13 @@ async function loadSession(sessionId) {
         sessionIcon = m.icon;
         _appendChannelMsg(m.role === 'assistant' ? 'assistant' : 'user', m);
       } else {
+        // Render persisted tool calls before the message
+        if (m.toolCalls && Array.isArray(m.toolCalls)) {
+          m.toolCalls.forEach(tc => {
+            const status = tc.type === 'tool_call_completed' ? 'done' : 'done';
+            appendToolCall(tc, status);
+          });
+        }
         appendMessage(m.role, m.content, m.agent_name);
       }
     });
@@ -492,6 +510,12 @@ async function restoreSessionHistory(sessionId) {
             sessionIcon = m.icon;
             _appendChannelMsg(m.role === 'assistant' ? 'assistant' : 'user', m);
           } else {
+            // Render persisted tool calls before the message
+            if (m.toolCalls && Array.isArray(m.toolCalls)) {
+              m.toolCalls.forEach(tc => {
+                appendToolCall(tc, 'done');
+              });
+            }
             appendMessage(m.role, m.content, m.agent_name);
           }
         });
@@ -891,6 +915,8 @@ function appendToolCall(data, status) {
     const description = data.description || (icon + ' ' + escapeHtml(data.name || 'tool'));
     const descEl = existing.querySelector('.chat-tool-desc');
     if (descEl) descEl.innerHTML = description;
+    // Update detail panel with richer data
+    _updateToolDetails(existing, data);
     return;
   }
 
@@ -913,9 +939,51 @@ function appendToolCall(data, status) {
       (stepNum ? '<span class="chat-tool-step">Step ' + stepNum + '</span>' : '') +
       '<span class="chat-tool-desc">' + description + '</span>' +
       '<span class="chat-tool-badge">' + badgeContent + '</span>' +
-    '</div>';
+      '<span class="chat-tool-chevron">▶</span>' +
+    '</div>' +
+    '<div class="chat-tool-details"></div>';
+
+  // Click to toggle expand
+  el.addEventListener('click', () => el.classList.toggle('expanded'));
+
+  // Populate detail panel
+  _updateToolDetails(el, data);
+
   messagesEl.appendChild(el);
   messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function _updateToolDetails(el, data) {
+  const detailsEl = el.querySelector('.chat-tool-details');
+  if (!detailsEl) return;
+  let html = '';
+  // Args section
+  const args = data.args;
+  if (args && typeof args === 'object' && Object.keys(args).length > 0) {
+    html += '<div class="tool-detail-section">' +
+      '<div class="tool-detail-label">Arguments</div>' +
+      '<pre>' + escapeHtml(JSON.stringify(args, null, 2)) + '</pre>' +
+    '</div>';
+  } else if (args && typeof args === 'string' && args.trim()) {
+    html += '<div class="tool-detail-section">' +
+      '<div class="tool-detail-label">Arguments</div>' +
+      '<pre>' + escapeHtml(args) + '</pre>' +
+    '</div>';
+  }
+  // Result section
+  const result = data.result;
+  if (result) {
+    let resultStr = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+    // Truncate very long results
+    if (resultStr.length > 5000) resultStr = resultStr.substring(0, 5000) + '\n... (truncated)';
+    html += '<div class="tool-detail-section">' +
+      '<div class="tool-detail-label">Result</div>' +
+      '<pre>' + escapeHtml(resultStr) + '</pre>' +
+    '</div>';
+  }
+  if (html) {
+    detailsEl.innerHTML = html;
+  }
 }
 
 function updateToolCall(data, status) {
@@ -935,6 +1003,8 @@ function updateToolCall(data, status) {
       const displayResult = data.formatted_result || '✓ Done';
       badge.innerHTML = '✓ ' + escapeHtml(displayResult.replace(/^✓\s*/, ''));
     }
+    // Update detail panel with completed data (args + result)
+    _updateToolDetails(el, data);
   }
 }
 

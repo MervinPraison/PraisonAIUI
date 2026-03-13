@@ -34,8 +34,17 @@ _pages: dict[str, dict[str, Any]] = {}
 _enabled_pages: Optional[set[str]] = None
 # Track which page IDs were added by @aiui.page() (always shown)
 _custom_page_ids: set[str] = set()
-# Pluggable datastore (default: persistent JSON file store)
-_datastore: BaseDataStore = JSONFileDataStore()
+# Pluggable datastore (default: SDK-backed store if available, else JSON file store)
+def _init_default_datastore() -> BaseDataStore:
+    """Try SDK-backed store first (unifies with praisonai-agents session store),
+    fall back to AIUI's own JSONFileDataStore."""
+    try:
+        from praisonaiui.datastore_sdk import SDKFileDataStore
+        return SDKFileDataStore()
+    except (ImportError, Exception):
+        return JSONFileDataStore()
+
+_datastore: BaseDataStore = _init_default_datastore()
 # Pluggable AI provider (default: PraisonAI)
 _provider: Optional[BaseProvider] = None  # lazy-init to avoid circular import
 # Track active tasks per session for server-side abort
@@ -175,6 +184,11 @@ def _build_html(style: str) -> str:
             '#root>*{opacity:0;transition:opacity .15s ease}'
             '</style>'
         )
+    # Dashboard style: legacy plugins own #root — skip React to prevent DOM war
+    react_script = (
+        '' if style == 'dashboard' else
+        f'<script type="module" crossorigin src="/assets/index.js?v={cache_bust}"></script>'
+    )
 
     return (
         '<!doctype html><html lang="en" style="background:#0f172a;color:#e2e8f0"><head>'
@@ -185,7 +199,7 @@ def _build_html(style: str) -> str:
         f'<title>{title}</title>'
         '</head><body style="background:#0f172a;margin:0">'
         '<div id="root"></div>'
-        f'<script type="module" crossorigin src="/assets/index.js?v={cache_bust}"></script>'
+        f'{react_script}'
         f'<script src="/plugins/plugin-loader.js?v={cache_bust}"></script>'
         '</body></html>'
     )
@@ -223,7 +237,7 @@ async def _plugins_config(request: Request) -> JSONResponse:
 
 async def _serve_index(request: Request) -> HTMLResponse:
     """Serve dynamically generated HTML based on active style."""
-    style = get_style() or detect_style()
+    style = _effective_style  # Single source of truth (set by create_app)
     return HTMLResponse(_build_html(style))
 
 

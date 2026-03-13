@@ -420,6 +420,7 @@ async def _run_and_broadcast(
     # Track which tool calls we've already broadcast to avoid duplicates.
     _seen_tool_started: set = set()   # tool_call_id or name we've sent STARTED for
     _seen_tool_completed: set = set() # tool_call_id or name we've sent COMPLETED for
+    collected_tool_calls: Dict[str, Dict] = {}  # Merge STARTED+COMPLETED per tool_call_id
 
     try:
         # Pass image attachments to provider for SDK native multimodal handling
@@ -485,6 +486,8 @@ async def _run_and_broadcast(
                     payload["args"] = event.args
                     payload["tool_call_id"] = event.tool_call_id or str(uuid.uuid4())
                     _enrich_tool_payload(payload, tool_step_counter, is_completed=False)
+                    tc_id = payload.get("tool_call_id", str(uuid.uuid4()))
+                    collected_tool_calls[tc_id] = dict(payload)
             elif event.type == RunEventType.TOOL_CALL_COMPLETED:
                 # Dedup completed events
                 dedup_key = event.tool_call_id or event.name or ""
@@ -504,6 +507,18 @@ async def _run_and_broadcast(
                 payload["result"] = event.result
                 payload["tool_call_id"] = event.tool_call_id
                 _enrich_tool_payload(payload, tool_step_counter, is_completed=True)
+                # Merge COMPLETED into STARTED entry (richer args + result)
+                tc_id = payload.get("tool_call_id", "")
+                if tc_id in collected_tool_calls:
+                    entry = collected_tool_calls[tc_id]
+                    entry["args"] = payload.get("args", entry.get("args"))
+                    entry["result"] = payload.get("result")
+                    entry["formatted_result"] = payload.get("formatted_result", "✓ Done")
+                    entry["status"] = "done"
+                    # Re-enrich description with full args (now has keywords)
+                    _enrich_tool_payload(entry, entry.get("step_number", 0), is_completed=False)
+                else:
+                    collected_tool_calls[tc_id] = dict(payload)
             elif event.type in (RunEventType.REASONING_STARTED, RunEventType.REASONING_STEP, RunEventType.REASONING_COMPLETED):
                 payload["step"] = event.step
             elif event.type == RunEventType.RUN_PAUSED:
@@ -543,12 +558,15 @@ async def _run_and_broadcast(
         )
         mgr._history.setdefault(session_id, []).append(assistant_msg)
 
-        # Also persist in datastore
+        # Also persist in datastore (include tool calls for history)
         try:
-            await _datastore.add_message(session_id, {
+            msg_data: dict = {
                 "role": "assistant",
                 "content": full_response,
-            })
+            }
+            if collected_tool_calls:
+                msg_data["toolCalls"] = list(collected_tool_calls.values())
+            await _datastore.add_message(session_id, msg_data)
         except Exception:
             pass
 

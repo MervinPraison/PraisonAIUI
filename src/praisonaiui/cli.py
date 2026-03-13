@@ -1231,10 +1231,10 @@ def run(
         help="Backend mode: 'standalone' (default) or 'praisonai' (uses WebSocketGateway)",
     ),
     datastore: str = typer.Option(
-        "json",
+        "sdk",
         "--datastore",
         "-d",
-        help="Data persistence: 'json' (file-based, default), 'memory' (volatile), or 'json:/path/to/dir'",
+        help="Data persistence: 'sdk' (unified with praisonai-agents, default), 'json', 'memory', 'json:/path', or 'sdk:/path'",
     ),
     style: str = typer.Option(
         "chat",
@@ -1427,14 +1427,27 @@ def run(
         asyncio.run(gateway.start())
     else:
         # Set up datastore
-        from praisonaiui.datastore import JSONFileDataStore, MemoryDataStore
         from praisonaiui.server import set_datastore
 
         if datastore == "memory":
+            from praisonaiui.datastore import MemoryDataStore
             store = MemoryDataStore()
+        elif datastore == "sdk":
+            try:
+                from praisonaiui.datastore_sdk import SDKFileDataStore
+                store = SDKFileDataStore()
+            except (ImportError, Exception):
+                from praisonaiui.datastore import JSONFileDataStore
+                store = JSONFileDataStore()
+                datastore = "json (sdk fallback)"
+        elif datastore.startswith("sdk:"):
+            from praisonaiui.datastore_sdk import SDKFileDataStore
+            store = SDKFileDataStore(session_dir=datastore[4:])
         elif datastore == "json":
+            from praisonaiui.datastore import JSONFileDataStore
             store = JSONFileDataStore()
         elif datastore.startswith("json:"):
+            from praisonaiui.datastore import JSONFileDataStore
             store = JSONFileDataStore(data_dir=datastore[5:])
         else:
             console.print(f"[red]Error:[/red] Unknown datastore: {datastore}")
