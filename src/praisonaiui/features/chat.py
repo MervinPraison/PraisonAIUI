@@ -32,6 +32,60 @@ from ._base import BaseFeatureProtocol
 logger = logging.getLogger(__name__)
 
 
+# ── Tool display enrichment (reuses SDK's TOOL_LABELS — DRY) ────────
+
+def _enrich_tool_payload(
+    payload: Dict[str, Any],
+    step_counter: int,
+    is_completed: bool = False,
+) -> Dict[str, Any]:
+    """Add human-readable display metadata to a tool event payload.
+
+    Reuses TOOL_LABELS and formatting from praisonaiagents.output.editor
+    so both CLI and AIUI share a single source of truth.
+    """
+    name = payload.get("name") or ""
+    args = payload.get("args")
+    result = payload.get("result")
+
+    try:
+        from praisonaiagents.output.editor import TOOL_LABELS, EditorOutput
+        icon, label = TOOL_LABELS.get(name, ("🔧", f"Using {name}"))
+    except ImportError:
+        icon, label = ("🔧", f"Using {name}")
+
+    # Format action description (reuse SDK's static method)
+    if not is_completed:
+        try:
+            from praisonaiagents.output.editor import EditorOutput
+            desc = EditorOutput._format_action("", icon, label, args)
+        except (ImportError, AttributeError):
+            desc = f"{icon} {label}"
+            if args:
+                for key in ("query", "filepath", "file_path", "directory", "command"):
+                    if key in args:
+                        val = args[key]
+                        desc = f'{icon} {label} for "{val}"' if key == "query" else f"{icon} {label}: {val}"
+                        break
+        payload["icon"] = icon
+        payload["label"] = label
+        payload["description"] = desc.strip()
+        payload["step_number"] = step_counter
+
+    # Format result summary (reuse SDK's static method)
+    if is_completed and result is not None:
+        try:
+            from praisonaiagents.output.editor import EditorOutput
+            formatted = EditorOutput._format_result(
+                str(result)[:500] if result else None,
+            )
+            payload["formatted_result"] = formatted or "✓ Done"
+        except (ImportError, AttributeError):
+            payload["formatted_result"] = "✓ Done"
+
+    return payload
+
+
 # ── Data Model ───────────────────────────────────────────────────────
 
 @dataclass
@@ -361,6 +415,7 @@ async def _run_and_broadcast(
     provider = get_provider()
     full_response = ""
     run_id = str(uuid.uuid4())
+    tool_step_counter = 0  # Step numbering (resets per user message)
 
     try:
         # Pass image attachments to provider for SDK native multimodal handling
@@ -390,10 +445,18 @@ async def _run_and_broadcast(
                     full_response = event.content
             elif event.type == RunEventType.RUN_ERROR:
                 payload["error"] = event.error or "Unknown error"
-            elif event.type in (RunEventType.TOOL_CALL_STARTED, RunEventType.TOOL_CALL_COMPLETED):
+            elif event.type == RunEventType.TOOL_CALL_STARTED:
+                tool_step_counter += 1
+                payload["name"] = event.name
+                payload["args"] = event.args
+                payload["tool_call_id"] = event.tool_call_id or str(uuid.uuid4())
+                _enrich_tool_payload(payload, tool_step_counter, is_completed=False)
+            elif event.type == RunEventType.TOOL_CALL_COMPLETED:
                 payload["name"] = event.name
                 payload["args"] = event.args
                 payload["result"] = event.result
+                payload["tool_call_id"] = event.tool_call_id
+                _enrich_tool_payload(payload, tool_step_counter, is_completed=True)
             elif event.type in (RunEventType.REASONING_STARTED, RunEventType.REASONING_STEP, RunEventType.REASONING_COMPLETED):
                 payload["step"] = event.step
             elif event.type == RunEventType.RUN_PAUSED:

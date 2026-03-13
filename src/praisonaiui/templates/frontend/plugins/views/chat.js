@@ -609,11 +609,11 @@ function handleWsMessage(data) {
       break;
 
     case 'tool_call_started':
-      appendToolCall(data.name, data.args, 'running');
+      appendToolCall(data, 'running');
       break;
 
     case 'tool_call_completed':
-      updateToolCall(data.name, data.result, 'done');
+      updateToolCall(data, 'done');
       break;
 
     case 'reasoning_step':
@@ -663,11 +663,11 @@ function handleWsMessage(data) {
       break;
 
     case 'team_tool_call_started':
-      appendToolCall(data.name, data.args, 'running');
+      appendToolCall(data, 'running');
       break;
 
     case 'team_tool_call_completed':
-      updateToolCall(data.name, data.result, 'done');
+      updateToolCall(data, 'done');
       break;
 
     case 'team_reasoning_step':
@@ -869,34 +869,47 @@ function finalizeDelta(content, agentName) {
   }
 }
 
-function appendToolCall(name, args, status) {
+function appendToolCall(data, status) {
   const messagesEl = document.getElementById('chat-messages');
   const el = document.createElement('div');
   el.className = 'chat-tool-call chat-tool-' + status;
-  el.id = 'tool-' + name.replace(/[^a-zA-Z0-9]/g, '_');
+
+  // Use tool_call_id for unique element IDs (fixes collision when same tool runs multiple times)
+  const uniqueId = data.tool_call_id || ('tool-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6));
+  el.id = 'tc-' + uniqueId.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  // Use enriched display fields from backend (DRY — labels defined once in Python SDK)
+  const icon = data.icon || '🔧';
+  const description = data.description || (icon + ' ' + escapeHtml(data.name || 'tool'));
+  const stepNum = data.step_number;
+  const stepPrefix = stepNum ? 'Step ' + stepNum + ': ' : '';
+
   el.innerHTML =
     '<div class="chat-tool-header">' +
-    '<span>🔧</span> ' +
-    '<span class="chat-tool-name">' + escapeHtml(name) + '</span> ' +
+    '<span class="chat-tool-name">' + escapeHtml(stepPrefix) + description + '</span> ' +
     '<span class="chat-tool-status">' + status + '</span>' +
-    '</div>' +
-    (args ? '<div class="chat-tool-args"><pre>' + escapeHtml(JSON.stringify(args, null, 2)) + '</pre></div>' : '');
+    '</div>';
   messagesEl.appendChild(el);
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
-function updateToolCall(name, result, status) {
-  const el = document.getElementById('tool-' + name.replace(/[^a-zA-Z0-9]/g, '_'));
+function updateToolCall(data, status) {
+  // Try find by tool_call_id first; fall back to most recent running tool
+  let el = null;
+  if (data.tool_call_id) {
+    el = document.getElementById('tc-' + data.tool_call_id.replace(/[^a-zA-Z0-9_-]/g, '_'));
+  }
+  if (!el) {
+    // Fall back: find last tool call with 'running' status
+    const all = document.querySelectorAll('.chat-tool-call.chat-tool-running');
+    if (all.length > 0) el = all[all.length - 1];
+  }
   if (el) {
     el.className = 'chat-tool-call chat-tool-' + status;
     const statusEl = el.querySelector('.chat-tool-status');
-    if (statusEl) statusEl.textContent = status;
-    if (result) {
-      const resultEl = document.createElement('div');
-      resultEl.className = 'chat-tool-result';
-      resultEl.innerHTML = '<pre>' + escapeHtml(typeof result === 'string' ? result : JSON.stringify(result, null, 2)) + '</pre>';
-      el.appendChild(resultEl);
-    }
+    // Use formatted result from backend, or fallback
+    const displayResult = data.formatted_result || (data.result ? '✓ Done' : '✓ Done');
+    if (statusEl) statusEl.textContent = displayResult;
   }
 }
 
