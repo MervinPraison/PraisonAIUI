@@ -191,13 +191,18 @@ def _build_html(style: str) -> str:
     )
 
 
+# Shared effective style — set by create_app(), read by _plugins_config()
+_effective_style: str = "chat"
+
 async def _plugins_config(request: Request) -> JSONResponse:
     """Dynamic plugins.json — style-aware, protocol-driven.
 
     Replaces the static plugins.json file. Each style loads only the
     plugins it needs, keeping the frontend lean.
+    Uses _effective_style (set by create_app) so it stays in sync with
+    the /ui-config.json endpoint.
     """
-    style = get_style() or detect_style()
+    style = _effective_style
     # Base plugins (always loaded)
     plugins: list[str] = ["fetch-retry"]
     if style == "dashboard":
@@ -1265,9 +1270,11 @@ def create_app(
     # The React frontend ALWAYS fetches these 3 JSON files before rendering.
     # In docs mode the compiler generates static files. In dashboard/chat/agents
     # modes we serve dynamic responses so the frontend knows which style to use.
+    global _effective_style
     effective_style = _style or "dashboard"  # default when running server directly
     if config and isinstance(config, dict):
         effective_style = config.get("style", effective_style)
+    _effective_style = effective_style  # share with _plugins_config()
 
     async def _ui_config_json(request: Request) -> JSONResponse:
         # Branding: YAML config overrides defaults, set_branding() overrides YAML
