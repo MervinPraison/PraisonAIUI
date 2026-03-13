@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" style="background:#0f172a;color:#e2e8f0">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8" />
@@ -10,19 +10,6 @@
   <meta property="og:locale" content="en_US" />
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <title>Media Analysis | PraisonAIUI Docs</title>
-  <!-- Instant dark background — prevents white flash between page loads -->
-  <style id="aiui-anti-flicker">
-    html,
-    body {
-      background: #0f172a !important;
-      color: #e2e8f0;
-    }
-
-    #root>* {
-      opacity: 0;
-      transition: opacity 0.15s ease;
-    }
-  </style>
   <script type="module" crossorigin src="/assets/index.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/index.css">
   <link rel="canonical" href="/docs/features/media-analysis" />
@@ -34,7 +21,7 @@
   <meta name="twitter:description" content="Media Analysis - Documentation for PraisonAIUI - YAML-driven website generator" />
 </head>
 
-<body style="background:#0f172a;margin:0">
+<body>
   <div id="root"><noscript><h1>Media Analysis</h1>
 <p>**Image understanding, OCR, and object detection** powered by VisionAgent — analyze uploaded images and documents.</p>
 <h2>Quick Start</h2>
@@ -58,52 +45,6 @@
 <h3>POST /api/media/ocr</h3>
 <h2>Related</h2>
 <li>[Attachments](attachments.md) — Upload images to analyze via media analysis</li></noscript></div>
-  <script>
-    // AIUI Plugin System — inline bootstrap
-    (function () {
-      var plugins = [];
-      function notify() {
-        var root = document.getElementById('root');
-        if (!root) return;
-        plugins.forEach(function (p) {
-          try { if (typeof p.onContentChange === 'function') p.onContentChange(root) }
-          catch (e) { console.warn('[AIUI] plugin error:', p.name, e) }
-        });
-      }
-      function observe() {
-        var root = document.getElementById('root');
-        if (!root) return;
-        var t;
-        new MutationObserver(function () { clearTimeout(t); t = setTimeout(notify, 200) })
-          .observe(root, { childList: true, subtree: true });
-      }
-      function removeAntiFlicker() {
-        var af = document.getElementById('aiui-anti-flicker');
-        if (af) af.remove();
-      }
-      fetch('/plugins/plugins.json').then(function (r) { return r.json() }).then(function (cfg) {
-        var names = cfg.plugins || [];
-        if (!names.length) { removeAntiFlicker(); return; }
-        var v = Date.now(); // Cache-busting version parameter
-        Promise.allSettled(names.map(function (name) {
-          return import('/plugins/' + name + '.js?v=' + v).then(function (mod) {
-            var p = mod.default || mod; p.name = p.name || name;
-            if (typeof p.init === 'function') return Promise.resolve(p.init()).then(function () { plugins.push(p) });
-            plugins.push(p);
-          }).catch(function (e) { console.warn('[AIUI] failed:', name, e) });
-        })).then(function () {
-          observe();
-          // Immediate first pass — no delay
-          notify();
-          // Remove anti-flicker now that plugins have rendered
-          removeAntiFlicker();
-          // Delayed pass for CDN-loaded plugins (mermaid, syntax-highlight)
-          setTimeout(notify, 2000);
-          console.debug('[AIUI]', plugins.length, 'plugin(s) active');
-        });
-      }).catch(function () { removeAntiFlicker(); });
-    })();
-  </script>
 </body>
 
 </html>
