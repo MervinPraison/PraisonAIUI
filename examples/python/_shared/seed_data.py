@@ -33,6 +33,10 @@ def seed_via_api(client):
         "name": "Telegram Support", "platform": "telegram",
         "config": {"bot_token": "***masked***"}
     })
+    client.post("/api/channels", json={
+        "name": "Support Email", "platform": "email",
+        "config": {"email_address": "support@example.com"}
+    })
     
     # Agents
     client.post("/api/agents/definitions", json={

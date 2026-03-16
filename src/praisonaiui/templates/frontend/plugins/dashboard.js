@@ -149,6 +149,211 @@ const DASHBOARD_STYLE = `
   /* Hide React docs layout when dashboard is active */
   .db-active .sidebar:not(.db-sidebar), .db-active .topnav, .db-active .toc-sidebar,
   .db-active > .main-content, .db-active > nav:not(.db-sidebar) { display: none !important; }
+
+  /* ── Metric ───────────────────────────────────────────────── */
+  .db-metric {
+    background: var(--db-card-bg); border: 1px solid var(--db-border);
+    border-radius: var(--db-radius); padding: 20px;
+    transition: border-color var(--db-transition);
+  }
+  .db-metric:hover { border-color: rgba(255,255,255,0.12); }
+  .db-metric .db-metric-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--db-text-dim); margin: 0 0 8px; }
+  .db-metric .db-metric-value { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; }
+  .db-metric .db-metric-delta { font-size: 13px; font-weight: 500; }
+  .db-metric .db-metric-delta.positive { color: #22c55e; }
+  .db-metric .db-metric-delta.negative { color: #ef4444; }
+  .db-metric .db-metric-delta.neutral { color: var(--db-text-dim); }
+
+  /* ── Progress Bar ─────────────────────────────────────────── */
+  .db-progress { margin-bottom: 16px; }
+  .db-progress .db-progress-label { font-size: 13px; color: var(--db-text); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .db-progress .db-progress-track { width: 100%; height: 8px; background: var(--db-border); border-radius: 4px; overflow: hidden; }
+  .db-progress .db-progress-bar { height: 100%; background: var(--db-accent); border-radius: 4px; transition: width var(--db-transition); }
+
+  /* ── Alert ─────────────────────────────────────────────────── */
+  .db-alert { padding: 14px 18px; border-radius: var(--db-radius); margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.5; }
+  .db-alert-info { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); color: #60a5fa; }
+  .db-alert-success { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.25); color: #22c55e; }
+  .db-alert-warning { background: rgba(234,179,8,0.12); border: 1px solid rgba(234,179,8,0.25); color: #eab308; }
+  .db-alert-error { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); color: #ef4444; }
+
+  /* ── Badge ──────────────────────────────────────────────────── */
+  .db-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; background: rgba(99,102,241,0.15); color: var(--db-accent); }
+  .db-badge-secondary { background: rgba(113,113,122,0.2); color: var(--db-text-dim); }
+  .db-badge-destructive { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .db-badge-outline { background: transparent; border: 1px solid var(--db-border); color: var(--db-text); }
+
+  /* ── Separator ──────────────────────────────────────────────── */
+  .db-separator { border: none; border-top: 1px solid var(--db-border); margin: 16px 0; }
+
+  /* ── Tabs ────────────────────────────────────────────────────── */
+  .db-tabs { margin-bottom: 16px; }
+  .db-tab-list { display: flex; gap: 0; border-bottom: 1px solid var(--db-border); margin-bottom: 16px; }
+  .db-tab-btn {
+    padding: 10px 18px; font-size: 13px; font-weight: 500; cursor: pointer;
+    color: var(--db-text-dim); background: transparent; border: none;
+    border-bottom: 2px solid transparent; transition: all var(--db-transition);
+  }
+  .db-tab-btn:hover { color: var(--db-text); }
+  .db-tab-btn.active { color: var(--db-accent); border-bottom-color: var(--db-accent); }
+  .db-tab-panel { display: none; }
+  .db-tab-panel.active { display: block; }
+
+  /* ── Accordion ──────────────────────────────────────────────── */
+  .db-accordion { margin-bottom: 16px; }
+  .db-accordion-item { border: 1px solid var(--db-border); border-radius: var(--db-radius); margin-bottom: 8px; overflow: hidden; }
+  .db-accordion-trigger {
+    width: 100%; padding: 14px 18px; font-size: 14px; font-weight: 500;
+    background: var(--db-card-bg); color: var(--db-text); border: none;
+    cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center;
+    transition: background var(--db-transition);
+  }
+  .db-accordion-trigger:hover { background: var(--db-hover); }
+  .db-accordion-trigger::after { content: '▸'; transition: transform var(--db-transition); }
+  .db-accordion-trigger.open::after { transform: rotate(90deg); }
+  .db-accordion-content { padding: 0 18px; max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; }
+  .db-accordion-content.open { padding: 14px 18px; max-height: 500px; }
+
+  /* ── Image Display ──────────────────────────────────────────── */
+  .db-image { margin-bottom: 16px; }
+  .db-image img { max-width: 100%; border-radius: var(--db-radius); display: block; }
+  .db-image figcaption { font-size: 12px; color: var(--db-text-dim); margin-top: 8px; text-align: center; }
+
+  /* ── Code Block ──────────────────────────────────────────────── */
+  .db-code-block {
+    background: var(--db-card-bg); border: 1px solid var(--db-border);
+    border-radius: var(--db-radius); padding: 16px; margin-bottom: 16px; overflow-x: auto;
+  }
+  .db-code-block code { font-size: 13px; line-height: 1.6; color: var(--db-text); font-family: 'SF Mono', Monaco, Consolas, monospace; white-space: pre; }
+
+  /* ── JSON View ──────────────────────────────────────────────── */
+  .db-json-view {
+    background: var(--db-card-bg); border: 1px solid var(--db-border);
+    border-radius: var(--db-radius); padding: 16px; margin-bottom: 16px; overflow-x: auto;
+  }
+  .db-json-view pre { margin: 0; font-size: 12px; line-height: 1.6; color: var(--db-text-dim); white-space: pre-wrap; word-break: break-word; font-family: 'SF Mono', Monaco, Consolas, monospace; }
+
+  /* ── Form inputs ────────────────────────────────────────────── */
+  .db-form-group { margin-bottom: 16px; }
+  .db-form-label { display: block; font-size: 13px; font-weight: 500; color: var(--db-text); margin-bottom: 6px; }
+  .db-form-input {
+    width: 100%; padding: 8px 12px; font-size: 13px; color: var(--db-text);
+    background: var(--db-card-bg); border: 1px solid var(--db-border); border-radius: 6px;
+    outline: none; transition: border-color var(--db-transition); box-sizing: border-box;
+  }
+  .db-form-input:focus { border-color: var(--db-accent); }
+  .db-form-select {
+    width: 100%; padding: 8px 12px; font-size: 13px; color: var(--db-text);
+    background: var(--db-card-bg); border: 1px solid var(--db-border); border-radius: 6px;
+    outline: none; transition: border-color var(--db-transition); box-sizing: border-box;
+    appearance: none; cursor: pointer;
+  }
+  .db-form-select:focus { border-color: var(--db-accent); }
+  .db-form-textarea {
+    width: 100%; padding: 8px 12px; font-size: 13px; color: var(--db-text);
+    background: var(--db-card-bg); border: 1px solid var(--db-border); border-radius: 6px;
+    outline: none; transition: border-color var(--db-transition); resize: vertical;
+    font-family: inherit; box-sizing: border-box;
+  }
+  .db-form-textarea:focus { border-color: var(--db-accent); }
+  .db-form-checkbox { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .db-form-checkbox input { width: 16px; height: 16px; accent-color: var(--db-accent); cursor: pointer; }
+  .db-form-switch { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .db-form-switch .db-switch-track {
+    width: 40px; height: 22px; background: var(--db-border); border-radius: 11px;
+    position: relative; transition: background var(--db-transition); cursor: pointer;
+  }
+  .db-form-switch .db-switch-track.on { background: var(--db-accent); }
+  .db-form-switch .db-switch-thumb {
+    width: 18px; height: 18px; background: #fff; border-radius: 50%;
+    position: absolute; top: 2px; left: 2px; transition: transform var(--db-transition);
+  }
+  .db-form-switch .db-switch-track.on .db-switch-thumb { transform: translateX(18px); }
+  .db-form-radio fieldset { border: none; padding: 0; margin: 0; }
+  .db-form-radio label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--db-text); margin-bottom: 6px; cursor: pointer; }
+  .db-form-radio input { accent-color: var(--db-accent); cursor: pointer; }
+
+  /* ── Container ──────────────────────────────────────────────── */
+  .db-container {
+    background: var(--db-card-bg); border: 1px solid var(--db-border);
+    border-radius: var(--db-radius); padding: 20px; margin-bottom: 16px;
+  }
+  .db-container > h3 { font-size: 16px; font-weight: 600; margin: 0 0 16px; }
+
+  /* ── Expander ───────────────────────────────────────────────── */
+  .db-expander { border: 1px solid var(--db-border); border-radius: var(--db-radius); margin-bottom: 16px; overflow: hidden; }
+  .db-expander-header {
+    padding: 14px 18px; cursor: pointer; font-size: 14px; font-weight: 500;
+    background: var(--db-card-bg); display: flex; justify-content: space-between; align-items: center;
+    transition: background var(--db-transition);
+  }
+  .db-expander-header:hover { background: var(--db-hover); }
+  .db-expander-header::after { content: '▸'; transition: transform var(--db-transition); }
+  .db-expander-header.open::after { transform: rotate(90deg); }
+  .db-expander-content { display: none; padding: 16px 18px; }
+  .db-expander-content.open { display: block; }
+
+  /* ── Divider ────────────────────────────────────────────────── */
+  .db-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; }
+  .db-divider::before, .db-divider::after { content: ''; flex: 1; height: 1px; background: var(--db-border); }
+  .db-divider:empty::after { display: none; }
+  .db-divider:empty { height: 1px; background: var(--db-border); }
+  .db-divider-text { font-size: 12px; color: var(--db-text-dim); white-space: nowrap; }
+
+  /* ── Link ───────────────────────────────────────────────────── */
+  .db-link { color: var(--db-accent); text-decoration: none; font-size: 14px; transition: opacity var(--db-transition); }
+  .db-link:hover { opacity: 0.8; text-decoration: underline; }
+
+  /* ── Button Group ───────────────────────────────────────────── */
+  .db-button-group { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .db-btn {
+    padding: 8px 16px; font-size: 13px; font-weight: 500; border-radius: 6px;
+    cursor: pointer; border: 1px solid var(--db-border); transition: all var(--db-transition);
+    background: var(--db-card-bg); color: var(--db-text);
+  }
+  .db-btn:hover { background: var(--db-hover); }
+  .db-btn-primary { background: var(--db-accent); border-color: var(--db-accent); color: #fff; }
+  .db-btn-primary:hover { opacity: 0.9; }
+  .db-btn-destructive { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #ef4444; }
+  .db-btn-destructive:hover { background: rgba(239,68,68,0.25); }
+
+  /* ── Stat Group ─────────────────────────────────────────────── */
+  .db-stat-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+
+  /* ── Header ─────────────────────────────────────────────────── */
+  .db-header { margin: 0 0 12px; font-weight: 700; letter-spacing: -0.02em; color: var(--db-text); }
+
+  /* ── Markdown ────────────────────────────────────────────────── */
+  .db-markdown { font-size: 14px; line-height: 1.7; color: var(--db-text); margin-bottom: 16px; }
+  .db-markdown p { margin: 0 0 12px; }
+  .db-markdown a { color: var(--db-accent); }
+
+  /* ── Empty State ────────────────────────────────────────────── */
+  .db-empty { text-align: center; padding: 40px 20px; color: var(--db-text-dim); font-size: 14px; }
+
+  /* ── Spinner Container ──────────────────────────────────────── */
+  .db-spinner-container { display: flex; align-items: center; gap: 12px; padding: 20px; color: var(--db-text-dim); font-size: 13px; }
+
+  /* ── Avatar ─────────────────────────────────────────────────── */
+  .db-avatar {
+    width: 40px; height: 40px; border-radius: 50%; overflow: hidden;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--db-accent); color: #fff; font-size: 16px; font-weight: 600;
+    flex-shrink: 0;
+  }
+  .db-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* ── Callout ────────────────────────────────────────────────── */
+  .db-callout {
+    padding: 16px 20px; border-radius: var(--db-radius); margin-bottom: 16px;
+    border-left: 4px solid var(--db-accent); background: var(--db-card-bg);
+  }
+  .db-callout-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .db-callout-content { font-size: 13px; line-height: 1.6; color: var(--db-text-dim); }
+  .db-callout-info { border-left-color: #60a5fa; }
+  .db-callout-success { border-left-color: #22c55e; }
+  .db-callout-warning { border-left-color: #eab308; }
+  .db-callout-error { border-left-color: #ef4444; }
 `;
 
 let activePageId = null;
@@ -387,6 +592,36 @@ function renderComponent(comp) {
     case 'chart': return renderChart(comp);
     case 'table': return renderTable(comp);
     case 'text': return renderText(comp);
+    case 'metric': return renderMetric(comp);
+    case 'progress_bar': return renderProgressBar(comp);
+    case 'alert': return renderAlert(comp);
+    case 'badge': return renderBadge(comp);
+    case 'separator': return renderSeparator(comp);
+    case 'tabs': return renderTabs(comp);
+    case 'accordion': return renderAccordion(comp);
+    case 'image_display': return renderImageDisplay(comp);
+    case 'code_block': return renderCodeBlock(comp);
+    case 'json_view': return renderJsonView(comp);
+    case 'text_input': return renderTextInput(comp);
+    case 'number_input': return renderNumberInput(comp);
+    case 'select_input': return renderSelectInput(comp);
+    case 'slider_input': return renderSliderInput(comp);
+    case 'checkbox_input': return renderCheckboxInput(comp);
+    case 'switch_input': return renderSwitchInput(comp);
+    case 'radio_input': return renderRadioInput(comp);
+    case 'textarea_input': return renderTextareaInput(comp);
+    case 'container': return renderContainer(comp);
+    case 'expander': return renderExpander(comp);
+    case 'divider': return renderDivider(comp);
+    case 'link': return renderLink(comp);
+    case 'button_group': return renderButtonGroup(comp);
+    case 'stat_group': return renderStatGroup(comp);
+    case 'header': return renderHeader(comp);
+    case 'markdown_text': return renderMarkdownText(comp);
+    case 'empty': return renderEmpty(comp);
+    case 'spinner': return renderSpinnerComponent(comp);
+    case 'avatar': return renderAvatar(comp);
+    case 'callout': return renderCallout(comp);
     default: {
       const div = document.createElement('div');
       div.className = 'db-viewer';
@@ -451,6 +686,430 @@ function renderText(comp) {
   div.style.cssText = 'font-size:14px;line-height:1.7;color:var(--db-text-dim);margin-bottom:16px;';
   div.textContent = comp.content || '';
   return div;
+}
+
+// ── New component render functions ─────────────────────────
+
+function renderMetric(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-metric';
+  let deltaClass = 'neutral';
+  let deltaVal = comp.delta || '';
+  if (typeof deltaVal === 'string') {
+    if (deltaVal.startsWith('+') || deltaVal.startsWith('↑')) deltaClass = 'positive';
+    else if (deltaVal.startsWith('-') || deltaVal.startsWith('↓')) deltaClass = 'negative';
+  } else if (typeof deltaVal === 'number') {
+    deltaClass = deltaVal > 0 ? 'positive' : deltaVal < 0 ? 'negative' : 'neutral';
+  }
+  let html = '';
+  if (comp.label) html += `<div class="db-metric-label">${comp.label}</div>`;
+  if (comp.value !== undefined) html += `<div class="db-metric-value">${comp.value}</div>`;
+  if (deltaVal !== '' && deltaVal !== undefined) html += `<div class="db-metric-delta ${deltaClass}">${deltaVal}</div>`;
+  el.innerHTML = html;
+  return el;
+}
+
+function renderProgressBar(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-progress';
+  const val = comp.value || 0;
+  const max = comp.max || 100;
+  const pct = Math.min(100, Math.max(0, (val / max) * 100));
+  el.innerHTML = `
+    <div class="db-progress-label">
+      <span>${comp.label || ''}</span>
+      <span>${Math.round(pct)}%</span>
+    </div>
+    <div class="db-progress-track">
+      <div class="db-progress-bar" style="width:${pct}%"></div>
+    </div>
+  `;
+  return el;
+}
+
+function renderAlert(comp) {
+  const variant = comp.variant || 'info';
+  const el = document.createElement('div');
+  el.className = `db-alert db-alert-${variant}`;
+  const icons = { info: 'ℹ️', success: '✓', warning: '⚠️', error: '✗' };
+  el.innerHTML = `<span>${icons[variant] || 'ℹ️'}</span><span>${comp.message || comp.content || ''}</span>`;
+  return el;
+}
+
+function renderBadge(comp) {
+  const el = document.createElement('span');
+  const variant = comp.variant || 'default';
+  let cls = 'db-badge';
+  if (variant === 'secondary') cls += ' db-badge-secondary';
+  else if (variant === 'destructive') cls += ' db-badge-destructive';
+  else if (variant === 'outline') cls += ' db-badge-outline';
+  el.className = cls;
+  el.textContent = comp.text || comp.label || '';
+  return el;
+}
+
+function renderSeparator(comp) {
+  const el = document.createElement('hr');
+  el.className = 'db-separator';
+  return el;
+}
+
+function renderTabs(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-tabs';
+  const items = comp.items || [];
+  if (!items.length) return el;
+
+  const tabList = document.createElement('div');
+  tabList.className = 'db-tab-list';
+
+  const panels = [];
+  items.forEach((item, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'db-tab-btn' + (i === 0 ? ' active' : '');
+    btn.textContent = item.label || `Tab ${i + 1}`;
+    btn.dataset.tabIdx = i;
+    tabList.appendChild(btn);
+
+    const panel = document.createElement('div');
+    panel.className = 'db-tab-panel' + (i === 0 ? ' active' : '');
+    const children = item.children || [];
+    children.forEach(child => panel.appendChild(renderComponent(child)));
+    panels.push(panel);
+  });
+
+  tabList.addEventListener('click', (e) => {
+    const btn = e.target.closest('.db-tab-btn');
+    if (!btn) return;
+    const idx = parseInt(btn.dataset.tabIdx);
+    tabList.querySelectorAll('.db-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    panels.forEach((p, i) => p.classList.toggle('active', i === idx));
+  });
+
+  el.appendChild(tabList);
+  panels.forEach(p => el.appendChild(p));
+  return el;
+}
+
+function renderAccordion(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-accordion';
+  const items = comp.items || [];
+  items.forEach(item => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'db-accordion-item';
+
+    const trigger = document.createElement('button');
+    trigger.className = 'db-accordion-trigger';
+    trigger.textContent = item.title || '';
+
+    const content = document.createElement('div');
+    content.className = 'db-accordion-content';
+    if (typeof item.content === 'string') {
+      content.textContent = item.content;
+    } else if (Array.isArray(item.children)) {
+      item.children.forEach(child => content.appendChild(renderComponent(child)));
+    }
+
+    trigger.addEventListener('click', () => {
+      trigger.classList.toggle('open');
+      content.classList.toggle('open');
+    });
+
+    wrapper.appendChild(trigger);
+    wrapper.appendChild(content);
+    el.appendChild(wrapper);
+  });
+  return el;
+}
+
+function renderImageDisplay(comp) {
+  const figure = document.createElement('figure');
+  figure.className = 'db-image';
+  figure.style.margin = '0 0 16px';
+  const img = document.createElement('img');
+  img.src = comp.src || '';
+  img.alt = comp.alt || '';
+  if (comp.width) img.style.width = comp.width;
+  figure.appendChild(img);
+  if (comp.caption) {
+    const cap = document.createElement('figcaption');
+    cap.textContent = comp.caption;
+    figure.appendChild(cap);
+  }
+  return figure;
+}
+
+function renderCodeBlock(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-code-block';
+  const pre = document.createElement('pre');
+  const code = document.createElement('code');
+  if (comp.language) code.className = `language-${comp.language}`;
+  code.textContent = comp.code || '';
+  pre.appendChild(code);
+  el.appendChild(pre);
+  return el;
+}
+
+function renderJsonView(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-json-view';
+  const pre = document.createElement('pre');
+  try {
+    pre.textContent = JSON.stringify(comp.data !== undefined ? comp.data : comp, null, 2);
+  } catch (e) {
+    pre.textContent = String(comp.data || '');
+  }
+  el.appendChild(pre);
+  return el;
+}
+
+function renderTextInput(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-form-group';
+  el.innerHTML = `
+    ${comp.label ? `<label class="db-form-label">${comp.label}</label>` : ''}
+    <input type="text" class="db-form-input" value="${comp.value || ''}" placeholder="${comp.placeholder || ''}">
+  `;
+  return el;
+}
+
+function renderNumberInput(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-form-group';
+  const attrs = [];
+  if (comp.min_val !== undefined) attrs.push(`min="${comp.min_val}"`);
+  if (comp.max_val !== undefined) attrs.push(`max="${comp.max_val}"`);
+  if (comp.step !== undefined) attrs.push(`step="${comp.step}"`);
+  el.innerHTML = `
+    ${comp.label ? `<label class="db-form-label">${comp.label}</label>` : ''}
+    <input type="number" class="db-form-input" value="${comp.value || ''}" ${attrs.join(' ')}>
+  `;
+  return el;
+}
+
+function renderSelectInput(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-form-group';
+  const options = (comp.options || []).map(opt => {
+    const val = typeof opt === 'object' ? opt.value : opt;
+    const label = typeof opt === 'object' ? opt.label : opt;
+    const selected = val === comp.value ? ' selected' : '';
+    return `<option value="${val}"${selected}>${label}</option>`;
+  }).join('');
+  el.innerHTML = `
+    ${comp.label ? `<label class="db-form-label">${comp.label}</label>` : ''}
+    <select class="db-form-select">${options}</select>
+  `;
+  return el;
+}
+
+function renderSliderInput(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-form-group';
+  const val = comp.value || 0;
+  const min = comp.min_val !== undefined ? comp.min_val : 0;
+  const max = comp.max_val !== undefined ? comp.max_val : 100;
+  const step = comp.step !== undefined ? comp.step : 1;
+  el.innerHTML = `
+    ${comp.label ? `<label class="db-form-label">${comp.label}</label>` : ''}
+    <div style="display:flex;align-items:center;gap:12px">
+      <input type="range" class="db-form-input" style="flex:1" value="${val}" min="${min}" max="${max}" step="${step}">
+      <span style="font-size:13px;color:var(--db-text);min-width:40px;text-align:right">${val}</span>
+    </div>
+  `;
+  const range = el.querySelector('input[type="range"]');
+  const display = el.querySelector('span');
+  range.addEventListener('input', () => { display.textContent = range.value; });
+  return el;
+}
+
+function renderCheckboxInput(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-form-group db-form-checkbox';
+  el.innerHTML = `
+    <input type="checkbox" ${comp.checked ? 'checked' : ''}>
+    <label class="db-form-label" style="margin:0">${comp.label || ''}</label>
+  `;
+  return el;
+}
+
+function renderSwitchInput(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-form-group db-form-switch';
+  const on = comp.checked ? ' on' : '';
+  el.innerHTML = `
+    <div class="db-switch-track${on}"><div class="db-switch-thumb"></div></div>
+    <span style="font-size:13px;color:var(--db-text)">${comp.label || ''}</span>
+  `;
+  const track = el.querySelector('.db-switch-track');
+  track.addEventListener('click', () => { track.classList.toggle('on'); });
+  return el;
+}
+
+function renderRadioInput(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-form-group db-form-radio';
+  const name = 'radio_' + Math.random().toString(36).slice(2, 8);
+  const options = (comp.options || []).map(opt => {
+    const val = typeof opt === 'object' ? opt.value : opt;
+    const label = typeof opt === 'object' ? opt.label : opt;
+    const checked = val === comp.value ? ' checked' : '';
+    return `<label><input type="radio" name="${name}" value="${val}"${checked}>${label}</label>`;
+  }).join('');
+  el.innerHTML = `
+    ${comp.label ? `<div class="db-form-label">${comp.label}</div>` : ''}
+    <fieldset>${options}</fieldset>
+  `;
+  return el;
+}
+
+function renderTextareaInput(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-form-group';
+  const rows = comp.rows || 4;
+  el.innerHTML = `
+    ${comp.label ? `<label class="db-form-label">${comp.label}</label>` : ''}
+    <textarea class="db-form-textarea" rows="${rows}" placeholder="${comp.placeholder || ''}">${comp.value || ''}</textarea>
+  `;
+  return el;
+}
+
+function renderContainer(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-container';
+  if (comp.title) {
+    const h3 = document.createElement('h3');
+    h3.textContent = comp.title;
+    el.appendChild(h3);
+  }
+  const children = comp.children || [];
+  children.forEach(child => el.appendChild(renderComponent(child)));
+  return el;
+}
+
+function renderExpander(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-expander';
+  const header = document.createElement('div');
+  header.className = 'db-expander-header' + (comp.expanded ? ' open' : '');
+  header.textContent = comp.title || '';
+
+  const content = document.createElement('div');
+  content.className = 'db-expander-content' + (comp.expanded ? ' open' : '');
+  const children = comp.children || [];
+  children.forEach(child => content.appendChild(renderComponent(child)));
+
+  header.addEventListener('click', () => {
+    header.classList.toggle('open');
+    content.classList.toggle('open');
+  });
+
+  el.appendChild(header);
+  el.appendChild(content);
+  return el;
+}
+
+function renderDivider(comp) {
+  if (comp.text) {
+    const el = document.createElement('div');
+    el.className = 'db-divider';
+    el.innerHTML = `<span class="db-divider-text">${comp.text}</span>`;
+    return el;
+  }
+  const el = document.createElement('div');
+  el.className = 'db-divider';
+  return el;
+}
+
+function renderLink(comp) {
+  const el = document.createElement('a');
+  el.className = 'db-link';
+  el.href = comp.href || '#';
+  el.textContent = comp.text || comp.href || '';
+  if (comp.external) el.target = '_blank';
+  return el;
+}
+
+function renderButtonGroup(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-button-group';
+  const buttons = comp.buttons || [];
+  buttons.forEach(b => {
+    const btn = document.createElement('button');
+    let cls = 'db-btn';
+    if (b.variant === 'primary') cls += ' db-btn-primary';
+    else if (b.variant === 'destructive') cls += ' db-btn-destructive';
+    btn.className = cls;
+    btn.textContent = b.label || '';
+    el.appendChild(btn);
+  });
+  return el;
+}
+
+function renderStatGroup(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-stat-group';
+  const stats = comp.stats || [];
+  stats.forEach(s => {
+    el.appendChild(renderMetric({ label: s.label, value: s.value, delta: s.delta }));
+  });
+  return el;
+}
+
+function renderHeader(comp) {
+  const level = Math.min(6, Math.max(1, comp.level || 2));
+  const el = document.createElement(`h${level}`);
+  el.className = 'db-header';
+  el.textContent = comp.text || '';
+  return el;
+}
+
+function renderMarkdownText(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-markdown';
+  el.innerHTML = comp.content || '';
+  return el;
+}
+
+function renderEmpty(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-empty';
+  el.textContent = comp.text || 'No data available';
+  return el;
+}
+
+function renderSpinnerComponent(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-spinner-container';
+  el.innerHTML = `<div class="db-spinner"></div><span>${comp.text || 'Loading…'}</span>`;
+  return el;
+}
+
+function renderAvatar(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-avatar';
+  if (comp.src) {
+    el.innerHTML = `<img src="${comp.src}" alt="${comp.name || ''}">`;
+  } else {
+    const name = comp.name || comp.fallback || '?';
+    const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    el.textContent = initials;
+  }
+  return el;
+}
+
+function renderCallout(comp) {
+  const variant = comp.variant || 'info';
+  const el = document.createElement('div');
+  el.className = `db-callout db-callout-${variant}`;
+  let html = '';
+  if (comp.title) html += `<div class="db-callout-title">${comp.title}</div>`;
+  html += `<div class="db-callout-content">${comp.content || ''}</div>`;
+  el.innerHTML = html;
+  return el;
 }
 
 // ── Test All Features panel ────────────────────────────────

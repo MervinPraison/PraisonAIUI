@@ -33,7 +33,19 @@ def __getattr__(name: str):
     _config_attrs = {"configure"}
     _features_attrs = {"BaseFeatureProtocol", "register_feature", "get_features",
                        "get_feature", "auto_register_defaults"}
-    _ui_attrs = {"layout", "card", "columns", "chart", "table", "text"}
+    _ui_attrs = {
+        "layout", "card", "columns", "chart", "table", "text",
+        # Tier 1
+        "metric", "progress_bar", "alert", "badge", "separator",
+        "tabs", "accordion", "image_display", "code_block", "json_view",
+        # Tier 2 — form inputs
+        "text_input", "number_input", "select_input", "slider_input",
+        "checkbox_input", "switch_input", "radio_input", "textarea_input",
+        # Tier 3 — layout & advanced
+        "container", "expander", "divider", "link", "button_group",
+        "stat_group", "header", "markdown_text", "empty", "spinner",
+        "avatar", "callout",
+    }
     if name in _callback_attrs:
         from praisonaiui import callbacks
         return getattr(callbacks, name)
@@ -139,4 +151,37 @@ __all__ = [
     "chart",
     "table",
     "text",
+    # Tier 1
+    "metric",
+    "progress_bar",
+    "alert",
+    "badge",
+    "separator",
+    "tabs",
+    "accordion",
+    "image_display",
+    "code_block",
+    "json_view",
+    # Tier 2 — form inputs
+    "text_input",
+    "number_input",
+    "select_input",
+    "slider_input",
+    "checkbox_input",
+    "switch_input",
+    "radio_input",
+    "textarea_input",
+    # Tier 3 — layout & advanced
+    "container",
+    "expander",
+    "divider",
+    "link",
+    "button_group",
+    "stat_group",
+    "header",
+    "markdown_text",
+    "empty",
+    "spinner",
+    "avatar",
+    "callout",
 ]

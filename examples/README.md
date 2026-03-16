@@ -19,6 +19,8 @@
 | 11 | [ui-integration](python/11-ui-integration/) | Gradio ASGI mount, Streamlit iframe, REST embedding | `python app.py` |
 | 12 | [agent-dashboard](python/12-agent-dashboard/) | OpenClaw-style rendered HTML admin panel | `python app.py` |
 | 13 | [real-dashboard](python/13-real-dashboard/) | Real PraisonAI Agent + native dashboard + live metrics | `aiui run app.py --style dashboard` |
+| 19 | [email-bot](python/19-email-bot/) | `EmailBot` IMAP/SMTP + agent replies + subject commands | `python app.py` |
+| 20 | [email-channel](python/20-email-channel/) | Email as AIUI dashboard channel via `/api/channels` | `python app.py` |
 
 ---
 
