@@ -354,6 +354,92 @@ const DASHBOARD_STYLE = `
   .db-callout-success { border-left-color: #22c55e; }
   .db-callout-warning { border-left-color: #eab308; }
   .db-callout-error { border-left-color: #ef4444; }
+
+  /* ── Multiselect ─────────────────────────────────────── */
+  .db-multiselect { position: relative; }
+  .db-multiselect-tags { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px; background: var(--db-card-bg); border: 1px solid var(--db-border); border-radius: 6px; min-height: 38px; }
+  .db-multiselect-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: rgba(99,102,241,0.15); color: var(--db-accent); border-radius: 4px; font-size: 12px; }
+
+  /* ── Date/Time Input ─────────────────────────────────── */
+  .db-date-input input, .db-time-input input { width: 100%; padding: 8px 12px; font-size: 13px; color: var(--db-text); background: var(--db-card-bg); border: 1px solid var(--db-border); border-radius: 6px; outline: none; box-sizing: border-box; }
+  .db-date-input input:focus, .db-time-input input:focus { border-color: var(--db-accent); }
+
+  /* ── Color Picker ────────────────────────────────────── */
+  .db-color-picker { display: flex; align-items: center; gap: 10px; }
+  .db-color-picker input[type="color"] { width: 40px; height: 40px; border: 1px solid var(--db-border); border-radius: 6px; padding: 2px; cursor: pointer; background: var(--db-card-bg); }
+  .db-color-picker .db-color-value { font-size: 13px; font-family: monospace; color: var(--db-text-dim); }
+
+  /* ── Audio/Video Player ──────────────────────────────── */
+  .db-audio-player audio { width: 100%; margin-bottom: 16px; }
+  .db-video-player video { width: 100%; border-radius: var(--db-radius); margin-bottom: 16px; }
+
+  /* ── File Download ───────────────────────────────────── */
+  .db-file-download { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; font-size: 13px; font-weight: 500; border-radius: 6px; cursor: pointer; border: 1px solid var(--db-border); background: var(--db-card-bg); color: var(--db-text); text-decoration: none; transition: all var(--db-transition); }
+  .db-file-download:hover { background: var(--db-hover); }
+
+  /* ── Toast ───────────────────────────────────────────── */
+  .db-toast { position: fixed; bottom: 20px; right: 20px; padding: 14px 20px; border-radius: var(--db-radius); font-size: 13px; z-index: 1000; animation: db-toast-in 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  @keyframes db-toast-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .db-toast-info { background: #1e3a5f; color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+  .db-toast-success { background: #14532d; color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+  .db-toast-warning { background: #422006; color: #eab308; border: 1px solid rgba(234,179,8,0.3); }
+  .db-toast-error { background: #450a0a; color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+
+  /* ── Dialog/Modal ────────────────────────────────────── */
+  .db-dialog-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+  .db-dialog-content { background: var(--db-sidebar-bg); border: 1px solid var(--db-border); border-radius: 14px; padding: 24px; width: 500px; max-width: 90vw; max-height: 85vh; overflow-y: auto; }
+  .db-dialog-title { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+  .db-dialog-desc { font-size: 13px; color: var(--db-text-dim); margin: 0 0 16px; }
+
+  /* ── Caption ─────────────────────────────────────────── */
+  .db-caption { font-size: 12px; color: var(--db-text-dim); margin-bottom: 8px; }
+
+  /* ── HTML Embed ──────────────────────────────────────── */
+  .db-html-embed { margin-bottom: 16px; }
+
+  /* ── Skeleton ────────────────────────────────────────── */
+  .db-skeleton { background: linear-gradient(90deg, var(--db-border) 25%, rgba(255,255,255,0.08) 50%, var(--db-border) 75%); background-size: 200% 100%; animation: db-shimmer 1.5s infinite; border-radius: 4px; }
+  .db-skeleton-text { height: 16px; width: 100%; }
+  .db-skeleton-card { height: 120px; width: 100%; border-radius: var(--db-radius); }
+  .db-skeleton-avatar { height: 40px; width: 40px; border-radius: 50%; }
+  @keyframes db-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* ── Tooltip ─────────────────────────────────────────── */
+  .db-tooltip-wrap { position: relative; display: inline-block; }
+  .db-tooltip-content { display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); padding: 6px 10px; background: var(--db-sidebar-bg); border: 1px solid var(--db-border); border-radius: 6px; font-size: 12px; color: var(--db-text); white-space: nowrap; z-index: 100; pointer-events: none; }
+  .db-tooltip-wrap:hover .db-tooltip-content { display: block; }
+
+  /* ── Gallery ─────────────────────────────────────────── */
+  .db-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .db-gallery-item { position: relative; overflow: hidden; border-radius: var(--db-radius); border: 1px solid var(--db-border); }
+  .db-gallery-item img { width: 100%; display: block; aspect-ratio: 1; object-fit: cover; }
+  .db-gallery-item figcaption { font-size: 11px; color: var(--db-text-dim); padding: 6px 8px; text-align: center; }
+
+  /* ── Breadcrumb ──────────────────────────────────────── */
+  .db-breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--db-text-dim); margin-bottom: 16px; }
+  .db-breadcrumb a { color: var(--db-accent); text-decoration: none; }
+  .db-breadcrumb a:hover { text-decoration: underline; }
+  .db-breadcrumb-sep { color: var(--db-text-dim); }
+
+  /* ── Pagination ──────────────────────────────────────── */
+  .db-pagination { display: flex; align-items: center; gap: 4px; margin-bottom: 16px; }
+  .db-pagination button { padding: 6px 12px; font-size: 13px; border: 1px solid var(--db-border); border-radius: 6px; background: var(--db-card-bg); color: var(--db-text); cursor: pointer; transition: all var(--db-transition); }
+  .db-pagination button:hover { background: var(--db-hover); }
+  .db-pagination button.active { background: var(--db-accent); border-color: var(--db-accent); color: #fff; }
+  .db-pagination button:disabled { opacity: 0.4; cursor: default; }
+
+  /* ── Key-Value List ──────────────────────────────────── */
+  .db-kv-list { background: var(--db-card-bg); border: 1px solid var(--db-border); border-radius: var(--db-radius); margin-bottom: 16px; overflow: hidden; }
+  .db-kv-list-title { padding: 12px 16px; font-size: 14px; font-weight: 600; border-bottom: 1px solid var(--db-border); }
+  .db-kv-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--db-border); font-size: 13px; }
+  .db-kv-item:last-child { border-bottom: none; }
+  .db-kv-label { color: var(--db-text-dim); }
+  .db-kv-value { font-weight: 500; color: var(--db-text); }
+
+  /* ── Popover ─────────────────────────────────────────── */
+  .db-popover { position: relative; display: inline-block; }
+  .db-popover-content { display: none; position: absolute; top: calc(100% + 8px); left: 0; min-width: 200px; padding: 16px; background: var(--db-sidebar-bg); border: 1px solid var(--db-border); border-radius: var(--db-radius); z-index: 100; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  .db-popover.open .db-popover-content { display: block; }
 `;
 
 let activePageId = null;
@@ -622,6 +708,24 @@ function renderComponent(comp) {
     case 'spinner': return renderSpinnerComponent(comp);
     case 'avatar': return renderAvatar(comp);
     case 'callout': return renderCallout(comp);
+    case 'multiselect_input': return renderMultiselectInput(comp);
+    case 'date_input': return renderDateInput(comp);
+    case 'color_picker_input': return renderColorPickerInput(comp);
+    case 'audio_player': return renderAudioPlayer(comp);
+    case 'video_player': return renderVideoPlayer(comp);
+    case 'file_download': return renderFileDownload(comp);
+    case 'toast': return renderToast(comp);
+    case 'dialog': return renderDialog(comp);
+    case 'caption': return renderCaption(comp);
+    case 'html_embed': return renderHtmlEmbed(comp);
+    case 'skeleton': return renderSkeleton(comp);
+    case 'tooltip_wrap': return renderTooltipWrap(comp);
+    case 'time_input': return renderTimeInput(comp);
+    case 'gallery': return renderGallery(comp);
+    case 'breadcrumb': return renderBreadcrumb(comp);
+    case 'pagination': return renderPagination(comp);
+    case 'key_value_list': return renderKeyValueList(comp);
+    case 'popover': return renderPopover(comp);
     default: {
       const div = document.createElement('div');
       div.className = 'db-viewer';
@@ -713,7 +817,7 @@ function renderProgressBar(comp) {
   const el = document.createElement('div');
   el.className = 'db-progress';
   const val = comp.value || 0;
-  const max = comp.max || 100;
+  const max = comp.max_value || comp.max || 100;
   const pct = Math.min(100, Math.max(0, (val / max) * 100));
   el.innerHTML = `
     <div class="db-progress-label">
@@ -732,7 +836,8 @@ function renderAlert(comp) {
   const el = document.createElement('div');
   el.className = `db-alert db-alert-${variant}`;
   const icons = { info: 'ℹ️', success: '✓', warning: '⚠️', error: '✗' };
-  el.innerHTML = `<span>${icons[variant] || 'ℹ️'}</span><span>${comp.message || comp.content || ''}</span>`;
+  const titleHtml = comp.title ? `<strong style="display:block;margin-bottom:2px">${comp.title}</strong>` : '';
+  el.innerHTML = `<span>${icons[variant] || 'ℹ️'}</span><span>${titleHtml}${comp.message || comp.content || ''}</span>`;
   return el;
 }
 
@@ -1109,6 +1214,295 @@ function renderCallout(comp) {
   if (comp.title) html += `<div class="db-callout-title">${comp.title}</div>`;
   html += `<div class="db-callout-content">${comp.content || ''}</div>`;
   el.innerHTML = html;
+  return el;
+}
+
+function renderMultiselectInput(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-form-group db-multiselect';
+  const options = comp.options || [];
+  const selected = new Set(comp.value || []);
+  el.innerHTML = `
+    ${comp.label ? `<label class="db-form-label">${comp.label}</label>` : ''}
+    <div class="db-multiselect-tags" id="ms-tags"></div>
+  `;
+  const tagsEl = el.querySelector('#ms-tags');
+  tagsEl.removeAttribute('id');
+  options.forEach(opt => {
+    const tag = document.createElement('label');
+    tag.style.cssText = 'display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;color:var(--db-text);margin-bottom:4px';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = selected.has(opt);
+    cb.style.accentColor = 'var(--db-accent)';
+    tag.appendChild(cb);
+    tag.appendChild(document.createTextNode(opt));
+    tagsEl.appendChild(tag);
+  });
+  return el;
+}
+
+function renderDateInput(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-form-group db-date-input';
+  el.innerHTML = `
+    ${comp.label ? `<label class="db-form-label">${comp.label}</label>` : ''}
+    <input type="date" value="${comp.value || ''}">
+  `;
+  return el;
+}
+
+function renderColorPickerInput(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-form-group';
+  const val = comp.value || '#000000';
+  el.innerHTML = `
+    ${comp.label ? `<label class="db-form-label">${comp.label}</label>` : ''}
+    <div class="db-color-picker">
+      <input type="color" value="${val}">
+      <span class="db-color-value">${val}</span>
+    </div>
+  `;
+  const colorInput = el.querySelector('input[type="color"]');
+  const display = el.querySelector('.db-color-value');
+  colorInput.addEventListener('input', () => { display.textContent = colorInput.value; });
+  return el;
+}
+
+function renderAudioPlayer(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-audio-player';
+  const audio = document.createElement('audio');
+  audio.controls = true;
+  audio.src = comp.src || '';
+  if (comp.autoplay) audio.autoplay = true;
+  el.appendChild(audio);
+  return el;
+}
+
+function renderVideoPlayer(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-video-player';
+  const video = document.createElement('video');
+  video.controls = true;
+  video.src = comp.src || '';
+  if (comp.autoplay) video.autoplay = true;
+  if (comp.poster) video.poster = comp.poster;
+  el.appendChild(video);
+  return el;
+}
+
+function renderFileDownload(comp) {
+  const el = document.createElement('a');
+  el.className = 'db-file-download';
+  el.href = comp.href || '#';
+  if (comp.filename) el.download = comp.filename;
+  else el.download = '';
+  el.innerHTML = `⬇ ${comp.label || 'Download'}`;
+  return el;
+}
+
+function renderToast(comp) {
+  const variant = comp.variant || 'info';
+  const el = document.createElement('div');
+  el.className = `db-toast db-toast-${variant}`;
+  el.textContent = comp.message || '';
+  document.body.appendChild(el);
+  const duration = comp.duration || 3000;
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, duration);
+  // Return empty placeholder for the component list
+  const placeholder = document.createElement('div');
+  return placeholder;
+}
+
+function renderDialog(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-card';
+  el.style.cursor = 'pointer';
+  el.innerHTML = `<div class="db-card-title">${comp.title || 'Dialog'}</div><div style="font-size:12px;color:var(--db-text-dim)">Click to open</div>`;
+  el.addEventListener('click', () => {
+    const overlay = document.createElement('div');
+    overlay.className = 'db-dialog-overlay';
+    const content = document.createElement('div');
+    content.className = 'db-dialog-content';
+    let html = `<div class="db-dialog-title">${comp.title || ''}</div>`;
+    if (comp.description) html += `<div class="db-dialog-desc">${comp.description}</div>`;
+    content.innerHTML = html;
+    const childContainer = document.createElement('div');
+    (comp.children || []).forEach(child => childContainer.appendChild(renderComponent(child)));
+    content.appendChild(childContainer);
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'db-btn';
+    closeBtn.textContent = 'Close';
+    closeBtn.style.marginTop = '16px';
+    closeBtn.addEventListener('click', (e) => { e.stopPropagation(); overlay.remove(); });
+    content.appendChild(closeBtn);
+    overlay.appendChild(content);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  });
+  return el;
+}
+
+function renderCaption(comp) {
+  const el = document.createElement('p');
+  el.className = 'db-caption';
+  el.textContent = comp.text || '';
+  return el;
+}
+
+function renderHtmlEmbed(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-html-embed';
+  el.innerHTML = comp.content || '';
+  return el;
+}
+
+function renderSkeleton(comp) {
+  const el = document.createElement('div');
+  const variant = comp.variant || 'text';
+  el.className = `db-skeleton db-skeleton-${variant}`;
+  if (comp.width) el.style.width = comp.width;
+  if (comp.height) el.style.height = comp.height;
+  return el;
+}
+
+function renderTooltipWrap(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-tooltip-wrap';
+  if (comp.child) el.appendChild(renderComponent(comp.child));
+  const tip = document.createElement('div');
+  tip.className = 'db-tooltip-content';
+  tip.textContent = comp.content || '';
+  el.appendChild(tip);
+  return el;
+}
+
+function renderTimeInput(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-form-group db-time-input';
+  el.innerHTML = `
+    ${comp.label ? `<label class="db-form-label">${comp.label}</label>` : ''}
+    <input type="time" value="${comp.value || ''}">
+  `;
+  return el;
+}
+
+function renderGallery(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-gallery';
+  (comp.items || []).forEach(item => {
+    const figure = document.createElement('figure');
+    figure.className = 'db-gallery-item';
+    figure.style.margin = '0';
+    const img = document.createElement('img');
+    img.src = item.src || '';
+    img.alt = item.alt || '';
+    figure.appendChild(img);
+    if (item.caption) {
+      const cap = document.createElement('figcaption');
+      cap.textContent = item.caption;
+      figure.appendChild(cap);
+    }
+    el.appendChild(figure);
+  });
+  return el;
+}
+
+function renderBreadcrumb(comp) {
+  const el = document.createElement('nav');
+  el.className = 'db-breadcrumb';
+  const items = comp.items || [];
+  items.forEach((item, i) => {
+    if (i > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'db-breadcrumb-sep';
+      sep.textContent = '/';
+      el.appendChild(sep);
+    }
+    if (item.href) {
+      const a = document.createElement('a');
+      a.href = item.href;
+      a.textContent = item.label || '';
+      el.appendChild(a);
+    } else {
+      const span = document.createElement('span');
+      span.textContent = item.label || '';
+      el.appendChild(span);
+    }
+  });
+  return el;
+}
+
+function renderPagination(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-pagination';
+  const total = comp.total || 0;
+  const perPage = comp.per_page || 10;
+  const totalPages = Math.ceil(total / perPage);
+  let currentPage = comp.page || 1;
+  function render() {
+    el.innerHTML = '';
+    const prev = document.createElement('button');
+    prev.textContent = '←';
+    prev.disabled = currentPage <= 1;
+    prev.addEventListener('click', () => { if (currentPage > 1) { currentPage--; render(); } });
+    el.appendChild(prev);
+    for (let i = 1; i <= Math.min(totalPages, 7); i++) {
+      const btn = document.createElement('button');
+      btn.textContent = i;
+      if (i === currentPage) btn.classList.add('active');
+      btn.addEventListener('click', () => { currentPage = i; render(); });
+      el.appendChild(btn);
+    }
+    if (totalPages > 7) {
+      const dots = document.createElement('span');
+      dots.textContent = '…';
+      dots.style.cssText = 'padding:0 4px;color:var(--db-text-dim)';
+      el.appendChild(dots);
+    }
+    const next = document.createElement('button');
+    next.textContent = '→';
+    next.disabled = currentPage >= totalPages;
+    next.addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; render(); } });
+    el.appendChild(next);
+  }
+  render();
+  return el;
+}
+
+function renderKeyValueList(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-kv-list';
+  if (comp.title) {
+    const titleEl = document.createElement('div');
+    titleEl.className = 'db-kv-list-title';
+    titleEl.textContent = comp.title;
+    el.appendChild(titleEl);
+  }
+  (comp.items || []).forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'db-kv-item';
+    row.innerHTML = `<span class="db-kv-label">${item.label || ''}</span><span class="db-kv-value">${item.value !== undefined ? item.value : ''}</span>`;
+    el.appendChild(row);
+  });
+  return el;
+}
+
+function renderPopover(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-popover';
+  if (comp.trigger) {
+    const triggerEl = renderComponent(comp.trigger);
+    triggerEl.style.cursor = 'pointer';
+    triggerEl.addEventListener('click', (e) => { e.stopPropagation(); el.classList.toggle('open'); });
+    el.appendChild(triggerEl);
+  }
+  const content = document.createElement('div');
+  content.className = 'db-popover-content';
+  (comp.children || []).forEach(child => content.appendChild(renderComponent(child)));
+  el.appendChild(content);
+  document.addEventListener('click', (e) => { if (!el.contains(e.target)) el.classList.remove('open'); });
   return el;
 }
 

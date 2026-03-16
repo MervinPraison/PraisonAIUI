@@ -487,3 +487,240 @@ def callout(content: str, *, variant: str = "info", title: str | None = None) ->
     if title is not None:
         comp["title"] = title
     return comp
+
+
+# ── Tier A: Must-Have (Streamlit + Gradio parity) ───────────────────
+
+
+def multiselect_input(label: str, *, options: Sequence[str], value: Sequence[str] = ()) -> dict:
+    """A multi-select dropdown.
+
+    Args:
+        label: Input label
+        options: Available choices
+        value: Default selected values
+    """
+    return {
+        "type": "multiselect_input", "label": label,
+        "options": list(options), "value": list(value),
+    }
+
+
+def date_input(label: str, *, value: str | None = None) -> dict:
+    """A date picker input.
+
+    Args:
+        label: Input label
+        value: Default date as ISO string (e.g. "2026-01-15")
+    """
+    comp: dict[str, Any] = {"type": "date_input", "label": label}
+    if value is not None:
+        comp["value"] = value
+    return comp
+
+
+def color_picker_input(label: str, *, value: str = "#000000") -> dict:
+    """A color picker input.
+
+    Args:
+        label: Input label
+        value: Default hex color (e.g. "#ff5733")
+    """
+    return {"type": "color_picker_input", "label": label, "value": value}
+
+
+def audio_player(src: str, *, autoplay: bool = False) -> dict:
+    """An audio player.
+
+    Named ``audio_player`` to avoid collision with ``aiui.audio`` chat callback.
+
+    Args:
+        src: Audio file URL or path
+        autoplay: Whether to auto-play
+    """
+    return {"type": "audio_player", "src": src, "autoplay": autoplay}
+
+
+def video_player(
+    src: str,
+    *,
+    autoplay: bool = False,
+    poster: str | None = None,
+) -> dict:
+    """A video player.
+
+    Named ``video_player`` to avoid collision with ``aiui.video`` chat callback.
+
+    Args:
+        src: Video file URL or path
+        autoplay: Whether to auto-play
+        poster: Poster image URL shown before playback
+    """
+    comp: dict[str, Any] = {"type": "video_player", "src": src, "autoplay": autoplay}
+    if poster is not None:
+        comp["poster"] = poster
+    return comp
+
+
+def file_download(label: str, *, href: str, filename: str | None = None) -> dict:
+    """A file download link/button.
+
+    Args:
+        label: Button label text
+        href: URL to the downloadable file
+        filename: Suggested filename for the download
+    """
+    comp: dict[str, Any] = {"type": "file_download", "label": label, "href": href}
+    if filename is not None:
+        comp["filename"] = filename
+    return comp
+
+
+# ── Tier B: High-Value Dashboard Components ──────────────────────────
+
+
+def toast(message: str, *, variant: str = "info", duration: int = 3000) -> dict:
+    """A toast notification.
+
+    Args:
+        message: Notification text
+        variant: "info", "success", "warning", or "error"
+        duration: Auto-dismiss time in milliseconds
+    """
+    return {"type": "toast", "message": message, "variant": variant, "duration": duration}
+
+
+def dialog(
+    title: str,
+    *,
+    children: Sequence[dict],
+    description: str | None = None,
+) -> dict:
+    """A modal dialog.
+
+    Args:
+        title: Dialog heading
+        children: Content components inside the dialog
+        description: Optional subtitle/description
+    """
+    comp: dict[str, Any] = {"type": "dialog", "title": title, "children": list(children)}
+    if description is not None:
+        comp["description"] = description
+    return comp
+
+
+def caption(text: str) -> dict:
+    """Small muted caption text.
+
+    Args:
+        text: Caption content
+    """
+    return {"type": "caption", "text": text}
+
+
+def html_embed(content: str) -> dict:
+    """Raw HTML embed (trusted content only).
+
+    Args:
+        content: HTML string
+    """
+    return {"type": "html_embed", "content": content}
+
+
+def skeleton(
+    *,
+    width: str | None = None,
+    height: str | None = None,
+    variant: str = "text",
+) -> dict:
+    """A skeleton loading placeholder.
+
+    Args:
+        width: CSS width (e.g. "200px", "100%")
+        height: CSS height (e.g. "20px")
+        variant: "text" (line), "card" (rectangle), or "avatar" (circle)
+    """
+    comp: dict[str, Any] = {"type": "skeleton", "variant": variant}
+    if width is not None:
+        comp["width"] = width
+    if height is not None:
+        comp["height"] = height
+    return comp
+
+
+def tooltip_wrap(child: dict, *, content: str) -> dict:
+    """Wrap a component with a hover tooltip.
+
+    Args:
+        child: The component dict to wrap
+        content: Tooltip text shown on hover
+    """
+    return {"type": "tooltip_wrap", "child": child, "content": content}
+
+
+# ── Tier C: Completeness Components ──────────────────────────────────
+
+
+def time_input(label: str, *, value: str | None = None) -> dict:
+    """A time picker input.
+
+    Args:
+        label: Input label
+        value: Default time as "HH:MM" string
+    """
+    comp: dict[str, Any] = {"type": "time_input", "label": label}
+    if value is not None:
+        comp["value"] = value
+    return comp
+
+
+def gallery(items: Sequence[dict]) -> dict:
+    """An image/media gallery grid.
+
+    Args:
+        items: List of ``{"src": str, "alt": str, "caption": str}``
+    """
+    return {"type": "gallery", "items": list(items)}
+
+
+def breadcrumb(items: Sequence[dict]) -> dict:
+    """A breadcrumb navigation trail.
+
+    Args:
+        items: List of ``{"label": str, "href": str|None}``
+    """
+    return {"type": "breadcrumb", "items": list(items)}
+
+
+def pagination(*, total: int, page: int = 1, per_page: int = 10) -> dict:
+    """Pagination controls.
+
+    Args:
+        total: Total number of items
+        page: Current page number (1-based)
+        per_page: Items per page
+    """
+    return {"type": "pagination", "total": total, "page": page, "per_page": per_page}
+
+
+def key_value_list(items: Sequence[dict], *, title: str | None = None) -> dict:
+    """A key-value display list.
+
+    Args:
+        items: List of ``{"label": str, "value": Any}``
+        title: Optional heading above the list
+    """
+    comp: dict[str, Any] = {"type": "key_value_list", "items": list(items)}
+    if title is not None:
+        comp["title"] = title
+    return comp
+
+
+def popover(trigger: dict, *, children: Sequence[dict]) -> dict:
+    """A popover overlay triggered by a component.
+
+    Args:
+        trigger: The component dict that triggers the popover
+        children: Content components inside the popover
+    """
+    return {"type": "popover", "trigger": trigger, "children": list(children)}

@@ -1,4 +1,4 @@
-"""Tests for all 36 UI component functions in praisonaiui.ui."""
+"""Tests for all 54 UI component functions in praisonaiui.ui."""
 
 from __future__ import annotations
 
@@ -45,6 +45,27 @@ from praisonaiui.ui import (
     spinner,
     avatar,
     callout,
+    # Tier A — must-have parity (6)
+    multiselect_input,
+    date_input,
+    color_picker_input,
+    audio_player,
+    video_player,
+    file_download,
+    # Tier B — high-value dashboard (6)
+    toast,
+    dialog,
+    caption,
+    html_embed,
+    skeleton,
+    tooltip_wrap,
+    # Tier C — completeness (6)
+    time_input,
+    gallery,
+    breadcrumb,
+    pagination,
+    key_value_list,
+    popover,
 )
 
 
@@ -482,6 +503,213 @@ class TestComposition:
             link("X", href="/"), button_group([]), stat_group([]),
             header("X"), markdown_text("X"), empty(), spinner(),
             avatar(), callout("X"),
+            # Tier A
+            multiselect_input("X", options=[]), date_input("X"),
+            color_picker_input("X"), audio_player("x.mp3"),
+            video_player("x.mp4"), file_download("X", href="/f"),
+            # Tier B
+            toast("X"), dialog("X", children=[]), caption("X"),
+            html_embed("<b>X</b>"), skeleton(), tooltip_wrap(text("X"), content="tip"),
+            # Tier C
+            time_input("X"), gallery([]), breadcrumb([]),
+            pagination(total=100), key_value_list([]), popover(text("X"), children=[]),
         ]
         for comp in components:
             assert "type" in comp, f"Missing 'type' key in {comp}"
+
+
+# ── Tier A: Must-Have Parity ─────────────────────────────────────────
+
+
+class TestMultiselectInput:
+    def test_defaults(self):
+        m = multiselect_input("Tags", options=["A", "B", "C"])
+        assert m["type"] == "multiselect_input"
+        assert m["options"] == ["A", "B", "C"]
+        assert m["value"] == []
+
+    def test_with_values(self):
+        m = multiselect_input("Tags", options=["A", "B"], value=["A"])
+        assert m["value"] == ["A"]
+
+
+class TestDateInput:
+    def test_no_default(self):
+        d = date_input("Birthday")
+        assert d == {"type": "date_input", "label": "Birthday"}
+        assert "value" not in d
+
+    def test_with_value(self):
+        d = date_input("Start", value="2026-01-15")
+        assert d["value"] == "2026-01-15"
+
+
+class TestColorPickerInput:
+    def test_default(self):
+        c = color_picker_input("Theme")
+        assert c == {"type": "color_picker_input", "label": "Theme", "value": "#000000"}
+
+    def test_custom(self):
+        c = color_picker_input("Accent", value="#ff5733")
+        assert c["value"] == "#ff5733"
+
+
+class TestAudioPlayer:
+    def test_basic(self):
+        a = audio_player("song.mp3")
+        assert a == {"type": "audio_player", "src": "song.mp3", "autoplay": False}
+
+    def test_autoplay(self):
+        a = audio_player("song.mp3", autoplay=True)
+        assert a["autoplay"] is True
+
+
+class TestVideoPlayer:
+    def test_basic(self):
+        v = video_player("clip.mp4")
+        assert v["type"] == "video_player"
+        assert v["src"] == "clip.mp4"
+        assert v["autoplay"] is False
+        assert "poster" not in v
+
+    def test_with_poster(self):
+        v = video_player("clip.mp4", poster="thumb.jpg")
+        assert v["poster"] == "thumb.jpg"
+
+
+class TestFileDownload:
+    def test_basic(self):
+        f = file_download("Download CSV", href="/data.csv")
+        assert f["type"] == "file_download"
+        assert f["label"] == "Download CSV"
+        assert f["href"] == "/data.csv"
+        assert "filename" not in f
+
+    def test_with_filename(self):
+        f = file_download("Get Report", href="/api/report", filename="report.pdf")
+        assert f["filename"] == "report.pdf"
+
+
+# ── Tier B: High-Value Dashboard ─────────────────────────────────────
+
+
+class TestToast:
+    def test_defaults(self):
+        t = toast("Saved!")
+        assert t == {"type": "toast", "message": "Saved!", "variant": "info", "duration": 3000}
+
+    def test_custom(self):
+        t = toast("Error!", variant="error", duration=5000)
+        assert t["variant"] == "error"
+        assert t["duration"] == 5000
+
+
+class TestDialog:
+    def test_basic(self):
+        d = dialog("Confirm", children=[text("Are you sure?")])
+        assert d["type"] == "dialog"
+        assert d["title"] == "Confirm"
+        assert len(d["children"]) == 1
+        assert "description" not in d
+
+    def test_with_description(self):
+        d = dialog("Settings", children=[], description="App configuration")
+        assert d["description"] == "App configuration"
+
+
+class TestCaption:
+    def test_basic(self):
+        c = caption("Updated 5 min ago")
+        assert c == {"type": "caption", "text": "Updated 5 min ago"}
+
+
+class TestHtmlEmbed:
+    def test_basic(self):
+        h = html_embed("<iframe src='x'></iframe>")
+        assert h == {"type": "html_embed", "content": "<iframe src='x'></iframe>"}
+
+
+class TestSkeleton:
+    def test_defaults(self):
+        s = skeleton()
+        assert s == {"type": "skeleton", "variant": "text"}
+        assert "width" not in s
+        assert "height" not in s
+
+    def test_custom(self):
+        s = skeleton(width="200px", height="20px", variant="card")
+        assert s["width"] == "200px"
+        assert s["height"] == "20px"
+        assert s["variant"] == "card"
+
+
+class TestTooltipWrap:
+    def test_basic(self):
+        t = tooltip_wrap(badge("?"), content="Help text")
+        assert t["type"] == "tooltip_wrap"
+        assert t["child"]["type"] == "badge"
+        assert t["content"] == "Help text"
+
+
+# ── Tier C: Completeness ─────────────────────────────────────────────
+
+
+class TestTimeInput:
+    def test_no_default(self):
+        t = time_input("Alarm")
+        assert t == {"type": "time_input", "label": "Alarm"}
+        assert "value" not in t
+
+    def test_with_value(self):
+        t = time_input("Meeting", value="14:30")
+        assert t["value"] == "14:30"
+
+
+class TestGallery:
+    def test_basic(self):
+        g = gallery([{"src": "a.jpg", "alt": "A"}, {"src": "b.jpg", "alt": "B"}])
+        assert g["type"] == "gallery"
+        assert len(g["items"]) == 2
+
+    def test_empty(self):
+        g = gallery([])
+        assert g["items"] == []
+
+
+class TestBreadcrumb:
+    def test_basic(self):
+        b = breadcrumb([{"label": "Home", "href": "/"}, {"label": "Settings", "href": None}])
+        assert b["type"] == "breadcrumb"
+        assert len(b["items"]) == 2
+        assert b["items"][1]["href"] is None
+
+
+class TestPagination:
+    def test_defaults(self):
+        p = pagination(total=100)
+        assert p == {"type": "pagination", "total": 100, "page": 1, "per_page": 10}
+
+    def test_custom(self):
+        p = pagination(total=500, page=3, per_page=25)
+        assert p["page"] == 3
+        assert p["per_page"] == 25
+
+
+class TestKeyValueList:
+    def test_without_title(self):
+        k = key_value_list([{"label": "Name", "value": "Alice"}])
+        assert k["type"] == "key_value_list"
+        assert len(k["items"]) == 1
+        assert "title" not in k
+
+    def test_with_title(self):
+        k = key_value_list([{"label": "CPU", "value": "72%"}], title="System Info")
+        assert k["title"] == "System Info"
+
+
+class TestPopover:
+    def test_basic(self):
+        p = popover(badge("?"), children=[text("Help content")])
+        assert p["type"] == "popover"
+        assert p["trigger"]["type"] == "badge"
+        assert len(p["children"]) == 1

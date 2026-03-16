@@ -45,6 +45,14 @@ def __getattr__(name: str):
         "container", "expander", "divider", "link", "button_group",
         "stat_group", "header", "markdown_text", "empty", "spinner",
         "avatar", "callout",
+        # Tier A — must-have parity
+        "multiselect_input", "date_input", "color_picker_input",
+        "audio_player", "video_player", "file_download",
+        # Tier B — high-value dashboard
+        "toast", "dialog", "caption", "html_embed", "skeleton", "tooltip_wrap",
+        # Tier C — completeness
+        "time_input", "gallery", "breadcrumb", "pagination",
+        "key_value_list", "popover",
     }
     if name in _callback_attrs:
         from praisonaiui import callbacks
@@ -184,4 +192,25 @@ __all__ = [
     "spinner",
     "avatar",
     "callout",
+    # Tier A — must-have parity
+    "multiselect_input",
+    "date_input",
+    "color_picker_input",
+    "audio_player",
+    "video_player",
+    "file_download",
+    # Tier B — high-value dashboard
+    "toast",
+    "dialog",
+    "caption",
+    "html_embed",
+    "skeleton",
+    "tooltip_wrap",
+    # Tier C — completeness
+    "time_input",
+    "gallery",
+    "breadcrumb",
+    "pagination",
+    "key_value_list",
+    "popover",
 ]

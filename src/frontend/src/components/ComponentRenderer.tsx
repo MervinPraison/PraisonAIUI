@@ -15,6 +15,12 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+import { Skeleton as ShadcnSkeleton } from '@/components/ui/skeleton'
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb'
+import { Pagination as ShadcnPagination, PaginationContent, PaginationItem, PaginationLink, PaginationPrevious, PaginationNext, PaginationEllipsis } from '@/components/ui/pagination'
 import {
     Table,
     TableHeader,
@@ -31,6 +37,38 @@ export interface ComponentDict {
 
 export interface ComponentRendererProps {
     components: ComponentDict[]
+}
+
+/** Helper: normalize option that may be a plain string or {label, value} object */
+function normalizeOption(opt: unknown): { label: string; value: string } {
+    if (typeof opt === 'string') return { label: opt, value: opt }
+    if (typeof opt === 'object' && opt !== null) {
+        const o = opt as Record<string, unknown>
+        return { label: String(o.label ?? o.value ?? ''), value: String(o.value ?? o.label ?? '') }
+    }
+    return { label: String(opt), value: String(opt) }
+}
+
+/** Slider extracted as a proper React component to avoid hooks-in-switch violation */
+function SliderInputComponent({ component, keyProp }: { component: ComponentDict; keyProp: string | number }) {
+    const label = component.label as string | undefined
+    const value = (component.value as number) ?? 0
+    const min = (component.min_val as number) ?? 0
+    const max = (component.max_val as number) ?? 100
+    const step = (component.step as number) ?? 1
+    const [sliderVal, setSliderVal] = useState(value)
+    return (
+        <div key={keyProp} className="space-y-2">
+            {label && <Label>{label} <span className="text-muted-foreground">({sliderVal})</span></Label>}
+            <Slider
+                defaultValue={[value]}
+                min={min}
+                max={max}
+                step={step}
+                onValueChange={(v) => setSliderVal(v[0])}
+            />
+        </div>
+    )
 }
 
 function renderComponent(component: ComponentDict, index: number): React.ReactNode {
@@ -136,18 +174,25 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
         // ── Tier 1 ──────────────────────────────────────────────────
 
         case 'metric': {
-            const { label, value, delta, delta_color } = component as ComponentDict & {
-                label?: string
-                value?: string | number
-                delta?: string | number
-                delta_color?: 'green' | 'red' | 'off' | string
+            const label = component.label as string | undefined
+            const value = component.value
+            const delta = component.delta as string | number | undefined
+            const deltaColor = component.delta_color as string | undefined
+            // Auto-detect delta direction from value
+            let deltaClass = 'text-muted-foreground'
+            if (deltaColor === 'inverse') {
+                // inverse: positive = red, negative = green
+                const str = String(delta ?? '')
+                if (str.startsWith('+') || str.startsWith('↑')) deltaClass = 'text-red-500'
+                else if (str.startsWith('-') || str.startsWith('↓')) deltaClass = 'text-green-500'
+            } else if (deltaColor === 'off') {
+                deltaClass = 'text-muted-foreground'
+            } else {
+                // "normal" (default): auto-detect from delta string
+                const str = String(delta ?? '')
+                if (str.startsWith('+') || str.startsWith('↑')) deltaClass = 'text-green-500'
+                else if (str.startsWith('-') || str.startsWith('↓')) deltaClass = 'text-red-500'
             }
-            const colorMap: Record<string, string> = {
-                green: 'text-green-500',
-                red: 'text-red-500',
-                off: 'text-gray-400',
-            }
-            const deltaClass = colorMap[delta_color ?? ''] ?? 'text-gray-400'
             return (
                 <Card key={key}>
                     <CardHeader>
@@ -180,11 +225,9 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
         }
 
         case 'alert': {
-            const { variant, title, content } = component as ComponentDict & {
-                variant?: 'info' | 'success' | 'warning' | 'error'
-                title?: string
-                content?: string
-            }
+            const variant = component.variant as string | undefined
+            const title = component.title as string | undefined
+            const message = (component.message ?? component.content) as string | undefined
             const bgMap: Record<string, string> = {
                 info: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
                 success: 'bg-green-500/10 border-green-500/30 text-green-400',
@@ -195,17 +238,15 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
             return (
                 <div key={key} className={`rounded-lg border p-4 ${classes}`}>
                     {title && <div className="font-bold mb-1">{title}</div>}
-                    {content && <div>{content}</div>}
+                    {message && <div>{message}</div>}
                 </div>
             )
         }
 
         case 'badge': {
-            const { label, variant } = component as ComponentDict & {
-                label?: string
-                variant?: 'default' | 'secondary' | 'destructive' | 'outline'
-            }
-            return <Badge key={key} variant={variant}>{label ?? ''}</Badge>
+            const badgeText = (component.text ?? component.label) as string | undefined
+            const variant = component.variant as 'default' | 'secondary' | 'destructive' | 'outline' | undefined
+            return <Badge key={key} variant={variant}>{badgeText ?? ''}</Badge>
         }
 
         case 'separator': {
@@ -236,14 +277,14 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
 
         case 'accordion': {
             const { items } = component as ComponentDict & {
-                items?: { label: string; content?: string; children?: ComponentDict[] }[]
+                items?: { title?: string; label?: string; content?: string; children?: ComponentDict[] }[]
             }
             const accItems = items ?? []
             return (
                 <Accordion key={key} type="multiple">
                     {accItems.map((item, i) => (
                         <AccordionItem key={i} value={`item-${i}`}>
-                            <AccordionTrigger>{item.label}</AccordionTrigger>
+                            <AccordionTrigger>{item.title ?? item.label ?? ''}</AccordionTrigger>
                             <AccordionContent>
                                 {item.content && <p>{item.content}</p>}
                                 {item.children && item.children.map((c, ci) => renderComponent(c, ci))}
@@ -255,15 +296,18 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
         }
 
         case 'image_display': {
-            const { src, alt, caption, className } = component as ComponentDict & {
-                src?: string
-                alt?: string
-                caption?: string
-                className?: string
-            }
+            const src = component.src as string | undefined
+            const alt = component.alt as string | undefined
+            const caption = component.caption as string | undefined
+            const width = component.width as string | undefined
             return (
-                <figure key={key} className={className}>
-                    <img src={src} alt={alt ?? ''} className="rounded-lg max-w-full" />
+                <figure key={key}>
+                    <img
+                        src={src}
+                        alt={alt ?? ''}
+                        className="rounded-lg max-w-full"
+                        style={width ? { width } : undefined}
+                    />
                     {caption && <figcaption className="text-sm text-muted-foreground mt-2">{caption}</figcaption>}
                 </figure>
             )
@@ -295,29 +339,25 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
         // ── Tier 2: Form Inputs (display-only) ─────────────────────
 
         case 'text_input': {
-            const { label, placeholder, value, disabled } = component as ComponentDict & {
+            const { label, placeholder, value } = component as ComponentDict & {
                 label?: string
                 placeholder?: string
                 value?: string
-                disabled?: boolean
             }
             return (
                 <div key={key} className="space-y-2">
                     {label && <Label>{label}</Label>}
-                    <Input placeholder={placeholder} defaultValue={value} disabled={disabled} />
+                    <Input placeholder={placeholder} defaultValue={value} />
                 </div>
             )
         }
 
         case 'number_input': {
-            const { label, value, min, max, step, disabled } = component as ComponentDict & {
-                label?: string
-                value?: number
-                min?: number
-                max?: number
-                step?: number
-                disabled?: boolean
-            }
+            const label = component.label as string | undefined
+            const value = component.value as number | undefined
+            const min = (component.min_val ?? component.min) as number | undefined
+            const max = (component.max_val ?? component.max) as number | undefined
+            const step = component.step as number | undefined
             return (
                 <div key={key} className="space-y-2">
                     {label && <Label>{label}</Label>}
@@ -327,27 +367,22 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
                         min={min}
                         max={max}
                         step={step}
-                        disabled={disabled}
                     />
                 </div>
             )
         }
 
         case 'select_input': {
-            const { label, options, value, placeholder, disabled } = component as ComponentDict & {
-                label?: string
-                options?: { label: string; value: string }[]
-                value?: string
-                placeholder?: string
-                disabled?: boolean
-            }
-            const opts = options ?? []
+            const label = component.label as string | undefined
+            const rawOptions = (component.options ?? []) as unknown[]
+            const value = component.value as string | undefined
+            const opts = rawOptions.map(normalizeOption)
             return (
                 <div key={key} className="space-y-2">
                     {label && <Label>{label}</Label>}
-                    <Select defaultValue={value} disabled={disabled}>
+                    <Select defaultValue={value || undefined}>
                         <SelectTrigger>
-                            <SelectValue placeholder={placeholder ?? 'Select...'} />
+                            <SelectValue placeholder="Select..." />
                         </SelectTrigger>
                         <SelectContent>
                             {opts.map((opt) => (
@@ -360,70 +395,44 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
         }
 
         case 'slider_input': {
-            const { label, value, min, max, step, disabled } = component as ComponentDict & {
-                label?: string
-                value?: number
-                min?: number
-                max?: number
-                step?: number
-                disabled?: boolean
-            }
-            const [sliderVal, setSliderVal] = useState(value ?? 0)
-            return (
-                <div key={key} className="space-y-2">
-                    {label && <Label>{label} <span className="text-muted-foreground">({sliderVal})</span></Label>}
-                    <Slider
-                        defaultValue={[value ?? 0]}
-                        min={min}
-                        max={max}
-                        step={step}
-                        disabled={disabled}
-                        onValueChange={(v) => setSliderVal(v[0])}
-                    />
-                </div>
-            )
+            return <SliderInputComponent key={key} component={component} keyProp={key} />
         }
 
         case 'checkbox_input': {
-            const { label, checked, disabled } = component as ComponentDict & {
+            const { label, checked } = component as ComponentDict & {
                 label?: string
                 checked?: boolean
-                disabled?: boolean
             }
             return (
                 <div key={key} className="flex items-center space-x-2">
-                    <Checkbox defaultChecked={checked} disabled={disabled} />
+                    <Checkbox defaultChecked={checked} />
                     {label && <Label>{label}</Label>}
                 </div>
             )
         }
 
         case 'switch_input': {
-            const { label, checked, disabled } = component as ComponentDict & {
+            const { label, checked } = component as ComponentDict & {
                 label?: string
                 checked?: boolean
-                disabled?: boolean
             }
             return (
                 <div key={key} className="flex items-center space-x-2">
-                    <Switch defaultChecked={checked} disabled={disabled} />
+                    <Switch defaultChecked={checked} />
                     {label && <Label>{label}</Label>}
                 </div>
             )
         }
 
         case 'radio_input': {
-            const { label, options, value, disabled } = component as ComponentDict & {
-                label?: string
-                options?: { label: string; value: string }[]
-                value?: string
-                disabled?: boolean
-            }
-            const opts = options ?? []
+            const label = component.label as string | undefined
+            const rawOptions = (component.options ?? []) as unknown[]
+            const value = component.value as string | undefined
+            const opts = rawOptions.map(normalizeOption)
             return (
                 <div key={key} className="space-y-2">
                     {label && <Label>{label}</Label>}
-                    <RadioGroup defaultValue={value} disabled={disabled}>
+                    <RadioGroup defaultValue={value || undefined}>
                         {opts.map((opt) => (
                             <div key={opt.value} className="flex items-center space-x-2">
                                 <RadioGroupItem value={opt.value} />
@@ -436,22 +445,20 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
         }
 
         case 'textarea_input': {
-            const { label, value, placeholder, rows, disabled } = component as ComponentDict & {
+            const { label, value, placeholder, rows } = component as ComponentDict & {
                 label?: string
                 value?: string
                 placeholder?: string
                 rows?: number
-                disabled?: boolean
             }
             return (
                 <div key={key} className="space-y-2">
                     {label && <Label>{label}</Label>}
                     <textarea
-                        className="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                        className="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         defaultValue={value}
                         placeholder={placeholder}
-                        rows={rows ?? 3}
-                        disabled={disabled}
+                        rows={rows ?? 4}
                     />
                 </div>
             )
@@ -505,11 +512,9 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
         }
 
         case 'link': {
-            const { href, label, external } = component as ComponentDict & {
-                href?: string
-                label?: string
-                external?: boolean
-            }
+            const href = component.href as string | undefined
+            const linkText = (component.text ?? component.label) as string | undefined
+            const external = component.external as boolean | undefined
             return (
                 <a
                     key={key}
@@ -518,7 +523,7 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
                     rel={external ? 'noopener noreferrer' : undefined}
                     className="text-primary underline underline-offset-4 hover:text-primary/80"
                 >
-                    {label ?? href}
+                    {linkText ?? href}
                 </a>
             )
         }
@@ -538,19 +543,16 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
         }
 
         case 'stat_group': {
-            const { items } = component as ComponentDict & {
-                items?: { label?: string; value?: string | number; delta?: string | number; delta_color?: string }[]
-            }
-            const stats = items ?? []
+            const rawStats = (component.stats ?? component.items) as
+                { label?: string; value?: string | number; delta?: string | number; delta_color?: string }[] | undefined
+            const stats = rawStats ?? []
             return (
                 <div key={key} className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(stats.length, 4)}, 1fr)` }}>
                     {stats.map((stat, i) => {
-                        const colorMap: Record<string, string> = {
-                            green: 'text-green-500',
-                            red: 'text-red-500',
-                            off: 'text-gray-400',
-                        }
-                        const deltaClass = colorMap[stat.delta_color ?? ''] ?? 'text-gray-400'
+                        const str = String(stat.delta ?? '')
+                        let deltaClass = 'text-muted-foreground'
+                        if (str.startsWith('+') || str.startsWith('↑')) deltaClass = 'text-green-500'
+                        else if (str.startsWith('-') || str.startsWith('↓')) deltaClass = 'text-red-500'
                         return (
                             <Card key={i}>
                                 <CardHeader>
@@ -570,11 +572,9 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
         }
 
         case 'header': {
-            const { content, level } = component as ComponentDict & {
-                content?: string
-                level?: 1 | 2 | 3 | 4 | 5 | 6
-            }
-            const Tag = (`h${level ?? 2}`) as keyof React.JSX.IntrinsicElements
+            const headerText = (component.text ?? component.content) as string | undefined
+            const level = (component.level as number) ?? 1
+            const Tag = (`h${Math.min(6, Math.max(1, level))}`) as keyof React.JSX.IntrinsicElements
             const sizeMap: Record<number, string> = {
                 1: 'text-3xl font-bold',
                 2: 'text-2xl font-bold',
@@ -583,7 +583,7 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
                 5: 'text-base font-medium',
                 6: 'text-sm font-medium',
             }
-            return <Tag key={key} className={sizeMap[level ?? 2]}>{content ?? ''}</Tag>
+            return <Tag key={key} className={sizeMap[level] ?? sizeMap[2]}>{headerText ?? ''}</Tag>
         }
 
         case 'markdown_text': {
@@ -598,10 +598,10 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
         }
 
         case 'empty': {
-            const { content } = component as ComponentDict & { content?: string }
+            const emptyText = (component.text ?? component.content) as string | undefined
             return (
                 <div key={key} className="flex items-center justify-center py-8 text-muted-foreground">
-                    {content ?? 'No data'}
+                    {emptyText ?? 'No data'}
                 </div>
             )
         }
@@ -617,15 +617,15 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
         }
 
         case 'avatar': {
-            const { src, alt, fallback } = component as ComponentDict & {
-                src?: string
-                alt?: string
-                fallback?: string
-            }
+            const src = component.src as string | undefined
+            const name = component.name as string | undefined
+            const fallback = component.fallback as string | undefined
+            const altText = name ?? ''
+            const fallbackText = fallback ?? (name ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '?')
             return (
                 <Avatar key={key}>
-                    {src && <AvatarImage src={src} alt={alt} />}
-                    <AvatarFallback>{fallback ?? (alt ? alt.charAt(0).toUpperCase() : '?')}</AvatarFallback>
+                    {src && <AvatarImage src={src} alt={altText} />}
+                    <AvatarFallback>{fallbackText}</AvatarFallback>
                 </Avatar>
             )
         }
@@ -648,6 +648,310 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
                     {title && <div className="font-semibold mb-1">{title}</div>}
                     {content && <div className="text-sm">{content}</div>}
                 </div>
+            )
+        }
+
+        // ── Tier A ──────────────────────────────────────────────────
+
+        case 'multiselect_input': {
+            const label = component.label as string | undefined
+            const rawOptions = (component.options ?? []) as unknown[]
+            const value = (component.value ?? []) as string[]
+            const opts = rawOptions.map(normalizeOption)
+            return (
+                <div key={key} className="space-y-2">
+                    {label && <Label>{label}</Label>}
+                    <div className="space-y-2">
+                        {opts.map((opt) => (
+                            <div key={opt.value} className="flex items-center space-x-2">
+                                <Checkbox defaultChecked={value.includes(opt.value)} />
+                                <Label>{opt.label}</Label>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )
+        }
+
+        case 'date_input': {
+            const label = component.label as string | undefined
+            const value = component.value as string | undefined
+            return (
+                <div key={key} className="space-y-2">
+                    {label && <Label>{label}</Label>}
+                    <Input type="date" defaultValue={value} />
+                </div>
+            )
+        }
+
+        case 'color_picker_input': {
+            const label = component.label as string | undefined
+            const value = (component.value as string) ?? '#000000'
+            return (
+                <div key={key} className="space-y-2">
+                    {label && <Label>{label}</Label>}
+                    <div className="flex items-center gap-3">
+                        <input type="color" defaultValue={value} className="h-10 w-10 rounded border cursor-pointer" />
+                        <span className="text-sm text-muted-foreground font-mono">{value}</span>
+                    </div>
+                </div>
+            )
+        }
+
+        case 'audio_player': {
+            const src = component.src as string | undefined
+            const autoplay = component.autoplay as boolean | undefined
+            return (
+                <audio key={key} controls autoPlay={autoplay} src={src} className="w-full" />
+            )
+        }
+
+        case 'video_player': {
+            const src = component.src as string | undefined
+            const autoplay = component.autoplay as boolean | undefined
+            const poster = component.poster as string | undefined
+            return (
+                <video key={key} controls autoPlay={autoplay} src={src} poster={poster} className="w-full rounded-lg" />
+            )
+        }
+
+        case 'file_download': {
+            const label = (component.label ?? 'Download') as string
+            const href = component.href as string | undefined
+            const filename = component.filename as string | undefined
+            return (
+                <Button key={key} asChild>
+                    <a href={href} download={filename ?? true}>{label}</a>
+                </Button>
+            )
+        }
+
+        // ── Tier B ──────────────────────────────────────────────────
+
+        case 'toast': {
+            const message = (component.message ?? component.content) as string | undefined
+            const variant = component.variant as string | undefined
+            const bgMap: Record<string, string> = {
+                info: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
+                success: 'bg-green-500/10 border-green-500/30 text-green-400',
+                warning: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
+                error: 'bg-red-500/10 border-red-500/30 text-red-400',
+            }
+            const classes = bgMap[variant ?? 'info'] ?? bgMap.info
+            return (
+                <div key={key} className={`rounded-lg border p-3 text-sm ${classes}`}>
+                    {message ?? ''}
+                </div>
+            )
+        }
+
+        case 'dialog': {
+            const title = component.title as string | undefined
+            const description = component.description as string | undefined
+            const children = component.children as ComponentDict[] | undefined
+            return (
+                <Dialog key={key}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline">Open {title ?? 'Dialog'}</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            {title && <DialogTitle>{title}</DialogTitle>}
+                            {description && <DialogDescription>{description}</DialogDescription>}
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            {children && children.map((c, i) => renderComponent(c, i))}
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            )
+        }
+
+        case 'caption': {
+            const text = (component.text ?? component.content) as string | undefined
+            return (
+                <p key={key} className="text-xs text-muted-foreground">{text ?? ''}</p>
+            )
+        }
+
+        case 'html_embed': {
+            const content = (component.content ?? component.html) as string | undefined
+            return (
+                <div key={key} dangerouslySetInnerHTML={{ __html: content ?? '' }} />
+            )
+        }
+
+        case 'skeleton': {
+            const variant = (component.variant as string) ?? 'text'
+            const width = component.width as string | undefined
+            const height = component.height as string | undefined
+            const variantMap: Record<string, string> = {
+                text: 'h-4 w-full',
+                card: 'h-32 w-full rounded-lg',
+                avatar: 'h-10 w-10 rounded-full',
+            }
+            const baseClass = variantMap[variant] ?? variantMap.text
+            return (
+                <ShadcnSkeleton
+                    key={key}
+                    className={baseClass}
+                    style={{
+                        ...(width ? { width } : {}),
+                        ...(height ? { height } : {}),
+                    }}
+                />
+            )
+        }
+
+        case 'tooltip_wrap': {
+            const child = component.child as ComponentDict | undefined
+            const content = component.content as string | undefined
+            return (
+                <TooltipProvider key={key}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span>{child ? renderComponent(child, 0) : null}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>{content ?? ''}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            )
+        }
+
+        // ── Tier C ──────────────────────────────────────────────────
+
+        case 'time_input': {
+            const label = component.label as string | undefined
+            const value = component.value as string | undefined
+            return (
+                <div key={key} className="space-y-2">
+                    {label && <Label>{label}</Label>}
+                    <Input type="time" defaultValue={value} />
+                </div>
+            )
+        }
+
+        case 'gallery': {
+            const items = (component.items ?? []) as { src?: string; alt?: string; caption?: string }[]
+            return (
+                <div key={key} className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
+                    {items.map((item, i) => (
+                        <figure key={i} className="space-y-1">
+                            <img src={item.src} alt={item.alt ?? ''} className="rounded-lg w-full h-auto object-cover" />
+                            {item.caption && <figcaption className="text-xs text-muted-foreground">{item.caption}</figcaption>}
+                        </figure>
+                    ))}
+                </div>
+            )
+        }
+
+        case 'breadcrumb': {
+            const items = (component.items ?? []) as { label: string; href?: string }[]
+            return (
+                <Breadcrumb key={key}>
+                    <BreadcrumbList>
+                        {items.map((item, i) => {
+                            const isLast = i === items.length - 1
+                            return (
+                                <React.Fragment key={i}>
+                                    <BreadcrumbItem>
+                                        {isLast || !item.href ? (
+                                            <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                                        ) : (
+                                            <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>
+                                        )}
+                                    </BreadcrumbItem>
+                                    {!isLast && <BreadcrumbSeparator />}
+                                </React.Fragment>
+                            )
+                        })}
+                    </BreadcrumbList>
+                </Breadcrumb>
+            )
+        }
+
+        case 'pagination': {
+            const total = (component.total as number) ?? 0
+            const page = (component.page as number) ?? 1
+            const perPage = (component.per_page as number) ?? 10
+            const totalPages = Math.max(1, Math.ceil(total / perPage))
+
+            // Calculate visible page numbers (up to 5)
+            let startPage = Math.max(1, page - 2)
+            const endPage = Math.min(totalPages, startPage + 4)
+            startPage = Math.max(1, endPage - 4)
+            const pages: number[] = []
+            for (let p = startPage; p <= endPage; p++) pages.push(p)
+
+            return (
+                <ShadcnPagination key={key}>
+                    <PaginationContent>
+                        <PaginationItem>
+                            <PaginationPrevious href="#" />
+                        </PaginationItem>
+                        {startPage > 1 && (
+                            <PaginationItem>
+                                <PaginationEllipsis />
+                            </PaginationItem>
+                        )}
+                        {pages.map((p) => (
+                            <PaginationItem key={p}>
+                                <PaginationLink href="#" isActive={p === page}>{p}</PaginationLink>
+                            </PaginationItem>
+                        ))}
+                        {endPage < totalPages && (
+                            <PaginationItem>
+                                <PaginationEllipsis />
+                            </PaginationItem>
+                        )}
+                        <PaginationItem>
+                            <PaginationNext href="#" />
+                        </PaginationItem>
+                    </PaginationContent>
+                </ShadcnPagination>
+            )
+        }
+
+        case 'key_value_list': {
+            const items = (component.items ?? []) as { label: string; value: string | number }[]
+            const title = component.title as string | undefined
+            return (
+                <Card key={key}>
+                    {title && (
+                        <CardHeader>
+                            <CardTitle>{title}</CardTitle>
+                        </CardHeader>
+                    )}
+                    <CardContent>
+                        <div className="space-y-2">
+                            {items.map((item, i) => (
+                                <div key={i} className="flex justify-between items-center py-1">
+                                    <span className="text-sm text-muted-foreground">{item.label}</span>
+                                    <span className="text-sm font-medium">{String(item.value ?? '')}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            )
+        }
+
+        case 'popover': {
+            const trigger = component.trigger as ComponentDict | undefined
+            const children = component.children as ComponentDict[] | undefined
+            return (
+                <Popover key={key}>
+                    <PopoverTrigger asChild>
+                        <span>{trigger ? renderComponent(trigger, 0) : <Button variant="outline">Open</Button>}</span>
+                    </PopoverTrigger>
+                    <PopoverContent>
+                        <div className="space-y-4">
+                            {children && children.map((c, i) => renderComponent(c, i))}
+                        </div>
+                    </PopoverContent>
+                </Popover>
             )
         }
 

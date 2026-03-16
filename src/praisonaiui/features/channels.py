@@ -57,6 +57,7 @@ class ChannelProtocol(ABC):
 # Supported channel platforms
 SUPPORTED_PLATFORMS = [
     "discord", "slack", "telegram", "whatsapp",
+    "email", "agentmail",
     "imessage", "signal", "googlechat", "nostr",
 ]
 
@@ -214,9 +215,16 @@ class ChannelsFeature(BaseFeatureProtocol):
         """
         platform = entry["platform"]
         config = entry.get("config", {})
-        token = config.get("bot_token", "")
+        # Platform-aware token resolution:
+        # email/agentmail use api_key or dedicated env vars, not bot_token
+        if platform == "agentmail":
+            token = config.get("bot_token") or config.get("api_key", "") or os.environ.get("AGENTMAIL_API_KEY", "")
+        elif platform == "email":
+            token = config.get("bot_token") or config.get("app_password", "") or os.environ.get("EMAIL_APP_PASSWORD", "")
+        else:
+            token = config.get("bot_token", "")
         if not token:
-            return "No bot_token in channel config"
+            return f"No token in channel config or environment for {platform}"
         # Slack Socket Mode requires an app_token (xapp-...)
         if platform == "slack":
             if not self._resolve_slack_app_token(config):
@@ -262,6 +270,16 @@ class ChannelsFeature(BaseFeatureProtocol):
                 if platform == "whatsapp":
                     for k in ("phone_number_id", "verify_token", "mode", "webhook_port"):
                         ch_cfg[k] = config.get(k, "")
+                if platform == "email":
+                    for k in ("email_address", "imap_server", "smtp_server", "imap_port", "smtp_port"):
+                        val = config.get(k) or os.environ.get(f"EMAIL_{k.upper()}", "")
+                        if val:
+                            ch_cfg[k] = val
+                if platform == "agentmail":
+                    for k in ("inbox_id", "domain"):
+                        val = config.get(k) or os.environ.get(f"AGENTMAIL_{k.upper()}", "")
+                        if val:
+                            ch_cfg[k] = val
                 # Use first agent registered in gateway, or our fresh one
                 gw_agents = getattr(gw, "_agents", {})
                 gw_agent = list(gw_agents.values())[0] if gw_agents else agent
@@ -333,6 +351,12 @@ class ChannelsFeature(BaseFeatureProtocol):
                 "praisonai.bots.whatsapp.WhatsAppBot",
                 "praisonaiagents.bots.whatsapp.WhatsAppBot",
             ],
+            "email": [
+                "praisonai.bots.email.EmailBot",
+            ],
+            "agentmail": [
+                "praisonai.bots.agentmail.AgentMailBot",
+            ],
         }
         paths = bot_classes.get(platform, [])
         for fqn in paths:
@@ -347,6 +371,16 @@ class ChannelsFeature(BaseFeatureProtocol):
                     kwargs["agent"] = agent
                 if platform == "slack":
                     kwargs["app_token"] = ChannelsFeature._resolve_slack_app_token(config)
+                if platform == "email":
+                    for k in ("email_address", "imap_server", "smtp_server"):
+                        val = config.get(k) or os.environ.get(f"EMAIL_{k.upper()}", "")
+                        if val:
+                            kwargs[k] = val
+                if platform == "agentmail":
+                    for k in ("inbox_id", "domain"):
+                        val = config.get(k) or os.environ.get(f"AGENTMAIL_{k.upper()}", "")
+                        if val:
+                            kwargs[k] = val
                 bot = cls(**kwargs)
                 logger.info(f"Created {platform} bot via {fqn}")
                 return bot
@@ -388,7 +422,8 @@ class ChannelsFeature(BaseFeatureProtocol):
         # ── Platform icons for the Chat UI ───────────────────────────
         _PLATFORM_ICONS = {
             "slack": "💬", "discord": "🎮", "telegram": "✈️",
-            "whatsapp": "📱", "imessage": "🍎", "signal": "🔒",
+            "whatsapp": "📱", "email": "📧", "agentmail": "📩",
+            "imessage": "🍎", "signal": "🔒",
             "googlechat": "💚", "nostr": "🟣",
         }
         icon = _PLATFORM_ICONS.get(platform, "📨")
