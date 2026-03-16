@@ -95,16 +95,19 @@ Pages are grouped in the sidebar by the `group` parameter:
 
 ## Component API
 
-Build dashboard UIs entirely from Python — no HTML needed.
+Build dashboard UIs entirely from Python — no HTML needed. **54 components** are available across 7 categories.
 
-### Cards
+> See the full [Component API Reference](../api/components.md) for all components and parameters.
 
-Metric/stat cards for KPIs:
+### Cards & Metrics
 
 ```python
+# Simple cards
 aiui.card("Total Users", value=142, footer="+12% this week")
-aiui.card("Revenue", value="$1,500")
-aiui.card("Status", value="✓ Healthy")
+
+# Metric cards with delta indicators
+aiui.metric("Requests", value="12.3k", delta="+15%")
+aiui.metric("Errors", value=23, delta="+3", delta_color="inverse")
 ```
 
 ### Columns
@@ -133,17 +136,50 @@ aiui.table(
 )
 ```
 
-### Text
+### Tabs & Accordion
 
-Simple text blocks:
+Organize content in tabs or collapsible sections:
 
 ```python
-aiui.text("System metrics refresh every 30 seconds.")
+aiui.tabs([
+    {"label": "Overview", "children": [aiui.text("Tab 1")]},
+    {"label": "Details",  "children": [aiui.table(headers=["K","V"], rows=[["a","b"]])]},
+])
+
+aiui.accordion([
+    {"title": "FAQ", "content": "Answer here"},
+])
+```
+
+### Alerts & Badges
+
+```python
+aiui.alert("Deploy complete!", variant="success", title="Done")
+aiui.badge("New")
+aiui.progress_bar("Upload", value=73)
+```
+
+### Text & Code
+
+```python
+aiui.text("Simple text block.")
+aiui.markdown_text("**Bold** and `code`.")
+aiui.code_block("print('hello')", language="python")
+aiui.json_view({"key": "value"})
+```
+
+### Form Inputs
+
+```python
+aiui.text_input("Name", placeholder="Enter name")
+aiui.select_input("Country", options=["USA", "UK", "Canada"])
+aiui.slider_input("Volume", value=65, min_val=0, max_val=100)
+aiui.checkbox_input("I agree", checked=True)
+aiui.switch_input("Enable notifications")
+aiui.radio_input("Language", options=["Python", "JS", "Go"])
 ```
 
 ### Charts
-
-Chart placeholders (renders a titled container):
 
 ```python
 aiui.chart("Revenue Over Time", data=[
@@ -165,6 +201,7 @@ aiui.layout([
 ```
 
 The `layout()` function adds the `_components` key that tells the frontend to render structured components instead of raw JSON.
+
 
 ## Built-in Pages
 
