@@ -590,7 +590,16 @@ async def _chat_history(request: Request) -> JSONResponse:
     else:
         messages = messages[-limit:]
 
-    return JSONResponse({"messages": messages, "session_id": session_id})
+    # Include session-level metadata (platform, icon) for channel sessions
+    result: dict = {"messages": messages, "session_id": session_id}
+    session = await _datastore.get_session(session_id)
+    if session:
+        if session.get("platform"):
+            result["platform"] = session["platform"]
+        if session.get("icon"):
+            result["icon"] = session["icon"]
+
+    return JSONResponse(result)
 
 
 async def _chat_abort(request: Request) -> JSONResponse:

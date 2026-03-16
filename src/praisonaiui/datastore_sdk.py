@@ -99,13 +99,20 @@ class SDKFileDataStore(BaseDataStore):
         session_data = await asyncio.to_thread(self._store.get_session, session_id)
         title = self._extract_title(session_data)
         messages = self._session_data_to_messages(session_data)
-        return {
+        result = {
             "id": session_id,
             "title": title,
             "created_at": session_data.created_at,
             "updated_at": session_data.updated_at,
             "messages": messages,
         }
+        # Include platform metadata if present
+        meta = self._extract_session_meta(session_data)
+        if meta.get("platform"):
+            result["platform"] = meta["platform"]
+        if meta.get("icon"):
+            result["icon"] = meta["icon"]
+        return result
 
     async def create_session(self, session_id: Optional[str] = None) -> dict[str, Any]:
         import uuid as _uuid
@@ -206,6 +213,17 @@ class SDKFileDataStore(BaseDataStore):
             if meta.get(_META_KEY):
                 return meta.get(_TITLE_KEY, "New conversation")
         return "New conversation"
+
+    @staticmethod
+    def _extract_session_meta(session_data: Any) -> dict:
+        """Extract all sentinel meta fields from a SessionData object."""
+        if session_data is None:
+            return {}
+        for msg in session_data.messages:
+            meta = msg.metadata or {}
+            if meta.get(_META_KEY):
+                return meta
+        return {}
 
     @staticmethod
     def _extract_title_from_data(data: dict) -> str:
