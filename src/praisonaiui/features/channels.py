@@ -428,6 +428,13 @@ class ChannelsFeature(BaseFeatureProtocol):
                             existing = await _datastore.get_session(session_id)
                             if existing is None:
                                 await _datastore.create_session(session_id)
+                                # Store platform metadata for sidebar display
+                                await _datastore.update_session(
+                                    session_id,
+                                    platform=platform,
+                                    icon=icon,
+                                    title=f"{icon} {platform.capitalize()}",
+                                )
                             await _datastore.add_message(session_id, {
                                 "role": "user",
                                 "content": f"[{sender_name}] {content}" if sender_name else content,
@@ -443,19 +450,206 @@ class ChannelsFeature(BaseFeatureProtocol):
                 except Exception as e:
                     logger.debug(f"Chat bridge incoming error: {e}")
 
-        # ── 2. Wrap _session.chat() to capture agent responses ────────
+        # ── 2. Wrap _session.chat() to capture agent responses + steps ─
         if hasattr(bot, "_session") and hasattr(bot._session, "chat"):
             _original_chat = bot._session.chat
 
             async def _wrapped_chat(agent: Any, user_id: str, text: str) -> str:
-                """Wrap agent chat to broadcast responses to Chat UI."""
-                response = await _original_chat(agent, user_id, text)
+                """Wrap agent chat to broadcast responses AND intermediate
+                tool/step events to the Chat UI.
 
-                # Fire-and-forget broadcast of the agent response
+                Hooks into the agent's StreamEventEmitter (same pattern as
+                PraisonAIProvider._run_direct_mode) to capture tool_call,
+                reasoning, and content events during execution.
+                """
+                from .chat import get_chat_manager, _enrich_tool_payload
+                mgr = get_chat_manager()
+                _loop = asyncio.get_running_loop()
+
+                # ── Streaming bridge: capture events during agent.chat() ──
+                _stream_callback = None
+                _event_queue: asyncio.Queue = asyncio.Queue()
+                _tool_step = 0
+                _seen_started: set = set()
+                _seen_completed: set = set()
+                _collected_tool_calls: dict = {}
+
+                try:
+                    from praisonaiagents.streaming import StreamEventType as SET
+
+                    def _on_stream_event(stream_event):
+                        """Sync callback → queue (thread-safe)."""
+                        try:
+                            _loop.call_soon_threadsafe(
+                                _event_queue.put_nowait, stream_event
+                            )
+                        except Exception:
+                            pass
+
+                    if hasattr(agent, "stream_emitter"):
+                        agent.stream_emitter.add_callback(_on_stream_event)
+                        _stream_callback = _on_stream_event
+                except (ImportError, AttributeError):
+                    pass
+
+                # ── Drain task: process events while agent.chat() runs ────
+                async def _drain_events():
+                    nonlocal _tool_step
+                    try:
+                        from praisonaiagents.streaming import StreamEventType as SET  # noqa: F811
+                    except ImportError:
+                        return
+
+                    while True:
+                        try:
+                            evt = await asyncio.wait_for(
+                                _event_queue.get(), timeout=0.1
+                            )
+                        except asyncio.TimeoutError:
+                            continue
+                        except Exception:
+                            break
+                        if evt is None:  # Sentinel
+                            break
+
+                        payload = None
+                        evt_type = getattr(evt, "type", None)
+
+                        if evt_type == SET.DELTA_TOOL_CALL:
+                            tc = getattr(evt, "tool_call", None) or {}
+                            name = tc.get("name")
+                            if not name:
+                                continue
+                            tc_id = tc.get("id") or name
+                            if tc_id in _seen_started:
+                                continue
+                            _seen_started.add(tc_id)
+                            if name:
+                                _seen_started.add(name)
+                            _tool_step += 1
+                            payload = {
+                                "type": "tool_call_started",
+                                "name": name,
+                                "args": tc.get("arguments"),
+                                "tool_call_id": tc_id,
+                            }
+                            _enrich_tool_payload(payload, _tool_step, is_completed=False)
+                            _collected_tool_calls[tc_id] = dict(payload)
+
+                        elif evt_type == SET.TOOL_CALL_END:
+                            tc = getattr(evt, "tool_call", None) or {}
+                            name = tc.get("name")
+                            tc_id = tc.get("id") or name or ""
+                            if tc_id in _seen_completed:
+                                continue
+                            if tc_id:
+                                _seen_completed.add(tc_id)
+                            if name:
+                                _seen_completed.add(name)
+                            payload = {
+                                "type": "tool_call_completed",
+                                "name": name,
+                                "result": tc.get("result"),
+                                "tool_call_id": tc_id,
+                            }
+                            _enrich_tool_payload(payload, _tool_step, is_completed=True)
+                            if tc_id in _collected_tool_calls:
+                                entry = _collected_tool_calls[tc_id]
+                                entry["result"] = payload.get("result")
+                                entry["formatted_result"] = payload.get("formatted_result", "✓ Done")
+                                entry["status"] = "done"
+
+                        elif evt_type == SET.DELTA_TEXT:
+                            is_reasoning = getattr(evt, "is_reasoning", False)
+                            content = getattr(evt, "content", "")
+                            if is_reasoning and content:
+                                payload = {
+                                    "type": "reasoning_step",
+                                    "step": content,
+                                }
+
+                        # Also handle TOOL_CALL_START / TOOL_CALL_RESULT (SDK >= 1.6)
+                        elif hasattr(SET, "TOOL_CALL_START") and evt_type == SET.TOOL_CALL_START:
+                            tc = getattr(evt, "tool_call", None) or {}
+                            name = tc.get("name")
+                            if not name:
+                                continue
+                            tc_id = tc.get("id") or name
+                            if tc_id in _seen_started:
+                                continue
+                            _seen_started.add(tc_id)
+                            if name:
+                                _seen_started.add(name)
+                            _tool_step += 1
+                            payload = {
+                                "type": "tool_call_started",
+                                "name": name,
+                                "args": tc.get("arguments"),
+                                "tool_call_id": tc_id,
+                            }
+                            _enrich_tool_payload(payload, _tool_step, is_completed=False)
+                            _collected_tool_calls[tc_id] = dict(payload)
+
+                        elif hasattr(SET, "TOOL_CALL_RESULT") and evt_type == SET.TOOL_CALL_RESULT:
+                            tc = getattr(evt, "tool_call", None) or {}
+                            name = tc.get("name")
+                            tc_id = tc.get("id") or name or ""
+                            if tc_id in _seen_completed:
+                                continue
+                            if tc_id:
+                                _seen_completed.add(tc_id)
+                            if name:
+                                _seen_completed.add(name)
+                            payload = {
+                                "type": "tool_call_completed",
+                                "name": name,
+                                "args": tc.get("arguments"),
+                                "result": tc.get("result"),
+                                "tool_call_id": tc_id,
+                            }
+                            _enrich_tool_payload(payload, _tool_step, is_completed=True)
+                            if tc_id in _collected_tool_calls:
+                                entry = _collected_tool_calls[tc_id]
+                                entry["result"] = payload.get("result")
+                                entry["formatted_result"] = payload.get("formatted_result", "✓ Done")
+                                entry["status"] = "done"
+
+                        if payload:
+                            payload.update({
+                                "session_id": session_id,
+                                "channel_id": channel_id,
+                                "platform": platform,
+                                "icon": icon,
+                            })
+                            try:
+                                await mgr.broadcast(session_id, payload)
+                            except Exception:
+                                pass
+
+                # Start drain task, then run the actual chat
+                drain_task = asyncio.create_task(_drain_events())
+
+                try:
+                    response = await _original_chat(agent, user_id, text)
+                finally:
+                    # Signal drain to stop and clean up callback
+                    try:
+                        _event_queue.put_nowait(None)
+                    except Exception:
+                        pass
+                    try:
+                        await asyncio.wait_for(drain_task, timeout=2.0)
+                    except (asyncio.TimeoutError, Exception):
+                        drain_task.cancel()
+                    if _stream_callback and hasattr(agent, "stream_emitter"):
+                        try:
+                            agent.stream_emitter.remove_callback(_stream_callback)
+                        except Exception:
+                            pass
+
+                # Broadcast the final response
                 async def _broadcast_response() -> None:
                     try:
-                        from .chat import get_chat_manager
-                        mgr = get_chat_manager()
                         await mgr.broadcast(session_id, {
                             "type": "channel_response",
                             "session_id": session_id,
@@ -467,16 +661,19 @@ class ChannelsFeature(BaseFeatureProtocol):
                             "timestamp": time.time(),
                         })
 
-                        # Persist response to datastore
+                        # Persist response to datastore (with tool calls)
                         from praisonaiui.server import _datastore
-                        await _datastore.add_message(session_id, {
+                        msg_data = {
                             "role": "assistant",
                             "content": response,
                             "agent_name": getattr(agent, "name", "assistant"),
                             "platform": platform,
                             "icon": icon,
                             "channel_id": channel_id,
-                        })
+                        }
+                        if _collected_tool_calls:
+                            msg_data["toolCalls"] = list(_collected_tool_calls.values())
+                        await _datastore.add_message(session_id, msg_data)
                     except Exception as e:
                         logger.debug(f"Chat bridge response broadcast error: {e}")
 

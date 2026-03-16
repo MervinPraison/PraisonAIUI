@@ -70,13 +70,20 @@ class SDKFileDataStore(BaseDataStore):
                     with open(fp, "r", encoding="utf-8") as f:
                         data = json.load(f)
                     title = self._extract_title_from_data(data)
-                    sessions.append({
+                    entry = {
                         "id": data.get("session_id", fn[:-5]),
                         "title": title,
                         "created_at": data.get("created_at"),
                         "updated_at": data.get("updated_at"),
                         "message_count": self._count_real_messages(data),
-                    })
+                    }
+                    # Include platform metadata for channel sessions
+                    meta = self._extract_meta_from_data(data)
+                    if meta.get("platform"):
+                        entry["platform"] = meta["platform"]
+                    if meta.get("icon"):
+                        entry["icon"] = meta["icon"]
+                    sessions.append(entry)
                 except (json.JSONDecodeError, IOError):
                     continue
         except (IOError, OSError):
@@ -143,7 +150,7 @@ class SDKFileDataStore(BaseDataStore):
             current_title = self._extract_title(session_data)
             if current_title == "New conversation":
                 title = self.generate_title(content)
-                await self._persist_title(session_id, title)
+                await self._persist_meta(session_id, _TITLE_KEY, title)
 
     async def get_messages(self, session_id: str) -> list[dict[str, Any]]:
         session_data = await asyncio.to_thread(self._store.get_session, session_id)
@@ -151,25 +158,29 @@ class SDKFileDataStore(BaseDataStore):
 
     async def update_session(self, session_id: str, **kwargs: Any) -> None:
         if "title" in kwargs:
-            await self._persist_title(session_id, kwargs["title"])
+            await self._persist_meta(session_id, _TITLE_KEY, kwargs["title"])
+        if "platform" in kwargs:
+            await self._persist_meta(session_id, "platform", kwargs["platform"])
+        if "icon" in kwargs:
+            await self._persist_meta(session_id, "icon", kwargs["icon"])
 
     async def close(self) -> None:
         pass
 
     # ── Internal helpers ─────────────────────────────────────────────
 
-    async def _persist_title(self, session_id: str, title: str) -> None:
-        """Update the sentinel meta message with the new title."""
+    async def _persist_meta(self, session_id: str, key: str, value: Any) -> None:
+        """Update the sentinel meta message with a metadata key/value."""
         session_data = await asyncio.to_thread(self._store.get_session, session_id)
         if session_data is None:
             return
 
-        # Find the sentinel meta message and update its title
+        # Find the sentinel meta message and update the key
         found = False
         for msg in session_data.messages:
             meta = msg.metadata or {}
             if meta.get(_META_KEY):
-                msg.metadata[_TITLE_KEY] = title
+                msg.metadata[key] = value
                 found = True
                 break
 
@@ -178,7 +189,7 @@ class SDKFileDataStore(BaseDataStore):
             from praisonaiagents.session.store import SessionMessage
             sentinel = SessionMessage(
                 role="system", content="",
-                metadata={_META_KEY: True, _TITLE_KEY: title},
+                metadata={_META_KEY: True, key: value},
             )
             session_data.messages.insert(0, sentinel)
 
@@ -199,11 +210,17 @@ class SDKFileDataStore(BaseDataStore):
     @staticmethod
     def _extract_title_from_data(data: dict) -> str:
         """Extract title from raw JSON session data dict."""
+        meta = SDKFileDataStore._extract_meta_from_data(data)
+        return meta.get(_TITLE_KEY, "New conversation")
+
+    @staticmethod
+    def _extract_meta_from_data(data: dict) -> dict:
+        """Extract all sentinel meta fields from raw JSON session data."""
         for msg in data.get("messages", []):
             meta = msg.get("metadata") or {}
             if meta.get(_META_KEY):
-                return meta.get(_TITLE_KEY, "New conversation")
-        return "New conversation"
+                return meta
+        return {}
 
     @staticmethod
     def _count_real_messages(data: dict) -> int:

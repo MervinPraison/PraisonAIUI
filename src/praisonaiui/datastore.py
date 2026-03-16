@@ -120,16 +120,22 @@ class MemoryDataStore(BaseDataStore):
         self._sessions: dict[str, dict[str, Any]] = {}
 
     async def list_sessions(self) -> list[dict[str, Any]]:
-        return [
-            {
+        result = []
+        for sid, info in self._sessions.items():
+            entry = {
                 "id": sid,
                 "title": info.get("title", "New conversation"),
                 "created_at": info.get("created_at"),
                 "updated_at": info.get("updated_at"),
                 "message_count": len(info.get("messages", [])),
             }
-            for sid, info in self._sessions.items()
-        ]
+            # Include platform metadata for channel sessions
+            if info.get("platform"):
+                entry["platform"] = info["platform"]
+            if info.get("icon"):
+                entry["icon"] = info["icon"]
+            result.append(entry)
+        return result
 
     async def get_session(self, session_id: str) -> Optional[dict[str, Any]]:
         return self._sessions.get(session_id)
@@ -224,13 +230,19 @@ class JSONFileDataStore(BaseDataStore):
         ):
             data = self._read_session(path)
             if data:
-                sessions.append({
+                entry = {
                     "id": data.get("id", path.stem),
                     "title": data.get("title", "New conversation"),
                     "created_at": data.get("created_at"),
                     "updated_at": data.get("updated_at"),
                     "message_count": len(data.get("messages", [])),
-                })
+                }
+                # Include platform metadata for channel sessions
+                if data.get("platform"):
+                    entry["platform"] = data["platform"]
+                if data.get("icon"):
+                    entry["icon"] = data["icon"]
+                sessions.append(entry)
         return sessions
 
     async def get_session(self, session_id: str) -> Optional[dict[str, Any]]:

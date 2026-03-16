@@ -425,7 +425,15 @@ async function loadSessions() {
       const el = document.createElement('div');
       const id = s.id || s.session_id || '';
       el.className = 'chat-sess-item' + (id === currentSessionId ? ' active' : '');
-      const title = s.name || s.title || s.label || id.substring(0, 12) + '…';
+      // Show platform icon for channel sessions (e.g. 💬 Slack)
+      const platformIcon = s.icon || s.platform_icon || '';
+      const platformName = s.platform || '';
+      let title;
+      if (platformName) {
+        title = (platformIcon || '📨') + ' ' + platformName.charAt(0).toUpperCase() + platformName.slice(1);
+      } else {
+        title = s.name || s.title || s.label || id.substring(0, 12) + '…';
+      }
       const agent = s.agent_id || s.agent || '';
       const time = timeAgo(s.created_at || s.updated_at);
       el.innerHTML = `
@@ -575,9 +583,10 @@ function connectWebSocket() {
       try {
         const data = JSON.parse(event.data);
         const isChannelMsg = data.type === 'channel_message' || data.type === 'channel_response';
-        // Allow channel messages through regardless of current session;
-        // for regular chat events, filter by session.
-        if (!isChannelMsg && data.session_id && currentSessionId && data.session_id !== currentSessionId) {
+        // Allow channel messages and channel step events through
+        // regardless of current session; for regular chat events, filter.
+        const isChannelEvent = isChannelMsg || !!data.channel_id;
+        if (!isChannelEvent && data.session_id && currentSessionId && data.session_id !== currentSessionId) {
           return;
         }
         handleWsMessage(data);
