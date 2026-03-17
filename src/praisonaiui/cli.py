@@ -1088,6 +1088,13 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
             if _resolved_tools:
                 agent_kwargs["tools"] = _resolved_tools
             _agent_cache["agent"] = Agent(**agent_kwargs)
+            # Disable the Responses API on the OpenAI client so the Chat
+            # Completions streaming path is used instead.  The Responses API
+            # returns the full text at once and only emits FIRST_TOKEN[:50],
+            # preventing real token-by-token streaming in the UI.
+            _client = getattr(_agent_cache["agent"], "_openai_client", None)
+            if _client and not _client.base_url:
+                _client.base_url = "https://api.openai.com/v1"
         return _agent_cache["agent"]
 
     async def on_reply(msg):

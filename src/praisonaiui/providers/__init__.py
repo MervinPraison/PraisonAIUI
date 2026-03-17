@@ -315,6 +315,14 @@ class PraisonAIProvider(BaseProvider):
         kwargs.update(self._agent_kwargs)
         agent = Agent(**kwargs)
 
+        # Disable the Responses API on the OpenAI client so the Chat
+        # Completions streaming path is used instead.  The Responses API
+        # returns the full text at once and only emits FIRST_TOKEN[:50],
+        # preventing real token-by-token streaming in the UI.
+        _client = getattr(agent, "_openai_client", None)
+        if _client and not _client.base_url:
+            _client.base_url = "https://api.openai.com/v1"
+
         # Cache per session+agent if session_id provided
         if session_id:
             self._session_agents[cache_key] = agent
