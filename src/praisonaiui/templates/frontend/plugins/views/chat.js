@@ -34,9 +34,17 @@ function escapeHtml(str) {
 function renderMarkdown(text) {
   if (!text) return '';
   let html = escapeHtml(text);
-  // Code blocks (```lang\ncode\n```)
+  // Code blocks (```lang\ncode\n```) — with language header + copy button
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
-    return '<pre class="chat-code-block" data-lang="' + escapeHtml(lang) + '"><code>' + code + '</code></pre>';
+    const langLabel = lang || 'code';
+    const codeId = 'code-' + Math.random().toString(36).substr(2, 8);
+    return '<div class="chat-code-wrapper">' +
+      '<div class="chat-code-header">' +
+        '<span class="chat-code-lang">' + escapeHtml(langLabel) + '</span>' +
+        '<button class="chat-code-copy" data-code-id="' + codeId + '" onclick="(function(btn){var c=document.getElementById(\'' + codeId + '\');if(c){navigator.clipboard.writeText(c.textContent).then(function(){btn.textContent=\'Copied!\';setTimeout(function(){btn.textContent=\'Copy\'},1500)})}})( this)">Copy</button>' +
+      '</div>' +
+      '<pre class="chat-code-block"><code id="' + codeId + '" class="language-' + escapeHtml(lang || 'plaintext') + '">' + code + '</code></pre>' +
+    '</div>';
   });
   // Inline code
   html = html.replace(/`([^`]+)`/g, '<code class="chat-inline-code">$1</code>');
@@ -68,8 +76,38 @@ function renderMarkdown(text) {
   html = html.replace(/(<\/li>)<br>/g, '$1');
   html = html.replace(/(<\/ul>)<br>/g, '$1');
   html = html.replace(/(<\/pre>)<br>/g, '$1');
+  html = html.replace(/(<\/div>)<br>/g, '$1');
   html = html.replace(/(<hr[^>]*>)<br>/g, '$1');
   return html;
+}
+
+/** Load highlight.js from CDN (once) */
+let _hljsLoaded = false;
+function loadHighlightJs() {
+  if (_hljsLoaded) return;
+  _hljsLoaded = true;
+  // CSS theme — github-dark matches the dashboard aesthetic
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css';
+  document.head.appendChild(link);
+  // JS library
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
+  script.onload = function() {
+    // Highlight any existing code blocks
+    highlightCodeBlocks(document);
+  };
+  document.head.appendChild(script);
+}
+
+/** Apply highlight.js to all unhighlighted code blocks within a root element */
+function highlightCodeBlocks(root) {
+  if (typeof hljs === 'undefined') return;
+  const blocks = (root || document).querySelectorAll('pre.chat-code-block code:not(.hljs)');
+  blocks.forEach(function(block) {
+    hljs.highlightElement(block);
+  });
 }
 
 function timeAgo(ts) {
@@ -85,6 +123,7 @@ function timeAgo(ts) {
 // ── Inject CSS ──────────────────────────────────────────────────
 function injectStyles() {
   if (document.getElementById('chat-view-styles')) return;
+  loadHighlightJs();
   const style = document.createElement('style');
   style.id = 'chat-view-styles';
   style.textContent = `
@@ -138,8 +177,14 @@ function injectStyles() {
     .chat-msg-streaming .chat-msg-content::after { content:'▌'; animation:blink 1s infinite; }
     @keyframes blink { 50% { opacity:0; } }
 
-    .chat-msg-content pre.chat-code-block { background:rgba(0,0,0,.15); padding:10px 12px; border-radius:8px; overflow-x:auto; margin:8px 0; font-size:12px; }
-    .chat-msg-content code.chat-inline-code { background:rgba(0,0,0,.1); padding:1px 5px; border-radius:4px; font-size:12px; }
+    .chat-code-wrapper { margin:8px 0; border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,.08); }
+    .chat-code-header { display:flex; justify-content:space-between; align-items:center; padding:6px 12px; background:rgba(0,0,0,.3); font-size:12px; }
+    .chat-code-lang { color:var(--db-text-dim,#999); font-weight:600; text-transform:lowercase; font-family:'SF Mono',Monaco,Consolas,monospace; }
+    .chat-code-copy { background:transparent; border:1px solid rgba(255,255,255,.15); border-radius:4px; padding:2px 10px; color:var(--db-text-dim,#999); font-size:11px; cursor:pointer; transition:all .15s; font-family:inherit; }
+    .chat-code-copy:hover { background:rgba(255,255,255,.1); color:var(--db-text,#fff); }
+    .chat-msg-content pre.chat-code-block { background:rgba(0,0,0,.2); padding:12px 14px; margin:0; overflow-x:auto; font-size:13px; line-height:1.6; }
+    .chat-msg-content pre.chat-code-block code { font-family:'SF Mono',Monaco,Consolas,monospace; font-size:13px; background:transparent !important; padding:0 !important; }
+    .chat-msg-content code.chat-inline-code { background:rgba(0,0,0,.15); padding:2px 6px; border-radius:4px; font-size:12px; font-family:'SF Mono',Monaco,Consolas,monospace; }
     .chat-msg-content a { color:var(--db-accent); text-decoration:underline; }
 
     .chat-tool-call { margin:6px 0; padding:10px 16px; border-left:3px solid rgba(var(--db-accent-rgb,100,100,255),.4); background:rgba(var(--db-accent-rgb,100,100,255),.04); border-radius:0 10px 10px 0; font-size:13px; transition:all .3s ease; cursor:pointer; }
@@ -908,6 +953,7 @@ function appendMessage(role, content, agentName) {
   const contentEl = document.createElement('div');
   contentEl.className = 'chat-msg-content';
   contentEl.innerHTML = renderMarkdown(content);
+  highlightCodeBlocks(contentEl);
   bodyEl.appendChild(contentEl);
 
   msgEl.appendChild(avatarEl);
@@ -958,7 +1004,10 @@ function appendDelta(token, agentName) {
 function finalizeDelta(content, agentName) {
   if (currentDeltaEl) {
     currentDeltaEl.classList.remove('chat-msg-streaming');
-    if (content) currentDeltaEl.innerHTML = renderMarkdown(content);
+    if (content) {
+      currentDeltaEl.innerHTML = renderMarkdown(content);
+      highlightCodeBlocks(currentDeltaEl);
+    }
     currentDeltaEl = null;
     currentDeltaText = '';
   } else if (content) {
