@@ -76,6 +76,10 @@ _config_cache: Optional[dict] = None
 _style: Optional[str] = None
 # Branding config set via aiui.set_branding() — overrides YAML/defaults
 _branding: dict[str, str] = {"title": "PraisonAI", "logo": "🦞"}
+# Theme config set via aiui.set_theme() — overrides YAML site.theme
+_theme: Optional[dict[str, Any]] = None
+# Custom CSS set via aiui.set_custom_css()
+_custom_css: Optional[str] = None
 
 
 def set_style(style: str) -> None:
@@ -100,6 +104,64 @@ def set_branding(title: str = "PraisonAI", logo: str = "🦞") -> None:
     """
     global _branding
     _branding = {"title": title, "logo": logo}
+
+
+def set_theme(
+    preset: str = "zinc",
+    dark_mode: bool = True,
+    radius: str = "md",
+) -> None:
+    """Set the UI theme from Python code.
+
+    Controls the color palette, dark/light mode, and border radius.
+    Takes priority over YAML ``site.theme`` but can be overridden by
+    the development dashboard.
+
+    Args:
+        preset: Color palette name. Options: zinc, slate, stone, gray,
+                neutral, red, orange, amber, yellow, lime, green,
+                emerald, teal, cyan, sky, blue, indigo, violet,
+                purple, fuchsia, pink, rose.
+        dark_mode: True for dark background, False for light.
+        radius: Corner roundness. Options: none, sm, md, lg, xl.
+
+    Example::
+
+        import praisonaiui as aiui
+        aiui.set_theme(preset="blue", dark_mode=True, radius="lg")
+    """
+    global _theme
+    _theme = {
+        "preset": preset,
+        "darkMode": dark_mode,
+        "radius": radius,
+    }
+
+
+def set_custom_css(css: str) -> None:
+    """Inject custom CSS into the UI.
+
+    The CSS string is added as an inline ``<style>`` tag in the served
+    HTML page. Use this to override any default styles.
+
+    Args:
+        css: Raw CSS string.
+
+    Example::
+
+        import praisonaiui as aiui
+        aiui.set_custom_css('''
+            :root {
+                --db-accent: #22c55e;
+                --db-bg: #000000;
+            }
+            .chat-msg-user .chat-msg-content {
+                background: #22c55e;
+            }
+        ''')
+    """
+    global _custom_css
+    _custom_css = css
 
 
 def set_pages(page_ids: list[str]) -> None:
@@ -190,12 +252,28 @@ def _build_html(style: str) -> str:
         f'<script type="module" crossorigin src="/assets/index.js?v={cache_bust}"></script>'
     )
 
+    # Inject custom CSS if set via set_custom_css() or YAML site.custom_css
+    custom_css_tag = ''
+    _css = _custom_css
+    if not _css:
+        try:
+            from praisonaiui.config_store import get_config_store
+            _cs = get_config_store()
+            _site = _cs.get_section("site") if _cs else {}
+            if _site:
+                _css = _site.get("custom_css") or _site.get("customCss")
+        except Exception:
+            pass
+    if _css:
+        custom_css_tag = f'<style id="aiui-custom-css">{_css}</style>'
+
     return (
         '<!doctype html><html lang="en" style="background:#0f172a;color:#e2e8f0"><head>'
         '<meta charset="UTF-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1.0">'
         f'<link rel="stylesheet" href="/assets/index.css?v={cache_bust}">'
         f'{anti_flicker}'
+        f'{custom_css_tag}'
         f'<title>{title}</title>'
         '</head><body style="background:#0f172a;margin:0">'
         '<div id="root"></div>'
@@ -1316,9 +1394,34 @@ def create_app(
                     _debug = bool(_dbg_val)
         except Exception:
             pass
+        # Theme: set_theme() > YAML site.theme > defaults
+        _theme_cfg = _theme  # Python API takes priority
+        if not _theme_cfg:
+            try:
+                _theme_section = _site_section.get("theme") if _site_section else None
+                if _theme_section and isinstance(_theme_section, dict):
+                    _theme_cfg = _theme_section
+            except Exception:
+                pass
+        if not _theme_cfg:
+            _theme_cfg = {"preset": "zinc", "darkMode": True, "radius": "md"}
+
+        # Custom CSS: set_custom_css() > YAML site.custom_css
+        _css = _custom_css
+        if not _css:
+            try:
+                _css = _site_section.get("custom_css") or _site_section.get("customCss") if _site_section else None
+            except Exception:
+                pass
+
         return JSONResponse({
             "style": effective_style,
-            "site": {"title": _title, "logo": _logo},
+            "site": {
+                "title": _title,
+                "logo": _logo,
+                "theme": _theme_cfg,
+                "customCss": _css,
+            },
             "chat": {"enabled": effective_style in ("chat", "agents", "playground", "dashboard")},
             "debug": _debug,
         })
@@ -1545,6 +1648,12 @@ def create_app(
     # Wrap StaticFiles so WebSocket requests don't crash with AssertionError
     # (StaticFiles only handles HTTP, not WebSocket scope types)
     if static_dir and static_dir.exists():
+        # For non-docs styles, always serve _build_html for root "/" instead
+        # of the static index.html.  The static index.html includes React but
+        # NOT plugin-loader.js, which breaks dashboard/chat/agents/playground.
+        if _effective_style != "docs":
+            routes.append(Route("/", _serve_index, methods=["GET"]))
+
         _static_app = StaticFiles(directory=str(static_dir), html=True)
 
         async def _http_only_static(scope, receive, send):

@@ -577,6 +577,7 @@ class PraisonAIProvider(BaseProvider):
         full_response = ""
         _chat_error = None
         _streamed_tokens = 0
+        _streamed_text = ""  # Track actual text content from stream
         # Track tool calls that were started but not yet completed,
         # so we can synthesize COMPLETED events if the SDK omits them.
         _pending_tool_calls: Dict[str, RunEvent] = {}
@@ -607,6 +608,9 @@ class PraisonAIProvider(BaseProvider):
             if run_evt is None:  # Sentinel — chat finished
                 break
             _streamed_tokens += 1
+            # Track actual streamed text content
+            if run_evt.type == RunEventType.RUN_CONTENT:
+                _streamed_text += run_evt.token or run_evt.content or ""
             # Track pending tool calls
             if run_evt.type == RunEventType.TOOL_CALL_STARTED and run_evt.name:
                 key = run_evt.tool_call_id or run_evt.name
@@ -624,6 +628,9 @@ class PraisonAIProvider(BaseProvider):
             try:
                 run_evt = event_queue.get_nowait()
                 if run_evt is not None:
+                    # Track actual streamed text content
+                    if run_evt.type == RunEventType.RUN_CONTENT:
+                        _streamed_text += run_evt.token or run_evt.content or ""
                     # Track pending tool calls in drain phase too
                     if run_evt.type == RunEventType.TOOL_CALL_STARTED and run_evt.name:
                         key = run_evt.tool_call_id or run_evt.name
@@ -643,8 +650,11 @@ class PraisonAIProvider(BaseProvider):
             yield RunEvent(type=RunEventType.RUN_ERROR, error=str(_chat_error))
             return
 
-        # If no streaming events were captured, emit the full response
-        if _streamed_tokens == 0:
+        # Emit the full response if streaming didn't capture it.
+        # The SDK's stream_emitter may fire events with empty content
+        # even though agent.chat() returns the full response text.
+        # Compare what was streamed vs the actual response and fill the gap.
+        if full_response and len(_streamed_text.strip()) < len(full_response.strip()) * 0.8:
             yield RunEvent(type=RunEventType.RUN_CONTENT, content=full_response)
 
         # Synthesize TOOL_CALL_COMPLETED for any tool calls that were started

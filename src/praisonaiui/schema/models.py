@@ -29,6 +29,15 @@ class SiteConfig(BaseModel):
     route_base_docs: str = Field(default="/docs", alias="routeBaseDocs")
     ui: Literal["shadcn", "mui", "chakra"] = "shadcn"
     theme: Optional[ThemeConfig] = None
+    logo: Optional[str] = Field(
+        default=None,
+        description="Logo emoji or image path for sidebar branding",
+    )
+    custom_css: Optional[str] = Field(
+        default=None,
+        alias="customCss",
+        description="Custom CSS string injected into the page as an inline <style> tag",
+    )
     plugins: list[str] = Field(
         default_factory=lambda: [
             "nav-intercept",
@@ -44,6 +53,8 @@ class SiteConfig(BaseModel):
         ],
         description="List of frontend plugin names to enable",
     )
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class NavConfig(BaseModel):

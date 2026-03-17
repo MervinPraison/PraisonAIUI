@@ -445,11 +445,79 @@ const DASHBOARD_STYLE = `
 let activePageId = null;
 let pagesData = [];
 
+// ── Theme preset → --db-* CSS variable mapping ───────────────────────
+// When site.theme.preset is set (via YAML or aiui.set_theme()), we map
+// the preset name to appropriate --db-* values so the dashboard adopts
+// the chosen palette.
+const PRESET_COLORS = {
+  zinc:    { accent: '#71717a', accentRgb: '113,113,122' },
+  slate:   { accent: '#64748b', accentRgb: '100,116,139' },
+  stone:   { accent: '#78716c', accentRgb: '120,113,108' },
+  gray:    { accent: '#6b7280', accentRgb: '107,114,128' },
+  neutral: { accent: '#737373', accentRgb: '115,115,115' },
+  red:     { accent: '#ef4444', accentRgb: '239,68,68' },
+  orange:  { accent: '#f97316', accentRgb: '249,115,22' },
+  amber:   { accent: '#f59e0b', accentRgb: '245,158,11' },
+  yellow:  { accent: '#eab308', accentRgb: '234,179,8' },
+  lime:    { accent: '#84cc16', accentRgb: '132,204,22' },
+  green:   { accent: '#22c55e', accentRgb: '34,197,94' },
+  emerald: { accent: '#10b981', accentRgb: '16,185,129' },
+  teal:    { accent: '#14b8a6', accentRgb: '20,184,166' },
+  cyan:    { accent: '#06b6d4', accentRgb: '6,182,212' },
+  sky:     { accent: '#0ea5e9', accentRgb: '14,165,233' },
+  blue:    { accent: '#3b82f6', accentRgb: '59,130,246' },
+  indigo:  { accent: '#6366f1', accentRgb: '99,102,241' },
+  violet:  { accent: '#8b5cf6', accentRgb: '139,92,246' },
+  purple:  { accent: '#a855f7', accentRgb: '168,85,247' },
+  fuchsia: { accent: '#d946ef', accentRgb: '217,70,239' },
+  pink:    { accent: '#ec4899', accentRgb: '236,72,153' },
+  rose:    { accent: '#f43f5e', accentRgb: '244,63,94' },
+};
+
+function applyThemeFromConfig(cfg) {
+  const theme = cfg?.site?.theme;
+  if (!theme) return;
+
+  const root = document.documentElement;
+  const preset = theme.preset || 'zinc';
+  const colors = PRESET_COLORS[preset];
+
+  if (colors) {
+    root.style.setProperty('--db-accent', colors.accent);
+    root.style.setProperty('--db-accent-glow', `rgba(${colors.accentRgb},0.15)`);
+    root.style.setProperty('--db-accent-rgb', colors.accentRgb);
+  }
+
+  // Dark/light mode
+  if (theme.darkMode === false) {
+    root.style.setProperty('--db-bg', '#fafafa');
+    root.style.setProperty('--db-sidebar-bg', '#f4f4f5');
+    root.style.setProperty('--db-text', '#18181b');
+    root.style.setProperty('--db-text-dim', '#71717a');
+    root.style.setProperty('--db-border', 'rgba(0,0,0,0.08)');
+    root.style.setProperty('--db-card-bg', 'rgba(0,0,0,0.02)');
+    root.style.setProperty('--db-hover', 'rgba(0,0,0,0.04)');
+    document.body.style.background = 'var(--db-bg)';
+  }
+
+  // Radius
+  const radiusMap = { none: '0', sm: '6px', md: '10px', lg: '14px', xl: '20px' };
+  if (theme.radius && radiusMap[theme.radius]) {
+    root.style.setProperty('--db-radius', radiusMap[theme.radius]);
+  }
+}
+
 function init() {
   // Inject styles
   const style = document.createElement('style');
   style.textContent = DASHBOARD_STYLE;
   document.head.appendChild(style);
+
+  // Apply theme from config (async — overrides defaults once loaded)
+  fetch('/ui-config.json')
+    .then(r => r.json())
+    .then(cfg => applyThemeFromConfig(cfg))
+    .catch(() => {});
 
   // Build the dashboard
   buildDashboard();

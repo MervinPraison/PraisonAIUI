@@ -1123,6 +1123,7 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
                 # Run chat in thread, drain tokens concurrently
                 full_response = ""
                 _chat_error = None
+                _streamed_content = ""  # Track what was actually streamed
 
                 async def _run_chat():
                     nonlocal full_response, _chat_error
@@ -1143,12 +1144,18 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
                         break
                     if token is None:
                         break
+                    _streamed_content += token
                     await aiui.stream_token(token)
 
                 await chat_task
 
                 if _chat_error:
                     await aiui.say(f"Error: {_chat_error}")
+                elif full_response and len(_streamed_content.strip()) < len(full_response.strip()) * 0.8:
+                    # SDK stream_emitter only fired first_token (~50 chars)
+                    # but agent.chat() returned the complete response.
+                    # Send the full response as a message so the UI gets it.
+                    await aiui.say(full_response)
 
                 # Clean up callback
                 try:
