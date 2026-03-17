@@ -881,7 +881,9 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
                             full_response += "\n"
                         full_response += run_event.content
                 elif run_event.type == RunEventType.RUN_COMPLETED:
-                    if run_event.content and not full_response:
+                    # Prefer SDKs final response over accumulated tokens —
+                    # this matches what finalizeDelta() shows in the live view.
+                    if run_event.content:
                         full_response = run_event.content
 
                 # Enrich tool call events with description/icon/step_number

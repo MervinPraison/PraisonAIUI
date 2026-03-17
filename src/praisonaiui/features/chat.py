@@ -446,7 +446,9 @@ async def _run_and_broadcast(
                     full_response += event.token
             elif event.type == RunEventType.RUN_COMPLETED:
                 payload["content"] = event.content or full_response
-                if event.content and not full_response:
+                # Prefer SDKs final response over accumulated tokens —
+                # this matches what finalizeDelta() shows in the live view.
+                if event.content:
                     full_response = event.content
             elif event.type == RunEventType.RUN_ERROR:
                 payload["error"] = event.error or "Unknown error"
