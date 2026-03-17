@@ -1456,7 +1456,12 @@ def run(
         set_datastore(store)
 
         # Use standalone server (default)
-        from praisonaiui.server import create_app
+        from praisonaiui.server import create_app, set_style as _set_style
+
+        # Pass the resolved style to the server module so the dynamic
+        # /ui-config.json endpoint returns the correct style instead of
+        # defaulting to "dashboard".
+        _set_style(style)
 
         config_path = config if config is not None and config.exists() else None
         server_app = create_app(static_dir=static_dir, config_path=config_path)
