@@ -276,7 +276,7 @@ class PraisonAIProvider(BaseProvider):
             from praisonai.tool_resolver import ToolResolver
 
             # SDK profiles: auto-syncs with SDK tool updates
-            tool_names = resolve_profiles("file_ops", "shell", "web")
+            tool_names = resolve_profiles("file_ops", "shell", "web", "memory", "learning", "schedule")
             resolver = ToolResolver()
             default_tools = resolver.resolve_many(tool_names)
             if default_tools:
