@@ -34,18 +34,27 @@ function escapeHtml(str) {
 function renderMarkdown(text) {
   if (!text) return '';
   let html = escapeHtml(text);
-  // Code blocks (```lang\ncode\n```) — with language header + copy button
+
+  // ── 1. Extract code blocks into placeholders ─────────────────
+  // This prevents the global \n→<br> conversion from corrupting
+  // newlines inside <pre><code> (which highlight.js needs intact).
+  const codeBlocks = [];
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
     const langLabel = lang || 'code';
     const codeId = 'code-' + Math.random().toString(36).substr(2, 8);
-    return '<div class="chat-code-wrapper">' +
+    const block = '<div class="chat-code-wrapper">' +
       '<div class="chat-code-header">' +
         '<span class="chat-code-lang">' + escapeHtml(langLabel) + '</span>' +
         '<button class="chat-code-copy" data-code-id="' + codeId + '" onclick="(function(btn){var c=document.getElementById(\'' + codeId + '\');if(c){navigator.clipboard.writeText(c.textContent).then(function(){btn.textContent=\'Copied!\';setTimeout(function(){btn.textContent=\'Copy\'},1500)})}})( this)">Copy</button>' +
       '</div>' +
       '<pre class="chat-code-block"><code id="' + codeId + '" class="language-' + escapeHtml(lang || 'plaintext') + '">' + code + '</code></pre>' +
     '</div>';
+    const placeholder = '\x00CB' + codeBlocks.length + '\x00';
+    codeBlocks.push(block);
+    return placeholder;
   });
+
+  // ── 2. Process all other markdown (operates on non-code text) ─
   // Inline code
   html = html.replace(/`([^`]+)`/g, '<code class="chat-inline-code">$1</code>');
   // Headers (must be before bold/italic — process line by line)
@@ -69,15 +78,22 @@ function renderMarkdown(text) {
   html = html.replace(/^\d+\. (.+)$/gm, '<li style="margin-left:16px;list-style:decimal">$1</li>');
   // Wrap consecutive <li> elements in <ul>/<ol>
   html = html.replace(/((?:<li[^>]*>.*?<\/li>\n?)+)/g, '<ul style="padding-left:8px;margin:4px 0">$1</ul>');
-  // Line breaks (skip lines that are already block elements)
+  // Line breaks (only affects non-code text now)
   html = html.replace(/\n/g, '<br>');
   // Clean up <br> right after block elements
   html = html.replace(/(<\/h[1-4]>)<br>/g, '$1');
   html = html.replace(/(<\/li>)<br>/g, '$1');
   html = html.replace(/(<\/ul>)<br>/g, '$1');
-  html = html.replace(/(<\/pre>)<br>/g, '$1');
-  html = html.replace(/(<\/div>)<br>/g, '$1');
   html = html.replace(/(<hr[^>]*>)<br>/g, '$1');
+
+  // ── 3. Restore code blocks ───────────────────────────────────
+  for (var i = 0; i < codeBlocks.length; i++) {
+    html = html.replace('\x00CB' + i + '\x00', codeBlocks[i]);
+  }
+  // Clean up any <br> adjacent to restored code block wrappers
+  html = html.replace(/<br>(\s*<div class="chat-code-wrapper">)/g, '$1');
+  html = html.replace(/(<\/div>)\s*<br>/g, '$1');
+
   return html;
 }
 

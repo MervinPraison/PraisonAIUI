@@ -276,7 +276,7 @@ class PraisonAIProvider(BaseProvider):
             from praisonai.tool_resolver import ToolResolver
 
             # SDK profiles: auto-syncs with SDK tool updates
-            tool_names = resolve_profiles("file_ops", "shell", "web", "memory", "learning", "schedule")
+            tool_names = resolve_profiles("autonomy")
             resolver = ToolResolver()
             default_tools = resolver.resolve_many(tool_names)
             if default_tools:
@@ -314,6 +314,26 @@ class PraisonAIProvider(BaseProvider):
 
         kwargs.update(self._agent_kwargs)
         agent = Agent(**kwargs)
+
+        # ── Memory bridge: share agent's memory with UI memory page ──
+        # Agent(memory=True) creates its own FileMemory instance that
+        # store_memory/search_memory tools write to.  The UI Memory page
+        # reads from SDKMemoryManager (a separate singleton).  Injecting
+        # the agent's memory instance into SDKMemoryManager makes both
+        # sides read/write the same data — the single source of truth.
+        try:
+            agent_mem = getattr(agent, "_memory_instance", None)
+            if agent_mem is not None:
+                from praisonaiui.features.memory import get_memory_manager
+                mgr = get_memory_manager()
+                if hasattr(mgr, "_sdk_memory"):
+                    mgr._sdk_memory = agent_mem
+                    logger.debug(
+                        "Memory bridge: injected agent's %s into SDKMemoryManager",
+                        type(agent_mem).__name__,
+                    )
+        except Exception as exc:
+            logger.debug("Memory bridge skipped: %s", exc)
 
         # Disable the Responses API on the OpenAI client so the Chat
         # Completions streaming path is used instead.  The Responses API
