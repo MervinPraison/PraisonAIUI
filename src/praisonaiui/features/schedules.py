@@ -77,6 +77,13 @@ def _get_schedule_store() -> ScheduleProtocol:
     if _schedule_store is None:
         _schedule_store = _InMemoryScheduleStore()
         logger.info("Using config.yaml-backed schedule store for persistence")
+        # Centralize: redirect SDK schedule_add → config.yaml
+        try:
+            from praisonaiagents.tools.schedule_tools import set_store
+            set_store(_schedule_store)
+            logger.info("SDK schedule_tools wired to config.yaml store")
+        except ImportError:
+            logger.debug("praisonaiagents.tools.schedule_tools not available for injection")
         # One-time migration from old SDK FileScheduleStore
         try:
             from praisonaiagents.scheduler import FileScheduleStore
@@ -525,6 +532,23 @@ class _InMemoryScheduleStore(ScheduleProtocol):
             del self._jobs[job_id]
             self._persist()
             return True
+        return False
+
+    def get_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+        """Look up a job by name (SDK schedule_tools compatibility)."""
+        self._reload()
+        for job in self._jobs.values():
+            if _getattr_or_get(job, "name", "") == name:
+                return job
+        return None
+
+    def remove_by_name(self, name: str) -> bool:
+        """Remove a job by name (SDK schedule_tools compatibility)."""
+        for jid, job in list(self._jobs.items()):
+            if _getattr_or_get(job, "name", "") == name:
+                del self._jobs[jid]
+                self._persist()
+                return True
         return False
 
     def update(self, job_id_or_obj=None, **kwargs) -> Dict[str, Any]:

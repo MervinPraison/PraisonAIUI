@@ -57,6 +57,9 @@ def _get_data_dir() -> Path:
     """Return the AIUI data directory, configurable via AIUI_DATA_DIR env var."""
     data_dir = Path(os.environ.get("AIUI_DATA_DIR", str(Path.home() / ".praisonaiui")))
     data_dir.mkdir(parents=True, exist_ok=True)
+    # Align SDK data dir → same location so schedules, memory, sessions
+    # all live in one place instead of split across ~/.praisonai/ and ~/.praisonaiui/
+    os.environ.setdefault("PRAISONAI_HOME", str(data_dir))
     return data_dir
 
 
@@ -162,6 +165,27 @@ def set_custom_css(css: str) -> None:
     """
     global _custom_css
     _custom_css = css
+
+
+def register_theme(name: str, variables: dict[str, str]) -> None:
+    """Register a custom theme preset via the protocol-driven ThemeManager.
+
+    The theme becomes available in the theme picker UI and via the
+    ``/api/theme`` API.  Only ``accent`` is required — ``accentRgb`` is
+    auto-derived from the hex color if not provided.
+
+    Args:
+        name: Unique theme name (e.g. "ocean", "sunset").
+        variables: Dict with at least ``{"accent": "#hexcolor"}``.
+
+    Example::
+
+        import praisonaiui as aiui
+        aiui.register_theme("ocean", {"accent": "#0077b6"})
+        aiui.register_theme("sunset", {"accent": "#ff6b35", "accentRgb": "255,107,53"})
+    """
+    from praisonaiui.features.theme import get_theme_manager
+    get_theme_manager().register_theme(name, variables)
 
 
 def set_pages(page_ids: list[str]) -> None:
@@ -1599,6 +1623,8 @@ def create_app(
          "description": "Security monitoring & audit log", "order": 12},
         {"id": "inspector", "title": "Inspector", "icon": "🔍", "group": "Control",
          "description": "Interactive API inspector", "order": 99, "position": "footer"},
+        {"id": "theme-picker", "title": "Theme", "icon": "🎨", "group": "Settings",
+         "description": "Live color scheme picker", "order": 35},
     ]
     _page_api_overrides = {"sessions": "/sessions", "cron": "/api/schedules", "channels": "/api/channels"}
 

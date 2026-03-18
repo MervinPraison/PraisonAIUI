@@ -1,6 +1,6 @@
 [project]
 name = "aiui"
-version = "0.3.92"
+version = "0.3.93"
 description = "YAML-driven website generator - CLI and compiler"
 readme = "README.md"
 license = {text = "MIT"}
@@ -57,6 +57,8 @@ praisonai = [
     # Gateway dependencies
     "fastapi>=0.115.0",
     "sse-starlette>=1.6.0",
+    # Shell tools (get_system_info, list_processes)
+    "psutil>=5.9.0",
     # Bot dependencies (Telegram, Discord, Slack)
     "python-telegram-bot>=20.0",
     "discord.py[voice]>=2.0.0",

@@ -43,6 +43,7 @@ const BUILTIN_VIEWS = {
   telemetry:      '/plugins/views/telemetry.js',
   traces:         '/plugins/views/traces.js',
   security:       '/plugins/views/security.js',
+  'theme-picker': '/plugins/views/theme-picker.js',
 };
 
 // Public API for extending the dashboard (protocol-first, extendable)
