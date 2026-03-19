@@ -143,6 +143,30 @@ function MarkdownContent({ content }: { content: string }) {
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
+                    // Ordered list: explicit decimal counter so items show 1. 2. 3.
+                    ol({ children }) {
+                        return (
+                            <ol style={{ listStyleType: 'decimal', paddingLeft: '1.5rem', margin: '0.5rem 0' }}>
+                                {children}
+                            </ol>
+                        )
+                    },
+                    // Unordered list
+                    ul({ children }) {
+                        return (
+                            <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', margin: '0.5rem 0' }}>
+                                {children}
+                            </ul>
+                        )
+                    },
+                    // List item: display:list-item so the browser uses the parent counter
+                    li({ children }) {
+                        return (
+                            <li style={{ display: 'list-item', marginBottom: '0.25rem' }}>
+                                {children}
+                            </li>
+                        )
+                    },
                     code({ className, children, ...props }) {
                         const match = /language-(\w+)/.exec(className || '')
                         const codeString = String(children).replace(/\n$/, '')
