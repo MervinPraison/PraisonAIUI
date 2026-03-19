@@ -9,34 +9,25 @@ interface PlaygroundLayoutProps {
 
 export function PlaygroundLayout({ config, title }: PlaygroundLayoutProps) {
     const [input, setInput] = useState('')
-    const [output, setOutput] = useState('')
-    const [isProcessing, setIsProcessing] = useState(false)
+    const [sessionId] = useState(() => `playground-${crypto.randomUUID()}`)
 
-    const { isStreaming, sendMessage, cancel } = useSSE({
-        onToken: (token) => {
-            setOutput((prev) => prev + token)
-        },
-        onMessage: (content) => {
-            setOutput(content)
-        },
-        onError: (error) => {
-            setOutput(`Error: ${error}`)
-        },
+    const { isStreaming, currentResponse, thinkingSteps, sendMessage, cancel } = useSSE({
+        externalSessionId: sessionId,
         onEnd: () => {
-            setIsProcessing(false)
+            // stream finished
         },
     })
 
+    // Derive output from store state
+    const output = currentResponse || thinkingSteps.join('\n')
+
     const handleSubmit = useCallback(async () => {
         if (!input.trim() || isStreaming) return
-        setIsProcessing(true)
-        setOutput('')
-        await sendMessage(input)
+        sendMessage(input)
     }, [input, isStreaming, sendMessage])
 
     const handleClear = useCallback(() => {
         setInput('')
-        setOutput('')
     }, [])
 
     return (
@@ -93,7 +84,7 @@ export function PlaygroundLayout({ config, title }: PlaygroundLayoutProps) {
                 <div className="flex-1 flex flex-col">
                     <div className="px-4 py-2 border-b bg-muted/30 flex items-center justify-between">
                         <span className="text-sm font-medium text-muted-foreground">Output</span>
-                        {isProcessing && (
+                        {isStreaming && (
                             <span className="text-xs text-muted-foreground animate-pulse">
                                 Processing...
                             </span>

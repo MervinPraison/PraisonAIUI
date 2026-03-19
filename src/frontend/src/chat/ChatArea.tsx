@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ChatMessage, ChatConfig, ChatStarter, ToolCall } from '../types'
+import { useCallback, useEffect, useState } from 'react'
+import type { ChatMessage, ChatConfig, ChatStarter } from '../types'
 import { useSSE } from '../hooks/useSSE'
 import { ChatMessages } from './ChatMessages'
 import { ChatInput } from './ChatInput'
@@ -14,17 +14,8 @@ interface ChatAreaProps {
 
 export function ChatArea({ config, className = '', sessionId: externalSessionId, onSessionChange }: ChatAreaProps) {
     const [messages, setMessages] = useState<ChatMessage[]>([])
-    const [currentResponse, setCurrentResponse] = useState('')
-    const [thinkingSteps, setThinkingSteps] = useState<string[]>([])
-    const [toolCalls, setToolCalls] = useState<ToolCall[]>([])
     const [loadingHistory, setLoadingHistory] = useState(false)
     const [dynamicStarters, setDynamicStarters] = useState<ChatStarter[]>([])
-    const messagesEndRef = useRef<HTMLDivElement>(null)
-
-    // Refs to avoid stale closures in callbacks
-    const currentResponseRef = useRef('')
-    const thinkingStepsRef = useRef<string[]>([])
-    const toolCallsRef = useRef<ToolCall[]>([])
 
     // Fetch starters from backend API
     useEffect(() => {
@@ -40,14 +31,6 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
             })
     }, [])
 
-    const scrollToBottom = useCallback(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }, [])
-
-    useEffect(() => {
-        scrollToBottom()
-    }, [messages, currentResponse, scrollToBottom])
-
     // Load messages when session changes
     useEffect(() => {
         if (externalSessionId) {
@@ -55,12 +38,6 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
         } else if (externalSessionId === null) {
             // Explicitly null = new conversation requested
             setMessages([])
-            setCurrentResponse('')
-            currentResponseRef.current = ''
-            setThinkingSteps([])
-            thinkingStepsRef.current = []
-            setToolCalls([])
-            toolCallsRef.current = []
         }
     }, [externalSessionId])
 
@@ -87,91 +64,25 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
         }
     }
 
-    const { isStreaming, sendMessage, cancel } = useSSE({
-        externalSessionId: externalSessionId,
+    // All streaming state comes from the store via useSSE
+    const {
+        isStreaming,
+        currentResponse,
+        toolCalls,
+        thinkingSteps,
+        sendMessage,
+        cancel,
+    } = useSSE({
+        externalSessionId,
         onSessionId: (newSessionId) => {
-            // Notify parent about new session ID from backend
             onSessionChange?.(newSessionId)
         },
-        onToken: (token) => {
-            setCurrentResponse((prev) => {
-                const next = prev + token
-                currentResponseRef.current = next
-                return next
-            })
-        },
-        onMessage: (content) => {
-            setMessages((prev) => [
-                ...prev,
-                {
-                    id: crypto.randomUUID(),
-                    role: 'assistant',
-                    content,
-                    timestamp: new Date().toISOString(),
-                },
-            ])
-            setCurrentResponse('')
-            currentResponseRef.current = ''
-        },
-        onThinking: (step) => {
-            setThinkingSteps((prev) => {
-                const next = [...prev, step]
-                thinkingStepsRef.current = next
-                return next
-            })
-        },
-        onToolCall: (toolCall) => {
-            setToolCalls((prev) => {
-                // Upsert by tool_call_id to avoid duplicating started+completed
-                if (toolCall.tool_call_id) {
-                    const idx = prev.findIndex(tc => tc.tool_call_id === toolCall.tool_call_id)
-                    if (idx >= 0) {
-                        const next = [...prev]
-                        next[idx] = { ...next[idx], ...toolCall }
-                        toolCallsRef.current = next
-                        return next
-                    }
-                }
-                const next = [...prev, toolCall]
-                toolCallsRef.current = next
-                return next
-            })
-        },
-        onError: (error) => {
-            setMessages((prev) => [
-                ...prev,
-                {
-                    id: crypto.randomUUID(),
-                    role: 'assistant',
-                    content: `Error: ${error}`,
-                    timestamp: new Date().toISOString(),
-                },
-            ])
-            setCurrentResponse('')
-            currentResponseRef.current = ''
-        },
         onEnd: () => {
-            // Use refs to avoid stale closure — always read latest values
-            const resp = currentResponseRef.current
-            const tcs = toolCallsRef.current
-            if (resp || tcs.length > 0) {
-                setMessages((prev) => [
-                    ...prev,
-                    {
-                        id: crypto.randomUUID(),
-                        role: 'assistant',
-                        content: resp || '',
-                        timestamp: new Date().toISOString(),
-                        toolCalls: tcs.length > 0 ? [...tcs] : undefined,
-                    },
-                ])
-                setCurrentResponse('')
-                currentResponseRef.current = ''
+            // When the stream ends for THIS session, reload its messages from server
+            // so the persisted assistant message appears in the list
+            if (externalSessionId) {
+                loadSessionMessages(externalSessionId)
             }
-            setThinkingSteps([])
-            thinkingStepsRef.current = []
-            setToolCalls([])
-            toolCallsRef.current = []
         },
     })
 
@@ -186,26 +97,21 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
                     timestamp: new Date().toISOString(),
                 },
             ])
-            setThinkingSteps([])
-            thinkingStepsRef.current = []
-            setToolCalls([])
-            toolCallsRef.current = []
-            await sendMessage(message)
+            sendMessage(message)
         },
-        [sendMessage]
+        [sendMessage],
     )
 
     const handleStarterClick = useCallback(
         (message: string) => {
             handleSend(message)
         },
-        [handleSend]
+        [handleSend],
     )
 
-    // Use dynamic starters (from API) if available, fallback to static config starters
     const effectiveStarters = dynamicStarters.length > 0 ? dynamicStarters : (config?.starters || [])
-    const showStarters = messages.length === 0 && !loadingHistory && effectiveStarters.length > 0
-    const showEmpty = messages.length === 0 && !loadingHistory && !showStarters
+    const showStarters = messages.length === 0 && !loadingHistory && effectiveStarters.length > 0 && !isStreaming
+    const showEmpty = messages.length === 0 && !loadingHistory && !showStarters && !isStreaming
 
     return (
         <div className={`flex flex-col h-full ${className}`}>
@@ -238,7 +144,7 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
                         isStreaming={isStreaming}
                     />
                 )}
-                <div ref={messagesEndRef} />
+                <div className="h-4" />
             </div>
             <ChatInput
                 onSend={handleSend}
