@@ -1,0 +1,5532 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="One YAML file, one docs folder, one command — ship a beautiful documentation site">
+      
+      
+      
+        <link rel="canonical" href="https://mervinpraison.github.io/api/components/">
+      
+      
+        <link rel="prev" href="../python/">
+      
+      
+        <link rel="next" href="../typescript/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Component API - PraisonAIUI</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#component-api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="PraisonAIUI" class="md-header__button md-logo" aria-label="PraisonAIUI" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M11 15H6l7-14v8h5l-7 14z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PraisonAIUI
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Component API
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MervinPraison/PraisonAIUI" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MervinPraison/PraisonAIUI
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/installation/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../concepts/architecture/" class="md-tabs__link">
+          
+  
+  
+  Core Concepts
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../features/dashboard/" class="md-tabs__link">
+          
+  
+  
+  Features
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../cli/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../typescript/" class="md-tabs__link">
+          
+  
+  
+  TypeScript SDK
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../examples/basic/" class="md-tabs__link">
+          
+  
+  
+  Examples
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="PraisonAIUI" class="md-nav__button md-logo" aria-label="PraisonAIUI" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M11 15H6l7-14v8h5l-7 14z"/></svg>
+
+    </a>
+    PraisonAIUI
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MervinPraison/PraisonAIUI" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MervinPraison/PraisonAIUI
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/github-pages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GitHub Pages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Core Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YAML Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/templates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Templates & Layouts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/slots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slots & Components
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dashboard
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/gateway-chat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gateway Chat
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/attachments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Attachments
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/theme-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Theme System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/model-fallback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Fallback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/subagent-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Subagent Tree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/config-hot-reload/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Config Hot-Reload
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/browser-automation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Browser Automation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/protocol-versioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protocol Versioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/styles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI Styles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/protocols/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protocols
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sessions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/content-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/navigation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Navigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/theming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Theming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/dark-mode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dark Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/seo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SEO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/hot-reload/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hot Reload
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/widget-zones/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Widget Zones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/feature-inventory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feature Inventory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/gap-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gap Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/comparison-openclaw/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparison (OpenClaw)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Component API
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Component API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#core-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aiuilayoutchildren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.layout(children)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicardtitle-value-footer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.card(title, *, value, footer)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicolumnschildren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.columns(children)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuitable-headers-rows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.table(*, headers, rows)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuitextcontent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.text(content)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicharttitle-data-chart_type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.chart(title, *, data, chart_type)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#essential-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Essential Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Essential Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aiuimetriclabel-value-delta-delta_color" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.metric(label, *, value, delta, delta_color)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiprogress_barlabel-value-max_value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.progress_bar(label, *, value, max_value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuialertmessage-variant-title" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.alert(message, *, variant, title)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuibadgetext-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.badge(text, *, variant)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiseparator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.separator()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuitabsitems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.tabs(items)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiaccordionitems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.accordion(items)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiimage_displaysrc-alt-caption-width" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.image_display(src, *, alt, caption, width)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicode_blockcode-language" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.code_block(code, *, language)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuijson_viewdata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.json_view(data)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#form-input-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Form Input Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Form Input Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aiuitext_inputlabel-value-placeholder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.text_input(label, *, value, placeholder)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuinumber_inputlabel-value-min_val-max_val-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.number_input(label, *, value, min_val, max_val, step)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiselect_inputlabel-options-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.select_input(label, *, options, value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuislider_inputlabel-value-min_val-max_val-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.slider_input(label, *, value, min_val, max_val, step)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicheckbox_inputlabel-checked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.checkbox_input(label, *, checked)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiswitch_inputlabel-checked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.switch_input(label, *, checked)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiradio_inputlabel-options-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.radio_input(label, *, options, value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuitextarea_inputlabel-value-placeholder-rows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.textarea_input(label, *, value, placeholder, rows)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuimultiselect_inputlabel-options-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.multiselect_input(label, *, options, value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuidate_inputlabel-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.date_input(label, *, value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuitime_inputlabel-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.time_input(label, *, value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicolor_picker_inputlabel-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.color_picker_input(label, *, value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layout-advanced-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layout &amp; Advanced Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layout &amp; Advanced Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aiuicontainerchildren-title" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.container(children, *, title)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiexpandertitle-children-expanded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.expander(title, *, children, expanded)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuidividertext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.divider(text)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiheadertext-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.header(text, *, level)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuimarkdown_textcontent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.markdown_text(content)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuilinktext-href-external" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.link(text, *, href, external)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuibutton_groupbuttons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.button_group(buttons)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuistat_groupstats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.stat_group(stats)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiavatar-src-name-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.avatar(*, src, name, fallback)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicalloutcontent-variant-title" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.callout(content, *, variant, title)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiemptytext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.empty(text)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuispinnertext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.spinner(text)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#media-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Media Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Media Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aiuiaudio_playersrc-autoplay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.audio_player(src, *, autoplay)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuivideo_playersrc-autoplay-poster" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.video_player(src, *, autoplay, poster)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuifile_downloadlabel-href-filename" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.file_download(label, *, href, filename)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuigalleryitems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.gallery(items)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dashboard-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dashboard Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dashboard Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aiuitoastmessage-variant-duration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.toast(message, *, variant, duration)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuidialogtitle-children-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.dialog(title, *, children, description)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicaptiontext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.caption(text)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuihtml_embedcontent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.html_embed(content)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiskeleton-width-height-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.skeleton(*, width, height, variant)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuitooltip_wrapchild-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.tooltip_wrap(child, *, content)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#navigation-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Navigation Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Navigation Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aiuibreadcrumbitems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.breadcrumb(items)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuipagination-total-page-per_page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.pagination(*, total, page, per_page)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuikey_value_listitems-title" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.key_value_list(items, *, title)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuipopovertrigger-children" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.popover(trigger, *, children)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composition
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#component-count-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Component Count Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-component-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Component Types
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../typescript/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TypeScript SDK
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sessions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TypeScript SDK
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TypeScript SDK
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../typescript/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../typescript/runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../typescript/nextjs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Next.js Adapter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../typescript/components/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/basic/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Basic Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/advanced/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#core-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aiuilayoutchildren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.layout(children)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicardtitle-value-footer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.card(title, *, value, footer)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicolumnschildren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.columns(children)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuitable-headers-rows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.table(*, headers, rows)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuitextcontent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.text(content)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicharttitle-data-chart_type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.chart(title, *, data, chart_type)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#essential-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Essential Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Essential Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aiuimetriclabel-value-delta-delta_color" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.metric(label, *, value, delta, delta_color)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiprogress_barlabel-value-max_value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.progress_bar(label, *, value, max_value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuialertmessage-variant-title" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.alert(message, *, variant, title)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuibadgetext-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.badge(text, *, variant)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiseparator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.separator()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuitabsitems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.tabs(items)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiaccordionitems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.accordion(items)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiimage_displaysrc-alt-caption-width" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.image_display(src, *, alt, caption, width)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicode_blockcode-language" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.code_block(code, *, language)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuijson_viewdata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.json_view(data)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#form-input-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Form Input Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Form Input Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aiuitext_inputlabel-value-placeholder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.text_input(label, *, value, placeholder)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuinumber_inputlabel-value-min_val-max_val-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.number_input(label, *, value, min_val, max_val, step)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiselect_inputlabel-options-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.select_input(label, *, options, value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuislider_inputlabel-value-min_val-max_val-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.slider_input(label, *, value, min_val, max_val, step)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicheckbox_inputlabel-checked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.checkbox_input(label, *, checked)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiswitch_inputlabel-checked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.switch_input(label, *, checked)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiradio_inputlabel-options-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.radio_input(label, *, options, value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuitextarea_inputlabel-value-placeholder-rows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.textarea_input(label, *, value, placeholder, rows)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuimultiselect_inputlabel-options-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.multiselect_input(label, *, options, value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuidate_inputlabel-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.date_input(label, *, value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuitime_inputlabel-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.time_input(label, *, value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicolor_picker_inputlabel-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.color_picker_input(label, *, value)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layout-advanced-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layout &amp; Advanced Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layout &amp; Advanced Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aiuicontainerchildren-title" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.container(children, *, title)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiexpandertitle-children-expanded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.expander(title, *, children, expanded)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuidividertext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.divider(text)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiheadertext-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.header(text, *, level)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuimarkdown_textcontent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.markdown_text(content)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuilinktext-href-external" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.link(text, *, href, external)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuibutton_groupbuttons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.button_group(buttons)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuistat_groupstats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.stat_group(stats)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiavatar-src-name-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.avatar(*, src, name, fallback)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicalloutcontent-variant-title" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.callout(content, *, variant, title)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiemptytext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.empty(text)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuispinnertext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.spinner(text)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#media-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Media Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Media Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aiuiaudio_playersrc-autoplay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.audio_player(src, *, autoplay)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuivideo_playersrc-autoplay-poster" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.video_player(src, *, autoplay, poster)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuifile_downloadlabel-href-filename" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.file_download(label, *, href, filename)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuigalleryitems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.gallery(items)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dashboard-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dashboard Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dashboard Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aiuitoastmessage-variant-duration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.toast(message, *, variant, duration)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuidialogtitle-children-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.dialog(title, *, children, description)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuicaptiontext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.caption(text)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuihtml_embedcontent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.html_embed(content)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuiskeleton-width-height-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.skeleton(*, width, height, variant)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuitooltip_wrapchild-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.tooltip_wrap(child, *, content)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#navigation-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Navigation Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Navigation Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aiuibreadcrumbitems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.breadcrumb(items)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuipagination-total-page-per_page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.pagination(*, total, page, per_page)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuikey_value_listitems-title" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.key_value_list(items, *, title)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aiuipopovertrigger-children" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aiui.popover(trigger, *, children)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composition
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#component-count-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Component Count Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-component-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Component Types
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="component-api-reference">Component API Reference<a class="headerlink" href="#component-api-reference" title="Permanent link">&para;</a></h1>
+<p>Python functions for building dashboard UIs. Each function returns a dict that the frontend renders as a real UI element — <strong>36 components</strong> organized into tiers.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">praisonaiui</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">aiui</span>
+</span></code></pre></div>
+<hr />
+<h2 id="core-components">Core Components<a class="headerlink" href="#core-components" title="Permanent link">&para;</a></h2>
+<h3 id="aiuilayoutchildren"><code>aiui.layout(children)</code><a class="headerlink" href="#aiuilayoutchildren" title="Permanent link">&para;</a></h3>
+<p>Wrap components in a renderable container.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">layout</span><span class="p">([</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="n">aiui</span><span class="o">.</span><span class="n">card</span><span class="p">(</span><span class="s2">&quot;Users&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">42</span><span class="p">),</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">aiui</span><span class="o">.</span><span class="n">table</span><span class="p">(</span><span class="n">headers</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;A&quot;</span><span class="p">],</span> <span class="n">rows</span><span class="o">=</span><span class="p">[[</span><span class="s2">&quot;x&quot;</span><span class="p">]]),</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="p">])</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># Returns: {&quot;_components&quot;: [...]}</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>children</code></td>
+<td><code>Sequence[dict]</code></td>
+<td>✅</td>
+<td>List of component dicts</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> <code>dict</code> with <code>_components</code> key — triggers structured rendering in the frontend.</p>
+<h3 id="aiuicardtitle-value-footer"><code>aiui.card(title, *, value, footer)</code><a class="headerlink" href="#aiuicardtitle-value-footer" title="Permanent link">&para;</a></h3>
+<p>A metric/stat card.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">card</span><span class="p">(</span><span class="s2">&quot;Revenue&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;$1,500&quot;</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="s2">&quot;+8% this month&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>title</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>Card header label</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>Any</code></td>
+<td>❌</td>
+<td>Main display value</td>
+</tr>
+<tr>
+<td><code>footer</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td>Small text below the value</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuicolumnschildren"><code>aiui.columns(children)</code><a class="headerlink" href="#aiuicolumnschildren" title="Permanent link">&para;</a></h3>
+<p>Arrange components in a responsive grid row.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">columns</span><span class="p">([</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">aiui</span><span class="o">.</span><span class="n">card</span><span class="p">(</span><span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">aiui</span><span class="o">.</span><span class="n">card</span><span class="p">(</span><span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">aiui</span><span class="o">.</span><span class="n">card</span><span class="p">(</span><span class="s2">&quot;C&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">3</span><span class="p">),</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="p">])</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>children</code></td>
+<td><code>Sequence[dict]</code></td>
+<td>✅</td>
+<td>Component dicts to lay out side-by-side</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuitable-headers-rows"><code>aiui.table(*, headers, rows)</code><a class="headerlink" href="#aiuitable-headers-rows" title="Permanent link">&para;</a></h3>
+<p>A data table.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">table</span><span class="p">(</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="n">headers</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span> <span class="s2">&quot;Role&quot;</span><span class="p">],</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="n">rows</span><span class="o">=</span><span class="p">[[</span><span class="s2">&quot;Alice&quot;</span><span class="p">,</span> <span class="s2">&quot;Engineer&quot;</span><span class="p">],</span> <span class="p">[</span><span class="s2">&quot;Bob&quot;</span><span class="p">,</span> <span class="s2">&quot;Designer&quot;</span><span class="p">]],</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>headers</code></td>
+<td><code>Sequence[str]</code></td>
+<td>✅</td>
+<td>Column header labels</td>
+</tr>
+<tr>
+<td><code>rows</code></td>
+<td><code>Sequence[Sequence[Any]]</code></td>
+<td>✅</td>
+<td>Row data arrays</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuitextcontent"><code>aiui.text(content)</code><a class="headerlink" href="#aiuitextcontent" title="Permanent link">&para;</a></h3>
+<p>A text block.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;Last updated 30 seconds ago.&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>content</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>Text content</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuicharttitle-data-chart_type"><code>aiui.chart(title, *, data, chart_type)</code><a class="headerlink" href="#aiuicharttitle-data-chart_type" title="Permanent link">&para;</a></h3>
+<p>A chart.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">chart</span><span class="p">(</span><span class="s2">&quot;Revenue&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;month&quot;</span><span class="p">:</span> <span class="s2">&quot;Jan&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">}],</span> <span class="n">chart_type</span><span class="o">=</span><span class="s2">&quot;line&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>title</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Chart title</td>
+</tr>
+<tr>
+<td><code>data</code></td>
+<td><code>Sequence[dict]</code></td>
+<td>❌</td>
+<td><code>[]</code></td>
+<td>Data points</td>
+</tr>
+<tr>
+<td><code>chart_type</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>"bar"</code></td>
+<td><code>bar</code>, <code>line</code>, or <code>pie</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="essential-components">Essential Components<a class="headerlink" href="#essential-components" title="Permanent link">&para;</a></h2>
+<h3 id="aiuimetriclabel-value-delta-delta_color"><code>aiui.metric(label, *, value, delta, delta_color)</code><a class="headerlink" href="#aiuimetriclabel-value-delta-delta_color" title="Permanent link">&para;</a></h3>
+<p>A metric card with optional delta indicator.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">metric</span><span class="p">(</span><span class="s2">&quot;Requests&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;12.3k&quot;</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="s2">&quot;+15%&quot;</span><span class="p">)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">aiui</span><span class="o">.</span><span class="n">metric</span><span class="p">(</span><span class="s2">&quot;Errors&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">23</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="s2">&quot;+3&quot;</span><span class="p">,</span> <span class="n">delta_color</span><span class="o">=</span><span class="s2">&quot;inverse&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Metric label</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>Any</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Main metric value</td>
+</tr>
+<tr>
+<td><code>delta</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>Change indicator (e.g. "+5%")</td>
+</tr>
+<tr>
+<td><code>delta_color</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>"normal"</code></td>
+<td><code>"normal"</code>, <code>"inverse"</code>, or <code>"off"</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuiprogress_barlabel-value-max_value"><code>aiui.progress_bar(label, *, value, max_value)</code><a class="headerlink" href="#aiuiprogress_barlabel-value-max_value" title="Permanent link">&para;</a></h3>
+<p>A progress bar.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="s2">&quot;Upload&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">73</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Label above the bar</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>int\|float</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Current value</td>
+</tr>
+<tr>
+<td><code>max_value</code></td>
+<td><code>int\|float</code></td>
+<td>❌</td>
+<td><code>100</code></td>
+<td>Maximum value</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuialertmessage-variant-title"><code>aiui.alert(message, *, variant, title)</code><a class="headerlink" href="#aiuialertmessage-variant-title" title="Permanent link">&para;</a></h3>
+<p>An alert/notification box.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">alert</span><span class="p">(</span><span class="s2">&quot;Deploy successful!&quot;</span><span class="p">,</span> <span class="n">variant</span><span class="o">=</span><span class="s2">&quot;success&quot;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Done&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>message</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Alert body text</td>
+</tr>
+<tr>
+<td><code>variant</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>"info"</code></td>
+<td><code>"info"</code>, <code>"success"</code>, <code>"warning"</code>, <code>"error"</code></td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>Optional bold title</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuibadgetext-variant"><code>aiui.badge(text, *, variant)</code><a class="headerlink" href="#aiuibadgetext-variant" title="Permanent link">&para;</a></h3>
+<p>An inline badge/tag.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">badge</span><span class="p">(</span><span class="s2">&quot;New&quot;</span><span class="p">)</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">aiui</span><span class="o">.</span><span class="n">badge</span><span class="p">(</span><span class="s2">&quot;Deprecated&quot;</span><span class="p">,</span> <span class="n">variant</span><span class="o">=</span><span class="s2">&quot;destructive&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>text</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Badge label</td>
+</tr>
+<tr>
+<td><code>variant</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>"default"</code></td>
+<td><code>"default"</code>, <code>"secondary"</code>, <code>"destructive"</code>, <code>"outline"</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuiseparator"><code>aiui.separator()</code><a class="headerlink" href="#aiuiseparator" title="Permanent link">&para;</a></h3>
+<p>A horizontal separator line. No parameters.</p>
+<h3 id="aiuitabsitems"><code>aiui.tabs(items)</code><a class="headerlink" href="#aiuitabsitems" title="Permanent link">&para;</a></h3>
+<p>A tabbed container.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">tabs</span><span class="p">([</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>    <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Overview&quot;</span><span class="p">,</span> <span class="s2">&quot;children&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">aiui</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;Tab 1 content&quot;</span><span class="p">)]},</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Details&quot;</span><span class="p">,</span>  <span class="s2">&quot;children&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">aiui</span><span class="o">.</span><span class="n">table</span><span class="p">(</span><span class="n">headers</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;K&quot;</span><span class="p">,</span><span class="s2">&quot;V&quot;</span><span class="p">],</span> <span class="n">rows</span><span class="o">=</span><span class="p">[[</span><span class="s2">&quot;a&quot;</span><span class="p">,</span><span class="s2">&quot;b&quot;</span><span class="p">]])]},</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="p">])</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td><code>Sequence[dict]</code></td>
+<td>✅</td>
+<td>List of <code>{"label": str, "children": [comp_dicts]}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuiaccordionitems"><code>aiui.accordion(items)</code><a class="headerlink" href="#aiuiaccordionitems" title="Permanent link">&para;</a></h3>
+<p>A collapsible accordion.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">accordion</span><span class="p">([</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>    <span class="p">{</span><span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;FAQ 1&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Answer 1&quot;</span><span class="p">},</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    <span class="p">{</span><span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;FAQ 2&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Answer 2&quot;</span><span class="p">},</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="p">])</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td><code>Sequence[dict]</code></td>
+<td>✅</td>
+<td>List of <code>{"title": str, "content": str_or_comp}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuiimage_displaysrc-alt-caption-width"><code>aiui.image_display(src, *, alt, caption, width)</code><a class="headerlink" href="#aiuiimage_displaysrc-alt-caption-width" title="Permanent link">&para;</a></h3>
+<p>An image with optional caption.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">image_display</span><span class="p">(</span><span class="s2">&quot;https://example.com/logo.png&quot;</span><span class="p">,</span> <span class="n">alt</span><span class="o">=</span><span class="s2">&quot;Logo&quot;</span><span class="p">,</span> <span class="n">caption</span><span class="o">=</span><span class="s2">&quot;Our logo&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="s2">&quot;300px&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Image URL or path</td>
+</tr>
+<tr>
+<td><code>alt</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>""</code></td>
+<td>Alt text</td>
+</tr>
+<tr>
+<td><code>caption</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>Caption below image</td>
+</tr>
+<tr>
+<td><code>width</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>CSS width (e.g. <code>"300px"</code>, <code>"50%"</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuicode_blockcode-language"><code>aiui.code_block(code, *, language)</code><a class="headerlink" href="#aiuicode_blockcode-language" title="Permanent link">&para;</a></h3>
+<p>A code block with syntax highlighting.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">code_block</span><span class="p">(</span><span class="s2">&quot;def hello():</span><span class="se">\n</span><span class="s2">    print(&#39;Hi!&#39;)&quot;</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="s2">&quot;python&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>code</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Source code text</td>
+</tr>
+<tr>
+<td><code>language</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>"text"</code></td>
+<td>Language for highlighting</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuijson_viewdata"><code>aiui.json_view(data)</code><a class="headerlink" href="#aiuijson_viewdata" title="Permanent link">&para;</a></h3>
+<p>A formatted JSON viewer.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">json_view</span><span class="p">({</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span> <span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]})</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data</code></td>
+<td><code>Any</code></td>
+<td>✅</td>
+<td>Any JSON-serializable data</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="form-input-components">Form Input Components<a class="headerlink" href="#form-input-components" title="Permanent link">&para;</a></h2>
+<h3 id="aiuitext_inputlabel-value-placeholder"><code>aiui.text_input(label, *, value, placeholder)</code><a class="headerlink" href="#aiuitext_inputlabel-value-placeholder" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">text_input</span><span class="p">(</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;Alice&quot;</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;Enter name&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Input label</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>""</code></td>
+<td>Default value</td>
+</tr>
+<tr>
+<td><code>placeholder</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>""</code></td>
+<td>Placeholder text</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuinumber_inputlabel-value-min_val-max_val-step"><code>aiui.number_input(label, *, value, min_val, max_val, step)</code><a class="headerlink" href="#aiuinumber_inputlabel-value-min_val-max_val-step" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">number_input</span><span class="p">(</span><span class="s2">&quot;Age&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">28</span><span class="p">,</span> <span class="n">min_val</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_val</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Input label</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>int\|float</code></td>
+<td>❌</td>
+<td><code>0</code></td>
+<td>Default value</td>
+</tr>
+<tr>
+<td><code>min_val</code></td>
+<td><code>int\|float</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>Minimum allowed</td>
+</tr>
+<tr>
+<td><code>max_val</code></td>
+<td><code>int\|float</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>Maximum allowed</td>
+</tr>
+<tr>
+<td><code>step</code></td>
+<td><code>int\|float</code></td>
+<td>❌</td>
+<td><code>1</code></td>
+<td>Increment step</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuiselect_inputlabel-options-value"><code>aiui.select_input(label, *, options, value)</code><a class="headerlink" href="#aiuiselect_inputlabel-options-value" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">select_input</span><span class="p">(</span><span class="s2">&quot;Country&quot;</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;USA&quot;</span><span class="p">,</span> <span class="s2">&quot;UK&quot;</span><span class="p">,</span> <span class="s2">&quot;Canada&quot;</span><span class="p">],</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;USA&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Input label</td>
+</tr>
+<tr>
+<td><code>options</code></td>
+<td><code>Sequence[str]</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Option strings</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>""</code></td>
+<td>Default selected</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuislider_inputlabel-value-min_val-max_val-step"><code>aiui.slider_input(label, *, value, min_val, max_val, step)</code><a class="headerlink" href="#aiuislider_inputlabel-value-min_val-max_val-step" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">slider_input</span><span class="p">(</span><span class="s2">&quot;Volume&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">65</span><span class="p">,</span> <span class="n">min_val</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_val</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Input label</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>int\|float</code></td>
+<td>❌</td>
+<td><code>0</code></td>
+<td>Default value</td>
+</tr>
+<tr>
+<td><code>min_val</code></td>
+<td><code>int\|float</code></td>
+<td>❌</td>
+<td><code>0</code></td>
+<td>Minimum</td>
+</tr>
+<tr>
+<td><code>max_val</code></td>
+<td><code>int\|float</code></td>
+<td>❌</td>
+<td><code>100</code></td>
+<td>Maximum</td>
+</tr>
+<tr>
+<td><code>step</code></td>
+<td><code>int\|float</code></td>
+<td>❌</td>
+<td><code>1</code></td>
+<td>Increment step</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuicheckbox_inputlabel-checked"><code>aiui.checkbox_input(label, *, checked)</code><a class="headerlink" href="#aiuicheckbox_inputlabel-checked" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">checkbox_input</span><span class="p">(</span><span class="s2">&quot;I agree to the terms&quot;</span><span class="p">,</span> <span class="n">checked</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Checkbox label</td>
+</tr>
+<tr>
+<td><code>checked</code></td>
+<td><code>bool</code></td>
+<td>❌</td>
+<td><code>False</code></td>
+<td>Default state</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuiswitch_inputlabel-checked"><code>aiui.switch_input(label, *, checked)</code><a class="headerlink" href="#aiuiswitch_inputlabel-checked" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">switch_input</span><span class="p">(</span><span class="s2">&quot;Enable notifications&quot;</span><span class="p">,</span> <span class="n">checked</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Switch label</td>
+</tr>
+<tr>
+<td><code>checked</code></td>
+<td><code>bool</code></td>
+<td>❌</td>
+<td><code>False</code></td>
+<td>Default state</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuiradio_inputlabel-options-value"><code>aiui.radio_input(label, *, options, value)</code><a class="headerlink" href="#aiuiradio_inputlabel-options-value" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">radio_input</span><span class="p">(</span><span class="s2">&quot;Language&quot;</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Python&quot;</span><span class="p">,</span> <span class="s2">&quot;JavaScript&quot;</span><span class="p">,</span> <span class="s2">&quot;Go&quot;</span><span class="p">],</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;Python&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Group label</td>
+</tr>
+<tr>
+<td><code>options</code></td>
+<td><code>Sequence[str]</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Option strings</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>""</code></td>
+<td>Default selected</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuitextarea_inputlabel-value-placeholder-rows"><code>aiui.textarea_input(label, *, value, placeholder, rows)</code><a class="headerlink" href="#aiuitextarea_inputlabel-value-placeholder-rows" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">textarea_input</span><span class="p">(</span><span class="s2">&quot;Bio&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;Developer&quot;</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;About you...&quot;</span><span class="p">,</span> <span class="n">rows</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Input label</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>""</code></td>
+<td>Default value</td>
+</tr>
+<tr>
+<td><code>placeholder</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>""</code></td>
+<td>Placeholder text</td>
+</tr>
+<tr>
+<td><code>rows</code></td>
+<td><code>int</code></td>
+<td>❌</td>
+<td><code>4</code></td>
+<td>Visible rows</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuimultiselect_inputlabel-options-value"><code>aiui.multiselect_input(label, *, options, value)</code><a class="headerlink" href="#aiuimultiselect_inputlabel-options-value" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">multiselect_input</span><span class="p">(</span><span class="s2">&quot;Tags&quot;</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;AI&quot;</span><span class="p">,</span> <span class="s2">&quot;ML&quot;</span><span class="p">,</span> <span class="s2">&quot;NLP&quot;</span><span class="p">],</span> <span class="n">value</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;AI&quot;</span><span class="p">])</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Input label</td>
+</tr>
+<tr>
+<td><code>options</code></td>
+<td><code>Sequence[str]</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Available choices</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>Sequence[str]</code></td>
+<td>❌</td>
+<td><code>()</code></td>
+<td>Default selections</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuidate_inputlabel-value"><code>aiui.date_input(label, *, value)</code><a class="headerlink" href="#aiuidate_inputlabel-value" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">date_input</span><span class="p">(</span><span class="s2">&quot;Start Date&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;2026-01-15&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Input label</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>ISO date string</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuitime_inputlabel-value"><code>aiui.time_input(label, *, value)</code><a class="headerlink" href="#aiuitime_inputlabel-value" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">time_input</span><span class="p">(</span><span class="s2">&quot;Alarm&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;08:30&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Input label</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td><code>"HH:MM"</code> string</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuicolor_picker_inputlabel-value"><code>aiui.color_picker_input(label, *, value)</code><a class="headerlink" href="#aiuicolor_picker_inputlabel-value" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">color_picker_input</span><span class="p">(</span><span class="s2">&quot;Brand Color&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;#6366f1&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Input label</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>"#000000"</code></td>
+<td>Default hex color</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="layout-advanced-components">Layout &amp; Advanced Components<a class="headerlink" href="#layout-advanced-components" title="Permanent link">&para;</a></h2>
+<h3 id="aiuicontainerchildren-title"><code>aiui.container(children, *, title)</code><a class="headerlink" href="#aiuicontainerchildren-title" title="Permanent link">&para;</a></h3>
+<p>A container wrapper with optional title.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">container</span><span class="p">([</span><span class="n">aiui</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;Inside&quot;</span><span class="p">),</span> <span class="n">aiui</span><span class="o">.</span><span class="n">badge</span><span class="p">(</span><span class="s2">&quot;Tag&quot;</span><span class="p">)],</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Section&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>children</code></td>
+<td><code>Sequence[dict]</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Child component dicts</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>Optional heading</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuiexpandertitle-children-expanded"><code>aiui.expander(title, *, children, expanded)</code><a class="headerlink" href="#aiuiexpandertitle-children-expanded" title="Permanent link">&para;</a></h3>
+<p>A collapsible section.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-29-1"><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">expander</span><span class="p">(</span><span class="s2">&quot;Advanced Settings&quot;</span><span class="p">,</span> <span class="n">children</span><span class="o">=</span><span class="p">[</span><span class="n">aiui</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;Hidden content&quot;</span><span class="p">)],</span> <span class="n">expanded</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>title</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Section heading</td>
+</tr>
+<tr>
+<td><code>children</code></td>
+<td><code>Sequence[dict]</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Content components</td>
+</tr>
+<tr>
+<td><code>expanded</code></td>
+<td><code>bool</code></td>
+<td>❌</td>
+<td><code>False</code></td>
+<td>Initially expanded?</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuidividertext"><code>aiui.divider(text)</code><a class="headerlink" href="#aiuidividertext" title="Permanent link">&para;</a></h3>
+<p>A horizontal divider with optional center text.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-30-1"><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">divider</span><span class="p">(</span><span class="s2">&quot;OR&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>text</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>Label in the middle of the line</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuiheadertext-level"><code>aiui.header(text, *, level)</code><a class="headerlink" href="#aiuiheadertext-level" title="Permanent link">&para;</a></h3>
+<p>A heading element.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-31-1"><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">header</span><span class="p">(</span><span class="s2">&quot;Dashboard&quot;</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>text</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Heading text</td>
+</tr>
+<tr>
+<td><code>level</code></td>
+<td><code>int</code></td>
+<td>❌</td>
+<td><code>1</code></td>
+<td>Heading level 1–6</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuimarkdown_textcontent"><code>aiui.markdown_text(content)</code><a class="headerlink" href="#aiuimarkdown_textcontent" title="Permanent link">&para;</a></h3>
+<p>A markdown-rendered text block.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-32-1"><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">markdown_text</span><span class="p">(</span><span class="s2">&quot;**Bold**, *italic*, and `code`.&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>content</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>Markdown content string</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuilinktext-href-external"><code>aiui.link(text, *, href, external)</code><a class="headerlink" href="#aiuilinktext-href-external" title="Permanent link">&para;</a></h3>
+<p>A hyperlink.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-33-1"><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">link</span><span class="p">(</span><span class="s2">&quot;Docs&quot;</span><span class="p">,</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;https://docs.praison.ai&quot;</span><span class="p">,</span> <span class="n">external</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>text</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Link text</td>
+</tr>
+<tr>
+<td><code>href</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>URL</td>
+</tr>
+<tr>
+<td><code>external</code></td>
+<td><code>bool</code></td>
+<td>❌</td>
+<td><code>False</code></td>
+<td>Open in new tab?</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuibutton_groupbuttons"><code>aiui.button_group(buttons)</code><a class="headerlink" href="#aiuibutton_groupbuttons" title="Permanent link">&para;</a></h3>
+<p>A row of buttons.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-34-1"><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">button_group</span><span class="p">([</span>
+</span><span id="__span-34-2"><a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a>    <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Save&quot;</span><span class="p">,</span> <span class="s2">&quot;variant&quot;</span><span class="p">:</span> <span class="s2">&quot;default&quot;</span><span class="p">},</span>
+</span><span id="__span-34-3"><a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a>    <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Cancel&quot;</span><span class="p">,</span> <span class="s2">&quot;variant&quot;</span><span class="p">:</span> <span class="s2">&quot;outline&quot;</span><span class="p">},</span>
+</span><span id="__span-34-4"><a id="__codelineno-34-4" name="__codelineno-34-4" href="#__codelineno-34-4"></a><span class="p">])</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>buttons</code></td>
+<td><code>Sequence[dict]</code></td>
+<td>✅</td>
+<td>List of <code>{"label": str, "variant": str}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuistat_groupstats"><code>aiui.stat_group(stats)</code><a class="headerlink" href="#aiuistat_groupstats" title="Permanent link">&para;</a></h3>
+<p>A grid of stat/metric cards.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-35-1"><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">stat_group</span><span class="p">([</span>
+</span><span id="__span-35-2"><a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a>    <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;CPU&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;72%&quot;</span><span class="p">,</span> <span class="s2">&quot;delta&quot;</span><span class="p">:</span> <span class="s2">&quot;+5%&quot;</span><span class="p">},</span>
+</span><span id="__span-35-3"><a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a>    <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Memory&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;4.2 GB&quot;</span><span class="p">},</span>
+</span><span id="__span-35-4"><a id="__codelineno-35-4" name="__codelineno-35-4" href="#__codelineno-35-4"></a><span class="p">])</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>stats</code></td>
+<td><code>Sequence[dict]</code></td>
+<td>✅</td>
+<td>List of <code>{"label": str, "value": Any, "delta": str}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuiavatar-src-name-fallback"><code>aiui.avatar(*, src, name, fallback)</code><a class="headerlink" href="#aiuiavatar-src-name-fallback" title="Permanent link">&para;</a></h3>
+<p>An avatar image or initials.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-36-1"><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">avatar</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Alice Smith&quot;</span><span class="p">,</span> <span class="n">fallback</span><span class="o">=</span><span class="s2">&quot;AS&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>Image URL</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>Display name</td>
+</tr>
+<tr>
+<td><code>fallback</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>Fallback text (e.g. initials)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuicalloutcontent-variant-title"><code>aiui.callout(content, *, variant, title)</code><a class="headerlink" href="#aiuicalloutcontent-variant-title" title="Permanent link">&para;</a></h3>
+<p>A callout/highlight box.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-37-1"><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">callout</span><span class="p">(</span><span class="s2">&quot;Use GPU for faster training.&quot;</span><span class="p">,</span> <span class="n">variant</span><span class="o">=</span><span class="s2">&quot;info&quot;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Tip&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>content</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Callout body text</td>
+</tr>
+<tr>
+<td><code>variant</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>"info"</code></td>
+<td><code>"info"</code>, <code>"success"</code>, <code>"warning"</code>, <code>"error"</code></td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>Optional bold title</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuiemptytext"><code>aiui.empty(text)</code><a class="headerlink" href="#aiuiemptytext" title="Permanent link">&para;</a></h3>
+<p>An empty state placeholder.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-38-1"><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="s2">&quot;No results found&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>text</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>"No data"</code></td>
+<td>Placeholder message</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuispinnertext"><code>aiui.spinner(text)</code><a class="headerlink" href="#aiuispinnertext" title="Permanent link">&para;</a></h3>
+<p>A loading spinner with text.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-39-1"><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">spinner</span><span class="p">(</span><span class="s2">&quot;Loading data...&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>text</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>"Loading..."</code></td>
+<td>Loading message</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="media-components">Media Components<a class="headerlink" href="#media-components" title="Permanent link">&para;</a></h2>
+<h3 id="aiuiaudio_playersrc-autoplay"><code>aiui.audio_player(src, *, autoplay)</code><a class="headerlink" href="#aiuiaudio_playersrc-autoplay" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-40-1"><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">audio_player</span><span class="p">(</span><span class="s2">&quot;/audio/clip.mp3&quot;</span><span class="p">,</span> <span class="n">autoplay</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Audio file URL</td>
+</tr>
+<tr>
+<td><code>autoplay</code></td>
+<td><code>bool</code></td>
+<td>❌</td>
+<td><code>False</code></td>
+<td>Auto-play?</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuivideo_playersrc-autoplay-poster"><code>aiui.video_player(src, *, autoplay, poster)</code><a class="headerlink" href="#aiuivideo_playersrc-autoplay-poster" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-41-1"><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">video_player</span><span class="p">(</span><span class="s2">&quot;/video/demo.mp4&quot;</span><span class="p">,</span> <span class="n">poster</span><span class="o">=</span><span class="s2">&quot;/img/thumb.jpg&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Video file URL</td>
+</tr>
+<tr>
+<td><code>autoplay</code></td>
+<td><code>bool</code></td>
+<td>❌</td>
+<td><code>False</code></td>
+<td>Auto-play?</td>
+</tr>
+<tr>
+<td><code>poster</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>Poster image URL</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuifile_downloadlabel-href-filename"><code>aiui.file_download(label, *, href, filename)</code><a class="headerlink" href="#aiuifile_downloadlabel-href-filename" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-42-1"><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">file_download</span><span class="p">(</span><span class="s2">&quot;Download Report&quot;</span><span class="p">,</span> <span class="n">href</span><span class="o">=</span><span class="s2">&quot;/files/report.pdf&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;report.pdf&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Button label</td>
+</tr>
+<tr>
+<td><code>href</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>File URL</td>
+</tr>
+<tr>
+<td><code>filename</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>Suggested filename</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuigalleryitems"><code>aiui.gallery(items)</code><a class="headerlink" href="#aiuigalleryitems" title="Permanent link">&para;</a></h3>
+<p>An image/media gallery grid.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-43-1"><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">gallery</span><span class="p">([</span>
+</span><span id="__span-43-2"><a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a>    <span class="p">{</span><span class="s2">&quot;src&quot;</span><span class="p">:</span> <span class="s2">&quot;/img/1.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;alt&quot;</span><span class="p">:</span> <span class="s2">&quot;Photo 1&quot;</span><span class="p">,</span> <span class="s2">&quot;caption&quot;</span><span class="p">:</span> <span class="s2">&quot;Sunset&quot;</span><span class="p">},</span>
+</span><span id="__span-43-3"><a id="__codelineno-43-3" name="__codelineno-43-3" href="#__codelineno-43-3"></a>    <span class="p">{</span><span class="s2">&quot;src&quot;</span><span class="p">:</span> <span class="s2">&quot;/img/2.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;alt&quot;</span><span class="p">:</span> <span class="s2">&quot;Photo 2&quot;</span><span class="p">},</span>
+</span><span id="__span-43-4"><a id="__codelineno-43-4" name="__codelineno-43-4" href="#__codelineno-43-4"></a><span class="p">])</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td><code>Sequence[dict]</code></td>
+<td>✅</td>
+<td>List of <code>{"src": str, "alt": str, "caption": str}</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="dashboard-components">Dashboard Components<a class="headerlink" href="#dashboard-components" title="Permanent link">&para;</a></h2>
+<h3 id="aiuitoastmessage-variant-duration"><code>aiui.toast(message, *, variant, duration)</code><a class="headerlink" href="#aiuitoastmessage-variant-duration" title="Permanent link">&para;</a></h3>
+<p>A toast notification.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-44-1"><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">toast</span><span class="p">(</span><span class="s2">&quot;Saved!&quot;</span><span class="p">,</span> <span class="n">variant</span><span class="o">=</span><span class="s2">&quot;success&quot;</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="mi">3000</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>message</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Notification text</td>
+</tr>
+<tr>
+<td><code>variant</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>"info"</code></td>
+<td><code>"info"</code>, <code>"success"</code>, <code>"warning"</code>, <code>"error"</code></td>
+</tr>
+<tr>
+<td><code>duration</code></td>
+<td><code>int</code></td>
+<td>❌</td>
+<td><code>3000</code></td>
+<td>Auto-dismiss ms</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuidialogtitle-children-description"><code>aiui.dialog(title, *, children, description)</code><a class="headerlink" href="#aiuidialogtitle-children-description" title="Permanent link">&para;</a></h3>
+<p>A modal dialog.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-45-1"><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">dialog</span><span class="p">(</span><span class="s2">&quot;Confirm&quot;</span><span class="p">,</span> <span class="n">children</span><span class="o">=</span><span class="p">[</span><span class="n">aiui</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;Are you sure?&quot;</span><span class="p">)],</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;This action cannot be undone.&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>title</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Dialog heading</td>
+</tr>
+<tr>
+<td><code>children</code></td>
+<td><code>Sequence[dict]</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Content components</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>Subtitle</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuicaptiontext"><code>aiui.caption(text)</code><a class="headerlink" href="#aiuicaptiontext" title="Permanent link">&para;</a></h3>
+<p>Small muted caption text.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-46-1"><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">caption</span><span class="p">(</span><span class="s2">&quot;Figure 1: System architecture&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>text</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>Caption content</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuihtml_embedcontent"><code>aiui.html_embed(content)</code><a class="headerlink" href="#aiuihtml_embedcontent" title="Permanent link">&para;</a></h3>
+<p>Raw HTML embed (trusted content only).</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-47-1"><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">html_embed</span><span class="p">(</span><span class="s1">&#39;&lt;iframe src=&quot;https://example.com&quot; width=&quot;100%&quot;&gt;&lt;/iframe&gt;&#39;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>content</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>HTML string</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuiskeleton-width-height-variant"><code>aiui.skeleton(*, width, height, variant)</code><a class="headerlink" href="#aiuiskeleton-width-height-variant" title="Permanent link">&para;</a></h3>
+<p>A skeleton loading placeholder.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-48-1"><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">skeleton</span><span class="p">(</span><span class="n">width</span><span class="o">=</span><span class="s2">&quot;200px&quot;</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="s2">&quot;20px&quot;</span><span class="p">,</span> <span class="n">variant</span><span class="o">=</span><span class="s2">&quot;text&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>width</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>CSS width</td>
+</tr>
+<tr>
+<td><code>height</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>CSS height</td>
+</tr>
+<tr>
+<td><code>variant</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>"text"</code></td>
+<td><code>"text"</code>, <code>"card"</code>, or <code>"avatar"</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuitooltip_wrapchild-content"><code>aiui.tooltip_wrap(child, *, content)</code><a class="headerlink" href="#aiuitooltip_wrapchild-content" title="Permanent link">&para;</a></h3>
+<p>Wrap a component with a hover tooltip.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-49-1"><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">tooltip_wrap</span><span class="p">(</span><span class="n">aiui</span><span class="o">.</span><span class="n">badge</span><span class="p">(</span><span class="s2">&quot;Beta&quot;</span><span class="p">),</span> <span class="n">content</span><span class="o">=</span><span class="s2">&quot;This feature is in beta&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>child</code></td>
+<td><code>dict</code></td>
+<td>✅</td>
+<td>Component to wrap</td>
+</tr>
+<tr>
+<td><code>content</code></td>
+<td><code>str</code></td>
+<td>✅</td>
+<td>Tooltip text</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="navigation-components">Navigation Components<a class="headerlink" href="#navigation-components" title="Permanent link">&para;</a></h2>
+<h3 id="aiuibreadcrumbitems"><code>aiui.breadcrumb(items)</code><a class="headerlink" href="#aiuibreadcrumbitems" title="Permanent link">&para;</a></h3>
+<p>A breadcrumb navigation trail.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-50-1"><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">breadcrumb</span><span class="p">([</span>
+</span><span id="__span-50-2"><a id="__codelineno-50-2" name="__codelineno-50-2" href="#__codelineno-50-2"></a>    <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Home&quot;</span><span class="p">,</span> <span class="s2">&quot;href&quot;</span><span class="p">:</span> <span class="s2">&quot;/&quot;</span><span class="p">},</span>
+</span><span id="__span-50-3"><a id="__codelineno-50-3" name="__codelineno-50-3" href="#__codelineno-50-3"></a>    <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Settings&quot;</span><span class="p">,</span> <span class="s2">&quot;href&quot;</span><span class="p">:</span> <span class="s2">&quot;/settings&quot;</span><span class="p">},</span>
+</span><span id="__span-50-4"><a id="__codelineno-50-4" name="__codelineno-50-4" href="#__codelineno-50-4"></a>    <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Profile&quot;</span><span class="p">,</span> <span class="s2">&quot;href&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+</span><span id="__span-50-5"><a id="__codelineno-50-5" name="__codelineno-50-5" href="#__codelineno-50-5"></a><span class="p">])</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td><code>Sequence[dict]</code></td>
+<td>✅</td>
+<td>List of <code>{"label": str, "href": str\|None}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuipagination-total-page-per_page"><code>aiui.pagination(*, total, page, per_page)</code><a class="headerlink" href="#aiuipagination-total-page-per_page" title="Permanent link">&para;</a></h3>
+<p>Pagination controls.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-51-1"><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">pagination</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="mi">250</span><span class="p">,</span> <span class="n">page</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">per_page</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>total</code></td>
+<td><code>int</code></td>
+<td>✅</td>
+<td>—</td>
+<td>Total items</td>
+</tr>
+<tr>
+<td><code>page</code></td>
+<td><code>int</code></td>
+<td>❌</td>
+<td><code>1</code></td>
+<td>Current page (1-based)</td>
+</tr>
+<tr>
+<td><code>per_page</code></td>
+<td><code>int</code></td>
+<td>❌</td>
+<td><code>10</code></td>
+<td>Items per page</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuikey_value_listitems-title"><code>aiui.key_value_list(items, *, title)</code><a class="headerlink" href="#aiuikey_value_listitems-title" title="Permanent link">&para;</a></h3>
+<p>A key-value display list.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-52-1"><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">key_value_list</span><span class="p">([</span>
+</span><span id="__span-52-2"><a id="__codelineno-52-2" name="__codelineno-52-2" href="#__codelineno-52-2"></a>    <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Model&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;gpt-4o-mini&quot;</span><span class="p">},</span>
+</span><span id="__span-52-3"><a id="__codelineno-52-3" name="__codelineno-52-3" href="#__codelineno-52-3"></a>    <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Temperature&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mf">0.7</span><span class="p">},</span>
+</span><span id="__span-52-4"><a id="__codelineno-52-4" name="__codelineno-52-4" href="#__codelineno-52-4"></a><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Config&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td><code>Sequence[dict]</code></td>
+<td>✅</td>
+<td>—</td>
+<td>List of <code>{"label": str, "value": Any}</code></td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td><code>str</code></td>
+<td>❌</td>
+<td><code>None</code></td>
+<td>Optional heading</td>
+</tr>
+</tbody>
+</table>
+<h3 id="aiuipopovertrigger-children"><code>aiui.popover(trigger, *, children)</code><a class="headerlink" href="#aiuipopovertrigger-children" title="Permanent link">&para;</a></h3>
+<p>A popover overlay triggered by a component.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-53-1"><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a><span class="n">aiui</span><span class="o">.</span><span class="n">popover</span><span class="p">(</span><span class="n">aiui</span><span class="o">.</span><span class="n">badge</span><span class="p">(</span><span class="s2">&quot;Info&quot;</span><span class="p">),</span> <span class="n">children</span><span class="o">=</span><span class="p">[</span><span class="n">aiui</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;More details here.&quot;</span><span class="p">)])</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>trigger</code></td>
+<td><code>dict</code></td>
+<td>✅</td>
+<td>Component that triggers the popover</td>
+</tr>
+<tr>
+<td><code>children</code></td>
+<td><code>Sequence[dict]</code></td>
+<td>✅</td>
+<td>Content inside the popover</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="composition">Composition<a class="headerlink" href="#composition" title="Permanent link">&para;</a></h2>
+<p>Components are designed to compose. Use <code>columns()</code> for horizontal layout within a <code>layout()</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-54-1"><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a><span class="nd">@aiui</span><span class="o">.</span><span class="n">page</span><span class="p">(</span><span class="s2">&quot;overview&quot;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Overview&quot;</span><span class="p">,</span> <span class="n">icon</span><span class="o">=</span><span class="s2">&quot;📊&quot;</span><span class="p">)</span>
+</span><span id="__span-54-2"><a id="__codelineno-54-2" name="__codelineno-54-2" href="#__codelineno-54-2"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">overview</span><span class="p">():</span>
+</span><span id="__span-54-3"><a id="__codelineno-54-3" name="__codelineno-54-3" href="#__codelineno-54-3"></a>    <span class="k">return</span> <span class="n">aiui</span><span class="o">.</span><span class="n">layout</span><span class="p">([</span>
+</span><span id="__span-54-4"><a id="__codelineno-54-4" name="__codelineno-54-4" href="#__codelineno-54-4"></a>        <span class="c1"># Row of KPI cards</span>
+</span><span id="__span-54-5"><a id="__codelineno-54-5" name="__codelineno-54-5" href="#__codelineno-54-5"></a>        <span class="n">aiui</span><span class="o">.</span><span class="n">columns</span><span class="p">([</span>
+</span><span id="__span-54-6"><a id="__codelineno-54-6" name="__codelineno-54-6" href="#__codelineno-54-6"></a>            <span class="n">aiui</span><span class="o">.</span><span class="n">metric</span><span class="p">(</span><span class="s2">&quot;Users&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">142</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="s2">&quot;+12%&quot;</span><span class="p">),</span>
+</span><span id="__span-54-7"><a id="__codelineno-54-7" name="__codelineno-54-7" href="#__codelineno-54-7"></a>            <span class="n">aiui</span><span class="o">.</span><span class="n">metric</span><span class="p">(</span><span class="s2">&quot;Revenue&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;$1.5k&quot;</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="s2">&quot;+8%&quot;</span><span class="p">),</span>
+</span><span id="__span-54-8"><a id="__codelineno-54-8" name="__codelineno-54-8" href="#__codelineno-54-8"></a>            <span class="n">aiui</span><span class="o">.</span><span class="n">metric</span><span class="p">(</span><span class="s2">&quot;Uptime&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;99.9%&quot;</span><span class="p">),</span>
+</span><span id="__span-54-9"><a id="__codelineno-54-9" name="__codelineno-54-9" href="#__codelineno-54-9"></a>        <span class="p">]),</span>
+</span><span id="__span-54-10"><a id="__codelineno-54-10" name="__codelineno-54-10" href="#__codelineno-54-10"></a>        <span class="c1"># Tabbed data</span>
+</span><span id="__span-54-11"><a id="__codelineno-54-11" name="__codelineno-54-11" href="#__codelineno-54-11"></a>        <span class="n">aiui</span><span class="o">.</span><span class="n">tabs</span><span class="p">([</span>
+</span><span id="__span-54-12"><a id="__codelineno-54-12" name="__codelineno-54-12" href="#__codelineno-54-12"></a>            <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Table&quot;</span><span class="p">,</span> <span class="s2">&quot;children&quot;</span><span class="p">:</span> <span class="p">[</span>
+</span><span id="__span-54-13"><a id="__codelineno-54-13" name="__codelineno-54-13" href="#__codelineno-54-13"></a>                <span class="n">aiui</span><span class="o">.</span><span class="n">table</span><span class="p">(</span>
+</span><span id="__span-54-14"><a id="__codelineno-54-14" name="__codelineno-54-14" href="#__codelineno-54-14"></a>                    <span class="n">headers</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Agent&quot;</span><span class="p">,</span> <span class="s2">&quot;Tasks&quot;</span><span class="p">,</span> <span class="s2">&quot;Status&quot;</span><span class="p">],</span>
+</span><span id="__span-54-15"><a id="__codelineno-54-15" name="__codelineno-54-15" href="#__codelineno-54-15"></a>                    <span class="n">rows</span><span class="o">=</span><span class="p">[[</span><span class="s2">&quot;Researcher&quot;</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="s2">&quot;Active&quot;</span><span class="p">]],</span>
+</span><span id="__span-54-16"><a id="__codelineno-54-16" name="__codelineno-54-16" href="#__codelineno-54-16"></a>                <span class="p">),</span>
+</span><span id="__span-54-17"><a id="__codelineno-54-17" name="__codelineno-54-17" href="#__codelineno-54-17"></a>            <span class="p">]},</span>
+</span><span id="__span-54-18"><a id="__codelineno-54-18" name="__codelineno-54-18" href="#__codelineno-54-18"></a>            <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Chart&quot;</span><span class="p">,</span> <span class="s2">&quot;children&quot;</span><span class="p">:</span> <span class="p">[</span>
+</span><span id="__span-54-19"><a id="__codelineno-54-19" name="__codelineno-54-19" href="#__codelineno-54-19"></a>                <span class="n">aiui</span><span class="o">.</span><span class="n">chart</span><span class="p">(</span><span class="s2">&quot;Tasks&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Researcher&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mi">15</span><span class="p">}]),</span>
+</span><span id="__span-54-20"><a id="__codelineno-54-20" name="__codelineno-54-20" href="#__codelineno-54-20"></a>            <span class="p">]},</span>
+</span><span id="__span-54-21"><a id="__codelineno-54-21" name="__codelineno-54-21" href="#__codelineno-54-21"></a>        <span class="p">]),</span>
+</span><span id="__span-54-22"><a id="__codelineno-54-22" name="__codelineno-54-22" href="#__codelineno-54-22"></a>        <span class="c1"># Footer</span>
+</span><span id="__span-54-23"><a id="__codelineno-54-23" name="__codelineno-54-23" href="#__codelineno-54-23"></a>        <span class="n">aiui</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;Data refreshes every 30 seconds.&quot;</span><span class="p">),</span>
+</span><span id="__span-54-24"><a id="__codelineno-54-24" name="__codelineno-54-24" href="#__codelineno-54-24"></a>    <span class="p">])</span>
+</span></code></pre></div>
+<h2 id="component-count-summary">Component Count Summary<a class="headerlink" href="#component-count-summary" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Components</th>
+<th>Count</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Core</td>
+<td><code>layout</code>, <code>card</code>, <code>columns</code>, <code>table</code>, <code>text</code>, <code>chart</code></td>
+<td>6</td>
+</tr>
+<tr>
+<td>Essential</td>
+<td><code>metric</code>, <code>progress_bar</code>, <code>alert</code>, <code>badge</code>, <code>separator</code>, <code>tabs</code>, <code>accordion</code>, <code>image_display</code>, <code>code_block</code>, <code>json_view</code></td>
+<td>10</td>
+</tr>
+<tr>
+<td>Form Inputs</td>
+<td><code>text_input</code>, <code>number_input</code>, <code>select_input</code>, <code>slider_input</code>, <code>checkbox_input</code>, <code>switch_input</code>, <code>radio_input</code>, <code>textarea_input</code>, <code>multiselect_input</code>, <code>date_input</code>, <code>time_input</code>, <code>color_picker_input</code></td>
+<td>12</td>
+</tr>
+<tr>
+<td>Layout &amp; Advanced</td>
+<td><code>container</code>, <code>expander</code>, <code>divider</code>, <code>header</code>, <code>markdown_text</code>, <code>link</code>, <code>button_group</code>, <code>stat_group</code>, <code>avatar</code>, <code>callout</code>, <code>empty</code>, <code>spinner</code></td>
+<td>12</td>
+</tr>
+<tr>
+<td>Media</td>
+<td><code>audio_player</code>, <code>video_player</code>, <code>file_download</code>, <code>gallery</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>Dashboard</td>
+<td><code>toast</code>, <code>dialog</code>, <code>caption</code>, <code>html_embed</code>, <code>skeleton</code>, <code>tooltip_wrap</code></td>
+<td>6</td>
+</tr>
+<tr>
+<td>Navigation</td>
+<td><code>breadcrumb</code>, <code>pagination</code>, <code>key_value_list</code>, <code>popover</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td><strong>54</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="custom-component-types">Custom Component Types<a class="headerlink" href="#custom-component-types" title="Permanent link">&para;</a></h2>
+<p>The <code>dashboard.js</code> renderer supports any dict with a <code>type</code> key. Unknown types render as formatted JSON, making it safe to experiment:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-55-1"><a id="__codelineno-55-1" name="__codelineno-55-1" href="#__codelineno-55-1"></a><span class="c1"># Custom component — renders as JSON until frontend support is added</span>
+</span><span id="__span-55-2"><a id="__codelineno-55-2" name="__codelineno-55-2" href="#__codelineno-55-2"></a><span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;timeline&quot;</span><span class="p">,</span> <span class="s2">&quot;events&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="s2">&quot;10:00&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Deploy&quot;</span><span class="p">}]}</span>
+</span></code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/MervinPraison/PraisonAIUI" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
