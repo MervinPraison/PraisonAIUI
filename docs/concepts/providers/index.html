@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Providers - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Providers | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/concepts/providers" />
+  <meta property="og:title" content="Providers | PraisonAIUI Docs" />
+  <meta property="og:description" content="Providers - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/concepts/providers" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Providers | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Providers - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Providers</h1>
+<p>PraisonAIUI uses a **provider protocol** — a simple abstraction that lets you plug in any AI backend.</p>
+<h2>Architecture</h2>
+<p>The provider protocol is the **only contract** between the frontend and any AI backend. All dashboard pages (`/api/overview`, `/api/config`, `/api/logs`, etc.) are provider-agnostic — they always work regardless of which backend is active. The provider only handles agent execution (`run()`), agent listing (`list_agents()`), and health checks (`health()`).</p>
+<h2>How It Works</h2>
+<p>1. User sends a message → `POST /run`</p>
+<p>2. Server calls `provider.run(message)` on the active provider</p>
+<p>3. Provider yields `RunEvent` objects (start, content, tool calls, reasoning, completion)</p>
+<p>4. Server serialises each `RunEvent` to an SSE `data:` frame</p>
+<p>5. Frontend `useSSE.ts` parses events and renders components</p>
+<h2>Built-in Provider: PraisonAI</h2>
+<p>PraisonAI is the default provider. It wraps the `@aiui.reply` callback system:</p>
+<p>No extra config needed — `PraisonAIProvider` is used automatically.</p>
+<h3>Agent Tools and Reflection</h3>
+<p>The default provider resolves tools for agents using `ToolResolver` from the `praisonai` package. Agents created via the CRUD API or `~/.praisonaiui/config.yaml` get their tool names (strings) automatically resolved to callable Python functions:</p>
+<p>When no tools are configured, the provider gives agents sensible defaults (`internet_search`).</p>
+<p>Agents also support `reflection: true` (default) for self-reflection mode, where the agent evaluates its own response quality before returning.</p>
+<h2>Swapping Providers</h2>
+<h2>Writing a Custom Provider</h2>
+<p>Implement `BaseProvider.run()` — that's it:</p>
+<h3>With Tool Calls and Reasoning</h3>
+<h2>RunEvent Reference</h2>
+<p>Every event has a `type` field and optional payload fields:</p>
+<p>| Field | Type | Used By |</p>
+<p>|-------|------|---------|</p>
+<p>| `type` | `RunEventType` | All events |</p>
+<p>| `content` | `str` | `RUN_COMPLETED`, `RUN_CONTENT` |</p>
+<p>| `token` | `str` | `RUN_CONTENT` (streaming) |</p>
+<p>| `name` | `str` | `TOOL_CALL_*` |</p>
+<p>| `args` | `dict` | `TOOL_CALL_STARTED` |</p>
+<p>| `result` | `any` | `TOOL_CALL_COMPLETED` |</p>
+<p>| `step` | `str` | `REASONING_STEP` |</p>
+<p>| `error` | `str` | `RUN_ERROR` |</p>
+<p>| `agent_name` | `str` | Multi-agent events |</p>
+<p>| `extra_data` | `dict` | Custom payload |</p>
+<h3>Event Types (27 total)</h3>
+<p>=== "Agent Events"</p>
+<p>| Type | Description |</p>
+<p>|------|-------------|</p>
+<p>| `run_started` | Agent run begins |</p>
+<p>| `run_content` | Streaming token or content chunk |</p>
+<p>| `run_completed` | Agent run finished |</p>
+<p>| `run_error` | Error occurred |</p>
+<p>| `run_cancelled` | User cancelled |</p>
+<p>| `tool_call_started` | Tool invocation started |</p>
+<p>| `tool_call_completed` | Tool returned result |</p>
+<p>| `reasoning_started` | Thinking begun |</p>
+<p>| `reasoning_step` | Individual reasoning step |</p>
+<p>| `reasoning_completed` | Thinking finished |</p>
+<p>| `memory_update_started` | Memory write begun |</p>
+<p>| `memory_update_completed` | Memory write done |</p>
+<p>| `updating_memory` | Memory being updated |</p>
+<p>| `run_paused` | Run paused (e.g. waiting for user) |</p>
+<p>| `run_continued` | Run resumed |</p>
+<p>=== "Team Events"</p>
+<p>| Type | Description |</p>
+<p>|------|-------------|</p>
+<p>| `team_run_started` | Team run begins |</p>
+<p>| `team_run_content` | Team streaming content |</p>
+<p>| `team_run_completed` | Team run finished |</p>
+<p>| `team_run_error` | Team error |</p>
+<p>| `team_run_cancelled` | Team cancelled |</p>
+<p>| `team_tool_call_started` | Team tool call started |</p>
+<p>| `team_tool_call_completed` | Team tool call done |</p>
+<p>| `team_reasoning_started` | Team reasoning begun |</p>
+<p>| `team_reasoning_step` | Team reasoning step |</p>
+<p>| `team_reasoning_completed` | Team reasoning done |</p>
+<p>| `team_memory_update_started` | Team memory update started |</p>
+<p>| `team_memory_update_completed` | Team memory update done |</p>
+<h2>API Summary</h2>
+<h3>`BaseProvider` (abstract)</h3>
+<p>:   Subclass and implement `run()` to create a custom provider.</p>
+<p>| Method | Description |</p>
+<p>|--------|-------------|</p>
+<p>| `run(message, *, session_id, agent_name, **kw)` | **Required.** Async generator yielding `RunEvent` objects |</p>
+<p>| `list_agents()` | Optional. Returns list of available agents |</p>
+<p>| `health()` | Optional. Returns health check dict |</p>
+<h3>`RunEvent` (dataclass)</h3>
+<p>:   Structured event with `type: RunEventType` and optional payload fields (see table above).</p>
+<li>`to_dict()` → serialise to JSON-compatible dict matching the frontend `SSEEvent` interface</li>
+<h3>`RunEventType` (enum)</h3>
+<p>:   27 string values matching the frontend `types.ts` — see Agent Events and Team Events tabs above.</p>
+<h3>Helper Functions</h3>
+<p>| Function | Description |</p>
+<p>|----------|-------------|</p>
+<p>| `praisonaiui.set_provider(provider)` | Set the active provider |</p>
+<p>| `praisonaiui.get_provider()` | Get the active provider (lazy-inits `PraisonAIProvider`) |</p></noscript></div>
+</body>
+
+</html>

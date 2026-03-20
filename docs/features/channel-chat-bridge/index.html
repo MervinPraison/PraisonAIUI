@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Channel-to-Chat Bridge - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Channel-to-Chat Bridge | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/channel-chat-bridge" />
+  <meta property="og:title" content="Channel-to-Chat Bridge | PraisonAIUI Docs" />
+  <meta property="og:description" content="Channel-to-Chat Bridge - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/channel-chat-bridge" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Channel-to-Chat Bridge | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Channel-to-Chat Bridge - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Channel-to-Chat Bridge</h1>
+<p>Bridge channel bot conversations (Slack, Discord, Telegram) into the Chat UI in real-time.</p>
+<h2>Architecture</h2>
+<h2>How It Works</h2>
+<h3>Backend (`channels.py`)</h3>
+<p>`_attach_chat_bridge(channel_id, bot, platform)` is called in `_start_channel_bot()` right before the bot task is launched:</p>
+<p>1. **`on_message` hook** — Captures incoming platform messages and broadcasts `channel_message` events with sender name, platform, and icon</p>
+<p>2. **`_session.chat()` wrapper** — Wraps the agent's chat method so responses are also broadcast as `channel_response` events</p>
+<p>3. **Persistence** — All messages saved to the datastore under session `channel-{channel_id}` for history on reload</p>
+<h3>Frontend (`chat.js`)</h3>
+<p>| Function | Purpose |</p>
+<p>|---|---|</p>
+<p>| `_handleChannelMessage(data)` | Renders incoming platform user messages; auto-switches to channel session if on fresh chat |</p>
+<p>| `_handleChannelResponse(data)` | Renders agent responses from channel bots |</p>
+<p>| `_appendChannelMsg(role, data)` | Creates message DOM with platform badge, icon, sender name |</p>
+<p>| `_markSessionUnread(sessionId)` | Adds unread dot to sidebar for inactive channel sessions |</p>
+<h2>Performance</h2>
+<p>Every broadcast is dispatched via `asyncio.create_task()` — the original bot message handling is **never blocked**. Errors in broadcasting are logged at `debug` level and swallowed — the bot continues normally even with zero Chat UI clients connected.</p>
+<h2>Session Naming</h2>
+<p>Each channel gets a dedicated session: `channel-{channel_id}`. Platform icons:</p>
+<p>| Platform | Icon |</p>
+<p>|---|---|</p>
+<p>| Slack | 💬 |</p>
+<p>| Discord | 🎮 |</p>
+<p>| Telegram | ✈️ |</p>
+<p>| WhatsApp | 📱 |</p>
+<h2>WebSocket Events</h2>
+<h3>`channel_message`</h3>
+<h3>`channel_response`</h3></noscript></div>
+</body>
+
+</html>

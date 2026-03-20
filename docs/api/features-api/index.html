@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Features REST API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Features REST API Reference | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/api/features-api" />
+  <meta property="og:title" content="Features REST API Reference | PraisonAIUI Docs" />
+  <meta property="og:description" content="Features REST API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/api/features-api" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Features REST API Reference | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Features REST API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Features REST API Reference</h1>
+<p>Complete API reference for all **36** PraisonAIUI feature protocol endpoints.</p>
+<h2>Feature Registry</h2>
+<h3>GET /api/features</h3>
+<p>List all registered features with health status.</p>
+<p>**Response:**</p>
+<p>---</p>
+<h2>Approvals</h2>
+<p>Tool-execution approval management with policies, history, and SSE streaming.</p>
+<h3>GET /api/approvals</h3>
+<p>List all approvals.</p>
+<h3>POST /api/approvals</h3>
+<p>Create an approval request.</p>
+<h3>GET /api/approvals/pending</h3>
+<p>List pending approvals only.</p>
+<h3>GET /api/approvals/history</h3>
+<p>List resolved approvals.</p>
+<h3>GET /api/approvals/policies</h3>
+<p>Get auto-approve/deny policies.</p>
+<h3>PUT /api/approvals/policies</h3>
+<p>Update policies.</p>
+<h3>GET /api/approvals/stream</h3>
+<p>SSE stream for real-time approval notifications.</p>
+<h3>GET /api/approvals/{id}</h3>
+<p>Get single approval by ID.</p>
+<h3>POST /api/approvals/{id}/approve</h3>
+<p>Approve a pending request. Body: `{"reason": "...", "always": false}`</p>
+<h3>POST /api/approvals/{id}/deny</h3>
+<p>Deny a pending request. Body: `{"reason": "...", "always": false}`</p>
+<p>---</p>
+<h2>Channels</h2>
+<h3>GET /api/channels</h3>
+<p>List all configured channels with live gateway status.</p>
+<h3>POST /api/channels</h3>
+<p>Add a channel.</p>
+<h3>GET /api/channels/platforms</h3>
+<p>List supported platforms.</p>
+<h3>GET /api/channels/{id}</h3>
+<p>Get channel details.</p>
+<h3>PUT /api/channels/{id}</h3>
+<p>Update channel configuration. Body fields: `name`, `platform`, `enabled`, `config`.</p>
+<h3>DELETE /api/channels/{id}</h3>
+<p>Remove a channel.</p>
+<h3>POST /api/channels/{id}/toggle</h3>
+<p>Toggle channel enabled/disabled.</p>
+<h3>GET /api/channels/{id}/status</h3>
+<p>Get live channel status (enriched via gateway).</p>
+<h3>POST /api/channels/{id}/restart</h3>
+<p>Restart a channel bot via the gateway. Returns status of restart attempt.</p>
+<p>---</p>
+<h2>Schedules</h2>
+<h3>POST /api/schedules</h3>
+<p>Add a scheduled job.</p>
+<h3>GET /api/schedules</h3>
+<p>List all scheduled jobs.</p>
+<h3>GET /api/schedules/{id}</h3>
+<p>Get job details.</p>
+<h3>PUT /api/schedules/{id}</h3>
+<p>Update schedule configuration. Body fields: `name`, `message`, `schedule`, `enabled`.</p>
+<h3>DELETE /api/schedules/{id}</h3>
+<p>Remove a job.</p>
+<h3>POST /api/schedules/{id}/toggle</h3>
+<p>Toggle job enabled/disabled.</p>
+<h3>POST /api/schedules/{id}/run</h3>
+<p>Trigger job immediately.</p>
+<h3>POST /api/schedules/{id}/stop</h3>
+<p>Stop a running scheduled job. Attempts to cancel via `AgentScheduler` if available.</p>
+<h3>GET /api/schedules/{id}/stats</h3>
+<p>Get execution statistics for a schedule.</p>
+<p>---</p>
+<h2>Jobs</h2>
+<h3>POST /api/jobs</h3>
+<p>Submit a new async job. Returns 202 Accepted.</p>
+<h3>GET /api/jobs</h3>
+<p>List jobs with optional filters. Query: `?status=running`, `?limit=50`, `?offset=0`</p>
+<h3>GET /api/jobs/stats</h3>
+<p>Get executor statistics.</p>
+<h3>GET /api/jobs/{id}</h3>
+<p>Get full job details.</p>
+<h3>GET /api/jobs/{id}/status</h3>
+<p>Get job status with progress info.</p>
+<h3>GET /api/jobs/{id}/result</h3>
+<p>Get job result. Returns 409 if not yet complete.</p>
+<h3>POST /api/jobs/{id}/cancel</h3>
+<p>Cancel a running or queued job. Returns 409 if already complete.</p>
+<h3>DELETE /api/jobs/{id}</h3>
+<p>Delete a completed job. Returns 409 if still running.</p>
+<h3>GET /api/jobs/{id}/stream</h3>
+<p>SSE stream for real-time job updates. Events: `status`, `progress`, `result`, `error`, `done`.</p>
+<p>---</p>
+<h2>Usage</h2>
+<h3>GET /api/usage</h3>
+<p>Usage summary with totals and averages.</p>
+<h3>POST /api/usage/track</h3>
+<p>Track a usage event.</p>
+<h3>GET /api/usage/details</h3>
+<p>Detailed usage records. Query: `?limit=100`, `?offset=0`</p>
+<h3>GET /api/usage/models</h3>
+<p>Per-model breakdown (tokens, cost, request count).</p>
+<h3>GET /api/usage/sessions</h3>
+<p>Per-session breakdown.</p>
+<h3>GET /api/usage/agents</h3>
+<p>Per-agent breakdown.</p>
+<h3>GET /api/usage/timeseries</h3>
+<p>Time-series data for charts. Query: `?hours=24`, `?bucket_minutes=60`</p>
+<h3>GET /api/usage/costs</h3>
+<p>Get the model cost table (per-1K token rates for 21 models).</p>
+<p>---</p>
+<h2>Memory</h2>
+<h3>POST /api/memory</h3>
+<p>Add a memory entry.</p>
+<h3>POST /api/memory/search</h3>
+<p>Search memories.</p>
+<h3>GET /api/memory</h3>
+<p>List all memories. Query: `?type=short|long|entity|all`</p>
+<h3>GET /api/memory/{id}</h3>
+<p>Get single memory.</p>
+<h3>DELETE /api/memory/{id}</h3>
+<p>Delete single memory.</p>
+<h3>DELETE /api/memory</h3>
+<p>Clear memories. Query: `?type=all`</p>
+<h3>POST /api/memory/context</h3>
+<p>Get memory context for prompt injection.</p>
+<p>---</p>
+<h2>Extended Sessions</h2>
+<h3>GET /api/sessions/{session_id}/state</h3>
+<p>Get session state.</p>
+<h3>POST /api/sessions/{session_id}/state</h3>
+<p>Save session state.</p>
+<h3>POST /api/sessions/{session_id}/context</h3>
+<p>Build context from session state + memory.</p>
+<h3>POST /api/sessions/{session_id}/compact</h3>
+<p>Compact session data. Returns before/after stats.</p>
+<h3>POST /api/sessions/{session_id}/reset</h3>
+<p>Reset session. Body: `{"mode": "clear"}`</p>
+<h3>GET /api/sessions/{session_id}/preview</h3>
+<p>Formatted session preview without full history.</p>
+<h3>GET/POST /api/sessions/{session_id}/labels</h3>
+<p>Get or set session labels.</p>
+<h3>GET /api/sessions/{session_id}/usage</h3>
+<p>Get session usage statistics.</p>
+<p>---</p>
+<h2>Skills</h2>
+<p>Tool catalog with 18 built-in tools across 7 categories (search, crawl, file, code, shell, skills, schedule).</p>
+<h3>GET /api/skills</h3>
+<p>List all tools. Query: `?category=search`, `?enabled=true`, `?search=web`</p>
+<h3>GET /api/skills/categories</h3>
+<p>List tool categories.</p>
+<h3>POST /api/skills</h3>
+<p>Register a custom skill.</p>
+<h3>GET /api/skills/{id}</h3>
+<p>Get tool details including required API keys.</p>
+<h3>PUT /api/skills/{id}</h3>
+<p>Update a custom skill.</p>
+<h3>DELETE /api/skills/{id}</h3>
+<p>Remove a custom skill (builtin tools cannot be deleted).</p>
+<h3>POST /api/skills/{id}/toggle</h3>
+<p>Toggle tool enabled/disabled.</p>
+<h3>PUT /api/skills/{id}/config</h3>
+<p>Set tool configuration or API keys.</p>
+<p>---</p>
+<h2>Hooks</h2>
+<h3>POST /api/hooks</h3>
+<p>Register a hook.</p>
+<h3>GET /api/hooks</h3>
+<p>List all hooks.</p>
+<h3>GET /api/hooks/log</h3>
+<p>View hook execution log. Query: `?limit=20`</p>
+<h3>GET /api/hooks/{id}</h3>
+<p>Get hook details.</p>
+<h3>POST /api/hooks/{id}/trigger</h3>
+<p>Trigger a hook manually.</p>
+<h3>DELETE /api/hooks/{id}</h3>
+<p>Remove hook.</p>
+<p>---</p>
+<h2>Workflows</h2>
+<h3>POST /api/workflows</h3>
+<p>Create a workflow.</p>
+<h3>GET /api/workflows</h3>
+<p>List all workflows.</p>
+<h3>GET /api/workflows/runs</h3>
+<p>List all workflow runs.</p>
+<h3>GET /api/workflows/runs/{run_id}</h3>
+<p>Get run details.</p>
+<h3>GET /api/workflows/{id}</h3>
+<p>Get workflow details.</p>
+<h3>POST /api/workflows/{id}/run</h3>
+<p>Execute a workflow.</p>
+<h3>GET /api/workflows/{id}/status</h3>
+<p>Get workflow status (total runs, last run).</p>
+<h3>DELETE /api/workflows/{id}</h3>
+<p>Delete workflow.</p>
+<p>---</p>
+<h2>Config Runtime</h2>
+<h3>GET /api/config/runtime</h3>
+<p>Get all runtime config.</p>
+<h3>PATCH /api/config/runtime</h3>
+<p>Merge config values.</p>
+<h3>PUT /api/config/runtime</h3>
+<p>Replace entire config.</p>
+<h3>GET /api/config/runtime/history</h3>
+<p>Config change history. Query: `?limit=50`</p>
+<h3>GET /api/config/runtime/{key}</h3>
+<p>Get single config key.</p>
+<h3>PUT /api/config/runtime/{key}</h3>
+<p>Set single config key.</p>
+<h3>DELETE /api/config/runtime/{key}</h3>
+<p>Delete config key.</p>
+<h3>GET /api/config/schema</h3>
+<p>JSON Schema for schema-driven form rendering.</p>
+<h3>POST /api/config/validate</h3>
+<p>Validate config without applying.</p>
+<h3>POST /api/config/apply</h3>
+<p>Validate and apply config changes.</p>
+<h3>GET /api/config/defaults</h3>
+<p>Get default values from schema.</p>
+<p>---</p>
+<h2>Agents</h2>
+<p>Agent definition CRUD with model selection, system prompts, and duplication.</p>
+<h3>GET /api/agents/definitions</h3>
+<p>List all agent definitions.</p>
+<h3>POST /api/agents/definitions</h3>
+<p>Create a new agent.</p>
+<h3>GET /api/agents/definitions/{id}</h3>
+<p>Get agent details.</p>
+<h3>PUT /api/agents/definitions/{id}</h3>
+<p>Update agent. Body fields: `name`, `description`, `model`, `temperature`, `system_prompt`, `instructions`, `tools`, `icon`.</p>
+<h3>DELETE /api/agents/definitions/{id}</h3>
+<p>Delete agent.</p>
+<h3>GET /api/agents/models</h3>
+<p>List available models (13 models across OpenAI, Anthropic, Google).</p>
+<h3>POST /api/agents/run/{id}</h3>
+<p>Execute an agent via `praisonaiagents.Agent.start()`.</p>
+<h3>POST /api/agents/duplicate/{id}</h3>
+<p>Duplicate an existing agent.</p>
+<p>---</p>
+<h2>OpenAI-Compatible API</h2>
+<p>Drop-in replacement for OpenAI SDK. Use `base_url="http://localhost:8000/v1"`.</p>
+<h3>GET /v1</h3>
+<p>API info with available endpoint list.</p>
+<h3>POST /v1/chat/completions</h3>
+<p>Chat completions (OpenAI-compatible).</p>
+<h3>POST /v1/completions</h3>
+<p>Legacy text completions.</p>
+<h3>POST /v1/embeddings</h3>
+<p>Create embeddings.</p>
+<h3>POST /v1/images/generations</h3>
+<p>Generate images (DALL-E).</p>
+<h3>POST /v1/audio/transcriptions</h3>
+<p>Transcribe audio (Whisper).</p>
+<h3>POST /v1/audio/speech</h3>
+<p>Text to speech.</p>
+<h3>POST /v1/moderations</h3>
+<p>Content moderation.</p>
+<h3>GET /v1/models</h3>
+<p>List available models (13 models).</p>
+<h3>GET /v1/models/{id}</h3>
+<p>Get model info.</p>
+<h3>POST /v1/responses</h3>
+<p>OpenAI Responses API.</p>
+<h3>GET/POST /v1/files</h3>
+<p>File management.</p>
+<h3>GET/DELETE /v1/files/{id}</h3>
+<p>File operations.</p>
+<h3>GET/POST /v1/assistants</h3>
+<p>Assistants API.</p>
+<p>---</p>
+<h2>Logs</h2>
+<p>Real-time log streaming via WebSocket.</p>
+<h3>WS /api/logs/stream</h3>
+<p>WebSocket for real-time log streaming. Query: `?level=INFO`, `?search=agent`</p>
+<h3>GET /api/logs/levels</h3>
+<p>Available log levels with colors.</p>
+<h3>GET /api/logs/stats</h3>
+<p>Log buffer statistics.</p>
+<h3>POST /api/logs/clear</h3>
+<p>Clear the log buffer.</p>
+<p>---</p>
+<h2>Auth</h2>
+<p>Multi-mode authentication (none, api_key, session, password).</p>
+<h3>GET /api/auth/status</h3>
+<p>Check current auth status.</p>
+<h3>GET /api/auth/config</h3>
+<p>Get auth configuration.</p>
+<h3>PUT /api/auth/config</h3>
+<p>Set auth configuration. Body: `{"mode": "session", "session_timeout_hours": 48}`</p>
+<h3>GET /api/auth/keys</h3>
+<p>List API keys.</p>
+<h3>POST /api/auth/keys</h3>
+<p>Create API key.</p>
+<h3>DELETE /api/auth/keys/{id}</h3>
+<p>Revoke API key.</p>
+<h3>POST /api/auth/login</h3>
+<p>Login with password.</p>
+<h3>POST /api/auth/logout</h3>
+<p>Logout current session.</p>
+<h3>GET /api/auth/sessions</h3>
+<p>List active sessions.</p>
+<h3>POST /api/auth/password</h3>
+<p>Set or change password.</p>
+<p>---</p>
+<h2>TTS (Text-to-Speech)</h2>
+<h3>GET /api/tts/voices</h3>
+<p>List available voices.</p>
+<h3>POST /api/tts/synthesize</h3>
+<p>Synthesize speech from text.</p>
+<p>---</p>
+<h2>Marketplace</h2>
+<p>Plugin discovery, search, install, and management.</p>
+<h3>GET /api/marketplace/plugins</h3>
+<p>List all available plugins.</p>
+<h3>POST /api/marketplace/search</h3>
+<p>Search plugins by query.</p>
+<h3>POST /api/marketplace/install</h3>
+<p>Install a plugin.</p>
+<h3>POST /api/marketplace/uninstall</h3>
+<p>Uninstall a plugin.</p>
+<h3>GET /api/marketplace/plugins/{id}</h3>
+<p>Get plugin details.</p>
+<p>---</p>
+<h2>Code Execution</h2>
+<p>Sandboxed code execution with language allowlists.</p>
+<h3>GET /api/code/languages</h3>
+<p>List supported languages.</p>
+<h3>POST /api/code/execute</h3>
+<p>Execute code in sandbox.</p>
+<p>---</p>
+<h2>PWA</h2>
+<p>Progressive Web App support — manifest, service worker, and installability.</p>
+<h3>GET /manifest.json</h3>
+<p>Web Application Manifest for installability.</p>
+<h3>GET /sw.js</h3>
+<p>Service Worker JavaScript with cache-first strategy.</p>
+<h3>GET /api/pwa/config</h3>
+<p>PWA configuration details.</p>
+<p>---</p>
+<h2>i18n</h2>
+<p>Internationalization with locale switching and string lookup.</p>
+<h3>GET /api/i18n/locales</h3>
+<p>List available locales.</p>
+<h3>GET /api/i18n/strings/{locale}</h3>
+<p>Get all strings for a locale.</p>
+<h3>POST /api/i18n/translate</h3>
+<p>Translate a key with optional variables.</p>
+<h3>GET /api/i18n/locale</h3>
+<p>Get current default locale.</p>
+<h3>POST /api/i18n/locale</h3>
+<p>Set default locale.</p>
+<p>---</p>
+<h2>Device Pairing</h2>
+<p>Pair devices to sessions using short hex codes.</p>
+<h3>POST /api/pairing/create</h3>
+<p>Generate a pairing code.</p>
+<h3>POST /api/pairing/validate</h3>
+<p>Validate and consume a pairing code.</p>
+<h3>GET /api/pairing/devices</h3>
+<p>List paired devices. Query: `?session_id=my-session`</p>
+<h3>DELETE /api/pairing/devices/{id}</h3>
+<p>Remove a paired device.</p>
+<p>---</p>
+<h2>Media Analysis</h2>
+<p>Image understanding, OCR, and object detection via VisionAgent.</p>
+<h3>GET /api/media/capabilities</h3>
+<p>List analysis capabilities.</p>
+<h3>POST /api/media/analyze</h3>
+<p>Analyze an image.</p>
+<h3>POST /api/media/ocr</h3>
+<p>Extract text from an image.</p>
+<p>---</p>
+<h2>Guardrails</h2>
+<p>Input/output safety guardrails — validation rules, violation tracking, and registration.</p>
+<h3>GET /api/guardrails</h3>
+<p>List all registered guardrails.</p>
+<h3>GET /api/guardrails/status</h3>
+<p>Guardrails feature health.</p>
+<h3>GET /api/guardrails/violations</h3>
+<p>List guardrail violations.</p>
+<h3>POST /api/guardrails/register</h3>
+<p>Register a guardrail rule.</p>
+<p>---</p>
+<h2>Eval</h2>
+<p>Agent evaluation — accuracy scoring, judge models, and evaluation runs.</p>
+<h3>GET /api/eval</h3>
+<p>Overview of evaluation state.</p>
+<h3>GET /api/eval/status</h3>
+<p>Eval feature health.</p>
+<h3>GET /api/eval/scores</h3>
+<p>Get evaluation scores.</p>
+<h3>GET /api/eval/judges</h3>
+<p>List configured judge models.</p>
+<h3>POST /api/eval/run</h3>
+<p>Run an evaluation.</p>
+<p>---</p>
+<h2>Telemetry</h2>
+<p>Performance monitoring — metrics collection, performance stats, and profiling.</p>
+<h3>GET /api/telemetry</h3>
+<p>Telemetry overview.</p>
+<h3>GET /api/telemetry/status</h3>
+<p>Telemetry feature health.</p>
+<h3>GET /api/telemetry/metrics</h3>
+<p>Get collected metrics.</p>
+<h3>GET /api/telemetry/performance</h3>
+<p>Get performance statistics.</p>
+<h3>GET /api/telemetry/profiling</h3>
+<p>Get profiling data.</p>
+<h3>POST /api/telemetry/record</h3>
+<p>Record a telemetry event.</p>
+<p>---</p>
+<h2>Traces</h2>
+<p>Distributed tracing and observability — span recording, trace lookup, and span details.</p>
+<h3>GET /api/traces</h3>
+<p>List recent traces.</p>
+<h3>GET /api/traces/status</h3>
+<p>Tracing feature health.</p>
+<h3>GET /api/traces/spans</h3>
+<p>List trace spans.</p>
+<h3>POST /api/traces/record</h3>
+<p>Record a trace span.</p>
+<h3>GET /api/traces/{trace_id}</h3>
+<p>Get full trace details.</p>
+<p>---</p>
+<h2>Security</h2>
+<p>Security monitoring — audit logging, configuration review, and access control.</p>
+<h3>GET /api/security</h3>
+<p>Security overview.</p>
+<h3>GET /api/security/status</h3>
+<p>Security feature health.</p>
+<h3>GET /api/security/audit</h3>
+<p>Get audit log entries.</p>
+<h3>GET /api/security/config</h3>
+<p>Get security configuration.</p></noscript></div>
+</body>
+
+</html>

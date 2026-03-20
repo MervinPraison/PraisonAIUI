@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Config Hot-Reload - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Config Hot-Reload | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/config-hot-reload" />
+  <meta property="og:title" content="Config Hot-Reload | PraisonAIUI Docs" />
+  <meta property="og:description" content="Config Hot-Reload - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/config-hot-reload" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Config Hot-Reload | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Config Hot-Reload - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Config Hot-Reload</h1>
+<p>Live configuration reloading — watch YAML config files for changes and apply updates **without restarting the server**.</p>
+<h2>Quick Start</h2>
+<h2>How It Works</h2>
+<p>1. **ConfigWatcher** polls the config file at a configurable interval (default: 2 seconds)</p>
+<p>2. On each poll, it computes the file's SHA-256 hash</p>
+<p>3. If the hash differs from the previous check, it triggers all registered reload callbacks</p>
+<p>4. Callbacks can update feature settings, re-register agents, or reload themes</p>
+<h2>Configuration</h2>
+<h2>REST API</h2>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/config/watcher` | GET | Get watcher status |</p>
+<p>| `/api/config/watcher` | POST | Start/stop the watcher |</p>
+<p>| `/api/config/reload` | POST | Force a manual reload |</p>
+<h3>Watcher Status</h3>
+<h3>Force Reload</h3>
+<h2>Related</h2>
+<li>[YAML Configuration](../concepts/configuration.md) — Config file format (incl. unified runtime persistence)</li>
+<li>[Protocols](protocols.md) — Feature protocol system</li></noscript></div>
+</body>
+
+</html>

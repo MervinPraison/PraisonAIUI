@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Chat Attachments - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Chat Attachments | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/attachments" />
+  <meta property="og:title" content="Chat Attachments | PraisonAIUI Docs" />
+  <meta property="og:description" content="Chat Attachments - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/attachments" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Chat Attachments | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Chat Attachments - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Chat Attachments</h1>
+<p>Upload files to include with chat messages — PDFs, CSVs, images, and text files up to 50 MB per file. Uploaded files are **automatically processed** and their content is injected into the agent's prompt.</p>
+<p>![Attachments Panel](../images/attachments-panel.png)</p>
+<h2>Quick Start</h2>
+<p>The agent will receive the extracted PDF text prepended to the user message and can answer questions about the document's content.</p>
+<h2>How It Works</h2>
+<h2>File Processing by Type</h2>
+<p>When you send a chat message with `attachment_ids`, each attachment is processed based on its type:</p>
+<p>| File Type | Processing | What the Agent Sees |</p>
+<p>|-----------|-----------|-------------------|</p>
+<p>| **PDF** (`.pdf`) | Text extracted via `pypdf` | Full text content prepended to prompt |</p>
+<p>| **Images** (`.png`, `.jpg`, etc.) | Passed to SDK multimodal handler | Image sent as base64 to vision-capable LLMs |</p>
+<p>| **Text/Code** (`.txt`, `.py`, `.csv`, etc.) | File contents read directly | Full file content prepended to prompt |</p>
+<p>!!! note "PDF Dependency"</p>
+<p>PDF text extraction requires the `pypdf` package (`pip install pypdf`). If `pypdf` is not installed, a fallback message is shown instead of the extracted text. `pypdf` is included in PraisonAIUI's dependencies by default.</p>
+<h2>Supported File Types</h2>
+<p>| Category | Extensions |</p>
+<p>|----------|-----------|</p>
+<p>| Documents | `.pdf`, `.doc`, `.docx`, `.txt`, `.md` |</p>
+<p>| Data | `.csv`, `.json`, `.xml`, `.yaml`, `.yml` |</p>
+<p>| Images | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg` |</p>
+<p>| Code | `.py`, `.js`, `.ts`, `.html`, `.css` |</p>
+<p>!!! warning "Blocked Types"</p>
+<p>Executable files (`.exe`, `.sh`, `.bat`, `.cmd`, `.com`) are rejected by default.</p>
+<h2>Configuration</h2>
+<h2>REST API</h2>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/chat/attachments` | POST | Upload a file |</p>
+<p>| `/api/chat/attachments` | GET | List attachments for a session |</p>
+<p>| `/api/chat/attachments/{id}` | DELETE | Delete an attachment |</p>
+<h3>Upload</h3>
+<p>Response:</p>
+<h3>Send Chat with Attachments</h3>
+<p>The `attachment_ids` array links uploaded files to the chat message. The server extracts content from each attachment and prepends it to the user's message before sending to the agent.</p>
+<h3>List</h3>
+<h2>WebSocket</h2>
+<p>When sending messages via WebSocket, include `attachment_ids` in the message payload:</p>
+<h2>Related</h2>
+<li>[Gateway Chat](gateway-chat.md) — Chat interface</li>
+<li>[Sessions](sessions.md) — Session management</li></noscript></div>
+</body>
+
+</html>

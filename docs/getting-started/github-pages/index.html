@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Deploy to GitHub Pages - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Deploy to GitHub Pages | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/getting-started/github-pages" />
+  <meta property="og:title" content="Deploy to GitHub Pages | PraisonAIUI Docs" />
+  <meta property="og:description" content="Deploy to GitHub Pages - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/getting-started/github-pages" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Deploy to GitHub Pages | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Deploy to GitHub Pages - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Deploy to GitHub Pages</h1>
+<p>Ship your AIUI docs site to GitHub Pages with one workflow file.</p>
+<h2>Quick Start</h2>
+<h3>1. Project Structure</h3>
+<h3>2. Configuration</h3>
+<p>Create `aiui.template.yaml`:</p>
+<h3>3. GitHub Actions Workflow</h3>
+<p>Create `.github/workflows/deploy.yml`:</p>
+<h3>4. Enable GitHub Pages</h3>
+<p>1. Go to **Settings → Pages** in your GitHub repo</p>
+<p>2. Set **Source** to `Deploy from a branch`</p>
+<p>3. Set **Branch** to `gh-pages` / `/ (root)`</p>
+<p>4. Push to `main` — your site deploys automatically</p>
+<h2>Custom Domain</h2>
+<p>To use a custom domain (e.g., `docs.example.com`):</p>
+<p>1. Create a `CNAME` file in your repo root:</p>
+<p>2. Configure DNS — add a CNAME record pointing to `<username>.github.io`</p>
+<p>3. The workflow above automatically copies `CNAME` into the build output</p>
+<h2>Migrating from MkDocs</h2>
+<p>Already using MkDocs? The migration is simple:</p>
+<p>| MkDocs | AIUI |</p>
+<p>|--------|------|</p>
+<p>| `mkdocs.yml` | `aiui.template.yaml` |</p>
+<p>| `mkdocs build` → `./site/` | `aiui build --output site` → `./site/` |</p>
+<p>| `mkdocs serve` | `aiui serve` |</p>
+<p>| `pip install mkdocs-material` | `pip install aiui` |</p>
+<p>Your existing `docs/` folder works as-is — just swap the config and build command.</p>
+<h3>Migration Steps</h3>
+<p>1. Create `aiui.template.yaml` (see example above)</p>
+<p>2. Replace `mkdocs build` with `aiui build --output site --minify` in your CI workflow</p>
+<p>3. Remove `mkdocs.yml` (optional — keep for reference)</p>
+<p>4. Push to `main`</p>
+<h2>Local Preview</h2>
+<p>Preview your site before deploying:</p>
+<h2>Build Output</h2>
+<p>`aiui build --output site` produces:</p>
+<p>Everything is static — no server required. GitHub Pages serves it directly.</p></noscript></div>
+</body>
+
+</html>

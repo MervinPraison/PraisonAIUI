@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Protocol Versioning - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Protocol Versioning | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/protocol-versioning" />
+  <meta property="og:title" content="Protocol Versioning | PraisonAIUI Docs" />
+  <meta property="og:description" content="Protocol Versioning - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/protocol-versioning" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Protocol Versioning | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Protocol Versioning - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Protocol Versioning</h1>
+<p>**WebSocket protocol negotiation** between client and server — ensures compatibility and graceful degradation.</p>
+<h2>Quick Start</h2>
+<h2>How It Works</h2>
+<h2>Version Compatibility</h2>
+<p>The protocol uses **semantic versioning** — clients and servers are compatible if they share the **same major version**:</p>
+<p>| Client Version | Server Version | Compatible? |</p>
+<p>|---------------|----------------|-------------|</p>
+<p>| 1.0.0 | 1.0.0 | ✅ Yes |</p>
+<p>| 1.2.0 | 1.0.0 | ✅ Yes (same major) |</p>
+<p>| 2.0.0 | 1.0.0 | ❌ No (different major) |</p>
+<h2>Event Types</h2>
+<p>The protocol defines these standard event types:</p>
+<p>| Event Type | Direction | Description |</p>
+<p>|-----------|-----------|-------------|</p>
+<p>| `chat` | Client → Server | User sends a message |</p>
+<p>| `chat_abort` | Client → Server | Abort an active run |</p>
+<p>| `ping` / `pong` | Both | Keepalive |</p>
+<p>| `run_content` | Server → Client | Delta token (streaming) |</p>
+<p>| `run_completed` | Server → Client | Run finished |</p>
+<p>| `run_error` | Server → Client | Run failed |</p>
+<p>| `tool_call_started` | Server → Client | Tool execution began |</p>
+<p>| `tool_call_completed` | Server → Client | Tool returned result |</p>
+<p>| `reasoning` | Server → Client | Agent reasoning/thinking |</p>
+<h2>REST API</h2>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/protocol` | GET | Get protocol version and supported event types |</p>
+<p>| `/api/protocol/negotiate` | POST | Check client compatibility |</p>
+<h3>Protocol Info</h3>
+<h3>Negotiate</h3>
+<h2>Related</h2>
+<li>[Gateway Chat](gateway-chat.md) — Uses the protocol for WebSocket streaming</li>
+<li>[Protocols](protocols.md) — Feature protocol architecture</li></noscript></div>
+</body>
+
+</html>

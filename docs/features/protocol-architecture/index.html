@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Protocol Architecture Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Protocol Architecture Reference | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/protocol-architecture" />
+  <meta property="og:title" content="Protocol Architecture Reference | PraisonAIUI Docs" />
+  <meta property="og:description" content="Protocol Architecture Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/protocol-architecture" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Protocol Architecture Reference | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Protocol Architecture Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Protocol Architecture Reference</h1>
+<p>All feature modules in PraisonAIUI implement a **Protocol ABC** pattern for type-safe, swappable backends.</p>
+<h2>Pattern</h2>
+<h2>Batch 1: Full SDK Wrappers</h2>
+<p>| File | Protocol | SDK Class | Fallback | Getter |</p>
+<p>|------|----------|-----------|----------|--------|</p>
+<p>| `guardrails.py` | `GuardrailProtocol` | `SDKGuardrailManager` | `SimpleGuardrailManager` | `get_guardrail_manager()` |</p>
+<p>| `tracing.py` | `TracingProtocol` | `SDKTracingManager` | `SimpleTracingManager` | `get_tracing_manager()` |</p>
+<p>| `eval.py` | `EvalProtocol` | `SDKEvalManager` | `SimpleEvalManager` | `get_eval_manager()` |</p>
+<p>| `approvals.py` | `ApprovalProtocol` | `SDKApprovalManager` | `SimpleApprovalManager` | `get_approval_manager()` |</p>
+<h2>Batch 2: SDK Wrappers + Refactored Stores</h2>
+<p>| File | Protocol | SDK Class | Fallback | Getter |</p>
+<p>|------|----------|-----------|----------|--------|</p>
+<p>| `security.py` | `SecurityProtocol` | `SDKSecurityManager` | `SimpleSecurityManager` | `get_security_manager()` |</p>
+<p>| `telemetry.py` | `TelemetryProtocol` | `SDKTelemetryManager` | `SimpleTelemetryManager` | `get_telemetry_manager()` |</p>
+<p>| `jobs.py` | `JobStoreProtocol` | `SDKJobStore` | `SimpleJobStore` | `get_job_store()` |</p>
+<p>| `agents.py` | `AgentRegistryProtocol` | `SDKAgentRegistry` | `SimpleAgentRegistry` | `get_agent_registry()` |</p>
+<h2>Batch 3: Formalized ABCs</h2>
+<p>| File | Protocol | Notes |</p>
+<p>|------|----------|-------|</p>
+<p>| `sessions_ext.py` | `SessionProtocol` | Formalized existing SDK-first pattern |</p>
+<p>| `schedules.py` | `ScheduleProtocol` | Formalized existing SDK-first pattern |</p>
+<p>| `channels.py` | `ChannelProtocol` | SDK gap: no channel management API |</p>
+<p>| `usage.py` | `UsageProtocol` | SDK gap: no token/cost tracking API |</p>
+<p>| `logs.py` | `LogProtocol` | UI-only by design |</p>
+<p>| `auth.py` | `AuthProtocol` | SDK gap: no auth API |</p>
+<p>| `config_runtime.py` | `ConfigProtocol` | UI-only by design |</p>
+<p>| `nodes.py` | `NodeProtocol` | SDK gap: no node/cluster API |</p>
+<h2>Pre-existing</h2>
+<p>| File | Protocol | Notes |</p>
+<p>|------|----------|-------|</p>
+<p>| `memory.py` | `MemoryProtocol` | P0 fix: SDK-first default |</p>
+<p>| `skills.py` | `BaseFeatureProtocol` | P1 fix: `get_tool_catalog()` |</p>
+<h2>SDK Gaps</h2>
+<p>Features where `praisonaiagents` SDK lacks backend support:</p>
+<p>| Feature | Gap | Recommendation |</p>
+<p>|---------|-----|----------------|</p>
+<p>| **Usage** | No token/cost tracking API | Add `UsageTracker` to `praisonaiagents.telemetry` |</p>
+<p>| **Auth** | No authentication module | Add `praisonaiagents.auth` with key/session persistence |</p>
+<p>| **Nodes** | No node/cluster management | Add `praisonaiagents.nodes` for node discovery |</p>
+<p>| **Channels** | No channel management API | Add `praisonaiagents.channels` with `ChannelStore` |</p>
+<p>| **Config** | No runtime config persistence | Add `praisonaiagents.config` with file-backed store |</p>
+<p>---</p>
+<h2>Building & Extending — Key Rules</h2>
+<h3>Agent Registration API</h3>
+<p>> [!CAUTION]</p>
+<p>> The old `create_agent()` function and `_agent_definitions` dict were **removed**. All agent registration now goes through the Protocol ABC.</p>
+<h3>Frontend Manifest Requirement</h3>
+<p>> [!IMPORTANT]</p>
+<p>> The React frontend **always** fetches 3 JSON files before rendering, regardless of style:</p>
+<p>> - `/ui-config.json` — must return `{"style": "dashboard"}` (or `"chat"`, `"agents"`, etc.)</p>
+<p>> - `/docs-nav.json` — sidebar nav (can be `{"items": []}` for non-docs modes)</p>
+<p>> - `/route-manifest.json` — URL routing (can be `{}` for non-docs modes)</p>
+<p>></p>
+<p>> If any of these 404, the user sees **"Failed to load manifests"** and the dashboard never renders.</p>
+<p>In `server.py`, `create_app()` provides dynamic fallback handlers for these. If you are running</p>
+<p>via `AIUIGateway`, these handlers are included automatically. If writing a custom server, ensure</p>
+<p>these routes exist.</p>
+<h3>Style System</h3>
+<p>The `style` field in `/ui-config.json` controls which React component renders:</p>
+<p>| Style | Component | Use Case |</p>
+<p>|-------|-----------|----------|</p>
+<p>| `"docs"` | Three-column docs layout | Documentation sites |</p>
+<p>| `"dashboard"` | Full sidebar + pages | Feature management dashboard |</p>
+<p>| `"chat"` | Chat-focused interface | Chat-only applications |</p>
+<p>| `"agents"` | Agent selector + chat | Multi-agent interfaces |</p>
+<p>| `"playground"` | Split-pane playground | Agent experimentation |</p>
+<p>| `"custom"` | Flexible layout | Custom configurations |</p>
+<p>Set via Python: `aiui.set_style("dashboard")`</p>
+<h3>Feature Protocol — How to Add a New Feature</h3>
+<p>Every feature follows the same 4-step pattern:</p>
+<p>1. **Define the Protocol ABC** — abstract methods for the capability</p>
+<p>2. **Implement `SimpleXxxManager`** — in-memory fallback, zero dependencies</p>
+<p>3. **Implement `SDKXxxManager`** — wraps `praisonaiagents` SDK (if available)</p>
+<p>4. **Provide `get_xxx_manager()`** — factory function, SDK-first with fallback</p>
+<h3>Data Persistence</h3>
+<li>**Sessions**: JSON files in `~/.praisonaiui/sessions/{session_id}.json`</li>
+<li>**Memory**: Auto-stored from chat (every user + assistant message → `short` type memory via SDK `Memory.store_short_term()`). Searchable via `/api/memory/search`. Filterable by `session_id` via `/api/memory/session/{id}`</li>
+<li>**Knowledge**: Stored via `/api/knowledge` (text) or `/api/knowledge/add-file` (file ingest). Searched via `/api/knowledge/search`. Context auto-injected into chat prompts when relevant entries exist. Uses SDK `Knowledge` class with RAG pipeline when `[knowledge]` extras installed</li>
+<li>**Agents**: In-memory by default; `SimpleAgentRegistry` persists to data file if `set_data_file()` called</li>
+<li>**Schedules**: `FileScheduleStore` from `praisonaiagents` SDK persists to disk</li>
+<li>**Config**: Runtime config via `/api/config_runtime`, not persisted by default</li>
+<h3>Common Pitfalls</h3>
+<p>| Pitfall | Solution |</p>
+<p>|---------|----------|</p>
+<p>| `ImportError: _agent_definitions` | Use `get_agent_registry()` instead |</p>
+<p>| "Failed to load manifests" in browser | Ensure `/ui-config.json` route exists and returns valid JSON with `style` field |</p>
+<p>| Port already in use | `lsof -ti :PORT \| xargs kill -9` before starting |</p>
+<p>| Chat returns no response | Check `OPENAI_API_KEY` is set in the running process |</p>
+<p>| `praisonai_agents: false` in `/health` | Install `praisonaiagents` package |</p>
+<p>| Features show 0 count | Features auto-register on import; check `server.py` initializes them |</p>
+<p>---</p>
+<h2>Naming Convention</h2>
+<p>All feature classes MUST follow the `{Name}Feature` pattern:</p>
+<p>| ✅ Correct | ❌ Incorrect |</p>
+<p>|-----------|------------|</p>
+<p>| `SchedulesFeature` | `PraisonAISchedules` |</p>
+<p>| `KnowledgeFeature` | `PraisonAIKnowledge` |</p>
+<p>| `AgentsCrudFeature` | `PraisonAIAgentsFeature` |</p>
+<p>| `MemoryFeature` | `PraisonAIMemory` |</p>
+<h3>Rules</h3>
+<p>1. **Class name**: `{Name}Feature` — PascalCase, ends with `Feature`</p>
+<p>2. **`feature_name`**: `lowercase_snake` — this is the registry key, **never change it**</p>
+<p>3. **Module file**: `{name}.py` — matches `feature_name`</p>
+<p>4. **Backward-compat aliases**: old `PraisonAI{Name}` names are kept as aliases</p>
+<h3>Example</h3>
+<h3>Why This Convention?</h3>
+<li>**AIUI is a universal UI framework**, not PraisonAI-specific</li>
+<li>**Class names signal framework identity** to third-party developers</li>
+<li>**`feature_name` stays unchanged** for backward compatibility with existing configs</li>
+<li>**Aliases preserve imports** for existing code using old names</li></noscript></div>
+</body>
+
+</html>

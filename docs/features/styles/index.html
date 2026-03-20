@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="UI Styles - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>UI Styles | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/styles" />
+  <meta property="og:title" content="UI Styles | PraisonAIUI Docs" />
+  <meta property="og:description" content="UI Styles - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/styles" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="UI Styles | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="UI Styles - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>UI Styles</h1>
+<p>PraisonAIUI supports 6 distinct UI styles that control how your application looks and behaves. Styles are **auto-detected** from your code — you usually don't need to set them manually.</p>
+<h2>Available Styles</h2>
+<p>| Style | Layout | Description |</p>
+<p>|-------|--------|-------------|</p>
+<p>| `chat` | `ChatLayout` | Conversational AI interface with sessions, streaming, profiles |</p>
+<p>| `agents` | `AgentUILayout` | Multi-agent playground with tabbed agent/session sidebar |</p>
+<p>| `playground` | `PlaygroundLayout` | Side-by-side input/output panels for prompt testing |</p>
+<p>| `dashboard` | `DashboardLayout` | Admin panel with custom pages |</p>
+<p>| `docs` | `ThreeColumnLayout` | Documentation site with sidebar + TOC |</p>
+<p>| `custom` | User-defined | Full control over layout |</p>
+<h2>Auto-Detection</h2>
+<p>PraisonAIUI automatically detects the best style from your Python code — no flags needed:</p>
+<h3>How It Works</h3>
+<p>After loading your `app.py`, the CLI inspects which callbacks and agents you registered:</p>
+<p>| Your Code Uses | Detected Style |</p>
+<p>|---------------|----------------|</p>
+<p>| `@profiles` + `register_agent()` | `agents` |</p>
+<p>| `@page` decorators | `dashboard` |</p>
+<p>| `@reply` only | `chat` |</p>
+<h3>Example: Auto-Detected as `agents`</h3>
+<h2>Explicit Style Setting</h2>
+<h3>From the CLI</h3>
+<p>Override auto-detection with `--style`:</p>
+<h3>From Python Code</h3>
+<p>Use `aiui.set_style()` for styles that can't be auto-detected (e.g., `playground`):</p>
+<h2>Priority Order</h2>
+<p>When multiple sources specify a style, this priority chain applies:</p>
+<p>1. **CLI `--style`** flag (highest — always wins)</p>
+<p>2. **`aiui.set_style()`** in Python code</p>
+<p>3. **Auto-detection** from registered callbacks/agents</p>
+<p>4. **Default:** `chat`</p>
+<h2>Chat Layout Modes</h2>
+<p>The `chat` style supports additional layout modes for embedding:</p>
+<p>| Mode | Description |</p>
+<p>|------|-------------|</p>
+<p>| `fullscreen` | Full-page chat (default) |</p>
+<p>| `sidebar` | Fixed right-side panel |</p>
+<p>| `bottom-right` | Floating widget (bottom-right corner) |</p>
+<p>| `bottom-left` | Floating widget (bottom-left) |</p>
+<p>| `top-right` | Floating widget (top-right) |</p>
+<p>| `top-left` | Floating widget (top-left) |</p>
+<h2>YAML Configuration</h2>
+<p>For YAML-based apps, set the style in your config:</p></noscript></div>
+</body>
+
+</html>

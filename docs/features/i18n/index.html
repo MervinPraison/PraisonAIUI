@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Internationalization (i18n) - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Internationalization (i18n) | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/i18n" />
+  <meta property="og:title" content="Internationalization (i18n) | PraisonAIUI Docs" />
+  <meta property="og:description" content="Internationalization (i18n) - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/i18n" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Internationalization (i18n) | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Internationalization (i18n) - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Internationalization (i18n)</h1>
+<p>Multi-language support with **locale switching**, string lookup, and variable interpolation. Ships with English, Spanish, and French.</p>
+<h2>Quick Start</h2>
+<h2>How It Works</h2>
+<p>The i18n system uses a **key-based** translation approach:</p>
+<p>1. Each string has a dotted key (e.g., `app.welcome`, `chat.send`)</p>
+<p>2. Keys are organized by namespace: `app`, `chat`, `nav`, `error`</p>
+<p>3. Variable interpolation: `{name}` placeholders are replaced at lookup time</p>
+<p>4. Unknown keys return the key itself as fallback</p>
+<h2>Built-in Locales</h2>
+<p>| Locale | Language | Strings |</p>
+<p>|--------|----------|---------|</p>
+<p>| `en` | English | 11 |</p>
+<p>| `es` | Spanish (Español) | 11 |</p>
+<p>| `fr` | French (Français) | 11 |</p>
+<h2>Configuration</h2>
+<h2>REST API</h2>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/i18n/locales` | GET | List available locales |</p>
+<p>| `/api/i18n/strings/{locale}` | GET | Get all strings for a locale |</p>
+<p>| `/api/i18n/translate` | POST | Translate a key with optional variables |</p>
+<p>| `/api/i18n/locale` | GET | Get current default locale |</p>
+<p>| `/api/i18n/locale` | POST | Set default locale |</p>
+<h3>GET /api/i18n/strings/es</h3>
+<h3>POST /api/i18n/translate</h3></noscript></div>
+</body>
+
+</html>

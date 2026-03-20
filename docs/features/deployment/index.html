@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Deployment Guide - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Deployment Guide | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/deployment" />
+  <meta property="og:title" content="Deployment Guide | PraisonAIUI Docs" />
+  <meta property="og:description" content="Deployment Guide - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/deployment" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Deployment Guide | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Deployment Guide - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Deployment Guide</h1>
+<p>Production deployment guide for AIUI — covering Docker, environment variables, configuration, and security.</p>
+<h2>Quick Start (Docker)</h2>
+<h3>Build the Image</h3>
+<h3>Run with Default Settings</h3>
+<h3>Run with Custom Data Directory</h3>
+<h3>Docker Compose Example</h3>
+<h2>Environment Variables</h2>
+<p>| Variable | Default | Description |</p>
+<p>|----------|---------|-------------|</p>
+<p>| `AIUI_DATA_DIR` | `~/.praisonaiui` | Data directory for config, sessions, logs |</p>
+<p>| `AIUI_PORT` | `8082` | Server port (Docker only) |</p>
+<p>| `AIUI_HOST` | `0.0.0.0` | Server bind address (Docker only) |</p>
+<p>| `AUTH_ENFORCE` | `false` | Enforce Bearer token auth on `/api/*` routes |</p>
+<p>| `OPENAI_API_KEY` | — | OpenAI API key for LLM provider |</p>
+<h3>Auth Enforcement</h3>
+<p>When `AUTH_ENFORCE=true`, all `/api/*` routes require a valid Bearer token in the `Authorization` header:</p>
+<p>**Exempt paths** (always accessible without auth):</p>
+<li>`/health`, `/api/health` — health checks</li>
+<li>`/api/auth/login`, `/login` — login endpoints</li>
+<li>`/api/protocol`, `/api/protocol/negotiate` — protocol discovery</li>
+<h2>Configuration</h2>
+<h3>Config File Location</h3>
+<p>The config file is located at `AIUI_DATA_DIR/config.yaml` (default: `~/.praisonaiui/config.yaml`).</p>
+<h3>Config Structure</h3>
+<h3>Site Title Customization</h3>
+<p>The site title is configurable via `site.title` in config.yaml:</p>
+<p>This affects:</p>
+<li>HTML `<title>` tag</li>
+<li>Dashboard header</li>
+<li>`/ui-config.json` response</li>
+<h2>Health Monitoring</h2>
+<h3>Health Endpoint</h3>
+<h3>Docker HEALTHCHECK</h3>
+<p>The Dockerfile includes a built-in health check:</p>
+<h3>CLI Health Commands</h3>
+<h2>Security</h2>
+<h3>Auth Modes</h3>
+<p>AIUI supports multiple authentication modes:</p>
+<p>| Mode | Description |</p>
+<p>|------|-------------|</p>
+<p>| `none` | No authentication (default) |</p>
+<p>| `api_key` | API key in `X-API-Key` header or `api_key` query param |</p>
+<p>| `session` | Session token in `Authorization: Bearer <token>` header |</p>
+<p>| `password` | Username/password login |</p>
+<h3>API Key Management</h3>
+<h3>Network Considerations</h3>
+<li>**Internal networks**: Use `AUTH_ENFORCE=false` if behind a trusted reverse proxy</li>
+<li>**Public exposure**: Always set `AUTH_ENFORCE=true` and use HTTPS</li>
+<li>**Load balancers**: Health check path is `/health` (exempt from auth)</li>
+<h2>Managed Hosting</h2>
+<h3>Required Endpoints</h3>
+<p>Hosting platforms should expose these endpoints:</p>
+<p>| Endpoint | Purpose |</p>
+<p>|----------|---------|</p>
+<p>| `/health` | Health check (returns `{"status": "healthy"}`) |</p>
+<p>| `/api/protocol` | Protocol version and capabilities |</p>
+<p>| `/api/protocol/negotiate` | Capability negotiation |</p>
+<p>| `/api/features` | List of registered features |</p>
+<h3>Protocol Discovery</h3>
+<h3>Minimum Viable Deployment</h3>
+<p>For a minimal AIUI deployment:</p>
+<p>1. **Required**: `OPENAI_API_KEY` environment variable</p>
+<p>2. **Recommended**: Persistent volume for `AIUI_DATA_DIR`</p>
+<p>3. **Optional**: `AUTH_ENFORCE=true` for multi-tenant environments</p></noscript></div>
+</body>
+
+</html>

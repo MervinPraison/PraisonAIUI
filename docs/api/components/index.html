@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Component API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Component API Reference | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/api/components" />
+  <meta property="og:title" content="Component API Reference | PraisonAIUI Docs" />
+  <meta property="og:description" content="Component API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/api/components" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Component API Reference | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Component API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Component API Reference</h1>
+<p>Python functions for building dashboard UIs. Each function returns a dict that the frontend renders as a real UI element — **36 components** organized into tiers.</p>
+<p>---</p>
+<h2>Core Components</h2>
+<h3>`aiui.layout(children)`</h3>
+<p>Wrap components in a renderable container.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `children` | `Sequence[dict]` | ✅ | List of component dicts |</p>
+<p>**Returns:** `dict` with `_components` key — triggers structured rendering in the frontend.</p>
+<h3>`aiui.card(title, *, value, footer)`</h3>
+<p>A metric/stat card.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `title` | `str` | ✅ | Card header label |</p>
+<p>| `value` | `Any` | ❌ | Main display value |</p>
+<p>| `footer` | `str` | ❌ | Small text below the value |</p>
+<h3>`aiui.columns(children)`</h3>
+<p>Arrange components in a responsive grid row.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `children` | `Sequence[dict]` | ✅ | Component dicts to lay out side-by-side |</p>
+<h3>`aiui.table(*, headers, rows)`</h3>
+<p>A data table.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `headers` | `Sequence[str]` | ✅ | Column header labels |</p>
+<p>| `rows` | `Sequence[Sequence[Any]]` | ✅ | Row data arrays |</p>
+<h3>`aiui.text(content)`</h3>
+<p>A text block.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `content` | `str` | ✅ | Text content |</p>
+<h3>`aiui.chart(title, *, data, chart_type)`</h3>
+<p>A chart.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `title` | `str` | ✅ | — | Chart title |</p>
+<p>| `data` | `Sequence[dict]` | ❌ | `[]` | Data points |</p>
+<p>| `chart_type` | `str` | ❌ | `"bar"` | `bar`, `line`, or `pie` |</p>
+<p>---</p>
+<h2>Essential Components</h2>
+<h3>`aiui.metric(label, *, value, delta, delta_color)`</h3>
+<p>A metric card with optional delta indicator.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `label` | `str` | ✅ | — | Metric label |</p>
+<p>| `value` | `Any` | ✅ | — | Main metric value |</p>
+<p>| `delta` | `str` | ❌ | `None` | Change indicator (e.g. "+5%") |</p>
+<p>| `delta_color` | `str` | ❌ | `"normal"` | `"normal"`, `"inverse"`, or `"off"` |</p>
+<h3>`aiui.progress_bar(label, *, value, max_value)`</h3>
+<p>A progress bar.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `label` | `str` | ✅ | — | Label above the bar |</p>
+<p>| `value` | `int\|float` | ✅ | — | Current value |</p>
+<p>| `max_value` | `int\|float` | ❌ | `100` | Maximum value |</p>
+<h3>`aiui.alert(message, *, variant, title)`</h3>
+<p>An alert/notification box.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `message` | `str` | ✅ | — | Alert body text |</p>
+<p>| `variant` | `str` | ❌ | `"info"` | `"info"`, `"success"`, `"warning"`, `"error"` |</p>
+<p>| `title` | `str` | ❌ | `None` | Optional bold title |</p>
+<h3>`aiui.badge(text, *, variant)`</h3>
+<p>An inline badge/tag.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `text` | `str` | ✅ | — | Badge label |</p>
+<p>| `variant` | `str` | ❌ | `"default"` | `"default"`, `"secondary"`, `"destructive"`, `"outline"` |</p>
+<h3>`aiui.separator()`</h3>
+<p>A horizontal separator line. No parameters.</p>
+<h3>`aiui.tabs(items)`</h3>
+<p>A tabbed container.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `items` | `Sequence[dict]` | ✅ | List of `{"label": str, "children": [comp_dicts]}` |</p>
+<h3>`aiui.accordion(items)`</h3>
+<p>A collapsible accordion.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `items` | `Sequence[dict]` | ✅ | List of `{"title": str, "content": str_or_comp}` |</p>
+<h3>`aiui.image_display(src, *, alt, caption, width)`</h3>
+<p>An image with optional caption.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `src` | `str` | ✅ | — | Image URL or path |</p>
+<p>| `alt` | `str` | ❌ | `""` | Alt text |</p>
+<p>| `caption` | `str` | ❌ | `None` | Caption below image |</p>
+<p>| `width` | `str` | ❌ | `None` | CSS width (e.g. `"300px"`, `"50%"`) |</p>
+<h3>`aiui.code_block(code, *, language)`</h3>
+<p>A code block with syntax highlighting.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `code` | `str` | ✅ | — | Source code text |</p>
+<p>| `language` | `str` | ❌ | `"text"` | Language for highlighting |</p>
+<h3>`aiui.json_view(data)`</h3>
+<p>A formatted JSON viewer.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `data` | `Any` | ✅ | Any JSON-serializable data |</p>
+<p>---</p>
+<h2>Form Input Components</h2>
+<h3>`aiui.text_input(label, *, value, placeholder)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `label` | `str` | ✅ | — | Input label |</p>
+<p>| `value` | `str` | ❌ | `""` | Default value |</p>
+<p>| `placeholder` | `str` | ❌ | `""` | Placeholder text |</p>
+<h3>`aiui.number_input(label, *, value, min_val, max_val, step)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `label` | `str` | ✅ | — | Input label |</p>
+<p>| `value` | `int\|float` | ❌ | `0` | Default value |</p>
+<p>| `min_val` | `int\|float` | ❌ | `None` | Minimum allowed |</p>
+<p>| `max_val` | `int\|float` | ❌ | `None` | Maximum allowed |</p>
+<p>| `step` | `int\|float` | ❌ | `1` | Increment step |</p>
+<h3>`aiui.select_input(label, *, options, value)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `label` | `str` | ✅ | — | Input label |</p>
+<p>| `options` | `Sequence[str]` | ✅ | — | Option strings |</p>
+<p>| `value` | `str` | ❌ | `""` | Default selected |</p>
+<h3>`aiui.slider_input(label, *, value, min_val, max_val, step)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `label` | `str` | ✅ | — | Input label |</p>
+<p>| `value` | `int\|float` | ❌ | `0` | Default value |</p>
+<p>| `min_val` | `int\|float` | ❌ | `0` | Minimum |</p>
+<p>| `max_val` | `int\|float` | ❌ | `100` | Maximum |</p>
+<p>| `step` | `int\|float` | ❌ | `1` | Increment step |</p>
+<h3>`aiui.checkbox_input(label, *, checked)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `label` | `str` | ✅ | — | Checkbox label |</p>
+<p>| `checked` | `bool` | ❌ | `False` | Default state |</p>
+<h3>`aiui.switch_input(label, *, checked)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `label` | `str` | ✅ | — | Switch label |</p>
+<p>| `checked` | `bool` | ❌ | `False` | Default state |</p>
+<h3>`aiui.radio_input(label, *, options, value)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `label` | `str` | ✅ | — | Group label |</p>
+<p>| `options` | `Sequence[str]` | ✅ | — | Option strings |</p>
+<p>| `value` | `str` | ❌ | `""` | Default selected |</p>
+<h3>`aiui.textarea_input(label, *, value, placeholder, rows)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `label` | `str` | ✅ | — | Input label |</p>
+<p>| `value` | `str` | ❌ | `""` | Default value |</p>
+<p>| `placeholder` | `str` | ❌ | `""` | Placeholder text |</p>
+<p>| `rows` | `int` | ❌ | `4` | Visible rows |</p>
+<h3>`aiui.multiselect_input(label, *, options, value)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `label` | `str` | ✅ | — | Input label |</p>
+<p>| `options` | `Sequence[str]` | ✅ | — | Available choices |</p>
+<p>| `value` | `Sequence[str]` | ❌ | `()` | Default selections |</p>
+<h3>`aiui.date_input(label, *, value)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `label` | `str` | ✅ | — | Input label |</p>
+<p>| `value` | `str` | ❌ | `None` | ISO date string |</p>
+<h3>`aiui.time_input(label, *, value)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `label` | `str` | ✅ | — | Input label |</p>
+<p>| `value` | `str` | ❌ | `None` | `"HH:MM"` string |</p>
+<h3>`aiui.color_picker_input(label, *, value)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `label` | `str` | ✅ | — | Input label |</p>
+<p>| `value` | `str` | ❌ | `"#000000"` | Default hex color |</p>
+<p>---</p>
+<h2>Layout & Advanced Components</h2>
+<h3>`aiui.container(children, *, title)`</h3>
+<p>A container wrapper with optional title.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `children` | `Sequence[dict]` | ✅ | — | Child component dicts |</p>
+<p>| `title` | `str` | ❌ | `None` | Optional heading |</p>
+<h3>`aiui.expander(title, *, children, expanded)`</h3>
+<p>A collapsible section.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `title` | `str` | ✅ | — | Section heading |</p>
+<p>| `children` | `Sequence[dict]` | ✅ | — | Content components |</p>
+<p>| `expanded` | `bool` | ❌ | `False` | Initially expanded? |</p>
+<h3>`aiui.divider(text)`</h3>
+<p>A horizontal divider with optional center text.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `text` | `str` | ❌ | `None` | Label in the middle of the line |</p>
+<h3>`aiui.header(text, *, level)`</h3>
+<p>A heading element.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `text` | `str` | ✅ | — | Heading text |</p>
+<p>| `level` | `int` | ❌ | `1` | Heading level 1–6 |</p>
+<h3>`aiui.markdown_text(content)`</h3>
+<p>A markdown-rendered text block.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `content` | `str` | ✅ | Markdown content string |</p>
+<h3>`aiui.link(text, *, href, external)`</h3>
+<p>A hyperlink.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `text` | `str` | ✅ | — | Link text |</p>
+<p>| `href` | `str` | ✅ | — | URL |</p>
+<p>| `external` | `bool` | ❌ | `False` | Open in new tab? |</p>
+<h3>`aiui.button_group(buttons)`</h3>
+<p>A row of buttons.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `buttons` | `Sequence[dict]` | ✅ | List of `{"label": str, "variant": str}` |</p>
+<h3>`aiui.stat_group(stats)`</h3>
+<p>A grid of stat/metric cards.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `stats` | `Sequence[dict]` | ✅ | List of `{"label": str, "value": Any, "delta": str}` |</p>
+<h3>`aiui.avatar(*, src, name, fallback)`</h3>
+<p>An avatar image or initials.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `src` | `str` | ❌ | `None` | Image URL |</p>
+<p>| `name` | `str` | ❌ | `None` | Display name |</p>
+<p>| `fallback` | `str` | ❌ | `None` | Fallback text (e.g. initials) |</p>
+<h3>`aiui.callout(content, *, variant, title)`</h3>
+<p>A callout/highlight box.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `content` | `str` | ✅ | — | Callout body text |</p>
+<p>| `variant` | `str` | ❌ | `"info"` | `"info"`, `"success"`, `"warning"`, `"error"` |</p>
+<p>| `title` | `str` | ❌ | `None` | Optional bold title |</p>
+<h3>`aiui.empty(text)`</h3>
+<p>An empty state placeholder.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `text` | `str` | ❌ | `"No data"` | Placeholder message |</p>
+<h3>`aiui.spinner(text)`</h3>
+<p>A loading spinner with text.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `text` | `str` | ❌ | `"Loading..."` | Loading message |</p>
+<p>---</p>
+<h2>Media Components</h2>
+<h3>`aiui.audio_player(src, *, autoplay)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `src` | `str` | ✅ | — | Audio file URL |</p>
+<p>| `autoplay` | `bool` | ❌ | `False` | Auto-play? |</p>
+<h3>`aiui.video_player(src, *, autoplay, poster)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `src` | `str` | ✅ | — | Video file URL |</p>
+<p>| `autoplay` | `bool` | ❌ | `False` | Auto-play? |</p>
+<p>| `poster` | `str` | ❌ | `None` | Poster image URL |</p>
+<h3>`aiui.file_download(label, *, href, filename)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `label` | `str` | ✅ | — | Button label |</p>
+<p>| `href` | `str` | ✅ | — | File URL |</p>
+<p>| `filename` | `str` | ❌ | `None` | Suggested filename |</p>
+<h3>`aiui.gallery(items)`</h3>
+<p>An image/media gallery grid.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `items` | `Sequence[dict]` | ✅ | List of `{"src": str, "alt": str, "caption": str}` |</p>
+<p>---</p>
+<h2>Dashboard Components</h2>
+<h3>`aiui.toast(message, *, variant, duration)`</h3>
+<p>A toast notification.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `message` | `str` | ✅ | — | Notification text |</p>
+<p>| `variant` | `str` | ❌ | `"info"` | `"info"`, `"success"`, `"warning"`, `"error"` |</p>
+<p>| `duration` | `int` | ❌ | `3000` | Auto-dismiss ms |</p>
+<h3>`aiui.dialog(title, *, children, description)`</h3>
+<p>A modal dialog.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `title` | `str` | ✅ | — | Dialog heading |</p>
+<p>| `children` | `Sequence[dict]` | ✅ | — | Content components |</p>
+<p>| `description` | `str` | ❌ | `None` | Subtitle |</p>
+<h3>`aiui.caption(text)`</h3>
+<p>Small muted caption text.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `text` | `str` | ✅ | Caption content |</p>
+<h3>`aiui.html_embed(content)`</h3>
+<p>Raw HTML embed (trusted content only).</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `content` | `str` | ✅ | HTML string |</p>
+<h3>`aiui.skeleton(*, width, height, variant)`</h3>
+<p>A skeleton loading placeholder.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `width` | `str` | ❌ | `None` | CSS width |</p>
+<p>| `height` | `str` | ❌ | `None` | CSS height |</p>
+<p>| `variant` | `str` | ❌ | `"text"` | `"text"`, `"card"`, or `"avatar"` |</p>
+<h3>`aiui.tooltip_wrap(child, *, content)`</h3>
+<p>Wrap a component with a hover tooltip.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `child` | `dict` | ✅ | Component to wrap |</p>
+<p>| `content` | `str` | ✅ | Tooltip text |</p>
+<p>---</p>
+<h2>Navigation Components</h2>
+<h3>`aiui.breadcrumb(items)`</h3>
+<p>A breadcrumb navigation trail.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `items` | `Sequence[dict]` | ✅ | List of `{"label": str, "href": str\|None}` |</p>
+<h3>`aiui.pagination(*, total, page, per_page)`</h3>
+<p>Pagination controls.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `total` | `int` | ✅ | — | Total items |</p>
+<p>| `page` | `int` | ❌ | `1` | Current page (1-based) |</p>
+<p>| `per_page` | `int` | ❌ | `10` | Items per page |</p>
+<h3>`aiui.key_value_list(items, *, title)`</h3>
+<p>A key-value display list.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| `items` | `Sequence[dict]` | ✅ | — | List of `{"label": str, "value": Any}` |</p>
+<p>| `title` | `str` | ❌ | `None` | Optional heading |</p>
+<h3>`aiui.popover(trigger, *, children)`</h3>
+<p>A popover overlay triggered by a component.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| `trigger` | `dict` | ✅ | Component that triggers the popover |</p>
+<p>| `children` | `Sequence[dict]` | ✅ | Content inside the popover |</p>
+<p>---</p>
+<h2>Composition</h2>
+<p>Components are designed to compose. Use `columns()` for horizontal layout within a `layout()`:</p>
+<h2>Component Count Summary</h2>
+<p>| Category | Components | Count |</p>
+<p>|----------|-----------|-------|</p>
+<p>| Core | `layout`, `card`, `columns`, `table`, `text`, `chart` | 6 |</p>
+<p>| Essential | `metric`, `progress_bar`, `alert`, `badge`, `separator`, `tabs`, `accordion`, `image_display`, `code_block`, `json_view` | 10 |</p>
+<p>| Form Inputs | `text_input`, `number_input`, `select_input`, `slider_input`, `checkbox_input`, `switch_input`, `radio_input`, `textarea_input`, `multiselect_input`, `date_input`, `time_input`, `color_picker_input` | 12 |</p>
+<p>| Layout & Advanced | `container`, `expander`, `divider`, `header`, `markdown_text`, `link`, `button_group`, `stat_group`, `avatar`, `callout`, `empty`, `spinner` | 12 |</p>
+<p>| Media | `audio_player`, `video_player`, `file_download`, `gallery` | 4 |</p>
+<p>| Dashboard | `toast`, `dialog`, `caption`, `html_embed`, `skeleton`, `tooltip_wrap` | 6 |</p>
+<p>| Navigation | `breadcrumb`, `pagination`, `key_value_list`, `popover` | 4 |</p>
+<p>| **Total** | | **54** |</p>
+<h2>Custom Component Types</h2>
+<p>The `dashboard.js` renderer supports any dict with a `type` key. Unknown types render as formatted JSON, making it safe to experiment:</p></noscript></div>
+</body>
+
+</html>

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Python SDK API - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Python SDK API | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/api/python" />
+  <meta property="og:title" content="Python SDK API | PraisonAIUI Docs" />
+  <meta property="og:description" content="Python SDK API - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/api/python" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Python SDK API | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Python SDK API - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Python SDK API</h1>
+<p>Reference for `import praisonaiui as aiui`.</p>
+<h2>Server Configuration</h2>
+<p>These functions configure the server. Call them at module level in your `app.py`, before the server starts.</p>
+<h3>`aiui.set_style(style)`</h3>
+<p>Set the UI style.</p>
+<p>| Parameter | Type | Values |</p>
+<p>|-----------|------|--------|</p>
+<p>| `style` | `str` | `"chat"`, `"dashboard"`, `"agents"`, `"playground"`, `"docs"`, `"custom"` |</p>
+<p>Priority: `set_style()` → CLI `--style` flag → auto-detection.</p>
+<p>---</p>
+<h3>`aiui.set_pages(page_ids)`</h3>
+<p>Whitelist which built-in sidebar pages to show (dashboard mode). Custom pages registered via `@aiui.page()` always appear.</p>
+<p>Use `aiui pages ids` to see all available page IDs.</p>
+<p>---</p>
+<h3>`aiui.set_branding(title, logo)`</h3>
+<p>Configure the sidebar branding (title text and logo emoji).</p>
+<p>| Parameter | Type | Default |</p>
+<p>|-----------|------|---------|</p>
+<p>| `title` | `str` | `"PraisonAI"` |</p>
+<p>| `logo` | `str` | `"🦞"` |</p>
+<p>Also configurable via `config.yaml`:</p>
+<p>---</p>
+<h3>`aiui.set_datastore(store)`</h3>
+<p>Set the persistence backend for sessions and messages.</p>
+<p>---</p>
+<h3>`aiui.set_provider(provider)`</h3>
+<p>Set the AI provider for chat completions.</p>
+<p>---</p>
+<h3>`aiui.register_agent(config)`</h3>
+<p>Register an AI agent for the dashboard. Agents appear in the sidebar and can be selected for chat.</p>
+<p>---</p>
+<h3>`aiui.remove_page(page_id)`</h3>
+<p>Remove a page from the sidebar.</p>
+<p>---</p>
+<h2>Callback Decorators</h2>
+<h3>`@aiui.reply`</h3>
+<p>Handle incoming chat messages. This is the core callback.</p>
+<p>The `message` object has:</p>
+<li>`message.content` — user's text</li>
+<li>`message.session_id` — session identifier</li>
+<li>`message.images` — attached images (if any)</li>
+<p>---</p>
+<h3>`@aiui.welcome`</h3>
+<p>Send a welcome message when a user connects.</p>
+<p>---</p>
+<h3>`@aiui.goodbye`</h3>
+<p>Cleanup when a user disconnects.</p>
+<p>---</p>
+<h3>`@aiui.starters`</h3>
+<p>Define conversation starters shown to new users.</p>
+<p>---</p>
+<h3>`@aiui.profiles`</h3>
+<p>Define chat profiles (agent personas users can choose).</p>
+<p>---</p>
+<h3>`@aiui.page(slug, title, icon, group, order)`</h3>
+<p>Register a custom dashboard page.</p>
+<p>---</p>
+<h3>`@aiui.on(event)`</h3>
+<p>Listen for server events.</p>
+<p>---</p>
+<h3>`@aiui.login`</h3>
+<p>Handle authentication.</p>
+<p>---</p>
+<h3>`@aiui.settings`</h3>
+<p>Provide user settings.</p>
+<p>---</p>
+<h3>`@aiui.resume`</h3>
+<p>Resume interrupted sessions.</p>
+<p>---</p>
+<h2>Message Functions</h2>
+<p>Async functions for sending messages to the user. Call inside callback handlers.</p>
+<p>| Function | Purpose |</p>
+<p>|----------|---------|</p>
+<p>| `await aiui.say(text)` | Send a complete message |</p>
+<p>| `await aiui.stream(text)` | Stream a response progressively |</p>
+<p>| `await aiui.stream_token(token)` | Stream token-by-token |</p>
+<p>| `await aiui.think(text)` | Show a thinking indicator |</p>
+<p>| `await aiui.ask(question)` | Ask user a question (returns answer) |</p>
+<p>| `await aiui.image(url)` | Send an image |</p>
+<p>| `await aiui.audio(url)` | Send audio |</p>
+<p>| `await aiui.video(url)` | Send video |</p>
+<p>| `await aiui.file(url)` | Send a file |</p>
+<p>| `await aiui.action_buttons(buttons)` | Show action buttons |</p>
+<p>| `await aiui.tool(name, data)` | Show tool call result |</p>
+<p>---</p>
+<h2>UI Components</h2>
+<p>Build custom page layouts with UI components.</p>
+<p>| Component | Usage |</p>
+<p>|-----------|-------|</p>
+<p>| `aiui.layout(children)` | Root container for a page |</p>
+<p>| `aiui.card(title, content)` | Card with title and body |</p>
+<p>| `aiui.columns(children)` | Horizontal column layout |</p>
+<p>| `aiui.chart(data, type)` | Chart (line, bar, pie) |</p>
+<p>| `aiui.table(headers, rows)` | Data table |</p>
+<p>| `aiui.text(content)` | Text block |</p>
+<p>---</p>
+<h2>Data Classes</h2>
+<p>| Class | Purpose |</p>
+<p>|-------|---------|</p>
+<p>| `aiui.Message` | Incoming/outgoing message |</p>
+<p>| `aiui.AskUserMessage` | User response to `ask()` |</p>
+<p>| `aiui.Step` | Processing step indicator |</p>
+<p>| `aiui.BaseDataStore` | Abstract datastore interface |</p>
+<p>| `aiui.MemoryDataStore` | In-memory store |</p>
+<p>| `aiui.JSONFileDataStore` | Persistent JSON file store |</p>
+<p>| `aiui.BaseProvider` | Abstract AI provider interface |</p>
+<p>| `aiui.PraisonAIProvider` | PraisonAI provider implementation |</p>
+<p>| `aiui.RunEvent` | Streaming event |</p>
+<p>| `aiui.RunEventType` | Event type enum |</p>
+<p>---</p>
+<h2>Feature Protocol</h2>
+<p>Register custom features that appear in the dashboard.</p>
+<p>| Function | Purpose |</p>
+<p>|----------|---------|</p>
+<p>| `aiui.register_feature(feature)` | Register a feature |</p>
+<p>| `aiui.get_features()` | List all features |</p>
+<p>| `aiui.get_feature(name)` | Get a specific feature |</p>
+<p>| `aiui.auto_register_defaults()` | Auto-register built-in features |</p></noscript></div>
+</body>
+
+</html>

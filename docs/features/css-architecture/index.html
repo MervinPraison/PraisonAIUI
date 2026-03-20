@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="How the UI Looks Are Built - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>How the UI Looks Are Built | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/css-architecture" />
+  <meta property="og:title" content="How the UI Looks Are Built | PraisonAIUI Docs" />
+  <meta property="og:description" content="How the UI Looks Are Built - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/css-architecture" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="How the UI Looks Are Built | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="How the UI Looks Are Built - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>How the UI Looks Are Built</h1>
+<p>A beginner-friendly guide to how PraisonAIUI creates its visual appearance — what controls the colors, fonts, and layout you see on screen.</p>
+<h2>The Big Picture</h2>
+<p>PraisonAIUI's appearance comes from **three layers** working together:</p>
+<p>**In plain English:**</p>
+<p>1. You choose a theme preset (like "zinc" or "blue") in your config</p>
+<p>2. The system translates that into CSS variables (color codes)</p>
+<p>3. Every button, text, and background reads those variables to know what color to be</p>
+<p>---</p>
+<h2>Configuring from Python (`app.py`)</h2>
+<h3>Theme (colors, dark mode, radius)</h3>
+<h3>Branding (title and logo)</h3>
+<h3>Custom CSS (override any style)</h3>
+<h3>Style (layout mode)</h3>
+<h3>Complete Example</h3>
+<p>---</p>
+<h2>Configuring from YAML</h2>
+<h3>Theme</h3>
+<h3>Custom CSS</h3>
+<p>---</p>
+<h2>What You Can Control</h2>
+<h3>Theme Presets</h3>
+<p>The preset sets your **color palette** — it changes the accent color used for buttons, active states, and highlights across the entire UI.</p>
+<p>| Category | Options |</p>
+<p>|----------|---------|</p>
+<p>| **Neutral** | zinc (default), slate, stone, gray, neutral |</p>
+<p>| **Warm** | red, orange, amber, yellow |</p>
+<p>| **Cool** | blue, indigo, violet, purple, cyan, sky, teal |</p>
+<p>| **Nature** | green, emerald, lime |</p>
+<p>| **Vibrant** | pink, rose, fuchsia |</p>
+<h3>Dark Mode</h3>
+<p>When light mode is on, all backgrounds flip to white/light gray and text becomes dark.</p>
+<h3>Border Radius</h3>
+<p>| Value | Effect |</p>
+<p>|-------|--------|</p>
+<p>| `none` | Sharp, square corners |</p>
+<p>| `sm` | Slightly rounded |</p>
+<p>| `md` | Medium rounded (default) |</p>
+<p>| `lg` | More rounded |</p>
+<p>| `xl` | Very rounded, pill-shaped buttons |</p>
+<h3>Dashboard CSS Variables</h3>
+<p>For fine-grained control, override these variables in `customCss`:</p>
+<p>| Variable | Default (dark) | What It Controls |</p>
+<p>|----------|---------------|-----------------|</p>
+<p>| `--db-bg` | `#0a0a0f` | Page background |</p>
+<p>| `--db-sidebar-bg` | `#111118` | Sidebar background |</p>
+<p>| `--db-accent` | `#6366f1` | Buttons, active items, highlights |</p>
+<p>| `--db-text` | `#e4e4e7` | Primary text |</p>
+<p>| `--db-text-dim` | `#71717a` | Secondary/muted text |</p>
+<p>| `--db-border` | `rgba(255,255,255,0.06)` | Borders and dividers |</p>
+<p>| `--db-card-bg` | `rgba(255,255,255,0.03)` | Card backgrounds |</p>
+<p>| `--db-radius` | `10px` | Corner roundness |</p>
+<p>---</p>
+<h2>Priority Order</h2>
+<p>When the same setting is defined in multiple places:</p>
+<p>| Priority | Source | Example |</p>
+<p>|----------|--------|---------|</p>
+<p>| 1 (highest) | **CLI flag** | `--style chat` |</p>
+<p>| 2 | **Python API** | `aiui.set_theme(preset="blue")` |</p>
+<p>| 3 | **YAML config** | `site.theme.preset: blue` |</p>
+<p>| 4 (lowest) | **Built-in defaults** | zinc, dark, md radius |</p>
+<p>---</p>
+<h2>Two Chat Systems Explained</h2>
+<p>PraisonAIUI includes **two different chat interfaces**. Understanding the difference helps you choose the right one and know what features to expect.</p>
+<h3>React Chat — The Full-Featured Chat</h3>
+<p>**When it's active:** `style: chat`, `style: agents`, or `style: playground`</p>
+<p>This is the **recommended chat** for most users. It's built with React and benefits from the full modern web stack.</p>
+<p>**What you get:**</p>
+<p>| Feature | How it works |</p>
+<p>|---------|-------------|</p>
+<p>| 🎨 **Your theme colors** | Automatically follows your `preset` and `darkMode` settings |</p>
+<p>| 📋 **Copy code button** | Click to copy any code block — shows "✓ Copied" feedback |</p>
+<p>| 🌈 **Syntax highlighting** | Code is color-coded by language (Python, JavaScript, etc.) |</p>
+<p>| 📊 **Markdown tables** | Tables render as proper formatted tables |</p>
+<p>| 🔤 **Rich typography** | Headers, bold, italic, lists — all beautifully styled |</p>
+<p>| 📎 **File attachments** | Upload files to include as context |</p>
+<h3>Dashboard Chat — The Admin Chat</h3>
+<p>**When it's active:** `style: dashboard`</p>
+<p>This is a lighter chat built as a dashboard plugin. It's designed for quick admin interactions within the dashboard.</p>
+<p>**What you get:**</p>
+<p>| Feature | How it works |</p>
+<p>|---------|-------------|</p>
+<p>| 🎨 **Dashboard theme** | Uses the dashboard's color scheme (now follows your preset!) |</p>
+<p>| 💬 **Basic markdown** | Bold, italic, headings, code blocks, links, lists |</p>
+<p>| 🔧 **Tool call display** | Shows when the AI is using tools |</p>
+<p>| 📋 **Session management** | Create, switch, and manage conversations |</p>
+<p>| 🤖 **Agent selection** | Pick which AI agent to chat with |</p>
+<p>**What it doesn't have (yet):**</p>
+<li>❌ Copy button on code blocks</li>
+<li>❌ Syntax highlighting (code blocks are plain text)</li>
+<li>❌ Markdown tables</li>
+<h3>Which Should I Use?</h3>
+<p>| If you want... | Use this style |</p>
+<p>|----------------|---------------|</p>
+<p>| Best chat experience with all features | `style: chat` |</p>
+<p>| Multi-agent dashboard with admin controls | `style: dashboard` |</p>
+<p>| Agent profiles and switching | `style: agents` |</p>
+<p>| Side-by-side prompt testing | `style: playground` |</p>
+<p>---</p>
+<h2>File Map</h2>
+<p>Where does each piece of styling live?</p>
+<p>| File | What It Does |</p>
+<p>|------|-------------|</p>
+<p>| `src/frontend/src/index.css` | Main CSS — imports Tailwind, defines default color variables |</p>
+<p>| `src/frontend/src/themes.ts` | Theme engine — translates preset names to CSS variable values |</p>
+<p>| `src/frontend/src/chat/ChatMessages.tsx` | React chat — has copy buttons, syntax highlighting |</p>
+<p>| `templates/frontend/plugins/views/chat.js` | Dashboard chat — basic markdown, dashboard theme |</p>
+<p>| `templates/frontend/plugins/dashboard.js` | Dashboard — defines `--db-*` color variables + reads config |</p>
+<h2>Related Pages</h2>
+<li>[Theming](theming.md) — Theme presets and YAML configuration</li>
+<li>[Styles](styles.md) — The 6 UI styles (chat, agents, playground, etc.)</li>
+<li>[Dark Mode](dark-mode.md) — Dark mode toggle</li>
+<li>[Dashboard](dashboard.md) — Dashboard feature overview</li></noscript></div>
+</body>
+
+</html>

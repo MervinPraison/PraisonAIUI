@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Subagent Tree View - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Subagent Tree View | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/subagent-tree" />
+  <meta property="og:title" content="Subagent Tree View | PraisonAIUI Docs" />
+  <meta property="og:description" content="Subagent Tree View - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/subagent-tree" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Subagent Tree View | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Subagent Tree View - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Subagent Tree View</h1>
+<p>Visualize **agent hierarchies** — see which agents spawn subagents, track their status, and monitor the full execution tree.</p>
+<p>![Subagent Tree View](../images/subagent-tree.png)</p>
+<h2>Quick Start</h2>
+<h2>How It Works</h2>
+<p>When agents spawn subagents during execution, each spawn is registered with the `SubagentManager`:</p>
+<p>1. **Parent agent** spawns a **child agent**</p>
+<p>2. The spawn is recorded with session ID, timestamp, and status</p>
+<p>3. A tree structure is built from spawn records</p>
+<p>4. The tree can be queried per-session via the REST API</p>
+<h2>Configuration</h2>
+<h2>REST API</h2>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/subagents` | GET | List all spawn events |</p>
+<p>| `/api/subagents/{session_id}` | GET | Get tree for a session |</p>
+<h3>Get Tree</h3>
+<h2>Related</h2>
+<li>[Gateway Chat](gateway-chat.md) — Chat triggers agent execution</li>
+<li>[Protocols](protocols.md) — Feature protocol system</li></noscript></div>
+</body>
+
+</html>

@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Feature Inventory - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Feature Inventory | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/feature-inventory" />
+  <meta property="og:title" content="Feature Inventory | PraisonAIUI Docs" />
+  <meta property="og:description" content="Feature Inventory - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/feature-inventory" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Feature Inventory | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Feature Inventory - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Feature Inventory</h1>
+<p>> **Last validated**: 2026-03-08 — programmatically verified against running codebase (36 features, 128 tests pass)</p>
+<p>Complete inventory of **every feature** in PraisonAIUI: what's implemented, what's partial, and what's missing.</p>
+<p>---</p>
+<h2>Summary Scorecard</h2>
+<p>| Category | Count |</p>
+<p>|----------|-------|</p>
+<p>| ✅ Fully Implemented Features | **36** |</p>
+<p>| 🟡 Partial (needs integration) | **0** |</p>
+<p>| 🔴 Not Yet Built | **0** |</p>
+<p>| Total API Routes | **210+** |</p>
+<p>| Features with CLI Commands | **19** |</p>
+<p>| Frontend Dashboard Views | **17** |</p>
+<p>| Backend Health: Healthy | **35 / 36** |</p>
+<p>| Backend Health: Degraded | **1 / 36** (openai_api — needs `praisonai.capabilities`) |</p>
+<p>---</p>
+<h2>All Implemented Features (Validated ✅)</h2>
+<p>These features are **registered, healthy, and serving API routes** right now.</p>
+<p>| # | Feature Name | Description | Routes | CLI | Health | Frontend View | Source File |</p>
+<p>|---|-------------|-------------|--------|-----|--------|--------------|------------|</p>
+<p>| 1 | `agents_crud` | Agent create, update, delete management | 8 | ✅ | ✅ ok | `agents.js` | `agents.py` |</p>
+<p>| 2 | `approvals` | Tool-execution approval management | 10 | ✅ | ✅ ok | `approvals.js` | `approvals.py` |</p>
+<p>| 3 | `attachments` | File upload and attachment management for chat | 3 | ❌ | ✅ ok | — | `attachments.py` |</p>
+<p>| 4 | `auth` | Multi-mode authentication (API key, session, password) | 10 | ✅ | ✅ ok | — | `auth.py` |</p>
+<p>| 5 | `browser_automation` | Browser automation via CDP/Playwright | 2 | ❌ | ✅ ok | — | `browser_automation.py` |</p>
+<p>| 6 | `channels` | Multi-platform messaging channels (Discord, Slack, Telegram, etc.) | 9 | ✅ | ✅ ok | `channels.js` | `channels.py` |</p>
+<p>| 7 | `chat` | Real-time agent chat with WebSocket streaming | 4 | ❌ | ✅ ok | `chat.js` | `chat.py` |</p>
+<p>| 8 | `config_hot_reload` | File-watcher for live config changes | 4 | ❌ | ✅ ok | — | `config_hot_reload.py` |</p>
+<p>| 9 | `config_runtime` | Live runtime configuration (get, set, patch) | 11 | ✅ | ✅ ok | `config.js` | `config_runtime.py` |</p>
+<p>| 10 | `hooks` | Pre/post operation hook management | 6 | ✅ | ✅ ok | — | `hooks.py` |</p>
+<p>| 11 | `jobs` | Async job submission and monitoring | 9 | ✅ | ✅ ok | — | `jobs.py` |</p>
+<p>| 12 | `logs` | Real-time log streaming with WebSocket | 4 | ✅ | ✅ ok | `logs.js` | `logs.py` |</p>
+<p>| 13 | `memory` | Agent memory management (short, long, entity) | 6 | ✅ | ✅ ok | — | `memory.py` |</p>
+<p>| 14 | `model_fallback` | Model fallback chain configuration | 2 | ❌ | ✅ ok | — | `model_fallback.py` |</p>
+<p>| 15 | `nodes` | Execution nodes and connected instances | 10 | ✅ | ✅ ok | `nodes.js` | `nodes.py` |</p>
+<p>| 16 | `openai_api` | OpenAI-compatible API (`/v1/*`) | 17 | ✅ | ⚠️ degraded | — | `openai_api.py` |</p>
+<p>| 17 | `protocol` | WebSocket protocol versioning and negotiation | 2 | ❌ | ✅ ok | — | `protocol_version.py` |</p>
+<p>| 18 | `schedules` | Scheduled job management (cron, interval, one-shot) | 9 | ✅ | ✅ ok | `schedules.js` | `schedules.py` |</p>
+<p>| 19 | `sessions_ext` | Extended session management (state, context, labels) | 10 | ✅ | ✅ ok | `sessions.js` | `sessions_ext.py` |</p>
+<p>| 20 | `skills` | Agent tool and skill management | 8 | ✅ | ✅ ok | `skills.js` | `skills.py` |</p>
+<p>| 21 | `subagents` | Subagent spawning tree view and hierarchy | 2 | ❌ | ✅ ok | — | `subagents.py` |</p>
+<p>| 22 | `theme` | Theme system with light/dark/custom support | 2 | ❌ | ✅ ok | — | `theme.py` |</p>
+<p>| 23 | `usage` | Token usage and cost analytics | 9 | ✅ | ✅ ok | `usage.js` | `usage.py` |</p>
+<p>| 24 | `workflows` | Multi-step workflow management (Pipeline, Route, Parallel, Loop) | 8 | ✅ | ✅ ok | — | `workflows.py` |</p>
+<p>| 25 | `tts` | Text-to-speech synthesis (browser or OpenAI) | 2 | ❌ | ✅ ok | — | `tts.py` |</p>
+<p>| 26 | `marketplace` | Plugin marketplace (browse, search, install, uninstall) | 5 | ❌ | ✅ ok | — | `marketplace.py` |</p>
+<p>| 27 | `code_execution` | Sandboxed code execution (Python, JS, Bash) | 2 | ❌ | ✅ ok | — | `code_execution.py` |</p>
+<p>| 28 | `pwa` | Progressive Web App (manifest, service worker) | 3 | ❌ | ✅ ok | — | `pwa.py` |</p>
+<p>| 29 | `i18n` | Internationalization (en, es, fr locales) | 5 | ❌ | ✅ ok | — | `i18n.py` |</p>
+<p>| 30 | `device_pairing` | Device pairing via short hex codes | 4 | ❌ | ✅ ok | — | `device_pairing.py` |</p>
+<p>| 31 | `media_analysis` | Image analysis, OCR, object detection | 3 | ❌ | ✅ ok | — | `media_analysis.py` |</p>
+<p>| 32 | `guardrails` | Input/output safety guardrails, violation tracking | 4 | ✅ | ✅ ok | `guardrails.js` | `guardrails.py` |</p>
+<p>| 33 | `eval` | Agent evaluation, accuracy scoring, judge models | 5 | ❌ | ✅ ok | `eval.js` | `eval.py` |</p>
+<p>| 34 | `telemetry` | Performance metrics, profiling, monitoring | 6 | ✅ | ✅ ok | `telemetry.js` | `telemetry.py` |</p>
+<p>| 35 | `tracing` | Distributed tracing, span recording, observability | 5 | ❌ | ✅ ok | `tracing.js` | `tracing.py` |</p>
+<p>| 36 | `security` | Security monitoring, audit logging, access control | 4 | ✅ | ✅ ok | `security.js` | `security.py` |</p>
+<p>---</p>
+<h2>Frontend Dashboard Views (17 Views)</h2>
+<p>All located in `src/praisonaiui/templates/frontend/plugins/views/`:</p>
+<p>| View | File | Routes It Consumes |</p>
+<p>|------|------|--------------------|</p>
+<p>| Overview | `overview.js` | Aggregates from multiple features |</p>
+<p>| Agents | `agents.js` | `/api/agents/definitions/*` |</p>
+<p>| Approvals | `approvals.js` | `/api/approvals/*` |</p>
+<p>| Channels | `channels.js` | `/api/channels/*` |</p>
+<p>| Chat | `chat.js` | `/api/chat/*` (WebSocket + REST) |</p>
+<p>| Config | `config.js` | `/api/config/runtime/*` |</p>
+<p>| Logs | `logs.js` | `/api/logs/*` (WebSocket) |</p>
+<p>| Nodes | `nodes.js` | `/api/nodes/*`, `/api/instances/*` |</p>
+<p>| Schedules | `schedules.js` | `/api/schedules/*` |</p>
+<p>| Sessions | `sessions.js` | `/api/sessions/*` |</p>
+<p>| Skills | `skills.js` | `/api/skills/*` |</p>
+<p>| Usage | `usage.js` | `/api/usage/*` |</p>
+<p>| Guardrails | `guardrails.js` | `/api/guardrails/*` |</p>
+<p>| Eval | `eval.js` | `/api/eval/*` |</p>
+<p>| Telemetry | `telemetry.js` | `/api/telemetry/*` |</p>
+<p>| Traces | `tracing.js` | `/api/traces/*` |</p>
+<p>| Security | `security.js` | `/api/security/*` |</p>
+<p>---</p>
+<h2>API Route Inventory (164 Routes)</h2>
+<h3>Chat & Communication (20 routes)</h3>
+<p>| Endpoint | Method | Feature |</p>
+<p>|----------|--------|---------|</p>
+<p>| `/api/chat/send` | POST | chat |</p>
+<p>| `/api/chat/history/{session_id}` | GET | chat |</p>
+<p>| `/api/chat/abort` | POST | chat |</p>
+<p>| `/api/chat/ws` | WebSocket | chat |</p>
+<p>| `/api/chat/attachments` | POST | attachments |</p>
+<p>| `/api/chat/attachments/{session_id}` | GET | attachments |</p>
+<p>| `/api/chat/attachments/{attachment_id}` | DELETE | attachments |</p>
+<p>| `/api/channels` | GET | channels |</p>
+<p>| `/api/channels` | POST | channels |</p>
+<p>| `/api/channels/platforms` | GET | channels |</p>
+<p>| `/api/channels/{channel_id}` | GET | channels |</p>
+<p>| `/api/channels/{channel_id}` | PUT | channels |</p>
+<p>| `/api/channels/{channel_id}` | DELETE | channels |</p>
+<p>| `/api/channels/{channel_id}/toggle` | POST | channels |</p>
+<p>| `/api/channels/{channel_id}/status` | GET | channels |</p>
+<p>| `/api/channels/{channel_id}/restart` | POST | channels |</p>
+<p>| `/api/protocol` | GET | protocol |</p>
+<p>| `/api/protocol/negotiate` | POST | protocol |</p>
+<p>| `/api/subagents` | GET | subagents |</p>
+<p>| `/api/subagents/{session_id}` | GET | subagents |</p>
+<h3>Agent Management (18 routes)</h3>
+<p>| Endpoint | Method | Feature |</p>
+<p>|----------|--------|---------|</p>
+<p>| `/api/agents/definitions` | GET | agents_crud |</p>
+<p>| `/api/agents/definitions` | POST | agents_crud |</p>
+<p>| `/api/agents/definitions/{agent_id}` | GET | agents_crud |</p>
+<p>| `/api/agents/definitions/{agent_id}` | PUT | agents_crud |</p>
+<p>| `/api/agents/definitions/{agent_id}` | DELETE | agents_crud |</p>
+<p>| `/api/agents/models` | GET | agents_crud |</p>
+<p>| `/api/agents/duplicate/{agent_id}` | POST | agents_crud |</p>
+<p>| `/api/agents/run/{agent_id}` | POST | agents_crud |</p>
+<p>| `/api/approvals` | GET | approvals |</p>
+<p>| `/api/approvals` | POST | approvals |</p>
+<p>| `/api/approvals/pending` | GET | approvals |</p>
+<p>| `/api/approvals/history` | GET | approvals |</p>
+<p>| `/api/approvals/policies` | GET | approvals |</p>
+<p>| `/api/approvals/policies` | POST | approvals |</p>
+<p>| `/api/approvals/stream` | WebSocket | approvals |</p>
+<p>| `/api/approvals/{approval_id}` | GET | approvals |</p>
+<p>| `/api/approvals/{approval_id}/approve` | POST | approvals |</p>
+<p>| `/api/approvals/{approval_id}/deny` | POST | approvals |</p>
+<h3>Session & Memory (16 routes)</h3>
+<p>| Endpoint | Method | Feature |</p>
+<p>|----------|--------|---------|</p>
+<p>| `/api/sessions` | GET | sessions_ext |</p>
+<p>| `/api/sessions/{session_id}/state` | GET | sessions_ext |</p>
+<p>| `/api/sessions/{session_id}/state` | PUT | sessions_ext |</p>
+<p>| `/api/sessions/{session_id}/context` | GET | sessions_ext |</p>
+<p>| `/api/sessions/{session_id}/compact` | POST | sessions_ext |</p>
+<p>| `/api/sessions/{session_id}/reset` | POST | sessions_ext |</p>
+<p>| `/api/sessions/{session_id}/preview` | GET | sessions_ext |</p>
+<p>| `/api/sessions/{session_id}/labels` | GET | sessions_ext |</p>
+<p>| `/api/sessions/{session_id}/labels` | PUT | sessions_ext |</p>
+<p>| `/api/sessions/{session_id}/usage` | GET | sessions_ext |</p>
+<p>| `/api/memory` | GET | memory |</p>
+<p>| `/api/memory` | POST | memory |</p>
+<p>| `/api/memory` | DELETE | memory |</p>
+<p>| `/api/memory/search` | POST | memory |</p>
+<p>| `/api/memory/{memory_id}` | GET | memory |</p>
+<p>| `/api/memory/{memory_id}` | DELETE | memory |</p>
+<h3>Configuration & Infrastructure (33 routes)</h3>
+<p>| Endpoint | Method | Feature |</p>
+<p>|----------|--------|---------|</p>
+<p>| `/api/config/runtime` | GET | config_runtime |</p>
+<p>| `/api/config/runtime` | PUT | config_runtime |</p>
+<p>| `/api/config/runtime` | PATCH | config_runtime |</p>
+<p>| `/api/config/runtime/history` | GET | config_runtime |</p>
+<p>| `/api/config/runtime/{key}` | GET | config_runtime |</p>
+<p>| `/api/config/runtime/{key}` | PUT | config_runtime |</p>
+<p>| `/api/config/runtime/{key}` | DELETE | config_runtime |</p>
+<p>| `/api/config/schema` | GET | config_runtime |</p>
+<p>| `/api/config/validate` | POST | config_runtime |</p>
+<p>| `/api/config/apply` | POST | config_runtime |</p>
+<p>| `/api/config/defaults` | POST | config_runtime |</p>
+<p>| `/api/config/watcher` | GET | config_hot_reload |</p>
+<p>| `/api/config/watcher/start` | POST | config_hot_reload |</p>
+<p>| `/api/config/watcher/stop` | POST | config_hot_reload |</p>
+<p>| `/api/config/reload` | POST | config_hot_reload |</p>
+<p>| `/api/auth/status` | GET | auth |</p>
+<p>| `/api/auth/config` | GET | auth |</p>
+<p>| `/api/auth/config` | PUT | auth |</p>
+<p>| `/api/auth/keys` | GET | auth |</p>
+<p>| `/api/auth/keys` | POST | auth |</p>
+<p>| `/api/auth/keys/{key_id}` | DELETE | auth |</p>
+<p>| `/api/auth/login` | POST | auth |</p>
+<p>| `/api/auth/logout` | POST | auth |</p>
+<p>| `/api/auth/sessions` | GET | auth |</p>
+<p>| `/api/auth/password` | POST | auth |</p>
+<p>| `/api/theme` | GET | theme |</p>
+<p>| `/api/theme` | PUT | theme |</p>
+<p>| `/api/models` | GET | model_fallback |</p>
+<p>| `/api/models/fallback` | PUT | model_fallback |</p>
+<p>| `/api/browser/status` | GET | browser_automation |</p>
+<p>| `/api/browser/run` | POST | browser_automation |</p>
+<p>| `/api/hooks` | GET | hooks |</p>
+<p>| `/api/hooks` | POST | hooks |</p>
+<h3>Jobs, Schedules & Workflows (26 routes)</h3>
+<p>| Endpoint | Method | Feature |</p>
+<p>|----------|--------|---------|</p>
+<p>| `/api/jobs` | GET | jobs |</p>
+<p>| `/api/jobs` | POST | jobs |</p>
+<p>| `/api/jobs/stats` | GET | jobs |</p>
+<p>| `/api/jobs/{job_id}` | GET | jobs |</p>
+<p>| `/api/jobs/{job_id}` | DELETE | jobs |</p>
+<p>| `/api/jobs/{job_id}/status` | GET | jobs |</p>
+<p>| `/api/jobs/{job_id}/result` | GET | jobs |</p>
+<p>| `/api/jobs/{job_id}/cancel` | POST | jobs |</p>
+<p>| `/api/jobs/{job_id}/stream` | WebSocket | jobs |</p>
+<p>| `/api/schedules` | GET | schedules |</p>
+<p>| `/api/schedules` | POST | schedules |</p>
+<p>| `/api/schedules/{job_id}` | GET | schedules |</p>
+<p>| `/api/schedules/{job_id}` | PUT | schedules |</p>
+<p>| `/api/schedules/{job_id}` | DELETE | schedules |</p>
+<p>| `/api/schedules/{job_id}/toggle` | POST | schedules |</p>
+<p>| `/api/schedules/{job_id}/run` | POST | schedules |</p>
+<p>| `/api/schedules/{job_id}/stop` | POST | schedules |</p>
+<p>| `/api/schedules/{job_id}/stats` | GET | schedules |</p>
+<p>| `/api/workflows` | GET | workflows |</p>
+<p>| `/api/workflows` | POST | workflows |</p>
+<p>| `/api/workflows/runs` | GET | workflows |</p>
+<p>| `/api/workflows/runs/{run_id}` | GET | workflows |</p>
+<p>| `/api/workflows/{workflow_id}` | GET | workflows |</p>
+<p>| `/api/workflows/{workflow_id}` | DELETE | workflows |</p>
+<p>| `/api/workflows/{workflow_id}/run` | POST | workflows |</p>
+<p>| `/api/workflows/{workflow_id}/status` | GET | workflows |</p>
+<h3>OpenAI-Compatible API (17 routes)</h3>
+<p>| Endpoint | Method | Feature |</p>
+<p>|----------|--------|---------|</p>
+<p>| `/v1` | GET | openai_api |</p>
+<p>| `/v1/chat/completions` | POST | openai_api |</p>
+<p>| `/v1/completions` | POST | openai_api |</p>
+<p>| `/v1/embeddings` | POST | openai_api |</p>
+<p>| `/v1/images/generations` | POST | openai_api |</p>
+<p>| `/v1/audio/transcriptions` | POST | openai_api |</p>
+<p>| `/v1/audio/speech` | POST | openai_api |</p>
+<p>| `/v1/moderations` | POST | openai_api |</p>
+<p>| `/v1/models` | GET | openai_api |</p>
+<p>| `/v1/models/{model_id}` | GET | openai_api |</p>
+<p>| `/v1/responses` | POST | openai_api |</p>
+<p>| `/v1/files` | GET | openai_api |</p>
+<p>| `/v1/files` | POST | openai_api |</p>
+<p>| `/v1/files/{file_id}` | GET | openai_api |</p>
+<p>| `/v1/files/{file_id}` | DELETE | openai_api |</p>
+<p>| `/v1/assistants` | GET | openai_api |</p>
+<p>| `/v1/assistants` | POST | openai_api |</p>
+<h3>Observability (17 routes)</h3>
+<p>| Endpoint | Method | Feature |</p>
+<p>|----------|--------|---------|</p>
+<p>| `/api/logs/stream` | WebSocket | logs |</p>
+<p>| `/api/logs/levels` | GET | logs |</p>
+<p>| `/api/logs/clear` | POST | logs |</p>
+<p>| `/api/logs/stats` | GET | logs |</p>
+<p>| `/api/usage` | GET | usage |</p>
+<p>| `/api/usage/summary` | GET | usage |</p>
+<p>| `/api/usage/details` | GET | usage |</p>
+<p>| `/api/usage/models` | GET | usage |</p>
+<p>| `/api/usage/sessions` | GET | usage |</p>
+<p>| `/api/usage/agents` | GET | usage |</p>
+<p>| `/api/usage/timeseries` | GET | usage |</p>
+<p>| `/api/usage/costs` | GET | usage |</p>
+<p>| `/api/usage/track` | POST | usage |</p>
+<p>| `/api/nodes` | GET | nodes |</p>
+<p>| `/api/nodes` | POST | nodes |</p>
+<p>| `/api/nodes/instances` | GET | nodes |</p>
+<p>| `/api/instances` | GET | nodes |</p>
+<p>---</p>
+<h2>All Gaps Implemented ✅</h2>
+<p>All previously identified gaps have been implemented with protocol-driven architecture:</p>
+<p>| Feature | Implementation | Docs |</p>
+<p>|---------|----------------|------|</p>
+<p>| `memory` | `MemoryProtocol` → `SimpleMemoryManager` / `SDKMemoryManager` | [Memory API](../api/features-api.md#memory) |</p>
+<p>| `media_analysis` | `MediaAnalysisProtocol` → `VisionAnalysisManager` (SDK VisionAgent) | [Media Analysis](media-analysis.md) |</p>
+<p>| `tts` | `TTSProtocol` → `BrowserTTSManager` / `OpenAITTSManager` | [TTS](tts.md) |</p>
+<p>| `marketplace` | `MarketplaceProtocol` → `LocalMarketplaceManager` | [Marketplace](marketplace.md) |</p>
+<p>| `code_execution` | `CodeExecutionProtocol` → `SandboxExecutionManager` | [Code Execution](code-execution.md) |</p>
+<p>| `pwa` | `PWAProtocol` → `DefaultPWAManager` | [PWA](pwa.md) |</p>
+<p>| `i18n` | `I18nProtocol` → `JSONLocaleManager` | [i18n](i18n.md) |</p>
+<p>| `device_pairing` | `PairingProtocol` → `DefaultPairingManager` | [Device Pairing](device-pairing.md) |</p>
+<p>---</p>
+<h2>Feature Architecture</h2>
+<p>> Numbers in parentheses = API route count per feature</p></noscript></div>
+</body>
+
+</html>

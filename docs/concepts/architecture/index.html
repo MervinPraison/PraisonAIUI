@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Architecture: AG-UI Protocol vs Gateway Integration - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Architecture: AG-UI Protocol vs Gateway Integration | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/concepts/architecture" />
+  <meta property="og:title" content="Architecture: AG-UI Protocol vs Gateway Integration | PraisonAIUI Docs" />
+  <meta property="og:description" content="Architecture: AG-UI Protocol vs Gateway Integration - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/concepts/architecture" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Architecture: AG-UI Protocol vs Gateway Integration | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Architecture: AG-UI Protocol vs Gateway Integration - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Architecture: AG-UI Protocol vs Gateway Integration</h1>
+<p>PraisonAIUI has **two complementary integration layers** with the praisonai backend. They solve different problems and run side-by-side.</p>
+<h2>Protocol Stack</h2>
+<p>AG-UI sits alongside MCP and A2A in the agentic protocol stack:</p>
+<p>| Protocol | Purpose |</p>
+<p>|----------|---------|</p>
+<p>| **MCP** | Gives agents tools |</p>
+<p>| **A2A** | Agent-to-agent communication |</p>
+<p>| **AG-UI** | Agent-to-user-interface (streaming) |</p>
+<p>| **Gateway** | Infrastructure management (channels, nodes, instances) |</p>
+<h2>AG-UI — The Conversation Layer</h2>
+<p>[AG-UI](https://ag-ui.com/) is an **open, event-based protocol** by CopilotKit that standardizes how agent backends stream events to frontends. PraisonAI implements it at `praisonaiagents/ui/agui/`.</p>
+<p>**What it does:** Streams ~16 standard event types (text deltas, tool calls, state sync, generative UI) over SSE.</p>
+<p>**Who uses it:** LangGraph, CrewAI, Google ADK, Microsoft Agent Framework, AWS Strands, Mastra, Pydantic AI, LlamaIndex, AG2, and PraisonAI.</p>
+<h3>Usage</h3>
+<p>**Frontend compatibility:** CopilotKit, or any AG-UI-compatible client.</p>
+<h2>Gateway Integration — The Operations Layer</h2>
+<p>The gateway integration connects PraisonAIUI's dashboard features to the live `WebSocketGateway` backend for infrastructure management.</p>
+<p>**What it does:** CRUD for channels, nodes, instances; live bot status; heartbeat monitoring.</p>
+<h3>How It Works</h3>
+<h3>Key Files</h3>
+<p>| File | Purpose |</p>
+<p>|------|---------|</p>
+<p>| `features/_gateway_ref.py` | Thread-safe singleton holding reference to the live gateway |</p>
+<p>| `features/channels.py` | Channel CRUD + live status enrichment from gateway |</p>
+<p>| `features/nodes.py` | Node CRUD + gateway health enrichment |</p>
+<p>| `integration.py` | Calls `set_gateway()` on start, clears on stop |</p>
+<p>| `config_store.py` | Unified `~/.praisonaiui/config.yaml` — single source of truth for all feature state |</p>
+<h3>API Endpoints</h3>
+<p>| Endpoint | Methods | Description |</p>
+<p>|----------|---------|-------------|</p>
+<p>| `/api/channels` | GET, POST | List/create channels |</p>
+<p>| `/api/channels/{id}` | GET, PUT, DELETE | Channel CRUD |</p>
+<p>| `/api/channels/{id}/toggle` | POST | Enable/disable |</p>
+<p>| `/api/channels/{id}/status` | GET | Live running status |</p>
+<p>| `/api/channels/platforms` | GET | Supported platforms |</p>
+<p>| `/api/nodes` | GET, POST | List/register nodes |</p>
+<p>| `/api/nodes/{id}` | GET, PUT, DELETE | Node CRUD |</p>
+<p>| `/api/nodes/{id}/status` | GET | Node status + gateway enrichment |</p>
+<p>| `/api/nodes/{id}/agents` | GET, PUT | Agent bindings |</p>
+<p>| `/api/instances` | GET | Connected instances |</p>
+<p>| `/api/instances/heartbeat` | POST | Presence heartbeat |</p>
+<h2>Using Both Together</h2>
+<p>`AIUIGateway.start()` in `integration.py` mounts both layers on the same server:</p>
+<h2>Summary</h2>
+<p>| | AG-UI (`/agui`) | Gateway (`/api/*`) |</p>
+<p>|---|---|---|</p>
+<p>| **Layer** | Conversation | Operations |</p>
+<p>| **Transport** | SSE (server-sent events) | REST + WebSocket |</p>
+<p>| **Purpose** | Stream agent responses to users | Manage channels, nodes, instances |</p>
+<p>| **Frontend** | CopilotKit / AG-UI clients | PraisonAIUI React dashboard |</p>
+<p>| **Protocol** | Open standard (~16 event types) | Internal REST API |</p></noscript></div>
+</body>
+
+</html>

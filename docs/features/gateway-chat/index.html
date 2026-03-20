@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Gateway Chat - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Gateway Chat | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/gateway-chat" />
+  <meta property="og:title" content="Gateway Chat | PraisonAIUI Docs" />
+  <meta property="og:description" content="Gateway Chat - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/gateway-chat" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Gateway Chat | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Gateway Chat - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Gateway Chat</h1>
+<p>Real-time AI agent chat with **WebSocket streaming**, markdown rendering, tool call display, and session management.</p>
+<p>![Chat Interface](../images/chat-interface.png)</p>
+<h2>Quick Start</h2>
+<h2>How It Works</h2>
+<h3>Full Streaming Data Flow</h3>
+<p>A chat message travels through 5 layers before reaching the browser:</p>
+<h3>Key Files</h3>
+<p>| File | Layer | Responsibility |</p>
+<p>|------|-------|----------------|</p>
+<p>| `aiui/plugins/views/chat.js` | Frontend | WS connection, DOM rendering, session history |</p>
+<p>| `src/praisonaiui/features/chat.py` | Backend | ChatManager, `_run_and_broadcast`, history API |</p>
+<p>| `src/praisonaiui/server.py` | Backend | SSE streaming path (`run_agent` endpoint) |</p>
+<p>| `src/praisonaiui/providers/__init__.py` | Provider | SDK → RunEvent bridge, `_run_direct_mode` |</p>
+<p>| `src/praisonaiui/datastore.py` | Storage | `MemoryDataStore` / `JSONFileDataStore` |</p>
+<p>| `src/praisonaiui/provider.py` | Protocol | `RunEventType` enum definition |</p>
+<h2>Architecture</h2>
+<h2>Agent Tool Resolution</h2>
+<p>Agents created via YAML config, CRUD API, jobs, or channel bots automatically get tools resolved through the `ToolResolver`. Tool names in config are resolved to callable Python functions from 4 sources:</p>
+<p>1. Local `tools.py` file (backward compatibility)</p>
+<p>2. `praisonaiagents.tools.TOOL_MAPPINGS` (built-in tools)</p>
+<p>3. `praisonai_tools` package (community tools)</p>
+<p>4. Tool registry (programmatically registered tools)</p>
+<h3>YAML Configuration</h3>
+<h3>CRUD API</h3>
+<p>Agents created via `POST /api/agents` also support tools:</p>
+<h3>Where Tool Resolution Applies</h3>
+<p>| Component | Tool Resolution |</p>
+<p>|-----------|----------------|</p>
+<p>| Gateway `_create_agents_from_config()` | ✅ `ToolResolver` |</p>
+<p>| Integration `create_gateway_from_yaml()` | ✅ `ToolResolver` |</p>
+<p>| Provider `_get_or_create_agent()` | ✅ Default tools |</p>
+<p>| Channel bot `_start_channel_bot()` | ✅ Default tools |</p>
+<p>| Jobs `_execute_job()` fallback | ✅ `ToolResolver` |</p>
+<p>| CRUD agents `_run()` fallback | ✅ `ToolResolver` |</p>
+<p>| CRUD agents `_sync_to_gateway()` | ✅ `ToolResolver` |</p>
+<h2>Features</h2>
+<h3>Markdown Rendering</h3>
+<p>Assistant messages are rendered with full markdown support:</p>
+<li>**Bold**, *italic*, ~~strikethrough~~</li>
+<li>Inline `code` and fenced code blocks with syntax highlighting</li>
+<li>Ordered and unordered lists</li>
+<li>Links (auto-detected and rendered safely)</li>
+<h3>Tool Call Display</h3>
+<p>![Tool Call Streaming](../images/tool-streaming.png)</p>
+<p>When agents use tools, each call is displayed as a collapsible card:</p>
+<li>Tool name and status indicator (running/completed/failed)</li>
+<li>Input arguments (JSON)</li>
+<li>Output results (rendered in code blocks)</li>
+<h4>Tool Call Lifecycle</h4>
+<p>Tool calls go through 4 stages: **emit → enrich → dedup → persist**.</p>
+<p>**1. Emit** — The SDK fires `TOOL_CALL_START` / `DELTA_TOOL_CALL` / `TOOL_CALL_END` events via `StreamEventEmitter`. The provider maps these to `RunEvent` types (`TOOL_CALL_STARTED`, `TOOL_CALL_COMPLETED`).</p>
+<p>**2. Enrich** — `_run_and_broadcast()` in `chat.py` enriches each tool call event with display-friendly fields via `_enrich_tool_payload()`:</p>
+<p>| Field | Source | Example |</p>
+<p>|-------|--------|---------|</p>
+<p>| `icon` | Mapped from tool name | 🔍, 📝, 💾 |</p>
+<p>| `description` | Generated from name + args | "🔍 Searching for 'Django latest version'" |</p>
+<p>| `step_number` | Auto-incrementing counter per run | 1, 2, 3 |</p>
+<p>| `formatted_result` | Truncated result string | "✓ Done" |</p>
+<p>| `tool_call_id` | SDK-assigned or UUID fallback | "call_abc123" |</p>
+<p>**3. Dedup** — Both `DELTA_TOOL_CALL` (stream) and hook callbacks fire for the same tool call. The handler uses `_seen_tool_started` / `_seen_tool_completed` sets keyed by `tool_call_id` and `name` to suppress duplicates. A re-broadcast with `has_complete_args=True` is allowed to update the description with keyword-rich text.</p>
+<p>**4. Persist** — After the run completes, all enriched tool calls are merged by `tool_call_id` into `collected_tool_calls` and saved alongside the assistant message:</p>
+<h4>Tool Call Persistence Schema</h4>
+<p>Tool calls are persisted alongside assistant messages in the datastore. When a session is reloaded from history, tool call steps are reconstructed from the `toolCalls` array on each assistant message.</p>
+<p>Assistant message schema in the datastore:</p>
+<h4>History Reload Rendering</h4>
+<h3>Session Management</h3>
+<li>**New Session**: Click "New Chat" to create a fresh session</li>
+<li>**Session History**: Switch between sessions in the sidebar</li>
+<li>**Message History**: Full conversation history per session via REST API</li>
+<h3>Message Abort</h3>
+<li>Click the **Stop** button (or send `chat_abort` via WebSocket) to cancel an in-progress agent run</li>
+<li>The partial response is preserved in history</li>
+<h3>File Attachments</h3>
+<p>Upload files to include with your chat messages — see [Attachments](attachments.md) for details.</p>
+<h2>Session Persistence</h2>
+<p>Chat history is persisted via the `BaseDataStore` interface (`datastore.py`). Two implementations are available:</p>
+<p>| DataStore | Persistence | Default |</p>
+<p>|-----------|-------------|--------|</p>
+<p>| `MemoryDataStore` | Volatile (in-memory only) | Yes (fallback) |</p>
+<p>| `JSONFileDataStore` | Disk (`~/.praisonaiui/sessions/`) | Yes (when `data_dir` configured) |</p>
+<p>Each session is a JSON file containing:</p>
+<p>Messages are appended via `add_message()` and retrieved via `get_messages()`. Both methods are `async` to support future database backends.</p>
+<h3>Response Content Strategy</h3>
+<p>The `content` field on assistant messages stores the SDK's final response from `agent.chat()` — the same text displayed by `finalizeDelta()` in the live view. This ensures the reloaded view matches what the user saw during streaming.</p>
+<p>> [!IMPORTANT]</p>
+<p>> During streaming, text tokens are accumulated in `full_response`. However, when `RUN_COMPLETED` arrives with `event.content` (the SDK's authoritative return value), it **replaces** the accumulated tokens for storage. This prevents intermediate narrative text from being duplicated on reload.</p>
+<h2>Chat Message Model</h2>
+<h2>WebSocket Protocol</h2>
+<h3>Client → Server</h3>
+<h3>Server → Client</h3>
+<p>All events include `session_id` and `run_id`.</p>
+<h2>REST API</h2>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| `/api/chat/send` | POST | Send a message (non-streaming) |</p>
+<p>| `/api/chat/history/{session_id}` | GET | Get message history for a session |</p>
+<p>| `/api/chat/abort` | POST | Abort an active run |</p>
+<p>| `/api/chat/ws` | WebSocket | Real-time chat streaming |</p>
+<h3>Send Message</h3>
+<h3>Get History</h3>
+<p>Response includes `toolCalls` on assistant messages:</p></noscript></div>
+</body>
+
+</html>

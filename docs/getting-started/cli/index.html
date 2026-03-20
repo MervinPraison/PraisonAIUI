@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CLI Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>CLI Reference | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/getting-started/cli" />
+  <meta property="og:title" content="CLI Reference | PraisonAIUI Docs" />
+  <meta property="og:description" content="CLI Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/getting-started/cli" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="CLI Reference | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="CLI Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>CLI Reference</h1>
+<p>Complete reference for the `aiui` command-line interface.</p>
+<h2>Core Commands</h2>
+<h3>`aiui run`</h3>
+<p>**The primary command** — run an AI server with your `app.py` or `chat.yaml`.</p>
+<p>| Option | Description | Default |</p>
+<p>|--------|-------------|---------|</p>
+<p>| `FILE` | Python file (`app.py`) or YAML config (`chat.yaml`) | required |</p>
+<p>| `--port, -p` | Server port | `8000` |</p>
+<p>| `--host` | Bind address | `127.0.0.1` |</p>
+<p>| `--reload` | Auto-reload on file changes | `false` |</p>
+<p>| `--style, -s` | UI style: chat, dashboard, agents, playground, docs, custom | `chat` |</p>
+<p>| `--backend` | AI backend: `praisonai`, `default` | `default` |</p>
+<p>| `--workers` | Number of workers | `1` |</p>
+<p>| `--ssl-certfile` | SSL certificate for HTTPS | — |</p>
+<p>| `--ssl-keyfile` | SSL private key for HTTPS | — |</p>
+<p>**Examples:**</p>
+<p>---</p>
+<h3>`aiui init`</h3>
+<p>Initialize a new PraisonAIUI project.</p>
+<p>| Option | Description | Default |</p>
+<p>|--------|-------------|---------|</p>
+<p>| `--template, -t` | Template: minimal, docs, marketing | `minimal` |</p>
+<p>| `--force, -f` | Overwrite existing files | `false` |</p>
+<p>| `--frontend` | Scaffold full Vite + React + shadcn project | `false` |</p>
+<p>**Examples:**</p>
+<p>---</p>
+<h3>`aiui validate`</h3>
+<p>Validate your configuration file.</p>
+<p>| Option | Description | Default |</p>
+<p>|--------|-------------|---------|</p>
+<p>| `--config, -c` | Path to config file | `aiui.template.yaml` |</p>
+<p>| `--strict` | Enable strict validation | `false` |</p>
+<p>---</p>
+<h3>`aiui build`</h3>
+<p>Build manifests from configuration (for docs/static site mode).</p>
+<p>| Option | Description | Default |</p>
+<p>|--------|-------------|---------|</p>
+<p>| `--config, -c` | Path to config file | `aiui.template.yaml` |</p>
+<p>| `--output, -o` | Output directory | `aiui` |</p>
+<p>| `--minify` | Minify JSON output | `false` |</p>
+<p>---</p>
+<h3>`aiui serve`</h3>
+<p>Serve the built site locally with a production-ready HTTP server.</p>
+<p>| Option | Description | Default |</p>
+<p>|--------|-------------|---------|</p>
+<p>| `--config, -c` | Path to config file | `aiui.template.yaml` |</p>
+<p>| `--port, -p` | Server port | `8000` |</p>
+<p>| `--host` | Bind address | `127.0.0.1` |</p>
+<p>| `--reload` | Watch for changes and rebuild | `false` |</p>
+<p>| `--style, -s` | UI style override | auto-detected |</p>
+<p>| `--ssl-certfile` | SSL certificate for HTTPS | — |</p>
+<p>| `--ssl-keyfile` | SSL private key for HTTPS | — |</p>
+<p>---</p>
+<h3>`aiui dev`</h3>
+<p>Development dashboard — switch between examples live.</p>
+<p>| Option | Description | Default |</p>
+<p>|--------|-------------|---------|</p>
+<p>| `--examples, -e` | Directory containing example projects | `examples` |</p>
+<p>| `--port, -p` | Port for dev server | `9000` |</p>
+<p>---</p>
+<h3>`aiui doctor`</h3>
+<p>Run structured diagnostics against a running AIUI server.</p>
+<p>| Option | Description | Default |</p>
+<p>|--------|-------------|---------|</p>
+<p>| `--server, -s` | Server URL to diagnose | `http://127.0.0.1:8000` |</p>
+<p>| `--json` | Output results as JSON | `false` |</p>
+<p>Checks: health, provider, gateway, features, config, datastore, channels.</p>
+<p>---</p>
+<h3>`aiui test`</h3>
+<p>Run integration tests against a running server.</p>
+<p>| Suite | Description |</p>
+<p>|-------|-------------|</p>
+<p>| `chat` | Chat WebSocket send/receive |</p>
+<p>| `memory` | Memory CRUD operations |</p>
+<p>| `sessions` | Session management |</p>
+<p>| `endpoints` | API endpoint availability |</p>
+<p>| `all` | Run all test suites |</p>
+<p>---</p>
+<h2>Management Commands</h2>
+<p>All management commands connect to a running server (default `http://127.0.0.1:8000`). Use `--server URL` to target a different server.</p>
+<h3>`aiui sessions`</h3>
+<h3>`aiui memory`</h3>
+<h3>`aiui skills`</h3>
+<h3>`aiui provider`</h3>
+<h3>`aiui config`</h3>
+<h3>`aiui schedule`</h3>
+<h3>`aiui approval`</h3>
+<h3>`aiui workflows`</h3>
+<h3>`aiui hooks`</h3>
+<h3>`aiui eval`</h3>
+<h3>`aiui traces`</h3>
+<h3>`aiui pages`</h3>
+<h3>`aiui features`</h3>
+<h3>`aiui health`</h3>
+<h3>`aiui session-ext`</h3>
+<p>Extended session operations:</p>
+<p>---</p>
+<h2>Exit Codes</h2>
+<p>| Code | Meaning |</p>
+<p>|------|---------|</p>
+<p>| `0` | Success |</p>
+<p>| `1` | Configuration error |</p>
+<p>| `2` | File not found |</p>
+<p>| `3` | Build error |</p>
+<h2>Environment Variables</h2>
+<p>| Variable | Description | Default |</p>
+<p>|----------|-------------|---------|</p>
+<p>| `OPENAI_API_KEY` | OpenAI API key | — |</p>
+<p>| `PRAISONAI_MODEL` | Default model | `gpt-4o-mini` |</p>
+<p>| `AIUI_DATA_DIR` | Data directory | `~/.praisonaiui` |</p>
+<p>| `AIUI_CONFIG` | Config file path | `aiui.template.yaml` |</p>
+<p>| `AIUI_OUTPUT` | Build output dir | `aiui` |</p></noscript></div>
+</body>
+
+</html>

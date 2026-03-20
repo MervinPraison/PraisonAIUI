@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Sessions API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Sessions API Reference | PraisonAIUI Docs</title>
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/api/sessions" />
+  <meta property="og:title" content="Sessions API Reference | PraisonAIUI Docs" />
+  <meta property="og:description" content="Sessions API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/api/sessions" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Sessions API Reference | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Sessions API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Sessions API Reference</h1>
+<h2>Endpoints</h2>
+<h3>`GET /sessions`</h3>
+<p>List all sessions.</p>
+<p>**Response:**</p>
+<p>---</p>
+<h3>`POST /sessions`</h3>
+<p>Create a new session.</p>
+<p>**Response:**</p>
+<p>---</p>
+<h3>`GET /sessions/{session_id}`</h3>
+<p>Get full session data including messages.</p>
+<p>**Response:**</p>
+<p>---</p>
+<h3>`GET /sessions/{session_id}/runs`</h3>
+<p>Get message history for a session.</p>
+<p>**Response:**</p>
+<p>---</p>
+<h3>`DELETE /sessions/{session_id}`</h3>
+<p>Delete a session.</p>
+<p>**Response:**</p>
+<p>---</p>
+<h3>`POST /run`</h3>
+<p>Send a message and receive streaming response via SSE.</p>
+<p>**Request:**</p>
+<p>If `session_id` is omitted or `null`, a new session is created automatically.</p>
+<p>**Response:** Server-Sent Events stream:</p>
+<p>---</p>
+<h3>`POST /cancel`</h3>
+<p>Cancel an active run.</p>
+<p>**Request:**</p>
+<p>---</p>
+<h3>`GET /health`</h3>
+<p>Server health check.</p>
+<p>**Response:**</p>
+<p>---</p>
+<h3>`GET /agents`</h3>
+<p>List registered agents.</p>
+<p>**Response:**</p>
+<h2>Error Responses</h2>
+<p>All endpoints return `404` when a session is not found:</p></noscript></div>
+</body>
+
+</html>
