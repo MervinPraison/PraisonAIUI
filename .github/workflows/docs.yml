@@ -19,11 +19,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install MkDocs + plugins
-        run: |
-          pip install mkdocs-material mkdocstrings[python]
+      - name: Install AIUI
+        run: pip install -e .
 
-      - name: Build & Deploy
+      - name: Build docs with AIUI
         run: |
-          echo "mervinpraison.github.io" > docs/CNAME
-          mkdocs gh-deploy --force
+          aiui build --output site --minify
+          cp CNAME site/CNAME
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
