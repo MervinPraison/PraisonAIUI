@@ -324,6 +324,15 @@ class ChatConfig(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class DashboardConfig(BaseModel):
+    """Dashboard layout configuration."""
+
+    sidebar: bool = Field(default=True, description="Show the left sidebar navigation")
+    page_header: bool = Field(default=True, alias="pageHeader", description="Show page title/description header")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class LayoutConfig(BaseModel):
     """Layout configuration for chat positioning."""
 
@@ -380,7 +389,7 @@ class Config(BaseModel):
 
     schema_version: int = Field(default=1, alias="schemaVersion")
     site: SiteConfig
-    style: Literal["docs", "chat", "agents", "playground", "custom"] = "docs"
+    style: Literal["docs", "chat", "agents", "playground", "dashboard", "custom"] = "docs"
     layout: Optional[LayoutConfig] = None
     content: Optional[ContentConfig] = None
     components: dict[str, ComponentConfig] = Field(default_factory=dict)
@@ -389,6 +398,7 @@ class Config(BaseModel):
     chat: Optional[ChatConfig] = None
     auth: Optional[AuthConfig] = None
     widgets: list[InputWidgetConfig] = Field(default_factory=list)
+    dashboard: Optional[DashboardConfig] = None
     seo: Optional[SEOConfig] = None
     i18n: Optional[I18nConfig] = None
     a11y: Optional[A11yConfig] = None

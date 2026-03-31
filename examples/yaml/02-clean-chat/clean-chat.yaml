@@ -1,0 +1,51 @@
+# Clean Chat — Dashboard chat without sidebar (YAML version)
+#
+# This is the YAML equivalent of examples/python/25-clean-chat/app.py
+# All config is protocol-driven through the same /ui-config.json endpoint.
+#
+# Run:
+#   aiui run clean-chat.yaml
+#
+# Requires: pip install praisonai
+# Set OPENAI_API_KEY before running.
+
+name: AI Chat
+instructions: >
+  You are a helpful, concise assistant.
+  Use markdown formatting for code and structured content.
+model: gpt-4o-mini
+
+# UI configuration — same protocol as Python API
+style: dashboard
+
+dashboard:
+  sidebar: false
+  pageHeader: false
+
+theme:
+  preset: blue
+  darkMode: true
+  radius: lg
+
+branding:
+  title: AI Chat
+  logo: "💬"
+
+pages:
+  - chat
+
+welcome: "👋 Hi! Ask me anything — I'm ready to help."
+
+starters:
+  - label: Explain something
+    message: Explain quantum computing in simple terms
+    icon: "🔬"
+  - label: Write code
+    message: Write a Python function to reverse a linked list
+    icon: "💻"
+  - label: Creative writing
+    message: Write a haiku about coding at midnight
+    icon: "✍️"
+  - label: Brainstorm
+    message: Give me 5 startup ideas using AI agents
+    icon: "💡"

@@ -1290,6 +1290,27 @@ def run(
         if "datastore" in chat_yaml and datastore == "memory":
             datastore = chat_yaml["datastore"]
 
+        # Apply style/dashboard/theme/branding from YAML via protocol APIs
+        import praisonaiui as _aiui
+        if "style" in chat_yaml:
+            _aiui.set_style(chat_yaml["style"])
+            style = chat_yaml["style"]
+        if "dashboard" in chat_yaml and isinstance(chat_yaml["dashboard"], dict):
+            _aiui.set_dashboard(**{
+                k.replace("pageHeader", "page_header"): v
+                for k, v in chat_yaml["dashboard"].items()
+                if k.replace("pageHeader", "page_header") in ("sidebar", "page_header")
+            })
+        if "theme" in chat_yaml and isinstance(chat_yaml["theme"], dict):
+            _aiui.set_theme(**{
+                k.replace("darkMode", "dark_mode"): v
+                for k, v in chat_yaml["theme"].items()
+            })
+        if "branding" in chat_yaml and isinstance(chat_yaml["branding"], dict):
+            _aiui.set_branding(**chat_yaml["branding"])
+        if "pages" in chat_yaml and isinstance(chat_yaml["pages"], list):
+            _aiui.set_pages(chat_yaml["pages"])
+
         # Auto-register callbacks from YAML
         _register_yaml_chat(chat_yaml)
         is_chat_mode = True

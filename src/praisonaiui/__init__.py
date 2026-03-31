@@ -7,6 +7,7 @@ from praisonaiui.schema.models import (
     ComponentConfig,
     Config,
     ContentConfig,
+    DashboardConfig,
     LayoutConfig,
     RouteConfig,
     SiteConfig,
@@ -94,6 +95,7 @@ __all__ = [
     "TemplateConfig",
     "RouteConfig",
     "ChatConfig",
+    "DashboardConfig",
     "AuthConfig",
     "LayoutConfig",
     # Callback decorators

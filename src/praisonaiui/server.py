@@ -1513,6 +1513,19 @@ def create_app(
             except Exception:
                 pass
 
+        # Dashboard config: set_dashboard() > YAML dashboard section > defaults
+        _dash_cfg = _dashboard_config  # Python API takes priority
+        if not _dash_cfg:
+            try:
+                _dash_section = _cs.get_section("dashboard") if _cs else None
+                if _dash_section and isinstance(_dash_section, dict):
+                    _dash_cfg = {
+                        "sidebar": _dash_section.get("sidebar", _dash_section.get("sidebar", True)),
+                        "pageHeader": _dash_section.get("pageHeader", _dash_section.get("page_header", True)),
+                    }
+            except Exception:
+                pass
+
         return JSONResponse({
             "style": effective_style,
             "site": {
@@ -1528,8 +1541,8 @@ def create_app(
                 } if _chat_features else {}),
             },
             **({
-                "dashboard": _dashboard_config,
-            } if _dashboard_config else {}),
+                "dashboard": _dash_cfg,
+            } if _dash_cfg else {}),
             "debug": _debug,
         })
 

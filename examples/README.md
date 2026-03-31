@@ -23,7 +23,16 @@
 | 20 | [email-channel](python/20-email-channel/) | Email as AIUI dashboard channel via `/api/channels` | `python app.py` |
 | 21 | [agentmail-bot](python/21-agentmail-bot/) | `AgentMailBot` API-first email + programmatic inbox lifecycle | `python app.py` |
 | 22 | [agentmail-channel](python/22-agentmail-channel/) | AgentMail as AIUI dashboard channel via `/api/channels` | `python app.py` |
-| 25 | [clean-chat](python/25-clean-chat/) | `set_chat_features(history=False)` — no sidebar, distraction-free chat | `aiui run app.py` |
+| 25 | [clean-chat](python/25-clean-chat/) | `set_dashboard(sidebar=False)` — dashboard chat without left nav | `aiui run app.py` |
+
+---
+
+## YAML Chat Track
+
+| # | Name | Shows | Run |
+|---|---|---|---|
+| 01 | [chat](yaml/01-chat/) | Zero-code YAML chat agent | `aiui run chat.yaml` |
+| 02 | [clean-chat](yaml/02-clean-chat/) | `dashboard.sidebar: false` — dashboard chat without left nav (YAML parity) | `aiui run clean-chat.yaml` |
 
 ---
 
