@@ -108,6 +108,8 @@ const DASHBOARD_STYLE = `
 
   /* Main content area */
   .db-main { flex: 1; padding: 32px 40px; overflow-y: auto; min-width: 0; }
+  .db-main.db-clean { padding: 0; display: flex; flex-direction: column; overflow: hidden; height: 100vh; }
+  .db-main.db-clean > #db-page-content { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   .db-page-header { margin-bottom: 28px; }
   .db-page-title { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; }
   .db-page-desc { color: var(--db-text-dim); font-size: 14px; margin: 0; }
@@ -556,6 +558,9 @@ async function buildDashboard() {
 
   const main = document.createElement('div');
   main.className = 'db-main';
+  if (!showSidebar && !showPageHeader) {
+    main.classList.add('db-clean');
+  }
   main.id = 'db-main-content';
   // Store config on main element for page renderers to read
   main.dataset.showPageHeader = showPageHeader ? 'true' : 'false';

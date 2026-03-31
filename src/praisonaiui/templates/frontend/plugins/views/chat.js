@@ -156,6 +156,7 @@ function injectStyles() {
   style.id = 'chat-view-styles';
   style.textContent = `
     .chat-root { display:flex; height:calc(100vh - 140px); gap:0; border-radius:12px; overflow:hidden; border:1px solid var(--db-border); background:var(--db-card-bg); }
+    .db-clean .chat-root { height:100%; border-radius:0; border:none; }
     .chat-root.focus-mode .chat-sidebar-panel { display:none; }
     .chat-root.focus-mode .chat-main-panel { border-left:none; }
 

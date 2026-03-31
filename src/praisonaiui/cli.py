@@ -1101,7 +1101,6 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
         from praisonaiui.callbacks import _set_context
         _set_context(msg)
         try:
-            await aiui.think("Thinking...")
             agent = _get_agent()
 
             # Stream tokens via stream_emitter → aiui.stream_token()
