@@ -74,10 +74,22 @@ function renderMarkdown(text) {
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   // Unordered list items (- item)
   html = html.replace(/^- (.+)$/gm, '<li style="margin-left:16px;list-style:disc">$1</li>');
-  // Ordered list items (1. item)
-  html = html.replace(/^\d+\. (.+)$/gm, '<li style="margin-left:16px;list-style:decimal">$1</li>');
-  // Wrap consecutive <li> elements in <ul>/<ol>
-  html = html.replace(/((?:<li[^>]*>.*?<\/li>\n?)+)/g, '<ul style="padding-left:8px;margin:4px 0">$1</ul>');
+  // Ordered list items: use a counter so "1. X\n1. Y" gets rendered as 1, 2, 3...
+  // Each li gets value= so even if split into multiple <ol> blocks each has the right number.
+  (function() {
+    var counter = 0;
+    html = html.replace(/^(\d+)\. (.+)$/gm, function(_, _num, content) {
+      counter++;
+      return '<li style="margin-left:16px;list-style:decimal" value="' + counter + '">' + content + '</li>';
+    });
+  })();
+  // Wrap consecutive unordered <li> in <ul>
+  html = html.replace(/((?:<li style="margin-left:16px;list-style:disc">[\s\S]*?<\/li>\n?)+)/g,
+    '<ul style="padding-left:8px;margin:4px 0">$1</ul>');
+  // Wrap consecutive ordered <li value=...> in <ol> (collapse blank lines between items first)
+  html = html.replace(/(<\/li>)(\n|\n\n)(<li style="margin-left:16px;list-style:decimal")/g, '$1\n$3');
+  html = html.replace(/((?:<li style="margin-left:16px;list-style:decimal"[^>]*>[\s\S]*?<\/li>\n?)+)/g,
+    '<ol style="padding-left:8px;margin:4px 0;list-style:none">$1</ol>');
   // Line breaks (only affects non-code text now)
   html = html.replace(/\n/g, '<br>');
   // Clean up <br> right after block elements

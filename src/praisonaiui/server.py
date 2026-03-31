@@ -83,6 +83,10 @@ _branding: dict[str, str] = {"title": "PraisonAI", "logo": "🦞"}
 _theme: Optional[dict[str, Any]] = None
 # Custom CSS set via aiui.set_custom_css()
 _custom_css: Optional[str] = None
+# Chat features override set via aiui.set_chat_features()
+_chat_features: Optional[dict[str, Any]] = None
+# Dashboard config set via aiui.set_dashboard()
+_dashboard_config: Optional[dict[str, Any]] = None
 
 
 def set_style(style: str) -> None:
@@ -165,6 +169,77 @@ def set_custom_css(css: str) -> None:
     """
     global _custom_css
     _custom_css = css
+
+
+def set_chat_features(
+    *,
+    history: bool = True,
+    streaming: bool = True,
+    file_upload: bool = False,
+    audio: bool = False,
+    reasoning: bool = True,
+    tools: bool = True,
+    multimedia: bool = True,
+    feedback: bool = False,
+) -> None:
+    """Configure which chat features are enabled in the UI.
+
+    Controls visibility of chat sub-features like the session history
+    sidebar, file upload button, audio input, etc.
+
+    Args:
+        history: Show session history sidebar (default True).
+        streaming: Enable streaming responses (default True).
+        file_upload: Show file upload button (default False).
+        audio: Show audio input button (default False).
+        reasoning: Show reasoning/thinking steps (default True).
+        tools: Show tool call displays (default True).
+        multimedia: Enable multimedia rendering (default True).
+        feedback: Show feedback buttons (default False).
+
+    Example::
+
+        import praisonaiui as aiui
+        aiui.set_chat_features(history=False)  # Hide session sidebar
+    """
+    global _chat_features
+    _chat_features = {
+        "history": history,
+        "streaming": streaming,
+        "fileUpload": file_upload,
+        "audio": audio,
+        "reasoning": reasoning,
+        "tools": tools,
+        "multimedia": multimedia,
+        "feedback": feedback,
+    }
+
+
+def set_dashboard(
+    *,
+    sidebar: bool = True,
+    page_header: bool = True,
+) -> None:
+    """Configure dashboard layout options.
+
+    Controls visibility of dashboard UI elements like the sidebar
+    navigation panel.
+
+    Args:
+        sidebar: Show the left sidebar navigation (default True).
+        page_header: Show the page title/description header (default True).
+
+    Example::
+
+        import praisonaiui as aiui
+        aiui.set_style("dashboard")
+        aiui.set_dashboard(sidebar=False)  # Chat-only dashboard, no sidebar
+    """
+    global _dashboard_config
+    _dashboard_config = {
+        "sidebar": sidebar,
+        "pageHeader": page_header,
+    }
 
 
 def register_theme(name: str, variables: dict[str, str]) -> None:
@@ -1446,7 +1521,15 @@ def create_app(
                 "theme": _theme_cfg,
                 "customCss": _css,
             },
-            "chat": {"enabled": effective_style in ("chat", "agents", "playground", "dashboard")},
+            "chat": {
+                "enabled": effective_style in ("chat", "agents", "playground", "dashboard"),
+                **({
+                    "features": _chat_features,
+                } if _chat_features else {}),
+            },
+            **({
+                "dashboard": _dashboard_config,
+            } if _dashboard_config else {}),
             "debug": _debug,
         })
 

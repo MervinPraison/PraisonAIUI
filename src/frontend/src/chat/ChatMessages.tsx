@@ -104,6 +104,26 @@ function CopyButton({ text }: { text: string }) {
 }
 
 // -- Code block with copy --
+// -- Dedent: strips leading/trailing blank lines and common indentation --
+// Needed because code blocks inside list items carry list-indent whitespace,
+// and react-markdown adds a leading \n before the code content.
+function dedent(code: string): string {
+    const lines = code.split('\n')
+    // Remove leading blank lines
+    while (lines.length && !lines[0].trim()) lines.shift()
+    // Remove trailing blank lines
+    while (lines.length && !lines[lines.length - 1].trim()) lines.pop()
+    if (!lines.length) return ''
+    // Find minimum indentation across non-empty lines
+    const minIndent = Math.min(
+        ...lines
+            .filter((l) => l.trim().length > 0)
+            .map((l) => l.match(/^ */)?.[0].length ?? 0),
+    )
+    if (minIndent === 0) return lines.join('\n')
+    return lines.map((l) => l.slice(minIndent)).join('\n')
+}
+
 function CodeBlock({ language, children }: { language?: string; children: string }) {
     const [copied, setCopied] = useState(false)
 
@@ -137,22 +157,80 @@ function CodeBlock({ language, children }: { language?: string; children: string
 }
 
 // -- Markdown renderer --
+
+/**
+ * LLMs often use lazy numbering (every item is "1.").
+ * This renumbers ordered list items sequentially before react-markdown
+ * parses them, so remark always sees distinct numbers and renders them
+ * as one <ol> with correct counters.
+ * Code blocks are skipped to avoid mangling numbered examples inside them.
+ */
+function fixListNumbering(md: string): string {
+    const lines = md.split('\n')
+    let inCodeBlock = false
+    let inList = false
+    let listIndent = ''
+    let counter = 0
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        // Track fenced code blocks
+        if (/^[ \t]*```/.test(line)) {
+            inCodeBlock = !inCodeBlock
+            continue
+        }
+        if (inCodeBlock) continue
+
+        const m = line.match(/^([ \t]*)(\d+)\.[ \t]/)
+        if (m) {
+            const indent = m[1]
+            if (!inList || indent !== listIndent) {
+                // New list (or different indent level)
+                inList = true
+                listIndent = indent
+                counter = 1
+            } else {
+                counter++
+            }
+            lines[i] = line.replace(/^([ \t]*)\d+\./, `${indent}${counter}.`)
+        } else if (line.trim() === '' && inList) {
+            // Blank line within a loose list — keep list state, don't reset
+        } else if (inList && /^[ \t]+\S/.test(line)) {
+            // Continuation indent (list item body) — don't reset
+        } else if (inList) {
+            // Non-blank, non-indented, non-list → end of list
+            inList = false
+            counter = 0
+        }
+    }
+    return lines.join('\n')
+}
+
 function MarkdownContent({ content }: { content: string }) {
+    const normalized = fixListNumbering(content)
     return (
         <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent">
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                    // Ordered list: explicit decimal counter so items show 1. 2. 3.
-                    ol({ children }) {
-                        return (
-                            <ol style={{ listStyleType: 'decimal', paddingLeft: '1.5rem', margin: '0.5rem 0' }}>
-                                {children}
-                            </ol>
-                        )
-                    },
-                    // Unordered list
-                    ul({ children }) {
+                    // react-markdown routes ALL lists through `ul` with an `ordered` prop.
+                    // The `ol` component is only for literal HTML <ol> tags.
+                    // Using `ordered` + `start` here fixes the 1.1.1.1. problem:
+                    // when a loose list (with code blocks between items) is split into
+                    // multiple fragments, each fragment carries the correct `start` number.
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    ul({ children, ordered, start }: any) {
+                        if (ordered) {
+                            const startNum = start != null ? Number(start) : 1
+                            return (
+                                <ol
+                                    start={startNum}
+                                    style={{ listStyleType: 'decimal', paddingLeft: '1.5rem', margin: '0.5rem 0' }}
+                                >
+                                    {children}
+                                </ol>
+                            )
+                        }
                         return (
                             <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', margin: '0.5rem 0' }}>
                                 {children}
@@ -169,7 +247,7 @@ function MarkdownContent({ content }: { content: string }) {
                     },
                     code({ className, children, ...props }) {
                         const match = /language-(\w+)/.exec(className || '')
-                        const codeString = String(children).replace(/\n$/, '')
+                        const codeString = dedent(String(children))
 
                         // Inline code
                         if (!match && !codeString.includes('\n')) {
@@ -199,7 +277,7 @@ function MarkdownContent({ content }: { content: string }) {
                     },
                 }}
             >
-                {content}
+                {normalized}
             </ReactMarkdown>
         </div>
     )

@@ -51,9 +51,14 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
 
   const sendMessage = useCallback(
     (message: string, agentName?: string) => {
-      if (!externalSessionId) return
-      startStream(externalSessionId, message, agentName, {
-        onSessionId: options.onSessionId,
+      // Allow null session ID — server will create a new session and return it
+      // via the 'session' SSE event. Use a temp key until then.
+      const sid = externalSessionId ?? `new-${Date.now()}`
+      startStream(sid, message, agentName, {
+        onSessionId: (newId) => {
+          // The server returned a real session ID. Notify parent.
+          options.onSessionId?.(newId)
+        },
         onEnd: options.onEnd,
       })
     },

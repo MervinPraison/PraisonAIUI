@@ -534,24 +534,39 @@ async function buildDashboard() {
   // Show loading
   root.innerHTML = '<div class="db-loading"><div class="db-spinner"></div><p style="margin-top:16px">Loading dashboard…</p></div>';
 
-  // Fetch pages from protocol endpoint
+  // Fetch config and pages in parallel
+  let dashboardConfig = {};
   try {
-    const res = await fetch('/api/pages');
-    const data = await res.json();
-    pagesData = data.pages || [];
+    const [pagesRes, configRes] = await Promise.all([
+      fetch('/api/pages'),
+      fetch('/ui-config.json'),
+    ]);
+    const pagesJson = await pagesRes.json();
+    pagesData = pagesJson.pages || [];
+    const uiConfig = await configRes.json();
+    dashboardConfig = uiConfig.dashboard || {};
   } catch (e) {
     root.innerHTML = '<div class="db-loading"><p>Failed to load pages.</p></div>';
     return;
   }
 
-  // Build layout
-  const sidebar = buildSidebar(pagesData);
+  // Build layout — sidebar is controlled by config protocol
+  const showSidebar = dashboardConfig.sidebar !== false;
+  const showPageHeader = dashboardConfig.pageHeader !== false;
+
   const main = document.createElement('div');
   main.className = 'db-main';
   main.id = 'db-main-content';
+  // Store config on main element for page renderers to read
+  main.dataset.showPageHeader = showPageHeader ? 'true' : 'false';
 
   root.innerHTML = '';
-  root.appendChild(sidebar);
+
+  if (showSidebar) {
+    const sidebar = buildSidebar(pagesData);
+    root.appendChild(sidebar);
+  }
+
   root.appendChild(main);
 
   // Resolve initial page from URL path or default to first page
@@ -661,12 +676,16 @@ async function selectPage(pageId) {
   const main = document.getElementById('db-main-content');
   if (!main || !page) return;
 
-  // Set page header
-  main.innerHTML = `
+  // Set page header (controlled by dashboard config protocol)
+  const showPageHeader = main.dataset.showPageHeader !== 'false';
+  const headerHtml = showPageHeader ? `
     <div class="db-page-header">
       <h1 class="db-page-title">${page.icon || ''} ${page.title}</h1>
       ${page.description ? `<p class="db-page-desc">${page.description}</p>` : ''}
     </div>
+  ` : '';
+  main.innerHTML = `
+    ${headerHtml}
     <div data-page="${pageId}" id="db-page-content"></div>
   `;
 

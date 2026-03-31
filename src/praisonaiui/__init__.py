@@ -26,7 +26,8 @@ def __getattr__(name: str):
     _message_attrs = {"Message", "AskUserMessage", "Step"}
     _server_attrs = {"register_agent", "register_page", "set_datastore", "get_datastore",
                       "set_provider", "get_provider", "set_style", "set_pages", "remove_page",
-                      "set_branding", "set_theme", "set_custom_css", "register_theme"}
+                      "set_branding", "set_theme", "set_custom_css", "register_theme",
+                      "set_chat_features", "set_dashboard"}
     _datastore_attrs = {"BaseDataStore", "MemoryDataStore", "JSONFileDataStore"}
     _provider_attrs = {"BaseProvider", "RunEvent", "RunEventType"}
     _providers_attrs = {"PraisonAIProvider"}
@@ -131,6 +132,8 @@ __all__ = [
     "set_branding",
     "set_theme",
     "set_custom_css",
+    "set_chat_features",
+    "set_dashboard",
     "register_theme",
     "set_pages",
     "remove_page",
