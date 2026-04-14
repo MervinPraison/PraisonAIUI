@@ -483,9 +483,22 @@ function applyThemeFromConfig(cfg) {
 
   const root = document.documentElement;
   const preset = theme.preset || 'zinc';
-  const colors = PRESET_COLORS[preset];
+  let colors = PRESET_COLORS[preset];
 
-  if (colors) {
+  // If preset not in hardcoded list, fetch from /api/theme (supports custom themes)
+  if (!colors) {
+    fetch('/api/theme')
+      .then(r => r.json())
+      .then(data => {
+        // Apply all CSS variables from the theme API
+        if (data.variables) {
+          for (const [key, val] of Object.entries(data.variables)) {
+            root.style.setProperty(key, val);
+          }
+        }
+      })
+      .catch(() => {});
+  } else {
     root.style.setProperty('--db-accent', colors.accent);
     root.style.setProperty('--db-accent-glow', `rgba(${colors.accentRgb},0.15)`);
     root.style.setProperty('--db-accent-rgb', colors.accentRgb);

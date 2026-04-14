@@ -128,7 +128,7 @@ def set_theme(
         preset: Color palette name. Options: zinc, slate, stone, gray,
                 neutral, red, orange, amber, yellow, lime, green,
                 emerald, teal, cyan, sky, blue, indigo, violet,
-                purple, fuchsia, pink, rose.
+                purple, fuchsia, pink, rose (or any custom theme name).
         dark_mode: True for dark background, False for light.
         radius: Corner roundness. Options: none, sm, md, lg, xl.
 
@@ -143,6 +143,16 @@ def set_theme(
         "darkMode": dark_mode,
         "radius": radius,
     }
+    # Sync with ThemeManager so /api/theme returns correct state
+    try:
+        from praisonaiui.features.theme import get_theme_manager
+        mgr = get_theme_manager()
+        if preset in mgr.list_themes():
+            mgr.set_theme(preset)
+        mgr.set_mode("dark" if dark_mode else "light")
+        mgr.set_radius(radius)
+    except Exception:
+        pass  # Graceful fallback if theme feature not loaded
 
 
 def set_custom_css(css: str) -> None:

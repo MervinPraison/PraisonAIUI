@@ -24,6 +24,7 @@
 | 21 | [agentmail-bot](python/21-agentmail-bot/) | `AgentMailBot` API-first email + programmatic inbox lifecycle | `python app.py` |
 | 22 | [agentmail-channel](python/22-agentmail-channel/) | AgentMail as AIUI dashboard channel via `/api/channels` | `python app.py` |
 | 25 | [clean-chat](python/25-clean-chat/) | `set_dashboard(sidebar=False)` — dashboard chat without left nav | `aiui run app.py` |
+| 26 | [custom-theme-chat](python/26-custom-theme-chat/) | `register_theme()` — dynamic custom theme (teal/cyan) | `aiui run app.py` |
 
 ---
 
