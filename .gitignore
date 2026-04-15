@@ -55,3 +55,4 @@ aiui-output/
 _site
 
 .praisonai
+tmp/

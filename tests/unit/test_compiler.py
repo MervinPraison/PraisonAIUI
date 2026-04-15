@@ -294,8 +294,8 @@ class TestCompilerThemeCss:
         assert ":root {" in content
         assert "--radius:" in content
 
-    def test_theme_css_not_generated_without_theme(self, tmp_path: Path):
-        """Compiler should not fail if no theme config is set."""
+    def test_no_theme_config_still_succeeds(self, tmp_path: Path):
+        """Compiler must succeed and generate theme.css even without theme config."""
         config = Config(
             site=SiteConfig(title="No Theme Site"),
             templates={"docs": TemplateConfig(layout="Default", slots={})},
@@ -304,6 +304,7 @@ class TestCompilerThemeCss:
         compiler = Compiler(config, base_path=tmp_path)
         result = compiler.compile(tmp_path / "output")
         assert result.success is True
+        assert (tmp_path / "output" / "assets" / "theme.css").exists()
 
     def test_theme_preset_affects_css(self, tmp_path: Path):
         """Different presets should produce different CSS output."""
@@ -313,6 +314,22 @@ class TestCompilerThemeCss:
         # With fallback themes, zinc is always available
         assert "--background:" in css_zinc
         assert "--background:" in css_rose
+
+    def test_all_22_presets_produce_valid_css(self):
+        """G-NEW-2: All 22 official presets produce valid CSS with :root block."""
+        from praisonaiui.themes import FALLBACK_THEMES
+        assert len(FALLBACK_THEMES) == 22, f"Expected 22 presets, got {len(FALLBACK_THEMES)}"
+        for name in FALLBACK_THEMES:
+            css = get_theme_css(preset=name, dark_mode=True, radius="0.5rem")
+            assert ":root {" in css, f"Preset '{name}' missing :root block"
+            assert ".dark {" in css, f"Preset '{name}' missing .dark block"
+            assert "--primary:" in css, f"Preset '{name}' missing --primary"
+
+    def test_blue_preset_has_distinct_primary(self):
+        """G-NEW-2: Blue preset must have different primary than zinc."""
+        css_zinc = get_theme_css(preset="zinc")
+        css_blue = get_theme_css(preset="blue")
+        assert css_zinc != css_blue, "Blue and zinc must produce different CSS"
 
 
 class TestInjectThemeCss:
@@ -393,3 +410,75 @@ class TestThemePipelineIntegration:
         assert theme["preset"] == "blue"
         assert theme["radius"] == "lg"
         assert theme["darkMode"] is True
+
+    def test_no_theme_config_still_produces_theme_css(self, tmp_path: Path):
+        """G-NEW-1: When site.theme is None, theme.css must still be generated with defaults."""
+        config = Config(
+            site=SiteConfig(title="No Theme Site"),
+            templates={"docs": TemplateConfig(layout="Default", slots={})},
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+        assert config.site.theme is None
+        compiler = Compiler(config, base_path=tmp_path)
+        result = compiler.compile(tmp_path / "output")
+        assert result.success is True
+
+        theme_css_path = tmp_path / "output" / "assets" / "theme.css"
+        assert theme_css_path.exists(), "theme.css must always be generated"
+        content = theme_css_path.read_text()
+        assert ":root {" in content
+        assert "--radius:" in content
+
+    def test_light_mode_antiflicker_no_dark_class(self, tmp_path: Path):
+        """G-NEW-7: When darkMode=false, anti-flicker script must NOT add .dark class."""
+        config = Config(
+            site=SiteConfig(
+                title="Light Site",
+                theme=ThemeConfig(preset="zinc", radius="md", dark_mode=False),
+            ),
+            templates={"docs": TemplateConfig(layout="Default", slots={})},
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+        compiler = Compiler(config, base_path=tmp_path)
+        result = compiler.compile(tmp_path / "output")
+        assert result.success is True
+
+        index_html = (tmp_path / "output" / "index.html").read_text()
+        assert "classList.add('dark')" not in index_html
+
+    def test_dark_mode_antiflicker_has_dark_class(self, tmp_path: Path):
+        """G-NEW-7: When darkMode=true, anti-flicker script SHOULD add .dark class."""
+        config = Config(
+            site=SiteConfig(
+                title="Dark Site",
+                theme=ThemeConfig(preset="zinc", radius="md", dark_mode=True),
+            ),
+            templates={"docs": TemplateConfig(layout="Default", slots={})},
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+        compiler = Compiler(config, base_path=tmp_path)
+        result = compiler.compile(tmp_path / "output")
+        assert result.success is True
+
+        index_html = (tmp_path / "output" / "index.html").read_text()
+        assert "classList.add('dark')" in index_html
+
+
+class TestSimpleMdToHtml:
+    """G-NEW-8: Frontmatter parsing in _simple_md_to_html."""
+
+    def test_frontmatter_is_stripped(self):
+        """Frontmatter between --- markers should not appear in output."""
+        md = "---\ntitle: Hello\ndate: 2024-01-01\n---\n# Heading\nSome text"
+        html = Compiler._simple_md_to_html(md)
+        assert "title: Hello" not in html
+        assert "date: 2024-01-01" not in html
+        assert "<h1>Heading</h1>" in html
+        assert "<p>Some text</p>" in html
+
+    def test_no_frontmatter(self):
+        """Content without frontmatter should render normally."""
+        md = "# Hello\nWorld"
+        html = Compiler._simple_md_to_html(md)
+        assert "<h1>Hello</h1>" in html
+        assert "<p>World</p>" in html

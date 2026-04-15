@@ -3,21 +3,24 @@
 import pytest
 from starlette.testclient import TestClient
 
+from praisonaiui.datastore import MemoryDataStore
 from praisonaiui.server import (
     _agents,
     _callbacks,
     create_app,
     register_agent,
     register_callback,
+    set_datastore,
 )
 
 
 @pytest.fixture
 def client():
-    """Create a test client."""
+    """Create a test client with isolated state."""
     # Clear state before each test
     _agents.clear()
     _callbacks.clear()
+    set_datastore(MemoryDataStore())
     app = create_app()
     return TestClient(app)
 
@@ -201,14 +204,15 @@ class TestRegisterCallback:
 
     def test_register_callback(self):
         """Test registering a callback."""
-        _callbacks.clear()
+        import praisonaiui.server as _srv
+        _srv._callbacks.clear()
 
         def my_callback():
             pass
 
         register_callback("test", my_callback)
-        assert "test" in _callbacks
-        assert _callbacks["test"] == my_callback
+        assert "test" in _srv._callbacks
+        assert _srv._callbacks["test"] == my_callback
 
 
 class TestReplyTypeDispatch:
@@ -216,8 +220,9 @@ class TestReplyTypeDispatch:
 
     def test_reply_passes_str_for_str_annotation(self):
         """Test that @reply passes msg.text when func expects str."""
+        import praisonaiui.server as _srv
         from praisonaiui.callbacks import reply
-        _callbacks.clear()
+        _srv._callbacks.clear()
         received = {}
 
         @reply
@@ -232,7 +237,7 @@ class TestReplyTypeDispatch:
         msg = MessageContext(text="Hello world")
         msg._stream_queue = asyncio.Queue()
 
-        wrapper = _callbacks["reply"]
+        wrapper = _srv._callbacks["reply"]
         asyncio.get_event_loop().run_until_complete(wrapper(msg))
 
         assert received["type"] == "str"
@@ -240,9 +245,10 @@ class TestReplyTypeDispatch:
 
     def test_reply_passes_context_for_context_annotation(self):
         """Test that @reply passes MessageContext when func expects it."""
+        import praisonaiui.server as _srv
         from praisonaiui.callbacks import reply
         from praisonaiui.server import MessageContext
-        _callbacks.clear()
+        _srv._callbacks.clear()
         received = {}
 
         @reply
@@ -255,7 +261,7 @@ class TestReplyTypeDispatch:
         msg = MessageContext(text="Hello")
         msg._stream_queue = asyncio.Queue()
 
-        wrapper = _callbacks["reply"]
+        wrapper = _srv._callbacks["reply"]
         asyncio.get_event_loop().run_until_complete(wrapper(msg))
 
         assert received["type"] == "MessageContext"
@@ -263,9 +269,10 @@ class TestReplyTypeDispatch:
 
     def test_reply_passes_context_for_untyped_param(self):
         """Test that @reply passes MessageContext when func has no annotation."""
+        import praisonaiui.server as _srv
         from praisonaiui.callbacks import reply
         from praisonaiui.server import MessageContext
-        _callbacks.clear()
+        _srv._callbacks.clear()
         received = {}
 
         @reply
@@ -278,7 +285,7 @@ class TestReplyTypeDispatch:
         msg = MessageContext(text="Hello")
         msg._stream_queue = asyncio.Queue()
 
-        wrapper = _callbacks["reply"]
+        wrapper = _srv._callbacks["reply"]
         asyncio.get_event_loop().run_until_complete(wrapper(msg))
 
         assert received["type"] == "MessageContext"

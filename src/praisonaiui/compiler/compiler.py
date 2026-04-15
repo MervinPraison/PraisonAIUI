@@ -87,16 +87,16 @@ class Compiler:
         self._copy_viewer(output_dir)
         files.append("index.html")
 
-        # Generate theme.css from YAML theme config
-        if self.config.site.theme:
-            from praisonaiui.themes import inject_theme_css, get_radius_value
-            inject_theme_css(
-                output_dir,
-                preset=self.config.site.theme.preset,
-                dark_mode=self.config.site.theme.dark_mode,
-                radius=get_radius_value(self.config.site.theme.radius),
-            )
-            files.append("assets/theme.css")
+        # Generate theme.css — always, using defaults when site.theme is None
+        from praisonaiui.themes import inject_theme_css, get_radius_value
+        theme = self.config.site.theme
+        inject_theme_css(
+            output_dir,
+            preset=theme.preset if theme else "zinc",
+            dark_mode=theme.dark_mode if theme else True,
+            radius=get_radius_value(theme.radius if theme else "md"),
+        )
+        files.append("assets/theme.css")
 
         # Copy docs markdown files for content loading
         if self.config.content and self.config.content.docs:
@@ -364,15 +364,16 @@ class Compiler:
         frontend_dir = templates_dir / "frontend"
 
         if frontend_dir.exists():
-            # Copy index.html
+            # Copy index.html and patch anti-flicker for darkMode
             shutil.copy(
                 frontend_dir / "index.html",
                 output_dir / "index.html",
             )
-            # Create 404.html as a copy of index.html for SPA routing
-            # on static hosts like GitHub Pages
+            self._patch_antiflicker(output_dir / "index.html")
+            # Create 404.html as a copy of patched index.html
+            # for SPA routing on static hosts like GitHub Pages
             shutil.copy(
-                frontend_dir / "index.html",
+                output_dir / "index.html",
                 output_dir / "404.html",
             )
             # Copy assets folder if exists
@@ -392,6 +393,19 @@ class Compiler:
 
             # Copy plugins directory and generate plugins.json
             self._copy_plugins(output_dir, frontend_dir)
+
+    def _patch_antiflicker(self, html_path: Path) -> None:
+        """Patch anti-flicker script in index.html to respect darkMode."""
+        theme = self.config.site.theme
+        dark_mode = theme.dark_mode if theme else True
+        html = html_path.read_text()
+        if not dark_mode:
+            # Remove the dark class addition for light-mode sites
+            html = html.replace(
+                "document.documentElement.classList.add('dark');",
+                "/* light mode — no dark class */",
+            )
+        html_path.write_text(html)
 
     def _copy_plugins(
         self, output_dir: Path, frontend_dir: Path
@@ -574,12 +588,22 @@ class Compiler:
         lines = md.split("\n")
         result: list[str] = []
         in_code = False
+        in_frontmatter = False
+        frontmatter_seen = False
 
         for line in lines:
             stripped = line.strip()
 
-            # Skip frontmatter
-            if stripped == "---" and not result:
+            # Skip frontmatter block (between first pair of --- markers)
+            if stripped == "---" and not frontmatter_seen:
+                if not in_frontmatter:
+                    in_frontmatter = True
+                    continue
+                else:
+                    in_frontmatter = False
+                    frontmatter_seen = True
+                    continue
+            if in_frontmatter:
                 continue
 
             # Code blocks

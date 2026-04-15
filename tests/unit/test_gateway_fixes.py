@@ -17,7 +17,7 @@ class TestStandaloneGateway:
         gw = StandaloneGateway()
         mock_agent = MagicMock()
         
-        gw.register_agent("test_agent", mock_agent)
+        gw.register_agent(mock_agent, agent_id="test_agent")
         
         assert "test_agent" in gw.list_agents()
         assert gw.get_agent("test_agent") is mock_agent
@@ -29,7 +29,7 @@ class TestStandaloneGateway:
         gw = StandaloneGateway()
         mock_agent = MagicMock()
         
-        gw.register_agent("test_agent", mock_agent)
+        gw.register_agent(mock_agent, agent_id="test_agent")
         gw.unregister_agent("test_agent")
         
         assert "test_agent" not in gw.list_agents()
@@ -40,8 +40,8 @@ class TestStandaloneGateway:
         from praisonaiui.features._standalone_gateway import StandaloneGateway
         
         gw = StandaloneGateway()
-        gw.register_agent("agent1", MagicMock())
-        gw.register_agent("agent2", MagicMock())
+        gw.register_agent(MagicMock(), agent_id="agent1")
+        gw.register_agent(MagicMock(), agent_id="agent2")
         
         agents = gw.list_agents()
         
@@ -62,7 +62,7 @@ class TestStandaloneGateway:
         from praisonaiui.features._standalone_gateway import StandaloneGateway
         
         gw = StandaloneGateway()
-        gw.register_agent("agent1", MagicMock())
+        gw.register_agent(MagicMock(), agent_id="agent1")
         
         health = gw.health()
         
@@ -171,7 +171,7 @@ class TestSchedulesDRYHelper:
         gw = StandaloneGateway()
         mock_agent = MagicMock()
         mock_agent.name = "test_agent"
-        gw.register_agent("test_agent", mock_agent)
+        gw.register_agent(mock_agent, agent_id="test_agent")
         set_gateway(gw)
         
         agent, gateway, error = await _get_agent_for_execution("job1", "test_agent")
@@ -193,7 +193,7 @@ class TestSchedulesDRYHelper:
         gw = StandaloneGateway()
         mock_agent = MagicMock()
         mock_agent.name = "default_agent"
-        gw.register_agent("default_agent", mock_agent)
+        gw.register_agent(mock_agent, agent_id="default_agent")
         set_gateway(gw)
         
         # Request non-existent agent name

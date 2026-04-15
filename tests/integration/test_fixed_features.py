@@ -128,8 +128,11 @@ class TestMemoryCRUD:
         if r1.status_code >= 500:
             pytest.skip("Memory backend not available (chromadb Rust binding issue)")
 
-        # Clear all
-        r2 = client.delete("/api/memory", json={"memory_type": "all"})
+        # Clear all (TestClient.delete doesn't support json= or content=)
+        r2 = client.request(
+            "DELETE", "/api/memory",
+            json={"memory_type": "all"},
+        )
         assert r2.status_code in (200, 500)  # 500 if chromadb panics
 
     def test_memory_search(self, client):

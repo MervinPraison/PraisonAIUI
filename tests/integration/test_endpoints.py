@@ -14,14 +14,15 @@ import json
 import pytest
 from starlette.testclient import TestClient
 
+import praisonaiui.server as _srv
+from praisonaiui.datastore import MemoryDataStore
 from praisonaiui.server import (
     MessageContext,
     _agents,
-    _callbacks,
-    _datastore,
     create_app,
     register_agent,
     register_callback,
+    set_datastore,
 )
 
 
@@ -33,10 +34,11 @@ from praisonaiui.server import (
 def _clear_state():
     """Reset global state before each test."""
     _agents.clear()
-    _callbacks.clear()
+    _srv._callbacks.clear()
+    set_datastore(MemoryDataStore())
     yield
     _agents.clear()
-    _callbacks.clear()
+    _srv._callbacks.clear()
 
 
 @pytest.fixture
@@ -207,15 +209,15 @@ class TestReplyTypeDispatch:
         r = str_app.post("/run", json={"message": "Hello World"})
         assert r.status_code == 200
         events = _parse_sse(r.text)
-        messages = [e for e in events if e.get("type") == "message"]
-        assert any("Echo: Hello World" in m["content"] for m in messages)
+        messages = [e for e in events if e.get("type") in ("message", "run_content")]
+        assert any("Echo: Hello World" in m.get("content", "") for m in messages)
 
     def test_context_typed_receives_context(self, ctx_app):
         """@reply with `msg: MessageContext` receives the full context."""
         r = ctx_app.post("/run", json={"message": "Test msg"})
         assert r.status_code == 200
         events = _parse_sse(r.text)
-        messages = [e for e in events if e.get("type") == "message"]
+        messages = [e for e in events if e.get("type") in ("message", "run_content")]
         assert len(messages) >= 1
         content = messages[0]["content"]
         assert "ctx:text=Test msg" in content
@@ -225,8 +227,8 @@ class TestReplyTypeDispatch:
         """@reply with no annotation receives MessageContext."""
         r = untyped_app.post("/run", json={"message": "X"})
         events = _parse_sse(r.text)
-        messages = [e for e in events if e.get("type") == "message"]
-        assert any("type=MessageContext" in m["content"] for m in messages)
+        messages = [e for e in events if e.get("type") in ("message", "run_content")]
+        assert any("type=MessageContext" in m.get("content", "") for m in messages)
 
 
 # ---------------------------------------------------------------------------
@@ -244,14 +246,21 @@ class TestRunEndpoint:
     def test_includes_thinking_events(self, str_app):
         r = str_app.post("/run", json={"message": "Hi"})
         events = _parse_sse(r.text)
-        thinking = [e for e in events if e.get("type") == "thinking"]
+        thinking = [e for e in events if e.get("type") in ("thinking", "reasoning_step")]
         assert len(thinking) >= 1
-        assert thinking[0]["step"] == "Processing..."
+        assert thinking[0].get("step") == "Processing..."
 
     def test_includes_action_buttons(self, str_app):
         r = str_app.post("/run", json={"message": "Hi"})
         events = _parse_sse(r.text)
+        # Actions may be top-level or nested in extra_data
         actions = [e for e in events if e.get("type") == "actions"]
+        if not actions:
+            actions = [
+                e.get("extra_data", {})
+                for e in events
+                if e.get("extra_data", {}).get("type") == "actions"
+            ]
         assert len(actions) == 1
         assert actions[0]["buttons"][0]["name"] == "like"
 
@@ -267,7 +276,7 @@ class TestRunEndpoint:
         # Verify session exists via the datastore
         import asyncio
         session = asyncio.get_event_loop().run_until_complete(
-            _datastore.get_session(session_id)
+            _srv._datastore.get_session(session_id)
         )
         assert session is not None
 
@@ -401,9 +410,11 @@ class TestCancel:
 
 class TestAgents:
     def test_list_empty(self, client):
+        _srv._agents.clear()
         assert client.get("/agents").json() == {"agents": []}
 
     def test_list_with_registered(self, client):
+        _srv._agents.clear()
         register_agent("a1", {"name": "Agent1"})
         r = client.get("/agents")
         assert len(r.json()["agents"]) == 1

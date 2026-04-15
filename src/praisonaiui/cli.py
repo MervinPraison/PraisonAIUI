@@ -283,36 +283,6 @@ def build(
 
 
 @app.command()
-def dev(
-    config: Path = typer.Option(
-        Path("aiui.template.yaml"),
-        "--config",
-        "-c",
-        help="Path to configuration file",
-    ),
-    port: int = typer.Option(
-        3000,
-        "--port",
-        "-p",
-        help="Port for development server",
-    ),
-) -> None:
-    """Start development mode with file watching."""
-    console.print(f"[yellow]⏳[/yellow] Watching {config} for changes...")
-    console.print("[dim]Press Ctrl+C to stop[/dim]")
-
-    try:
-        from watchfiles import watch
-
-        for changes in watch(config.parent):
-            console.print("[blue]↻[/blue] Detected changes, rebuilding...")
-            # Trigger rebuild
-            build(config=config, output=Path("aiui"), minify=False)
-    except KeyboardInterrupt:
-        console.print("\n[green]Stopped.[/green]")
-
-
-@app.command()
 def serve(
     config: Path = typer.Option(
         Path("aiui.template.yaml"),
@@ -550,8 +520,13 @@ def dev(
         current_example = {"name": examples[0]}
 
         # Build example with optional theme override
-        def build_example(name: str, theme_preset: str = None, radius: str = None, dark_mode: bool = None) -> bool:
-            """Build an example and copy to temp dir, optionally overriding theme."""
+        def build_example(
+            name: str,
+            theme_preset: str = None,
+            radius: str = None,
+            dark_mode: bool = None,
+        ) -> bool:
+            """Build an example, optionally overriding theme via a temp config."""
             import yaml
 
             example_path = examples_dir / name
@@ -559,54 +534,69 @@ def dev(
                 return False
 
             try:
-                # If theme override specified, create a modified config
                 config_file = example_path / "aiui.template.yaml"
-                original_config = None
+                build_config = str(config_file)
 
-                if any([theme_preset, radius, dark_mode is not None]) and config_file.exists():
+                # If theme override, write a temp config (never mutate original)
+                has_override = any([
+                    theme_preset, radius, dark_mode is not None,
+                ])
+                tmp_cfg = None
+                if has_override and config_file.exists():
                     with open(config_file) as f:
-                        original_config = f.read()
-
-                    # Parse and modify
-                    config = yaml.safe_load(original_config)
+                        config = yaml.safe_load(f.read())
                     if "site" not in config:
                         config["site"] = {}
                     if "theme" not in config["site"]:
                         config["site"]["theme"] = {}
-
                     if theme_preset:
                         config["site"]["theme"]["preset"] = theme_preset
                     if radius:
                         config["site"]["theme"]["radius"] = radius
                     if dark_mode is not None:
                         config["site"]["theme"]["darkMode"] = dark_mode
-
-                    with open(config_file, "w") as f:
+                    tmp_cfg = example_path / ".aiui.tmp.yaml"
+                    with open(tmp_cfg, "w") as f:
                         yaml.dump(config, f, default_flow_style=False)
+                    build_config = str(tmp_cfg)
 
-                # Run aiui build in example directory
+                # Run aiui build
                 result = subprocess.run(
-                    ["aiui", "build", "-o", str(temp_path / "site")],
+                    [
+                        "aiui", "build",
+                        "-c", build_config,
+                        "-o", str(temp_path / "site"),
+                    ],
                     cwd=example_path,
                     capture_output=True,
                     text=True,
                 )
 
-                # Restore original config if modified
-                if original_config:
-                    with open(config_file, "w") as f:
-                        f.write(original_config)
+                # Clean up temp config
+                if tmp_cfg and tmp_cfg.exists():
+                    tmp_cfg.unlink()
 
                 if result.returncode != 0:
                     console.print("[red]Build failed![/red]")
-                    console.print(f"[dim]Return code: {result.returncode}[/dim]")
-                    console.print(f"[dim]STDOUT: {result.stdout[:1000] if result.stdout else 'None'}[/dim]")
-                    console.print(f"[dim]STDERR: {result.stderr[:1000] if result.stderr else 'None'}[/dim]")
+                    console.print(
+                        f"[dim]Return code: {result.returncode}[/dim]"
+                    )
+                    if result.stdout:
+                        console.print(
+                            f"[dim]STDOUT: {result.stdout[:1000]}[/dim]"
+                        )
+                    if result.stderr:
+                        console.print(
+                            f"[dim]STDERR: {result.stderr[:1000]}[/dim]"
+                        )
                 return result.returncode == 0
             except Exception as e:
                 import traceback
                 console.print(f"[red]Build error:[/red] {e}")
                 console.print(f"[dim]{traceback.format_exc()}[/dim]")
+                # Clean up temp config on error too
+                if tmp_cfg and tmp_cfg.exists():
+                    tmp_cfg.unlink()
                 return False
 
         # Initial build

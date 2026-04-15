@@ -386,7 +386,9 @@ class TestThemeAPI:
         r = client.get("/api/theme")
         assert r.status_code == 200
         data = r.json()
-        assert "theme" in data or "name" in data
+        assert "preset" in data
+        assert "mode" in data
+        assert "radii" in data
 
     def test_set_theme(self, client):
         r = client.put("/api/theme", json={"theme": "dark"})

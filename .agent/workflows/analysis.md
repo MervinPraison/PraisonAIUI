@@ -19,6 +19,7 @@ Core Engineering Principles (MUST apply in detailed analysis and detailed propos
     * Provide `SDKFeatureManager` (wraps `praisonaiagents` SDK, lazy-imported) + `SimpleFeatureManager` (in-memory fallback)
     * Factory `get_feature_manager()` tries SDK first, falls back to Simple — zero config needed
     * See `docs/features/protocol-architecture.md` for the full reference
+* Server-Driven UI shell utilizing a Plugin/Registry Architecture.
 
 MANDATORY PROCESS (NO IMPLEMENTATION)
 You MUST follow these steps in order, and output the required deliverables at the end.

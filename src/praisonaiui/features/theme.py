@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from typing import Any, Dict, List, Optional
 
 from starlette.requests import Request
@@ -77,9 +78,9 @@ PRESET_COLORS: Dict[str, Dict[str, str]] = {
     "rose":    {"accent": "#f43f5e", "accentRgb": "244,63,94"},
 }
 
-# Radius presets
+# Radius presets — values match themes.py RADIUS_PRESETS
 RADIUS_MAP: Dict[str, str] = {
-    "none": "0", "sm": "6px", "md": "10px", "lg": "14px", "xl": "20px",
+    "none": "0", "sm": "0.3rem", "md": "0.5rem", "lg": "0.75rem", "xl": "1rem",
 }
 
 # Dark / light mode CSS variable sets
@@ -252,13 +253,15 @@ class ThemeManager(ThemeProtocol):
 
 
 _theme_manager: Optional[ThemeManager] = None
+_theme_lock = threading.Lock()
 
 
 def get_theme_manager() -> ThemeManager:
     global _theme_manager
-    if _theme_manager is None:
-        _theme_manager = ThemeManager()
-    return _theme_manager
+    with _theme_lock:
+        if _theme_manager is None:
+            _theme_manager = ThemeManager()
+        return _theme_manager
 
 
 # ── HTTP Handlers ────────────────────────────────────────────────

@@ -3,6 +3,7 @@
 Provides extensibility through hooks and custom component registration.
 """
 
+import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Protocol
@@ -134,14 +135,16 @@ class BasePlugin(ABC):
 
 # Global plugin manager instance
 _plugin_manager: Optional[PluginManager] = None
+_plugin_lock = threading.Lock()
 
 
 def get_plugin_manager() -> PluginManager:
     """Get or create the global plugin manager."""
     global _plugin_manager
-    if _plugin_manager is None:
-        _plugin_manager = PluginManager()
-    return _plugin_manager
+    with _plugin_lock:
+        if _plugin_manager is None:
+            _plugin_manager = PluginManager()
+        return _plugin_manager
 
 
 def register_plugin(plugin: PluginProtocol) -> None:

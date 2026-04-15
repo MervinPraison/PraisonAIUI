@@ -32,6 +32,7 @@ CORE ENGINEERING PRINCIPLES (MUST)
     * avoid new global singletons, avoid heavy module-level work
 * TDD mandatory: tests first; failing tests prove gaps; passing tests prove fixes.
 * Multi-safe by default: thread-safe, async-safe, and error-resilient patterns.
+* Server-Driven UI shell utilizing a Plugin/Registry Architecture.
 
 CRITICAL REQUIREMENTS (NON-NEGOTIABLE)
 * Operate in EXECUTE + VERIFY MODE by default.
