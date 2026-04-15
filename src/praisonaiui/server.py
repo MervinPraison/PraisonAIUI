@@ -520,22 +520,27 @@ def _build_html(style: str) -> str:
         custom_css_tag = f'<style id="aiui-custom-css">{_css}</style>'
 
     # Server-side theme variable injection (dashboard style)
-    # Ensures correct accent color is in the HTML before any JS runs,
-    # eliminating CSS specificity races and browser cache issues.
+    # Only inject accent-related vars with !important so that:
+    #   1. Correct accent shows before JS runs (no flash of wrong color)
+    #   2. User custom CSS can still override non-accent vars (--db-bg etc.)
+    #   3. DASHBOARD_STYLE defaults handle remaining vars normally
     theme_vars_tag = ''
+    _ACCENT_KEYS = {'--db-accent', '--db-accent-glow', '--db-accent-rgb', '--db-radius'}
     if style == 'dashboard':
         try:
             from praisonaiui.features.theme import get_theme_manager
             mgr = get_theme_manager()
             tvars = mgr.get_vars()
-            css_pairs = ';'.join(
+            accent_pairs = ';'.join(
                 f'{k}:{v}!important' for k, v in tvars.items()
+                if k in _ACCENT_KEYS
             )
-            theme_vars_tag = (
-                f'<style id="aiui-server-theme">'
-                f':root{{{css_pairs}}}'
-                f'</style>'
-            )
+            if accent_pairs:
+                theme_vars_tag = (
+                    f'<style id="aiui-server-theme">'
+                    f':root{{{accent_pairs}}}'
+                    f'</style>'
+                )
         except Exception:
             pass
 

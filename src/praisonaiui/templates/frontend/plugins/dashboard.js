@@ -605,6 +605,10 @@ async function init() {
   style.textContent = DASHBOARD_STYLE;
   document.head.appendChild(style);
 
+  // Re-append user custom CSS so it takes precedence over DASHBOARD_STYLE defaults
+  const customCss = document.getElementById('aiui-custom-css');
+  if (customCss) document.head.appendChild(customCss);
+
   // Apply theme from config BEFORE building dashboard
   try {
     const cfgRes = await fetch('/ui-config.json');
