@@ -87,6 +87,17 @@ class Compiler:
         self._copy_viewer(output_dir)
         files.append("index.html")
 
+        # Generate theme.css from YAML theme config
+        if self.config.site.theme:
+            from praisonaiui.themes import inject_theme_css, get_radius_value
+            inject_theme_css(
+                output_dir,
+                preset=self.config.site.theme.preset,
+                dark_mode=self.config.site.theme.dark_mode,
+                radius=get_radius_value(self.config.site.theme.radius),
+            )
+            files.append("assets/theme.css")
+
         # Copy docs markdown files for content loading
         if self.config.content and self.config.content.docs:
             copied = self._copy_docs(output_dir)

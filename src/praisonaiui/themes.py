@@ -100,29 +100,29 @@ def get_theme_css(preset: str = "zinc", dark_mode: bool = True, radius: str = "0
         radius: Border radius value
 
     Returns:
-        CSS string with :root variables
+        CSS string with :root and optionally .dark variables
     """
     themes = fetch_themes()
 
     # Get the theme or fallback to zinc
     theme = themes.get(preset, themes.get("zinc", FALLBACK_THEMES["zinc"]))
 
-    mode = "dark" if dark_mode else "light"
-    colors = theme.get(mode, theme.get("light", {}))
-
-    # Build CSS
+    # Always emit :root with light colors + radius
+    light_colors = theme.get("light", {})
     css_lines = [":root {"]
     css_lines.append(f"  --radius: {radius};")
-
-    for name, value in colors.items():
+    for name, value in light_colors.items():
         css_lines.append(f"  --{name}: {value};")
-
     css_lines.append("}")
 
-    # Add dark mode class if needed
+    # Add .dark block if dark mode requested
     if dark_mode:
-        css_lines.insert(0, ".dark {")
+        dark_colors = theme.get("dark", {})
         css_lines.append("")
+        css_lines.append(".dark {")
+        for name, value in dark_colors.items():
+            css_lines.append(f"  --{name}: {value};")
+        css_lines.append("}")
 
     return "\n".join(css_lines)
 

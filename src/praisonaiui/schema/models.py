@@ -20,6 +20,8 @@ class ThemeConfig(BaseModel):
     radius: Literal["none", "sm", "md", "lg", "xl"] = "md"
     dark_mode: bool = Field(default=True, alias="darkMode")
 
+    model_config = ConfigDict(populate_by_name=True)
+
 
 class SiteConfig(BaseModel):
     """Site-level configuration."""

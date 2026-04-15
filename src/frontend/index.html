@@ -10,6 +10,12 @@
   <meta property="og:locale" content="en_US" />
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <title>Documentation</title>
+  <script>
+    // Anti-flicker: apply dark mode class before first paint
+    // Default to dark to prevent flash; React will correct if needed
+    document.documentElement.classList.add('dark');
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
 </head>
 
 <body>

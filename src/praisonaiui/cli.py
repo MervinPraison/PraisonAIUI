@@ -1058,10 +1058,22 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
         elif tname == "calculate":
             def calculate(expression: str) -> str:
                 """Evaluate a math expression safely."""
+                import ast
                 allowed = set("0123456789+-*/.() ")
                 if all(c in allowed for c in expression):
                     try:
-                        return f"Result: {eval(expression)}"
+                        tree = ast.parse(expression, mode="eval")
+                        # Only allow numeric literals and basic operators
+                        for node in ast.walk(tree):
+                            if not isinstance(node, (
+                                ast.Expression, ast.BinOp, ast.UnaryOp,
+                                ast.Constant, ast.Add, ast.Sub, ast.Mult,
+                                ast.Div, ast.FloorDiv, ast.Mod, ast.Pow,
+                                ast.USub, ast.UAdd,
+                            )):
+                                return "Error: Only basic math operations allowed"
+                        result = eval(compile(tree, "<calc>", "eval"))
+                        return f"Result: {result}"
                     except Exception as e:
                         return f"Error: {e}"
                 return "Error: Only basic math operations allowed"

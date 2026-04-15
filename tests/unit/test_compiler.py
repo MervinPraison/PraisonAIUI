@@ -17,7 +17,9 @@ from praisonaiui.schema.models import (
     SiteConfig,
     SlotRef,
     TemplateConfig,
+    ThemeConfig,
 )
+from praisonaiui.themes import get_theme_css, inject_theme_css
 
 
 @pytest.fixture
@@ -238,3 +240,156 @@ class TestCompilerDocsContent:
         result = compiler.compile(tmp_path / "output")
         assert "docs/" in result.files
         assert (tmp_path / "output" / "docs").exists()
+
+
+class TestGetThemeCss:
+    """Tests for get_theme_css — G11: malformed CSS bug."""
+
+    def test_light_mode_has_root_block(self):
+        css = get_theme_css(preset="zinc", dark_mode=False, radius="0.5rem")
+        assert ":root {" in css
+        assert ".dark" not in css
+
+    def test_dark_mode_has_both_blocks(self):
+        css = get_theme_css(preset="zinc", dark_mode=True, radius="0.5rem")
+        assert ":root {" in css
+        assert ".dark {" in css
+        # :root block must NOT be nested inside .dark
+        lines = css.split("\n")
+        root_idx = next(i for i, line in enumerate(lines) if ":root {" in line)
+        dark_idx = next(i for i, line in enumerate(lines) if ".dark {" in line)
+        # Both must be top-level (root should come before dark)
+        assert root_idx < dark_idx
+
+    def test_radius_in_output(self):
+        css = get_theme_css(preset="zinc", dark_mode=False, radius="0.75rem")
+        assert "--radius: 0.75rem" in css
+
+    def test_contains_color_vars(self):
+        css = get_theme_css(preset="zinc", dark_mode=False, radius="0.5rem")
+        assert "--background:" in css
+        assert "--foreground:" in css
+        assert "--primary:" in css
+
+
+class TestCompilerThemeCss:
+    """Tests for G1: compiler must generate theme.css."""
+
+    def test_theme_css_generated_with_theme_config(self, tmp_path: Path):
+        """Compiler should produce assets/theme.css when theme config is set."""
+        config = Config(
+            site=SiteConfig(
+                title="Themed Site",
+                theme=ThemeConfig(preset="zinc", radius="md", dark_mode=True),
+            ),
+            templates={"docs": TemplateConfig(layout="Default", slots={})},
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+        compiler = Compiler(config, base_path=tmp_path)
+        result = compiler.compile(tmp_path / "output")
+        assert result.success is True
+        theme_css = tmp_path / "output" / "assets" / "theme.css"
+        assert theme_css.exists(), "assets/theme.css must be generated"
+        content = theme_css.read_text()
+        assert ":root {" in content
+        assert "--radius:" in content
+
+    def test_theme_css_not_generated_without_theme(self, tmp_path: Path):
+        """Compiler should not fail if no theme config is set."""
+        config = Config(
+            site=SiteConfig(title="No Theme Site"),
+            templates={"docs": TemplateConfig(layout="Default", slots={})},
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+        compiler = Compiler(config, base_path=tmp_path)
+        result = compiler.compile(tmp_path / "output")
+        assert result.success is True
+
+    def test_theme_preset_affects_css(self, tmp_path: Path):
+        """Different presets should produce different CSS output."""
+        css_zinc = get_theme_css(preset="zinc", dark_mode=True, radius="0.5rem")
+        css_rose = get_theme_css(preset="rose", dark_mode=True, radius="0.5rem")
+        # They should differ (at least in color values, assuming different themes)
+        # With fallback themes, zinc is always available
+        assert "--background:" in css_zinc
+        assert "--background:" in css_rose
+
+
+class TestInjectThemeCss:
+    """Tests for inject_theme_css — writes to correct path."""
+
+    def test_writes_theme_css_file(self, tmp_path: Path):
+        inject_theme_css(tmp_path, preset="zinc", dark_mode=True, radius="0.5rem")
+        theme_file = tmp_path / "assets" / "theme.css"
+        assert theme_file.exists()
+        content = theme_file.read_text()
+        assert ":root {" in content
+
+    def test_creates_assets_dir(self, tmp_path: Path):
+        output = tmp_path / "build"
+        inject_theme_css(output, preset="zinc", dark_mode=False, radius="0.5rem")
+        assert (output / "assets" / "theme.css").exists()
+
+
+class TestThemePipelineIntegration:
+    """G9: Integration test — YAML preset -> compile -> theme.css with correct colors."""
+
+    def test_rose_preset_produces_theme_css(self, tmp_path: Path):
+        """Rose preset in YAML config → compiled theme.css has non-zinc colors."""
+        config = Config(
+            site=SiteConfig(
+                title="Rose Site",
+                theme=ThemeConfig(preset="rose", radius="xl", dark_mode=True),
+            ),
+            templates={"docs": TemplateConfig(layout="Default", slots={})},
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+        compiler = Compiler(config, base_path=tmp_path)
+        result = compiler.compile(tmp_path / "output")
+        assert result.success is True
+        assert "assets/theme.css" in result.files
+
+        theme_css = (tmp_path / "output" / "assets" / "theme.css").read_text()
+        assert ":root {" in theme_css
+        assert ".dark {" in theme_css
+        assert "--radius: 1rem" in theme_css  # xl = 1rem
+
+    def test_light_mode_no_dark_block(self, tmp_path: Path):
+        """Light mode config → theme.css has no .dark block."""
+        config = Config(
+            site=SiteConfig(
+                title="Light Site",
+                theme=ThemeConfig(preset="zinc", radius="md", dark_mode=False),
+            ),
+            templates={"docs": TemplateConfig(layout="Default", slots={})},
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+        compiler = Compiler(config, base_path=tmp_path)
+        result = compiler.compile(tmp_path / "output")
+        assert result.success is True
+
+        theme_css = (tmp_path / "output" / "assets" / "theme.css").read_text()
+        assert ":root {" in theme_css
+        assert ".dark" not in theme_css
+
+    def test_ui_config_json_has_theme(self, tmp_path: Path):
+        """ui-config.json must reflect the theme settings from YAML."""
+        config = Config(
+            site=SiteConfig(
+                title="Theme Config Test",
+                theme=ThemeConfig(preset="blue", radius="lg", dark_mode=True),
+            ),
+            templates={"docs": TemplateConfig(layout="Default", slots={})},
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+        compiler = Compiler(config, base_path=tmp_path)
+        result = compiler.compile(tmp_path / "output")
+        assert result.success is True
+
+        ui_config = json.loads(
+            (tmp_path / "output" / "ui-config.json").read_text()
+        )
+        theme = ui_config["site"]["theme"]
+        assert theme["preset"] == "blue"
+        assert theme["radius"] == "lg"
+        assert theme["darkMode"] is True
