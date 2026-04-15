@@ -34,86 +34,67 @@ def auto_register_defaults() -> None:
 
     Called once by ``create_app()`` — safe to call multiple times
     (idempotent: skips already-registered features).
-    """
-    from .agents import AgentsCrudFeature
-    from .approvals import ApprovalsFeature
-    from .attachments import AttachmentsFeature
-    from .auth import AuthFeature
-    from .browser_automation import BrowserAutomationFeature
-    from .channels import ChannelsFeature
-    from .chat import ChatFeature
-    from .code_execution import CodeExecutionFeature
-    from .config_hot_reload import ConfigHotReloadFeature
-    from .config_runtime import ConfigRuntimeFeature
-    from .device_pairing import DevicePairingFeature
-    from .hooks import HooksFeature
-    from .i18n import I18nFeature
-    from .jobs import JobsFeature
-    from .logs import LogsFeature
-    from .marketplace import MarketplaceFeature
-    from .media_analysis import MediaAnalysisFeature
-    from .memory import MemoryFeature
-    from .knowledge import KnowledgeFeature
-    from .model_fallback import ModelFallbackFeature
-    from .nodes import NodesFeature
-    from .openai_api import OpenAIAPIFeature
-    from .protocol_version import ProtocolFeature
-    from .pwa import PWAFeature
-    from .schedules import SchedulesFeature
-    from .sessions_ext import SessionsFeature
-    from .skills import SkillsFeature
-    from .subagents import SubagentsFeature
-    from .theme import ThemeFeature
-    from .tts import TTSFeature
-    from .usage import UsageFeature
-    from .workflows import WorkflowsFeature
-    from .guardrails import GuardrailsFeature
-    from .eval import EvalFeature
-    from .telemetry import TelemetryFeature
-    from .tracing import TracingFeature
-    from .security import SecurityFeature
 
-    for cls in (
-        AgentsCrudFeature,
-        ApprovalsFeature,
-        AttachmentsFeature,
-        AuthFeature,
-        BrowserAutomationFeature,
-        ChannelsFeature,
-        ChatFeature,
-        CodeExecutionFeature,
-        ConfigHotReloadFeature,
-        ConfigRuntimeFeature,
-        DevicePairingFeature,
-        HooksFeature,
-        I18nFeature,
-        JobsFeature,
-        LogsFeature,
-        MarketplaceFeature,
-        MediaAnalysisFeature,
-        MemoryFeature,
-        KnowledgeFeature,
-        ModelFallbackFeature,
-        NodesFeature,
-        OpenAIAPIFeature,
-        ProtocolFeature,
-        PWAFeature,
-        SchedulesFeature,
-        SessionsFeature,
-        SkillsFeature,
-        SubagentsFeature,
-        ThemeFeature,
-        TTSFeature,
-        UsageFeature,
-        WorkflowsFeature,
-        GuardrailsFeature,
-        EvalFeature,
-        TelemetryFeature,
-        TracingFeature,
-        SecurityFeature,
-    ):
-        if cls.feature_name not in _features:
-            register_feature(cls())
+    Each feature is imported independently so a single broken module
+    cannot prevent the rest from registering.
+    """
+    import importlib
+    import logging
+
+    _log = logging.getLogger(__name__)
+
+    # (module_path_relative_to_features_package, class_name)
+    _BUILTIN_FEATURES = [
+        (".agents", "AgentsCrudFeature"),
+        (".approvals", "ApprovalsFeature"),
+        (".attachments", "AttachmentsFeature"),
+        (".auth", "AuthFeature"),
+        (".browser_automation", "BrowserAutomationFeature"),
+        (".channels", "ChannelsFeature"),
+        (".chat", "ChatFeature"),
+        (".code_execution", "CodeExecutionFeature"),
+        (".config_hot_reload", "ConfigHotReloadFeature"),
+        (".config_runtime", "ConfigRuntimeFeature"),
+        (".device_pairing", "DevicePairingFeature"),
+        (".hooks", "HooksFeature"),
+        (".i18n", "I18nFeature"),
+        (".jobs", "JobsFeature"),
+        (".logs", "LogsFeature"),
+        (".marketplace", "MarketplaceFeature"),
+        (".media_analysis", "MediaAnalysisFeature"),
+        (".memory", "MemoryFeature"),
+        (".knowledge", "KnowledgeFeature"),
+        (".model_fallback", "ModelFallbackFeature"),
+        (".nodes", "NodesFeature"),
+        (".openai_api", "OpenAIAPIFeature"),
+        (".protocol_version", "ProtocolFeature"),
+        (".pwa", "PWAFeature"),
+        (".schedules", "SchedulesFeature"),
+        (".sessions_ext", "SessionsFeature"),
+        (".skills", "SkillsFeature"),
+        (".subagents", "SubagentsFeature"),
+        (".theme", "ThemeFeature"),
+        (".tts", "TTSFeature"),
+        (".usage", "UsageFeature"),
+        (".workflows", "WorkflowsFeature"),
+        (".guardrails", "GuardrailsFeature"),
+        (".eval", "EvalFeature"),
+        (".telemetry", "TelemetryFeature"),
+        (".tracing", "TracingFeature"),
+        (".security", "SecurityFeature"),
+    ]
+
+    for mod_path, cls_name in _BUILTIN_FEATURES:
+        try:
+            mod = importlib.import_module(mod_path, package=__package__)
+            cls = getattr(mod, cls_name)
+            if cls.feature_name not in _features:
+                register_feature(cls())
+        except Exception as exc:
+            _log.warning(
+                "Failed to register feature %s from %s: %s",
+                cls_name, mod_path, exc,
+            )
 
 
 __all__ = [

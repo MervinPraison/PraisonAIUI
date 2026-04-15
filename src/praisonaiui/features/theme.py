@@ -13,7 +13,6 @@ Extension points:
 
 from __future__ import annotations
 
-import json
 import logging
 import threading
 from typing import Any, Dict, List, Optional
@@ -22,6 +21,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
+from ..themes import PRESET_NAMES
 from ._base import BaseFeatureProtocol
 
 logger = logging.getLogger(__name__)
@@ -77,6 +77,11 @@ PRESET_COLORS: Dict[str, Dict[str, str]] = {
     "pink":    {"accent": "#ec4899", "accentRgb": "236,72,153"},
     "rose":    {"accent": "#f43f5e", "accentRgb": "244,63,94"},
 }
+
+# Validate PRESET_COLORS keys match the single source of truth
+assert set(PRESET_COLORS.keys()) == set(PRESET_NAMES), (
+    f"PRESET_COLORS keys drift: {set(PRESET_COLORS.keys()) ^ set(PRESET_NAMES)}"
+)
 
 # Radius presets — values match themes.py RADIUS_PRESETS
 RADIUS_MAP: Dict[str, str] = {
@@ -356,7 +361,9 @@ class ThemeFeature(BaseFeatureProtocol):
     """
 
     feature_name = "theme"
-    feature_description = "Protocol-driven theme system with 22 presets and custom theme registration"
+    feature_description = (
+        "Protocol-driven theme system with 22 presets and custom theme registration"
+    )
 
     @property
     def name(self) -> str:

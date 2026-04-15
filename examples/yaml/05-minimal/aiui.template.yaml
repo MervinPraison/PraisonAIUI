@@ -17,7 +17,7 @@ dependencies:
 
 content:
   docs:
-    dir: "../../docs"
+    dir: "../../../docs"
 
 templates:
   docs:

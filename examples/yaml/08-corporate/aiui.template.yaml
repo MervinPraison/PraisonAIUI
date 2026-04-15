@@ -21,7 +21,7 @@ dependencies:
 
 content:
   docs:
-    dir: "../../docs"
+    dir: "../../../docs"
     nav:
       mode: "auto"
       sort: "filesystem"

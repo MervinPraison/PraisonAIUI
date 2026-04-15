@@ -89,6 +89,37 @@ _chat_features: Optional[dict[str, Any]] = None
 _dashboard_config: Optional[dict[str, Any]] = None
 
 
+def reset_state() -> None:
+    """Reset all mutable server state to initial values.
+
+    Intended for test isolation — call in test fixtures to avoid
+    state leaking between tests.  Not for production use.
+    """
+    global _style, _branding, _theme, _custom_css, _chat_features
+    global _dashboard_config, _provider, _config_path, _config_cache
+    _callbacks.clear()
+    _agents.clear()
+    _pages.clear()
+    _enabled_pages_ref = globals()
+    _enabled_pages_ref["_enabled_pages"] = None
+    _custom_page_ids.clear()
+    _active_tasks.clear()
+    _log_buffer.clear()
+    _usage_stats.update({
+        "total_requests": 0, "total_tokens": 0,
+        "by_model": {}, "by_session": {},
+    })
+    _style = None
+    _branding = {"title": "PraisonAI", "logo": "🦞"}
+    _theme = None
+    _custom_css = None
+    _chat_features = None
+    _dashboard_config = None
+    _provider = None
+    _config_path = None
+    _config_cache = None
+
+
 def set_style(style: str) -> None:
     """Set the UI style from Python code (call before server starts).
 
@@ -426,6 +457,18 @@ def detect_style() -> str:
     return "chat"
 
 
+# ── Shared config helpers ────────────────────────────────────────────
+
+def _get_site_section() -> dict:
+    """Read the 'site' section from the config store, or return {}."""
+    try:
+        from praisonaiui.config_store import get_config_store
+        cs = get_config_store()
+        return (cs.get_section("site") if cs else {}) or {}
+    except Exception:
+        return {}
+
+
 # ── Dynamic HTML & plugin config generation ─────────────────────────
 
 def _build_html(style: str) -> str:
@@ -434,15 +477,11 @@ def _build_html(style: str) -> str:
     The SDK owns the HTML — just like Chainlit. Users never write HTML.
     """
     # Branding-driven title: set_branding() → YAML config → default
-    _site_title = _branding["title"]
-    try:
-        from praisonaiui.config_store import get_config_store
-        _cs = get_config_store()
-        _site_section = _cs.get_section("site") if _cs else {}
-        if _site_section:
-            _site_title = _site_section.get("title", _site_title)
-    except Exception:
-        pass
+    _site_section = _get_site_section()
+    _site_title = (
+        _site_section.get("title", _branding["title"]) if _site_section
+        else _branding["title"]
+    )
     title = f"{_site_title} Dashboard" if style == "dashboard" else _site_title
     cache_bust = int(_server_start_time)
 
@@ -464,15 +503,8 @@ def _build_html(style: str) -> str:
     # Inject custom CSS if set via set_custom_css() or YAML site.custom_css
     custom_css_tag = ''
     _css = _custom_css
-    if not _css:
-        try:
-            from praisonaiui.config_store import get_config_store
-            _cs = get_config_store()
-            _site = _cs.get_section("site") if _cs else {}
-            if _site:
-                _css = _site.get("custom_css") or _site.get("customCss")
-        except Exception:
-            pass
+    if not _css and _site_section:
+        _css = _site_section.get("custom_css") or _site_section.get("customCss")
     if _css:
         custom_css_tag = f'<style id="aiui-custom-css">{_css}</style>'
 

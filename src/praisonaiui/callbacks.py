@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import inspect
 from functools import wraps
 from typing import Any, Callable, Optional, TypeVar
@@ -11,19 +12,21 @@ from praisonaiui.server import MessageContext, register_callback
 
 F = TypeVar("F", bound=Callable[..., Any])
 
-# Global context for the current message being processed
-_current_context: Optional[MessageContext] = None
+# Per-task context for the current message being processed.
+# Using contextvars ensures concurrent async handlers don't clobber each other.
+_current_context: contextvars.ContextVar[Optional[MessageContext]] = contextvars.ContextVar(
+    "_current_context", default=None,
+)
 
 
-def _set_context(ctx: MessageContext) -> None:
-    """Set the current message context."""
-    global _current_context
-    _current_context = ctx
+def _set_context(ctx: Optional[MessageContext]) -> None:
+    """Set the current message context (async-safe via contextvars)."""
+    _current_context.set(ctx)
 
 
 def _get_context() -> Optional[MessageContext]:
-    """Get the current message context."""
-    return _current_context
+    """Get the current message context (async-safe via contextvars)."""
+    return _current_context.get()
 
 
 def welcome(func: F) -> F:

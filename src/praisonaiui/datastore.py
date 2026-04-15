@@ -25,6 +25,7 @@ Example – custom SQLite store::
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import uuid
@@ -221,7 +222,8 @@ class JSONFileDataStore(BaseDataStore):
     def _write_session(self, path: Path, data: dict[str, Any]) -> None:
         path.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
 
-    async def list_sessions(self) -> list[dict[str, Any]]:
+    def _list_sessions_sync(self) -> list[dict[str, Any]]:
+        """Sync helper — reads all session files from disk."""
         sessions = []
         for path in sorted(
             self._data_dir.glob("*.json"),
@@ -245,11 +247,12 @@ class JSONFileDataStore(BaseDataStore):
                 sessions.append(entry)
         return sessions
 
+    async def list_sessions(self) -> list[dict[str, Any]]:
+        return await asyncio.to_thread(self._list_sessions_sync)
+
     async def get_session(self, session_id: str) -> Optional[dict[str, Any]]:
         path = self._session_path(session_id)
-        if path.exists():
-            return self._read_session(path)
-        return None
+        return await asyncio.to_thread(self._read_session, path)
 
     async def create_session(self, session_id: Optional[str] = None) -> dict[str, Any]:
         sid = session_id or str(uuid.uuid4())
@@ -261,33 +264,39 @@ class JSONFileDataStore(BaseDataStore):
             "updated_at": now,
             "messages": [],
         }
-        self._write_session(self._session_path(sid), session)
+        await asyncio.to_thread(self._write_session, self._session_path(sid), session)
         return session
 
     async def delete_session(self, session_id: str) -> bool:
-        path = self._session_path(session_id)
-        if path.exists():
-            path.unlink()
-            return True
-        return False
+        def _delete() -> bool:
+            path = self._session_path(session_id)
+            if path.exists():
+                path.unlink()
+                return True
+            return False
+        return await asyncio.to_thread(_delete)
 
     async def add_message(self, session_id: str, message: dict[str, Any]) -> None:
-        path = self._session_path(session_id)
-        data = self._read_session(path)
-        if data:
-            data["messages"].append(message)
-            data["updated_at"] = datetime.now(timezone.utc).isoformat()
-            # Auto-generate title from first user message
-            if (
-                message.get("role") == "user"
-                and data.get("title", "New conversation") == "New conversation"
-            ):
-                data["title"] = self.generate_title(message.get("content", ""))
-            self._write_session(path, data)
+        def _add() -> None:
+            path = self._session_path(session_id)
+            data = self._read_session(path)
+            if data:
+                data["messages"].append(message)
+                data["updated_at"] = datetime.now(timezone.utc).isoformat()
+                # Auto-generate title from first user message
+                if (
+                    message.get("role") == "user"
+                    and data.get("title", "New conversation") == "New conversation"
+                ):
+                    data["title"] = self.generate_title(message.get("content", ""))
+                self._write_session(path, data)
+        await asyncio.to_thread(_add)
 
     async def get_messages(self, session_id: str) -> list[dict[str, Any]]:
-        path = self._session_path(session_id)
-        data = self._read_session(path)
-        if data:
-            return data.get("messages", [])
-        return []
+        def _get() -> list[dict[str, Any]]:
+            path = self._session_path(session_id)
+            data = self._read_session(path)
+            if data:
+                return data.get("messages", [])
+            return []
+        return await asyncio.to_thread(_get)

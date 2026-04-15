@@ -22,6 +22,16 @@ SHADCN_THEMES_URL = "https://ui.shadcn.com/registry/colors.json"
 # Source: shadcn/ui registry. These are the authoritative fallback so
 # builds work offline and in air-gapped environments.
 
+# Single source of truth for preset names — imported by schema/models.py
+# and features/theme.py to keep all three in sync.
+PRESET_NAMES: tuple[str, ...] = (
+    "zinc", "slate", "stone", "gray", "neutral",
+    "red", "orange", "amber", "yellow", "lime",
+    "green", "emerald", "teal", "cyan", "sky",
+    "blue", "indigo", "violet", "purple", "fuchsia",
+    "pink", "rose",
+)
+
 def _base_light():
     """Shared light-mode structural variables (non-color)."""
     return {

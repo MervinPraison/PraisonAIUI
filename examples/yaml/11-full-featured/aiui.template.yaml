@@ -23,7 +23,7 @@ dependencies:
 
 content:
   docs:
-    dir: "../../docs"
+    dir: "../../../docs"
     include:
       - "**/*.md"
     exclude:

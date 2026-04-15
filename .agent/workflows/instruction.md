@@ -41,6 +41,8 @@ CRITICAL REQUIREMENTS (NON-NEGOTIABLE)
 * For EVERY feature/fix: implement BOTH codebase AND interface/CLI representation, plus docs/examples.
 * Evidence-based: every claim must reference specific files/symbols/test results.
 
+Review all gaps first if there are any. Convert each gap into a top-level TODO. Under each TODO, add sub-TODOs for: current status, proposal validation, implementation, testing, integration testing, and final verification. implement and fill all gaps 
+
 MANDATORY THREE-PHASE EXECUTION FLOW (MUST)
 For EVERY request you receive, you MUST treat it as: "Do the provided task".
 You MUST follow these phases exactly and in order:
