@@ -32,27 +32,6 @@
 <p>> **Verified**: 2026-03-11 — All 16 gaps resolved. 37 features, 12 new tests pass, 0 remaining gaps.</p>
 <h2>Executive Summary</h2>
 <p>All 16 standardization gaps from the AIUI gap analysis have been **implemented and verified**. AIUI is now protocol-driven and vendor-agnostic, with configurable titles, data directories, pluggable bot factories, structured diagnostics, Docker support, and thread-safe auth.</p>
-<p>---</p>
-<h2>Verification Evidence Matrix</h2>
-<p>| # | Gap | Status | Evidence |</p>
-<p>|---|-----|--------|----------|</p>
-<p>| G-1 | Rename 37 `PraisonAI*` → `{Name}Feature` | ✅ Done | `grep -c "class PraisonAI" features/*.py` → **0 matches**. 37 `*Feature(BaseFeatureProtocol)` classes confirmed |</p>
-<p>| G-2 | `AgentsCrudFeature` naming | ✅ Done | `agents.py:378` → `class AgentsCrudFeature`, `feature_name = "agents_crud"` |</p>
-<p>| G-3 | Pluggable bot registry | ✅ Done | `_standalone_gateway.py:31` → `register_bot_factory()` function exists |</p>
-<p>| G-4 | Configurable title strings | ✅ Done | `grep "PraisonAIUI Dashboard" server.py` → **0 matches** |</p>
-<p>| G-5 | `AIUI_DATA_DIR` env var | ✅ Done | `server.py:44-45` + `config_store.py:28-31` — `_get_data_dir()` reads env at call time |</p>
-<p>| G-6 | `aiui doctor` CLI | ✅ Done | `cli.py:2416` → 7-check diagnostic with `--json` flag |</p>
-<p>| G-7 | Production Dockerfile | ✅ Done | `Dockerfile` (34 lines, `python:3.12-slim`, HEALTHCHECK) + `.dockerignore` (19 lines) |</p>
-<p>| G-8 | Auth middleware enforcement | ✅ Done | `server.py:1050-1060` → `AuthEnforcementMiddleware`, opt-in via `AUTH_ENFORCE` env |</p>
-<p>| G-9 | Registry imports updated | ✅ Done | `auto_register_defaults()` uses new names, **37/37 features register** |</p>
-<p>| G-10 | `health --detailed` flag | ✅ Done | `cli.py:1642-1644` → `--detailed` per-feature health output |</p>
-<p>| G-11 | Deployment guide doc | ✅ Done | `docs/features/deployment.md` — 244 lines (Docker, env vars, auth, managed hosting) |</p>
-<p>| G-12 | Naming convention doc | ✅ Done | `docs/features/protocol-architecture.md:183` → "Naming Convention" section |</p>
-<p>| G-13 | Doctor CLI tests | ✅ Done | `tests/test_doctor_cli.py` — 7 test cases, all pass |</p>
-<p>| G-14 | Data dir env var tests | ✅ Done | `tests/unit/test_data_dir.py` — 5 test cases, all pass |</p>
-<p>| G-15 | Docker integration test | ✅ Done | `tests/integration/test_docker.sh` — build + health check + cleanup |</p>
-<p>| G-16 | Auth thread-safety | ✅ Done | `auth.py:54` → `_auth_lock = threading.Lock()`, 10 `with _auth_lock:` usages |</p>
-<p>---</p>
 <h2>Test Results</h2>
 <h3>New Tests: 12/12 Passed</h3>
 <h3>Feature Registry: 37/37</h3>

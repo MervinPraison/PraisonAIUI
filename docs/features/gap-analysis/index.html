@@ -32,21 +32,6 @@
 <p>> **Last validated**: 2026-03-07 — All gaps resolved. 31 features, 128 tests pass.</p>
 <h2>Executive Summary</h2>
 <p>All originally-reported gaps have been **implemented** with protocol-driven architecture. Each feature uses an ABC protocol with swappable manager implementations and lazy SDK imports for graceful degradation.</p>
-<p>---</p>
-<h2>Status Overview</h2>
-<p>| Gap | Feature | Original Status | **Current Status** | Docs |</p>
-<p>|-----|---------|----------------|--------------------|----|</p>
-<p>| 9 | OpenAI Responses API | ✅ Exists | ✅ Exists in praisonaiui | [API Ref](../api/features-api.md#openai-compatible-api) |</p>
-<p>| 11 | Memory/Knowledge Search | 🟡 Partial | ✅ **Implemented** — `MemoryProtocol` + `SDKMemoryManager` | [API Ref](../api/features-api.md#memory) |</p>
-<p>| 12 | Additional Channels | 🟡 Partial | ✅ **SDK bots exist** | [API Ref](../api/features-api.md#channels) |</p>
-<p>| 13 | Plugin Marketplace UI | 🔴 Missing | ✅ **Implemented** — `MarketplaceProtocol` + `LocalMarketplaceManager` | [Marketplace](marketplace.md) |</p>
-<p>| 16 | Code Execution View | 🟡 Partial | ✅ **Implemented** — `CodeExecutionProtocol` + `SandboxExecutionManager` | [Code Execution](code-execution.md) |</p>
-<p>| 18 | i18n Framework | 🔴 Missing | ✅ **Implemented** — `I18nProtocol` + `JSONLocaleManager` (en/es/fr) | [i18n](i18n.md) |</p>
-<p>| 20 | PWA / Mobile | 🔴 Missing | ✅ **Implemented** — `PWAProtocol` + `DefaultPWAManager` | [PWA](pwa.md) |</p>
-<p>| 21 | TTS Integration | 🔴 Missing | ✅ **Implemented** — `TTSProtocol` + `BrowserTTSManager` / `OpenAITTSManager` | [TTS](tts.md) |</p>
-<p>| 23 | Media Understanding | 🔴 Missing | ✅ **Implemented** — `MediaAnalysisProtocol` + `VisionAnalysisManager` | [Media Analysis](media-analysis.md) |</p>
-<p>| 24 | Device Pairing | 🔴 Missing | ✅ **Implemented** — `PairingProtocol` + `DefaultPairingManager` | [Device Pairing](device-pairing.md) |</p>
-<p>---</p>
 <h2>Gap 9: OpenAI Responses API — ✅ NOT A GAP</h2>
 <p>Already exists in `praisonaiui/features/openai_api.py` (606 lines, 17 routes including `/v1/responses`). No SDK work needed.</p>
 <p>---</p>

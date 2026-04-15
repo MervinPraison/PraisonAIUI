@@ -30,16 +30,6 @@
 <body>
   <div id="root"><noscript><h1>AIUI Integration — Critical Review & Architecture Analysis</h1>
 <p>> **Principle**: AIUI's `config.yaml` is a **schemaless** YAML dict (`YAMLConfigStore`). The adapter must produce what AIUI already reads — AIUI's config structure is NOT modified. Additional keys are silently ignored.</p>
-<p>---</p>
-<h2>Table of Contents</h2>
-<p>1. [Acceptance Criteria](#1-acceptance-criteria)</p>
-<p>2. [Current State — What's Done](#2-current-state--whats-done)</p>
-<p>3. [Protocol-Driven Assessment](#3-protocol-driven-assessment)</p>
-<p>4. [Gap Analysis — Adapter Schema (hostaibot)](#4-gap-analysis--adapter-schema)</p>
-<p>5. [Gap Analysis — AIUI Side (implementation needed)](#5-gap-analysis--aiui-side)</p>
-<p>6. [Remediation Plan](#6-remediation-plan)</p>
-<p>7. [Risk Summary](#7-risk-summary)</p>
-<p>---</p>
 <h2>1. Acceptance Criteria</h2>
 <p>| # | Criterion | Status |</p>
 <p>|---|-----------|--------|</p>

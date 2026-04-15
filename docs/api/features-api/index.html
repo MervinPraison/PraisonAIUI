@@ -34,30 +34,6 @@
 <h3>GET /api/features</h3>
 <p>List all registered features with health status.</p>
 <p>**Response:**</p>
-<p>---</p>
-<h2>Approvals</h2>
-<p>Tool-execution approval management with policies, history, and SSE streaming.</p>
-<h3>GET /api/approvals</h3>
-<p>List all approvals.</p>
-<h3>POST /api/approvals</h3>
-<p>Create an approval request.</p>
-<h3>GET /api/approvals/pending</h3>
-<p>List pending approvals only.</p>
-<h3>GET /api/approvals/history</h3>
-<p>List resolved approvals.</p>
-<h3>GET /api/approvals/policies</h3>
-<p>Get auto-approve/deny policies.</p>
-<h3>PUT /api/approvals/policies</h3>
-<p>Update policies.</p>
-<h3>GET /api/approvals/stream</h3>
-<p>SSE stream for real-time approval notifications.</p>
-<h3>GET /api/approvals/{id}</h3>
-<p>Get single approval by ID.</p>
-<h3>POST /api/approvals/{id}/approve</h3>
-<p>Approve a pending request. Body: `{"reason": "...", "always": false}`</p>
-<h3>POST /api/approvals/{id}/deny</h3>
-<p>Deny a pending request. Body: `{"reason": "...", "always": false}`</p>
-<p>---</p>
 <h2>Channels</h2>
 <h3>GET /api/channels</h3>
 <p>List all configured channels with live gateway status.</p>

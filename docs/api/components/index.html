@@ -30,45 +30,6 @@
 <body>
   <div id="root"><noscript><h1>Component API Reference</h1>
 <p>Python functions for building dashboard UIs. Each function returns a dict that the frontend renders as a real UI element — **36 components** organized into tiers.</p>
-<p>---</p>
-<h2>Core Components</h2>
-<h3>`aiui.layout(children)`</h3>
-<p>Wrap components in a renderable container.</p>
-<p>| Parameter | Type | Required | Description |</p>
-<p>|-----------|------|----------|-------------|</p>
-<p>| `children` | `Sequence[dict]` | ✅ | List of component dicts |</p>
-<p>**Returns:** `dict` with `_components` key — triggers structured rendering in the frontend.</p>
-<h3>`aiui.card(title, *, value, footer)`</h3>
-<p>A metric/stat card.</p>
-<p>| Parameter | Type | Required | Description |</p>
-<p>|-----------|------|----------|-------------|</p>
-<p>| `title` | `str` | ✅ | Card header label |</p>
-<p>| `value` | `Any` | ❌ | Main display value |</p>
-<p>| `footer` | `str` | ❌ | Small text below the value |</p>
-<h3>`aiui.columns(children)`</h3>
-<p>Arrange components in a responsive grid row.</p>
-<p>| Parameter | Type | Required | Description |</p>
-<p>|-----------|------|----------|-------------|</p>
-<p>| `children` | `Sequence[dict]` | ✅ | Component dicts to lay out side-by-side |</p>
-<h3>`aiui.table(*, headers, rows)`</h3>
-<p>A data table.</p>
-<p>| Parameter | Type | Required | Description |</p>
-<p>|-----------|------|----------|-------------|</p>
-<p>| `headers` | `Sequence[str]` | ✅ | Column header labels |</p>
-<p>| `rows` | `Sequence[Sequence[Any]]` | ✅ | Row data arrays |</p>
-<h3>`aiui.text(content)`</h3>
-<p>A text block.</p>
-<p>| Parameter | Type | Required | Description |</p>
-<p>|-----------|------|----------|-------------|</p>
-<p>| `content` | `str` | ✅ | Text content |</p>
-<h3>`aiui.chart(title, *, data, chart_type)`</h3>
-<p>A chart.</p>
-<p>| Parameter | Type | Required | Default | Description |</p>
-<p>|-----------|------|----------|---------|-------------|</p>
-<p>| `title` | `str` | ✅ | — | Chart title |</p>
-<p>| `data` | `Sequence[dict]` | ❌ | `[]` | Data points |</p>
-<p>| `chart_type` | `str` | ❌ | `"bar"` | `bar`, `line`, or `pie` |</p>
-<p>---</p>
 <h2>Essential Components</h2>
 <h3>`aiui.metric(label, *, value, delta, delta_color)`</h3>
 <p>A metric card with optional delta indicator.</p>
