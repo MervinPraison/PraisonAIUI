@@ -97,6 +97,7 @@ def reset_state() -> None:
     """
     global _style, _branding, _theme, _custom_css, _chat_features
     global _dashboard_config, _provider, _config_path, _config_cache
+    global _chat_mode, _brand_color, _effective_style, _selected_profile
     _callbacks.clear()
     _agents.clear()
     _pages.clear()
@@ -118,6 +119,16 @@ def reset_state() -> None:
     _provider = None
     _config_path = None
     _config_cache = None
+    _chat_mode = None
+    _brand_color = None
+    _effective_style = "chat"
+    _selected_profile = {"id": None}
+    # Reset ThemeManager singleton (custom themes, mode, etc.)
+    try:
+        from praisonaiui.features.theme import reset_theme_manager
+        reset_theme_manager()
+    except Exception:
+        pass
 
 
 def set_style(style: str) -> None:
@@ -508,12 +519,33 @@ def _build_html(style: str) -> str:
     if _css:
         custom_css_tag = f'<style id="aiui-custom-css">{_css}</style>'
 
+    # Server-side theme variable injection (dashboard style)
+    # Ensures correct accent color is in the HTML before any JS runs,
+    # eliminating CSS specificity races and browser cache issues.
+    theme_vars_tag = ''
+    if style == 'dashboard':
+        try:
+            from praisonaiui.features.theme import get_theme_manager
+            mgr = get_theme_manager()
+            tvars = mgr.get_vars()
+            css_pairs = ';'.join(
+                f'{k}:{v}!important' for k, v in tvars.items()
+            )
+            theme_vars_tag = (
+                f'<style id="aiui-server-theme">'
+                f':root{{{css_pairs}}}'
+                f'</style>'
+            )
+        except Exception:
+            pass
+
     return (
         '<!doctype html><html lang="en" style="background:#0f172a;color:#e2e8f0"><head>'
         '<meta charset="UTF-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1.0">'
         f'<link rel="stylesheet" href="/assets/index.css?v={cache_bust}">'
         f'{anti_flicker}'
+        f'{theme_vars_tag}'
         f'{custom_css_tag}'
         f'<title>{title}</title>'
         '</head><body style="background:#0f172a;margin:0">'

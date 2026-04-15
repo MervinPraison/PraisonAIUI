@@ -167,7 +167,7 @@ class ThemeManager(ThemeProtocol):
     """
 
     def __init__(self) -> None:
-        self._current_preset: str = "indigo"  # default preset
+        self._current_preset: str = "zinc"  # default preset (matches DASHBOARD_STYLE)
         self._current_mode: str = "dark"       # dark or light
         self._current_radius: str = "md"       # radius preset
         self._custom_themes: Dict[str, Dict[str, str]] = {}
@@ -189,7 +189,7 @@ class ThemeManager(ThemeProtocol):
         name = theme or self._current_preset
         preset = PRESET_COLORS.get(name) or self._custom_themes.get(name)
         if not preset:
-            preset = PRESET_COLORS["indigo"]
+            preset = PRESET_COLORS["zinc"]
 
         mode_vars = MODE_VARS.get(self._current_mode, MODE_VARS["dark"])
         radius = RADIUS_MAP.get(self._current_radius, "10px")
@@ -221,7 +221,7 @@ class ThemeManager(ThemeProtocol):
         if name in self._custom_themes:
             del self._custom_themes[name]
             if self._current_preset == name:
-                self._current_preset = "indigo"
+                self._current_preset = "zinc"
             return True
         return False
 
@@ -267,6 +267,13 @@ def get_theme_manager() -> ThemeManager:
         if _theme_manager is None:
             _theme_manager = ThemeManager()
         return _theme_manager
+
+
+def reset_theme_manager() -> None:
+    """Reset the ThemeManager singleton for test isolation."""
+    global _theme_manager
+    with _theme_lock:
+        _theme_manager = None
 
 
 # ── HTTP Handlers ────────────────────────────────────────────────
