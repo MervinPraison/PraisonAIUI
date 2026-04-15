@@ -53,20 +53,32 @@ window.aiui.registerView = function(pageId, renderFn, cleanupFn) {
 };
 window.aiui.views = VIEW_REGISTRY;
 
+// ── Sidebar State ────────────────────────────────────────────────
+let sidebarCollapsed = false;
+let sidebarConfig = {
+  collapsible: true,
+  defaultCollapsed: false,
+  width: 260,
+  minWidth: 200,
+  maxWidth: 360,
+};
+
 const DASHBOARD_STYLE = `
   /* ── Dashboard layout ───────────────────────────────────── */
   :root {
     --db-sidebar-w: 260px;
-    --db-bg: #0a0a0f;
-    --db-sidebar-bg: #111118;
-    --db-border: rgba(255,255,255,0.06);
-    --db-text: #e4e4e7;
-    --db-text-dim: #71717a;
-    --db-accent: #6366f1;
-    --db-accent-glow: rgba(99,102,241,0.15);
+    --db-sidebar-collapsed-w: 60px;
+    --db-bg: #18181b; 
+    --db-sidebar-bg: #18181b;
+    --db-border: #3f3f46;
+    --db-text: #ffffff;
+    --db-text-dim: #a1a1aa;
     --db-card-bg: rgba(255,255,255,0.03);
-    --db-hover: rgba(255,255,255,0.05);
-    --db-radius: 10px;
+    --db-hover: #27272a;
+    --db-radius: 8px;
+    --db-accent: #71717a;
+    --db-accent-rgb: 113, 113, 122;
+    --db-accent-glow: rgba(113, 113, 122, 0.15);
     --db-transition: 0.2s cubic-bezier(0.4,0,0.2,1);
   }
 
@@ -81,6 +93,27 @@ const DASHBOARD_STYLE = `
     background: var(--db-sidebar-bg); border-right: 1px solid var(--db-border);
     display: flex; flex-direction: column; overflow-y: auto;
     position: sticky; top: 0; height: 100vh;
+    transition: width 0.2s ease, min-width 0.2s ease;
+  }
+  .db-sidebar.collapsed {
+    width: var(--db-sidebar-collapsed-w);
+    min-width: var(--db-sidebar-collapsed-w);
+  }
+  .db-sidebar.collapsed .db-sidebar-header span:not(.logo),
+  .db-sidebar.collapsed .db-group-label,
+  .db-sidebar.collapsed .db-nav-item span:not(.db-nav-icon) {
+    display: none;
+  }
+  .db-sidebar.collapsed .db-sidebar-header {
+    justify-content: center;
+    padding: 20px 10px;
+  }
+  .db-sidebar.collapsed .db-nav-item {
+    justify-content: center;
+    padding: 12px 10px;
+  }
+  .db-sidebar.collapsed .db-nav-icon {
+    margin: 0;
   }
   .db-sidebar-header {
     padding: 20px; font-size: 15px; font-weight: 600;
@@ -88,6 +121,32 @@ const DASHBOARD_STYLE = `
     display: flex; align-items: center; gap: 10px;
   }
   .db-sidebar-header .logo { font-size: 20px; }
+  .db-sidebar-toggle {
+    position: absolute;
+    right: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    background: var(--db-sidebar-bg);
+    border: 1px solid var(--db-border);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--db-text-dim);
+    z-index: 10;
+    transition: all 0.15s;
+  }
+  .db-sidebar-toggle:hover {
+    background: var(--db-hover);
+    color: var(--db-text);
+  }
+  .db-sidebar.collapsed .db-sidebar-toggle {
+    transform: translateY(-50%) rotate(180deg);
+  }
   .db-group-label {
     padding: 18px 20px 6px; font-size: 11px; font-weight: 600;
     text-transform: uppercase; letter-spacing: 0.08em; color: var(--db-text-dim);
@@ -477,65 +536,85 @@ const PRESET_COLORS = {
   rose:    { accent: '#f43f5e', accentRgb: '244,63,94' },
 };
 
-function applyThemeFromConfig(cfg) {
+async function applyThemeFromConfig(cfg) {
   const theme = cfg?.site?.theme;
   if (!theme) return;
 
   const root = document.documentElement;
   const preset = theme.preset || 'zinc';
   let colors = PRESET_COLORS[preset];
+  let customVars = {};
 
   // If preset not in hardcoded list, fetch from /api/theme (supports custom themes)
   if (!colors) {
-    fetch('/api/theme')
-      .then(r => r.json())
-      .then(data => {
-        // Apply all CSS variables from the theme API
-        if (data.variables) {
-          for (const [key, val] of Object.entries(data.variables)) {
-            root.style.setProperty(key, val);
-          }
-        }
-      })
-      .catch(() => {});
+    console.debug('[AIUI Theme] Custom preset detected:', preset, '- fetching from /api/theme');
+    try {
+      const r = await fetch('/api/theme');
+      const data = await r.json();
+      console.debug('[AIUI Theme] Applying variables:', data.variables);
+      if (data.variables) {
+        customVars = data.variables;
+      }
+    } catch (err) {
+      console.error('[AIUI Theme] Fetch error:', err);
+    }
   } else {
-    root.style.setProperty('--db-accent', colors.accent);
-    root.style.setProperty('--db-accent-glow', `rgba(${colors.accentRgb},0.15)`);
-    root.style.setProperty('--db-accent-rgb', colors.accentRgb);
+    customVars['--db-accent'] = colors.accent;
+    customVars['--db-accent-glow'] = `rgba(${colors.accentRgb},0.15)`;
+    customVars['--db-accent-rgb'] = colors.accentRgb;
   }
 
   // Dark/light mode
   if (theme.darkMode === false) {
-    root.style.setProperty('--db-bg', '#fafafa');
-    root.style.setProperty('--db-sidebar-bg', '#f4f4f5');
-    root.style.setProperty('--db-text', '#18181b');
-    root.style.setProperty('--db-text-dim', '#71717a');
-    root.style.setProperty('--db-border', 'rgba(0,0,0,0.08)');
-    root.style.setProperty('--db-card-bg', 'rgba(0,0,0,0.02)');
-    root.style.setProperty('--db-hover', 'rgba(0,0,0,0.04)');
+    customVars['--db-bg'] = '#fafafa';
+    customVars['--db-sidebar-bg'] = '#f4f4f5';
+    customVars['--db-text'] = '#18181b';
+    customVars['--db-text-dim'] = '#71717a';
+    customVars['--db-border'] = 'rgba(0,0,0,0.08)';
+    customVars['--db-card-bg'] = 'rgba(0,0,0,0.02)';
+    customVars['--db-hover'] = 'rgba(0,0,0,0.04)';
     document.body.style.background = 'var(--db-bg)';
   }
 
   // Radius
   const radiusMap = { none: '0', sm: '6px', md: '10px', lg: '14px', xl: '20px' };
   if (theme.radius && radiusMap[theme.radius]) {
-    root.style.setProperty('--db-radius', radiusMap[theme.radius]);
+    customVars['--db-radius'] = radiusMap[theme.radius];
   }
+
+  // Inject via <style> tag and setProperty with !important
+  let cssText = ':root {\n';
+  for (const [key, val] of Object.entries(customVars)) {
+    cssText += `  ${key}: ${val} !important;\n`;
+    root.style.setProperty(key, val, 'important');
+  }
+  cssText += '}\n';
+
+  let themeStyle = document.getElementById('aiui-theme-variables');
+  if (!themeStyle) {
+    themeStyle = document.createElement('style');
+    themeStyle.id = 'aiui-theme-variables';
+    document.head.appendChild(themeStyle);
+  }
+  themeStyle.textContent = cssText;
 }
 
-function init() {
+async function init() {
   // Inject styles
   const style = document.createElement('style');
   style.textContent = DASHBOARD_STYLE;
   document.head.appendChild(style);
 
-  // Apply theme from config (async — overrides defaults once loaded)
-  fetch('/ui-config.json')
-    .then(r => r.json())
-    .then(cfg => applyThemeFromConfig(cfg))
-    .catch(() => {});
+  // Apply theme from config BEFORE building dashboard
+  try {
+    const cfgRes = await fetch('/ui-config.json');
+    const cfg = await cfgRes.json();
+    await applyThemeFromConfig(cfg);
+  } catch (e) {
+    console.warn('[AIUI] Failed to load theme config:', e);
+  }
 
-  // Build the dashboard
+  // Build the dashboard (after theme is applied)
   buildDashboard();
 }
 
@@ -606,17 +685,71 @@ async function buildDashboard() {
 function buildSidebar(pages) {
   const sidebar = document.createElement('nav');
   sidebar.className = 'db-sidebar';
+  sidebar.style.position = 'relative';  // For toggle button positioning
+  
+  // Apply initial collapsed state from config
+  if (sidebarConfig.defaultCollapsed) {
+    sidebar.classList.add('collapsed');
+    sidebarCollapsed = true;
+  }
 
   // Header — branding from /ui-config.json (configurable via app.py or YAML)
   const header = document.createElement('div');
   header.className = 'db-sidebar-header';
-  header.innerHTML = 'PraisonAI <span class="logo">🦞</span>';
+  header.innerHTML = '<span>PraisonAI</span> <span class="logo">🦞</span>';
   sidebar.appendChild(header);
+  
+  // Toggle button (if collapsible)
+  if (sidebarConfig.collapsible) {
+    const toggle = document.createElement('button');
+    toggle.className = 'db-sidebar-toggle';
+    toggle.innerHTML = '◀';
+    toggle.title = 'Toggle sidebar';
+    toggle.addEventListener('click', () => {
+      sidebarCollapsed = !sidebarCollapsed;
+      sidebar.classList.toggle('collapsed', sidebarCollapsed);
+      // Save preference
+      try { localStorage.setItem('aiui-sidebar-collapsed', sidebarCollapsed); } catch(e) {}
+    });
+    sidebar.appendChild(toggle);
+    
+    // Restore from localStorage
+    try {
+      const saved = localStorage.getItem('aiui-sidebar-collapsed');
+      if (saved === 'true') {
+        sidebar.classList.add('collapsed');
+        sidebarCollapsed = true;
+      }
+    } catch(e) {}
+  }
+  
   // Update branding from config asynchronously
   fetch('/ui-config.json').then(r => r.json()).then(cfg => {
     const title = cfg.site?.title || 'PraisonAI';
     const logo = cfg.site?.logo || '🦞';
-    header.innerHTML = `${title} <span class="logo">${logo}</span>`;
+    header.innerHTML = `<span>${title}</span> <span class="logo">${logo}</span>`;
+    
+    // Apply sidebar config from server
+    if (cfg.dashboard) {
+      if (cfg.dashboard.sidebarCollapsible === false) {
+        const toggleBtn = sidebar.querySelector('.db-sidebar-toggle');
+        if (toggleBtn) toggleBtn.style.display = 'none';
+      }
+      if (cfg.dashboard.sidebarWidth) {
+        sidebar.style.setProperty('--db-sidebar-w', cfg.dashboard.sidebarWidth + 'px');
+      }
+    }
+    
+    // Apply brand color if set
+    if (cfg.site?.brandColor) {
+      document.documentElement.style.setProperty('--db-accent', cfg.site.brandColor, 'important');
+      // Also compute RGB for rgba() usage
+      const hex = cfg.site.brandColor.replace('#', '');
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      document.documentElement.style.setProperty('--db-accent-rgb', `${r},${g},${b}`, 'important');
+    }
   }).catch(() => {});
 
   // Group pages

@@ -252,6 +252,106 @@ def set_dashboard(
     }
 
 
+# Chat mode config set via aiui.set_chat_mode()
+_chat_mode: Optional[dict[str, Any]] = None
+
+
+def set_chat_mode(
+    mode: str = "fullpage",
+    *,
+    position: tuple[int, int] | None = None,
+    size: tuple[int, int] | None = None,
+    resizable: bool = True,
+    minimized: bool = False,
+) -> None:
+    """Configure chat window display mode.
+
+    Controls how the chat interface is rendered — as a full page,
+    floating window, or sidebar panel.
+
+    Args:
+        mode: Display mode. Options:
+            - "fullpage" (default): Chat fills the main content area
+            - "floating": Resizable floating window (bottom-right)
+            - "sidebar": Fixed panel on the right side
+        position: (bottom, right) pixel offset for floating mode.
+            Default: (20, 20)
+        size: (width, height) initial size for floating mode.
+            Default: (400, 500)
+        resizable: Allow resizing the floating window. Default True.
+        minimized: Start minimized (floating mode only). Default False.
+
+    Example::
+
+        import praisonaiui as aiui
+        aiui.set_chat_mode("floating", position=(20, 20), size=(420, 550))
+    """
+    global _chat_mode
+    _chat_mode = {
+        "mode": mode,
+        "position": list(position) if position else [20, 20],
+        "size": list(size) if size else [400, 500],
+        "resizable": resizable,
+        "minimized": minimized,
+    }
+
+
+# Brand color set via aiui.set_brand_color()
+_brand_color: Optional[str] = None
+
+
+def set_brand_color(color: str) -> None:
+    """Set the brand/primary accent color.
+
+    This color is used for primary buttons, links, and highlights
+    throughout the UI. Overrides the theme's default accent color.
+
+    Args:
+        color: Hex color (e.g. "#6366f1") or CSS color value.
+
+    Example::
+
+        import praisonaiui as aiui
+        aiui.set_brand_color("#818cf8")  # Indigo-400
+    """
+    global _brand_color
+    _brand_color = color
+
+
+def set_sidebar_config(
+    *,
+    collapsible: bool = True,
+    default_collapsed: bool = False,
+    width: int = 260,
+    min_width: int = 200,
+    max_width: int = 360,
+) -> None:
+    """Configure sidebar behavior.
+
+    Args:
+        collapsible: Allow sidebar to be collapsed. Default True.
+        default_collapsed: Start with sidebar collapsed. Default False.
+        width: Default sidebar width in pixels. Default 260.
+        min_width: Minimum width when resizing. Default 200.
+        max_width: Maximum width when resizing. Default 360.
+
+    Example::
+
+        import praisonaiui as aiui
+        aiui.set_sidebar_config(collapsible=True, width=280)
+    """
+    global _dashboard_config
+    if _dashboard_config is None:
+        _dashboard_config = {}
+    _dashboard_config.update({
+        "sidebarCollapsible": collapsible,
+        "sidebarCollapsed": default_collapsed,
+        "sidebarWidth": width,
+        "sidebarMinWidth": min_width,
+        "sidebarMaxWidth": max_width,
+    })
+
+
 def register_theme(name: str, variables: dict[str, str]) -> None:
     """Register a custom theme preset via the protocol-driven ThemeManager.
 
@@ -1536,6 +1636,12 @@ def create_app(
             except Exception:
                 pass
 
+        # Chat mode config
+        _chat_mode_cfg = _chat_mode or {"mode": "fullpage"}
+
+        # Brand color
+        _brand = _brand_color
+
         return JSONResponse({
             "style": effective_style,
             "site": {
@@ -1543,9 +1649,13 @@ def create_app(
                 "logo": _logo,
                 "theme": _theme_cfg,
                 "customCss": _css,
+                **({
+                    "brandColor": _brand,
+                } if _brand else {}),
             },
             "chat": {
                 "enabled": effective_style in ("chat", "agents", "playground", "dashboard"),
+                "mode": _chat_mode_cfg,
                 **({
                     "features": _chat_features,
                 } if _chat_features else {}),

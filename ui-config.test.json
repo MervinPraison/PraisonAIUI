@@ -1,0 +1,1 @@
+{"style":"dashboard","site":{"title":"AI Chat","logo":"🤖","theme":{"preset":"teal-dark","darkMode":true,"radius":"md"},"customCss":null},"chat":{"enabled":true,"mode":{"mode":"fullpage"}},"dashboard":{"sidebar":false,"pageHeader":false},"debug":false}

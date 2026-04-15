@@ -83,17 +83,41 @@ RADIUS_MAP: Dict[str, str] = {
 }
 
 # Dark / light mode CSS variable sets
+# Extended with Multica-style tokens: brand, sidebar-specific, semantic colors
 MODE_VARS: Dict[str, Dict[str, str]] = {
     "dark": {
-        "--db-bg": "#0a0a0f",
-        "--db-sidebar-bg": "#111118",
-        "--db-text": "#e4e4e7",
-        "--db-text-dim": "#71717a",
-        "--db-border": "rgba(255,255,255,0.06)",
+        # Core background/text
+        "--db-bg": "#18181b",
+        "--db-sidebar-bg": "#18181b",
+        "--db-text": "#ffffff",
+        "--db-text-dim": "#a1a1aa",
+        "--db-border": "#3f3f46",
         "--db-card-bg": "rgba(255,255,255,0.03)",
-        "--db-hover": "rgba(255,255,255,0.04)",
+        "--db-hover": "#27272a",
+        # Multica-style extended tokens
+        "--db-canvas": "#000000",
+        "--db-popover": "#18181b",
+        "--db-muted": "#27272a",
+        "--db-muted-fg": "#a1a1aa",
+        # Semantic colors
+        "--db-success": "#22c55e",
+        "--db-success-bg": "rgba(34,197,94,0.12)",
+        "--db-warning": "#eab308",
+        "--db-warning-bg": "rgba(234,179,8,0.12)",
+        "--db-error": "#ef4444",
+        "--db-error-bg": "rgba(239,68,68,0.12)",
+        "--db-info": "#3b82f6",
+        "--db-info-bg": "rgba(59,130,246,0.12)",
+        # Sidebar-specific
+        "--db-sidebar-accent": "rgba(255,255,255,0.06)",
+        "--db-sidebar-accent-fg": "#e4e4e7",
+        "--db-sidebar-border": "rgba(255,255,255,0.06)",
+        # Scrollbar
+        "--db-scrollbar-thumb": "rgba(255,255,255,0.08)",
+        "--db-scrollbar-track": "transparent",
     },
     "light": {
+        # Core background/text
         "--db-bg": "#fafafa",
         "--db-sidebar-bg": "#f4f4f5",
         "--db-text": "#18181b",
@@ -101,6 +125,27 @@ MODE_VARS: Dict[str, Dict[str, str]] = {
         "--db-border": "rgba(0,0,0,0.08)",
         "--db-card-bg": "rgba(0,0,0,0.02)",
         "--db-hover": "rgba(0,0,0,0.04)",
+        # Multica-style extended tokens
+        "--db-canvas": "#f5f5f5",
+        "--db-popover": "#ffffff",
+        "--db-muted": "#e4e4e7",
+        "--db-muted-fg": "#71717a",
+        # Semantic colors
+        "--db-success": "#16a34a",
+        "--db-success-bg": "rgba(22,163,74,0.12)",
+        "--db-warning": "#ca8a04",
+        "--db-warning-bg": "rgba(202,138,4,0.12)",
+        "--db-error": "#dc2626",
+        "--db-error-bg": "rgba(220,38,38,0.12)",
+        "--db-info": "#2563eb",
+        "--db-info-bg": "rgba(37,99,235,0.12)",
+        # Sidebar-specific
+        "--db-sidebar-accent": "rgba(0,0,0,0.04)",
+        "--db-sidebar-accent-fg": "#18181b",
+        "--db-sidebar-border": "rgba(0,0,0,0.08)",
+        # Scrollbar
+        "--db-scrollbar-thumb": "rgba(0,0,0,0.10)",
+        "--db-scrollbar-track": "transparent",
     },
 }
 

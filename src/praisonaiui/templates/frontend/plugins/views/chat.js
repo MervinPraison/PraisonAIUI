@@ -24,6 +24,12 @@ let currentDeltaEl = null;
 let currentDeltaText = '';
 let pendingAttachments = [];  // { id, filename, content_type, preview_url }
 
+// ── Floating Chat State ──────────────────────────────────────────
+let chatModeConfig = { mode: 'fullpage' };
+let isMinimized = false;
+let isResizing = false;
+let floatingChatEl = null;
+
 // ── Helpers ──────────────────────────────────────────────────────
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -305,6 +311,114 @@ function injectStyles() {
     .chat-attach-item .attach-remove { cursor:pointer; color:var(--db-text-dim); font-size:14px; padding:0 2px; border:none; background:none; line-height:1; }
     .chat-attach-item .attach-remove:hover { color:#ef4444; }
     .chat-attach-item img.attach-thumb { width:24px; height:24px; object-fit:cover; border-radius:4px; }
+
+    /* ── Floating Chat Mode ─────────────────────────────────────── */
+    .chat-floating-container {
+      position: fixed;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      background: var(--db-sidebar-bg, #111118);
+      border: 1px solid var(--db-border);
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+      overflow: hidden;
+      transition: width 0.2s ease, height 0.2s ease, opacity 0.15s ease;
+    }
+    .chat-floating-container.minimized {
+      width: 60px !important;
+      height: 60px !important;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .chat-floating-container.minimized .chat-root,
+    .chat-floating-container.minimized .chat-floating-header { display: none; }
+    .chat-floating-container.minimized .chat-floating-fab { display: flex; }
+
+    .chat-floating-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--db-card-bg);
+      border-bottom: 1px solid var(--db-border);
+      cursor: move;
+      user-select: none;
+    }
+    .chat-floating-header-title {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .chat-floating-header-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .chat-floating-header-btn {
+      background: transparent;
+      border: 1px solid var(--db-border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--db-text-dim);
+      transition: all 0.15s;
+    }
+    .chat-floating-header-btn:hover {
+      background: var(--db-hover);
+      color: var(--db-text);
+    }
+
+    .chat-floating-fab {
+      display: none;
+      width: 100%;
+      height: 100%;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      background: var(--db-accent);
+      color: #fff;
+      border-radius: 50%;
+    }
+
+    .chat-floating-container .chat-root {
+      flex: 1;
+      height: auto;
+      border: none;
+      border-radius: 0;
+      min-height: 0;
+    }
+    .chat-floating-container .chat-sidebar-panel { display: none; }
+    .chat-floating-container .chat-main-panel { border-left: none; }
+    .chat-floating-container .chat-messages-area { padding: 12px; }
+    .chat-floating-container .chat-compose { padding: 10px 12px; }
+
+    /* Resize handles */
+    .chat-resize-handle {
+      position: absolute;
+      background: transparent;
+    }
+    .chat-resize-handle-n { top: 0; left: 10px; right: 10px; height: 6px; cursor: n-resize; }
+    .chat-resize-handle-s { bottom: 0; left: 10px; right: 10px; height: 6px; cursor: s-resize; }
+    .chat-resize-handle-e { right: 0; top: 10px; bottom: 10px; width: 6px; cursor: e-resize; }
+    .chat-resize-handle-w { left: 0; top: 10px; bottom: 10px; width: 6px; cursor: w-resize; }
+    .chat-resize-handle-ne { top: 0; right: 0; width: 12px; height: 12px; cursor: ne-resize; }
+    .chat-resize-handle-nw { top: 0; left: 0; width: 12px; height: 12px; cursor: nw-resize; }
+    .chat-resize-handle-se { bottom: 0; right: 0; width: 12px; height: 12px; cursor: se-resize; }
+    .chat-resize-handle-sw { bottom: 0; left: 0; width: 12px; height: 12px; cursor: sw-resize; }
+
+    /* Agent selector dropdown in floating mode */
+    .chat-floating-agent-select {
+      padding: 4px 8px;
+      background: var(--db-card-bg);
+      border: 1px solid var(--db-border);
+      border-radius: 6px;
+      color: var(--db-text);
+      font-size: 12px;
+      max-width: 120px;
+    }
   `;
   document.head.appendChild(style);
 }
@@ -328,10 +442,209 @@ function _getPlatformClass(platform) {
   return ['telegram','slack','discord','whatsapp','signal'].includes(key) ? 'plat-' + key : 'plat-default';
 }
 
+// ── Floating Chat Helpers ────────────────────────────────────────
+function createFloatingChat(config) {
+  const pos = config.position || [20, 20];
+  const size = config.size || [400, 500];
+  
+  const wrapper = document.createElement('div');
+  wrapper.className = 'chat-floating-container' + (config.minimized ? ' minimized' : '');
+  wrapper.id = 'chat-floating-wrapper';
+  wrapper.style.cssText = `
+    bottom: ${pos[0]}px;
+    right: ${pos[1]}px;
+    width: ${size[0]}px;
+    height: ${size[1]}px;
+  `;
+  
+  // FAB for minimized state
+  const fab = document.createElement('div');
+  fab.className = 'chat-floating-fab';
+  fab.innerHTML = '💬';
+  fab.addEventListener('click', () => toggleMinimize());
+  wrapper.appendChild(fab);
+  
+  // Header with drag + controls
+  const header = document.createElement('div');
+  header.className = 'chat-floating-header';
+  header.innerHTML = `
+    <div class="chat-floating-header-title">
+      <span>💬</span>
+      <span>Chat</span>
+      <select class="chat-floating-agent-select" id="chat-floating-agent">
+        <option value="">Auto</option>
+      </select>
+    </div>
+    <div class="chat-floating-header-actions">
+      <button class="chat-floating-header-btn" id="chat-float-minimize" title="Minimize">−</button>
+      <button class="chat-floating-header-btn" id="chat-float-close" title="Close">✕</button>
+    </div>
+  `;
+  wrapper.appendChild(header);
+  
+  // Chat content container
+  const chatContainer = document.createElement('div');
+  chatContainer.id = 'chat-floating-content';
+  chatContainer.style.cssText = 'flex:1;display:flex;flex-direction:column;min-height:0;';
+  wrapper.appendChild(chatContainer);
+  
+  // Resize handles (if resizable)
+  if (config.resizable !== false) {
+    ['n','s','e','w','ne','nw','se','sw'].forEach(dir => {
+      const handle = document.createElement('div');
+      handle.className = `chat-resize-handle chat-resize-handle-${dir}`;
+      handle.dataset.dir = dir;
+      wrapper.appendChild(handle);
+    });
+    setupResizeHandles(wrapper);
+  }
+  
+  // Drag functionality
+  setupDrag(wrapper, header);
+  
+  // Button events
+  header.querySelector('#chat-float-minimize').addEventListener('click', toggleMinimize);
+  header.querySelector('#chat-float-close').addEventListener('click', () => {
+    wrapper.style.display = 'none';
+  });
+  
+  document.body.appendChild(wrapper);
+  floatingChatEl = wrapper;
+  isMinimized = config.minimized || false;
+  
+  return chatContainer;
+}
+
+function toggleMinimize() {
+  if (!floatingChatEl) return;
+  isMinimized = !isMinimized;
+  floatingChatEl.classList.toggle('minimized', isMinimized);
+}
+
+function setupDrag(wrapper, header) {
+  let isDragging = false;
+  let startX, startY, startRight, startBottom;
+  
+  header.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    startRight = parseInt(wrapper.style.right) || 20;
+    startBottom = parseInt(wrapper.style.bottom) || 20;
+    document.body.style.userSelect = 'none';
+  });
+  
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = startX - e.clientX;
+    const dy = startY - e.clientY;
+    wrapper.style.right = Math.max(0, startRight + dx) + 'px';
+    wrapper.style.bottom = Math.max(0, startBottom + dy) + 'px';
+  });
+  
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+    document.body.style.userSelect = '';
+  });
+}
+
+function setupResizeHandles(wrapper) {
+  let resizeDir = null;
+  let startX, startY, startW, startH, startRight, startBottom;
+  
+  wrapper.querySelectorAll('.chat-resize-handle').forEach(handle => {
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      isResizing = true;
+      resizeDir = handle.dataset.dir;
+      startX = e.clientX;
+      startY = e.clientY;
+      startW = wrapper.offsetWidth;
+      startH = wrapper.offsetHeight;
+      startRight = parseInt(wrapper.style.right) || 20;
+      startBottom = parseInt(wrapper.style.bottom) || 20;
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = handle.style.cursor;
+    });
+  });
+  
+  document.addEventListener('mousemove', (e) => {
+    if (!isResizing || !resizeDir) return;
+    
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    const minW = 300, minH = 350, maxW = 800, maxH = 800;
+    
+    let newW = startW, newH = startH, newRight = startRight, newBottom = startBottom;
+    
+    if (resizeDir.includes('e')) {
+      newW = Math.min(maxW, Math.max(minW, startW - dx));
+      newRight = startRight + dx;
+    }
+    if (resizeDir.includes('w')) {
+      newW = Math.min(maxW, Math.max(minW, startW + dx));
+    }
+    if (resizeDir.includes('s')) {
+      newH = Math.min(maxH, Math.max(minH, startH - dy));
+      newBottom = startBottom + dy;
+    }
+    if (resizeDir.includes('n')) {
+      newH = Math.min(maxH, Math.max(minH, startH + dy));
+    }
+    
+    wrapper.style.width = newW + 'px';
+    wrapper.style.height = newH + 'px';
+    if (resizeDir.includes('e')) wrapper.style.right = Math.max(0, newRight) + 'px';
+    if (resizeDir.includes('s')) wrapper.style.bottom = Math.max(0, newBottom) + 'px';
+  });
+  
+  document.addEventListener('mouseup', () => {
+    isResizing = false;
+    resizeDir = null;
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+  });
+}
+
 // ── Main render (ES module entry point) ─────────────────────────
 export async function render(container) {
   injectStyles();
   containerRef = container;
+  
+  // Fetch chat mode config
+  try {
+    const configRes = await fetch('/ui-config.json');
+    const config = await configRes.json();
+    chatModeConfig = config.chat?.mode || { mode: 'fullpage' };
+  } catch (e) {
+    chatModeConfig = { mode: 'fullpage' };
+  }
+  
+  // If floating mode, create floating container and render into it
+  if (chatModeConfig.mode === 'floating') {
+    // Remove existing floating chat if present
+    const existing = document.getElementById('chat-floating-wrapper');
+    if (existing) existing.remove();
+    
+    const floatingContainer = createFloatingChat(chatModeConfig);
+    containerRef = floatingContainer;
+    container = floatingContainer;
+    
+    // Update floating agent selector when agents load
+    setTimeout(() => {
+      const floatAgentSel = document.getElementById('chat-floating-agent');
+      const mainAgentSel = document.getElementById('chat-agent-selector');
+      if (floatAgentSel && mainAgentSel) {
+        floatAgentSel.innerHTML = mainAgentSel.innerHTML;
+        floatAgentSel.addEventListener('change', (e) => {
+          currentAgentName = e.target.value || null;
+          if (mainAgentSel) mainAgentSel.value = e.target.value;
+        });
+      }
+    }, 500);
+  }
 
   container.innerHTML = `
     <div class="chat-root" id="chat-root">

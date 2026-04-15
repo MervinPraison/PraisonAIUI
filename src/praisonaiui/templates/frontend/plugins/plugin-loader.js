@@ -1,3 +1,5 @@
+console.log('[AIUI Loader] Starting...');
+
 /**
  * AIUI Plugin Loader
  * 
