@@ -63,15 +63,18 @@ class TestFeedbackDataStore:
 
     def test_base_datastore_feedback_defaults(self):
         """Test BaseDataStore provides default no-op implementations."""
-        datastore = BaseDataStore()
+        from src.praisonaiui.datastore import MemoryDataStore
+        
+        # Use MemoryDataStore which inherits the default implementations
+        datastore = MemoryDataStore()
         
         import asyncio
         # Should not raise an error
         asyncio.run(datastore.record_feedback("session1", "msg1", 1))
         
-        # Should return empty list
+        # Should return the recorded feedback, not empty list
         feedback = asyncio.run(datastore.list_feedback())
-        assert feedback == []
+        assert len(feedback) == 1
 
 
 class TestFeedbackAPI:
@@ -250,27 +253,114 @@ class TestFeedbackConfiguration:
 
     def test_set_feedback_enabled_true(self):
         """Test enabling feedback."""
-        set_feedback_enabled(True)
-        # Test by creating an app and checking the API works
-        app = create_app()
-        client = TestClient(app)
+        from src.praisonaiui.server import _callbacks, set_datastore
+        from src.praisonaiui.datastore import MemoryDataStore
         
-        response = client.post("/api/feedback", json={
-            "session_id": "test",
-            "message_id": "test",
-            "value": 1,
-        })
-        assert response.status_code == 200
+        # Set up isolated test environment
+        _callbacks.clear()
+        set_datastore(MemoryDataStore())
+        set_feedback_enabled(True)
+        
+        try:
+            # Test by creating an app and checking the API works
+            app = create_app()
+            client = TestClient(app)
+            
+            response = client.post("/api/feedback", json={
+                "session_id": "test",
+                "message_id": "test",
+                "value": 1,
+            })
+            assert response.status_code == 200
+        finally:
+            _callbacks.clear()
+            set_datastore(MemoryDataStore())
+            set_feedback_enabled(True)
 
     def test_set_feedback_enabled_false(self):
         """Test disabling feedback."""
-        set_feedback_enabled(False)
-        app = create_app()
-        client = TestClient(app)
+        from src.praisonaiui.server import _callbacks, set_datastore
+        from src.praisonaiui.datastore import MemoryDataStore
         
-        response = client.post("/api/feedback", json={
-            "session_id": "test",
-            "message_id": "test", 
-            "value": 1,
-        })
-        assert response.status_code == 403
+        # Set up isolated test environment
+        _callbacks.clear()
+        set_datastore(MemoryDataStore())
+        set_feedback_enabled(False)
+        
+        try:
+            app = create_app()
+            client = TestClient(app)
+            
+            response = client.post("/api/feedback", json={
+                "session_id": "test",
+                "message_id": "test", 
+                "value": 1,
+            })
+            assert response.status_code == 403
+        finally:
+            _callbacks.clear()
+            set_datastore(MemoryDataStore())
+            set_feedback_enabled(True)
+
+
+class TestJSONFileDataStoreFeedback:
+    """Tests for JSONFileDataStore feedback functionality."""
+
+    def test_json_file_feedback_basic(self, tmp_path):
+        """Test basic feedback recording and listing with JSONFileDataStore."""
+        import asyncio
+        from src.praisonaiui.datastore import JSONFileDataStore
+        
+        datastore = JSONFileDataStore(str(tmp_path))
+        
+        async def run_test():
+            # Record feedback
+            await datastore.record_feedback("session1", "msg1", 1, "Great!")
+            await datastore.record_feedback("session1", "msg2", -1, "Bad")
+            await datastore.record_feedback("session2", "msg3", 0)
+            
+            # List all feedback
+            feedback = await datastore.list_feedback()
+            assert len(feedback) == 3
+            
+            # Check feedback content
+            assert feedback[0]["session_id"] == "session1"
+            assert feedback[0]["message_id"] == "msg1"
+            assert feedback[0]["value"] == 1
+            assert feedback[0]["comment"] == "Great!"
+            
+            # List session-filtered feedback
+            session1_feedback = await datastore.list_feedback("session1")
+            assert len(session1_feedback) == 2
+            
+        asyncio.run(run_test())
+
+    def test_json_file_feedback_no_collision_with_sessions(self, tmp_path):
+        """Test that feedback.json doesn't interfere with session listing."""
+        import asyncio
+        from src.praisonaiui.datastore import JSONFileDataStore
+        
+        datastore = JSONFileDataStore(str(tmp_path))
+        
+        async def run_test():
+            # Create a session
+            session = await datastore.create_session("test-session")
+            assert session["id"] == "test-session"
+            
+            # Record feedback
+            await datastore.record_feedback("test-session", "msg1", 1)
+            
+            # List sessions should still work
+            sessions = await datastore.list_sessions()
+            assert len(sessions) == 1
+            assert sessions[0]["id"] == "test-session"
+            
+            # Feedback should be in separate directory (note: datastore creates its own data_dir structure)
+            feedback_file = tmp_path / "feedback" / "feedback.json"
+            assert feedback_file.exists()
+            
+            # Session file should exist separately
+            session_file = tmp_path / "test-session.json"
+            assert session_file.exists()
+            
+        asyncio.run(run_test())

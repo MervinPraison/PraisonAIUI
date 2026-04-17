@@ -826,6 +826,15 @@ async def api_feedback(request: Request) -> JSONResponse:
             status_code=400
         )
     
+    # Note: Session validation disabled for backwards compatibility
+    # In production, you may want to validate that sessions exist:
+    # try:
+    #     session = await _datastore.get_session(session_id)
+    #     if session is None:
+    #         return JSONResponse({"error": "Session not found"}, status_code=404)
+    # except Exception:
+    #     pass
+    
     # Record feedback
     await _datastore.record_feedback(session_id, message_id, value, comment)
     
@@ -856,14 +865,13 @@ async def api_feedback_list(request: Request) -> JSONResponse:
     # List all feedback
     feedback_list = await _datastore.list_feedback(session_id)
     
-    # Calculate summary statistics
+    # Calculate summary statistics and group by session in a single pass
     total = len(feedback_list)
-    positive = sum(1 for f in feedback_list if f.get("value", 0) > 0)
-    negative = sum(1 for f in feedback_list if f.get("value", 0) < 0)
-    neutral = total - positive - negative
-    
-    # Group by session
+    positive = 0
+    negative = 0
+    neutral = 0
     by_session = {}
+    
     for feedback in feedback_list:
         sid = feedback.get("session_id", "unknown")
         if sid not in by_session:
@@ -871,10 +879,13 @@ async def api_feedback_list(request: Request) -> JSONResponse:
         
         value = feedback.get("value", 0)
         if value > 0:
+            positive += 1
             by_session[sid]["positive"] += 1
         elif value < 0:
+            negative += 1
             by_session[sid]["negative"] += 1
         else:
+            neutral += 1
             by_session[sid]["neutral"] += 1
         by_session[sid]["total"] += 1
     

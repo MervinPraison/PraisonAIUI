@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, type FormEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -144,13 +144,16 @@ function FeedbackButtons({ messageId }: { messageId: string }) {
 
     const handleThumbsDown = useCallback(() => {
         if (feedback !== -1) {
+            // Submit negative feedback immediately and optionally show comment form
+            submitFeedback(-1)
             setShowComment(true)
         } else {
-            submitFeedback(-1)
+            // Already negative, toggle off comment form
+            setShowComment(false)
         }
     }, [feedback, submitFeedback])
 
-    const handleCommentSubmit = useCallback((e: React.FormEvent) => {
+    const handleCommentSubmit = useCallback((e: FormEvent) => {
         e.preventDefault()
         submitFeedback(-1, comment)
     }, [comment, submitFeedback])

@@ -7,12 +7,20 @@
 
 let sessionFilter = '';
 
+// HTML escape function to prevent XSS
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
 
   let feedbackData = {};
   try { 
-    const url = sessionFilter ? `/api/feedback?session_id=${sessionFilter}` : '/api/feedback';
+    const url = sessionFilter ? `/api/feedback?session_id=${encodeURIComponent(sessionFilter)}` : '/api/feedback';
     const r = await fetch(url); 
     feedbackData = await r.json(); 
   } catch(e) {
@@ -117,13 +125,13 @@ export async function render(container) {
               <div style="flex:1">
                 <div style="display:flex;justify-content:space-between;margin-bottom:4px">
                   <span style="font-family:monospace;font-size:11px;color:var(--db-text-muted)">
-                    ${item.session_id?.slice(0, 12)}...
+                    ${escapeHtml(item.session_id?.slice(0, 12))}...
                   </span>
                   <span style="font-size:11px;color:var(--db-text-muted)">${date}</span>
                 </div>
                 ${item.comment ? `
                   <div style="background:var(--db-bg);padding:8px;border-radius:6px;font-size:12px;color:var(--db-text);border-left:3px solid ${color}">
-                    "${item.comment}"
+                    "${escapeHtml(item.comment)}"
                   </div>
                 ` : `
                   <div style="font-size:12px;color:var(--db-text-muted);font-style:italic">

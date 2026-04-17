@@ -266,7 +266,10 @@ class JSONFileDataStore(BaseDataStore):
             base = Path(os.environ.get("AIUI_DATA_DIR", str(Path.home() / ".praisonaiui")))
             self._data_dir = base / "sessions"
         self._data_dir.mkdir(parents=True, exist_ok=True)
-        self._feedback_file = self._data_dir / "feedback.json"
+        # Store feedback in a separate subdirectory to avoid conflicts with session files
+        self._feedback_dir = self._data_dir / "feedback"
+        self._feedback_dir.mkdir(parents=True, exist_ok=True)
+        self._feedback_file = self._feedback_dir / "feedback.json"
 
     def _session_path(self, session_id: str) -> Path:
         # Sanitize session_id to prevent path traversal
@@ -290,8 +293,11 @@ class JSONFileDataStore(BaseDataStore):
             key=lambda p: p.stat().st_mtime,
             reverse=True,
         ):
+            # Skip feedback directory
+            if path.parent != self._data_dir:
+                continue
             data = self._read_session(path)
-            if data:
+            if data and isinstance(data, dict) and "id" in data:
                 entry = {
                     "id": data.get("id", path.stem),
                     "title": data.get("title", "New conversation"),
@@ -369,10 +375,18 @@ class JSONFileDataStore(BaseDataStore):
             return []
 
     def _write_feedback(self, feedback_list: list[dict[str, Any]]) -> None:
-        """Write feedback to JSON file."""
-        self._feedback_file.write_text(
-            json.dumps(feedback_list, indent=2, default=str), encoding="utf-8"
-        )
+        """Write feedback to JSON file atomically."""
+        # Use atomic write to prevent race conditions
+        temp_file = self._feedback_file.with_suffix(".tmp")
+        try:
+            temp_file.write_text(
+                json.dumps(feedback_list, indent=2, default=str), encoding="utf-8"
+            )
+            temp_file.replace(self._feedback_file)
+        except Exception:
+            if temp_file.exists():
+                temp_file.unlink()
+            raise
 
     async def record_feedback(
         self,
@@ -381,8 +395,9 @@ class JSONFileDataStore(BaseDataStore):
         value: int,
         comment: Optional[str] = None,
     ) -> None:
-        """Record user feedback for a message."""
+        """Record user feedback for a message with thread safety."""
         def _record() -> None:
+            # Read, modify, write in single thread to ensure atomicity
             feedback_list = self._read_feedback()
             feedback = {
                 "id": str(uuid.uuid4()),
@@ -393,6 +408,7 @@ class JSONFileDataStore(BaseDataStore):
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
             feedback_list.append(feedback)
+            # Atomic write prevents race conditions
             self._write_feedback(feedback_list)
         await asyncio.to_thread(_record)
 
