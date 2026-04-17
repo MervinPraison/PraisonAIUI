@@ -1,0 +1,68 @@
+name: Auto PR Comment
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  trigger-claude:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check whether Claude already triggered
+        id: check_claude
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = context.issue.number;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number,
+              per_page: 100
+            });
+
+            const already = comments.some((c) =>
+              c.user?.login === 'github-actions[bot]' &&
+              (c.body || '').includes('@claude')
+            );
+
+            core.setOutput('already_triggered', already ? 'true' : 'false');
+
+      - name: Post Claude trigger prompt
+        if: steps.check_claude.outputs.already_triggered != 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const body = `@claude You are the FINAL architecture reviewer. If the branch is under MervinPraison/PraisonAIUI (not a fork), you are able to make modifications to this branch and push directly. SCOPE: Focus ONLY on PraisonAIUI package and docs (src/praisonaiui, tests, docs). Read ALL comments above from reviewers carefully before responding.
+
+            **Phase 1: Review per AGENTS.md**
+            1. Keep changes minimal and focused
+            2. Backward compatible: ensure zero feature regressions
+            3. Performance: no hot-path regressions
+
+            **Phase 2: FIX Valid Issues**
+            4. For any VALID bugs or architectural flaws found by reviewers: implement the fix
+            5. Push all code fixes directly to THIS branch (do NOT create a new PR)
+            6. Comment a summary of exact files modified and what you skipped
+
+            **Phase 3: Final Verdict**
+            7. If all issues are resolved, approve the PR / close linked issue
+            8. If blocking issues remain, clearly list blockers with exact file paths`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
