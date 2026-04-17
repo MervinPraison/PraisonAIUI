@@ -29,7 +29,7 @@ def __getattr__(name: str):
                       "set_provider", "get_provider", "set_style", "set_pages", "remove_page",
                       "set_branding", "set_theme", "set_custom_css", "register_theme",
                       "set_chat_features", "set_dashboard", "set_chat_mode", "set_brand_color",
-                      "set_sidebar_config"}
+                      "set_sidebar_config", "set_feedback_enabled"}
     _datastore_attrs = {"BaseDataStore", "MemoryDataStore", "JSONFileDataStore"}
     _provider_attrs = {"BaseProvider", "RunEvent", "RunEventType"}
     _providers_attrs = {"PraisonAIProvider"}
@@ -140,6 +140,7 @@ __all__ = [
     "set_chat_mode",
     "set_brand_color",
     "set_sidebar_config",
+    "set_feedback_enabled",
     "register_theme",
     "set_pages",
     "remove_page",

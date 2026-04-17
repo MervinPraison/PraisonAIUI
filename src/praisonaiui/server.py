@@ -87,6 +87,8 @@ _custom_css: Optional[str] = None
 _chat_features: Optional[dict[str, Any]] = None
 # Dashboard config set via aiui.set_dashboard()
 _dashboard_config: Optional[dict[str, Any]] = None
+# Feedback configuration
+_feedback_enabled: bool = True
 
 
 def reset_state() -> None:
@@ -97,7 +99,7 @@ def reset_state() -> None:
     """
     global _style, _branding, _theme, _custom_css, _chat_features
     global _dashboard_config, _provider, _config_path, _config_cache
-    global _chat_mode, _brand_color, _effective_style, _selected_profile
+    global _chat_mode, _brand_color, _effective_style, _selected_profile, _feedback_enabled
     _callbacks.clear()
     _agents.clear()
     _pages.clear()
@@ -123,6 +125,7 @@ def reset_state() -> None:
     _brand_color = None
     _effective_style = "chat"
     _selected_profile = {"id": None}
+    _feedback_enabled = True
     # Reset ThemeManager singleton (custom themes, mode, etc.)
     try:
         from praisonaiui.features.theme import reset_theme_manager
@@ -441,6 +444,19 @@ def remove_page(page_id: str) -> None:
     """
     _pages.pop(page_id, None)
     _custom_page_ids.discard(page_id)
+
+
+def set_feedback_enabled(enabled: bool = True) -> None:
+    """Enable or disable per-message feedback (thumbs up/down).
+    
+    When enabled, thumbs up/down buttons appear on assistant messages
+    and feedback is stored via the datastore's record_feedback method.
+    
+    Args:
+        enabled: Whether to enable feedback (default: True)
+    """
+    global _feedback_enabled
+    _feedback_enabled = enabled
 
 
 def get_style() -> Optional[str]:
@@ -780,6 +796,110 @@ async def patch_session(request: Request) -> JSONResponse:
 # ---------------------------------------------------------------------------
 # Dashboard API endpoints
 # ---------------------------------------------------------------------------
+
+async def api_feedback(request: Request) -> JSONResponse:
+    """Record user feedback for a message."""
+    if not _feedback_enabled:
+        return JSONResponse({"error": "Feedback is disabled"}, status_code=403)
+        
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+    
+    # Validate required fields
+    session_id = body.get("session_id")
+    message_id = body.get("message_id") 
+    value = body.get("value")
+    comment = body.get("comment")
+    
+    if not session_id or not message_id or value is None:
+        return JSONResponse(
+            {"error": "Missing required fields: session_id, message_id, value"}, 
+            status_code=400
+        )
+    
+    # Validate value range
+    if value not in [-1, 0, 1]:
+        return JSONResponse(
+            {"error": "value must be -1, 0, or 1"}, 
+            status_code=400
+        )
+    
+    # Note: Session validation disabled for backwards compatibility
+    # In production, you may want to validate that sessions exist:
+    # try:
+    #     session = await _datastore.get_session(session_id)
+    #     if session is None:
+    #         return JSONResponse({"error": "Session not found"}, status_code=404)
+    # except Exception:
+    #     pass
+    
+    # Record feedback
+    await _datastore.record_feedback(session_id, message_id, value, comment)
+    
+    # Fire callback hook
+    feedback_cb = _callbacks.get("on:feedback")
+    if feedback_cb:
+        try:
+            await feedback_cb({
+                "session_id": session_id,
+                "message_id": message_id,
+                "value": value,
+                "comment": comment,
+            })
+        except Exception:
+            pass  # Don't fail the API if callback fails
+    
+    return JSONResponse({"status": "recorded"})
+
+
+async def api_feedback_list(request: Request) -> JSONResponse:
+    """List feedback with summary statistics."""
+    if not _feedback_enabled:
+        return JSONResponse({"error": "Feedback is disabled"}, status_code=403)
+    
+    # Get optional session filter
+    session_id = request.query_params.get('session_id')
+    
+    # List all feedback
+    feedback_list = await _datastore.list_feedback(session_id)
+    
+    # Calculate summary statistics and group by session in a single pass
+    total = len(feedback_list)
+    positive = 0
+    negative = 0
+    neutral = 0
+    by_session = {}
+    
+    for feedback in feedback_list:
+        sid = feedback.get("session_id", "unknown")
+        if sid not in by_session:
+            by_session[sid] = {"positive": 0, "negative": 0, "neutral": 0, "total": 0}
+        
+        value = feedback.get("value", 0)
+        if value > 0:
+            positive += 1
+            by_session[sid]["positive"] += 1
+        elif value < 0:
+            negative += 1
+            by_session[sid]["negative"] += 1
+        else:
+            neutral += 1
+            by_session[sid]["neutral"] += 1
+        by_session[sid]["total"] += 1
+    
+    return JSONResponse({
+        "feedback": feedback_list,
+        "summary": {
+            "total": total,
+            "positive": positive,
+            "negative": negative, 
+            "neutral": neutral,
+            "by_session": by_session,
+        }
+    })
+
 
 async def api_overview(request: Request) -> JSONResponse:
     """Dashboard overview — health, version, stats."""
@@ -1765,6 +1885,8 @@ def create_app(
         Route("/agents/{agent_id}/runs", run_agent_by_id, methods=["POST"]),
         Route("/api/agents/{agent_id}/runs", run_agent_by_id, methods=["POST"]),
         # Dashboard API
+        Route("/api/feedback", api_feedback, methods=["POST"]),
+        Route("/api/feedback", api_feedback_list, methods=["GET"]),
         Route("/api/overview", api_overview, methods=["GET"]),
         Route("/api/status", api_overview, methods=["GET"]),  # alias for CLI parity
         Route("/api/config", api_config_handler, methods=["GET", "PUT"]),
@@ -1870,6 +1992,8 @@ def create_app(
          "description": "Manage conversation sessions", "order": 20},
         {"id": "usage", "title": "Usage", "icon": "📈", "group": "Control",
          "description": "Token usage and metrics", "order": 30},
+        {"id": "feedback", "title": "Feedback", "icon": "👍", "group": "Control",
+         "description": "Message feedback analytics", "order": 25},
         {"id": "cron", "title": "Cron", "icon": "⏰", "group": "Agent",
          "description": "Scheduled jobs", "order": 35},
         {"id": "jobs", "title": "Jobs", "icon": "📋", "group": "Control",

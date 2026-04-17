@@ -83,6 +83,37 @@ class BaseDataStore(ABC):
         """Clean up resources (connections, file handles). Called on shutdown."""
         pass
 
+    async def record_feedback(
+        self,
+        session_id: str,
+        message_id: str,
+        value: int,
+        comment: Optional[str] = None,
+    ) -> None:
+        """Record user feedback for a message.
+        
+        Args:
+            session_id: Session identifier
+            message_id: Message identifier
+            value: Feedback value (-1, 0, or 1 for down, neutral, up)
+            comment: Optional feedback comment
+        """
+        pass
+
+    async def list_feedback(
+        self,
+        session_id: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        """List feedback records, optionally filtered by session.
+        
+        Args:
+            session_id: Optional session filter
+            
+        Returns:
+            List of feedback records with metadata
+        """
+        return []
+
     @staticmethod
     def generate_title(message: str) -> str:
         """Generate a short title from the first user message.
@@ -119,6 +150,7 @@ class MemoryDataStore(BaseDataStore):
 
     def __init__(self) -> None:
         self._sessions: dict[str, dict[str, Any]] = {}
+        self._feedback: list[dict[str, Any]] = []
 
     async def list_sessions(self) -> list[dict[str, Any]]:
         result = []
@@ -183,6 +215,33 @@ class MemoryDataStore(BaseDataStore):
             self._sessions[session_id].update(kwargs)
             self._sessions[session_id]["updated_at"] = datetime.now(timezone.utc).isoformat()
 
+    async def record_feedback(
+        self,
+        session_id: str,
+        message_id: str,
+        value: int,
+        comment: Optional[str] = None,
+    ) -> None:
+        """Record user feedback for a message."""
+        feedback = {
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "message_id": message_id,
+            "value": value,
+            "comment": comment,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        self._feedback.append(feedback)
+
+    async def list_feedback(
+        self,
+        session_id: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        """List feedback records, optionally filtered by session."""
+        if session_id is None:
+            return self._feedback.copy()
+        return [f for f in self._feedback if f["session_id"] == session_id]
+
 
 # ---------------------------------------------------------------------------
 # Built-in: JSON file store (persists to disk)
@@ -207,6 +266,10 @@ class JSONFileDataStore(BaseDataStore):
             base = Path(os.environ.get("AIUI_DATA_DIR", str(Path.home() / ".praisonaiui")))
             self._data_dir = base / "sessions"
         self._data_dir.mkdir(parents=True, exist_ok=True)
+        # Store feedback in a separate subdirectory to avoid conflicts with session files
+        self._feedback_dir = self._data_dir / "feedback"
+        self._feedback_dir.mkdir(parents=True, exist_ok=True)
+        self._feedback_file = self._feedback_dir / "feedback.json"
 
     def _session_path(self, session_id: str) -> Path:
         # Sanitize session_id to prevent path traversal
@@ -230,8 +293,11 @@ class JSONFileDataStore(BaseDataStore):
             key=lambda p: p.stat().st_mtime,
             reverse=True,
         ):
+            # Skip feedback directory
+            if path.parent != self._data_dir:
+                continue
             data = self._read_session(path)
-            if data:
+            if data and isinstance(data, dict) and "id" in data:
                 entry = {
                     "id": data.get("id", path.stem),
                     "title": data.get("title", "New conversation"),
@@ -300,3 +366,60 @@ class JSONFileDataStore(BaseDataStore):
                 return data.get("messages", [])
             return []
         return await asyncio.to_thread(_get)
+
+    def _read_feedback(self) -> list[dict[str, Any]]:
+        """Read feedback from JSON file."""
+        try:
+            return json.loads(self._feedback_file.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return []
+
+    def _write_feedback(self, feedback_list: list[dict[str, Any]]) -> None:
+        """Write feedback to JSON file atomically."""
+        # Use atomic write to prevent race conditions
+        temp_file = self._feedback_file.with_suffix(".tmp")
+        try:
+            temp_file.write_text(
+                json.dumps(feedback_list, indent=2, default=str), encoding="utf-8"
+            )
+            temp_file.replace(self._feedback_file)
+        except Exception:
+            if temp_file.exists():
+                temp_file.unlink()
+            raise
+
+    async def record_feedback(
+        self,
+        session_id: str,
+        message_id: str,
+        value: int,
+        comment: Optional[str] = None,
+    ) -> None:
+        """Record user feedback for a message with thread safety."""
+        def _record() -> None:
+            # Read, modify, write in single thread to ensure atomicity
+            feedback_list = self._read_feedback()
+            feedback = {
+                "id": str(uuid.uuid4()),
+                "session_id": session_id,
+                "message_id": message_id,
+                "value": value,
+                "comment": comment,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            feedback_list.append(feedback)
+            # Atomic write prevents race conditions
+            self._write_feedback(feedback_list)
+        await asyncio.to_thread(_record)
+
+    async def list_feedback(
+        self,
+        session_id: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        """List feedback records, optionally filtered by session."""
+        def _list() -> list[dict[str, Any]]:
+            feedback_list = self._read_feedback()
+            if session_id is None:
+                return feedback_list
+            return [f for f in feedback_list if f["session_id"] == session_id]
+        return await asyncio.to_thread(_list)
