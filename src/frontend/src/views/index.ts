@@ -17,6 +17,7 @@ import { ConfigView } from './ConfigView'
 import { LogsView } from './LogsView'
 import { UsageView } from './UsageView'
 import { DebugView } from './DebugView'
+import { RealtimeView } from './RealtimeView'
 import { CustomPageView } from './CustomPageView'
 
 /** Registry of built-in page components, keyed by page ID */
@@ -28,6 +29,7 @@ export const BUILTIN_VIEWS: Record<string, ComponentType<DashboardPageProps>> = 
     logs: LogsView as unknown as ComponentType<DashboardPageProps>,
     usage: UsageView as unknown as ComponentType<DashboardPageProps>,
     debug: DebugView as unknown as ComponentType<DashboardPageProps>,
+    realtime: RealtimeView as unknown as ComponentType<DashboardPageProps>,
 }
 
 /**
