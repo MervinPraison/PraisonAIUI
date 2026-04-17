@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Message Elements - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Message Elements | PraisonAIUI Docs</title>
+  <script>
+    // Anti-flicker: apply dark mode class before first paint
+    // Default to dark to prevent flash; React will correct if needed
+    document.documentElement.classList.add('dark');
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/message-elements" />
+  <meta property="og:title" content="Message Elements | PraisonAIUI Docs" />
+  <meta property="og:description" content="Message Elements - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/message-elements" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Message Elements | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Message Elements - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Message Elements</h1>
+<p>PraisonAIUI supports rich inline message elements for displaying images, PDFs, videos, audio, files, and code blocks within chat messages. This provides Chainlit-style element rendering parity for seamless migration.</p>
+<h2>Element Types</h2>
+<h3>1. Image Elements</h3>
+<p>Display images with thumbnail and click-to-zoom functionality.</p>
+<p>**Properties:**</p>
+<li>`url` (required): Image URL</li>
+<li>`name` (optional): Display name</li>
+<li>`alt` (optional): Alt text for accessibility</li>
+<li>`display` (optional): Display mode - "inline" (default), "side", "page"</li>
+<li>`width` (optional): Fixed width in pixels</li>
+<li>`height` (optional): Fixed height in pixels</li>
+<h3>2. PDF Elements</h3>
+<p>Display PDF documents with inline viewer or link to open in new tab.</p>
+<p>**Properties:**</p>
+<li>`url` (required): PDF URL</li>
+<li>`name` (optional): Display name</li>
+<li>`display` (optional):</li>
+<li>`"inline"`: Embedded PDF viewer (600px height)</li>
+<li>`"side"`: Smaller embedded viewer (400px height)</li>
+<li>`"page"`: Link to open in new tab</li>
+<h3>3. Video Elements</h3>
+<p>Display videos with native HTML5 video player.</p>
+<p>**Properties:**</p>
+<li>`url` (required): Video URL</li>
+<li>`name` (optional): Display name</li>
+<li>`controls` (optional): Show video controls (default: True)</li>
+<li>`autoplay` (optional): Auto-play video (default: False)</li>
+<li>`loop` (optional): Loop video (default: False)</li>
+<h3>4. Audio Elements</h3>
+<p>Display audio with native HTML5 audio player.</p>
+<p>**Properties:**</p>
+<li>`url` (required): Audio URL</li>
+<li>`name` (optional): Display name</li>
+<li>`controls` (optional): Show audio controls (default: True)</li>
+<li>`autoplay` (optional): Auto-play audio (default: False)</li>
+<li>`loop` (optional): Loop audio (default: False)</li>
+<h3>5. File Elements</h3>
+<p>Display downloadable files with file type icons and size information.</p>
+<p>**Properties:**</p>
+<li>`url` (required): File download URL</li>
+<li>`name` (optional): Display name</li>
+<li>`size` (optional): File size in bytes</li>
+<li>`mime_type` (optional): MIME type for file type detection</li>
+<h3>6. Code Elements</h3>
+<p>Display syntax-highlighted code blocks with copy functionality.</p>
+<p>**Properties:**</p>
+<li>`content` (required): Code content</li>
+<li>`language` (optional): Programming language for syntax highlighting</li>
+<li>`name` (optional): Display name</li>
+<h2>Display Modes</h2>
+<p>All elements support three display modes:</p>
+<li>**`inline`** (default): Full width, normal display</li>
+<li>**`side`**: Smaller size, suitable for sidebars</li>
+<li>**`page`**: Full page width, maximum size</li>
+<h2>Size Limits</h2>
+<li>**File elements**: Maximum 100MB per file</li>
+<li>**Code elements**: Maximum 1MB per code block</li>
+<li>**Images**: No size limit (browser-dependent)</li>
+<h2>Accessibility Features</h2>
+<li>**Images**: Alt text support, keyboard navigation for zoom</li>
+<li>**PDFs**: Proper ARIA labels and roles</li>
+<li>**Videos/Audio**: Native browser accessibility</li>
+<li>**Files**: Icon-based file type recognition</li>
+<li>**Code**: Copy button with keyboard support</li>
+<h2>Migration from Chainlit</h2>
+<p>PraisonAIUI elements provide direct parity with Chainlit elements:</p>
+<p>| Chainlit | PraisonAIUI |</p>
+<p>|----------|-------------|</p>
+<p>| `cl.Image()` | `msg.add_image()` |</p>
+<p>| `cl.Pdf()` | `msg.add_pdf()` |</p>
+<p>| `cl.Video()` | `msg.add_video()` |</p>
+<p>| `cl.Audio()` | `msg.add_audio()` |</p>
+<p>| `cl.File()` | `msg.add_file()` |</p>
+<p>| Code blocks | `msg.add_code()` |</p>
+<h2>Low-Level API</h2>
+<p>For advanced use cases, you can use the low-level element API:</p>
+<h2>Legacy Support</h2>
+<p>The new element system maintains backward compatibility with existing message properties:</p>
+<li>`message.images` (still supported)</li>
+<li>`message.files` (still supported)</li>
+<li>New `message.elements` takes precedence when both are present</li>
+<p>This ensures existing code continues to work while providing a migration path to the new standardized element system.</p></noscript></div>
+</body>
+
+</html>
