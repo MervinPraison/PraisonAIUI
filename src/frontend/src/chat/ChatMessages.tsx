@@ -5,6 +5,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { ChatMessage, ToolCall } from '../types'
 import { ToolCallDisplay } from './ToolCallDisplay'
+import { ElementRenderer } from './MultimediaElements'
 
 interface ChatMessagesProps {
     messages: ChatMessage[]
@@ -436,6 +437,21 @@ function MessageBubble({ message }: MessageBubbleProps) {
                     </div>
                 )}
                 <MarkdownContent content={message.content} />
+                
+                {/* New standardized elements rendering */}
+                {message.elements && message.elements.length > 0 && (
+                    <div className="mt-3 space-y-3">
+                        {message.elements.map((element, i) => (
+                            <ElementRenderer 
+                                key={i} 
+                                element={element} 
+                                className="w-full" 
+                            />
+                        ))}
+                    </div>
+                )}
+                
+                {/* Legacy format support for backward compatibility */}
                 {message.images && message.images.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
                         {message.images.map((url, i) => (
