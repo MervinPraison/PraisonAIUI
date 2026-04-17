@@ -49,6 +49,16 @@ graph = [
     "chromadb>=1.0.0",
 ]
 
+sql = [
+    "sqlalchemy[asyncio]>=2.0.0",
+    "aiosqlite>=0.19.0",
+]
+
+postgres = [
+    "aiui[sql]",
+    "asyncpg>=0.29.0",
+]
+
 praisonai = [
     # Core agents SDK with knowledge support
     "praisonaiagents[knowledge,search,crawl]>=1.5.56",
@@ -77,6 +87,8 @@ all = [
     "aiui[memory]",
     "aiui[knowledge]",
     "aiui[graph]",
+    "aiui[sql]",
+    "aiui[postgres]",
     "aiui[praisonai]",
     "aiui[bot]",
 ]
