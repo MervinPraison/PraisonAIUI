@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Steps / Chain-of-Thought - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Steps / Chain-of-Thought | PraisonAIUI Docs</title>
+  <script>
+    // Anti-flicker: apply dark mode class before first paint
+    // Default to dark to prevent flash; React will correct if needed
+    document.documentElement.classList.add('dark');
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/steps" />
+  <meta property="og:title" content="Steps / Chain-of-Thought | PraisonAIUI Docs" />
+  <meta property="og:description" content="Steps / Chain-of-Thought - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/steps" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Steps / Chain-of-Thought | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Steps / Chain-of-Thought - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Steps / Chain-of-Thought</h1>
+<p>Visualize agent reasoning and tool calls as collapsible, nested steps in the chat interface.</p>
+<h2>Basic Usage</h2>
+<h2>Nested Steps</h2>
+<p>Steps can be nested to show hierarchical reasoning:</p>
+<h2>Step Types</h2>
+<p>Common step patterns:</p>
+<h2>Frontend Visualization</h2>
+<p>Steps appear in the chat as collapsible panels showing:</p>
+<li>**Icons** indicating step type (🔧 🧠 🤖 📚 ⚡)</li>
+<li>**Expandable content** with input/output details</li>
+<li>**Nested hierarchy** for complex reasoning chains</li>
+<li>**Real-time updates** as steps stream content</li>
+<h2>API Reference</h2>
+<h3>`aiui.Step(name, parent=None, metadata={})`</h3>
+<p>**Parameters:**</p>
+<li>`name` (str): Display name for the step</li>
+<li>`parent` (Step, optional): Parent step for nesting</li>
+<li>`metadata` (dict, optional): Additional step metadata</li>
+<p>**Methods:**</p>
+<li>`async stream_token(token)`: Stream content to the step</li>
+<li>Context manager protocol: `async with step: ...`</li>
+<h3>Events Emitted</h3>
+<p>Steps emit these `RunEventType` events:</p>
+<li>`REASONING_STARTED`: Step begins</li>
+<li>`REASONING_STEP`: Content streamed</li>
+<li>`REASONING_COMPLETED`: Step finishes</li>
+<h2>Chainlit Migration</h2>
+<p>Direct replacement for `cl.Step`:</p></noscript></div>
+</body>
+
+</html>
