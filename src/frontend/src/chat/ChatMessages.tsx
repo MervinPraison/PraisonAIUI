@@ -103,6 +103,123 @@ function CopyButton({ text }: { text: string }) {
     )
 }
 
+// -- Feedback buttons --
+function FeedbackButtons({ messageId }: { messageId: string }) {
+    const [feedback, setFeedback] = useState<number | null>(null)
+    const [showComment, setShowComment] = useState(false)
+    const [comment, setComment] = useState('')
+
+    const submitFeedback = useCallback(async (value: number, feedbackComment?: string) => {
+        try {
+            const response = await fetch('/api/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    session_id: new URLSearchParams(window.location.search).get('session') || 'default',
+                    message_id: messageId,
+                    value: value,
+                    comment: feedbackComment || null,
+                }),
+            })
+
+            if (response.ok) {
+                setFeedback(value)
+                if (showComment) {
+                    setShowComment(false)
+                    setComment('')
+                }
+            }
+        } catch (error) {
+            console.error('Failed to submit feedback:', error)
+        }
+    }, [messageId, showComment])
+
+    const handleThumbsUp = useCallback(() => {
+        if (feedback !== 1) {
+            submitFeedback(1)
+        }
+    }, [feedback, submitFeedback])
+
+    const handleThumbsDown = useCallback(() => {
+        if (feedback !== -1) {
+            setShowComment(true)
+        } else {
+            submitFeedback(-1)
+        }
+    }, [feedback, submitFeedback])
+
+    const handleCommentSubmit = useCallback((e: React.FormEvent) => {
+        e.preventDefault()
+        submitFeedback(-1, comment)
+    }, [comment, submitFeedback])
+
+    return (
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+            <button
+                onClick={handleThumbsUp}
+                className={`p-1 rounded hover:bg-accent transition-colors ${
+                    feedback === 1 ? 'text-green-600' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Good response"
+                disabled={feedback !== null}
+            >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M7 10v12" />
+                    <path d="M15 5.88L14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z" />
+                </svg>
+            </button>
+            <button
+                onClick={handleThumbsDown}
+                className={`p-1 rounded hover:bg-accent transition-colors ${
+                    feedback === -1 ? 'text-red-600' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Poor response"
+                disabled={feedback !== null && feedback !== -1}
+            >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 14V2" />
+                    <path d="M9 18.12L10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z" />
+                </svg>
+            </button>
+            
+            {showComment && (
+                <div className="absolute z-10 mt-2 p-2 bg-popover border rounded-md shadow-md min-w-[200px] top-6 left-0">
+                    <form onSubmit={handleCommentSubmit} className="space-y-2">
+                        <textarea
+                            value={comment}
+                            onChange={(e) => setComment(e.target.value)}
+                            placeholder="What could be better?"
+                            className="w-full p-2 text-xs border rounded resize-none"
+                            rows={3}
+                            autoFocus
+                        />
+                        <div className="flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowComment(false)
+                                    setComment('')
+                                }}
+                                className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded"
+                            >
+                                Submit
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+        </div>
+    )
+}
+
 // -- Code block with copy --
 // -- Dedent: strips leading/trailing blank lines and common indentation --
 // Needed because code blocks inside list items carry list-indent whitespace,
@@ -340,8 +457,9 @@ function MessageBubble({ message }: MessageBubbleProps) {
                         ))}
                     </div>
                 )}
-                <div className="mt-1 flex items-center gap-1">
+                <div className="mt-1 flex items-center gap-1 relative">
                     <CopyButton text={message.content} />
+                    <FeedbackButtons messageId={message.id} />
                 </div>
             </div>
         </div>
