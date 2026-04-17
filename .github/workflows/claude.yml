@@ -8,6 +8,7 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  actions: read
   id-token: write
 
 jobs:
@@ -26,6 +27,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ github.event.issue.pull_request && format('refs/pull/{0}/head', github.event.issue.number) || github.event.repository.default_branch }}
 
       - name: Run Claude Code Action
@@ -53,7 +55,7 @@ jobs:
             Read the issue and all comments. Implement what the issue describes with minimal, focused changes.
 
             STEP 2 — BRANCH (single name; reuse in STEP 4):
-            BRANCH="claude/issue-${{ env.ISSUE_NUMBER_RESOLVED }}-$(date +%Y%m%d)"
+            BRANCH="claude/issue-${{ env.ISSUE_NUMBER_RESOLVED }}-$(date +%Y%m%d-%H%M%S)"
             git checkout -b "$BRANCH"
 
             STEP 3 — TEST / VERIFY:
@@ -63,8 +65,14 @@ jobs:
             git add -A
             git commit -m "feat: <short summary> (fixes #${{ env.ISSUE_NUMBER_RESOLVED }})"
             git push -u origin "$BRANCH"
-            gh pr create --base main --head "$BRANCH" --title "feat: <short title>" --body "Fixes #${{ env.ISSUE_NUMBER_RESOLVED }}"
-            Do not stop after push only. Do not ask a human to open the PR. Finish only when `gh pr create` prints a PR URL. If a PR already exists for this branch, comment with the URL instead of failing silently.
+            REPO="${{ github.repository }}"
+            COUNT=$(gh pr list --repo "$REPO" --head "$BRANCH" --json number --jq 'length')
+            if [ "$COUNT" -gt 0 ]; then
+              gh pr list --repo "$REPO" --head "$BRANCH" --json url --jq '.[0].url'
+            else
+              gh pr create --repo "$REPO" --base main --head "$BRANCH" --title "feat: <short title>" --body "Fixes #${{ env.ISSUE_NUMBER_RESOLVED }}"
+            fi
+            CRITICAL: Do not stop after `git push`. You MUST complete `gh pr create` (or print the existing PR URL from the step above) and post that URL on the issue. Never ask a human to open the PR manually.
 
           allowed_tools: |
             Bash(git:*)
