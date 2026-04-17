@@ -16,9 +16,22 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from praisonaiui.server import MessageContext
+from praisonaiui.schema.models import (
+    MessageElementUnion, 
+    ImageElement, 
+    PdfElement, 
+    VideoElement, 
+    AudioElement, 
+    FileElement, 
+    CodeElement
+)
+
+# Size limits in bytes
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+MAX_CODE_SIZE = 1024 * 1024  # 1MB for code blocks
 
 
 @dataclass
@@ -55,7 +68,7 @@ class Message:
     content: str = ""
     author: str = "assistant"
     streaming: bool = False
-    elements: list[dict[str, Any]] = field(default_factory=list)
+    elements: list[Union[MessageElementUnion, dict[str, Any]]] = field(default_factory=list)
     actions: list[dict[str, Any]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -184,24 +197,100 @@ class Message:
         content: Optional[str] = None,
         **kwargs: Any,
     ) -> "Message":
-        """Add an element (image, file, etc.) to the message.
+        """Add a typed element (image, file, etc.) to the message.
 
         Args:
-            element_type: Type of element ("image", "file", "audio", "video")
-            url: URL of the element
-            content: Inline content (for text elements)
-            **kwargs: Additional element properties
+            element_type: Type of element ("image", "pdf", "video", "audio", "file", "code")
+            url: URL of the element (required for non-code elements)
+            content: Inline content (required for code elements)
+            **kwargs: Additional element properties (name, display, alt, etc.)
 
         Returns:
             self for chaining
         """
-        element = {"type": element_type, **kwargs}
-        if url:
-            element["url"] = url
-        if content:
-            element["content"] = content
-        self.elements.append(element)
+        try:
+            # Validate size limits
+            if kwargs.get("size") and kwargs["size"] > MAX_FILE_SIZE:
+                raise ValueError(f"File size {kwargs['size']} exceeds maximum allowed size {MAX_FILE_SIZE}")
+            
+            if content and len(content.encode('utf-8')) > MAX_CODE_SIZE:
+                raise ValueError(f"Code content size exceeds maximum allowed size {MAX_CODE_SIZE}")
+                
+            # Create typed element based on type
+            if element_type == "image":
+                if not url:
+                    raise ValueError("url is required for image elements")
+                element = ImageElement(url=url, **kwargs)
+            elif element_type == "pdf":
+                if not url:
+                    raise ValueError("url is required for pdf elements")
+                element = PdfElement(url=url, **kwargs)
+            elif element_type == "video":
+                if not url:
+                    raise ValueError("url is required for video elements")
+                element = VideoElement(url=url, **kwargs)
+            elif element_type == "audio":
+                if not url:
+                    raise ValueError("url is required for audio elements")
+                element = AudioElement(url=url, **kwargs)
+            elif element_type == "file":
+                if not url:
+                    raise ValueError("url is required for file elements")
+                element = FileElement(url=url, **kwargs)
+            elif element_type == "code":
+                if not content:
+                    raise ValueError("content is required for code elements")
+                element = CodeElement(content=content, **kwargs)
+            else:
+                # Fallback to legacy dict format for unknown types
+                element = {"type": element_type, **kwargs}
+                if url:
+                    element["url"] = url
+                if content:
+                    element["content"] = content
+                    
+            self.elements.append(element)
+        except Exception:
+            # Fallback to legacy dict format on validation errors
+            element = {"type": element_type, **kwargs}
+            if url:
+                element["url"] = url
+            if content:
+                element["content"] = content
+            self.elements.append(element)
+            
         return self
+
+    def add_image(self, url: str, name: Optional[str] = None, alt: Optional[str] = None, 
+                  display: str = "inline", **kwargs: Any) -> "Message":
+        """Add an image element to the message."""
+        return self.add_element("image", url=url, name=name, alt=alt, display=display, **kwargs)
+
+    def add_pdf(self, url: str, name: Optional[str] = None, display: str = "inline", **kwargs: Any) -> "Message":
+        """Add a PDF element to the message."""
+        return self.add_element("pdf", url=url, name=name, display=display, **kwargs)
+
+    def add_video(self, url: str, name: Optional[str] = None, display: str = "inline", 
+                  controls: bool = True, **kwargs: Any) -> "Message":
+        """Add a video element to the message."""
+        return self.add_element("video", url=url, name=name, display=display, controls=controls, **kwargs)
+
+    def add_audio(self, url: str, name: Optional[str] = None, display: str = "inline", 
+                  controls: bool = True, **kwargs: Any) -> "Message":
+        """Add an audio element to the message."""
+        return self.add_element("audio", url=url, name=name, display=display, controls=controls, **kwargs)
+
+    def add_file(self, url: str, name: Optional[str] = None, display: str = "inline", 
+                 size: Optional[int] = None, mime_type: Optional[str] = None, **kwargs: Any) -> "Message":
+        """Add a file download element to the message."""
+        return self.add_element("file", url=url, name=name, display=display, size=size, 
+                               mimeType=mime_type, **kwargs)
+
+    def add_code(self, content: str, language: Optional[str] = None, name: Optional[str] = None, 
+                 display: str = "inline", **kwargs: Any) -> "Message":
+        """Add a code block element to the message."""
+        return self.add_element("code", content=content, language=language, name=name, 
+                               display=display, **kwargs)
 
     def add_action(
         self,

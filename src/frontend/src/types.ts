@@ -68,6 +68,57 @@ export interface RouteManifest {
     routes?: { pattern: string; template: string }[]
 }
 
+// Message element types (matching Python schema)
+export interface MessageElement {
+    type: 'image' | 'pdf' | 'video' | 'audio' | 'file' | 'code'
+    name?: string
+    display?: 'inline' | 'side' | 'page'
+}
+
+export interface ImageElement extends MessageElement {
+    type: 'image'
+    url: string
+    alt?: string
+    width?: number
+    height?: number
+}
+
+export interface PdfElement extends MessageElement {
+    type: 'pdf'
+    url: string
+}
+
+export interface VideoElement extends MessageElement {
+    type: 'video'
+    url: string
+    autoplay?: boolean
+    controls?: boolean
+    loop?: boolean
+}
+
+export interface AudioElement extends MessageElement {
+    type: 'audio'
+    url: string
+    autoplay?: boolean
+    controls?: boolean
+    loop?: boolean
+}
+
+export interface FileElement extends MessageElement {
+    type: 'file'
+    url: string
+    size?: number
+    mimeType?: string
+}
+
+export interface CodeElement extends MessageElement {
+    type: 'code'
+    content: string
+    language?: string
+}
+
+export type MessageElementUnion = ImageElement | PdfElement | VideoElement | AudioElement | FileElement | CodeElement
+
 // Chat types
 export interface ChatMessage {
     id: string
@@ -76,6 +127,9 @@ export interface ChatMessage {
     timestamp: string
     thinking?: string[]
     toolCalls?: ToolCall[]
+    // Rich inline elements (new standardized format)
+    elements?: (MessageElementUnion | Record<string, unknown>)[]
+    // Legacy format (for backward compatibility)
     images?: string[]
     audio?: string[]
     video?: string[]

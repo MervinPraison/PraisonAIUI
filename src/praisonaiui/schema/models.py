@@ -386,6 +386,76 @@ class InputWidgetConfig(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class MessageElement(BaseModel):
+    """Base class for message elements (images, PDFs, videos, etc.)."""
+    
+    type: Literal["image", "pdf", "video", "audio", "file", "code"]
+    name: Optional[str] = None
+    display: Literal["inline", "side", "page"] = "inline"
+    
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ImageElement(MessageElement):
+    """Image element for messages."""
+    
+    type: Literal["image"] = "image"
+    url: str
+    alt: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+
+
+class PdfElement(MessageElement):
+    """PDF element for messages."""
+    
+    type: Literal["pdf"] = "pdf"
+    url: str
+
+
+class VideoElement(MessageElement):
+    """Video element for messages."""
+    
+    type: Literal["video"] = "video"
+    url: str
+    autoplay: bool = False
+    controls: bool = True
+    loop: bool = False
+
+
+class AudioElement(MessageElement):
+    """Audio element for messages."""
+    
+    type: Literal["audio"] = "audio"
+    url: str
+    autoplay: bool = False
+    controls: bool = True
+    loop: bool = False
+
+
+class FileElement(MessageElement):
+    """File download element for messages."""
+    
+    type: Literal["file"] = "file"
+    url: str
+    size: Optional[int] = None
+    mime_type: Optional[str] = Field(default=None, alias="mimeType")
+    
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class CodeElement(MessageElement):
+    """Code block element for messages."""
+    
+    type: Literal["code"] = "code"
+    content: str
+    language: Optional[str] = None
+
+
+# Union type for all element types
+MessageElementUnion = ImageElement | PdfElement | VideoElement | AudioElement | FileElement | CodeElement
+
+
 class Config(BaseModel):
     """Root configuration model for aiui.template.yaml."""
 
