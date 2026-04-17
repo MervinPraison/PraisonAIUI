@@ -63,7 +63,7 @@ class TestFeedbackDataStore:
 
     def test_base_datastore_feedback_defaults(self):
         """Test BaseDataStore provides default no-op implementations."""
-        from src.praisonaiui.datastore import MemoryDataStore
+        from praisonaiui.datastore import MemoryDataStore
         
         # Use MemoryDataStore which inherits the default implementations
         datastore = MemoryDataStore()
@@ -253,8 +253,8 @@ class TestFeedbackConfiguration:
 
     def test_set_feedback_enabled_true(self):
         """Test enabling feedback."""
-        from src.praisonaiui.server import _callbacks, set_datastore
-        from src.praisonaiui.datastore import MemoryDataStore
+        from praisonaiui.server import _callbacks, set_datastore
+        from praisonaiui.datastore import MemoryDataStore
         
         # Set up isolated test environment
         _callbacks.clear()
@@ -279,8 +279,8 @@ class TestFeedbackConfiguration:
 
     def test_set_feedback_enabled_false(self):
         """Test disabling feedback."""
-        from src.praisonaiui.server import _callbacks, set_datastore
-        from src.praisonaiui.datastore import MemoryDataStore
+        from praisonaiui.server import _callbacks, set_datastore
+        from praisonaiui.datastore import MemoryDataStore
         
         # Set up isolated test environment
         _callbacks.clear()
@@ -309,7 +309,7 @@ class TestJSONFileDataStoreFeedback:
     def test_json_file_feedback_basic(self, tmp_path):
         """Test basic feedback recording and listing with JSONFileDataStore."""
         import asyncio
-        from src.praisonaiui.datastore import JSONFileDataStore
+        from praisonaiui.datastore import JSONFileDataStore
         
         datastore = JSONFileDataStore(str(tmp_path))
         
@@ -338,7 +338,7 @@ class TestJSONFileDataStoreFeedback:
     def test_json_file_feedback_no_collision_with_sessions(self, tmp_path):
         """Test that feedback.json doesn't interfere with session listing."""
         import asyncio
-        from src.praisonaiui.datastore import JSONFileDataStore
+        from praisonaiui.datastore import JSONFileDataStore
         
         datastore = JSONFileDataStore(str(tmp_path))
         
