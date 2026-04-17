@@ -12,6 +12,8 @@ permissions:
 
 jobs:
   claude-response:
+    env:
+      ISSUE_NUMBER_RESOLVED: ${{ github.event.issue.number }}
     if: |
       github.event_name == 'issue_comment' &&
       contains(github.event.comment.body, '@claude') &&
@@ -34,5 +36,50 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           trigger_phrase: "@claude"
+          label_trigger: "claude"
           allowed_bots: "praisonai-triage-agent[bot]"
           timeout_minutes: "30"
+          direct_prompt: |
+            You are implementing changes in MervinPraison/PraisonAIUI (Server-Driven UI). Follow AGENTS.md in this repository.
+
+            Primary scope: src/praisonaiui/, tests/, docs/. If the fix belongs in praisonaiagents, praisonai, or PraisonAI-Tools, route there and explain — do not implement SDK/tool code inside this repo unless it is AIUI integration only.
+
+            STEP 0 — GIT & GITHUB CLI:
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            gh auth setup-git
+
+            STEP 1 — ISSUE:
+            Read the issue and all comments. Implement what the issue describes with minimal, focused changes.
+
+            STEP 2 — BRANCH (single name; reuse in STEP 4):
+            BRANCH="claude/issue-${{ env.ISSUE_NUMBER_RESOLVED }}-$(date +%Y%m%d)"
+            git checkout -b "$BRANCH"
+
+            STEP 3 — TEST / VERIFY:
+            Run targeted pytest or smoke checks relevant to your edits (e.g. pytest tests/unit -q).
+
+            STEP 4 — COMMIT, PUSH, OPEN PR (mandatory if you produced commits):
+            git add -A
+            git commit -m "feat: <short summary> (fixes #${{ env.ISSUE_NUMBER_RESOLVED }})"
+            git push -u origin "$BRANCH"
+            gh pr create --base main --head "$BRANCH" --title "feat: <short title>" --body "Fixes #${{ env.ISSUE_NUMBER_RESOLVED }}"
+            Do not stop after push only. Do not ask a human to open the PR. Finish only when `gh pr create` prints a PR URL. If a PR already exists for this branch, comment with the URL instead of failing silently.
+
+          allowed_tools: |
+            Bash(git:*)
+            Bash(python:*)
+            Bash(pip:*)
+            Bash(pytest:*)
+            Bash(gh:*)
+            Bash(python -m pytest:*)
+            Bash(python -m pip:*)
+            View
+            GlobTool
+            GrepTool
+            BatchTool
+            Edit
+            Replace
+            mcp__github__get_issue
+            mcp__github__get_issue_comments
+            mcp__github__update_issue
