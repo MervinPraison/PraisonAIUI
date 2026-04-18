@@ -24,7 +24,7 @@ def __getattr__(name: str):
         "say", "stream", "stream_token", "think", "ask", "tool", "image", "audio",
         "video", "file", "action_buttons",
     }
-    _message_attrs = {"Message", "AskUserMessage", "Step"}
+    _message_attrs = {"Message", "AskUserMessage", "Step", "step"}
     _server_attrs = {"register_agent", "register_page", "set_datastore", "get_datastore",
                       "set_provider", "get_provider", "set_style", "set_pages", "remove_page",
                       "set_branding", "set_theme", "set_custom_css", "register_theme",
@@ -159,6 +159,7 @@ __all__ = [
     "Message",
     "AskUserMessage",
     "Step",
+    "step",
     # Feature protocol
     "BaseFeatureProtocol",
     "register_feature",

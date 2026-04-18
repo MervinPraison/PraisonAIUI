@@ -14,9 +14,11 @@ Example:
 
 from __future__ import annotations
 
+import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Literal
+from functools import wraps
 
 from praisonaiui.server import MessageContext
 from praisonaiui.schema.models import (
@@ -32,6 +34,9 @@ from praisonaiui.schema.models import (
 # Size limits in bytes
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 MAX_CODE_SIZE = 1024 * 1024  # 1MB for code blocks
+
+# Step types for chain-of-thought UI components
+StepType = Literal["tool_call", "reasoning", "sub_agent", "retrieval", "custom"]
 
 
 @dataclass
@@ -362,23 +367,26 @@ class AskUserMessage:
 
 @dataclass
 class Step:
-    """A reasoning/thinking step (nested steps support).
+    """A reasoning/thinking step (nested steps support) with Chainlit cl.Step parity.
 
     Example:
-        async with Step(name="Analyzing") as step:
-            await step.stream_token("Processing data...")
+        async with Step(name="🔧 Tool: web_search", type="tool_call") as step:
+            await step.stream_token("Input: { query: ... }")
+            await step.stream_token("Output: [ 10 results ]")
             # Nested step
-            async with Step(name="Sub-analysis", parent=step):
-                await aiui.think("Checking details...")
+            async with Step(name="Sub-analysis", parent=step, type="reasoning"):
+                await step.stream_token("Analyzing results...")
     """
 
     name: str
+    type: StepType = "reasoning"
     parent: Optional["Step"] = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     _id: str = field(default_factory=lambda: str(uuid.uuid4()))
     _context: Optional[MessageContext] = field(default=None, repr=False)
     _started: bool = field(default=False, repr=False)
+    _start_time: Optional[float] = field(default=None, repr=False)
 
     def __post_init__(self):
         """Initialize with context from current callback."""
@@ -387,12 +395,15 @@ class Step:
 
     async def __aenter__(self) -> "Step":
         """Start the step."""
+        self._start_time = time.time()
         if self._context and self._context._stream_queue:
             await self._context._stream_queue.put({
                 "type": "reasoning_started",
                 "step_id": self._id,
                 "name": self.name,
+                "step_type": self.type,
                 "parent_id": self.parent._id if self.parent else None,
+                "metadata": self.metadata,
             })
             self._started = True
         return self
@@ -400,11 +411,15 @@ class Step:
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """Complete the step."""
         if self._context and self._context._stream_queue and self._started:
+            duration = time.time() - self._start_time if self._start_time else None
             await self._context._stream_queue.put({
                 "type": "reasoning_completed",
                 "step_id": self._id,
                 "name": self.name,
+                "step_type": self.type,
+                "duration": duration,
                 "error": str(exc_val) if exc_val else None,
+                "metadata": self.metadata,
             })
 
     async def stream_token(self, token: str) -> "Step":
@@ -414,5 +429,30 @@ class Step:
                 "type": "reasoning_step",
                 "step_id": self._id,
                 "step": token,
+                "step_type": self.type,
             })
         return self
+
+
+def step(name: str, type: StepType = "reasoning", **metadata: Any):
+    """Decorator to wrap a function in a Step context manager.
+    
+    Args:
+        name: The step name to display
+        type: The step type (tool_call, reasoning, sub_agent, retrieval, custom)
+        **metadata: Additional metadata to include with the step
+    
+    Example:
+        @step("🔧 Tool: web_search", type="tool_call")
+        async def web_search(query: str):
+            # Function will be wrapped in Step context
+            result = await search_web(query)
+            return result
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            async with Step(name=name, type=type, metadata=metadata):
+                return await func(*args, **kwargs)
+        return wrapper
+    return decorator
