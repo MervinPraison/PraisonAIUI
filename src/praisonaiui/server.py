@@ -1706,7 +1706,7 @@ class MessageContext:
             return ""
 
         # Create a future to wait for the response
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         self._pending_ask = loop.create_future()
 
         # Send the ask event to the client
