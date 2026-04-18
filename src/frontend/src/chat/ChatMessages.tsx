@@ -6,6 +6,7 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { ChatMessage, ToolCall } from '../types'
 import { ToolCallDisplay } from './ToolCallDisplay'
 import { ElementRenderer } from './MultimediaElements'
+import { ActionButtons } from './ActionButtons'
 
 interface ChatMessagesProps {
     messages: ChatMessage[]
@@ -13,6 +14,7 @@ interface ChatMessagesProps {
     thinkingSteps: string[]
     toolCalls: ToolCall[]
     isStreaming: boolean
+    sessionId?: string
 }
 
 export function ChatMessages({
@@ -21,11 +23,12 @@ export function ChatMessages({
     thinkingSteps,
     toolCalls,
     isStreaming,
+    sessionId,
 }: ChatMessagesProps) {
     return (
         <div className="max-w-3xl mx-auto space-y-6">
             {messages.map((message) => (
-                <MessageBubble key={message.id} message={message} />
+                <MessageBubble key={message.id} message={message} sessionId={sessionId} />
             ))}
             {isStreaming && (
                 <div className="space-y-3">
@@ -407,9 +410,10 @@ function MarkdownContent({ content }: { content: string }) {
 // -- Message bubble --
 interface MessageBubbleProps {
     message: ChatMessage
+    sessionId?: string
 }
 
-function MessageBubble({ message }: MessageBubbleProps) {
+function MessageBubble({ message, sessionId }: MessageBubbleProps) {
     const isUser = message.role === 'user'
 
     if (isUser) {
@@ -464,17 +468,13 @@ function MessageBubble({ message }: MessageBubbleProps) {
                         ))}
                     </div>
                 )}
+                {/* Action buttons */}
                 {message.actions && message.actions.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                        {message.actions.map((action) => (
-                            <button
-                                key={action.name}
-                                className="px-3 py-1.5 text-xs rounded-lg bg-background border hover:bg-accent transition-colors"
-                            >
-                                {action.label}
-                            </button>
-                        ))}
-                    </div>
+                    <ActionButtons 
+                        actions={message.actions} 
+                        messageId={message.id} 
+                        sessionId={sessionId}
+                    />
                 )}
                 <div className="mt-1 flex items-center gap-1 relative">
                     <CopyButton text={message.content} />

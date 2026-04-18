@@ -170,9 +170,13 @@ export interface FileAttachment {
 }
 
 export interface ActionButton {
+    id: string
     name: string
     label: string
     icon?: string
+    variant?: 'primary' | 'secondary' | 'destructive' | 'ghost' | 'outline'
+    payload?: Record<string, unknown>
+    message_id?: string
 }
 
 export interface ChatProfile {

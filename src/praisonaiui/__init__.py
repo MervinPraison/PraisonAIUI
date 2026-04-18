@@ -34,6 +34,7 @@ def __getattr__(name: str):
     _provider_attrs = {"BaseProvider", "RunEvent", "RunEventType"}
     _providers_attrs = {"PraisonAIProvider"}
     _config_attrs = {"configure"}
+    _action_attrs = {"Action", "action_callback"}
     _features_attrs = {"BaseFeatureProtocol", "register_feature", "get_features",
                        "get_feature", "auto_register_defaults"}
     _realtime_attrs = {"RealtimeProtocol", "OpenAIRealtimeManager", "set_realtime", 
@@ -80,6 +81,9 @@ def __getattr__(name: str):
     if name in _config_attrs:
         from praisonaiui import _config
         return getattr(_config, name)
+    if name in _action_attrs:
+        from praisonaiui import actions
+        return getattr(actions, name)
     if name in _features_attrs:
         from praisonaiui import features
         return getattr(features, name)
@@ -164,6 +168,9 @@ __all__ = [
     "PraisonAIProvider",
     # Configuration
     "configure",
+    # Action classes and decorators
+    "Action",
+    "action_callback",
     # Message classes (Chainlit pattern)
     "Message",
     "AskUserMessage",

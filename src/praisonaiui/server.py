@@ -1051,6 +1051,54 @@ async def api_provider(request: Request) -> JSONResponse:
     return JSONResponse(info)
 
 
+async def api_action_click(request: Request) -> JSONResponse:
+    """Handle action button clicks and dispatch to registered callbacks.
+    
+    POST /api/actions/{action_id}/click
+    Body: {
+        "payload": {...},       # Optional data from Action.payload
+        "message_id": "...",    # ID of the message containing the action
+        "session_id": "...",    # Current session ID
+        "action_name": "..."    # Name of the action (for callback lookup)
+    }
+    """
+    action_id = request.path_params["action_id"]
+    
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON in request body"}, status_code=400)
+    
+    action_name = body.get("action_name")
+    if not action_name:
+        return JSONResponse({"error": "action_name is required"}, status_code=400)
+    
+    payload = body.get("payload")
+    message_id = body.get("message_id")
+    session_id = body.get("session_id")
+    
+    try:
+        from praisonaiui.actions import dispatch_action_callback
+        
+        await dispatch_action_callback(
+            action_name=action_name,
+            action_id=action_id,
+            payload=payload,
+            message_id=message_id,
+            session_id=session_id,
+        )
+        
+        return JSONResponse({"success": True})
+        
+    except ValueError as e:
+        # No callback registered for this action name
+        return JSONResponse({"error": str(e)}, status_code=404)
+    except Exception as e:
+        # Internal error in callback execution
+        logging.exception(f"Error executing action callback '{action_name}'")
+        return JSONResponse({"error": f"Internal error: {str(e)}"}, status_code=500)
+
+
 async def api_pages(request: Request) -> JSONResponse:
     """List registered dashboard pages (protocol-driven)."""
     # Sort by order within each group
@@ -1894,6 +1942,8 @@ def create_app(
         # Note: /api/usage is now provided by PraisonAIUsage feature
         Route("/api/debug", api_debug, methods=["GET"]),
         Route("/api/provider", api_provider, methods=["GET"]),
+        # Action callback API
+        Route("/api/actions/{action_id}/click", api_action_click, methods=["POST"]),
         # Page registry protocol
         Route("/api/pages", api_pages, methods=["GET"]),
         Route("/api/pages/{page_id}/data", api_page_data, methods=["GET"]),

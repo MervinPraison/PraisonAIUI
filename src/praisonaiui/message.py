@@ -17,7 +17,7 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Optional, Union, Literal
+from typing import Any, Optional, Union, Literal, TYPE_CHECKING
 from functools import wraps
 
 from praisonaiui.server import MessageContext
@@ -30,6 +30,9 @@ from praisonaiui.schema.models import (
     FileElement, 
     CodeElement
 )
+
+if TYPE_CHECKING:
+    from praisonaiui.actions import Action
 
 # Size limits in bytes
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
@@ -74,7 +77,7 @@ class Message:
     author: str = "assistant"
     streaming: bool = False
     elements: list[Union[MessageElementUnion, dict[str, Any]]] = field(default_factory=list)
-    actions: list[dict[str, Any]] = field(default_factory=list)
+    actions: list[Union["Action", dict[str, Any]]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     # Internal state
@@ -92,6 +95,27 @@ class Message:
     def id(self) -> str:
         """Get the message ID."""
         return self._id
+
+    def _serialize_actions(self) -> Optional[list[dict[str, Any]]]:
+        """Serialize actions to dict format for transmission.
+        
+        Sets message_id on Action objects and converts to dicts.
+        Returns None if no actions to avoid sending empty arrays.
+        """
+        if not self.actions:
+            return None
+        
+        serialized_actions = []
+        for action in self.actions:
+            if hasattr(action, 'to_dict'):
+                # Set message_id for proper association
+                action.message_id = self._id
+                serialized_actions.append(action.to_dict())
+            else:
+                # Legacy dict format
+                serialized_actions.append(action)
+        
+        return serialized_actions
 
     async def send(self) -> "Message":
         """Send or finalize the message.
@@ -122,7 +146,7 @@ class Message:
                 "content": final_content,
                 "author": self.author,
                 "elements": self.elements if self.elements else None,
-                "actions": self.actions if self.actions else None,
+                "actions": self._serialize_actions(),
                 "metadata": self.metadata if self.metadata else None,
             })
         else:
@@ -133,7 +157,7 @@ class Message:
                 "content": self.content,
                 "author": self.author,
                 "elements": self.elements if self.elements else None,
-                "actions": self.actions if self.actions else None,
+                "actions": self._serialize_actions(),
                 "metadata": self.metadata if self.metadata else None,
             })
             self._sent = True
@@ -181,7 +205,7 @@ class Message:
             "content": self.content,
             "author": self.author,
             "elements": self.elements if self.elements else None,
-            "actions": self.actions if self.actions else None,
+            "actions": self._serialize_actions(),
         })
         return self
 
@@ -305,23 +329,45 @@ class Message:
         name: str,
         label: str,
         icon: Optional[str] = None,
+        payload: Optional[dict[str, Any]] = None,
+        variant: str = "secondary",
         **kwargs: Any,
     ) -> "Message":
         """Add an action button to the message.
 
         Args:
-            name: Action identifier
-            label: Button label
+            name: Action identifier (must match a registered @action_callback)
+            label: Button label text
             icon: Optional icon name
-            **kwargs: Additional action properties
+            payload: Optional data passed to callback when clicked
+            variant: Button style variant ("primary", "secondary", etc.)
+            **kwargs: Additional action properties (for backwards compatibility)
 
         Returns:
             self for chaining
         """
-        action = {"name": name, "label": label, **kwargs}
-        if icon:
-            action["icon"] = icon
-        self.actions.append(action)
+        try:
+            # Try to create a proper Action object
+            from praisonaiui.actions import Action
+            action = Action(
+                name=name,
+                label=label,
+                icon=icon,
+                payload=payload,
+                variant=variant,
+                **kwargs
+            )
+            self.actions.append(action)
+        except ImportError:
+            # Fallback to legacy dict format if actions module not available
+            action = {"name": name, "label": label, **kwargs}
+            if icon:
+                action["icon"] = icon
+            if payload is not None:
+                action["payload"] = payload
+            if variant != "secondary":
+                action["variant"] = variant
+            self.actions.append(action)
         return self
 
 
