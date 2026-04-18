@@ -459,3 +459,27 @@ def step(name: str, type: StepType = "reasoning", **metadata: Any):
                 return await func(*args, **kwargs)
         return wrapper
     return decorator
+
+
+@dataclass
+class ErrorMessage(Message):
+    """Error message with red banner styling.
+    
+    Explicitly displays error messages with red banner style and copy-to-clipboard
+    functionality, distinct from regular messages with ad-hoc [ERROR] prefixes.
+    
+    Example:
+        error_msg = ErrorMessage(content="Authentication failed: Invalid token")
+        await error_msg.send()
+    """
+    
+    def __post_init__(self):
+        """Initialize error message with proper type and author."""
+        super().__post_init__()
+        # Force author to be 'error' for frontend styling
+        self.author = "error"
+        # Add error metadata to distinguish from regular messages
+        if not self.metadata:
+            self.metadata = {}
+        self.metadata["type"] = "error"
+        self.metadata["copyable"] = True  # Enable copy-to-clipboard

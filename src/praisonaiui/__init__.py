@@ -24,7 +24,13 @@ def __getattr__(name: str):
         "say", "stream", "stream_token", "think", "ask", "tool", "image", "audio",
         "video", "file", "action_buttons",
     }
-    _message_attrs = {"Message", "AskUserMessage", "Step", "step"}
+    _message_attrs = {"Message", "AskUserMessage", "Step", "step", "ErrorMessage"}
+    _sync_attrs = {"make_async", "run_sync", "AsyncContext"}
+    _utils_attrs = {"sleep", "format_duration", "truncate_text", "safe_filename"}
+    _elements_attrs = {"Plotly", "Pyplot", "Dataframe", "PlotlyElement", "PyplotElement", "DataframeElement"}
+    _custom_element_attrs = {"CustomElement", "register_custom_component", "get_registered_components", "CustomElementProtocol"}
+    _copilot_attrs = {"CopilotFunction", "copilot_function", "on_copilot_function_call", "get_copilot_functions", "call_copilot_function"}
+    _chat_settings_attrs = {"ChatSettings", "TextInput", "NumberInput", "Slider", "Select", "Switch", "ColorPicker", "on_settings_update", "create_model_settings", "create_ui_settings"}
     _server_attrs = {"register_agent", "register_page", "set_datastore", "get_datastore",
                       "set_provider", "get_provider", "set_style", "set_pages", "remove_page",
                       "set_branding", "set_theme", "set_custom_css", "register_theme",
@@ -65,6 +71,24 @@ def __getattr__(name: str):
     if name in _message_attrs:
         from praisonaiui import message
         return getattr(message, name)
+    if name in _sync_attrs:
+        from praisonaiui import sync
+        return getattr(sync, name)
+    if name in _utils_attrs:
+        from praisonaiui import utils
+        return getattr(utils, name)
+    if name in _elements_attrs:
+        from praisonaiui import elements
+        return getattr(elements, name)
+    if name in _custom_element_attrs:
+        from praisonaiui import custom_element
+        return getattr(custom_element, name)
+    if name in _copilot_attrs:
+        from praisonaiui import copilot
+        return getattr(copilot, name)
+    if name in _chat_settings_attrs:
+        from praisonaiui import chat_settings
+        return getattr(chat_settings, name)
     if name in _server_attrs:
         from praisonaiui import server
         return getattr(server, name)
@@ -166,9 +190,48 @@ __all__ = [
     "configure",
     # Message classes (Chainlit pattern)
     "Message",
-    "AskUserMessage",
+    "AskUserMessage", 
     "Step",
     "step",
+    "ErrorMessage",
+    # Sync/async utilities
+    "make_async",
+    "run_sync", 
+    "AsyncContext",
+    # Utility functions
+    "sleep",
+    "format_duration",
+    "truncate_text",
+    "safe_filename",
+    # Element constructors
+    "Plotly",
+    "Pyplot", 
+    "Dataframe",
+    "PlotlyElement",
+    "PyplotElement",
+    "DataframeElement",
+    # Custom elements
+    "CustomElement",
+    "register_custom_component", 
+    "get_registered_components",
+    "CustomElementProtocol",
+    # Copilot functions
+    "CopilotFunction",
+    "copilot_function",
+    "on_copilot_function_call",
+    "get_copilot_functions",
+    "call_copilot_function",
+    # Chat settings
+    "ChatSettings",
+    "TextInput",
+    "NumberInput",
+    "Slider",
+    "Select", 
+    "Switch",
+    "ColorPicker",
+    "on_settings_update",
+    "create_model_settings",
+    "create_ui_settings",
     # Feature protocol
     "BaseFeatureProtocol",
     "register_feature",
