@@ -354,8 +354,7 @@ class Message:
                 label=label,
                 icon=icon,
                 payload=payload,
-                variant=variant,
-                **kwargs
+                variant=variant
             )
             self.actions.append(action)
         except ImportError:

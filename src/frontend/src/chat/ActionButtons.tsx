@@ -1,6 +1,24 @@
 import { useState, useCallback } from 'react'
 import type { ActionButton } from '../types'
 
+// Simple toast notification function
+function showToast(message: string, type: 'error' | 'success' = 'error') {
+    const toast = document.createElement('div')
+    toast.textContent = message
+    toast.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-md text-white max-w-sm transition-opacity duration-300 ${
+        type === 'error' ? 'bg-red-500' : 'bg-green-500'
+    }`
+    document.body.appendChild(toast)
+    
+    // Auto-remove after 4 seconds
+    setTimeout(() => {
+        toast.style.opacity = '0'
+        setTimeout(() => {
+            document.body.removeChild(toast)
+        }, 300)
+    }, 4000)
+}
+
 interface ActionButtonsProps {
     actions: ActionButton[]
     messageId: string
@@ -54,7 +72,8 @@ export function ActionButtons({ actions, messageId, sessionId }: ActionButtonsPr
             
         } catch (error) {
             console.error(`Failed to execute action '${action.name}':`, error)
-            // TODO: Show user-friendly error notification
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+            showToast(`Failed to execute action "${action.label}": ${errorMessage}`)
         } finally {
             // Remove pending state
             setPendingActions(prev => {

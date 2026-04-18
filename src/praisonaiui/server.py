@@ -1077,6 +1077,37 @@ async def api_action_click(request: Request) -> JSONResponse:
     message_id = body.get("message_id")
     session_id = body.get("session_id")
     
+    # Security: verify that the action belongs to the specified message and session
+    if session_id and message_id:
+        try:
+            messages = await _datastore.get_messages(session_id)
+            # Find the message and verify it has the requested action
+            message_found = False
+            action_found = False
+            for msg in messages:
+                if msg.get("id") == message_id:
+                    message_found = True
+                    actions = msg.get("actions", [])
+                    for action_dict in actions:
+                        if (action_dict.get("id") == action_id and 
+                            action_dict.get("name") == action_name):
+                            action_found = True
+                            break
+                    break
+            
+            if not message_found:
+                return JSONResponse({"error": f"Message {message_id} not found in session {session_id}"}, status_code=404)
+            if not action_found:
+                return JSONResponse({"error": f"Action {action_name} (id: {action_id}) not found in message {message_id}"}, status_code=404)
+                
+        except Exception as e:
+            logging.warning(f"Could not verify action security: {e}")
+            # Continue anyway - don't break functionality if datastore has issues
+    
+    # Create a stream queue for action.remove() functionality
+    import asyncio
+    stream_queue: asyncio.Queue = asyncio.Queue()
+    
     try:
         from praisonaiui.actions import dispatch_action_callback
         
@@ -1086,6 +1117,7 @@ async def api_action_click(request: Request) -> JSONResponse:
             payload=payload,
             message_id=message_id,
             session_id=session_id,
+            stream_queue=stream_queue
         )
         
         return JSONResponse({"success": True})
