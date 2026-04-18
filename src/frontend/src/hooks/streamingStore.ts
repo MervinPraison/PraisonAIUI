@@ -7,6 +7,7 @@
  */
 
 import type { ToolCall } from '../types'
+import { handleTaskSSEEvent } from '../state/tasks'
 
 // ---------------------------------------------------------------------------
 // State shape per session
@@ -297,6 +298,11 @@ function handleStoreEvent(
     case 'run_cancelled':
     case 'team_run_cancelled':
       // finalize current response as a committed message is done by onEnd
+      break
+      
+    default:
+      // Try handling as task event
+      handleTaskSSEEvent(sessionId, event)
       break
   }
 }

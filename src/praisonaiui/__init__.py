@@ -38,6 +38,7 @@ def __getattr__(name: str):
                        "get_feature", "auto_register_defaults"}
     _realtime_attrs = {"RealtimeProtocol", "OpenAIRealtimeManager", "set_realtime", 
                        "get_realtime_manager", "set_realtime_manager"}
+    _task_attrs = {"Task", "TaskList", "TaskStatus"}
     _ui_attrs = {
         "layout", "card", "columns", "chart", "table", "text",
         # Tier 1
@@ -89,6 +90,9 @@ def __getattr__(name: str):
         if name == "set_realtime":
             return realtime.set_realtime_manager
         return getattr(realtime, name)
+    if name in _task_attrs:
+        from praisonaiui import tasks
+        return getattr(tasks, name)
     if name in _ui_attrs:
         from praisonaiui import ui
         return getattr(ui, name)
@@ -181,6 +185,10 @@ __all__ = [
     "set_realtime",
     "get_realtime_manager",
     "set_realtime_manager",
+    # Task management API
+    "Task",
+    "TaskList",
+    "TaskStatus",
     # UI component API
     "layout",
     "card",
