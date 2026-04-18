@@ -36,6 +36,8 @@ def __getattr__(name: str):
     _config_attrs = {"configure"}
     _features_attrs = {"BaseFeatureProtocol", "register_feature", "get_features",
                        "get_feature", "auto_register_defaults"}
+    _realtime_attrs = {"RealtimeProtocol", "OpenAIRealtimeManager", "set_realtime", 
+                       "get_realtime_manager", "set_realtime_manager"}
     _ui_attrs = {
         "layout", "card", "columns", "chart", "table", "text",
         # Tier 1
@@ -81,6 +83,12 @@ def __getattr__(name: str):
     if name in _features_attrs:
         from praisonaiui import features
         return getattr(features, name)
+    if name in _realtime_attrs:
+        from praisonaiui.features import realtime
+        # Handle alias for set_realtime
+        if name == "set_realtime":
+            return realtime.set_realtime_manager
+        return getattr(realtime, name)
     if name in _ui_attrs:
         from praisonaiui import ui
         return getattr(ui, name)
@@ -165,6 +173,12 @@ __all__ = [
     "get_features",
     "get_feature",
     "auto_register_defaults",
+    # Realtime voice protocol
+    "RealtimeProtocol",
+    "OpenAIRealtimeManager", 
+    "set_realtime",
+    "get_realtime_manager",
+    "set_realtime_manager",
     # UI component API
     "layout",
     "card",
