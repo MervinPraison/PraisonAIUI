@@ -24,6 +24,10 @@ def __getattr__(name: str):
         "say", "stream", "stream_token", "think", "ask", "tool", "image", "audio",
         "video", "file", "action_buttons",
     }
+    _auth_attrs = {
+        "oauth_callback", "header_auth_callback", "password_auth_callback", 
+        "on_logout", "User", "Session", "on_shared_thread_view",
+    }
     _message_attrs = {"Message", "AskUserMessage", "Step", "step"}
     _server_attrs = {"register_agent", "register_page", "set_datastore", "get_datastore",
                       "set_provider", "get_provider", "set_style", "set_pages", "remove_page",
@@ -62,6 +66,13 @@ def __getattr__(name: str):
     if name in _callback_attrs:
         from praisonaiui import callbacks
         return getattr(callbacks, name)
+    if name in _auth_attrs:
+        if name == "on_shared_thread_view":
+            from praisonaiui.features import sharing
+            return getattr(sharing, name)
+        else:
+            from praisonaiui import auth
+            return getattr(auth, name)
     if name in _message_attrs:
         from praisonaiui import message
         return getattr(message, name)
@@ -120,6 +131,15 @@ __all__ = [
     "on",
     "resume",
     "page",
+    # Auth decorators
+    "oauth_callback",
+    "header_auth_callback", 
+    "password_auth_callback",
+    "on_logout",
+    "on_shared_thread_view",
+    # Auth classes
+    "User",
+    "Session",
     # Message functions
     "say",
     "stream",
