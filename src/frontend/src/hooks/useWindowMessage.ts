@@ -98,7 +98,11 @@ export function useWindowMessage(options: UseWindowMessageOptions = {}): UseWind
           
           if (window.parent && target) {
             if (target === "parent") {
-              window.parent.postMessage(messageData, "*");
+              // Use specific origin when possible, avoid wildcard
+              const origin = targetOrigin !== "*" && targetOrigin !== "parent" 
+                ? targetOrigin 
+                : window.location.origin;
+              window.parent.postMessage(messageData, origin);
             } else {
               window.parent.postMessage(messageData, target);
             }
@@ -169,11 +173,11 @@ export function useWindowMessage(options: UseWindowMessageOptions = {}): UseWind
     }
     
     try {
-      if (targetOrigin === "parent") {
-        window.parent.postMessage(data, "*");
-      } else {
-        window.parent.postMessage(data, targetOrigin);
-      }
+      // Use specific origin when possible, avoid wildcard
+      const origin = targetOrigin !== "*" && targetOrigin !== "parent" 
+        ? targetOrigin 
+        : window.location.origin;
+      window.parent.postMessage(data, origin);
     } catch (error) {
       console.error('Failed to send message to parent:', error);
     }

@@ -15,7 +15,7 @@ from praisonaiui.features.window_message import (
     reset_window_message_state,
     _window_message_hooks,
     _message_log,
-    _current_session_context,
+    _session_contexts,
 )
 
 
@@ -32,7 +32,7 @@ class TestWindowMessageFeature:
         
         assert feature.name == "window_message"
         assert feature.description == "Browser window.postMessage communication"
-        assert len(feature.routes()) == 4
+        assert len(feature.routes()) == 5  # Added receive endpoint
         assert len(feature.cli_commands()) == 1
     
     @pytest.mark.asyncio
@@ -263,10 +263,9 @@ class TestWindowMessageSending:
         # Mock session context with SSE queue
         sse_queue = asyncio.Queue()
         
-        # Set global session context
-        global _current_session_context
-        original_context = _current_session_context
-        _current_session_context = {"sse_queue": sse_queue}
+        # Add a session context for testing
+        test_session_id = "test_session"
+        _session_contexts[test_session_id] = {"sse_queue": sse_queue}
         
         try:
             await send_window_message({"type": "test"}, "parent")
@@ -278,7 +277,9 @@ class TestWindowMessageSending:
             assert message["data"]["type"] == "test"
             assert message["target"] == "parent"
         finally:
-            _current_session_context = original_context
+            # Clean up test session
+            if test_session_id in _session_contexts:
+                del _session_contexts[test_session_id]
 
 
 class TestWindowMessageSecurity:

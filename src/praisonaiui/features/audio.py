@@ -160,7 +160,7 @@ class AudioFeature(BaseFeatureProtocol):
             _audio_stats["active_sessions"] += 1
             
             # Trigger start hooks
-            await self._trigger_start_hooks()
+            await self._trigger_start_hooks(session_id)
             
             await websocket.send_json({"status": "ready"})
             
@@ -182,7 +182,7 @@ class AudioFeature(BaseFeatureProtocol):
                             try:
                                 control_msg = json.loads(message["text"])
                                 if control_msg.get("type") == "end":
-                                    await self._trigger_end_hooks()
+                                    await self._trigger_end_hooks(session_id)
                                     break
                             except json.JSONDecodeError:
                                 _log.warning("Invalid JSON in audio control message")
@@ -202,7 +202,8 @@ class AudioFeature(BaseFeatureProtocol):
                 _audio_stats["active_sessions"] = max(0, _audio_stats["active_sessions"] - 1)
             
             # Trigger end hooks if not already triggered
-            await self._trigger_end_hooks()
+            if session_id:
+                await self._trigger_end_hooks(session_id)
             
             if not websocket.client_state.disconnected:
                 await websocket.close()
@@ -219,35 +220,35 @@ class AudioFeature(BaseFeatureProtocol):
             _audio_stats["total_bytes"] += len(pcm_data)
         
         # Trigger chunk hooks
-        await self._trigger_chunk_hooks(pcm_data, sample_rate)
+        await self._trigger_chunk_hooks(session_id, pcm_data, sample_rate)
 
-    async def _trigger_start_hooks(self) -> None:
+    async def _trigger_start_hooks(self, session_id: str) -> None:
         """Execute all audio start hooks."""
         for hook in _audio_start_hooks:
             try:
                 _log.debug(f"Executing audio start hook: {getattr(hook, '__name__', str(hook))}")
-                result = hook()
+                result = hook(session_id)
                 if asyncio.iscoroutine(result):
                     await result
             except Exception as e:
                 _log.error(f"Audio start hook failed: {getattr(hook, '__name__', str(hook))}: {e}")
 
-    async def _trigger_chunk_hooks(self, pcm_data: bytes, sample_rate: int) -> None:
+    async def _trigger_chunk_hooks(self, session_id: str, pcm_data: bytes, sample_rate: int) -> None:
         """Execute all audio chunk hooks."""
         for hook in _audio_chunk_hooks:
             try:
-                result = hook(pcm_data, sample_rate)
+                result = hook(session_id, pcm_data, sample_rate)
                 if asyncio.iscoroutine(result):
                     await result
             except Exception as e:
                 _log.error(f"Audio chunk hook failed: {getattr(hook, '__name__', str(hook))}: {e}")
 
-    async def _trigger_end_hooks(self) -> None:
+    async def _trigger_end_hooks(self, session_id: str) -> None:
         """Execute all audio end hooks."""
         for hook in _audio_end_hooks:
             try:
                 _log.debug(f"Executing audio end hook: {getattr(hook, '__name__', str(hook))}")
-                result = hook()
+                result = hook(session_id)
                 if asyncio.iscoroutine(result):
                     await result
             except Exception as e:
@@ -300,7 +301,7 @@ def register_audio_start_hook(func: Callable) -> Callable:
     """Register an audio start hook.
     
     Args:
-        func: Function to call when audio recording starts
+        func: Function to call when audio recording starts (receives session_id)
         
     Returns:
         The original function (for use as decorator)
@@ -315,7 +316,7 @@ def register_audio_chunk_hook(func: Callable) -> Callable:
     """Register an audio chunk hook.
     
     Args:
-        func: Function to call for each audio chunk (pcm_data, sample_rate)
+        func: Function to call for each audio chunk (session_id, pcm_data, sample_rate)
         
     Returns:
         The original function (for use as decorator)
@@ -330,7 +331,7 @@ def register_audio_end_hook(func: Callable) -> Callable:
     """Register an audio end hook.
     
     Args:
-        func: Function to call when audio recording ends
+        func: Function to call when audio recording ends (receives session_id)
         
     Returns:
         The original function (for use as decorator)
@@ -367,7 +368,7 @@ def on_audio_start(func: Callable) -> Callable:
     Example::
     
         @aiui.on_audio_start
-        async def start():
+        async def start(session_id: str):
             await aiui.Message(content="🎙 Listening...").send()
     """
     return register_audio_start_hook(func)
@@ -381,7 +382,7 @@ def on_audio_chunk(func: Callable) -> Callable:
     Example::
     
         @aiui.on_audio_chunk
-        async def chunk(pcm: bytes, sample_rate: int):
+        async def chunk(session_id: str, pcm: bytes, sample_rate: int):
             # Forward to Whisper server / Deepgram / local vosk
             await stt_buffer.append(pcm)
     """
@@ -396,7 +397,7 @@ def on_audio_end(func: Callable) -> Callable:
     Example::
     
         @aiui.on_audio_end
-        async def end():
+        async def end(session_id: str):
             transcript = await stt_buffer.finalise()
             await handler(aiui.InboundMessage(content=transcript, source="voice"))
     """

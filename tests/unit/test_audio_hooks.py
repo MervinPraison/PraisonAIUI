@@ -46,15 +46,15 @@ class TestAudioFeature:
         
         # Add some hooks
         @on_audio_start
-        async def start_hook():
+        async def start_hook(session_id):
             pass
         
         @on_audio_chunk
-        async def chunk_hook(pcm, sample_rate):
+        async def chunk_hook(session_id, pcm, sample_rate):
             pass
         
         @on_audio_end
-        async def end_hook():
+        async def end_hook(session_id):
             pass
         
         health = await feature.health()
@@ -108,15 +108,15 @@ class TestAudioHookRegistration:
         """Test decorator syntax for audio hooks."""
         
         @on_audio_start
-        def start():
+        def start(session_id):
             pass
         
         @on_audio_chunk
-        def chunk(pcm, sample_rate):
+        def chunk(session_id, pcm, sample_rate):
             pass
         
         @on_audio_end
-        def end():
+        def end(session_id):
             pass
         
         assert len(_audio_start_hooks) == 1
@@ -155,20 +155,20 @@ class TestAudioHookExecution:
         execution_order = []
         
         @on_audio_start
-        def hook1():
+        def hook1(session_id):
             execution_order.append(1)
         
         @on_audio_start
-        async def hook2():
+        async def hook2(session_id):
             execution_order.append(2)
         
         @on_audio_start
-        def hook3():
+        def hook3(session_id):
             execution_order.append(3)
         
         # Create feature instance and trigger hooks
         feature = AudioFeature()
-        await feature._trigger_start_hooks()
+        await feature._trigger_start_hooks("test_session")
         
         assert execution_order == [1, 2, 3]
     
@@ -178,11 +178,11 @@ class TestAudioHookExecution:
         received_chunks = []
         
         @on_audio_chunk
-        def hook1(pcm_data, sample_rate):
+        def hook1(session_id, pcm_data, sample_rate):
             received_chunks.append(("hook1", len(pcm_data), sample_rate))
         
         @on_audio_chunk
-        async def hook2(pcm_data, sample_rate):
+        async def hook2(session_id, pcm_data, sample_rate):
             received_chunks.append(("hook2", len(pcm_data), sample_rate))
         
         # Create feature instance and trigger hooks
@@ -190,7 +190,7 @@ class TestAudioHookExecution:
         test_data = b"test_pcm_data"
         test_rate = 16000
         
-        await feature._trigger_chunk_hooks(test_data, test_rate)
+        await feature._trigger_chunk_hooks("test_session", test_data, test_rate)
         
         assert len(received_chunks) == 2
         assert ("hook1", len(test_data), test_rate) in received_chunks
@@ -202,20 +202,20 @@ class TestAudioHookExecution:
         execution_order = []
         
         @on_audio_end
-        def hook1():
+        def hook1(session_id):
             execution_order.append(1)
         
         @on_audio_end
-        async def hook2():
+        async def hook2(session_id):
             execution_order.append(2)
         
         @on_audio_end
-        def hook3():
+        def hook3(session_id):
             execution_order.append(3)
         
         # Create feature instance and trigger hooks
         feature = AudioFeature()
-        await feature._trigger_end_hooks()
+        await feature._trigger_end_hooks("test_session")
         
         assert execution_order == [1, 2, 3]
     
@@ -225,21 +225,21 @@ class TestAudioHookExecution:
         execution_order = []
         
         @on_audio_start
-        def good_hook1():
+        def good_hook1(session_id):
             execution_order.append(1)
         
         @on_audio_start
-        def failing_hook():
+        def failing_hook(session_id):
             execution_order.append("fail")
             raise RuntimeError("Hook failed")
         
         @on_audio_start
-        def good_hook2():
+        def good_hook2(session_id):
             execution_order.append(2)
         
         # Should not raise exception
         feature = AudioFeature()
-        await feature._trigger_start_hooks()
+        await feature._trigger_start_hooks("test_session")
         
         # All hooks should have been attempted
         assert execution_order == [1, "fail", 2]
@@ -368,7 +368,7 @@ class TestAudioStats:
         _audio_sessions["test"] = {}
         
         @on_audio_start
-        def hook():
+        def hook(session_id):
             pass
         
         assert len(_audio_start_hooks) == 1
@@ -398,18 +398,18 @@ class TestAudioIntegration:
         stt_buffer = {"chunks": [], "finalized": False, "transcript": ""}
         
         @on_audio_start
-        async def start():
+        async def start(session_id):
             # Reset buffer for new session
             stt_buffer["chunks"].clear()
             stt_buffer["finalized"] = False
         
         @on_audio_chunk
-        async def chunk(pcm_data, sample_rate):
+        async def chunk(session_id, pcm_data, sample_rate):
             # Accumulate audio chunks
             stt_buffer["chunks"].append(pcm_data)
         
         @on_audio_end
-        async def end():
+        async def end(session_id):
             # Simulate STT processing
             if stt_buffer["chunks"]:
                 stt_buffer["transcript"] = f"Processed {len(stt_buffer['chunks'])} chunks"
@@ -418,20 +418,20 @@ class TestAudioIntegration:
         feature = AudioFeature()
         
         # Simulate audio session
-        await feature._trigger_start_hooks()
+        await feature._trigger_start_hooks("test_session")
         assert len(stt_buffer["chunks"]) == 0
         assert not stt_buffer["finalized"]
         
         # Send audio chunks
         chunks = [b"chunk1", b"chunk2", b"chunk3"]
         for chunk in chunks:
-            await feature._trigger_chunk_hooks(chunk, 16000)
+            await feature._trigger_chunk_hooks("test_session", chunk, 16000)
         
         assert len(stt_buffer["chunks"]) == len(chunks)
         assert stt_buffer["chunks"] == chunks
         
         # End session
-        await feature._trigger_end_hooks()
+        await feature._trigger_end_hooks("test_session")
         assert stt_buffer["finalized"]
         assert stt_buffer["transcript"] == "Processed 3 chunks"
     
@@ -445,35 +445,35 @@ class TestAudioIntegration:
         }
         
         @on_audio_start
-        async def start_all():
+        async def start_all(session_id):
             for provider in providers.values():
                 provider["active"] = True
                 provider["chunks"].clear()
         
         @on_audio_chunk
-        async def chunk_to_whisper(pcm_data, sample_rate):
+        async def chunk_to_whisper(session_id, pcm_data, sample_rate):
             if providers["whisper"]["active"]:
                 providers["whisper"]["chunks"].append(pcm_data)
         
         @on_audio_chunk
-        async def chunk_to_deepgram(pcm_data, sample_rate):
+        async def chunk_to_deepgram(session_id, pcm_data, sample_rate):
             if providers["deepgram"]["active"]:
                 providers["deepgram"]["chunks"].append(pcm_data)
         
         @on_audio_chunk
-        async def chunk_to_vosk(pcm_data, sample_rate):
+        async def chunk_to_vosk(session_id, pcm_data, sample_rate):
             if providers["vosk"]["active"]:
                 providers["vosk"]["chunks"].append(pcm_data)
         
         @on_audio_end
-        async def end_all():
+        async def end_all(session_id):
             for provider in providers.values():
                 provider["active"] = False
         
         feature = AudioFeature()
         
         # Start session
-        await feature._trigger_start_hooks()
+        await feature._trigger_start_hooks("test_session")
         
         # All providers should be active
         for provider in providers.values():
@@ -482,7 +482,7 @@ class TestAudioIntegration:
         
         # Send audio chunk
         test_chunk = b"test_audio_data"
-        await feature._trigger_chunk_hooks(test_chunk, 16000)
+        await feature._trigger_chunk_hooks("test_session", test_chunk, 16000)
         
         # All providers should have received the chunk
         for provider in providers.values():
@@ -490,7 +490,7 @@ class TestAudioIntegration:
             assert provider["chunks"][0] == test_chunk
         
         # End session
-        await feature._trigger_end_hooks()
+        await feature._trigger_end_hooks("test_session")
         
         # All providers should be deactivated
         for provider in providers.values():
@@ -502,7 +502,7 @@ class TestAudioIntegration:
         received_chunks = []
         
         @on_audio_chunk
-        async def ordered_processor(pcm_data, sample_rate):
+        async def ordered_processor(session_id, pcm_data, sample_rate):
             # Decode chunk number from data
             chunk_num = int(pcm_data.decode())
             received_chunks.append(chunk_num)
@@ -512,7 +512,7 @@ class TestAudioIntegration:
         # Send chunks in order
         for i in range(10):
             chunk_data = str(i).encode()
-            await feature._trigger_chunk_hooks(chunk_data, 16000)
+            await feature._trigger_chunk_hooks("test_session", chunk_data, 16000)
         
         # Chunks should be processed in order
         assert received_chunks == list(range(10))
@@ -523,7 +523,7 @@ class TestAudioIntegration:
         session_data = {}
         
         @on_audio_chunk
-        async def track_by_session(pcm_data, sample_rate):
+        async def track_by_session(session_id, pcm_data, sample_rate):
             # Extract session ID from chunk data (simulated)
             session_id = pcm_data.decode().split(":")[0]
             if session_id not in session_data:
@@ -539,7 +539,7 @@ class TestAudioIntegration:
         for session_id in sessions:
             for chunk_num in range(chunks_per_session):
                 chunk_data = f"{session_id}:chunk{chunk_num}".encode()
-                await feature._trigger_chunk_hooks(chunk_data, 16000)
+                await feature._trigger_chunk_hooks("test_session", chunk_data, 16000)
         
         # Each session should have received its chunks
         assert len(session_data) == len(sessions)

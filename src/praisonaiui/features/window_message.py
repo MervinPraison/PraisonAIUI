@@ -24,8 +24,8 @@ _log = logging.getLogger(__name__)
 _window_message_hooks: Dict[str, List[Callable]] = {}
 _message_log: List[Dict[str, Any]] = []
 
-# Current session context for sending messages
-_current_session_context: Optional[Dict[str, Any]] = None
+# Session contexts registry for sending messages
+_session_contexts: Dict[str, Dict[str, Any]] = {}
 
 
 class WindowMessageFeature(BaseFeatureProtocol):
@@ -45,6 +45,7 @@ class WindowMessageFeature(BaseFeatureProtocol):
     def routes(self) -> List[Route]:
         return [
             Route("/api/window-message", self._send_message, methods=["POST"]),
+            Route("/api/window-message/receive", self._receive_message, methods=["POST"]),
             Route("/api/window-message/hooks", self._list_hooks, methods=["GET"]),
             Route("/api/window-message/log", self._message_log, methods=["GET"]),
             Route("/sse/window-message", self._sse_stream, methods=["GET"]),
@@ -96,18 +97,34 @@ class WindowMessageFeature(BaseFeatureProtocol):
         
         _message_log.append(message)
         
-        # If there's an active session context, also deliver via SSE
-        if _current_session_context and "sse_queue" in _current_session_context:
-            try:
-                await _current_session_context["sse_queue"].put({
-                    "type": "window.message",
-                    "data": data,
-                    "target": target,
-                })
-            except Exception as e:
-                _log.warning(f"Failed to send message via SSE: {e}")
+        # Send to all active session contexts
+        for session_id, context in _session_contexts.items():
+            if "sse_queue" in context:
+                try:
+                    await context["sse_queue"].put({
+                        "type": "window.message",
+                        "data": data,
+                        "target": target,
+                    })
+                except Exception as e:
+                    _log.warning(f"Failed to send message via SSE to session {session_id}: {e}")
         
         return JSONResponse({"status": "sent", "target": target})
+
+    async def _receive_message(self, request: Request) -> JSONResponse:
+        """API endpoint to receive window messages from frontend."""
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+        
+        data = body.get("data", {})
+        source = body.get("source")
+        
+        # Handle the incoming message
+        await handle_window_message(data, source)
+        
+        return JSONResponse({"status": "received"})
 
     async def _list_hooks(self, request: Request) -> JSONResponse:
         """List all registered window message hooks."""
@@ -141,9 +158,12 @@ class WindowMessageFeature(BaseFeatureProtocol):
             # Create a queue for this connection
             message_queue = asyncio.Queue()
             
+            # Generate a unique session ID for this connection
+            import uuid
+            session_id = str(uuid.uuid4())
+            
             # Store session context for message sending
-            global _current_session_context
-            _current_session_context = {"sse_queue": message_queue}
+            _session_contexts[session_id] = {"sse_queue": message_queue}
             
             try:
                 while True:
@@ -157,7 +177,9 @@ class WindowMessageFeature(BaseFeatureProtocol):
             except asyncio.CancelledError:
                 pass
             finally:
-                _current_session_context = None
+                # Clean up session context
+                if session_id in _session_contexts:
+                    del _session_contexts[session_id]
         
         return StreamingResponse(
             event_stream(),
@@ -276,24 +298,25 @@ async def send_window_message(data: Dict[str, Any], target: str = "parent") -> N
     
     _message_log.append(message)
     
-    # Send via current SSE connection if available
-    if _current_session_context and "sse_queue" in _current_session_context:
-        try:
-            await _current_session_context["sse_queue"].put({
-                "type": "window.message",
-                "data": data,
-                "target": target,
-            })
-        except Exception as e:
-            _log.warning(f"Failed to send window message via SSE: {e}")
+    # Send to all active SSE connections
+    for session_id, context in _session_contexts.items():
+        if "sse_queue" in context:
+            try:
+                await context["sse_queue"].put({
+                    "type": "window.message",
+                    "data": data,
+                    "target": target,
+                })
+            except Exception as e:
+                _log.warning(f"Failed to send window message via SSE to session {session_id}: {e}")
 
 
 def reset_window_message_state() -> None:
     """Reset window message state for testing."""
-    global _window_message_hooks, _message_log, _current_session_context
+    global _window_message_hooks, _message_log, _session_contexts
     _window_message_hooks.clear()
     _message_log.clear()
-    _current_session_context = None
+    _session_contexts.clear()
 
 
 # Public decorators
