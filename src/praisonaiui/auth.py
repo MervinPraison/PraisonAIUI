@@ -13,7 +13,7 @@ from starlette.responses import JSONResponse, Response
 
 class User:
     """User data class for authentication callbacks."""
-    
+
     def __init__(
         self,
         identifier: str,
@@ -23,7 +23,7 @@ class User:
         self.identifier = identifier
         self.display_name = display_name or identifier
         self.metadata = metadata or {}
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation."""
         return {
@@ -35,23 +35,24 @@ class User:
 
 class Session:
     """Session data class for auth callbacks."""
-    
+
     def __init__(self, session_id: str, user_id: str, tokens: dict[str, Any]):
         self.session_id = session_id
         self.user_id = user_id
         self.tokens = tokens
-    
+
     async def clear_tokens(self) -> None:
         """Clear all tokens for this session."""
-        # Clear JWT tokens from global store
-        for token in list(_tokens.keys()):
-            if _tokens[token].get("user_id") == self.user_id:
-                del _tokens[token]
+        # Clear JWT tokens from global store efficiently using user mapping
+        if self.user_id in _user_tokens:
+            for token in list(_user_tokens[self.user_id]):
+                _tokens.pop(token, None)
+            del _user_tokens[self.user_id]
 
 
 class OAuthCallbackProtocol(Protocol):
     """Protocol for OAuth callback handlers."""
-    
+
     async def __call__(
         self,
         provider: str,
@@ -75,7 +76,7 @@ class OAuthCallbackProtocol(Protocol):
 
 class HeaderAuthCallbackProtocol(Protocol):
     """Protocol for header-based authentication."""
-    
+
     async def __call__(self, headers: dict[str, str]) -> Optional[User]:
         """Authenticate user from request headers.
         
@@ -90,7 +91,7 @@ class HeaderAuthCallbackProtocol(Protocol):
 
 class PasswordAuthCallbackProtocol(Protocol):
     """Protocol for password authentication callback."""
-    
+
     async def __call__(self, username: str, password: str) -> Optional[User]:
         """Handle password authentication.
         
@@ -106,7 +107,7 @@ class PasswordAuthCallbackProtocol(Protocol):
 
 class OnLogoutCallbackProtocol(Protocol):
     """Protocol for logout callback."""
-    
+
     async def __call__(self, user: User, session: Session) -> None:
         """Handle user logout.
         
@@ -126,6 +127,8 @@ _on_logout_callback: Optional[OnLogoutCallbackProtocol] = None
 # Legacy storage (backward compatibility)
 _users: dict[str, dict[str, Any]] = {}
 _tokens: dict[str, dict[str, Any]] = {}
+# User to tokens mapping for O(1) token revocation
+_user_tokens: dict[str, set[str]] = {}
 _login_callback: Optional[Callable] = None
 
 TOKEN_EXPIRY_HOURS = 24
@@ -166,6 +169,10 @@ def create_token(user_id: str) -> str:
         "created_at": datetime.utcnow(),
         "expires_at": datetime.utcnow() + timedelta(hours=TOKEN_EXPIRY_HOURS),
     }
+    # Add to user mapping for efficient revocation
+    if user_id not in _user_tokens:
+        _user_tokens[user_id] = set()
+    _user_tokens[user_id].add(token)
     return token
 
 
@@ -175,7 +182,13 @@ def validate_token(token: str) -> Optional[str]:
         return None
     token_data = _tokens[token]
     if datetime.utcnow() > token_data["expires_at"]:
+        user_id = token_data["user_id"]
         del _tokens[token]
+        # Remove from user mapping
+        if user_id in _user_tokens:
+            _user_tokens[user_id].discard(token)
+            if not _user_tokens[user_id]:  # Remove empty set
+                del _user_tokens[user_id]
         return None
     return token_data["user_id"]
 
@@ -183,7 +196,13 @@ def validate_token(token: str) -> Optional[str]:
 def revoke_token(token: str) -> bool:
     """Revoke a token."""
     if token in _tokens:
+        user_id = _tokens[token].get("user_id")
         del _tokens[token]
+        # Remove from user mapping
+        if user_id and user_id in _user_tokens:
+            _user_tokens[user_id].discard(token)
+            if not _user_tokens[user_id]:  # Remove empty set
+                del _user_tokens[user_id]
         return True
     return False
 
@@ -410,12 +429,12 @@ async def authenticate_with_headers(request: Request) -> Optional[User]:
     """Authenticate using header auth callback if registered."""
     if not _header_auth_callback:
         return None
-    
+
     # Convert Starlette headers to dict
     headers = {}
     for name, value in request.headers.items():
         headers[name.lower()] = value
-    
+
     try:
         return await _header_auth_callback(headers)
     except Exception:
@@ -430,14 +449,14 @@ async def authenticate_with_password(username: str, password: str) -> Optional[U
             return await _password_auth_callback(username, password)
         except Exception:
             pass
-    
+
     # Fallback to legacy authentication
     if username not in _users:
         return None
     user_data = _users[username]
     if not verify_password(password, user_data["password_hash"]):
         return None
-    
+
     return User(
         identifier=user_data["id"],
         display_name=user_data["username"],
@@ -465,7 +484,7 @@ async def enhanced_login_handler(request: Request) -> JSONResponse:
             "user": user.to_dict(),
             "token": token,
         })
-    
+
     # Fall back to password authentication
     return await login_handler(request)
 
@@ -480,11 +499,11 @@ async def enhanced_logout_handler(request: Request) -> JSONResponse:
             # Create User and Session instances for callback
             user = User(identifier=user_id, display_name=user_id)
             session = Session(session_id="", user_id=user_id, tokens={token: True})
-            
+
             # Call logout callback
             await handle_logout_with_callback(user, session)
-            
+
             # Revoke token
             revoke_token(token)
-    
+
     return JSONResponse({"status": "logged_out"})

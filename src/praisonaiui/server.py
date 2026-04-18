@@ -2455,6 +2455,13 @@ def create_app(
         routes=routes,
         middleware=middleware,
     )
+    
+    # Start OAuth state cleanup task
+    try:
+        from praisonaiui.oauth_providers import start_cleanup_task
+        start_cleanup_task()
+    except ImportError:
+        pass
 
     return app
 

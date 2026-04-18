@@ -11,7 +11,7 @@ from praisonaiui.auth import User
 
 class OnSharedThreadViewProtocol(Protocol):
     """Protocol for shared thread view callback."""
-    
+
     async def __call__(self, thread_id: str, viewer: Optional[User]) -> bool:
         """Check if thread can be viewed by the visitor.
         
@@ -59,13 +59,13 @@ def create_share_token(thread_id: str, created_by: str) -> str:
     """
     # Generate collision-resistant token
     token = secrets.token_urlsafe(32)
-    
+
     _share_tokens[token] = {
         "thread_id": thread_id,
         "created_by": created_by,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    
+
     return token
 
 
@@ -94,15 +94,15 @@ def revoke_share_token(thread_id: str, user_id: str) -> bool:
     """
     revoked = False
     tokens_to_remove = []
-    
+
     for token, data in _share_tokens.items():
         if data["thread_id"] == thread_id and data["created_by"] == user_id:
             tokens_to_remove.append(token)
-    
+
     for token in tokens_to_remove:
         del _share_tokens[token]
         revoked = True
-    
+
     return revoked
 
 
@@ -139,7 +139,7 @@ async def check_shared_thread_access(thread_id: str, viewer: Optional[User] = No
     # Default to deny if no handler is registered (safe default)
     if not _on_shared_thread_view_callback:
         return False
-    
+
     try:
         return await _on_shared_thread_view_callback(thread_id, viewer)
     except Exception:

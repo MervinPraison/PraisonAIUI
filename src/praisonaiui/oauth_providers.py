@@ -2,14 +2,38 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import secrets
+import time
 import urllib.parse
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
 import httpx
 from starlette.responses import RedirectResponse
+
+# Shared HTTP client for connection pooling
+_http_client: Optional[httpx.AsyncClient] = None
+
+
+def get_http_client() -> httpx.AsyncClient:
+    """Get shared HTTP client for OAuth requests."""
+    global _http_client
+    if _http_client is None:
+        _http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(30.0),
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=5)
+        )
+    return _http_client
+
+
+async def close_http_client() -> None:
+    """Close shared HTTP client (call on shutdown)."""
+    global _http_client
+    if _http_client is not None:
+        await _http_client.aclose()
+        _http_client = None
 
 
 class OAuthProvider(ABC):
@@ -72,15 +96,15 @@ class GitHubProvider(OAuthProvider):
             "redirect_uri": self.redirect_uri,
         }
         headers = {"Accept": "application/json"}
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://github.com/login/oauth/access_token",
-                data=data,
-                headers=headers,
-            )
-            response.raise_for_status()
-            return response.json()
+
+        client = get_http_client()
+        response = await client.post(
+            "https://github.com/login/oauth/access_token",
+            data=data,
+            headers=headers,
+        )
+        response.raise_for_status()
+        return response.json()
 
     async def get_user_info(self, token: dict[str, Any]) -> dict[str, Any]:
         access_token = token["access_token"]
@@ -88,14 +112,14 @@ class GitHubProvider(OAuthProvider):
             "Authorization": f"Bearer {access_token}",
             "Accept": "application/json",
         }
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://api.github.com/user",
-                headers=headers,
-            )
-            response.raise_for_status()
-            return response.json()
+
+        client = get_http_client()
+        response = await client.get(
+            "https://api.github.com/user",
+            headers=headers,
+        )
+        response.raise_for_status()
+        return response.json()
 
 
 class GoogleProvider(OAuthProvider):
@@ -124,26 +148,26 @@ class GoogleProvider(OAuthProvider):
             "grant_type": "authorization_code",
             "redirect_uri": self.redirect_uri,
         }
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://oauth2.googleapis.com/token",
-                data=data,
-            )
-            response.raise_for_status()
-            return response.json()
+
+        client = get_http_client()
+        response = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data=data,
+        )
+        response.raise_for_status()
+        return response.json()
 
     async def get_user_info(self, token: dict[str, Any]) -> dict[str, Any]:
         access_token = token["access_token"]
         headers = {"Authorization": f"Bearer {access_token}"}
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://www.googleapis.com/oauth2/v2/userinfo",
-                headers=headers,
-            )
-            response.raise_for_status()
-            return response.json()
+
+        client = get_http_client()
+        response = await client.get(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            headers=headers,
+        )
+        response.raise_for_status()
+        return response.json()
 
 
 class AzureADProvider(OAuthProvider):
@@ -176,26 +200,26 @@ class AzureADProvider(OAuthProvider):
             "redirect_uri": self.redirect_uri,
             "scope": " ".join(self.scopes),
         }
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token",
-                data=data,
-            )
-            response.raise_for_status()
-            return response.json()
+
+        client = get_http_client()
+        response = await client.post(
+            f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token",
+            data=data,
+        )
+        response.raise_for_status()
+        return response.json()
 
     async def get_user_info(self, token: dict[str, Any]) -> dict[str, Any]:
         access_token = token["access_token"]
         headers = {"Authorization": f"Bearer {access_token}"}
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://graph.microsoft.com/v1.0/me",
-                headers=headers,
-            )
-            response.raise_for_status()
-            return response.json()
+
+        client = get_http_client()
+        response = await client.get(
+            "https://graph.microsoft.com/v1.0/me",
+            headers=headers,
+        )
+        response.raise_for_status()
+        return response.json()
 
 
 class OktaProvider(OAuthProvider):
@@ -228,27 +252,27 @@ class OktaProvider(OAuthProvider):
             "redirect_uri": self.redirect_uri,
         }
         headers = {"Accept": "application/json"}
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.domain}/oauth2/v1/token",
-                data=data,
-                headers=headers,
-            )
-            response.raise_for_status()
-            return response.json()
+
+        client = get_http_client()
+        response = await client.post(
+            f"{self.domain}/oauth2/v1/token",
+            data=data,
+            headers=headers,
+        )
+        response.raise_for_status()
+        return response.json()
 
     async def get_user_info(self, token: dict[str, Any]) -> dict[str, Any]:
         access_token = token["access_token"]
         headers = {"Authorization": f"Bearer {access_token}"}
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{self.domain}/oauth2/v1/userinfo",
-                headers=headers,
-            )
-            response.raise_for_status()
-            return response.json()
+
+        client = get_http_client()
+        response = await client.get(
+            f"{self.domain}/oauth2/v1/userinfo",
+            headers=headers,
+        )
+        response.raise_for_status()
+        return response.json()
 
 
 # ── Provider Factory ────────────────────────────────────────────────────
@@ -312,20 +336,20 @@ def get_oauth_config_from_env(provider_name: str) -> Optional[dict[str, str]]:
     provider_upper = provider_name.upper()
     client_id = os.environ.get(f"AIUI_OAUTH_{provider_upper}_CLIENT_ID")
     client_secret = os.environ.get(f"AIUI_OAUTH_{provider_upper}_CLIENT_SECRET")
-    
+
     if not client_id or not client_secret:
         return None
-    
+
     config = {
         "client_id": client_id,
         "client_secret": client_secret,
     }
-    
+
     # Optional redirect URI (auto-generated if not provided)
     redirect_uri = os.environ.get(f"AIUI_OAUTH_{provider_upper}_REDIRECT_URI")
     if redirect_uri:
         config["redirect_uri"] = redirect_uri
-    
+
     # Provider-specific config
     if provider_name == "azure":
         tenant_id = os.environ.get("AIUI_OAUTH_AZURE_TENANT_ID", "common")
@@ -334,7 +358,7 @@ def get_oauth_config_from_env(provider_name: str) -> Optional[dict[str, str]]:
         domain = os.environ.get("AIUI_OAUTH_OKTA_DOMAIN")
         if domain:
             config["domain"] = domain
-    
+
     return config
 
 
@@ -357,7 +381,7 @@ def create_oauth_state(provider: str, return_url: str = "/") -> str:
     _oauth_states[state] = {
         "provider": provider,
         "return_url": return_url,
-        "created_at": os.times().system,  # Use system time for expiry
+        "created_at": time.time(),  # Use wall clock time for expiry
     }
     return state
 
@@ -373,23 +397,53 @@ def validate_oauth_state(state: str) -> Optional[dict[str, Any]]:
     """
     if state not in _oauth_states:
         return None
-    
+
     state_data = _oauth_states.pop(state)  # Consume state (one-time use)
-    
+
     # Check expiry (10 minutes)
-    current_time = os.times().system
+    current_time = time.time()
     if current_time - state_data["created_at"] > 600:
         return None
-    
+
     return state_data
 
 
 def cleanup_expired_states() -> None:
     """Clean up expired OAuth states (called periodically)."""
-    current_time = os.times().system
+    current_time = time.time()
     expired_states = [
         state for state, data in _oauth_states.items()
         if current_time - data["created_at"] > 600
     ]
     for state in expired_states:
         _oauth_states.pop(state, None)
+
+
+_cleanup_task: Optional[asyncio.Task] = None
+
+
+async def _periodic_cleanup() -> None:
+    """Run OAuth state cleanup periodically."""
+    while True:
+        try:
+            await asyncio.sleep(300)  # Clean up every 5 minutes
+            cleanup_expired_states()
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            # Log error but don't crash the cleanup task
+            pass
+
+
+def start_cleanup_task() -> None:
+    """Start the periodic cleanup task."""
+    global _cleanup_task
+    if _cleanup_task is None or _cleanup_task.done():
+        _cleanup_task = asyncio.create_task(_periodic_cleanup())
+
+
+def stop_cleanup_task() -> None:
+    """Stop the periodic cleanup task."""
+    global _cleanup_task
+    if _cleanup_task and not _cleanup_task.done():
+        _cleanup_task.cancel()
