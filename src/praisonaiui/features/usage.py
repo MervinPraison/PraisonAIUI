@@ -250,6 +250,36 @@ def set_cost_table(table: Dict[str, Dict[str, float]]) -> None:
     _cost_table.update(table)
 
 
+def get_token_usage(session_id: str) -> Dict[str, Any]:
+    """Get token usage totals for a specific session.
+    
+    Args:
+        session_id: The session ID to get usage for
+        
+    Returns:
+        Dict with total_input_tokens, total_output_tokens, total_cost, requests
+    """
+    if session_id not in _aggregates["by_session"]:
+        return {
+            "session_id": session_id,
+            "total_input_tokens": 0,
+            "total_output_tokens": 0,
+            "total_tokens": 0,
+            "total_cost": 0.0,
+            "requests": 0,
+        }
+    
+    stats = _aggregates["by_session"][session_id]
+    return {
+        "session_id": session_id,
+        "total_input_tokens": stats["input_tokens"],
+        "total_output_tokens": stats["output_tokens"],
+        "total_tokens": stats["input_tokens"] + stats["output_tokens"],
+        "total_cost": round(stats["cost"], 4),
+        "requests": stats["requests"],
+    }
+
+
 class UsageFeature(BaseFeatureProtocol):
     """Enhanced usage analytics with cost tracking and time-series data."""
 

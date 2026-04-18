@@ -36,8 +36,11 @@ def __getattr__(name: str):
     _config_attrs = {"configure"}
     _features_attrs = {"BaseFeatureProtocol", "register_feature", "get_features",
                        "get_feature", "auto_register_defaults"}
+    _usage_attrs = {"get_token_usage"}
     _realtime_attrs = {"RealtimeProtocol", "OpenAIRealtimeManager", "set_realtime", 
                        "get_realtime_manager", "set_realtime_manager"}
+    _instrumentation_attrs = {"instrument_openai", "instrument_anthropic", "instrument_mistral", 
+                             "instrument_google", "no_instrument"}
     _ui_attrs = {
         "layout", "card", "columns", "chart", "table", "text",
         # Tier 1
@@ -83,12 +86,18 @@ def __getattr__(name: str):
     if name in _features_attrs:
         from praisonaiui import features
         return getattr(features, name)
+    if name in _usage_attrs:
+        from praisonaiui.features import usage
+        return getattr(usage, name)
     if name in _realtime_attrs:
         from praisonaiui.features import realtime
         # Handle alias for set_realtime
         if name == "set_realtime":
             return realtime.set_realtime_manager
         return getattr(realtime, name)
+    if name in _instrumentation_attrs:
+        from praisonaiui import instrumentation
+        return getattr(instrumentation, name)
     if name in _ui_attrs:
         from praisonaiui import ui
         return getattr(ui, name)
@@ -181,6 +190,14 @@ __all__ = [
     "set_realtime",
     "get_realtime_manager",
     "set_realtime_manager",
+    # LLM instrumentation
+    "instrument_openai",
+    "instrument_anthropic",
+    "instrument_mistral", 
+    "instrument_google",
+    "no_instrument",
+    # Usage tracking
+    "get_token_usage",
     # UI component API
     "layout",
     "card",
