@@ -51,6 +51,7 @@ export interface TaskState {
 interface TaskStoreEntry {
   state: TaskState
   listeners: Set<() => void>
+  lastAccessed: number
 }
 
 const defaultState = (): TaskState => ({
@@ -60,12 +61,49 @@ const defaultState = (): TaskState => ({
 
 const store = new Map<string, TaskStoreEntry>()
 
+// Cleanup mechanism to prevent memory leaks
+const MAX_STORE_SIZE = 100  // Limit number of sessions stored
+const SESSION_TTL = 24 * 60 * 60 * 1000  // 24 hours in milliseconds
+
+function cleanupOldSessions(): void {
+  const now = Date.now()
+  const entries = Array.from(store.entries())
+  
+  // Remove expired sessions
+  for (const [sessionId, entry] of entries) {
+    if (now - entry.lastAccessed > SESSION_TTL) {
+      store.delete(sessionId)
+    }
+  }
+  
+  // If still over limit, remove oldest sessions
+  if (store.size > MAX_STORE_SIZE) {
+    const sortedEntries = Array.from(store.entries())
+      .sort(([, a], [, b]) => a.lastAccessed - b.lastAccessed)
+    
+    const toRemove = store.size - MAX_STORE_SIZE
+    for (let i = 0; i < toRemove; i++) {
+      store.delete(sortedEntries[i][0])
+    }
+  }
+}
+
 function getEntry(sessionId: string): TaskStoreEntry {
   if (!store.has(sessionId)) {
+    // Trigger cleanup before adding new entry
+    if (store.size >= MAX_STORE_SIZE) {
+      cleanupOldSessions()
+    }
+    
     store.set(sessionId, {
       state: defaultState(),
       listeners: new Set(),
+      lastAccessed: Date.now(),
     })
+  } else {
+    // Update access time
+    const entry = store.get(sessionId)!
+    entry.lastAccessed = Date.now()
   }
   return store.get(sessionId)!
 }
@@ -111,8 +149,8 @@ export function initTaskList(sessionId: string, data: {
     return {
       ...state,
       taskLists: [...filteredTaskLists, taskList],
-      // Auto-expand if we have tasks
-      collapsed: state.taskLists.length === 0 && data.tasks.length <= 1,
+      // Only initialize collapse state for first task list, preserve existing state for subsequent updates
+      collapsed: state.taskLists.length === 0 ? data.tasks.length <= 1 : state.collapsed,
     }
   })
 }
