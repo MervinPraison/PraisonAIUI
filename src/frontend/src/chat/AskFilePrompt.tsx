@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, type DragEvent, type ChangeEvent } from 'react'
+import { useState, useCallback, useRef, useEffect, type DragEvent, type ChangeEvent } from 'react'
 
 interface FileUploadConfig {
     accept: string[]
@@ -28,7 +28,7 @@ export function AskFilePrompt({
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Timeout countdown
-    useState(() => {
+    useEffect(() => {
         const interval = setInterval(() => {
             setTimeLeft((prev) => {
                 if (prev <= 1) {
@@ -41,7 +41,7 @@ export function AskFilePrompt({
         }, 1000)
 
         return () => clearInterval(interval)
-    })
+    }, [onTimeout])
 
     const validateFiles = useCallback((fileList: File[]): File[] => {
         const maxSizeBytes = config.maxSizeMb * 1024 * 1024

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 
 interface Action {
     name: string
@@ -25,7 +25,7 @@ export function AskActionPrompt({
     const [selectedAction, setSelectedAction] = useState<Action | null>(null)
 
     // Timeout countdown
-    useState(() => {
+    useEffect(() => {
         const interval = setInterval(() => {
             setTimeLeft((prev) => {
                 if (prev <= 1) {
@@ -38,7 +38,7 @@ export function AskActionPrompt({
         }, 1000)
 
         return () => clearInterval(interval)
-    })
+    }, [onTimeout])
 
     const handleActionClick = useCallback((action: Action) => {
         setSelectedAction(action)
@@ -66,7 +66,7 @@ export function AskActionPrompt({
                 <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                         className="bg-blue-600 h-2 rounded-full transition-all duration-1000"
-                        style={{ width: `${(timeLeft / timeout) * 100}%` }}
+                        style={{ width: `${timeout > 0 ? (timeLeft / timeout) * 100 : 0}%` }}
                     />
                 </div>
             </div>

@@ -14,29 +14,26 @@ Example:
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from dataclasses import dataclass, field
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 from praisonaiui.schema.models import (
+    Action,
     AudioElement,
     CodeElement,
+    ElementResponse,
     FileElement,
+    FileResponse,
     ImageElement,
     MessageElementUnion,
     PdfElement,
     VideoElement,
-    FileResponse,
-    Action,
-    ActionResponse,
-    ElementResponse
 )
 from praisonaiui.server import MessageContext
-
-if TYPE_CHECKING:
-    from praisonaiui.actions import Action
 
 # Size limits in bytes
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
@@ -245,7 +242,8 @@ class Message:
             # Validate size limits
             if kwargs.get("size") and kwargs["size"] > MAX_FILE_SIZE:
                 raise ValueError(
-                    f"File size {kwargs['size']} exceeds maximum allowed size {MAX_FILE_SIZE}"
+                    f"File size {kwargs['size']} exceeds maximum allowed "
+                    f"size {MAX_FILE_SIZE}"
                 )
 
             if content and len(content.encode('utf-8')) > MAX_CODE_SIZE:
@@ -304,35 +302,42 @@ class Message:
         """Add an image element to the message."""
         return self.add_element("image", url=url, name=name, alt=alt, display=display, **kwargs)
 
-    def add_pdf(self, url: str, name: Optional[str] = None, display: str = "inline",
-                **kwargs: Any) -> "Message":
+    def add_pdf(self, url: str, name: Optional[str] = None,
+                display: str = "inline", **kwargs: Any) -> "Message":
         """Add a PDF element to the message."""
         return self.add_element("pdf", url=url, name=name, display=display, **kwargs)
 
     def add_video(self, url: str, name: Optional[str] = None, display: str = "inline",
                   controls: bool = True, **kwargs: Any) -> "Message":
         """Add a video element to the message."""
-        return self.add_element("video", url=url, name=name, display=display,
-                               controls=controls, **kwargs)
+        return self.add_element(
+            "video", url=url, name=name, display=display, controls=controls, **kwargs
+        )
 
     def add_audio(self, url: str, name: Optional[str] = None, display: str = "inline",
                   controls: bool = True, **kwargs: Any) -> "Message":
         """Add an audio element to the message."""
-        return self.add_element("audio", url=url, name=name, display=display,
-                               controls=controls, **kwargs)
+        return self.add_element(
+            "audio", url=url, name=name, display=display, controls=controls, **kwargs
+        )
 
-    def add_file(self, url: str, name: Optional[str] = None, display: str = "inline",
-                 size: Optional[int] = None, mime_type: Optional[str] = None,
-                 **kwargs: Any) -> "Message":
+    def add_file(self, url: str, name: Optional[str] = None,
+                 display: str = "inline", size: Optional[int] = None,
+                 mime_type: Optional[str] = None, **kwargs: Any) -> "Message":
         """Add a file download element to the message."""
-        return self.add_element("file", url=url, name=name, display=display, size=size,
-                               mimeType=mime_type, **kwargs)
+        return self.add_element(
+            "file", url=url, name=name, display=display, size=size,
+            mimeType=mime_type, **kwargs
+        )
 
-    def add_code(self, content: str, language: Optional[str] = None, name: Optional[str] = None,
-                 display: str = "inline", **kwargs: Any) -> "Message":
+    def add_code(self, content: str, language: Optional[str] = None,
+                 name: Optional[str] = None, display: str = "inline",
+                 **kwargs: Any) -> "Message":
         """Add a code block element to the message."""
-        return self.add_element("code", content=content, language=language, name=name,
-                               display=display, **kwargs)
+        return self.add_element(
+            "code", content=content, language=language, name=name,
+            display=display, **kwargs
+        )
 
     def add_action(
         self,
@@ -553,9 +558,9 @@ class AskFileMessage:
             return []
 
         # Create a future to wait for the response
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         pending_ask = loop.create_future()
-        
+
         # Store the future for resolution by the server
         if not hasattr(self._context, '_pending_asks'):
             self._context._pending_asks = {}
@@ -623,9 +628,9 @@ class AskActionMessage:
             return None
 
         # Create a future to wait for the response
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         pending_ask = loop.create_future()
-        
+
         # Store the future for resolution by the server
         if not hasattr(self._context, '_pending_asks'):
             self._context._pending_asks = {}
@@ -689,9 +694,9 @@ class AskElementMessage:
             return None
 
         # Create a future to wait for the response
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         pending_ask = loop.create_future()
-        
+
         # Store the future for resolution by the server
         if not hasattr(self._context, '_pending_asks'):
             self._context._pending_asks = {}

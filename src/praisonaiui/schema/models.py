@@ -388,17 +388,17 @@ class InputWidgetConfig(BaseModel):
 
 class MessageElement(BaseModel):
     """Base class for message elements (images, PDFs, videos, etc.)."""
-    
+
     type: Literal["image", "pdf", "video", "audio", "file", "code"]
     name: Optional[str] = None
     display: Literal["inline", "side", "page"] = "inline"
-    
+
     model_config = ConfigDict(populate_by_name=True)
-    
+
     def __getitem__(self, key: str) -> Any:
         """Provide dict-style access for backward compatibility."""
         return getattr(self, key)
-    
+
     def get(self, key: str, default: Any = None) -> Any:
         """Provide dict-style get method for backward compatibility.
         
@@ -411,7 +411,7 @@ class MessageElement(BaseModel):
 
 class ImageElement(MessageElement):
     """Image element for messages."""
-    
+
     type: Literal["image"] = "image"
     url: str
     alt: Optional[str] = None
@@ -421,14 +421,14 @@ class ImageElement(MessageElement):
 
 class PdfElement(MessageElement):
     """PDF element for messages."""
-    
+
     type: Literal["pdf"] = "pdf"
     url: str
 
 
 class VideoElement(MessageElement):
     """Video element for messages."""
-    
+
     type: Literal["video"] = "video"
     url: str
     autoplay: bool = False
@@ -438,7 +438,7 @@ class VideoElement(MessageElement):
 
 class AudioElement(MessageElement):
     """Audio element for messages."""
-    
+
     type: Literal["audio"] = "audio"
     url: str
     autoplay: bool = False
@@ -448,18 +448,18 @@ class AudioElement(MessageElement):
 
 class FileElement(MessageElement):
     """File download element for messages."""
-    
+
     type: Literal["file"] = "file"
     url: str
     size: Optional[int] = None
     mime_type: Optional[str] = Field(default=None, alias="mimeType")
-    
+
     model_config = ConfigDict(populate_by_name=True)
 
 
 class CodeElement(MessageElement):
     """Code block element for messages."""
-    
+
     type: Literal["code"] = "code"
     content: str
     language: Optional[str] = None
@@ -475,39 +475,39 @@ MessageElementUnion = ImageElement | PdfElement | VideoElement | AudioElement | 
 
 class FileResponse(BaseModel):
     """Response model for file uploads."""
-    
+
     path: str
     mime: str
     size: int
     name: Optional[str] = None
-    
+
     model_config = ConfigDict(populate_by_name=True)
 
 
 class Action(BaseModel):
     """Action button model for AskActionMessage."""
-    
+
     name: str
     label: str
     icon: Optional[str] = None
-    
+
     model_config = ConfigDict(populate_by_name=True)
 
 
 class ActionResponse(BaseModel):
     """Response model for action selection."""
-    
+
     action: Action
-    
+
     model_config = ConfigDict(populate_by_name=True)
 
 
 class ElementResponse(BaseModel):
     """Response model for element interactions."""
-    
+
     payload: dict[str, Any]
     return_type: str
-    
+
     model_config = ConfigDict(populate_by_name=True)
 
 
