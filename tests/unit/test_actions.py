@@ -304,8 +304,6 @@ class TestMessageIntegration:
 
     def test_message_add_action_fallback(self):
         """Test Message.add_action() falls back to dict when Action import fails."""
-        message = Message(content="Test message")
-
         # This test isn't really needed since the import should always work
         # in the real environment. Skip the fallback test.
         pytest.skip("Import fallback test not needed - actions module is always available")

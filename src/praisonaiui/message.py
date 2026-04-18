@@ -17,19 +17,19 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Optional, Union, Literal, TYPE_CHECKING
 from functools import wraps
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
-from praisonaiui.server import MessageContext
 from praisonaiui.schema.models import (
-    MessageElementUnion, 
-    ImageElement, 
-    PdfElement, 
-    VideoElement, 
-    AudioElement, 
-    FileElement, 
-    CodeElement
+    AudioElement,
+    CodeElement,
+    FileElement,
+    ImageElement,
+    MessageElementUnion,
+    PdfElement,
+    VideoElement,
 )
+from praisonaiui.server import MessageContext
 
 if TYPE_CHECKING:
     from praisonaiui.actions import Action
@@ -98,13 +98,13 @@ class Message:
 
     def _serialize_actions(self) -> Optional[list[dict[str, Any]]]:
         """Serialize actions to dict format for transmission.
-        
+
         Sets message_id on Action objects and converts to dicts.
         Returns None if no actions to avoid sending empty arrays.
         """
         if not self.actions:
             return None
-        
+
         serialized_actions = []
         for action in self.actions:
             if hasattr(action, 'to_dict'):
@@ -114,7 +114,7 @@ class Message:
             else:
                 # Legacy dict format
                 serialized_actions.append(action)
-        
+
         return serialized_actions
 
     async def send(self) -> "Message":
@@ -240,11 +240,13 @@ class Message:
         try:
             # Validate size limits
             if kwargs.get("size") and kwargs["size"] > MAX_FILE_SIZE:
-                raise ValueError(f"File size {kwargs['size']} exceeds maximum allowed size {MAX_FILE_SIZE}")
-            
+                raise ValueError(
+                    f"File size {kwargs['size']} exceeds maximum allowed size {MAX_FILE_SIZE}"
+                )
+
             if content and len(content.encode('utf-8')) > MAX_CODE_SIZE:
                 raise ValueError(f"Code content size exceeds maximum allowed size {MAX_CODE_SIZE}")
-                
+
             # Create typed element based on type
             if element_type == "image":
                 if not url:
@@ -277,7 +279,7 @@ class Message:
                     element["url"] = url
                 if content:
                     element["content"] = content
-                    
+
             self.elements.append(element)
         except ValueError:
             # Intentional validation errors — propagate to caller
@@ -290,38 +292,42 @@ class Message:
             if content:
                 element["content"] = content
             self.elements.append(element)
-            
+
         return self
 
-    def add_image(self, url: str, name: Optional[str] = None, alt: Optional[str] = None, 
+    def add_image(self, url: str, name: Optional[str] = None, alt: Optional[str] = None,
                   display: str = "inline", **kwargs: Any) -> "Message":
         """Add an image element to the message."""
         return self.add_element("image", url=url, name=name, alt=alt, display=display, **kwargs)
 
-    def add_pdf(self, url: str, name: Optional[str] = None, display: str = "inline", **kwargs: Any) -> "Message":
+    def add_pdf(self, url: str, name: Optional[str] = None, display: str = "inline",
+                **kwargs: Any) -> "Message":
         """Add a PDF element to the message."""
         return self.add_element("pdf", url=url, name=name, display=display, **kwargs)
 
-    def add_video(self, url: str, name: Optional[str] = None, display: str = "inline", 
+    def add_video(self, url: str, name: Optional[str] = None, display: str = "inline",
                   controls: bool = True, **kwargs: Any) -> "Message":
         """Add a video element to the message."""
-        return self.add_element("video", url=url, name=name, display=display, controls=controls, **kwargs)
+        return self.add_element("video", url=url, name=name, display=display,
+                               controls=controls, **kwargs)
 
-    def add_audio(self, url: str, name: Optional[str] = None, display: str = "inline", 
+    def add_audio(self, url: str, name: Optional[str] = None, display: str = "inline",
                   controls: bool = True, **kwargs: Any) -> "Message":
         """Add an audio element to the message."""
-        return self.add_element("audio", url=url, name=name, display=display, controls=controls, **kwargs)
+        return self.add_element("audio", url=url, name=name, display=display,
+                               controls=controls, **kwargs)
 
-    def add_file(self, url: str, name: Optional[str] = None, display: str = "inline", 
-                 size: Optional[int] = None, mime_type: Optional[str] = None, **kwargs: Any) -> "Message":
+    def add_file(self, url: str, name: Optional[str] = None, display: str = "inline",
+                 size: Optional[int] = None, mime_type: Optional[str] = None,
+                 **kwargs: Any) -> "Message":
         """Add a file download element to the message."""
-        return self.add_element("file", url=url, name=name, display=display, size=size, 
+        return self.add_element("file", url=url, name=name, display=display, size=size,
                                mimeType=mime_type, **kwargs)
 
-    def add_code(self, content: str, language: Optional[str] = None, name: Optional[str] = None, 
+    def add_code(self, content: str, language: Optional[str] = None, name: Optional[str] = None,
                  display: str = "inline", **kwargs: Any) -> "Message":
         """Add a code block element to the message."""
-        return self.add_element("code", content=content, language=language, name=name, 
+        return self.add_element("code", content=content, language=language, name=name,
                                display=display, **kwargs)
 
     def add_action(
@@ -331,7 +337,6 @@ class Message:
         icon: Optional[str] = None,
         payload: Optional[dict[str, Any]] = None,
         variant: str = "secondary",
-        **kwargs: Any,
     ) -> "Message":
         """Add an action button to the message.
 
@@ -341,7 +346,6 @@ class Message:
             icon: Optional icon name
             payload: Optional data passed to callback when clicked
             variant: Button style variant ("primary", "secondary", etc.)
-            **kwargs: Additional action properties (for backwards compatibility)
 
         Returns:
             self for chaining
@@ -359,7 +363,7 @@ class Message:
             self.actions.append(action)
         except ImportError:
             # Fallback to legacy dict format if actions module not available
-            action = {"name": name, "label": label, **kwargs}
+            action = {"name": name, "label": label}
             if icon:
                 action["icon"] = icon
             if payload is not None:
@@ -484,12 +488,12 @@ class Step:
 
 def step(name: str, type: StepType = "reasoning", **metadata: Any):
     """Decorator to wrap a function in a Step context manager.
-    
+
     Args:
         name: The step name to display
         type: The step type (tool_call, reasoning, sub_agent, retrieval, custom)
         **metadata: Additional metadata to include with the step
-    
+
     Example:
         @step("🔧 Tool: web_search", type="tool_call")
         async def web_search(query: str):
