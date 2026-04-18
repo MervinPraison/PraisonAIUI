@@ -42,19 +42,26 @@
 <li>**Nested hierarchy** for complex reasoning chains</li>
 <li>**Real-time updates** as steps stream content</li>
 <h2>API Reference</h2>
-<h3>`aiui.Step(name, parent=None, metadata={})`</h3>
+<h3>`aiui.Step(name, type="reasoning", parent=None, metadata={})`</h3>
 <p>**Parameters:**</p>
 <li>`name` (str): Display name for the step</li>
+<li>`type` (StepType, optional): Step type - one of `"tool_call"`, `"reasoning"`, `"sub_agent"`, `"retrieval"`, `"custom"` (default: `"reasoning"`)</li>
 <li>`parent` (Step, optional): Parent step for nesting</li>
 <li>`metadata` (dict, optional): Additional step metadata</li>
 <p>**Methods:**</p>
 <li>`async stream_token(token)`: Stream content to the step</li>
 <li>Context manager protocol: `async with step: ...`</li>
+<h3>`@aiui.step(name, type="reasoning", **metadata)`</h3>
+<p>**Decorator Parameters:**</p>
+<li>`name` (str): Display name for the step</li>
+<li>`type` (StepType, optional): Step type (default: `"reasoning"`)</li>
+<li>`**metadata`: Additional metadata to include with the step</li>
+<p>**Usage:**</p>
 <h3>Events Emitted</h3>
 <p>Steps emit these `RunEventType` events:</p>
-<li>`REASONING_STARTED`: Step begins</li>
-<li>`REASONING_STEP`: Content streamed</li>
-<li>`REASONING_COMPLETED`: Step finishes</li>
+<li>`REASONING_STARTED`: Step begins (includes `step_type`, `parent_id`, `metadata`)</li>
+<li>`REASONING_STEP`: Content streamed (includes `step_type`)</li>
+<li>`REASONING_COMPLETED`: Step finishes (includes `step_type`, `duration`, `error`, `metadata`)</li>
 <h2>Chainlit Migration</h2>
 <p>Direct replacement for `cl.Step`:</p></noscript></div>
 </body>
