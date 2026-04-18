@@ -1716,6 +1716,11 @@ def create_app(
         logout_handler,
         me_handler,
         register_handler,
+        enhanced_login_handler,
+        enhanced_logout_handler,
+        User,
+        Session,
+        _oauth_callbacks,
     )
 
     # Load config from YAML if path provided
@@ -1861,13 +1866,328 @@ def create_app(
     async def _route_manifest_json(request: Request) -> JSONResponse:
         return JSONResponse({})
 
+    # ── OAuth Route Handlers ───────────────────────────────────────────
+    
+    async def oauth_authorize_handler(request: Request) -> Response:
+        """Handle OAuth authorization request."""
+        provider_name = request.path_params["provider"]
+        
+        # Check if provider is configured
+        try:
+            from praisonaiui.oauth_providers import get_oauth_config_from_env, create_oauth_provider, create_oauth_state
+            
+            config = get_oauth_config_from_env(provider_name)
+            if not config:
+                return JSONResponse(
+                    {"error": f"OAuth provider '{provider_name}' not configured"}, 
+                    status_code=400
+                )
+            
+            # Generate redirect URI if not provided
+            if "redirect_uri" not in config:
+                base_url = str(request.base_url).rstrip("/")
+                config["redirect_uri"] = f"{base_url}/api/auth/oauth/{provider_name}/callback"
+            
+            provider = create_oauth_provider(provider_name, **config)
+            
+            # Create state for CSRF protection
+            return_url = request.query_params.get("return_url", "/")
+            state = create_oauth_state(provider_name, return_url)
+            
+            return provider.create_authorize_response(state)
+            
+        except ImportError:
+            return JSONResponse(
+                {"error": "OAuth providers not available (missing httpx dependency)"}, 
+                status_code=500
+            )
+        except Exception as e:
+            return JSONResponse(
+                {"error": f"OAuth setup error: {str(e)}"}, 
+                status_code=500
+            )
+    
+    async def oauth_callback_handler(request: Request) -> Response:
+        """Handle OAuth callback from provider."""
+        provider_name = request.path_params["provider"]
+        
+        try:
+            from praisonaiui.oauth_providers import (
+                get_oauth_config_from_env, 
+                create_oauth_provider, 
+                validate_oauth_state
+            )
+            
+            # Get authorization code and state
+            code = request.query_params.get("code")
+            state = request.query_params.get("state")
+            error = request.query_params.get("error")
+            
+            if error:
+                return JSONResponse(
+                    {"error": f"OAuth error: {error}"}, 
+                    status_code=400
+                )
+            
+            if not code or not state:
+                return JSONResponse(
+                    {"error": "Missing authorization code or state"}, 
+                    status_code=400
+                )
+            
+            # Validate state
+            state_data = validate_oauth_state(state)
+            if not state_data or state_data["provider"] != provider_name:
+                return JSONResponse(
+                    {"error": "Invalid or expired state parameter"}, 
+                    status_code=400
+                )
+            
+            # Get OAuth config
+            config = get_oauth_config_from_env(provider_name)
+            if not config:
+                return JSONResponse(
+                    {"error": f"OAuth provider '{provider_name}' not configured"}, 
+                    status_code=500
+                )
+            
+            # Generate redirect URI if not provided
+            if "redirect_uri" not in config:
+                base_url = str(request.base_url).rstrip("/")
+                config["redirect_uri"] = f"{base_url}/api/auth/oauth/{provider_name}/callback"
+            
+            provider = create_oauth_provider(provider_name, **config)
+            
+            # Exchange code for token
+            token_data = await provider.exchange_code_for_token(code)
+            
+            # Get user info
+            user_info = await provider.get_user_info(token_data)
+            
+            # Create default User instance
+            if provider_name == "github":
+                default_user = User(
+                    identifier=f"github:{user_info['login']}",
+                    display_name=user_info.get("name") or user_info["login"],
+                    metadata={"avatar": user_info.get("avatar_url"), "login": user_info["login"]},
+                )
+            elif provider_name == "google":
+                default_user = User(
+                    identifier=f"google:{user_info['id']}",
+                    display_name=user_info.get("name") or user_info["email"],
+                    metadata={"avatar": user_info.get("picture"), "email": user_info["email"]},
+                )
+            elif provider_name == "azure":
+                default_user = User(
+                    identifier=f"azure:{user_info['id']}",
+                    display_name=user_info.get("displayName") or user_info["userPrincipalName"],
+                    metadata={"email": user_info.get("userPrincipalName")},
+                )
+            elif provider_name == "okta":
+                default_user = User(
+                    identifier=f"okta:{user_info['sub']}",
+                    display_name=user_info.get("name") or user_info["preferred_username"],
+                    metadata={"email": user_info.get("email")},
+                )
+            else:
+                # Fallback for unknown providers
+                default_user = User(
+                    identifier=f"{provider_name}:{user_info.get('id', user_info.get('sub', 'unknown'))}",
+                    display_name=user_info.get("name", user_info.get("login", "Unknown")),
+                )
+            
+            # Call OAuth callback if registered
+            oauth_callback = _oauth_callbacks.get(provider_name)
+            if oauth_callback:
+                try:
+                    user = await oauth_callback(provider_name, token_data, user_info, default_user)
+                    if user is None:
+                        return JSONResponse(
+                            {"error": "Authentication denied by application"}, 
+                            status_code=401
+                        )
+                except Exception as e:
+                    return JSONResponse(
+                        {"error": f"OAuth callback error: {str(e)}"}, 
+                        status_code=500
+                    )
+            else:
+                user = default_user
+            
+            # Create session token
+            from praisonaiui.auth import create_token
+            token = create_token(user.identifier)
+            
+            # Return success with redirect or JSON based on Accept header
+            accept_header = request.headers.get("accept", "")
+            if "application/json" in accept_header:
+                return JSONResponse({
+                    "user": user.to_dict(),
+                    "token": token,
+                })
+            else:
+                # Redirect to return URL with token
+                return_url = state_data.get("return_url", "/")
+                redirect_url = f"{return_url}?token={token}"
+                return RedirectResponse(url=redirect_url, status_code=302)
+        
+        except ImportError:
+            return JSONResponse(
+                {"error": "OAuth providers not available"}, 
+                status_code=500
+            )
+        except Exception as e:
+            return JSONResponse(
+                {"error": f"OAuth callback error: {str(e)}"}, 
+                status_code=500
+            )
+    
+    # ── Thread Sharing Route Handlers ──────────────────────────────────
+    
+    async def create_thread_share_handler(request: Request) -> JSONResponse:
+        """Create a share token for a thread."""
+        thread_id = request.path_params["thread_id"]
+        
+        # Check if user is authenticated
+        from praisonaiui.auth import validate_token
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return JSONResponse({"error": "Authentication required"}, status_code=401)
+        
+        token = auth_header[7:]
+        user_id = validate_token(token)
+        if not user_id:
+            return JSONResponse({"error": "Invalid token"}, status_code=401)
+        
+        # Check if thread exists
+        session = await _datastore.get_session(thread_id)
+        if not session:
+            return JSONResponse({"error": "Thread not found"}, status_code=404)
+        
+        # Create share token
+        try:
+            from praisonaiui.features.sharing import create_share_token, get_share_url
+            share_token = create_share_token(thread_id, user_id)
+            base_url = str(request.base_url).rstrip("/")
+            share_url = get_share_url(share_token, base_url)
+            
+            return JSONResponse({
+                "url": share_url,
+                "token": share_token,
+            })
+        except ImportError:
+            return JSONResponse(
+                {"error": "Sharing feature not available"}, 
+                status_code=500
+            )
+    
+    async def revoke_thread_share_handler(request: Request) -> JSONResponse:
+        """Revoke share token(s) for a thread."""
+        thread_id = request.path_params["thread_id"]
+        
+        # Check if user is authenticated
+        from praisonaiui.auth import validate_token
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return JSONResponse({"error": "Authentication required"}, status_code=401)
+        
+        token = auth_header[7:]
+        user_id = validate_token(token)
+        if not user_id:
+            return JSONResponse({"error": "Invalid token"}, status_code=401)
+        
+        try:
+            from praisonaiui.features.sharing import revoke_share_token
+            revoked = revoke_share_token(thread_id, user_id)
+            
+            return JSONResponse({
+                "revoked": revoked,
+                "thread_id": thread_id,
+            })
+        except ImportError:
+            return JSONResponse(
+                {"error": "Sharing feature not available"}, 
+                status_code=500
+            )
+    
+    async def view_shared_thread_handler(request: Request) -> Response:
+        """View a shared thread (read-only)."""
+        share_token = request.path_params["token"]
+        
+        try:
+            from praisonaiui.features.sharing import get_thread_by_share_token, check_shared_thread_access
+            
+            # Get thread ID from token
+            thread_id = get_thread_by_share_token(share_token)
+            if not thread_id:
+                return JSONResponse({"error": "Invalid or expired share link"}, status_code=404)
+            
+            # Check if thread exists
+            session = await _datastore.get_session(thread_id)
+            if not session:
+                return JSONResponse({"error": "Thread not found"}, status_code=404)
+            
+            # Check access control via callback
+            user = None
+            # Extract authenticated user from auth header if present (optional for shared links)
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+                from .auth import validate_token, _users, User
+                user_id = validate_token(token)
+                if user_id:
+                    if user_id in _users:
+                        user_data = _users[user_id]
+                        user = User(
+                            identifier=user_data["id"],
+                            display_name=user_data["username"],
+                            metadata={}
+                        )
+                    else:
+                        user = User(identifier=user_id, display_name=user_id)
+            
+            access_granted = await check_shared_thread_access(thread_id, user)
+            if not access_granted:
+                return JSONResponse({"error": "Access denied"}, status_code=403)
+            
+            # Return the shared thread view (HTML for browser, JSON for API)
+            accept_header = request.headers.get("accept", "")
+            if "application/json" in accept_header:
+                # API access - return thread data
+                messages = await _datastore.get_messages(thread_id)
+                return JSONResponse({
+                    "thread_id": thread_id,
+                    "session": session,
+                    "messages": messages,
+                    "read_only": True,
+                })
+            else:
+                # Browser access - return HTML page
+                style = _effective_style
+                html_content = _build_html(style)
+                # Note: Frontend will detect shared thread from URL and fetch data via API
+                return HTMLResponse(html_content)
+        
+        except ImportError:
+            return JSONResponse(
+                {"error": "Sharing feature not available"}, 
+                status_code=500
+            )
+
     routes = [
         Route("/health", health, methods=["GET"]),
         Route("/api/health", health, methods=["GET"]),
-        Route("/login", login_handler, methods=["POST"]),
+        Route("/login", enhanced_login_handler, methods=["POST"]),
         Route("/register", register_handler, methods=["POST"]),
-        Route("/logout", logout_handler, methods=["POST"]),
+        Route("/logout", enhanced_logout_handler, methods=["POST"]),
         Route("/me", me_handler, methods=["GET"]),
+        # OAuth routes
+        Route("/api/auth/oauth/{provider}", oauth_authorize_handler, methods=["GET"]),
+        Route("/api/auth/oauth/{provider}/callback", oauth_callback_handler, methods=["GET"]),
+        # Thread sharing routes
+        Route("/api/threads/{thread_id}/share", create_thread_share_handler, methods=["POST"]),
+        Route("/api/threads/{thread_id}/unshare", revoke_thread_share_handler, methods=["POST"]),
+        Route("/shared/{token}", view_shared_thread_handler, methods=["GET"]),
         Route("/agents", list_agents, methods=["GET"]),
         Route("/api/agents", list_agents, methods=["GET"]),
         Route("/starters", get_starters, methods=["GET"]),
@@ -2150,6 +2470,13 @@ def create_app(
         routes=routes,
         middleware=middleware,
     )
+    
+    # Start OAuth state cleanup task
+    try:
+        from praisonaiui.oauth_providers import start_cleanup_task
+        start_cleanup_task()
+    except ImportError:
+        pass
 
     return app
 
