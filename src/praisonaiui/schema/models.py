@@ -394,6 +394,14 @@ class MessageElement(BaseModel):
     display: Literal["inline", "side", "page"] = "inline"
     
     model_config = ConfigDict(populate_by_name=True)
+    
+    def __getitem__(self, key: str) -> Any:
+        """Provide dict-style access for backward compatibility."""
+        return getattr(self, key)
+    
+    def get(self, key: str, default: Any = None) -> Any:
+        """Provide dict-style get method for backward compatibility."""
+        return getattr(self, key, default)
 
 
 class ImageElement(MessageElement):
