@@ -4,7 +4,7 @@ Provides callback handler that maps LlamaIndex events to aiui.Step events.
 """
 
 import asyncio
-import time
+import uuid
 from typing import Any, Dict, List, Optional
 
 from praisonaiui.message import Step, StepType
@@ -27,13 +27,13 @@ class AiuiLlamaIndexCallbackHandler:
 
     def __init__(self):
         """Initialize the LlamaIndex callback handler."""
-        self._step_stack: List[Step] = []
         self._event_id_to_step: Dict[str, Step] = {}
+        self._parent_map: Dict[str, str] = {}  # event_id -> parent_event_id
 
     def on_event_start(self, event_type: str, payload: Optional[Dict[str, Any]] = None, **kwargs: Any) -> str:
         """Handle event start - returns event_id for tracking."""
-        event_id = kwargs.get("event_id", f"{event_type}_{time.time()}")
-        
+        event_id = kwargs.get("event_id", str(uuid.uuid4()))
+
         # Map LlamaIndex event types to Step types and names
         if event_type == "query":
             step_name = "🔍 Query Engine"
@@ -42,7 +42,7 @@ class AiuiLlamaIndexCallbackHandler:
             step_name = "📚 Retrieval"
             step_type = "retrieval"
         elif event_type == "synthesize":
-            step_name = "🧠 Synthesis"  
+            step_name = "🧠 Synthesis"
             step_type = "reasoning"
         elif event_type == "llm":
             step_name = "🤖 LLM Call"
@@ -62,63 +62,70 @@ class AiuiLlamaIndexCallbackHandler:
         else:
             step_name = f"⚙️ {event_type.title()}"
             step_type = "custom"
-        
-        parent_step = self._step_stack[-1] if self._step_stack else None
+
+        # Use parent_id from kwargs if available for proper nesting
+        parent_id = kwargs.get("parent_id")
+        parent_step = None
+        if parent_id and str(parent_id) in self._event_id_to_step:
+            parent_step = self._event_id_to_step[str(parent_id)]
+            self._parent_map[str(event_id)] = str(parent_id)
+
         step = Step(
             name=step_name,
             type=step_type,
             parent=parent_step,
             metadata={"event_type": event_type, "payload": payload or {}}
         )
-        
-        self._step_stack.append(step)
+
         self._event_id_to_step[str(event_id)] = step
-        
+
         # Start step in async context if possible
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             asyncio.create_task(self._start_step(step, payload))
         except RuntimeError:
             # No event loop running
             pass
-            
+
         return str(event_id)
 
     def on_event_end(self, event_type: str, payload: Optional[Dict[str, Any]] = None, event_id: Optional[str] = None, **kwargs: Any) -> None:
         """Handle event end."""
         if not event_id or str(event_id) not in self._event_id_to_step:
             return
-            
+
         step = self._event_id_to_step[str(event_id)]
-        
+
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             asyncio.create_task(self._end_step(step, payload))
         except RuntimeError:
             pass
-            
+
         # Clean up
-        if step in self._step_stack:
-            self._step_stack.remove(step)
-        del self._event_id_to_step[str(event_id)]
+        if str(event_id) in self._event_id_to_step:
+            del self._event_id_to_step[str(event_id)]
+        if str(event_id) in self._parent_map:
+            del self._parent_map[str(event_id)]
 
     def on_event_error(self, event_type: str, exception: Exception, event_id: Optional[str] = None, **kwargs: Any) -> None:
         """Handle event error."""
         if not event_id or str(event_id) not in self._event_id_to_step:
             return
-            
+
         step = self._event_id_to_step[str(event_id)]
-        
+
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             asyncio.create_task(step.__aexit__(type(exception), exception, None))
         except RuntimeError:
             pass
-            
+
         # Clean up
-        if step in self._step_stack:
-            self._step_stack.remove(step)
-        del self._event_id_to_step[str(event_id)]
+        if str(event_id) in self._event_id_to_step:
+            del self._event_id_to_step[str(event_id)]
+        if str(event_id) in self._parent_map:
+            del self._parent_map[str(event_id)]
 
     # LlamaIndex callback methods (older interface compatibility)
     def start_trace(self, trace_id: Optional[str] = None) -> None:
@@ -165,11 +172,11 @@ class AiuiLlamaIndexCallbackHandler:
         event_id = kwargs.get("event_id")
         if not event_id or str(event_id) not in self._event_id_to_step:
             return
-            
+
         step = self._event_id_to_step[str(event_id)]
-        
+
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             asyncio.create_task(step.stream_token(token))
         except RuntimeError:
             pass
@@ -183,7 +190,7 @@ class AiuiLlamaIndexCallbackHandler:
     async def _start_step(self, step: Step, payload: Optional[Dict[str, Any]]) -> None:
         """Start a step and optionally stream initial content."""
         await step.__aenter__()
-        
+
         if payload:
             # Stream key information from payload
             if "query" in payload:
@@ -201,5 +208,5 @@ class AiuiLlamaIndexCallbackHandler:
                 await step.stream_token(f"Response: {str(payload['response'])[:200]}...")
             elif "num_nodes" in payload:
                 await step.stream_token(f"Retrieved {payload['num_nodes']} nodes")
-                
+
         await step.__aexit__(None, None, None)

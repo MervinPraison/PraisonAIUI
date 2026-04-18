@@ -3,8 +3,7 @@
 Provides function invocation filter that maps SK function calls to aiui.Step events.
 """
 
-import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from praisonaiui.message import Step
 
@@ -25,7 +24,6 @@ class AiuiSemanticKernelFilter:
 
     def __init__(self):
         """Initialize the Semantic Kernel filter."""
-        self._step_stack: List[Step] = []
         self._context_to_step: Dict[str, Step] = {}
 
     async def on_function_invocation(self, context: Any, next_filter: Any) -> Any:
@@ -41,17 +39,19 @@ class AiuiSemanticKernelFilter:
         # Extract function information
         function_name = getattr(context.function, "name", "unknown_function")
         plugin_name = getattr(context.function, "plugin_name", None)
-        
+
         # Create step name
         if plugin_name:
             step_name = f"🔧 SK Function: {plugin_name}.{function_name}"
         else:
             step_name = f"🔧 SK Function: {function_name}"
-            
+
         # Get arguments
         args = getattr(context, "arguments", {})
-        
-        parent_step = self._step_stack[-1] if self._step_stack else None
+
+        # SK doesn't provide explicit parent-child relationships in filters
+        # Functions will appear as top-level steps unless nested SK calls occur
+        parent_step = None
         step = Step(
             name=step_name,
             type="tool_call",
@@ -62,44 +62,41 @@ class AiuiSemanticKernelFilter:
                 "arguments": dict(args) if args else {}
             }
         )
-        
-        self._step_stack.append(step)
+
         context_id = id(context)
         self._context_to_step[str(context_id)] = step
-        
+
         try:
             # Start the step
             await step.__aenter__()
-            
+
             # Stream function call details
             await step.stream_token(f"Calling {function_name}")
             if args:
                 # Stream a summary of arguments (truncated for readability)
                 args_str = str(dict(args))[:200]
                 await step.stream_token(f"Arguments: {args_str}")
-            
+
             # Execute the actual function
             result = await next_filter(context)
-            
+
             # Stream the result
             if result is not None:
                 result_str = str(result)[:300]
                 await step.stream_token(f"Result: {result_str}")
-            
+
             # Complete the step successfully
             await step.__aexit__(None, None, None)
-            
+
             return result
-            
+
         except Exception as error:
             # Complete the step with error
             await step.__aexit__(type(error), error, None)
             raise
-            
+
         finally:
             # Clean up
-            if step in self._step_stack:
-                self._step_stack.remove(step)
             if str(context_id) in self._context_to_step:
                 del self._context_to_step[str(context_id)]
 
@@ -112,17 +109,19 @@ class AiuiSemanticKernelFilter:
         # Extract function information
         function_name = getattr(context.function, "name", "unknown_function")
         plugin_name = getattr(context.function, "plugin_name", None)
-        
+
         # Create step name for auto invocation
         if plugin_name:
             step_name = f"🤖 Auto SK Function: {plugin_name}.{function_name}"
         else:
             step_name = f"🤖 Auto SK Function: {function_name}"
-            
+
         # Get arguments
         args = getattr(context, "arguments", {})
-        
-        parent_step = self._step_stack[-1] if self._step_stack else None
+
+        # SK doesn't provide explicit parent-child relationships in filters
+        # Functions will appear as top-level steps unless nested SK calls occur
+        parent_step = None
         step = Step(
             name=step_name,
             type="sub_agent",  # Auto calls are more like sub-agent behavior
@@ -134,44 +133,41 @@ class AiuiSemanticKernelFilter:
                 "auto_invocation": True
             }
         )
-        
-        self._step_stack.append(step)
+
         context_id = id(context)
         self._context_to_step[str(context_id)] = step
-        
+
         try:
             # Start the step
             await step.__aenter__()
-            
+
             # Stream function call details
             await step.stream_token(f"Auto-calling {function_name}")
             if args:
                 # Stream a summary of arguments (truncated for readability)
                 args_str = str(dict(args))[:200]
                 await step.stream_token(f"Arguments: {args_str}")
-            
+
             # Execute the actual function
             result = await next_filter(context)
-            
+
             # Stream the result
             if result is not None:
                 result_str = str(result)[:300]
                 await step.stream_token(f"Result: {result_str}")
-            
+
             # Complete the step successfully
             await step.__aexit__(None, None, None)
-            
+
             return result
-            
+
         except Exception as error:
             # Complete the step with error
             await step.__aexit__(type(error), error, None)
             raise
-            
+
         finally:
             # Clean up
-            if step in self._step_stack:
-                self._step_stack.remove(step)
             if str(context_id) in self._context_to_step:
                 del self._context_to_step[str(context_id)]
 
