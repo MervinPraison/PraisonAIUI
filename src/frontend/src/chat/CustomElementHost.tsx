@@ -38,8 +38,28 @@ const availableComponents = new Set([
   'ChatEmbed'
 ]);
 
+// Static imports for build-tool compatibility
+const ExampleWidget = React.lazy(() => import('../components/custom/ExampleWidget'));
+const UserCard = React.lazy(() => import('../components/custom/UserCard'));
+const DataChart = React.lazy(() => import('../components/custom/DataChart'));
+const FormBuilder = React.lazy(() => import('../components/custom/FormBuilder'));
+const CodeEditor = React.lazy(() => import('../components/custom/CodeEditor'));
+const ImageGallery = React.lazy(() => import('../components/custom/ImageGallery'));
+const ChatEmbed = React.lazy(() => import('../components/custom/ChatEmbed'));
+
+// Static mapping of component names to imports
+const componentMap: Record<string, React.ComponentType<any>> = {
+  ExampleWidget,
+  UserCard,
+  DataChart,
+  FormBuilder,
+  CodeEditor,
+  ImageGallery,
+  ChatEmbed,
+};
+
 /**
- * Dynamically import a custom component with error handling
+ * Load a custom component with static mapping for build-tool compatibility
  */
 const loadCustomComponent = async (name: string): Promise<React.ComponentType<any>> => {
   // Check cache first
@@ -53,23 +73,18 @@ const loadCustomComponent = async (name: string): Promise<React.ComponentType<an
   }
 
   try {
-    // Dynamic import with error handling
-    const importPromise = import(`../components/custom/${name}`)
-      .then((module: CustomComponentModule) => {
-        if (!module.default) {
-          throw new Error(`Component ${name} does not export a default component`);
-        }
-        return module.default;
-      })
-      .catch((error) => {
-        // Remove from cache on error
-        componentCache.delete(name);
-        throw new Error(`Failed to load component ${name}: ${error.message}`);
-      });
+    // Use static mapping instead of dynamic import
+    const Component = componentMap[name];
+    if (!Component) {
+      throw new Error(`Component ${name} not found in component map`);
+    }
+    
+    // Return the lazy component directly
+    const componentPromise = Promise.resolve(Component);
 
     // Cache the promise
-    componentCache.set(name, importPromise);
-    return importPromise;
+    componentCache.set(name, componentPromise);
+    return componentPromise;
   } catch (error) {
     componentCache.delete(name);
     throw error;

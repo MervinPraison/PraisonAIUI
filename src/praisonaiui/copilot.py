@@ -7,9 +7,8 @@ can call host-page JavaScript functions (e.g., navigate_to("/settings")).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Awaitable, Union
 from functools import wraps
-
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 # Global registry of copilot functions
 _copilot_functions: Dict[str, "CopilotFunction"] = {}
@@ -19,37 +18,37 @@ _copilot_handlers: List[Callable] = []
 @dataclass
 class CopilotFunctionParameter:
     """Parameter definition for a copilot function."""
-    
+
     name: str
     type: str  # "string", "number", "boolean", "object", "array"
     description: str
     required: bool = True
     enum: Optional[List[Any]] = None
     default: Optional[Any] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON schema format."""
         schema = {
             "type": self.type,
             "description": self.description
         }
-        
+
         if self.enum is not None:
             schema["enum"] = self.enum
-            
+
         if self.default is not None:
             schema["default"] = self.default
-            
+
         return schema
 
 
-@dataclass 
+@dataclass
 class CopilotFunction:
     """Client-side function that can be called by a copilot.
-    
+
     Registers a function that the embedded copilot can invoke, with the
     result sent back to the copilot via POST request.
-    
+
     Example:
         @copilot_function("navigate_to", "Navigate to a page")
         def navigate(url: str):
@@ -57,26 +56,26 @@ class CopilotFunction:
             window.location.href = url
             return {"success": True}
     """
-    
+
     name: str
     description: str
     parameters: List[CopilotFunctionParameter] = field(default_factory=list)
     handler: Optional[Callable] = None
-    
+
     def __post_init__(self):
         """Register this function globally."""
         _copilot_functions[self.name] = self
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON schema format for OpenAI-style tool calls."""
         properties = {}
         required = []
-        
+
         for param in self.parameters:
             properties[param.name] = param.to_dict()
             if param.required:
                 required.append(param.name)
-        
+
         return {
             "type": "function",
             "function": {
@@ -89,19 +88,19 @@ class CopilotFunction:
                 }
             }
         }
-    
+
     async def call(self, arguments: Dict[str, Any]) -> Any:
         """Call the function with given arguments.
-        
+
         Args:
             arguments: Function arguments from the copilot
-            
+
         Returns:
             Function result
         """
         if not self.handler:
             raise RuntimeError(f"No handler registered for function '{self.name}'")
-        
+
         # Call handler (can be sync or async)
         if hasattr(self.handler, '__call__'):
             result = self.handler(**arguments)
@@ -113,17 +112,17 @@ class CopilotFunction:
 
 
 def copilot_function(
-    name: str, 
-    description: str, 
+    name: str,
+    description: str,
     parameters: Optional[List[CopilotFunctionParameter]] = None
 ):
     """Decorator to register a copilot function.
-    
+
     Args:
         name: Function name (exposed to copilot)
         description: Function description
         parameters: List of function parameters
-        
+
     Example:
         @copilot_function(
             "navigate_to",
@@ -136,25 +135,25 @@ def copilot_function(
     """
     def decorator(func: Callable) -> Callable:
         # Create and register the copilot function
-        copilot_func = CopilotFunction(
+        CopilotFunction(
             name=name,
             description=description,
             parameters=parameters or [],
             handler=func
         )
-        
+
         @wraps(func)
         async def wrapper(*args, **kwargs):
             return await func(*args, **kwargs)
-        
+
         return wrapper
-    
+
     return decorator
 
 
 def register_copilot_function(func: CopilotFunction) -> None:
     """Register a copilot function.
-    
+
     Args:
         func: CopilotFunction instance to register
     """
@@ -163,7 +162,7 @@ def register_copilot_function(func: CopilotFunction) -> None:
 
 def get_copilot_functions() -> Dict[str, CopilotFunction]:
     """Get all registered copilot functions.
-    
+
     Returns:
         Dictionary of function name to CopilotFunction
     """
@@ -172,10 +171,10 @@ def get_copilot_functions() -> Dict[str, CopilotFunction]:
 
 def get_copilot_function(name: str) -> Optional[CopilotFunction]:
     """Get a specific copilot function by name.
-    
+
     Args:
         name: Function name
-        
+
     Returns:
         CopilotFunction instance or None if not found
     """
@@ -184,13 +183,13 @@ def get_copilot_function(name: str) -> Optional[CopilotFunction]:
 
 def on_copilot_function_call(handler: Callable[[str, Dict[str, Any]], Awaitable[Any]]):
     """Register a handler for copilot function calls.
-    
+
     The handler receives the function name and arguments, and should return
     the function result.
-    
+
     Args:
         handler: Async function that handles copilot function calls
-        
+
     Example:
         @on_copilot_function_call
         async def handle_copilot_call(function_name: str, arguments: dict):
@@ -206,14 +205,14 @@ def on_copilot_function_call(handler: Callable[[str, Dict[str, Any]], Awaitable[
 
 async def call_copilot_function(name: str, arguments: Dict[str, Any]) -> Any:
     """Call a copilot function with arguments.
-    
+
     Args:
         name: Function name
         arguments: Function arguments
-        
+
     Returns:
         Function result
-        
+
     Raises:
         ValueError: If function not found
     """
@@ -221,16 +220,18 @@ async def call_copilot_function(name: str, arguments: Dict[str, Any]) -> Any:
     copilot_func = get_copilot_function(name)
     if copilot_func:
         return await copilot_func.call(arguments)
-    
+
     # Then try registered handlers
     for handler in _copilot_handlers:
         try:
             result = await handler(name, arguments)
             if result is not None:
                 return result
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.error(f"Error in copilot handler: {e}")
             continue  # Try next handler
-    
+
     raise ValueError(f"No handler found for copilot function: {name}")
 
 
@@ -250,7 +251,7 @@ async def get_page_info() -> Dict[str, Any]:
 
 
 @copilot_function(
-    "show_notification", 
+    "show_notification",
     "Show a notification to the user",
     [
         CopilotFunctionParameter("message", "string", "Notification message"),
