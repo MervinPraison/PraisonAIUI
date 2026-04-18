@@ -255,8 +255,11 @@ class Message:
                     element["content"] = content
                     
             self.elements.append(element)
-        except Exception:
-            # Fallback to legacy dict format on validation errors
+        except ValueError:
+            # Intentional validation errors — propagate to caller
+            raise
+        except (TypeError, Exception):
+            # Dataclass/pydantic constructor mismatch → fall back to dict
             element = {"type": element_type, **kwargs}
             if url:
                 element["url"] = url

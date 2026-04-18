@@ -394,6 +394,19 @@ class MessageElement(BaseModel):
     display: Literal["inline", "side", "page"] = "inline"
     
     model_config = ConfigDict(populate_by_name=True)
+    
+    def __getitem__(self, key: str) -> Any:
+        """Provide dict-style access for backward compatibility."""
+        return getattr(self, key)
+    
+    def get(self, key: str, default: Any = None) -> Any:
+        """Provide dict-style get method for backward compatibility.
+        
+        Treats both missing attributes and None values as 'not set'
+        to match legacy dict-format behaviour where None fields were absent.
+        """
+        value = getattr(self, key, None)
+        return default if value is None else value
 
 
 class ImageElement(MessageElement):
