@@ -1567,6 +1567,72 @@ async def cancel_run(request: Request) -> JSONResponse:
     })
 
 
+async def ask_reply_handler(request: Request) -> JSONResponse:
+    """Handle ask reply responses for all ask types."""
+    ask_id = request.path_params["ask_id"]
+    
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+    
+    # Find the context with this ask_id
+    for task in _active_tasks.values():
+        if hasattr(task, "_context"):
+            context = task._context
+            if hasattr(context, '_pending_asks') and ask_id in context._pending_asks:
+                future = context._pending_asks[ask_id]
+                if not future.done():
+                    # Parse response based on type
+                    response_data = body.get("response")
+                    future.set_result(response_data)
+                    return JSONResponse({"status": "success"})
+    
+    return JSONResponse({"error": "Ask ID not found or already resolved"}, status_code=404)
+
+
+async def ask_upload_handler(request: Request) -> JSONResponse:
+    """Handle file uploads for AskFileMessage."""
+    ask_id = request.path_params["ask_id"]
+    
+    # Get the form data
+    form = await request.form()
+    files = []
+    
+    for key, file in form.items():
+        if hasattr(file, 'filename') and file.filename:
+            # Check file size
+            content = await file.read()
+            if len(content) > MAX_FILE_SIZE:
+                return JSONResponse(
+                    {"error": f"File {file.filename} exceeds maximum size"}, 
+                    status_code=413
+                )
+            
+            # Save file to temporary location or process as needed
+            # For now, we'll just return the file info
+            files.append({
+                "path": f"/tmp/{file.filename}",  # In real implementation, save the file
+                "name": file.filename,
+                "mime": file.content_type or "application/octet-stream",
+                "size": len(content)
+            })
+    
+    # Find the context and resolve the ask
+    for task in _active_tasks.values():
+        if hasattr(task, "_context"):
+            context = task._context
+            if hasattr(context, '_pending_asks') and ask_id in context._pending_asks:
+                future = context._pending_asks[ask_id]
+                if not future.done():
+                    from praisonaiui.schema.models import FileResponse
+                    file_responses = [FileResponse(**file_data) for file_data in files]
+                    future.set_result(file_responses)
+                    return JSONResponse({"status": "success", "files": files})
+    
+    return JSONResponse({"error": "Ask ID not found or already resolved"}, status_code=404)
+
+
 class MessageContext:
     """Context object passed to reply callbacks."""
 
@@ -1987,6 +2053,8 @@ def create_app(
         Route("/sessions/{session_id}/runs", get_session_runs, methods=["GET"]),
         Route("/run", run_agent, methods=["POST"]),
         Route("/cancel", cancel_run, methods=["POST"]),
+        Route("/api/asks/{ask_id}/reply", ask_reply_handler, methods=["POST"]),
+        Route("/api/asks/{ask_id}/upload", ask_upload_handler, methods=["POST"]),
         Route("/agents/{agent_id}/runs", run_agent_by_id, methods=["POST"]),
         Route("/api/agents/{agent_id}/runs", run_agent_by_id, methods=["POST"]),
         # Dashboard API
