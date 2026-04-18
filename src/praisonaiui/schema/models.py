@@ -400,8 +400,13 @@ class MessageElement(BaseModel):
         return getattr(self, key)
     
     def get(self, key: str, default: Any = None) -> Any:
-        """Provide dict-style get method for backward compatibility."""
-        return getattr(self, key, default)
+        """Provide dict-style get method for backward compatibility.
+        
+        Treats both missing attributes and None values as 'not set'
+        to match legacy dict-format behaviour where None fields were absent.
+        """
+        value = getattr(self, key, None)
+        return default if value is None else value
 
 
 class ImageElement(MessageElement):
