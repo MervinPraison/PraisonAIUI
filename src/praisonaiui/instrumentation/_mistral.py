@@ -45,7 +45,7 @@ def instrument_mistral() -> None:
         # Mistral not installed - silently skip
         return
         
-    # Patch sync client
+    # Patch sync client (legacy and modern)
     _patch_sync_client(mistralai)
     
     # Patch async client  
@@ -56,34 +56,72 @@ def instrument_mistral() -> None:
 
 def _patch_sync_client(mistralai) -> None:
     """Patch synchronous Mistral client."""
-    original_chat = mistralai.MistralClient.chat
-    
-    @wraps(original_chat)
-    def instrumented_chat(self, **kwargs):
-        if not _is_instrumentation_enabled():
-            return original_chat(self, **kwargs)
-            
-        start_time = time.time()
-        model = kwargs.get("model", "unknown")
+    # Try to patch legacy MistralClient.chat
+    if hasattr(mistralai, 'MistralClient') and hasattr(mistralai.MistralClient, 'chat'):
+        original_chat = mistralai.MistralClient.chat
         
-        try:
-            response = original_chat(self, **kwargs)
-            
-            # Handle streaming response
-            if kwargs.get("stream", False):
-                return _wrap_sync_stream(response, model, kwargs, start_time)
-            else:
-                # Regular response
-                latency_ms = (time.time() - start_time) * 1000
-                _emit_sync_step(model, kwargs, response, latency_ms)
-                return response
+        @wraps(original_chat)
+        def instrumented_chat(self, **kwargs):
+            if not _is_instrumentation_enabled():
+                return original_chat(self, **kwargs)
                 
-        except Exception as e:
-            latency_ms = (time.time() - start_time) * 1000
-            _emit_sync_step(model, kwargs, None, latency_ms, error=str(e))
-            raise
+            start_time = time.time()
+            model = kwargs.get("model", "unknown")
             
-    mistralai.MistralClient.chat = instrumented_chat
+            try:
+                response = original_chat(self, **kwargs)
+                
+                # Handle streaming response
+                if kwargs.get("stream", False):
+                    return _wrap_sync_stream(response, model, kwargs, start_time)
+                else:
+                    # Regular response
+                    latency_ms = (time.time() - start_time) * 1000
+                    _emit_sync_step(model, kwargs, response, latency_ms)
+                    return response
+                    
+            except Exception as e:
+                latency_ms = (time.time() - start_time) * 1000
+                _emit_sync_step(model, kwargs, None, latency_ms, error=str(e))
+                raise
+                
+        mistralai.MistralClient.chat = instrumented_chat
+        
+    # Try to patch modern Mistral.chat.complete
+    if hasattr(mistralai, 'Mistral'):
+        try:
+            # Modern SDK has nested resource structure
+            from mistralai.resources import ChatCompletions
+            original_complete = ChatCompletions.complete
+            
+            @wraps(original_complete)
+            def instrumented_complete(self, **kwargs):
+                if not _is_instrumentation_enabled():
+                    return original_complete(self, **kwargs)
+                    
+                start_time = time.time()
+                model = kwargs.get("model", "unknown")
+                
+                try:
+                    response = original_complete(self, **kwargs)
+                    
+                    # Handle streaming response
+                    if kwargs.get("stream", False):
+                        return _wrap_sync_stream(response, model, kwargs, start_time)
+                    else:
+                        # Regular response
+                        latency_ms = (time.time() - start_time) * 1000
+                        _emit_sync_step(model, kwargs, response, latency_ms)
+                        return response
+                        
+                except Exception as e:
+                    latency_ms = (time.time() - start_time) * 1000
+                    _emit_sync_step(model, kwargs, None, latency_ms, error=str(e))
+                    raise
+                    
+            ChatCompletions.complete = instrumented_complete
+        except ImportError:
+            pass  # Modern SDK not available
 
 
 def _patch_async_client(mistralai) -> None:

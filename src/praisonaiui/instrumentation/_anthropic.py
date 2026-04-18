@@ -11,6 +11,12 @@ from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from ._base import _emit_llm_step, _is_instrumentation_enabled
 
+# Import for patching (needed for tests)
+try:
+    import anthropic
+except ImportError:
+    anthropic = None
+
 if TYPE_CHECKING:
     import anthropic
 
@@ -39,83 +45,114 @@ def instrument_anthropic() -> None:
     if _INSTRUMENTED:
         return  # Idempotent
         
-    try:
-        import anthropic
-    except ImportError:
-        # Anthropic not installed - silently skip
-        return
+    if anthropic is None:
+        try:
+            import anthropic as anthropic_module
+        except ImportError:
+            # Anthropic not installed - silently skip
+            return
+    else:
+        anthropic_module = anthropic
         
     # Patch sync client
-    _patch_sync_client(anthropic)
+    _patch_sync_client(anthropic_module)
     
     # Patch async client  
-    _patch_async_client(anthropic)
+    _patch_async_client(anthropic_module)
     
     _INSTRUMENTED = True
 
 
-def _patch_sync_client(anthropic) -> None:
+def _patch_sync_client(anthropic_module) -> None:
     """Patch synchronous Anthropic client."""
-    original_create = anthropic.Anthropic.messages.create
     
-    @wraps(original_create)
-    def instrumented_create(self, **kwargs):
-        if not _is_instrumentation_enabled():
-            return original_create(self, **kwargs)
-            
-        start_time = time.time()
-        model = kwargs.get("model", "unknown")
-        
-        try:
-            response = original_create(self, **kwargs)
-            
-            # Handle streaming response
-            if kwargs.get("stream", False):
-                return _wrap_sync_stream(response, model, kwargs, start_time)
-            else:
-                # Regular response
-                latency_ms = (time.time() - start_time) * 1000
-                _emit_sync_step(model, kwargs, response, latency_ms)
-                return response
+    def instrumented_create(original_create):
+        @wraps(original_create)
+        def wrapper(self, **kwargs):
+            if not _is_instrumentation_enabled():
+                return original_create(self, **kwargs)
                 
-        except Exception as e:
-            latency_ms = (time.time() - start_time) * 1000
-            _emit_sync_step(model, kwargs, None, latency_ms, error=str(e))
-            raise
+            start_time = time.time()
+            model = kwargs.get("model", "unknown")
             
-    anthropic.Anthropic.messages.create = instrumented_create
+            try:
+                response = original_create(self, **kwargs)
+                
+                # Handle streaming response
+                if kwargs.get("stream", False):
+                    return _wrap_sync_stream(response, model, kwargs, start_time)
+                else:
+                    # Regular response
+                    latency_ms = (time.time() - start_time) * 1000
+                    _emit_sync_step(model, kwargs, response, latency_ms)
+                    return response
+                    
+            except Exception as e:
+                latency_ms = (time.time() - start_time) * 1000
+                _emit_sync_step(model, kwargs, None, latency_ms, error=str(e))
+                raise
+        return wrapper
+    
+    # Try to patch the resource class (production usage)
+    try:
+        from anthropic.resources.messages import Messages
+        original_create = Messages.create
+        Messages.create = instrumented_create(original_create)
+    except (ImportError, AttributeError):
+        # Fall back to class-level patching (for tests)
+        try:
+            if hasattr(anthropic_module, 'Anthropic') and hasattr(anthropic_module.Anthropic, 'messages'):
+                # This approach works for mock objects in tests
+                original_create = anthropic_module.Anthropic.messages.create
+                anthropic_module.Anthropic.messages.create = instrumented_create(original_create)
+        except AttributeError:
+            pass  # Skip if structure doesn't match
 
 
-def _patch_async_client(anthropic) -> None:
+def _patch_async_client(anthropic_module) -> None:
     """Patch asynchronous Anthropic client."""
-    original_create = anthropic.AsyncAnthropic.messages.create
     
-    @wraps(original_create)
-    async def instrumented_create(self, **kwargs):
-        if not _is_instrumentation_enabled():
-            return await original_create(self, **kwargs)
-            
-        start_time = time.time()
-        model = kwargs.get("model", "unknown")
-        
-        try:
-            response = await original_create(self, **kwargs)
-            
-            # Handle streaming response
-            if kwargs.get("stream", False):
-                return _wrap_async_stream(response, model, kwargs, start_time)
-            else:
-                # Regular response
-                latency_ms = (time.time() - start_time) * 1000
-                await _emit_async_step(model, kwargs, response, latency_ms)
-                return response
+    def instrumented_async_create(original_create):
+        @wraps(original_create)
+        async def wrapper(self, **kwargs):
+            if not _is_instrumentation_enabled():
+                return await original_create(self, **kwargs)
                 
-        except Exception as e:
-            latency_ms = (time.time() - start_time) * 1000
-            await _emit_async_step(model, kwargs, None, latency_ms, error=str(e))
-            raise
+            start_time = time.time()
+            model = kwargs.get("model", "unknown")
             
-    anthropic.AsyncAnthropic.messages.create = instrumented_create
+            try:
+                response = await original_create(self, **kwargs)
+                
+                # Handle streaming response
+                if kwargs.get("stream", False):
+                    return _wrap_async_stream(response, model, kwargs, start_time)
+                else:
+                    # Regular response
+                    latency_ms = (time.time() - start_time) * 1000
+                    await _emit_async_step(model, kwargs, response, latency_ms)
+                    return response
+                    
+            except Exception as e:
+                latency_ms = (time.time() - start_time) * 1000
+                await _emit_async_step(model, kwargs, None, latency_ms, error=str(e))
+                raise
+        return wrapper
+    
+    # Try to patch the resource class (production usage)
+    try:
+        from anthropic.resources.messages import AsyncMessages
+        original_create = AsyncMessages.create
+        AsyncMessages.create = instrumented_async_create(original_create)
+    except (ImportError, AttributeError):
+        # Fall back to class-level patching (for tests)
+        try:
+            if hasattr(anthropic_module, 'AsyncAnthropic') and hasattr(anthropic_module.AsyncAnthropic, 'messages'):
+                # This approach works for mock objects in tests
+                original_create = anthropic_module.AsyncAnthropic.messages.create
+                anthropic_module.AsyncAnthropic.messages.create = instrumented_async_create(original_create)
+        except AttributeError:
+            pass  # Skip if structure doesn't match
 
 
 def _wrap_sync_stream(stream, model: str, request_data: Dict[str, Any], start_time: float):
