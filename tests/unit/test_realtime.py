@@ -78,20 +78,20 @@ class TestSessionLifecycle:
     @pytest.mark.asyncio
     async def test_session_lifecycle_without_openai(self):
         """Test session lifecycle when OpenAI SDK not available."""
+        import sys
         manager = OpenAIRealtimeManager()
         
-        # Mock ImportError for openai package
-        with patch('praisonaiui.features.realtime.openai', None):
-            # Mock import to raise ImportError
-            with patch('builtins.__import__', side_effect=ImportError("No module named 'openai'")):
-                session_info = await manager.create_session()
-                
-                assert session_info["type"] == "error"
-                assert "openai package not installed" in session_info["error"]
+        # Force `import openai` inside the function body to fail
+        with patch.dict(sys.modules, {"openai": None}):
+            session_info = await manager.create_session()
+            
+            assert session_info["type"] == "error"
+            assert "openai package not installed" in session_info["error"]
     
     @pytest.mark.asyncio
     async def test_session_lifecycle_with_mocked_openai(self):
         """Test full session lifecycle with mocked OpenAI."""
+        import sys
         manager = OpenAIRealtimeManager()
         
         # Mock OpenAI client and response
@@ -103,7 +103,7 @@ class TestSessionLifecycle:
         mock_client.realtime.sessions.create = AsyncMock(return_value=mock_response)
         mock_openai.OpenAI.return_value = mock_client
         
-        with patch('praisonaiui.features.realtime.openai', mock_openai):
+        with patch.dict(sys.modules, {"openai": mock_openai}):
             # Create session
             session_info = await manager.create_session(model="gpt-4o-realtime-preview")
             
@@ -170,6 +170,7 @@ class TestHealthEndpoint:
     
     def test_health_with_openai(self):
         """Test health when OpenAI is available."""
+        import sys
         manager = OpenAIRealtimeManager()
         
         # Add some sessions to test counter
@@ -177,7 +178,7 @@ class TestHealthEndpoint:
         manager._sessions["session_2"] = {"id": "session_2"}
         
         mock_openai = mock.MagicMock()
-        with patch('praisonaiui.features.realtime.openai', mock_openai):
+        with patch.dict(sys.modules, {"openai": mock_openai}):
             health = manager.health()
             
             assert health["status"] == "ok"
