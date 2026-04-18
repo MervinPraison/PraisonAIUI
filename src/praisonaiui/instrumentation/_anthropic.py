@@ -65,94 +65,76 @@ def instrument_anthropic() -> None:
 
 def _patch_sync_client(anthropic_module) -> None:
     """Patch synchronous Anthropic client."""
-    
-    def instrumented_create(original_create):
-        @wraps(original_create)
-        def wrapper(self, **kwargs):
-            if not _is_instrumentation_enabled():
-                return original_create(self, **kwargs)
-                
-            start_time = time.time()
-            model = kwargs.get("model", "unknown")
-            
-            try:
-                response = original_create(self, **kwargs)
-                
-                # Handle streaming response
-                if kwargs.get("stream", False):
-                    return _wrap_sync_stream(response, model, kwargs, start_time)
-                else:
-                    # Regular response
-                    latency_ms = (time.time() - start_time) * 1000
-                    _emit_sync_step(model, kwargs, response, latency_ms)
-                    return response
-                    
-            except Exception as e:
-                latency_ms = (time.time() - start_time) * 1000
-                _emit_sync_step(model, kwargs, None, latency_ms, error=str(e))
-                raise
-        return wrapper
-    
-    # Try to patch the resource class (production usage)
     try:
         from anthropic.resources.messages import Messages
-        original_create = Messages.create
-        Messages.create = instrumented_create(original_create)
-    except (ImportError, AttributeError):
-        # Fall back to class-level patching (for tests)
+    except ImportError:
+        return
+        
+    original_create = Messages.create
+    
+    @wraps(original_create)
+    def instrumented_create(self, **kwargs):
+        if not _is_instrumentation_enabled():
+            return original_create(self, **kwargs)
+            
+        start_time = time.time()
+        model = kwargs.get("model", "unknown")
+        
         try:
-            if hasattr(anthropic_module, 'Anthropic') and hasattr(anthropic_module.Anthropic, 'messages'):
-                # This approach works for mock objects in tests
-                original_create = anthropic_module.Anthropic.messages.create
-                anthropic_module.Anthropic.messages.create = instrumented_create(original_create)
-        except AttributeError:
-            pass  # Skip if structure doesn't match
+            response = original_create(self, **kwargs)
+            
+            # Handle streaming response
+            if kwargs.get("stream", False):
+                return _wrap_sync_stream(response, model, kwargs, start_time)
+            else:
+                # Regular response
+                latency_ms = (time.time() - start_time) * 1000
+                _emit_sync_step(model, kwargs, response, latency_ms)
+                return response
+                
+        except Exception as e:
+            latency_ms = (time.time() - start_time) * 1000
+            _emit_sync_step(model, kwargs, None, latency_ms, error=str(e))
+            raise
+            
+    Messages.create = instrumented_create
 
 
 def _patch_async_client(anthropic_module) -> None:
     """Patch asynchronous Anthropic client."""
-    
-    def instrumented_async_create(original_create):
-        @wraps(original_create)
-        async def wrapper(self, **kwargs):
-            if not _is_instrumentation_enabled():
-                return await original_create(self, **kwargs)
-                
-            start_time = time.time()
-            model = kwargs.get("model", "unknown")
-            
-            try:
-                response = await original_create(self, **kwargs)
-                
-                # Handle streaming response
-                if kwargs.get("stream", False):
-                    return _wrap_async_stream(response, model, kwargs, start_time)
-                else:
-                    # Regular response
-                    latency_ms = (time.time() - start_time) * 1000
-                    await _emit_async_step(model, kwargs, response, latency_ms)
-                    return response
-                    
-            except Exception as e:
-                latency_ms = (time.time() - start_time) * 1000
-                await _emit_async_step(model, kwargs, None, latency_ms, error=str(e))
-                raise
-        return wrapper
-    
-    # Try to patch the resource class (production usage)
     try:
         from anthropic.resources.messages import AsyncMessages
-        original_create = AsyncMessages.create
-        AsyncMessages.create = instrumented_async_create(original_create)
-    except (ImportError, AttributeError):
-        # Fall back to class-level patching (for tests)
+    except ImportError:
+        return
+        
+    original_create = AsyncMessages.create
+    
+    @wraps(original_create)
+    async def instrumented_create(self, **kwargs):
+        if not _is_instrumentation_enabled():
+            return await original_create(self, **kwargs)
+            
+        start_time = time.time()
+        model = kwargs.get("model", "unknown")
+        
         try:
-            if hasattr(anthropic_module, 'AsyncAnthropic') and hasattr(anthropic_module.AsyncAnthropic, 'messages'):
-                # This approach works for mock objects in tests
-                original_create = anthropic_module.AsyncAnthropic.messages.create
-                anthropic_module.AsyncAnthropic.messages.create = instrumented_async_create(original_create)
-        except AttributeError:
-            pass  # Skip if structure doesn't match
+            response = await original_create(self, **kwargs)
+            
+            # Handle streaming response
+            if kwargs.get("stream", False):
+                return _wrap_async_stream(response, model, kwargs, start_time)
+            else:
+                # Regular response
+                latency_ms = (time.time() - start_time) * 1000
+                await _emit_async_step(model, kwargs, response, latency_ms)
+                return response
+                
+        except Exception as e:
+            latency_ms = (time.time() - start_time) * 1000
+            await _emit_async_step(model, kwargs, None, latency_ms, error=str(e))
+            raise
+            
+    AsyncMessages.create = instrumented_create
 
 
 def _wrap_sync_stream(stream, model: str, request_data: Dict[str, Any], start_time: float):
@@ -178,20 +160,42 @@ def _wrap_sync_stream(stream, model: str, request_data: Dict[str, Any], start_ti
     latency_ms = (time.time() - start_time) * 1000
     output_data = {"content": accumulated_content} if accumulated_content else {}
     
-    # Run async emission in sync context (best effort)
+    # Run async emission in sync context (improved reliability)
     try:
         import asyncio
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.create_task(_emit_llm_step(
-                provider="anthropic",
-                model=model,
-                input_data=request_data,
-                output_data=output_data,
-                tokens_in=input_tokens,
-                tokens_out=output_tokens,
-                latency_ms=latency_ms,
-            ))
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Create task for later execution
+                loop.create_task(_emit_llm_step(
+                    provider="anthropic",
+                    model=model,
+                    input_data=request_data,
+                    output_data=output_data,
+                    tokens_in=input_tokens,
+                    tokens_out=output_tokens,
+                    latency_ms=latency_ms,
+                ))
+        except RuntimeError:
+            # No event loop available - use thread-safe approach if possible
+            import threading
+            
+            def run_emission():
+                try:
+                    asyncio.run(_emit_llm_step(
+                        provider="anthropic",
+                        model=model,
+                        input_data=request_data,
+                        output_data=output_data,
+                        tokens_in=input_tokens,
+                        tokens_out=output_tokens,
+                        latency_ms=latency_ms,
+                    ))
+                except Exception:
+                    pass  # Silent fail
+            
+            # Run in background thread
+            threading.Thread(target=run_emission, daemon=True).start()
     except Exception:
         pass  # Silently fail
 
@@ -258,19 +262,41 @@ def _emit_sync_step(
                     content_text += block.text
             output_data = {"content": content_text}
         
-        # Try to run in current event loop
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.create_task(_emit_llm_step(
-                provider="anthropic",
-                model=model,
-                input_data=request_data,
-                output_data=output_data,
-                tokens_in=tokens_in,
-                tokens_out=tokens_out,
-                latency_ms=latency_ms,
-                error=error,
-            ))
+        # Try to run in current event loop (improved reliability)
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(_emit_llm_step(
+                    provider="anthropic",
+                    model=model,
+                    input_data=request_data,
+                    output_data=output_data,
+                    tokens_in=tokens_in,
+                    tokens_out=tokens_out,
+                    latency_ms=latency_ms,
+                    error=error,
+                ))
+        except RuntimeError:
+            # No event loop available - use thread-safe approach if possible
+            import threading
+            
+            def run_emission():
+                try:
+                    asyncio.run(_emit_llm_step(
+                        provider="anthropic",
+                        model=model,
+                        input_data=request_data,
+                        output_data=output_data,
+                        tokens_in=tokens_in,
+                        tokens_out=tokens_out,
+                        latency_ms=latency_ms,
+                        error=error,
+                    ))
+                except Exception:
+                    pass  # Silent fail
+            
+            # Run in background thread
+            threading.Thread(target=run_emission, daemon=True).start()
     except Exception:
         pass  # Silently fail
 
