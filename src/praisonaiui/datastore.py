@@ -1,26 +1,51 @@
 """DataStore module - Pluggable, database-agnostic storage for sessions and messages.
 
 This module provides an abstract base class (`BaseDataStore`) that can be
-implemented for any database backend.  Two built-in implementations are
+implemented for any database backend. Three built-in implementations are
 shipped out of the box:
 
-* `MemoryDataStore`   – in-memory dict (default, volatile)
-* `JSONFileDataStore` – JSON files on disk (~/.praisonaiui/sessions/)
+* `MemoryDataStore`      – in-memory dict (default, volatile)
+* `JSONFileDataStore`    – JSON files on disk (~/.praisonaiui/sessions/)
+* `SQLAlchemyDataStore`  – SQLite/PostgreSQL via SQLAlchemy (production-ready)
 
-To use a custom backend (SQLite, PostgreSQL, Redis, MongoDB, …) simply
-subclass `BaseDataStore` and implement the six required methods.
+The SQLAlchemy store provides:
+- Schema auto-creation on first run
+- Async support via sqlalchemy.ext.asyncio
+- Atomic writes (single transaction per message append)
+- SQLite default (~/.praisonaiui/aiui.db) with PostgreSQL opt-in
+- Lazy import of dependencies
 
-Example – custom SQLite store::
+Example – built-in SQL stores::
+
+    from praisonaiui import set_datastore, SQLAlchemyDataStore
+    
+    # SQLite (default) - creates ~/.praisonaiui/aiui.db
+    set_datastore(SQLAlchemyDataStore())
+    
+    # PostgreSQL 
+    set_datastore(SQLAlchemyDataStore(
+        "postgresql+asyncpg://user:pass@host/db"
+    ))
+    
+    # Custom SQLite path
+    set_datastore(SQLAlchemyDataStore(
+        "sqlite+aiosqlite:///path/to/custom.db"
+    ))
+
+To use SQLAlchemy store, install the optional dependencies::
+
+    pip install 'aiui[sql]'        # SQLite support
+    pip install 'aiui[postgres]'   # PostgreSQL support
+
+For custom backends (Redis, MongoDB, …) subclass `BaseDataStore`::
 
     from praisonaiui.datastore import BaseDataStore
 
-    class SQLiteDataStore(BaseDataStore):
+    class CustomDataStore(BaseDataStore):
         async def list_sessions(self) -> list[dict]:
             ...  # your implementation
 
-    # Register it before the server starts:
-    from praisonaiui.server import set_datastore
-    set_datastore(SQLiteDataStore("mydb.sqlite"))
+    set_datastore(CustomDataStore())
 """
 
 from __future__ import annotations
@@ -33,6 +58,76 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+
+# ---------------------------------------------------------------------------
+# SQLAlchemy ORM models (lazy creation to avoid import issues)
+# ---------------------------------------------------------------------------
+
+# Import SQLAlchemy types at module level to fix annotation resolution
+try:
+    from sqlalchemy import String, Text, DateTime, Integer, ForeignKey
+    from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
+    from sqlalchemy.sql import func
+    _SQLALCHEMY_AVAILABLE = True
+except ImportError:
+    # Create placeholder types to prevent import errors
+    _SQLALCHEMY_AVAILABLE = False
+    Mapped = Any  # type: ignore
+    String = Text = DateTime = Integer = ForeignKey = object  # type: ignore  
+    DeclarativeBase = object  # type: ignore
+    func = object  # type: ignore
+    mapped_column = lambda *args, **kwargs: None  # type: ignore
+
+_ORM_MODELS: Optional[tuple[type, type, type, type]] = None  # (Base, SessionModel, MessageModel, FeedbackModel)
+
+def _get_orm_models():
+    """Lazy factory for SQLAlchemy ORM models.
+    
+    This prevents PEP-563 annotation resolution issues that occur when 
+    DeclarativeBase models are defined inside function scope.
+    """
+    global _ORM_MODELS
+    if _ORM_MODELS is not None:
+        return _ORM_MODELS
+    
+    if not _SQLALCHEMY_AVAILABLE:
+        raise ImportError(
+            "SQLAlchemy dependencies not found. Install with: "
+            "pip install 'aiui[sql]' or pip install sqlalchemy aiosqlite"
+        )
+
+    class Base(DeclarativeBase):
+        pass
+
+    class SessionModel(Base):
+        __tablename__ = "sessions"
+        id: Mapped[str] = mapped_column(String(255), primary_key=True)
+        title: Mapped[str] = mapped_column(String(255), default="New conversation")
+        created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+        updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+        platform: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+        icon: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    class MessageModel(Base):
+        __tablename__ = "messages"
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        session_id: Mapped[str] = mapped_column(String(255), ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+        role: Mapped[str] = mapped_column(String(50), nullable=False)
+        content: Mapped[str] = mapped_column(Text, nullable=False)
+        meta: Mapped[Optional[str]] = mapped_column("metadata", Text, nullable=True)  # JSON-encoded
+        created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+
+    class FeedbackModel(Base):
+        __tablename__ = "feedback"
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        session_id: Mapped[str] = mapped_column(String(255), ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+        message_id: Mapped[str] = mapped_column(String(255), nullable=False)
+        value: Mapped[int] = mapped_column(Integer, nullable=False)  # -1, 0, 1
+        comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+        created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+
+    _ORM_MODELS = (Base, SessionModel, MessageModel, FeedbackModel)
+    return _ORM_MODELS
 
 # ---------------------------------------------------------------------------
 # Abstract base class – implement this for any database
@@ -423,3 +518,394 @@ class JSONFileDataStore(BaseDataStore):
                 return feedback_list
             return [f for f in feedback_list if f["session_id"] == session_id]
         return await asyncio.to_thread(_list)
+
+
+# ---------------------------------------------------------------------------
+# Built-in: SQLAlchemy store (SQLite + Postgres support)
+# ---------------------------------------------------------------------------
+
+class SQLAlchemyDataStore(BaseDataStore):
+    """SQLAlchemy-based session storage with SQLite default and Postgres support.
+    
+    Features:
+    - Schema auto-creation on first run
+    - Async via sqlalchemy.ext.asyncio + aiosqlite/asyncpg
+    - Atomic writes (single transaction per message append)
+    - Lazy import of SQLAlchemy dependencies
+    
+    Examples:
+        # SQLite (default) - creates ~/.praisonaiui/aiui.db
+        datastore = SQLAlchemyDataStore()
+        
+        # PostgreSQL
+        datastore = SQLAlchemyDataStore("postgresql+asyncpg://user:pass@host/db")
+        
+        # Custom SQLite path
+        datastore = SQLAlchemyDataStore("sqlite+aiosqlite:///path/to/custom.db")
+    """
+
+    def __init__(self, database_url: Optional[str] = None) -> None:
+        """Initialize SQLAlchemy datastore.
+        
+        Args:
+            database_url: SQLAlchemy database URL. If None, defaults to SQLite 
+                         at ~/.praisonaiui/aiui.db
+        """
+        self._database_url = database_url or self._get_default_sqlite_url()
+        self._engine = None
+        self._session_maker = None
+        self._initialized = False
+        
+    def _get_default_sqlite_url(self) -> str:
+        """Get default SQLite database URL."""
+        # Respect AIUI_DATA_DIR env var (e.g. /data on containers)
+        base = Path(os.environ.get("AIUI_DATA_DIR", str(Path.home() / ".praisonaiui")))
+        base.mkdir(parents=True, exist_ok=True)
+        db_path = base / "aiui.db"
+        return f"sqlite+aiosqlite:///{db_path}"
+    
+    async def _ensure_initialized(self) -> None:
+        """Lazy initialization of SQLAlchemy engine and tables."""
+        if self._initialized:
+            return
+            
+        try:
+            # Lazy imports - only load when SQLAlchemyDataStore is actually used
+            from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+        except ImportError as e:
+            raise ImportError(
+                "SQLAlchemy dependencies not found. Install with: "
+                "pip install 'aiui[sql]' or pip install sqlalchemy aiosqlite"
+            ) from e
+        
+        # Get ORM models from factory
+        Base, SessionModel, MessageModel, FeedbackModel = _get_orm_models()
+        self._SessionModel = SessionModel
+        self._MessageModel = MessageModel
+        self._FeedbackModel = FeedbackModel
+        
+        # Create engine
+        self._engine = create_async_engine(
+            self._database_url,
+            echo=False,  # Set to True for SQL debugging
+            future=True
+        )
+        
+        # Create all tables
+        async with self._engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        
+        # Create session maker
+        self._session_maker = async_sessionmaker(
+            self._engine, 
+            expire_on_commit=False
+        )
+        
+        self._initialized = True
+    
+    async def list_sessions(self) -> list[dict[str, Any]]:
+        """Return a list of session summaries."""
+        await self._ensure_initialized()
+        
+        from sqlalchemy import select, func
+        
+        async with self._session_maker() as session:
+            # Get sessions with message counts
+            stmt = (
+                select(
+                    self._SessionModel.id,
+                    self._SessionModel.title,
+                    self._SessionModel.created_at,
+                    self._SessionModel.updated_at,
+                    self._SessionModel.platform,
+                    self._SessionModel.icon,
+                    func.count(self._MessageModel.id).label("message_count")
+                )
+                .outerjoin(self._MessageModel, self._SessionModel.id == self._MessageModel.session_id)
+                .group_by(
+                    self._SessionModel.id,
+                    self._SessionModel.title,
+                    self._SessionModel.created_at,
+                    self._SessionModel.updated_at,
+                    self._SessionModel.platform,
+                    self._SessionModel.icon
+                )
+                .order_by(self._SessionModel.updated_at.desc())
+            )
+            
+            result = await session.execute(stmt)
+            sessions = []
+            
+            for row in result:
+                entry = {
+                    "id": row.id,
+                    "title": row.title,
+                    "created_at": row.created_at.isoformat() if row.created_at else None,
+                    "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                    "message_count": row.message_count or 0,
+                }
+                # Include platform metadata for channel sessions
+                if row.platform:
+                    entry["platform"] = row.platform
+                if row.icon:
+                    entry["icon"] = row.icon
+                sessions.append(entry)
+            
+            return sessions
+    
+    async def get_session(self, session_id: str) -> Optional[dict[str, Any]]:
+        """Return full session data including messages."""
+        await self._ensure_initialized()
+        
+        from sqlalchemy import select
+        
+        async with self._session_maker() as session:
+            # Get session
+            stmt = select(self._SessionModel).where(self._SessionModel.id == session_id)
+            result = await session.execute(stmt)
+            session_row = result.scalar_one_or_none()
+            
+            if not session_row:
+                return None
+            
+            # Get messages
+            msg_stmt = (
+                select(self._MessageModel)
+                .where(self._MessageModel.session_id == session_id)
+                .order_by(self._MessageModel.created_at, self._MessageModel.id)
+            )
+            msg_result = await session.execute(msg_stmt)
+            
+            messages = []
+            for msg_row in msg_result.scalars():
+                message_data = {
+                    "role": msg_row.role,
+                    "content": msg_row.content,
+                }
+                # Deserialize metadata (toolCalls, etc.)
+                if msg_row.meta:
+                    try:
+                        metadata = json.loads(msg_row.meta)
+                        message_data.update(metadata)
+                    except json.JSONDecodeError:
+                        pass
+                messages.append(message_data)
+            
+            # Build session dict
+            session_data = {
+                "id": session_row.id,
+                "title": session_row.title,
+                "created_at": session_row.created_at.isoformat() if session_row.created_at else None,
+                "updated_at": session_row.updated_at.isoformat() if session_row.updated_at else None,
+                "messages": messages,
+            }
+            if session_row.platform:
+                session_data["platform"] = session_row.platform
+            if session_row.icon:
+                session_data["icon"] = session_row.icon
+            
+            return session_data
+    
+    async def create_session(self, session_id: Optional[str] = None) -> dict[str, Any]:
+        """Create a new session."""
+        await self._ensure_initialized()
+        
+        sid = session_id or str(uuid.uuid4())
+        now = datetime.now(timezone.utc)
+        
+        async with self._session_maker() as session:
+            new_session = self._SessionModel(
+                id=sid,
+                title="New conversation",
+                created_at=now,
+                updated_at=now
+            )
+            session.add(new_session)
+            await session.commit()
+            
+            return {
+                "id": sid,
+                "title": "New conversation",
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat(),
+                "messages": [],
+            }
+    
+    async def delete_session(self, session_id: str) -> bool:
+        """Delete a session and all its messages."""
+        await self._ensure_initialized()
+        
+        from sqlalchemy import delete
+        
+        async with self._session_maker() as session:
+            # Foreign key cascade will handle message/feedback deletion
+            result = await session.execute(
+                delete(self._SessionModel).where(self._SessionModel.id == session_id)
+            )
+            
+            await session.commit()
+            return result.rowcount > 0
+    
+    async def add_message(self, session_id: str, message: dict[str, Any]) -> None:
+        """Append a message to a session's history."""
+        await self._ensure_initialized()
+        
+        from sqlalchemy import select, update
+        
+        # Extract core fields
+        role = message.get("role", "user")
+        content = message.get("content", "")
+        
+        # Everything else goes in metadata (toolCalls, etc.)
+        metadata = {}
+        for key, value in message.items():
+            if key not in ("role", "content"):
+                metadata[key] = value
+        
+        metadata_json = json.dumps(metadata) if metadata else None
+        now = datetime.now(timezone.utc)
+        
+        async with self._session_maker() as session:
+            # Add message
+            new_message = self._MessageModel(
+                session_id=session_id,
+                role=role,
+                content=content,
+                meta=metadata_json,
+                created_at=now
+            )
+            session.add(new_message)
+            
+            # Update session timestamp
+            await session.execute(
+                update(self._SessionModel)
+                .where(self._SessionModel.id == session_id)
+                .values(updated_at=now)
+            )
+            
+            # Auto-generate title from first user message
+            if role == "user":
+                # Check if session still has default title
+                stmt = select(self._SessionModel).where(self._SessionModel.id == session_id)
+                result = await session.execute(stmt)
+                session_row = result.scalar_one_or_none()
+                
+                if session_row and session_row.title == "New conversation":
+                    new_title = self.generate_title(content)
+                    await session.execute(
+                        update(self._SessionModel)
+                        .where(self._SessionModel.id == session_id)
+                        .values(title=new_title)
+                    )
+            
+            await session.commit()
+    
+    async def get_messages(self, session_id: str) -> list[dict[str, Any]]:
+        """Return all messages for a session."""
+        await self._ensure_initialized()
+        
+        from sqlalchemy import select
+        
+        async with self._session_maker() as session:
+            stmt = (
+                select(self._MessageModel)
+                .where(self._MessageModel.session_id == session_id)
+                .order_by(self._MessageModel.created_at, self._MessageModel.id)
+            )
+            result = await session.execute(stmt)
+            
+            messages = []
+            for row in result.scalars():
+                message_data = {
+                    "role": row.role,
+                    "content": row.content,
+                }
+                # Deserialize metadata
+                if row.meta:
+                    try:
+                        metadata = json.loads(row.meta)
+                        message_data.update(metadata)
+                    except json.JSONDecodeError:
+                        pass
+                messages.append(message_data)
+            
+            return messages
+    
+    async def update_session(self, session_id: str, **kwargs: Any) -> None:
+        """Update session metadata."""
+        await self._ensure_initialized()
+        
+        from sqlalchemy import update
+        
+        # Filter to allowed columns to prevent crashes on invalid keys
+        allowed_keys = {"title", "platform", "icon"}
+        update_data = {k: v for k, v in kwargs.items() if k in allowed_keys}
+        
+        if not update_data:
+            return
+            
+        # Add updated timestamp
+        update_data["updated_at"] = datetime.now(timezone.utc)
+        
+        async with self._session_maker() as session:
+            await session.execute(
+                update(self._SessionModel)
+                .where(self._SessionModel.id == session_id)
+                .values(**update_data)
+            )
+            await session.commit()
+    
+    async def record_feedback(
+        self,
+        session_id: str,
+        message_id: str,
+        value: int,
+        comment: Optional[str] = None,
+    ) -> None:
+        """Record user feedback for a message."""
+        await self._ensure_initialized()
+        
+        async with self._session_maker() as session:
+            feedback = self._FeedbackModel(
+                session_id=session_id,
+                message_id=message_id,
+                value=value,
+                comment=comment,
+                created_at=datetime.now(timezone.utc)
+            )
+            session.add(feedback)
+            await session.commit()
+    
+    async def list_feedback(
+        self,
+        session_id: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        """List feedback records, optionally filtered by session."""
+        await self._ensure_initialized()
+        
+        from sqlalchemy import select
+        
+        async with self._session_maker() as session:
+            stmt = select(self._FeedbackModel)
+            if session_id is not None:
+                stmt = stmt.where(self._FeedbackModel.session_id == session_id)
+            
+            result = await session.execute(stmt)
+            feedback_list = []
+            
+            for row in result.scalars():
+                feedback_list.append({
+                    "id": str(row.id),
+                    "session_id": row.session_id,
+                    "message_id": row.message_id,
+                    "value": row.value,
+                    "comment": row.comment,
+                    "created_at": row.created_at.isoformat() if row.created_at else None,
+                })
+            
+            return feedback_list
+    
+    async def close(self) -> None:
+        """Clean up database connections."""
+        if self._engine:
+            await self._engine.dispose()

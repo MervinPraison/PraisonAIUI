@@ -30,7 +30,7 @@ def __getattr__(name: str):
                       "set_branding", "set_theme", "set_custom_css", "register_theme",
                       "set_chat_features", "set_dashboard", "set_chat_mode", "set_brand_color",
                       "set_sidebar_config", "set_feedback_enabled"}
-    _datastore_attrs = {"BaseDataStore", "MemoryDataStore", "JSONFileDataStore"}
+    _datastore_attrs = {"BaseDataStore", "MemoryDataStore", "JSONFileDataStore", "SQLAlchemyDataStore"}
     _provider_attrs = {"BaseProvider", "RunEvent", "RunEventType"}
     _providers_attrs = {"PraisonAIProvider"}
     _config_attrs = {"configure"}
@@ -148,6 +148,7 @@ __all__ = [
     "BaseDataStore",
     "MemoryDataStore",
     "JSONFileDataStore",
+    "SQLAlchemyDataStore",
     # Provider protocol
     "BaseProvider",
     "RunEvent",
