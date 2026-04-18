@@ -24,6 +24,15 @@ def __getattr__(name: str):
         "say", "stream", "stream_token", "think", "ask", "tool", "image", "audio",
         "video", "file", "action_buttons",
     }
+    _lifecycle_attrs = {
+        "on_app_startup", "on_app_shutdown",
+    }
+    _window_message_attrs = {
+        "on_window_message", "send_window_message",
+    }
+    _audio_attrs = {
+        "on_audio_start", "on_audio_chunk", "on_audio_end",
+    }
     _message_attrs = {"Message", "AskUserMessage", "Step", "step"}
     _server_attrs = {"register_agent", "register_page", "set_datastore", "get_datastore",
                       "set_provider", "get_provider", "set_style", "set_pages", "remove_page",
@@ -62,6 +71,15 @@ def __getattr__(name: str):
     if name in _callback_attrs:
         from praisonaiui import callbacks
         return getattr(callbacks, name)
+    if name in _lifecycle_attrs:
+        from praisonaiui.features import lifecycle
+        return getattr(lifecycle, name)
+    if name in _window_message_attrs:
+        from praisonaiui.features import window_message
+        return getattr(window_message, name)
+    if name in _audio_attrs:
+        from praisonaiui.features import audio
+        return getattr(audio, name)
     if name in _message_attrs:
         from praisonaiui import message
         return getattr(message, name)
@@ -120,6 +138,16 @@ __all__ = [
     "on",
     "resume",
     "page",
+    # Lifecycle hooks
+    "on_app_startup",
+    "on_app_shutdown",
+    # Window message hooks
+    "on_window_message",
+    "send_window_message",
+    # Audio hooks
+    "on_audio_start",
+    "on_audio_chunk",
+    "on_audio_end",
     # Message functions
     "say",
     "stream",

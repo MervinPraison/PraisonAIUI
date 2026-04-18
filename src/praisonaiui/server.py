@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncGenerator, Callable, Optional
 
+from contextlib import asynccontextmanager
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
@@ -1703,6 +1704,30 @@ class AuthEnforcementMiddleware:
         await self.app(scope, receive, send)
 
 
+@asynccontextmanager
+async def _lifespan_handler(app: Starlette):
+    """Lifespan handler for startup and shutdown hooks."""
+    # Startup
+    try:
+        from praisonaiui.features.lifecycle import run_startup_hooks
+        await run_startup_hooks()
+    except ImportError:
+        pass  # Lifecycle feature not loaded
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Startup hooks failed: {e}")
+    
+    yield
+    
+    # Shutdown
+    try:
+        from praisonaiui.features.lifecycle import run_shutdown_hooks
+        await run_shutdown_hooks()
+    except ImportError:
+        pass  # Lifecycle feature not loaded
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Shutdown hooks failed: {e}")
+
+
 def create_app(
     config: Optional[dict] = None,
     static_dir: Optional[Path] = None,
@@ -2149,6 +2174,7 @@ def create_app(
     app = Starlette(
         routes=routes,
         middleware=middleware,
+        lifespan=_lifespan_handler,
     )
 
     return app
