@@ -98,12 +98,17 @@ export function useWindowMessage(options: UseWindowMessageOptions = {}): UseWind
           
           if (window.parent && target) {
             if (target === "parent") {
-              // Use specific origin when possible, avoid wildcard
-              const origin = targetOrigin !== "*" && targetOrigin !== "parent" 
-                ? targetOrigin 
-                : window.location.origin;
+              // Always use specific origin, never use wildcard "*"
+              let origin: string;
+              if (targetOrigin && targetOrigin !== "*" && targetOrigin !== "parent" && targetOrigin.startsWith("http")) {
+                origin = targetOrigin;
+              } else {
+                // Fallback to current origin for security
+                origin = window.location.origin;
+              }
               window.parent.postMessage(messageData, origin);
-            } else {
+            } else if (target && target.startsWith("http")) {
+              // Only allow HTTP/HTTPS origins for security
               window.parent.postMessage(messageData, target);
             }
           }
@@ -173,10 +178,14 @@ export function useWindowMessage(options: UseWindowMessageOptions = {}): UseWind
     }
     
     try {
-      // Use specific origin when possible, avoid wildcard
-      const origin = targetOrigin !== "*" && targetOrigin !== "parent" 
-        ? targetOrigin 
-        : window.location.origin;
+      // Always use specific origin, never use wildcard "*"
+      let origin: string;
+      if (targetOrigin && targetOrigin !== "*" && targetOrigin !== "parent" && targetOrigin.startsWith("http")) {
+        origin = targetOrigin;
+      } else {
+        // Fallback to current origin for security
+        origin = window.location.origin;
+      }
       window.parent.postMessage(data, origin);
     } catch (error) {
       console.error('Failed to send message to parent:', error);

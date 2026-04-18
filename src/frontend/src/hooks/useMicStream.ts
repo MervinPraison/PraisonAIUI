@@ -303,6 +303,8 @@ export function useMicStream(options: UseMicStreamOptions = {}): UseMicStreamRet
       analyserRef.current = analyser;
       
       // Create processor for audio data
+      // TODO: Replace ScriptProcessorNode with AudioWorklet for better performance
+      // ScriptProcessorNode is deprecated but still widely supported
       const processor = audioContext.createScriptProcessor(4096, channels, channels);
       processorRef.current = processor;
       
