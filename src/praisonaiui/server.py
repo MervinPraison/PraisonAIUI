@@ -2129,7 +2129,22 @@ def create_app(
             
             # Check access control via callback
             user = None
-            # TODO: Extract user from auth header if present (optional for shared links)
+            # Extract authenticated user from auth header if present (optional for shared links)
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+                from .auth import validate_token, _users, User
+                user_id = validate_token(token)
+                if user_id:
+                    if user_id in _users:
+                        user_data = _users[user_id]
+                        user = User(
+                            identifier=user_data["id"],
+                            display_name=user_data["username"],
+                            metadata={}
+                        )
+                    else:
+                        user = User(identifier=user_id, display_name=user_id)
             
             access_granted = await check_shared_thread_access(thread_id, user)
             if not access_granted:
