@@ -120,6 +120,8 @@ dev = [
     "types-PyYAML>=6.0",
     # starlette.testclient requires httpx at runtime
     "httpx>=0.24",
+    # Several integration and datastore tests import praisonaiagents
+    "praisonaiagents>=1.5.56",
 ]
 
 [project.scripts]

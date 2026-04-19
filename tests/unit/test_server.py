@@ -238,7 +238,7 @@ class TestReplyTypeDispatch:
         msg._stream_queue = asyncio.Queue()
 
         wrapper = _srv._callbacks["reply"]
-        asyncio.get_event_loop().run_until_complete(wrapper(msg))
+        asyncio.run(wrapper(msg))
 
         assert received["type"] == "str"
         assert received["value"] == "Hello world"
@@ -262,7 +262,7 @@ class TestReplyTypeDispatch:
         msg._stream_queue = asyncio.Queue()
 
         wrapper = _srv._callbacks["reply"]
-        asyncio.get_event_loop().run_until_complete(wrapper(msg))
+        asyncio.run(wrapper(msg))
 
         assert received["type"] == "MessageContext"
         assert received["value"].text == "Hello"
@@ -286,7 +286,7 @@ class TestReplyTypeDispatch:
         msg._stream_queue = asyncio.Queue()
 
         wrapper = _srv._callbacks["reply"]
-        asyncio.get_event_loop().run_until_complete(wrapper(msg))
+        asyncio.run(wrapper(msg))
 
         assert received["type"] == "MessageContext"
 
