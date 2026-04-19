@@ -65,6 +65,11 @@ def __getattr__(name: str):
         "error",
         "PromptResult",
     }
+    _mcp_attrs = {
+        "MCPServer",
+        "on_mcp_connect",
+        "on_mcp_disconnect",
+    }
     _server_attrs = {
         "register_agent",
         "register_page",
@@ -201,6 +206,10 @@ def __getattr__(name: str):
         from praisonaiui import message
 
         return getattr(message, name)
+    if name in _mcp_attrs:
+        from praisonaiui.features import mcp
+
+        return getattr(mcp, name)
     if name in _server_attrs:
         from praisonaiui import server
 
@@ -338,6 +347,10 @@ __all__ = [
     "prompt",
     "error",
     "PromptResult",
+    # MCP (Model Context Protocol)
+    "MCPServer",
+    "on_mcp_connect",
+    "on_mcp_disconnect",
     # Feature protocol
     "BaseFeatureProtocol",
     "register_feature",

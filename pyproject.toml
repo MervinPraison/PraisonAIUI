@@ -97,6 +97,10 @@ semantic-kernel = [
     "semantic-kernel>=1.0.0",
 ]
 
+mcp = [
+    "mcp>=0.9",
+]
+
 all = [
     "aiui[memory]",
     "aiui[knowledge]",
@@ -108,6 +112,7 @@ all = [
     "aiui[langchain]",
     "aiui[llama-index]",
     "aiui[semantic-kernel]",
+    "aiui[mcp]",
 ]
 
 dev = [
@@ -123,6 +128,8 @@ dev = [
     # Several integration and datastore tests import praisonaiagents
     # [llm] pulls in litellm which many integration paths require
     "praisonaiagents[llm]>=1.5.56",
+    # MCP client tests require the mcp SDK
+    "mcp>=0.9",
 ]
 
 [project.scripts]
