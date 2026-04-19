@@ -71,9 +71,12 @@ class TestMessage:
 
         assert result is msg  # Returns self for chaining
         assert len(msg.actions) == 1
-        assert msg.actions[0]["name"] == "confirm"
-        assert msg.actions[0]["label"] == "Confirm"
-        assert msg.actions[0]["icon"] == "✓"
+        # Actions are now Action objects, not dicts
+        action = msg.actions[0]
+        assert hasattr(action, 'name')
+        assert action.name == "confirm"
+        assert action.label == "Confirm"
+        assert action.icon == "✓"
 
     def test_add_action_chaining(self):
         """Test chaining multiple add_action calls."""
@@ -83,8 +86,9 @@ class TestMessage:
         msg.add_action("yes", "Yes").add_action("no", "No")
 
         assert len(msg.actions) == 2
-        assert msg.actions[0]["name"] == "yes"
-        assert msg.actions[1]["name"] == "no"
+        # Actions are now Action objects, not dicts
+        assert msg.actions[0].name == "yes"
+        assert msg.actions[1].name == "no"
 
     @pytest.mark.asyncio
     async def test_send_without_context(self):
