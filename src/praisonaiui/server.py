@@ -1324,6 +1324,100 @@ async def api_features(request: Request) -> JSONResponse:
     return JSONResponse({"features": list(infos), "count": len(infos)})
 
 
+async def api_mcp_servers(request: Request) -> JSONResponse:
+    """GET /api/mcp/servers — List all MCP servers with their status."""
+    try:
+        from praisonaiui.features.mcp import list_mcp_servers
+
+        servers = await list_mcp_servers()
+        servers_data = []
+        for server in servers:
+            servers_data.append(
+                {
+                    "name": server.name,
+                    "transport": server.transport.value,
+                    "status": server.status.value,
+                    "tools": [
+                        {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "input_schema": tool.input_schema,
+                        }
+                        for tool in server.tools
+                    ],
+                    "last_error": server.last_error,
+                    "connection_data": server.connection_data,
+                }
+            )
+        return JSONResponse({"servers": servers_data})
+    except ImportError:
+        return JSONResponse(
+            {
+                "servers": [],
+                "error": "MCP feature not installed. Install with: pip install 'aiui[mcp]'",
+            }
+        )
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+async def api_mcp_connect(request: Request) -> JSONResponse:
+    """POST /api/mcp/connect — Connect to an MCP server."""
+    try:
+        from praisonaiui.features.mcp import connect_mcp_server
+
+        body = await request.json()
+        if "name" not in body:
+            return JSONResponse({"error": "Missing required field: name"}, status_code=400)
+        if "command" not in body and "url" not in body:
+            return JSONResponse(
+                {"error": "Either 'command' (for stdio) or 'url' (for SSE/HTTP) is required"},
+                status_code=400,
+            )
+        server = await connect_mcp_server(body)
+        server_data = {
+            "name": server.name,
+            "transport": server.transport.value,
+            "status": server.status.value,
+            "tools": [
+                {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "input_schema": tool.input_schema,
+                }
+                for tool in server.tools
+            ],
+            "last_error": server.last_error,
+        }
+        return JSONResponse({"server": server_data})
+    except ImportError:
+        return JSONResponse(
+            {"error": "MCP feature not installed. Install with: pip install 'aiui[mcp]'"},
+            status_code=400,
+        )
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+async def api_mcp_disconnect(request: Request) -> JSONResponse:
+    """POST /api/mcp/disconnect/{server_id} — Disconnect an MCP server."""
+    try:
+        from praisonaiui.features.mcp import disconnect_mcp_server
+
+        server_id = request.path_params["server_id"]
+        success = await disconnect_mcp_server(server_id)
+        if success:
+            return JSONResponse({"success": True, "message": f"Disconnected from {server_id}"})
+        return JSONResponse({"error": f"Server '{server_id}' not found"}, status_code=404)
+    except ImportError:
+        return JSONResponse(
+            {"error": "MCP feature not installed. Install with: pip install 'aiui[mcp]'"},
+            status_code=400,
+        )
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 async def api_gateway_status(request: Request) -> JSONResponse:
     """GET /api/gateway/status — real gateway connectivity and agent info."""
     try:
@@ -2261,6 +2355,10 @@ def create_app(
         # Component schema registry (built-in + user-registered)
         Route("/api/components/schemas", api_component_schemas, methods=["GET"]),
         # Gateway status
+        # MCP (Model Context Protocol) API
+        Route("/api/mcp/servers", api_mcp_servers, methods=["GET"]),
+        Route("/api/mcp/connect", api_mcp_connect, methods=["POST"]),
+        Route("/api/mcp/disconnect/{server_id}", api_mcp_disconnect, methods=["POST"]),
         Route("/api/gateway/status", api_gateway_status, methods=["GET"]),
         # Frontend config JSON (dynamic fallback — static files override if present)
         Route("/ui-config.json", _ui_config_json, methods=["GET"]),
