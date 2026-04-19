@@ -83,6 +83,20 @@ bot = [
     "slack-bolt>=1.18.0",
 ]
 
+# Framework integrations (optional extras)
+langchain = [
+    "langchain>=0.1.0",
+    "langchain-core>=0.1.0",
+]
+
+llama-index = [
+    "llama-index>=0.9.0",
+]
+
+semantic-kernel = [
+    "semantic-kernel>=1.0.0",
+]
+
 all = [
     "aiui[memory]",
     "aiui[knowledge]",
@@ -91,6 +105,9 @@ all = [
     "aiui[postgres]",
     "aiui[praisonai]",
     "aiui[bot]",
+    "aiui[langchain]",
+    "aiui[llama-index]",
+    "aiui[semantic-kernel]",
 ]
 
 dev = [
