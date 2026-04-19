@@ -31,16 +31,16 @@
   <div id="root"><noscript><h1>What Makes PraisonAIUI Different</h1>
 <p>PraisonAIUI is a **protocol-driven UI framework** for building AI applications. This page explains how it differs from other popular tools.</p>
 <h2>Quick Comparison</h2>
-<p>| Feature | PraisonAIUI | Streamlit | Gradio | Chainlit |</p>
-<p>|---------|-------------|-----------|--------|----------|</p>
-<p>| **Architecture** | Protocol-driven (SDK→JSON→Client) | Script re-run | Input→Output | Chat-focused |</p>
-<p>| **UI Styles** | 6 (chat, agents, dashboard, playground, docs, custom) | 1 | 1 | 1 |</p>
-<p>| **Components** | 48 structured | ~30 widgets | ~20 blocks | Steps/Actions |</p>
-<p>| **Custom Pages** | `@aiui.page()` decorator | Multipage apps | Tabs | ❌ |</p>
-<p>| **Theme System** | 22 presets + custom CSS variables | Limited | Limited | Limited |</p>
-<p>| **Agent-First** | ✅ Built for agents | ❌ General | ❌ ML demos | ✅ Chat agents |</p>
-<p>| **Extensibility** | Plugin architecture | ❌ | ❌ | ❌ |</p>
-<p>| **YAML Config** | ✅ Full config | ❌ | ❌ | ❌ |</p>
+<p>| Feature | PraisonAIUI | Streamlit | Gradio |</p>
+<p>|---------|-------------|-----------|--------|</p>
+<p>| **Architecture** | Protocol-driven (SDK→JSON→Client) | Script re-run | Input→Output |</p>
+<p>| **UI Styles** | 6 (chat, agents, dashboard, playground, docs, custom) | 1 | 1 |</p>
+<p>| **Components** | 48 structured | ~30 widgets | ~20 blocks |</p>
+<p>| **Custom Pages** | `@aiui.page()` decorator | Multipage apps | Tabs |</p>
+<p>| **Theme System** | 22 presets + custom CSS variables | Limited | Limited |</p>
+<p>| **Agent-First** | ✅ Built for agents | ❌ General | ❌ ML demos |</p>
+<p>| **Extensibility** | Plugin architecture | ❌ | ❌ |</p>
+<p>| **YAML Config** | ✅ Full config | ❌ | ❌ |</p>
 <h2>vs Gradio</h2>
 <h3>How Gradio Works</h3>
 <p>Gradio is designed for ML demos with an **input→output paradigm**. You define inputs, a function, and outputs.</p>
@@ -55,22 +55,6 @@
 <p>| **Agent Support** | Built-in profiles, tools, memory | Manual |</p>
 <p>**When to use PraisonAIUI**: Chat agents, admin dashboards, multi-agent systems.</p>
 <p>**When to use Gradio**: ML model demos, quick input/output interfaces.</p>
-<p>---</p>
-<h2>vs Chainlit</h2>
-<h3>How Chainlit Works</h3>
-<p>Chainlit is a **chat-focused framework** with Steps and Actions for showing agent reasoning.</p>
-<h3>How PraisonAIUI Works</h3>
-<p>PraisonAIUI provides **chat + dashboard + docs** in one framework with 48 components.</p>
-<h3>Key Differences</h3>
-<p>| Aspect | PraisonAIUI | Chainlit |</p>
-<p>|--------|-------------|----------|</p>
-<p>| **Scope** | Chat + Dashboard + Docs | Chat only |</p>
-<p>| **Components** | 48 structured | Steps/Actions |</p>
-<p>| **Custom Pages** | `@aiui.page()` | ❌ |</p>
-<p>| **Theme System** | 22 presets + CSS vars | Limited |</p>
-<p>| **Protocol** | Extensible plugin architecture | Fixed |</p>
-<p>**When to use PraisonAIUI**: Full-featured agent platforms, admin dashboards, documentation sites.</p>
-<p>**When to use Chainlit**: Simple chat agents with step-by-step reasoning display.</p>
 <p>---</p>
 <h2>Unique to PraisonAIUI</h2>
 <h3>1. Protocol-Driven Architecture</h3>
@@ -107,7 +91,6 @@
 <p>❌ **Consider alternatives when you need:**</p>
 <li>Quick ML model demos → Gradio</li>
 <li>Simple data dashboards → Streamlit</li>
-<li>Chat-only with minimal setup → Chainlit</li>
 <p>---</p>
 <h2>Related Pages</h2>
 <li>[UI Styles](styles.md) — The 6 UI styles</li>

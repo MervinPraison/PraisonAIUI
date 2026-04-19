@@ -136,11 +136,35 @@
 <p>Returns the merged registry as a `dict[str, dict]`. Also available as a</p>
 <p>JSON endpoint: `GET /api/components/schemas`.</p>
 <p>---</p>
-<h3>`aiui.configure(*, datastore)`</h3>
-<p>Convenience function to configure PraisonAIUI settings from Python code.</p>
+<h3>`aiui.prompt(question, *, options=None, timeout=300.0)`</h3>
+<p>Pause the agent and wait for the user to answer. Preferred entry point</p>
+<p>for interactive agent flows — supersedes the legacy `AskUserMessage`</p>
+<p>class.</p>
 <p>| Parameter | Type | Description |</p>
 <p>|-----------|------|-------------|</p>
-<p>| `datastore` | `str` | Storage backend: `"memory"`, `"json"`, `"json:/path"`, `"sdk"`, `"sdk:/path"` |</p>
+<p>| `question` | `str` | Text shown to the user. |</p>
+<p>| `options`  | `list[str] \| None` | Optional list of choices. When given, the user picks one; otherwise they type free text. |</p>
+<p>| `timeout`  | `float` | Seconds to wait before giving up. Default 300 (5 min). |</p>
+<p>Returns a `PromptResult` dataclass (`text`, `choice`, `message_id`).</p>
+<p>The result is truthy when the user answered, falsy on timeout.</p>
+<p>---</p>
+<h3>`aiui.error(content, *, details=None)`</h3>
+<p>Emit an error message to the chat. A thin helper around `Message` with</p>
+<p>`metadata={"kind": "error"}` — keeps the public surface small.</p>
+<p>---</p>
+<h3>`aiui.configure(*, datastore=None, branding=None, theme=None, chat=None, custom_css=None, custom_js=None, style=None)`</h3>
+<p>One-stop configuration function. Every keyword is optional, so you only</p>
+<p>set what you need. Replaces the dozen individual `set_*` setters for</p>
+<p>most common cases (the `set_*` functions remain for advanced control).</p>
+<p>| Parameter | Type | Description |</p>
+<p>|-----------|------|-------------|</p>
+<p>| `datastore` | `str` | Storage backend: `"memory"`, `"json"`, `"json:/path"`, `"sdk"`, `"sdk:/path"`. |</p>
+<p>| `branding`  | `dict` | Forwarded to `set_branding(...)`. Keys: `title`, `logo`, `subtitle`. |</p>
+<p>| `theme`     | `dict` | Forwarded to `set_theme(...)`. Keys: `preset`, `dark`/`dark_mode`, `radius`, `brand_color`. |</p>
+<p>| `chat`      | `dict` | Forwarded to `set_chat_features(...)`. Keys: `feedback`, `mode`, plus any chat-feature flag. |</p>
+<p>| `custom_css`| `str \| Path` | Path to a CSS file; same as `set_custom_css`. |</p>
+<p>| `custom_js` | `str \| Path` | Path to a JS file; same as `set_custom_js`. |</p>
+<p>| `style`     | `str` | UI style — `"chat"`, `"dashboard"`, etc. |</p>
 <p>---</p>
 <h2>Callback Decorators</h2>
 <h3>`@aiui.reply`</h3>

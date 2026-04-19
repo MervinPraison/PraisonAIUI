@@ -329,13 +329,79 @@ print(sorted(schemas))   # ['accordion', 'alert', ..., 'timeline', ...]
 
 ---
 
-### `aiui.configure(*, datastore)`
+### `aiui.prompt(question, *, options=None, timeout=300.0)`
 
-Convenience function to configure PraisonAIUI settings from Python code.
+Pause the agent and wait for the user to answer. Preferred entry point
+for interactive agent flows — supersedes the legacy `AskUserMessage`
+class.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `datastore` | `str` | Storage backend: `"memory"`, `"json"`, `"json:/path"`, `"sdk"`, `"sdk:/path"` |
+| `question` | `str` | Text shown to the user. |
+| `options`  | `list[str] \| None` | Optional list of choices. When given, the user picks one; otherwise they type free text. |
+| `timeout`  | `float` | Seconds to wait before giving up. Default 300 (5 min). |
+
+Returns a `PromptResult` dataclass (`text`, `choice`, `message_id`).
+The result is truthy when the user answered, falsy on timeout.
+
+```python
+import praisonaiui as aiui
+
+@aiui.reply
+async def on_message(msg: str):
+    name = await aiui.prompt("What's your name?")
+    if name:
+        await aiui.say(f"Hi {name.text}!")
+
+    pick = await aiui.prompt("Pick a colour", options=["red", "blue"])
+    if pick:
+        await aiui.say(f"You picked {pick.choice}")
+```
+
+---
+
+### `aiui.error(content, *, details=None)`
+
+Emit an error message to the chat. A thin helper around `Message` with
+`metadata={"kind": "error"}` — keeps the public surface small.
+
+```python
+try:
+    data = await fetch()
+except Exception as exc:
+    await aiui.error("Couldn't load data", details=str(exc))
+```
+
+---
+
+### `aiui.configure(*, datastore=None, branding=None, theme=None, chat=None, custom_css=None, custom_js=None, style=None)`
+
+One-stop configuration function. Every keyword is optional, so you only
+set what you need. Replaces the dozen individual `set_*` setters for
+most common cases (the `set_*` functions remain for advanced control).
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `datastore` | `str` | Storage backend: `"memory"`, `"json"`, `"json:/path"`, `"sdk"`, `"sdk:/path"`. |
+| `branding`  | `dict` | Forwarded to `set_branding(...)`. Keys: `title`, `logo`, `subtitle`. |
+| `theme`     | `dict` | Forwarded to `set_theme(...)`. Keys: `preset`, `dark`/`dark_mode`, `radius`, `brand_color`. |
+| `chat`      | `dict` | Forwarded to `set_chat_features(...)`. Keys: `feedback`, `mode`, plus any chat-feature flag. |
+| `custom_css`| `str \| Path` | Path to a CSS file; same as `set_custom_css`. |
+| `custom_js` | `str \| Path` | Path to a JS file; same as `set_custom_js`. |
+| `style`     | `str` | UI style — `"chat"`, `"dashboard"`, etc. |
+
+```python
+import praisonaiui as aiui
+
+aiui.configure(
+    branding={"title": "My App", "logo": "🎨"},
+    theme={"preset": "ocean", "dark": True, "radius": "md"},
+    chat={"feedback": True, "mode": "single"},
+    datastore="json",
+    custom_css="styles.css",
+    custom_js="plugin.js",
+)
+```
 
 ```python
 import praisonaiui as aiui

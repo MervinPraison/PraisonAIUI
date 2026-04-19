@@ -29,7 +29,7 @@
 
 <body>
   <div id="root"><noscript><h1>Message Elements</h1>
-<p>PraisonAIUI supports rich inline message elements for displaying images, PDFs, videos, audio, files, and code blocks within chat messages. This provides Chainlit-style element rendering parity for seamless migration.</p>
+<p>PraisonAIUI supports rich inline message elements for displaying images, PDFs, videos, audio, files, and code blocks within chat messages.</p>
 <h2>Element Types</h2>
 <h3>1. Image Elements</h3>
 <p>Display images with thumbnail and click-to-zoom functionality.</p>
@@ -93,16 +93,6 @@
 <li>**Videos/Audio**: Native browser accessibility</li>
 <li>**Files**: Icon-based file type recognition</li>
 <li>**Code**: Copy button with keyboard support</li>
-<h2>Migration from Chainlit</h2>
-<p>PraisonAIUI elements provide direct parity with Chainlit elements:</p>
-<p>| Chainlit | PraisonAIUI |</p>
-<p>|----------|-------------|</p>
-<p>| `cl.Image()` | `msg.add_image()` |</p>
-<p>| `cl.Pdf()` | `msg.add_pdf()` |</p>
-<p>| `cl.Video()` | `msg.add_video()` |</p>
-<p>| `cl.Audio()` | `msg.add_audio()` |</p>
-<p>| `cl.File()` | `msg.add_file()` |</p>
-<p>| Code blocks | `msg.add_code()` |</p>
 <h2>Low-Level API</h2>
 <p>For advanced use cases, you can use the low-level element API:</p>
 <h2>Legacy Support</h2>
