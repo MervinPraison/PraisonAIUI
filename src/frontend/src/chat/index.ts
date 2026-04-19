@@ -10,3 +10,6 @@ export { ImageElement, AudioElement, VideoElement, FileElement, CodeBlock } from
 export { WidgetPanel } from './WidgetPanel'
 export { SessionManager } from './SessionManager'
 export { ProfilePicker } from './ProfilePicker'
+export { AskFilePrompt } from './AskFilePrompt'
+export { AskActionPrompt } from './AskActionPrompt'
+export { AskElementPrompt } from './AskElementPrompt'

@@ -22,9 +22,12 @@ from starlette.responses import HTMLResponse, JSONResponse, StreamingResponse
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from praisonaiui.datastore import BaseDataStore, JSONFileDataStore, MemoryDataStore
+from praisonaiui.datastore import BaseDataStore, JSONFileDataStore
 from praisonaiui.features import auto_register_defaults, get_features
 from praisonaiui.provider import BaseProvider, RunEventType
+
+# Size limits in bytes
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 
 # Registry for callbacks
 _callbacks: dict[str, Callable] = {}
@@ -802,31 +805,31 @@ async def api_feedback(request: Request) -> JSONResponse:
     """Record user feedback for a message."""
     if not _feedback_enabled:
         return JSONResponse({"error": "Feedback is disabled"}, status_code=403)
-        
+
     try:
         body = await request.json()
     except Exception:
         return JSONResponse({"error": "Invalid JSON"}, status_code=400)
-    
+
     # Validate required fields
     session_id = body.get("session_id")
-    message_id = body.get("message_id") 
+    message_id = body.get("message_id")
     value = body.get("value")
     comment = body.get("comment")
-    
+
     if not session_id or not message_id or value is None:
         return JSONResponse(
-            {"error": "Missing required fields: session_id, message_id, value"}, 
+            {"error": "Missing required fields: session_id, message_id, value"},
             status_code=400
         )
-    
+
     # Validate value range
     if value not in [-1, 0, 1]:
         return JSONResponse(
-            {"error": "value must be -1, 0, or 1"}, 
+            {"error": "value must be -1, 0, or 1"},
             status_code=400
         )
-    
+
     # Note: Session validation disabled for backwards compatibility
     # In production, you may want to validate that sessions exist:
     # try:
@@ -835,10 +838,10 @@ async def api_feedback(request: Request) -> JSONResponse:
     #         return JSONResponse({"error": "Session not found"}, status_code=404)
     # except Exception:
     #     pass
-    
+
     # Record feedback
     await _datastore.record_feedback(session_id, message_id, value, comment)
-    
+
     # Fire callback hook
     feedback_cb = _callbacks.get("on:feedback")
     if feedback_cb:
@@ -851,7 +854,7 @@ async def api_feedback(request: Request) -> JSONResponse:
             })
         except Exception:
             pass  # Don't fail the API if callback fails
-    
+
     return JSONResponse({"status": "recorded"})
 
 
@@ -859,25 +862,25 @@ async def api_feedback_list(request: Request) -> JSONResponse:
     """List feedback with summary statistics."""
     if not _feedback_enabled:
         return JSONResponse({"error": "Feedback is disabled"}, status_code=403)
-    
+
     # Get optional session filter
     session_id = request.query_params.get('session_id')
-    
+
     # List all feedback
     feedback_list = await _datastore.list_feedback(session_id)
-    
+
     # Calculate summary statistics and group by session in a single pass
     total = len(feedback_list)
     positive = 0
     negative = 0
     neutral = 0
     by_session = {}
-    
+
     for feedback in feedback_list:
         sid = feedback.get("session_id", "unknown")
         if sid not in by_session:
             by_session[sid] = {"positive": 0, "negative": 0, "neutral": 0, "total": 0}
-        
+
         value = feedback.get("value", 0)
         if value > 0:
             positive += 1
@@ -889,13 +892,13 @@ async def api_feedback_list(request: Request) -> JSONResponse:
             neutral += 1
             by_session[sid]["neutral"] += 1
         by_session[sid]["total"] += 1
-    
+
     return JSONResponse({
         "feedback": feedback_list,
         "summary": {
             "total": total,
             "positive": positive,
-            "negative": negative, 
+            "negative": negative,
             "neutral": neutral,
             "by_session": by_session,
         }
@@ -1567,6 +1570,73 @@ async def cancel_run(request: Request) -> JSONResponse:
     })
 
 
+async def ask_reply_handler(request: Request) -> JSONResponse:
+    """Handle ask reply responses for all ask types."""
+    ask_id = request.path_params["ask_id"]
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+
+    # Find the context with this ask_id
+    for task in _active_tasks.values():
+        if hasattr(task, "_context"):
+            context = task._context
+            if hasattr(context, '_pending_asks') and ask_id in context._pending_asks:
+                future = context._pending_asks[ask_id]
+                if not future.done():
+                    # Parse response based on type
+                    response_data = body.get("response")
+                    future.set_result(response_data)
+                    return JSONResponse({"status": "success"})
+
+    return JSONResponse({"error": "Ask ID not found or already resolved"}, status_code=404)
+
+
+async def ask_upload_handler(request: Request) -> JSONResponse:
+    """Handle file uploads for AskFileMessage."""
+    ask_id = request.path_params["ask_id"]
+
+    # Get the form data
+    form = await request.form()
+    files = []
+
+    for key, file in form.items():
+        if hasattr(file, 'filename') and file.filename:
+            # Check file size
+            content = await file.read()
+            if len(content) > MAX_FILE_SIZE:
+                return JSONResponse(
+                    {"error": f"File {file.filename} exceeds maximum size"},
+                    status_code=413
+                )
+
+            # Save file to temporary location or process as needed
+            # For now, we'll just return the file info
+            safe_filename = os.path.basename(file.filename)
+            files.append({
+                "path": f"/tmp/{safe_filename}",
+                "name": safe_filename,
+                "mime": file.content_type or "application/octet-stream",
+                "size": len(content)
+            })
+
+    # Find the context and resolve the ask
+    for task in _active_tasks.values():
+        if hasattr(task, "_context"):
+            context = task._context
+            if hasattr(context, '_pending_asks') and ask_id in context._pending_asks:
+                future = context._pending_asks[ask_id]
+                if not future.done():
+                    from praisonaiui.schema.models import FileResponse
+                    file_responses = [FileResponse(**file_data) for file_data in files]
+                    future.set_result(file_responses)
+                    return JSONResponse({"status": "success", "files": files})
+
+    return JSONResponse({"error": "Ask ID not found or already resolved"}, status_code=404)
+
+
 class MessageContext:
     """Context object passed to reply callbacks."""
 
@@ -1636,7 +1706,7 @@ class MessageContext:
             return ""
 
         # Create a future to wait for the response
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         self._pending_ask = loop.create_future()
 
         # Send the ask event to the client
@@ -1987,6 +2057,8 @@ def create_app(
         Route("/sessions/{session_id}/runs", get_session_runs, methods=["GET"]),
         Route("/run", run_agent, methods=["POST"]),
         Route("/cancel", cancel_run, methods=["POST"]),
+        Route("/api/asks/{ask_id}/reply", ask_reply_handler, methods=["POST"]),
+        Route("/api/asks/{ask_id}/upload", ask_upload_handler, methods=["POST"]),
         Route("/agents/{agent_id}/runs", run_agent_by_id, methods=["POST"]),
         Route("/api/agents/{agent_id}/runs", run_agent_by_id, methods=["POST"]),
         # Dashboard API
@@ -2031,7 +2103,8 @@ def create_app(
         # Connect hot-reload watcher to the config store YAML file
         try:
             from praisonaiui.features.config_hot_reload import (
-                ConfigWatcher, set_config_watcher,
+                ConfigWatcher,
+                set_config_watcher,
             )
             def _on_config_reload():
                 """Reload config store and reset feature lazy-load flags."""
@@ -2052,10 +2125,12 @@ def create_app(
                     pass
                 # Reload channels from config and reset auto-start flag
                 try:
-                    from praisonaiui.features.channels import (
-                        _channels, _CHANNELS_SECTION, ChannelsFeature,
-                    )
                     from praisonaiui.features._persistence import load_section
+                    from praisonaiui.features.channels import (
+                        _CHANNELS_SECTION,
+                        ChannelsFeature,
+                        _channels,
+                    )
                     updated = load_section(_CHANNELS_SECTION)
                     _channels.clear()
                     _channels.update(updated)

@@ -12,6 +12,10 @@ from praisonaiui.schema.models import (
     RouteConfig,
     SiteConfig,
     TemplateConfig,
+    FileResponse,
+    Action,
+    ActionResponse,
+    ElementResponse,
 )
 
 
@@ -33,7 +37,7 @@ def __getattr__(name: str):
     _audio_attrs = {
         "on_audio_start", "on_audio_chunk", "on_audio_end",
     }
-    _message_attrs = {"Message", "AskUserMessage", "Step", "step"}
+    _message_attrs = {"Message", "AskUserMessage", "AskFileMessage", "AskActionMessage", "AskElementMessage", "Step", "step"}
     _server_attrs = {"register_agent", "register_page", "set_datastore", "get_datastore",
                       "set_provider", "get_provider", "set_style", "set_pages", "remove_page",
                       "set_branding", "set_theme", "set_custom_css", "register_theme",
@@ -133,6 +137,10 @@ __all__ = [
     "DashboardConfig",
     "AuthConfig",
     "LayoutConfig",
+    "FileResponse",
+    "Action", 
+    "ActionResponse",
+    "ElementResponse",
     # Callback decorators
     "welcome",
     "reply",
@@ -206,6 +214,9 @@ __all__ = [
     # Message classes (Chainlit pattern)
     "Message",
     "AskUserMessage",
+    "AskFileMessage",
+    "AskActionMessage", 
+    "AskElementMessage",
     "Step",
     "step",
     # Feature protocol
