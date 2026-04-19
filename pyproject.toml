@@ -101,6 +101,19 @@ mcp = [
     "mcp>=0.9",
 ]
 
+slack = [
+    "slack_sdk>=3.0.0",
+]
+
+discord = [
+    "discord.py[voice]>=2.0.0",
+]
+
+teams = [
+    "botbuilder-core>=4.0.0",
+    "botbuilder-schema>=4.0.0",
+]
+
 all = [
     "aiui[memory]",
     "aiui[knowledge]",
@@ -113,6 +126,9 @@ all = [
     "aiui[llama-index]",
     "aiui[semantic-kernel]",
     "aiui[mcp]",
+    "aiui[slack]",
+    "aiui[discord]",
+    "aiui[teams]",
 ]
 
 dev = [
@@ -162,6 +178,12 @@ select = ["E", "F", "I", "W"]
 #   E731 — single lambda assignments used as callbacks.
 #   E741 — ambiguous single-letter names in legacy migration helpers.
 ignore = ["E501", "E402", "E731", "E741"]
+
+[tool.ruff.lint.per-file-ignores]
+# Test files routinely bind mock variables that are never referenced
+# again (they exist purely to keep the context-manager alive or to
+# document what is being mocked).
+"tests/**/*.py" = ["F841"]
 
 [tool.mypy]
 python_version = "3.9"
