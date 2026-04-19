@@ -20,9 +20,11 @@ TOKEN_EXPIRY_HOURS = 24
 # Try to import bcrypt, fall back to hashlib if not available
 try:
     import bcrypt
+
     _HAS_BCRYPT = True
 except ImportError:
     import hashlib
+
     _HAS_BCRYPT = False
 
 
@@ -110,6 +112,7 @@ async def handle_login(username: str, password: str) -> Optional[dict[str, Any]]
     """Handle login with optional custom callback."""
     if _login_callback:
         import asyncio
+
         result = _login_callback(username, password)
         if asyncio.iscoroutine(result):
             result = await result
@@ -215,8 +218,10 @@ async def me_handler(request: Request) -> JSONResponse:
         user_id = validate_token(token)
         if user_id and user_id in _users:
             user = _users[user_id]
-            return JSONResponse({
-                "id": user["id"],
-                "username": user["username"],
-            })
+            return JSONResponse(
+                {
+                    "id": user["id"],
+                    "username": user["username"],
+                }
+            )
     return JSONResponse({"error": "Unauthorized"}, status_code=401)

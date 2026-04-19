@@ -15,7 +15,8 @@ F = TypeVar("F", bound=Callable[..., Any])
 # Per-task context for the current message being processed.
 # Using contextvars ensures concurrent async handlers don't clobber each other.
 _current_context: contextvars.ContextVar[Optional[MessageContext]] = contextvars.ContextVar(
-    "_current_context", default=None,
+    "_current_context",
+    default=None,
 )
 
 
@@ -39,6 +40,7 @@ def welcome(func: F) -> F:
         async def hi():
             await aiui.say("Hello! How can I help?")
     """
+
     @wraps(func)
     async def wrapper(*args, **kwargs):
         result = func(*args, **kwargs)
@@ -71,6 +73,7 @@ def reply(func: F) -> F:
     _pass_text = False
     try:
         import typing
+
         hints = typing.get_type_hints(func)
         if hints:
             first_hint = next(iter(hints.values()), None)
@@ -111,6 +114,7 @@ def goodbye(func: F) -> F:
         async def bye():
             await aiui.say("Goodbye!")
     """
+
     @wraps(func)
     async def wrapper(*args, **kwargs):
         result = func(*args, **kwargs)
@@ -132,6 +136,7 @@ def cancel(func: F) -> F:
         async def stopped():
             await aiui.say("Cancelled.")
     """
+
     @wraps(func)
     async def wrapper(*args, **kwargs):
         result = func(*args, **kwargs)
@@ -153,6 +158,7 @@ def button(name: str) -> Callable[[F], F]:
         async def retry_action():
             await aiui.say("Retrying...")
     """
+
     def decorator(func: F) -> F:
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -177,6 +183,7 @@ def login(func: F) -> F:
         async def auth(username, password):
             return verify(username, password)
     """
+
     @wraps(func)
     async def wrapper(*args, **kwargs):
         result = func(*args, **kwargs)
@@ -198,6 +205,7 @@ def settings(func: F) -> F:
         async def on_settings(new_settings):
             print(f"Settings updated: {new_settings}")
     """
+
     @wraps(func)
     async def wrapper(*args, **kwargs):
         result = func(*args, **kwargs)
@@ -257,6 +265,7 @@ def on(event: str) -> Callable[[F], F]:
         async def handle_audio(chunk):
             process_audio(chunk)
     """
+
     def decorator(func: F) -> F:
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -299,11 +308,18 @@ def page(
         description: Brief subtitle shown in page header
         order: Sort order within group (lower = first)
     """
+
     def decorator(func: F) -> F:
         from praisonaiui.server import register_page
+
         register_page(
-            id, title=title, icon=icon, group=group,
-            description=description, handler=func, order=order,
+            id,
+            title=title,
+            icon=icon,
+            group=group,
+            description=description,
+            handler=func,
+            order=order,
         )
         return func
 
@@ -320,6 +336,7 @@ def resume(func: F) -> F:
         async def on_resume(session):
             await aiui.say(f"Welcome back! You have {len(session.messages)} messages.")
     """
+
     @wraps(func)
     async def wrapper(*args, **kwargs):
         result = func(*args, **kwargs)
@@ -332,6 +349,7 @@ def resume(func: F) -> F:
 
 
 # Message sending functions
+
 
 async def say(content: str) -> None:
     """Send a message to the UI.

@@ -23,7 +23,6 @@ from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
 
-
 # ── Node Protocol ────────────────────────────────────────────────────
 
 
@@ -48,6 +47,7 @@ class NodeProtocol(ABC):
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
 
+
 # In-memory node & instance registries
 _nodes: Dict[str, Dict[str, Any]] = {}
 _instances: Dict[str, Dict[str, Any]] = {}
@@ -57,6 +57,7 @@ def _auto_register_local() -> None:
     """Auto-register the local node so the Nodes page isn't empty."""
     import platform
     import sys
+
     _nodes["local"] = {
         "id": "local",
         "name": f"{platform.node()} (local)",
@@ -77,6 +78,7 @@ def _auto_register_local() -> None:
         "mode": "server",
         "last_seen": time.time(),
     }
+
 
 _auto_register_local()
 
@@ -113,15 +115,20 @@ class NodesFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "node",
-            "help": "Manage execution nodes",
-            "commands": {
-                "list": {"help": "List registered nodes", "handler": self._cli_list},
-                "instances": {"help": "Show connected instances", "handler": self._cli_instances},
-                "status": {"help": "Show node status", "handler": self._cli_status},
-            },
-        }]
+        return [
+            {
+                "name": "node",
+                "help": "Manage execution nodes",
+                "commands": {
+                    "list": {"help": "List registered nodes", "handler": self._cli_list},
+                    "instances": {
+                        "help": "Show connected instances",
+                        "handler": self._cli_instances,
+                    },
+                    "status": {"help": "Show node status", "handler": self._cli_status},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
@@ -202,8 +209,9 @@ class NodesFeature(BaseFeatureProtocol):
         # Enrich with gateway data when available
         try:
             from ._gateway_ref import get_gateway
+
             gw = get_gateway()
-            if gw is not None and hasattr(gw, 'health'):
+            if gw is not None and hasattr(gw, "health"):
                 gw_health = gw.health()
                 result["gateway"] = {
                     "agents": gw_health.get("agents", 0),
@@ -235,25 +243,29 @@ class NodesFeature(BaseFeatureProtocol):
         stale = [k for k, v in _instances.items() if now - v.get("last_seen", 0) > 300]
         for k in stale:
             del _instances[k]
-        return JSONResponse({
-            "instances": list(_instances.values()),
-            "count": len(_instances),
-        })
+        return JSONResponse(
+            {
+                "instances": list(_instances.values()),
+                "count": len(_instances),
+            }
+        )
 
     async def _heartbeat(self, request: Request) -> JSONResponse:
         """Record a presence heartbeat from a connected instance."""
         body = await request.json()
         instance_id = body.get("id", uuid.uuid4().hex[:12])
         entry = _instances.get(instance_id, {})
-        entry.update({
-            "id": instance_id,
-            "host": body.get("host", "unknown"),
-            "platform": body.get("platform", "unknown"),
-            "version": body.get("version", "unknown"),
-            "roles": body.get("roles", []),
-            "mode": body.get("mode", "client"),
-            "last_seen": time.time(),
-        })
+        entry.update(
+            {
+                "id": instance_id,
+                "host": body.get("host", "unknown"),
+                "platform": body.get("platform", "unknown"),
+                "version": body.get("version", "unknown"),
+                "roles": body.get("roles", []),
+                "mode": body.get("mode", "client"),
+                "last_seen": time.time(),
+            }
+        )
         _instances[instance_id] = entry
         return JSONResponse({"status": "ok", "instance_id": instance_id})
 
@@ -278,7 +290,9 @@ class NodesFeature(BaseFeatureProtocol):
 
     def _cli_status(self) -> str:
         online = sum(1 for n in _nodes.values() if n.get("status") == "online")
-        return f"Nodes: {len(_nodes)} total, {online} online | Instances: {len(_instances)} connected"
+        return (
+            f"Nodes: {len(_nodes)} total, {online} online | Instances: {len(_instances)} connected"
+        )
 
 
 # Backward-compat alias

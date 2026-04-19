@@ -28,7 +28,9 @@ class TTSProtocol(ABC):
     """Protocol interface for text-to-speech backends."""
 
     @abstractmethod
-    def synthesize(self, text: str, *, voice: str = "alloy", model: str = "tts-1") -> Dict[str, Any]:
+    def synthesize(
+        self, text: str, *, voice: str = "alloy", model: str = "tts-1"
+    ) -> Dict[str, Any]:
         """Synthesize speech. Returns dict with audio info."""
         ...
 
@@ -53,7 +55,9 @@ class BrowserTTSManager(TTSProtocol):
         {"id": "google-uk", "name": "Google UK English", "lang": "en-GB"},
     ]
 
-    def synthesize(self, text: str, *, voice: str = "default", model: str = "browser") -> Dict[str, Any]:
+    def synthesize(
+        self, text: str, *, voice: str = "default", model: str = "browser"
+    ) -> Dict[str, Any]:
         return {
             "type": "browser_speech",
             "text": text,
@@ -83,9 +87,12 @@ class OpenAITTSManager(TTSProtocol):
         {"id": "shimmer", "name": "Shimmer"},
     ]
 
-    def synthesize(self, text: str, *, voice: str = "alloy", model: str = "tts-1") -> Dict[str, Any]:
+    def synthesize(
+        self, text: str, *, voice: str = "alloy", model: str = "tts-1"
+    ) -> Dict[str, Any]:
         try:
             import openai
+
             client = openai.OpenAI()
             response = client.audio.speech.create(model=model, voice=voice, input=text)
             return {
@@ -93,7 +100,7 @@ class OpenAITTSManager(TTSProtocol):
                 "format": "mp3",
                 "model": model,
                 "voice": voice,
-                "size_bytes": len(response.content) if hasattr(response, 'content') else 0,
+                "size_bytes": len(response.content) if hasattr(response, "content") else 0,
                 "status": "generated",
             }
         except ImportError:
@@ -107,9 +114,14 @@ class OpenAITTSManager(TTSProtocol):
     def health(self) -> Dict[str, Any]:
         try:
             import openai  # noqa: F401
+
             return {"status": "ok", "provider": "OpenAITTSManager"}
         except ImportError:
-            return {"status": "degraded", "provider": "OpenAITTSManager", "reason": "openai not installed"}
+            return {
+                "status": "degraded",
+                "provider": "OpenAITTSManager",
+                "reason": "openai not installed",
+            }
 
 
 # ── Manager singleton ────────────────────────────────────────────────
@@ -153,14 +165,16 @@ class TTSFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "tts",
-            "help": "Text-to-speech operations",
-            "commands": {
-                "voices": {"help": "List available voices", "handler": self._cli_voices},
-                "speak": {"help": "Synthesize text", "handler": self._cli_speak},
-            },
-        }]
+        return [
+            {
+                "name": "tts",
+                "help": "Text-to-speech operations",
+                "commands": {
+                    "voices": {"help": "List available voices", "handler": self._cli_voices},
+                    "speak": {"help": "Synthesize text", "handler": self._cli_speak},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         mgr = get_tts_manager()

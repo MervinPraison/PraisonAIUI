@@ -33,21 +33,20 @@ class SecurityProtocol(ABC):
     """Protocol interface for security backends."""
 
     @abstractmethod
-    def get_config(self) -> Dict[str, Any]:
-        ...
+    def get_config(self) -> Dict[str, Any]: ...
 
     @abstractmethod
-    def set_config(self, updates: Dict[str, Any]) -> Dict[str, Any]:
-        ...
+    def set_config(self, updates: Dict[str, Any]) -> Dict[str, Any]: ...
 
     @abstractmethod
-    def log_event(self, event_type: str, data: Any = None,
-                  agent_id: str = "", severity: str = "info") -> None:
-        ...
+    def log_event(
+        self, event_type: str, data: Any = None, agent_id: str = "", severity: str = "info"
+    ) -> None: ...
 
     @abstractmethod
-    def list_audit_log(self, *, limit: int = 50, event_type: Optional[str] = None) -> List[Dict[str, Any]]:
-        ...
+    def list_audit_log(
+        self, *, limit: int = 50, event_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]: ...
 
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
@@ -76,17 +75,22 @@ class SimpleSecurityManager(SecurityProtocol):
                 self._config[key] = bool(updates[key])
         return dict(self._config)
 
-    def log_event(self, event_type: str, data: Any = None,
-                  agent_id: str = "", severity: str = "info") -> None:
-        self._audit_log.append({
-            "timestamp": time.time(),
-            "event_type": event_type,
-            "agent_id": agent_id,
-            "severity": severity,
-            "data": data or {},
-        })
+    def log_event(
+        self, event_type: str, data: Any = None, agent_id: str = "", severity: str = "info"
+    ) -> None:
+        self._audit_log.append(
+            {
+                "timestamp": time.time(),
+                "event_type": event_type,
+                "agent_id": agent_id,
+                "severity": severity,
+                "data": data or {},
+            }
+        )
 
-    def list_audit_log(self, *, limit: int = 50, event_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_audit_log(
+        self, *, limit: int = 50, event_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         items = list(self._audit_log)
         if event_type:
             items = [e for e in items if e.get("event_type") == event_type]
@@ -109,10 +113,12 @@ class SDKSecurityManager(SecurityProtocol):
 
     def __init__(self) -> None:
         from praisonai.security import enable_security  # noqa: F401
+
         self._simple = SimpleSecurityManager()
         self._sdk_funcs = {}
         try:
             from praisonai.security import enable_audit_log, enable_injection_defense
+
             self._sdk_funcs["audit"] = enable_audit_log
             self._sdk_funcs["injection"] = enable_injection_defense
         except ImportError:
@@ -141,11 +147,14 @@ class SDKSecurityManager(SecurityProtocol):
         config["applied_to_sdk"] = applied
         return config
 
-    def log_event(self, event_type: str, data: Any = None,
-                  agent_id: str = "", severity: str = "info") -> None:
+    def log_event(
+        self, event_type: str, data: Any = None, agent_id: str = "", severity: str = "info"
+    ) -> None:
         self._simple.log_event(event_type, data, agent_id, severity)
 
-    def list_audit_log(self, *, limit: int = 50, event_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_audit_log(
+        self, *, limit: int = 50, event_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         return self._simple.list_audit_log(limit=limit, event_type=event_type)
 
     def health(self) -> Dict[str, Any]:
@@ -190,6 +199,7 @@ class SecurityFeature(BaseFeatureProtocol):
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
+
         mgr = get_security_manager()
         return {
             "status": "ok",
@@ -208,15 +218,17 @@ class SecurityFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "security",
-            "help": "Security monitoring and audit",
-            "commands": {
-                "status": {"help": "Show security status", "handler": self._cli_status},
-                "audit": {"help": "Show audit log", "handler": self._cli_audit},
-                "config": {"help": "Show security configuration", "handler": self._cli_config},
-            },
-        }]
+        return [
+            {
+                "name": "security",
+                "help": "Security monitoring and audit",
+                "commands": {
+                    "status": {"help": "Show security status", "handler": self._cli_status},
+                    "audit": {"help": "Show audit log", "handler": self._cli_audit},
+                    "config": {"help": "Show security configuration", "handler": self._cli_config},
+                },
+            }
+        ]
 
     # ── CLI handlers ─────────────────────────────────────────────────
 
@@ -259,6 +271,7 @@ class SecurityFeature(BaseFeatureProtocol):
         agent_security = []
         try:
             from ._gateway_ref import get_gateway
+
             gw = get_gateway()
             if gw is not None:
                 for aid in gw.list_agents():
@@ -267,27 +280,30 @@ class SecurityFeature(BaseFeatureProtocol):
                         continue
                     name = getattr(agent, "name", aid)
                     has_guardrail = bool(
-                        getattr(agent, "guardrail", None)
-                        or getattr(agent, "guardrails", None)
+                        getattr(agent, "guardrail", None) or getattr(agent, "guardrails", None)
                     )
                     has_tools = bool(getattr(agent, "tools", None))
-                    agent_security.append({
-                        "id": aid,
-                        "name": name,
-                        "has_guardrail": has_guardrail,
-                        "has_tools": has_tools,
-                        "tool_count": len(getattr(agent, "tools", None) or []),
-                    })
+                    agent_security.append(
+                        {
+                            "id": aid,
+                            "name": name,
+                            "has_guardrail": has_guardrail,
+                            "has_tools": has_tools,
+                            "tool_count": len(getattr(agent, "tools", None) or []),
+                        }
+                    )
         except (ImportError, Exception):
             pass
 
         recent_audit = mgr.list_audit_log(limit=10)
-        return JSONResponse({
-            "config": mgr.get_config(),
-            "agent_security": agent_security,
-            "recent_audit": recent_audit,
-            "total_audit_entries": len(mgr.list_audit_log(limit=10000)),
-        })
+        return JSONResponse(
+            {
+                "config": mgr.get_config(),
+                "agent_security": agent_security,
+                "recent_audit": recent_audit,
+                "total_audit_entries": len(mgr.list_audit_log(limit=10000)),
+            }
+        )
 
     async def _status(self, request: Request) -> JSONResponse:
         health = await self.health()
@@ -306,12 +322,14 @@ class SecurityFeature(BaseFeatureProtocol):
             et = e.get("event_type", "unknown")
             type_counts[et] = type_counts.get(et, 0) + 1
 
-        return JSONResponse({
-            "entries": items,
-            "count": len(items),
-            "total": len(all_items),
-            "by_type": type_counts,
-        })
+        return JSONResponse(
+            {
+                "entries": items,
+                "count": len(items),
+                "total": len(all_items),
+                "by_type": type_counts,
+            }
+        )
 
     async def _get_config(self, request: Request) -> JSONResponse:
         mgr = get_security_manager()
@@ -325,8 +343,9 @@ class SecurityFeature(BaseFeatureProtocol):
         return JSONResponse({"config": config})
 
 
-def log_audit_event(event_type: str, data: Any = None,
-                    agent_id: str = "", severity: str = "info") -> None:
+def log_audit_event(
+    event_type: str, data: Any = None, agent_id: str = "", severity: str = "info"
+) -> None:
     """Log a security audit event (callable from hooks)."""
     get_security_manager().log_event(event_type, data, agent_id, severity)
 

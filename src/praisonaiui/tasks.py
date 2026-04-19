@@ -11,6 +11,7 @@ from uuid import uuid4
 
 class TaskStatus(Enum):
     """Task status enumeration."""
+
     READY = "READY"
     RUNNING = "RUNNING"
     DONE = "DONE"
@@ -120,7 +121,7 @@ class TaskList:
         from praisonaiui.callbacks import _get_context
 
         ctx = _get_context()
-        if not ctx or not hasattr(ctx, '_stream_queue'):
+        if not ctx or not hasattr(ctx, "_stream_queue"):
             raise RuntimeError("TaskList.send() must be called within an active callback context")
 
         self._sent = True
@@ -173,7 +174,7 @@ class TaskList:
         from praisonaiui.callbacks import _get_context
 
         ctx = _get_context()
-        if not ctx or not hasattr(ctx, '_stream_queue'):
+        if not ctx or not hasattr(ctx, "_stream_queue"):
             return  # Silently ignore if no context (task updates after callback ends)
 
         self._sequence_number += 1

@@ -45,7 +45,9 @@ class ChannelProtocol(ABC):
     def get_channel(self, channel_id: str) -> Optional[Dict[str, Any]]: ...
 
     @abstractmethod
-    def update_channel(self, channel_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]: ...
+    def update_channel(
+        self, channel_id: str, updates: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]: ...
 
     @abstractmethod
     def delete_channel(self, channel_id: str) -> bool: ...
@@ -56,9 +58,16 @@ class ChannelProtocol(ABC):
 
 # Supported channel platforms
 SUPPORTED_PLATFORMS = [
-    "discord", "slack", "telegram", "whatsapp",
-    "email", "agentmail",
-    "imessage", "signal", "googlechat", "nostr",
+    "discord",
+    "slack",
+    "telegram",
+    "whatsapp",
+    "email",
+    "agentmail",
+    "imessage",
+    "signal",
+    "googlechat",
+    "nostr",
 ]
 
 # In-memory channel registry — loaded from unified config.yaml
@@ -111,20 +120,26 @@ class ChannelsFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "channel",
-            "help": "Manage messaging channels",
-            "commands": {
-                "list": {"help": "List configured channels", "handler": self._cli_list},
-                "status": {"help": "Show channel status", "handler": self._cli_status_cli},
-                "platforms": {"help": "List supported platforms", "handler": self._cli_platforms},
-            },
-        }]
+        return [
+            {
+                "name": "channel",
+                "help": "Manage messaging channels",
+                "commands": {
+                    "list": {"help": "List configured channels", "handler": self._cli_list},
+                    "status": {"help": "Show channel status", "handler": self._cli_status_cli},
+                    "platforms": {
+                        "help": "List supported platforms",
+                        "handler": self._cli_platforms,
+                    },
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         self._sync_running_status()
         running = sum(1 for c in _channels.values() if c.get("running", False))
         from ._gateway_helpers import gateway_health
+
         gw = gateway_health()
         return {
             "status": "ok",
@@ -165,6 +180,7 @@ class ChannelsFeature(BaseFeatureProtocol):
         """Get the gateway instance, or None."""
         try:
             from ._gateway_ref import get_gateway
+
             return get_gateway()
         except Exception:
             return None
@@ -218,9 +234,17 @@ class ChannelsFeature(BaseFeatureProtocol):
         # Platform-aware token resolution:
         # email/agentmail use api_key or dedicated env vars, not bot_token
         if platform == "agentmail":
-            token = config.get("bot_token") or config.get("api_key", "") or os.environ.get("AGENTMAIL_API_KEY", "")
+            token = (
+                config.get("bot_token")
+                or config.get("api_key", "")
+                or os.environ.get("AGENTMAIL_API_KEY", "")
+            )
         elif platform == "email":
-            token = config.get("bot_token") or config.get("app_password", "") or os.environ.get("EMAIL_APP_PASSWORD", "")
+            token = (
+                config.get("bot_token")
+                or config.get("app_password", "")
+                or os.environ.get("EMAIL_APP_PASSWORD", "")
+            )
         else:
             token = config.get("bot_token", "")
         if not token:
@@ -237,16 +261,17 @@ class ChannelsFeature(BaseFeatureProtocol):
         agent = None
         try:
             from praisonaiagents import Agent
-            
+
             # G3: Resolve tools via praisonai wrapper
             agent_tools = []
             try:
                 from praisonai.tool_resolver import ToolResolver
+
                 resolver = ToolResolver()
                 agent_tools = resolver.resolve_many(["internet_search"])
             except ImportError:
                 pass  # praisonai not installed — no tools
-            
+
             agent = Agent(
                 name="assistant",
                 instructions="You are a helpful assistant with tool capabilities.",
@@ -263,6 +288,7 @@ class ChannelsFeature(BaseFeatureProtocol):
         if gw is not None and hasattr(gw, "_create_bot"):
             try:
                 from praisonaiagents.bots import BotConfig
+
                 bot_config = BotConfig(token=token)
                 ch_cfg: Dict[str, Any] = {"token": token}
                 if platform == "slack":
@@ -271,7 +297,13 @@ class ChannelsFeature(BaseFeatureProtocol):
                     for k in ("phone_number_id", "verify_token", "mode", "webhook_port"):
                         ch_cfg[k] = config.get(k, "")
                 if platform == "email":
-                    for k in ("email_address", "imap_server", "smtp_server", "imap_port", "smtp_port"):
+                    for k in (
+                        "email_address",
+                        "imap_server",
+                        "smtp_server",
+                        "imap_port",
+                        "smtp_port",
+                    ):
                         val = config.get(k) or os.environ.get(f"EMAIL_{k.upper()}", "")
                         if val:
                             ch_cfg[k] = val
@@ -331,8 +363,7 @@ class ChannelsFeature(BaseFeatureProtocol):
         return None  # success
 
     @staticmethod
-    def _create_bot_direct(platform: str, token: str, agent: Any,
-                           config: Dict[str, Any]) -> Any:
+    def _create_bot_direct(platform: str, token: str, agent: Any, config: Dict[str, Any]) -> Any:
         """Try to directly instantiate a bot class by platform name."""
         bot_classes: Dict[str, List[str]] = {
             "discord": [
@@ -363,6 +394,7 @@ class ChannelsFeature(BaseFeatureProtocol):
             try:
                 module_path, class_name = fqn.rsplit(".", 1)
                 import importlib
+
                 mod = importlib.import_module(module_path)
                 cls = getattr(mod, class_name)
                 # All bot constructors accept (token=, agent=, config=)
@@ -421,15 +453,22 @@ class ChannelsFeature(BaseFeatureProtocol):
 
         # ── Platform icons for the Chat UI ───────────────────────────
         _PLATFORM_ICONS = {
-            "slack": "💬", "discord": "🎮", "telegram": "✈️",
-            "whatsapp": "📱", "email": "📧", "agentmail": "📩",
-            "imessage": "🍎", "signal": "🔒",
-            "googlechat": "💚", "nostr": "🟣",
+            "slack": "💬",
+            "discord": "🎮",
+            "telegram": "✈️",
+            "whatsapp": "📱",
+            "email": "📧",
+            "agentmail": "📩",
+            "imessage": "🍎",
+            "signal": "🔒",
+            "googlechat": "💚",
+            "nostr": "🟣",
         }
         icon = _PLATFORM_ICONS.get(platform, "📨")
 
         # ── 1. Hook into on_message to capture incoming user messages ─
         if hasattr(bot, "on_message"):
+
             @bot.on_message
             async def _bridge_incoming(msg: Any) -> None:
                 """Forward incoming channel message to Chat UI (fire-and-forget)."""
@@ -446,20 +485,25 @@ class ChannelsFeature(BaseFeatureProtocol):
                     async def _do_broadcast() -> None:
                         try:
                             from .chat import get_chat_manager
+
                             mgr = get_chat_manager()
-                            await mgr.broadcast(session_id, {
-                                "type": "channel_message",
-                                "session_id": session_id,
-                                "channel_id": channel_id,
-                                "platform": platform,
-                                "icon": icon,
-                                "content": content,
-                                "sender": sender_name,
-                                "timestamp": time.time(),
-                            })
+                            await mgr.broadcast(
+                                session_id,
+                                {
+                                    "type": "channel_message",
+                                    "session_id": session_id,
+                                    "channel_id": channel_id,
+                                    "platform": platform,
+                                    "icon": icon,
+                                    "content": content,
+                                    "sender": sender_name,
+                                    "timestamp": time.time(),
+                                },
+                            )
 
                             # Persist to datastore for history
                             from praisonaiui.server import _datastore
+
                             existing = await _datastore.get_session(session_id)
                             if existing is None:
                                 await _datastore.create_session(session_id)
@@ -470,14 +514,19 @@ class ChannelsFeature(BaseFeatureProtocol):
                                     icon=icon,
                                     title=f"{icon} {platform.capitalize()}",
                                 )
-                            await _datastore.add_message(session_id, {
-                                "role": "user",
-                                "content": f"[{sender_name}] {content}" if sender_name else content,
-                                "platform": platform,
-                                "icon": icon,
-                                "sender": sender_name,
-                                "channel_id": channel_id,
-                            })
+                            await _datastore.add_message(
+                                session_id,
+                                {
+                                    "role": "user",
+                                    "content": f"[{sender_name}] {content}"
+                                    if sender_name
+                                    else content,
+                                    "platform": platform,
+                                    "icon": icon,
+                                    "sender": sender_name,
+                                    "channel_id": channel_id,
+                                },
+                            )
                         except Exception as e:
                             logger.debug(f"Chat bridge broadcast error: {e}")
 
@@ -497,7 +546,8 @@ class ChannelsFeature(BaseFeatureProtocol):
                 PraisonAIProvider._run_direct_mode) to capture tool_call,
                 reasoning, and content events during execution.
                 """
-                from .chat import get_chat_manager, _enrich_tool_payload
+                from .chat import _enrich_tool_payload, get_chat_manager
+
                 mgr = get_chat_manager()
                 _loop = asyncio.get_running_loop()
 
@@ -510,14 +560,12 @@ class ChannelsFeature(BaseFeatureProtocol):
                 _collected_tool_calls: dict = {}
 
                 try:
-                    from praisonaiagents.streaming import StreamEventType as SET
+                    from praisonaiagents.streaming import StreamEventType as SET  # noqa: F401
 
                     def _on_stream_event(stream_event):
                         """Sync callback → queue (thread-safe)."""
                         try:
-                            _loop.call_soon_threadsafe(
-                                _event_queue.put_nowait, stream_event
-                            )
+                            _loop.call_soon_threadsafe(_event_queue.put_nowait, stream_event)
                         except Exception:
                             pass
 
@@ -537,9 +585,7 @@ class ChannelsFeature(BaseFeatureProtocol):
 
                     while True:
                         try:
-                            evt = await asyncio.wait_for(
-                                _event_queue.get(), timeout=0.1
-                            )
+                            evt = await asyncio.wait_for(_event_queue.get(), timeout=0.1)
                         except asyncio.TimeoutError:
                             continue
                         except Exception:
@@ -591,7 +637,9 @@ class ChannelsFeature(BaseFeatureProtocol):
                             if tc_id in _collected_tool_calls:
                                 entry = _collected_tool_calls[tc_id]
                                 entry["result"] = payload.get("result")
-                                entry["formatted_result"] = payload.get("formatted_result", "✓ Done")
+                                entry["formatted_result"] = payload.get(
+                                    "formatted_result", "✓ Done"
+                                )
                                 entry["status"] = "done"
 
                         elif evt_type == SET.DELTA_TEXT:
@@ -646,16 +694,20 @@ class ChannelsFeature(BaseFeatureProtocol):
                             if tc_id in _collected_tool_calls:
                                 entry = _collected_tool_calls[tc_id]
                                 entry["result"] = payload.get("result")
-                                entry["formatted_result"] = payload.get("formatted_result", "✓ Done")
+                                entry["formatted_result"] = payload.get(
+                                    "formatted_result", "✓ Done"
+                                )
                                 entry["status"] = "done"
 
                         if payload:
-                            payload.update({
-                                "session_id": session_id,
-                                "channel_id": channel_id,
-                                "platform": platform,
-                                "icon": icon,
-                            })
+                            payload.update(
+                                {
+                                    "session_id": session_id,
+                                    "channel_id": channel_id,
+                                    "platform": platform,
+                                    "icon": icon,
+                                }
+                            )
                             try:
                                 await mgr.broadcast(session_id, payload)
                             except Exception:
@@ -685,19 +737,23 @@ class ChannelsFeature(BaseFeatureProtocol):
                 # Broadcast the final response
                 async def _broadcast_response() -> None:
                     try:
-                        await mgr.broadcast(session_id, {
-                            "type": "channel_response",
-                            "session_id": session_id,
-                            "channel_id": channel_id,
-                            "platform": platform,
-                            "icon": icon,
-                            "content": response,
-                            "agent_name": getattr(agent, "name", "assistant"),
-                            "timestamp": time.time(),
-                        })
+                        await mgr.broadcast(
+                            session_id,
+                            {
+                                "type": "channel_response",
+                                "session_id": session_id,
+                                "channel_id": channel_id,
+                                "platform": platform,
+                                "icon": icon,
+                                "content": response,
+                                "agent_name": getattr(agent, "name", "assistant"),
+                                "timestamp": time.time(),
+                            },
+                        )
 
                         # Persist response to datastore (with tool calls)
                         from praisonaiui.server import _datastore
+
                         msg_data = {
                             "role": "assistant",
                             "content": response,
@@ -717,7 +773,9 @@ class ChannelsFeature(BaseFeatureProtocol):
 
             bot._session.chat = _wrapped_chat
 
-        logger.info(f"Chat bridge attached for {platform} channel '{channel_id}' → session '{session_id}'")
+        logger.info(
+            f"Chat bridge attached for {platform} channel '{channel_id}' → session '{session_id}'"
+        )
 
     async def _stop_channel_bot(self, channel_id: str) -> Optional[str]:
         """Stop a running bot for the given channel.
@@ -857,14 +915,16 @@ class ChannelsFeature(BaseFeatureProtocol):
         if not channel:
             return JSONResponse({"error": "Channel not found"}, status_code=404)
         self._sync_running_status()
-        return JSONResponse({
-            "id": channel_id,
-            "name": channel["name"],
-            "platform": channel["platform"],
-            "enabled": channel["enabled"],
-            "running": channel.get("running", False),
-            "last_activity": channel.get("last_activity"),
-        })
+        return JSONResponse(
+            {
+                "id": channel_id,
+                "name": channel["name"],
+                "platform": channel["platform"],
+                "enabled": channel["enabled"],
+                "running": channel.get("running", False),
+                "last_activity": channel.get("last_activity"),
+            }
+        )
 
     async def _platforms(self, request: Request) -> JSONResponse:
         """List supported platforms."""
@@ -885,19 +945,24 @@ class ChannelsFeature(BaseFeatureProtocol):
         # Start
         start_err = await self._start_channel_bot(channel_id, channel)
         if start_err:
-            return JSONResponse({
-                "id": channel_id,
-                "status": "error",
-                "error": start_err,
-                "message": f"Bot stopped but failed to restart: {start_err}",
-            }, status_code=500)
+            return JSONResponse(
+                {
+                    "id": channel_id,
+                    "status": "error",
+                    "error": start_err,
+                    "message": f"Bot stopped but failed to restart: {start_err}",
+                },
+                status_code=500,
+            )
 
-        return JSONResponse({
-            "id": channel_id,
-            "status": "restarted",
-            "running": True,
-            "message": f"Channel '{channel_id}' restarted successfully",
-        })
+        return JSONResponse(
+            {
+                "id": channel_id,
+                "status": "restarted",
+                "running": True,
+                "message": f"Channel '{channel_id}' restarted successfully",
+            }
+        )
 
     async def _test(self, request: Request) -> JSONResponse:
         """Test connectivity for a channel bot."""
@@ -928,6 +993,7 @@ class ChannelsFeature(BaseFeatureProtocol):
                     if hasattr(result, "__dict__") and not isinstance(result, dict):
                         try:
                             import dataclasses
+
                             probe_data = dataclasses.asdict(result)
                         except (TypeError, Exception):
                             probe_data = result.__dict__
@@ -952,23 +1018,24 @@ class ChannelsFeature(BaseFeatureProtocol):
         token = config.get("token", config.get("bot_token", ""))
 
         if not token:
-            return JSONResponse({"success": False,
-                                 "error": "No token configured for this channel"})
+            return JSONResponse({"success": False, "error": "No token configured for this channel"})
 
         try:
             if platform == "telegram":
                 from telegram import Bot as TGBot
+
                 tg = TGBot(token=token)
                 me = await tg.get_me()
                 _mark_healthy()
-                return JSONResponse({
-                    "success": True,
-                    "probe": {"bot_name": me.first_name,
-                              "username": me.username,
-                              "id": me.id},
-                })
+                return JSONResponse(
+                    {
+                        "success": True,
+                        "probe": {"bot_name": me.first_name, "username": me.username, "id": me.id},
+                    }
+                )
             elif platform == "discord":
                 import aiohttp
+
                 async with aiohttp.ClientSession() as session:
                     async with session.get(
                         "https://discord.com/api/v10/users/@me",
@@ -977,38 +1044,54 @@ class ChannelsFeature(BaseFeatureProtocol):
                         if resp.status == 200:
                             data = await resp.json()
                             _mark_healthy()
-                            return JSONResponse({
-                                "success": True,
-                                "probe": {"bot_name": data.get("username"),
-                                          "id": data.get("id")},
-                            })
-                        return JSONResponse({
-                            "success": False,
-                            "error": f"Discord API returned {resp.status}",
-                        })
+                            return JSONResponse(
+                                {
+                                    "success": True,
+                                    "probe": {
+                                        "bot_name": data.get("username"),
+                                        "id": data.get("id"),
+                                    },
+                                }
+                            )
+                        return JSONResponse(
+                            {
+                                "success": False,
+                                "error": f"Discord API returned {resp.status}",
+                            }
+                        )
             elif platform == "slack":
                 from slack_sdk.web.async_client import AsyncWebClient
+
                 client = AsyncWebClient(token=token)
                 result = await client.auth_test()
                 if result.get("ok", False):
                     _mark_healthy()
-                return JSONResponse({
-                    "success": result.get("ok", False),
-                    "probe": {"team": result.get("team"),
-                              "user": result.get("user"),
-                              "bot_id": result.get("bot_id")},
-                })
+                return JSONResponse(
+                    {
+                        "success": result.get("ok", False),
+                        "probe": {
+                            "team": result.get("team"),
+                            "user": result.get("user"),
+                            "bot_id": result.get("bot_id"),
+                        },
+                    }
+                )
             else:
-                return JSONResponse({
-                    "success": False,
-                    "error": f"Direct test not supported for '{platform}'",
-                })
+                return JSONResponse(
+                    {
+                        "success": False,
+                        "error": f"Direct test not supported for '{platform}'",
+                    }
+                )
         except ImportError:
-            return JSONResponse({
-                "success": False,
-                "error": (f"Could not test {platform} — required packages "
-                          f"may not be installed"),
-            })
+            return JSONResponse(
+                {
+                    "success": False,
+                    "error": (
+                        f"Could not test {platform} — required packages may not be installed"
+                    ),
+                }
+            )
         except Exception as e:
             return JSONResponse({"success": False, "error": str(e)})
 

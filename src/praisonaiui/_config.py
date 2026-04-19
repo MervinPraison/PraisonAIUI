@@ -72,9 +72,11 @@ def configure(
             set_datastore(JSONFileDataStore(data_dir=datastore[5:]))
         elif datastore == "sdk":
             from praisonaiui.datastore_sdk import SDKFileDataStore
+
             set_datastore(SDKFileDataStore())
         elif datastore.startswith("sdk:"):
             from praisonaiui.datastore_sdk import SDKFileDataStore
+
             set_datastore(SDKFileDataStore(session_dir=datastore[4:]))
         else:
             raise ValueError(
@@ -86,14 +88,17 @@ def configure(
     # functions — no behavioural change, just a single entry point.
     if style is not None:
         from praisonaiui.server import set_style
+
         set_style(style)
 
     if branding:
         from praisonaiui.server import set_branding
+
         set_branding(**dict(branding))
 
     if theme:
         from praisonaiui.server import set_theme
+
         # Accept both ``dark`` and ``dark_mode`` for readability.
         kwargs = dict(theme)
         if "dark" in kwargs and "dark_mode" not in kwargs:
@@ -104,6 +109,7 @@ def configure(
             set_theme(**kwargs)
         if brand_color:
             from praisonaiui.server import set_brand_color
+
             set_brand_color(brand_color)
 
     if chat:
@@ -112,18 +118,23 @@ def configure(
         mode = kwargs.pop("mode", None)
         if feedback is not None:
             from praisonaiui.server import set_feedback_enabled
+
             set_feedback_enabled(bool(feedback))
         if mode is not None:
             from praisonaiui.server import set_chat_mode
+
             set_chat_mode(mode)
         if kwargs:
             from praisonaiui.server import set_chat_features
+
             set_chat_features(**kwargs)
 
     if custom_css is not None:
         from praisonaiui.server import set_custom_css
+
         set_custom_css(custom_css)
 
     if custom_js is not None:
         from praisonaiui.server import set_custom_js
+
         set_custom_js(custom_js)

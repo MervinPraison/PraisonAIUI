@@ -233,13 +233,21 @@ class TestPythonVersionConstraint:
 
     def test_praisonai_supports_python_314(self):
         """praisonai should support Python 3.14."""
-        import tomllib
+        # tomllib is 3.11+; fall back to tomli on 3.10 when available,
+        # otherwise skip (this test probes an external repo checkout).
+        try:
+            import tomllib  # type: ignore[import-not-found]
+        except ModuleNotFoundError:
+            try:
+                import tomli as tomllib  # type: ignore[import-not-found,no-redef]
+            except ModuleNotFoundError:
+                pytest.skip("tomllib/tomli not available")
         from pathlib import Path
-        
+
         pyproject_path = Path("/Users/praison/praisonai-package/src/praisonai/pyproject.toml")
         if not pyproject_path.exists():
             pytest.skip("pyproject.toml not found")
-        
+
         with open(pyproject_path, "rb") as f:
             data = tomllib.load(f)
         

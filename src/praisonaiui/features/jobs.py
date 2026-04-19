@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 class JobStatus(str, Enum):
     """Status of a job."""
+
     QUEUED = "queued"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
@@ -45,24 +46,19 @@ class JobStoreProtocol(ABC):
     """Protocol interface for job storage backends."""
 
     @abstractmethod
-    def get(self, job_id: str) -> Optional[Dict[str, Any]]:
-        ...
+    def get(self, job_id: str) -> Optional[Dict[str, Any]]: ...
 
     @abstractmethod
-    def list_all(self) -> List[Dict[str, Any]]:
-        ...
+    def list_all(self) -> List[Dict[str, Any]]: ...
 
     @abstractmethod
-    def save(self, job: Dict[str, Any]) -> None:
-        ...
+    def save(self, job: Dict[str, Any]) -> None: ...
 
     @abstractmethod
-    def delete(self, job_id: str) -> bool:
-        ...
+    def delete(self, job_id: str) -> bool: ...
 
     @abstractmethod
-    def stats(self) -> Dict[str, Any]:
-        ...
+    def stats(self) -> Dict[str, Any]: ...
 
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
@@ -113,6 +109,7 @@ class SDKJobStore(JobStoreProtocol):
 
     def __init__(self) -> None:
         from praisonai.jobs import JobExecutor  # noqa: F401
+
         self._simple = SimpleJobStore()
         logger.info("SDKJobStore initialized (praisonai.jobs available)")
 
@@ -185,18 +182,21 @@ class JobsFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "job",
-            "help": "Manage async jobs",
-            "commands": {
-                "list": {"help": "List all jobs", "handler": self._cli_list},
-                "status": {"help": "Show job status", "handler": self._cli_status_cmd},
-                "stats": {"help": "Show executor stats", "handler": self._cli_stats},
-            },
-        }]
+        return [
+            {
+                "name": "job",
+                "help": "Manage async jobs",
+                "commands": {
+                    "list": {"help": "List all jobs", "handler": self._cli_list},
+                    "status": {"help": "Show job status", "handler": self._cli_status_cmd},
+                    "stats": {"help": "Show executor stats", "handler": self._cli_stats},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
+
         store = get_job_store()
         return {
             "status": "ok",
@@ -225,14 +225,16 @@ class JobsFeature(BaseFeatureProtocol):
         jobs.sort(key=lambda j: j.get("created_at", 0), reverse=True)
         total = len(jobs)
         offset = (page - 1) * page_size
-        jobs = jobs[offset:offset + page_size]
+        jobs = jobs[offset : offset + page_size]
 
-        return JSONResponse({
-            "jobs": jobs,
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-        })
+        return JSONResponse(
+            {
+                "jobs": jobs,
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+            }
+        )
 
     async def _submit(self, request: Request) -> JSONResponse:
         """Submit a new job for execution."""
@@ -263,30 +265,35 @@ class JobsFeature(BaseFeatureProtocol):
             "metrics": None,
         }
 
+        store = get_job_store()
+
         # Check idempotency
         idem_key = body.get("idempotency_key")
         if idem_key:
-            for existing in _jobs.values():
+            for existing in store.list_all():
                 if existing.get("idempotency_key") == idem_key:
                     return JSONResponse(existing, status_code=200)
 
-        store = get_job_store()
         store.save(job)
 
         # Start execution
         asyncio.create_task(self._execute_job(job_id))
 
         base_url = str(request.base_url).rstrip("/")
-        return JSONResponse({
-            "job_id": job_id,
-            "status": job["status"],
-            "created_at": job["created_at"],
-            "poll_url": f"{base_url}/api/jobs/{job_id}/status",
-            "stream_url": f"{base_url}/api/jobs/{job_id}/stream",
-        }, status_code=202, headers={
-            "Location": f"{base_url}/api/jobs/{job_id}",
-            "Retry-After": "2",
-        })
+        return JSONResponse(
+            {
+                "job_id": job_id,
+                "status": job["status"],
+                "created_at": job["created_at"],
+                "poll_url": f"{base_url}/api/jobs/{job_id}/status",
+                "stream_url": f"{base_url}/api/jobs/{job_id}/stream",
+            },
+            status_code=202,
+            headers={
+                "Location": f"{base_url}/api/jobs/{job_id}",
+                "Retry-After": "2",
+            },
+        )
 
     async def _execute_job(self, job_id: str) -> None:
         """Execute a job using gateway-registered agents when available."""
@@ -306,6 +313,7 @@ class JobsFeature(BaseFeatureProtocol):
             if executor:
                 # Real execution via praisonai.jobs
                 from praisonai.jobs.models import Job as PraisonJob
+
                 praison_job = PraisonJob(
                     prompt=job["prompt"],
                     agent_file=job.get("agent_file"),
@@ -336,6 +344,7 @@ class JobsFeature(BaseFeatureProtocol):
                 agent_name = job.get("config", {}).get("name", "assistant")
                 try:
                     from praisonaiui.features._gateway_ref import get_gateway
+
                     gw = get_gateway()
                     if gw is not None:
                         for aid in gw.list_agents():
@@ -360,6 +369,7 @@ class JobsFeature(BaseFeatureProtocol):
                         if tool_names:
                             try:
                                 from praisonai.tool_resolver import ToolResolver
+
                                 resolver = ToolResolver()
                                 for tn in tool_names:
                                     if isinstance(tn, str) and tn.strip():
@@ -429,6 +439,7 @@ class JobsFeature(BaseFeatureProtocol):
         """Try to get JobExecutor from praisonai.jobs."""
         try:
             import importlib.util
+
             if importlib.util.find_spec("praisonai.jobs"):
                 # Would need to be initialized properly with store
                 return None  # For now, use mock execution
@@ -439,7 +450,7 @@ class JobsFeature(BaseFeatureProtocol):
     async def _notify_progress(self, job_id: str) -> None:
         """Notify all progress listeners."""
         if job_id in _progress_callbacks:
-            job = _jobs.get(job_id)
+            job = get_job_store().get(job_id)
             if job:
                 for queue in _progress_callbacks[job_id]:
                     try:
@@ -468,19 +479,21 @@ class JobsFeature(BaseFeatureProtocol):
         elif job["status"] == JobStatus.RUNNING.value:
             retry_after = 5
 
-        return JSONResponse({
-            "job_id": job_id,
-            "status": job["status"],
-            "progress": {
-                "percentage": job.get("progress_percentage", 0),
-                "current_step": job.get("progress_step"),
-            },
-            "created_at": job.get("created_at"),
-            "started_at": job.get("started_at"),
-            "completed_at": job.get("completed_at"),
-            "error": job.get("error"),
-            "retry_after": retry_after,
-        })
+        return JSONResponse(
+            {
+                "job_id": job_id,
+                "status": job["status"],
+                "progress": {
+                    "percentage": job.get("progress_percentage", 0),
+                    "current_step": job.get("progress_step"),
+                },
+                "created_at": job.get("created_at"),
+                "started_at": job.get("started_at"),
+                "completed_at": job.get("completed_at"),
+                "error": job.get("error"),
+                "retry_after": retry_after,
+            }
+        )
 
     async def _result(self, request: Request) -> JSONResponse:
         """Get job result."""
@@ -489,27 +502,33 @@ class JobsFeature(BaseFeatureProtocol):
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
 
-        terminal_states = [JobStatus.SUCCEEDED.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value]
+        terminal_states = [
+            JobStatus.SUCCEEDED.value,
+            JobStatus.FAILED.value,
+            JobStatus.CANCELLED.value,
+        ]
         if job["status"] not in terminal_states:
-            return JSONResponse({
-                "error": f"Job not complete. Status: {job['status']}"
-            }, status_code=409)
+            return JSONResponse(
+                {"error": f"Job not complete. Status: {job['status']}"}, status_code=409
+            )
 
         duration = None
         if job.get("started_at") and job.get("completed_at"):
             duration = job["completed_at"] - job["started_at"]
 
-        return JSONResponse({
-            "job_id": job_id,
-            "status": job["status"],
-            "result": job.get("result"),
-            "metrics": job.get("metrics"),
-            "created_at": job.get("created_at"),
-            "started_at": job.get("started_at"),
-            "completed_at": job.get("completed_at"),
-            "duration_seconds": duration,
-            "error": job.get("error"),
-        })
+        return JSONResponse(
+            {
+                "job_id": job_id,
+                "status": job["status"],
+                "result": job.get("result"),
+                "metrics": job.get("metrics"),
+                "created_at": job.get("created_at"),
+                "started_at": job.get("started_at"),
+                "completed_at": job.get("completed_at"),
+                "duration_seconds": duration,
+                "error": job.get("error"),
+            }
+        )
 
     async def _cancel(self, request: Request) -> JSONResponse:
         """Cancel a running job."""
@@ -518,21 +537,27 @@ class JobsFeature(BaseFeatureProtocol):
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
 
-        terminal_states = [JobStatus.SUCCEEDED.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value]
+        terminal_states = [
+            JobStatus.SUCCEEDED.value,
+            JobStatus.FAILED.value,
+            JobStatus.CANCELLED.value,
+        ]
         if job["status"] in terminal_states:
-            return JSONResponse({
-                "error": f"Job already complete. Status: {job['status']}"
-            }, status_code=409)
+            return JSONResponse(
+                {"error": f"Job already complete. Status: {job['status']}"}, status_code=409
+            )
 
         job["_cancel_requested"] = True
         job["status"] = JobStatus.CANCELLED.value
         job["completed_at"] = time.time()
 
-        return JSONResponse({
-            "job_id": job_id,
-            "status": job["status"],
-            "message": "Job cancelled",
-        })
+        return JSONResponse(
+            {
+                "job_id": job_id,
+                "status": job["status"],
+                "message": "Job cancelled",
+            }
+        )
 
     async def _delete(self, request: Request) -> JSONResponse:
         """Delete a completed job."""
@@ -542,11 +567,15 @@ class JobsFeature(BaseFeatureProtocol):
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
 
-        terminal_states = [JobStatus.SUCCEEDED.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value]
+        terminal_states = [
+            JobStatus.SUCCEEDED.value,
+            JobStatus.FAILED.value,
+            JobStatus.CANCELLED.value,
+        ]
         if job["status"] not in terminal_states:
-            return JSONResponse({
-                "error": "Cannot delete running job. Cancel first."
-            }, status_code=409)
+            return JSONResponse(
+                {"error": "Cannot delete running job. Cancel first."}, status_code=409
+            )
 
         store.delete(job_id)
         return JSONResponse({"deleted": job_id})
@@ -573,39 +602,43 @@ class JobsFeature(BaseFeatureProtocol):
                 while True:
                     current_job = get_job_store().get(job_id)
                     if not current_job:
-                        yield f"event: error\ndata: {{\"error\": \"Job not found\"}}\n\n"
+                        yield 'event: error\ndata: {"error": "Job not found"}\n\n'
                         break
 
                     # Send status update
                     if current_job["status"] != last_status:
                         last_status = current_job["status"]
-                        yield f"event: status\ndata: {{\"status\": \"{last_status}\", \"job_id\": \"{job_id}\"}}\n\n"
+                        yield f'event: status\ndata: {{"status": "{last_status}", "job_id": "{job_id}"}}\n\n'
 
                     # Send progress update
                     progress = current_job.get("progress_percentage", 0)
                     if progress != last_progress:
                         last_progress = progress
                         step = current_job.get("progress_step", "")
-                        yield f"event: progress\ndata: {{\"percentage\": {progress}, \"step\": \"{step}\"}}\n\n"
+                        yield f'event: progress\ndata: {{"percentage": {progress}, "step": "{step}"}}\n\n'
 
                     # Check terminal state
-                    terminal_states = [JobStatus.SUCCEEDED.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value]
+                    terminal_states = [
+                        JobStatus.SUCCEEDED.value,
+                        JobStatus.FAILED.value,
+                        JobStatus.CANCELLED.value,
+                    ]
                     if current_job["status"] in terminal_states:
                         if current_job["status"] == JobStatus.SUCCEEDED.value:
                             result = str(current_job.get("result", ""))[:500].replace('"', '\\"')
-                            yield f"event: result\ndata: {{\"result\": \"{result}\"}}\n\n"
+                            yield f'event: result\ndata: {{"result": "{result}"}}\n\n'
                         elif current_job["status"] == JobStatus.FAILED.value:
                             error = str(current_job.get("error", "")).replace('"', '\\"')
-                            yield f"event: error\ndata: {{\"error\": \"{error}\"}}\n\n"
+                            yield f'event: error\ndata: {{"error": "{error}"}}\n\n'
                         else:
-                            yield f"event: cancelled\ndata: {{\"message\": \"Job cancelled\"}}\n\n"
+                            yield 'event: cancelled\ndata: {"message": "Job cancelled"}\n\n'
                         break
 
                     # Wait for update or timeout
                     try:
                         await asyncio.wait_for(queue.get(), timeout=5.0)
                     except asyncio.TimeoutError:
-                        yield f"event: heartbeat\ndata: {{\"timestamp\": \"{datetime.utcnow().isoformat()}\"}}\n\n"
+                        yield f'event: heartbeat\ndata: {{"timestamp": "{datetime.utcnow().isoformat()}"}}\n\n'
 
             finally:
                 if job_id in _progress_callbacks:
@@ -620,7 +653,7 @@ class JobsFeature(BaseFeatureProtocol):
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
-            }
+            },
         )
 
     async def _stats(self, request: Request) -> JSONResponse:
@@ -662,7 +695,7 @@ class JobsFeature(BaseFeatureProtocol):
     def _cli_stats(self) -> str:
         store = get_job_store()
         s = store.stats()
-        parts = [f"{k}: {v}" for k, v in s['status_counts'].items()]
+        parts = [f"{k}: {v}" for k, v in s["status_counts"].items()]
         return f"Jobs: {s['total_jobs']} total — " + ", ".join(parts) if parts else "No jobs"
 
 

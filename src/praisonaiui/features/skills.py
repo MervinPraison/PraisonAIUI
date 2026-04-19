@@ -175,6 +175,7 @@ def _ensure_skills_loaded() -> None:
     _skills_loaded = True
     try:
         from praisonaiui.config_store import get_config_store
+
         store = get_config_store()
         skills_data = store.get_section("skills")
         if isinstance(skills_data, dict):
@@ -192,36 +193,40 @@ def _save_skills() -> None:
     """Persist skills state to config store."""
     try:
         from praisonaiui.config_store import get_config_store
+
         store = get_config_store()
-        store.set_section("skills", {
-            "custom": _custom_skills,
-            "tool_state": _tool_state,
-        })
+        store.set_section(
+            "skills",
+            {
+                "custom": _custom_skills,
+                "tool_state": _tool_state,
+            },
+        )
     except Exception as e:
         logger.warning("Failed to save skills to config store: %s", e)
 
 
 def get_tool_catalog() -> Dict[str, Dict[str, Any]]:
     """Get tool catalog from SDK TOOL_MAPPINGS with fallback to hardcoded catalog.
-    
+
     P1 Fix: Reads from praisonaiagents.tools.TOOL_MAPPINGS (101 tools) first,
     falls back to _FALLBACK_TOOL_CATALOG if SDK not available.
     """
     global _sdk_tool_catalog
-    
+
     if _sdk_tool_catalog is not None:
         return _sdk_tool_catalog
-    
+
     try:
         from praisonaiagents.tools import TOOL_MAPPINGS
-        
+
         # Convert TOOL_MAPPINGS to catalog format
         catalog: Dict[str, Dict[str, Any]] = {}
         for tool_name, tool_func in TOOL_MAPPINGS.items():
             # Extract metadata from tool function if available
             doc = getattr(tool_func, "__doc__", "") or ""
             description = doc.split("\n")[0] if doc else f"{tool_name} tool"
-            
+
             # Categorize based on tool name patterns
             category = "general"
             icon = "🔧"
@@ -231,7 +236,11 @@ def get_tool_catalog() -> Dict[str, Dict[str, Any]]:
             elif "crawl" in tool_name.lower() or "scrape" in tool_name.lower():
                 category = "crawl"
                 icon = "🕷️"
-            elif "file" in tool_name.lower() or "read" in tool_name.lower() or "write" in tool_name.lower():
+            elif (
+                "file" in tool_name.lower()
+                or "read" in tool_name.lower()
+                or "write" in tool_name.lower()
+            ):
                 category = "file"
                 icon = "📁"
             elif "code" in tool_name.lower() or "execute" in tool_name.lower():
@@ -252,7 +261,7 @@ def get_tool_catalog() -> Dict[str, Dict[str, Any]]:
             elif "time" in tool_name.lower() or "date" in tool_name.lower():
                 category = "utility"
                 icon = "⏰"
-            
+
             catalog[tool_name] = {
                 "name": tool_name.replace("_", " ").title(),
                 "description": description[:200] if description else f"{tool_name} tool",
@@ -261,11 +270,11 @@ def get_tool_catalog() -> Dict[str, Dict[str, Any]]:
                 "required_keys": [],
                 "sdk_tool": True,
             }
-        
+
         _sdk_tool_catalog = catalog
         logger.info(f"Loaded {len(catalog)} tools from SDK TOOL_MAPPINGS")
         return catalog
-        
+
     except ImportError:
         logger.debug("praisonaiagents.tools not available, using fallback catalog")
         return _FALLBACK_TOOL_CATALOG
@@ -287,10 +296,10 @@ def _get_tool_status(tool_id: str) -> Dict[str, Any]:
     """Get the status of a tool including enabled state and API key status."""
     catalog_entry = get_tool_catalog().get(tool_id, {})
     state = _tool_state.get(tool_id, {})
-    
+
     required_keys = catalog_entry.get("required_keys", [])
     keys_configured = all(_check_api_key(k) for k in required_keys) if required_keys else True
-    
+
     return {
         "id": tool_id,
         "enabled": state.get("enabled", True),
@@ -326,23 +335,25 @@ class SkillsFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "skills",
-            "help": "Manage agent skills",
-            "commands": {
-                "list": {"help": "List all skills", "handler": self._cli_list},
-                "status": {"help": "Show skill status", "handler": self._cli_status},
-            },
-        }]
+        return [
+            {
+                "name": "skills",
+                "help": "Manage agent skills",
+                "commands": {
+                    "list": {"help": "List all skills", "handler": self._cli_list},
+                    "status": {"help": "Show skill status", "handler": self._cli_status},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
-        from ._gateway_helpers import gateway_health, gateway_agents
+        from ._gateway_helpers import gateway_agents, gateway_health
+
         _ensure_skills_loaded()
 
         enabled_count = sum(1 for s in _tool_state.values() if s.get("enabled", True))
         gateway_agents_with_tools = sum(
-            1 for agent in gateway_agents()
-            if getattr(agent, "tools", None)
+            1 for agent in gateway_agents() if getattr(agent, "tools", None)
         )
         return {
             "status": "ok",
@@ -361,37 +372,45 @@ class SkillsFeature(BaseFeatureProtocol):
         _ensure_skills_loaded()
         category_filter = request.query_params.get("category")
         search = request.query_params.get("search", "").lower()
-        
+
         tools = []
         for tool_id, info in get_tool_catalog().items():
             if category_filter and info.get("category") != category_filter:
                 continue
-            if search and search not in info.get("name", "").lower() and search not in info.get("description", "").lower():
+            if (
+                search
+                and search not in info.get("name", "").lower()
+                and search not in info.get("description", "").lower()
+            ):
                 continue
-            
+
             status = _get_tool_status(tool_id)
-            tools.append({
-                "id": tool_id,
-                "name": info.get("name", tool_id),
-                "description": info.get("description", ""),
-                "category": info.get("category", "other"),
-                "icon": info.get("icon", "🔧"),
-                "type": "builtin",
-                **status,
-            })
-        
+            tools.append(
+                {
+                    "id": tool_id,
+                    "name": info.get("name", tool_id),
+                    "description": info.get("description", ""),
+                    "category": info.get("category", "other"),
+                    "icon": info.get("icon", "🔧"),
+                    "type": "builtin",
+                    **status,
+                }
+            )
+
         # Add custom skills
         for skill_id, skill in _custom_skills.items():
             if category_filter and skill.get("category") != category_filter:
                 continue
             if search and search not in skill.get("name", "").lower():
                 continue
-            tools.append({
-                **skill,
-                "type": "custom",
-                "enabled": _tool_state.get(skill_id, {}).get("enabled", True),
-            })
-        
+            tools.append(
+                {
+                    **skill,
+                    "type": "custom",
+                    "enabled": _tool_state.get(skill_id, {}).get("enabled", True),
+                }
+            )
+
         return JSONResponse({"skills": tools, "count": len(tools)})
 
     async def _categories(self, request: Request) -> JSONResponse:
@@ -401,13 +420,14 @@ class SkillsFeature(BaseFeatureProtocol):
         for info in get_tool_catalog().values():
             cat = info.get("category", "other")
             categories[cat] = categories.get(cat, 0) + 1
-        
-        return JSONResponse({
-            "categories": [
-                {"name": cat, "count": count}
-                for cat, count in sorted(categories.items())
-            ]
-        })
+
+        return JSONResponse(
+            {
+                "categories": [
+                    {"name": cat, "count": count} for cat, count in sorted(categories.items())
+                ]
+            }
+        )
 
     async def _register(self, request: Request) -> JSONResponse:
         """Register a custom skill."""
@@ -430,31 +450,35 @@ class SkillsFeature(BaseFeatureProtocol):
         """Get details for a specific tool/skill."""
         _ensure_skills_loaded()
         skill_id = request.path_params["skill_id"]
-        
+
         # Check catalog first
         catalog = get_tool_catalog()
         if skill_id in catalog:
             info = catalog[skill_id]
             status = _get_tool_status(skill_id)
-            return JSONResponse({
-                "id": skill_id,
-                "name": info.get("name", skill_id),
-                "description": info.get("description", ""),
-                "category": info.get("category", "other"),
-                "icon": info.get("icon", "🔧"),
-                "type": "builtin",
-                **status,
-            })
-        
+            return JSONResponse(
+                {
+                    "id": skill_id,
+                    "name": info.get("name", skill_id),
+                    "description": info.get("description", ""),
+                    "category": info.get("category", "other"),
+                    "icon": info.get("icon", "🔧"),
+                    "type": "builtin",
+                    **status,
+                }
+            )
+
         # Check custom skills
         if skill_id in _custom_skills:
             skill = _custom_skills[skill_id]
-            return JSONResponse({
-                **skill,
-                "type": "custom",
-                "enabled": _tool_state.get(skill_id, {}).get("enabled", True),
-            })
-        
+            return JSONResponse(
+                {
+                    **skill,
+                    "type": "custom",
+                    "enabled": _tool_state.get(skill_id, {}).get("enabled", True),
+                }
+            )
+
         return JSONResponse({"error": "Skill not found"}, status_code=404)
 
     async def _update(self, request: Request) -> JSONResponse:
@@ -462,12 +486,12 @@ class SkillsFeature(BaseFeatureProtocol):
         skill_id = request.path_params["skill_id"]
         if skill_id not in _custom_skills:
             return JSONResponse({"error": "Custom skill not found"}, status_code=404)
-        
+
         body = await request.json()
         for key in ("name", "description", "category", "icon", "version"):
             if key in body:
                 _custom_skills[skill_id][key] = body[key]
-        
+
         _save_skills()
         return JSONResponse(_custom_skills[skill_id])
 
@@ -478,7 +502,7 @@ class SkillsFeature(BaseFeatureProtocol):
             return JSONResponse({"error": "Cannot delete builtin tool"}, status_code=400)
         if skill_id not in _custom_skills:
             return JSONResponse({"error": "Skill not found"}, status_code=404)
-        
+
         del _custom_skills[skill_id]
         _tool_state.pop(skill_id, None)
         _save_skills()
@@ -487,43 +511,47 @@ class SkillsFeature(BaseFeatureProtocol):
     async def _toggle(self, request: Request) -> JSONResponse:
         """Toggle a tool/skill enabled state."""
         skill_id = request.path_params["skill_id"]
-        
+
         if skill_id not in get_tool_catalog() and skill_id not in _custom_skills:
             return JSONResponse({"error": "Skill not found"}, status_code=404)
-        
+
         if skill_id not in _tool_state:
             _tool_state[skill_id] = {"enabled": True}
-        
+
         _tool_state[skill_id]["enabled"] = not _tool_state[skill_id].get("enabled", True)
-        
+
         _save_skills()
-        return JSONResponse({
-            "id": skill_id,
-            "enabled": _tool_state[skill_id]["enabled"],
-        })
+        return JSONResponse(
+            {
+                "id": skill_id,
+                "enabled": _tool_state[skill_id]["enabled"],
+            }
+        )
 
     async def _config(self, request: Request) -> JSONResponse:
         """Set configuration for a tool (e.g., API keys)."""
         skill_id = request.path_params["skill_id"]
-        
+
         if skill_id not in get_tool_catalog() and skill_id not in _custom_skills:
             return JSONResponse({"error": "Skill not found"}, status_code=404)
-        
+
         body = await request.json()
-        
+
         if skill_id not in _tool_state:
             _tool_state[skill_id] = {"enabled": True}
-        
+
         _tool_state[skill_id]["config"] = body.get("config", {})
-        
+
         _save_skills()
         # Note: In production, API keys would be set in environment
         # This is just for tracking configuration state
-        
-        return JSONResponse({
-            "id": skill_id,
-            "config_updated": True,
-        })
+
+        return JSONResponse(
+            {
+                "id": skill_id,
+                "config_updated": True,
+            }
+        )
 
     # ── CLI handlers ─────────────────────────────────────────────────
 

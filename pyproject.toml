@@ -113,9 +113,16 @@ all = [
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
+    "pytest-timeout>=2.0",
+    "pytest-asyncio>=0.21",
     "ruff>=0.1",
     "mypy>=1.0",
     "types-PyYAML>=6.0",
+    # starlette.testclient requires httpx at runtime
+    "httpx>=0.24",
+    # Several integration and datastore tests import praisonaiagents
+    # [llm] pulls in litellm which many integration paths require
+    "praisonaiagents[llm]>=1.5.56",
 ]
 
 [project.scripts]
@@ -140,6 +147,14 @@ target-version = "py39"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
+# Pragmatic ignores:
+#   E501 — long string literals (error messages, SQL, URLs). Lines
+#          over 100 chars in string bodies are kept for grep-ability.
+#   E402 — module-level imports after sys.path manipulation or
+#          availability checks are intentional.
+#   E731 — single lambda assignments used as callbacks.
+#   E741 — ambiguous single-letter names in legacy migration helpers.
+ignore = ["E501", "E402", "E731", "E741"]
 
 [tool.mypy]
 python_version = "3.9"

@@ -21,22 +21,22 @@ logger = logging.getLogger(__name__)
 
 # ── Protocol ─────────────────────────────────────────────────────
 
+
 class SubagentProtocol:
     """Protocol for subagent tracking."""
 
-    def get_tree(self, session_id: str) -> Dict[str, Any]:
-        ...
+    def get_tree(self, session_id: str) -> Dict[str, Any]: ...
 
     def register_spawn(
         self,
         parent_agent: str,
         child_agent: str,
         session_id: str,
-    ) -> str:
-        ...
+    ) -> str: ...
 
 
 # ── Implementation ───────────────────────────────────────────────
+
 
 class SubagentManager(SubagentProtocol):
     """Tracks agent-subagent relationships for visualization."""
@@ -51,20 +51,20 @@ class SubagentManager(SubagentProtocol):
         session_id: str,
     ) -> str:
         spawn_id = f"{parent_agent}->{child_agent}:{len(self._spawns)}"
-        self._spawns.append({
-            "id": spawn_id,
-            "parent": parent_agent,
-            "child": child_agent,
-            "session_id": session_id,
-            "timestamp": time.time(),
-            "status": "running",
-        })
+        self._spawns.append(
+            {
+                "id": spawn_id,
+                "parent": parent_agent,
+                "child": child_agent,
+                "session_id": session_id,
+                "timestamp": time.time(),
+                "status": "running",
+            }
+        )
         return spawn_id
 
     def get_tree(self, session_id: str) -> Dict[str, Any]:
-        session_spawns = [
-            s for s in self._spawns if s["session_id"] == session_id
-        ]
+        session_spawns = [s for s in self._spawns if s["session_id"] == session_id]
         # Build tree structure
         roots = set()
         children: Dict[str, List[str]] = {}
@@ -82,9 +82,7 @@ class SubagentManager(SubagentProtocol):
         def build_node(name: str) -> Dict[str, Any]:
             return {
                 "name": name,
-                "children": [
-                    build_node(c) for c in children.get(name, [])
-                ],
+                "children": [build_node(c) for c in children.get(name, [])],
             }
 
         return {
@@ -109,6 +107,7 @@ def get_subagent_manager() -> SubagentManager:
 
 # ── HTTP Handlers ────────────────────────────────────────────────
 
+
 async def _subagent_tree(request: Request) -> JSONResponse:
     session_id = request.path_params.get("session_id", "")
     mgr = get_subagent_manager()
@@ -121,6 +120,7 @@ async def _subagent_list(request: Request) -> JSONResponse:
 
 
 # ── Feature ──────────────────────────────────────────────────────
+
 
 class SubagentsFeature(BaseFeatureProtocol):
     """Subagent tree view — tracks and visualizes agent hierarchy."""

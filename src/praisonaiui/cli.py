@@ -147,9 +147,11 @@ def _scaffold_frontend(force: bool) -> None:
     if template_dir.exists():
         if frontend_dir.exists():
             shutil.rmtree(frontend_dir)
-        shutil.copytree(template_dir, frontend_dir, ignore=shutil.ignore_patterns(
-            "node_modules", "dist", ".git", "*.log"
-        ))
+        shutil.copytree(
+            template_dir,
+            frontend_dir,
+            ignore=shutil.ignore_patterns("node_modules", "dist", ".git", "*.log"),
+        )
         console.print("[green]✓[/green] Copied frontend template")
     else:
         # Create minimal Vite project with npx
@@ -425,9 +427,7 @@ def serve(
     middleware = []
     if cors_origins:
         origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
-        middleware.append(
-            Middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET"])
-        )
+        middleware.append(Middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET"]))
 
     starlette_app = Starlette(
         routes=[Route("/{path:path}", endpoint=spa_handler)],
@@ -507,7 +507,9 @@ def dev(
         console.print(f"[red]Error:[/red] Examples directory not found: {examples_dir}")
         raise typer.Exit(code=1)
 
-    examples = [d.name for d in examples_dir.iterdir() if d.is_dir() and (d / "aiui.template.yaml").exists()]
+    examples = [
+        d.name for d in examples_dir.iterdir() if d.is_dir() and (d / "aiui.template.yaml").exists()
+    ]
     if not examples:
         console.print(f"[red]Error:[/red] No examples found in {examples_dir}")
         raise typer.Exit(code=1)
@@ -538,9 +540,13 @@ def dev(
                 build_config = str(config_file)
 
                 # If theme override, write a temp config (never mutate original)
-                has_override = any([
-                    theme_preset, radius, dark_mode is not None,
-                ])
+                has_override = any(
+                    [
+                        theme_preset,
+                        radius,
+                        dark_mode is not None,
+                    ]
+                )
                 tmp_cfg = None
                 if has_override and config_file.exists():
                     with open(config_file) as f:
@@ -563,9 +569,12 @@ def dev(
                 # Run aiui build
                 result = subprocess.run(
                     [
-                        "aiui", "build",
-                        "-c", build_config,
-                        "-o", str(temp_path / "site"),
+                        "aiui",
+                        "build",
+                        "-c",
+                        build_config,
+                        "-o",
+                        str(temp_path / "site"),
                     ],
                     cwd=example_path,
                     capture_output=True,
@@ -578,20 +587,15 @@ def dev(
 
                 if result.returncode != 0:
                     console.print("[red]Build failed![/red]")
-                    console.print(
-                        f"[dim]Return code: {result.returncode}[/dim]"
-                    )
+                    console.print(f"[dim]Return code: {result.returncode}[/dim]")
                     if result.stdout:
-                        console.print(
-                            f"[dim]STDOUT: {result.stdout[:1000]}[/dim]"
-                        )
+                        console.print(f"[dim]STDOUT: {result.stdout[:1000]}[/dim]")
                     if result.stderr:
-                        console.print(
-                            f"[dim]STDERR: {result.stderr[:1000]}[/dim]"
-                        )
+                        console.print(f"[dim]STDERR: {result.stderr[:1000]}[/dim]")
                 return result.returncode == 0
             except Exception as e:
                 import traceback
+
                 console.print(f"[red]Build error:[/red] {e}")
                 console.print(f"[dim]{traceback.format_exc()}[/dim]")
                 # Clean up temp config on error too
@@ -604,7 +608,29 @@ def dev(
         build_example(current_example["name"])
 
         # Official shadcn theme presets (Tailwind color names)
-        themes = ["zinc", "slate", "stone", "neutral", "red", "orange", "amber", "yellow", "lime", "green", "emerald", "teal", "cyan", "sky", "blue", "indigo", "violet", "purple", "fuchsia", "pink", "rose"]
+        themes = [
+            "zinc",
+            "slate",
+            "stone",
+            "neutral",
+            "red",
+            "orange",
+            "amber",
+            "yellow",
+            "lime",
+            "green",
+            "emerald",
+            "teal",
+            "cyan",
+            "sky",
+            "blue",
+            "indigo",
+            "violet",
+            "purple",
+            "fuchsia",
+            "pink",
+            "rose",
+        ]
         radii = ["none", "sm", "md", "lg", "xl"]
 
         # Dashboard HTML with YAML editor
@@ -894,13 +920,17 @@ def dev(
                     dark_mode = dark_mode_str == "true" if dark_mode_str else None
 
                     if example_name and example_name in examples:
-                        console.print(f"[yellow]Building {example_name} (theme={theme_preset}, radius={radius}, dark={dark_mode})...[/yellow]")
+                        console.print(
+                            f"[yellow]Building {example_name} (theme={theme_preset}, radius={radius}, dark={dark_mode})...[/yellow]"
+                        )
                         success = build_example(example_name, theme_preset, radius, dark_mode)
                         current_example["name"] = example_name
                         self.send_response(200)
                         self.send_header("Content-type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({"success": success, "example": example_name}).encode())
+                        self.wfile.write(
+                            json.dumps({"success": success, "example": example_name}).encode()
+                        )
                     else:
                         self.send_response(400)
                         self.send_header("Content-type", "application/json")
@@ -920,7 +950,9 @@ def dev(
                         self.send_response(200)
                         self.send_header("Content-type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({"yaml": yaml_content, "example": example_name}).encode())
+                        self.wfile.write(
+                            json.dumps({"yaml": yaml_content, "example": example_name}).encode()
+                        )
                     else:
                         self.send_response(400)
                         self.send_header("Content-type", "application/json")
@@ -947,8 +979,8 @@ def dev(
 
                 # API: save YAML and rebuild
                 if path == "/api/yaml":
-                    content_length = int(self.headers.get('Content-Length', 0))
-                    body = self.rfile.read(content_length).decode('utf-8')
+                    content_length = int(self.headers.get("Content-Length", 0))
+                    body = self.rfile.read(content_length).decode("utf-8")
                     try:
                         data = json.loads(body)
                         example_name = data.get("example")
@@ -959,13 +991,17 @@ def dev(
                             # Write the new YAML
                             with open(yaml_path, "w") as f:
                                 f.write(yaml_content)
-                            console.print(f"[yellow]Rebuilding {example_name} with edited YAML...[/yellow]")
+                            console.print(
+                                f"[yellow]Rebuilding {example_name} with edited YAML...[/yellow]"
+                            )
                             # Rebuild
                             success = build_example(example_name)
                             self.send_response(200)
                             self.send_header("Content-type", "application/json")
                             self.end_headers()
-                            self.wfile.write(json.dumps({"success": success, "example": example_name}).encode())
+                            self.wfile.write(
+                                json.dumps({"success": success, "example": example_name}).encode()
+                            )
                         else:
                             self.send_response(400)
                             self.send_header("Content-type", "application/json")
@@ -984,7 +1020,9 @@ def dev(
             def log_message(self, format, *args):
                 pass  # Suppress logs
 
-        console.print(f"\n[green]🚀[/green] Dev dashboard at [link]http://localhost:{actual_port}[/link]")
+        console.print(
+            f"\n[green]🚀[/green] Dev dashboard at [link]http://localhost:{actual_port}[/link]"
+        )
         console.print("[dim]Switch examples with the dropdown. Press Ctrl+C to stop.[/dim]\n")
         webbrowser.open(f"http://localhost:{actual_port}")
 
@@ -1035,38 +1073,56 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
     # ── Features auto-registration ──────────────────────────────────
     if features_flag:
         from praisonaiui.features import auto_register_defaults
+
         auto_register_defaults()
 
     # ── Resolve tool functions from names ────────────────────────────
     _resolved_tools = []
     for tname in tool_names:
         if tname == "web_search":
+
             def web_search(query: str) -> str:
                 """Search the web for a query."""
                 return f"Results for '{query}': [simulated web results]"
+
             _resolved_tools.append(web_search)
         elif tname == "calculate":
+
             def calculate(expression: str) -> str:
                 """Evaluate a math expression safely."""
                 import ast
+
                 allowed = set("0123456789+-*/.() ")
                 if all(c in allowed for c in expression):
                     try:
                         tree = ast.parse(expression, mode="eval")
                         # Only allow numeric literals and basic operators
                         for node in ast.walk(tree):
-                            if not isinstance(node, (
-                                ast.Expression, ast.BinOp, ast.UnaryOp,
-                                ast.Constant, ast.Add, ast.Sub, ast.Mult,
-                                ast.Div, ast.FloorDiv, ast.Mod, ast.Pow,
-                                ast.USub, ast.UAdd,
-                            )):
+                            if not isinstance(
+                                node,
+                                (
+                                    ast.Expression,
+                                    ast.BinOp,
+                                    ast.UnaryOp,
+                                    ast.Constant,
+                                    ast.Add,
+                                    ast.Sub,
+                                    ast.Mult,
+                                    ast.Div,
+                                    ast.FloorDiv,
+                                    ast.Mod,
+                                    ast.Pow,
+                                    ast.USub,
+                                    ast.UAdd,
+                                ),
+                            ):
                                 return "Error: Only basic math operations allowed"
                         result = eval(compile(tree, "<calc>", "eval"))
                         return f"Result: {result}"
                     except Exception as e:
                         return f"Error: {e}"
                 return "Error: Only basic math operations allowed"
+
             _resolved_tools.append(calculate)
 
     # ── Lazy agent creation ──────────────────────────────────────────
@@ -1101,6 +1157,7 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
 
     async def on_reply(msg):
         from praisonaiui.callbacks import _set_context
+
         _set_context(msg)
         try:
             agent = _get_agent()
@@ -1159,7 +1216,10 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
 
                 if _chat_error:
                     await aiui.say(f"Error: {_chat_error}")
-                elif full_response and len(_streamed_content.strip()) < len(full_response.strip()) * 0.8:
+                elif (
+                    full_response
+                    and len(_streamed_content.strip()) < len(full_response.strip()) * 0.8
+                ):
                     # SDK stream_emitter only fired first_token (~50 chars)
                     # but agent.chat() returned the complete response.
                     # Send the full response as a message so the UI gets it.
@@ -1181,14 +1241,18 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
 
     # ── Starters ─────────────────────────────────────────────────────
     if starters:
+
         async def on_starters():
             return starters
+
         register_callback("starters", on_starters)
 
     # ── Profiles ─────────────────────────────────────────────────────
     if profiles:
+
         def on_profiles():
             return profiles
+
         register_callback("profiles", on_profiles)
 
     # ── Welcome ──────────────────────────────────────────────────────
@@ -1199,8 +1263,10 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
 
     # ── Goodbye ──────────────────────────────────────────────────────
     if goodbye_msg:
+
         async def on_goodbye():
             await aiui.say(goodbye_msg)
+
         register_callback("goodbye", on_goodbye)
 
 
@@ -1293,20 +1359,22 @@ def run(
 
         # Apply style/dashboard/theme/branding from YAML via protocol APIs
         import praisonaiui as _aiui
+
         if "style" in chat_yaml:
             _aiui.set_style(chat_yaml["style"])
             style = chat_yaml["style"]
         if "dashboard" in chat_yaml and isinstance(chat_yaml["dashboard"], dict):
-            _aiui.set_dashboard(**{
-                k.replace("pageHeader", "page_header"): v
-                for k, v in chat_yaml["dashboard"].items()
-                if k.replace("pageHeader", "page_header") in ("sidebar", "page_header")
-            })
+            _aiui.set_dashboard(
+                **{
+                    k.replace("pageHeader", "page_header"): v
+                    for k, v in chat_yaml["dashboard"].items()
+                    if k.replace("pageHeader", "page_header") in ("sidebar", "page_header")
+                }
+            )
         if "theme" in chat_yaml and isinstance(chat_yaml["theme"], dict):
-            _aiui.set_theme(**{
-                k.replace("darkMode", "dark_mode"): v
-                for k, v in chat_yaml["theme"].items()
-            })
+            _aiui.set_theme(
+                **{k.replace("darkMode", "dark_mode"): v for k, v in chat_yaml["theme"].items()}
+            )
         if "branding" in chat_yaml and isinstance(chat_yaml["branding"], dict):
             _aiui.set_branding(**chat_yaml["branding"])
         if "pages" in chat_yaml and isinstance(chat_yaml["pages"], list):
@@ -1329,12 +1397,14 @@ def run(
 
         # Check if app.py registered a @reply callback (chat mode)
         from praisonaiui.server import _callbacks
+
         is_chat_mode = "reply" in _callbacks or "on:reply" in _callbacks
 
     # ── Resolve final style ──────────────────────────────────────
     # Priority: CLI explicit --style > aiui.set_style() > auto-detect
     # Only auto-detect when CLI used the default value ("chat")
-    from praisonaiui.server import get_style, detect_style
+    from praisonaiui.server import detect_style, get_style
+
     if style == "chat":
         explicit = get_style()
         if explicit:
@@ -1460,6 +1530,7 @@ def run(
 
         # Run gateway
         import asyncio
+
         asyncio.run(gateway.start())
     else:
         # Set up datastore
@@ -1467,23 +1538,29 @@ def run(
 
         if datastore == "memory":
             from praisonaiui.datastore import MemoryDataStore
+
             store = MemoryDataStore()
         elif datastore == "sdk":
             try:
                 from praisonaiui.datastore_sdk import SDKFileDataStore
+
                 store = SDKFileDataStore()
             except (ImportError, Exception):
                 from praisonaiui.datastore import JSONFileDataStore
+
                 store = JSONFileDataStore()
                 datastore = "json (sdk fallback)"
         elif datastore.startswith("sdk:"):
             from praisonaiui.datastore_sdk import SDKFileDataStore
+
             store = SDKFileDataStore(session_dir=datastore[4:])
         elif datastore == "json":
             from praisonaiui.datastore import JSONFileDataStore
+
             store = JSONFileDataStore()
         elif datastore.startswith("json:"):
             from praisonaiui.datastore import JSONFileDataStore
+
             store = JSONFileDataStore(data_dir=datastore[5:])
         else:
             console.print(f"[red]Error:[/red] Unknown datastore: {datastore}")
@@ -1492,7 +1569,8 @@ def run(
         set_datastore(store)
 
         # Use standalone server (default)
-        from praisonaiui.server import create_app, set_style as _set_style
+        from praisonaiui.server import create_app
+        from praisonaiui.server import set_style as _set_style
 
         # Pass the resolved style to the server module so the dynamic
         # /ui-config.json endpoint returns the correct style instead of
@@ -1534,6 +1612,7 @@ def run(
             reload=reload,
             reload_dirs=[str(app_file.parent)] if reload else None,
         )
+
 
 # ---------------------------------------------------------------------------
 # Subcommands: sessions
@@ -1681,7 +1760,6 @@ def sessions_messages(
         raise typer.Exit(code=1)
 
 
-
 # ---------------------------------------------------------------------------
 # Subcommand: health
 # ---------------------------------------------------------------------------
@@ -1710,17 +1788,21 @@ def health_check(
             status = data.get("status", "unknown")
             ts = data.get("timestamp", "")
             if status == "healthy":
-                console.print(Panel.fit(
-                    f"Server: [green]healthy[/green] ({ts})",
-                    title="Health Check",
-                    border_style="green",
-                ))
+                console.print(
+                    Panel.fit(
+                        f"Server: [green]healthy[/green] ({ts})",
+                        title="Health Check",
+                        border_style="green",
+                    )
+                )
             else:
-                console.print(Panel.fit(
-                    f"Server: [yellow]{status}[/yellow] ({ts})",
-                    title="Health Check",
-                    border_style="yellow",
-                ))
+                console.print(
+                    Panel.fit(
+                        f"Server: [yellow]{status}[/yellow] ({ts})",
+                        title="Health Check",
+                        border_style="yellow",
+                    )
+                )
     except Exception as e:
         console.print(f"[red]✗[/red] Server unreachable: {e}")
         raise typer.Exit(code=1)
@@ -1778,7 +1860,9 @@ def provider_status(
                 console.print(f"[bold]Agents:[/bold]   {len(agents)}")
                 for a in agents:
                     console.print(f"  • {a.get('name', 'unnamed')}: {a.get('description', '')}")
-            extra_keys = {k for k in data if k not in {"name", "module", "status", "agents", "provider"}}
+            extra_keys = {
+                k for k in data if k not in {"name", "module", "status", "agents", "provider"}
+            }
             for k in sorted(extra_keys):
                 console.print(f"[bold]{k}:[/bold] {data[k]}")
     except Exception as e:
@@ -1849,6 +1933,7 @@ def _api_get(server: str, path: str):
     """Helper: GET from server API."""
     import json as _json
     from urllib.request import urlopen
+
     with urlopen(f"{server}{path}") as resp:
         return _json.loads(resp.read())
 
@@ -1858,6 +1943,7 @@ def _api_post(server: str, path: str, body: dict = None):
     import json as _json
     from urllib.request import Request as UrlRequest
     from urllib.request import urlopen
+
     data = _json.dumps(body or {}).encode()
     req = UrlRequest(f"{server}{path}", data=data, headers={"Content-Type": "application/json"})
     with urlopen(req) as resp:
@@ -1869,6 +1955,7 @@ def _api_delete(server: str, path: str):
     import json as _json
     from urllib.request import Request as UrlRequest
     from urllib.request import urlopen
+
     req = UrlRequest(f"{server}{path}", method="DELETE")
     with urlopen(req) as resp:
         return _json.loads(resp.read())
@@ -1879,15 +1966,19 @@ def _api_patch(server: str, path: str, body: dict = None):
     import json as _json
     from urllib.request import Request as UrlRequest
     from urllib.request import urlopen
+
     data = _json.dumps(body or {}).encode()
-    req = UrlRequest(f"{server}{path}", data=data, method="PATCH",
-                     headers={"Content-Type": "application/json"})
+    req = UrlRequest(
+        f"{server}{path}", data=data, method="PATCH", headers={"Content-Type": "application/json"}
+    )
     with urlopen(req) as resp:
         return _json.loads(resp.read())
 
 
 # ── Features listing ─────────────────────────────────────────────────
-features_app = typer.Typer(name="features", help="List all registered features", add_completion=False)
+features_app = typer.Typer(
+    name="features", help="List all registered features", add_completion=False
+)
 app.add_typer(features_app, name="features")
 
 
@@ -1927,7 +2018,9 @@ def features_status(server: str = _SERVER_OPT) -> None:
 
 
 # ── Approvals ────────────────────────────────────────────────────────
-approval_app = typer.Typer(name="approval", help="Manage tool-execution approvals", add_completion=False)
+approval_app = typer.Typer(
+    name="approval", help="Manage tool-execution approvals", add_completion=False
+)
 app.add_typer(approval_app, name="approval")
 
 
@@ -1967,8 +2060,11 @@ def approval_resolve(
 ) -> None:
     """Resolve a pending approval."""
     try:
-        data = _api_post(server, f"/api/approvals/{approval_id}/resolve",
-                         {"approved": approved, "reason": reason})
+        data = _api_post(
+            server,
+            f"/api/approvals/{approval_id}/resolve",
+            {"approved": approved, "reason": reason},
+        )
         color = "green" if data.get("status") == "approved" else "red"
         console.print(f"[{color}]{data.get('status', '?')}[/{color}] — {approval_id}")
     except Exception as e:
@@ -1988,7 +2084,9 @@ def schedule_list(server: str = _SERVER_OPT) -> None:
         data = _api_get(server, "/api/schedules")
         for j in data.get("schedules", []):
             s = "✓" if j.get("enabled", True) else "✗"
-            console.print(f"  [{s}] {j['id']} — {j.get('name', '?')} ({j.get('schedule', {}).get('kind', '?')})")
+            console.print(
+                f"  [{s}] {j['id']} — {j.get('name', '?')} ({j.get('schedule', {}).get('kind', '?')})"
+            )
         console.print(f"Total: {data.get('count', 0)}")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
@@ -2004,10 +2102,15 @@ def schedule_add(
 ) -> None:
     """Add a new scheduled job."""
     try:
-        data = _api_post(server, "/api/schedules", {
-            "name": name, "message": message,
-            "schedule": {"kind": "every", "every_seconds": every},
-        })
+        data = _api_post(
+            server,
+            "/api/schedules",
+            {
+                "name": name,
+                "message": message,
+                "schedule": {"kind": "every", "every_seconds": every},
+            },
+        )
         console.print(f"[green]✓[/green] Added job: {data.get('id')}")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
@@ -2049,7 +2152,9 @@ app.add_typer(memory_app, name="memory")
 @memory_app.command("list")
 def memory_list(
     server: str = _SERVER_OPT,
-    memory_type: str = typer.Option("all", "--type", help="Filter by type: short, long, entity, all"),
+    memory_type: str = typer.Option(
+        "all", "--type", help="Filter by type: short, long, entity, all"
+    ),
 ) -> None:
     """List all memories."""
     try:
@@ -2193,7 +2298,9 @@ def hooks_list(server: str = _SERVER_OPT) -> None:
     try:
         data = _api_get(server, "/api/hooks")
         for h in data.get("hooks", []):
-            console.print(f"  {h['id']} — {h.get('name', '?')} ({h.get('event', '?')}, {h.get('type', '?')})")
+            console.print(
+                f"  {h['id']} — {h.get('name', '?')} ({h.get('event', '?')}, {h.get('type', '?')})"
+            )
         console.print(f"Total: {data.get('count', 0)}")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
@@ -2208,7 +2315,9 @@ def hooks_trigger(
     """Trigger a hook."""
     try:
         data = _api_post(server, f"/api/hooks/{hook_id}/trigger", {})
-        console.print(f"[green]✓[/green] Triggered: {data.get('hook_id', hook_id)} → {data.get('result', '?')}")
+        console.print(
+            f"[green]✓[/green] Triggered: {data.get('hook_id', hook_id)} → {data.get('result', '?')}"
+        )
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
         raise typer.Exit(code=1)
@@ -2231,7 +2340,9 @@ def hooks_log(
 
 
 # ── Workflows ────────────────────────────────────────────────────────
-workflows_app = typer.Typer(name="workflows", help="Manage multi-step workflows", add_completion=False)
+workflows_app = typer.Typer(
+    name="workflows", help="Manage multi-step workflows", add_completion=False
+)
 app.add_typer(workflows_app, name="workflows")
 
 
@@ -2279,7 +2390,9 @@ def workflows_runs(server: str = _SERVER_OPT) -> None:
     try:
         data = _api_get(server, "/api/workflows/runs")
         for r in data.get("runs", []):
-            console.print(f"  {r['id']} — {r.get('workflow_name', r.get('workflow_id', '?'))} ({r.get('status', '?')})")
+            console.print(
+                f"  {r['id']} — {r.get('workflow_name', r.get('workflow_id', '?'))} ({r.get('status', '?')})"
+            )
         console.print(f"Total runs: {data.get('count', 0)}")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
@@ -2360,7 +2473,11 @@ def config_history(
 
 
 # ── Sessions Ext ─────────────────────────────────────────────────────
-session_ext_app = typer.Typer(name="session-ext", help="Extended session operations (state, labels, usage)", add_completion=False)
+session_ext_app = typer.Typer(
+    name="session-ext",
+    help="Extended session operations (state, labels, usage)",
+    add_completion=False,
+)
 app.add_typer(session_ext_app, name="session-ext")
 
 
@@ -2394,8 +2511,7 @@ def session_ext_save_state(
 ) -> None:
     """Save key=value to session state."""
     try:
-        _api_post(server, f"/api/sessions/{session_id}/state",
-                         {"state": {key: value}})
+        _api_post(server, f"/api/sessions/{session_id}/state", {"state": {key: value}})
         console.print(f"[green]✓[/green] Saved {key}={value} to session {session_id}")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
@@ -2429,7 +2545,9 @@ def session_ext_usage(
     try:
         data = _api_get(server, f"/api/sessions/{session_id}/usage")
         usage = data.get("usage", {})
-        console.print(f"Session {session_id}: {usage.get('tokens', 0)} tokens, {usage.get('requests', 0)} requests")
+        console.print(
+            f"Session {session_id}: {usage.get('tokens', 0)} tokens, {usage.get('requests', 0)} requests"
+        )
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
         raise typer.Exit(code=1)
@@ -2462,8 +2580,11 @@ def session_ext_reset(
         console.print(f"[red]✗[/red] {e}")
         raise typer.Exit(code=1)
 
+
 # ── Eval ─────────────────────────────────────────────────────────────
-eval_app = typer.Typer(name="eval", help="Manage agent evaluations (list, scores, judges, run)", add_completion=False)
+eval_app = typer.Typer(
+    name="eval", help="Manage agent evaluations (list, scores, judges, run)", add_completion=False
+)
 app.add_typer(eval_app, name="eval")
 
 
@@ -2475,7 +2596,7 @@ def eval_status(server: str = _SERVER_OPT) -> None:
         console.print(f"Provider: {data.get('provider', '?')}")
         console.print(f"Total evaluations: {data.get('total_evaluations', 0)}")
         console.print(f"Active judges: {data.get('active_judges', 0)}")
-        if data.get('sdk_available'):
+        if data.get("sdk_available"):
             console.print(f"SDK: available ({', '.join(data.get('evaluator_classes', []))})")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
@@ -2497,7 +2618,9 @@ def eval_list(
         for ev in data.get("evaluations", []):
             score = ev.get("score", "—")
             passed = "✓" if ev.get("passed") else ("✗" if ev.get("passed") is False else "—")
-            console.print(f"  [{ev.get('id','')}] agent={ev.get('agent_id','?')} score={score} passed={passed}")
+            console.print(
+                f"  [{ev.get('id', '')}] agent={ev.get('agent_id', '?')} score={score} passed={passed}"
+            )
         console.print(f"Total: {data.get('count', 0)}")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
@@ -2531,7 +2654,7 @@ def eval_judges(server: str = _SERVER_OPT) -> None:
             console.print("[dim]No judges registered.[/dim]")
             return
         for j in judges:
-            console.print(f"  {j.get('name','?')} (source={j.get('source','?')})")
+            console.print(f"  {j.get('name', '?')} (source={j.get('source', '?')})")
         console.print(f"Total: {len(judges)}")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
@@ -2548,14 +2671,22 @@ def eval_run(
 ) -> None:
     """Run an evaluation."""
     try:
-        data = _api_post(server, "/api/eval/run", {
-            "agent_id": agent_id, "input": input_text,
-            "output": output_text, "expected": expected,
-        })
+        data = _api_post(
+            server,
+            "/api/eval/run",
+            {
+                "agent_id": agent_id,
+                "input": input_text,
+                "output": output_text,
+                "expected": expected,
+            },
+        )
         result = data.get("result", {})
         score = result.get("score", "—")
         passed = "✓" if result.get("passed") else ("✗" if result.get("passed") is False else "—")
-        console.print(f"[green]✓[/green] Evaluation {result.get('id','?')}: score={score} passed={passed}")
+        console.print(
+            f"[green]✓[/green] Evaluation {result.get('id', '?')}: score={score} passed={passed}"
+        )
         console.print(f"  Feedback: {result.get('feedback', '—')}")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
@@ -2563,7 +2694,9 @@ def eval_run(
 
 
 # ── Traces ───────────────────────────────────────────────────────────
-traces_app = typer.Typer(name="traces", help="Manage distributed traces (list, spans, get)", add_completion=False)
+traces_app = typer.Typer(
+    name="traces", help="Manage distributed traces (list, spans, get)", add_completion=False
+)
 app.add_typer(traces_app, name="traces")
 
 
@@ -2598,9 +2731,9 @@ def traces_list(
             return
         for t in traces:
             console.print(
-                f"  [{t.get('id','')}] {t.get('name','')} "
-                f"status={t.get('status','?')} {t.get('duration_ms',0)}ms "
-                f"spans={t.get('span_count',0)}"
+                f"  [{t.get('id', '')}] {t.get('name', '')} "
+                f"status={t.get('status', '?')} {t.get('duration_ms', 0)}ms "
+                f"spans={t.get('span_count', 0)}"
             )
         console.print(f"Total: {data.get('count', 0)}")
     except Exception as e:
@@ -2625,7 +2758,9 @@ def traces_spans(
             console.print("[dim]No spans recorded yet.[/dim]")
             return
         for s in spans:
-            console.print(f"  [{s.get('id','')}] {s.get('name','')} kind={s.get('kind','?')} {s.get('duration_ms',0)}ms")
+            console.print(
+                f"  [{s.get('id', '')}] {s.get('name', '')} kind={s.get('kind', '?')} {s.get('duration_ms', 0)}ms"
+            )
         console.print(f"Total: {data.get('count', 0)}")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
@@ -2649,7 +2784,9 @@ def traces_get(
         console.print(f"  Duration: {trace.get('duration_ms', 0)}ms")
         console.print(f"  Spans ({len(spans)}):")
         for s in spans:
-            console.print(f"    [{s.get('id','')}] {s.get('name','')} {s.get('duration_ms',0)}ms")
+            console.print(
+                f"    [{s.get('id', '')}] {s.get('name', '')} {s.get('duration_ms', 0)}ms"
+            )
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
         raise typer.Exit(code=1)
@@ -2702,6 +2839,7 @@ def pages_ids(server: str = _SERVER_OPT) -> None:
 # Doctor command — ``aiui doctor`` structured diagnostics
 # ---------------------------------------------------------------------------
 
+
 @app.command()
 def doctor(
     server: str = typer.Option(
@@ -2739,12 +2877,14 @@ def doctor(
         if status == "healthy":
             return "pass", f"running on {server.split('://')[-1]}"
         return "warn", f"status: {status}"
+
     checks.append(_check("Server Health", "/health", _health_extractor))
 
     # Check 2: Provider Status
     def _provider_extractor(data):
         name = data.get("name", "unknown")
         return "pass", f"{name} (active)"
+
     checks.append(_check("Provider Status", "/api/provider", _provider_extractor))
 
     # Check 3: Gateway Status
@@ -2752,6 +2892,7 @@ def doctor(
         gw_type = data.get("type", "unknown")
         agents = data.get("agents", 0)
         return "pass", f"{gw_type} ({agents} agents)"
+
     checks.append(_check("Gateway Status", "/api/provider/health", _gateway_extractor))
 
     # Check 4: Features Loaded
@@ -2759,6 +2900,7 @@ def doctor(
         features = data.get("features", [])
         count = len(features)
         return "pass", f"{count}/37 features registered"
+
     checks.append(_check("Features Loaded", "/api/features", _features_extractor))
 
     # Check 5: Config Store
@@ -2766,6 +2908,7 @@ def doctor(
         if "config" in data or "error" not in data:
             return "pass", "config store active"
         return "warn", data.get("error", "unknown")
+
     checks.append(_check("Config Store", "/api/config", _config_extractor))
 
     # Check 6: Datastore
@@ -2773,6 +2916,7 @@ def doctor(
         sessions = data if isinstance(data, list) else data.get("sessions", [])
         count = len(sessions)
         return "pass", f"JSONFileDataStore ({count} sessions)"
+
     checks.append(_check("Datastore", "/sessions", _datastore_extractor))
 
     # Check 7: Channels
@@ -2782,6 +2926,7 @@ def doctor(
             return "warn", "no channels configured"
         active = sum(1 for c in channels if c.get("enabled", True))
         return "pass", f"{active}/{len(channels)} channels active"
+
     checks.append(_check("Channels", "/api/channels", _channels_extractor))
 
     # Calculate summary
@@ -2799,13 +2944,19 @@ def doctor(
 
     # Rich formatted output
     console.print()
-    console.print(Panel.fit(
-        "[bold cyan]AIUI Doctor — Instance Diagnostic[/bold cyan]",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold cyan]AIUI Doctor — Instance Diagnostic[/bold cyan]",
+            border_style="cyan",
+        )
+    )
     console.print()
 
-    status_icons = {"pass": "[green]✅[/green]", "warn": "[yellow]⚠️[/yellow]", "fail": "[red]❌[/red]"}
+    status_icons = {
+        "pass": "[green]✅[/green]",
+        "warn": "[yellow]⚠️[/yellow]",
+        "fail": "[red]❌[/red]",
+    }
 
     for i, check in enumerate(checks, 1):
         icon = status_icons.get(check["status"], "❓")
@@ -2813,7 +2964,9 @@ def doctor(
 
     console.print()
     console.print("═" * 43)
-    console.print(f"  SUMMARY: [green]{passed} passed[/green], [yellow]{warnings} warning{'s' if warnings != 1 else ''}[/yellow], [red]{failed} failed[/red]")
+    console.print(
+        f"  SUMMARY: [green]{passed} passed[/green], [yellow]{warnings} warning{'s' if warnings != 1 else ''}[/yellow], [red]{failed} failed[/red]"
+    )
     console.print("═" * 43)
 
     if failed > 0:
@@ -2824,6 +2977,7 @@ def doctor(
 # Test runner — ``aiui test chat|memory|sessions|endpoints|all``
 # ---------------------------------------------------------------------------
 from praisonaiui.test_runner import test_app
+
 app.add_typer(test_app, name="test")
 
 

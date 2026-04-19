@@ -163,9 +163,7 @@ class RateLimiter:
         """
         now = time.time()
         old_keys = [
-            key
-            for key, bucket in self._buckets.items()
-            if now - bucket.last_update > max_age
+            key for key, bucket in self._buckets.items() if now - bucket.last_update > max_age
         ]
         for key in old_keys:
             del self._buckets[key]

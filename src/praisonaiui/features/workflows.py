@@ -49,16 +49,18 @@ class WorkflowsFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "workflows",
-            "help": "Manage multi-step workflows",
-            "commands": {
-                "list": {"help": "List all workflows", "handler": self._cli_list},
-                "run": {"help": "Run a workflow", "handler": self._cli_run},
-                "status": {"help": "Workflow status", "handler": self._cli_status},
-                "runs": {"help": "List workflow runs", "handler": self._cli_runs},
-            },
-        }]
+        return [
+            {
+                "name": "workflows",
+                "help": "Manage multi-step workflows",
+                "commands": {
+                    "list": {"help": "List all workflows", "handler": self._cli_list},
+                    "run": {"help": "Run a workflow", "handler": self._cli_run},
+                    "status": {"help": "Workflow status", "handler": self._cli_status},
+                    "runs": {"help": "List workflow runs", "handler": self._cli_runs},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         return {
@@ -128,12 +130,14 @@ class WorkflowsFeature(BaseFeatureProtocol):
         if not wf:
             return JSONResponse({"error": "Workflow not found"}, status_code=404)
         wf_runs = [r for r in _runs.values() if r["workflow_id"] == wf_id]
-        return JSONResponse({
-            "workflow_id": wf_id,
-            "name": wf["name"],
-            "total_runs": len(wf_runs),
-            "last_run": wf_runs[-1] if wf_runs else None,
-        })
+        return JSONResponse(
+            {
+                "workflow_id": wf_id,
+                "name": wf["name"],
+                "total_runs": len(wf_runs),
+                "last_run": wf_runs[-1] if wf_runs else None,
+            }
+        )
 
     async def _list_runs(self, request: Request) -> JSONResponse:
         return JSONResponse({"runs": list(_runs.values()), "count": len(_runs)})
@@ -159,8 +163,11 @@ class WorkflowsFeature(BaseFeatureProtocol):
             return f"Workflow {workflow_id} not found"
         run_id = uuid.uuid4().hex[:12]
         _runs[run_id] = {
-            "id": run_id, "workflow_id": workflow_id, "status": "completed",
-            "started_at": time.time(), "completed_at": time.time(),
+            "id": run_id,
+            "workflow_id": workflow_id,
+            "status": "completed",
+            "started_at": time.time(),
+            "completed_at": time.time(),
         }
         return f"Ran workflow {workflow_id} → run {run_id}"
 

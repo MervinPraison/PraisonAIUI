@@ -33,24 +33,23 @@ class TracingProtocol(ABC):
     """Protocol interface for tracing backends."""
 
     @abstractmethod
-    def list_traces(self, *, limit: int = 50, agent_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        ...
+    def list_traces(
+        self, *, limit: int = 50, agent_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]: ...
 
     @abstractmethod
-    def list_spans(self, *, limit: int = 100, trace_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        ...
+    def list_spans(
+        self, *, limit: int = 100, trace_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]: ...
 
     @abstractmethod
-    def get_trace(self, trace_id: str) -> Optional[Dict[str, Any]]:
-        ...
+    def get_trace(self, trace_id: str) -> Optional[Dict[str, Any]]: ...
 
     @abstractmethod
-    def record_trace(self, trace: Dict[str, Any]) -> str:
-        ...
+    def record_trace(self, trace: Dict[str, Any]) -> str: ...
 
     @abstractmethod
-    def record_span(self, span: Dict[str, Any]) -> str:
-        ...
+    def record_span(self, span: Dict[str, Any]) -> str: ...
 
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
@@ -66,13 +65,17 @@ class SimpleTracingManager(TracingProtocol):
         self._traces: deque = deque(maxlen=200)
         self._spans: deque = deque(maxlen=2000)
 
-    def list_traces(self, *, limit: int = 50, agent_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_traces(
+        self, *, limit: int = 50, agent_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         items = list(self._traces)
         if agent_id:
             items = [t for t in items if t.get("agent_id") == agent_id]
         return items[-limit:]
 
-    def list_spans(self, *, limit: int = 100, trace_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_spans(
+        self, *, limit: int = 100, trace_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         items = list(self._spans)
         if trace_id:
             items = [s for s in items if s.get("trace_id") == trace_id]
@@ -118,24 +121,33 @@ class SDKTracingManager(TracingProtocol):
         self._obs_available = False
         try:
             from praisonaiagents.trace import ActionEvent  # noqa: F401
+
             self._trace_available = True
         except (ImportError, AttributeError):
             pass
         try:
             from praisonaiagents.obs import Span, Trace  # noqa: F401
+
             self._obs_available = True
         except ImportError:
             pass
         if not (self._trace_available or self._obs_available):
             raise ImportError("Neither praisonaiagents.trace nor praisonaiagents.obs available")
         self._simple = SimpleTracingManager()
-        logger.info("SDKTracingManager initialized (trace=%s, obs=%s)",
-                     self._trace_available, self._obs_available)
+        logger.info(
+            "SDKTracingManager initialized (trace=%s, obs=%s)",
+            self._trace_available,
+            self._obs_available,
+        )
 
-    def list_traces(self, *, limit: int = 50, agent_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_traces(
+        self, *, limit: int = 50, agent_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         return self._simple.list_traces(limit=limit, agent_id=agent_id)
 
-    def list_spans(self, *, limit: int = 100, trace_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_spans(
+        self, *, limit: int = 100, trace_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         return self._simple.list_spans(limit=limit, trace_id=trace_id)
 
     def get_trace(self, trace_id: str) -> Optional[Dict[str, Any]]:
@@ -189,6 +201,7 @@ class TracingFeature(BaseFeatureProtocol):
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
+
         mgr = get_tracing_manager()
         return {
             "status": "ok",
@@ -207,28 +220,30 @@ class TracingFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "traces",
-            "help": "Manage distributed traces (list, spans, get)",
-            "commands": {
-                "status": {
-                    "help": "Show tracing status",
-                    "handler": self._cli_status,
+        return [
+            {
+                "name": "traces",
+                "help": "Manage distributed traces (list, spans, get)",
+                "commands": {
+                    "status": {
+                        "help": "Show tracing status",
+                        "handler": self._cli_status,
+                    },
+                    "list": {
+                        "help": "List recent traces",
+                        "handler": self._cli_list,
+                    },
+                    "spans": {
+                        "help": "List recent spans",
+                        "handler": self._cli_spans,
+                    },
+                    "get": {
+                        "help": "Get a specific trace by ID",
+                        "handler": self._cli_get,
+                    },
                 },
-                "list": {
-                    "help": "List recent traces",
-                    "handler": self._cli_list,
-                },
-                "spans": {
-                    "help": "List recent spans",
-                    "handler": self._cli_spans,
-                },
-                "get": {
-                    "help": "Get a specific trace by ID",
-                    "handler": self._cli_get,
-                },
-            },
-        }]
+            }
+        ]
 
     # ── CLI handlers ─────────────────────────────────────────────────
 
@@ -239,9 +254,9 @@ class TracingFeature(BaseFeatureProtocol):
         lines.append(f"  Provider: {h.get('provider', 'unknown')}")
         lines.append(f"  Total traces: {h.get('total_traces', 0)}")
         lines.append(f"  Total spans: {h.get('total_spans', 0)}")
-        if 'trace_available' in h:
+        if "trace_available" in h:
             lines.append(f"  SDK trace: {'available' if h['trace_available'] else 'unavailable'}")
-        if 'obs_available' in h:
+        if "obs_available" in h:
             lines.append(f"  SDK obs: {'available' if h['obs_available'] else 'unavailable'}")
         return "\n".join(lines)
 
@@ -252,11 +267,11 @@ class TracingFeature(BaseFeatureProtocol):
             return "No traces recorded yet."
         lines = [f"Traces ({len(items)}):"]
         for t in items:
-            name = t.get('name', '')
-            status = t.get('status', '?')
-            dur = t.get('duration_ms', 0)
-            spans = t.get('span_count', 0)
-            lines.append(f"  [{t.get('id','')}] {name} status={status} {dur}ms spans={spans}")
+            name = t.get("name", "")
+            status = t.get("status", "?")
+            dur = t.get("duration_ms", 0)
+            spans = t.get("span_count", 0)
+            lines.append(f"  [{t.get('id', '')}] {name} status={status} {dur}ms spans={spans}")
         return "\n".join(lines)
 
     def _cli_spans(self, limit: int = 20, trace_id: str = "") -> str:
@@ -266,10 +281,10 @@ class TracingFeature(BaseFeatureProtocol):
             return "No spans recorded yet."
         lines = [f"Spans ({len(items)}):"]
         for s in items:
-            name = s.get('name', '')
-            kind = s.get('kind', '?')
-            dur = s.get('duration_ms', 0)
-            lines.append(f"  [{s.get('id','')}] {name} kind={kind} {dur}ms")
+            name = s.get("name", "")
+            kind = s.get("kind", "?")
+            dur = s.get("duration_ms", 0)
+            lines.append(f"  [{s.get('id', '')}] {name} kind={kind} {dur}ms")
         return "\n".join(lines)
 
     def _cli_get(self, trace_id: str = "") -> str:
@@ -287,7 +302,7 @@ class TracingFeature(BaseFeatureProtocol):
         lines.append(f"  Duration: {trace.get('duration_ms', 0)}ms")
         lines.append(f"  Spans ({len(spans)}):")
         for s in spans:
-            lines.append(f"    [{s.get('id','')}] {s.get('name','')} {s.get('duration_ms',0)}ms")
+            lines.append(f"    [{s.get('id', '')}] {s.get('name', '')} {s.get('duration_ms', 0)}ms")
         return "\n".join(lines)
 
     async def _list_traces(self, request: Request) -> JSONResponse:
@@ -355,23 +370,30 @@ class TracingFeature(BaseFeatureProtocol):
             return JSONResponse({"recorded": sid, "type": "span"})
 
 
-def record_span(trace_id: str, agent_id: str, name: str,
-                duration_ms: float = 0, kind: str = "internal",
-                attributes: Optional[Dict[str, Any]] = None) -> str:
+def record_span(
+    trace_id: str,
+    agent_id: str,
+    name: str,
+    duration_ms: float = 0,
+    kind: str = "internal",
+    attributes: Optional[Dict[str, Any]] = None,
+) -> str:
     """Record a span (callable from hooks/trace integration)."""
     mgr = get_tracing_manager()
-    return mgr.record_span({
-        "trace_id": trace_id,
-        "agent_id": agent_id,
-        "name": name,
-        "kind": kind,
-        "status": "ok",
-        "start_time": time.time() - (duration_ms / 1000),
-        "end_time": time.time(),
-        "duration_ms": duration_ms,
-        "attributes": attributes or {},
-        "events": [],
-    })
+    return mgr.record_span(
+        {
+            "trace_id": trace_id,
+            "agent_id": agent_id,
+            "name": name,
+            "kind": kind,
+            "status": "ok",
+            "start_time": time.time() - (duration_ms / 1000),
+            "end_time": time.time(),
+            "duration_ms": duration_ms,
+            "attributes": attributes or {},
+            "events": [],
+        }
+    )
 
 
 # Backward-compat alias

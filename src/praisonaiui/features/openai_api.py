@@ -27,6 +27,7 @@ def _get_capabilities():
     if _capabilities is None:
         try:
             from praisonai import capabilities
+
             _capabilities = capabilities
         except ImportError:
             _capabilities = None
@@ -35,7 +36,7 @@ def _get_capabilities():
 
 def _result_to_dict(result) -> Dict[str, Any]:
     """Convert a dataclass result to dict."""
-    if hasattr(result, '__dataclass_fields__'):
+    if hasattr(result, "__dataclass_fields__"):
         return asdict(result)
     return result if isinstance(result, dict) else {"result": str(result)}
 
@@ -87,13 +88,15 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "openai-api",
-            "help": "OpenAI-compatible API management",
-            "commands": {
-                "info": {"help": "Show API info", "handler": self._cli_info},
-            },
-        }]
+        return [
+            {
+                "name": "openai-api",
+                "help": "OpenAI-compatible API management",
+                "commands": {
+                    "info": {"help": "Show API info", "handler": self._cli_info},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
@@ -114,9 +117,9 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
         if not caps:
             return JSONResponse(
                 {"error": {"message": "Capabilities not available", "type": "server_error"}},
-                status_code=503
+                status_code=503,
             )
-        
+
         body = await request.json()
         messages = body.get("messages", [])
         model = body.get("model", "gpt-4o-mini")
@@ -125,11 +128,11 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
         tools = body.get("tools")
         tool_choice = body.get("tool_choice")
         stream = body.get("stream", False)
-        
+
         try:
             if stream:
                 return await self._stream_chat_completion(caps, body)
-            
+
             result = await caps.achat_completion(
                 messages=messages,
                 model=model,
@@ -138,39 +141,41 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
                 tools=tools,
                 tool_choice=tool_choice,
             )
-            
+
             # Format as OpenAI response
             response = {
                 "id": result.id or f"chatcmpl-{uuid.uuid4().hex[:8]}",
                 "object": "chat.completion",
                 "created": int(time.time()),
                 "model": result.model or model,
-                "choices": [{
-                    "index": 0,
-                    "message": {
-                        "role": result.role,
-                        "content": result.content,
-                    },
-                    "finish_reason": result.finish_reason or "stop",
-                }],
-                "usage": result.usage or {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": result.role,
+                            "content": result.content,
+                        },
+                        "finish_reason": result.finish_reason or "stop",
+                    }
+                ],
+                "usage": result.usage
+                or {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
             }
-            
+
             if result.tool_calls:
                 response["choices"][0]["message"]["tool_calls"] = result.tool_calls
-            
+
             return JSONResponse(response)
-            
+
         except Exception as e:
             return JSONResponse(
-                {"error": {"message": str(e), "type": "api_error"}},
-                status_code=500
+                {"error": {"message": str(e), "type": "api_error"}}, status_code=500
             )
 
     async def _stream_chat_completion(self, caps, body) -> StreamingResponse:
         """Stream chat completion response."""
         import json
-        
+
         async def generate():
             try:
                 result = await caps.achat_completion(
@@ -180,9 +185,9 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
                     max_tokens=body.get("max_tokens"),
                     stream=False,  # We simulate streaming
                 )
-                
+
                 chunk_id = f"chatcmpl-{uuid.uuid4().hex[:8]}"
-                
+
                 # Send content in chunks
                 content = result.content or ""
                 for i in range(0, len(content), 20):
@@ -191,14 +196,16 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
                         "object": "chat.completion.chunk",
                         "created": int(time.time()),
                         "model": result.model,
-                        "choices": [{
-                            "index": 0,
-                            "delta": {"content": content[i:i+20]},
-                            "finish_reason": None,
-                        }],
+                        "choices": [
+                            {
+                                "index": 0,
+                                "delta": {"content": content[i : i + 20]},
+                                "finish_reason": None,
+                            }
+                        ],
                     }
                     yield f"data: {json.dumps(chunk)}\n\n"
-                
+
                 # Send final chunk
                 final = {
                     "id": chunk_id,
@@ -209,10 +216,10 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
                 }
                 yield f"data: {json.dumps(final)}\n\n"
                 yield "data: [DONE]\n\n"
-                
+
             except Exception as e:
-                yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
-        
+                yield f'data: {{"error": "{str(e)}"}}\n\n'
+
         return StreamingResponse(
             generate(),
             media_type="text/event-stream",
@@ -225,13 +232,13 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
         if not caps:
             return JSONResponse(
                 {"error": {"message": "Capabilities not available", "type": "server_error"}},
-                status_code=503
+                status_code=503,
             )
-        
+
         body = await request.json()
         prompt = body.get("prompt", "")
         model = body.get("model", "gpt-3.5-turbo-instruct")
-        
+
         try:
             result = await caps.atext_completion(
                 prompt=prompt,
@@ -239,23 +246,27 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
                 temperature=body.get("temperature", 1.0),
                 max_tokens=body.get("max_tokens"),
             )
-            
-            return JSONResponse({
-                "id": result.id or f"cmpl-{uuid.uuid4().hex[:8]}",
-                "object": "text_completion",
-                "created": int(time.time()),
-                "model": result.model or model,
-                "choices": [{
-                    "text": result.content or "",
-                    "index": 0,
-                    "finish_reason": result.finish_reason or "stop",
-                }],
-                "usage": result.usage or {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-            })
+
+            return JSONResponse(
+                {
+                    "id": result.id or f"cmpl-{uuid.uuid4().hex[:8]}",
+                    "object": "text_completion",
+                    "created": int(time.time()),
+                    "model": result.model or model,
+                    "choices": [
+                        {
+                            "text": result.content or "",
+                            "index": 0,
+                            "finish_reason": result.finish_reason or "stop",
+                        }
+                    ],
+                    "usage": result.usage
+                    or {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                }
+            )
         except Exception as e:
             return JSONResponse(
-                {"error": {"message": str(e), "type": "api_error"}},
-                status_code=500
+                {"error": {"message": str(e), "type": "api_error"}}, status_code=500
             )
 
     async def _embeddings(self, request: Request) -> JSONResponse:
@@ -264,30 +275,33 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
         if not caps:
             return JSONResponse(
                 {"error": {"message": "Capabilities not available", "type": "server_error"}},
-                status_code=503
+                status_code=503,
             )
-        
+
         body = await request.json()
         input_text = body.get("input", "")
         model = body.get("model", "text-embedding-3-small")
-        
+
         try:
             result = await caps.aembed(
                 input=input_text,
                 model=model,
             )
-            
+
             data = _result_to_dict(result)
-            return JSONResponse({
-                "object": "list",
-                "data": [{"object": "embedding", "index": 0, "embedding": data.get("embedding", [])}],
-                "model": model,
-                "usage": data.get("usage", {"prompt_tokens": 0, "total_tokens": 0}),
-            })
+            return JSONResponse(
+                {
+                    "object": "list",
+                    "data": [
+                        {"object": "embedding", "index": 0, "embedding": data.get("embedding", [])}
+                    ],
+                    "model": model,
+                    "usage": data.get("usage", {"prompt_tokens": 0, "total_tokens": 0}),
+                }
+            )
         except Exception as e:
             return JSONResponse(
-                {"error": {"message": str(e), "type": "api_error"}},
-                status_code=500
+                {"error": {"message": str(e), "type": "api_error"}}, status_code=500
             )
 
     async def _image_generate(self, request: Request) -> JSONResponse:
@@ -296,13 +310,13 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
         if not caps:
             return JSONResponse(
                 {"error": {"message": "Capabilities not available", "type": "server_error"}},
-                status_code=503
+                status_code=503,
             )
-        
+
         body = await request.json()
         prompt = body.get("prompt", "")
         model = body.get("model", "dall-e-3")
-        
+
         try:
             result = await caps.aimage_generate(
                 prompt=prompt,
@@ -310,16 +324,17 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
                 n=body.get("n", 1),
                 size=body.get("size", "1024x1024"),
             )
-            
+
             data = _result_to_dict(result)
-            return JSONResponse({
-                "created": int(time.time()),
-                "data": data.get("images", [{"url": data.get("url", "")}]),
-            })
+            return JSONResponse(
+                {
+                    "created": int(time.time()),
+                    "data": data.get("images", [{"url": data.get("url", "")}]),
+                }
+            )
         except Exception as e:
             return JSONResponse(
-                {"error": {"message": str(e), "type": "api_error"}},
-                status_code=500
+                {"error": {"message": str(e), "type": "api_error"}}, status_code=500
             )
 
     async def _transcribe(self, request: Request) -> JSONResponse:
@@ -328,26 +343,25 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
         if not caps:
             return JSONResponse(
                 {"error": {"message": "Capabilities not available", "type": "server_error"}},
-                status_code=503
+                status_code=503,
             )
-        
+
         # Handle multipart form data
         form = await request.form()
         file = form.get("file")
         model = form.get("model", "whisper-1")
-        
+
         try:
             result = await caps.atranscribe(
                 file=file,
                 model=model,
             )
-            
+
             data = _result_to_dict(result)
             return JSONResponse({"text": data.get("text", "")})
         except Exception as e:
             return JSONResponse(
-                {"error": {"message": str(e), "type": "api_error"}},
-                status_code=500
+                {"error": {"message": str(e), "type": "api_error"}}, status_code=500
             )
 
     async def _speech(self, request: Request) -> JSONResponse:
@@ -356,24 +370,23 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
         if not caps:
             return JSONResponse(
                 {"error": {"message": "Capabilities not available", "type": "server_error"}},
-                status_code=503
+                status_code=503,
             )
-        
+
         body = await request.json()
-        
+
         try:
             result = await caps.aspeech(
                 input=body.get("input", ""),
                 model=body.get("model", "tts-1"),
                 voice=body.get("voice", "alloy"),
             )
-            
+
             data = _result_to_dict(result)
             return JSONResponse(data)
         except Exception as e:
             return JSONResponse(
-                {"error": {"message": str(e), "type": "api_error"}},
-                status_code=500
+                {"error": {"message": str(e), "type": "api_error"}}, status_code=500
             )
 
     async def _moderations(self, request: Request) -> JSONResponse:
@@ -382,27 +395,28 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
         if not caps:
             return JSONResponse(
                 {"error": {"message": "Capabilities not available", "type": "server_error"}},
-                status_code=503
+                status_code=503,
             )
-        
+
         body = await request.json()
-        
+
         try:
             result = await caps.amoderate(
                 input=body.get("input", ""),
                 model=body.get("model", "text-moderation-latest"),
             )
-            
+
             data = _result_to_dict(result)
-            return JSONResponse({
-                "id": f"modr-{uuid.uuid4().hex[:8]}",
-                "model": body.get("model", "text-moderation-latest"),
-                "results": data.get("results", []),
-            })
+            return JSONResponse(
+                {
+                    "id": f"modr-{uuid.uuid4().hex[:8]}",
+                    "model": body.get("model", "text-moderation-latest"),
+                    "results": data.get("results", []),
+                }
+            )
         except Exception as e:
             return JSONResponse(
-                {"error": {"message": str(e), "type": "api_error"}},
-                status_code=500
+                {"error": {"message": str(e), "type": "api_error"}}, status_code=500
             )
 
     async def _responses(self, request: Request) -> JSONResponse:
@@ -411,23 +425,22 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
         if not caps:
             return JSONResponse(
                 {"error": {"message": "Capabilities not available", "type": "server_error"}},
-                status_code=503
+                status_code=503,
             )
-        
+
         body = await request.json()
-        
+
         try:
             result = await caps.aresponses_create(
                 input=body.get("input", ""),
                 model=body.get("model", "gpt-4o-mini"),
                 instructions=body.get("instructions"),
             )
-            
+
             return JSONResponse(_result_to_dict(result))
         except Exception as e:
             return JSONResponse(
-                {"error": {"message": str(e), "type": "api_error"}},
-                status_code=500
+                {"error": {"message": str(e), "type": "api_error"}}, status_code=500
             )
 
     # ── Models ───────────────────────────────────────────────────────
@@ -454,12 +467,14 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
     async def _get_model(self, request: Request) -> JSONResponse:
         """GET /v1/models/{model_id} — Get model info."""
         model_id = request.path_params["model_id"]
-        return JSONResponse({
-            "id": model_id,
-            "object": "model",
-            "created": int(time.time()),
-            "owned_by": "praisonai",
-        })
+        return JSONResponse(
+            {
+                "id": model_id,
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "praisonai",
+            }
+        )
 
     # ── Files ────────────────────────────────────────────────────────
 
@@ -468,10 +483,12 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
         caps = _get_capabilities()
         if not caps:
             return JSONResponse({"object": "list", "data": []})
-        
+
         try:
             result = await caps.afile_list()
-            return JSONResponse({"object": "list", "data": _result_to_dict(result).get("files", [])})
+            return JSONResponse(
+                {"object": "list", "data": _result_to_dict(result).get("files", [])}
+            )
         except Exception:
             return JSONResponse({"object": "list", "data": []})
 
@@ -481,60 +498,56 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
         if not caps:
             return JSONResponse(
                 {"error": {"message": "Capabilities not available", "type": "server_error"}},
-                status_code=503
+                status_code=503,
             )
-        
+
         form = await request.form()
         file = form.get("file")
         purpose = form.get("purpose", "assistants")
-        
+
         try:
             result = await caps.afile_create(file=file, purpose=purpose)
             return JSONResponse(_result_to_dict(result))
         except Exception as e:
             return JSONResponse(
-                {"error": {"message": str(e), "type": "api_error"}},
-                status_code=500
+                {"error": {"message": str(e), "type": "api_error"}}, status_code=500
             )
 
     async def _get_file(self, request: Request) -> JSONResponse:
         """GET /v1/files/{file_id} — Get file info."""
         caps = _get_capabilities()
         file_id = request.path_params["file_id"]
-        
+
         if not caps:
             return JSONResponse(
-                {"error": {"message": "File not found", "type": "not_found"}},
-                status_code=404
+                {"error": {"message": "File not found", "type": "not_found"}}, status_code=404
             )
-        
+
         try:
             result = await caps.afile_retrieve(file_id=file_id)
             return JSONResponse(_result_to_dict(result))
         except Exception as e:
             return JSONResponse(
-                {"error": {"message": str(e), "type": "api_error"}},
-                status_code=500
+                {"error": {"message": str(e), "type": "api_error"}}, status_code=500
             )
 
     async def _delete_file(self, request: Request) -> JSONResponse:
         """DELETE /v1/files/{file_id} — Delete a file."""
         caps = _get_capabilities()
         file_id = request.path_params["file_id"]
-        
+
         if not caps:
             return JSONResponse(
                 {"error": {"message": "Capabilities not available", "type": "server_error"}},
-                status_code=503
+                status_code=503,
             )
-        
+
         try:
             await caps.afile_delete(file_id=file_id)
             return JSONResponse({"id": file_id, "object": "file", "deleted": True})
         except Exception as e:
             return JSONResponse(
-                {"error": {"message": str(e), "type": "api_error"}},
-                status_code=500
+                {"error": {"message": str(e), "type": "api_error"}}, status_code=500
             )
 
     # ── Assistants ───────────────────────────────────────────────────
@@ -544,10 +557,12 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
         caps = _get_capabilities()
         if not caps:
             return JSONResponse({"object": "list", "data": []})
-        
+
         try:
             result = await caps.aassistant_list()
-            return JSONResponse({"object": "list", "data": _result_to_dict(result).get("assistants", [])})
+            return JSONResponse(
+                {"object": "list", "data": _result_to_dict(result).get("assistants", [])}
+            )
         except Exception:
             return JSONResponse({"object": "list", "data": []})
 
@@ -557,11 +572,11 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
         if not caps:
             return JSONResponse(
                 {"error": {"message": "Capabilities not available", "type": "server_error"}},
-                status_code=503
+                status_code=503,
             )
-        
+
         body = await request.json()
-        
+
         try:
             result = await caps.aassistant_create(
                 name=body.get("name", "Assistant"),
@@ -572,8 +587,7 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
             return JSONResponse(_result_to_dict(result))
         except Exception as e:
             return JSONResponse(
-                {"error": {"message": str(e), "type": "api_error"}},
-                status_code=500
+                {"error": {"message": str(e), "type": "api_error"}}, status_code=500
             )
 
     # ── API Info ─────────────────────────────────────────────────────
@@ -581,24 +595,54 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
     async def _api_info(self, request: Request) -> JSONResponse:
         """GET /v1 — API information."""
         caps = _get_capabilities()
-        return JSONResponse({
-            "name": "PraisonAI OpenAI-Compatible API",
-            "version": "1.0.0",
-            "capabilities_available": caps is not None,
-            "endpoints": [
-                {"path": "/v1/chat/completions", "method": "POST", "description": "Chat completions"},
-                {"path": "/v1/completions", "method": "POST", "description": "Text completions"},
-                {"path": "/v1/embeddings", "method": "POST", "description": "Create embeddings"},
-                {"path": "/v1/images/generations", "method": "POST", "description": "Generate images"},
-                {"path": "/v1/audio/transcriptions", "method": "POST", "description": "Transcribe audio"},
-                {"path": "/v1/audio/speech", "method": "POST", "description": "Text to speech"},
-                {"path": "/v1/moderations", "method": "POST", "description": "Content moderation"},
-                {"path": "/v1/models", "method": "GET", "description": "List models"},
-                {"path": "/v1/responses", "method": "POST", "description": "Responses API"},
-                {"path": "/v1/files", "method": "GET/POST", "description": "File management"},
-                {"path": "/v1/assistants", "method": "GET/POST", "description": "Assistants API"},
-            ],
-        })
+        return JSONResponse(
+            {
+                "name": "PraisonAI OpenAI-Compatible API",
+                "version": "1.0.0",
+                "capabilities_available": caps is not None,
+                "endpoints": [
+                    {
+                        "path": "/v1/chat/completions",
+                        "method": "POST",
+                        "description": "Chat completions",
+                    },
+                    {
+                        "path": "/v1/completions",
+                        "method": "POST",
+                        "description": "Text completions",
+                    },
+                    {
+                        "path": "/v1/embeddings",
+                        "method": "POST",
+                        "description": "Create embeddings",
+                    },
+                    {
+                        "path": "/v1/images/generations",
+                        "method": "POST",
+                        "description": "Generate images",
+                    },
+                    {
+                        "path": "/v1/audio/transcriptions",
+                        "method": "POST",
+                        "description": "Transcribe audio",
+                    },
+                    {"path": "/v1/audio/speech", "method": "POST", "description": "Text to speech"},
+                    {
+                        "path": "/v1/moderations",
+                        "method": "POST",
+                        "description": "Content moderation",
+                    },
+                    {"path": "/v1/models", "method": "GET", "description": "List models"},
+                    {"path": "/v1/responses", "method": "POST", "description": "Responses API"},
+                    {"path": "/v1/files", "method": "GET/POST", "description": "File management"},
+                    {
+                        "path": "/v1/assistants",
+                        "method": "GET/POST",
+                        "description": "Assistants API",
+                    },
+                ],
+            }
+        )
 
     # ── CLI ──────────────────────────────────────────────────────────
 

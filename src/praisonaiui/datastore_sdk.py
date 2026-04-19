@@ -122,7 +122,10 @@ class SDKFileDataStore(BaseDataStore):
         # Write a sentinel meta message to create the session file on disk.
         # This stores session-level metadata (title) persistently.
         await asyncio.to_thread(
-            self._store.add_message, sid, "system", "",
+            self._store.add_message,
+            sid,
+            "system",
+            "",
             {_META_KEY: True, _TITLE_KEY: "New conversation"},
         )
 
@@ -148,7 +151,11 @@ class SDKFileDataStore(BaseDataStore):
             metadata["toolCalls"] = message["toolCalls"]
 
         await asyncio.to_thread(
-            self._store.add_message, session_id, role, content, metadata or None,
+            self._store.add_message,
+            session_id,
+            role,
+            content,
+            metadata or None,
         )
 
         # Auto-generate title from first user message
@@ -194,8 +201,10 @@ class SDKFileDataStore(BaseDataStore):
         if not found:
             # No sentinel exists yet — insert one at position 0
             from praisonaiagents.session.store import SessionMessage
+
             sentinel = SessionMessage(
-                role="system", content="",
+                role="system",
+                content="",
                 metadata={_META_KEY: True, key: value},
             )
             session_data.messages.insert(0, sentinel)
@@ -244,8 +253,7 @@ class SDKFileDataStore(BaseDataStore):
     def _count_real_messages(data: dict) -> int:
         """Count messages excluding the sentinel meta message."""
         return sum(
-            1 for m in data.get("messages", [])
-            if not (m.get("metadata") or {}).get(_META_KEY)
+            1 for m in data.get("messages", []) if not (m.get("metadata") or {}).get(_META_KEY)
         )
 
     @staticmethod

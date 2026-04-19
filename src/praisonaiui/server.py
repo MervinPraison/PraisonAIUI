@@ -9,11 +9,11 @@ import os
 import sys
 import time
 from collections import deque
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncGenerator, Callable, Optional
 
-from contextlib import asynccontextmanager
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
@@ -22,10 +22,10 @@ from starlette.responses import HTMLResponse, JSONResponse, Response, StreamingR
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from praisonaiui.datastore import BaseDataStore, JSONFileDataStore, MemoryDataStore
+from praisonaiui.datastore import BaseDataStore, JSONFileDataStore
 from praisonaiui.features import auto_register_defaults, get_features
 from praisonaiui.provider import BaseProvider, RunEventType
-from praisonaiui.schemas import (
+from praisonaiui.schemas import (  # noqa: F401  (re-exported via praisonaiui.__getattr__)
     get_component_schemas,
     register_component_schema,
     reset_component_schemas,
@@ -42,15 +42,19 @@ _page_actions: dict[str, Callable] = {}
 _enabled_pages: Optional[set[str]] = None
 # Track which page IDs were added by @aiui.page() (always shown)
 _custom_page_ids: set[str] = set()
+
+
 # Pluggable datastore (default: SDK-backed store if available, else JSON file store)
 def _init_default_datastore() -> BaseDataStore:
     """Try SDK-backed store first (unifies with praisonai-agents session store),
     fall back to AIUI's own JSONFileDataStore."""
     try:
         from praisonaiui.datastore_sdk import SDKFileDataStore
+
         return SDKFileDataStore()
     except (ImportError, Exception):
         return JSONFileDataStore()
+
 
 _datastore: BaseDataStore = _init_default_datastore()
 # Pluggable AI provider (default: PraisonAI)
@@ -119,10 +123,14 @@ def reset_state() -> None:
     _custom_page_ids.clear()
     _active_tasks.clear()
     _log_buffer.clear()
-    _usage_stats.update({
-        "total_requests": 0, "total_tokens": 0,
-        "by_model": {}, "by_session": {},
-    })
+    _usage_stats.update(
+        {
+            "total_requests": 0,
+            "total_tokens": 0,
+            "by_model": {},
+            "by_session": {},
+        }
+    )
     _style = None
     _branding = {"title": "PraisonAI", "logo": "🦞"}
     _theme = None
@@ -141,6 +149,7 @@ def reset_state() -> None:
     # Reset ThemeManager singleton (custom themes, mode, etc.)
     try:
         from praisonaiui.features.theme import reset_theme_manager
+
         reset_theme_manager()
     except Exception:
         pass
@@ -208,6 +217,7 @@ def set_theme(
     # Sync with ThemeManager so /api/theme returns correct state
     try:
         from praisonaiui.features.theme import get_theme_manager
+
         mgr = get_theme_manager()
         if preset in mgr.list_themes():
             mgr.set_theme(preset)
@@ -442,13 +452,15 @@ def set_sidebar_config(
     global _dashboard_config
     if _dashboard_config is None:
         _dashboard_config = {}
-    _dashboard_config.update({
-        "sidebarCollapsible": collapsible,
-        "sidebarCollapsed": default_collapsed,
-        "sidebarWidth": width,
-        "sidebarMinWidth": min_width,
-        "sidebarMaxWidth": max_width,
-    })
+    _dashboard_config.update(
+        {
+            "sidebarCollapsible": collapsible,
+            "sidebarCollapsed": default_collapsed,
+            "sidebarWidth": width,
+            "sidebarMinWidth": min_width,
+            "sidebarMaxWidth": max_width,
+        }
+    )
 
 
 def register_theme(name: str, variables: dict[str, str]) -> None:
@@ -469,6 +481,7 @@ def register_theme(name: str, variables: dict[str, str]) -> None:
         aiui.register_theme("sunset", {"accent": "#ff6b35", "accentRgb": "255,107,53"})
     """
     from praisonaiui.features.theme import get_theme_manager
+
     get_theme_manager().register_theme(name, variables)
 
 
@@ -502,10 +515,10 @@ def remove_page(page_id: str) -> None:
 
 def set_feedback_enabled(enabled: bool = True) -> None:
     """Enable or disable per-message feedback (thumbs up/down).
-    
+
     When enabled, thumbs up/down buttons appear on assistant messages
     and feedback is stored via the datastore's record_feedback method.
-    
+
     Args:
         enabled: Whether to enable feedback (default: True)
     """
@@ -540,10 +553,12 @@ def detect_style() -> str:
 
 # ── Shared config helpers ────────────────────────────────────────────
 
+
 def _get_site_section() -> dict:
     """Read the 'site' section from the config store, or return {}."""
     try:
         from praisonaiui.config_store import get_config_store
+
         cs = get_config_store()
         return (cs.get_section("site") if cs else {}) or {}
     except Exception:
@@ -551,6 +566,7 @@ def _get_site_section() -> dict:
 
 
 # ── Dynamic HTML & plugin config generation ─────────────────────────
+
 
 def _build_html(style: str) -> str:
     """Generate the host HTML based on style. No template files needed.
@@ -560,8 +576,7 @@ def _build_html(style: str) -> str:
     # Branding-driven title: set_branding() → YAML config → default
     _site_section = _get_site_section()
     _site_title = (
-        _site_section.get("title", _branding["title"]) if _site_section
-        else _branding["title"]
+        _site_section.get("title", _branding["title"]) if _site_section else _branding["title"]
     )
     title = f"{_site_title} Dashboard" if style == "dashboard" else _site_title
     cache_bust = int(_server_start_time)
@@ -571,21 +586,22 @@ def _build_html(style: str) -> str:
     if style == "docs":
         anti_flicker = (
             '<style id="aiui-anti-flicker">'
-            'html,body{background:#0f172a!important;color:#e2e8f0}'
-            '#root>*{opacity:0;transition:opacity .15s ease}'
-            '</style>'
+            "html,body{background:#0f172a!important;color:#e2e8f0}"
+            "#root>*{opacity:0;transition:opacity .15s ease}"
+            "</style>"
         )
     # Dashboard style: legacy plugins own #root — skip React to prevent DOM war
     react_script = (
-        '' if style == 'dashboard' else
-        f'<script type="module" crossorigin src="/assets/index.js?v={cache_bust}"></script>'
+        ""
+        if style == "dashboard"
+        else f'<script type="module" crossorigin src="/assets/index.js?v={cache_bust}"></script>'
     )
 
     # Inject custom CSS if set via set_custom_css() or YAML site.custom_css
     # A tiny observer script keeps it as the last <style> in <head> so that
     # plugin-injected styles (DASHBOARD_STYLE, chat-view-styles, etc.) never
     # override user CSS via cascade order.
-    custom_css_tag = ''
+    custom_css_tag = ""
     _css = _custom_css
     if not _css and _site_section:
         _css = _site_section.get("custom_css") or _site_section.get("customCss")
@@ -593,19 +609,19 @@ def _build_html(style: str) -> str:
         custom_css_tag = (
             f'<style id="aiui-custom-css">{_css}</style>'
             '<script id="aiui-css-guard">'
-            '(function(){'
+            "(function(){"
             'var c=document.getElementById("aiui-custom-css");'
-            'if(!c)return;'
-            'new MutationObserver(function(ms){'
-            'for(var i=0;i<ms.length;i++){'
-            'for(var j=0;j<ms[i].addedNodes.length;j++){'
-            'var n=ms[i].addedNodes[j];'
+            "if(!c)return;"
+            "new MutationObserver(function(ms){"
+            "for(var i=0;i<ms.length;i++){"
+            "for(var j=0;j<ms[i].addedNodes.length;j++){"
+            "var n=ms[i].addedNodes[j];"
             'if(n.tagName==="STYLE"&&n.id!=="aiui-custom-css"){'
-            'document.head.appendChild(c);'
-            '}}}'
-            '}).observe(document.head,{childList:true});'
-            '})()'
-            '</script>'
+            "document.head.appendChild(c);"
+            "}}}"
+            "}).observe(document.head,{childList:true});"
+            "})()"
+            "</script>"
         )
 
     # Server-side theme variable injection (dashboard style)
@@ -613,23 +629,19 @@ def _build_html(style: str) -> str:
     #   1. Correct accent shows before JS runs (no flash of wrong color)
     #   2. User custom CSS can still override non-accent vars (--db-bg etc.)
     #   3. DASHBOARD_STYLE defaults handle remaining vars normally
-    theme_vars_tag = ''
-    _ACCENT_KEYS = {'--db-accent', '--db-accent-glow', '--db-accent-rgb', '--db-radius'}
-    if style == 'dashboard':
+    theme_vars_tag = ""
+    _ACCENT_KEYS = {"--db-accent", "--db-accent-glow", "--db-accent-rgb", "--db-radius"}
+    if style == "dashboard":
         try:
             from praisonaiui.features.theme import get_theme_manager
+
             mgr = get_theme_manager()
             tvars = mgr.get_vars()
-            accent_pairs = ';'.join(
-                f'{k}:{v}!important' for k, v in tvars.items()
-                if k in _ACCENT_KEYS
+            accent_pairs = ";".join(
+                f"{k}:{v}!important" for k, v in tvars.items() if k in _ACCENT_KEYS
             )
             if accent_pairs:
-                theme_vars_tag = (
-                    f'<style id="aiui-server-theme">'
-                    f':root{{{accent_pairs}}}'
-                    f'</style>'
-                )
+                theme_vars_tag = f'<style id="aiui-server-theme">:root{{{accent_pairs}}}</style>'
         except Exception:
             pass
 
@@ -638,16 +650,16 @@ def _build_html(style: str) -> str:
         '<meta charset="UTF-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1.0">'
         f'<link rel="stylesheet" href="/assets/index.css?v={cache_bust}">'
-        f'{anti_flicker}'
-        f'{theme_vars_tag}'
-        f'{custom_css_tag}'
-        f'<title>{title}</title>'
+        f"{anti_flicker}"
+        f"{theme_vars_tag}"
+        f"{custom_css_tag}"
+        f"<title>{title}</title>"
         '</head><body style="background:#0f172a;margin:0">'
         '<div id="root"></div>'
-        f'{react_script}'
+        f"{react_script}"
         f'<script src="/plugins/plugin-loader.js?v={cache_bust}"></script>'
-        f'{_custom_js_tag(cache_bust)}'
-        '</body></html>'
+        f"{_custom_js_tag(cache_bust)}"
+        "</body></html>"
     )
 
 
@@ -671,6 +683,7 @@ async def _serve_custom_js(request: Request) -> Response:
 # Shared effective style — set by create_app(), read by _plugins_config()
 _effective_style: str = "chat"
 
+
 async def _plugins_config(request: Request) -> JSONResponse:
     """Dynamic plugins.json — style-aware, protocol-driven.
 
@@ -688,9 +701,15 @@ async def _plugins_config(request: Request) -> JSONResponse:
         ]
     elif style == "docs":
         plugins += [
-            "topnav", "syntax-highlight", "code-copy",
-            "content-loader", "toc", "mermaid",
-            "nav-intercept", "mkdocs-compat", "homepage",
+            "topnav",
+            "syntax-highlight",
+            "code-copy",
+            "content-loader",
+            "toc",
+            "mermaid",
+            "nav-intercept",
+            "mkdocs-compat",
+            "homepage",
         ]
     else:
         # chat / agents / playground — minimal plugins
@@ -702,7 +721,6 @@ async def _serve_index(request: Request) -> HTMLResponse:
     """Serve dynamically generated HTML based on active style."""
     style = _effective_style  # Single source of truth (set by create_app)
     return HTMLResponse(_build_html(style))
-
 
 
 def set_datastore(store: BaseDataStore) -> None:
@@ -731,6 +749,7 @@ def get_provider() -> BaseProvider:
     global _provider
     if _provider is None:
         from praisonaiui.providers import PraisonAIProvider
+
         _provider = PraisonAIProvider()
     return _provider
 
@@ -803,9 +822,11 @@ def register_page_action(page_id: str):
             save_settings(data)
             return {"status": "saved"}
     """
+
     def decorator(fn: Callable) -> Callable:
         _page_actions[page_id] = fn
         return fn
+
     return decorator
 
 
@@ -818,11 +839,13 @@ async def health(request: Request) -> JSONResponse:
         provider_info.update(provider_health)
     except Exception:
         pass
-    return JSONResponse({
-        "status": "ok",
-        "timestamp": datetime.utcnow().isoformat(),
-        "provider": provider_info,
-    })
+    return JSONResponse(
+        {
+            "status": "ok",
+            "timestamp": datetime.utcnow().isoformat(),
+            "provider": provider_info,
+        }
+    )
 
 
 async def list_agents(request: Request) -> JSONResponse:
@@ -907,35 +930,32 @@ async def patch_session(request: Request) -> JSONResponse:
 # Dashboard API endpoints
 # ---------------------------------------------------------------------------
 
+
 async def api_feedback(request: Request) -> JSONResponse:
     """Record user feedback for a message."""
     if not _feedback_enabled:
         return JSONResponse({"error": "Feedback is disabled"}, status_code=403)
-        
+
     try:
         body = await request.json()
     except Exception:
         return JSONResponse({"error": "Invalid JSON"}, status_code=400)
-    
+
     # Validate required fields
     session_id = body.get("session_id")
-    message_id = body.get("message_id") 
+    message_id = body.get("message_id")
     value = body.get("value")
     comment = body.get("comment")
-    
+
     if not session_id or not message_id or value is None:
         return JSONResponse(
-            {"error": "Missing required fields: session_id, message_id, value"}, 
-            status_code=400
+            {"error": "Missing required fields: session_id, message_id, value"}, status_code=400
         )
-    
+
     # Validate value range
     if value not in [-1, 0, 1]:
-        return JSONResponse(
-            {"error": "value must be -1, 0, or 1"}, 
-            status_code=400
-        )
-    
+        return JSONResponse({"error": "value must be -1, 0, or 1"}, status_code=400)
+
     # Note: Session validation disabled for backwards compatibility
     # In production, you may want to validate that sessions exist:
     # try:
@@ -944,23 +964,25 @@ async def api_feedback(request: Request) -> JSONResponse:
     #         return JSONResponse({"error": "Session not found"}, status_code=404)
     # except Exception:
     #     pass
-    
+
     # Record feedback
     await _datastore.record_feedback(session_id, message_id, value, comment)
-    
+
     # Fire callback hook
     feedback_cb = _callbacks.get("on:feedback")
     if feedback_cb:
         try:
-            await feedback_cb({
-                "session_id": session_id,
-                "message_id": message_id,
-                "value": value,
-                "comment": comment,
-            })
+            await feedback_cb(
+                {
+                    "session_id": session_id,
+                    "message_id": message_id,
+                    "value": value,
+                    "comment": comment,
+                }
+            )
         except Exception:
             pass  # Don't fail the API if callback fails
-    
+
     return JSONResponse({"status": "recorded"})
 
 
@@ -968,25 +990,25 @@ async def api_feedback_list(request: Request) -> JSONResponse:
     """List feedback with summary statistics."""
     if not _feedback_enabled:
         return JSONResponse({"error": "Feedback is disabled"}, status_code=403)
-    
+
     # Get optional session filter
-    session_id = request.query_params.get('session_id')
-    
+    session_id = request.query_params.get("session_id")
+
     # List all feedback
     feedback_list = await _datastore.list_feedback(session_id)
-    
+
     # Calculate summary statistics and group by session in a single pass
     total = len(feedback_list)
     positive = 0
     negative = 0
     neutral = 0
     by_session = {}
-    
+
     for feedback in feedback_list:
         sid = feedback.get("session_id", "unknown")
         if sid not in by_session:
             by_session[sid] = {"positive": 0, "negative": 0, "neutral": 0, "total": 0}
-        
+
         value = feedback.get("value", 0)
         if value > 0:
             positive += 1
@@ -998,17 +1020,19 @@ async def api_feedback_list(request: Request) -> JSONResponse:
             neutral += 1
             by_session[sid]["neutral"] += 1
         by_session[sid]["total"] += 1
-    
-    return JSONResponse({
-        "feedback": feedback_list,
-        "summary": {
-            "total": total,
-            "positive": positive,
-            "negative": negative, 
-            "neutral": neutral,
-            "by_session": by_session,
+
+    return JSONResponse(
+        {
+            "feedback": feedback_list,
+            "summary": {
+                "total": total,
+                "positive": positive,
+                "negative": negative,
+                "neutral": neutral,
+                "by_session": by_session,
+            },
         }
-    })
+    )
 
 
 async def api_overview(request: Request) -> JSONResponse:
@@ -1044,29 +1068,33 @@ async def api_overview(request: Request) -> JSONResponse:
                 pass
             break
 
-    return JSONResponse({
-        "status": "ok",
-        "runtimeType": "AIUI",
-        "version": _get_version(),
-        "uptime_seconds": round(time.time() - _server_start_time, 1),
-        "python_version": sys.version,
-        "provider": provider_name,
-        "provider_health": provider_health,
-        "features_loaded": len(features),
-        "channels": channels_info,
-        "stats": {
-            "total_sessions": len(sessions),
-            "active_tasks": len(_active_tasks),
-            "registered_agents": len(_agents),
-            "registered_profiles": len(profiles),
-            "total_requests": _usage_stats["total_requests"],
-        },
-        "agents": list(_agents.keys()),
-        "config": {
-            "model": os.environ.get("PRAISONAI_MODEL", os.environ.get("DEFAULT_AI_MODEL", "gpt-4o-mini")),
-            "data_dir": str(_get_data_dir()),
-        },
-    })
+    return JSONResponse(
+        {
+            "status": "ok",
+            "runtimeType": "AIUI",
+            "version": _get_version(),
+            "uptime_seconds": round(time.time() - _server_start_time, 1),
+            "python_version": sys.version,
+            "provider": provider_name,
+            "provider_health": provider_health,
+            "features_loaded": len(features),
+            "channels": channels_info,
+            "stats": {
+                "total_sessions": len(sessions),
+                "active_tasks": len(_active_tasks),
+                "registered_agents": len(_agents),
+                "registered_profiles": len(profiles),
+                "total_requests": _usage_stats["total_requests"],
+            },
+            "agents": list(_agents.keys()),
+            "config": {
+                "model": os.environ.get(
+                    "PRAISONAI_MODEL", os.environ.get("DEFAULT_AI_MODEL", "gpt-4o-mini")
+                ),
+                "data_dir": str(_get_data_dir()),
+            },
+        }
+    )
 
 
 async def api_config_handler(request: Request) -> JSONResponse:
@@ -1077,10 +1105,12 @@ async def api_config_handler(request: Request) -> JSONResponse:
         if _config_path and _config_path.exists():
             config = load_config_from_yaml(_config_path) or {}
             _config_cache = config
-        return JSONResponse({
-            "config": config,
-            "config_path": str(_config_path) if _config_path else None,
-        })
+        return JSONResponse(
+            {
+                "config": config,
+                "config_path": str(_config_path) if _config_path else None,
+            }
+        )
     elif request.method == "PUT":
         if not _config_path:
             return JSONResponse({"error": "No config file path set"}, status_code=400)
@@ -1088,6 +1118,7 @@ async def api_config_handler(request: Request) -> JSONResponse:
             body = await request.json()
             config_data = body.get("config", body)
             import yaml
+
             with open(_config_path, "w") as f:
                 yaml.dump(config_data, f, default_flow_style=False, allow_unicode=True)
             _config_cache = config_data
@@ -1110,35 +1141,41 @@ async def api_logs(request: Request) -> JSONResponse:
 
 async def api_usage(request: Request) -> JSONResponse:
     """Return usage statistics."""
-    return JSONResponse({
-        "usage": _usage_stats,
-        "sessions": {
-            "total": len(await _datastore.list_sessions()),
-            "active": len(_active_tasks),
-        },
-    })
+    return JSONResponse(
+        {
+            "usage": _usage_stats,
+            "sessions": {
+                "total": len(await _datastore.list_sessions()),
+                "active": len(_active_tasks),
+            },
+        }
+    )
 
 
 async def api_debug(request: Request) -> JSONResponse:
     """Debug info — versions, env, loaded modules."""
     import platform
+
     pkg_versions = {}
     for pkg in ["praisonaiui", "praisonaiagents", "openai", "starlette", "uvicorn"]:
         try:
             from importlib.metadata import version as pkg_version
+
             pkg_versions[pkg] = pkg_version(pkg)
         except Exception:
             pkg_versions[pkg] = "not installed"
-    return JSONResponse({
-        "python": sys.version,
-        "platform": platform.platform(),
-        "packages": pkg_versions,
-        "callbacks_registered": list(_callbacks.keys()),
-        "agents_registered": list(_agents.keys()),
-        "datastore_type": type(_datastore).__name__,
-        "config_path": str(_config_path) if _config_path else None,
-        "log_buffer_size": len(_log_buffer),
-    })
+    return JSONResponse(
+        {
+            "python": sys.version,
+            "platform": platform.platform(),
+            "packages": pkg_versions,
+            "callbacks_registered": list(_callbacks.keys()),
+            "agents_registered": list(_agents.keys()),
+            "datastore_type": type(_datastore).__name__,
+            "config_path": str(_config_path) if _config_path else None,
+            "log_buffer_size": len(_log_buffer),
+        }
+    )
 
 
 async def api_provider(request: Request) -> JSONResponse:
@@ -1163,7 +1200,7 @@ async def api_provider(request: Request) -> JSONResponse:
 
 async def api_action_click(request: Request) -> JSONResponse:
     """Handle action button clicks and dispatch to registered callbacks.
-    
+
     POST /api/actions/{action_id}/click
     Body: {
         "payload": {...},       # Optional data from Action.payload
@@ -1173,20 +1210,20 @@ async def api_action_click(request: Request) -> JSONResponse:
     }
     """
     action_id = request.path_params["action_id"]
-    
+
     try:
         body = await request.json()
     except Exception:
         return JSONResponse({"error": "Invalid JSON in request body"}, status_code=400)
-    
+
     action_name = body.get("action_name")
     if not action_name:
         return JSONResponse({"error": "action_name is required"}, status_code=400)
-    
+
     payload = body.get("payload")
     message_id = body.get("message_id")
     session_id = body.get("session_id")
-    
+
     # Security: verify that the action belongs to the specified message and session
     if session_id and message_id:
         try:
@@ -1199,39 +1236,50 @@ async def api_action_click(request: Request) -> JSONResponse:
                     message_found = True
                     actions = msg.get("actions", [])
                     for action_dict in actions:
-                        if (action_dict.get("id") == action_id and 
-                            action_dict.get("name") == action_name):
+                        if (
+                            action_dict.get("id") == action_id
+                            and action_dict.get("name") == action_name
+                        ):
                             action_found = True
                             break
                     break
-            
+
             if not message_found:
-                return JSONResponse({"error": f"Message {message_id} not found in session {session_id}"}, status_code=404)
+                return JSONResponse(
+                    {"error": f"Message {message_id} not found in session {session_id}"},
+                    status_code=404,
+                )
             if not action_found:
-                return JSONResponse({"error": f"Action {action_name} (id: {action_id}) not found in message {message_id}"}, status_code=404)
-                
+                return JSONResponse(
+                    {
+                        "error": f"Action {action_name} (id: {action_id}) not found in message {message_id}"
+                    },
+                    status_code=404,
+                )
+
         except Exception as e:
             logging.warning(f"Could not verify action security: {e}")
             # Continue anyway - don't break functionality if datastore has issues
-    
+
     # Create a stream queue for action.remove() functionality
     import asyncio
+
     stream_queue: asyncio.Queue = asyncio.Queue()
-    
+
     try:
         from praisonaiui.actions import dispatch_action_callback
-        
+
         await dispatch_action_callback(
             action_name=action_name,
             action_id=action_id,
             payload=payload,
             message_id=message_id,
             session_id=session_id,
-            stream_queue=stream_queue
+            stream_queue=stream_queue,
         )
-        
+
         return JSONResponse({"success": True})
-        
+
     except ValueError as e:
         # No callback registered for this action name
         return JSONResponse({"error": str(e)}, status_code=404)
@@ -1280,15 +1328,18 @@ async def api_gateway_status(request: Request) -> JSONResponse:
     """GET /api/gateway/status — real gateway connectivity and agent info."""
     try:
         from praisonaiui.features._gateway_ref import get_gateway
+
         gw = get_gateway()
         if gw is None:
-            return JSONResponse({
-                "status": "not_connected",
-                "connected": False,
-                "agents": [],
-                "agent_count": 0,
-                "message": "Gateway instance not initialized",
-            })
+            return JSONResponse(
+                {
+                    "status": "not_connected",
+                    "connected": False,
+                    "agents": [],
+                    "agent_count": 0,
+                    "message": "Gateway instance not initialized",
+                }
+            )
         agents = []
         try:
             for aid in gw.list_agents():
@@ -1297,20 +1348,24 @@ async def api_gateway_status(request: Request) -> JSONResponse:
                 agents.append({"id": aid, "name": name})
         except Exception:
             pass
-        return JSONResponse({
-            "status": "connected",
-            "connected": True,
-            "agents": agents,
-            "agent_count": len(agents),
-        })
+        return JSONResponse(
+            {
+                "status": "connected",
+                "connected": True,
+                "agents": agents,
+                "agent_count": len(agents),
+            }
+        )
     except ImportError:
-        return JSONResponse({
-            "status": "unavailable",
-            "connected": False,
-            "agents": [],
-            "agent_count": 0,
-            "message": "Gateway module not installed",
-        })
+        return JSONResponse(
+            {
+                "status": "unavailable",
+                "connected": False,
+                "agents": [],
+                "agent_count": 0,
+                "message": "Gateway module not installed",
+            }
+        )
 
 
 async def api_page_data(request: Request) -> JSONResponse:
@@ -1321,6 +1376,7 @@ async def api_page_data(request: Request) -> JSONResponse:
         return JSONResponse({"error": f"No handler for page '{page_id}'"}, status_code=404)
     try:
         import asyncio as _aio
+
         result = handler()
         if _aio.iscoroutine(result):
             result = await result
@@ -1343,6 +1399,7 @@ async def api_page_action(request: Request) -> JSONResponse:
     try:
         data = await request.json()
         import asyncio as _aio
+
         result = handler(data)
         if _aio.iscoroutine(result):
             result = await result
@@ -1357,6 +1414,7 @@ def _get_version() -> str:
     """Get praisonaiui version."""
     try:
         from importlib.metadata import version
+
         return version("praisonaiui")
     except Exception:
         return "dev"
@@ -1378,6 +1436,7 @@ def track_usage(session_id: str = "unknown", model: str = "unknown", tokens: int
 
 class LogBufferHandler(logging.Handler):
     """Logging handler that captures log entries into the in-memory buffer."""
+
     def emit(self, record: logging.LogRecord) -> None:
         entry = {
             "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
@@ -1460,6 +1519,7 @@ async def welcome_handler(request: Request) -> StreamingResponse:
                     try:
                         # Set context so aiui.say() works
                         from praisonaiui.callbacks import _set_context
+
                         _set_context(msg)
                         result = callback()
                         if asyncio.iscoroutine(result):
@@ -1468,6 +1528,7 @@ async def welcome_handler(request: Request) -> StreamingResponse:
                         await stream_queue.put({"type": "error", "error": str(e)})
                     finally:
                         from praisonaiui.callbacks import _set_context
+
                         _set_context(None)
                         await stream_queue.put({"type": "done"})
 
@@ -1533,11 +1594,14 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
             session_id = session["id"]
 
     # Add user message to session
-    await _datastore.add_message(session_id, {
-        "role": "user",
-        "content": message,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
+    await _datastore.add_message(
+        session_id,
+        {
+            "role": "user",
+            "content": message,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    )
 
     async def event_stream() -> AsyncGenerator[str, None]:
         """Generate SSE events via the pluggable provider."""
@@ -1554,6 +1618,7 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
         augmented_message = message
         try:
             from praisonaiui.features.knowledge import get_knowledge_manager
+
             k_mgr = get_knowledge_manager()
             k_entries = k_mgr.list_all()
             if k_entries:
@@ -1610,6 +1675,7 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
                             tool_step_counter += 1
                     try:
                         from praisonaiui.features.chat import _enrich_tool_payload
+
                         _enrich_tool_payload(payload, tool_step_counter, is_completed=is_completed)
                     except ImportError:
                         # Fallback: basic enrichment if chat module unavailable
@@ -1652,6 +1718,7 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
             # Auto-store conversation turn in memory (non-blocking)
             try:
                 from praisonaiui.features.memory import get_memory_manager
+
                 mgr = get_memory_manager()
                 mgr.store(
                     message,
@@ -1702,15 +1769,19 @@ async def cancel_run(request: Request) -> JSONResponse:
     if task and not task.done():
         task.cancel()
         _active_tasks.pop(session_id, None)
-        return JSONResponse({
-            "status": "cancelled",
-            "session_id": session_id,
-        })
+        return JSONResponse(
+            {
+                "status": "cancelled",
+                "session_id": session_id,
+            }
+        )
 
-    return JSONResponse({
-        "status": "no_active_run",
-        "session_id": session_id,
-    })
+    return JSONResponse(
+        {
+            "status": "no_active_run",
+            "session_id": session_id,
+        }
+    )
 
 
 class MessageContext:
@@ -1760,12 +1831,14 @@ class MessageContext:
     async def tool(self, name: str, args: dict = None, result: Any = None) -> None:
         """Send a tool call event."""
         if self._stream_queue:
-            await self._stream_queue.put({
-                "type": "tool_call",
-                "name": name,
-                "args": args or {},
-                "result": result,
-            })
+            await self._stream_queue.put(
+                {
+                    "type": "tool_call",
+                    "name": name,
+                    "args": args or {},
+                    "result": result,
+                }
+            )
 
     async def ask(self, question: str, options: list = None, timeout: float = 300.0) -> str:
         """Ask user a question and wait for response.
@@ -1786,11 +1859,13 @@ class MessageContext:
         self._pending_ask = loop.create_future()
 
         # Send the ask event to the client
-        await self._stream_queue.put({
-            "type": "ask",
-            "question": question,
-            "options": options or [],
-        })
+        await self._stream_queue.put(
+            {
+                "type": "ask",
+                "question": question,
+                "options": options or [],
+            }
+        )
 
         try:
             # Wait for user response with timeout
@@ -1813,6 +1888,7 @@ def load_config_from_yaml(config_path: Path) -> Optional[dict]:
         return None
     try:
         import yaml
+
         with open(config_path) as f:
             return yaml.safe_load(f)
     except Exception:
@@ -1892,9 +1968,12 @@ class AuthEnforcementMiddleware:
     """Optional middleware that enforces auth on /api/* routes when AUTH_ENFORCE=true."""
 
     EXEMPT_PATHS = {
-        "/health", "/api/health",
-        "/api/auth/login", "/login",
-        "/api/protocol", "/api/protocol/negotiate",
+        "/health",
+        "/api/health",
+        "/api/auth/login",
+        "/login",
+        "/api/protocol",
+        "/api/protocol/negotiate",
     }
 
     def __init__(self, app):
@@ -1911,8 +1990,10 @@ class AuthEnforcementMiddleware:
                 if not auth_header.startswith("Bearer "):
                     # Return 401 Unauthorized
                     response = JSONResponse(
-                        {"error": "Authorization required",
-                         "hint": "Set Authorization: Bearer <token>"},
+                        {
+                            "error": "Authorization required",
+                            "hint": "Set Authorization: Bearer <token>",
+                        },
                         status_code=401,
                     )
                     await response(scope, receive, send)
@@ -1920,6 +2001,7 @@ class AuthEnforcementMiddleware:
                 else:
                     token = auth_header[7:]
                     from praisonaiui.features.auth import verify_api_key
+
                     if not verify_api_key(token):
                         response = JSONResponse(
                             {"error": "Invalid or expired token"},
@@ -1936,17 +2018,19 @@ async def _lifespan_handler(app: Starlette):
     # Startup
     try:
         from praisonaiui.features.lifecycle import run_startup_hooks
+
         await run_startup_hooks()
     except ImportError:
         pass  # Lifecycle feature not loaded
     except Exception as e:
         logging.getLogger(__name__).error(f"Startup hooks failed: {e}")
-    
+
     yield
-    
+
     # Shutdown
     try:
         from praisonaiui.features.lifecycle import run_shutdown_hooks
+
         await run_shutdown_hooks()
     except ImportError:
         pass  # Lifecycle feature not loaded
@@ -2031,6 +2115,7 @@ def create_app(
         _debug = True
         try:
             from praisonaiui.config_store import get_config_store
+
             _cs = get_config_store()
             _site_section = _cs.get_section("site") if _cs else {}
             if _site_section:
@@ -2059,7 +2144,11 @@ def create_app(
         _css = _custom_css
         if not _css:
             try:
-                _css = _site_section.get("custom_css") or _site_section.get("customCss") if _site_section else None
+                _css = (
+                    _site_section.get("custom_css") or _site_section.get("customCss")
+                    if _site_section
+                    else None
+                )
             except Exception:
                 pass
 
@@ -2071,7 +2160,9 @@ def create_app(
                 if _dash_section and isinstance(_dash_section, dict):
                     _dash_cfg = {
                         "sidebar": _dash_section.get("sidebar", _dash_section.get("sidebar", True)),
-                        "pageHeader": _dash_section.get("pageHeader", _dash_section.get("page_header", True)),
+                        "pageHeader": _dash_section.get(
+                            "pageHeader", _dash_section.get("page_header", True)
+                        ),
                     }
             except Exception:
                 pass
@@ -2082,29 +2173,43 @@ def create_app(
         # Brand color
         _brand = _brand_color
 
-        return JSONResponse({
-            "style": effective_style,
-            "site": {
-                "title": _title,
-                "logo": _logo,
-                "theme": _theme_cfg,
-                "customCss": _css,
-                **({
-                    "brandColor": _brand,
-                } if _brand else {}),
-            },
-            "chat": {
-                "enabled": effective_style in ("chat", "agents", "playground", "dashboard"),
-                "mode": _chat_mode_cfg,
-                **({
-                    "features": _chat_features,
-                } if _chat_features else {}),
-            },
-            **({
-                "dashboard": _dash_cfg,
-            } if _dash_cfg else {}),
-            "debug": _debug,
-        })
+        return JSONResponse(
+            {
+                "style": effective_style,
+                "site": {
+                    "title": _title,
+                    "logo": _logo,
+                    "theme": _theme_cfg,
+                    "customCss": _css,
+                    **(
+                        {
+                            "brandColor": _brand,
+                        }
+                        if _brand
+                        else {}
+                    ),
+                },
+                "chat": {
+                    "enabled": effective_style in ("chat", "agents", "playground", "dashboard"),
+                    "mode": _chat_mode_cfg,
+                    **(
+                        {
+                            "features": _chat_features,
+                        }
+                        if _chat_features
+                        else {}
+                    ),
+                },
+                **(
+                    {
+                        "dashboard": _dash_cfg,
+                    }
+                    if _dash_cfg
+                    else {}
+                ),
+                "debug": _debug,
+            }
+        )
 
     async def _docs_nav_json(request: Request) -> JSONResponse:
         return JSONResponse({"items": []})
@@ -2174,20 +2279,24 @@ def create_app(
     # Features load lazily via get_config_store() on first access.
     try:
         from praisonaiui.config_store import init_config_store
+
         _default_data_dir = _get_data_dir()
         _config_store = init_config_store(_default_data_dir / "config.yaml")
 
         # Connect hot-reload watcher to the config store YAML file
         try:
             from praisonaiui.features.config_hot_reload import (
-                ConfigWatcher, set_config_watcher,
+                ConfigWatcher,
+                set_config_watcher,
             )
+
             def _on_config_reload():
                 """Reload config store and reset feature lazy-load flags."""
                 _config_store.reload()
                 # Reset agent registry so it re-reads from store
                 try:
                     from praisonaiui.features.agents import get_agent_registry
+
                     reg = get_agent_registry()
                     if hasattr(reg, "_config_loaded"):
                         reg._config_loaded = False
@@ -2196,15 +2305,19 @@ def create_app(
                 # Reset skills lazy-load
                 try:
                     from praisonaiui.features import skills as _skills_mod
+
                     _skills_mod._skills_loaded = False
                 except Exception:
                     pass
                 # Reload channels from config and reset auto-start flag
                 try:
-                    from praisonaiui.features.channels import (
-                        _channels, _CHANNELS_SECTION, ChannelsFeature,
-                    )
                     from praisonaiui.features._persistence import load_section
+                    from praisonaiui.features.channels import (
+                        _CHANNELS_SECTION,
+                        ChannelsFeature,
+                        _channels,
+                    )
+
                     updated = load_section(_CHANNELS_SECTION)
                     _channels.clear()
                     _channels.update(updated)
@@ -2222,11 +2335,13 @@ def create_app(
             pass
     except Exception as e:
         import logging as _log
+
         _log.getLogger(__name__).warning("Failed to init config store: %s", e)
 
     # Legacy: keep usage persistence via its own JSON (not yet migrated)
     try:
         from praisonaiui.features.usage import set_data_file as set_usage_data_file
+
         set_usage_data_file(_get_data_dir() / "usage.json")
     except ImportError:
         pass
@@ -2238,65 +2353,227 @@ def create_app(
 
     # Register built-in dashboard pages via the same protocol
     _builtin_pages = [
-        {"id": "overview", "title": "Overview", "icon": "📊", "group": "Control",
-         "description": "System health and statistics", "order": 10},
-        {"id": "chat", "title": "Chat", "icon": "💬", "group": "Agent",
-         "description": "AI agent chat", "order": 1},
-        {"id": "channels", "title": "Channels", "icon": "📡", "group": "Agent",
-         "description": "Messaging platform connections", "order": 5},
-        {"id": "sessions", "title": "Sessions", "icon": "📋", "group": "Control",
-         "description": "Manage conversation sessions", "order": 20},
-        {"id": "usage", "title": "Usage", "icon": "📈", "group": "Control",
-         "description": "Token usage and metrics", "order": 30},
-        {"id": "feedback", "title": "Feedback", "icon": "👍", "group": "Control",
-         "description": "Message feedback analytics", "order": 25},
-        {"id": "cron", "title": "Cron", "icon": "⏰", "group": "Agent",
-         "description": "Scheduled jobs", "order": 35},
-        {"id": "jobs", "title": "Jobs", "icon": "📋", "group": "Control",
-         "description": "Async agent jobs", "order": 40},
-        {"id": "approvals", "title": "Approvals", "icon": "✅", "group": "Control",
-         "description": "Execution approval queue", "order": 45},
-        {"id": "api", "title": "API", "icon": "🔌", "group": "Control",
-         "description": "OpenAI-compatible API endpoints", "order": 50},
-        {"id": "agents", "title": "Agents", "icon": "🤖", "group": "Agent",
-         "description": "Configured AI agents", "order": 10},
-        {"id": "skills", "title": "Skills", "icon": "⚡", "group": "Agent",
-         "description": "Agent skills & plugins", "order": 20},
-        {"id": "memory", "title": "Memory", "icon": "🧠", "group": "Agent",
-         "description": "Agent memory & knowledge store", "order": 25},
-        {"id": "knowledge", "title": "Knowledge", "icon": "📚", "group": "Agent",
-         "description": "Knowledge base & RAG", "order": 27},
-        {"id": "nodes", "title": "Nodes", "icon": "🖥️", "group": "Control",
-         "description": "Execution nodes & presence", "order": 15},
-        {"id": "config", "title": "Config", "icon": "⚙️", "group": "Settings",
-         "description": "Server configuration", "order": 10},
-        {"id": "auth", "title": "Auth", "icon": "🔐", "group": "Settings",
-         "description": "Authentication settings", "order": 15},
-        {"id": "logs", "title": "Logs", "icon": "📜", "group": "Settings",
-         "description": "Server logs and events", "order": 20},
-        {"id": "debug", "title": "Debug", "icon": "🐛", "group": "Settings",
-         "description": "Debug information", "order": 30},
-        {"id": "guardrails", "title": "Guardrails", "icon": "🛡️", "group": "Agent",
-         "description": "Input/output safety guardrails", "order": 35},
-        {"id": "eval", "title": "Eval", "icon": "📊", "group": "Control",
-         "description": "Agent evaluation & accuracy", "order": 40},
-        {"id": "telemetry", "title": "Telemetry", "icon": "📈", "group": "Settings",
-         "description": "Performance monitoring & profiling", "order": 25},
-        {"id": "traces", "title": "Traces", "icon": "🔍", "group": "Settings",
-         "description": "Distributed tracing & observability", "order": 27},
-        {"id": "security", "title": "Security", "icon": "🔒", "group": "Settings",
-         "description": "Security monitoring & audit log", "order": 12},
-        {"id": "inspector", "title": "Inspector", "icon": "🔍", "group": "Control",
-         "description": "Interactive API inspector", "order": 99, "position": "footer"},
-        {"id": "theme-picker", "title": "Theme", "icon": "🎨", "group": "Settings",
-         "description": "Live color scheme picker", "order": 35},
+        {
+            "id": "overview",
+            "title": "Overview",
+            "icon": "📊",
+            "group": "Control",
+            "description": "System health and statistics",
+            "order": 10,
+        },
+        {
+            "id": "chat",
+            "title": "Chat",
+            "icon": "💬",
+            "group": "Agent",
+            "description": "AI agent chat",
+            "order": 1,
+        },
+        {
+            "id": "channels",
+            "title": "Channels",
+            "icon": "📡",
+            "group": "Agent",
+            "description": "Messaging platform connections",
+            "order": 5,
+        },
+        {
+            "id": "sessions",
+            "title": "Sessions",
+            "icon": "📋",
+            "group": "Control",
+            "description": "Manage conversation sessions",
+            "order": 20,
+        },
+        {
+            "id": "usage",
+            "title": "Usage",
+            "icon": "📈",
+            "group": "Control",
+            "description": "Token usage and metrics",
+            "order": 30,
+        },
+        {
+            "id": "feedback",
+            "title": "Feedback",
+            "icon": "👍",
+            "group": "Control",
+            "description": "Message feedback analytics",
+            "order": 25,
+        },
+        {
+            "id": "cron",
+            "title": "Cron",
+            "icon": "⏰",
+            "group": "Agent",
+            "description": "Scheduled jobs",
+            "order": 35,
+        },
+        {
+            "id": "jobs",
+            "title": "Jobs",
+            "icon": "📋",
+            "group": "Control",
+            "description": "Async agent jobs",
+            "order": 40,
+        },
+        {
+            "id": "approvals",
+            "title": "Approvals",
+            "icon": "✅",
+            "group": "Control",
+            "description": "Execution approval queue",
+            "order": 45,
+        },
+        {
+            "id": "api",
+            "title": "API",
+            "icon": "🔌",
+            "group": "Control",
+            "description": "OpenAI-compatible API endpoints",
+            "order": 50,
+        },
+        {
+            "id": "agents",
+            "title": "Agents",
+            "icon": "🤖",
+            "group": "Agent",
+            "description": "Configured AI agents",
+            "order": 10,
+        },
+        {
+            "id": "skills",
+            "title": "Skills",
+            "icon": "⚡",
+            "group": "Agent",
+            "description": "Agent skills & plugins",
+            "order": 20,
+        },
+        {
+            "id": "memory",
+            "title": "Memory",
+            "icon": "🧠",
+            "group": "Agent",
+            "description": "Agent memory & knowledge store",
+            "order": 25,
+        },
+        {
+            "id": "knowledge",
+            "title": "Knowledge",
+            "icon": "📚",
+            "group": "Agent",
+            "description": "Knowledge base & RAG",
+            "order": 27,
+        },
+        {
+            "id": "nodes",
+            "title": "Nodes",
+            "icon": "🖥️",
+            "group": "Control",
+            "description": "Execution nodes & presence",
+            "order": 15,
+        },
+        {
+            "id": "config",
+            "title": "Config",
+            "icon": "⚙️",
+            "group": "Settings",
+            "description": "Server configuration",
+            "order": 10,
+        },
+        {
+            "id": "auth",
+            "title": "Auth",
+            "icon": "🔐",
+            "group": "Settings",
+            "description": "Authentication settings",
+            "order": 15,
+        },
+        {
+            "id": "logs",
+            "title": "Logs",
+            "icon": "📜",
+            "group": "Settings",
+            "description": "Server logs and events",
+            "order": 20,
+        },
+        {
+            "id": "debug",
+            "title": "Debug",
+            "icon": "🐛",
+            "group": "Settings",
+            "description": "Debug information",
+            "order": 30,
+        },
+        {
+            "id": "guardrails",
+            "title": "Guardrails",
+            "icon": "🛡️",
+            "group": "Agent",
+            "description": "Input/output safety guardrails",
+            "order": 35,
+        },
+        {
+            "id": "eval",
+            "title": "Eval",
+            "icon": "📊",
+            "group": "Control",
+            "description": "Agent evaluation & accuracy",
+            "order": 40,
+        },
+        {
+            "id": "telemetry",
+            "title": "Telemetry",
+            "icon": "📈",
+            "group": "Settings",
+            "description": "Performance monitoring & profiling",
+            "order": 25,
+        },
+        {
+            "id": "traces",
+            "title": "Traces",
+            "icon": "🔍",
+            "group": "Settings",
+            "description": "Distributed tracing & observability",
+            "order": 27,
+        },
+        {
+            "id": "security",
+            "title": "Security",
+            "icon": "🔒",
+            "group": "Settings",
+            "description": "Security monitoring & audit log",
+            "order": 12,
+        },
+        {
+            "id": "inspector",
+            "title": "Inspector",
+            "icon": "🔍",
+            "group": "Control",
+            "description": "Interactive API inspector",
+            "order": 99,
+            "position": "footer",
+        },
+        {
+            "id": "theme-picker",
+            "title": "Theme",
+            "icon": "🎨",
+            "group": "Settings",
+            "description": "Live color scheme picker",
+            "order": 35,
+        },
     ]
-    _page_api_overrides = {"sessions": "/sessions", "cron": "/api/schedules", "channels": "/api/channels"}
+    _page_api_overrides = {
+        "sessions": "/sessions",
+        "cron": "/api/schedules",
+        "channels": "/api/channels",
+    }
 
     # Read page whitelist from config.yaml if set_pages() was not called
     if _enabled_pages is None:
         try:
             from praisonaiui.config_store import get_config_store
+
             _cfg = get_config_store()
             _pages_cfg = _cfg.get("pages", {}) if _cfg else {}
             if isinstance(_pages_cfg, dict):
@@ -2383,21 +2660,26 @@ def create_app(
             if response_status == 404:
                 # SPA fallback — serve the generated index page
                 from starlette.responses import HTMLResponse
+
                 style = _effective_style  # Single source of truth
                 html_content = _build_html(style)
                 response = HTMLResponse(html_content)
                 await response(scope, receive, send)
             else:
                 # Forward the captured response as-is
-                await send({
-                    "type": "http.response.start",
-                    "status": response_status,
-                    "headers": response_headers,
-                })
-                await send({
-                    "type": "http.response.body",
-                    "body": response_body,
-                })
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": response_status,
+                        "headers": response_headers,
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": response_body,
+                    }
+                )
 
         routes.append(Mount("/", app=_http_only_static))
     else:
@@ -2432,6 +2714,7 @@ def _install_log_handler():
     # Also install the feature WebSocket handler so the /logs page works
     try:
         from praisonaiui.features.logs import install_log_handler as _install_ws
+
         _install_ws()
     except ImportError:
         pass

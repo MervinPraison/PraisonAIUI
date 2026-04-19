@@ -10,7 +10,7 @@ import asyncio
 import json
 import logging
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -59,15 +59,17 @@ class AudioFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "audio",
-            "help": "Manage audio streaming hooks",
-            "commands": {
-                "stats": {"help": "Show audio stats", "handler": self._cli_stats},
-                "sessions": {"help": "List active sessions", "handler": self._cli_sessions},
-                "hooks": {"help": "List registered hooks", "handler": self._cli_hooks},
-            },
-        }]
+        return [
+            {
+                "name": "audio",
+                "help": "Manage audio streaming hooks",
+                "commands": {
+                    "stats": {"help": "Show audio stats", "handler": self._cli_stats},
+                    "sessions": {"help": "List active sessions", "handler": self._cli_sessions},
+                    "hooks": {"help": "List registered hooks", "handler": self._cli_hooks},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         return {
@@ -83,39 +85,46 @@ class AudioFeature(BaseFeatureProtocol):
 
     async def _stats(self, request: Request) -> JSONResponse:
         """Get audio streaming statistics."""
-        return JSONResponse({
-            "stats": _audio_stats,
-            "hooks": {
-                "start": len(_audio_start_hooks),
-                "chunk": len(_audio_chunk_hooks),
-                "end": len(_audio_end_hooks),
-            },
-            "sessions": {
-                "active": len(_audio_sessions),
-                "session_ids": list(_audio_sessions.keys()),
-            },
-        })
+        return JSONResponse(
+            {
+                "stats": _audio_stats,
+                "hooks": {
+                    "start": len(_audio_start_hooks),
+                    "chunk": len(_audio_chunk_hooks),
+                    "end": len(_audio_end_hooks),
+                },
+                "sessions": {
+                    "active": len(_audio_sessions),
+                    "session_ids": list(_audio_sessions.keys()),
+                },
+            }
+        )
 
     async def _list_sessions(self, request: Request) -> JSONResponse:
         """List active audio sessions."""
         sessions = []
         for session_id, session_data in _audio_sessions.items():
-            sessions.append({
-                "session_id": session_id,
-                "started_at": session_data.get("started_at"),
-                "chunks_received": session_data.get("chunks_received", 0),
-                "bytes_received": session_data.get("bytes_received", 0),
-                "sample_rate": session_data.get("sample_rate"),
-                "last_chunk_at": session_data.get("last_chunk_at"),
-            })
-        
-        return JSONResponse({
-            "sessions": sessions,
-            "total": len(sessions),
-        })
+            sessions.append(
+                {
+                    "session_id": session_id,
+                    "started_at": session_data.get("started_at"),
+                    "chunks_received": session_data.get("chunks_received", 0),
+                    "bytes_received": session_data.get("bytes_received", 0),
+                    "sample_rate": session_data.get("sample_rate"),
+                    "last_chunk_at": session_data.get("last_chunk_at"),
+                }
+            )
+
+        return JSONResponse(
+            {
+                "sessions": sessions,
+                "total": len(sessions),
+            }
+        )
 
     async def _list_hooks(self, request: Request) -> JSONResponse:
         """List all registered audio hooks."""
+
         def get_hook_info(hooks):
             return [
                 {
@@ -124,29 +133,31 @@ class AudioFeature(BaseFeatureProtocol):
                 }
                 for hook in hooks
             ]
-        
-        return JSONResponse({
-            "start_hooks": get_hook_info(_audio_start_hooks),
-            "chunk_hooks": get_hook_info(_audio_chunk_hooks),
-            "end_hooks": get_hook_info(_audio_end_hooks),
-        })
+
+        return JSONResponse(
+            {
+                "start_hooks": get_hook_info(_audio_start_hooks),
+                "chunk_hooks": get_hook_info(_audio_chunk_hooks),
+                "end_hooks": get_hook_info(_audio_end_hooks),
+            }
+        )
 
     async def _websocket_handler(self, websocket: WebSocket) -> None:
         """WebSocket handler for audio chunk streaming."""
         await websocket.accept()
         session_id = None
-        
+
         try:
             # Wait for initial message with session info
             data = await websocket.receive_json()
             session_id = data.get("session_id")
             sample_rate = data.get("sample_rate", 16000)
-            
+
             if not session_id:
                 await websocket.send_json({"error": "session_id required"})
                 await websocket.close()
                 return
-            
+
             # Create session
             _audio_sessions[session_id] = {
                 "started_at": time.time(),
@@ -155,20 +166,20 @@ class AudioFeature(BaseFeatureProtocol):
                 "bytes_received": 0,
                 "last_chunk_at": time.time(),
             }
-            
+
             _audio_stats["total_sessions"] += 1
             _audio_stats["active_sessions"] += 1
-            
+
             # Trigger start hooks
             await self._trigger_start_hooks(session_id)
-            
+
             await websocket.send_json({"status": "ready"})
-            
+
             # Handle audio chunks
             while True:
                 try:
                     message = await websocket.receive()
-                    
+
                     if message["type"] == "websocket.disconnect":
                         break
                     elif message["type"] == "websocket.receive":
@@ -176,7 +187,7 @@ class AudioFeature(BaseFeatureProtocol):
                             # Binary audio data
                             audio_data = message["bytes"]
                             await self._handle_audio_chunk(session_id, audio_data, sample_rate)
-                            
+
                         elif "text" in message:
                             # JSON control message
                             try:
@@ -186,13 +197,13 @@ class AudioFeature(BaseFeatureProtocol):
                                     break
                             except json.JSONDecodeError:
                                 _log.warning("Invalid JSON in audio control message")
-                                
+
                 except WebSocketDisconnect:
                     break
                 except Exception as e:
                     _log.error(f"Error in audio websocket: {e}")
                     await websocket.send_json({"error": str(e)})
-        
+
         except Exception as e:
             _log.error(f"Audio websocket error: {e}")
         finally:
@@ -200,11 +211,11 @@ class AudioFeature(BaseFeatureProtocol):
             if session_id and session_id in _audio_sessions:
                 del _audio_sessions[session_id]
                 _audio_stats["active_sessions"] = max(0, _audio_stats["active_sessions"] - 1)
-            
+
             # Trigger end hooks if not already triggered
             if session_id:
                 await self._trigger_end_hooks(session_id)
-            
+
             if not websocket.client_state.disconnected:
                 await websocket.close()
 
@@ -215,10 +226,10 @@ class AudioFeature(BaseFeatureProtocol):
             session["chunks_received"] += 1
             session["bytes_received"] += len(pcm_data)
             session["last_chunk_at"] = time.time()
-            
+
             _audio_stats["total_chunks"] += 1
             _audio_stats["total_bytes"] += len(pcm_data)
-        
+
         # Trigger chunk hooks
         await self._trigger_chunk_hooks(session_id, pcm_data, sample_rate)
 
@@ -233,7 +244,9 @@ class AudioFeature(BaseFeatureProtocol):
             except Exception as e:
                 _log.error(f"Audio start hook failed: {getattr(hook, '__name__', str(hook))}: {e}")
 
-    async def _trigger_chunk_hooks(self, session_id: str, pcm_data: bytes, sample_rate: int) -> None:
+    async def _trigger_chunk_hooks(
+        self, session_id: str, pcm_data: bytes, sample_rate: int
+    ) -> None:
         """Execute all audio chunk hooks."""
         for hook in _audio_chunk_hooks:
             try:
@@ -269,7 +282,7 @@ class AudioFeature(BaseFeatureProtocol):
     def _cli_sessions(self) -> str:
         if not _audio_sessions:
             return "No active audio sessions"
-        
+
         lines = []
         for session_id, session in _audio_sessions.items():
             chunks = session.get("chunks_received", 0)
@@ -299,10 +312,10 @@ class AudioFeature(BaseFeatureProtocol):
 
 def register_audio_start_hook(func: Callable) -> Callable:
     """Register an audio start hook.
-    
+
     Args:
         func: Function to call when audio recording starts (receives session_id)
-        
+
     Returns:
         The original function (for use as decorator)
     """
@@ -314,10 +327,10 @@ def register_audio_start_hook(func: Callable) -> Callable:
 
 def register_audio_chunk_hook(func: Callable) -> Callable:
     """Register an audio chunk hook.
-    
+
     Args:
         func: Function to call for each audio chunk (session_id, pcm_data, sample_rate)
-        
+
     Returns:
         The original function (for use as decorator)
     """
@@ -329,10 +342,10 @@ def register_audio_chunk_hook(func: Callable) -> Callable:
 
 def register_audio_end_hook(func: Callable) -> Callable:
     """Register an audio end hook.
-    
+
     Args:
         func: Function to call when audio recording ends (receives session_id)
-        
+
     Returns:
         The original function (for use as decorator)
     """
@@ -346,27 +359,29 @@ def reset_audio_state() -> None:
     """Reset audio state for testing."""
     global _audio_start_hooks, _audio_chunk_hooks, _audio_end_hooks
     global _audio_sessions, _audio_stats
-    
+
     _audio_start_hooks.clear()
     _audio_chunk_hooks.clear()
     _audio_end_hooks.clear()
     _audio_sessions.clear()
-    _audio_stats.update({
-        "total_sessions": 0,
-        "active_sessions": 0,
-        "total_chunks": 0,
-        "total_bytes": 0,
-    })
+    _audio_stats.update(
+        {
+            "total_sessions": 0,
+            "active_sessions": 0,
+            "total_chunks": 0,
+            "total_bytes": 0,
+        }
+    )
 
 
 # Public decorators
 def on_audio_start(func: Callable) -> Callable:
     """Decorator to register an audio start hook.
-    
+
     Called when user clicks mic button and session is ready.
-    
+
     Example::
-    
+
         @aiui.on_audio_start
         async def start(session_id: str):
             await aiui.Message(content="🎙 Listening...").send()
@@ -376,11 +391,11 @@ def on_audio_start(func: Callable) -> Callable:
 
 def on_audio_chunk(func: Callable) -> Callable:
     """Decorator to register an audio chunk hook.
-    
+
     Called for each streaming audio chunk (PCM/opus).
-    
+
     Example::
-    
+
         @aiui.on_audio_chunk
         async def chunk(session_id: str, pcm: bytes, sample_rate: int):
             # Forward to Whisper server / Deepgram / local vosk
@@ -391,11 +406,11 @@ def on_audio_chunk(func: Callable) -> Callable:
 
 def on_audio_end(func: Callable) -> Callable:
     """Decorator to register an audio end hook.
-    
+
     Called when recording stops (by user or VAD silence timeout).
-    
+
     Example::
-    
+
         @aiui.on_audio_end
         async def end(session_id: str):
             transcript = await stt_buffer.finalise()

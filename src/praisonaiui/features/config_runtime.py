@@ -14,14 +14,13 @@ from __future__ import annotations
 
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
-
 
 # ── Config Protocol ──────────────────────────────────────────────────
 
@@ -44,6 +43,7 @@ class ConfigProtocol(ABC):
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
 
+
 # In-memory runtime config (overlays the static YAML config)
 # Loaded from the 'runtime_config' section of ~/.praisonaiui/config.yaml
 from ._persistence import load_section, save_section
@@ -56,6 +56,7 @@ _config_history: List[Dict[str, Any]] = []
 def _persist_config() -> None:
     """Save runtime config to the unified config.yaml."""
     save_section(_SECTION, dict(_runtime_config))
+
 
 # JSON Schema for config form editor
 CONFIG_SCHEMA = {
@@ -93,9 +94,14 @@ CONFIG_SCHEMA = {
                     "type": "string",
                     "title": "Model Name",
                     "enum": [
-                        "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo",
-                        "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022",
-                        "gemini-2.0-flash", "gemini-1.5-pro",
+                        "gpt-4o",
+                        "gpt-4o-mini",
+                        "gpt-4-turbo",
+                        "gpt-3.5-turbo",
+                        "claude-3-5-sonnet-20241022",
+                        "claude-3-5-haiku-20241022",
+                        "gemini-2.0-flash",
+                        "gemini-1.5-pro",
                     ],
                     "default": "gpt-4o-mini",
                 },
@@ -178,13 +184,13 @@ def validate_config(config: Dict[str, Any], schema: Dict[str, Any] = None) -> Li
     """Validate config against schema. Returns list of errors."""
     errors = []
     schema = schema or CONFIG_SCHEMA
-    
+
     props = schema.get("properties", {})
     for key, prop_schema in props.items():
         if key in config:
             value = config[key]
             prop_type = prop_schema.get("type")
-            
+
             # Type validation
             if prop_type == "string" and not isinstance(value, str):
                 errors.append(f"{key}: expected string, got {type(value).__name__}")
@@ -198,18 +204,18 @@ def validate_config(config: Dict[str, Any], schema: Dict[str, Any] = None) -> Li
                 # Recursive validation
                 sub_errors = validate_config(value, prop_schema)
                 errors.extend([f"{key}.{e}" for e in sub_errors])
-            
+
             # Enum validation
             if "enum" in prop_schema and value not in prop_schema["enum"]:
                 errors.append(f"{key}: must be one of {prop_schema['enum']}")
-            
+
             # Range validation (only for actual numbers)
             if prop_type in ("number", "integer") and isinstance(value, (int, float)):
                 if "minimum" in prop_schema and value < prop_schema["minimum"]:
                     errors.append(f"{key}: must be >= {prop_schema['minimum']}")
                 if "maximum" in prop_schema and value > prop_schema["maximum"]:
                     errors.append(f"{key}: must be <= {prop_schema['maximum']}")
-    
+
     return errors
 
 
@@ -244,16 +250,18 @@ class ConfigRuntimeFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "config",
-            "help": "Manage runtime configuration",
-            "commands": {
-                "get": {"help": "Get runtime config", "handler": self._cli_get},
-                "set": {"help": "Set a config value", "handler": self._cli_set},
-                "list": {"help": "List all config keys", "handler": self._cli_list},
-                "history": {"help": "Show config change history", "handler": self._cli_history},
-            },
-        }]
+        return [
+            {
+                "name": "config",
+                "help": "Manage runtime configuration",
+                "commands": {
+                    "get": {"help": "Get runtime config", "handler": self._cli_get},
+                    "set": {"help": "Set a config value", "handler": self._cli_set},
+                    "list": {"help": "List all config keys", "handler": self._cli_list},
+                    "history": {"help": "Show config change history", "handler": self._cli_history},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
@@ -273,6 +281,7 @@ class ConfigRuntimeFeature(BaseFeatureProtocol):
         gateway_info = {"connected": False, "agents": []}
         try:
             from ._gateway_ref import get_gateway
+
             gw = get_gateway()
             if gw is not None:
                 gateway_info["connected"] = True
@@ -292,20 +301,27 @@ class ConfigRuntimeFeature(BaseFeatureProtocol):
         for k, v in changes.items():
             old = _runtime_config.get(k)
             _runtime_config[k] = v
-            _config_history.append({
-                "key": k, "old": old, "new": v, "timestamp": time.time(),
-            })
+            _config_history.append(
+                {
+                    "key": k,
+                    "old": old,
+                    "new": v,
+                    "timestamp": time.time(),
+                }
+            )
         _persist_config()
         return JSONResponse({"config": _runtime_config, "applied": len(changes)})
 
     async def _set(self, request: Request) -> JSONResponse:
         body = await request.json()
-        _config_history.append({
-            "action": "replace_all",
-            "old_keys": list(_runtime_config.keys()),
-            "new_keys": list(body.keys()),
-            "timestamp": time.time(),
-        })
+        _config_history.append(
+            {
+                "action": "replace_all",
+                "old_keys": list(_runtime_config.keys()),
+                "new_keys": list(body.keys()),
+                "timestamp": time.time(),
+            }
+        )
         _runtime_config.clear()
         _runtime_config.update(body)
         _persist_config()
@@ -326,9 +342,14 @@ class ConfigRuntimeFeature(BaseFeatureProtocol):
         body = await request.json()
         old = _runtime_config.get(key)
         _runtime_config[key] = body.get("value", body)
-        _config_history.append({
-            "key": key, "old": old, "new": _runtime_config[key], "timestamp": time.time(),
-        })
+        _config_history.append(
+            {
+                "key": key,
+                "old": old,
+                "new": _runtime_config[key],
+                "timestamp": time.time(),
+            }
+        )
         return JSONResponse({"key": key, "value": _runtime_config[key]})
 
     async def _delete_key(self, request: Request) -> JSONResponse:
@@ -336,9 +357,15 @@ class ConfigRuntimeFeature(BaseFeatureProtocol):
         if key not in _runtime_config:
             return JSONResponse({"error": f"Key '{key}' not found"}, status_code=404)
         old = _runtime_config.pop(key)
-        _config_history.append({
-            "key": key, "old": old, "new": None, "action": "delete", "timestamp": time.time(),
-        })
+        _config_history.append(
+            {
+                "key": key,
+                "old": old,
+                "new": None,
+                "action": "delete",
+                "timestamp": time.time(),
+            }
+        )
         _persist_config()
         return JSONResponse({"deleted": key})
 
@@ -353,39 +380,48 @@ class ConfigRuntimeFeature(BaseFeatureProtocol):
         body = await request.json()
         config = body.get("config", body)
         errors = validate_config(config)
-        return JSONResponse({
-            "valid": len(errors) == 0,
-            "errors": errors,
-        })
+        return JSONResponse(
+            {
+                "valid": len(errors) == 0,
+                "errors": errors,
+            }
+        )
 
     async def _apply(self, request: Request) -> JSONResponse:
         """POST /api/config/apply — Validate and apply config changes."""
         body = await request.json()
         config = body.get("config", body)
-        
+
         # Validate first
         errors = validate_config(config)
         if errors:
-            return JSONResponse({
-                "applied": False,
-                "errors": errors,
-            }, status_code=400)
-        
+            return JSONResponse(
+                {
+                    "applied": False,
+                    "errors": errors,
+                },
+                status_code=400,
+            )
+
         # Apply changes
-        _config_history.append({
-            "action": "apply",
-            "old_config": dict(_runtime_config),
-            "new_config": config,
-            "timestamp": time.time(),
-        })
+        _config_history.append(
+            {
+                "action": "apply",
+                "old_config": dict(_runtime_config),
+                "new_config": config,
+                "timestamp": time.time(),
+            }
+        )
         _runtime_config.clear()
         _runtime_config.update(config)
         _persist_config()
 
-        return JSONResponse({
-            "applied": True,
-            "config": _runtime_config,
-        })
+        return JSONResponse(
+            {
+                "applied": True,
+                "config": _runtime_config,
+            }
+        )
 
     async def _defaults(self, request: Request) -> JSONResponse:
         """GET /api/config/defaults — Return default values from schema."""

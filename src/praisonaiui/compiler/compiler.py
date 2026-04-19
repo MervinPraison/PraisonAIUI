@@ -52,13 +52,12 @@ class Compiler:
         # Install component dependencies if specified
         if self.config.dependencies and self.config.dependencies.shadcn:
             from praisonaiui.components import ensure_components
+
             # Let ensure_components auto-detect the frontend path
             installed, failed = ensure_components(self.config.dependencies.shadcn)
             if failed > 0:
                 return CompileResult(
-                    success=False,
-                    files=[],
-                    error=f"Failed to install {failed} component(s)"
+                    success=False, files=[], error=f"Failed to install {failed} component(s)"
                 )
 
         # Ensure output directory exists
@@ -88,7 +87,8 @@ class Compiler:
         files.append("index.html")
 
         # Generate theme.css — always, using defaults when site.theme is None
-        from praisonaiui.themes import inject_theme_css, get_radius_value
+        from praisonaiui.themes import get_radius_value, inject_theme_css
+
         theme = self.config.site.theme
         inject_theme_css(
             output_dir,
@@ -245,8 +245,7 @@ class Compiler:
                 }
             if self.config.navbar.links:
                 navbar_dict["links"] = [
-                    {"label": lnk.label, "href": lnk.href}
-                    for lnk in self.config.navbar.links
+                    {"label": lnk.label, "href": lnk.href} for lnk in self.config.navbar.links
                 ]
             result["navbar"] = navbar_dict
 
@@ -259,10 +258,7 @@ class Compiler:
                 footer_dict["links"] = [
                     {
                         "header": col.header,
-                        "items": [
-                            {"label": item.label, "href": item.href}
-                            for item in col.items
-                        ],
+                        "items": [{"label": item.label, "href": item.href} for item in col.items],
                     }
                     for col in self.config.footer.links
                 ]
@@ -300,8 +296,7 @@ class Compiler:
             for zone_name, widgets in zones_data.items():
                 if widgets:
                     zones_dict[zone_name] = [
-                        {"type": w.get("type"), "props": w.get("props", {})}
-                        for w in widgets
+                        {"type": w.get("type"), "props": w.get("props", {})} for w in widgets
                     ]
             if zones_dict:
                 result["zones"] = zones_dict
@@ -385,7 +380,11 @@ class Compiler:
                 shutil.copytree(assets_src, assets_dst)
             # Copy root-level static files (icons, favicons, etc.)
             static_exts = {
-                ".svg", ".png", ".ico", ".webmanifest", ".txt",
+                ".svg",
+                ".png",
+                ".ico",
+                ".webmanifest",
+                ".txt",
             }
             for f in frontend_dir.iterdir():
                 if f.is_file() and f.suffix in static_exts:
@@ -407,9 +406,7 @@ class Compiler:
             )
         html_path.write_text(html)
 
-    def _copy_plugins(
-        self, output_dir: Path, frontend_dir: Path
-    ) -> None:
+    def _copy_plugins(self, output_dir: Path, frontend_dir: Path) -> None:
         """Copy frontend plugins and generate plugins.json config."""
         import shutil
 
@@ -448,13 +445,9 @@ class Compiler:
                 ordered.append(p)
 
         plugins_config = {"plugins": ordered}
-        (plugins_dst / "plugins.json").write_text(
-            json.dumps(plugins_config, indent=2)
-        )
+        (plugins_dst / "plugins.json").write_text(json.dumps(plugins_config, indent=2))
 
-    def _generate_route_pages(
-        self, output_dir: Path, nav: dict
-    ) -> list[str]:
+    def _generate_route_pages(self, output_dir: Path, nav: dict) -> list[str]:
         """Generate per-route HTML files for SPA fallback and SEO.
 
         For each page in the docs navigation, creates an index.html at
@@ -480,8 +473,8 @@ class Compiler:
         pages = self._collect_nav_pages(nav)
 
         for page in pages:
-            path = page["path"]     # e.g. "/docs/concepts/configuration"
-            title = page["title"]   # e.g. "YAML Configuration"
+            path = page["path"]  # e.g. "/docs/concepts/configuration"
+            title = page["title"]  # e.g. "YAML Configuration"
 
             # Build file system path
             relative = path.lstrip("/")
@@ -543,7 +536,9 @@ class Compiler:
                 # Handle deeper nesting if present
                 for grandchild in child.get("children", []):
                     if grandchild.get("path"):
-                        pages.append({"path": grandchild["path"], "title": grandchild.get("title", "")})
+                        pages.append(
+                            {"path": grandchild["path"], "title": grandchild.get("title", "")}
+                        )
         return pages
 
     def _build_seo_tags(self, path: str, title: str, description: str) -> str:
@@ -669,4 +664,3 @@ class Compiler:
 
         # Return list of copied files (simplified)
         return ["docs/"]
-

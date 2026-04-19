@@ -9,13 +9,31 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ThemeConfig(BaseModel):
     """Theme configuration."""
+
     # All official Tailwind color names
     preset: Literal[
-        "zinc", "slate", "stone", "gray", "neutral",
-        "red", "orange", "amber", "yellow", "lime",
-        "green", "emerald", "teal", "cyan", "sky",
-        "blue", "indigo", "violet", "purple", "fuchsia",
-        "pink", "rose"
+        "zinc",
+        "slate",
+        "stone",
+        "gray",
+        "neutral",
+        "red",
+        "orange",
+        "amber",
+        "yellow",
+        "lime",
+        "green",
+        "emerald",
+        "teal",
+        "cyan",
+        "sky",
+        "blue",
+        "indigo",
+        "violet",
+        "purple",
+        "fuchsia",
+        "pink",
+        "rose",
     ] = "zinc"
     radius: Literal["none", "sm", "md", "lg", "xl"] = "md"
     dark_mode: bool = Field(default=True, alias="darkMode")
@@ -178,14 +196,14 @@ class DependenciesConfig(BaseModel):
     """Component dependencies configuration."""
 
     shadcn: list[str] = Field(
-        default_factory=list,
-        description="List of shadcn/ui component names to install"
+        default_factory=list, description="List of shadcn/ui component names to install"
     )
 
 
 # ──────────────────────────────────────────────────────────────
 # Mintlify-parity models (logo, nav tabs, navbar, footer, search)
 # ──────────────────────────────────────────────────────────────
+
 
 class LogoConfig(BaseModel):
     """Logo configuration with light/dark variants."""
@@ -330,7 +348,9 @@ class DashboardConfig(BaseModel):
     """Dashboard layout configuration."""
 
     sidebar: bool = Field(default=True, description="Show the left sidebar navigation")
-    page_header: bool = Field(default=True, alias="pageHeader", description="Show page title/description header")
+    page_header: bool = Field(
+        default=True, alias="pageHeader", description="Show page title/description header"
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -339,8 +359,14 @@ class LayoutConfig(BaseModel):
     """Layout configuration for chat positioning."""
 
     mode: Literal[
-        "fullscreen", "sidebar", "bottom-right", "bottom-left",
-        "top-right", "top-left", "embedded", "custom"
+        "fullscreen",
+        "sidebar",
+        "bottom-right",
+        "bottom-left",
+        "top-right",
+        "top-left",
+        "embedded",
+        "custom",
     ] = "fullscreen"
     width: Optional[str] = None
     height: Optional[str] = None
@@ -388,20 +414,20 @@ class InputWidgetConfig(BaseModel):
 
 class MessageElement(BaseModel):
     """Base class for message elements (images, PDFs, videos, etc.)."""
-    
+
     type: Literal["image", "pdf", "video", "audio", "file", "code"]
     name: Optional[str] = None
     display: Literal["inline", "side", "page"] = "inline"
-    
+
     model_config = ConfigDict(populate_by_name=True)
-    
+
     def __getitem__(self, key: str) -> Any:
         """Provide dict-style access for backward compatibility."""
         return getattr(self, key)
-    
+
     def get(self, key: str, default: Any = None) -> Any:
         """Provide dict-style get method for backward compatibility.
-        
+
         Treats both missing attributes and None values as 'not set'
         to match legacy dict-format behaviour where None fields were absent.
         """
@@ -411,7 +437,7 @@ class MessageElement(BaseModel):
 
 class ImageElement(MessageElement):
     """Image element for messages."""
-    
+
     type: Literal["image"] = "image"
     url: str
     alt: Optional[str] = None
@@ -421,14 +447,14 @@ class ImageElement(MessageElement):
 
 class PdfElement(MessageElement):
     """PDF element for messages."""
-    
+
     type: Literal["pdf"] = "pdf"
     url: str
 
 
 class VideoElement(MessageElement):
     """Video element for messages."""
-    
+
     type: Literal["video"] = "video"
     url: str
     autoplay: bool = False
@@ -438,7 +464,7 @@ class VideoElement(MessageElement):
 
 class AudioElement(MessageElement):
     """Audio element for messages."""
-    
+
     type: Literal["audio"] = "audio"
     url: str
     autoplay: bool = False
@@ -448,25 +474,27 @@ class AudioElement(MessageElement):
 
 class FileElement(MessageElement):
     """File download element for messages."""
-    
+
     type: Literal["file"] = "file"
     url: str
     size: Optional[int] = None
     mime_type: Optional[str] = Field(default=None, alias="mimeType")
-    
+
     model_config = ConfigDict(populate_by_name=True)
 
 
 class CodeElement(MessageElement):
     """Code block element for messages."""
-    
+
     type: Literal["code"] = "code"
     content: str
     language: Optional[str] = None
 
 
 # Union type for all element types
-MessageElementUnion = ImageElement | PdfElement | VideoElement | AudioElement | FileElement | CodeElement
+MessageElementUnion = (
+    ImageElement | PdfElement | VideoElement | AudioElement | FileElement | CodeElement
+)
 
 
 class Config(BaseModel):

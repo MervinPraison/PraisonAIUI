@@ -89,6 +89,7 @@ class Message:
     def __post_init__(self):
         """Initialize message with context from current callback."""
         from praisonaiui.callbacks import _get_context
+
         self._context = _get_context()
 
     @property
@@ -107,7 +108,7 @@ class Message:
 
         serialized_actions = []
         for action in self.actions:
-            if hasattr(action, 'to_dict'):
+            if hasattr(action, "to_dict"):
                 # Set message_id for proper association
                 action.message_id = self._id
                 serialized_actions.append(action.to_dict())
@@ -131,35 +132,41 @@ class Message:
 
         if self.streaming and not self._sent:
             # First send - show typing indicator
-            await self._context._stream_queue.put({
-                "type": "run_started",
-                "message_id": self._id,
-                "author": self.author,
-            })
+            await self._context._stream_queue.put(
+                {
+                    "type": "run_started",
+                    "message_id": self._id,
+                    "author": self.author,
+                }
+            )
             self._sent = True
         elif self.streaming and self._sent:
             # Finalize streaming message
             final_content = self._accumulated_tokens or self.content
-            await self._context._stream_queue.put({
-                "type": "message",
-                "message_id": self._id,
-                "content": final_content,
-                "author": self.author,
-                "elements": self.elements if self.elements else None,
-                "actions": self._serialize_actions(),
-                "metadata": self.metadata if self.metadata else None,
-            })
+            await self._context._stream_queue.put(
+                {
+                    "type": "message",
+                    "message_id": self._id,
+                    "content": final_content,
+                    "author": self.author,
+                    "elements": self.elements if self.elements else None,
+                    "actions": self._serialize_actions(),
+                    "metadata": self.metadata if self.metadata else None,
+                }
+            )
         else:
             # Non-streaming - send complete message
-            await self._context._stream_queue.put({
-                "type": "message",
-                "message_id": self._id,
-                "content": self.content,
-                "author": self.author,
-                "elements": self.elements if self.elements else None,
-                "actions": self._serialize_actions(),
-                "metadata": self.metadata if self.metadata else None,
-            })
+            await self._context._stream_queue.put(
+                {
+                    "type": "message",
+                    "message_id": self._id,
+                    "content": self.content,
+                    "author": self.author,
+                    "elements": self.elements if self.elements else None,
+                    "actions": self._serialize_actions(),
+                    "metadata": self.metadata if self.metadata else None,
+                }
+            )
             self._sent = True
 
         return self
@@ -177,11 +184,13 @@ class Message:
             return self
 
         self._accumulated_tokens += token
-        await self._context._stream_queue.put({
-            "type": "token",
-            "message_id": self._id,
-            "token": token,
-        })
+        await self._context._stream_queue.put(
+            {
+                "type": "token",
+                "message_id": self._id,
+                "token": token,
+            }
+        )
         return self
 
     async def update(self, content: Optional[str] = None) -> "Message":
@@ -199,14 +208,16 @@ class Message:
         if not self._context or not self._context._stream_queue:
             return self
 
-        await self._context._stream_queue.put({
-            "type": "message_update",
-            "message_id": self._id,
-            "content": self.content,
-            "author": self.author,
-            "elements": self.elements if self.elements else None,
-            "actions": self._serialize_actions(),
-        })
+        await self._context._stream_queue.put(
+            {
+                "type": "message_update",
+                "message_id": self._id,
+                "content": self.content,
+                "author": self.author,
+                "elements": self.elements if self.elements else None,
+                "actions": self._serialize_actions(),
+            }
+        )
         return self
 
     async def remove(self) -> None:
@@ -214,10 +225,12 @@ class Message:
         if not self._context or not self._context._stream_queue:
             return
 
-        await self._context._stream_queue.put({
-            "type": "message_remove",
-            "message_id": self._id,
-        })
+        await self._context._stream_queue.put(
+            {
+                "type": "message_remove",
+                "message_id": self._id,
+            }
+        )
 
     def add_element(
         self,
@@ -244,7 +257,7 @@ class Message:
                     f"File size {kwargs['size']} exceeds maximum allowed size {MAX_FILE_SIZE}"
                 )
 
-            if content and len(content.encode('utf-8')) > MAX_CODE_SIZE:
+            if content and len(content.encode("utf-8")) > MAX_CODE_SIZE:
                 raise ValueError(f"Code content size exceeds maximum allowed size {MAX_CODE_SIZE}")
 
             # Create typed element based on type
@@ -295,40 +308,75 @@ class Message:
 
         return self
 
-    def add_image(self, url: str, name: Optional[str] = None, alt: Optional[str] = None,
-                  display: str = "inline", **kwargs: Any) -> "Message":
+    def add_image(
+        self,
+        url: str,
+        name: Optional[str] = None,
+        alt: Optional[str] = None,
+        display: str = "inline",
+        **kwargs: Any,
+    ) -> "Message":
         """Add an image element to the message."""
         return self.add_element("image", url=url, name=name, alt=alt, display=display, **kwargs)
 
-    def add_pdf(self, url: str, name: Optional[str] = None, display: str = "inline",
-                **kwargs: Any) -> "Message":
+    def add_pdf(
+        self, url: str, name: Optional[str] = None, display: str = "inline", **kwargs: Any
+    ) -> "Message":
         """Add a PDF element to the message."""
         return self.add_element("pdf", url=url, name=name, display=display, **kwargs)
 
-    def add_video(self, url: str, name: Optional[str] = None, display: str = "inline",
-                  controls: bool = True, **kwargs: Any) -> "Message":
+    def add_video(
+        self,
+        url: str,
+        name: Optional[str] = None,
+        display: str = "inline",
+        controls: bool = True,
+        **kwargs: Any,
+    ) -> "Message":
         """Add a video element to the message."""
-        return self.add_element("video", url=url, name=name, display=display,
-                               controls=controls, **kwargs)
+        return self.add_element(
+            "video", url=url, name=name, display=display, controls=controls, **kwargs
+        )
 
-    def add_audio(self, url: str, name: Optional[str] = None, display: str = "inline",
-                  controls: bool = True, **kwargs: Any) -> "Message":
+    def add_audio(
+        self,
+        url: str,
+        name: Optional[str] = None,
+        display: str = "inline",
+        controls: bool = True,
+        **kwargs: Any,
+    ) -> "Message":
         """Add an audio element to the message."""
-        return self.add_element("audio", url=url, name=name, display=display,
-                               controls=controls, **kwargs)
+        return self.add_element(
+            "audio", url=url, name=name, display=display, controls=controls, **kwargs
+        )
 
-    def add_file(self, url: str, name: Optional[str] = None, display: str = "inline",
-                 size: Optional[int] = None, mime_type: Optional[str] = None,
-                 **kwargs: Any) -> "Message":
+    def add_file(
+        self,
+        url: str,
+        name: Optional[str] = None,
+        display: str = "inline",
+        size: Optional[int] = None,
+        mime_type: Optional[str] = None,
+        **kwargs: Any,
+    ) -> "Message":
         """Add a file download element to the message."""
-        return self.add_element("file", url=url, name=name, display=display, size=size,
-                               mimeType=mime_type, **kwargs)
+        return self.add_element(
+            "file", url=url, name=name, display=display, size=size, mimeType=mime_type, **kwargs
+        )
 
-    def add_code(self, content: str, language: Optional[str] = None, name: Optional[str] = None,
-                 display: str = "inline", **kwargs: Any) -> "Message":
+    def add_code(
+        self,
+        content: str,
+        language: Optional[str] = None,
+        name: Optional[str] = None,
+        display: str = "inline",
+        **kwargs: Any,
+    ) -> "Message":
         """Add a code block element to the message."""
-        return self.add_element("code", content=content, language=language, name=name,
-                               display=display, **kwargs)
+        return self.add_element(
+            "code", content=content, language=language, name=name, display=display, **kwargs
+        )
 
     def add_action(
         self,
@@ -353,13 +401,8 @@ class Message:
         try:
             # Try to create a proper Action object
             from praisonaiui.actions import Action
-            action = Action(
-                name=name,
-                label=label,
-                icon=icon,
-                payload=payload,
-                variant=variant
-            )
+
+            action = Action(name=name, label=label, icon=icon, payload=payload, variant=variant)
             self.actions.append(action)
         except ImportError:
             # Fallback to legacy dict format if actions module not available
@@ -399,6 +442,7 @@ class AskUserMessage:
     def __post_init__(self):
         """Initialize with context from current callback."""
         from praisonaiui.callbacks import _get_context
+
         self._context = _get_context()
 
     async def send(self) -> Optional[dict[str, Any]]:
@@ -447,20 +491,23 @@ class Step:
     def __post_init__(self):
         """Initialize with context from current callback."""
         from praisonaiui.callbacks import _get_context
+
         self._context = _get_context()
 
     async def __aenter__(self) -> "Step":
         """Start the step."""
         self._start_time = time.time()
         if self._context and self._context._stream_queue:
-            await self._context._stream_queue.put({
-                "type": "reasoning_started",
-                "step_id": self._id,
-                "name": self.name,
-                "step_type": self.type,
-                "parent_id": self.parent._id if self.parent else None,
-                "metadata": self.metadata,
-            })
+            await self._context._stream_queue.put(
+                {
+                    "type": "reasoning_started",
+                    "step_id": self._id,
+                    "name": self.name,
+                    "step_type": self.type,
+                    "parent_id": self.parent._id if self.parent else None,
+                    "metadata": self.metadata,
+                }
+            )
             self._started = True
         return self
 
@@ -468,25 +515,29 @@ class Step:
         """Complete the step."""
         if self._context and self._context._stream_queue and self._started:
             duration = time.time() - self._start_time if self._start_time else None
-            await self._context._stream_queue.put({
-                "type": "reasoning_completed",
-                "step_id": self._id,
-                "name": self.name,
-                "step_type": self.type,
-                "duration": duration,
-                "error": str(exc_val) if exc_val else None,
-                "metadata": self.metadata,
-            })
+            await self._context._stream_queue.put(
+                {
+                    "type": "reasoning_completed",
+                    "step_id": self._id,
+                    "name": self.name,
+                    "step_type": self.type,
+                    "duration": duration,
+                    "error": str(exc_val) if exc_val else None,
+                    "metadata": self.metadata,
+                }
+            )
 
     async def stream_token(self, token: str) -> "Step":
         """Stream a token within this step."""
         if self._context and self._context._stream_queue:
-            await self._context._stream_queue.put({
-                "type": "reasoning_step",
-                "step_id": self._id,
-                "step": token,
-                "step_type": self.type,
-            })
+            await self._context._stream_queue.put(
+                {
+                    "type": "reasoning_step",
+                    "step_id": self._id,
+                    "step": token,
+                    "step_type": self.type,
+                }
+            )
         return self
 
 
@@ -505,12 +556,15 @@ def step(name: str, type: StepType = "reasoning", **metadata: Any):
             result = await search_web(query)
             return result
     """
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             async with Step(name=name, type=type, metadata=metadata):
                 return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 

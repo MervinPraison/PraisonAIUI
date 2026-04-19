@@ -33,8 +33,9 @@ class EvalProtocol(ABC):
     """Protocol interface for evaluation backends."""
 
     @abstractmethod
-    def list_results(self, *, limit: int = 50, agent_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        ...
+    def list_results(
+        self, *, limit: int = 50, agent_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]: ...
 
     @abstractmethod
     def run_evaluation(self, eval_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -42,8 +43,7 @@ class EvalProtocol(ABC):
         ...
 
     @abstractmethod
-    def list_judges(self) -> List[Dict[str, Any]]:
-        ...
+    def list_judges(self) -> List[Dict[str, Any]]: ...
 
     @abstractmethod
     def get_scores(self) -> List[Dict[str, Any]]:
@@ -64,7 +64,9 @@ class SimpleEvalManager(EvalProtocol):
         self._results: deque = deque(maxlen=500)
         self._judges: Dict[str, Dict[str, Any]] = {}
 
-    def list_results(self, *, limit: int = 50, agent_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_results(
+        self, *, limit: int = 50, agent_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         items = list(self._results)
         if agent_id:
             items = [e for e in items if e.get("agent_id") == agent_id]
@@ -94,8 +96,14 @@ class SimpleEvalManager(EvalProtocol):
         for ev in self._results:
             aid = ev.get("agent_id", "unknown")
             if aid not in scores:
-                scores[aid] = {"agent_id": aid, "total": 0, "scored": 0,
-                               "sum_score": 0.0, "passed": 0, "failed": 0}
+                scores[aid] = {
+                    "agent_id": aid,
+                    "total": 0,
+                    "scored": 0,
+                    "sum_score": 0.0,
+                    "passed": 0,
+                    "failed": 0,
+                }
             scores[aid]["total"] += 1
             if ev.get("score") is not None:
                 scores[aid]["scored"] += 1
@@ -125,16 +133,20 @@ class SDKEvalManager(EvalProtocol):
 
     def __init__(self) -> None:
         from praisonaiagents.eval import AccuracyEvaluator, BaseEvaluator  # noqa: F401
+
         self._evaluator_classes = ["AccuracyEvaluator", "BaseEvaluator"]
         try:
             from praisonaiagents.eval import LLMEvaluator  # noqa: F401
+
             self._evaluator_classes.append("LLMEvaluator")
         except ImportError:
             pass
         self._simple = SimpleEvalManager()
         logger.info("SDKEvalManager initialized (evaluators: %s)", self._evaluator_classes)
 
-    def list_results(self, *, limit: int = 50, agent_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_results(
+        self, *, limit: int = 50, agent_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         return self._simple.list_results(limit=limit, agent_id=agent_id)
 
     def run_evaluation(self, eval_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -143,6 +155,7 @@ class SDKEvalManager(EvalProtocol):
         if result["score"] is None:
             try:
                 from praisonaiagents.eval import AccuracyEvaluator
+
                 evaluator = AccuracyEvaluator()
                 eval_result = evaluator.evaluate(
                     input_text=result["input"],
@@ -160,6 +173,7 @@ class SDKEvalManager(EvalProtocol):
         judges = list(self._simple.list_judges())
         try:
             from praisonaiagents.eval import get_judges
+
             sdk_judges = get_judges()
             if isinstance(sdk_judges, dict):
                 for name, judge in sdk_judges.items():
@@ -213,6 +227,7 @@ class EvalFeature(BaseFeatureProtocol):
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
+
         mgr = get_eval_manager()
         return {
             "status": "ok",
@@ -231,32 +246,34 @@ class EvalFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "eval",
-            "help": "Manage agent evaluations (list, scores, judges, run)",
-            "commands": {
-                "status": {
-                    "help": "Show eval status and judge count",
-                    "handler": self._cli_status,
+        return [
+            {
+                "name": "eval",
+                "help": "Manage agent evaluations (list, scores, judges, run)",
+                "commands": {
+                    "status": {
+                        "help": "Show eval status and judge count",
+                        "handler": self._cli_status,
+                    },
+                    "list": {
+                        "help": "List recent evaluations",
+                        "handler": self._cli_list,
+                    },
+                    "scores": {
+                        "help": "Show aggregated scores by agent",
+                        "handler": self._cli_scores,
+                    },
+                    "judges": {
+                        "help": "List registered judges",
+                        "handler": self._cli_judges,
+                    },
+                    "run": {
+                        "help": "Run an evaluation (--input, --output, --expected)",
+                        "handler": self._cli_run,
+                    },
                 },
-                "list": {
-                    "help": "List recent evaluations",
-                    "handler": self._cli_list,
-                },
-                "scores": {
-                    "help": "Show aggregated scores by agent",
-                    "handler": self._cli_scores,
-                },
-                "judges": {
-                    "help": "List registered judges",
-                    "handler": self._cli_judges,
-                },
-                "run": {
-                    "help": "Run an evaluation (--input, --output, --expected)",
-                    "handler": self._cli_run,
-                },
-            },
-        }]
+            }
+        ]
 
     # ── CLI handlers ─────────────────────────────────────────────────
 
@@ -267,7 +284,7 @@ class EvalFeature(BaseFeatureProtocol):
         lines.append(f"  Provider: {h.get('provider', 'unknown')}")
         lines.append(f"  Total evaluations: {h.get('total_evaluations', 0)}")
         lines.append(f"  Active judges: {h.get('active_judges', 0)}")
-        if h.get('sdk_available'):
+        if h.get("sdk_available"):
             lines.append(f"  SDK: available ({', '.join(h.get('evaluator_classes', []))})")
         return "\n".join(lines)
 
@@ -278,10 +295,10 @@ class EvalFeature(BaseFeatureProtocol):
             return "No evaluations recorded yet."
         lines = [f"Evaluations ({len(items)}):"]
         for ev in items:
-            score = ev.get('score', '—')
-            passed = '✓' if ev.get('passed') else ('✗' if ev.get('passed') is False else '—')
-            agent = ev.get('agent_id', 'unknown')
-            lines.append(f"  [{ev.get('id','')}] agent={agent} score={score} passed={passed}")
+            score = ev.get("score", "—")
+            passed = "✓" if ev.get("passed") else ("✗" if ev.get("passed") is False else "—")
+            agent = ev.get("agent_id", "unknown")
+            lines.append(f"  [{ev.get('id', '')}] agent={agent} score={score} passed={passed}")
         return "\n".join(lines)
 
     def _cli_scores(self) -> str:
@@ -291,7 +308,7 @@ class EvalFeature(BaseFeatureProtocol):
             return "No scores yet — run some evaluations first."
         lines = ["Agent Scores:"]
         for s in scores:
-            avg = f"{s['avg_score']:.2f}" if s.get('avg_score') is not None else '—'
+            avg = f"{s['avg_score']:.2f}" if s.get("avg_score") is not None else "—"
             lines.append(f"  {s['agent_id']}: avg={avg} passed={s['passed']}/{s['total']}")
         return "\n".join(lines)
 
@@ -302,18 +319,25 @@ class EvalFeature(BaseFeatureProtocol):
             return "No judges registered."
         lines = [f"Judges ({len(judges)}):"]
         for j in judges:
-            lines.append(f"  {j.get('name','?')} (source={j.get('source','?')})")
+            lines.append(f"  {j.get('name', '?')} (source={j.get('source', '?')})")
         return "\n".join(lines)
 
-    def _cli_run(self, input: str = "", output: str = "", expected: str = "", agent_id: str = "cli") -> str:
+    def _cli_run(
+        self, input: str = "", output: str = "", expected: str = "", agent_id: str = "cli"
+    ) -> str:
         if not input:
             return "Usage: eval run --input <text> --output <text> --expected <text>"
         mgr = get_eval_manager()
-        result = mgr.run_evaluation({
-            "agent_id": agent_id, "input": input, "output": output, "expected": expected,
-        })
-        score = result.get('score', '—')
-        passed = '✓' if result.get('passed') else ('✗' if result.get('passed') is False else '—')
+        result = mgr.run_evaluation(
+            {
+                "agent_id": agent_id,
+                "input": input,
+                "output": output,
+                "expected": expected,
+            }
+        )
+        score = result.get("score", "—")
+        passed = "✓" if result.get("passed") else ("✗" if result.get("passed") is False else "—")
         return f"✓ Evaluation {result['id']}: score={score} passed={passed}\n  Feedback: {result.get('feedback', '—')}"
 
     async def _list(self, request: Request) -> JSONResponse:
@@ -321,11 +345,13 @@ class EvalFeature(BaseFeatureProtocol):
         limit = int(request.query_params.get("limit", "50"))
         agent_id = request.query_params.get("agent_id", None)
         items = mgr.list_results(limit=limit, agent_id=agent_id)
-        return JSONResponse({
-            "evaluations": items,
-            "count": len(items),
-            "total": len(items),
-        })
+        return JSONResponse(
+            {
+                "evaluations": items,
+                "count": len(items),
+                "total": len(items),
+            }
+        )
 
     async def _status(self, request: Request) -> JSONResponse:
         health = await self.health()

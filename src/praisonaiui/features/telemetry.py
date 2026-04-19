@@ -33,20 +33,18 @@ class TelemetryProtocol(ABC):
     """Protocol interface for telemetry backends."""
 
     @abstractmethod
-    def record_metric(self, entry: Dict[str, Any]) -> str:
-        ...
+    def record_metric(self, entry: Dict[str, Any]) -> str: ...
 
     @abstractmethod
-    def list_metrics(self, *, limit: int = 100, agent_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        ...
+    def list_metrics(
+        self, *, limit: int = 100, agent_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]: ...
 
     @abstractmethod
-    def get_overview(self) -> Dict[str, Any]:
-        ...
+    def get_overview(self) -> Dict[str, Any]: ...
 
     @abstractmethod
-    def get_performance(self) -> Dict[str, Any]:
-        ...
+    def get_performance(self) -> Dict[str, Any]: ...
 
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
@@ -69,7 +67,9 @@ class SimpleTelemetryManager(TelemetryProtocol):
         self._metrics.append(entry)
         return mid
 
-    def list_metrics(self, *, limit: int = 100, agent_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_metrics(
+        self, *, limit: int = 100, agent_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         items = list(self._metrics)
         if agent_id:
             items = [m for m in items if m.get("agent_id") == agent_id]
@@ -122,24 +122,31 @@ class SDKTelemetryManager(TelemetryProtocol):
         self._profiling_available = False
         try:
             from praisonaiagents.telemetry import PerformanceMonitor  # noqa: F401
+
             self._telemetry_available = True
         except ImportError:
             pass
         try:
             from praisonaiagents.profiling import Profiler  # noqa: F401
+
             self._profiling_available = True
         except ImportError:
             pass
         if not (self._telemetry_available or self._profiling_available):
             raise ImportError("Neither praisonaiagents.telemetry nor profiling available")
         self._simple = SimpleTelemetryManager()
-        logger.info("SDKTelemetryManager initialized (telemetry=%s, profiling=%s)",
-                     self._telemetry_available, self._profiling_available)
+        logger.info(
+            "SDKTelemetryManager initialized (telemetry=%s, profiling=%s)",
+            self._telemetry_available,
+            self._profiling_available,
+        )
 
     def record_metric(self, entry: Dict[str, Any]) -> str:
         return self._simple.record_metric(entry)
 
-    def list_metrics(self, *, limit: int = 100, agent_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_metrics(
+        self, *, limit: int = 100, agent_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         return self._simple.list_metrics(limit=limit, agent_id=agent_id)
 
     def get_overview(self) -> Dict[str, Any]:
@@ -150,6 +157,7 @@ class SDKTelemetryManager(TelemetryProtocol):
         if self._telemetry_available:
             try:
                 from praisonaiagents.telemetry import get_performance_data
+
                 data = get_performance_data()
                 perf_data = {"available": True, "data": data}
             except (ImportError, AttributeError, Exception):
@@ -199,6 +207,7 @@ class TelemetryFeature(BaseFeatureProtocol):
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
+
         mgr = get_telemetry_manager()
         return {
             "status": "ok",
@@ -218,15 +227,17 @@ class TelemetryFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "telemetry",
-            "help": "Performance monitoring and metrics",
-            "commands": {
-                "status": {"help": "Show telemetry status", "handler": self._cli_status},
-                "metrics": {"help": "Show recent metrics", "handler": self._cli_metrics},
-                "overview": {"help": "Show telemetry overview", "handler": self._cli_overview},
-            },
-        }]
+        return [
+            {
+                "name": "telemetry",
+                "help": "Performance monitoring and metrics",
+                "commands": {
+                    "status": {"help": "Show telemetry status", "handler": self._cli_status},
+                    "metrics": {"help": "Show recent metrics", "handler": self._cli_metrics},
+                    "overview": {"help": "Show telemetry overview", "handler": self._cli_overview},
+                },
+            }
+        ]
 
     # ── CLI handlers ─────────────────────────────────────────────────
 
@@ -266,7 +277,9 @@ class TelemetryFeature(BaseFeatureProtocol):
         if by_agent:
             lines.append("By agent:")
             for aid, stats in by_agent.items():
-                lines.append(f"  {aid}: {stats.get('calls', 0)} calls, avg {stats.get('avg_latency_ms', 0):.0f}ms")
+                lines.append(
+                    f"  {aid}: {stats.get('calls', 0)} calls, avg {stats.get('avg_latency_ms', 0):.0f}ms"
+                )
         return "\n".join(lines)
 
     async def _overview(self, request: Request) -> JSONResponse:
@@ -276,6 +289,7 @@ class TelemetryFeature(BaseFeatureProtocol):
         gateway_agents = []
         try:
             from ._gateway_ref import get_gateway
+
             gw = get_gateway()
             if gw is not None:
                 for aid in gw.list_agents():
@@ -319,34 +333,45 @@ class TelemetryFeature(BaseFeatureProtocol):
     async def _profiling(self, request: Request) -> JSONResponse:
         try:
             from praisonaiagents.profiling import Profiler
+
             profiler = Profiler()
             mgr = get_telemetry_manager()
             snapshots = mgr.list_metrics(limit=20)
-            return JSONResponse({
-                "available": True,
-                "profiler": type(profiler).__name__,
-                "snapshots": snapshots,
-            })
+            return JSONResponse(
+                {
+                    "available": True,
+                    "profiler": type(profiler).__name__,
+                    "snapshots": snapshots,
+                }
+            )
         except (ImportError, Exception) as e:
             mgr = get_telemetry_manager()
-            return JSONResponse({
-                "available": False,
-                "error": str(e),
-                "snapshots": mgr.list_metrics(limit=20),
-            })
+            return JSONResponse(
+                {
+                    "available": False,
+                    "error": str(e),
+                    "snapshots": mgr.list_metrics(limit=20),
+                }
+            )
 
 
-def record_metric(agent_id: str, metric_type: str = "llm_call",
-                  latency_ms: float = 0, tokens: int = 0,
-                  model: str = "") -> None:
+def record_metric(
+    agent_id: str,
+    metric_type: str = "llm_call",
+    latency_ms: float = 0,
+    tokens: int = 0,
+    model: str = "",
+) -> None:
     """Record a telemetry metric (callable from hooks)."""
-    get_telemetry_manager().record_metric({
-        "agent_id": agent_id,
-        "type": metric_type,
-        "latency_ms": latency_ms,
-        "tokens": tokens,
-        "model": model,
-    })
+    get_telemetry_manager().record_metric(
+        {
+            "agent_id": agent_id,
+            "type": metric_type,
+            "latency_ms": latency_ms,
+            "tokens": tokens,
+            "model": model,
+        }
+    )
 
 
 # Backward-compat alias

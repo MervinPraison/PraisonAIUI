@@ -27,7 +27,6 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from ._base import BaseFeatureProtocol
 
-
 # ── Log Protocol ─────────────────────────────────────────────────────
 
 
@@ -46,6 +45,7 @@ class LogProtocol(ABC):
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
 
+
 # Log levels with colors
 LOG_LEVELS = {
     "DEBUG": {"color": "#6b7280", "priority": 10},
@@ -63,7 +63,7 @@ _broadcast_lock = asyncio.Lock()
 
 class WebSocketLogHandler(logging.Handler):
     """Logging handler that broadcasts to WebSocket clients."""
-    
+
     def emit(self, record: logging.LogRecord) -> None:
         entry = {
             "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
@@ -72,7 +72,7 @@ class WebSocketLogHandler(logging.Handler):
             "message": self.format(record),
         }
         _log_buffer.append(entry)
-        
+
         # Schedule broadcast to WebSocket clients
         if _ws_clients:
             try:
@@ -87,9 +87,9 @@ async def _broadcast_log(entry: Dict[str, Any]) -> None:
     """Broadcast a log entry to all connected WebSocket clients."""
     if not _ws_clients:
         return
-    
+
     message = json.dumps({"type": "log", "data": entry})
-    
+
     async with _broadcast_lock:
         disconnected = set()
         for ws in _ws_clients:
@@ -97,7 +97,7 @@ async def _broadcast_log(entry: Dict[str, Any]) -> None:
                 await ws.send_text(message)
             except Exception:
                 disconnected.add(ws)
-        
+
         _ws_clients.difference_update(disconnected)
 
 
@@ -106,7 +106,7 @@ def install_log_handler() -> None:
     handler = WebSocketLogHandler()
     handler.setFormatter(logging.Formatter("%(name)s - %(message)s"))
     handler.setLevel(logging.DEBUG)
-    
+
     root = logging.getLogger()
     # Check if already installed
     for h in root.handlers:
@@ -143,14 +143,16 @@ class LogsFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "logs",
-            "help": "Log management",
-            "commands": {
-                "tail": {"help": "Tail logs", "handler": self._cli_tail},
-                "clear": {"help": "Clear log buffer", "handler": self._cli_clear},
-            },
-        }]
+        return [
+            {
+                "name": "logs",
+                "help": "Log management",
+                "commands": {
+                    "tail": {"help": "Tail logs", "handler": self._cli_tail},
+                    "clear": {"help": "Clear log buffer", "handler": self._cli_clear},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
@@ -169,13 +171,13 @@ class LogsFeature(BaseFeatureProtocol):
         """WebSocket endpoint for real-time log streaming."""
         await websocket.accept()
         _ws_clients.add(websocket)
-        
+
         # Get filter parameters from query string
         level_filter = websocket.query_params.get("level", "DEBUG").upper()
         search_filter = websocket.query_params.get("search", "").lower()
-        
+
         level_priority = LOG_LEVELS.get(level_filter, {}).get("priority", 10)
-        
+
         try:
             # Send initial buffer (filtered)
             initial_logs = []
@@ -184,44 +186,57 @@ class LogsFeature(BaseFeatureProtocol):
                 if entry_priority >= level_priority:
                     if not search_filter or search_filter in entry.get("message", "").lower():
                         initial_logs.append(entry)
-            
-            await websocket.send_text(json.dumps({
-                "type": "initial",
-                "data": initial_logs[-100:],  # Last 100 matching logs
-                "total": len(_log_buffer),
-            }))
-            
+
+            await websocket.send_text(
+                json.dumps(
+                    {
+                        "type": "initial",
+                        "data": initial_logs[-100:],  # Last 100 matching logs
+                        "total": len(_log_buffer),
+                    }
+                )
+            )
+
             # Keep connection alive and handle filter updates
             while True:
                 try:
                     message = await asyncio.wait_for(websocket.receive_text(), timeout=30)
                     data = json.loads(message)
-                    
+
                     if data.get("type") == "filter":
                         level_filter = data.get("level", "DEBUG").upper()
                         search_filter = data.get("search", "").lower()
                         level_priority = LOG_LEVELS.get(level_filter, {}).get("priority", 10)
-                        
+
                         # Send filtered buffer
                         filtered_logs = []
                         for entry in list(_log_buffer):
-                            entry_priority = LOG_LEVELS.get(entry.get("level", "INFO"), {}).get("priority", 20)
+                            entry_priority = LOG_LEVELS.get(entry.get("level", "INFO"), {}).get(
+                                "priority", 20
+                            )
                             if entry_priority >= level_priority:
-                                if not search_filter or search_filter in entry.get("message", "").lower():
+                                if (
+                                    not search_filter
+                                    or search_filter in entry.get("message", "").lower()
+                                ):
                                     filtered_logs.append(entry)
-                        
-                        await websocket.send_text(json.dumps({
-                            "type": "filtered",
-                            "data": filtered_logs[-100:],
-                        }))
-                    
+
+                        await websocket.send_text(
+                            json.dumps(
+                                {
+                                    "type": "filtered",
+                                    "data": filtered_logs[-100:],
+                                }
+                            )
+                        )
+
                     elif data.get("type") == "ping":
                         await websocket.send_text(json.dumps({"type": "pong"}))
-                        
+
                 except asyncio.TimeoutError:
                     # Send keepalive
                     await websocket.send_text(json.dumps({"type": "ping"}))
-                    
+
         except WebSocketDisconnect:
             pass
         finally:
@@ -231,17 +246,19 @@ class LogsFeature(BaseFeatureProtocol):
 
     async def _levels(self, request: Request) -> JSONResponse:
         """GET /api/logs/levels — Get available log levels."""
-        return JSONResponse({
-            "levels": [
-                {"name": name, "color": info["color"], "priority": info["priority"]}
-                for name, info in LOG_LEVELS.items()
-            ],
-        })
+        return JSONResponse(
+            {
+                "levels": [
+                    {"name": name, "color": info["color"], "priority": info["priority"]}
+                    for name, info in LOG_LEVELS.items()
+                ],
+            }
+        )
 
     async def _clear(self, request: Request) -> JSONResponse:
         """POST /api/logs/clear — Clear the log buffer."""
         _log_buffer.clear()
-        
+
         # Notify connected clients
         message = json.dumps({"type": "cleared"})
         for ws in list(_ws_clients):
@@ -249,33 +266,36 @@ class LogsFeature(BaseFeatureProtocol):
                 await ws.send_text(message)
             except Exception:
                 pass
-        
+
         return JSONResponse({"cleared": True, "buffer_size": 0})
 
     async def _stats(self, request: Request) -> JSONResponse:
         """GET /api/logs/stats — Get log statistics."""
         level_counts = {"DEBUG": 0, "INFO": 0, "WARNING": 0, "ERROR": 0, "CRITICAL": 0}
-        
+
         for entry in list(_log_buffer):
             level = entry.get("level", "INFO")
             if level in level_counts:
                 level_counts[level] += 1
-        
+
         gateway_agent_count = 0
         try:
             from ._gateway_ref import get_gateway
+
             gw = get_gateway()
             if gw is not None:
                 gateway_agent_count = len(list(gw.list_agents()))
         except (ImportError, Exception):
             pass
-        return JSONResponse({
-            "total": len(_log_buffer),
-            "by_level": level_counts,
-            "connected_clients": len(_ws_clients),
-            "buffer_max": _log_buffer.maxlen,
-            "gateway_agent_count": gateway_agent_count,
-        })
+        return JSONResponse(
+            {
+                "total": len(_log_buffer),
+                "by_level": level_counts,
+                "connected_clients": len(_ws_clients),
+                "buffer_max": _log_buffer.maxlen,
+                "gateway_agent_count": gateway_agent_count,
+            }
+        )
 
     # ── CLI handlers ─────────────────────────────────────────────────
 

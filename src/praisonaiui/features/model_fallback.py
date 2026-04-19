@@ -20,20 +20,19 @@ logger = logging.getLogger(__name__)
 
 # ── Protocol ─────────────────────────────────────────────────────
 
+
 class ModelFallbackProtocol:
     """Protocol for model fallback configuration."""
 
-    def get_models(self) -> List[Dict[str, Any]]:
-        ...
+    def get_models(self) -> List[Dict[str, Any]]: ...
 
-    def get_fallback_chain(self) -> List[str]:
-        ...
+    def get_fallback_chain(self) -> List[str]: ...
 
-    def set_fallback_chain(self, models: List[str]) -> None:
-        ...
+    def set_fallback_chain(self, models: List[str]) -> None: ...
 
 
 # ── Implementation ───────────────────────────────────────────────
+
 
 class ModelFallbackManager(ModelFallbackProtocol):
     """Default model fallback manager."""
@@ -51,9 +50,9 @@ class ModelFallbackManager(ModelFallbackProtocol):
         """Try to discover available models from litellm."""
         try:
             import litellm
+
             self._models = [
-                {"id": m, "provider": "litellm"}
-                for m in getattr(litellm, 'model_list', []) or []
+                {"id": m, "provider": "litellm"} for m in getattr(litellm, "model_list", []) or []
             ]
         except ImportError:
             pass
@@ -86,12 +85,15 @@ def get_fallback_manager() -> ModelFallbackManager:
 
 # ── HTTP Handlers ────────────────────────────────────────────────
 
+
 async def _list_models(request: Request) -> JSONResponse:
     mgr = get_fallback_manager()
-    return JSONResponse({
-        "models": mgr.get_models(),
-        "fallback_chain": mgr.get_fallback_chain(),
-    })
+    return JSONResponse(
+        {
+            "models": mgr.get_models(),
+            "fallback_chain": mgr.get_fallback_chain(),
+        }
+    )
 
 
 async def _set_fallback(request: Request) -> JSONResponse:
@@ -106,13 +108,16 @@ async def _set_fallback(request: Request) -> JSONResponse:
 
     mgr = get_fallback_manager()
     mgr.set_fallback_chain(models)
-    return JSONResponse({
-        "status": "ok",
-        "fallback_chain": mgr.get_fallback_chain(),
-    })
+    return JSONResponse(
+        {
+            "status": "ok",
+            "fallback_chain": mgr.get_fallback_chain(),
+        }
+    )
 
 
 # ── Feature ──────────────────────────────────────────────────────
+
 
 class ModelFallbackFeature(BaseFeatureProtocol):
     """Model fallback feature — configure model fallback chains."""

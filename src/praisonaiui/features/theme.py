@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 # ── Protocol ─────────────────────────────────────────────────────
 
+
 class ThemeProtocol:
     """Protocol for theme providers."""
 
@@ -54,28 +55,28 @@ class ThemeProtocol:
 # Each preset maps to --db-accent, --db-accent-glow, --db-accent-rgb.
 
 PRESET_COLORS: Dict[str, Dict[str, str]] = {
-    "zinc":    {"accent": "#71717a", "accentRgb": "113,113,122"},
-    "slate":   {"accent": "#64748b", "accentRgb": "100,116,139"},
-    "stone":   {"accent": "#78716c", "accentRgb": "120,113,108"},
-    "gray":    {"accent": "#6b7280", "accentRgb": "107,114,128"},
+    "zinc": {"accent": "#71717a", "accentRgb": "113,113,122"},
+    "slate": {"accent": "#64748b", "accentRgb": "100,116,139"},
+    "stone": {"accent": "#78716c", "accentRgb": "120,113,108"},
+    "gray": {"accent": "#6b7280", "accentRgb": "107,114,128"},
     "neutral": {"accent": "#737373", "accentRgb": "115,115,115"},
-    "red":     {"accent": "#ef4444", "accentRgb": "239,68,68"},
-    "orange":  {"accent": "#f97316", "accentRgb": "249,115,22"},
-    "amber":   {"accent": "#f59e0b", "accentRgb": "245,158,11"},
-    "yellow":  {"accent": "#eab308", "accentRgb": "234,179,8"},
-    "lime":    {"accent": "#84cc16", "accentRgb": "132,204,22"},
-    "green":   {"accent": "#22c55e", "accentRgb": "34,197,94"},
+    "red": {"accent": "#ef4444", "accentRgb": "239,68,68"},
+    "orange": {"accent": "#f97316", "accentRgb": "249,115,22"},
+    "amber": {"accent": "#f59e0b", "accentRgb": "245,158,11"},
+    "yellow": {"accent": "#eab308", "accentRgb": "234,179,8"},
+    "lime": {"accent": "#84cc16", "accentRgb": "132,204,22"},
+    "green": {"accent": "#22c55e", "accentRgb": "34,197,94"},
     "emerald": {"accent": "#10b981", "accentRgb": "16,185,129"},
-    "teal":    {"accent": "#14b8a6", "accentRgb": "20,184,166"},
-    "cyan":    {"accent": "#06b6d4", "accentRgb": "6,182,212"},
-    "sky":     {"accent": "#0ea5e9", "accentRgb": "14,165,233"},
-    "blue":    {"accent": "#3b82f6", "accentRgb": "59,130,246"},
-    "indigo":  {"accent": "#6366f1", "accentRgb": "99,102,241"},
-    "violet":  {"accent": "#8b5cf6", "accentRgb": "139,92,246"},
-    "purple":  {"accent": "#a855f7", "accentRgb": "168,85,247"},
+    "teal": {"accent": "#14b8a6", "accentRgb": "20,184,166"},
+    "cyan": {"accent": "#06b6d4", "accentRgb": "6,182,212"},
+    "sky": {"accent": "#0ea5e9", "accentRgb": "14,165,233"},
+    "blue": {"accent": "#3b82f6", "accentRgb": "59,130,246"},
+    "indigo": {"accent": "#6366f1", "accentRgb": "99,102,241"},
+    "violet": {"accent": "#8b5cf6", "accentRgb": "139,92,246"},
+    "purple": {"accent": "#a855f7", "accentRgb": "168,85,247"},
     "fuchsia": {"accent": "#d946ef", "accentRgb": "217,70,239"},
-    "pink":    {"accent": "#ec4899", "accentRgb": "236,72,153"},
-    "rose":    {"accent": "#f43f5e", "accentRgb": "244,63,94"},
+    "pink": {"accent": "#ec4899", "accentRgb": "236,72,153"},
+    "rose": {"accent": "#f43f5e", "accentRgb": "244,63,94"},
 }
 
 # Validate PRESET_COLORS keys match the single source of truth
@@ -85,7 +86,11 @@ assert set(PRESET_COLORS.keys()) == set(PRESET_NAMES), (
 
 # Radius presets — values match themes.py RADIUS_PRESETS
 RADIUS_MAP: Dict[str, str] = {
-    "none": "0", "sm": "0.3rem", "md": "0.5rem", "lg": "0.75rem", "xl": "1rem",
+    "none": "0",
+    "sm": "0.3rem",
+    "md": "0.5rem",
+    "lg": "0.75rem",
+    "xl": "1rem",
 }
 
 # Dark / light mode CSS variable sets
@@ -158,6 +163,7 @@ MODE_VARS: Dict[str, Dict[str, str]] = {
 
 # ── Manager ──────────────────────────────────────────────────────
 
+
 class ThemeManager(ThemeProtocol):
     """Default theme manager with 22 presets + user-registered custom themes.
 
@@ -168,8 +174,8 @@ class ThemeManager(ThemeProtocol):
 
     def __init__(self) -> None:
         self._current_preset: str = "zinc"  # default preset (matches DASHBOARD_STYLE)
-        self._current_mode: str = "dark"       # dark or light
-        self._current_radius: str = "md"       # radius preset
+        self._current_mode: str = "dark"  # dark or light
+        self._current_radius: str = "md"  # radius preset
         self._custom_themes: Dict[str, Dict[str, str]] = {}
 
     # ── Protocol interface ───────────────────────────────────────
@@ -278,6 +284,7 @@ def reset_theme_manager() -> None:
 
 # ── HTTP Handlers ────────────────────────────────────────────────
 
+
 async def _get_theme(request: Request) -> JSONResponse:
     """GET /api/theme — full state including presets, modes, radii."""
     mgr = get_theme_manager()
@@ -312,14 +319,16 @@ async def _get_presets(request: Request) -> JSONResponse:
     """GET /api/theme/presets — list all available presets."""
     mgr = get_theme_manager()
     all_presets = {**PRESET_COLORS, **mgr._custom_themes}
-    return JSONResponse({
-        "presets": {
-            name: {"accent": p["accent"], "accentRgb": p["accentRgb"]}
-            for name, p in all_presets.items()
-        },
-        "builtin": list(PRESET_COLORS.keys()),
-        "custom": list(mgr._custom_themes.keys()),
-    })
+    return JSONResponse(
+        {
+            "presets": {
+                name: {"accent": p["accent"], "accentRgb": p["accentRgb"]}
+                for name, p in all_presets.items()
+            },
+            "builtin": list(PRESET_COLORS.keys()),
+            "custom": list(mgr._custom_themes.keys()),
+        }
+    )
 
 
 async def _register_theme(request: Request) -> JSONResponse:
@@ -340,10 +349,13 @@ async def _register_theme(request: Request) -> JSONResponse:
         return JSONResponse({"error": "'accent' hex color is required"}, status_code=400)
 
     mgr = get_theme_manager()
-    mgr.register_theme(name, {
-        "accent": accent,
-        "accentRgb": body.get("accentRgb", ""),
-    })
+    mgr.register_theme(
+        name,
+        {
+            "accent": accent,
+            "accentRgb": body.get("accentRgb", ""),
+        },
+    )
     return JSONResponse({"registered": name, **mgr.get_full_state()})
 
 
@@ -360,6 +372,7 @@ async def _delete_custom_theme(request: Request) -> JSONResponse:
 
 
 # ── Feature ──────────────────────────────────────────────────────
+
 
 class ThemeFeature(BaseFeatureProtocol):
     """Theme feature — 22 presets + user-registered custom themes.

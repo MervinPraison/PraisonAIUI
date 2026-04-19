@@ -23,7 +23,6 @@ import inspect
 import re
 from typing import Any
 
-
 # User-registered schemas (set via aiui.register_component_schema)
 _user_schemas: dict[str, dict[str, Any]] = {}
 

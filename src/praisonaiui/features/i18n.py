@@ -208,7 +208,9 @@ class I18nFeature(BaseFeatureProtocol):
     async def _translate(self, request: Request) -> JSONResponse:
         mgr = get_i18n_manager()
         body = await request.json()
-        text = mgr.t(body.get("key", ""), locale=body.get("locale", ""), **body.get("variables", {}))
+        text = mgr.t(
+            body.get("key", ""), locale=body.get("locale", ""), **body.get("variables", {})
+        )
         return JSONResponse({"key": body.get("key", ""), "text": text})
 
     async def _get_locale(self, request: Request) -> JSONResponse:

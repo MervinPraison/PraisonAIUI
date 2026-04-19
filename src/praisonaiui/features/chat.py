@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 # ── Tool display enrichment (reuses SDK's TOOL_LABELS — DRY) ────────
 
+
 def _enrich_tool_payload(
     payload: Dict[str, Any],
     step_counter: int,
@@ -50,6 +51,7 @@ def _enrich_tool_payload(
 
     try:
         from praisonaiagents.output.editor import TOOL_LABELS, EditorOutput
+
         icon, label = TOOL_LABELS.get(name, ("🔧", f"Using {name}"))
     except ImportError:
         icon, label = ("🔧", f"Using {name}")
@@ -58,6 +60,7 @@ def _enrich_tool_payload(
     if not is_completed:
         try:
             from praisonaiagents.output.editor import EditorOutput
+
             desc = EditorOutput._format_action("", icon, label, args)
         except (ImportError, AttributeError):
             desc = f"{icon} {label}"
@@ -65,7 +68,11 @@ def _enrich_tool_payload(
                 for key in ("query", "filepath", "file_path", "directory", "command"):
                     if key in args:
                         val = args[key]
-                        desc = f'{icon} {label} for "{val}"' if key == "query" else f"{icon} {label}: {val}"
+                        desc = (
+                            f'{icon} {label} for "{val}"'
+                            if key == "query"
+                            else f"{icon} {label}: {val}"
+                        )
                         break
         payload["icon"] = icon
         payload["label"] = label
@@ -76,6 +83,7 @@ def _enrich_tool_payload(
     if is_completed and result is not None:
         try:
             from praisonaiagents.output.editor import EditorOutput
+
             formatted = EditorOutput._format_result(
                 str(result)[:500] if result else None,
             )
@@ -87,6 +95,7 @@ def _enrich_tool_payload(
 
 
 # ── Data Model ───────────────────────────────────────────────────────
+
 
 @dataclass
 class ChatMessage:
@@ -119,6 +128,7 @@ class ChatMessage:
 
 
 # ── Protocol ─────────────────────────────────────────────────────────
+
 
 class ChatProtocol(ABC):
     """Protocol interface for chat backends.
@@ -165,12 +175,15 @@ class ChatProtocol(ABC):
     ) -> AsyncIterator[Dict[str, Any]]:
         """Stream response deltas. Default: call send_message."""
         result = await self.send_message(
-            content, session_id=session_id, agent_name=agent_name,
+            content,
+            session_id=session_id,
+            agent_name=agent_name,
         )
         yield {"type": "chat_complete", **result}
 
 
 # ── Default Implementation ───────────────────────────────────────────
+
 
 class ChatManager(ChatProtocol):
     """Default chat manager — bridges to the server's provider/SSE system.
@@ -232,9 +245,11 @@ class ChatManager(ChatProtocol):
             # Invoke registered @aiui.cancel callback
             try:
                 from praisonaiui.server import _callbacks
+
                 cancel_cb = _callbacks.get("cancel")
                 if cancel_cb:
                     import asyncio
+
                     r = cancel_cb()
                     if asyncio.iscoroutine(r):
                         await r
@@ -288,6 +303,7 @@ def set_chat_manager(manager: ChatManager) -> None:
 
 # ── HTTP Handlers ────────────────────────────────────────────────────
 
+
 async def _chat_send(request: Request) -> JSONResponse:
     """POST /api/chat/send — send a chat message."""
     try:
@@ -307,14 +323,18 @@ async def _chat_send(request: Request) -> JSONResponse:
     # ── Guardrail pre-check (lazy import) ────────────────────────
     try:
         from .guardrails import check_guardrails
+
         violation = await check_guardrails(content, agent_name=agent_name or "", direction="input")
         if violation and violation.get("blocked"):
-            return JSONResponse({
-                "guardrail_blocked": True,
-                "reason": violation.get("reason", ""),
-                "guardrail_id": violation.get("guardrail_id", ""),
-                "description": violation.get("description", ""),
-            }, status_code=422)
+            return JSONResponse(
+                {
+                    "guardrail_blocked": True,
+                    "reason": violation.get("reason", ""),
+                    "guardrail_id": violation.get("guardrail_id", ""),
+                    "description": violation.get("description", ""),
+                },
+                status_code=422,
+            )
     except ImportError:
         pass
     except Exception:
@@ -330,14 +350,18 @@ async def _chat_send(request: Request) -> JSONResponse:
 
     # Persist user message to datastore
     from praisonaiui.server import _datastore
+
     try:
         existing = await _datastore.get_session(session_id)
         if existing is None:
             await _datastore.create_session(session_id)
-        await _datastore.add_message(session_id, {
-            "role": "user",
-            "content": content,
-        })
+        await _datastore.add_message(
+            session_id,
+            {
+                "role": "user",
+                "content": content,
+            },
+        )
     except Exception:
         pass
 
@@ -354,14 +378,15 @@ async def _run_and_broadcast(
     attachment_ids: Optional[List[str]] = None,
 ) -> None:
     """Run the provider and broadcast streaming events to WS clients."""
-    from praisonaiui.server import get_provider, _datastore
     from praisonaiui.provider import RunEventType
+    from praisonaiui.server import _datastore, get_provider
 
     # Load attachment content and prepare for provider
     sdk_attachments = []  # Image file paths → passed to Agent.chat(attachments=[...])
     if attachment_ids:
         try:
             from praisonaiui.features.attachments import get_attachment_manager
+
             att_mgr = get_attachment_manager()
             pdf_context_parts = []
             for att_id in attachment_ids:
@@ -389,6 +414,7 @@ async def _run_and_broadcast(
                         )
                     except ImportError:
                         import os
+
                         pdf_context_parts.append(
                             f"[PDF file: {fname}, {os.path.getsize(path)} bytes "
                             f"— install pypdf for text extraction]"
@@ -418,8 +444,8 @@ async def _run_and_broadcast(
     tool_step_counter = 0  # Step numbering (resets per user message)
     # Dedup: both stream deltas AND hook events fire for the same tool call.
     # Track which tool calls we've already broadcast to avoid duplicates.
-    _seen_tool_started: set = set()   # tool_call_id or name we've sent STARTED for
-    _seen_tool_completed: set = set() # tool_call_id or name we've sent COMPLETED for
+    _seen_tool_started: set = set()  # tool_call_id or name we've sent STARTED for
+    _seen_tool_completed: set = set()  # tool_call_id or name we've sent COMPLETED for
     collected_tool_calls: Dict[str, Dict] = {}  # Merge STARTED+COMPLETED per tool_call_id
 
     try:
@@ -459,9 +485,9 @@ async def _run_and_broadcast(
 
                 # Check if this is a rich event with complete parsed args
                 # (from TOOL_CALL_START, not DELTA_TOOL_CALL)
-                has_complete_args = (
-                    getattr(event, "extra_data", None) or {}
-                ).get("has_complete_args", False)
+                has_complete_args = (getattr(event, "extra_data", None) or {}).get(
+                    "has_complete_args", False
+                )
 
                 # Dedup key: prefer tool_call_id (stream), fall back to name (hook)
                 dedup_key = event.tool_call_id or event.name
@@ -495,9 +521,9 @@ async def _run_and_broadcast(
                 dedup_key = event.tool_call_id or event.name or ""
                 if dedup_key and dedup_key in _seen_tool_completed:
                     # Allow TOOL_CALL_RESULT (has_complete_args) to update
-                    has_complete_args = (
-                        getattr(event, "extra_data", None) or {}
-                    ).get("has_complete_args", False)
+                    has_complete_args = (getattr(event, "extra_data", None) or {}).get(
+                        "has_complete_args", False
+                    )
                     if not has_complete_args:
                         continue
                 if dedup_key:
@@ -521,13 +547,21 @@ async def _run_and_broadcast(
                     _enrich_tool_payload(entry, entry.get("step_number", 0), is_completed=False)
                 else:
                     collected_tool_calls[tc_id] = dict(payload)
-            elif event.type in (RunEventType.REASONING_STARTED, RunEventType.REASONING_STEP, RunEventType.REASONING_COMPLETED):
+            elif event.type in (
+                RunEventType.REASONING_STARTED,
+                RunEventType.REASONING_STEP,
+                RunEventType.REASONING_COMPLETED,
+            ):
                 payload["step"] = event.step
             elif event.type == RunEventType.RUN_PAUSED:
                 extra = getattr(event, "extra_data", {}) or {}
                 payload["question"] = extra.get("question", "The agent needs your input")
                 payload["options"] = extra.get("options", [])
-            elif event.type in (RunEventType.MEMORY_UPDATE_STARTED, RunEventType.UPDATING_MEMORY, RunEventType.MEMORY_UPDATE_COMPLETED):
+            elif event.type in (
+                RunEventType.MEMORY_UPDATE_STARTED,
+                RunEventType.UPDATING_MEMORY,
+                RunEventType.MEMORY_UPDATE_COMPLETED,
+            ):
                 if event.extra_data:
                     payload["memory_data"] = event.extra_data
             elif event.type == RunEventType.LLM_CONTENT:
@@ -540,18 +574,24 @@ async def _run_and_broadcast(
             await mgr.broadcast(session_id, payload)
 
     except asyncio.CancelledError:
-        await mgr.broadcast(session_id, {
-            "type": "run_cancelled",
-            "session_id": session_id,
-            "run_id": run_id,
-        })
+        await mgr.broadcast(
+            session_id,
+            {
+                "type": "run_cancelled",
+                "session_id": session_id,
+                "run_id": run_id,
+            },
+        )
     except Exception as e:
         logger.error(f"Chat run error: {e}")
-        await mgr.broadcast(session_id, {
-            "type": "run_error",
-            "session_id": session_id,
-            "error": str(e),
-        })
+        await mgr.broadcast(
+            session_id,
+            {
+                "type": "run_error",
+                "session_id": session_id,
+                "error": str(e),
+            },
+        )
 
     # Save assistant response
     if full_response:
@@ -583,6 +623,7 @@ async def _chat_history(request: Request) -> JSONResponse:
 
     # Read from persistent datastore first
     from praisonaiui.server import _datastore
+
     messages = await _datastore.get_messages(session_id)
 
     if not messages:
@@ -641,18 +682,23 @@ async def _chat_ws(websocket: WebSocket) -> None:
                     guardrail_blocked = False
                     try:
                         from .guardrails import check_guardrails
+
                         violation = await check_guardrails(
-                            content, agent_name=agent_name or "", direction="input",
+                            content,
+                            agent_name=agent_name or "",
+                            direction="input",
                         )
                         if violation and violation.get("blocked"):
                             guardrail_blocked = True
-                            await websocket.send_json({
-                                "type": "run_error",
-                                "session_id": session_id,
-                                "guardrail_blocked": True,
-                                "error": f"🛡️ Guardrail violation: {violation.get('reason', violation.get('description', 'Blocked by guardrail'))}",
-                                "guardrail_id": violation.get("guardrail_id", ""),
-                            })
+                            await websocket.send_json(
+                                {
+                                    "type": "run_error",
+                                    "session_id": session_id,
+                                    "guardrail_blocked": True,
+                                    "error": f"🛡️ Guardrail violation: {violation.get('reason', violation.get('description', 'Blocked by guardrail'))}",
+                                    "guardrail_id": violation.get("guardrail_id", ""),
+                                }
+                            )
                     except ImportError:
                         pass
                     except Exception:
@@ -669,14 +715,18 @@ async def _chat_ws(websocket: WebSocket) -> None:
                     )
                     # Also persist user message to datastore
                     from praisonaiui.server import _datastore
+
                     try:
                         existing = await _datastore.get_session(session_id)
                         if existing is None:
                             await _datastore.create_session(session_id)
-                        await _datastore.add_message(session_id, {
-                            "role": "user",
-                            "content": content,
-                        })
+                        await _datastore.add_message(
+                            session_id,
+                            {
+                                "role": "user",
+                                "content": content,
+                            },
+                        )
                     except Exception:
                         pass
                     # Extract attachment_ids
@@ -698,15 +748,18 @@ async def _chat_ws(websocket: WebSocket) -> None:
                 logger.info(f"Ask response received: {response[:100]} (session={session_id})")
                 # Forward to provider's ask response queue if available
                 from praisonaiui.server import get_provider
+
                 provider = get_provider()
-                if hasattr(provider, 'submit_ask_response'):
+                if hasattr(provider, "submit_ask_response"):
                     await provider.submit_ask_response(session_id, run_id, response)
                 # Acknowledge
-                await websocket.send_json({
-                    "type": "ask_response_ack",
-                    "session_id": session_id,
-                    "status": "received",
-                })
+                await websocket.send_json(
+                    {
+                        "type": "ask_response_ack",
+                        "session_id": session_id,
+                        "status": "received",
+                    }
+                )
 
             elif msg_type == "ping":
                 await websocket.send_json({"type": "pong"})
@@ -720,6 +773,7 @@ async def _chat_ws(websocket: WebSocket) -> None:
 
 
 # ── Feature Protocol Implementation ─────────────────────────────────
+
 
 class ChatFeature(BaseFeatureProtocol):
     """Chat feature — protocol-driven, config-driven.

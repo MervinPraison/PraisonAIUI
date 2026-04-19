@@ -26,7 +26,6 @@ from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
 
-
 # ── Usage Protocol ───────────────────────────────────────────────────
 
 
@@ -34,8 +33,14 @@ class UsageProtocol(ABC):
     """Protocol interface for usage tracking backends."""
 
     @abstractmethod
-    def track_usage(self, model: str, input_tokens: int, output_tokens: int,
-                    session_id: str = "unknown", agent_name: str = "unknown") -> Dict[str, Any]: ...
+    def track_usage(
+        self,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+        session_id: str = "unknown",
+        agent_name: str = "unknown",
+    ) -> Dict[str, Any]: ...
 
     @abstractmethod
     def get_summary(self) -> Dict[str, Any]: ...
@@ -45,6 +50,7 @@ class UsageProtocol(ABC):
 
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
+
 
 # Default cost table (USD per 1K tokens)
 DEFAULT_COST_TABLE = {
@@ -95,16 +101,16 @@ _data_file: Path | None = None
 def _get_model_cost(model: str) -> Dict[str, float]:
     """Get cost rates for a model, with fuzzy matching."""
     model_lower = model.lower()
-    
+
     # Exact match
     if model_lower in _cost_table:
         return _cost_table[model_lower]
-    
+
     # Fuzzy match (check if model contains known model name)
     for known_model, costs in _cost_table.items():
         if known_model in model_lower or model_lower in known_model:
             return costs
-    
+
     return _cost_table.get("default", {"input": 0.001, "output": 0.002})
 
 
@@ -130,14 +136,14 @@ def track_usage(
     agent_name: str = "unknown",
 ) -> Dict[str, Any]:
     """Track a usage event with cost calculation.
-    
+
     Returns the recorded usage entry.
     """
     timestamp = time.time()
     total_tokens = input_tokens + output_tokens
     cost = _calculate_cost(model, input_tokens, output_tokens)
     hour_key = _get_hour_key(timestamp)
-    
+
     # Create record
     record = {
         "timestamp": timestamp,
@@ -149,60 +155,72 @@ def track_usage(
         "session_id": session_id,
         "agent_name": agent_name,
     }
-    
+
     # Add to ring buffer
     _usage_records.append(record)
-    
+
     # Update aggregates
     _aggregates["total_requests"] += 1
     _aggregates["total_input_tokens"] += input_tokens
     _aggregates["total_output_tokens"] += output_tokens
     _aggregates["total_cost"] += cost
-    
+
     # By model
     if model not in _aggregates["by_model"]:
         _aggregates["by_model"][model] = {
-            "requests": 0, "input_tokens": 0, "output_tokens": 0, "cost": 0.0
+            "requests": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost": 0.0,
         }
     _aggregates["by_model"][model]["requests"] += 1
     _aggregates["by_model"][model]["input_tokens"] += input_tokens
     _aggregates["by_model"][model]["output_tokens"] += output_tokens
     _aggregates["by_model"][model]["cost"] += cost
-    
+
     # By session
     if session_id not in _aggregates["by_session"]:
         _aggregates["by_session"][session_id] = {
-            "requests": 0, "input_tokens": 0, "output_tokens": 0, "cost": 0.0
+            "requests": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost": 0.0,
         }
     _aggregates["by_session"][session_id]["requests"] += 1
     _aggregates["by_session"][session_id]["input_tokens"] += input_tokens
     _aggregates["by_session"][session_id]["output_tokens"] += output_tokens
     _aggregates["by_session"][session_id]["cost"] += cost
-    
+
     # By agent
     if agent_name not in _aggregates["by_agent"]:
         _aggregates["by_agent"][agent_name] = {
-            "requests": 0, "input_tokens": 0, "output_tokens": 0, "cost": 0.0
+            "requests": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost": 0.0,
         }
     _aggregates["by_agent"][agent_name]["requests"] += 1
     _aggregates["by_agent"][agent_name]["input_tokens"] += input_tokens
     _aggregates["by_agent"][agent_name]["output_tokens"] += output_tokens
     _aggregates["by_agent"][agent_name]["cost"] += cost
-    
+
     # By hour (for time-series)
     if hour_key not in _aggregates["by_hour"]:
         _aggregates["by_hour"][hour_key] = {
-            "requests": 0, "input_tokens": 0, "output_tokens": 0, "cost": 0.0
+            "requests": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost": 0.0,
         }
     _aggregates["by_hour"][hour_key]["requests"] += 1
     _aggregates["by_hour"][hour_key]["input_tokens"] += input_tokens
     _aggregates["by_hour"][hour_key]["output_tokens"] += output_tokens
     _aggregates["by_hour"][hour_key]["cost"] += cost
-    
+
     # Persist periodically (every 10 requests)
     if _data_file and _aggregates["total_requests"] % 10 == 0:
         _save_data()
-    
+
     return record
 
 
@@ -278,15 +296,17 @@ class UsageFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "usage",
-            "help": "View usage statistics",
-            "commands": {
-                "summary": {"help": "Show usage summary", "handler": self._cli_summary},
-                "models": {"help": "Show per-model usage", "handler": self._cli_models},
-                "cost": {"help": "Show total cost", "handler": self._cli_cost},
-            },
-        }]
+        return [
+            {
+                "name": "usage",
+                "help": "View usage statistics",
+                "commands": {
+                    "summary": {"help": "Show usage summary", "handler": self._cli_summary},
+                    "models": {"help": "Show per-model usage", "handler": self._cli_models},
+                    "cost": {"help": "Show total cost", "handler": self._cli_cost},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
@@ -304,7 +324,7 @@ class UsageFeature(BaseFeatureProtocol):
 
     async def _summary(self, request: Request) -> JSONResponse:
         """Return usage summary with totals and averages.
-        
+
         Response format matches the dashboard frontend expectations:
         {"usage": {..., "by_model": {...}, "by_session": {...}}, "sessions": {...}}
         """
@@ -312,7 +332,7 @@ class UsageFeature(BaseFeatureProtocol):
         total_cost = _aggregates["total_cost"]
         total_tokens = _aggregates["total_input_tokens"] + _aggregates["total_output_tokens"]
         avg_cost = total_cost / total_reqs if total_reqs > 0 else 0
-        
+
         # Build by_model with 'tokens' key for dashboard compatibility
         by_model = {}
         for model, stats in _aggregates["by_model"].items():
@@ -323,7 +343,7 @@ class UsageFeature(BaseFeatureProtocol):
                 "output_tokens": stats["output_tokens"],
                 "cost": round(stats["cost"], 4),
             }
-        
+
         # Build by_session with 'tokens' key for dashboard compatibility
         by_session = {}
         for session_id, stats in _aggregates["by_session"].items():
@@ -334,56 +354,62 @@ class UsageFeature(BaseFeatureProtocol):
                 "output_tokens": stats["output_tokens"],
                 "cost": round(stats["cost"], 4),
             }
-        
-        return JSONResponse({
-            # Top-level fields for direct API consumers
-            "total_requests": total_reqs,
-            "total_input_tokens": _aggregates["total_input_tokens"],
-            "total_output_tokens": _aggregates["total_output_tokens"],
-            "total_tokens": total_tokens,
-            "total_cost_usd": round(total_cost, 4),
-            "avg_cost_per_request": round(avg_cost, 6),
-            "models_count": len(_aggregates["by_model"]),
-            "sessions_count": len(_aggregates["by_session"]),
-            "agents_count": len(_aggregates["by_agent"]),
-            # Dashboard-compatible nested structure
-            "usage": {
+
+        return JSONResponse(
+            {
+                # Top-level fields for direct API consumers
                 "total_requests": total_reqs,
-                "total_tokens": total_tokens,
-                "total_cost": round(total_cost, 4),
                 "total_input_tokens": _aggregates["total_input_tokens"],
                 "total_output_tokens": _aggregates["total_output_tokens"],
-                "by_model": by_model,
-                "by_session": by_session,
-            },
-            "sessions": {
-                "total": len(_aggregates["by_session"]),
-                "active": 0,  # Feature doesn't track active tasks
-            },
-        })
+                "total_tokens": total_tokens,
+                "total_cost_usd": round(total_cost, 4),
+                "avg_cost_per_request": round(avg_cost, 6),
+                "models_count": len(_aggregates["by_model"]),
+                "sessions_count": len(_aggregates["by_session"]),
+                "agents_count": len(_aggregates["by_agent"]),
+                # Dashboard-compatible nested structure
+                "usage": {
+                    "total_requests": total_reqs,
+                    "total_tokens": total_tokens,
+                    "total_cost": round(total_cost, 4),
+                    "total_input_tokens": _aggregates["total_input_tokens"],
+                    "total_output_tokens": _aggregates["total_output_tokens"],
+                    "by_model": by_model,
+                    "by_session": by_session,
+                },
+                "sessions": {
+                    "total": len(_aggregates["by_session"]),
+                    "active": 0,  # Feature doesn't track active tasks
+                },
+            }
+        )
 
     async def _details(self, request: Request) -> JSONResponse:
         """Return detailed usage records for analysis."""
         limit = int(request.query_params.get("limit", 100))
         records = list(_usage_records)[-limit:]
-        return JSONResponse({
-            "records": records,
-            "count": len(records),
-            "total_available": len(_usage_records),
-        })
+        return JSONResponse(
+            {
+                "records": records,
+                "count": len(records),
+                "total_available": len(_usage_records),
+            }
+        )
 
     async def _models(self, request: Request) -> JSONResponse:
         """Return per-model breakdown."""
         models = []
         for model, stats in _aggregates["by_model"].items():
-            models.append({
-                "model": model,
-                "requests": stats["requests"],
-                "input_tokens": stats["input_tokens"],
-                "output_tokens": stats["output_tokens"],
-                "total_tokens": stats["input_tokens"] + stats["output_tokens"],
-                "cost_usd": round(stats["cost"], 4),
-            })
+            models.append(
+                {
+                    "model": model,
+                    "requests": stats["requests"],
+                    "input_tokens": stats["input_tokens"],
+                    "output_tokens": stats["output_tokens"],
+                    "total_tokens": stats["input_tokens"] + stats["output_tokens"],
+                    "cost_usd": round(stats["cost"], 4),
+                }
+            )
         # Sort by cost descending
         models.sort(key=lambda x: x["cost_usd"], reverse=True)
         return JSONResponse({"models": models, "count": len(models)})
@@ -392,13 +418,15 @@ class UsageFeature(BaseFeatureProtocol):
         """Return per-session breakdown."""
         sessions = []
         for session_id, stats in _aggregates["by_session"].items():
-            sessions.append({
-                "session_id": session_id,
-                "requests": stats["requests"],
-                "input_tokens": stats["input_tokens"],
-                "output_tokens": stats["output_tokens"],
-                "cost_usd": round(stats["cost"], 4),
-            })
+            sessions.append(
+                {
+                    "session_id": session_id,
+                    "requests": stats["requests"],
+                    "input_tokens": stats["input_tokens"],
+                    "output_tokens": stats["output_tokens"],
+                    "cost_usd": round(stats["cost"], 4),
+                }
+            )
         sessions.sort(key=lambda x: x["cost_usd"], reverse=True)
         return JSONResponse({"sessions": sessions[:50], "count": len(sessions)})
 
@@ -406,13 +434,15 @@ class UsageFeature(BaseFeatureProtocol):
         """Return per-agent breakdown."""
         agents = []
         for agent_name, stats in _aggregates["by_agent"].items():
-            agents.append({
-                "agent": agent_name,
-                "requests": stats["requests"],
-                "input_tokens": stats["input_tokens"],
-                "output_tokens": stats["output_tokens"],
-                "cost_usd": round(stats["cost"], 4),
-            })
+            agents.append(
+                {
+                    "agent": agent_name,
+                    "requests": stats["requests"],
+                    "input_tokens": stats["input_tokens"],
+                    "output_tokens": stats["output_tokens"],
+                    "cost_usd": round(stats["cost"], 4),
+                }
+            )
         agents.sort(key=lambda x: x["cost_usd"], reverse=True)
         return JSONResponse({"agents": agents, "count": len(agents)})
 
@@ -420,40 +450,46 @@ class UsageFeature(BaseFeatureProtocol):
         """Return time-series data for charts."""
         hours = int(request.query_params.get("hours", 24))
         now = datetime.now()
-        
+
         # Generate hour keys for the requested range
         data_points = []
         for i in range(hours, -1, -1):
             dt = now - timedelta(hours=i)
             hour_key = dt.strftime("%Y-%m-%d-%H")
             hour_label = dt.strftime("%H:00")
-            
-            stats = _aggregates["by_hour"].get(hour_key, {
-                "requests": 0, "input_tokens": 0, "output_tokens": 0, "cost": 0.0
-            })
-            
-            data_points.append({
-                "hour": hour_label,
-                "hour_key": hour_key,
-                "requests": stats["requests"],
-                "tokens": stats["input_tokens"] + stats["output_tokens"],
-                "cost": round(stats["cost"], 4),
-            })
-        
-        return JSONResponse({
-            "timeseries": data_points,
-            "hours": hours,
-            "total_cost": round(sum(p["cost"] for p in data_points), 4),
-            "total_requests": sum(p["requests"] for p in data_points),
-        })
+
+            stats = _aggregates["by_hour"].get(
+                hour_key, {"requests": 0, "input_tokens": 0, "output_tokens": 0, "cost": 0.0}
+            )
+
+            data_points.append(
+                {
+                    "hour": hour_label,
+                    "hour_key": hour_key,
+                    "requests": stats["requests"],
+                    "tokens": stats["input_tokens"] + stats["output_tokens"],
+                    "cost": round(stats["cost"], 4),
+                }
+            )
+
+        return JSONResponse(
+            {
+                "timeseries": data_points,
+                "hours": hours,
+                "total_cost": round(sum(p["cost"] for p in data_points), 4),
+                "total_requests": sum(p["requests"] for p in data_points),
+            }
+        )
 
     async def _costs(self, request: Request) -> JSONResponse:
         """Return the cost table."""
-        return JSONResponse({
-            "cost_table": _cost_table,
-            "currency": "USD",
-            "unit": "per 1K tokens",
-        })
+        return JSONResponse(
+            {
+                "cost_table": _cost_table,
+                "currency": "USD",
+                "unit": "per 1K tokens",
+            }
+        )
 
     async def _track(self, request: Request) -> JSONResponse:
         """Manually track a usage event (for testing/integration)."""
@@ -480,9 +516,7 @@ class UsageFeature(BaseFeatureProtocol):
             return "No model usage tracked"
         lines = []
         for model, stats in sorted(
-            _aggregates["by_model"].items(),
-            key=lambda x: x[1]["cost"],
-            reverse=True
+            _aggregates["by_model"].items(), key=lambda x: x[1]["cost"], reverse=True
         ):
             lines.append(f"  {model}: {stats['requests']} reqs, ${stats['cost']:.4f}")
         return "\n".join(lines)

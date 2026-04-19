@@ -27,24 +27,19 @@ class MarketplaceProtocol(ABC):
     """Protocol interface for plugin marketplaces."""
 
     @abstractmethod
-    def list_plugins(self, *, category: str = "all") -> List[Dict[str, Any]]:
-        ...
+    def list_plugins(self, *, category: str = "all") -> List[Dict[str, Any]]: ...
 
     @abstractmethod
-    def search(self, query: str, *, limit: int = 20) -> List[Dict[str, Any]]:
-        ...
+    def search(self, query: str, *, limit: int = 20) -> List[Dict[str, Any]]: ...
 
     @abstractmethod
-    def install(self, plugin_id: str) -> Dict[str, Any]:
-        ...
+    def install(self, plugin_id: str) -> Dict[str, Any]: ...
 
     @abstractmethod
-    def uninstall(self, plugin_id: str) -> Dict[str, Any]:
-        ...
+    def uninstall(self, plugin_id: str) -> Dict[str, Any]: ...
 
     @abstractmethod
-    def get_plugin(self, plugin_id: str) -> Optional[Dict[str, Any]]:
-        ...
+    def get_plugin(self, plugin_id: str) -> Optional[Dict[str, Any]]: ...
 
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
@@ -59,24 +54,56 @@ class LocalMarketplaceManager(MarketplaceProtocol):
     def __init__(self) -> None:
         self._installed: Dict[str, Dict[str, Any]] = {}
         self._available: List[Dict[str, Any]] = [
-            {"id": "web_search", "name": "Web Search", "category": "tools", "version": "1.0.0",
-             "description": "Search the web using DuckDuckGo", "installed": False},
-            {"id": "code_executor", "name": "Code Executor", "category": "tools", "version": "1.0.0",
-             "description": "Execute Python code in sandbox", "installed": False},
-            {"id": "file_manager", "name": "File Manager", "category": "tools", "version": "1.0.0",
-             "description": "Read, write, and manage files", "installed": False},
-            {"id": "memory_plugin", "name": "Memory Plugin", "category": "memory", "version": "1.0.0",
-             "description": "Persistent agent memory with ChromaDB", "installed": False},
+            {
+                "id": "web_search",
+                "name": "Web Search",
+                "category": "tools",
+                "version": "1.0.0",
+                "description": "Search the web using DuckDuckGo",
+                "installed": False,
+            },
+            {
+                "id": "code_executor",
+                "name": "Code Executor",
+                "category": "tools",
+                "version": "1.0.0",
+                "description": "Execute Python code in sandbox",
+                "installed": False,
+            },
+            {
+                "id": "file_manager",
+                "name": "File Manager",
+                "category": "tools",
+                "version": "1.0.0",
+                "description": "Read, write, and manage files",
+                "installed": False,
+            },
+            {
+                "id": "memory_plugin",
+                "name": "Memory Plugin",
+                "category": "memory",
+                "version": "1.0.0",
+                "description": "Persistent agent memory with ChromaDB",
+                "installed": False,
+            },
         ]
 
     def list_plugins(self, *, category: str = "all") -> List[Dict[str, Any]]:
         if category == "all":
             return self._available + list(self._installed.values())
-        return [p for p in self._available + list(self._installed.values()) if p.get("category") == category]
+        return [
+            p
+            for p in self._available + list(self._installed.values())
+            if p.get("category") == category
+        ]
 
     def search(self, query: str, *, limit: int = 20) -> List[Dict[str, Any]]:
         q = query.lower()
-        results = [p for p in self._available if q in p.get("name", "").lower() or q in p.get("description", "").lower()]
+        results = [
+            p
+            for p in self._available
+            if q in p.get("name", "").lower() or q in p.get("description", "").lower()
+        ]
         return results[:limit]
 
     def install(self, plugin_id: str) -> Dict[str, Any]:
