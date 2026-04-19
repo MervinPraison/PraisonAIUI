@@ -4,16 +4,16 @@ PraisonAIUI is a **protocol-driven UI framework** for building AI applications. 
 
 ## Quick Comparison
 
-| Feature | PraisonAIUI | Streamlit | Gradio | Chainlit |
-|---------|-------------|-----------|--------|----------|
-| **Architecture** | Protocol-driven (SDK→JSON→Client) | Script re-run | Input→Output | Chat-focused |
-| **UI Styles** | 6 (chat, agents, dashboard, playground, docs, custom) | 1 | 1 | 1 |
-| **Components** | 48 structured | ~30 widgets | ~20 blocks | Steps/Actions |
-| **Custom Pages** | `@aiui.page()` decorator | Multipage apps | Tabs | ❌ |
-| **Theme System** | 22 presets + custom CSS variables | Limited | Limited | Limited |
-| **Agent-First** | ✅ Built for agents | ❌ General | ❌ ML demos | ✅ Chat agents |
-| **Extensibility** | Plugin architecture | ❌ | ❌ | ❌ |
-| **YAML Config** | ✅ Full config | ❌ | ❌ | ❌ |
+| Feature | PraisonAIUI | Streamlit | Gradio |
+|---------|-------------|-----------|--------|
+| **Architecture** | Protocol-driven (SDK→JSON→Client) | Script re-run | Input→Output |
+| **UI Styles** | 6 (chat, agents, dashboard, playground, docs, custom) | 1 | 1 |
+| **Components** | 48 structured | ~30 widgets | ~20 blocks |
+| **Custom Pages** | `@aiui.page()` decorator | Multipage apps | Tabs |
+| **Theme System** | 22 presets + custom CSS variables | Limited | Limited |
+| **Agent-First** | ✅ Built for agents | ❌ General | ❌ ML demos |
+| **Extensibility** | Plugin architecture | ❌ | ❌ |
+| **YAML Config** | ✅ Full config | ❌ | ❌ |
 
 ---
 
@@ -102,57 +102,6 @@ async def on_message(message):
 **When to use PraisonAIUI**: Chat agents, admin dashboards, multi-agent systems.
 
 **When to use Gradio**: ML model demos, quick input/output interfaces.
-
----
-
-## vs Chainlit
-
-### How Chainlit Works
-
-Chainlit is a **chat-focused framework** with Steps and Actions for showing agent reasoning.
-
-```python
-# Chainlit
-import chainlit as cl
-
-@cl.on_message
-async def main(message: cl.Message):
-    await cl.Message(content=f"Echo: {message.content}").send()
-```
-
-### How PraisonAIUI Works
-
-PraisonAIUI provides **chat + dashboard + docs** in one framework with 48 components.
-
-```python
-# PraisonAIUI
-import praisonaiui as aiui
-
-@aiui.reply
-async def on_message(message):
-    await aiui.say(f"Echo: {message.content}")
-
-@aiui.page("analytics", title="Analytics", icon="📊")
-async def analytics():
-    return aiui.layout([
-        aiui.card("Messages", value=142),
-        aiui.chart(data=[10, 20, 30], type="line"),
-    ])
-```
-
-### Key Differences
-
-| Aspect | PraisonAIUI | Chainlit |
-|--------|-------------|----------|
-| **Scope** | Chat + Dashboard + Docs | Chat only |
-| **Components** | 48 structured | Steps/Actions |
-| **Custom Pages** | `@aiui.page()` | ❌ |
-| **Theme System** | 22 presets + CSS vars | Limited |
-| **Protocol** | Extensible plugin architecture | Fixed |
-
-**When to use PraisonAIUI**: Full-featured agent platforms, admin dashboards, documentation sites.
-
-**When to use Chainlit**: Simple chat agents with step-by-step reasoning display.
 
 ---
 
@@ -246,7 +195,6 @@ aiui.set_theme(preset="blue", dark_mode=True)
 
 - Quick ML model demos → Gradio
 - Simple data dashboards → Streamlit
-- Chat-only with minimal setup → Chainlit
 
 ---
 

@@ -206,7 +206,7 @@ __all__ = [
     # Action classes and decorators
     "Action",
     "action_callback",
-    # Message classes (Chainlit pattern)
+    # Message classes
     "Message",
     "AskUserMessage",
     "Step",

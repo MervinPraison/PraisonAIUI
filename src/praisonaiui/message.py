@@ -1,6 +1,6 @@
-"""Message class with Chainlit-style .send()/.update()/.stream_token() pattern.
+"""Message class with a composable ``.send()`` / ``.update()`` / ``.stream_token()`` API.
 
-This module provides a composable Message object that can be configured
+This module provides a ``Message`` object that can be configured
 before sending, enabling rich interactions with metadata, elements, and actions.
 
 Example:
@@ -44,7 +44,7 @@ StepType = Literal["tool_call", "reasoning", "sub_agent", "retrieval", "custom"]
 
 @dataclass
 class Message:
-    """A composable message object with Chainlit-style API.
+    """A composable message object with a fluent ``.send()`` / ``.stream_token()`` API.
 
     Attributes:
         content: The message content (text)
@@ -376,7 +376,11 @@ class Message:
 
 @dataclass
 class AskUserMessage:
-    """Ask the user a question and wait for response (Chainlit pattern).
+    """Ask the user a question and wait for their response.
+
+    .. deprecated:: 0.3.109
+        Use :func:`praisonaiui.prompt` instead. ``AskUserMessage`` is kept as a
+        thin wrapper and will be removed in 0.5.0.
 
     Example:
         res = await AskUserMessage(content="What's your name?").send()
@@ -419,7 +423,7 @@ class AskUserMessage:
 
 @dataclass
 class Step:
-    """A reasoning/thinking step (nested steps support) with Chainlit cl.Step parity.
+    """A reasoning/thinking step with nested-step support.
 
     Example:
         async with Step(name="🔧 Tool: web_search", type="tool_call") as step:

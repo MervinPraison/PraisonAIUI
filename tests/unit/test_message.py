@@ -1,4 +1,4 @@
-"""Unit tests for message.py - Chainlit-style Message API."""
+"""Unit tests for message.py \u2014 composable Message API."""
 
 import asyncio
 import pytest

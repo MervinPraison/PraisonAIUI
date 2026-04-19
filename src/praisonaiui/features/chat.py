@@ -6,7 +6,7 @@ Gap 1–7 implementation:
   * ChatManager (default implementation)
   * HTTP + WebSocket routes
 
-Config-driven (Chainlit-like):
+Config-driven:
     Users configure agents via ``AIUIGateway.register_agent()``
     or ``praisonaiui.register_agent()``, and the chat UI appears automatically.
 """
@@ -124,7 +124,7 @@ class ChatProtocol(ABC):
     """Protocol interface for chat backends.
 
     Any chat implementation (gateway, direct, custom) implements this.
-    PraisonAIUI is agnostic to the backend — just like Chainlit.
+    PraisonAIUI is agnostic to the backend.
     """
 
     @abstractmethod
@@ -722,7 +722,7 @@ async def _chat_ws(websocket: WebSocket) -> None:
 # ── Feature Protocol Implementation ─────────────────────────────────
 
 class ChatFeature(BaseFeatureProtocol):
-    """Chat feature — protocol-driven, config-driven (like Chainlit).
+    """Chat feature — protocol-driven, config-driven.
 
     Provides:
       * WebSocket real-time chat (/api/chat/ws)

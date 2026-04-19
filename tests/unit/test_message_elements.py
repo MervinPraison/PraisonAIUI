@@ -1,4 +1,4 @@
-"""Unit tests for message elements with Chainlit parity."""
+"""Unit tests for rich inline message elements."""
 
 import pytest
 from pydantic import ValidationError

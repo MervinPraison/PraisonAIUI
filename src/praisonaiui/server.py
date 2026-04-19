@@ -555,7 +555,7 @@ def _get_site_section() -> dict:
 def _build_html(style: str) -> str:
     """Generate the host HTML based on style. No template files needed.
 
-    The SDK owns the HTML — just like Chainlit. Users never write HTML.
+    The SDK owns the HTML. Users never write HTML.
     """
     # Branding-driven title: set_branding() → YAML config → default
     _site_section = _get_site_section()

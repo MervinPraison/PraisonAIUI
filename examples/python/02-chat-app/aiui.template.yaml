@@ -9,8 +9,8 @@ site:
     darkMode: false
     radius: lg
 
-# Use chainlit-style fullscreen chat layout
-style: chainlit
+# Fullscreen chat layout
+style: chat
 
 # Chat configuration
 chat:

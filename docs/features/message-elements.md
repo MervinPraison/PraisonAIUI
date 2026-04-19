@@ -1,6 +1,6 @@
 # Message Elements
 
-PraisonAIUI supports rich inline message elements for displaying images, PDFs, videos, audio, files, and code blocks within chat messages. This provides Chainlit-style element rendering parity for seamless migration.
+PraisonAIUI supports rich inline message elements for displaying images, PDFs, videos, audio, files, and code blocks within chat messages.
 
 ## Element Types
 
@@ -145,19 +145,6 @@ All elements support three display modes:
 - **Videos/Audio**: Native browser accessibility
 - **Files**: Icon-based file type recognition
 - **Code**: Copy button with keyboard support
-
-## Migration from Chainlit
-
-PraisonAIUI elements provide direct parity with Chainlit elements:
-
-| Chainlit | PraisonAIUI |
-|----------|-------------|
-| `cl.Image()` | `msg.add_image()` |
-| `cl.Pdf()` | `msg.add_pdf()` |
-| `cl.Video()` | `msg.add_video()` |
-| `cl.Audio()` | `msg.add_audio()` |
-| `cl.File()` | `msg.add_file()` |
-| Code blocks | `msg.add_code()` |
 
 ## Low-Level API
 
