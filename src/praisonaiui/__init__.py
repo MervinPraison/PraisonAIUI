@@ -36,9 +36,11 @@ def __getattr__(name: str):
     _message_attrs = {"Message", "AskUserMessage", "Step", "step"}
     _server_attrs = {"register_agent", "register_page", "set_datastore", "get_datastore",
                       "set_provider", "get_provider", "set_style", "set_pages", "remove_page",
-                      "set_branding", "set_theme", "set_custom_css", "register_theme",
+                      "set_branding", "set_theme", "set_custom_css", "set_custom_js",
+                      "register_theme",
                       "set_chat_features", "set_dashboard", "set_chat_mode", "set_brand_color",
-                      "set_sidebar_config", "set_feedback_enabled"}
+                      "set_sidebar_config", "set_feedback_enabled", "register_page_action",
+                      "register_component_schema", "get_component_schemas"}
     _datastore_attrs = {"BaseDataStore", "MemoryDataStore", "JSONFileDataStore", "SQLAlchemyDataStore"}
     _provider_attrs = {"BaseProvider", "RunEvent", "RunEventType"}
     _providers_attrs = {"PraisonAIProvider"}
@@ -68,7 +70,7 @@ def __getattr__(name: str):
         "toast", "dialog", "caption", "html_embed", "skeleton", "tooltip_wrap",
         # Tier C — completeness
         "time_input", "gallery", "breadcrumb", "pagination",
-        "key_value_list", "popover",
+        "key_value_list", "popover", "form_action",
     }
     if name in _callback_attrs:
         from praisonaiui import callbacks
@@ -188,6 +190,7 @@ __all__ = [
     "register_theme",
     "set_pages",
     "remove_page",
+    "register_page_action",
     # DataStore classes
     "BaseDataStore",
     "MemoryDataStore",
@@ -285,4 +288,5 @@ __all__ = [
     "pagination",
     "key_value_list",
     "popover",
+    "form_action",
 ]

@@ -25,12 +25,10 @@ Deep Analysis → Gap Analysis → Critical Review → Plan → Create GitHub Is
 ## CANONICAL PATHS
 
 ```
-Core SDK:    /Users/praison/praisonai-package/src/praisonai-agents (praisonaiagents)
-Wrapper:     /Users/praison/praisonai-package/src/praisonai (praisonai)
-Tools:       /Users/praison/PraisonAI-tools
+UI Repo:     /Users/praison/praisonaiui (praisonaiui)
+SDK Core:    /Users/praison/praisonai-package/src/praisonai-agents (praisonaiagents)
 Docs:        /Users/praison/PraisonAIDocs
-TypeScript:  /Users/praison/praisonai-package/src/praisonai-ts
-Extension:   tools/base.py, tools/decorator.py, db/*
+Extension:   src/praisonaiui/*, docs/*, tests/*
 ```
 
 ---
@@ -91,16 +89,13 @@ Key files to read:
 Go through ALL relevant files, understand current logic end-to-end.
 
 ```bash
-# Core SDK
+# UI repo
+ls /Users/praison/praisonaiui/src/praisonaiui/
+ls /Users/praison/praisonaiui/tests/
+ls /Users/praison/praisonaiui/docs/
+
+# Optional cross-check against SDK only when needed
 ls /Users/praison/praisonai-package/src/praisonai-agents/praisonaiagents/
-grep -r "class.*Protocol" praisonaiagents/ --include="*.py" | wc -l
-
-# Wrapper
-ls /Users/praison/praisonai-package/src/praisonai/praisonai/
-ls /Users/praison/praisonai-package/src/praisonai/praisonai/cli/commands/
-
-# TypeScript
-ls /Users/praison/praisonai-package/src/praisonai-ts/src/
 ```
 
 **Document:**
@@ -320,7 +315,7 @@ Working code example.
 
 ```bash
 gh issue create \
-  --repo MervinPraison/PraisonAI \
+  --repo MervinPraison/PraisonAIUI \
   --title "<Type>: <Descriptive Title>" \
   --body "<issue body>"
 ```
@@ -334,7 +329,7 @@ gh issue create \
 ### 9b. Verify issue created
 
 ```bash
-gh issue view <number> --repo MervinPraison/PraisonAI | head -20
+gh issue view <number> --repo MervinPraison/PraisonAIUI | head -20
 ```
 
 ---

@@ -138,3 +138,12 @@ cd frontend
 pnpm install
 pnpm dev
 ```
+
+---
+
+## Related Pages
+
+- [CSS Architecture](css-architecture.md) — Deep dive into CSS layers, variables, and cascade order
+- [Theme System](theme-system.md) — Light/dark mode and custom theme registration
+- [Dark Mode](dark-mode.md) — Dark mode toggle configuration
+- [Python API](../api/python.md) — `set_theme()`, `set_custom_css()`, `register_theme()`

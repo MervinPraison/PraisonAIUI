@@ -17,13 +17,10 @@ PRINCIPLES (apply in all analysis/proposals):
 - Easy for non-developers. "Few lines of code to do the task!"
 
 CANONICAL PATHS:
-- Core SDK: /Users/praison/praisonai-package/src/praisonai-agents (praisonaiagents)
-- Wrapper: /Users/praison/praisonai-package/src/praisonai (praisonai)
-- Tools: /Users/praison/PraisonAI-tools
+- UI Repo: /Users/praison/praisonaiui (praisonaiui)
+- SDK Core (reference): /Users/praison/praisonai-package/src/praisonai-agents (praisonaiagents)
 - Docs: /Users/praison/PraisonAIDocs (JS: docs/js, Rust: docs/rust)
-- TypeScript: /Users/praison/praisonai-package/src/praisonai-ts
-- Rust: /Users/praison/praisonai-package/src/praisonai-rust
-- Extension points: tools/base.py, tools/decorator.py, db/*
+- Extension points: src/praisonaiui/*, docs/*, tests/*
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MANDATORY PROCESS (NO IMPLEMENTATION)
@@ -54,7 +51,7 @@ STEP 4 — Detailed Review
 
 STEP 5 — Gap Analysis
 - Compare acceptance criteria vs current state. Checklist:
-  - Core SDK, Wrapper, Tools/plugins, CLI, Docs, Tests, Exports, Perf, Multi-agent + async
+  - UI Core, CLI, Docs, Tests, Exports, Perf, Multi-agent + async
 - Each gap: severity, impact, risk, recommended location (core/wrapper/tools).
 
 STEP 6 — Critical Review

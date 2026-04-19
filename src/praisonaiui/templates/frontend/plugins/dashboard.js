@@ -9,6 +9,11 @@
 // Record load time for overview stats
 window.__aiuiLoadTime = window.__aiuiLoadTime || Date.now();
 
+// ── Extensible Component Registry ────────────────────────────────────
+// Maps component type names to custom render functions.
+// Custom renderers take priority over the built-in switch in renderComponent().
+const COMPONENT_REGISTRY = {};
+
 // ── Extensible View Registry ─────────────────────────────────────────
 // Maps page IDs to view modules. Each module exports render(container).
 // Built-in views are loaded via dynamic import from ./views/
@@ -52,6 +57,10 @@ window.aiui.registerView = function(pageId, renderFn, cleanupFn) {
   VIEW_REGISTRY[pageId] = { render: renderFn, cleanup: cleanupFn || null };
 };
 window.aiui.views = VIEW_REGISTRY;
+window.aiui.registerComponent = function(type, renderFn) {
+  COMPONENT_REGISTRY[type] = renderFn;
+};
+window.aiui.components = COMPONENT_REGISTRY;
 
 // ── Sidebar State ────────────────────────────────────────────────
 let sidebarCollapsed = false;
@@ -605,10 +614,6 @@ async function init() {
   style.textContent = DASHBOARD_STYLE;
   document.head.appendChild(style);
 
-  // Re-append user custom CSS so it takes precedence over DASHBOARD_STYLE defaults
-  const customCss = document.getElementById('aiui-custom-css');
-  if (customCss) document.head.appendChild(customCss);
-
   // Apply theme from config BEFORE building dashboard
   try {
     const cfgRes = await fetch('/ui-config.json');
@@ -915,6 +920,10 @@ function renderComponents(data, container) {
 }
 
 function renderComponent(comp) {
+  // Extensible: check COMPONENT_REGISTRY first (custom renderers take priority)
+  if (COMPONENT_REGISTRY[comp.type]) {
+    try { return COMPONENT_REGISTRY[comp.type](comp); } catch (e) { console.warn(`Custom component '${comp.type}' error:`, e); }
+  }
   switch (comp.type) {
     case 'card': return renderCard(comp);
     case 'columns': return renderColumns(comp);
@@ -969,6 +978,7 @@ function renderComponent(comp) {
     case 'pagination': return renderPagination(comp);
     case 'key_value_list': return renderKeyValueList(comp);
     case 'popover': return renderPopover(comp);
+    case 'form_action': return renderFormAction(comp);
     default: {
       const div = document.createElement('div');
       div.className = 'db-viewer';
@@ -1219,7 +1229,7 @@ function renderTextInput(comp) {
   el.className = 'db-form-group';
   el.innerHTML = `
     ${comp.label ? `<label class="db-form-label">${comp.label}</label>` : ''}
-    <input type="text" class="db-form-input" value="${comp.value || ''}" placeholder="${comp.placeholder || ''}">
+    <input type="text" class="db-form-input" name="${comp.name || ''}" data-label="${comp.label || ''}" value="${comp.value || ''}" placeholder="${comp.placeholder || ''}">
   `;
   return el;
 }
@@ -1233,7 +1243,7 @@ function renderNumberInput(comp) {
   if (comp.step !== undefined) attrs.push(`step="${comp.step}"`);
   el.innerHTML = `
     ${comp.label ? `<label class="db-form-label">${comp.label}</label>` : ''}
-    <input type="number" class="db-form-input" value="${comp.value || ''}" ${attrs.join(' ')}>
+    <input type="number" class="db-form-input" name="${comp.name || ''}" data-label="${comp.label || ''}" value="${comp.value || ''}" ${attrs.join(' ')}>
   `;
   return el;
 }
@@ -1249,7 +1259,7 @@ function renderSelectInput(comp) {
   }).join('');
   el.innerHTML = `
     ${comp.label ? `<label class="db-form-label">${comp.label}</label>` : ''}
-    <select class="db-form-select">${options}</select>
+    <select class="db-form-select" name="${comp.name || ''}" data-label="${comp.label || ''}">${options}</select>
   `;
   return el;
 }
@@ -1264,7 +1274,7 @@ function renderSliderInput(comp) {
   el.innerHTML = `
     ${comp.label ? `<label class="db-form-label">${comp.label}</label>` : ''}
     <div style="display:flex;align-items:center;gap:12px">
-      <input type="range" class="db-form-input" style="flex:1" value="${val}" min="${min}" max="${max}" step="${step}">
+      <input type="range" class="db-form-input" name="${comp.name || ''}" data-label="${comp.label || ''}" style="flex:1" value="${val}" min="${min}" max="${max}" step="${step}">
       <span style="font-size:13px;color:var(--db-text);min-width:40px;text-align:right">${val}</span>
     </div>
   `;
@@ -1278,7 +1288,7 @@ function renderCheckboxInput(comp) {
   const el = document.createElement('div');
   el.className = 'db-form-group db-form-checkbox';
   el.innerHTML = `
-    <input type="checkbox" ${comp.checked ? 'checked' : ''}>
+    <input type="checkbox" name="${comp.name || ''}" data-label="${comp.label || ''}" ${comp.checked ? 'checked' : ''}>
     <label class="db-form-label" style="margin:0">${comp.label || ''}</label>
   `;
   return el;
@@ -1288,24 +1298,32 @@ function renderSwitchInput(comp) {
   const el = document.createElement('div');
   el.className = 'db-form-group db-form-switch';
   const on = comp.checked ? ' on' : '';
+  // Hidden checkbox mirrors the switch state so form_action can collect its value.
   el.innerHTML = `
+    <input type="checkbox" class="db-switch-hidden" name="${comp.name || ''}" data-label="${comp.label || ''}" ${comp.checked ? 'checked' : ''} style="display:none">
     <div class="db-switch-track${on}"><div class="db-switch-thumb"></div></div>
     <span style="font-size:13px;color:var(--db-text)">${comp.label || ''}</span>
   `;
   const track = el.querySelector('.db-switch-track');
-  track.addEventListener('click', () => { track.classList.toggle('on'); });
+  const hidden = el.querySelector('input.db-switch-hidden');
+  track.addEventListener('click', () => {
+    track.classList.toggle('on');
+    hidden.checked = track.classList.contains('on');
+  });
   return el;
 }
 
 function renderRadioInput(comp) {
   const el = document.createElement('div');
   el.className = 'db-form-group db-form-radio';
-  const name = 'radio_' + Math.random().toString(36).slice(2, 8);
+  // Prefer explicit comp.name (needed for form_action key), fall back to
+  // random for the HTML radio-group semantic.
+  const name = comp.name || ('radio_' + Math.random().toString(36).slice(2, 8));
   const options = (comp.options || []).map(opt => {
     const val = typeof opt === 'object' ? opt.value : opt;
     const label = typeof opt === 'object' ? opt.label : opt;
     const checked = val === comp.value ? ' checked' : '';
-    return `<label><input type="radio" name="${name}" value="${val}"${checked}>${label}</label>`;
+    return `<label><input type="radio" name="${name}" data-label="${comp.label || ''}" value="${val}"${checked}>${label}</label>`;
   }).join('');
   el.innerHTML = `
     ${comp.label ? `<div class="db-form-label">${comp.label}</div>` : ''}
@@ -1320,7 +1338,7 @@ function renderTextareaInput(comp) {
   const rows = comp.rows || 4;
   el.innerHTML = `
     ${comp.label ? `<label class="db-form-label">${comp.label}</label>` : ''}
-    <textarea class="db-form-textarea" rows="${rows}" placeholder="${comp.placeholder || ''}">${comp.value || ''}</textarea>
+    <textarea class="db-form-textarea" name="${comp.name || ''}" data-label="${comp.label || ''}" rows="${rows}" placeholder="${comp.placeholder || ''}">${comp.value || ''}</textarea>
   `;
   return el;
 }
@@ -1747,6 +1765,52 @@ function renderPopover(comp) {
   el.appendChild(content);
   document.addEventListener('click', (e) => { if (!el.contains(e.target)) el.classList.remove('open'); });
   return el;
+}
+
+function renderFormAction(comp) {
+  const form = document.createElement('form');
+  form.className = 'db-form-action';
+  form.dataset.action = comp.action || '';
+  (comp.children || []).forEach(child => form.appendChild(renderComponent(child)));
+  const btn = document.createElement('button');
+  btn.type = 'submit';
+  btn.className = 'db-btn db-btn-primary';
+  btn.textContent = comp.submit_label || 'Submit';
+  form.appendChild(btn);
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {};
+    form.querySelectorAll('input, select, textarea').forEach(el => {
+      const key = el.name || el.dataset.label || el.getAttribute('aria-label') || '';
+      if (!key) return;
+      if (el.type === 'radio') {
+        // Only store the checked radio in a group; skip unchecked ones.
+        if (el.checked) data[key] = el.value;
+        else if (!(key in data)) data[key] = null;
+      } else if (el.type === 'checkbox') {
+        data[key] = el.checked;
+      } else {
+        data[key] = el.value;
+      }
+    });
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+    try {
+      const pageId = form.closest('[data-page]')?.dataset?.page || comp.action;
+      const res = await fetch(`/api/pages/${pageId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      btn.textContent = res.ok ? 'Done' : 'Error';
+      setTimeout(() => { btn.textContent = comp.submit_label || 'Submit'; btn.disabled = false; }, 2000);
+    } catch (err) {
+      btn.textContent = 'Error';
+      btn.disabled = false;
+    }
+  });
+  return form;
 }
 
 // ── Test All Features panel ────────────────────────────────

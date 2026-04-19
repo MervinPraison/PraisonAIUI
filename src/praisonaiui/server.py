@@ -18,19 +18,26 @@ from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, JSONResponse, StreamingResponse
+from starlette.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
 from praisonaiui.datastore import BaseDataStore, JSONFileDataStore, MemoryDataStore
 from praisonaiui.features import auto_register_defaults, get_features
 from praisonaiui.provider import BaseProvider, RunEventType
+from praisonaiui.schemas import (
+    get_component_schemas,
+    register_component_schema,
+    reset_component_schemas,
+)
 
 # Registry for callbacks
 _callbacks: dict[str, Callable] = {}
 _agents: dict[str, dict[str, Any]] = {}
 # Registry for dashboard pages (protocol-driven)
 _pages: dict[str, dict[str, Any]] = {}
+# Registry for page action handlers (form submissions)
+_page_actions: dict[str, Callable] = {}
 # User-defined page whitelist — None means "show all built-in pages"
 _enabled_pages: Optional[set[str]] = None
 # Track which page IDs were added by @aiui.page() (always shown)
@@ -84,6 +91,8 @@ _branding: dict[str, str] = {"title": "PraisonAI", "logo": "🦞"}
 _theme: Optional[dict[str, Any]] = None
 # Custom CSS set via aiui.set_custom_css()
 _custom_css: Optional[str] = None
+# Custom JS set via aiui.set_custom_js() — contents of a local .js file
+_custom_js: Optional[str] = None
 # Chat features override set via aiui.set_chat_features()
 _chat_features: Optional[dict[str, Any]] = None
 # Dashboard config set via aiui.set_dashboard()
@@ -98,12 +107,13 @@ def reset_state() -> None:
     Intended for test isolation — call in test fixtures to avoid
     state leaking between tests.  Not for production use.
     """
-    global _style, _branding, _theme, _custom_css, _chat_features
+    global _style, _branding, _theme, _custom_css, _custom_js, _chat_features
     global _dashboard_config, _provider, _config_path, _config_cache
     global _chat_mode, _brand_color, _effective_style, _selected_profile, _feedback_enabled
     _callbacks.clear()
     _agents.clear()
     _pages.clear()
+    _page_actions.clear()
     _enabled_pages_ref = globals()
     _enabled_pages_ref["_enabled_pages"] = None
     _custom_page_ids.clear()
@@ -117,6 +127,7 @@ def reset_state() -> None:
     _branding = {"title": "PraisonAI", "logo": "🦞"}
     _theme = None
     _custom_css = None
+    _custom_js = None
     _chat_features = None
     _dashboard_config = None
     _provider = None
@@ -131,6 +142,11 @@ def reset_state() -> None:
     try:
         from praisonaiui.features.theme import reset_theme_manager
         reset_theme_manager()
+    except Exception:
+        pass
+    # Reset user-registered component schemas (built-ins are preserved)
+    try:
+        reset_component_schemas()
     except Exception:
         pass
 
@@ -225,6 +241,43 @@ def set_custom_css(css: str) -> None:
     """
     global _custom_css
     _custom_css = css
+
+
+def set_custom_js(path: str | Path) -> None:
+    """Inject a local JavaScript file into the UI.
+
+    Reads the file at ``path`` and serves it at ``/custom.js``. A
+    ``<script src="/custom.js">`` tag is injected into the host HTML
+    *after* the plugin loader, so ``window.aiui`` and all registry APIs
+    (``registerView``, ``registerComponent``) are ready when your code
+    runs.
+
+    Use this to ship client-side extensions from your Python app without
+    modifying the package bundle.
+
+    Args:
+        path: Local filesystem path (``str`` or ``pathlib.Path``) to a
+            ``.js`` file.
+
+    Raises:
+        FileNotFoundError: if ``path`` does not exist.
+
+    Example::
+
+        import praisonaiui as aiui
+        aiui.set_custom_js("plugin.js")
+
+    Where ``plugin.js`` contains::
+
+        window.aiui.registerComponent('timeline', function(comp) {
+            // ...render DOM and return it
+        });
+    """
+    global _custom_js
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(f"Custom JS file not found: {p}")
+    _custom_js = p.read_text(encoding="utf-8")
 
 
 def set_chat_features(
@@ -529,12 +582,31 @@ def _build_html(style: str) -> str:
     )
 
     # Inject custom CSS if set via set_custom_css() or YAML site.custom_css
+    # A tiny observer script keeps it as the last <style> in <head> so that
+    # plugin-injected styles (DASHBOARD_STYLE, chat-view-styles, etc.) never
+    # override user CSS via cascade order.
     custom_css_tag = ''
     _css = _custom_css
     if not _css and _site_section:
         _css = _site_section.get("custom_css") or _site_section.get("customCss")
     if _css:
-        custom_css_tag = f'<style id="aiui-custom-css">{_css}</style>'
+        custom_css_tag = (
+            f'<style id="aiui-custom-css">{_css}</style>'
+            '<script id="aiui-css-guard">'
+            '(function(){'
+            'var c=document.getElementById("aiui-custom-css");'
+            'if(!c)return;'
+            'new MutationObserver(function(ms){'
+            'for(var i=0;i<ms.length;i++){'
+            'for(var j=0;j<ms[i].addedNodes.length;j++){'
+            'var n=ms[i].addedNodes[j];'
+            'if(n.tagName==="STYLE"&&n.id!=="aiui-custom-css"){'
+            'document.head.appendChild(c);'
+            '}}}'
+            '}).observe(document.head,{childList:true});'
+            '})()'
+            '</script>'
+        )
 
     # Server-side theme variable injection (dashboard style)
     # Only inject accent-related vars with !important so that:
@@ -574,7 +646,25 @@ def _build_html(style: str) -> str:
         '<div id="root"></div>'
         f'{react_script}'
         f'<script src="/plugins/plugin-loader.js?v={cache_bust}"></script>'
+        f'{_custom_js_tag(cache_bust)}'
         '</body></html>'
+    )
+
+
+def _custom_js_tag(cache_bust: int) -> str:
+    """Return a <script src="/custom.js"> tag if set_custom_js() was called."""
+    if _custom_js is None:
+        return ""
+    return f'<script src="/custom.js?v={cache_bust}"></script>'
+
+
+async def _serve_custom_js(request: Request) -> Response:
+    """Serve the user's custom.js set via aiui.set_custom_js()."""
+    if _custom_js is None:
+        return Response(status_code=404)
+    return Response(
+        content=_custom_js,
+        media_type="application/javascript",
     )
 
 
@@ -698,6 +788,25 @@ def register_page(
     _custom_page_ids.add(id)
     if handler:
         register_callback(f"page:{id}", handler)
+
+
+def register_page_action(page_id: str):
+    """Decorator to register a form action handler for a page.
+
+    The decorated async function receives the form data dict and should
+    return a dict that will be JSON-serialized back to the client.
+
+    Example::
+
+        @aiui.register_page_action("settings")
+        async def handle_settings(data):
+            save_settings(data)
+            return {"status": "saved"}
+    """
+    def decorator(fn: Callable) -> Callable:
+        _page_actions[page_id] = fn
+        return fn
+    return decorator
 
 
 async def health(request: Request) -> JSONResponse:
@@ -1139,17 +1248,32 @@ async def api_pages(request: Request) -> JSONResponse:
     return JSONResponse({"pages": pages})
 
 
+async def api_component_schemas(request: Request) -> JSONResponse:
+    """Return the merged component schema registry (built-in + user-registered).
+
+    Use this endpoint to power client-side validators, codegen, and docs.
+    """
+    return JSONResponse({"schemas": get_component_schemas()})
+
+
 async def api_features(request: Request) -> JSONResponse:
-    """List all registered feature protocols."""
-    features = get_features()
-    infos = []
-    for f in features.values():
+    """List all registered feature protocols.
+
+    Calls ``info()`` on every registered feature concurrently (via
+    ``asyncio.gather``). This avoids the previous N*latency cold-start
+    time where features with slow imports (e.g. LiteLLM) serialized the
+    whole response.
+    """
+    features = list(get_features().values())
+
+    async def _safe_info(f):
         try:
-            info = await f.info()
-            infos.append(info)
+            return await f.info()
         except Exception:
-            infos.append({"name": f.name, "status": "error"})
-    return JSONResponse({"features": infos, "count": len(infos)})
+            return {"name": f.name, "status": "error"}
+
+    infos = await asyncio.gather(*(_safe_info(f) for f in features))
+    return JSONResponse({"features": list(infos), "count": len(infos)})
 
 
 async def api_gateway_status(request: Request) -> JSONResponse:
@@ -1202,6 +1326,28 @@ async def api_page_data(request: Request) -> JSONResponse:
             result = await result
         if not isinstance(result, dict):
             result = {"data": result}
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+async def api_page_action(request: Request) -> JSONResponse:
+    """Handle form action submissions for a page."""
+    page_id = request.path_params["page_id"]
+    handler = _page_actions.get(page_id)
+    if not handler:
+        return JSONResponse(
+            {"error": f"No action handler for page '{page_id}'"},
+            status_code=404,
+        )
+    try:
+        data = await request.json()
+        import asyncio as _aio
+        result = handler(data)
+        if _aio.iscoroutine(result):
+            result = await result
+        if not isinstance(result, dict):
+            result = {"result": result}
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -2004,8 +2150,11 @@ def create_app(
         # Page registry protocol
         Route("/api/pages", api_pages, methods=["GET"]),
         Route("/api/pages/{page_id}/data", api_page_data, methods=["GET"]),
+        Route("/api/pages/{page_id}/action", api_page_action, methods=["POST"]),
         # Feature protocol registry
         Route("/api/features", api_features, methods=["GET"]),
+        # Component schema registry (built-in + user-registered)
+        Route("/api/components/schemas", api_component_schemas, methods=["GET"]),
         # Gateway status
         Route("/api/gateway/status", api_gateway_status, methods=["GET"]),
         # Frontend config JSON (dynamic fallback — static files override if present)
@@ -2180,6 +2329,10 @@ def create_app(
     # Dynamic plugins.json route — MUST come before static /plugins mount
     # so the dynamic endpoint takes priority over the static file.
     routes.append(Route("/plugins/plugins.json", _plugins_config, methods=["GET"]))
+
+    # User-provided custom JS via aiui.set_custom_js(). Always register so that
+    # it returns 404 when unset (tests rely on this) and serves content otherwise.
+    routes.append(Route("/custom.js", _serve_custom_js, methods=["GET"]))
 
     if _plugins_dir.exists():
         routes.append(Mount("/plugins", app=StaticFiles(directory=str(_plugins_dir))))

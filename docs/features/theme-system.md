@@ -101,6 +101,8 @@ The theme system injects CSS custom properties into the `:root` element. All cha
 
 ## Related
 
+- [CSS Architecture](css-architecture.md) — Deep dive into CSS layers, variables, and cascade order
 - [Gateway Chat](gateway-chat.md) — Chat interface (themed)
 - [Theming](theming.md) — General theming concepts
 - [Dark Mode](dark-mode.md) — Dark mode toggle
+- [Python API](../api/python.md) — `set_theme()`, `set_custom_css()`, `register_theme()`

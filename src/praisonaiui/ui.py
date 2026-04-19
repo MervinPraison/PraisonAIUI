@@ -239,15 +239,28 @@ def json_view(data: Any) -> dict:
 # ── Tier 2: Form Input Components ───────────────────────────────────
 
 
-def text_input(label: str, *, value: str = "", placeholder: str = "") -> dict:
+def text_input(
+    label: str,
+    *,
+    value: str = "",
+    placeholder: str = "",
+    name: str | None = None,
+) -> dict:
     """A text input field.
 
     Args:
         label: Input label
         value: Default value
         placeholder: Placeholder text
+        name: Optional explicit submit-key for ``form_action``. When
+            omitted, the form collector falls back to ``label``. Use
+            ``name`` whenever you have duplicate labels or want a stable
+            machine-readable key.
     """
-    return {"type": "text_input", "label": label, "value": value, "placeholder": placeholder}
+    comp: dict[str, Any] = {"type": "text_input", "label": label, "value": value, "placeholder": placeholder}
+    if name is not None:
+        comp["name"] = name
+    return comp
 
 
 def number_input(
@@ -257,6 +270,7 @@ def number_input(
     min_val: int | float | None = None,
     max_val: int | float | None = None,
     step: int | float = 1,
+    name: str | None = None,
 ) -> dict:
     """A number input field.
 
@@ -266,24 +280,37 @@ def number_input(
         min_val: Minimum allowed value
         max_val: Maximum allowed value
         step: Increment step
+        name: Optional explicit submit-key for ``form_action``.
     """
     comp: dict[str, Any] = {"type": "number_input", "label": label, "value": value, "step": step}
     if min_val is not None:
         comp["min_val"] = min_val
     if max_val is not None:
         comp["max_val"] = max_val
+    if name is not None:
+        comp["name"] = name
     return comp
 
 
-def select_input(label: str, *, options: Sequence[str], value: str = "") -> dict:
+def select_input(
+    label: str,
+    *,
+    options: Sequence[str],
+    value: str = "",
+    name: str | None = None,
+) -> dict:
     """A dropdown select input.
 
     Args:
         label: Input label
         options: List of option strings
         value: Default selected value
+        name: Optional explicit submit-key for ``form_action``.
     """
-    return {"type": "select_input", "label": label, "options": list(options), "value": value}
+    comp: dict[str, Any] = {"type": "select_input", "label": label, "options": list(options), "value": value}
+    if name is not None:
+        comp["name"] = name
+    return comp
 
 
 def slider_input(
@@ -293,6 +320,7 @@ def slider_input(
     min_val: int | float = 0,
     max_val: int | float = 100,
     step: int | float = 1,
+    name: str | None = None,
 ) -> dict:
     """A slider input.
 
@@ -302,45 +330,84 @@ def slider_input(
         min_val: Minimum value
         max_val: Maximum value
         step: Increment step
+        name: Optional explicit submit-key for ``form_action``.
     """
-    return {
+    comp: dict[str, Any] = {
         "type": "slider_input", "label": label, "value": value,
         "min_val": min_val, "max_val": max_val, "step": step,
     }
+    if name is not None:
+        comp["name"] = name
+    return comp
 
 
-def checkbox_input(label: str, *, checked: bool = False) -> dict:
+def checkbox_input(
+    label: str,
+    *,
+    checked: bool = False,
+    name: str | None = None,
+) -> dict:
     """A checkbox input.
 
     Args:
         label: Checkbox label
         checked: Default checked state
+        name: Optional explicit submit-key for ``form_action``.
     """
-    return {"type": "checkbox_input", "label": label, "checked": checked}
+    comp: dict[str, Any] = {"type": "checkbox_input", "label": label, "checked": checked}
+    if name is not None:
+        comp["name"] = name
+    return comp
 
 
-def switch_input(label: str, *, checked: bool = False) -> dict:
+def switch_input(
+    label: str,
+    *,
+    checked: bool = False,
+    name: str | None = None,
+) -> dict:
     """A toggle switch input.
 
     Args:
         label: Switch label
         checked: Default checked state
+        name: Optional explicit submit-key for ``form_action``.
     """
-    return {"type": "switch_input", "label": label, "checked": checked}
+    comp: dict[str, Any] = {"type": "switch_input", "label": label, "checked": checked}
+    if name is not None:
+        comp["name"] = name
+    return comp
 
 
-def radio_input(label: str, *, options: Sequence[str], value: str = "") -> dict:
+def radio_input(
+    label: str,
+    *,
+    options: Sequence[str],
+    value: str = "",
+    name: str | None = None,
+) -> dict:
     """A radio button group.
 
     Args:
         label: Group label
         options: List of option strings
         value: Default selected value
+        name: Optional explicit submit-key for ``form_action``.
     """
-    return {"type": "radio_input", "label": label, "options": list(options), "value": value}
+    comp: dict[str, Any] = {"type": "radio_input", "label": label, "options": list(options), "value": value}
+    if name is not None:
+        comp["name"] = name
+    return comp
 
 
-def textarea_input(label: str, *, value: str = "", placeholder: str = "", rows: int = 4) -> dict:
+def textarea_input(
+    label: str,
+    *,
+    value: str = "",
+    placeholder: str = "",
+    rows: int = 4,
+    name: str | None = None,
+) -> dict:
     """A multi-line text area input.
 
     Args:
@@ -348,8 +415,12 @@ def textarea_input(label: str, *, value: str = "", placeholder: str = "", rows: 
         value: Default value
         placeholder: Placeholder text
         rows: Number of visible rows
+        name: Optional explicit submit-key for ``form_action``.
     """
-    return {"type": "textarea_input", "label": label, "value": value, "placeholder": placeholder, "rows": rows}
+    comp: dict[str, Any] = {"type": "textarea_input", "label": label, "value": value, "placeholder": placeholder, "rows": rows}
+    if name is not None:
+        comp["name"] = name
+    return comp
 
 
 # ── Tier 3: Layout & Advanced Components ─────────────────────────────
@@ -724,3 +795,27 @@ def popover(trigger: dict, *, children: Sequence[dict]) -> dict:
         children: Content components inside the popover
     """
     return {"type": "popover", "trigger": trigger, "children": list(children)}
+
+
+def form_action(
+    action: str,
+    *,
+    children: Sequence[dict],
+    submit_label: str = "Submit",
+) -> dict:
+    """A form container that submits input values to the server.
+
+    When the user clicks submit, the frontend collects all input values
+    from ``children`` and POSTs them to ``/api/pages/{page_id}/action``.
+
+    Args:
+        action: Action identifier (typically matches the page_id).
+        children: Form input components (text_input, select_input, etc.)
+        submit_label: Label for the submit button. Default "Submit".
+    """
+    return {
+        "type": "form_action",
+        "action": action,
+        "children": list(children),
+        "submit_label": submit_label,
+    }

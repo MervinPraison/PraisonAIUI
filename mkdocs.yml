@@ -52,6 +52,9 @@ plugins:
           options:
             show_source: true
 
+hooks:
+  - docs_hooks.py
+
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
@@ -97,6 +100,7 @@ nav:
     - Gateway Chat: features/gateway-chat.md
     - Attachments: features/attachments.md
     - Theme System: features/theme-system.md
+    - CSS Architecture: features/css-architecture.md
     - Model Fallback: features/model-fallback.md
     - Subagent Tree: features/subagent-tree.md
     - Config Hot-Reload: features/config-hot-reload.md
@@ -112,9 +116,25 @@ nav:
     - SEO: features/seo.md
     - Hot Reload: features/hot-reload.md
     - Widget Zones: features/widget-zones.md
+    - Code Execution: features/code-execution.md
+    - i18n: features/i18n.md
+    - Marketplace: features/marketplace.md
+    - Media Analysis: features/media-analysis.md
+    - PWA: features/pwa.md
+    - TTS: features/tts.md
+    - Device Pairing: features/device-pairing.md
+    - Channel Bridge: features/channel-chat-bridge.md
+    - Deployment: features/deployment.md
+    - Protocol Architecture: features/protocol-architecture.md
     - Feature Inventory: features/feature-inventory.md
     - Gap Analysis: features/gap-analysis.md
+    - Integration Analysis: features/integration-analysis.md
+    - Standardization: features/standardization-verification.md
     - Comparison (OpenClaw): features/comparison-openclaw.md
+    - What Makes It Different: features/differentiation.md
+    - How to Add a Feature: features/how-to-add-a-feature.md
+    - Message Elements: features/message-elements.md
+    - Steps: features/steps.md
   - API Reference:
     - Python CLI: api/cli.md
     - Python API: api/python.md
@@ -131,3 +151,4 @@ nav:
   - Examples:
     - Basic Examples: examples/basic.md
     - Advanced Examples: examples/advanced.md
+  - Testing: testing.md
