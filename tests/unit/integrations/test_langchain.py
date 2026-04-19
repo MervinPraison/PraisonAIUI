@@ -28,8 +28,8 @@ class TestAiuiLangChainCallbackHandler:
 
     def test_init(self, handler):
         """Test handler initialization."""
-        assert handler._step_stack == []
         assert handler._run_id_to_step == {}
+        assert hasattr(handler, '_lock')
 
     @patch('praisonaiui.integrations.langchain.Step')
     @patch('asyncio.create_task')
@@ -52,7 +52,6 @@ class TestAiuiLangChainCallbackHandler:
         )
         
         # Verify step is tracked
-        assert mock_step in handler._step_stack
         assert handler._run_id_to_step[run_id] == mock_step
 
     @patch('praisonaiui.integrations.langchain.Step')
@@ -83,7 +82,7 @@ class TestAiuiLangChainCallbackHandler:
         
         run_id = "run_123"
         handler._run_id_to_step[run_id] = mock_step
-        handler._step_stack.append(mock_step)
+        handler._run_id_to_step[run_id] = mock_step
         
         outputs = {"output": "test response"}
         handler.on_chain_end(outputs, run_id=run_id)
@@ -92,7 +91,7 @@ class TestAiuiLangChainCallbackHandler:
         mock_create_task.assert_called_once()
         
         # Verify cleanup
-        assert mock_step not in handler._step_stack
+        assert run_id not in handler._run_id_to_step
         assert run_id not in handler._run_id_to_step
 
     @patch('asyncio.get_running_loop')
@@ -104,7 +103,7 @@ class TestAiuiLangChainCallbackHandler:
         
         run_id = "run_123"
         handler._run_id_to_step[run_id] = mock_step
-        handler._step_stack.append(mock_step)
+        handler._run_id_to_step[run_id] = mock_step
         
         error = Exception("Test error")
         handler.on_chain_error(error, run_id=run_id)
@@ -113,7 +112,7 @@ class TestAiuiLangChainCallbackHandler:
         mock_create_task.assert_called_once()
         
         # Verify cleanup
-        assert mock_step not in handler._step_stack
+        assert run_id not in handler._run_id_to_step
         assert run_id not in handler._run_id_to_step
 
     @patch('praisonaiui.integrations.langchain.Step')
@@ -135,7 +134,7 @@ class TestAiuiLangChainCallbackHandler:
             metadata={"prompts": prompts, "serialized": serialized}
         )
         
-        assert mock_step in handler._step_stack
+        # Verify step is tracked
         assert handler._run_id_to_step[run_id] == mock_step
 
     @patch('asyncio.get_running_loop')
@@ -178,13 +177,13 @@ class TestAiuiLangChainCallbackHandler:
         """Test tool end event."""
         run_id = "run_123"
         handler._run_id_to_step[run_id] = mock_step
-        handler._step_stack.append(mock_step)
+        handler._run_id_to_step[run_id] = mock_step
         
         output = "Found 10 results"
         handler.on_tool_end(output, run_id=run_id)
         
         # Verify cleanup happened
-        assert mock_step not in handler._step_stack
+        assert run_id not in handler._run_id_to_step
         assert run_id not in handler._run_id_to_step
 
     @patch('praisonaiui.integrations.langchain.Step')
@@ -215,13 +214,13 @@ class TestAiuiLangChainCallbackHandler:
         
         run_id = "run_123"
         handler._run_id_to_step[run_id] = mock_step
-        handler._step_stack.append(mock_step)
+        handler._run_id_to_step[run_id] = mock_step
         
         # Should not raise exception
         handler.on_chain_end({}, run_id=run_id)
         
         # Cleanup should still happen
-        assert mock_step not in handler._step_stack
+        assert run_id not in handler._run_id_to_step
         assert run_id not in handler._run_id_to_step
 
     def test_missing_run_id(self, handler):
@@ -232,7 +231,7 @@ class TestAiuiLangChainCallbackHandler:
         handler.on_llm_start({}, [])
         handler.on_tool_start({}, "")
         
-        assert len(handler._step_stack) == 0
+        assert len(handler._run_id_to_step) == 0
         assert len(handler._run_id_to_step) == 0
 
     def test_nested_steps(self, handler):
@@ -249,8 +248,8 @@ class TestAiuiLangChainCallbackHandler:
                 # Start parent chain
                 handler.on_chain_start({"name": "parent"}, {}, run_id="parent_run")
                 
-                # Start nested LLM call
-                handler.on_llm_start({"name": "OpenAI"}, ["test"], run_id="child_run")
+                # Start nested LLM call with parent_run_id
+                handler.on_llm_start({"name": "OpenAI"}, ["test"], run_id="child_run", parent_run_id="parent_run")
                 
                 # Verify child step was created with parent
                 assert mock_step_class.call_count == 2
@@ -278,8 +277,8 @@ class TestAsyncAiuiLangChainCallbackHandler:
 
     def test_init(self, handler):
         """Test async handler initialization."""
-        assert handler._step_stack == []
         assert handler._run_id_to_step == {}
+        assert hasattr(handler, '_lock')
 
     @pytest.mark.asyncio
     @patch('praisonaiui.integrations.langchain.Step')
@@ -305,7 +304,7 @@ class TestAsyncAiuiLangChainCallbackHandler:
         mock_step.__aenter__.assert_called_once()
         
         # Verify tracking
-        assert mock_step in handler._step_stack
+        # Verify step is tracked
         assert handler._run_id_to_step[run_id] == mock_step
 
     @pytest.mark.asyncio
@@ -313,7 +312,7 @@ class TestAsyncAiuiLangChainCallbackHandler:
         """Test async chain end event."""
         run_id = "async_run_123"
         handler._run_id_to_step[run_id] = mock_step
-        handler._step_stack.append(mock_step)
+        handler._run_id_to_step[run_id] = mock_step
         
         outputs = {"output": "async response"}
         await handler.on_chain_end(outputs, run_id=run_id)
@@ -322,7 +321,7 @@ class TestAsyncAiuiLangChainCallbackHandler:
         mock_step.__aexit__.assert_called_once_with(None, None, None)
         
         # Verify cleanup
-        assert mock_step not in handler._step_stack
+        assert run_id not in handler._run_id_to_step
         assert run_id not in handler._run_id_to_step
 
     @pytest.mark.asyncio
@@ -330,7 +329,7 @@ class TestAsyncAiuiLangChainCallbackHandler:
         """Test async chain error event."""
         run_id = "async_run_123"
         handler._run_id_to_step[run_id] = mock_step
-        handler._step_stack.append(mock_step)
+        handler._run_id_to_step[run_id] = mock_step
         
         error = ValueError("Async test error")
         await handler.on_chain_error(error, run_id=run_id)
@@ -339,7 +338,7 @@ class TestAsyncAiuiLangChainCallbackHandler:
         mock_step.__aexit__.assert_called_once_with(ValueError, error, None)
         
         # Verify cleanup
-        assert mock_step not in handler._step_stack
+        assert run_id not in handler._run_id_to_step
         assert run_id not in handler._run_id_to_step
 
     @pytest.mark.asyncio
@@ -435,5 +434,5 @@ class TestAsyncAiuiLangChainCallbackHandler:
         await handler.on_llm_new_token("token", run_id="unknown")
         await handler.on_tool_end("output", run_id="unknown")
         
-        assert len(handler._step_stack) == 0
+        assert len(handler._run_id_to_step) == 0
         assert len(handler._run_id_to_step) == 0

@@ -148,7 +148,9 @@ class AiuiLlamaIndexCallbackHandler:
         """Handle query end."""
         event_id = kwargs.get("event_id")
         payload = {"response": str(response) if response else None}
-        self.on_event_end("query", payload, event_id, **kwargs)
+        # Remove event_id from kwargs to avoid duplication
+        kwargs_without_event_id = {k: v for k, v in kwargs.items() if k != "event_id"}
+        self.on_event_end("query", payload, event_id, **kwargs_without_event_id)
 
     def on_retrieve_start(self, query: str, **kwargs: Any) -> str:
         """Handle retrieval start."""
@@ -161,7 +163,9 @@ class AiuiLlamaIndexCallbackHandler:
             "num_nodes": len(nodes) if nodes else 0,
             "nodes": [str(node) for node in (nodes or [])[:3]]  # First 3 for brevity
         }
-        self.on_event_end("retrieve", payload, event_id, **kwargs)
+        # Remove event_id from kwargs to avoid duplication
+        kwargs_without_event_id = {k: v for k, v in kwargs.items() if k != "event_id"}
+        self.on_event_end("retrieve", payload, event_id, **kwargs_without_event_id)
 
     def on_llm_start(self, messages: List[Any], **kwargs: Any) -> str:
         """Handle LLM start."""
@@ -185,7 +189,9 @@ class AiuiLlamaIndexCallbackHandler:
         """Handle LLM end."""
         event_id = kwargs.get("event_id")
         payload = {"response": str(response) if response else None}
-        self.on_event_end("llm", payload, event_id, **kwargs)
+        # Remove event_id from kwargs to avoid duplication
+        kwargs_without_event_id = {k: v for k, v in kwargs.items() if k != "event_id"}
+        self.on_event_end("llm", payload, event_id, **kwargs_without_event_id)
 
     async def _start_step(self, step: Step, payload: Optional[Dict[str, Any]]) -> None:
         """Start a step and optionally stream initial content."""

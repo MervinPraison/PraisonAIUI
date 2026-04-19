@@ -28,8 +28,8 @@ class TestAiuiLlamaIndexCallbackHandler:
 
     def test_init(self, handler):
         """Test handler initialization."""
-        assert handler._step_stack == []
         assert handler._event_id_to_step == {}
+        assert handler._parent_map == {}
 
     @patch('praisonaiui.integrations.llama_index.Step')
     @patch('asyncio.create_task')
@@ -51,7 +51,6 @@ class TestAiuiLlamaIndexCallbackHandler:
         )
         
         # Verify tracking
-        assert mock_step in handler._step_stack
         assert handler._event_id_to_step[event_id] == mock_step
 
     @patch('praisonaiui.integrations.llama_index.Step')
@@ -162,12 +161,15 @@ class TestAiuiLlamaIndexCallbackHandler:
             metadata={"event_type": event_type, "payload": payload}
         )
 
+    @patch('asyncio.get_running_loop')
     @patch('asyncio.create_task')
-    def test_on_event_end(self, mock_create_task, handler, mock_step):
+    def test_on_event_end(self, mock_create_task, mock_get_loop, handler, mock_step):
         """Test event end handling."""
+        # Mock that there's a running event loop
+        mock_get_loop.return_value = MagicMock()
+        
         event_id = "test_event_123"
         handler._event_id_to_step[event_id] = mock_step
-        handler._step_stack.append(mock_step)
         
         payload = {"response": "Test response"}
         handler.on_event_end("query", payload, event_id)
@@ -176,15 +178,18 @@ class TestAiuiLlamaIndexCallbackHandler:
         mock_create_task.assert_called_once()
         
         # Verify cleanup
-        assert mock_step not in handler._step_stack
+        # Step should be removed from tracking maps
         assert event_id not in handler._event_id_to_step
 
+    @patch('asyncio.get_running_loop')
     @patch('asyncio.create_task')
-    def test_on_event_error(self, mock_create_task, handler, mock_step):
+    def test_on_event_error(self, mock_create_task, mock_get_loop, handler, mock_step):
         """Test event error handling."""
+        # Mock that there's a running event loop
+        mock_get_loop.return_value = MagicMock()
+        
         event_id = "test_event_123"
         handler._event_id_to_step[event_id] = mock_step
-        handler._step_stack.append(mock_step)
         
         exception = ValueError("Test error")
         handler.on_event_error("query", exception, event_id)
@@ -193,7 +198,7 @@ class TestAiuiLlamaIndexCallbackHandler:
         mock_create_task.assert_called_once()
         
         # Verify cleanup
-        assert mock_step not in handler._step_stack
+        # Step should be removed from tracking maps
         assert event_id not in handler._event_id_to_step
 
     def test_start_trace_end_trace(self, handler):
@@ -226,7 +231,6 @@ class TestAiuiLlamaIndexCallbackHandler:
         """Test query end convenience method."""
         event_id = "query_123"
         handler._event_id_to_step[event_id] = mock_step
-        handler._step_stack.append(mock_step)
         
         response = MagicMock()
         response.__str__ = MagicMock(return_value="AI is a field of computer science")
@@ -234,7 +238,7 @@ class TestAiuiLlamaIndexCallbackHandler:
         handler.on_query_end(response, event_id=event_id)
         
         # Verify cleanup
-        assert mock_step not in handler._step_stack
+        # Step should be removed from tracking maps
         assert event_id not in handler._event_id_to_step
 
     @patch('praisonaiui.integrations.llama_index.Step')
@@ -258,7 +262,6 @@ class TestAiuiLlamaIndexCallbackHandler:
         """Test retrieval end convenience method."""
         event_id = "retrieve_123"
         handler._event_id_to_step[event_id] = mock_step
-        handler._step_stack.append(mock_step)
         
         # Mock nodes
         node1 = MagicMock()
@@ -270,7 +273,7 @@ class TestAiuiLlamaIndexCallbackHandler:
         handler.on_retrieve_end(nodes, event_id=event_id)
         
         # Verify cleanup
-        assert mock_step not in handler._step_stack
+        # Step should be removed from tracking maps
         assert event_id not in handler._event_id_to_step
 
     @patch('praisonaiui.integrations.llama_index.Step')
@@ -289,9 +292,13 @@ class TestAiuiLlamaIndexCallbackHandler:
             metadata={"event_type": "llm", "payload": {"messages": messages}}
         )
 
+    @patch('asyncio.get_running_loop')
     @patch('asyncio.create_task')
-    def test_on_llm_new_token(self, mock_create_task, handler, mock_step):
+    def test_on_llm_new_token(self, mock_create_task, mock_get_loop, handler, mock_step):
         """Test LLM token streaming."""
+        # Mock that there's a running event loop
+        mock_get_loop.return_value = MagicMock()
+        
         event_id = "llm_123"
         handler._event_id_to_step[event_id] = mock_step
         
@@ -306,13 +313,12 @@ class TestAiuiLlamaIndexCallbackHandler:
         """Test LLM end convenience method."""
         event_id = "llm_123"
         handler._event_id_to_step[event_id] = mock_step
-        handler._step_stack.append(mock_step)
         
         response = "Python is a programming language"
         handler.on_llm_end(response, event_id=event_id)
         
         # Verify cleanup
-        assert mock_step not in handler._step_stack
+        # Step should be removed from tracking maps
         assert event_id not in handler._event_id_to_step
 
     def test_no_event_loop_handling(self, handler, mock_step):
@@ -323,13 +329,11 @@ class TestAiuiLlamaIndexCallbackHandler:
             
             event_id = "test_event_123"
             handler._event_id_to_step[event_id] = mock_step
-            handler._step_stack.append(mock_step)
             
             # Should not raise exception
             handler.on_event_end("query", {}, event_id)
             
             # Cleanup should still happen
-            assert mock_step not in handler._step_stack
             assert event_id not in handler._event_id_to_step
 
     def test_missing_event_id(self, handler):
@@ -339,7 +343,7 @@ class TestAiuiLlamaIndexCallbackHandler:
         handler.on_event_error("query", Exception("test"), event_id=None)
         handler.on_llm_new_token("token", event_id=None)
         
-        assert len(handler._step_stack) == 0
+        assert len(handler._event_id_to_step) == 0
         assert len(handler._event_id_to_step) == 0
 
     def test_unknown_event_id(self, handler):
@@ -349,7 +353,7 @@ class TestAiuiLlamaIndexCallbackHandler:
         handler.on_event_error("query", Exception("test"), event_id="unknown_123")
         handler.on_llm_new_token("token", event_id="unknown_123")
         
-        assert len(handler._step_stack) == 0
+        assert len(handler._event_id_to_step) == 0
         assert len(handler._event_id_to_step) == 0
 
     @patch('praisonaiui.integrations.llama_index.Step')
@@ -365,8 +369,8 @@ class TestAiuiLlamaIndexCallbackHandler:
         # Start parent query
         parent_id = handler.on_event_start("query", {"query": "test"})
         
-        # Start nested retrieval
-        child_id = handler.on_event_start("retrieve", {"query": "test"})
+        # Start nested retrieval with parent_id
+        child_id = handler.on_event_start("retrieve", {"query": "test"}, parent_id=parent_id)
         
         # Verify child step was created with parent
         assert mock_step_class.call_count == 2

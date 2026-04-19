@@ -43,7 +43,6 @@ class TestAiuiSemanticKernelFilter:
 
     def test_init(self, filter_instance):
         """Test filter initialization."""
-        assert filter_instance._step_stack == []
         assert filter_instance._context_to_step == {}
 
     @pytest.mark.asyncio
@@ -80,7 +79,7 @@ class TestAiuiSemanticKernelFilter:
         assert mock_step.stream_token.call_count >= 2  # At least function name and result
         
         # Verify cleanup
-        assert len(filter_instance._step_stack) == 0
+        assert len(filter_instance._context_to_step) == 0
         assert len(filter_instance._context_to_step) == 0
 
     @pytest.mark.asyncio
@@ -122,7 +121,7 @@ class TestAiuiSemanticKernelFilter:
         mock_step.__aexit__.assert_called_once_with(ValueError, error, None)
         
         # Verify cleanup happened even with error
-        assert len(filter_instance._step_stack) == 0
+        assert len(filter_instance._context_to_step) == 0
         assert len(filter_instance._context_to_step) == 0
 
     @pytest.mark.asyncio
@@ -266,9 +265,10 @@ class TestAiuiSemanticKernelFilter:
         # Verify both steps were created
         assert mock_step_class.call_count == 2
         
-        # Verify child step was created with parent
+        # SK doesn't provide explicit parent relationships in filters
+        # Both steps appear as top-level (parent=None)
         child_call_args = mock_step_class.call_args_list[1]
-        assert child_call_args[1]["parent"] == parent_step
+        assert child_call_args[1]["parent"] is None
 
     @pytest.mark.asyncio
     @patch('praisonaiui.integrations.semantic_kernel.Step')
