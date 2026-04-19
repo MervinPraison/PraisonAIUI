@@ -121,7 +121,8 @@ dev = [
     # starlette.testclient requires httpx at runtime
     "httpx>=0.24",
     # Several integration and datastore tests import praisonaiagents
-    "praisonaiagents>=1.5.56",
+    # [llm] pulls in litellm which many integration paths require
+    "praisonaiagents[llm]>=1.5.56",
 ]
 
 [project.scripts]
