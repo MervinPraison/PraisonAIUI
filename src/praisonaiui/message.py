@@ -512,3 +512,128 @@ def step(name: str, type: StepType = "reasoning", **metadata: Any):
                 return await func(*args, **kwargs)
         return wrapper
     return decorator
+
+
+# ── Unified verb-first API (0.3.109) ────────────────────────────────
+#
+# These supersede ``AskUserMessage`` and the ad-hoc ``aiui.ask`` helper.
+# Legacy symbols remain for backwards compatibility (see the deprecation
+# notice in the :class:`AskUserMessage` docstring).
+
+
+@dataclass
+class PromptResult:
+    """Typed result returned from :func:`prompt`.
+
+    Attributes:
+        text: Free-text answer the user typed. ``None`` if they picked an
+            option or if the prompt timed out.
+        choice: The option the user selected if ``options`` were given.
+            ``None`` for free-text prompts.
+        message_id: ID of the prompt message, useful for threading/audit.
+
+    The object is truthy when the user actually answered; falsy on timeout,
+    so handlers can write ``if res: ...`` naturally.
+    """
+
+    text: Optional[str] = None
+    choice: Optional[str] = None
+    message_id: Optional[str] = None
+
+    def __bool__(self) -> bool:
+        return self.text is not None or self.choice is not None
+
+    # Backwards-compat dict-style access so code that previously read
+    # ``res["output"]`` keeps working during the deprecation window.
+    def __getitem__(self, key: str) -> Any:
+        if key == "output":
+            return self.choice if self.choice is not None else self.text
+        if key == "message_id":
+            return self.message_id
+        raise KeyError(key)
+
+
+async def prompt(
+    question: str,
+    *,
+    options: Optional[list[str]] = None,
+    timeout: float = 300.0,
+) -> PromptResult:
+    """Ask the user a question and wait for their answer.
+
+    This is the preferred entry point for pause-and-wait interactions. It
+    supersedes :class:`AskUserMessage`, which is kept only as an alias.
+
+    Args:
+        question: Text shown to the user.
+        options: Optional list of choices. When supplied the user picks one;
+            when omitted they type a free-text answer.
+        timeout: Seconds to wait before giving up. Default 5 min.
+
+    Returns:
+        A :class:`PromptResult`. Truthy when the user answered, falsy on
+        timeout so callers can write::
+
+            answer = await aiui.prompt("What's your name?")
+            if answer:
+                await aiui.say(f"Hi {answer.text}!")
+
+    Example with options::
+
+        pick = await aiui.prompt("Pick a colour", options=["red", "blue"])
+        if pick:
+            await aiui.say(f"You picked {pick.choice}")
+    """
+    from praisonaiui.callbacks import _get_context
+
+    ctx = _get_context()
+    if ctx is None:
+        return PromptResult()
+
+    resp = await ctx.ask(
+        question=question,
+        options=list(options or []),
+        timeout=timeout,
+    )
+    if not resp:
+        return PromptResult()
+    # Distinguish text vs option pick: when options were given and the
+    # response matches one, treat as a choice.
+    choice = resp if (options and resp in options) else None
+    text = resp if choice is None else None
+    return PromptResult(
+        text=text,
+        choice=choice,
+        message_id=str(uuid.uuid4()),
+    )
+
+
+async def error(
+    content: str,
+    *,
+    details: Optional[str] = None,
+    author: str = "assistant",
+) -> None:
+    """Emit an error message to the user.
+
+    Thin helper that builds a :class:`Message` with ``kind="error"`` and
+    sends it. Prefer this over constructing a dedicated ``ErrorMessage``
+    class — it keeps the surface area small.
+
+    Args:
+        content: Short, user-facing error text.
+        details: Optional longer description or traceback summary.
+        author: Message author (default ``"assistant"``).
+
+    Example::
+
+        try:
+            data = await fetch_data()
+        except Exception as exc:
+            await aiui.error("Couldn't load data", details=str(exc))
+    """
+    meta: dict[str, Any] = {"kind": "error"}
+    if details:
+        meta["details"] = details
+    msg = Message(content=content, author=author, metadata=meta)
+    await msg.send()

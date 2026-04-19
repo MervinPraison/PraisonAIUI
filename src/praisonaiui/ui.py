@@ -719,14 +719,33 @@ def skeleton(
     return comp
 
 
-def tooltip_wrap(child: dict, *, content: str) -> dict:
+def tooltip(child: dict, *, content: str) -> dict:
     """Wrap a component with a hover tooltip.
 
     Args:
         child: The component dict to wrap
         content: Tooltip text shown on hover
+
+    .. versionadded:: 0.3.109
+        Supersedes :func:`tooltip_wrap`, which remains as a deprecated alias.
     """
     return {"type": "tooltip_wrap", "child": child, "content": content}
+
+
+def tooltip_wrap(child: dict, *, content: str) -> dict:
+    """Deprecated alias for :func:`tooltip`.
+
+    .. deprecated:: 0.3.109
+        Use :func:`praisonaiui.tooltip` instead. Scheduled for removal
+        in 0.5.0.
+    """
+    import warnings
+    warnings.warn(
+        "praisonaiui.tooltip_wrap is deprecated; use praisonaiui.tooltip instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return tooltip(child, content=content)
 
 
 # ── Tier C: Completeness Components ──────────────────────────────────
@@ -774,17 +793,37 @@ def pagination(*, total: int, page: int = 1, per_page: int = 10) -> dict:
     return {"type": "pagination", "total": total, "page": page, "per_page": per_page}
 
 
-def key_value_list(items: Sequence[dict], *, title: str | None = None) -> dict:
-    """A key-value display list.
+def definition_list(items: Sequence[dict], *, title: str | None = None) -> dict:
+    """A label/value definition list.
 
     Args:
         items: List of ``{"label": str, "value": Any}``
         title: Optional heading above the list
+
+    .. versionadded:: 0.3.109
+        Supersedes :func:`key_value_list`.
     """
     comp: dict[str, Any] = {"type": "key_value_list", "items": list(items)}
     if title is not None:
         comp["title"] = title
     return comp
+
+
+def key_value_list(items: Sequence[dict], *, title: str | None = None) -> dict:
+    """Deprecated alias for :func:`definition_list`.
+
+    .. deprecated:: 0.3.109
+        Use :func:`praisonaiui.definition_list` instead. Scheduled for
+        removal in 0.5.0.
+    """
+    import warnings
+    warnings.warn(
+        "praisonaiui.key_value_list is deprecated; "
+        "use praisonaiui.definition_list instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return definition_list(items, title=title)
 
 
 def popover(trigger: dict, *, children: Sequence[dict]) -> dict:
@@ -797,7 +836,7 @@ def popover(trigger: dict, *, children: Sequence[dict]) -> dict:
     return {"type": "popover", "trigger": trigger, "children": list(children)}
 
 
-def form_action(
+def form(
     action: str,
     *,
     children: Sequence[dict],
@@ -810,8 +849,11 @@ def form_action(
 
     Args:
         action: Action identifier (typically matches the page_id).
-        children: Form input components (text_input, select_input, etc.)
-        submit_label: Label for the submit button. Default "Submit".
+        children: Form input components (text_input, select_input, etc.).
+        submit_label: Label for the submit button. Default ``"Submit"``.
+
+    .. versionadded:: 0.3.109
+        Supersedes :func:`form_action`.
     """
     return {
         "type": "form_action",
@@ -819,3 +861,24 @@ def form_action(
         "children": list(children),
         "submit_label": submit_label,
     }
+
+
+def form_action(
+    action: str,
+    *,
+    children: Sequence[dict],
+    submit_label: str = "Submit",
+) -> dict:
+    """Deprecated alias for :func:`form`.
+
+    .. deprecated:: 0.3.109
+        Use :func:`praisonaiui.form` instead. Scheduled for removal
+        in 0.5.0.
+    """
+    import warnings
+    warnings.warn(
+        "praisonaiui.form_action is deprecated; use praisonaiui.form instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return form(action, children=children, submit_label=submit_label)

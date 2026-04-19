@@ -33,7 +33,8 @@ def __getattr__(name: str):
     _audio_attrs = {
         "on_audio_start", "on_audio_chunk", "on_audio_end",
     }
-    _message_attrs = {"Message", "AskUserMessage", "Step", "step"}
+    _message_attrs = {"Message", "AskUserMessage", "Step", "step",
+                       "prompt", "error", "PromptResult"}
     _server_attrs = {"register_agent", "register_page", "set_datastore", "get_datastore",
                       "set_provider", "get_provider", "set_style", "set_pages", "remove_page",
                       "set_branding", "set_theme", "set_custom_css", "set_custom_js",
@@ -67,10 +68,12 @@ def __getattr__(name: str):
         "multiselect_input", "date_input", "color_picker_input",
         "audio_player", "video_player", "file_download",
         # Tier B — high-value dashboard
-        "toast", "dialog", "caption", "html_embed", "skeleton", "tooltip_wrap",
+        "toast", "dialog", "caption", "html_embed", "skeleton",
+        "tooltip", "tooltip_wrap",
         # Tier C — completeness
         "time_input", "gallery", "breadcrumb", "pagination",
-        "key_value_list", "popover", "form_action",
+        "definition_list", "key_value_list", "popover",
+        "form", "form_action",
     }
     if name in _callback_attrs:
         from praisonaiui import callbacks
@@ -206,11 +209,14 @@ __all__ = [
     # Action classes and decorators
     "Action",
     "action_callback",
-    # Message classes
+    # Message classes + verb-first helpers
     "Message",
     "AskUserMessage",
     "Step",
     "step",
+    "prompt",
+    "error",
+    "PromptResult",
     # Feature protocol
     "BaseFeatureProtocol",
     "register_feature",
@@ -280,13 +286,16 @@ __all__ = [
     "caption",
     "html_embed",
     "skeleton",
+    "tooltip",
     "tooltip_wrap",
     # Tier C — completeness
     "time_input",
     "gallery",
     "breadcrumb",
     "pagination",
+    "definition_list",
     "key_value_list",
     "popover",
+    "form",
     "form_action",
 ]
