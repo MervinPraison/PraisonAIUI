@@ -22,6 +22,19 @@ Each example teaches exactly **one new concept** — no overlap.
 | 12 | agent-dashboard | OpenClaw-style rendered HTML admin panel | `python app.py` |
 | 13 | real-dashboard | Production dashboard with seeded data | `python app.py` |
 | 14 | all-features | Comprehensive 16-feature API test suite | `python app.py` |
+| 15 | dashboard-test | Dashboard component rendering tests | `aiui run app.py` |
+| 16 | gateway-integration | Gateway WebSocket integration | `aiui run app.py` |
+| 17 | three-column-demo | Three-column layout with sidebar + TOC | `aiui run app.py` |
+| 18 | full-chat | Full-featured chat with all options enabled | `aiui run app.py` |
+| 19 | components-showcase | All 48 UI components demonstrated | `aiui run app.py` |
+| 20 | email-channel | Email channel integration | `aiui run app.py` |
+| 21 | agentmail-bot | Agentmail bot integration | `aiui run app.py` |
+| 22 | agentmail-channel | Agentmail channel setup | `aiui run app.py` |
+| 23 | e2e-components-test | End-to-end component testing | `aiui run app.py` |
+| 24 | custom-design | Custom CSS design system with `set_custom_css()` | `aiui run app.py` |
+| 25 | clean-chat | Clean chat UI — `sidebar=False`, `page_header=False`, blue theme | `aiui run app.py` |
+| 26 | custom-theme-chat | Custom theme registration via `register_theme()` | `aiui run app.py` |
+| 27 | multica-style | Floating chat window, collapsible sidebar, indigo theme | `aiui run app.py` |
 
 ## Minimal Docs Site
 

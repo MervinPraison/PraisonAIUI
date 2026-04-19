@@ -91,4 +91,4 @@ aiui.template.yaml
 
 ## Writing Tests
 
-See [tests/README.md](../tests/README.md) for conventions, examples, and templates.
+See the `tests/README.md` file in the repository for conventions, examples, and templates.

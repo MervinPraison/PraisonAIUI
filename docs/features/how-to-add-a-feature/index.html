@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="How to Add a Feature to PraisonAIUI - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>How to Add a Feature to PraisonAIUI | PraisonAIUI Docs</title>
+  <script>
+    // Anti-flicker: apply dark mode class before first paint
+    // Default to dark to prevent flash; React will correct if needed
+    document.documentElement.classList.add('dark');
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/how-to-add-a-feature" />
+  <meta property="og:title" content="How to Add a Feature to PraisonAIUI | PraisonAIUI Docs" />
+  <meta property="og:description" content="How to Add a Feature to PraisonAIUI - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/how-to-add-a-feature" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="How to Add a Feature to PraisonAIUI | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="How to Add a Feature to PraisonAIUI - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>How to Add a Feature to PraisonAIUI</h1>
+<p>This guide explains every way a user can extend PraisonAIUI — and which approach fits your use case.</p>
+<h2>Extension Points at a Glance</h2>
+<p>| I want to add… | Use | Side | Effort |</p>
+<p>|----------------|-----|------|--------|</p>
+<p>| A new dashboard page | `@aiui.page()` | Server | 5 lines |</p>
+<p>| A form that saves data | `aiui.form_action()` + `@aiui.register_page_action()` | Both | 15 lines |</p>
+<p>| A brand-new UI component type | `window.aiui.registerComponent()` + dict type | Both | 20 lines |</p>
+<p>| A page rendered entirely in the browser | `window.aiui.registerView()` | Client | 10 lines |</p>
+<p>| Ship client-side JS from Python | `aiui.set_custom_js(path)` | Server | 1 line |</p>
+<p>| A typed contract for a component | `aiui.register_component_schema(type, schema)` | Server | 5 lines |</p>
+<p>| A custom theme | `aiui.register_theme()` | Server | 1 line |</p>
+<p>| A new AI backend | Subclass `aiui.BaseProvider` | Server | ~50 lines |</p>
+<p>| A whole new feature module (routes, state) | Subclass `BaseFeatureProtocol` + `register_feature()` | Server | ~100 lines |</p>
+<p>| Persistence backend | Subclass `aiui.BaseDataStore` | Server | ~50 lines |</p>
+<h2>1. Add a new page</h2>
+<p>**Goal**: Show a new page in the sidebar with custom content.</p>
+<p>**What happens**:</p>
+<p>1. The page is registered in the server's page registry.</p>
+<p>2. It appears in the sidebar at `/api/pages`.</p>
+<p>3. When the user clicks it, the frontend fetches `/api/pages/analytics/data`.</p>
+<p>4. Your handler returns a dict; `aiui.layout()` wraps it in `{"_components": [...]}`.</p>
+<p>5. `dashboard.js` loops over `_components` and calls `renderComponent(comp)` on each.</p>
+<p>See [Dashboard](dashboard.md) for the full `@aiui.page()` signature.</p>
+<p>---</p>
+<h2>2. Add an interactive form</h2>
+<p>**Goal**: Let users submit data from the UI back to your Python code.</p>
+<p>**What happens**:</p>
+<p>1. The form renders with all inputs.</p>
+<p>2. On submit, the frontend POSTs to `/api/pages/contact/action`.</p>
+<p>3. The server invokes `handle_contact(data)` with the form values keyed by label.</p>
+<p>4. The returned dict is sent back to the browser as JSON.</p>
+<p>> **Note**: Input labels become dict keys. Use distinct labels per input.</p>
+<p>---</p>
+<h2>3. Add a custom component type</h2>
+<p>**Goal**: Add a new UI widget that doesn't exist in the 48 built-ins.</p>
+<h3>Step 1 — Python side: return a dict with your new type</h3>
+<p>**If you stop here**, the component renders as formatted JSON (graceful fallback).</p>
+<h3>Step 2 — Client side: register a renderer</h3>
+<p>Put this in a `plugin.js` file (or paste into DevTools Console):</p>
+<p>**What happens**:</p>
+<p>1. `renderComponent(comp)` checks `COMPONENT_REGISTRY[comp.type]` before the built-in switch.</p>
+<p>2. Your renderer takes priority and returns a DOM element.</p>
+<h3>Auto-load `plugin.js` from Python</h3>
+<p>Use `aiui.set_custom_js(path)` to ship client-side extensions directly from</p>
+<p>your app:</p>
+<p>The script runs **after** the plugin loader, so `window.aiui.registerView`</p>
+<p>and `window.aiui.registerComponent` are ready when it executes. No DevTools</p>
+<p>workaround needed.</p>
+<p>---</p>
+<h2>4. Add a client-only page</h2>
+<p>**Goal**: A page rendered entirely in the browser — no server round-trip on navigation.</p>
+<p>Still register a placeholder page in Python so it appears in the sidebar:</p>
+<p>**What happens**:</p>
+<p>1. `registerView` takes priority over the built-in + server-side rendering.</p>
+<p>2. Navigation calls your `render(container)` function.</p>
+<p>3. When the user navigates away, your `cleanup()` function runs.</p>
+<p>---</p>
+<h2>5. Register a custom theme</h2>
+<p>See [CSS Architecture](css-architecture.md) for all variables.</p>
+<p>---</p>
+<h2>6. Add a new AI provider</h2>
+<p>See [Providers](../concepts/providers.md).</p>
+<p>---</p>
+<h2>7. Add a feature module (advanced)</h2>
+<p>Features live in `praisonaiui/features/*.py` and implement `BaseFeatureProtocol`:</p>
+<p>See [Protocol Architecture](protocol-architecture.md).</p>
+<p>---</p>
+<h2>Is This the Best Approach?</h2>
+<h3>Strengths ✅</h3>
+<li>**Clean separation** — Python returns dicts, client renders DOM. You can mix and match server/client work per-feature.</li>
+<li>**Graceful degradation** — Unknown component types render as JSON (no crashes).</li>
+<li>**Zero build step for Python users** — No webpack/TS compile required for server-side pages.</li>
+<li>**Single source of truth** — Every feature has a protocol ABC.</li>
+<li>**Hot-swap friendly** — `window.aiui.registerView/Component` updates live without server restart.</li>
+<h3>Previously reported gaps — all closed ✅</h3>
+<p>| Gap | Resolution |</p>
+<p>|-----|------------|</p>
+<p>| No `aiui.set_custom_js(path)` | **Implemented** — serves the file at `/custom.js` and injects a `<script>` tag after the plugin loader. Unit tests: `tests/unit/test_custom_js.py` (10 tests). |</p>
+<p>| `form_action` uses input labels as keys | **Implemented** — every form input now accepts an optional `name=` kwarg that becomes the submit-key. Tests: `tests/unit/test_form_input_names.py` (18 tests). |</p>
+<p>| No typed Python ⇄ JS contract | **Implemented** — `aiui.register_component_schema(type, schema)` + `GET /api/components/schemas`. Built-in schemas are auto-derived from `ui.py` signatures. Tests: `tests/unit/test_component_schemas.py` (9 tests). |</p>
+<p>| `/api/features` cold-start slow | **Mitigated** — `info()` calls are parallelized via `asyncio.gather`. Warm calls are now instant; cold starts are dominated by LiteLLM import (out of scope). |</p>
+<p>| `pygments 2.20` mkdocs build crash on `providers.md` | **Fixed** — `docs_hooks.py` patches `pymdownx.BlockHtmlFormatter.__init__` to coerce `filename=None` → `""`. |</p>
+<h3>When NOT to use this approach</h3>
+<li>**You need a full SPA with routing**: Use the Next.js adapter or scaffold a React project with `aiui init --frontend`.</li>
+<li>**Your UI needs TypeScript types**: Use the TypeScript SDK (`@praisonaiui/runtime`).</li>
+<li>**You need server-sent events beyond chat**: Extend `BaseFeatureProtocol` with a WebSocket route.</li>
+<p>---</p>
+<h2>Checklist for a New Feature</h2>
+<li>[ ] Decide: is it a page, a component, or a backend module?</li>
+<li>[ ] Write the Python side first (returns a dict / routes).</li>
+<li>[ ] If you added a new component type: implement the JS renderer.</li>
+<li>[ ] Write a unit test (see `tests/unit/test_form_action.py` as an example).</li>
+<li>[ ] Add a runnable example under `examples/python/`.</li>
+<li>[ ] Update the docs under `docs/features/` or `docs/api/`.</li>
+<li>[ ] Run `mkdocs build --strict`.</li>
+<li>[ ] Run `pytest tests/unit -v`.</li></noscript></div>
+</body>
+
+</html>

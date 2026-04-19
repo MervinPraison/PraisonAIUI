@@ -110,6 +110,251 @@ aiui.remove_page("debug")
 
 ---
 
+### `aiui.set_chat_mode(mode, *, position, size, resizable, minimized)`
+
+Configure chat window display mode — full page, floating window, or sidebar panel.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `mode` | `str` | `"fullpage"` | `"fullpage"`, `"floating"`, or `"sidebar"` |
+| `position` | `tuple[int, int]` | `(20, 20)` | (bottom, right) pixel offset for floating mode |
+| `size` | `tuple[int, int]` | `(400, 500)` | (width, height) initial size for floating mode |
+| `resizable` | `bool` | `True` | Allow resizing the floating window |
+| `minimized` | `bool` | `False` | Start minimized (floating mode only) |
+
+```python
+import praisonaiui as aiui
+
+# Full page chat (default)
+aiui.set_chat_mode("fullpage")
+
+# Floating chat window
+aiui.set_chat_mode("floating", position=(20, 20), size=(420, 550))
+
+# Sidebar panel
+aiui.set_chat_mode("sidebar")
+```
+
+---
+
+### `aiui.set_sidebar_config(*, collapsible, default_collapsed, width, min_width, max_width)`
+
+Configure sidebar behavior and dimensions.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `collapsible` | `bool` | `True` | Allow sidebar to be collapsed |
+| `default_collapsed` | `bool` | `False` | Start with sidebar collapsed |
+| `width` | `int` | `260` | Default sidebar width in pixels |
+| `min_width` | `int` | `200` | Minimum width when resizing |
+| `max_width` | `int` | `360` | Maximum width when resizing |
+
+```python
+import praisonaiui as aiui
+
+aiui.set_sidebar_config(collapsible=True, width=280)
+aiui.set_sidebar_config(default_collapsed=True)  # Start collapsed
+```
+
+---
+
+### `aiui.set_brand_color(color)`
+
+Set the brand/primary accent color. Overrides the theme's default accent.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `color` | `str` | Hex color (e.g. `"#6366f1"`) or CSS color value |
+
+```python
+import praisonaiui as aiui
+
+aiui.set_brand_color("#818cf8")  # Indigo-400
+aiui.set_brand_color("#22c55e")  # Green-500
+```
+
+---
+
+### `aiui.set_chat_features(*, history, streaming, file_upload, audio, reasoning, tools, multimedia, feedback)`
+
+Configure which chat features are enabled in the UI.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `history` | `bool` | `True` | Show session history sidebar |
+| `streaming` | `bool` | `True` | Enable streaming responses |
+| `file_upload` | `bool` | `False` | Show file upload button |
+| `audio` | `bool` | `False` | Show audio input button |
+| `reasoning` | `bool` | `True` | Show reasoning/thinking steps |
+| `tools` | `bool` | `True` | Show tool call displays |
+| `multimedia` | `bool` | `True` | Enable multimedia rendering |
+| `feedback` | `bool` | `False` | Show feedback buttons |
+
+```python
+import praisonaiui as aiui
+
+# Minimal chat — no history sidebar, no file upload
+aiui.set_chat_features(history=False, file_upload=False)
+
+# Full-featured chat
+aiui.set_chat_features(
+    history=True,
+    streaming=True,
+    file_upload=True,
+    audio=True,
+    feedback=True,
+)
+```
+
+---
+
+### `aiui.set_dashboard(*, sidebar, page_header)`
+
+Configure dashboard layout options.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `sidebar` | `bool` | `True` | Show the left sidebar navigation |
+| `page_header` | `bool` | `True` | Show the page title/description header |
+
+```python
+import praisonaiui as aiui
+
+aiui.set_style("dashboard")
+aiui.set_dashboard(sidebar=False)       # Chat-only dashboard, no sidebar
+aiui.set_dashboard(page_header=False)   # Hide page titles
+```
+
+---
+
+### `aiui.register_theme(name, variables)`
+
+Register a custom theme preset. The theme becomes available in the theme picker UI and via `/api/theme`.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | `str` | Unique theme name (e.g. `"ocean"`, `"sunset"`) |
+| `variables` | `dict[str, str]` | Dict with at least `{"accent": "#hexcolor"}` |
+
+```python
+import praisonaiui as aiui
+
+# Register a custom theme
+aiui.register_theme("ocean", {"accent": "#0077b6"})
+
+# With explicit RGB (auto-derived if omitted)
+aiui.register_theme("sunset", {
+    "accent": "#ff6b35",
+    "accentRgb": "255,107,53",
+})
+
+# Apply the custom theme
+aiui.set_theme(preset="ocean")
+```
+
+See [CSS Architecture](../features/css-architecture.md) for all available CSS variables.
+
+---
+
+### `aiui.set_custom_js(path)`
+
+Inject a local JavaScript file into the UI. Reads the file at `path` and
+serves it at `/custom.js`. A `<script src="/custom.js">` tag is injected
+into the host HTML **after** the plugin loader, so `window.aiui` and all
+registry APIs (`registerView`, `registerComponent`) are ready when your
+code runs.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `path` | `str \| Path` | Local filesystem path to a `.js` file |
+
+Raises `FileNotFoundError` if the path does not exist.
+
+```python
+import praisonaiui as aiui
+
+aiui.set_custom_js("plugin.js")
+```
+
+Where `plugin.js` uses the client-side extension APIs:
+
+```javascript
+// plugin.js
+window.aiui.registerComponent('timeline', function(comp) {
+    const el = document.createElement('div');
+    (comp.events || []).forEach(ev => {
+        const row = document.createElement('div');
+        row.textContent = `${ev.time} — ${ev.label}`;
+        el.appendChild(row);
+    });
+    return el;
+});
+```
+
+---
+
+### `aiui.register_component_schema(component_type, schema)`
+
+Register a JSON Schema contract for a component dict. Built-in schemas
+are auto-derived from every `aiui.ui.*` builder at startup; user schemas
+take priority and are merged on top.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `component_type` | `str` | Component type string (e.g. `"timeline"`) |
+| `schema` | `dict` | JSON Schema dict (Draft 2020-12 compatible) |
+
+```python
+import praisonaiui as aiui
+
+aiui.register_component_schema("timeline", {
+    "type": "object",
+    "required": ["type", "events"],
+    "properties": {
+        "type": {"const": "timeline"},
+        "events": {"type": "array"},
+    },
+})
+```
+
+### `aiui.get_component_schemas()`
+
+Returns the merged registry as a `dict[str, dict]`. Also available as a
+JSON endpoint: `GET /api/components/schemas`.
+
+```python
+schemas = aiui.get_component_schemas()
+print(sorted(schemas))   # ['accordion', 'alert', ..., 'timeline', ...]
+```
+
+---
+
+### `aiui.configure(*, datastore)`
+
+Convenience function to configure PraisonAIUI settings from Python code.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `datastore` | `str` | Storage backend: `"memory"`, `"json"`, `"json:/path"`, `"sdk"`, `"sdk:/path"` |
+
+```python
+import praisonaiui as aiui
+
+# In-memory (default, volatile)
+aiui.configure(datastore="memory")
+
+# JSON files at ~/.praisonaiui/sessions/
+aiui.configure(datastore="json")
+
+# JSON files at custom path
+aiui.configure(datastore="json:/tmp/my-sessions")
+
+# SDK-backed store (unifies with praisonai-agents)
+aiui.configure(datastore="sdk")
+```
+
+---
+
 ## Callback Decorators
 
 ### `@aiui.reply`
@@ -277,8 +522,8 @@ Build custom page layouts with UI components.
 async def my_dashboard():
     return aiui.layout([
         aiui.columns([
-            aiui.card("Metric A", aiui.text("42")),
-            aiui.card("Metric B", aiui.text("98%")),
+            aiui.card("Metric A", value="42"),
+            aiui.card("Metric B", value="98%", footer="+5% this week"),
         ]),
         aiui.card("Data", aiui.table(
             headers=["Name", "Value"],
@@ -294,11 +539,13 @@ async def my_dashboard():
 | Component | Usage |
 |-----------|-------|
 | `aiui.layout(children)` | Root container for a page |
-| `aiui.card(title, content)` | Card with title and body |
+| `aiui.card(title, *, value, footer)` | Metric/stat card with title, value, and optional footer |
 | `aiui.columns(children)` | Horizontal column layout |
 | `aiui.chart(data, type)` | Chart (line, bar, pie) |
 | `aiui.table(headers, rows)` | Data table |
 | `aiui.text(content)` | Text block |
+
+See [Component API Reference](components.md) for all 48 components.
 
 ---
 

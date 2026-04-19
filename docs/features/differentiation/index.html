@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="What Makes PraisonAIUI Different - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>What Makes PraisonAIUI Different | PraisonAIUI Docs</title>
+  <script>
+    // Anti-flicker: apply dark mode class before first paint
+    // Default to dark to prevent flash; React will correct if needed
+    document.documentElement.classList.add('dark');
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/differentiation" />
+  <meta property="og:title" content="What Makes PraisonAIUI Different | PraisonAIUI Docs" />
+  <meta property="og:description" content="What Makes PraisonAIUI Different - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/differentiation" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="What Makes PraisonAIUI Different | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="What Makes PraisonAIUI Different - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>What Makes PraisonAIUI Different</h1>
+<p>PraisonAIUI is a **protocol-driven UI framework** for building AI applications. This page explains how it differs from other popular tools.</p>
+<h2>Quick Comparison</h2>
+<p>| Feature | PraisonAIUI | Streamlit | Gradio | Chainlit |</p>
+<p>|---------|-------------|-----------|--------|----------|</p>
+<p>| **Architecture** | Protocol-driven (SDK→JSON→Client) | Script re-run | Input→Output | Chat-focused |</p>
+<p>| **UI Styles** | 6 (chat, agents, dashboard, playground, docs, custom) | 1 | 1 | 1 |</p>
+<p>| **Components** | 48 structured | ~30 widgets | ~20 blocks | Steps/Actions |</p>
+<p>| **Custom Pages** | `@aiui.page()` decorator | Multipage apps | Tabs | ❌ |</p>
+<p>| **Theme System** | 22 presets + custom CSS variables | Limited | Limited | Limited |</p>
+<p>| **Agent-First** | ✅ Built for agents | ❌ General | ❌ ML demos | ✅ Chat agents |</p>
+<p>| **Extensibility** | Plugin architecture | ❌ | ❌ | ❌ |</p>
+<p>| **YAML Config** | ✅ Full config | ❌ | ❌ | ❌ |</p>
+<h2>vs Gradio</h2>
+<h3>How Gradio Works</h3>
+<p>Gradio is designed for ML demos with an **input→output paradigm**. You define inputs, a function, and outputs.</p>
+<h3>How PraisonAIUI Works</h3>
+<p>PraisonAIUI is designed for **conversational AI** with callbacks and structured components.</p>
+<h3>Key Differences</h3>
+<p>| Aspect | PraisonAIUI | Gradio |</p>
+<p>|--------|-------------|--------|</p>
+<p>| **Paradigm** | Conversational callbacks | Input→Output |</p>
+<p>| **Components** | 48 structured (cards, tables, charts) | ~20 blocks |</p>
+<p>| **Dashboard** | Full admin panel with pages | Tabs only |</p>
+<p>| **Agent Support** | Built-in profiles, tools, memory | Manual |</p>
+<p>**When to use PraisonAIUI**: Chat agents, admin dashboards, multi-agent systems.</p>
+<p>**When to use Gradio**: ML model demos, quick input/output interfaces.</p>
+<p>---</p>
+<h2>vs Chainlit</h2>
+<h3>How Chainlit Works</h3>
+<p>Chainlit is a **chat-focused framework** with Steps and Actions for showing agent reasoning.</p>
+<h3>How PraisonAIUI Works</h3>
+<p>PraisonAIUI provides **chat + dashboard + docs** in one framework with 48 components.</p>
+<h3>Key Differences</h3>
+<p>| Aspect | PraisonAIUI | Chainlit |</p>
+<p>|--------|-------------|----------|</p>
+<p>| **Scope** | Chat + Dashboard + Docs | Chat only |</p>
+<p>| **Components** | 48 structured | Steps/Actions |</p>
+<p>| **Custom Pages** | `@aiui.page()` | ❌ |</p>
+<p>| **Theme System** | 22 presets + CSS vars | Limited |</p>
+<p>| **Protocol** | Extensible plugin architecture | Fixed |</p>
+<p>**When to use PraisonAIUI**: Full-featured agent platforms, admin dashboards, documentation sites.</p>
+<p>**When to use Chainlit**: Simple chat agents with step-by-step reasoning display.</p>
+<p>---</p>
+<h2>Unique to PraisonAIUI</h2>
+<h3>1. Protocol-Driven Architecture</h3>
+<p>Every feature implements a `FeatureProtocol` ABC with SDK-first fallback:</p>
+<h3>2. 48 Structured Components</h3>
+<p>Python functions return JSON dicts that the client renders:</p>
+<p>Components include: cards, tables, charts, forms, alerts, badges, tabs, accordions, and more.</p>
+<h3>3. 6 UI Styles</h3>
+<p>| Style | Use Case |</p>
+<p>|-------|----------|</p>
+<p>| `chat` | Conversational AI |</p>
+<p>| `agents` | Multi-agent playground |</p>
+<p>| `playground` | Prompt testing |</p>
+<p>| `dashboard` | Admin panels |</p>
+<p>| `docs` | Documentation sites |</p>
+<p>| `custom` | Full control |</p>
+<h3>4. Client-Driven Plugin Architecture</h3>
+<p>Extend the dashboard with custom views:</p>
+<h3>5. Theme System</h3>
+<p>22 Tailwind presets + custom CSS variables + dark/light mode:</p>
+<h3>6. YAML + Python Dual Config</h3>
+<p>Same features configurable either way:</p>
+<p>---</p>
+<h2>When to Choose PraisonAIUI</h2>
+<p>✅ **Choose PraisonAIUI when you need:**</p>
+<li>Real-time chat with WebSocket streaming</li>
+<li>Multi-agent systems with profile switching</li>
+<li>Admin dashboards with custom pages</li>
+<li>48 structured UI components</li>
+<li>Extensible plugin architecture</li>
+<li>YAML-driven configuration</li>
+<li>Custom themes with CSS variables</li>
+<li>Documentation sites</li>
+<p>❌ **Consider alternatives when you need:**</p>
+<li>Quick ML model demos → Gradio</li>
+<li>Simple data dashboards → Streamlit</li>
+<li>Chat-only with minimal setup → Chainlit</li>
+<p>---</p>
+<h2>Related Pages</h2>
+<li>[UI Styles](styles.md) — The 6 UI styles</li>
+<li>[CSS Architecture](css-architecture.md) — Theme system deep dive</li>
+<li>[Component API](../api/components.md) — All 48 components</li>
+<li>[Dashboard](dashboard.md) — Custom pages with `@aiui.page()`</li></noscript></div>
+</body>
+
+</html>

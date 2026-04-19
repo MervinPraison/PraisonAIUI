@@ -340,7 +340,42 @@
 <p>| Navigation | `breadcrumb`, `pagination`, `key_value_list`, `popover` | 4 |</p>
 <p>| **Total** | | **54** |</p>
 <h2>Custom Component Types</h2>
-<p>The `dashboard.js` renderer supports any dict with a `type` key. Unknown types render as formatted JSON, making it safe to experiment:</p></noscript></div>
+<p>The `dashboard.js` renderer supports any dict with a `type` key. Unknown types render as formatted JSON, making it safe to experiment:</p>
+<p>---</p>
+<h2>Component Render Protocol</h2>
+<p>Understanding how components flow from Python to the browser.</p>
+<h3>Data Flow</h3>
+<h3>Step-by-Step</h3>
+<p>1. **Python**: Call `aiui.card("Revenue", value="$1,500")` — returns a dict:</p>
+<p>2. **Server**: `@aiui.page()` handler returns `aiui.layout([...])`:</p>
+<p>3. **API**: `GET /api/pages/{id}/data` returns the JSON</p>
+<p>4. **Frontend**: `dashboard.js` detects `_components` key and calls `renderComponents()`:</p>
+<p>5. **Renderer**: `renderComponent(comp)` dispatches on `comp.type`:</p>
+<p>6. **DOM**: Each renderer creates HTML elements with `db-*` CSS classes</p>
+<h3>The `_components` Key</h3>
+<p>The magic key that triggers structured rendering:</p>
+<p>`aiui.layout(children)` automatically wraps children in `{"_components": [...]}`.</p>
+<h3>Component Dict Protocol</h3>
+<p>Every component function returns a dict with:</p>
+<p>| Key | Required | Description |</p>
+<p>|-----|----------|-------------|</p>
+<p>| `type` | ✅ | Component type name (e.g. `"card"`, `"table"`) |</p>
+<p>| Other keys | Varies | Component-specific properties |</p>
+<h3>CSS Classes</h3>
+<p>All components use `db-*` prefixed CSS classes:</p>
+<p>| Component | CSS Class |</p>
+<p>|-----------|-----------|</p>
+<p>| Card | `.db-card`, `.db-card-title`, `.db-card-value`, `.db-card-footer` |</p>
+<p>| Table | `.db-viewer table` |</p>
+<p>| Alert | `.db-alert`, `.db-alert-info`, `.db-alert-success`, etc. |</p>
+<p>| Badge | `.db-badge`, `.db-badge-secondary`, `.db-badge-destructive` |</p>
+<p>| Tabs | `.db-tabs`, `.db-tab-list`, `.db-tab-btn`, `.db-tab-panel` |</p>
+<h3>Extending with Custom Components</h3>
+<p>To add a new component type:</p>
+<p>1. **Python**: Add function to `ui.py`:</p>
+<p>2. **Frontend**: Add renderer to `dashboard.js`:</p>
+<p>3. **CSS**: Add styles for `.db-timeline`</p>
+<p>Until the frontend renderer is added, unknown types render as formatted JSON.</p></noscript></div>
 </body>
 
 </html>

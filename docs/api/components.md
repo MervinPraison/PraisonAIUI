@@ -802,3 +802,136 @@ The `dashboard.js` renderer supports any dict with a `type` key. Unknown types r
 # Custom component — renders as JSON until frontend support is added
 {"type": "timeline", "events": [{"time": "10:00", "label": "Deploy"}]}
 ```
+
+---
+
+## Component Render Protocol
+
+Understanding how components flow from Python to the browser.
+
+### Data Flow
+
+```
+Python                    Server                     Frontend
+──────                    ──────                     ────────
+aiui.card("X", value=42)  →  {"type":"card",...}    →  renderComponent()
+                             ↓                          ↓
+@aiui.page() handler      →  /api/pages/{id}/data   →  renderCard()
+                             ↓                          ↓
+aiui.layout([...])        →  {"_components":[...]}  →  DOM elements
+```
+
+### Step-by-Step
+
+1. **Python**: Call `aiui.card("Revenue", value="$1,500")` — returns a dict:
+   ```python
+   {"type": "card", "title": "Revenue", "value": "$1,500"}
+   ```
+
+2. **Server**: `@aiui.page()` handler returns `aiui.layout([...])`:
+   ```python
+   {"_components": [{"type": "card", ...}, {"type": "table", ...}]}
+   ```
+
+3. **API**: `GET /api/pages/{id}/data` returns the JSON
+
+4. **Frontend**: `dashboard.js` detects `_components` key and calls `renderComponents()`:
+   ```javascript
+   function renderComponents(data, container) {
+       if (data && data._components) {
+           data._components.forEach(comp => {
+               container.appendChild(renderComponent(comp));
+           });
+       }
+   }
+   ```
+
+5. **Renderer**: `renderComponent(comp)` dispatches on `comp.type`:
+   ```javascript
+   function renderComponent(comp) {
+       switch (comp.type) {
+           case 'card': return renderCard(comp);
+           case 'table': return renderTable(comp);
+           // ... 48 component types
+           default: return renderAsJSON(comp);
+       }
+   }
+   ```
+
+6. **DOM**: Each renderer creates HTML elements with `db-*` CSS classes
+
+### The `_components` Key
+
+The magic key that triggers structured rendering:
+
+```python
+# With _components — renders as UI elements
+return {"_components": [aiui.card("X"), aiui.table(...)]}
+
+# Without _components — renders as raw JSON
+return {"status": "ok", "data": [...]}
+```
+
+`aiui.layout(children)` automatically wraps children in `{"_components": [...]}`.
+
+### Component Dict Protocol
+
+Every component function returns a dict with:
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `type` | ✅ | Component type name (e.g. `"card"`, `"table"`) |
+| Other keys | Varies | Component-specific properties |
+
+```python
+# Card component
+{"type": "card", "title": "Revenue", "value": "$1,500", "footer": "+8%"}
+
+# Table component
+{"type": "table", "headers": ["A", "B"], "rows": [["x", "y"]]}
+
+# Nested components
+{"type": "columns", "children": [
+    {"type": "card", "title": "A"},
+    {"type": "card", "title": "B"},
+]}
+```
+
+### CSS Classes
+
+All components use `db-*` prefixed CSS classes:
+
+| Component | CSS Class |
+|-----------|-----------|
+| Card | `.db-card`, `.db-card-title`, `.db-card-value`, `.db-card-footer` |
+| Table | `.db-viewer table` |
+| Alert | `.db-alert`, `.db-alert-info`, `.db-alert-success`, etc. |
+| Badge | `.db-badge`, `.db-badge-secondary`, `.db-badge-destructive` |
+| Tabs | `.db-tabs`, `.db-tab-list`, `.db-tab-btn`, `.db-tab-panel` |
+
+### Extending with Custom Components
+
+To add a new component type:
+
+1. **Python**: Add function to `ui.py`:
+   ```python
+   def timeline(events: list[dict]) -> dict:
+       return {"type": "timeline", "events": events}
+   ```
+
+2. **Frontend**: Add renderer to `dashboard.js`:
+   ```javascript
+   function renderTimeline(comp) {
+       const el = document.createElement('div');
+       el.className = 'db-timeline';
+       // ... render events
+       return el;
+   }
+   
+   // Add to switch statement in renderComponent()
+   case 'timeline': return renderTimeline(comp);
+   ```
+
+3. **CSS**: Add styles for `.db-timeline`
+
+Until the frontend renderer is added, unknown types render as formatted JSON.

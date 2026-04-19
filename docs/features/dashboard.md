@@ -313,3 +313,83 @@ if __name__ == "__main__":
 | `/api/pages/{id}/data` | GET | Get page handler response |
 | `/api/features` | GET | List all registered features |
 | `/plugins/plugins.json` | GET | Style-aware frontend plugin list |
+
+---
+
+## Client-Side Extension API
+
+The dashboard provides a JavaScript API for registering custom views from the client side.
+
+### `window.aiui.registerView(pageId, renderFn, cleanupFn)`
+
+Register a custom view renderer for a page ID.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `pageId` | `string` | Page ID to handle (e.g. `"my-custom-page"`) |
+| `renderFn` | `async (container: HTMLElement) => void` | Async function that renders into the container |
+| `cleanupFn` | `() => void` | Optional cleanup function called when navigating away |
+
+```javascript
+// Register a custom view
+window.aiui.registerView('my-analytics', async (container) => {
+    const data = await fetch('/api/my-data').then(r => r.json());
+    container.innerHTML = `
+        <div class="db-card">
+            <div class="db-card-title">Custom Analytics</div>
+            <div class="db-card-value">${data.total}</div>
+        </div>
+    `;
+}, () => {
+    // Cleanup (optional) — called when user navigates away
+    console.log('Cleaning up my-analytics view');
+});
+```
+
+### View Resolution Priority
+
+When a page is selected, the dashboard resolves views in this order:
+
+1. **Custom registered views** — `window.aiui.registerView()` (highest priority)
+2. **Built-in view modules** — Dynamic import from `/plugins/views/*.js`
+3. **Generic JSON viewer** — Falls back to rendering `_components` or raw JSON
+
+### `window.aiui.views`
+
+Access the view registry directly:
+
+```javascript
+// Check if a view is registered
+if (window.aiui.views['my-page']) {
+    console.log('my-page view is registered');
+}
+
+// List all registered views
+console.log(Object.keys(window.aiui.views));
+```
+
+### Built-in Views
+
+The dashboard includes 22 built-in view modules:
+
+| Page ID | View Module | Description |
+|---------|-------------|-------------|
+| `chat` | `chat.js` | Chat interface |
+| `overview` | `overview.js` | Dashboard overview |
+| `agents` | `agents.js` | Agent management |
+| `sessions` | `sessions.js` | Session management |
+| `memory` | `memory.js` | Memory viewer |
+| `knowledge` | `knowledge.js` | Knowledge base |
+| `logs` | `logs.js` | Real-time logs |
+| `schedules` | `schedules.js` | Scheduled jobs |
+| `config` | `config.js` | Runtime config |
+| `approvals` | `approvals.js` | Tool approvals |
+| `usage` | `usage.js` | Token usage |
+| `channels` | `channels.js` | Messaging channels |
+| `skills` | `skills.js` | Agent skills |
+| `nodes` | `nodes.js` | Execution nodes |
+| `guardrails` | `guardrails.js` | Safety guardrails |
+| `eval` | `eval.js` | Agent evaluation |
+| `telemetry` | `telemetry.js` | Performance metrics |
+| `traces` | `traces.js` | Distributed tracing |
+| `security` | `security.js` | Security monitoring |

@@ -58,6 +58,90 @@
 <h3>`aiui.remove_page(page_id)`</h3>
 <p>Remove a page from the sidebar.</p>
 <p>---</p>
+<h3>`aiui.set_chat_mode(mode, *, position, size, resizable, minimized)`</h3>
+<p>Configure chat window display mode — full page, floating window, or sidebar panel.</p>
+<p>| Parameter | Type | Default | Description |</p>
+<p>|-----------|------|---------|-------------|</p>
+<p>| `mode` | `str` | `"fullpage"` | `"fullpage"`, `"floating"`, or `"sidebar"` |</p>
+<p>| `position` | `tuple[int, int]` | `(20, 20)` | (bottom, right) pixel offset for floating mode |</p>
+<p>| `size` | `tuple[int, int]` | `(400, 500)` | (width, height) initial size for floating mode |</p>
+<p>| `resizable` | `bool` | `True` | Allow resizing the floating window |</p>
+<p>| `minimized` | `bool` | `False` | Start minimized (floating mode only) |</p>
+<p>---</p>
+<h3>`aiui.set_sidebar_config(*, collapsible, default_collapsed, width, min_width, max_width)`</h3>
+<p>Configure sidebar behavior and dimensions.</p>
+<p>| Parameter | Type | Default | Description |</p>
+<p>|-----------|------|---------|-------------|</p>
+<p>| `collapsible` | `bool` | `True` | Allow sidebar to be collapsed |</p>
+<p>| `default_collapsed` | `bool` | `False` | Start with sidebar collapsed |</p>
+<p>| `width` | `int` | `260` | Default sidebar width in pixels |</p>
+<p>| `min_width` | `int` | `200` | Minimum width when resizing |</p>
+<p>| `max_width` | `int` | `360` | Maximum width when resizing |</p>
+<p>---</p>
+<h3>`aiui.set_brand_color(color)`</h3>
+<p>Set the brand/primary accent color. Overrides the theme's default accent.</p>
+<p>| Parameter | Type | Description |</p>
+<p>|-----------|------|-------------|</p>
+<p>| `color` | `str` | Hex color (e.g. `"#6366f1"`) or CSS color value |</p>
+<p>---</p>
+<h3>`aiui.set_chat_features(*, history, streaming, file_upload, audio, reasoning, tools, multimedia, feedback)`</h3>
+<p>Configure which chat features are enabled in the UI.</p>
+<p>| Parameter | Type | Default | Description |</p>
+<p>|-----------|------|---------|-------------|</p>
+<p>| `history` | `bool` | `True` | Show session history sidebar |</p>
+<p>| `streaming` | `bool` | `True` | Enable streaming responses |</p>
+<p>| `file_upload` | `bool` | `False` | Show file upload button |</p>
+<p>| `audio` | `bool` | `False` | Show audio input button |</p>
+<p>| `reasoning` | `bool` | `True` | Show reasoning/thinking steps |</p>
+<p>| `tools` | `bool` | `True` | Show tool call displays |</p>
+<p>| `multimedia` | `bool` | `True` | Enable multimedia rendering |</p>
+<p>| `feedback` | `bool` | `False` | Show feedback buttons |</p>
+<p>---</p>
+<h3>`aiui.set_dashboard(*, sidebar, page_header)`</h3>
+<p>Configure dashboard layout options.</p>
+<p>| Parameter | Type | Default | Description |</p>
+<p>|-----------|------|---------|-------------|</p>
+<p>| `sidebar` | `bool` | `True` | Show the left sidebar navigation |</p>
+<p>| `page_header` | `bool` | `True` | Show the page title/description header |</p>
+<p>---</p>
+<h3>`aiui.register_theme(name, variables)`</h3>
+<p>Register a custom theme preset. The theme becomes available in the theme picker UI and via `/api/theme`.</p>
+<p>| Parameter | Type | Description |</p>
+<p>|-----------|------|-------------|</p>
+<p>| `name` | `str` | Unique theme name (e.g. `"ocean"`, `"sunset"`) |</p>
+<p>| `variables` | `dict[str, str]` | Dict with at least `{"accent": "#hexcolor"}` |</p>
+<p>See [CSS Architecture](../features/css-architecture.md) for all available CSS variables.</p>
+<p>---</p>
+<h3>`aiui.set_custom_js(path)`</h3>
+<p>Inject a local JavaScript file into the UI. Reads the file at `path` and</p>
+<p>serves it at `/custom.js`. A `<script src="/custom.js">` tag is injected</p>
+<p>into the host HTML **after** the plugin loader, so `window.aiui` and all</p>
+<p>registry APIs (`registerView`, `registerComponent`) are ready when your</p>
+<p>code runs.</p>
+<p>| Parameter | Type | Description |</p>
+<p>|-----------|------|-------------|</p>
+<p>| `path` | `str \| Path` | Local filesystem path to a `.js` file |</p>
+<p>Raises `FileNotFoundError` if the path does not exist.</p>
+<p>Where `plugin.js` uses the client-side extension APIs:</p>
+<p>---</p>
+<h3>`aiui.register_component_schema(component_type, schema)`</h3>
+<p>Register a JSON Schema contract for a component dict. Built-in schemas</p>
+<p>are auto-derived from every `aiui.ui.*` builder at startup; user schemas</p>
+<p>take priority and are merged on top.</p>
+<p>| Parameter | Type | Description |</p>
+<p>|-----------|------|-------------|</p>
+<p>| `component_type` | `str` | Component type string (e.g. `"timeline"`) |</p>
+<p>| `schema` | `dict` | JSON Schema dict (Draft 2020-12 compatible) |</p>
+<h3>`aiui.get_component_schemas()`</h3>
+<p>Returns the merged registry as a `dict[str, dict]`. Also available as a</p>
+<p>JSON endpoint: `GET /api/components/schemas`.</p>
+<p>---</p>
+<h3>`aiui.configure(*, datastore)`</h3>
+<p>Convenience function to configure PraisonAIUI settings from Python code.</p>
+<p>| Parameter | Type | Description |</p>
+<p>|-----------|------|-------------|</p>
+<p>| `datastore` | `str` | Storage backend: `"memory"`, `"json"`, `"json:/path"`, `"sdk"`, `"sdk:/path"` |</p>
+<p>---</p>
 <h2>Callback Decorators</h2>
 <h3>`@aiui.reply`</h3>
 <p>Handle incoming chat messages. This is the core callback.</p>
@@ -114,11 +198,12 @@
 <p>| Component | Usage |</p>
 <p>|-----------|-------|</p>
 <p>| `aiui.layout(children)` | Root container for a page |</p>
-<p>| `aiui.card(title, content)` | Card with title and body |</p>
+<p>| `aiui.card(title, *, value, footer)` | Metric/stat card with title, value, and optional footer |</p>
 <p>| `aiui.columns(children)` | Horizontal column layout |</p>
 <p>| `aiui.chart(data, type)` | Chart (line, bar, pie) |</p>
 <p>| `aiui.table(headers, rows)` | Data table |</p>
 <p>| `aiui.text(content)` | Text block |</p>
+<p>See [Component API Reference](components.md) for all 48 components.</p>
 <p>---</p>
 <h2>Data Classes</h2>
 <p>| Class | Purpose |</p>
