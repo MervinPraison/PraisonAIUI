@@ -233,10 +233,22 @@ class TestOAuthCallbacks:
 class TestOAuthIntegration:
     """Test OAuth integration with server routes."""
 
-    @patch('praisonaiui.oauth_providers.httpx.AsyncClient')
-    async def test_github_oauth_round_trip(self, mock_client):
+    @patch('praisonaiui.oauth_providers.get_http_client')
+    async def test_github_oauth_round_trip(self, mock_get_client):
         """Test complete GitHub OAuth flow."""
         from praisonaiui.server import create_app
+        
+        # Clear existing callbacks to avoid interference from other tests
+        _oauth_callbacks.clear()
+        
+        # Register a mock OAuth callback for this test
+        @oauth_callback("github")
+        async def test_github_callback(provider, token, raw_user, default_user):
+            return User(
+                identifier=f"github:{raw_user['login']}",
+                display_name=raw_user["name"],
+                metadata={"login": raw_user["login"]}
+            )
         
         # Mock OAuth provider responses
         mock_response = Mock()
@@ -254,7 +266,7 @@ class TestOAuthIntegration:
         mock_client_instance = AsyncMock()
         mock_client_instance.post.return_value = mock_response
         mock_client_instance.get.return_value = mock_user_response
-        mock_client.return_value.__aenter__.return_value = mock_client_instance
+        mock_get_client.return_value = mock_client_instance
         
         # Set up OAuth config
         with patch.dict(os.environ, {
