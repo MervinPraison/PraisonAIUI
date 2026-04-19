@@ -265,7 +265,7 @@ class TestOAuthIntegration:
             client = TestClient(app)
             
             # Test authorization redirect
-            response = client.get("/api/auth/oauth/github")
+            response = client.get("/api/auth/oauth/github", follow_redirects=False)
             assert response.status_code == 302
             assert "github.com/login/oauth/authorize" in response.headers["location"]
             
@@ -281,6 +281,10 @@ class TestOAuthIntegration:
                     f"/api/auth/oauth/github/callback?code=test_code&state={state}",
                     headers={"Accept": "application/json"}
                 )
+                
+                if callback_response.status_code != 200:
+                    print(f"Callback error: {callback_response.status_code}")
+                    print(f"Callback response: {callback_response.content}")
                 
                 assert callback_response.status_code == 200
                 data = callback_response.json()

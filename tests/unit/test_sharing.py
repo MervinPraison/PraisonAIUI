@@ -122,11 +122,15 @@ class TestSharingAccessControl:
 
     def test_on_shared_thread_view_decorator(self):
         """Test shared thread view decorator registration."""
+        from praisonaiui.features.sharing import _on_shared_thread_view_callback
+        
         @on_shared_thread_view
         async def handle_share_view(thread_id, viewer):
             return True
         
-        assert _on_shared_thread_view_callback == handle_share_view
+        # Import fresh reference to check the module variable was set
+        import praisonaiui.features.sharing as sharing_module
+        assert sharing_module._on_shared_thread_view_callback == handle_share_view
 
     @pytest.mark.asyncio
     async def test_check_shared_thread_access_allow(self):
