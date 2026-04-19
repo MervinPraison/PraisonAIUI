@@ -54,7 +54,13 @@ def make_async(
             future = executor.submit(func, *args, **kwargs)
         else:
             # Use asyncio's default thread pool
-            future = loop.run_in_executor(None, func, *args, **kwargs)
+            # run_in_executor doesn't support kwargs directly, so wrap the call
+            if kwargs:
+                import functools
+                partial_func = functools.partial(func, **kwargs)
+                future = loop.run_in_executor(None, partial_func, *args)
+            else:
+                future = loop.run_in_executor(None, func, *args)
         
         if cancellable and hasattr(future, 'cancel'):
             # Create a cancellable task that wraps the future
@@ -153,22 +159,32 @@ class AsyncContext:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self._loop and self._thread:
             # Schedule loop shutdown
-            asyncio.run_coroutine_threadsafe(
-                self._shutdown(), self._loop
-            ).result()
-            self._thread.join()
+            try:
+                # Call stop() from the main thread
+                self._loop.call_soon_threadsafe(self._loop.stop)
+                self._thread.join(timeout=5.0)  # Add timeout to prevent hanging
+                if self._thread.is_alive():
+                    # Force cleanup if thread didn't stop properly
+                    pass
+            except Exception:
+                # Best-effort cleanup
+                pass
     
     def _run_loop(self):
         """Run the event loop in the background thread."""
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         self._ready.set()  # Signal that loop is ready
-        self._loop.run_forever()
+        try:
+            self._loop.run_forever()
+        finally:
+            # Cleanup when loop stops
+            self._loop.close()
     
     async def _shutdown(self):
         """Shutdown the event loop."""
-        loop = asyncio.get_running_loop()
-        loop.stop()
+        # This method is no longer needed
+        pass
     
     def run(self, coro: Awaitable[T], timeout: Optional[float] = None) -> T:
         """Run a coroutine in the background event loop.

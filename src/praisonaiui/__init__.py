@@ -29,8 +29,8 @@ def __getattr__(name: str):
     _utils_attrs = {"sleep", "format_duration", "truncate_text", "safe_filename"}
     _elements_attrs = {"Plotly", "Pyplot", "Dataframe", "PlotlyElement", "PyplotElement", "DataframeElement"}
     _custom_element_attrs = {"CustomElement", "register_custom_component", "get_registered_components", "CustomElementProtocol"}
-    _copilot_attrs = {"CopilotFunction", "copilot_function", "on_copilot_function_call", "get_copilot_functions", "call_copilot_function"}
-    _chat_settings_attrs = {"ChatSettings", "TextInput", "NumberInput", "Slider", "Select", "Switch", "ColorPicker", "on_settings_update", "create_model_settings", "create_ui_settings"}
+    _copilot_attrs = {"CopilotFunction", "copilot_function", "on_copilot_function_call", "get_copilot_functions", "get_copilot_function", "call_copilot_function"}
+    _chat_settings_attrs = {"ChatSettings", "TextInput", "NumberInput", "Slider", "Select", "Switch", "ColorPicker", "on_settings_update", "trigger_settings_update", "create_model_settings", "create_ui_settings"}
     _server_attrs = {"register_agent", "register_page", "set_datastore", "get_datastore",
                       "set_provider", "get_provider", "set_style", "set_pages", "remove_page",
                       "set_branding", "set_theme", "set_custom_css", "register_theme",

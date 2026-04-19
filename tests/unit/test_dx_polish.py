@@ -91,8 +91,11 @@ class TestSyncUtils:
     def test_run_sync_from_event_loop_fails(self):
         """Test run_sync raises error when called from event loop."""
         async def test_runner():
+            async def dummy_coro():
+                await asyncio.sleep(0.01)
+            
             with pytest.raises(RuntimeError, match="cannot be called from a running event loop"):
-                aiui.run_sync(asyncio.sleep(0.01))
+                aiui.run_sync(dummy_coro())
         
         # This needs to be run in an event loop to test the error
         asyncio.run(test_runner())
