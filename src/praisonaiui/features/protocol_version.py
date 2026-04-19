@@ -6,7 +6,6 @@ Config-driven: server advertises version, clients negotiate.
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any, Dict, List
 
@@ -51,6 +50,7 @@ EVENT_TYPES = [
 
 # ── Protocol ─────────────────────────────────────────────────────
 
+
 class ProtocolInfo:
     """Protocol version information."""
 
@@ -94,6 +94,7 @@ def get_protocol_info() -> ProtocolInfo:
 
 # ── HTTP Handlers ────────────────────────────────────────────────
 
+
 async def _protocol_handler(request: Request) -> JSONResponse:
     """Return protocol version and supported features."""
     return JSONResponse(get_protocol_info().to_dict())
@@ -109,15 +110,18 @@ async def _negotiate_handler(request: Request) -> JSONResponse:
     client_version = body.get("version", "")
     info = get_protocol_info()
 
-    return JSONResponse({
-        "server_version": info.version,
-        "client_version": client_version,
-        "compatible": info.is_compatible(client_version),
-        "event_types": info.event_types,
-    })
+    return JSONResponse(
+        {
+            "server_version": info.version,
+            "client_version": client_version,
+            "compatible": info.is_compatible(client_version),
+            "event_types": info.event_types,
+        }
+    )
 
 
 # ── Feature ──────────────────────────────────────────────────────
+
 
 class ProtocolFeature(BaseFeatureProtocol):
     """Protocol versioning feature — version negotiation and typed events."""

@@ -28,12 +28,10 @@ class PWAProtocol(ABC):
     """Protocol interface for PWA support."""
 
     @abstractmethod
-    def get_manifest(self) -> Dict[str, Any]:
-        ...
+    def get_manifest(self) -> Dict[str, Any]: ...
 
     @abstractmethod
-    def get_service_worker(self) -> str:
-        ...
+    def get_service_worker(self) -> str: ...
 
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
@@ -45,9 +43,15 @@ class PWAProtocol(ABC):
 class DefaultPWAManager(PWAProtocol):
     """Generates PWA manifest and service worker from config."""
 
-    def __init__(self, *, name: str = "PraisonAI", short_name: str = "AI",
-                 theme_color: str = "#1a1a2e", bg_color: str = "#16213e",
-                 display: str = "standalone") -> None:
+    def __init__(
+        self,
+        *,
+        name: str = "PraisonAI",
+        short_name: str = "AI",
+        theme_color: str = "#1a1a2e",
+        bg_color: str = "#16213e",
+        display: str = "standalone",
+    ) -> None:
         self._name = name
         self._short_name = short_name
         self._theme_color = theme_color

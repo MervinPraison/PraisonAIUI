@@ -33,6 +33,7 @@ from typing import Any, AsyncIterator, Dict, List, Optional
 # Event types (matches frontend RunEventType in types.ts exactly)
 # ---------------------------------------------------------------------------
 
+
 class RunEventType(str, Enum):
     """Structured event types emitted during an agent run.
 
@@ -86,6 +87,7 @@ class RunEventType(str, Enum):
 # ---------------------------------------------------------------------------
 # RunEvent — the single data structure emitted by providers
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class RunEvent:
@@ -143,9 +145,19 @@ class RunEvent:
         """Serialise to a dict matching the frontend ``SSEEvent`` interface."""
         d: Dict[str, Any] = {"type": self.type.value}
         for key in (
-            "content", "token", "name", "args", "result", "tool_call_id",
-            "step", "agent_id", "agent_name", "error", "event_id",
-            "timestamp", "extra_data",
+            "content",
+            "token",
+            "name",
+            "args",
+            "result",
+            "tool_call_id",
+            "step",
+            "agent_id",
+            "agent_name",
+            "error",
+            "event_id",
+            "timestamp",
+            "extra_data",
         ):
             val = getattr(self, key)
             if val is not None:
@@ -156,6 +168,7 @@ class RunEvent:
 # ---------------------------------------------------------------------------
 # BaseProvider — the protocol any AI backend implements
 # ---------------------------------------------------------------------------
+
 
 class BaseProvider(ABC):
     """Abstract provider interface for PraisonAIUI.

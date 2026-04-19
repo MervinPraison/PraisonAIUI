@@ -13,14 +13,14 @@ from praisonaiui.message import Step
 
 class AiuiLangChainCallbackHandler:
     """LangChain callback handler that creates aiui.Step events.
-    
+
     Maps LangChain chain/tool/agent events to nested Step visualization.
     Handles both sync and async execution safely with proper parent-child relationships.
-    
+
     Example:
         from langchain.chat_models import ChatOpenAI
         from praisonaiui.integrations.langchain import AiuiLangChainCallbackHandler
-        
+
         llm = ChatOpenAI(callbacks=[AiuiLangChainCallbackHandler()])
         response = llm.invoke("Hello world")
         # LLM call appears as nested Step in aiui
@@ -32,10 +32,7 @@ class AiuiLangChainCallbackHandler:
         self._lock = threading.Lock()
 
     def on_chain_start(
-        self,
-        serialized: Dict[str, Any],
-        inputs: Dict[str, Any],
-        **kwargs: Any
+        self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
     ) -> None:
         """Handle chain start event."""
         run_id = kwargs.get("run_id")
@@ -57,7 +54,7 @@ class AiuiLangChainCallbackHandler:
             name=f"🔗 Chain: {chain_name}",
             type="reasoning",
             parent=parent_step,
-            metadata={"inputs": inputs, "serialized": serialized}
+            metadata={"inputs": inputs, "serialized": serialized},
         )
 
         with self._lock:
@@ -94,12 +91,7 @@ class AiuiLangChainCallbackHandler:
         if step:
             self._end_step_safely(step, error)
 
-    def on_llm_start(
-        self,
-        serialized: Dict[str, Any],
-        prompts: List[str],
-        **kwargs: Any
-    ) -> None:
+    def on_llm_start(self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any) -> None:
         """Handle LLM start event."""
         run_id = kwargs.get("run_id")
         if not run_id:
@@ -116,7 +108,7 @@ class AiuiLangChainCallbackHandler:
             name=f"🤖 LLM: {model_name}",
             type="reasoning",
             parent=parent_step,
-            metadata={"prompts": prompts, "serialized": serialized}
+            metadata={"prompts": prompts, "serialized": serialized},
         )
 
         with self._lock:
@@ -165,12 +157,7 @@ class AiuiLangChainCallbackHandler:
         if step:
             self._end_step_safely(step, error)
 
-    def on_tool_start(
-        self,
-        serialized: Dict[str, Any],
-        input_str: str,
-        **kwargs: Any
-    ) -> None:
+    def on_tool_start(self, serialized: Dict[str, Any], input_str: str, **kwargs: Any) -> None:
         """Handle tool start event."""
         run_id = kwargs.get("run_id")
         if not run_id:
@@ -187,7 +174,7 @@ class AiuiLangChainCallbackHandler:
             name=f"🔧 Tool: {tool_name}",
             type="tool_call",
             parent=parent_step,
-            metadata={"input": input_str, "serialized": serialized}
+            metadata={"input": input_str, "serialized": serialized},
         )
 
         with self._lock:
@@ -239,7 +226,7 @@ class AiuiLangChainCallbackHandler:
             name=f"🎯 Agent Action: {getattr(action, 'tool', 'unknown')}",
             type="sub_agent",
             parent=parent_step,
-            metadata={"action": str(action)}
+            metadata={"action": str(action)},
         )
 
         with self._lock:
@@ -358,14 +345,14 @@ class AiuiLangChainCallbackHandler:
 
 class AsyncAiuiLangChainCallbackHandler:
     """Async LangChain callback handler that creates aiui.Step events.
-    
+
     Designed for async LangChain workflows with proper async/await patterns.
     Thread-safe with proper parent-child relationships.
-    
+
     Example:
         from langchain.chat_models import ChatOpenAI
         from praisonaiui.integrations.langchain import AsyncAiuiLangChainCallbackHandler
-        
+
         llm = ChatOpenAI(callbacks=[AsyncAiuiLangChainCallbackHandler()])
         response = await llm.ainvoke("Hello world")
         # LLM call appears as nested Step in aiui
@@ -377,10 +364,7 @@ class AsyncAiuiLangChainCallbackHandler:
         self._lock = asyncio.Lock()
 
     async def on_chain_start(
-        self,
-        serialized: Dict[str, Any],
-        inputs: Dict[str, Any],
-        **kwargs: Any
+        self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
     ) -> None:
         """Handle chain start event."""
         run_id = kwargs.get("run_id")
@@ -402,7 +386,7 @@ class AsyncAiuiLangChainCallbackHandler:
             name=f"🔗 Chain: {chain_name}",
             type="reasoning",
             parent=parent_step,
-            metadata={"inputs": inputs, "serialized": serialized}
+            metadata={"inputs": inputs, "serialized": serialized},
         )
 
         async with self._lock:
@@ -423,7 +407,9 @@ class AsyncAiuiLangChainCallbackHandler:
         if step:
             await step.__aexit__(None, None, None)
 
-    async def on_chain_error(self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any) -> None:
+    async def on_chain_error(
+        self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any
+    ) -> None:
         """Handle chain error event."""
         run_id = kwargs.get("run_id")
         if not run_id:
@@ -438,10 +424,7 @@ class AsyncAiuiLangChainCallbackHandler:
             await step.__aexit__(type(error), error, None)
 
     async def on_llm_start(
-        self,
-        serialized: Dict[str, Any],
-        prompts: List[str],
-        **kwargs: Any
+        self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
     ) -> None:
         """Handle LLM start event."""
         run_id = kwargs.get("run_id")
@@ -459,7 +442,7 @@ class AsyncAiuiLangChainCallbackHandler:
             name=f"🤖 LLM: {model_name}",
             type="reasoning",
             parent=parent_step,
-            metadata={"prompts": prompts, "serialized": serialized}
+            metadata={"prompts": prompts, "serialized": serialized},
         )
 
         async with self._lock:
@@ -510,10 +493,7 @@ class AsyncAiuiLangChainCallbackHandler:
             await step.__aexit__(type(error), error, None)
 
     async def on_tool_start(
-        self,
-        serialized: Dict[str, Any],
-        input_str: str,
-        **kwargs: Any
+        self, serialized: Dict[str, Any], input_str: str, **kwargs: Any
     ) -> None:
         """Handle tool start event."""
         run_id = kwargs.get("run_id")
@@ -531,7 +511,7 @@ class AsyncAiuiLangChainCallbackHandler:
             name=f"🔧 Tool: {tool_name}",
             type="tool_call",
             parent=parent_step,
-            metadata={"input": input_str, "serialized": serialized}
+            metadata={"input": input_str, "serialized": serialized},
         )
 
         async with self._lock:
@@ -555,7 +535,9 @@ class AsyncAiuiLangChainCallbackHandler:
             await step.stream_token(f"Output: {output}")
             await step.__aexit__(None, None, None)
 
-    async def on_tool_error(self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any) -> None:
+    async def on_tool_error(
+        self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any
+    ) -> None:
         """Handle tool error event."""
         run_id = kwargs.get("run_id")
         if not run_id:
@@ -585,7 +567,7 @@ class AsyncAiuiLangChainCallbackHandler:
             name=f"🎯 Agent Action: {getattr(action, 'tool', 'unknown')}",
             type="sub_agent",
             parent=parent_step,
-            metadata={"action": str(action)}
+            metadata={"action": str(action)},
         )
 
         async with self._lock:

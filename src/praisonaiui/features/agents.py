@@ -12,7 +12,6 @@ Architecture:
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import time
 import uuid
@@ -53,24 +52,19 @@ class AgentRegistryProtocol(ABC):
     """Protocol interface for agent registry backends."""
 
     @abstractmethod
-    def create(self, agent_def: Dict[str, Any]) -> Dict[str, Any]:
-        ...
+    def create(self, agent_def: Dict[str, Any]) -> Dict[str, Any]: ...
 
     @abstractmethod
-    def get(self, agent_id: str) -> Optional[Dict[str, Any]]:
-        ...
+    def get(self, agent_id: str) -> Optional[Dict[str, Any]]: ...
 
     @abstractmethod
-    def update(self, agent_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        ...
+    def update(self, agent_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]: ...
 
     @abstractmethod
-    def delete(self, agent_id: str) -> bool:
-        ...
+    def delete(self, agent_id: str) -> bool: ...
 
     @abstractmethod
-    def list_all(self) -> List[Dict[str, Any]]:
-        ...
+    def list_all(self) -> List[Dict[str, Any]]: ...
 
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
@@ -97,6 +91,7 @@ class SimpleAgentRegistry(AgentRegistryProtocol):
         self._config_loaded = True
         try:
             from praisonaiui.config_store import get_config_store
+
             store = get_config_store()
             agents = store.get_section("agents")
             if isinstance(agents, dict) and agents:
@@ -112,6 +107,7 @@ class SimpleAgentRegistry(AgentRegistryProtocol):
         """Persist current definitions to the YAML config store."""
         try:
             from praisonaiui.config_store import get_config_store
+
             store = get_config_store()
             store.set_section("agents", self._definitions)
         except Exception as e:
@@ -152,6 +148,7 @@ class SimpleAgentRegistry(AgentRegistryProtocol):
         # Fallback: check gateway
         try:
             from ._gateway_ref import get_gateway
+
             gw = get_gateway()
             if gw is not None:
                 gw_agent = gw.get_agent(agent_id)
@@ -174,8 +171,17 @@ class SimpleAgentRegistry(AgentRegistryProtocol):
         if agent_id not in self._definitions:
             return None
         agent = self._definitions[agent_id]
-        allowed_fields = {"name", "description", "instructions", "system_prompt",
-                          "model", "temperature", "tools", "icon", "status"}
+        allowed_fields = {
+            "name",
+            "description",
+            "instructions",
+            "system_prompt",
+            "model",
+            "temperature",
+            "tools",
+            "icon",
+            "status",
+        }
         for key, value in updates.items():
             if key in allowed_fields:
                 agent[key] = value
@@ -217,6 +223,7 @@ class SDKAgentRegistry(AgentRegistryProtocol):
 
     def __init__(self) -> None:
         from praisonaiagents import Agent  # noqa: F401
+
         self._simple = SimpleAgentRegistry()
         logger.info("SDKAgentRegistry initialized (praisonaiagents available)")
 
@@ -267,6 +274,7 @@ def _sync_to_gateway(agent_def: Dict[str, Any]) -> None:
     """Create a real praisonaiagents.Agent and register it with the gateway."""
     try:
         from ._gateway_ref import get_gateway
+
         gw = get_gateway()
         if gw is None:
             return
@@ -292,6 +300,7 @@ def _sync_to_gateway(agent_def: Dict[str, Any]) -> None:
             agent_tools = []
             try:
                 from praisonai.tool_resolver import ToolResolver
+
                 resolver = ToolResolver()
                 for tn in tool_names:
                     if isinstance(tn, str) and tn.strip():
@@ -299,7 +308,9 @@ def _sync_to_gateway(agent_def: Dict[str, Any]) -> None:
                         if resolved:
                             agent_tools.append(resolved)
                         else:
-                            logger.warning(f"Tool '{tn}' not found for agent '{agent_def.get('id')}'")
+                            logger.warning(
+                                f"Tool '{tn}' not found for agent '{agent_def.get('id')}'"
+                            )
             except ImportError:
                 logger.debug("ToolResolver not available, skipping tool resolution")
             if agent_tools:
@@ -307,7 +318,9 @@ def _sync_to_gateway(agent_def: Dict[str, Any]) -> None:
 
         agent = Agent(**agent_kwargs)
         gw.register_agent(agent, agent_id=agent_def["id"])
-        logger.info(f"Agent synced to gateway: {agent_def['id']} ({agent_def.get('name')}, tools={len(agent_kwargs.get('tools', []))})")
+        logger.info(
+            f"Agent synced to gateway: {agent_def['id']} ({agent_def.get('name')}, tools={len(agent_kwargs.get('tools', []))})"
+        )
     except ImportError:
         pass
     except Exception as e:
@@ -318,6 +331,7 @@ def _unsync_from_gateway(agent_id: str) -> None:
     """Unregister an agent from the gateway."""
     try:
         from ._gateway_ref import get_gateway
+
         gw = get_gateway()
         if gw is None:
             return
@@ -337,22 +351,31 @@ def set_agents_data_file(path: Path) -> None:
     pass
 
 
-def create_agent(name: str, description: str = "", instructions: str = "",
-                 system_prompt: str = "", model: str = "gpt-4o-mini",
-                 temperature: float = 0.7, tools: Optional[List[str]] = None,
-                 icon: str = "🤖", **kwargs) -> Dict[str, Any]:
+def create_agent(
+    name: str,
+    description: str = "",
+    instructions: str = "",
+    system_prompt: str = "",
+    model: str = "gpt-4o-mini",
+    temperature: float = 0.7,
+    tools: Optional[List[str]] = None,
+    icon: str = "🤖",
+    **kwargs,
+) -> Dict[str, Any]:
     """Create a new agent definition."""
-    return get_agent_registry().create({
-        "name": name,
-        "description": description,
-        "instructions": instructions,
-        "system_prompt": system_prompt,
-        "model": model,
-        "temperature": temperature,
-        "tools": tools or [],
-        "icon": icon,
-        **kwargs,
-    })
+    return get_agent_registry().create(
+        {
+            "name": name,
+            "description": description,
+            "instructions": instructions,
+            "system_prompt": system_prompt,
+            "model": model,
+            "temperature": temperature,
+            "tools": tools or [],
+            "icon": icon,
+            **kwargs,
+        }
+    )
 
 
 def update_agent(agent_id: str, **updates) -> Optional[Dict[str, Any]]:
@@ -402,22 +425,26 @@ class AgentsCrudFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "agents",
-            "help": "Manage agent definitions",
-            "commands": {
-                "list": {"help": "List all agents", "handler": self._cli_list},
-                "create": {"help": "Create a new agent", "handler": self._cli_create},
-            },
-        }]
+        return [
+            {
+                "name": "agents",
+                "help": "Manage agent definitions",
+                "commands": {
+                    "list": {"help": "List all agents", "handler": self._cli_list},
+                    "create": {"help": "Create a new agent", "handler": self._cli_create},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
+
         reg = get_agent_registry()
         h = reg.health()
         gateway_synced = 0
         try:
             from ._gateway_ref import get_gateway
+
             gw = get_gateway()
             if gw is not None:
                 gw_ids = set(gw.list_agents())
@@ -444,30 +471,41 @@ class AgentsCrudFeature(BaseFeatureProtocol):
         # Merge gateway-only agents (registered programmatically, not via CRUD)
         try:
             from ._gateway_ref import get_gateway
+
             gw = get_gateway()
             if gw is not None:
                 for aid in gw.list_agents():
                     if aid not in crud_ids:
                         gw_agent = gw.get_agent(aid)
-                        agents.append({
-                            "id": str(aid),
-                            "name": str(getattr(gw_agent, "name", aid) if gw_agent else aid),
-                            "description": str(getattr(gw_agent, "backstory", "") if gw_agent else ""),
-                            "instructions": str(getattr(gw_agent, "instructions", "") if gw_agent else ""),
-                            "model": str(getattr(gw_agent, "llm", "gpt-4o-mini") if gw_agent else "gpt-4o-mini"),
-                            "source": "gateway",
-                            "status": "active",
-                            "created_at": time.time(),
-                        })
+                        agents.append(
+                            {
+                                "id": str(aid),
+                                "name": str(getattr(gw_agent, "name", aid) if gw_agent else aid),
+                                "description": str(
+                                    getattr(gw_agent, "backstory", "") if gw_agent else ""
+                                ),
+                                "instructions": str(
+                                    getattr(gw_agent, "instructions", "") if gw_agent else ""
+                                ),
+                                "model": str(
+                                    getattr(gw_agent, "llm", "gpt-4o-mini")
+                                    if gw_agent
+                                    else "gpt-4o-mini"
+                                ),
+                                "source": "gateway",
+                                "status": "active",
+                                "created_at": time.time(),
+                            }
+                        )
         except Exception as e:
             logger.debug("Gateway merge failed: %s", e)
 
         if status_filter:
             agents = [a for a in agents if a.get("status") == status_filter]
-        
+
         # Sort by created_at descending
         agents.sort(key=lambda x: x.get("created_at", 0), reverse=True)
-        
+
         # Defensive serialization — ensure all values are JSON-safe
         def _safe(v):
             if isinstance(v, (str, int, float, bool, type(None))):
@@ -480,19 +518,21 @@ class AgentsCrudFeature(BaseFeatureProtocol):
 
         safe_agents = [_safe(a) for a in agents]
 
-        return JSONResponse({
-            "agents": safe_agents,
-            "count": len(safe_agents),
-        })
+        return JSONResponse(
+            {
+                "agents": safe_agents,
+                "count": len(safe_agents),
+            }
+        )
 
     async def _create(self, request: Request) -> JSONResponse:
         """Create a new agent."""
         body = await request.json()
-        
+
         name = body.get("name", "").strip()
         if not name:
             return JSONResponse({"error": "Agent name is required"}, status_code=400)
-        
+
         agent = create_agent(
             name=name,
             description=body.get("description", ""),
@@ -503,62 +543,64 @@ class AgentsCrudFeature(BaseFeatureProtocol):
             tools=body.get("tools", []),
             icon=body.get("icon", "🤖"),
         )
-        
+
         return JSONResponse(agent, status_code=201)
 
     async def _get(self, request: Request) -> JSONResponse:
         """Get a specific agent."""
         agent_id = request.path_params["agent_id"]
         agent = get_agent(agent_id)
-        
+
         if not agent:
             return JSONResponse({"error": "Agent not found"}, status_code=404)
-        
+
         return JSONResponse(agent)
 
     async def _update(self, request: Request) -> JSONResponse:
         """Update an agent."""
         agent_id = request.path_params["agent_id"]
         body = await request.json()
-        
+
         agent = update_agent(agent_id, **body)
-        
+
         if not agent:
             return JSONResponse({"error": "Agent not found"}, status_code=404)
-        
+
         return JSONResponse(agent)
 
     async def _delete(self, request: Request) -> JSONResponse:
         """Delete an agent."""
         agent_id = request.path_params["agent_id"]
-        
+
         if not delete_agent(agent_id):
             return JSONResponse({"error": "Agent not found"}, status_code=404)
-        
+
         return JSONResponse({"deleted": agent_id})
 
     async def _models(self, request: Request) -> JSONResponse:
         """List available models."""
-        return JSONResponse({
-            "models": AVAILABLE_MODELS,
-            "default": "gpt-4o-mini",
-        })
+        return JSONResponse(
+            {
+                "models": AVAILABLE_MODELS,
+                "default": "gpt-4o-mini",
+            }
+        )
 
     async def _duplicate(self, request: Request) -> JSONResponse:
         """Duplicate an existing agent."""
         agent_id = request.path_params["agent_id"]
         original = get_agent(agent_id)
-        
+
         if not original:
             return JSONResponse({"error": "Agent not found"}, status_code=404)
-        
+
         # Copy all fields except id/timestamps, preserving any extra kwargs
         skip_fields = {"id", "created_at", "updated_at"}
         copy_kwargs = {k: v for k, v in original.items() if k not in skip_fields}
         copy_kwargs["name"] = f"{original['name']} (Copy)"
-        
+
         new_agent = create_agent(**copy_kwargs)
-        
+
         return JSONResponse(new_agent, status_code=201)
 
     # ── CLI handlers ─────────────────────────────────────────────────
@@ -582,22 +624,23 @@ class AgentsCrudFeature(BaseFeatureProtocol):
         """Execute an agent with a prompt using praisonaiagents.Agent."""
         agent_id = request.path_params["agent_id"]
         agent_def = get_agent(agent_id)
-        
+
         if not agent_def:
             return JSONResponse({"error": "Agent not found"}, status_code=404)
-        
+
         body = await request.json()
         prompt = body.get("prompt", "").strip()
-        
+
         if not prompt:
             return JSONResponse({"error": "Prompt is required"}, status_code=400)
-        
+
         try:
             agent = None
 
             # Prefer the gateway-registered agent (has memory, history)
             try:
                 from ._gateway_ref import get_gateway
+
                 gw = get_gateway()
                 if gw is not None:
                     agent = gw.get_agent(agent_id)
@@ -614,6 +657,7 @@ class AgentsCrudFeature(BaseFeatureProtocol):
                 if tool_names:
                     try:
                         from praisonai.tool_resolver import ToolResolver
+
                         resolver = ToolResolver()
                         for tn in tool_names:
                             if isinstance(tn, str) and tn.strip():
@@ -625,7 +669,8 @@ class AgentsCrudFeature(BaseFeatureProtocol):
 
                 agent = Agent(
                     name=agent_def.get("name", "assistant"),
-                    instructions=agent_def.get("instructions", "") or agent_def.get("system_prompt", ""),
+                    instructions=agent_def.get("instructions", "")
+                    or agent_def.get("system_prompt", ""),
                     llm=agent_def.get("model", "gpt-4o-mini"),
                     tools=agent_tools if agent_tools else None,
                     reflection=agent_def.get("reflection", False),
@@ -634,27 +679,35 @@ class AgentsCrudFeature(BaseFeatureProtocol):
             # Execute in thread pool to not block event loop
             loop = asyncio.get_running_loop()
             result = await loop.run_in_executor(None, agent.start, prompt)
-            
-            return JSONResponse({
-                "agent_id": agent_id,
-                "prompt": prompt,
-                "result": result,
-                "model": agent_def.get("model", "gpt-4o-mini"),
-                "timestamp": time.time(),
-            })
-            
+
+            return JSONResponse(
+                {
+                    "agent_id": agent_id,
+                    "prompt": prompt,
+                    "result": result,
+                    "model": agent_def.get("model", "gpt-4o-mini"),
+                    "timestamp": time.time(),
+                }
+            )
+
         except ImportError:
             logger.warning("praisonaiagents not available for agent execution")
-            return JSONResponse({
-                "error": "praisonaiagents not installed",
-                "hint": "pip install praisonaiagents",
-            }, status_code=501)
+            return JSONResponse(
+                {
+                    "error": "praisonaiagents not installed",
+                    "hint": "pip install praisonaiagents",
+                },
+                status_code=501,
+            )
         except Exception as e:
             logger.exception("Agent execution failed")
-            return JSONResponse({
-                "error": str(e),
-                "agent_id": agent_id,
-            }, status_code=500)
+            return JSONResponse(
+                {
+                    "error": str(e),
+                    "agent_id": agent_id,
+                },
+                status_code=500,
+            )
 
 
 # Backward-compat alias

@@ -39,12 +39,10 @@ class ApprovalProtocol(ABC):
     """Protocol interface for approval backends."""
 
     @abstractmethod
-    def list_pending(self) -> List[Dict[str, Any]]:
-        ...
+    def list_pending(self) -> List[Dict[str, Any]]: ...
 
     @abstractmethod
-    def list_history(self, *, limit: int = 50) -> List[Dict[str, Any]]:
-        ...
+    def list_history(self, *, limit: int = 50) -> List[Dict[str, Any]]: ...
 
     @abstractmethod
     def request_approval(self, entry: Dict[str, Any]) -> Dict[str, Any]:
@@ -52,26 +50,23 @@ class ApprovalProtocol(ABC):
         ...
 
     @abstractmethod
-    def approve(self, approval_id: str, reason: str = "", approver: str = "user",
-                always: bool = False) -> Optional[Dict[str, Any]]:
-        ...
+    def approve(
+        self, approval_id: str, reason: str = "", approver: str = "user", always: bool = False
+    ) -> Optional[Dict[str, Any]]: ...
 
     @abstractmethod
-    def deny(self, approval_id: str, reason: str = "", approver: str = "user",
-             always: bool = False) -> Optional[Dict[str, Any]]:
-        ...
+    def deny(
+        self, approval_id: str, reason: str = "", approver: str = "user", always: bool = False
+    ) -> Optional[Dict[str, Any]]: ...
 
     @abstractmethod
-    def get(self, approval_id: str) -> Optional[Dict[str, Any]]:
-        ...
+    def get(self, approval_id: str) -> Optional[Dict[str, Any]]: ...
 
     @abstractmethod
-    def get_policies(self) -> Dict[str, Any]:
-        ...
+    def get_policies(self) -> Dict[str, Any]: ...
 
     @abstractmethod
-    def update_policies(self, updates: Dict[str, Any]) -> Dict[str, Any]:
-        ...
+    def update_policies(self, updates: Dict[str, Any]) -> Dict[str, Any]: ...
 
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
@@ -123,7 +118,8 @@ class SimpleApprovalManager(ApprovalProtocol):
         entry.setdefault("risk_icon", RISK_ICONS.get(entry.get("risk_level", "medium"), "⚠️"))
 
         auto = self._check_auto_action(
-            entry.get("tool_name", ""), entry.get("agent_name", ""),
+            entry.get("tool_name", ""),
+            entry.get("agent_name", ""),
             entry.get("risk_level", "medium"),
         )
         if auto:
@@ -136,8 +132,9 @@ class SimpleApprovalManager(ApprovalProtocol):
             self._pending[approval_id] = entry
         return entry
 
-    def approve(self, approval_id: str, reason: str = "", approver: str = "user",
-                always: bool = False) -> Optional[Dict[str, Any]]:
+    def approve(
+        self, approval_id: str, reason: str = "", approver: str = "user", always: bool = False
+    ) -> Optional[Dict[str, Any]]:
         if approval_id not in self._pending:
             return None
         entry = self._pending.pop(approval_id)
@@ -150,8 +147,9 @@ class SimpleApprovalManager(ApprovalProtocol):
         self._history.appendleft(entry)
         return entry
 
-    def deny(self, approval_id: str, reason: str = "", approver: str = "user",
-             always: bool = False) -> Optional[Dict[str, Any]]:
+    def deny(
+        self, approval_id: str, reason: str = "", approver: str = "user", always: bool = False
+    ) -> Optional[Dict[str, Any]]:
         if approval_id not in self._pending:
             return None
         entry = self._pending.pop(approval_id)
@@ -174,8 +172,13 @@ class SimpleApprovalManager(ApprovalProtocol):
         return dict(self._policies)
 
     def update_policies(self, updates: Dict[str, Any]) -> Dict[str, Any]:
-        for key in ("auto_approve_tools", "always_deny_tools", "auto_approve_agents",
-                     "require_reason", "risk_threshold"):
+        for key in (
+            "auto_approve_tools",
+            "always_deny_tools",
+            "auto_approve_agents",
+            "require_reason",
+            "risk_threshold",
+        ):
             if key in updates:
                 self._policies[key] = updates[key]
         return dict(self._policies)
@@ -197,6 +200,7 @@ class SDKApprovalManager(ApprovalProtocol):
 
     def __init__(self) -> None:
         from praisonaiagents.approval import get_approval_registry
+
         self._registry = get_approval_registry()
         self._simple = SimpleApprovalManager()
         logger.info("SDKApprovalManager initialized (ApprovalRegistry available)")
@@ -210,12 +214,14 @@ class SDKApprovalManager(ApprovalProtocol):
     def request_approval(self, entry: Dict[str, Any]) -> Dict[str, Any]:
         return self._simple.request_approval(entry)
 
-    def approve(self, approval_id: str, reason: str = "", approver: str = "user",
-                always: bool = False) -> Optional[Dict[str, Any]]:
+    def approve(
+        self, approval_id: str, reason: str = "", approver: str = "user", always: bool = False
+    ) -> Optional[Dict[str, Any]]:
         return self._simple.approve(approval_id, reason, approver, always)
 
-    def deny(self, approval_id: str, reason: str = "", approver: str = "user",
-             always: bool = False) -> Optional[Dict[str, Any]]:
+    def deny(
+        self, approval_id: str, reason: str = "", approver: str = "user", always: bool = False
+    ) -> Optional[Dict[str, Any]]:
         return self._simple.deny(approval_id, reason, approver, always)
 
     def get(self, approval_id: str) -> Optional[Dict[str, Any]]:
@@ -290,17 +296,20 @@ class ApprovalsFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "approval",
-            "help": "Manage tool-execution approvals",
-            "commands": {
-                "list": {"help": "List pending approvals", "handler": self._cli_list},
-                "pending": {"help": "Show pending count", "handler": self._cli_pending},
-            },
-        }]
+        return [
+            {
+                "name": "approval",
+                "help": "Manage tool-execution approvals",
+                "commands": {
+                    "list": {"help": "List pending approvals", "handler": self._cli_list},
+                    "pending": {"help": "Show pending count", "handler": self._cli_pending},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
+
         mgr = get_approval_manager()
         return {
             "status": "ok",
@@ -354,6 +363,7 @@ class ApprovalsFeature(BaseFeatureProtocol):
         if agent_name:
             try:
                 from ._gateway_ref import get_gateway
+
                 gw = get_gateway()
                 if gw is not None:
                     for aid in gw.list_agents():
@@ -413,11 +423,13 @@ class ApprovalsFeature(BaseFeatureProtocol):
         mgr = get_approval_manager()
         pending = mgr.list_pending()
         history = mgr.list_history()
-        return JSONResponse({
-            "policies": mgr.get_policies(),
-            "pending_count": len(pending),
-            "history_count": len(history),
-        })
+        return JSONResponse(
+            {
+                "policies": mgr.get_policies(),
+                "pending_count": len(pending),
+                "history_count": len(history),
+            }
+        )
 
     async def _update_policies(self, request: Request) -> JSONResponse:
         mgr = get_approval_manager()
@@ -433,15 +445,15 @@ class ApprovalsFeature(BaseFeatureProtocol):
         async def event_generator():
             try:
                 pending_count = len(mgr.list_pending())
-                yield f"data: {{\"event\": \"connected\", \"pending\": {pending_count}}}\n\n"
+                yield f'data: {{"event": "connected", "pending": {pending_count}}}\n\n'
                 while True:
                     try:
                         msg = await asyncio.wait_for(queue.get(), timeout=30)
                         pc = len(mgr.list_pending())
-                        yield f"data: {{\"event\": \"{msg['event']}\", \"data\": {{}}, \"pending\": {pc}}}\n\n"
+                        yield f'data: {{"event": "{msg["event"]}", "data": {{}}, "pending": {pc}}}\n\n'
                     except asyncio.TimeoutError:
                         pc = len(mgr.list_pending())
-                        yield f"data: {{\"event\": \"ping\", \"pending\": {pc}}}\n\n"
+                        yield f'data: {{"event": "ping", "pending": {pc}}}\n\n'
             finally:
                 _subscribers.remove(queue)
 
@@ -461,7 +473,9 @@ class ApprovalsFeature(BaseFeatureProtocol):
         lines = []
         for a in items:
             icon = RISK_ICONS.get(a.get("risk_level", "medium"), "⚠️")
-            lines.append(f"  {icon} {a['id']} — {a['tool_name']} ({a.get('agent_name', 'unknown')})")
+            lines.append(
+                f"  {icon} {a['id']} — {a['tool_name']} ({a.get('agent_name', 'unknown')})"
+            )
         return "\n".join(lines)
 
     def _cli_pending(self) -> str:

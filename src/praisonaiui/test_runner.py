@@ -19,14 +19,11 @@ import os
 import time
 import uuid
 from pathlib import Path
-from typing import Optional
-from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
 
 test_app = typer.Typer(
     name="test",
@@ -35,9 +32,7 @@ test_app = typer.Typer(
 )
 console = Console()
 
-_SERVER_OPT = typer.Option(
-    "http://127.0.0.1:8082", "--server", "-s", help="Server URL"
-)
+_SERVER_OPT = typer.Option("http://127.0.0.1:8082", "--server", "-s", help="Server URL")
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -49,9 +44,7 @@ def _get(server: str, path: str) -> dict:
 
 def _post(server: str, path: str, body: dict = None) -> dict:
     data = json.dumps(body or {}).encode()
-    req = Request(
-        f"{server}{path}", data=data, headers={"Content-Type": "application/json"}
-    )
+    req = Request(f"{server}{path}", data=data, headers={"Content-Type": "application/json"})
     with urlopen(req, timeout=30) as resp:
         return json.loads(resp.read())
 
@@ -146,10 +139,14 @@ def test_chat(server: str = _SERVER_OPT) -> None:
     # Test 1: Send message to session A
     console.print("\n[dim]Step 1: Send message to session A[/dim]")
     try:
-        resp = _post(server, "/api/chat/send", {
-            "message": "My name is TestAlice. Remember this.",
-            "session_id": sid_a,
-        })
+        resp = _post(
+            server,
+            "/api/chat/send",
+            {
+                "message": "My name is TestAlice. Remember this.",
+                "session_id": sid_a,
+            },
+        )
         r.check("POST /api/chat/send returns session_id", resp.get("session_id") == sid_a)
     except Exception as e:
         r.check("POST /api/chat/send", False, str(e))
@@ -164,10 +161,14 @@ def test_chat(server: str = _SERVER_OPT) -> None:
     # Test 2: Session B — verify history isolation (separate chat_history)
     console.print("\n[dim]Step 2: Session history isolation — session B[/dim]")
     try:
-        _post(server, "/api/chat/send", {
-            "message": "Say hello",
-            "session_id": sid_b,
-        })
+        _post(
+            server,
+            "/api/chat/send",
+            {
+                "message": "Say hello",
+                "session_id": sid_b,
+            },
+        )
     except Exception as e:
         r.check("POST to session B", False, str(e))
 
@@ -179,7 +180,7 @@ def test_chat(server: str = _SERVER_OPT) -> None:
     r.check(
         "Session B: history does not contain Session A's messages",
         not any("TestAlice" in msg for msg in b_user_msgs),
-        f"Session A messages leaked into Session B history",
+        "Session A messages leaked into Session B history",
     )
     r.check(
         "Session B: has its own messages only",
@@ -190,10 +191,14 @@ def test_chat(server: str = _SERVER_OPT) -> None:
     # Test 3: Session A remembers within its own session
     console.print("\n[dim]Step 3: Session A remembers context[/dim]")
     try:
-        _post(server, "/api/chat/send", {
-            "message": "What is my name?",
-            "session_id": sid_a,
-        })
+        _post(
+            server,
+            "/api/chat/send",
+            {
+                "message": "What is my name?",
+                "session_id": sid_a,
+            },
+        )
     except Exception as e:
         r.check("Follow-up to session A", False, str(e))
 
@@ -227,10 +232,14 @@ def test_memory(server: str = _SERVER_OPT) -> None:
     # Store fact
     console.print("\n[dim]Step 1: Store fact in session A[/dim]")
     try:
-        _post(server, "/api/chat/send", {
-            "message": "My favorite programming language is Haskell. Remember this fact.",
-            "session_id": sid_a,
-        })
+        _post(
+            server,
+            "/api/chat/send",
+            {
+                "message": "My favorite programming language is Haskell. Remember this fact.",
+                "session_id": sid_a,
+            },
+        )
     except Exception as e:
         r.check("Store fact", False, str(e))
         r.summary()
@@ -242,10 +251,14 @@ def test_memory(server: str = _SERVER_OPT) -> None:
     # Recall from different session
     console.print("\n[dim]Step 2: Recall from session B (cross-session memory)[/dim]")
     try:
-        _post(server, "/api/chat/send", {
-            "message": "Do you know what my favorite programming language is?",
-            "session_id": sid_b,
-        })
+        _post(
+            server,
+            "/api/chat/send",
+            {
+                "message": "Do you know what my favorite programming language is?",
+                "session_id": sid_b,
+            },
+        )
     except Exception as e:
         r.check("Ask in session B", False, str(e))
 
@@ -277,10 +290,14 @@ def test_sessions(server: str = _SERVER_OPT) -> None:
     # Send message
     console.print("\n[dim]Step 1: Send message and verify storage[/dim]")
     try:
-        _post(server, "/api/chat/send", {
-            "message": "Testing session persistence",
-            "session_id": sid,
-        })
+        _post(
+            server,
+            "/api/chat/send",
+            {
+                "message": "Testing session persistence",
+                "session_id": sid,
+            },
+        )
     except Exception as e:
         r.check("Send message", False, str(e))
         r.summary()
@@ -374,10 +391,14 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
 
     test_sid = f"test-ep-{uuid.uuid4().hex[:8]}"
     try:
-        resp = _post(server, "/api/chat/send", {
-            "message": "Hello",
-            "session_id": test_sid,
-        })
+        resp = _post(
+            server,
+            "/api/chat/send",
+            {
+                "message": "Hello",
+                "session_id": test_sid,
+            },
+        )
         r.check("POST /api/chat/send", resp.get("status") == "sent")
     except Exception as e:
         r.check("POST /api/chat/send", False, str(e))
@@ -409,7 +430,7 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/agents/models")
         r.check("GET /api/agents/models", "models" in data)
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/agents/models")
 
     # ── Config ───────────────────────────────────────────────────────
@@ -423,13 +444,13 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/config/runtime")
         r.check("GET /api/config/runtime", isinstance(data, dict))
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/config/runtime")
 
     try:
         data = _get(server, "/api/config/schema")
         r.check("GET /api/config/schema", isinstance(data, dict))
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/config/schema")
 
     # ── Skills ───────────────────────────────────────────────────────
@@ -437,7 +458,7 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/skills")
         r.check("GET /api/skills", "skills" in data)
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/skills")
 
     # ── Memory ───────────────────────────────────────────────────────
@@ -445,7 +466,7 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/memory")
         r.check("GET /api/memory", isinstance(data, dict))
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/memory")
 
     # ── Schedules ────────────────────────────────────────────────────
@@ -453,7 +474,7 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/schedules")
         r.check("GET /api/schedules", "schedules" in data)
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/schedules")
 
     # ── Hooks ────────────────────────────────────────────────────────
@@ -461,7 +482,7 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/hooks")
         r.check("GET /api/hooks", "hooks" in data)
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/hooks")
 
     # ── Workflows ────────────────────────────────────────────────────
@@ -469,7 +490,7 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/workflows")
         r.check("GET /api/workflows", "workflows" in data)
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/workflows")
 
     # ── Approvals ────────────────────────────────────────────────────
@@ -477,13 +498,13 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/approvals")
         r.check("GET /api/approvals", "approvals" in data)
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/approvals")
 
     try:
         data = _get(server, "/api/approvals/pending")
         r.check("GET /api/approvals/pending", isinstance(data, dict))
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/approvals/pending")
 
     # ── Auth ─────────────────────────────────────────────────────────
@@ -491,13 +512,13 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/auth/status")
         r.check("GET /api/auth/status", "mode" in data or "status" in data)
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/auth/status")
 
     try:
         data = _get(server, "/api/auth/config")
         r.check("GET /api/auth/config", isinstance(data, dict))
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/auth/config")
 
     # ── Knowledge ────────────────────────────────────────────────────
@@ -505,7 +526,7 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/knowledge")
         r.check("GET /api/knowledge", isinstance(data, dict))
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/knowledge")
 
     # ── Guardrails ───────────────────────────────────────────────────
@@ -513,7 +534,7 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/guardrails")
         r.check("GET /api/guardrails", isinstance(data, dict))
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/guardrails")
 
     # ── i18n ─────────────────────────────────────────────────────────
@@ -521,7 +542,7 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/i18n/locale")
         r.check("GET /api/i18n/locale", isinstance(data, dict))
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/i18n/locale")
 
     # ── Telemetry ────────────────────────────────────────────────────
@@ -529,7 +550,7 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/telemetry")
         r.check("GET /api/telemetry", isinstance(data, dict))
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/telemetry")
 
     # ── Security ─────────────────────────────────────────────────────
@@ -537,7 +558,7 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/security/status")
         r.check("GET /api/security/status", isinstance(data, dict))
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/security/status")
 
     # ── Logs ─────────────────────────────────────────────────────────
@@ -545,7 +566,7 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/logs")
         r.check("GET /api/logs", isinstance(data, dict))
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/logs")
 
     # ── Usage ────────────────────────────────────────────────────────
@@ -553,7 +574,7 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/usage")
         r.check("GET /api/usage", isinstance(data, dict))
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/usage")
 
     # ── Nodes ────────────────────────────────────────────────────────
@@ -561,7 +582,7 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
     try:
         data = _get(server, "/api/nodes")
         r.check("GET /api/nodes", isinstance(data, dict))
-    except Exception as e:
+    except Exception:
         r.skip("GET /api/nodes")
 
     # ── Provider (optional) ──────────────────────────────────────────
@@ -584,8 +605,10 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
 def _put(server: str, path: str, body: dict = None) -> dict:
     data = json.dumps(body or {}).encode()
     req = Request(
-        f"{server}{path}", data=data,
-        headers={"Content-Type": "application/json"}, method="PUT",
+        f"{server}{path}",
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="PUT",
     )
     with urlopen(req, timeout=30) as resp:
         return json.loads(resp.read())
@@ -613,12 +636,16 @@ def test_features(server: str = _SERVER_OPT) -> None:
         before = _get(server, "/api/guardrails")
         before_count = before.get("count", 0)
 
-        new_gr = _post(server, "/api/guardrails/register", {
-            "name": "IntegrationTestGuardrail",
-            "description": "Test guardrail from aiui test",
-            "type": "input",
-            "config": {"block_words": ["blocked"]},
-        })
+        new_gr = _post(
+            server,
+            "/api/guardrails/register",
+            {
+                "name": "IntegrationTestGuardrail",
+                "description": "Test guardrail from aiui test",
+                "type": "input",
+                "config": {"block_words": ["blocked"]},
+            },
+        )
         gr_id = new_gr.get("registered") or new_gr.get("id") or new_gr.get("guardrail_id")
         r.check("Register guardrail", gr_id is not None)
 
@@ -645,21 +672,29 @@ def test_features(server: str = _SERVER_OPT) -> None:
         before_count = before.get("count", 0)
 
         unique_fact = f"Capital of Testlandia is Verifytown-{uuid.uuid4().hex[:6]}"
-        new_k = _post(server, "/api/knowledge", {
-            "title": "Testlandia Fact",
-            "text": unique_fact,
-            "metadata": {"source": "aiui-test"},
-        })
+        new_k = _post(
+            server,
+            "/api/knowledge",
+            {
+                "title": "Testlandia Fact",
+                "text": unique_fact,
+                "metadata": {"source": "aiui-test"},
+            },
+        )
         k_id = new_k.get("id") or new_k.get("entry_id")
         r.check("Add knowledge", k_id is not None)
 
         after = _get(server, "/api/knowledge")
         r.check("Knowledge count increased", after.get("count", 0) > before_count)
 
-        search = _post(server, "/api/knowledge/search", {
-            "query": "capital of Testlandia",
-            "top_k": 5,
-        })
+        search = _post(
+            server,
+            "/api/knowledge/search",
+            {
+                "query": "capital of Testlandia",
+                "top_k": 5,
+            },
+        )
         results = search.get("results", search.get("entries", []))
         found = any("Testlandia" in str(x) or "Verifytown" in str(x) for x in results)
         r.check("Knowledge search returns our entry", found)
@@ -681,21 +716,29 @@ def test_features(server: str = _SERVER_OPT) -> None:
         before_count = len(before.get("memories", []))
 
         mem_text = f"Test fact: user serial {uuid.uuid4().hex[:8]}"
-        new_mem = _post(server, "/api/memory", {
-            "text": mem_text,
-            "memory_type": "long",
-            "metadata": {"source": "aiui-test"},
-        })
+        new_mem = _post(
+            server,
+            "/api/memory",
+            {
+                "text": mem_text,
+                "memory_type": "long",
+                "metadata": {"source": "aiui-test"},
+            },
+        )
         mem_id = new_mem.get("id") or new_mem.get("memory_id")
         r.check("Store memory", mem_id is not None)
 
         after = _get(server, "/api/memory")
         r.check("Memory count increased", len(after.get("memories", [])) > before_count)
 
-        search = _post(server, "/api/memory/search", {
-            "query": "user serial",
-            "top_k": 5,
-        })
+        search = _post(
+            server,
+            "/api/memory/search",
+            {
+                "query": "user serial",
+                "top_k": 5,
+            },
+        )
         r.check("Memory search works", isinstance(search, dict))
 
         mstatus = _get(server, "/api/memory/status")
@@ -711,20 +754,28 @@ def test_features(server: str = _SERVER_OPT) -> None:
     console.print("\n[dim]Memory: Cross-session recall via chat[/dim]")
     sid_store = f"test-store-{uuid.uuid4().hex[:6]}"
     try:
-        _post(server, "/api/chat/send", {
-            "message": "My cat is named Thunderpaws. Please remember this.",
-            "session_id": sid_store,
-        })
+        _post(
+            server,
+            "/api/chat/send",
+            {
+                "message": "My cat is named Thunderpaws. Please remember this.",
+                "session_id": sid_store,
+            },
+        )
         _wait_for_response(server, sid_store)
         r.check("Chat: fact stored via conversation", True)
 
         time.sleep(2)
 
         sid_recall = f"test-recall-{uuid.uuid4().hex[:6]}"
-        _post(server, "/api/chat/send", {
-            "message": "What is the name of my cat?",
-            "session_id": sid_recall,
-        })
+        _post(
+            server,
+            "/api/chat/send",
+            {
+                "message": "What is the name of my cat?",
+                "session_id": sid_recall,
+            },
+        )
         recall_msgs = _wait_for_response(server, sid_recall, timeout=25)
         asst_msgs = [m for m in recall_msgs if m.get("role") == "assistant"]
         if asst_msgs:
@@ -760,11 +811,15 @@ def test_features(server: str = _SERVER_OPT) -> None:
             before = _get(server, "/api/channels")
             before_count = len(before.get("channels", []))
 
-            new_ch = _post(server, "/api/channels", {
-                "name": "IntTestBot",
-                "platform": "telegram",
-                "config": {"bot_token": tg_token},
-            })
+            new_ch = _post(
+                server,
+                "/api/channels",
+                {
+                    "name": "IntTestBot",
+                    "platform": "telegram",
+                    "config": {"bot_token": tg_token},
+                },
+            )
             ch_id = new_ch.get("id") or new_ch.get("channel_id")
             r.check("Create channel (real token)", ch_id is not None)
 
@@ -796,11 +851,15 @@ def test_features(server: str = _SERVER_OPT) -> None:
         before = _get(server, "/api/workflows")
         before_count = len(before.get("workflows", []))
 
-        new_wf = _post(server, "/api/workflows", {
-            "name": "test-integration-wf",
-            "description": "Integration test workflow",
-            "steps": [{"type": "log", "message": "Integration test step"}],
-        })
+        new_wf = _post(
+            server,
+            "/api/workflows",
+            {
+                "name": "test-integration-wf",
+                "description": "Integration test workflow",
+                "steps": [{"type": "log", "message": "Integration test step"}],
+            },
+        )
         wf_id = new_wf.get("id") or new_wf.get("workflow_id")
         r.check("Create workflow", wf_id is not None)
 
@@ -832,10 +891,14 @@ def test_features(server: str = _SERVER_OPT) -> None:
         scores = _get(server, "/api/eval/scores")
         r.check("Eval scores", isinstance(scores, dict))
 
-        erun = _post(server, "/api/eval/run", {
-            "prompt": "What is 2+2?",
-            "expected": "4",
-        })
+        erun = _post(
+            server,
+            "/api/eval/run",
+            {
+                "prompt": "What is 2+2?",
+                "expected": "4",
+            },
+        )
         r.check("Eval run", isinstance(erun, dict))
     except Exception as e:
         r.check("Eval", False, str(e))
@@ -903,4 +966,6 @@ def test_all(server: str = _SERVER_OPT) -> None:
         raise typer.Exit(code=1)
     else:
         console.print("\n[green bold]All tests passed! ✓[/green bold]")
+
+
 """CLI test runner for PraisonAIUI integration verification."""

@@ -108,8 +108,9 @@ class DefaultPairingManager(PairingProtocol):
         return False
 
     def health(self) -> Dict[str, Any]:
-        active_codes = sum(1 for c in self._codes.values()
-                          if not c["used"] and time.time() < c["expires_at"])
+        active_codes = sum(
+            1 for c in self._codes.values() if not c["used"] and time.time() < c["expires_at"]
+        )
         return {
             "status": "ok",
             "provider": "DefaultPairingManager",

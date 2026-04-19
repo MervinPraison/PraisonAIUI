@@ -77,6 +77,7 @@ class Action:
     def __post_init__(self):
         """Initialize action with context from current callback."""
         from praisonaiui.callbacks import _get_context
+
         self._context = _get_context()
 
     def to_dict(self) -> Dict[str, Any]:
@@ -114,11 +115,13 @@ class Action:
         if not self._context or not self._context._stream_queue:
             return
 
-        await self._context._stream_queue.put({
-            "type": "action_remove",
-            "action_id": self.id,
-            "message_id": self.message_id,
-        })
+        await self._context._stream_queue.put(
+            {
+                "type": "action_remove",
+                "action_id": self.id,
+                "message_id": self.message_id,
+            }
+        )
 
 
 def action_callback(name: str) -> Callable[[Callable], Callable]:
@@ -148,17 +151,19 @@ def action_callback(name: str) -> Callable[[Callable], Callable]:
         raise ValueError("Action name cannot be empty")
 
     def decorator(
-        func: Callable[["Action"], Awaitable[None]]
+        func: Callable[["Action"], Awaitable[None]],
     ) -> Callable[["Action"], Awaitable[None]]:
         if not callable(func):
             raise ValueError("Action callback must be callable")
         import inspect
+
         if not inspect.iscoroutinefunction(func):
             raise ValueError("Action callback must be an async function (coroutine)")
 
         # Check for duplicate registration and warn
         if name in _ACTION_REGISTRY:
             import warnings
+
             warnings.warn(
                 f"Action callback '{name}' is already registered and will be overwritten",
                 UserWarning,
@@ -177,9 +182,7 @@ def action_callback(name: str) -> Callable[[Callable], Callable]:
     return decorator
 
 
-def register_action_callback(
-    name: str, callback: Callable[["Action"], Awaitable[None]]
-) -> None:
+def register_action_callback(name: str, callback: Callable[["Action"], Awaitable[None]]) -> None:
     """Programmatically register an action callback (alternative to decorator).
 
     Args:
@@ -209,7 +212,7 @@ async def dispatch_action_callback(
     payload: Optional[Dict[str, Any]] = None,
     message_id: Optional[str] = None,
     session_id: Optional[str] = None,
-    stream_queue: Optional[asyncio.Queue] = None
+    stream_queue: Optional[asyncio.Queue] = None,
 ) -> None:
     """Dispatch an action callback by name.
 
@@ -245,6 +248,7 @@ async def dispatch_action_callback(
 
     # Set the context for the duration of the callback
     from praisonaiui.callbacks import _set_context
+
     _set_context(msg_context)
 
     try:

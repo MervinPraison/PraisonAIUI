@@ -19,11 +19,11 @@ import json
 import logging
 import os
 import tempfile
-import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
 
 # Default config path (configurable via AIUI_DATA_DIR env var)
 def _get_default_config_dir() -> Path:
@@ -144,6 +144,7 @@ class YAMLConfigStore:
 
         try:
             import yaml
+
             with open(self._path) as f:
                 loaded = yaml.safe_load(f) or {}
             # Merge with defaults so new keys are always present
@@ -168,9 +169,7 @@ class YAMLConfigStore:
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
             # Write to temp file in same directory, then atomic rename
-            fd, tmp_path = tempfile.mkstemp(
-                dir=str(self._path.parent), suffix=".yaml.tmp"
-            )
+            fd, tmp_path = tempfile.mkstemp(dir=str(self._path.parent), suffix=".yaml.tmp")
             try:
                 with os.fdopen(fd, "w") as f:
                     yaml.dump(
@@ -211,7 +210,9 @@ class YAMLConfigStore:
                 json_path.rename(backup)
                 logger.info(
                     "Migrated %d agents from %s → YAML (backup: %s)",
-                    len(agents), json_path, backup,
+                    len(agents),
+                    json_path,
+                    backup,
                 )
         except Exception as e:
             logger.warning("Failed to migrate agents.json: %s", e)

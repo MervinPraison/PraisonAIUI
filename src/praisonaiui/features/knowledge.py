@@ -205,6 +205,7 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         if self._sdk_knowledge is None:
             try:
                 from praisonaiagents.knowledge import Knowledge
+
                 # Use fixed collection name + persist path so data survives restarts.
                 # Without this, Knowledge() generates a random collection name each time.
                 knowledge_config = {
@@ -269,7 +270,12 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         sdk = self._get_sdk_knowledge()
         if sdk is not None:
             try:
-                sdk.store(text, user_id=user_id or "praisonaiui", agent_id=agent_id, metadata=metadata or {})
+                sdk.store(
+                    text,
+                    user_id=user_id or "praisonaiui",
+                    agent_id=agent_id,
+                    metadata=metadata or {},
+                )
                 entry["sdk_synced"] = True
             except Exception as e:
                 logger.warning("SDK knowledge store failed: %s", e)
@@ -320,14 +326,19 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         sdk = self._get_sdk_knowledge()
         if sdk is not None:
             try:
-                result = sdk.add(file_path, user_id=user_id or "praisonaiui", metadata=metadata or {})
+                result = sdk.add(
+                    file_path, user_id=user_id or "praisonaiui", metadata=metadata or {}
+                )
                 # Parse SDK result and store entries in local index so they appear in listings
                 sdk_results = []
                 if isinstance(result, dict):
                     sdk_results = result.get("results", [])
                 elif isinstance(result, list):
                     sdk_results = result
-                import os, time, hashlib
+                import hashlib
+                import os
+                import time
+
                 for r in sdk_results:
                     if isinstance(r, dict) and r.get("event") == "ADD":
                         entry_id = r.get("id", hashlib.md5(str(r).encode()).hexdigest()[:12])
@@ -431,7 +442,9 @@ class SDKKnowledgeManager(KnowledgeProtocol):
                 file_entries = [e for e in entries if (e.get("metadata") or {}).get("filename")]
                 return {
                     "total": len(entries),
-                    "files": len(set(e.get("metadata", {}).get("filename", "") for e in file_entries)),
+                    "files": len(
+                        set(e.get("metadata", {}).get("filename", "") for e in file_entries)
+                    ),
                     "backend": "SDK",
                 }
             except Exception:
@@ -496,17 +509,19 @@ class KnowledgeFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "knowledge",
-            "help": "Manage knowledge base",
-            "commands": {
-                "list": {"help": "List all knowledge entries", "handler": self._cli_list},
-                "add": {"help": "Add a knowledge entry", "handler": self._cli_add},
-                "search": {"help": "Search knowledge base", "handler": self._cli_search},
-                "remove": {"help": "Remove a knowledge entry", "handler": self._cli_remove},
-                "status": {"help": "Show knowledge base status", "handler": self._cli_status},
-            },
-        }]
+        return [
+            {
+                "name": "knowledge",
+                "help": "Manage knowledge base",
+                "commands": {
+                    "list": {"help": "List all knowledge entries", "handler": self._cli_list},
+                    "add": {"help": "Add a knowledge entry", "handler": self._cli_add},
+                    "search": {"help": "Search knowledge base", "handler": self._cli_search},
+                    "remove": {"help": "Remove a knowledge entry", "handler": self._cli_remove},
+                    "status": {"help": "Show knowledge base status", "handler": self._cli_status},
+                },
+            }
+        ]
 
     # ── CLI handlers ─────────────────────────────────────────────────
 
@@ -654,12 +669,14 @@ class KnowledgeFeature(BaseFeatureProtocol):
         mgr = get_knowledge_manager()
         stats = mgr.get_stats()
         h = mgr.health()
-        return JSONResponse({
-            "total": stats.get("total", 0),
-            "files": stats.get("files", 0),
-            "backend": h.get("provider", "unknown"),
-            "status": h.get("status", "ok"),
-        })
+        return JSONResponse(
+            {
+                "total": stats.get("total", 0),
+                "files": stats.get("files", 0),
+                "backend": h.get("provider", "unknown"),
+                "status": h.get("status", "ok"),
+            }
+        )
 
 
 # Backward-compat alias

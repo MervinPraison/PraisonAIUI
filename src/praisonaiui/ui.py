@@ -200,7 +200,9 @@ def accordion(items: Sequence[dict]) -> dict:
     return {"type": "accordion", "items": list(items)}
 
 
-def image_display(src: str, *, alt: str = "", caption: str | None = None, width: str | None = None) -> dict:
+def image_display(
+    src: str, *, alt: str = "", caption: str | None = None, width: str | None = None
+) -> dict:
     """An image with optional caption.
 
     Args:
@@ -257,7 +259,12 @@ def text_input(
             ``name`` whenever you have duplicate labels or want a stable
             machine-readable key.
     """
-    comp: dict[str, Any] = {"type": "text_input", "label": label, "value": value, "placeholder": placeholder}
+    comp: dict[str, Any] = {
+        "type": "text_input",
+        "label": label,
+        "value": value,
+        "placeholder": placeholder,
+    }
     if name is not None:
         comp["name"] = name
     return comp
@@ -307,7 +314,12 @@ def select_input(
         value: Default selected value
         name: Optional explicit submit-key for ``form_action``.
     """
-    comp: dict[str, Any] = {"type": "select_input", "label": label, "options": list(options), "value": value}
+    comp: dict[str, Any] = {
+        "type": "select_input",
+        "label": label,
+        "options": list(options),
+        "value": value,
+    }
     if name is not None:
         comp["name"] = name
     return comp
@@ -333,8 +345,12 @@ def slider_input(
         name: Optional explicit submit-key for ``form_action``.
     """
     comp: dict[str, Any] = {
-        "type": "slider_input", "label": label, "value": value,
-        "min_val": min_val, "max_val": max_val, "step": step,
+        "type": "slider_input",
+        "label": label,
+        "value": value,
+        "min_val": min_val,
+        "max_val": max_val,
+        "step": step,
     }
     if name is not None:
         comp["name"] = name
@@ -394,7 +410,12 @@ def radio_input(
         value: Default selected value
         name: Optional explicit submit-key for ``form_action``.
     """
-    comp: dict[str, Any] = {"type": "radio_input", "label": label, "options": list(options), "value": value}
+    comp: dict[str, Any] = {
+        "type": "radio_input",
+        "label": label,
+        "options": list(options),
+        "value": value,
+    }
     if name is not None:
         comp["name"] = name
     return comp
@@ -417,7 +438,13 @@ def textarea_input(
         rows: Number of visible rows
         name: Optional explicit submit-key for ``form_action``.
     """
-    comp: dict[str, Any] = {"type": "textarea_input", "label": label, "value": value, "placeholder": placeholder, "rows": rows}
+    comp: dict[str, Any] = {
+        "type": "textarea_input",
+        "label": label,
+        "value": value,
+        "placeholder": placeholder,
+        "rows": rows,
+    }
     if name is not None:
         comp["name"] = name
     return comp
@@ -572,8 +599,10 @@ def multiselect_input(label: str, *, options: Sequence[str], value: Sequence[str
         value: Default selected values
     """
     return {
-        "type": "multiselect_input", "label": label,
-        "options": list(options), "value": list(value),
+        "type": "multiselect_input",
+        "label": label,
+        "options": list(options),
+        "value": list(value),
     }
 
 
@@ -740,6 +769,7 @@ def tooltip_wrap(child: dict, *, content: str) -> dict:
         in 0.5.0.
     """
     import warnings
+
     warnings.warn(
         "praisonaiui.tooltip_wrap is deprecated; use praisonaiui.tooltip instead.",
         DeprecationWarning,
@@ -817,9 +847,9 @@ def key_value_list(items: Sequence[dict], *, title: str | None = None) -> dict:
         removal in 0.5.0.
     """
     import warnings
+
     warnings.warn(
-        "praisonaiui.key_value_list is deprecated; "
-        "use praisonaiui.definition_list instead.",
+        "praisonaiui.key_value_list is deprecated; use praisonaiui.definition_list instead.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -876,6 +906,7 @@ def form_action(
         in 0.5.0.
     """
     import warnings
+
     warnings.warn(
         "praisonaiui.form_action is deprecated; use praisonaiui.form instead.",
         DeprecationWarning,

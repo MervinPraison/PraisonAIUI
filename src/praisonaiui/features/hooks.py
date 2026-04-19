@@ -46,15 +46,17 @@ class HooksFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "hooks",
-            "help": "Manage operation hooks",
-            "commands": {
-                "list": {"help": "List all hooks", "handler": self._cli_list},
-                "trigger": {"help": "Trigger a hook", "handler": self._cli_trigger},
-                "log": {"help": "Show hook execution log", "handler": self._cli_log},
-            },
-        }]
+        return [
+            {
+                "name": "hooks",
+                "help": "Manage operation hooks",
+                "commands": {
+                    "list": {"help": "List all hooks", "handler": self._cli_list},
+                    "trigger": {"help": "Trigger a hook", "handler": self._cli_trigger},
+                    "log": {"help": "Show hook execution log", "handler": self._cli_log},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         return {
@@ -130,9 +132,13 @@ class HooksFeature(BaseFeatureProtocol):
     def _cli_trigger(self, hook_id: str) -> str:
         if hook_id not in _hooks:
             return f"Hook {hook_id} not found"
-        _hook_log.append({
-            "hook_id": hook_id, "triggered_at": time.time(), "result": "executed",
-        })
+        _hook_log.append(
+            {
+                "hook_id": hook_id,
+                "triggered_at": time.time(),
+                "result": "executed",
+            }
+        )
         return f"Triggered hook {hook_id}"
 
     def _cli_log(self) -> str:

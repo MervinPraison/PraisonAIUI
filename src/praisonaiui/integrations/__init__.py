@@ -9,6 +9,7 @@ All integrations are lazily loaded to avoid importing heavy dependencies
 unless explicitly used.
 """
 
+
 def __getattr__(name: str):
     """Lazy import for framework integrations."""
     if name in ("AiuiLangChainCallbackHandler", "AsyncAiuiLangChainCallbackHandler"):
@@ -16,6 +17,7 @@ def __getattr__(name: str):
             AiuiLangChainCallbackHandler,
             AsyncAiuiLangChainCallbackHandler,
         )
+
         if name == "AiuiLangChainCallbackHandler":
             return AiuiLangChainCallbackHandler
         else:
@@ -23,13 +25,16 @@ def __getattr__(name: str):
 
     elif name == "AiuiLlamaIndexCallbackHandler":
         from praisonaiui.integrations.llama_index import AiuiLlamaIndexCallbackHandler
+
         return AiuiLlamaIndexCallbackHandler
 
     elif name == "AiuiSemanticKernelFilter":
         from praisonaiui.integrations.semantic_kernel import AiuiSemanticKernelFilter
+
         return AiuiSemanticKernelFilter
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "AiuiLangChainCallbackHandler",

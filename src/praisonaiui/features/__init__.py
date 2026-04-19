@@ -93,7 +93,9 @@ def auto_register_defaults() -> None:
         except Exception as exc:
             _log.warning(
                 "Failed to register feature %s from %s: %s",
-                cls_name, mod_path, exc,
+                cls_name,
+                mod_path,
+                exc,
             )
 
 

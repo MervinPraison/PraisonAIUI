@@ -10,14 +10,14 @@ from praisonaiui.message import Step
 
 class AiuiSemanticKernelFilter:
     """Semantic Kernel function invocation filter that creates aiui.Step events.
-    
+
     Maps SK function invocations to Step visualization with proper nesting.
-    
+
     Example:
         from praisonaiui.integrations.semantic_kernel import AiuiSemanticKernelFilter
-        
+
         kernel.add_filter("function_invocation", AiuiSemanticKernelFilter())
-        
+
         # All function calls now appear as Steps
         result = await kernel.invoke(function, arguments)
     """
@@ -28,11 +28,11 @@ class AiuiSemanticKernelFilter:
 
     async def on_function_invocation(self, context: Any, next_filter: Any) -> Any:
         """Handle function invocation with Step wrapping.
-        
+
         Args:
             context: SK function context containing function info and arguments
             next_filter: Next filter in the chain
-            
+
         Returns:
             The result of the function invocation
         """
@@ -59,8 +59,8 @@ class AiuiSemanticKernelFilter:
             metadata={
                 "function_name": function_name,
                 "plugin_name": plugin_name,
-                "arguments": dict(args) if args else {}
-            }
+                "arguments": dict(args) if args else {},
+            },
         )
 
         context_id = id(context)
@@ -102,7 +102,7 @@ class AiuiSemanticKernelFilter:
 
     async def on_auto_function_invocation(self, context: Any, next_filter: Any) -> Any:
         """Handle auto function invocation (for AI-initiated calls).
-        
+
         Similar to on_function_invocation but with different step naming
         to distinguish auto vs manual invocations.
         """
@@ -130,8 +130,8 @@ class AiuiSemanticKernelFilter:
                 "function_name": function_name,
                 "plugin_name": plugin_name,
                 "arguments": dict(args) if args else {},
-                "auto_invocation": True
-            }
+                "auto_invocation": True,
+            },
         )
 
         context_id = id(context)

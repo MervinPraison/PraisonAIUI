@@ -27,13 +27,21 @@ class MediaAnalysisProtocol(ABC):
     """Protocol interface for media analysis backends."""
 
     @abstractmethod
-    def analyze(self, *, url: Optional[str] = None, base64_data: Optional[str] = None,
-                mime_type: str = "image/png", prompt: str = "Describe this image") -> Dict[str, Any]:
+    def analyze(
+        self,
+        *,
+        url: Optional[str] = None,
+        base64_data: Optional[str] = None,
+        mime_type: str = "image/png",
+        prompt: str = "Describe this image",
+    ) -> Dict[str, Any]:
         """Analyze an image/media. Returns analysis result."""
         ...
 
     @abstractmethod
-    def ocr(self, *, url: Optional[str] = None, base64_data: Optional[str] = None) -> Dict[str, Any]:
+    def ocr(
+        self, *, url: Optional[str] = None, base64_data: Optional[str] = None
+    ) -> Dict[str, Any]:
         """OCR text extraction from an image. Returns extracted text."""
         ...
 
@@ -54,8 +62,14 @@ class VisionAnalysisManager(MediaAnalysisProtocol):
 
     CAPABILITIES = ["image_description", "ocr", "object_detection", "image_qa"]
 
-    def analyze(self, *, url: Optional[str] = None, base64_data: Optional[str] = None,
-                mime_type: str = "image/png", prompt: str = "Describe this image") -> Dict[str, Any]:
+    def analyze(
+        self,
+        *,
+        url: Optional[str] = None,
+        base64_data: Optional[str] = None,
+        mime_type: str = "image/png",
+        prompt: str = "Describe this image",
+    ) -> Dict[str, Any]:
         if not url and not base64_data:
             return {"error": "No image provided", "status": "error"}
 
@@ -63,6 +77,7 @@ class VisionAnalysisManager(MediaAnalysisProtocol):
         agent = None
         try:
             from ._gateway_ref import get_gateway
+
             gw = get_gateway()
             if gw is not None:
                 for aid in gw.list_agents():
@@ -76,8 +91,13 @@ class VisionAnalysisManager(MediaAnalysisProtocol):
         try:
             if agent is None:
                 from praisonaiagents import Agent
-                agent = Agent(name="VisionAnalyst", role="Image Analyst",
-                             llm="gpt-4o-mini", self_reflect=False)
+
+                agent = Agent(
+                    name="VisionAnalyst",
+                    role="Image Analyst",
+                    llm="gpt-4o-mini",
+                    self_reflect=False,
+                )
             # If URL provided, format message with image
             if url:
                 result = agent.chat(f"{prompt}\n\nImage: {url}")
@@ -99,10 +119,13 @@ class VisionAnalysisManager(MediaAnalysisProtocol):
             "note": "Install praisonaiagents for real analysis",
         }
 
-    def ocr(self, *, url: Optional[str] = None, base64_data: Optional[str] = None) -> Dict[str, Any]:
+    def ocr(
+        self, *, url: Optional[str] = None, base64_data: Optional[str] = None
+    ) -> Dict[str, Any]:
         agent = None
         try:
             from ._gateway_ref import get_gateway
+
             gw = get_gateway()
             if gw is not None:
                 for aid in gw.list_agents():
@@ -116,8 +139,10 @@ class VisionAnalysisManager(MediaAnalysisProtocol):
         try:
             if agent is None:
                 from praisonaiagents import Agent
-                agent = Agent(name="OCRAgent", role="OCR Specialist",
-                             llm="gpt-4o-mini", self_reflect=False)
+
+                agent = Agent(
+                    name="OCRAgent", role="OCR Specialist", llm="gpt-4o-mini", self_reflect=False
+                )
             source = url or "[base64 data]"
             result = agent.chat(f"Extract all text from this image: {source}")
             return {"text": str(result), "status": "success", "provider": "sdk"}
@@ -138,6 +163,7 @@ class VisionAnalysisManager(MediaAnalysisProtocol):
     def health(self) -> Dict[str, Any]:
         try:
             from praisonaiagents import Agent  # noqa: F401
+
             return {"status": "ok", "provider": "VisionAnalysisManager", "sdk": True}
         except ImportError:
             return {"status": "degraded", "provider": "VisionAnalysisManager", "sdk": False}

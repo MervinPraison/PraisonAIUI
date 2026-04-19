@@ -7,12 +7,13 @@ compatible with the ``gateway.yaml`` schema.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 
 def _store():
     """Lazy import to avoid circular imports at module load time."""
     from praisonaiui.config_store import get_config_store
+
     return get_config_store()
 
 

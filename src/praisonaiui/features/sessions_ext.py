@@ -63,6 +63,7 @@ def _get_session_store() -> SessionProtocol:
     if _session_store is None:
         try:
             from praisonaiagents.session import get_default_session_store
+
             _session_store = get_default_session_store()
             logger.info("Using praisonaiagents.session.DefaultSessionStore for persistence")
         except ImportError:
@@ -73,10 +74,10 @@ def _get_session_store() -> SessionProtocol:
 
 class _InMemorySessionStore(SessionProtocol):
     """Fallback in-memory store if praisonaiagents not available."""
-    
+
     def __init__(self):
         self._sessions: Dict[str, Dict[str, Any]] = {}
-    
+
     def get_session(self, session_id: str) -> Dict[str, Any]:
         if session_id not in self._sessions:
             self._sessions[session_id] = {
@@ -86,30 +87,32 @@ class _InMemorySessionStore(SessionProtocol):
                 "created_at": time.time(),
             }
         return self._sessions[session_id]
-    
+
     def get_chat_history(self, session_id: str, max_messages: int = None) -> List[Dict]:
         session = self.get_session(session_id)
         messages = session.get("messages", [])
         if max_messages:
             return messages[-max_messages:]
         return messages
-    
+
     def add_message(self, session_id: str, role: str, content: str, metadata: Dict = None):
         session = self.get_session(session_id)
-        session["messages"].append({
-            "role": role,
-            "content": content,
-            "metadata": metadata or {},
-            "timestamp": time.time(),
-        })
-    
+        session["messages"].append(
+            {
+                "role": role,
+                "content": content,
+                "metadata": metadata or {},
+                "timestamp": time.time(),
+            }
+        )
+
     def clear_session(self, session_id: str):
         if session_id in self._sessions:
             self._sessions[session_id]["messages"] = []
-    
+
     def delete_session(self, session_id: str):
         self._sessions.pop(session_id, None)
-    
+
     def list_sessions(self) -> List[str]:
         return list(self._sessions.keys())
 
@@ -157,38 +160,39 @@ class SessionsFeature(BaseFeatureProtocol):
             Route("/api/sessions/{session_id}/usage", self._usage, methods=["GET"]),
         ]
 
-
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "session-ext",
-            "help": "Extended session operations (state, labels, usage)",
-            "commands": {
-                "state": {
-                    "help": "Get session state",
-                    "handler": self._cli_state,
+        return [
+            {
+                "name": "session-ext",
+                "help": "Extended session operations (state, labels, usage)",
+                "commands": {
+                    "state": {
+                        "help": "Get session state",
+                        "handler": self._cli_state,
+                    },
+                    "save-state": {
+                        "help": "Save key=value to session state",
+                        "handler": self._cli_save_state,
+                    },
+                    "labels": {
+                        "help": "Get session labels",
+                        "handler": self._cli_labels,
+                    },
+                    "usage": {
+                        "help": "Get session usage stats",
+                        "handler": self._cli_usage,
+                    },
+                    "compact": {
+                        "help": "Compact session context",
+                        "handler": self._cli_compact,
+                    },
+                    "reset": {
+                        "help": "Reset session state",
+                        "handler": self._cli_reset,
+                    },
                 },
-                "save-state": {
-                    "help": "Save key=value to session state",
-                    "handler": self._cli_save_state,
-                },
-                "labels": {
-                    "help": "Get session labels",
-                    "handler": self._cli_labels,
-                },
-                "usage": {
-                    "help": "Get session usage stats",
-                    "handler": self._cli_usage,
-                },
-                "compact": {
-                    "help": "Compact session context",
-                    "handler": self._cli_compact,
-                },
-                "reset": {
-                    "help": "Reset session state",
-                    "handler": self._cli_reset,
-                },
-            },
-        }]
+            }
+        ]
 
     # ── CLI handlers ─────────────────────────────────────────────────
 
@@ -219,8 +223,8 @@ class SessionsFeature(BaseFeatureProtocol):
     def _cli_usage(self, session_id: str = "default") -> str:
         meta = _get_metadata(session_id)
         usage = meta.get("_usage", {"tokens": 0, "requests": 0})
-        tokens = usage.get('tokens', 0)
-        requests = usage.get('requests', 0)
+        tokens = usage.get("tokens", 0)
+        requests = usage.get("requests", 0)
         return f"Session {session_id}: {tokens} tokens, {requests} requests"
 
     def _cli_compact(self, session_id: str = "default") -> str:
@@ -229,10 +233,9 @@ class SessionsFeature(BaseFeatureProtocol):
     def _cli_reset(self, session_id: str = "default") -> str:
         _session_metadata.pop(session_id, None)
         store = _get_session_store()
-        if hasattr(store, 'clear_session'):
+        if hasattr(store, "clear_session"):
             store.clear_session(session_id)
         return f"✓ Session {session_id} reset"
-
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
@@ -256,23 +259,26 @@ class SessionsFeature(BaseFeatureProtocol):
         # Primary source: the server's own datastore (same as /sessions for Chat)
         try:
             from praisonaiui.server import get_datastore
+
             ds = get_datastore()
             ds_sessions = await ds.list_sessions()
-            for s in (ds_sessions or []):
+            for s in ds_sessions or []:
                 sid = s.get("id", s.get("session_id", ""))
                 if not sid:
                     continue
                 meta = _get_metadata(sid)
-                sessions.append({
-                    "id": sid,
-                    "session_id": sid,
-                    "is_active": True,
-                    "message_count": s.get("message_count", len(s.get("messages", []))),
-                    "labels": meta.get("_labels", []),
-                    "created_at": s.get("created_at", meta.get("_created_at")),
-                    "updated_at": s.get("updated_at", meta.get("_updated_at")),
-                    "title": s.get("title", ""),
-                })
+                sessions.append(
+                    {
+                        "id": sid,
+                        "session_id": sid,
+                        "is_active": True,
+                        "message_count": s.get("message_count", len(s.get("messages", []))),
+                        "labels": meta.get("_labels", []),
+                        "created_at": s.get("created_at", meta.get("_created_at")),
+                        "updated_at": s.get("updated_at", meta.get("_updated_at")),
+                        "title": s.get("title", ""),
+                    }
+                )
         except Exception as e:
             logger.warning(f"datastore.list_sessions() failed: {e}")
 
@@ -281,6 +287,7 @@ class SessionsFeature(BaseFeatureProtocol):
         # Merge gateway agent IDs as virtual sessions
         try:
             from ._gateway_ref import get_gateway
+
             gw = get_gateway()
             if gw is not None:
                 for aid in gw.list_agents():
@@ -289,15 +296,17 @@ class SessionsFeature(BaseFeatureProtocol):
                     vsid = f"agent:{name}"
                     if vsid not in seen_ids:
                         meta = _get_metadata(vsid)
-                        sessions.append({
-                            "id": vsid,
-                            "session_id": vsid,
-                            "is_active": True,
-                            "message_count": 0,
-                            "labels": meta.get("_labels", []),
-                            "created_at": meta.get("_created_at"),
-                            "updated_at": meta.get("_updated_at"),
-                        })
+                        sessions.append(
+                            {
+                                "id": vsid,
+                                "session_id": vsid,
+                                "is_active": True,
+                                "message_count": 0,
+                                "labels": meta.get("_labels", []),
+                                "created_at": meta.get("_created_at"),
+                                "updated_at": meta.get("_updated_at"),
+                            }
+                        )
         except (ImportError, Exception):
             pass
 
@@ -327,7 +336,9 @@ class SessionsFeature(BaseFeatureProtocol):
         if meta:
             context_parts.append(f"Session state: {len(meta)} keys")
         store = _get_session_store()
-        messages = store.get_chat_history(sid, max_items) if hasattr(store, 'get_chat_history') else []
+        messages = (
+            store.get_chat_history(sid, max_items) if hasattr(store, "get_chat_history") else []
+        )
         for m in messages:
             content = m.get("content", "") or m.get("text", "")
             if content:
@@ -335,6 +346,7 @@ class SessionsFeature(BaseFeatureProtocol):
         # Include gateway agent context if session maps to an agent
         try:
             from ._gateway_ref import get_gateway
+
             gw = get_gateway()
             if gw is not None:
                 for aid in gw.list_agents():
@@ -347,65 +359,79 @@ class SessionsFeature(BaseFeatureProtocol):
                         break
         except (ImportError, Exception):
             pass
-        return JSONResponse({
-            "session_id": sid,
-            "query": query,
-            "context": "\n".join(context_parts) if context_parts else "No context available",
-            "items_used": len(context_parts),
-        })
+        return JSONResponse(
+            {
+                "session_id": sid,
+                "query": query,
+                "context": "\n".join(context_parts) if context_parts else "No context available",
+                "items_used": len(context_parts),
+            }
+        )
 
     async def _compact(self, request: Request) -> JSONResponse:
         """POST /api/sessions/{id}/compact — Summarize old messages to reduce context."""
         sid = request.path_params["session_id"]
         store = _get_session_store()
-        messages = store.get_chat_history(sid) if hasattr(store, 'get_chat_history') else []
+        messages = store.get_chat_history(sid) if hasattr(store, "get_chat_history") else []
         before_count = len(messages)
         before_tokens = sum(len(str(m.get("content", "")).split()) * 1.3 for m in messages)
-        
+
         # Note: Real compaction would use LLM summarization
         # For now, just report stats
         after_count = min(before_count, 5)
         after_tokens = before_tokens * (after_count / max(before_count, 1))
-        
-        return JSONResponse({
-            "session_id": sid,
-            "compacted": True,
-            "before": {"messages": before_count, "estimated_tokens": int(before_tokens)},
-            "after": {"messages": after_count, "estimated_tokens": int(after_tokens)},
-            "saved_tokens": int(before_tokens - after_tokens),
-            "timestamp": time.time(),
-        })
+
+        return JSONResponse(
+            {
+                "session_id": sid,
+                "compacted": True,
+                "before": {"messages": before_count, "estimated_tokens": int(before_tokens)},
+                "after": {"messages": after_count, "estimated_tokens": int(after_tokens)},
+                "saved_tokens": int(before_tokens - after_tokens),
+                "timestamp": time.time(),
+            }
+        )
 
     async def _preview(self, request: Request) -> JSONResponse:
         """GET /api/sessions/{id}/preview — Return formatted preview without full history."""
         sid = request.path_params["session_id"]
         meta = _get_metadata(sid)
         store = _get_session_store()
-        messages = store.get_chat_history(sid) if hasattr(store, 'get_chat_history') else []
-        
+        messages = store.get_chat_history(sid) if hasattr(store, "get_chat_history") else []
+
         # Get first and last messages
         first_message = messages[0] if messages else None
         last_message = messages[-1] if messages else None
-        
+
         # Estimate tokens
         total_tokens = sum(len(str(m.get("content", "")).split()) * 1.3 for m in messages)
-        
-        return JSONResponse({
-            "session_id": sid,
-            "total_messages": len(messages),
-            "estimated_tokens": int(total_tokens),
-            "first_message": {
-                "role": first_message.get("role", "unknown"),
-                "preview": str(first_message.get("content", ""))[:100] + "..." if first_message else None,
-            } if first_message else None,
-            "last_message": {
-                "role": last_message.get("role", "unknown"),
-                "preview": str(last_message.get("content", ""))[:100] + "..." if last_message else None,
-            } if last_message else None,
-            "labels": meta.get("_labels", []),
-            "created_at": meta.get("_created_at"),
-            "updated_at": meta.get("_updated_at"),
-        })
+
+        return JSONResponse(
+            {
+                "session_id": sid,
+                "total_messages": len(messages),
+                "estimated_tokens": int(total_tokens),
+                "first_message": {
+                    "role": first_message.get("role", "unknown"),
+                    "preview": str(first_message.get("content", ""))[:100] + "..."
+                    if first_message
+                    else None,
+                }
+                if first_message
+                else None,
+                "last_message": {
+                    "role": last_message.get("role", "unknown"),
+                    "preview": str(last_message.get("content", ""))[:100] + "..."
+                    if last_message
+                    else None,
+                }
+                if last_message
+                else None,
+                "labels": meta.get("_labels", []),
+                "created_at": meta.get("_created_at"),
+                "updated_at": meta.get("_updated_at"),
+            }
+        )
 
     async def _reset(self, request: Request) -> JSONResponse:
         sid = request.path_params["session_id"]
@@ -415,39 +441,47 @@ class SessionsFeature(BaseFeatureProtocol):
         if mode == "clear":
             _session_metadata.pop(sid, None)
             store = _get_session_store()
-            if hasattr(store, 'clear_session'):
+            if hasattr(store, "clear_session"):
                 store.clear_session(sid)
-        return JSONResponse({
-            "session_id": sid,
-            "reset_mode": mode,
-            "timestamp": time.time(),
-        })
+        return JSONResponse(
+            {
+                "session_id": sid,
+                "reset_mode": mode,
+                "timestamp": time.time(),
+            }
+        )
 
     async def _labels(self, request: Request) -> JSONResponse:
         sid = request.path_params["session_id"]
         meta = _get_metadata(sid)
-        return JSONResponse({
-            "session_id": sid,
-            "labels": meta.get("_labels", []),
-        })
+        return JSONResponse(
+            {
+                "session_id": sid,
+                "labels": meta.get("_labels", []),
+            }
+        )
 
     async def _set_labels(self, request: Request) -> JSONResponse:
         sid = request.path_params["session_id"]
         body = await request.json()
         meta = _get_metadata(sid)
         meta["_labels"] = body.get("labels", [])
-        return JSONResponse({
-            "session_id": sid,
-            "labels": meta["_labels"],
-        })
+        return JSONResponse(
+            {
+                "session_id": sid,
+                "labels": meta["_labels"],
+            }
+        )
 
     async def _usage(self, request: Request) -> JSONResponse:
         sid = request.path_params["session_id"]
         meta = _get_metadata(sid)
-        return JSONResponse({
-            "session_id": sid,
-            "usage": meta.get("_usage", {"tokens": 0, "requests": 0}),
-        })
+        return JSONResponse(
+            {
+                "session_id": sid,
+                "usage": meta.get("_usage", {"tokens": 0, "requests": 0}),
+            }
+        )
 
 
 # Backward-compat alias

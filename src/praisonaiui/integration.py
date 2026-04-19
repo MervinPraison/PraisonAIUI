@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 try:
     from praisonai.gateway import WebSocketGateway
     from praisonaiagents import Agent as PraisonAgent
+
     HAS_PRAISONAI = True
 except ImportError:
     HAS_PRAISONAI = False
@@ -153,6 +154,7 @@ class AIUIGateway:
 
         # Set up the PraisonAI provider with gateway agents
         from praisonaiui.providers import PraisonAIProvider
+
         set_provider(PraisonAIProvider(agents=gateway_agents))
 
         # ── Build the app via server.create_app() ──────────────────────
@@ -173,11 +175,14 @@ class AIUIGateway:
             logger.info(f"Client connected: {client_id}")
 
             from praisonaiagents.gateway import EventType, GatewayEvent
-            await self._gateway.emit(GatewayEvent(
-                type=EventType.CONNECT,
-                data={"client_id": client_id},
-                source=client_id,
-            ))
+
+            await self._gateway.emit(
+                GatewayEvent(
+                    type=EventType.CONNECT,
+                    data={"client_id": client_id},
+                    source=client_id,
+                )
+            )
 
             try:
                 while True:
@@ -193,11 +198,13 @@ class AIUIGateway:
                 if session_id:
                     self._gateway.close_session(session_id)
 
-                await self._gateway.emit(GatewayEvent(
-                    type=EventType.DISCONNECT,
-                    data={"client_id": client_id},
-                    source=client_id,
-                ))
+                await self._gateway.emit(
+                    GatewayEvent(
+                        type=EventType.DISCONNECT,
+                        data={"client_id": client_id},
+                        source=client_id,
+                    )
+                )
 
         # Prepend the /ws route so it takes priority over static catch-all
         app.routes.insert(0, WebSocketRoute("/ws", ws_handler))
@@ -215,6 +222,7 @@ class AIUIGateway:
         # Publish gateway reference so feature modules can access live state
         try:
             from praisonaiui.features._gateway_ref import set_gateway
+
             set_gateway(self._gateway)
         except ImportError:
             pass
@@ -222,6 +230,7 @@ class AIUIGateway:
         # Initialize unified YAML config store for feature persistence
         try:
             from praisonaiui.config_store import init_config_store
+
             default_data_dir = Path.home() / ".praisonaiui"
             init_config_store(default_data_dir / "config.yaml")
         except Exception:
@@ -249,6 +258,7 @@ class AIUIGateway:
         # Clear gateway reference
         try:
             from praisonaiui.features._gateway_ref import set_gateway
+
             set_gateway(None)
         except ImportError:
             pass
@@ -292,6 +302,7 @@ def create_gateway_from_yaml(
     tool_resolver = None
     try:
         from praisonai.tool_resolver import ToolResolver
+
         tool_resolver = ToolResolver()
     except ImportError:
         logger.debug("ToolResolver not available, agents will have no tools")
@@ -322,7 +333,9 @@ def create_gateway_from_yaml(
             self_reflect=agent_def.get("reflection", False),
         )
         gateway.register_agent(agent, agent_id=agent_id)
-        logger.info(f"Created agent '{agent_id}' (tools={len(agent_tools)}, reflection={agent_def.get('reflection', False)})")
+        logger.info(
+            f"Created agent '{agent_id}' (tools={len(agent_tools)}, reflection={agent_def.get('reflection', False)})"
+        )
 
     return gateway
 

@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 # ── Realtime Protocol ───────────────────────────────────────────────
 
+
 class RealtimeProtocol(ABC):
     """Protocol interface for bidirectional realtime voice backends."""
 
@@ -42,7 +43,9 @@ class RealtimeProtocol(ABC):
         ...
 
     @abstractmethod
-    async def call_tool(self, session_id: str, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def call_tool(
+        self, session_id: str, tool_name: str, args: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Handle tool calls from the realtime API."""
         ...
 
@@ -57,6 +60,7 @@ class RealtimeProtocol(ABC):
 
 # ── OpenAI Realtime Manager ─────────────────────────────────────────
 
+
 class OpenAIRealtimeManager(RealtimeProtocol):
     """OpenAI Realtime API backend with ephemeral token support."""
 
@@ -66,23 +70,26 @@ class OpenAIRealtimeManager(RealtimeProtocol):
     async def create_session(self, *, model: str = "gpt-4o-realtime-preview") -> Dict[str, Any]:
         """Create ephemeral WebRTC session with OpenAI."""
         try:
-            import openai
             import uuid
 
+            import openai
+
             session_id = str(uuid.uuid4())
-            
+
             # Create ephemeral token for client-side WebRTC
             client = openai.OpenAI()
-            response = await client.realtime.sessions.create({
-                "model": model,
-                "modalities": ["text", "audio"],
-                "instructions": "You are a helpful assistant.",
-                "voice": "alloy",
-                "input_audio_format": "pcm16",
-                "output_audio_format": "pcm16",
-                "turn_detection": {"type": "server_vad"},
-                "tools": []
-            })
+            response = await client.realtime.sessions.create(
+                {
+                    "model": model,
+                    "modalities": ["text", "audio"],
+                    "instructions": "You are a helpful assistant.",
+                    "voice": "alloy",
+                    "input_audio_format": "pcm16",
+                    "output_audio_format": "pcm16",
+                    "turn_detection": {"type": "server_vad"},
+                    "tools": [],
+                }
+            )
 
             session_info = {
                 "session_id": session_id,
@@ -90,22 +97,16 @@ class OpenAIRealtimeManager(RealtimeProtocol):
                 "model": model,
                 "status": "created",
                 "type": "webrtc",
-                "modalities": ["text", "audio"]
+                "modalities": ["text", "audio"],
             }
 
             self._sessions[session_id] = session_info
             return session_info
 
         except ImportError:
-            return {
-                "type": "error",
-                "error": "openai package not installed"
-            }
+            return {"type": "error", "error": "openai package not installed"}
         except Exception as e:
-            return {
-                "type": "error", 
-                "error": str(e)
-            }
+            return {"type": "error", "error": str(e)}
 
     async def send_audio(self, session_id: str, audio_data: bytes) -> None:
         """Send audio chunk to OpenAI session."""
@@ -129,16 +130,18 @@ class OpenAIRealtimeManager(RealtimeProtocol):
                 "id": "msg_001",
                 "type": "message",
                 "role": "assistant",
-                "content": [{"type": "text", "text": "Hello! I can hear you clearly."}]
-            }
+                "content": [{"type": "text", "text": "Hello! I can hear you clearly."}],
+            },
         }
 
-    async def call_tool(self, session_id: str, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def call_tool(
+        self, session_id: str, tool_name: str, args: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Handle tool calls from realtime API."""
         return {
             "type": "function_call_output",
             "call_id": args.get("call_id", "unknown"),
-            "output": f"Tool {tool_name} called with args: {args}"
+            "output": f"Tool {tool_name} called with args: {args}",
         }
 
     async def close_session(self, session_id: str) -> None:
@@ -150,16 +153,17 @@ class OpenAIRealtimeManager(RealtimeProtocol):
     def health(self) -> Dict[str, Any]:
         try:
             import openai  # noqa: F401
+
             return {
                 "status": "ok",
                 "provider": "OpenAIRealtimeManager",
-                "active_sessions": len(self._sessions)
+                "active_sessions": len(self._sessions),
             }
         except ImportError:
             return {
                 "status": "degraded",
-                "provider": "OpenAIRealtimeManager", 
-                "reason": "openai not installed"
+                "provider": "OpenAIRealtimeManager",
+                "reason": "openai not installed",
             }
 
 
@@ -181,6 +185,7 @@ def set_realtime_manager(manager: RealtimeProtocol) -> None:
 
 
 # ── Feature class ────────────────────────────────────────────────────
+
 
 class RealtimeFeature(BaseFeatureProtocol):
     """Bidirectional realtime voice — WebRTC + OpenAI Realtime API."""
@@ -204,13 +209,15 @@ class RealtimeFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "realtime",
-            "help": "Realtime voice operations",
-            "commands": {
-                "sessions": {"help": "List active sessions", "handler": self._cli_sessions},
-            },
-        }]
+        return [
+            {
+                "name": "realtime",
+                "help": "Realtime voice operations",
+                "commands": {
+                    "sessions": {"help": "List active sessions", "handler": self._cli_sessions},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         mgr = get_realtime_manager()
@@ -221,18 +228,20 @@ class RealtimeFeature(BaseFeatureProtocol):
     async def _create_session(self, request: Request) -> JSONResponse:
         """Create new realtime session."""
         mgr = get_realtime_manager()
-        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
-        
-        result = await mgr.create_session(
-            model=body.get("model", "gpt-4o-realtime-preview")
+        body = (
+            await request.json()
+            if request.headers.get("content-type") == "application/json"
+            else {}
         )
+
+        result = await mgr.create_session(model=body.get("model", "gpt-4o-realtime-preview"))
         return JSONResponse(result)
 
     async def _close_session(self, request: Request) -> JSONResponse:
         """Close realtime session."""
         mgr = get_realtime_manager()
         session_id = request.path_params["session_id"]
-        
+
         await mgr.close_session(session_id)
         return JSONResponse({"status": "closed", "session_id": session_id})
 
@@ -240,19 +249,16 @@ class RealtimeFeature(BaseFeatureProtocol):
         """WebSocket handler for realtime events."""
         session_id = websocket.path_params["session_id"]
         mgr = get_realtime_manager()
-        
+
         await websocket.accept()
-        
+
         try:
             # Stream events from realtime session
             async for event in mgr.receive_audio(session_id):
                 await websocket.send_json(event)
         except Exception as e:
             logger.error(f"WebSocket error: {e}")
-            await websocket.send_json({
-                "type": "error",
-                "error": str(e)
-            })
+            await websocket.send_json({"type": "error", "error": str(e)})
         finally:
             await websocket.close()
 

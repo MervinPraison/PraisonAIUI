@@ -44,11 +44,7 @@ def gateway_agents() -> List[Any]:
 
         gw = get_gateway()
         if gw is not None:
-            return [
-                gw.get_agent(aid)
-                for aid in gw.list_agents()
-                if gw.get_agent(aid) is not None
-            ]
+            return [gw.get_agent(aid) for aid in gw.list_agents() if gw.get_agent(aid) is not None]
     except (ImportError, Exception):
         pass
     return []

@@ -42,8 +42,7 @@ def _build_stream_event_mapping():
 
     mapping = {
         SET.DELTA_TEXT: lambda e: RunEvent(
-            type=RunEventType.REASONING_STEP if e.is_reasoning
-            else RunEventType.RUN_CONTENT,
+            type=RunEventType.REASONING_STEP if e.is_reasoning else RunEventType.RUN_CONTENT,
             token=e.content,
             step=e.content if e.is_reasoning else None,
         ),
@@ -127,35 +126,44 @@ def _stream_event_to_run_event(stream_event) -> Optional[RunEvent]:
 # Hook → RunEvent bridge
 # ---------------------------------------------------------------------------
 
+
 def _hook_event_to_run_events(hook_event_name: str, event_data) -> List[RunEvent]:
     """Translate HookRegistry lifecycle events to RunEvent list."""
     events = []
 
     if hook_event_name == "before_tool":
-        events.append(RunEvent(
-            type=RunEventType.TOOL_CALL_STARTED,
-            name=getattr(event_data, "tool_name", None),
-            args=getattr(event_data, "arguments", None),
-        ))
+        events.append(
+            RunEvent(
+                type=RunEventType.TOOL_CALL_STARTED,
+                name=getattr(event_data, "tool_name", None),
+                args=getattr(event_data, "arguments", None),
+            )
+        )
     elif hook_event_name == "after_tool":
-        events.append(RunEvent(
-            type=RunEventType.TOOL_CALL_COMPLETED,
-            name=getattr(event_data, "tool_name", None),
-            result=getattr(event_data, "result", None),
-            error=getattr(event_data, "error", None),
-        ))
+        events.append(
+            RunEvent(
+                type=RunEventType.TOOL_CALL_COMPLETED,
+                name=getattr(event_data, "tool_name", None),
+                result=getattr(event_data, "result", None),
+                error=getattr(event_data, "error", None),
+            )
+        )
     elif hook_event_name == "before_agent":
-        events.append(RunEvent(
-            type=RunEventType.RUN_STARTED,
-            agent_name=getattr(event_data, "agent_name", None),
-            agent_id=getattr(event_data, "agent_id", None),
-        ))
+        events.append(
+            RunEvent(
+                type=RunEventType.RUN_STARTED,
+                agent_name=getattr(event_data, "agent_name", None),
+                agent_id=getattr(event_data, "agent_id", None),
+            )
+        )
     elif hook_event_name == "after_agent":
-        events.append(RunEvent(
-            type=RunEventType.RUN_COMPLETED,
-            agent_name=getattr(event_data, "agent_name", None),
-            content=getattr(event_data, "result", None),
-        ))
+        events.append(
+            RunEvent(
+                type=RunEventType.RUN_COMPLETED,
+                agent_name=getattr(event_data, "agent_name", None),
+                content=getattr(event_data, "result", None),
+            )
+        )
 
     return events
 
@@ -230,6 +238,7 @@ class PraisonAIProvider(BaseProvider):
         # 2. Check gateway-registered agents (they have memory/history)
         try:
             from praisonaiui.features._gateway_ref import get_gateway
+
             gw = get_gateway()
             if gw is not None:
                 # Try to find by agent_name first
@@ -272,8 +281,8 @@ class PraisonAIProvider(BaseProvider):
 
         # G2: Resolve default tools via SDK profiles + praisonai wrapper
         try:
-            from praisonaiagents.tools.profiles import resolve_profiles
             from praisonai.tool_resolver import ToolResolver
+            from praisonaiagents.tools.profiles import resolve_profiles
 
             # SDK profiles: auto-syncs with SDK tool updates
             tool_names = resolve_profiles("autonomy")
@@ -288,6 +297,7 @@ class PraisonAIProvider(BaseProvider):
         if agent_name:
             try:
                 from praisonaiui.features.agents import get_agent_registry
+
                 for _def in get_agent_registry().list_all():
                     if _def.get("name") == agent_name:
                         kwargs["name"] = _def["name"]
@@ -302,6 +312,7 @@ class PraisonAIProvider(BaseProvider):
                         if _def.get("tools"):
                             try:
                                 from praisonai.tool_resolver import ToolResolver
+
                                 resolver = ToolResolver()
                                 crud_tools = resolver.resolve_many(_def["tools"])
                                 if crud_tools:
@@ -325,6 +336,7 @@ class PraisonAIProvider(BaseProvider):
             agent_mem = getattr(agent, "_memory_instance", None)
             if agent_mem is not None:
                 from praisonaiui.features.memory import get_memory_manager
+
                 mgr = get_memory_manager()
                 if hasattr(mgr, "_sdk_memory"):
                     mgr._sdk_memory = agent_mem
@@ -372,9 +384,7 @@ class PraisonAIProvider(BaseProvider):
                 yield event
         else:
             # --- Direct mode: use PraisonAI Agent directly ---
-            async for event in self._run_direct_mode(
-                message, session_id, agent_name, **kwargs
-            ):
+            async for event in self._run_direct_mode(message, session_id, agent_name, **kwargs):
                 yield event
 
     async def _run_callback_mode(
@@ -513,7 +523,7 @@ class PraisonAIProvider(BaseProvider):
 
         # Attach streaming callback to the agent's emitter
         try:
-            from praisonaiagents.streaming import StreamEventType as SET  # noqa: F811
+            from praisonaiagents.streaming import StreamEventType as SET  # noqa: F811, F401
 
             _loop = asyncio.get_running_loop()
 
@@ -580,7 +590,7 @@ class PraisonAIProvider(BaseProvider):
         # Register llm_content callback to capture intermediate narrative text
         _prev_llm_content_cb = None
         try:
-            from praisonaiagents.main import sync_display_callbacks, register_display_callback
+            from praisonaiagents.main import register_display_callback, sync_display_callbacks
 
             _prev_llm_content_cb = sync_display_callbacks.get("llm_content")
 
@@ -723,6 +733,7 @@ class PraisonAIProvider(BaseProvider):
         # Restore previous llm_content callback (or remove ours)
         try:
             from praisonaiagents.main import sync_display_callbacks
+
             if _prev_llm_content_cb is not None:
                 sync_display_callbacks["llm_content"] = _prev_llm_content_cb
             else:
@@ -737,7 +748,7 @@ class PraisonAIProvider(BaseProvider):
         )
 
         # Auto-store conversation turn to memory for long-term recall
-        if hasattr(agent, 'memory') and agent.memory and hasattr(agent, 'store_memory'):
+        if hasattr(agent, "memory") and agent.memory and hasattr(agent, "store_memory"):
             try:
                 summary = f"User: {message}\nAssistant: {full_response[:500]}"
                 await asyncio.to_thread(agent.store_memory, summary)
@@ -747,6 +758,7 @@ class PraisonAIProvider(BaseProvider):
         # Auto-track usage for analytics (Gap 8 — bridges to usage feature)
         try:
             from praisonaiui.features.usage import track_usage
+
             agent_model = getattr(agent, "llm", "unknown")
             # Estimate tokens from response length (rough heuristic)
             input_tokens = max(1, len(message) // 4)
@@ -764,6 +776,7 @@ class PraisonAIProvider(BaseProvider):
     async def list_agents(self) -> List[Dict[str, Any]]:
         """List agents from both the UI registry and configured agents."""
         from praisonaiui.server import _agents
+
         agents = [
             {"name": info["name"], "created_at": info.get("created_at")}
             for info in _agents.values()
@@ -787,6 +800,7 @@ class PraisonAIProvider(BaseProvider):
         }
         try:
             import praisonaiagents
+
             info["praisonai_agents"] = True
             info["praisonai_version"] = getattr(praisonaiagents, "__version__", "unknown")
         except ImportError:

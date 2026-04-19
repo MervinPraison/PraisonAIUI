@@ -20,17 +20,17 @@ logger = logging.getLogger(__name__)
 
 # ── Protocol ─────────────────────────────────────────────────────
 
+
 class BrowserAutomationProtocol:
     """Protocol for browser automation features."""
 
-    def get_status(self) -> Dict[str, Any]:
-        ...
+    def get_status(self) -> Dict[str, Any]: ...
 
-    async def execute_task(self, task: str, url: str = "") -> Dict[str, Any]:
-        ...
+    async def execute_task(self, task: str, url: str = "") -> Dict[str, Any]: ...
 
 
 # ── Implementation ───────────────────────────────────────────────
+
 
 class BrowserAutomationManager(BrowserAutomationProtocol):
     """Wraps praisonai.browser capabilities for dashboard exposure."""
@@ -43,6 +43,7 @@ class BrowserAutomationManager(BrowserAutomationProtocol):
     def _check_availability(self) -> None:
         try:
             from praisonai.browser import protocol  # noqa: F401
+
             self._available = True
         except ImportError:
             self._available = False
@@ -58,11 +59,13 @@ class BrowserAutomationManager(BrowserAutomationProtocol):
         backends = []
         try:
             import playwright  # noqa: F401
+
             backends.append("playwright")
         except ImportError:
             pass
         try:
             from praisonai.browser import cdp_agent  # noqa: F401
+
             backends.append("cdp")
         except ImportError:
             pass
@@ -75,6 +78,7 @@ class BrowserAutomationManager(BrowserAutomationProtocol):
         self._tasks_run += 1
         try:
             from praisonai.browser.agent import BrowserAgent
+
             agent = BrowserAgent()
             result = await agent.run(task=task, url=url)
             return {"status": "completed", "result": str(result)}
@@ -93,6 +97,7 @@ def get_browser_manager():
 
 
 # ── HTTP Handlers ────────────────────────────────────────────────
+
 
 async def _browser_status(request: Request) -> JSONResponse:
     mgr = get_browser_manager()
@@ -116,6 +121,7 @@ async def _browser_run(request: Request) -> JSONResponse:
 
 
 # ── Feature ──────────────────────────────────────────────────────
+
 
 class BrowserAutomationFeature(BaseFeatureProtocol):
     """Browser automation feature — expose browser agent in dashboard."""

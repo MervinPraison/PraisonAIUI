@@ -207,6 +207,7 @@ class SDKMemoryManager(MemoryProtocol):
         if self._sdk_memory is None:
             try:
                 from praisonaiagents.memory import Memory
+
                 # SDK Memory requires config dict (can be empty for defaults)
                 self._sdk_memory = Memory(config=self._config or {})
                 logger.info("SDK Memory initialized: %s", type(self._sdk_memory).__name__)
@@ -242,6 +243,7 @@ class SDKMemoryManager(MemoryProtocol):
         if agent_id:
             try:
                 from ._gateway_ref import get_gateway
+
                 gw = get_gateway()
                 if gw is not None:
                     gw_agent = gw.get_agent(agent_id)
@@ -286,19 +288,24 @@ class SDKMemoryManager(MemoryProtocol):
                     # SDK generic search() only covers long-term/vector.
                     # Combine short + long results for a full "all" search.
                     combined = []
-                    for mtype, meth in [("short", "search_short_term"), ("long", "search_long_term")]:
+                    for mtype, meth in [
+                        ("short", "search_short_term"),
+                        ("long", "search_long_term"),
+                    ]:
                         if hasattr(sdk, meth):
                             try:
                                 hits = getattr(sdk, meth)(query, limit=limit)
                                 if isinstance(hits, list):
                                     for r in hits:
-                                        combined.append({
-                                            "id": str(r.get("id", "")),
-                                            "text": r.get("text", str(r)),
-                                            "memory_type": mtype,
-                                            "metadata": r.get("metadata", {}),
-                                            "score": 1.0,
-                                        })
+                                        combined.append(
+                                            {
+                                                "id": str(r.get("id", "")),
+                                                "text": r.get("text", str(r)),
+                                                "memory_type": mtype,
+                                                "metadata": r.get("metadata", {}),
+                                                "score": 1.0,
+                                            }
+                                        )
                             except Exception:
                                 pass
                     return combined[:limit]
@@ -354,13 +361,15 @@ class SDKMemoryManager(MemoryProtocol):
                             mtype = "long"
                         if memory_type != "all" and mtype != memory_type:
                             continue
-                        sdk_entries.append({
-                            "id": str(r.get("id", "")),
-                            "text": r.get("text", r.get("memory", str(r))),
-                            "memory_type": mtype,
-                            "metadata": r.get("metadata", {}),
-                            "created_at": r.get("created_at"),
-                        })
+                        sdk_entries.append(
+                            {
+                                "id": str(r.get("id", "")),
+                                "text": r.get("text", r.get("memory", str(r))),
+                                "memory_type": mtype,
+                                "metadata": r.get("metadata", {}),
+                                "created_at": r.get("created_at"),
+                            }
+                        )
                     # Merge with local index (local entries may have extra fields)
                     seen_ids = {e["id"] for e in sdk_entries}
                     for entry in self._local_index.values():
@@ -391,7 +400,6 @@ class SDKMemoryManager(MemoryProtocol):
 
     def _read_file_memory_entries(self, memory_type: str = "all") -> List[Dict[str, Any]]:
         """Read memory entries from FileMemory JSON files (.praisonai/memory/)."""
-        import glob
         entries = []
         # Look for memory JSON files in .praisonai/memory/
         memory_dirs = [
@@ -423,13 +431,15 @@ class SDKMemoryManager(MemoryProtocol):
                     for item in data:
                         if not isinstance(item, dict):
                             continue
-                        entries.append({
-                            "id": str(item.get("id", "")),
-                            "text": item.get("content", item.get("text", str(item))),
-                            "memory_type": mtype,
-                            "metadata": item.get("metadata", {}),
-                            "created_at": item.get("created_at"),
-                        })
+                        entries.append(
+                            {
+                                "id": str(item.get("id", "")),
+                                "text": item.get("content", item.get("text", str(item))),
+                                "memory_type": mtype,
+                                "metadata": item.get("metadata", {}),
+                                "created_at": item.get("created_at"),
+                            }
+                        )
                 except Exception as e:
                     logger.debug("Failed to read memory file %s: %s", json_file, e)
         return entries
@@ -485,13 +495,17 @@ class SDKMemoryManager(MemoryProtocol):
         return deleted
 
     def clear(self, memory_type: str = "all") -> int:
-        count = len(self._local_index) if memory_type == "all" else len(
-            [v for v in self._local_index.values() if v.get("memory_type") == memory_type]
+        count = (
+            len(self._local_index)
+            if memory_type == "all"
+            else len([v for v in self._local_index.values() if v.get("memory_type") == memory_type])
         )
         if memory_type == "all":
             self._local_index.clear()
         else:
-            to_remove = [k for k, v in self._local_index.items() if v.get("memory_type") == memory_type]
+            to_remove = [
+                k for k, v in self._local_index.items() if v.get("memory_type") == memory_type
+            ]
             for k in to_remove:
                 del self._local_index[k]
         # Also clear SDK persistent storage
@@ -581,18 +595,23 @@ class MemoryFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "memory",
-            "help": "Manage agent memory",
-            "commands": {
-                "list": {"help": "List all memories", "handler": self._cli_list},
-                "add": {"help": "Add a memory entry", "handler": self._cli_add},
-                "search": {"help": "Search memories", "handler": self._cli_search},
-                "clear": {"help": "Clear all memories", "handler": self._cli_clear},
-                "status": {"help": "Memory status", "handler": self._cli_status},
-                "context": {"help": "Get memory context for a query", "handler": self._cli_context},
-            },
-        }]
+        return [
+            {
+                "name": "memory",
+                "help": "Manage agent memory",
+                "commands": {
+                    "list": {"help": "List all memories", "handler": self._cli_list},
+                    "add": {"help": "Add a memory entry", "handler": self._cli_add},
+                    "search": {"help": "Search memories", "handler": self._cli_search},
+                    "clear": {"help": "Clear all memories", "handler": self._cli_clear},
+                    "status": {"help": "Memory status", "handler": self._cli_status},
+                    "context": {
+                        "help": "Get memory context for a query",
+                        "handler": self._cli_context,
+                    },
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
@@ -681,12 +700,14 @@ class MemoryFeature(BaseFeatureProtocol):
             t = m.get("memory_type", "unknown")
             by_type[t] = by_type.get(t, 0) + 1
         h = mgr.health()
-        return JSONResponse({
-            "total": len(items),
-            "by_type": by_type,
-            "backend": h.get("provider", "unknown"),
-            "status": h.get("status", "ok"),
-        })
+        return JSONResponse(
+            {
+                "total": len(items),
+                "by_type": by_type,
+                "backend": h.get("provider", "unknown"),
+                "status": h.get("status", "ok"),
+            }
+        )
 
     # ── CLI handlers ─────────────────────────────────────────────────
 

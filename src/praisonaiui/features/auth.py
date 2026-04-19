@@ -25,7 +25,6 @@ from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
 
-
 # ── Auth Protocol ────────────────────────────────────────────────────
 
 
@@ -49,6 +48,7 @@ class AuthProtocol(ABC):
 
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
+
 
 # Thread-safety lock for auth state
 _auth_lock = threading.Lock()
@@ -106,17 +106,17 @@ def verify_session_token(token: str) -> Optional[Dict[str, Any]]:
 def check_auth(request: Request) -> Optional[Dict[str, Any]]:
     """Check authentication based on current mode."""
     mode = _auth_config.get("mode", "none")
-    
+
     if mode == "none":
         return {"authenticated": True, "mode": "none"}
-    
+
     # Check API key
     api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
     if api_key:
         info = verify_api_key(api_key)
         if info:
             return {"authenticated": True, "mode": "api_key", "user": info.get("name")}
-    
+
     # Check session token
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
@@ -124,14 +124,14 @@ def check_auth(request: Request) -> Optional[Dict[str, Any]]:
         session = verify_session_token(token)
         if session:
             return {"authenticated": True, "mode": "session", "user": session.get("user")}
-    
+
     # Check session cookie
     session_cookie = request.cookies.get("aiui_session")
     if session_cookie:
         session = verify_session_token(session_cookie)
         if session:
             return {"authenticated": True, "mode": "session", "user": session.get("user")}
-    
+
     return None
 
 
@@ -168,16 +168,18 @@ class AuthFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "auth",
-            "help": "Authentication management",
-            "commands": {
-                "status": {"help": "Show auth status", "handler": self._cli_status},
-                "create-key": {"help": "Create API key", "handler": self._cli_create_key},
-                "list-keys": {"help": "List API keys", "handler": self._cli_list_keys},
-                "set-mode": {"help": "Set auth mode", "handler": self._cli_set_mode},
-            },
-        }]
+        return [
+            {
+                "name": "auth",
+                "help": "Authentication management",
+                "commands": {
+                    "status": {"help": "Show auth status", "handler": self._cli_status},
+                    "create-key": {"help": "Create API key", "handler": self._cli_create_key},
+                    "list-keys": {"help": "List API keys", "handler": self._cli_list_keys},
+                    "set-mode": {"help": "Set auth mode", "handler": self._cli_set_mode},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
@@ -197,24 +199,30 @@ class AuthFeature(BaseFeatureProtocol):
         """GET /api/auth/status — Check current auth status."""
         auth_result = check_auth(request)
         if auth_result:
-            return JSONResponse({
-                "authenticated": True,
-                "mode": auth_result.get("mode"),
-                "user": auth_result.get("user"),
-            })
-        return JSONResponse({
-            "authenticated": False,
-            "mode": _auth_config.get("mode", "none"),
-        })
+            return JSONResponse(
+                {
+                    "authenticated": True,
+                    "mode": auth_result.get("mode"),
+                    "user": auth_result.get("user"),
+                }
+            )
+        return JSONResponse(
+            {
+                "authenticated": False,
+                "mode": _auth_config.get("mode", "none"),
+            }
+        )
 
     async def _get_config(self, request: Request) -> JSONResponse:
         """GET /api/auth/config — Get auth configuration."""
-        return JSONResponse({
-            "mode": _auth_config.get("mode", "none"),
-            "api_keys_count": len(_auth_config.get("api_keys", {})),
-            "sessions_count": len(_active_sessions),
-            "password_set": _auth_config.get("password_hash") is not None,
-        })
+        return JSONResponse(
+            {
+                "mode": _auth_config.get("mode", "none"),
+                "api_keys_count": len(_auth_config.get("api_keys", {})),
+                "sessions_count": len(_active_sessions),
+                "password_set": _auth_config.get("password_hash") is not None,
+            }
+        )
 
     async def _set_config(self, request: Request) -> JSONResponse:
         """PUT /api/auth/config — Update auth configuration (thread-safe)."""
@@ -227,10 +235,12 @@ class AuthFeature(BaseFeatureProtocol):
             with _auth_lock:
                 _auth_config["mode"] = mode
 
-        return JSONResponse({
-            "mode": _auth_config.get("mode"),
-            "updated": True,
-        })
+        return JSONResponse(
+            {
+                "mode": _auth_config.get("mode"),
+                "updated": True,
+            }
+        )
 
     # ── API keys ─────────────────────────────────────────────────────
 
@@ -238,12 +248,14 @@ class AuthFeature(BaseFeatureProtocol):
         """GET /api/auth/keys — List API keys (without revealing full keys)."""
         keys = []
         for key, info in _auth_config.get("api_keys", {}).items():
-            keys.append({
-                "id": key[:12] + "...",
-                "name": info.get("name", "Unnamed"),
-                "created_at": info.get("created_at"),
-                "last_used": info.get("last_used"),
-            })
+            keys.append(
+                {
+                    "id": key[:12] + "...",
+                    "name": info.get("name", "Unnamed"),
+                    "created_at": info.get("created_at"),
+                    "last_used": info.get("last_used"),
+                }
+            )
         return JSONResponse({"keys": keys})
 
     async def _create_key(self, request: Request) -> JSONResponse:
@@ -260,11 +272,13 @@ class AuthFeature(BaseFeatureProtocol):
                 "last_used": None,
             }
 
-        return JSONResponse({
-            "key": key,  # Only shown once!
-            "name": name,
-            "created_at": created_at,
-        })
+        return JSONResponse(
+            {
+                "key": key,  # Only shown once!
+                "name": name,
+                "created_at": created_at,
+            }
+        )
 
     async def _revoke_key(self, request: Request) -> JSONResponse:
         """DELETE /api/auth/keys/{key_id} — Revoke an API key (thread-safe)."""
@@ -335,12 +349,14 @@ class AuthFeature(BaseFeatureProtocol):
         """GET /api/auth/sessions — List active sessions."""
         sessions = []
         for token, info in _active_sessions.items():
-            sessions.append({
-                "id": token[:8] + "...",
-                "user": info.get("user"),
-                "created_at": info.get("created_at"),
-                "expires_at": info.get("expires_at"),
-            })
+            sessions.append(
+                {
+                    "id": token[:8] + "...",
+                    "user": info.get("user"),
+                    "created_at": info.get("created_at"),
+                    "expires_at": info.get("expires_at"),
+                }
+            )
         return JSONResponse({"sessions": sessions})
 
     # ── Password ─────────────────────────────────────────────────────

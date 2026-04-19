@@ -27,12 +27,12 @@ class CodeExecutionProtocol(ABC):
     """Protocol interface for code execution backends."""
 
     @abstractmethod
-    def execute(self, code: str, *, language: str = "python", timeout: int = 30) -> Dict[str, Any]:
-        ...
+    def execute(
+        self, code: str, *, language: str = "python", timeout: int = 30
+    ) -> Dict[str, Any]: ...
 
     @abstractmethod
-    def list_languages(self) -> List[Dict[str, str]]:
-        ...
+    def list_languages(self) -> List[Dict[str, str]]: ...
 
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
@@ -50,8 +50,13 @@ class SandboxExecutionManager(CodeExecutionProtocol):
         {"id": "bash", "name": "Bash", "version": "5.x"},
     ]
 
-    def __init__(self, *, sandbox: bool = True, timeout: int = 30,
-                 allowed_languages: Optional[List[str]] = None) -> None:
+    def __init__(
+        self,
+        *,
+        sandbox: bool = True,
+        timeout: int = 30,
+        allowed_languages: Optional[List[str]] = None,
+    ) -> None:
         self._sandbox = sandbox
         self._timeout = timeout
         self._allowed = set(allowed_languages or ["python", "javascript", "bash"])
@@ -59,15 +64,23 @@ class SandboxExecutionManager(CodeExecutionProtocol):
 
     def execute(self, code: str, *, language: str = "python", timeout: int = 30) -> Dict[str, Any]:
         if language not in self._allowed:
-            return {"status": "error", "error": f"Language '{language}' not allowed",
-                    "allowed": list(self._allowed)}
+            return {
+                "status": "error",
+                "error": f"Language '{language}' not allowed",
+                "allowed": list(self._allowed),
+            }
 
         # Try SDK execute_code first
         try:
             from praisonaiagents.tools.code import execute_code
+
             result = execute_code(code)
-            entry = {"language": language, "status": "success", "output": str(result),
-                     "sandbox": self._sandbox}
+            entry = {
+                "language": language,
+                "status": "success",
+                "output": str(result),
+                "sandbox": self._sandbox,
+            }
             self._history.append(entry)
             return entry
         except ImportError:

@@ -12,15 +12,15 @@ from praisonaiui.message import Step, StepType
 
 class AiuiLlamaIndexCallbackHandler:
     """LlamaIndex callback handler that creates aiui.Step events.
-    
+
     Maps LlamaIndex query/retrieval/synthesis events to nested Step visualization.
-    
+
     Example:
         from llama_index.core.callbacks import CallbackManager
         from praisonaiui.integrations.llama_index import AiuiLlamaIndexCallbackHandler
-        
+
         Settings.callback_manager = CallbackManager([AiuiLlamaIndexCallbackHandler()])
-        
+
         # All LlamaIndex operations now appear as Steps
         response = index.as_query_engine().query("What is the main topic?")
     """
@@ -30,7 +30,9 @@ class AiuiLlamaIndexCallbackHandler:
         self._event_id_to_step: Dict[str, Step] = {}
         self._parent_map: Dict[str, str] = {}  # event_id -> parent_event_id
 
-    def on_event_start(self, event_type: str, payload: Optional[Dict[str, Any]] = None, **kwargs: Any) -> str:
+    def on_event_start(
+        self, event_type: str, payload: Optional[Dict[str, Any]] = None, **kwargs: Any
+    ) -> str:
         """Handle event start - returns event_id for tracking."""
         event_id = kwargs.get("event_id", str(uuid.uuid4()))
 
@@ -74,7 +76,7 @@ class AiuiLlamaIndexCallbackHandler:
             name=step_name,
             type=step_type,
             parent=parent_step,
-            metadata={"event_type": event_type, "payload": payload or {}}
+            metadata={"event_type": event_type, "payload": payload or {}},
         )
 
         self._event_id_to_step[str(event_id)] = step
@@ -89,7 +91,13 @@ class AiuiLlamaIndexCallbackHandler:
 
         return str(event_id)
 
-    def on_event_end(self, event_type: str, payload: Optional[Dict[str, Any]] = None, event_id: Optional[str] = None, **kwargs: Any) -> None:
+    def on_event_end(
+        self,
+        event_type: str,
+        payload: Optional[Dict[str, Any]] = None,
+        event_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         """Handle event end."""
         if not event_id or str(event_id) not in self._event_id_to_step:
             return
@@ -108,7 +116,9 @@ class AiuiLlamaIndexCallbackHandler:
         if str(event_id) in self._parent_map:
             del self._parent_map[str(event_id)]
 
-    def on_event_error(self, event_type: str, exception: Exception, event_id: Optional[str] = None, **kwargs: Any) -> None:
+    def on_event_error(
+        self, event_type: str, exception: Exception, event_id: Optional[str] = None, **kwargs: Any
+    ) -> None:
         """Handle event error."""
         if not event_id or str(event_id) not in self._event_id_to_step:
             return
@@ -161,7 +171,7 @@ class AiuiLlamaIndexCallbackHandler:
         event_id = kwargs.get("event_id")
         payload = {
             "num_nodes": len(nodes) if nodes else 0,
-            "nodes": [str(node) for node in (nodes or [])[:3]]  # First 3 for brevity
+            "nodes": [str(node) for node in (nodes or [])[:3]],  # First 3 for brevity
         }
         # Remove event_id from kwargs to avoid duplication
         kwargs_without_event_id = {k: v for k, v in kwargs.items() if k != "event_id"}
@@ -169,7 +179,9 @@ class AiuiLlamaIndexCallbackHandler:
 
     def on_llm_start(self, messages: List[Any], **kwargs: Any) -> str:
         """Handle LLM start."""
-        return self.on_event_start("llm", {"messages": [str(m) for m in (messages or [])]}, **kwargs)
+        return self.on_event_start(
+            "llm", {"messages": [str(m) for m in (messages or [])]}, **kwargs
+        )
 
     def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
         """Handle LLM token streaming."""

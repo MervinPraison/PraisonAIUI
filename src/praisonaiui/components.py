@@ -14,15 +14,55 @@ console = Console()
 
 # List of available shadcn components (from registry)
 SHADCN_COMPONENTS = [
-    "accordion", "alert", "alert-dialog", "aspect-ratio", "avatar",
-    "badge", "breadcrumb", "button", "calendar", "card", "carousel",
-    "chart", "checkbox", "collapsible", "command", "context-menu",
-    "data-table", "date-picker", "dialog", "drawer", "dropdown-menu",
-    "form", "hover-card", "input", "input-otp", "label", "menubar",
-    "navigation-menu", "pagination", "popover", "progress", "radio-group",
-    "resizable", "scroll-area", "select", "separator", "sheet", "sidebar",
-    "skeleton", "slider", "sonner", "switch", "table", "tabs", "textarea",
-    "toast", "toggle", "toggle-group", "tooltip"
+    "accordion",
+    "alert",
+    "alert-dialog",
+    "aspect-ratio",
+    "avatar",
+    "badge",
+    "breadcrumb",
+    "button",
+    "calendar",
+    "card",
+    "carousel",
+    "chart",
+    "checkbox",
+    "collapsible",
+    "command",
+    "context-menu",
+    "data-table",
+    "date-picker",
+    "dialog",
+    "drawer",
+    "dropdown-menu",
+    "form",
+    "hover-card",
+    "input",
+    "input-otp",
+    "label",
+    "menubar",
+    "navigation-menu",
+    "pagination",
+    "popover",
+    "progress",
+    "radio-group",
+    "resizable",
+    "scroll-area",
+    "select",
+    "separator",
+    "sheet",
+    "sidebar",
+    "skeleton",
+    "slider",
+    "sonner",
+    "switch",
+    "table",
+    "tabs",
+    "textarea",
+    "toast",
+    "toggle",
+    "toggle-group",
+    "tooltip",
 ]
 
 
@@ -97,7 +137,7 @@ def install_shadcn_component(name: str, frontend_path: Optional[Path] = None) ->
             cwd=frontend_path,
             capture_output=True,
             text=True,
-            timeout=120  # 2 minute timeout per component
+            timeout=120,  # 2 minute timeout per component
         )
 
         if result.returncode == 0:

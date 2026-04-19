@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import json
 import logging
 import time
 from pathlib import Path
@@ -24,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 # ── Protocol ─────────────────────────────────────────────────────
+
 
 class ConfigWatcherProtocol:
     """Protocol for config watchers."""
@@ -42,6 +42,7 @@ class ConfigWatcherProtocol:
 
 
 # ── Implementation ───────────────────────────────────────────────
+
 
 class ConfigWatcher(ConfigWatcherProtocol):
     """Watches a config file for changes and triggers reload callbacks."""
@@ -133,6 +134,7 @@ def set_config_watcher(watcher: ConfigWatcher) -> None:
 
 # ── HTTP Handlers ────────────────────────────────────────────────
 
+
 async def _watcher_status(request: Request) -> JSONResponse:
     w = get_config_watcher()
     return JSONResponse(w.get_status())
@@ -158,6 +160,7 @@ async def _force_reload(request: Request) -> JSONResponse:
 
 
 # ── Feature ──────────────────────────────────────────────────────
+
 
 class ConfigHotReloadFeature(BaseFeatureProtocol):
     """Config hot-reload feature — watches config files for changes."""

@@ -80,6 +80,7 @@ def _get_schedule_store() -> ScheduleProtocol:
         # Centralize: redirect SDK schedule_add → config.yaml
         try:
             from praisonaiagents.tools.schedule_tools import set_store
+
             set_store(_schedule_store)
             logger.info("SDK schedule_tools wired to config.yaml store")
         except ImportError:
@@ -87,6 +88,7 @@ def _get_schedule_store() -> ScheduleProtocol:
         # One-time migration from old SDK FileScheduleStore
         try:
             from praisonaiagents.scheduler import FileScheduleStore
+
             old_store = FileScheduleStore()
             old_jobs = old_store.list()
             if old_jobs and not _schedule_store.list():
@@ -117,6 +119,7 @@ def _get_schedule_runner():
             return None
         try:
             from praisonaiagents.scheduler import ScheduleRunner
+
             _schedule_runner = ScheduleRunner(store)
             logger.info("SDK ScheduleRunner wired for due-job checking")
         except ImportError:
@@ -154,6 +157,7 @@ def _is_job_due(job) -> bool:
     if cron_expr:
         try:
             from croniter import croniter
+
             cron = croniter(cron_expr, last_run)
             next_run = cron.get_next(float)
             return now >= next_run
@@ -207,6 +211,7 @@ async def _get_agent_for_execution(
     if agent is None:
         try:
             from praisonaiui.server import get_provider
+
             provider = get_provider()
             effective_session = session_id or f"cron_{job_id}"
             agent = provider._get_or_create_agent(
@@ -241,7 +246,7 @@ async def _deliver_result(delivery_dict: dict, text: str) -> bool:
         True if delivery succeeded, False otherwise.
     """
     try:
-        from .channels import _live_bots, _channels
+        from .channels import _channels, _live_bots
     except ImportError:
         logger.warning("Cannot deliver: channels module not available")
         return False
@@ -306,11 +311,14 @@ async def _execute_job(job_id: str, job) -> None:
     if message:
         try:
             agent, gw, error = await _get_agent_for_execution(
-                job_id, agent_name, session_id=session_id,
+                job_id,
+                agent_name,
+                session_id=session_id,
             )
 
             if agent is not None:
                 import asyncio
+
                 result = await asyncio.to_thread(agent.chat, message)
                 result = str(result)
             else:
@@ -341,20 +349,25 @@ async def _execute_job(job_id: str, job) -> None:
             store.update(job)
 
     duration = round(time.time() - started_at, 2)
-    _run_history.insert(0, {
-        "job_id": job_id,
-        "name": _getattr_or_get(job, "name", ""),
-        "message": message,
-        "status": status,
-        "result": result,
-        "delivered": delivered,
-        "timestamp": started_at,
-        "duration": duration,
-        "auto": True,
-    })
+    _run_history.insert(
+        0,
+        {
+            "job_id": job_id,
+            "name": _getattr_or_get(job, "name", ""),
+            "message": message,
+            "status": status,
+            "result": result,
+            "delivered": delivered,
+            "timestamp": started_at,
+            "duration": duration,
+            "auto": True,
+        },
+    )
     if len(_run_history) > 200:
         _run_history[:] = _run_history[:200]
-    logger.info("Auto-executed job '%s': %s delivered=%s (%.1fs)", job_id, status, delivered, duration)
+    logger.info(
+        "Auto-executed job '%s': %s delivered=%s (%.1fs)", job_id, status, delivered, duration
+    )
 
 
 async def _scheduler_loop() -> None:
@@ -366,6 +379,7 @@ async def _scheduler_loop() -> None:
     """
     global _scheduler_running
     import asyncio
+
     _scheduler_running = True
     logger.info("Background scheduler started")
     try:
@@ -404,6 +418,7 @@ def _ensure_scheduler_started() -> None:
     if _scheduler_task is not None and not _scheduler_task.done():
         return
     import asyncio
+
     try:
         loop = asyncio.get_running_loop()
         _scheduler_task = loop.create_task(_scheduler_loop())
@@ -418,7 +433,8 @@ def _create_schedule_job(job_dict: Dict[str, Any]):
     dataclass for structured serialization and roundtrip support.
     """
     try:
-        from praisonaiagents.scheduler import ScheduleJob, Schedule, DeliveryTarget
+        from praisonaiagents.scheduler import DeliveryTarget, Schedule, ScheduleJob
+
         sched_data = job_dict.get("schedule", {})
         schedule = Schedule(
             kind=sched_data.get("kind", "every"),
@@ -453,14 +469,15 @@ def _to_dict(obj) -> Dict[str, Any]:
     if isinstance(obj, dict):
         return obj
     # Prefer explicit to_dict() — ScheduleJob/DeliveryTarget implement this
-    if hasattr(obj, 'to_dict'):
+    if hasattr(obj, "to_dict"):
         return obj.to_dict()
-    if hasattr(obj, 'model_dump'):
+    if hasattr(obj, "model_dump"):
         return obj.model_dump()
-    if hasattr(obj, '__dataclass_fields__'):
+    if hasattr(obj, "__dataclass_fields__"):
         from dataclasses import asdict
+
         return asdict(obj)
-    if hasattr(obj, '__dict__'):
+    if hasattr(obj, "__dict__"):
         return vars(obj)
     return {"value": str(obj)}
 
@@ -472,11 +489,15 @@ class _InMemoryScheduleStore(ScheduleProtocol):
 
     def __init__(self):
         from ._persistence import load_section
+
         saved = load_section(self._SECTION)
-        self._jobs: Dict[str, Dict[str, Any]] = saved.get("jobs", {}) if isinstance(saved, dict) else {}
+        self._jobs: Dict[str, Dict[str, Any]] = (
+            saved.get("jobs", {}) if isinstance(saved, dict) else {}
+        )
 
     def _persist(self) -> None:
         from ._persistence import save_section
+
         # Ensure all values are plain dicts (no dataclass objects) for safe YAML
         clean = {k: _to_dict(v) for k, v in self._jobs.items()}
         save_section(self._SECTION, {"jobs": clean})
@@ -487,9 +508,9 @@ class _InMemoryScheduleStore(ScheduleProtocol):
             # Single argument: treat as a job dict or dataclass
             if isinstance(job_id_or_obj, dict):
                 obj = job_id_or_obj
-            elif hasattr(job_id_or_obj, 'to_dict'):
+            elif hasattr(job_id_or_obj, "to_dict"):
                 obj = job_id_or_obj.to_dict()
-            elif hasattr(job_id_or_obj, '__dict__'):
+            elif hasattr(job_id_or_obj, "__dict__"):
                 obj = _to_dict(job_id_or_obj)
             else:
                 obj = {"id": str(job_id_or_obj)}
@@ -523,6 +544,7 @@ class _InMemoryScheduleStore(ScheduleProtocol):
     def _reload(self) -> None:
         """Reload from persistence to pick up external changes."""
         from ._persistence import load_section
+
         saved = load_section(self._SECTION)
         if isinstance(saved, dict):
             self._jobs = saved.get("jobs", {})
@@ -602,22 +624,24 @@ class SchedulesFeature(BaseFeatureProtocol):
         ]
 
     def cli_commands(self) -> List[Dict[str, Any]]:
-        return [{
-            "name": "schedule",
-            "help": "Manage scheduled jobs",
-            "commands": {
-                "list": {"help": "List all scheduled jobs", "handler": self._cli_list},
-                "add": {"help": "Add a new scheduled job", "handler": self._cli_add},
-                "remove": {"help": "Remove a scheduled job", "handler": self._cli_remove},
-                "status": {"help": "Show scheduler status", "handler": self._cli_status},
-            },
-        }]
+        return [
+            {
+                "name": "schedule",
+                "help": "Manage scheduled jobs",
+                "commands": {
+                    "list": {"help": "List all scheduled jobs", "handler": self._cli_list},
+                    "add": {"help": "Add a new scheduled job", "handler": self._cli_add},
+                    "remove": {"help": "Remove a scheduled job", "handler": self._cli_remove},
+                    "status": {"help": "Show scheduler status", "handler": self._cli_status},
+                },
+            }
+        ]
 
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
 
         store = _get_schedule_store()
-        jobs = store.list() if hasattr(store, 'list') else []
+        jobs = store.list() if hasattr(store, "list") else []
         enabled = sum(1 for j in jobs if _getattr_or_get(j, "enabled", True))
         return {
             "status": "ok",
@@ -632,7 +656,7 @@ class SchedulesFeature(BaseFeatureProtocol):
     async def _list(self, request: Request) -> JSONResponse:
         _ensure_scheduler_started()
         store = _get_schedule_store()
-        jobs_raw = store.list() if hasattr(store, 'list') else []
+        jobs_raw = store.list() if hasattr(store, "list") else []
         jobs = [_to_dict(j) for j in jobs_raw]
         return JSONResponse({"schedules": jobs, "count": len(jobs)})
 
@@ -678,7 +702,7 @@ class SchedulesFeature(BaseFeatureProtocol):
             "run_count": 0,
         }
         store = _get_schedule_store()
-        if hasattr(store, 'add'):
+        if hasattr(store, "add"):
             schedule_job = _create_schedule_job(job)
             try:
                 store.add(schedule_job)
@@ -689,7 +713,7 @@ class SchedulesFeature(BaseFeatureProtocol):
     async def _get(self, request: Request) -> JSONResponse:
         job_id = request.path_params["job_id"]
         store = _get_schedule_store()
-        job = store.get(job_id) if hasattr(store, 'get') else None
+        job = store.get(job_id) if hasattr(store, "get") else None
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
         return JSONResponse(_to_dict(job))
@@ -697,7 +721,7 @@ class SchedulesFeature(BaseFeatureProtocol):
     async def _delete(self, request: Request) -> JSONResponse:
         job_id = request.path_params["job_id"]
         store = _get_schedule_store()
-        if hasattr(store, 'remove'):
+        if hasattr(store, "remove"):
             if not store.remove(job_id):
                 return JSONResponse({"error": "Job not found"}, status_code=404)
         return JSONResponse({"deleted": job_id})
@@ -705,17 +729,17 @@ class SchedulesFeature(BaseFeatureProtocol):
     async def _toggle(self, request: Request) -> JSONResponse:
         job_id = request.path_params["job_id"]
         store = _get_schedule_store()
-        job = store.get(job_id) if hasattr(store, 'get') else None
+        job = store.get(job_id) if hasattr(store, "get") else None
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
         # Toggle enabled state
-        if hasattr(job, 'enabled') and not isinstance(job, dict):
+        if hasattr(job, "enabled") and not isinstance(job, dict):
             job.enabled = not job.enabled
-            if hasattr(store, 'update'):
+            if hasattr(store, "update"):
                 store.update(job)
         else:
             job["enabled"] = not job.get("enabled", True)
-            if hasattr(store, 'update'):
+            if hasattr(store, "update"):
                 store.update(job)
         return JSONResponse(_to_dict(job))
 
@@ -726,14 +750,14 @@ class SchedulesFeature(BaseFeatureProtocol):
     async def _run(self, request: Request) -> JSONResponse:
         job_id = request.path_params["job_id"]
         store = _get_schedule_store()
-        job = store.get(job_id) if hasattr(store, 'get') else None
+        job = store.get(job_id) if hasattr(store, "get") else None
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
         started_at = time.time()
         # Update last_run_at on the job
-        if hasattr(job, 'last_run_at'):
+        if hasattr(job, "last_run_at"):
             job.last_run_at = started_at
-            if hasattr(store, 'update'):
+            if hasattr(store, "update"):
                 store.update(job)
         elif isinstance(job, dict):
             job["last_run_at"] = started_at
@@ -744,18 +768,23 @@ class SchedulesFeature(BaseFeatureProtocol):
         status = "succeeded"
         delivered = False
         message = _getattr_or_get(job, "message", "")
-        agent_name = _getattr_or_get(job, "agent_name", None) or _getattr_or_get(job, "agent_id", None)
+        agent_name = _getattr_or_get(job, "agent_name", None) or _getattr_or_get(
+            job, "agent_id", None
+        )
         delivery_dict = _extract_delivery_dict(job)
         session_id = delivery_dict.get("session_id") if delivery_dict else None
 
         if message:
             try:
                 agent, gw, error = await _get_agent_for_execution(
-                    job_id, agent_name, session_id=session_id,
+                    job_id,
+                    agent_name,
+                    session_id=session_id,
                 )
 
                 if agent is not None:
                     import asyncio
+
                     result = await asyncio.to_thread(agent.chat, message)
                     result = str(result)
                 else:
@@ -791,20 +820,22 @@ class SchedulesFeature(BaseFeatureProtocol):
         if len(_run_history) > 200:
             _run_history[:] = _run_history[:200]
 
-        return JSONResponse({
-            "triggered": job_id,
-            "last_run_at": started_at,
-            "result": result,
-            "status": status,
-            "delivered": delivered,
-            "duration": duration,
-        })
+        return JSONResponse(
+            {
+                "triggered": job_id,
+                "last_run_at": started_at,
+                "result": result,
+                "status": status,
+                "delivered": delivered,
+                "duration": duration,
+            }
+        )
 
     async def _update(self, request: Request) -> JSONResponse:
         """Update a schedule configuration."""
         job_id = request.path_params["job_id"]
         store = _get_schedule_store()
-        job = store.get(job_id) if hasattr(store, 'get') else None
+        job = store.get(job_id) if hasattr(store, "get") else None
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
         body = await request.json()
@@ -822,6 +853,7 @@ class SchedulesFeature(BaseFeatureProtocol):
                 # SDK ScheduleJob — set DeliveryTarget from dict
                 try:
                     from praisonaiagents.scheduler import DeliveryTarget
+
                     if isinstance(delivery_data, dict) and delivery_data.get("channel_id"):
                         job.delivery = DeliveryTarget.from_dict(delivery_data)
                     else:
@@ -843,10 +875,11 @@ class SchedulesFeature(BaseFeatureProtocol):
             elif hasattr(job, "delivery"):
                 try:
                     from praisonaiagents.scheduler import DeliveryTarget
+
                     job.delivery = DeliveryTarget.from_dict(delivery_data)
                 except ImportError:
                     setattr(job, "delivery", delivery_data)
-        if hasattr(store, 'update'):
+        if hasattr(store, "update"):
             store.update(job)
         return JSONResponse(_to_dict(job))
 
@@ -854,74 +887,83 @@ class SchedulesFeature(BaseFeatureProtocol):
         """Stop a running scheduled job."""
         job_id = request.path_params["job_id"]
         store = _get_schedule_store()
-        job = store.get(job_id) if hasattr(store, 'get') else None
+        job = store.get(job_id) if hasattr(store, "get") else None
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
-        
+
         # Mark as stopped
-        if hasattr(job, 'enabled'):
+        if hasattr(job, "enabled"):
             job.enabled = False
-            if hasattr(store, 'update'):
+            if hasattr(store, "update"):
                 store.update(job)
         elif isinstance(job, dict):
             job["enabled"] = False
-        
+
         # Try to stop via AgentScheduler if connected
         scheduler = job.get("_scheduler") if isinstance(job, dict) else None
-        if scheduler and hasattr(scheduler, 'stop'):
+        if scheduler and hasattr(scheduler, "stop"):
             try:
                 scheduler.stop()
             except Exception as e:
-                return JSONResponse({
-                    "id": job_id,
-                    "status": "error",
-                    "error": str(e),
-                }, status_code=500)
-        
-        return JSONResponse({
-            "id": job_id,
-            "status": "stopped",
-            "stopped_at": job["stopped_at"],
-        })
+                return JSONResponse(
+                    {
+                        "id": job_id,
+                        "status": "error",
+                        "error": str(e),
+                    },
+                    status_code=500,
+                )
+
+        return JSONResponse(
+            {
+                "id": job_id,
+                "status": "stopped",
+                "stopped_at": job["stopped_at"],
+            }
+        )
 
     async def _stats(self, request: Request) -> JSONResponse:
         """Get execution statistics for a scheduled job."""
         job_id = request.path_params["job_id"]
         store = _get_schedule_store()
-        job = store.get(job_id) if hasattr(store, 'get') else None
+        job = store.get(job_id) if hasattr(store, "get") else None
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
-        
+
         # Get stats from AgentScheduler if available
         scheduler = job.get("_scheduler")
-        if scheduler and hasattr(scheduler, 'get_stats'):
+        if scheduler and hasattr(scheduler, "get_stats"):
             try:
                 stats = scheduler.get_stats()
-                return JSONResponse({
-                    "id": job_id,
-                    "name": job.get("name", ""),
-                    **stats,
-                })
+                return JSONResponse(
+                    {
+                        "id": job_id,
+                        "name": job.get("name", ""),
+                        **stats,
+                    }
+                )
             except Exception:
                 pass
-        
+
         # Return basic stats from job record
         created_at = job.get("created_at", 0)
         last_run_at = job.get("last_run_at")
         run_count = job.get("run_count", 0)
-        
-        return JSONResponse({
-            "id": job_id,
-            "name": job.get("name", ""),
-            "enabled": job.get("enabled", True),
-            "total_runs": run_count,
-            "successful_runs": job.get("success_count", run_count),
-            "failed_runs": job.get("failure_count", 0),
-            "created_at": created_at,
-            "last_run_at": last_run_at,
-            "next_run_at": self._calculate_next_run(job),
-            "uptime_seconds": time.time() - created_at if created_at else 0,
-        })
+
+        return JSONResponse(
+            {
+                "id": job_id,
+                "name": job.get("name", ""),
+                "enabled": job.get("enabled", True),
+                "total_runs": run_count,
+                "successful_runs": job.get("success_count", run_count),
+                "failed_runs": job.get("failure_count", 0),
+                "created_at": created_at,
+                "last_run_at": last_run_at,
+                "next_run_at": self._calculate_next_run(job),
+                "uptime_seconds": time.time() - created_at if created_at else 0,
+            }
+        )
 
     def _calculate_next_run(self, job: Dict[str, Any]) -> float | None:
         """Calculate next scheduled run time."""
@@ -938,25 +980,27 @@ class SchedulesFeature(BaseFeatureProtocol):
 
     def _cli_list(self) -> str:
         store = _get_schedule_store()
-        jobs = store.list() if hasattr(store, 'list') else []
+        jobs = store.list() if hasattr(store, "list") else []
         if not jobs:
             return "No scheduled jobs"
         lines = []
         for j in jobs:
             status = "✓" if _getattr_or_get(j, "enabled", True) else "✗"
-            sched = _getattr_or_get(j, 'schedule', {})
-            kind = sched.get('kind', 'unknown') if isinstance(sched, dict) else str(sched)
+            sched = _getattr_or_get(j, "schedule", {})
+            kind = sched.get("kind", "unknown") if isinstance(sched, dict) else str(sched)
             # Delivery info
-            delivery = _getattr_or_get(j, 'delivery', None)
+            delivery = _getattr_or_get(j, "delivery", None)
             delivery_str = ""
             if delivery and isinstance(delivery, dict):
                 ch = delivery.get("channel", "")
                 cid = delivery.get("channel_id", "")
                 if ch or cid:
                     delivery_str = f" → {ch}:{cid}"
-            agent_id = _getattr_or_get(j, 'agent_id', None)
+            agent_id = _getattr_or_get(j, "agent_id", None)
             agent_str = f" [agent:{agent_id}]" if agent_id else ""
-            lines.append(f"  [{status}] {_getattr_or_get(j, 'id', '?')} — {_getattr_or_get(j, 'name', '')} ({kind}){delivery_str}{agent_str}")
+            lines.append(
+                f"  [{status}] {_getattr_or_get(j, 'id', '?')} — {_getattr_or_get(j, 'name', '')} ({kind}){delivery_str}{agent_str}"
+            )
         return "\n".join(lines)
 
     def _cli_add(
@@ -999,7 +1043,7 @@ class SchedulesFeature(BaseFeatureProtocol):
             "last_run_at": None,
             "run_count": 0,
         }
-        if hasattr(store, 'add'):
+        if hasattr(store, "add"):
             store.add(job)
         parts = [f"Added job {job_id}: {name}"]
         if cron:
@@ -1014,14 +1058,14 @@ class SchedulesFeature(BaseFeatureProtocol):
 
     def _cli_remove(self, job_id: str) -> str:
         store = _get_schedule_store()
-        if hasattr(store, 'remove'):
+        if hasattr(store, "remove"):
             if not store.remove(job_id):
                 return f"Job {job_id} not found"
         return f"Removed job {job_id}"
 
     def _cli_status(self) -> str:
         store = _get_schedule_store()
-        jobs = store.list() if hasattr(store, 'list') else []
+        jobs = store.list() if hasattr(store, "list") else []
         enabled = sum(1 for j in jobs if _getattr_or_get(j, "enabled", True))
         return f"Jobs: {len(jobs)} total, {enabled} enabled"
 
