@@ -524,3 +524,44 @@ class Config(BaseModel):
     search: Optional[SearchConfig] = None
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+# ── Ask* message family models (issue #16) ──────────────────────────
+
+
+class Action(BaseModel):
+    """Action button model for AskActionMessage."""
+
+    name: str
+    label: str
+    icon: Optional[str] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class FileResponse(BaseModel):
+    """Response model for file uploads."""
+
+    path: str
+    mime: str
+    size: int
+    name: Optional[str] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ActionResponse(BaseModel):
+    """Response model for action selection."""
+
+    action: Action
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ElementResponse(BaseModel):
+    """Response model for element interactions."""
+
+    payload: dict[str, Any]
+    return_type: str
+
+    model_config = ConfigDict(populate_by_name=True)

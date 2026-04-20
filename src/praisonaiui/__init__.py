@@ -64,6 +64,9 @@ def __getattr__(name: str):
         "prompt",
         "error",
         "PromptResult",
+        "AskFileMessage",
+        "AskActionMessage",
+        "AskElementMessage",
     }
     _mcp_attrs = {
         "MCPServer",
@@ -389,6 +392,10 @@ __all__ = [
     "prompt",
     "error",
     "PromptResult",
+    # Ask* message family (file upload, action selection, element interaction)
+    "AskFileMessage",
+    "AskActionMessage",
+    "AskElementMessage",
     # MCP (Model Context Protocol)
     "MCPServer",
     "on_mcp_connect",
