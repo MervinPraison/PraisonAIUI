@@ -434,6 +434,22 @@ class MessageElement(BaseModel):
         value = getattr(self, key, None)
         return default if value is None else value
 
+    async def send(self, content: str = "") -> Any:
+        """Send this element as a standalone message.
+
+        Args:
+            content: Optional message content to accompany the element
+
+        Returns:
+            The Message object that was sent
+        """
+        # Import here to avoid circular imports
+        from praisonaiui.message import Message
+
+        msg = Message(content=content, elements=[self])
+        await msg.send()
+        return msg
+
 
 class ImageElement(MessageElement):
     """Image element for messages."""
