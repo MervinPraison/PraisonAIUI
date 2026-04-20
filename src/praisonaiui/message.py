@@ -14,6 +14,7 @@ Example:
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -21,9 +22,14 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 from praisonaiui.schema.models import (
+    Action as ActionModel,
+)
+from praisonaiui.schema.models import (
     AudioElement,
     CodeElement,
+    ElementResponse,
     FileElement,
+    FileResponse,
     ImageElement,
     MessageElementUnion,
     PdfElement,
@@ -32,7 +38,10 @@ from praisonaiui.schema.models import (
 from praisonaiui.server import MessageContext
 
 if TYPE_CHECKING:
-    from praisonaiui.actions import Action
+    # Action here refers to the decorator-style Action (praisonaiui.actions.Action)
+    # used by Message.actions. The schema-model Action is imported above as
+    # ActionModel to avoid shadowing.
+    from praisonaiui.actions import Action  # noqa: F401
 
 # Size limits in bytes
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
@@ -691,3 +700,208 @@ async def error(
         meta["details"] = details
     msg = Message(content=content, author=author, metadata=meta)
     await msg.send()
+
+
+# ── Ask* message family (issue #16) ─────────────────────────────
+
+
+@dataclass
+class AskFileMessage:
+    """Ask the user to upload one or more files.
+
+    Example:
+        files = await AskFileMessage(
+            content="Upload a CSV to analyse",
+            accept=[".csv", ".tsv"],
+            max_size_mb=50,
+            max_files=3,
+            timeout=300,
+        ).send()
+    """
+
+    content: str
+    accept: list[str] = field(default_factory=list)
+    max_size_mb: int = 50
+    max_files: int = 10
+    timeout: float = 300.0
+    author: str = "assistant"
+
+    _id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    _context: Optional[MessageContext] = field(default=None, repr=False)
+
+    def __post_init__(self):
+        """Initialize with context from current callback."""
+        from praisonaiui.callbacks import _get_context
+
+        self._context = _get_context()
+
+    async def send(self) -> Optional[list[FileResponse]]:
+        """Send the file request and wait for user uploads.
+
+        Returns:
+            List of FileResponse objects, or empty list on timeout
+        """
+        if not self._context:
+            return []
+
+        loop = asyncio.get_running_loop()
+        pending_ask = loop.create_future()
+
+        if not hasattr(self._context, "_pending_asks"):
+            self._context._pending_asks = {}
+        self._context._pending_asks[self._id] = pending_ask
+
+        if self._context._stream_queue:
+            await self._context._stream_queue.put(
+                {
+                    "type": "ask_file",
+                    "ask_id": self._id,
+                    "content": self.content,
+                    "accept": self.accept,
+                    "max_size_mb": self.max_size_mb,
+                    "max_files": self.max_files,
+                    "timeout": self.timeout,
+                }
+            )
+
+        try:
+            response = await asyncio.wait_for(pending_ask, timeout=self.timeout)
+            return response if response else []
+        except asyncio.TimeoutError:
+            return []
+        finally:
+            self._context._pending_asks.pop(self._id, None)
+
+
+@dataclass
+class AskActionMessage:
+    """Ask the user to select one action from a list.
+
+    Example:
+        chosen = await AskActionMessage(
+            content="Which analysis do you want?",
+            actions=[
+                ActionModel(name="summarise", label="Summarise"),
+                ActionModel(name="profile", label="Profile columns"),
+                ActionModel(name="plot", label="Plot"),
+            ],
+            timeout=120,
+        ).send()
+    """
+
+    content: str
+    actions: list[ActionModel] = field(default_factory=list)
+    timeout: float = 120.0
+    author: str = "assistant"
+
+    _id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    _context: Optional[MessageContext] = field(default=None, repr=False)
+
+    def __post_init__(self):
+        """Initialize with context from current callback."""
+        from praisonaiui.callbacks import _get_context
+
+        self._context = _get_context()
+
+    async def send(self) -> Optional[ActionModel]:
+        """Send the action request and wait for user selection.
+
+        Returns:
+            The selected ActionModel, or None on timeout
+        """
+        if not self._context:
+            return None
+
+        loop = asyncio.get_running_loop()
+        pending_ask = loop.create_future()
+
+        if not hasattr(self._context, "_pending_asks"):
+            self._context._pending_asks = {}
+        self._context._pending_asks[self._id] = pending_ask
+
+        if self._context._stream_queue:
+            await self._context._stream_queue.put(
+                {
+                    "type": "ask_action",
+                    "ask_id": self._id,
+                    "content": self.content,
+                    "actions": [a.model_dump() for a in self.actions],
+                    "timeout": self.timeout,
+                }
+            )
+
+        try:
+            response = await asyncio.wait_for(pending_ask, timeout=self.timeout)
+            return response if response else None
+        except asyncio.TimeoutError:
+            return None
+        finally:
+            self._context._pending_asks.pop(self._id, None)
+
+
+@dataclass
+class AskElementMessage:
+    """Ask the user to interact with an element (draw, annotate, etc).
+
+    Example:
+        bbox = await AskElementMessage(
+            element=ImageElement(url="/static/chart.png"),
+            prompt="Draw a bounding box on the area of interest",
+            return_type="bbox",
+            timeout=180,
+        ).send()
+    """
+
+    element: MessageElementUnion
+    prompt: str
+    return_type: Literal["annotation", "bbox", "point", "freeform"] = "bbox"
+    timeout: float = 180.0
+    author: str = "assistant"
+
+    _id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    _context: Optional[MessageContext] = field(default=None, repr=False)
+
+    def __post_init__(self):
+        """Initialize with context from current callback."""
+        from praisonaiui.callbacks import _get_context
+
+        self._context = _get_context()
+
+    async def send(self) -> Optional[ElementResponse]:
+        """Send the element interaction request and wait for user response.
+
+        Returns:
+            ElementResponse with interaction data, or None on timeout
+        """
+        if not self._context:
+            return None
+
+        loop = asyncio.get_running_loop()
+        pending_ask = loop.create_future()
+
+        if not hasattr(self._context, "_pending_asks"):
+            self._context._pending_asks = {}
+        self._context._pending_asks[self._id] = pending_ask
+
+        if self._context._stream_queue:
+            element_data = (
+                self.element.model_dump() if hasattr(self.element, "model_dump") else self.element
+            )
+            await self._context._stream_queue.put(
+                {
+                    "type": "ask_element",
+                    "ask_id": self._id,
+                    "element": element_data,
+                    "prompt": self.prompt,
+                    "return_type": self.return_type,
+                    "timeout": self.timeout,
+                }
+            )
+
+        try:
+            response = await asyncio.wait_for(pending_ask, timeout=self.timeout)
+            return response if response else None
+        except asyncio.TimeoutError:
+            return None
+        finally:
+            self._context._pending_asks.pop(self._id, None)
