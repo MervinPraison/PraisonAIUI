@@ -19,6 +19,7 @@ Deep Analysis → Gap Analysis → Critical Review → Plan → Create Issue →
 - **No perf impact**: preserve import-time and hot-path; heavy deps optional + lazy.
 - **Async-safe + multi-agent safe** by default.
 - **Easy for non-developers**: "Few lines of code to do the task!"
+- **No competitor names in public surfaces**: Never mention competitor product, company, or project names in GitHub issues, PRs, commit messages, release notes, docs, or any other public-facing content. Refer to capabilities generically (e.g., "self-improving agent pattern", "external agent framework").
 - **Test before merge**: never merge unvalidated PRs. Always clone the branch locally and run the tests.
 - **Minimal code change**: prefer upstream one-line fixes over downstream workarounds.
 

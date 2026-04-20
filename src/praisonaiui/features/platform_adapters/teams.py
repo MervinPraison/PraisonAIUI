@@ -24,6 +24,7 @@ try:
         TurnContext,
     )
     from botbuilder.schema import Activity, ChannelAccount  # noqa: F401
+
     MessageFactory = None  # type: ignore[assignment]
     try:
         from botbuilder.core import MessageFactory  # type: ignore[no-redef]  # noqa: F401
