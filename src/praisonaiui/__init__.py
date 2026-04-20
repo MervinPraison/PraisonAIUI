@@ -70,6 +70,11 @@ def __getattr__(name: str):
         "on_mcp_connect",
         "on_mcp_disconnect",
     }
+    _channel_attrs = {
+        "current_channel",
+        "current_user",
+        "on_slack_reaction_added",
+    }
     _server_attrs = {
         "register_agent",
         "register_page",
@@ -210,6 +215,10 @@ def __getattr__(name: str):
         from praisonaiui.features import mcp
 
         return getattr(mcp, name)
+    if name in _channel_attrs:
+        from praisonaiui.features import platform_adapters
+
+        return getattr(platform_adapters, name)
     if name in _server_attrs:
         from praisonaiui import server
 
@@ -351,6 +360,10 @@ __all__ = [
     "MCPServer",
     "on_mcp_connect",
     "on_mcp_disconnect",
+    # Channel platform adapters (Slack / Discord / Teams)
+    "current_channel",
+    "current_user",
+    "on_slack_reaction_added",
     # Feature protocol
     "BaseFeatureProtocol",
     "register_feature",
