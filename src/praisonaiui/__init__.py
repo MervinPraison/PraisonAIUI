@@ -75,6 +75,14 @@ def __getattr__(name: str):
         "current_user",
         "on_slack_reaction_added",
     }
+    _usage_attrs = {"get_token_usage"}
+    _instrumentation_attrs = {
+        "instrument_openai",
+        "instrument_anthropic",
+        "instrument_mistral",
+        "instrument_google",
+        "no_instrument",
+    }
     _server_attrs = {
         "register_agent",
         "register_page",
@@ -219,6 +227,14 @@ def __getattr__(name: str):
         from praisonaiui.features import platform_adapters
 
         return getattr(platform_adapters, name)
+    if name in _usage_attrs:
+        from praisonaiui.features import usage
+
+        return getattr(usage, name)
+    if name in _instrumentation_attrs:
+        from praisonaiui import instrumentation
+
+        return getattr(instrumentation, name)
     if name in _server_attrs:
         from praisonaiui import server
 
@@ -364,6 +380,14 @@ __all__ = [
     "current_channel",
     "current_user",
     "on_slack_reaction_added",
+    # LLM instrumentation
+    "instrument_openai",
+    "instrument_anthropic",
+    "instrument_mistral",
+    "instrument_google",
+    "no_instrument",
+    # Usage tracking
+    "get_token_usage",
     # Feature protocol
     "BaseFeatureProtocol",
     "register_feature",
