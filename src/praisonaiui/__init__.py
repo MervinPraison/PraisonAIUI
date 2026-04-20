@@ -75,6 +75,15 @@ def __getattr__(name: str):
         "current_user",
         "on_slack_reaction_added",
     }
+    _auth_attrs = {
+        "oauth_callback",
+        "header_auth_callback",
+        "password_auth_callback",
+        "on_logout",
+        "User",
+        "Session",
+        "on_shared_thread_view",
+    }
     _usage_attrs = {"get_token_usage"}
     _instrumentation_attrs = {
         "instrument_openai",
@@ -227,6 +236,14 @@ def __getattr__(name: str):
         from praisonaiui.features import platform_adapters
 
         return getattr(platform_adapters, name)
+    if name in _auth_attrs:
+        if name == "on_shared_thread_view":
+            from praisonaiui.features import sharing
+
+            return getattr(sharing, name)
+        from praisonaiui import auth
+
+        return getattr(auth, name)
     if name in _usage_attrs:
         from praisonaiui.features import usage
 
@@ -380,6 +397,14 @@ __all__ = [
     "current_channel",
     "current_user",
     "on_slack_reaction_added",
+    # Auth decorators & classes (OAuth, header, password, logout, sharing)
+    "oauth_callback",
+    "header_auth_callback",
+    "password_auth_callback",
+    "on_logout",
+    "on_shared_thread_view",
+    "User",
+    "Session",
     # LLM instrumentation
     "instrument_openai",
     "instrument_anthropic",
