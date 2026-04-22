@@ -283,3 +283,11 @@ def on_app_shutdown(func: Callable) -> Callable:
             await vector_store.close()
     """
     return register_shutdown_hook(func)
+
+
+# ── PraisonAIUI-native aliases ──────────────────────────────────────
+# Drop the "app_" prefix — it's implied by context (you're obviously
+# registering hooks on *this* app).
+
+on_startup = on_app_startup
+on_shutdown = on_app_shutdown

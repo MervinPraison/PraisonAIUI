@@ -250,3 +250,17 @@ async def show_notification(
 ) -> Dict[str, Any]:
     """Show a notification (implemented in frontend)."""
     return {"action": "show_notification", "message": message, "type": type, "duration": duration}
+
+
+# ── PraisonAIUI-native aliases ──────────────────────────────────────
+# Non-developer-friendly names. The "UI function" phrasing communicates
+# "a function the UI can call" without borrowing external product vocabulary.
+# The old names above remain importable for backward compatibility.
+
+UIFunction = CopilotFunction
+UIFunctionParameter = CopilotFunctionParameter
+ui_function = copilot_function
+on_ui_function = on_copilot_function_call
+call_ui_function = call_copilot_function
+get_ui_function = get_copilot_function
+get_ui_functions = get_copilot_functions

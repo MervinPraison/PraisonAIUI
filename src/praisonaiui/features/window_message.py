@@ -352,3 +352,11 @@ def on_window_message(source: Optional[str] = None) -> Callable:
         return register_window_message_hook(source, func)
 
     return decorator
+
+
+# ── PraisonAIUI-native aliases ──────────────────────────────────────
+# "parent" is what non-developers call the page that embeds the chat.
+# "window" is technical jargon from the browser postMessage API.
+
+on_parent_message = on_window_message
+send_to_parent = send_window_message

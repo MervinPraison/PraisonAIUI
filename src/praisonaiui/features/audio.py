@@ -417,3 +417,12 @@ def on_audio_end(func: Callable) -> Callable:
             await handler(aiui.InboundMessage(content=transcript, source="voice"))
     """
     return register_audio_end_hook(func)
+
+
+# ── PraisonAIUI-native aliases ──────────────────────────────────────
+# "mic" is what non-developers call the microphone; "audio" is correct
+# but more abstract.  "data" is friendlier than "chunk" for a lay reader.
+
+on_mic_start = on_audio_start
+on_mic_data = on_audio_chunk
+on_mic_stop = on_audio_end

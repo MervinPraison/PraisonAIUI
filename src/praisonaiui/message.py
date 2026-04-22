@@ -930,3 +930,16 @@ class AskElementMessage:
             return None
         finally:
             self._context._pending_asks.pop(self._id, None)
+
+
+# ── PraisonAIUI-native aliases ──────────────────────────────────────
+# Noun-first, plain-English names that pair with the verb-first
+# ``aiui.prompt()`` helper (see issue #41 API-direction policy).
+# A non-developer reads ``FilePrompt`` as "a prompt that asks for a
+# file" — no "Message" suffix convention required.  The original
+# ``Ask*Message`` names remain importable for backward compatibility.
+
+TextPrompt = AskUserMessage
+FilePrompt = AskFileMessage
+ChoicePrompt = AskActionMessage
+LocationPrompt = AskElementMessage

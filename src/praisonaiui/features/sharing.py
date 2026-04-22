@@ -159,3 +159,8 @@ def get_share_url(token: str, base_url: str = "") -> str:
     """
     base_url = base_url.rstrip("/")
     return f"{base_url}/shared/{token}"
+
+
+# ── PraisonAIUI-native alias ──────────────────────────────────────
+# Shorter, plainer-English verb form.
+on_shared_view = on_shared_thread_view
