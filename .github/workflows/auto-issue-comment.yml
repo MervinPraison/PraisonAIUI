@@ -1,0 +1,86 @@
+name: Auto Issue Comment
+
+# Optional: automatically escalate every new issue to Claude for a full
+# investigation + draft fix. Disabled by default (only workflow_dispatch).
+# To enable auto-triage on every new issue, uncomment the `issues:` trigger.
+#
+# Note: `@claude` mentions only trigger claude.yml when the commenter is a
+# HUMAN user (or github-actions[bot] via PAT). This workflow posts the
+# comment as github-actions[bot], so claude.yml must allow that bot.
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to triage with Claude"
+        required: true
+        type: number
+  # issues:
+  #   types: [opened]
+
+jobs:
+  # Escalate an issue to full Claude implementation by adding the `claude`
+  # label. claude.yml listens on `issues:labeled` + label=='claude' and
+  # triggers Job 2 (claude-response) which does the actual work.
+  trigger-claude:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && !contains(toJSON(github.event.issue.labels), 'claude'))
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Resolve issue number
+        id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "number=${{ inputs.issue_number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Add claude label + post instructions
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const issueNumber = Number('${{ steps.resolve.outputs.number }}');
+            const { data: issue } = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+            });
+
+            const labels = (issue.labels || []).map(l => typeof l === 'string' ? l : l.name);
+            if (labels.includes('claude')) {
+              console.log(`Issue #${issueNumber} already has 'claude' label — skipping.`);
+              return;
+            }
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              labels: ['claude'],
+            });
+
+            const body = [
+              '🤖 Auto-triaging with Claude.',
+              '',
+              'Claude will:',
+              '',
+              '1. Read this issue and all comments.',
+              '2. Classify and route to the right area (`src/praisonaiui/`, `src/frontend/`, `docs/`, or external repo).',
+              '3. Implement a minimal fix per `AGENTS.md`.',
+              '4. Run `pytest` + the import-time invariant locally.',
+              '5. Open a draft PR linked to this issue.',
+              '',
+              'Follow-ups in this thread with `@claude` will re-trigger the loop.'
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body,
+            });
