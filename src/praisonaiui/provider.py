@@ -93,8 +93,12 @@ class RunEventType(str, Enum):
 
 
 @dataclass
-class ModelInfo:
-    """Model / provider info advertised by an agent or team (Issue #48)."""
+class ModelCard:
+    """Model / provider info advertised by an agent or team (Issue #48).
+
+    PraisonAI-native, non-developer-friendly name: a "card" is the small
+    info block a UI shows next to an agent.
+    """
 
     name: str
     model: str
@@ -105,13 +109,13 @@ class ModelInfo:
 
 
 @dataclass
-class AgentDetails:
-    """Standard agent-discovery schema for third-party chat frontends (Issue #48)."""
+class AgentCard:
+    """Agent discovery card — what a chat frontend shows in its picker (Issue #48)."""
 
     agent_id: str
     name: str
     description: str = ""
-    model: Optional[ModelInfo] = None
+    model: Optional[ModelCard] = None
     storage: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
@@ -127,13 +131,13 @@ class AgentDetails:
 
 
 @dataclass
-class TeamDetails:
-    """Standard team-discovery schema (Issue #48)."""
+class TeamCard:
+    """Team discovery card — what a chat frontend shows for multi-agent teams (Issue #48)."""
 
     team_id: str
     name: str
     description: str = ""
-    model: Optional[ModelInfo] = None
+    model: Optional[ModelCard] = None
     storage: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
@@ -149,8 +153,12 @@ class TeamDetails:
 
 
 @dataclass
-class Reference:
-    """A single RAG retrieval chunk cited by an answer (Issue #49)."""
+class SourceChunk:
+    """A single RAG retrieval chunk cited by an answer (Issue #49).
+
+    PraisonAI-native name — "source chunk" is the plain-English term a
+    non-developer would use for "a piece of a source document that was used".
+    """
 
     name: str
     content: str
@@ -167,17 +175,22 @@ class Reference:
 
 
 @dataclass
-class ReferenceData:
-    """A retrieval batch: a query and the chunks it returned (Issue #49)."""
+class SourceBundle:
+    """A bundle of source chunks retrieved for one query (Issue #49).
+
+    Wire format keeps the industry-standard ``references`` JSON key so
+    third-party frontends see the expected shape; only the Python class
+    name is PraisonAI-native.
+    """
 
     query: str
-    references: List[Reference] = field(default_factory=list)
+    chunks: List[SourceChunk] = field(default_factory=list)
     time_ms: Optional[float] = None
 
     def to_dict(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {
             "query": self.query,
-            "references": [r.to_dict() for r in self.references],
+            "references": [c.to_dict() for c in self.chunks],
         }
         if self.time_ms is not None:
             d["time_ms"] = self.time_ms
@@ -185,11 +198,13 @@ class ReferenceData:
 
 
 @dataclass
-class ReasoningStep:
+class ThoughtStep:
     """Structured reasoning-step payload (Issue #50).
 
-    All fields beyond ``title`` are optional so providers can adopt the richer
-    schema incrementally without breaking existing behaviour.
+    PraisonAI-native name — pairs with the existing ``ThinkingSteps`` UI
+    component.  All fields beyond ``title`` are optional so providers can
+    adopt the richer schema incrementally without breaking existing
+    behaviour.
     """
 
     title: str
@@ -400,22 +415,22 @@ class BaseProvider(ABC):
     # -----------------------------------------------------------------
 
     @staticmethod
-    def references_event(
-        query: str,
-        references: List["Reference"],
-        time_ms: Optional[float] = None,
-    ) -> RunEvent:
-        """Build a ``REFERENCES`` event from a ``Reference`` list (Issue #49)."""
+    def source_bundle_event(bundle: "SourceBundle") -> RunEvent:
+        """Build a ``REFERENCES`` event from a ``SourceBundle`` (Issue #49).
+
+        The wire ``type`` stays ``references`` for third-party frontend
+        compatibility; only the Python-side helper name is PraisonAI-native.
+        """
         return RunEvent(
             type=RunEventType.REFERENCES,
-            query=query,
-            references=[r.to_dict() for r in references],
-            time_ms=time_ms,
+            query=bundle.query,
+            references=[c.to_dict() for c in bundle.chunks],
+            time_ms=bundle.time_ms,
         )
 
     @staticmethod
-    def reasoning_step_event(step: "ReasoningStep") -> RunEvent:
-        """Build a ``REASONING_STEP`` event from a structured step (Issue #50)."""
+    def thought_step_event(step: "ThoughtStep") -> RunEvent:
+        """Build a ``REASONING_STEP`` event from a ``ThoughtStep`` (Issue #50)."""
         return RunEvent(
             type=RunEventType.REASONING_STEP,
             step=step.title,
