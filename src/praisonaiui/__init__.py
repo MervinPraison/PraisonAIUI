@@ -201,15 +201,15 @@ def __getattr__(name: str):
         "BaseProvider",
         "RunEvent",
         "RunEventType",
-        # Discovery schema (Issue #48)
-        "ModelInfo",
-        "AgentDetails",
-        "TeamDetails",
-        # RAG citations (Issue #49)
-        "Reference",
-        "ReferenceData",
-        # Rich reasoning (Issue #50)
-        "ReasoningStep",
+        # Discovery cards (Issue #48) — PraisonAI-native names
+        "ModelCard",
+        "AgentCard",
+        "TeamCard",
+        # RAG source chunks (Issue #49) — PraisonAI-native names
+        "SourceChunk",
+        "SourceBundle",
+        # Rich reasoning (Issue #50) — PraisonAI-native name
+        "ThoughtStep",
     }
     _providers_attrs = {"PraisonAIProvider"}
     _config_attrs = {"configure"}
@@ -488,12 +488,13 @@ __all__ = [
     "RunEventType",
     "PraisonAIProvider",
     # Discovery, citations, reasoning schema (Issues #48, #49, #50)
-    "ModelInfo",
-    "AgentDetails",
-    "TeamDetails",
-    "Reference",
-    "ReferenceData",
-    "ReasoningStep",
+    # PraisonAI-native, noun-first names (not lifted from any external framework)
+    "ModelCard",
+    "AgentCard",
+    "TeamCard",
+    "SourceChunk",
+    "SourceBundle",
+    "ThoughtStep",
     # Configuration
     "configure",
     # Action classes and decorators

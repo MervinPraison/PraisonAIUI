@@ -2,8 +2,8 @@
 
 Covers:
 - Enriched /agents response + /teams REST surface (#48)
-- RAG ``REFERENCES`` event + ``Reference`` / ``ReferenceData`` (#49)
-- Rich ``ReasoningStep`` schema + ``reasoning_step_event`` helper (#50)
+- RAG ``REFERENCES`` event + ``SourceChunk`` / ``SourceBundle`` (#49)
+- Rich ``ThoughtStep`` schema + ``thought_step_event`` helper (#50)
 
 The tests run against the ASGI app built by ``praisonaiui.build_app()`` so
 route wiring, schema serialisation, and provider delegation are verified
@@ -17,7 +17,6 @@ from starlette.testclient import TestClient
 
 import praisonaiui as aiui
 from praisonaiui.provider import BaseProvider, RunEvent, RunEventType
-
 
 # ── Fixtures ────────────────────────────────────────────────────────
 
@@ -112,30 +111,32 @@ def test_teams_route_delete_endpoint_registered(client):
 # ── Issue #49: references (RAG citations) ───────────────────────────
 
 
-def test_reference_dataclass_round_trip():
-    r = aiui.Reference(name="doc.md", content="x", chunk=3, chunk_size=400)
+def test_source_chunk_round_trip():
+    r = aiui.SourceChunk(name="doc.md", content="x", chunk=3, chunk_size=400)
     d = r.to_dict()
     assert d == {"name": "doc.md", "content": "x", "chunk": 3, "chunk_size": 400}
 
 
-def test_reference_data_round_trip():
-    rd = aiui.ReferenceData(
+def test_source_bundle_round_trip():
+    b = aiui.SourceBundle(
         query="what is x",
-        references=[aiui.Reference(name="a.md", content="alpha")],
+        chunks=[aiui.SourceChunk(name="a.md", content="alpha")],
         time_ms=12.0,
     )
-    d = rd.to_dict()
+    d = b.to_dict()
     assert d["query"] == "what is x"
     assert d["time_ms"] == 12.0
+    # Wire key stays "references" for third-party frontend compatibility
     assert d["references"][0]["name"] == "a.md"
 
 
-def test_references_event_helper():
-    ev = BaseProvider.references_event(
+def test_source_bundle_event_helper():
+    bundle = aiui.SourceBundle(
         query="q",
-        references=[aiui.Reference(name="a.md", content="alpha", chunk=1, chunk_size=50)],
+        chunks=[aiui.SourceChunk(name="a.md", content="alpha", chunk=1, chunk_size=50)],
         time_ms=8.5,
     )
+    ev = BaseProvider.source_bundle_event(bundle)
     assert ev.type is RunEventType.REFERENCES
     payload = ev.to_dict()
     assert payload["type"] == "references"
@@ -151,8 +152,8 @@ def test_references_enum_value_is_stable():
 # ── Issue #50: rich reasoning step ──────────────────────────────────
 
 
-def test_reasoning_step_optional_fields_omitted_when_absent():
-    s = aiui.ReasoningStep(title="plan")
+def test_thought_step_optional_fields_omitted_when_absent():
+    s = aiui.ThoughtStep(title="plan")
     d = s.to_dict()
     # Optional fields stay out of the dict entirely when None
     assert "action" not in d
@@ -161,8 +162,8 @@ def test_reasoning_step_optional_fields_omitted_when_absent():
     assert d["title"] == "plan"
 
 
-def test_reasoning_step_full_fields():
-    s = aiui.ReasoningStep(
+def test_thought_step_full_fields():
+    s = aiui.ThoughtStep(
         title="search",
         result="found 3 refs",
         reasoning="because the query was specific",
@@ -181,9 +182,9 @@ def test_reasoning_step_full_fields():
     }
 
 
-def test_reasoning_step_event_helper_carries_fields():
-    step = aiui.ReasoningStep(title="plan", confidence=0.9, action="plan")
-    ev = BaseProvider.reasoning_step_event(step)
+def test_thought_step_event_helper_carries_fields():
+    step = aiui.ThoughtStep(title="plan", confidence=0.9, action="plan")
+    ev = BaseProvider.thought_step_event(step)
     assert ev.type is RunEventType.REASONING_STEP
     d = ev.to_dict()
     assert d["step"] == "plan"
@@ -207,6 +208,20 @@ def test_runevent_backcompat_unstructured_step_still_works():
 
 def test_new_symbols_in_dunder_all():
     expected = {
+        "ModelCard",
+        "AgentCard",
+        "TeamCard",
+        "SourceChunk",
+        "SourceBundle",
+        "ThoughtStep",
+    }
+    missing = expected - set(aiui.__all__)
+    assert not missing, f"Missing from __all__: {sorted(missing)}"
+
+
+def test_no_competitor_lifted_names_exported():
+    """Guard rail: PraisonAIUI must not re-export competitor-lifted type names."""
+    lifted = {
         "ModelInfo",
         "AgentDetails",
         "TeamDetails",
@@ -214,5 +229,9 @@ def test_new_symbols_in_dunder_all():
         "ReferenceData",
         "ReasoningStep",
     }
-    missing = expected - set(aiui.__all__)
-    assert not missing, f"Missing from __all__: {sorted(missing)}"
+    leaked = [n for n in lifted if hasattr(aiui, n)]
+    assert not leaked, (
+        f"PraisonAIUI leaked competitor-lifted names: {leaked}. "
+        "Use the PraisonAI-native ModelCard/AgentCard/TeamCard/SourceChunk/"
+        "SourceBundle/ThoughtStep instead."
+    )
