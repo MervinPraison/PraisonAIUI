@@ -119,6 +119,20 @@ export interface CodeElement extends MessageElement {
 
 export type MessageElementUnion = ImageElement | PdfElement | VideoElement | AudioElement | FileElement | CodeElement
 
+// References (RAG citations)
+export interface Reference {
+    name: string
+    content: string
+    chunk: number
+    chunk_size: number
+}
+
+export interface ReferenceData {
+    query: string
+    references: Reference[]
+    time_ms?: number
+}
+
 // Chat types
 export interface ChatMessage {
     id: string
@@ -141,6 +155,8 @@ export interface ChatMessage {
     // Agent/Team info
     agentId?: string
     agentName?: string
+    // References (RAG citations)
+    references?: ReferenceData[]
     // Extra data
     extraData?: {
         references?: unknown[]
@@ -276,6 +292,8 @@ export type RunEventType =
     // Control events
     | 'run_paused'
     | 'run_continued'
+    // References (RAG citations)
+    | 'references'
 
 // Legacy SSE event types (backward compatible)
 export type LegacyEventType =
@@ -335,9 +353,15 @@ export interface SSEEvent {
     team_id?: string
     // Memory
     memory_type?: 'short_term' | 'long_term'
+    // References (RAG citations) - top-level for references event
+    query?: string
+    references?: Reference[]
+    time_ms?: number
     // Extra data (Agent-UI pattern)
     extra_data?: {
-        references?: unknown[]
+        query?: string
+        references?: Reference[]
+        time_ms?: number
         reasoning_steps?: string[]
         [key: string]: unknown
     }

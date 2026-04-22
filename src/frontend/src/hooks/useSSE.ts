@@ -27,6 +27,7 @@ interface UseSSEReturn {
   currentResponse: string
   toolCalls: import('../types').ToolCall[]
   thinkingSteps: string[]
+  references: import('../types').ReferenceData[]
 }
 
 export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
@@ -75,6 +76,7 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
     currentResponse: snap.currentResponse,
     toolCalls: snap.toolCalls,
     thinkingSteps: snap.thinkingSteps,
+    references: snap.references,
     sendMessage,
     cancel,
   }

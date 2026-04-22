@@ -25,7 +25,7 @@ from __future__ import annotations
 import time
 import uuid
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, AsyncIterator, Dict, List, Optional
 
@@ -82,6 +82,52 @@ class RunEventType(str, Enum):
     TEAM_REASONING_COMPLETED = "team_reasoning_completed"
     TEAM_MEMORY_UPDATE_STARTED = "team_memory_update_started"
     TEAM_MEMORY_UPDATE_COMPLETED = "team_memory_update_completed"
+
+    # --- References (RAG citations) ---
+    REFERENCES = "references"
+
+
+# ---------------------------------------------------------------------------
+# References (RAG citations) — data structures for source chunks
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class Reference:
+    """A RAG source chunk that an agent retrieved and used while producing a reply.
+
+    Represents a single piece of content that was cited by the agent,
+    with metadata about its source and chunking.
+
+    Attributes:
+        name:       File or document name (e.g., "example.pdf", "doc.txt").
+        content:    Chunk text that was retrieved.
+        chunk:      Index of this chunk within the document (default: 0).
+        chunk_size: Size in characters of this chunk (default: 0).
+    """
+
+    name: str
+    content: str
+    chunk: int = 0
+    chunk_size: int = 0
+
+
+@dataclass
+class ReferenceData:
+    """Container for references retrieved in response to a query.
+
+    Represents the result of a RAG retrieval operation, including
+    the query that was used and all chunks that were found.
+
+    Attributes:
+        query:      The query that retrieved these chunks.
+        references: List of Reference objects that were retrieved.
+        time_ms:    Retrieval latency in milliseconds (optional).
+    """
+
+    query: str
+    references: List[Reference]
+    time_ms: Optional[float] = None
 
 
 # ---------------------------------------------------------------------------
@@ -223,3 +269,31 @@ class BaseProvider(ABC):
     async def health(self) -> Dict[str, Any]:
         """Health check endpoint data.  Override for custom checks."""
         return {"status": "ok", "provider": self.__class__.__name__}
+
+    async def emit_references(
+        self,
+        query: str,
+        references: List[Reference],
+        time_ms: Optional[float] = None,
+    ) -> RunEvent:
+        """Emit a REFERENCES event with RAG citation data.
+
+        Helper method for providers to emit references (RAG source chunks)
+        that were retrieved and used during answer generation.
+
+        Args:
+            query:      The query that retrieved these chunks.
+            references: List of Reference objects that were retrieved.
+            time_ms:    Retrieval latency in milliseconds (optional).
+
+        Returns:
+            RunEvent with type REFERENCES and serialized reference data.
+        """
+        return RunEvent(
+            type=RunEventType.REFERENCES,
+            extra_data={
+                "query": query,
+                "references": [asdict(ref) for ref in references],
+                "time_ms": time_ms,
+            },
+        )

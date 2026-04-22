@@ -7,6 +7,7 @@ import type { ChatMessage, ToolCall } from '../types'
 import { ToolCallDisplay } from './ToolCallDisplay'
 import { ElementRenderer } from './MultimediaElements'
 import { ActionButtons } from './ActionButtons'
+import ReferencesPanel from './ReferencesPanel'
 
 interface ChatMessagesProps {
     messages: ChatMessage[]
@@ -441,6 +442,11 @@ function MessageBubble({ message, sessionId }: MessageBubbleProps) {
                     </div>
                 )}
                 <MarkdownContent content={message.content} />
+                
+                {/* References panel */}
+                {message.references && message.references.length > 0 && (
+                    <ReferencesPanel references={message.references} />
+                )}
                 
                 {/* New standardized elements rendering */}
                 {message.elements && message.elements.length > 0 && (

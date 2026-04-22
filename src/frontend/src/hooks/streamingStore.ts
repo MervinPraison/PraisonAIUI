@@ -6,7 +6,7 @@
  * affects another session's in-flight stream.
  */
 
-import type { ToolCall } from '../types'
+import type { ToolCall, ReferenceData } from '../types'
 import { handleTaskSSEEvent } from '../state/tasks'
 
 // ---------------------------------------------------------------------------
@@ -18,6 +18,7 @@ export interface SessionStreamState {
   currentResponse: string
   toolCalls: ToolCall[]
   thinkingSteps: string[]
+  references: ReferenceData[]
 }
 
 const defaultState = (): SessionStreamState => ({
@@ -25,6 +26,7 @@ const defaultState = (): SessionStreamState => ({
   currentResponse: '',
   toolCalls: [],
   thinkingSteps: [],
+  references: [],
 })
 
 // ---------------------------------------------------------------------------
@@ -119,6 +121,7 @@ export function startStream(
     currentResponse: '',
     toolCalls: [],
     thinkingSteps: [],
+    references: [],
   })
   // Reset tool call dedup map for this new stream
   entry.toolCallMap = new Map()
@@ -290,6 +293,16 @@ function handleStoreEvent(
           thinkingSteps: [...entry.state.thinkingSteps, `Error: ${errMsg}`],
         })
       }
+      break
+    }
+
+    case 'references': {
+      const refData: ReferenceData = {
+        query: event.extra_data?.query as string || event.query as string,
+        references: event.extra_data?.references || event.references || [],
+        time_ms: event.extra_data?.time_ms as number || event.time_ms as number || undefined,
+      }
+      update(sessionId, { references: [...entry.state.references, refData] })
       break
     }
 

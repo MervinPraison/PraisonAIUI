@@ -71,6 +71,7 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
         currentResponse,
         toolCalls,
         thinkingSteps,
+        references,
         sendMessage,
         cancel,
     } = useSSE({
@@ -79,10 +80,23 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
             onSessionChange?.(newSessionId)
         },
         onEnd: () => {
-            // When the stream ends for THIS session, reload its messages from server
-            // so the persisted assistant message appears in the list
+            // When the stream ends, attach references to the final response and reload from server
             if (externalSessionId) {
-                loadSessionMessages(externalSessionId)
+                // Temporarily add the current response with references if we have any
+                if (currentResponse && references.length > 0) {
+                    setMessages(prev => [...prev, {
+                        id: crypto.randomUUID(),
+                        role: 'assistant',
+                        content: currentResponse,
+                        timestamp: new Date().toISOString(),
+                        references,
+                        ...(toolCalls.length > 0 ? { toolCalls } : {}),
+                    }])
+                    // Small delay to show the message with references before reloading
+                    setTimeout(() => loadSessionMessages(externalSessionId), 100)
+                } else {
+                    loadSessionMessages(externalSessionId)
+                }
             }
         },
     })
@@ -153,6 +167,7 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
                             thinkingSteps={thinkingSteps}
                             toolCalls={toolCalls}
                             isStreaming={isStreaming}
+                            sessionId={externalSessionId}
                         />
                     )}
                     <div className="h-4" />
