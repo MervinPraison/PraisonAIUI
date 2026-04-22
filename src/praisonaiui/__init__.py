@@ -197,7 +197,7 @@ def __getattr__(name: str):
         "JSONFileDataStore",
         "SQLAlchemyDataStore",
     }
-    _provider_attrs = {"BaseProvider", "RunEvent", "RunEventType"}
+    _provider_attrs = {"BaseProvider", "RunEvent", "RunEventType", "ReasoningStep", "emit_reasoning_step"}
     _providers_attrs = {"PraisonAIProvider"}
     _config_attrs = {"configure"}
     _action_attrs = {"Action", "action_callback"}
@@ -473,6 +473,8 @@ __all__ = [
     "BaseProvider",
     "RunEvent",
     "RunEventType",
+    "ReasoningStep",
+    "emit_reasoning_step",
     "PraisonAIProvider",
     # Configuration
     "configure",

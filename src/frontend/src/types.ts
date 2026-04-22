@@ -244,6 +244,16 @@ export interface InputWidget {
     options?: string[]
 }
 
+// Rich reasoning step interface (matching backend ReasoningStep dataclass)
+export interface ReasoningStep {
+    title: string
+    result?: string
+    reasoning?: string
+    action?: string
+    confidence?: number
+    next_action?: string
+}
+
 // Rich Event Types (27 types matching Agent-UI vocabulary)
 export type RunEventType =
     // Agent events (13 types)
@@ -307,6 +317,9 @@ export interface SSEEvent {
     // Reasoning
     step?: string
     reasoning_steps?: string[]
+    action?: string
+    confidence?: number
+    next_action?: string
     // Tool calls
     name?: string
     description?: string

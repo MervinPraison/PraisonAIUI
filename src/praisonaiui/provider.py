@@ -128,6 +128,9 @@ class RunEvent:
 
     # Reasoning
     step: Optional[str] = None
+    action: Optional[str] = None
+    confidence: Optional[float] = None
+    next_action: Optional[str] = None
 
     # Agent / Team
     agent_id: Optional[str] = None
@@ -152,6 +155,9 @@ class RunEvent:
             "result",
             "tool_call_id",
             "step",
+            "action",
+            "confidence",
+            "next_action",
             "agent_id",
             "agent_name",
             "error",
@@ -163,6 +169,57 @@ class RunEvent:
             if val is not None:
                 d[key] = val
         return d
+
+
+# ---------------------------------------------------------------------------
+# ReasoningStep — convenience dataclass for rich reasoning steps
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ReasoningStep:
+    """A rich reasoning step with optional metadata.
+
+    Extends the simple string-based reasoning step with action type,
+    confidence level, and forward planning information.
+
+    Attributes:
+        title: The main reasoning step description
+        result: Optional result text
+        reasoning: Optional detailed reasoning text
+        action: Optional action type (e.g., "plan", "search", "verify")
+        confidence: Optional confidence score (0.0 to 1.0)
+        next_action: Optional description of planned next step
+    """
+
+    title: str
+    result: str = ""
+    reasoning: str = ""
+    action: Optional[str] = None
+    confidence: Optional[float] = None
+    next_action: Optional[str] = None
+
+
+def emit_reasoning_step(step: ReasoningStep) -> RunEvent:
+    """Create a reasoning step event from a ReasoningStep dataclass.
+
+    Args:
+        step: The ReasoningStep to emit
+
+    Returns:
+        RunEvent with type REASONING_STEP and all step fields
+    """
+    return RunEvent(
+        type=RunEventType.REASONING_STEP,
+        step=step.title,
+        action=step.action,
+        confidence=step.confidence,
+        next_action=step.next_action,
+        extra_data={
+            "result": step.result,
+            "reasoning": step.reasoning,
+        } if step.result or step.reasoning else None
+    )
 
 
 # ---------------------------------------------------------------------------
