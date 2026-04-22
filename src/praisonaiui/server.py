@@ -855,13 +855,22 @@ async def health(request: Request) -> JSONResponse:
 
 
 async def list_agents(request: Request) -> JSONResponse:
-    """List all registered agents (merges registry + provider)."""
+    """List all registered agents (merges registry + provider).
+
+    Returns the enriched third-party-chat-frontend-compatible schema
+    (``agent_id``, ``name``, ``description``, ``model``, ``storage``,
+    Issue #48) while keeping the legacy ``created_at`` field for
+    backward compatibility.
+    """
     agents = [
         {
+            "agent_id": name,
             "name": info["name"],
+            "description": info.get("description", ""),
+            "storage": bool(info.get("storage", False)),
             "created_at": info["created_at"],
         }
-        for info in _agents.values()
+        for name, info in _agents.items()
     ]
     # Also ask the provider for agents
     try:
@@ -870,10 +879,62 @@ async def list_agents(request: Request) -> JSONResponse:
         existing_names = {a["name"] for a in agents}
         for pa in provider_agents:
             if pa.get("name") not in existing_names:
+                # Ensure every entry carries an agent_id for client routing.
+                if "agent_id" not in pa:
+                    pa = {**pa, "agent_id": pa.get("name", "")}
                 agents.append(pa)
     except Exception:
         pass
     return JSONResponse({"agents": agents})
+
+
+async def list_teams(request: Request) -> JSONResponse:
+    """List all multi-agent teams (Issue #48).
+
+    Delegates to ``provider.list_teams()``; default providers return ``[]``
+    so single-agent backends transparently return an empty list.
+    """
+    teams: list[dict[str, Any]] = []
+    try:
+        provider = get_provider()
+        provider_teams = await provider.list_teams()
+        for pt in provider_teams:
+            if "team_id" not in pt:
+                pt = {**pt, "team_id": pt.get("name", "")}
+            teams.append(pt)
+    except Exception:
+        pass
+    return JSONResponse({"teams": teams})
+
+
+async def run_team_by_id(request: Request) -> StreamingResponse:
+    """Run a specific team by ID with SSE streaming (Issue #48).
+
+    Mirrors ``run_agent_by_id``; ``BaseProvider.run_team`` falls back to
+    ``run()`` when the provider doesn't override it, so single-agent
+    backends still work when a client addresses them as a team.
+    """
+    team_id = request.path_params["team_id"]
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+
+    body["team"] = team_id
+    # Team run is modelled as an agent run with agent_name=team_id so the
+    # SSE plumbing (session persistence, event forwarding) is identical.
+    body.setdefault("agent", team_id)
+    request._body = body
+    return await run_agent(request, body)
+
+
+async def delete_team_session(request: Request) -> JSONResponse:
+    """Delete a session scoped to a team (Issue #48).
+
+    Provider-agnostic — delegates to the same session-delete path as the
+    per-agent API.
+    """
+    return await delete_session(request)
 
 
 async def list_sessions(request: Request) -> JSONResponse:
@@ -2575,6 +2636,16 @@ def create_app(
         Route("/cancel", cancel_run, methods=["POST"]),
         Route("/agents/{agent_id}/runs", run_agent_by_id, methods=["POST"]),
         Route("/api/agents/{agent_id}/runs", run_agent_by_id, methods=["POST"]),
+        # Teams REST surface (Issue #48)
+        Route("/teams", list_teams, methods=["GET"]),
+        Route("/api/teams", list_teams, methods=["GET"]),
+        Route("/teams/{team_id}/runs", run_team_by_id, methods=["POST"]),
+        Route("/api/teams/{team_id}/runs", run_team_by_id, methods=["POST"]),
+        Route(
+            "/teams/{team_id}/sessions/{session_id}",
+            delete_team_session,
+            methods=["DELETE"],
+        ),
         # Dashboard API
         Route("/api/feedback", api_feedback, methods=["POST"]),
         Route("/api/feedback", api_feedback_list, methods=["GET"]),

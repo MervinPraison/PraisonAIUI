@@ -197,7 +197,20 @@ def __getattr__(name: str):
         "JSONFileDataStore",
         "SQLAlchemyDataStore",
     }
-    _provider_attrs = {"BaseProvider", "RunEvent", "RunEventType"}
+    _provider_attrs = {
+        "BaseProvider",
+        "RunEvent",
+        "RunEventType",
+        # Discovery schema (Issue #48)
+        "ModelInfo",
+        "AgentDetails",
+        "TeamDetails",
+        # RAG citations (Issue #49)
+        "Reference",
+        "ReferenceData",
+        # Rich reasoning (Issue #50)
+        "ReasoningStep",
+    }
     _providers_attrs = {"PraisonAIProvider"}
     _config_attrs = {"configure"}
     _action_attrs = {"Action", "action_callback"}
@@ -474,6 +487,13 @@ __all__ = [
     "RunEvent",
     "RunEventType",
     "PraisonAIProvider",
+    # Discovery, citations, reasoning schema (Issues #48, #49, #50)
+    "ModelInfo",
+    "AgentDetails",
+    "TeamDetails",
+    "Reference",
+    "ReferenceData",
+    "ReasoningStep",
     # Configuration
     "configure",
     # Action classes and decorators

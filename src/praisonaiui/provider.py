@@ -69,6 +69,9 @@ class RunEventType(str, Enum):
     RUN_PAUSED = "run_paused"
     RUN_CONTINUED = "run_continued"
 
+    # --- RAG / Citations (Issue #49) ---
+    REFERENCES = "references"
+
     # --- Team variants ---
     TEAM_RUN_STARTED = "team_run_started"
     TEAM_RUN_CONTENT = "team_run_content"
@@ -82,6 +85,131 @@ class RunEventType(str, Enum):
     TEAM_REASONING_COMPLETED = "team_reasoning_completed"
     TEAM_MEMORY_UPDATE_STARTED = "team_memory_update_started"
     TEAM_MEMORY_UPDATE_COMPLETED = "team_memory_update_completed"
+
+
+# ---------------------------------------------------------------------------
+# Structured payload dataclasses (Issues #48, #49, #50)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ModelInfo:
+    """Model / provider info advertised by an agent or team (Issue #48)."""
+
+    name: str
+    model: str
+    provider: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"name": self.name, "model": self.model, "provider": self.provider}
+
+
+@dataclass
+class AgentDetails:
+    """Standard agent-discovery schema for third-party chat frontends (Issue #48)."""
+
+    agent_id: str
+    name: str
+    description: str = ""
+    model: Optional[ModelInfo] = None
+    storage: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        d: Dict[str, Any] = {
+            "agent_id": self.agent_id,
+            "name": self.name,
+            "description": self.description,
+            "storage": self.storage,
+        }
+        if self.model is not None:
+            d["model"] = self.model.to_dict()
+        return d
+
+
+@dataclass
+class TeamDetails:
+    """Standard team-discovery schema (Issue #48)."""
+
+    team_id: str
+    name: str
+    description: str = ""
+    model: Optional[ModelInfo] = None
+    storage: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        d: Dict[str, Any] = {
+            "team_id": self.team_id,
+            "name": self.name,
+            "description": self.description,
+            "storage": self.storage,
+        }
+        if self.model is not None:
+            d["model"] = self.model.to_dict()
+        return d
+
+
+@dataclass
+class Reference:
+    """A single RAG retrieval chunk cited by an answer (Issue #49)."""
+
+    name: str
+    content: str
+    chunk: int = 0
+    chunk_size: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "content": self.content,
+            "chunk": self.chunk,
+            "chunk_size": self.chunk_size,
+        }
+
+
+@dataclass
+class ReferenceData:
+    """A retrieval batch: a query and the chunks it returned (Issue #49)."""
+
+    query: str
+    references: List[Reference] = field(default_factory=list)
+    time_ms: Optional[float] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        d: Dict[str, Any] = {
+            "query": self.query,
+            "references": [r.to_dict() for r in self.references],
+        }
+        if self.time_ms is not None:
+            d["time_ms"] = self.time_ms
+        return d
+
+
+@dataclass
+class ReasoningStep:
+    """Structured reasoning-step payload (Issue #50).
+
+    All fields beyond ``title`` are optional so providers can adopt the richer
+    schema incrementally without breaking existing behaviour.
+    """
+
+    title: str
+    result: str = ""
+    reasoning: str = ""
+    action: Optional[str] = None            # e.g. "search", "plan", "verify"
+    confidence: Optional[float] = None      # 0.0 .. 1.0
+    next_action: Optional[str] = None       # what the agent plans to do next
+
+    def to_dict(self) -> Dict[str, Any]:
+        d: Dict[str, Any] = {
+            "title": self.title,
+            "result": self.result,
+            "reasoning": self.reasoning,
+        }
+        for key in ("action", "confidence", "next_action"):
+            val = getattr(self, key)
+            if val is not None:
+                d[key] = val
+        return d
 
 
 # ---------------------------------------------------------------------------
@@ -126,12 +254,21 @@ class RunEvent:
     result: Optional[Any] = None
     tool_call_id: Optional[str] = None
 
-    # Reasoning
+    # Reasoning (Issue #50 — structured fields are optional)
     step: Optional[str] = None
+    action: Optional[str] = None
+    confidence: Optional[float] = None
+    next_action: Optional[str] = None
 
     # Agent / Team
     agent_id: Optional[str] = None
     agent_name: Optional[str] = None
+    team_id: Optional[str] = None
+
+    # RAG / Citations (Issue #49)
+    query: Optional[str] = None
+    references: Optional[List[Dict[str, Any]]] = None
+    time_ms: Optional[float] = None
 
     # Error
     error: Optional[str] = None
@@ -152,8 +289,15 @@ class RunEvent:
             "result",
             "tool_call_id",
             "step",
+            "action",
+            "confidence",
+            "next_action",
             "agent_id",
             "agent_name",
+            "team_id",
+            "query",
+            "references",
+            "time_ms",
             "error",
             "event_id",
             "timestamp",
@@ -220,6 +364,63 @@ class BaseProvider(ABC):
         """List available agents.  Override if your backend has agents."""
         return []
 
+    async def list_teams(self) -> List[Dict[str, Any]]:
+        """List available multi-agent teams.  Override if your backend has teams.
+
+        Default returns ``[]`` so providers that don't model teams keep working
+        unchanged (Issue #48).
+        """
+        return []
+
+    async def run_team(
+        self,
+        team_id: str,
+        message: str,
+        *,
+        session_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[RunEvent]:
+        """Run a multi-agent team.  Override if your backend has teams.
+
+        The default implementation delegates to ``run()`` with ``agent_name``
+        set to ``team_id`` so single-agent backends transparently treat a
+        team_id as an agent_name (Issue #48).
+        """
+        async for ev in self.run(
+            message, session_id=session_id, agent_name=team_id, **kwargs
+        ):
+            yield ev
+
     async def health(self) -> Dict[str, Any]:
         """Health check endpoint data.  Override for custom checks."""
         return {"status": "ok", "provider": self.__class__.__name__}
+
+    # -----------------------------------------------------------------
+    # Convenience emit helpers (Issues #49, #50) — keep provider code terse.
+    # -----------------------------------------------------------------
+
+    @staticmethod
+    def references_event(
+        query: str,
+        references: List["Reference"],
+        time_ms: Optional[float] = None,
+    ) -> RunEvent:
+        """Build a ``REFERENCES`` event from a ``Reference`` list (Issue #49)."""
+        return RunEvent(
+            type=RunEventType.REFERENCES,
+            query=query,
+            references=[r.to_dict() for r in references],
+            time_ms=time_ms,
+        )
+
+    @staticmethod
+    def reasoning_step_event(step: "ReasoningStep") -> RunEvent:
+        """Build a ``REASONING_STEP`` event from a structured step (Issue #50)."""
+        return RunEvent(
+            type=RunEventType.REASONING_STEP,
+            step=step.title,
+            action=step.action,
+            confidence=step.confidence,
+            next_action=step.next_action,
+            extra_data=step.to_dict(),
+        )

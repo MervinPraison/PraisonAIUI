@@ -22,6 +22,7 @@ Deep Analysis → Gap Analysis → Critical Review → Plan → Create Issue →
 - **No competitor names in public surfaces**: Never mention competitor product, company, or project names in GitHub issues, PRs, commit messages, release notes, docs, or any other public-facing content. Refer to capabilities generically (e.g., "self-improving agent pattern", "external agent framework").
 - **Test before merge**: never merge unvalidated PRs. Always clone the branch locally and run the tests.
 - **Minimal code change**: prefer upstream one-line fixes over downstream workarounds.
+- **Autonomous polling — NEVER ask the user to "check now"**: after posting feedback to `@claude`, submitting a trigger comment, or any state that requires an external agent to push commits, the assistant itself waits ~10 minutes (`sleep 600`) and then re-checks. Do not stop and wait for the human to type "check now". Only surface control back to the human when a round is fully complete (PR merged or 3-round feedback cap hit) or a blocking decision is required (e.g. rebase strategy, conflicting feature intent).
 
 ---
 
@@ -536,6 +537,11 @@ sleep 600
 # → return to Phase 12 (fetch new commits, re-run checks)
 ```
 
+**The assistant runs this `sleep 600` itself — it does NOT pause the loop to ask the user "check now".** After the 10-minute wait completes, the assistant immediately re-fetches the PR, re-runs the test suite, and either merges, posts the next feedback round, or reports a final status. The human is only prompted when:
+- The PR merges successfully (report + move to next issue).
+- The 3-round feedback cap is hit (escalate).
+- A design decision is needed that the assistant cannot make unilaterally (e.g. "should `allow` policy persist or not?").
+
 Repeat Phases 12 → 13 → 14 until the mergeability gate in Phase 13 is fully green, or escalate to a human after 3 failed rounds.
 
 ### When the PR has merge conflicts
@@ -668,3 +674,4 @@ gh issue view $ISSUE_NUM --repo $REPO --json state
 6. **Always verify** the issue auto-closed after merge.
 7. **All `run_command` calls use `timeout`** to avoid hangs (user global rule).
 8. **No proactive `.md` creation** beyond this workflow file (user global rule).
+9. **Never ask the user "check now"**: between rounds the assistant runs `sleep 600` itself and keeps driving. Only return control to the human on merge, 3-round cap, or an irresolvable design decision.
