@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import hmac
 import secrets
 from datetime import datetime, timedelta
-from typing import Any, Callable, Optional, Protocol
+from typing import Any, Callable, Iterable, Optional, Protocol
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 # User storage (in-memory for now, can be replaced with database)
 _users: dict[str, dict[str, Any]] = {}
@@ -526,3 +527,117 @@ async def enhanced_logout_handler(request: Request) -> JSONResponse:
             revoke_token(token)
 
     return JSONResponse({"status": "logged_out"})
+
+
+def _constant_time_eq(a: str, b: str) -> bool:
+    """Compare two strings in constant time to prevent timing attacks."""
+    return hmac.compare_digest(a.encode(), b.encode())
+
+
+_LOGIN_FORM_HTML = """<!DOCTYPE html>
+<html>
+<head>
+    <title>Authentication Required</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 400px; margin: 100px auto; padding: 20px; }
+        .form { background: #f5f5f5; padding: 20px; border-radius: 8px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; }
+        button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="form">
+        <h2>Authentication Required</h2>
+        <form method="get">
+            <input type="password" name="token" placeholder="Enter access token" required>
+            <button type="submit">Access Dashboard</button>
+        </form>
+    </div>
+</body>
+</html>"""
+
+
+class TokenQueryMiddleware:
+    """Authenticates requests that carry ?token=<SECRET> in the URL or
+    Authorization: Bearer <SECRET> in the header.
+
+    On first hit, the query-param token is validated; the middleware sets a
+    session cookie (httpOnly, SameSite=Lax, Secure when https) so the token
+    doesn't need to be re-sent on every asset request, and emits a redirect
+    that strips ?token from window.location. This matches Jupyter's model.
+    """
+
+    EXEMPT_PATHS = {"/health", "/api/health"}
+    COOKIE_NAME = "praisonaiui_token"
+
+    def __init__(
+        self,
+        app,
+        *,
+        expected_token: str,
+        exempt_paths: Optional[Iterable[str]] = None
+    ):
+        self.app = app
+        self.expected_token = expected_token
+        self.exempt = set(self.EXEMPT_PATHS) | set(exempt_paths or ())
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or not self.expected_token:
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+        if any(path.startswith(p) for p in self.exempt):
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope, receive)
+
+        # 1. Already authed via cookie?
+        if _constant_time_eq(
+            request.cookies.get(self.COOKIE_NAME, ""),
+            self.expected_token,
+        ):
+            await self.app(scope, receive, send)
+            return
+
+        # 2. Bearer header?
+        auth = request.headers.get("authorization", "")
+        if auth.startswith("Bearer ") and _constant_time_eq(
+            auth[7:], self.expected_token
+        ):
+            await self.app(scope, receive, send)
+            return
+
+        # 3. ?token=… query param? → set cookie, redirect to same URL
+        #    minus the token so it doesn't leak via Referer / history.
+        qs_token = request.query_params.get("token", "")
+        if qs_token and _constant_time_eq(qs_token, self.expected_token):
+            clean_qs = {k: v for k, v in request.query_params.items()
+                        if k != "token"}
+            clean_url = str(request.url.replace_query_params(**clean_qs))
+            response = RedirectResponse(clean_url, status_code=303)
+            response.set_cookie(
+                self.COOKIE_NAME,
+                self.expected_token,
+                httponly=True,
+                samesite="lax",
+                secure=request.url.scheme == "https",
+                max_age=60 * 60 * 24,  # 24h
+            )
+            await response(scope, receive, send)
+            return
+
+        # 4. No auth → 401 JSON for /api/*, minimal login form for HTML.
+        if path.startswith("/api/"):
+            response = JSONResponse(
+                {"error": "Unauthorized",
+                 "hint": "Append ?token=<SECRET> to the URL or send "
+                         "Authorization: Bearer <SECRET>."},
+                status_code=401,
+            )
+        else:
+            response = HTMLResponse(_LOGIN_FORM_HTML, status_code=401)
+        await response(scope, receive, send)
