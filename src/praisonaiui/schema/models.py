@@ -388,11 +388,15 @@ class AuthConfig(BaseModel):
     """Authentication configuration."""
 
     enabled: bool = False
-    providers: list[Literal["password", "google", "github", "azure", "auth0"]] = Field(
+    providers: list[Literal["password", "google", "github", "azure", "auth0", "url_token"]] = Field(
         default_factory=lambda: ["password"]
     )
     oauth: list[AuthProviderConfig] = Field(default_factory=list)
     require_auth: bool = Field(default=False, alias="requireAuth")
+    url_token: Optional[str] = Field(default=None, alias="urlToken")
+    url_token_env: Optional[str] = Field(
+        default="AIUI_URL_TOKEN", alias="urlTokenEnv"
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 

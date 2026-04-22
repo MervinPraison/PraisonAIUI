@@ -2401,6 +2401,15 @@ def create_app(
     # Add optional AUTH_ENFORCE middleware (env var driven)
     middleware.append(Middleware(AuthEnforcementMiddleware))
 
+    # URL-token auth — opt-in via env. Enables query-param / cookie auth so
+    # dashboards can be shared by URL (Jupyter model).
+    _tok = os.environ.get("AIUI_URL_TOKEN") or os.environ.get("GATEWAY_AUTH_TOKEN")
+    if _tok:
+        from praisonaiui.auth import TokenQueryMiddleware
+        middleware.append(
+            Middleware(TokenQueryMiddleware, expected_token=_tok)
+        )
+
     if require_auth:
         middleware.append(
             Middleware(
