@@ -220,6 +220,33 @@ class BaseProvider(ABC):
         """List available agents.  Override if your backend has agents."""
         return []
 
+    async def list_teams(self) -> List[Dict[str, Any]]:
+        """List available teams.  Override if your backend has teams."""
+        return []
+
+    async def run_team(
+        self,
+        team_id: str,
+        message: str,
+        *,
+        session_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[RunEvent]:
+        """Run a team and yield structured events.
+
+        Args:
+            team_id:     Target team identifier.
+            message:     User message text.
+            session_id:  Session identifier for context.
+            **kwargs:    Provider-specific options.
+
+        Yields:
+            RunEvent objects consumed by the server.
+        """
+        ...  # pragma: no cover
+        # (yield required to make this an async generator)
+        yield  # type: ignore[misc]
+
     async def health(self) -> Dict[str, Any]:
         """Health check endpoint data.  Override for custom checks."""
         return {"status": "ok", "provider": self.__class__.__name__}

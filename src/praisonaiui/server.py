@@ -8,6 +8,7 @@ import logging
 import os
 import sys
 import time
+import uuid
 from collections import deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -855,14 +856,25 @@ async def health(request: Request) -> JSONResponse:
 
 
 async def list_agents(request: Request) -> JSONResponse:
-    """List all registered agents (merges registry + provider)."""
+    """List all registered agents (merges registry + provider).
+
+    Returns enriched response with agent_id, model, storage fields for
+    third-party frontend compatibility while maintaining backward
+    compatibility for existing consumers.
+    """
+    # Registry agents with backward-compatible fields
     agents = [
         {
+            "agent_id": agent_id,  # NEW: unique identifier for routing
             "name": info["name"],
-            "created_at": info["created_at"],
+            "description": info.get("description", ""),  # NEW
+            "model": info.get("model"),  # NEW: may be None
+            "storage": info.get("storage", False),  # NEW
+            "created_at": info["created_at"],  # LEGACY: backward compatibility
         }
-        for info in _agents.values()
+        for agent_id, info in _agents.items()
     ]
+
     # Also ask the provider for agents
     try:
         provider = get_provider()
@@ -870,7 +882,16 @@ async def list_agents(request: Request) -> JSONResponse:
         existing_names = {a["name"] for a in agents}
         for pa in provider_agents:
             if pa.get("name") not in existing_names:
-                agents.append(pa)
+                # Ensure all fields are present for provider agents
+                agent_data = {
+                    "agent_id": pa.get("agent_id", pa.get("name", "unknown")),
+                    "name": pa.get("name", "Unknown"),
+                    "description": pa.get("description", ""),
+                    "model": pa.get("model"),
+                    "storage": pa.get("storage", False),
+                    "created_at": pa.get("created_at", ""),
+                }
+                agents.append(agent_data)
     except Exception:
         pass
     return JSONResponse({"agents": agents})
@@ -1897,6 +1918,76 @@ async def run_agent_by_id(request: Request) -> StreamingResponse:
     return await run_agent(request, body)
 
 
+async def list_teams(request: Request) -> JSONResponse:
+    """List all available teams from provider."""
+    try:
+        provider = get_provider()
+        teams = await provider.list_teams()
+        return JSONResponse({"teams": teams})
+    except Exception:
+        return JSONResponse({"teams": []})
+
+
+async def create_team_run(request: Request) -> StreamingResponse:
+    """Run a specific team by ID with SSE streaming."""
+    team_id = request.path_params["team_id"]
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+
+    message = body.get("message", "")
+    if not message:
+        return JSONResponse({"error": "Message is required"}, status_code=400)
+
+    # Check if team exists
+    try:
+        provider = get_provider()
+        teams = await provider.list_teams()
+        if not any(team.get("team_id") == team_id for team in teams):
+            return JSONResponse({"error": "Team not found"}, status_code=404)
+    except Exception:
+        return JSONResponse({"error": "Team not found"}, status_code=404)
+
+    session_id = body.get("session_id") or str(uuid.uuid4())
+
+    async def generate():
+        try:
+            provider = get_provider()
+            async for event in provider.run_team(
+                team_id=team_id,
+                message=message,
+                session_id=session_id,
+                **body
+            ):
+                yield f"data: {json.dumps(event.to_dict())}\n\n"
+        except Exception as e:
+            error_event = {
+                "type": "run_error",
+                "error": str(e),
+                "timestamp": time.time(),
+                "event_id": str(uuid.uuid4()),
+            }
+            yield f"data: {json.dumps(error_event)}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
+async def delete_team_session(request: Request) -> Response:
+    """Delete a team session."""
+    # Just return 204 - session cleanup is handled elsewhere
+    # Path params are validated by route pattern
+    return Response(status_code=204)
+
+
 async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
     """Run an agent with SSE streaming."""
     if body is None:
@@ -2575,6 +2666,10 @@ def create_app(
         Route("/cancel", cancel_run, methods=["POST"]),
         Route("/agents/{agent_id}/runs", run_agent_by_id, methods=["POST"]),
         Route("/api/agents/{agent_id}/runs", run_agent_by_id, methods=["POST"]),
+        # Team endpoints
+        Route("/teams", list_teams, methods=["GET"]),
+        Route("/teams/{team_id}/runs", create_team_run, methods=["POST"]),
+        Route("/teams/{team_id}/sessions/{session_id}", delete_team_session, methods=["DELETE"]),
         # Dashboard API
         Route("/api/feedback", api_feedback, methods=["POST"]),
         Route("/api/feedback", api_feedback_list, methods=["GET"]),

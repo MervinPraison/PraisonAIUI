@@ -1,0 +1,1 @@
+"""App-level protocols and data structures for PraisonAIUI."""

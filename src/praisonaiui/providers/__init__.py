@@ -774,23 +774,152 @@ class PraisonAIProvider(BaseProvider):
             pass  # Usage tracking failures should not break chat
 
     async def list_agents(self) -> List[Dict[str, Any]]:
-        """List agents from both the UI registry and configured agents."""
+        """List agents with enriched metadata for third-party frontends."""
         from praisonaiui.server import _agents
 
-        agents = [
-            {"name": info["name"], "created_at": info.get("created_at")}
-            for info in _agents.values()
-        ]
+        agents = []
+
+        # Registry agents with enhanced fields
+        for agent_id, info in _agents.items():
+            agent_data = {
+                "agent_id": agent_id,
+                "name": info["name"],
+                "description": info.get("description", ""),
+                "model": info.get("model"),  # May be None
+                "storage": info.get("storage", False),
+                "created_at": info.get("created_at", ""),
+            }
+            agents.append(agent_data)
+
         # Add configured agents
-        for a in self._agents:
-            name = getattr(a, "name", "Unknown")
+        for i, a in enumerate(self._agents):
+            name = getattr(a, "name", f"Agent-{i}")
             if not any(ag["name"] == name for ag in agents):
-                agents.append({"name": name})
+                agent_data = {
+                    "agent_id": name.lower().replace(" ", "-"),
+                    "name": name,
+                    "description": getattr(a, "instructions", "")[:100] + "..." if hasattr(a, "instructions") and len(getattr(a, "instructions", "")) > 100 else getattr(a, "instructions", ""),
+                    "model": self._extract_model_info(a),
+                    "storage": getattr(a, "memory", False),
+                    "created_at": "",
+                }
+                agents.append(agent_data)
+
         if self._agent:
             name = getattr(self._agent, "name", "Default")
             if not any(ag["name"] == name for ag in agents):
-                agents.append({"name": name})
+                agent_data = {
+                    "agent_id": "default",
+                    "name": name,
+                    "description": getattr(self._agent, "instructions", "")[:100] + "..." if hasattr(self._agent, "instructions") and len(getattr(self._agent, "instructions", "")) > 100 else getattr(self._agent, "instructions", ""),
+                    "model": self._extract_model_info(self._agent),
+                    "storage": getattr(self._agent, "memory", False),
+                    "created_at": "",
+                }
+                agents.append(agent_data)
+
         return agents
+
+    def _extract_model_info(self, agent) -> Optional[Dict[str, Any]]:
+        """Extract model information from an agent."""
+        if not agent or not hasattr(agent, "llm"):
+            return None
+
+        llm = getattr(agent, "llm", None)
+        if not llm:
+            return None
+
+        # Handle string model names
+        if isinstance(llm, str):
+            if "gpt" in llm.lower():
+                return {
+                    "name": "GPT",
+                    "model": llm,
+                    "provider": "openai"
+                }
+            elif "claude" in llm.lower():
+                return {
+                    "name": "Claude",
+                    "model": llm,
+                    "provider": "anthropic"
+                }
+            else:
+                return {
+                    "name": llm.title(),
+                    "model": llm,
+                    "provider": "unknown"
+                }
+
+        # Handle model objects
+        model_name = getattr(llm, "model_name", getattr(llm, "name", "unknown"))
+        provider = "unknown"
+
+        if hasattr(llm, "__class__"):
+            class_name = llm.__class__.__name__.lower()
+            if "openai" in class_name or "gpt" in model_name.lower():
+                provider = "openai"
+            elif "anthropic" in class_name or "claude" in model_name.lower():
+                provider = "anthropic"
+            elif "google" in class_name or "gemini" in model_name.lower():
+                provider = "google"
+
+        return {
+            "name": model_name.title(),
+            "model": model_name,
+            "provider": provider
+        }
+
+    async def list_teams(self) -> List[Dict[str, Any]]:
+        """List available teams. Default implementation returns empty list."""
+        # PraisonAI provider currently doesn't have native team support,
+        # but could be extended to discover teams from agent registry
+        # that are configured as multi-agent workflows
+        return []
+
+    async def run_team(
+        self,
+        team_id: str,
+        message: str,
+        *,
+        session_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[RunEvent]:
+        """Run a team. Default implementation delegates to run() for now."""
+        # For now, treat team runs the same as agent runs
+        # This could be extended to coordinate multiple agents
+        async for event in self.run(
+            message,
+            session_id=session_id,
+            agent_name=team_id,
+            **kwargs
+        ):
+            # Convert agent events to team events
+            if event.type == RunEventType.RUN_STARTED:
+                event.type = RunEventType.TEAM_RUN_STARTED
+            elif event.type == RunEventType.RUN_CONTENT:
+                event.type = RunEventType.TEAM_RUN_CONTENT
+            elif event.type == RunEventType.RUN_COMPLETED:
+                event.type = RunEventType.TEAM_RUN_COMPLETED
+            elif event.type == RunEventType.RUN_ERROR:
+                event.type = RunEventType.TEAM_RUN_ERROR
+            elif event.type == RunEventType.RUN_CANCELLED:
+                event.type = RunEventType.TEAM_RUN_CANCELLED
+            elif event.type == RunEventType.TOOL_CALL_STARTED:
+                event.type = RunEventType.TEAM_TOOL_CALL_STARTED
+            elif event.type == RunEventType.TOOL_CALL_COMPLETED:
+                event.type = RunEventType.TEAM_TOOL_CALL_COMPLETED
+            elif event.type == RunEventType.REASONING_STARTED:
+                event.type = RunEventType.TEAM_REASONING_STARTED
+            elif event.type == RunEventType.REASONING_STEP:
+                event.type = RunEventType.TEAM_REASONING_STEP
+            elif event.type == RunEventType.REASONING_COMPLETED:
+                event.type = RunEventType.TEAM_REASONING_COMPLETED
+            elif event.type == RunEventType.MEMORY_UPDATE_STARTED:
+                event.type = RunEventType.TEAM_MEMORY_UPDATE_STARTED
+            elif event.type == RunEventType.MEMORY_UPDATE_COMPLETED:
+                event.type = RunEventType.TEAM_MEMORY_UPDATE_COMPLETED
+
+            yield event
 
     async def health(self) -> Dict[str, Any]:
         """Health check with PraisonAI backend info."""
