@@ -23,12 +23,13 @@ __all__ = [
     "current_user",
     "channel_context",
     "on_slack_reaction_added",
+    "on_slack_reaction",  # PraisonAIUI-native alias (shorter, plain-English)
 ]
 
 
 def __getattr__(name: str):
     """Lazy import platform-specific functionality."""
-    if name == "on_slack_reaction_added":
+    if name in ("on_slack_reaction_added", "on_slack_reaction"):
         from .slack import on_slack_reaction_added
 
         return on_slack_reaction_added

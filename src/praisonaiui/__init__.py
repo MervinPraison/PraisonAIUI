@@ -46,15 +46,25 @@ def __getattr__(name: str):
     _lifecycle_attrs = {
         "on_app_startup",
         "on_app_shutdown",
+        # PraisonAIUI-native aliases
+        "on_startup",
+        "on_shutdown",
     }
     _window_message_attrs = {
         "on_window_message",
         "send_window_message",
+        # PraisonAIUI-native aliases
+        "on_parent_message",
+        "send_to_parent",
     }
     _audio_attrs = {
         "on_audio_start",
         "on_audio_chunk",
         "on_audio_end",
+        # PraisonAIUI-native aliases
+        "on_mic_start",
+        "on_mic_data",
+        "on_mic_stop",
     }
     _message_attrs = {
         "Message",
@@ -68,6 +78,11 @@ def __getattr__(name: str):
         "AskActionMessage",
         "AskElementMessage",
         "ErrorMessage",
+        # PraisonAIUI-native aliases (noun-first, API-direction compliant)
+        "TextPrompt",
+        "FilePrompt",
+        "ChoicePrompt",
+        "LocationPrompt",
     }
     _sync_attrs = {"make_async", "run_sync", "AsyncContext"}
     _utils_attrs = {"sleep", "format_duration", "truncate_text", "safe_filename"}
@@ -92,6 +107,14 @@ def __getattr__(name: str):
         "get_copilot_functions",
         "get_copilot_function",
         "call_copilot_function",
+        # PraisonAIUI-native aliases
+        "UIFunction",
+        "UIFunctionParameter",
+        "ui_function",
+        "on_ui_function",
+        "call_ui_function",
+        "get_ui_function",
+        "get_ui_functions",
     }
     _chat_settings_attrs = {
         "ChatSettings",
@@ -105,6 +128,9 @@ def __getattr__(name: str):
         "trigger_settings_update",
         "create_model_settings",
         "create_ui_settings",
+        # PraisonAIUI-native aliases
+        "Settings",
+        "on_settings_change",
     }
     _mcp_attrs = {
         "MCPServer",
@@ -115,6 +141,8 @@ def __getattr__(name: str):
         "current_channel",
         "current_user",
         "on_slack_reaction_added",
+        # PraisonAIUI-native alias
+        "on_slack_reaction",
     }
     _auth_attrs = {
         "oauth_callback",
@@ -124,6 +152,11 @@ def __getattr__(name: str):
         "User",
         "Session",
         "on_shared_thread_view",
+        # PraisonAIUI-native aliases
+        "on_oauth_login",
+        "on_header_login",
+        "on_password_login",
+        "on_shared_view",
     }
     _usage_attrs = {"get_token_usage"}
     _instrumentation_attrs = {
@@ -278,7 +311,7 @@ def __getattr__(name: str):
 
         return getattr(platform_adapters, name)
     if name in _auth_attrs:
-        if name == "on_shared_thread_view":
+        if name in ("on_shared_thread_view", "on_shared_view"):
             from praisonaiui.features import sharing
 
             return getattr(sharing, name)
@@ -523,6 +556,35 @@ __all__ = [
     "no_instrument",
     # Usage tracking
     "get_token_usage",
+    # ── PraisonAIUI-native, non-developer-friendly names ────────────
+    # Shorter, plain-English aliases for the symbols above.  Use these
+    # in new code; the original names remain importable for backward
+    # compatibility.
+    "TextPrompt",
+    "FilePrompt",
+    "ChoicePrompt",
+    "LocationPrompt",
+    "UIFunction",
+    "UIFunctionParameter",
+    "ui_function",
+    "on_ui_function",
+    "call_ui_function",
+    "get_ui_function",
+    "get_ui_functions",
+    "Settings",
+    "on_settings_change",
+    "on_oauth_login",
+    "on_header_login",
+    "on_password_login",
+    "on_shared_view",
+    "on_slack_reaction",
+    "on_startup",
+    "on_shutdown",
+    "on_parent_message",
+    "send_to_parent",
+    "on_mic_start",
+    "on_mic_data",
+    "on_mic_stop",
     # Feature protocol
     "BaseFeatureProtocol",
     "register_feature",

@@ -296,3 +296,16 @@ def create_ui_settings() -> ChatSettings:
         title="UI Settings",
         description="Configure the user interface",
     )
+
+
+# ── PraisonAIUI-native aliases ──────────────────────────────────────
+# Plain-English names. ``Settings`` is easier for non-developers than
+# ``ChatSettings`` (a settings panel is just a settings panel).  The
+# "change" verb reads more naturally than "update" for UI form events.
+
+Settings = ChatSettings
+
+
+def on_settings_change(func):
+    """Alias for :func:`on_settings_update` using plain-English verb."""
+    return on_settings_update(func)

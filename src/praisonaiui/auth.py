@@ -641,3 +641,13 @@ class TokenQueryMiddleware:
         else:
             response = HTMLResponse(_LOGIN_FORM_HTML, status_code=401)
         await response(scope, receive, send)
+
+
+# ── PraisonAIUI-native aliases ──────────────────────────────────────
+# "on_*" verb form reads as "do this when …" which is far clearer to
+# non-developers than the "*_callback" suffix.  Original names remain
+# importable for backward compatibility.
+
+on_oauth_login = oauth_callback
+on_header_login = header_auth_callback
+on_password_login = password_auth_callback
