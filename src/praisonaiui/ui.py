@@ -68,6 +68,23 @@ def columns(children: Sequence[dict]) -> dict:
     return {"type": "columns", "children": list(children)}
 
 
+def board(*, columns: Sequence[dict]) -> dict:
+    """Kanban-style board: horizontal columns of cards.
+
+    Each column dict should include ``id``, ``title``, and ``cards``
+    (list of card-shaped dicts or ``card()`` results).
+
+    Example::
+
+        aiui.board(columns=[
+            {"id": "todo", "title": "Todo", "cards": [
+                aiui.card("Task", footer="agent-a"),
+            ]},
+        ])
+    """
+    return {"type": "board", "columns": list(columns)}
+
+
 def chart(
     title: str,
     *,

@@ -344,6 +344,8 @@ def set_dashboard(
     *,
     sidebar: bool = True,
     page_header: bool = True,
+    modules: list[str] | None = None,
+    plugin_dirs: list[str] | None = None,
 ) -> None:
     """Configure dashboard layout options.
 
@@ -353,17 +355,22 @@ def set_dashboard(
     Args:
         sidebar: Show the left sidebar navigation (default True).
         page_header: Show the page title/description header (default True).
+        modules: Optional JS modules to load (``jobs``, ``auth``, ``api``).
+        plugin_dirs: Extra paths to scan for ``dashboard-plugins`` manifests.
 
     Example::
 
         import praisonaiui as aiui
         aiui.set_style("dashboard")
         aiui.set_dashboard(sidebar=False)  # Chat-only dashboard, no sidebar
+        aiui.set_dashboard(modules=["jobs", "auth"])
     """
     global _dashboard_config
     _dashboard_config = {
         "sidebar": sidebar,
         "pageHeader": page_header,
+        "modules": list(modules) if modules else [],
+        "pluginDirs": list(plugin_dirs) if plugin_dirs else [],
     }
 
 
@@ -702,9 +709,11 @@ async def _plugins_config(request: Request) -> JSONResponse:
     # Base plugins (always loaded)
     plugins: list[str] = ["fetch-retry"]
     if style == "dashboard":
-        plugins += [
-            "dashboard",
-        ]
+        plugins.append("dashboard")
+        dash_cfg = _dashboard_config or {}
+        for mod in dash_cfg.get("modules") or []:
+            if mod in ("jobs", "auth", "api") and mod not in plugins:
+                plugins.append(mod)
     elif style == "docs":
         plugins += [
             "topnav",
@@ -1358,8 +1367,17 @@ async def api_action_click(request: Request) -> JSONResponse:
 
 async def api_pages(request: Request) -> JSONResponse:
     """List registered dashboard pages (protocol-driven)."""
-    # Sort by order within each group
-    pages = sorted(_pages.values(), key=lambda p: (p.get("order", 100), p["id"]))
+    from praisonaiui.dashboard_plugins import discover_dashboard_plugins
+
+    pages = list(_pages.values())
+    extra_dirs = (_dashboard_config or {}).get("pluginDirs") or []
+    known_ids = {p["id"] for p in pages}
+    for manifest in discover_dashboard_plugins(extra_dirs):
+        page = manifest.get("page")
+        if page and page["id"] not in known_ids:
+            pages.append(page)
+            known_ids.add(page["id"])
+    pages = sorted(pages, key=lambda p: (p.get("order", 100), p["id"]))
     return JSONResponse({"pages": pages})
 
 
@@ -2555,10 +2573,14 @@ def create_app(
                 _dash_section = _cs.get_section("dashboard") if _cs else None
                 if _dash_section and isinstance(_dash_section, dict):
                     _dash_cfg = {
-                        "sidebar": _dash_section.get("sidebar", _dash_section.get("sidebar", True)),
+                        "sidebar": _dash_section.get("sidebar", True),
                         "pageHeader": _dash_section.get(
                             "pageHeader", _dash_section.get("page_header", True)
                         ),
+                        "modules": _dash_section.get("modules") or [],
+                        "pluginDirs": _dash_section.get("pluginDirs")
+                        or _dash_section.get("plugin_dirs")
+                        or [],
                     }
             except Exception:
                 pass
@@ -2695,6 +2717,14 @@ def create_app(
         Route("/docs-nav.json", _docs_nav_json, methods=["GET"]),
         Route("/route-manifest.json", _route_manifest_json, methods=["GET"]),
     ]
+
+    from praisonaiui.dashboard_plugins import make_dashboard_plugin_routes
+
+    def _dashboard_plugin_dirs() -> list[str]:
+        cfg = _dashboard_config or {}
+        return list(cfg.get("pluginDirs") or cfg.get("plugin_dirs") or [])
+
+    routes.extend(make_dashboard_plugin_routes(_dashboard_plugin_dirs))
 
     # ── Gap S1: Auto-initialize gateway in standalone mode ──────────
     # When running standalone (not via AIUIGateway.start()), we need to

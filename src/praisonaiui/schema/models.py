@@ -351,6 +351,15 @@ class DashboardConfig(BaseModel):
     page_header: bool = Field(
         default=True, alias="pageHeader", description="Show page title/description header"
     )
+    modules: list[str] = Field(
+        default_factory=list,
+        description="Optional dashboard JS modules to load (jobs, auth, api)",
+    )
+    plugin_dirs: list[str] = Field(
+        default_factory=list,
+        alias="pluginDirs",
+        description="Extra directories to scan for dashboard-plugins manifests",
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 

@@ -1,0 +1,10 @@
+{
+  "name": "sample-board",
+  "label": "Sample board",
+  "description": "Example dashboard plugin using aiui.board layout",
+  "icon": "📋",
+  "version": "1.0.0",
+  "group": "Examples",
+  "tab": { "path": "/sample-board", "position": "end" },
+  "entry": "index.js"
+}
