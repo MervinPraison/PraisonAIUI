@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Agent UI host — modular dashboard shell - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Agent UI host — modular dashboard shell | PraisonAIUI Docs</title>
+  <script>
+    // Anti-flicker: apply dark mode class before first paint
+    // Default to dark to prevent flash; React will correct if needed
+    document.documentElement.classList.add('dark');
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/agent-ui-host" />
+  <meta property="og:title" content="Agent UI host — modular dashboard shell | PraisonAIUI Docs" />
+  <meta property="og:description" content="Agent UI host — modular dashboard shell - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/agent-ui-host" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Agent UI host — modular dashboard shell | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Agent UI host — modular dashboard shell - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Agent UI host — modular dashboard shell</h1>
+<p>PraisonAIUI can host any AI agent backend behind a **modular dashboard shell**: pages, views, layout components, optional plugins, and branding — without forking the frontend.</p>
+<h2>Architecture</h2>
+<p>**Extension priority** (first match wins):</p>
+<p>1. `window.aiui.registerView(pageId, …)`</p>
+<p>2. Dashboard manifest plugins (`dashboard-plugins/*/manifest.json`)</p>
+<p>3. Built-in view modules (`plugins/views/*.js` via `BUILTIN_VIEWS`)</p>
+<p>4. Server `aiui.layout()` JSON from `@aiui.page()`</p>
+<p>5. `window.aiui.registerComponent(type, …)` inside `renderComponent`</p>
+<p>6. Generic JSON fallback viewer</p>
+<h2>Quick start (external agent)</h2>
+<p>See [`examples/python/external-agent-dashboard/app.py`](../../examples/python/external-agent-dashboard/app.py).</p>
+<h2>`window.aiui` extension API</h2>
+<p>| API | Purpose |</p>
+<p>|-----|---------|</p>
+<p>| `version` | Shell protocol version (`'1'`) |</p>
+<p>| `registerView(pageId, renderFn, cleanup?)` | Replace or add a full page renderer |</p>
+<p>| `registerComponent(type, renderFn)` | Override a layout component type |</p>
+<p>| `registerSlot(name, renderFn)` | Inject DOM into named slots |</p>
+<p>| `sdk.fetchJSON(url, opts?)` | Authenticated fetch helper |</p>
+<p>| `sdk.el(tag, attrs?, children?)` | Small DOM builder |</p>
+<p>| `sdk.themeVar('--db-*', fallback?)` | Read theme CSS variables |</p>
+<p>| `sdk.createBoard(root, { fetch, pollMs? })` | Live board with optional polling |</p>
+<h3>Slots</h3>
+<p>| Slot id | Where it renders |</p>
+<p>|---------|------------------|</p>
+<p>| `shell:sidebar:footer` | Bottom of sidebar (default: health hint) |</p>
+<p>| `page:{pageId}:toolbar` | Right side of page header |</p>
+<p>Register only what you need; omit slots you do not use.</p>
+<h2>Layout components (Python → JS)</h2>
+<p>Define pages with `@aiui.page()` returning `aiui.layout([...])`. Types are implemented once in [`ui.py`](../../src/praisonaiui/ui.py) and [`dashboard.js`](../../src/praisonaiui/templates/frontend/plugins/dashboard.js).</p>
+<p>**Kanban / board:** use `aiui.board(columns=[...])`. Columns contain `id`, `title`, and `cards` (from `aiui.card()` or dicts). The shell renders via `renderBoard`, composing existing card renderers (DRY).</p>
+<h2>Optional dashboard modules</h2>
+<p>Load heavy built-ins only when listed:</p>
+<p>This adds `jobs.js`, `auth.js`, or `api.js` to the plugin chain and maps them in `BUILTIN_VIEWS`. `feedback` is always available as a built-in view when the page is enabled.</p>
+<h2>Third-party dashboard plugins</h2>
+<p>Place folders under:</p>
+<li>`~/.praisonai/dashboard-plugins/{name}/`</li>
+<li>Or `src/praisonaiui/templates/frontend/dashboard-plugins/{name}/` (shipped examples)</li>
+<p>Each plugin needs `manifest.json` + `index.js` (optional `styles.css`):</p>
+<p>The server exposes:</p>
+<li>`GET /api/dashboard/plugins` — manifest list</li>
+<li>`GET /dashboard-plugins/{name}/{path}` — static assets</li>
+<p>Plugins register views in `index.js`:</p>
+<p>Sample: [`sample-board`](../../src/praisonaiui/templates/frontend/dashboard-plugins/sample-board/).</p>
+<h2>Granular control — opt-in / opt-out</h2>
+<p>| What you control | How | Example |</p>
+<p>|------------------|-----|---------|</p>
+<p>| UI mode | `aiui.set_style(...)` | `"dashboard"`, `"chat"`, `"docs"` |</p>
+<p>| Sidebar pages | `aiui.set_pages([ids])` whitelist | `["chat", "sessions"]` |</p>
+<p>| Hide built-ins | YAML `pages.disabled: [...]` | Blacklist in server |</p>
+<p>| Sidebar on/off | `set_dashboard(sidebar=False)` | Chat-only full width |</p>
+<p>| Page title bar | `set_dashboard(page_header=False)` | Cleaner surface |</p>
+<p>| Optional modules | `set_dashboard(modules=[...])` | `["jobs"]` only |</p>
+<p>| Third-party tabs | Install chosen `dashboard-plugins/` folders | Manifest per plugin |</p>
+<p>| Shell chrome | `registerSlot` | Header/footer widgets |</p>
+<p>| Look only | `set_theme`, `set_branding`, `set_custom_css` | White-label |</p>
+<p>| Replace one page | `registerView(pageId, ...)` | Override built-in |</p>
+<p>| Board UI | `aiui.board()` or plugin | Not in default nav |</p>
+<p>**Note:** `@aiui.page()` custom pages are **not** filtered by `set_pages()` — only built-in dashboard pages are. Remove custom pages from code to hide them.</p>
+<h3>Example profiles</h3>
+<p>CLI: `aiui pages ids` lists built-in page ids for whitelists.</p>
+<h2>DRY rules for contributors</h2>
+<p>1. Add new layout types in **`ui.py`** and one `case` in **`dashboard.js`**.</p>
+<p>2. Page-specific UI belongs in **`plugins/views/*.js`**, delegating to shared modules (`jobs.js`, etc.) via thin wrappers.</p>
+<p>3. Reuse **`_helpers.js`** (`pageToolbar`, `filterChips`, `searchInput`, `modalShell`, `toast`).</p>
+<p>4. Boards compose **`card`** / **`columns`** — do not duplicate card markup in plugins.</p>
+<h2>Related files</h2>
+<p>| File | Role |</p>
+<p>|------|------|</p>
+<p>| [`server.py`](../../src/praisonaiui/server.py) | Pages API, `set_dashboard`, plugin chain |</p>
+<p>| [`dashboard_plugins.py`](../../src/praisonaiui/dashboard_plugins.py) | Manifest discovery and static routes |</p>
+<p>| [`dashboard.js`](../../src/praisonaiui/templates/frontend/plugins/dashboard.js) | Shell, registries, renderers |</p>
+<p>| [`schema/models.py`](../../src/praisonaiui/schema/models.py) | `DashboardConfig.modules`, `plugin_dirs` |</p></noscript></div>
+</body>
+
+</html>
