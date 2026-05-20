@@ -48,6 +48,14 @@
 <h2>Swapping Providers</h2>
 <h2>Writing a Custom Provider</h2>
 <p>Implement `BaseProvider.run()` — that's it:</p>
+<h3>Inline media (images, video, files)</h3>
+<p>Any provider can attach rich media to chat messages using ``MESSAGE_ELEMENT``</p>
+<p>events. The UI renders them inline and persists them in session history.</p>
+<p>Tool results from PraisonAI agents are also detected automatically when they</p>
+<p>match OpenAI image shapes (``{"data": [{"url": "..."}]}``) or explicit element</p>
+<p>dicts — no provider code required.</p>
+<p>Callback handlers can use ``Message.add_image()`` or ``await aiui.image(url)``</p>
+<p>and the default ``PraisonAIProvider`` maps those to ``MESSAGE_ELEMENT`` events.</p>
 <h3>With Tool Calls and Reasoning</h3>
 <h2>RunEvent Reference</h2>
 <p>Every event has a `type` field and optional payload fields:</p>
