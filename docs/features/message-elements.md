@@ -173,3 +173,9 @@ The new element system maintains backward compatibility with existing message pr
 - New `message.elements` takes precedence when both are present
 
 This ensures existing code continues to work while providing a migration path to the new standardized element system.
+
+## Agent-generated images (streaming)
+
+When an agent or tool **creates** an image during a chat run, the UI receives `message_element` events over WebSocket/SSE and renders them inline. This uses the same element dict shape as above but is driven by the [RunEvent protocol](../concepts/providers.md), not only `Message.send()`.
+
+See **[Image Preview in Chat](./image-preview-chat.md)** for the full architecture: detection (`media_utils`), provider bridge, persistence, and swappable backends.

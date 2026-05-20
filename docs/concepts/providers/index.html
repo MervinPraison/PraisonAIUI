@@ -56,6 +56,7 @@
 <p>dicts — no provider code required.</p>
 <p>Callback handlers can use ``Message.add_image()`` or ``await aiui.image(url)``</p>
 <p>and the default ``PraisonAIProvider`` maps those to ``MESSAGE_ELEMENT`` events.</p>
+<p>Full architecture, data flows, and tests: [Image Preview in Chat](../features/image-preview-chat.md).</p>
 <h3>With Tool Calls and Reasoning</h3>
 <h2>RunEvent Reference</h2>
 <p>Every event has a `type` field and optional payload fields:</p>
@@ -70,7 +71,7 @@
 <p>| `step` | `str` | `REASONING_STEP` |</p>
 <p>| `error` | `str` | `RUN_ERROR` |</p>
 <p>| `agent_name` | `str` | Multi-agent events |</p>
-<p>| `extra_data` | `dict` | Custom payload |</p>
+<p>| `extra_data` | `dict` | Custom payload (includes `element` for `message_element`) |</p>
 <h3>Event Types (27 total)</h3>
 <p>=== "Agent Events"</p>
 <p>| Type | Description |</p>
@@ -90,6 +91,7 @@
 <p>| `updating_memory` | Memory being updated |</p>
 <p>| `run_paused` | Run paused (e.g. waiting for user) |</p>
 <p>| `run_continued` | Run resumed |</p>
+<p>| `message_element` | Inline media element (image, video, file, etc.) — see [Image Preview in Chat](../features/image-preview-chat.md) |</p>
 <p>=== "Team Events"</p>
 <p>| Type | Description |</p>
 <p>|------|-------------|</p>

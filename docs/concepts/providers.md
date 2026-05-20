@@ -134,6 +134,8 @@ dicts — no provider code required.
 Callback handlers can use ``Message.add_image()`` or ``await aiui.image(url)``
 and the default ``PraisonAIProvider`` maps those to ``MESSAGE_ELEMENT`` events.
 
+Full architecture, data flows, and tests: [Image Preview in Chat](../features/image-preview-chat.md).
+
 ### With Tool Calls and Reasoning
 
 ```python
@@ -181,7 +183,7 @@ Every event has a `type` field and optional payload fields:
 | `step` | `str` | `REASONING_STEP` |
 | `error` | `str` | `RUN_ERROR` |
 | `agent_name` | `str` | Multi-agent events |
-| `extra_data` | `dict` | Custom payload |
+| `extra_data` | `dict` | Custom payload (includes `element` for `message_element`) |
 
 ### Event Types (27 total)
 
@@ -204,6 +206,7 @@ Every event has a `type` field and optional payload fields:
     | `updating_memory` | Memory being updated |
     | `run_paused` | Run paused (e.g. waiting for user) |
     | `run_continued` | Run resumed |
+    | `message_element` | Inline media element (image, video, file, etc.) — see [Image Preview in Chat](../features/image-preview-chat.md) |
 
 === "Team Events"
 
