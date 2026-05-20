@@ -21,6 +21,10 @@ YAML / Python config → server (pages API, plugins.json) → dashboard.js shell
 5. `window.aiui.registerComponent(type, …)` inside `renderComponent`
 6. Generic JSON fallback viewer
 
+## Video Studio
+
+For YAML scene authoring with an external PraisonAI Video engine, see [Video Studio](video-studio.md).
+
 ## Quick start (external agent)
 
 ```python

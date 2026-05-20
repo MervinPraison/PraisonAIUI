@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Video Studio - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Video Studio | PraisonAIUI Docs</title>
+  <script>
+    // Anti-flicker: apply dark mode class before first paint
+    // Default to dark to prevent flash; React will correct if needed
+    document.documentElement.classList.add('dark');
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/video-studio" />
+  <meta property="og:title" content="Video Studio | PraisonAIUI Docs" />
+  <meta property="og:description" content="Video Studio - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/video-studio" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Video Studio | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Video Studio - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Video Studio</h1>
+<p>The Video Studio integrates [PraisonAI Video](https://github.com/MervinPraison/praisonai-video) as an external Node render engine. PraisonAIUI provides the dashboard shell, project files, YAML editor, job UX, and HTTP proxying. The video engine handles parse, compile, lint, frame-accurate preview, and MP4 export.</p>
+<h2>Prerequisites</h2>
+<p>1. Install PraisonAI Video CLI (`praisonai-video`) or run from the monorepo.</p>
+<p>2. Start the engine sidecar (recommended):</p>
+<p>3. Run the example app:</p>
+<p>Open the **Video** tab, create a project, edit `scene.yaml`, and use Lint / Render.</p>
+<h2>Configuration</h2>
+<p>| Variable | Default | Purpose |</p>
+<p>|----------|---------|---------|</p>
+<p>| `VIDEO_ENGINE_URL` | `http://127.0.0.1:3921` | HTTP API base URL |</p>
+<p>| `VIDEO_ENGINE_TOKEN` | (none) | Optional Bearer token forwarded to the engine |</p>
+<p>| `PRAISONAI_PROJECTS_DIR` | `~/.praisonai/projects` | On-disk project roots |</p>
+<p>| `PRAISONAI_VIDEO_CLI` | (auto-detect) | Path to `praisonai-video` or `dist/cli.js` for subprocess fallback |</p>
+<p>Python API:</p>
+<h2>Projects</h2>
+<p>Each project is a directory containing:</p>
+<li>`scene.yaml` — scene definition</li>
+<li>`scene.visual-test.yaml` — optional visual regression spec</li>
+<li>`.praisonai/project.json` — metadata</li>
+<li>`exports/` — rendered MP4 artefacts</li>
+<h2>API routes</h2>
+<p>All routes are under `/api/video/`:</p>
+<li>`GET /health` — sidecar status</li>
+<li>`POST /lint`, `POST /compile` — scene validation</li>
+<li>`GET /preview-url`, `POST /preview/start` — preview iframe URL</li>
+<li>`POST /render` — async render job (`type: video_render`)</li>
+<li>`GET /jobs/{id}` — job status and download URL</li>
+<li>`GET|POST /projects` — list and create projects</li>
+<p>When the HTTP sidecar is unavailable, lint and render fall back to subprocess calls to `praisonai-video`.</p>
+<h2>Dashboard plugin</h2>
+<p>The UI lives in `dashboard-plugins/video-studio/` (built-in) or `~/.praisonai/dashboard-plugins/video-studio/` for overrides. It uses `window.aiui.sdk.fetchJSON` and a frame scrubber with `postMessage` / `__pavSeek` for preview.</p>
+<h2>Related</h2>
+<li>[Agent UI host](agent-ui-host.md) — extension patterns (`registerView`, plugins, `@aiui.page`)</li>
+<li>PraisonAI Video integration doc: `docs/integrations/praisonaiui.md` in the video repo</li></noscript></div>
+</body>
+
+</html>
