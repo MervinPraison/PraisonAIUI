@@ -103,6 +103,24 @@ async def test_tool_calls_persisted_in_metadata(adapter):
     assert messages[0]["toolCalls"] == tool_calls
 
 
+@pytest.mark.asyncio
+async def test_elements_persisted_in_metadata(adapter):
+    """elements should be stored in metadata and restored on read."""
+    sid = str(uuid.uuid4())
+    await adapter.create_session(sid)
+
+    elements = [{"type": "image", "url": "https://example.com/x.png", "alt": "X"}]
+    await adapter.add_message(sid, {
+        "role": "assistant",
+        "content": "Here is your generated image.",
+        "elements": elements,
+    })
+
+    messages = await adapter.get_messages(sid)
+    assert len(messages) == 1
+    assert messages[0]["elements"] == elements
+
+
 # ── Title auto-generation ────────────────────────────────────────────
 
 

@@ -298,7 +298,8 @@ function handleStoreEvent(
     }
 
     case 'message_element': {
-      const el = event.element as Record<string, unknown> | undefined
+      const extra = event.extra_data as Record<string, unknown> | undefined
+      const el = (event.element ?? extra?.element) as Record<string, unknown> | undefined
       if (el) {
         update(sessionId, {
           pendingElements: [...entry.state.pendingElements, el],

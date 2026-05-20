@@ -69,6 +69,15 @@ def test_message_element_enum_stable():
     assert RunEventType.MESSAGE_ELEMENT.value == "message_element"
 
 
+def test_run_event_to_dict_flattens_element():
+    ev = BaseProvider.message_element_event(
+        {"type": "image", "url": "https://example.com/x.png", "alt": "X"}
+    )
+    wire = ev.to_dict()
+    assert wire["element"]["url"] == "https://example.com/x.png"
+    assert wire["extra_data"]["element"]["url"] == "https://example.com/x.png"
+
+
 def test_serve_generated_media(client, tmp_path, monkeypatch):
     from praisonaiui.features.attachments import AttachmentManager
 

@@ -106,6 +106,20 @@ class TestImageResultObject:
         assert els[0]["url"] == "https://example.com/img.png"
         assert els[0]["alt"] == "prompt"
 
+    def test_litellm_image_response_object(self):
+        class ImageData:
+            url = "https://cdn.example.com/generated.png"
+            b64_json = None
+            revised_prompt = "A sunset over mountains"
+
+        class ImageResponse:
+            data = [ImageData()]
+
+        els = extract_media_elements(ImageResponse(), persist_b64=False)
+        assert len(els) == 1
+        assert els[0]["url"] == "https://cdn.example.com/generated.png"
+        assert els[0]["alt"] == "A sunset over mountains"
+
 
 class TestMultipleImages:
     def test_openai_multi_data(self):

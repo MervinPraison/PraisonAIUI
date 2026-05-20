@@ -215,6 +215,11 @@ function injectStyles() {
     .tool-media-preview .chat-msg-image { max-height:160px; }
     .chat-msg-user .chat-msg-content { background:var(--db-accent); color:#fff; }
     .chat-msg-streaming .chat-msg-content::after { content:'▌'; animation:blink 1s infinite; }
+    .chat-typing-indicator { display:inline-flex; align-items:center; gap:4px; color:var(--muted-foreground,#94a3b8); font-size:13px; }
+    .chat-typing-indicator .dot { width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.5; animation:typing-bounce 1.2s infinite; }
+    .chat-typing-indicator .dot:nth-child(2) { animation-delay:.15s; }
+    .chat-typing-indicator .dot:nth-child(3) { animation-delay:.3s; }
+    @keyframes typing-bounce { 0%,80%,100% { transform:translateY(0); opacity:.45; } 40% { transform:translateY(-4px); opacity:1; } }
     @keyframes blink { 50% { opacity:0; } }
 
     .chat-code-wrapper { margin:8px 0; border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,.06); }
@@ -1072,6 +1077,7 @@ function handleWsMessage(data) {
       currentRunId = data.run_id;
       setStatus('streaming');
       setStreaming(true);
+      beginAssistantStream(data.agent_name);
       break;
 
     case 'run_error':
@@ -1103,7 +1109,7 @@ function handleWsMessage(data) {
       break;
 
     case 'message_element':
-      if (data.element) appendMediaElement(data.element);
+      appendMediaElement(data.element || (data.extra_data && data.extra_data.element));
       break;
 
     case 'a2ui_surface':
@@ -1376,35 +1382,7 @@ function appendDelta(token, agentName) {
   const messagesEl = document.getElementById('chat-messages');
 
   if (!currentDeltaEl) {
-    const welcome = document.getElementById('chat-welcome');
-    if (welcome) welcome.style.display = 'none';
-
-    currentDeltaText = '';
-    const msgEl = document.createElement('div');
-    msgEl.className = 'chat-msg chat-msg-assistant';
-
-    const avatarEl = document.createElement('div');
-    avatarEl.className = 'chat-msg-avatar';
-    avatarEl.textContent = '🤖';
-
-    const bodyEl = document.createElement('div');
-    bodyEl.className = 'chat-msg-body';
-
-    if (agentName) {
-      const nameEl = document.createElement('div');
-      nameEl.className = 'chat-msg-agent-name';
-      nameEl.textContent = agentName;
-      bodyEl.appendChild(nameEl);
-    }
-
-    currentDeltaEl = document.createElement('div');
-    currentDeltaEl.className = 'chat-msg-content chat-msg-streaming';
-    bodyEl.appendChild(currentDeltaEl);
-    currentDeltaBodyEl = bodyEl;
-
-    msgEl.appendChild(avatarEl);
-    msgEl.appendChild(bodyEl);
-    messagesEl.appendChild(msgEl);
+    beginAssistantStream(agentName);
   }
 
   currentDeltaText += token;
@@ -1413,6 +1391,45 @@ function appendDelta(token, agentName) {
     return;
   }
   currentDeltaEl.innerHTML = renderMarkdown(currentDeltaText);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function beginAssistantStream(agentName) {
+  if (currentDeltaEl) return;
+  const messagesEl = document.getElementById('chat-messages');
+  if (!messagesEl) return;
+
+  const welcome = document.getElementById('chat-welcome');
+  if (welcome) welcome.style.display = 'none';
+
+  currentDeltaText = '';
+  const msgEl = document.createElement('div');
+  msgEl.className = 'chat-msg chat-msg-assistant';
+
+  const avatarEl = document.createElement('div');
+  avatarEl.className = 'chat-msg-avatar';
+  avatarEl.textContent = '🤖';
+
+  const bodyEl = document.createElement('div');
+  bodyEl.className = 'chat-msg-body';
+
+  if (agentName) {
+    const nameEl = document.createElement('div');
+    nameEl.className = 'chat-msg-agent-name';
+    nameEl.textContent = agentName;
+    bodyEl.appendChild(nameEl);
+  }
+
+  currentDeltaEl = document.createElement('div');
+  currentDeltaEl.className = 'chat-msg-content chat-msg-streaming';
+  currentDeltaEl.innerHTML =
+    '<span class="chat-typing-indicator"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Generating response…</span>';
+  bodyEl.appendChild(currentDeltaEl);
+  currentDeltaBodyEl = bodyEl;
+
+  msgEl.appendChild(avatarEl);
+  msgEl.appendChild(bodyEl);
+  messagesEl.appendChild(msgEl);
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 

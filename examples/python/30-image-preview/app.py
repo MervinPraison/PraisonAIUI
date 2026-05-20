@@ -1,41 +1,46 @@
-"""Image preview in chat — custom provider example.
+"""Image preview in chat — ImageAgent example.
 
-Shows how any backend can emit ``MESSAGE_ELEMENT`` events so the chat UI
-displays generated images inline. Swap ``ImagePreviewProvider`` for
-``PraisonAIProvider`` or any other ``BaseProvider`` implementation.
+Uses praisonaiagents ``ImageAgent`` with ``PraisonAIProvider`` so generated
+images appear inline in chat via ``MESSAGE_ELEMENT`` events.
+
+Requires:
+    pip install praisonaiagents litellm
+    export OPENAI_API_KEY=your-key
+
+Optional:
+    export IMAGE_MODEL=gpt-image-2   # default; override if your project uses another image model
 
 Run:
     aiui run app.py
 """
 
+import os
+
 import praisonaiui as aiui
-from praisonaiui.provider import BaseProvider, RunEvent, RunEventType
+from praisonaiui.providers import PraisonAIProvider
 
-# Placeholder image — replace with your own generation backend
-DEMO_IMAGE_URL = "https://picsum.photos/seed/praisonaiui/512/512"
+try:
+    from praisonaiagents import ImageAgent
+except ImportError as exc:
+    raise ImportError("Install praisonaiagents: pip install praisonaiagents") from exc
 
+# Match other chat examples (25-clean-chat, 26-custom-theme-chat): dashboard shell
+aiui.set_style("dashboard")
+aiui.set_dashboard(sidebar=False, page_header=False)
+aiui.set_branding(title="Image Studio", logo="🖼️")
+aiui.set_theme(preset="blue", dark_mode=True, radius="lg")
+aiui.set_pages(["chat"])
 
-class ImagePreviewProvider(BaseProvider):
-    """Minimal provider that returns a demo image for any prompt."""
+image_agent = ImageAgent(
+    name="Image Bot",
+    llm=os.environ.get("IMAGE_MODEL", "gpt-image-2"),
+    verbose=False,
+)
+# Legacy DALL-E params break newer OpenAI image endpoints
+image_agent.image_config.response_format = None
+image_agent.image_config.style = None
 
-    async def run(self, message, *, session_id=None, agent_name=None, **kw):
-        yield RunEvent(type=RunEventType.RUN_STARTED, agent_name=agent_name or "Image Bot")
-        yield RunEvent(type=RunEventType.RUN_CONTENT, token="Generating your image…\n")
-        yield BaseProvider.message_element_event(
-            {
-                "type": "image",
-                "url": DEMO_IMAGE_URL,
-                "alt": f"Generated for: {message[:80]}",
-            }
-        )
-        yield RunEvent(
-            type=RunEventType.RUN_COMPLETED,
-            content="Here is your generated image.",
-            agent_name=agent_name or "Image Bot",
-        )
-
-
-aiui.set_provider(ImagePreviewProvider())
+aiui.set_provider(PraisonAIProvider(agent=image_agent))
 
 
 @aiui.starters

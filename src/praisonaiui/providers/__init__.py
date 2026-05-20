@@ -763,6 +763,13 @@ class PraisonAIProvider(BaseProvider):
         if _raw_chat_response is not None:
             from praisonaiui.media_utils import extract_media_elements
 
+            if isinstance(_raw_chat_response, dict) and _raw_chat_response.get("error"):
+                yield RunEvent(
+                    type=RunEventType.RUN_ERROR,
+                    error=str(_raw_chat_response["error"]),
+                )
+                return
+
             media_els = extract_media_elements(
                 _raw_chat_response,
                 session_id=session_id or "",
@@ -773,8 +780,7 @@ class PraisonAIProvider(BaseProvider):
                     extra_data={"element": el},
                 )
             if media_els and not _streamed_text.strip():
-                if not full_response or full_response.startswith("{"):
-                    full_response = "Here is your generated image."
+                full_response = "Here is your generated image."
 
         full_response = _normalise_chat_response(full_response or None, _streamed_text)
         if not full_response:

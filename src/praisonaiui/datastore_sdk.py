@@ -149,6 +149,8 @@ class SDKFileDataStore(BaseDataStore):
         metadata: dict[str, Any] = {}
         if "toolCalls" in message:
             metadata["toolCalls"] = message["toolCalls"]
+        if "elements" in message:
+            metadata["elements"] = message["elements"]
 
         await asyncio.to_thread(
             self._store.add_message,
@@ -279,5 +281,7 @@ class SDKFileDataStore(BaseDataStore):
             # Restore UI-specific fields from metadata
             if "toolCalls" in meta:
                 d["toolCalls"] = meta["toolCalls"]
+            if "elements" in meta:
+                d["elements"] = meta["elements"]
             messages.append(d)
         return messages

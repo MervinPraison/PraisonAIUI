@@ -47,7 +47,7 @@ export function ChatMessages({
                             ))}
                         </div>
                     )}
-                    {(currentResponse || pendingElements.length > 0) && (
+                    {(currentResponse || pendingElements.length > 0) ? (
                         <div className="flex gap-3">
                             <Avatar role="assistant" />
                             <div className="flex-1 min-w-0">
@@ -66,6 +66,8 @@ export function ChatMessages({
                                 )}
                             </div>
                         </div>
+                    ) : (
+                        <StreamLoadingBubble />
                     )}
                 </div>
             )}
@@ -74,6 +76,24 @@ export function ChatMessages({
 }
 
 // -- Avatar ---
+function StreamLoadingBubble() {
+    return (
+        <div className="flex gap-3" aria-live="polite" aria-label="Assistant is responding">
+            <Avatar role="assistant" />
+            <div className="flex-1 min-w-0">
+                <div className="inline-flex items-center gap-2 rounded-2xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground">
+                    <span className="inline-flex items-center gap-1" aria-hidden="true">
+                        <span className="w-2 h-2 rounded-full bg-primary/70 animate-bounce [animation-delay:0ms]" />
+                        <span className="w-2 h-2 rounded-full bg-primary/70 animate-bounce [animation-delay:150ms]" />
+                        <span className="w-2 h-2 rounded-full bg-primary/70 animate-bounce [animation-delay:300ms]" />
+                    </span>
+                    <span>Generating response…</span>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 function Avatar({ role }: { role: string }) {
     if (role === 'user') {
         return (

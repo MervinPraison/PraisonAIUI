@@ -2052,6 +2052,7 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
         tool_step_counter = 0
         seen_tool_ids: set = set()
         collected_tool_calls: list = []  # Collect for persistence
+        collected_elements: list = []
 
         # Inject knowledge context if available (non-blocking)
         augmented_message = message
@@ -2092,6 +2093,16 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
                     # this matches what finalizeDelta() shows in the live view.
                     if run_event.content:
                         full_response = run_event.content
+                elif run_event.type == RunEventType.MESSAGE_ELEMENT:
+                    extra = run_event.extra_data or {}
+                    element = extra.get("element")
+                    if isinstance(element, dict):
+                        try:
+                            from praisonaiui.features.chat import _collect_element
+
+                            _collect_element(collected_elements, element)
+                        except ImportError:
+                            collected_elements.append(element)
 
                 # Enrich tool call events with description/icon/step_number
                 if run_event.type in (
@@ -2133,6 +2144,18 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
                                 await ingest_a2ui_extra(extra, session_id=session_id)
                             except ImportError:
                                 pass
+                    if extra.get("elements"):
+                        payload["elements"] = extra["elements"]
+                        try:
+                            from praisonaiui.features.chat import _collect_element
+
+                            for el in extra["elements"]:
+                                if isinstance(el, dict):
+                                    _collect_element(collected_elements, el)
+                        except ImportError:
+                            for el in extra["elements"]:
+                                if isinstance(el, dict):
+                                    collected_elements.append(el)
                     collected_tool_calls.append(payload)
                     yield f"data: {json.dumps(payload)}\n\n"
                 else:
@@ -2155,14 +2178,16 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
             yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
 
         # Save assistant response to session (include tool calls for persistence)
-        if full_response:
+        if full_response or collected_elements:
             msg_data: dict = {
                 "role": "assistant",
-                "content": full_response,
+                "content": full_response or "",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             if collected_tool_calls:
                 msg_data["toolCalls"] = collected_tool_calls
+            if collected_elements:
+                msg_data["elements"] = collected_elements
             await _datastore.add_message(session_id, msg_data)
 
             # Auto-store conversation turn in memory (non-blocking)

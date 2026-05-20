@@ -114,7 +114,9 @@ YAML config → Pydantic models → Compiler → JSON manifests → React SPA
 3. Optional A2UI renderer (full agent-driven UI catalog): `npm install @a2ui/react @a2ui/web_core`
 4. Output: `src/frontend/dist/`
 5. Sync to templates: copy `dist/{index.html,assets/,icon.svg}` → `src/praisonaiui/templates/frontend/`
-5. Compiler copies templates to output dir during `aiui build`
+6. Compiler copies templates to output dir during `aiui build`
+
+Chat inline media (agent-generated images): `RunEventType.MESSAGE_ELEMENT` — see `docs/features/image-preview-chat.md`
 
 ## Gotchas
 

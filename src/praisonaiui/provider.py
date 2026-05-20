@@ -324,6 +324,14 @@ class RunEvent:
             val = getattr(self, key)
             if val is not None:
                 d[key] = val
+        if self.extra_data:
+            if self.type == RunEventType.MESSAGE_ELEMENT:
+                element = self.extra_data.get("element")
+                if element is not None:
+                    d["element"] = element
+            elements = self.extra_data.get("elements")
+            if elements is not None and "elements" not in d:
+                d["elements"] = elements
         return d
 
 

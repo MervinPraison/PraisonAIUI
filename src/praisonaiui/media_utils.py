@@ -148,6 +148,36 @@ def extract_media_elements(
                 out.append(el)
         return out
 
+    # litellm ImageResponse / ImageAgent.chat() return value
+    data = getattr(result, "data", None)
+    if isinstance(data, list):
+        elements: List[Dict[str, Any]] = []
+        for item in data:
+            if isinstance(item, dict):
+                el = _item_to_element(
+                    item, persist_b64=persist_b64, session_id=session_id
+                )
+            else:
+                url = getattr(item, "url", None)
+                b64 = getattr(item, "b64_json", None)
+                alt = (
+                    getattr(item, "revised_prompt", None)
+                    or getattr(item, "alt", None)
+                    or getattr(item, "name", None)
+                    or ""
+                )
+                el = _image_element(
+                    url=url,
+                    b64_json=b64,
+                    alt=str(alt) if alt else "",
+                    persist_b64=persist_b64,
+                    session_id=session_id,
+                )
+            if el:
+                elements.append(el)
+        if elements:
+            return elements
+
     # ImageResult-like objects from praisonai capabilities
     url = getattr(result, "url", None)
     b64 = getattr(result, "b64_json", None)
