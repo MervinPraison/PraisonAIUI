@@ -129,7 +129,7 @@
 | Android app | 🔴 | 🟢 | |
 | Voice Wake (wake word) | 🔴 | 🟢 | macOS + iOS |
 | Talk Mode (voice chat) | 🔴 | 🟢 | ElevenLabs + system TTS |
-| Canvas (visual workspace) | 🔴 | 🟢 A2UI | Agent-driven UI |
+| Canvas (visual workspace) | 🟡 A2UI surfaces | 🟢 A2UI | Agent-driven UI via `send_a2ui_messages` |
 | Device pairing | 🔴 | 🟢 Bonjour | iOS/Android → Gateway |
 | PWA support | 🔴 | 🔴 | Neither has PWA |
 | i18n / localization | 🔴 | 🔴 | Neither has i18n |
@@ -187,7 +187,7 @@
 | **Skills marketplace** | 13,000+ vs 0 | 🔴 Critical — massive ecosystem moat |
 | **Native apps** | macOS/iOS/Android vs web-only | 🟡 High — device presence |
 | **Voice** | Wake word + Talk Mode vs none | 🟡 High — hands-free interaction |
-| **Canvas (A2UI)** | Agent-driven visual workspace vs none | 🟡 Medium |
+| **Canvas (A2UI)** | Agent-driven visual workspace vs partial parity | 🟡 Medium |
 | **Agent-to-agent** | Sessions-based messaging vs none | 🟡 Medium |
 
 ### Strategic Positioning

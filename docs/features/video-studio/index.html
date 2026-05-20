@@ -60,6 +60,10 @@
 <p>When the HTTP sidecar is unavailable, lint and render fall back to subprocess calls to `praisonai-video`.</p>
 <h2>Dashboard plugin</h2>
 <p>The UI lives in `dashboard-plugins/video-studio/` (built-in) or `~/.praisonai/dashboard-plugins/video-studio/` for overrides. It uses `window.aiui.sdk.fetchJSON` and a frame scrubber with `postMessage` / `__pavSeek` for preview.</p>
+<h2>CLI parity</h2>
+<p>The text box edits the same `scene.yaml` the CLI uses. Equivalent commands (from the video repo):</p>
+<p>Lint editor text without saving: `praisonai-video lint --stdin < scene.yaml`</p>
+<p>See `docs/integrations/praisonaiui.md` in the PraisonAI Video repo for the full mapping table.</p>
 <h2>Related</h2>
 <li>[Agent UI host](agent-ui-host.md) — extension patterns (`registerView`, plugins, `@aiui.page`)</li>
 <li>PraisonAI Video integration doc: `docs/integrations/praisonaiui.md` in the video repo</li></noscript></div>

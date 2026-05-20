@@ -71,7 +71,7 @@
 <p>| `/api/instances` | GET | Connected instances |</p>
 <p>| `/api/instances/heartbeat` | POST | Presence heartbeat |</p>
 <h2>Using Both Together</h2>
-<p>`AIUIGateway.start()` in `integration.py` mounts both layers on the same server:</p>
+<p>`AIUIGateway.start()` in `integration.py` mounts the gateway and dashboard REST API on one server. Chat uses the built-in WebSocket/SSE `RunEvent` protocol; AG-UI is mounted separately via `AguiFeature` when enabled:</p>
 <h2>Summary</h2>
 <p>| | AG-UI (`/agui`) | Gateway (`/api/*`) |</p>
 <p>|---|---|---|</p>
