@@ -82,6 +82,7 @@ def auto_register_defaults() -> None:
         (".telemetry", "TelemetryFeature"),
         (".tracing", "TracingFeature"),
         (".security", "SecurityFeature"),
+        (".video", "VideoFeature"),
     ]
 
     for mod_path, cls_name in _BUILTIN_FEATURES:

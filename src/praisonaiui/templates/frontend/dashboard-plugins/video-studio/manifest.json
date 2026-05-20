@@ -1,0 +1,11 @@
+{
+  "name": "video-studio",
+  "label": "Video",
+  "description": "YAML scene editor with lint, frame preview, and render jobs",
+  "icon": "🎬",
+  "version": "1.0.0",
+  "group": "Create",
+  "tab": { "path": "/video-studio", "position": "end" },
+  "entry": "index.js",
+  "css": "styles.css"
+}

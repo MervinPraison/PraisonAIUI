@@ -1,0 +1,105 @@
+#video-studio-root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 480px;
+  font-family: var(--db-font, system-ui, sans-serif);
+  color: var(--db-text, #e2e8f0);
+}
+
+.vs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--db-border, #334155);
+}
+
+.vs-bar select,
+.vs-bar button {
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--db-border, #475569);
+  background: var(--db-surface, #1e293b);
+  color: inherit;
+  cursor: pointer;
+}
+
+.vs-bar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.vs-main {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 900px) {
+  .vs-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vs-editor textarea {
+  width: 100%;
+  min-height: 220px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--db-border, #475569);
+  background: var(--db-bg, #0f172a);
+  color: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.vs-issues {
+  margin-top: 8px;
+  font-size: 12px;
+  max-height: 120px;
+  overflow: auto;
+}
+
+.vs-issues li {
+  color: #f87171;
+  margin: 4px 0;
+}
+
+.vs-preview iframe {
+  width: 100%;
+  height: 240px;
+  border: 1px solid var(--db-border, #475569);
+  border-radius: 8px;
+  background: #000;
+}
+
+.vs-transport {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.vs-transport input[type="range"] {
+  flex: 1;
+}
+
+.vs-jobs {
+  font-size: 12px;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--db-surface, #1e293b);
+}
+
+.vs-hint {
+  font-size: 12px;
+  opacity: 0.75;
+}
