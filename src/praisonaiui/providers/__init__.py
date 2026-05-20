@@ -486,6 +486,21 @@ class PraisonAIProvider(BaseProvider):
                             full_response += "\n"
                         full_response += content
                     yield RunEvent(type=RunEventType.RUN_CONTENT, content=content)
+                    for el in event.get("elements") or []:
+                        if isinstance(el, dict):
+                            yield RunEvent(
+                                type=RunEventType.MESSAGE_ELEMENT,
+                                extra_data={"element": el},
+                            )
+                elif evt_type in ("image", "video", "audio", "file"):
+                    from praisonaiui.media_utils import queue_event_to_element
+
+                    element = queue_event_to_element(event)
+                    if element:
+                        yield RunEvent(
+                            type=RunEventType.MESSAGE_ELEMENT,
+                            extra_data={"element": element},
+                        )
                 elif evt_type == "thinking":
                     yield RunEvent(type=RunEventType.REASONING_STEP, step=event.get("step", ""))
                 elif evt_type == "tool_call":
@@ -653,6 +668,7 @@ class PraisonAIProvider(BaseProvider):
         # event queue concurrently so tokens stream in real-time.
         full_response = ""
         _chat_error = None
+        _raw_chat_response: Any = None
         _streamed_tokens = 0
         _streamed_text = ""  # Track actual text content from stream
         # Track tool calls that were started but not yet completed,
@@ -671,7 +687,7 @@ class PraisonAIProvider(BaseProvider):
             return ""
 
         async def _run_chat():
-            nonlocal full_response, _chat_error
+            nonlocal full_response, _chat_error, _raw_chat_response
             try:
                 chat_kwargs: Dict[str, Any] = {}
                 if "attachments" in kwargs and kwargs["attachments"]:
@@ -681,6 +697,7 @@ class PraisonAIProvider(BaseProvider):
                 response = await asyncio.to_thread(
                     agent.chat, message, stream=False, **chat_kwargs
                 )
+                _raw_chat_response = response
                 full_response = _normalise_chat_response(response, _streamed_text)
             except Exception as exc:
                 _chat_error = exc
@@ -742,6 +759,22 @@ class PraisonAIProvider(BaseProvider):
         if _chat_error:
             yield RunEvent(type=RunEventType.RUN_ERROR, error=str(_chat_error))
             return
+
+        if _raw_chat_response is not None:
+            from praisonaiui.media_utils import extract_media_elements
+
+            media_els = extract_media_elements(
+                _raw_chat_response,
+                session_id=session_id or "",
+            )
+            for el in media_els:
+                yield RunEvent(
+                    type=RunEventType.MESSAGE_ELEMENT,
+                    extra_data={"element": el},
+                )
+            if media_els and not _streamed_text.strip():
+                if not full_response or full_response.startswith("{"):
+                    full_response = "Here is your generated image."
 
         full_response = _normalise_chat_response(full_response or None, _streamed_text)
         if not full_response:

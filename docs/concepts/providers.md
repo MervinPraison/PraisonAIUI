@@ -108,6 +108,32 @@ class EchoProvider(BaseProvider):
         yield RunEvent(type=RunEventType.RUN_COMPLETED, content=f"Echo: {message}")
 ```
 
+### Inline media (images, video, files)
+
+Any provider can attach rich media to chat messages using ``MESSAGE_ELEMENT``
+events. The UI renders them inline and persists them in session history.
+
+```python
+class ImageProvider(BaseProvider):
+    async def run(self, message, *, session_id=None, agent_name=None, **kw):
+        yield RunEvent(type=RunEventType.RUN_STARTED)
+        # ... call your image API (OpenAI, Stability, custom, etc.) ...
+        image_url = "https://example.com/generated.png"
+        yield BaseProvider.message_element_event({
+            "type": "image",
+            "url": image_url,
+            "alt": "Generated image",
+        })
+        yield RunEvent(type=RunEventType.RUN_COMPLETED, content="Here is your image.")
+```
+
+Tool results from PraisonAI agents are also detected automatically when they
+match OpenAI image shapes (``{"data": [{"url": "..."}]}``) or explicit element
+dicts — no provider code required.
+
+Callback handlers can use ``Message.add_image()`` or ``await aiui.image(url)``
+and the default ``PraisonAIProvider`` maps those to ``MESSAGE_ELEMENT`` events.
+
 ### With Tool Calls and Reasoning
 
 ```python

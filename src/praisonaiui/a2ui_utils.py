@@ -89,10 +89,18 @@ def build_a2ui_extra(result: Any) -> Optional[Dict[str, Any]]:
 
 
 def tool_completed_extra(result: Any, *, has_complete_args: bool = True) -> Dict[str, Any]:
-    """Merge standard tool-completion flags with optional A2UI payload."""
+    """Merge standard tool-completion flags with optional A2UI and media payloads."""
     extra: Dict[str, Any] = {}
     if has_complete_args:
         extra["has_complete_args"] = True
+    try:
+        from praisonaiui.media_utils import build_media_extra
+
+        media = build_media_extra(result)
+        if media:
+            extra.update(media)
+    except ImportError:
+        pass
     a2ui_extra = build_a2ui_extra(result)
     if a2ui_extra:
         extra.update(a2ui_extra)

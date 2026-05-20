@@ -18,6 +18,7 @@ export interface SessionStreamState {
   currentResponse: string
   toolCalls: ToolCall[]
   thinkingSteps: string[]
+  pendingElements: (import('../types').MessageElementUnion | Record<string, unknown>)[]
 }
 
 const defaultState = (): SessionStreamState => ({
@@ -25,6 +26,7 @@ const defaultState = (): SessionStreamState => ({
   currentResponse: '',
   toolCalls: [],
   thinkingSteps: [],
+  pendingElements: [],
 })
 
 // ---------------------------------------------------------------------------
@@ -119,6 +121,7 @@ export function startStream(
     currentResponse: '',
     toolCalls: [],
     thinkingSteps: [],
+    pendingElements: [],
   })
   // Reset tool call dedup map for this new stream
   entry.toolCallMap = new Map()
@@ -266,6 +269,9 @@ function handleStoreEvent(
     case 'team_tool_call_completed': {
       const extra = event.extra_data as Record<string, unknown> | undefined
       const a2uiRaw = (event.a2ui ?? extra?.a2ui) as Record<string, unknown>[] | undefined
+      const mediaEls = (event.elements ?? extra?.elements) as
+        | (import('../types').MessageElementUnion | Record<string, unknown>)[]
+        | undefined
       const tc: ToolCall = {
         name: event.name as string,
         description: event.description as string | undefined,
@@ -280,10 +286,24 @@ function handleStoreEvent(
         a2ui: a2uiRaw?.length
           ? { messages: a2uiRaw, surface_id: (event.surface_id ?? extra?.surface_id) as string | undefined }
           : undefined,
+        elements: mediaEls,
       }
       if (tc.tool_call_id) toolCallMap.set(tc.tool_call_id, tc)
       const all = buildToolCallList(entry.state.toolCalls, tc)
-      update(sessionId, { toolCalls: all })
+      const pendingElements = mediaEls?.length
+        ? [...entry.state.pendingElements, ...mediaEls]
+        : entry.state.pendingElements
+      update(sessionId, { toolCalls: all, pendingElements })
+      break
+    }
+
+    case 'message_element': {
+      const el = event.element as Record<string, unknown> | undefined
+      if (el) {
+        update(sessionId, {
+          pendingElements: [...entry.state.pendingElements, el],
+        })
+      }
       break
     }
 

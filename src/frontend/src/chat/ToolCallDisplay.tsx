@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ToolCall } from '../types'
+import { ElementRenderer } from './MultimediaElements'
 import { SurfaceHost } from '../surfaces/SurfaceHost'
 
 interface ToolCallDisplayProps {
@@ -58,6 +59,16 @@ export function ToolCallDisplay({ toolCall }: ToolCallDisplayProps) {
             </button>
             {expanded && (
                 <div className="p-2 border-t space-y-2">
+                    {toolCall.elements?.length ? (
+                        <div>
+                            <span className="text-muted-foreground">Preview:</span>
+                            <div className="mt-1 space-y-2">
+                                {toolCall.elements.map((element, i) => (
+                                    <ElementRenderer key={i} element={element} className="max-w-sm" />
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
                     {toolCall.a2ui?.messages?.length ? (
                         <div>
                             <span className="text-muted-foreground">UI:</span>

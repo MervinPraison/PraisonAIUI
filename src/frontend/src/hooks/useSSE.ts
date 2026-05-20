@@ -27,6 +27,7 @@ interface UseSSEReturn {
   currentResponse: string
   toolCalls: import('../types').ToolCall[]
   thinkingSteps: string[]
+  pendingElements: (import('../types').MessageElementUnion | Record<string, unknown>)[]
 }
 
 export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
@@ -75,6 +76,7 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
     currentResponse: snap.currentResponse,
     toolCalls: snap.toolCalls,
     thinkingSteps: snap.thinkingSteps,
+    pendingElements: snap.pendingElements,
     sendMessage,
     cancel,
   }

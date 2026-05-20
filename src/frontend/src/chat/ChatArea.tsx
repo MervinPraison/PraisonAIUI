@@ -55,6 +55,7 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
                     content: run.content || run.message || '',
                     timestamp: run.timestamp || new Date().toISOString(),
                     ...(run.toolCalls ? { toolCalls: run.toolCalls } : {}),
+                    ...(run.elements ? { elements: run.elements } : {}),
                 }))
                 setMessages(loaded)
             }
@@ -71,6 +72,7 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
         currentResponse,
         toolCalls,
         thinkingSteps,
+        pendingElements,
         sendMessage,
         cancel,
     } = useSSE({
@@ -152,6 +154,7 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
                             currentResponse={currentResponse}
                             thinkingSteps={thinkingSteps}
                             toolCalls={toolCalls}
+                            pendingElements={pendingElements}
                             isStreaming={isStreaming}
                         />
                     )}

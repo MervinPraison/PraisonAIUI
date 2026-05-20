@@ -76,6 +76,16 @@ class TestToolCompletedExtra:
         assert "a2ui" in extra
         assert extra["surface_id"] == "main"
 
+    def test_includes_media_elements(self):
+        from praisonaiui.a2ui_utils import tool_completed_extra
+
+        result = {"data": [{"url": "https://example.com/out.png", "revised_prompt": "A cat"}]}
+        extra = tool_completed_extra(result)
+        assert extra["has_complete_args"] is True
+        assert "elements" in extra
+        assert extra["elements"][0]["type"] == "image"
+        assert extra["elements"][0]["url"] == "https://example.com/out.png"
+
     def test_plain_result_only_flags(self):
         from praisonaiui.a2ui_utils import tool_completed_extra
 

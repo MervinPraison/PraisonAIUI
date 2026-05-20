@@ -162,6 +162,7 @@ export interface ToolCall {
     error?: string
     a2ui?: { messages: Record<string, unknown>[]; surface_id?: string }
     surface_id?: string
+    elements?: (MessageElementUnion | Record<string, unknown>)[]
 }
 
 export interface FileAttachment {
@@ -262,6 +263,7 @@ export type RunEventType =
     | 'memory_update_started'
     | 'memory_update_completed'
     | 'updating_memory'
+    | 'message_element'
     // Team events (11 types)
     | 'team_run_started'
     | 'team_run_content'
@@ -337,10 +339,15 @@ export interface SSEEvent {
     team_id?: string
     // Memory
     memory_type?: 'short_term' | 'long_term'
+    // Message elements (protocol-driven media)
+    element?: MessageElementUnion | Record<string, unknown>
+    elements?: (MessageElementUnion | Record<string, unknown>)[]
     // Extra data (Agent-UI pattern)
     extra_data?: {
         references?: unknown[]
         reasoning_steps?: string[]
+        element?: MessageElementUnion | Record<string, unknown>
+        elements?: (MessageElementUnion | Record<string, unknown>)[]
         [key: string]: unknown
     }
 }

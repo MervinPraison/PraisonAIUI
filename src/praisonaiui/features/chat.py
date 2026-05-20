@@ -32,6 +32,16 @@ from ._base import BaseFeatureProtocol
 logger = logging.getLogger(__name__)
 
 
+def _collect_element(collected: List[Dict[str, Any]], element: Dict[str, Any]) -> None:
+    """Append *element* unless the same URL is already collected."""
+    if not element:
+        return
+    url = element.get("url")
+    if url and any(e.get("url") == url for e in collected):
+        return
+    collected.append(element)
+
+
 # ── Tool display enrichment (reuses SDK's TOOL_LABELS — DRY) ────────
 
 
@@ -111,6 +121,7 @@ class ChatMessage:
     agent_name: Optional[str] = None
     timestamp: float = field(default_factory=time.time)
     metadata: Optional[Dict[str, Any]] = None
+    elements: Optional[List[Dict[str, Any]]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {
@@ -124,6 +135,8 @@ class ChatMessage:
             d["agent_name"] = self.agent_name
         if self.metadata:
             d["metadata"] = self.metadata
+        if self.elements:
+            d["elements"] = self.elements
         return d
 
 
@@ -447,6 +460,7 @@ async def _run_and_broadcast(
     _seen_tool_started: set = set()  # tool_call_id or name we've sent STARTED for
     _seen_tool_completed: set = set()  # tool_call_id or name we've sent COMPLETED for
     collected_tool_calls: Dict[str, Dict] = {}  # Merge STARTED+COMPLETED per tool_call_id
+    collected_elements: List[Dict[str, Any]] = []
 
     try:
         # Pass image attachments to provider for SDK native multimodal handling
@@ -547,6 +561,20 @@ async def _run_and_broadcast(
                         await ingest_a2ui_extra(extra, session_id=session_id)
                     except ImportError:
                         pass
+                if extra.get("elements"):
+                    payload["elements"] = extra["elements"]
+                    for el in extra["elements"]:
+                        if isinstance(el, dict):
+                            _collect_element(collected_elements, el)
+                            await mgr.broadcast(
+                                session_id,
+                                {
+                                    "type": "message_element",
+                                    "session_id": session_id,
+                                    "run_id": run_id,
+                                    "element": el,
+                                },
+                            )
                 # Merge COMPLETED into STARTED entry (richer args + result)
                 tc_id = payload.get("tool_call_id", "")
                 if tc_id in collected_tool_calls:
@@ -555,6 +583,11 @@ async def _run_and_broadcast(
                     entry["result"] = payload.get("result")
                     entry["formatted_result"] = payload.get("formatted_result", "✓ Done")
                     entry["status"] = "done"
+                    if payload.get("elements"):
+                        entry["elements"] = payload["elements"]
+                    if payload.get("a2ui"):
+                        entry["a2ui"] = payload["a2ui"]
+                        entry["surface_id"] = payload.get("surface_id")
                     # Re-enrich description with full args (now has keywords)
                     _enrich_tool_payload(entry, entry.get("step_number", 0), is_completed=False)
                 else:
@@ -579,6 +612,13 @@ async def _run_and_broadcast(
             elif event.type == RunEventType.LLM_CONTENT:
                 # Intermediate narrative text between tool calls
                 payload["content"] = event.content or ""
+            elif event.type == RunEventType.MESSAGE_ELEMENT:
+                extra = getattr(event, "extra_data", None) or {}
+                element = extra.get("element")
+                if not element or not isinstance(element, dict):
+                    continue
+                payload["element"] = element
+                _collect_element(collected_elements, element)
 
             if event.agent_name:
                 payload["agent_name"] = event.agent_name
@@ -606,12 +646,13 @@ async def _run_and_broadcast(
         )
 
     # Save assistant response
-    if full_response:
+    if full_response or collected_elements:
         assistant_msg = ChatMessage(
             role="assistant",
-            content=full_response,
+            content=full_response or "",
             session_id=session_id,
             agent_name=agent_name,
+            elements=collected_elements or None,
         )
         mgr._history.setdefault(session_id, []).append(assistant_msg)
 
@@ -619,10 +660,12 @@ async def _run_and_broadcast(
         try:
             msg_data: dict = {
                 "role": "assistant",
-                "content": full_response,
+                "content": full_response or "",
             }
             if collected_tool_calls:
                 msg_data["toolCalls"] = list(collected_tool_calls.values())
+            if collected_elements:
+                msg_data["elements"] = collected_elements
             await _datastore.add_message(session_id, msg_data)
         except Exception:
             pass

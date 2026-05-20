@@ -13,7 +13,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import FileResponse, JSONResponse
 from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
@@ -256,6 +256,20 @@ async def _delete_attachment(request: Request) -> JSONResponse:
     return JSONResponse({"error": "Not found"}, status_code=404)
 
 
+async def _serve_media(request: Request) -> FileResponse | JSONResponse:
+    """GET /api/chat/media/{attachment_id} — serve a stored generated-media file."""
+    attachment_id = request.path_params["attachment_id"]
+    mgr = get_attachment_manager()
+    meta = mgr.get(attachment_id)
+    if not meta or not meta.get("path"):
+        return JSONResponse({"error": "Not found"}, status_code=404)
+    return FileResponse(
+        meta["path"],
+        media_type=meta.get("content_type", "application/octet-stream"),
+        filename=meta.get("filename"),
+    )
+
+
 # ── Feature ──────────────────────────────────────────────────────
 
 
@@ -278,6 +292,7 @@ class AttachmentsFeature(BaseFeatureProtocol):
             Route("/api/chat/attachments", _upload_attachment, methods=["POST"]),
             Route("/api/chat/attachments/{session_id}", _list_attachments, methods=["GET"]),
             Route("/api/chat/attachments/{attachment_id}", _delete_attachment, methods=["DELETE"]),
+            Route("/api/chat/media/{attachment_id}", _serve_media, methods=["GET"]),
         ]
 
 

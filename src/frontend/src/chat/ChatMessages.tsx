@@ -13,6 +13,7 @@ interface ChatMessagesProps {
     currentResponse: string
     thinkingSteps: string[]
     toolCalls: ToolCall[]
+    pendingElements?: (import('../types').MessageElementUnion | Record<string, unknown>)[]
     isStreaming: boolean
     sessionId?: string
 }
@@ -22,6 +23,7 @@ export function ChatMessages({
     currentResponse,
     thinkingSteps,
     toolCalls,
+    pendingElements = [],
     isStreaming,
     sessionId,
 }: ChatMessagesProps) {
@@ -45,12 +47,23 @@ export function ChatMessages({
                             ))}
                         </div>
                     )}
-                    {currentResponse && (
+                    {(currentResponse || pendingElements.length > 0) && (
                         <div className="flex gap-3">
                             <Avatar role="assistant" />
                             <div className="flex-1 min-w-0">
-                                <MarkdownContent content={currentResponse} />
-                                <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-0.5 rounded-sm" />
+                                {currentResponse && (
+                                    <>
+                                        <MarkdownContent content={currentResponse} />
+                                        <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-0.5 rounded-sm" />
+                                    </>
+                                )}
+                                {pendingElements.length > 0 && (
+                                    <div className={`space-y-3 ${currentResponse ? 'mt-3' : ''}`}>
+                                        {pendingElements.map((element, i) => (
+                                            <ElementRenderer key={i} element={element} className="w-full" />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

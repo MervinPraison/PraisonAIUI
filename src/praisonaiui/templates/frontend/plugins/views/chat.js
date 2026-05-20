@@ -21,7 +21,9 @@ let messageQueue = [];
 let focusMode = false;
 let containerRef = null;
 let currentDeltaEl = null;
+let currentDeltaBodyEl = null;
 let currentDeltaText = '';
+let pendingMediaElements = [];
 let pendingAttachments = [];  // { id, filename, content_type, preview_url }
 
 // ── Floating Chat State ──────────────────────────────────────────
@@ -208,6 +210,9 @@ function injectStyles() {
     .chat-msg-body { min-width:0; }
     .chat-msg-agent-name { font-size:11px; font-weight:600; color:var(--db-accent); margin-bottom:2px; }
     .chat-msg-content { background:var(--db-sidebar-bg,rgba(0,0,0,.05)); padding:10px 14px; border-radius:12px; font-size:13.5px; line-height:1.6; word-break:break-word; }
+    .chat-msg-media { margin-top:8px; display:flex; flex-wrap:wrap; gap:8px; }
+    .chat-msg-image { max-width:100%; max-height:320px; border-radius:8px; object-fit:contain; cursor:pointer; }
+    .tool-media-preview .chat-msg-image { max-height:160px; }
     .chat-msg-user .chat-msg-content { background:var(--db-accent); color:#fff; }
     .chat-msg-streaming .chat-msg-content::after { content:'▌'; animation:blink 1s infinite; }
     @keyframes blink { 50% { opacity:0; } }
@@ -784,7 +789,9 @@ export function cleanup() {
   currentRunId = null;
   messageQueue = [];
   currentDeltaEl = null;
+  currentDeltaBodyEl = null;
   currentDeltaText = '';
+  pendingMediaElements = [];
 }
 
 // ── API ──────────────────────────────────────────────────────────
@@ -899,7 +906,7 @@ async function loadSession(sessionId) {
             appendToolCall(tc, status);
           });
         }
-        appendMessage(m.role, m.content, m.agent_name);
+        appendMessage(m.role, m.content, m.agent_name, m.elements);
       }
     });
 
@@ -951,7 +958,7 @@ async function restoreSessionHistory(sessionId) {
                 appendToolCall(tc, 'done');
               });
             }
-            appendMessage(m.role, m.content, m.agent_name);
+            appendMessage(m.role, m.content, m.agent_name, m.elements);
           }
         });
         if (sessionPlatform) {
@@ -1090,6 +1097,13 @@ function handleWsMessage(data) {
       if (data.a2ui && data.a2ui.length) {
         appendA2uiSurface(data.surface_id || 'main', data.a2ui);
       }
+      if (data.elements && data.elements.length) {
+        data.elements.forEach((el) => appendMediaElement(el));
+      }
+      break;
+
+    case 'message_element':
+      if (data.element) appendMediaElement(data.element);
       break;
 
     case 'a2ui_surface':
@@ -1277,7 +1291,47 @@ function _markSessionUnread(sessionId) {
 
 // ── Message Rendering ───────────────────────────────────────────
 
-function appendMessage(role, content, agentName) {
+function renderMediaNode(element) {
+  const wrap = document.createElement('div');
+  wrap.className = 'chat-media-item chat-media-' + (element.type || 'file');
+  if (element.type === 'image' && element.url) {
+    const img = document.createElement('img');
+    img.src = element.url;
+    img.alt = element.alt || 'Generated image';
+    img.className = 'chat-msg-image';
+    img.loading = 'lazy';
+    wrap.appendChild(img);
+  } else if (element.url) {
+    const link = document.createElement('a');
+    link.href = element.url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = element.name || element.url;
+    wrap.appendChild(link);
+  }
+  return wrap;
+}
+
+function appendMediaElement(element) {
+  if (!element || !element.url) return;
+  pendingMediaElements.push(element);
+  const messagesEl = document.getElementById('chat-messages');
+  if (!currentDeltaEl) {
+    appendDelta('', null);
+  }
+  const bodyEl = currentDeltaBodyEl;
+  if (!bodyEl) return;
+  let mediaWrap = bodyEl.querySelector('.chat-msg-media');
+  if (!mediaWrap) {
+    mediaWrap = document.createElement('div');
+    mediaWrap.className = 'chat-msg-media';
+    bodyEl.appendChild(mediaWrap);
+  }
+  mediaWrap.appendChild(renderMediaNode(element));
+  if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function appendMessage(role, content, agentName, elements) {
   const messagesEl = document.getElementById('chat-messages');
   const welcome = document.getElementById('chat-welcome');
   if (welcome) welcome.style.display = 'none';
@@ -1304,6 +1358,13 @@ function appendMessage(role, content, agentName) {
   contentEl.innerHTML = renderMarkdown(content);
   highlightCodeBlocks(contentEl);
   bodyEl.appendChild(contentEl);
+
+  if (elements && elements.length) {
+    const mediaWrap = document.createElement('div');
+    mediaWrap.className = 'chat-msg-media';
+    elements.forEach((el) => mediaWrap.appendChild(renderMediaNode(el)));
+    bodyEl.appendChild(mediaWrap);
+  }
 
   msgEl.appendChild(avatarEl);
   msgEl.appendChild(bodyEl);
@@ -1339,6 +1400,7 @@ function appendDelta(token, agentName) {
     currentDeltaEl = document.createElement('div');
     currentDeltaEl.className = 'chat-msg-content chat-msg-streaming';
     bodyEl.appendChild(currentDeltaEl);
+    currentDeltaBodyEl = bodyEl;
 
     msgEl.appendChild(avatarEl);
     msgEl.appendChild(bodyEl);
@@ -1370,10 +1432,12 @@ function finalizeDelta(content, agentName) {
       currentDeltaEl.remove();
     }
     currentDeltaEl = null;
+    currentDeltaBodyEl = null;
     currentDeltaText = '';
   } else if (!isBlankAssistantContent(content)) {
-    appendMessage('assistant', content, agentName);
+    appendMessage('assistant', content, agentName, pendingMediaElements.length ? pendingMediaElements.slice() : null);
   }
+  pendingMediaElements = [];
 }
 
 function appendToolCall(data, status) {
@@ -1476,6 +1540,16 @@ function _updateToolDetails(el, data) {
   }
   // Result section
   const result = data.result;
+  const elements = data.elements || [];
+  if (elements.length) {
+    html += '<div class="tool-detail-section"><div class="tool-detail-label">Preview</div><div class="tool-media-preview">';
+    elements.forEach((el) => {
+      if (el.type === 'image' && el.url) {
+        html += '<img class="chat-msg-image" src="' + escapeHtml(el.url) + '" alt="' + escapeHtml(el.alt || '') + '" loading="lazy" />';
+      }
+    });
+    html += '</div></div>';
+  }
   if (result) {
     let resultStr = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
     // Truncate very long results

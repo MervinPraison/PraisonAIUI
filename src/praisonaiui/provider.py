@@ -72,6 +72,9 @@ class RunEventType(str, Enum):
     # --- RAG / Citations (Issue #49) ---
     REFERENCES = "references"
 
+    # --- Rich message elements (images, video, etc.) ---
+    MESSAGE_ELEMENT = "message_element"
+
     # --- Team variants ---
     TEAM_RUN_STARTED = "team_run_started"
     TEAM_RUN_CONTENT = "team_run_content"
@@ -438,4 +441,12 @@ class BaseProvider(ABC):
             confidence=step.confidence,
             next_action=step.next_action,
             extra_data=step.to_dict(),
+        )
+
+    @staticmethod
+    def message_element_event(element: Dict[str, Any]) -> RunEvent:
+        """Build a ``MESSAGE_ELEMENT`` event for inline media in chat."""
+        return RunEvent(
+            type=RunEventType.MESSAGE_ELEMENT,
+            extra_data={"element": element},
         )
