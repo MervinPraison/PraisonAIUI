@@ -285,7 +285,7 @@ export function CodeBlock({ code, language, className = '' }: CodeBlockProps) {
     )
 }
 
-// Unified element renderer supporting all element types and display modes
+import { SurfaceHost } from '../surfaces/SurfaceHost'
 interface ElementRendererProps {
     element: MessageElementUnion | Record<string, unknown>
     className?: string
@@ -358,6 +358,18 @@ export function ElementRenderer({ element, className = '' }: ElementRendererProp
                         code={code.content}
                         language={code.language}
                         className={`${className} ${getDisplayModeClass(code.display)}`}
+                    />
+                )
+            }
+            case 'a2ui_surface': {
+                const el = element as Record<string, unknown>
+                const messages = (el.messages ?? []) as Record<string, unknown>[]
+                return (
+                    <SurfaceHost
+                        mode="auto"
+                        messages={messages}
+                        surfaceId={el.surface_id as string | undefined}
+                        className={className}
                     />
                 )
             }

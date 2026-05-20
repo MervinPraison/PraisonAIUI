@@ -31,6 +31,20 @@ _STREAM_EVENT_MAPPING = None
 _MAPPING_WARNED_TYPES: set = set()  # Track already-warned unknown types
 
 
+def _tool_completed_extra_from_result(
+    result: Any,
+    *,
+    has_complete_args: bool = True,
+) -> Optional[Dict[str, Any]]:
+    try:
+        from praisonaiui.a2ui_utils import tool_completed_extra
+
+        extra = tool_completed_extra(result, has_complete_args=has_complete_args)
+        return extra or None
+    except ImportError:
+        return {"has_complete_args": True} if has_complete_args else None
+
+
 def _build_stream_event_mapping():
     """Build the StreamEvent → RunEvent mapping dict.
 
@@ -65,6 +79,10 @@ def _build_stream_event_mapping():
             name=e.tool_call.get("name") if e.tool_call else None,
             result=e.tool_call.get("result") if e.tool_call else None,
             tool_call_id=e.tool_call.get("id") if e.tool_call else None,
+            extra_data=_tool_completed_extra_from_result(
+                e.tool_call.get("result") if e.tool_call else None,
+                has_complete_args=False,
+            ),
         ),
         SET.FIRST_TOKEN: lambda e: RunEvent(
             type=RunEventType.RUN_CONTENT,
@@ -92,14 +110,18 @@ def _build_stream_event_mapping():
             extra_data={"has_complete_args": True},
         )
     if hasattr(SET, "TOOL_CALL_RESULT"):
-        mapping[SET.TOOL_CALL_RESULT] = lambda e: RunEvent(
-            type=RunEventType.TOOL_CALL_COMPLETED,
-            name=e.tool_call.get("name") if e.tool_call else None,
-            args=e.tool_call.get("arguments") if e.tool_call else None,
-            result=e.tool_call.get("result") if e.tool_call else None,
-            tool_call_id=e.tool_call.get("id") if e.tool_call else None,
-            extra_data={"has_complete_args": True},
-        )
+        def _tool_call_result(e):
+            result = e.tool_call.get("result") if e.tool_call else None
+            return RunEvent(
+                type=RunEventType.TOOL_CALL_COMPLETED,
+                name=e.tool_call.get("name") if e.tool_call else None,
+                args=e.tool_call.get("arguments") if e.tool_call else None,
+                result=result,
+                tool_call_id=e.tool_call.get("id") if e.tool_call else None,
+                extra_data=_tool_completed_extra_from_result(result),
+            )
+
+        mapping[SET.TOOL_CALL_RESULT] = _tool_call_result
 
     return mapping
 
@@ -140,12 +162,14 @@ def _hook_event_to_run_events(hook_event_name: str, event_data) -> List[RunEvent
             )
         )
     elif hook_event_name == "after_tool":
+        result = getattr(event_data, "result", None)
         events.append(
             RunEvent(
                 type=RunEventType.TOOL_CALL_COMPLETED,
                 name=getattr(event_data, "tool_name", None),
-                result=getattr(event_data, "result", None),
+                result=result,
                 error=getattr(event_data, "error", None),
+                extra_data=_tool_completed_extra_from_result(result),
             )
         )
     elif hook_event_name == "before_agent":
@@ -253,6 +277,19 @@ class PraisonAIProvider(BaseProvider):
                     if gw_agent is not None:
                         return gw_agent
         except (ImportError, Exception):
+            pass
+
+        # 2b. Agents registered via praisonaiui.register_agent()
+        try:
+            from praisonaiui.server import _agents
+
+            if agent_name and agent_name in _agents:
+                return _agents[agent_name]["agent"]
+            if len(_agents) == 1:
+                return next(iter(_agents.values()))["agent"]
+            if _agents and not agent_name:
+                return next(iter(_agents.values()))["agent"]
+        except ImportError:
             pass
 
         # 3. Per-session agent: return cached if available
@@ -459,11 +496,13 @@ class PraisonAIProvider(BaseProvider):
                         result=event.get("result"),
                     )
                 elif evt_type == "tool_result":
+                    result = event.get("result")
                     yield RunEvent(
                         type=RunEventType.TOOL_CALL_COMPLETED,
                         name=event.get("name"),
-                        result=event.get("result"),
+                        result=result,
                         error=event.get("error"),
+                        extra_data=_tool_completed_extra_from_result(result),
                     )
                 elif evt_type == "ask":
                     yield RunEvent(
@@ -620,19 +659,32 @@ class PraisonAIProvider(BaseProvider):
         # so we can synthesize COMPLETED events if the SDK omits them.
         _pending_tool_calls: Dict[str, RunEvent] = {}
 
+        def _normalise_chat_response(response: Any, streamed: str) -> str:
+            """Avoid showing literal 'None' when SDK returns no text."""
+            if response is not None:
+                text = response if isinstance(response, str) else str(response)
+                if text and text != "None":
+                    return text
+            streamed = (streamed or "").strip()
+            if streamed and streamed != "None":
+                return streamed
+            return ""
+
         async def _run_chat():
             nonlocal full_response, _chat_error
             try:
-                chat_kwargs = {"stream": True}
-                # Forward attachment file paths for SDK native multimodal handling
+                chat_kwargs: Dict[str, Any] = {}
                 if "attachments" in kwargs and kwargs["attachments"]:
                     chat_kwargs["attachments"] = kwargs["attachments"]
-                response = await asyncio.to_thread(agent.chat, message, **chat_kwargs)
-                full_response = str(response)
+                # Sync OpenAIAdapter rejects stream=True; non-streaming avoids SDK
+                # returning None and emitting a literal "None" stream token.
+                response = await asyncio.to_thread(
+                    agent.chat, message, stream=False, **chat_kwargs
+                )
+                full_response = _normalise_chat_response(response, _streamed_text)
             except Exception as exc:
                 _chat_error = exc
             finally:
-                # Sentinel to tell the drain loop the chat is done
                 await event_queue.put(None)
 
         chat_task = asyncio.create_task(_run_chat())
@@ -646,9 +698,11 @@ class PraisonAIProvider(BaseProvider):
             if run_evt is None:  # Sentinel — chat finished
                 break
             _streamed_tokens += 1
-            # Track actual streamed text content
+            # Track actual streamed text content (ignore bogus None tokens from SDK)
             if run_evt.type == RunEventType.RUN_CONTENT:
-                _streamed_text += run_evt.token or run_evt.content or ""
+                tok = run_evt.token or run_evt.content or ""
+                if tok and tok != "None":
+                    _streamed_text += tok
             # Track pending tool calls
             if run_evt.type == RunEventType.TOOL_CALL_STARTED and run_evt.name:
                 key = run_evt.tool_call_id or run_evt.name
@@ -666,9 +720,10 @@ class PraisonAIProvider(BaseProvider):
             try:
                 run_evt = event_queue.get_nowait()
                 if run_evt is not None:
-                    # Track actual streamed text content
                     if run_evt.type == RunEventType.RUN_CONTENT:
-                        _streamed_text += run_evt.token or run_evt.content or ""
+                        tok = run_evt.token or run_evt.content or ""
+                        if tok and tok != "None":
+                            _streamed_text += tok
                     # Track pending tool calls in drain phase too
                     if run_evt.type == RunEventType.TOOL_CALL_STARTED and run_evt.name:
                         key = run_evt.tool_call_id or run_evt.name
@@ -688,11 +743,26 @@ class PraisonAIProvider(BaseProvider):
             yield RunEvent(type=RunEventType.RUN_ERROR, error=str(_chat_error))
             return
 
-        # Emit the full response if streaming didn't capture it.
-        # The SDK's stream_emitter may fire events with empty content
-        # even though agent.chat() returns the full response text.
-        # Compare what was streamed vs the actual response and fill the gap.
-        if full_response and len(_streamed_text.strip()) < len(full_response.strip()) * 0.8:
+        full_response = _normalise_chat_response(full_response or None, _streamed_text)
+        if not full_response:
+            try:
+                fallback_kwargs: Dict[str, Any] = {"stream": False}
+                if "attachments" in kwargs and kwargs["attachments"]:
+                    fallback_kwargs["attachments"] = kwargs["attachments"]
+                fallback = await asyncio.to_thread(
+                    agent.chat, message, **fallback_kwargs
+                )
+                full_response = _normalise_chat_response(fallback, _streamed_text)
+            except Exception as exc:
+                yield RunEvent(type=RunEventType.RUN_ERROR, error=str(exc))
+                return
+
+        if full_response and not _streamed_text.strip():
+            yield RunEvent(type=RunEventType.RUN_CONTENT, content=full_response)
+        elif (
+            full_response
+            and len(_streamed_text.strip()) < len(full_response.strip()) * 0.8
+        ):
             yield RunEvent(type=RunEventType.RUN_CONTENT, content=full_response)
 
         # Synthesize TOOL_CALL_COMPLETED for any tool calls that were started

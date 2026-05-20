@@ -103,3 +103,46 @@
   font-size: 12px;
   opacity: 0.75;
 }
+
+.vs-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 12px 0 4px;
+  opacity: 0.9;
+}
+
+.vs-output-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vs-output-video {
+  width: 100%;
+  max-height: 240px;
+  border-radius: 8px;
+  border: 1px solid var(--db-border, #475569);
+  background: #000;
+}
+
+.vs-output-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.vs-output-actions button,
+.vs-download-link {
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--db-border, #475569);
+  background: var(--db-surface, #1e293b);
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.vs-download-link:hover {
+  text-decoration: underline;
+}

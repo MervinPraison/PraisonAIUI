@@ -30,6 +30,7 @@ from praisonaiui.video_projects import (
     export_artifact_path,
     list_projects,
     read_scene_yaml,
+    reset_scene_yaml,
     resolve_project,
     save_scene_yaml,
 )
@@ -70,6 +71,7 @@ class VideoFeature(BaseFeatureProtocol):
             Route("/api/video/projects", self._projects_create, methods=["POST"]),
             Route("/api/video/projects/{project_id}", self._project_get, methods=["GET"]),
             Route("/api/video/projects/{project_id}/scene", self._project_scene_put, methods=["PUT"]),
+            Route("/api/video/projects/{project_id}/reset", self._project_reset, methods=["POST"]),
             Route(
                 "/api/video/projects/{project_id}/artifacts/{filename}",
                 self._artifact_download,
@@ -87,7 +89,9 @@ class VideoFeature(BaseFeatureProtocol):
     async def _lint(self, request: Request) -> JSONResponse:
         body = await request.json()
         try:
-            if body.get("projectId"):
+            if body.get("yaml") is not None:
+                issues = await lint(yaml_text=body.get("yaml", ""), variables=body.get("variables"))
+            elif body.get("projectId"):
                 path = str(resolve_project(body["projectId"]) / "scene.yaml")
                 issues = await lint(path=path, variables=body.get("variables"))
             elif body.get("projectPath"):
@@ -113,8 +117,12 @@ class VideoFeature(BaseFeatureProtocol):
                 )
             else:
                 data = await compile_scene(yaml_text=body.get("yaml", ""), variables=body.get("variables"))
+            if data.get("error"):
+                return JSONResponse(data, status_code=422)
             return JSONResponse(data)
         except VideoEngineError as exc:
+            if exc.detail:
+                return JSONResponse(exc.detail, status_code=exc.status_code)
             return JSONResponse({"error": str(exc)}, status_code=exc.status_code)
 
     async def _preview_url(self, request: Request) -> JSONResponse:
@@ -280,6 +288,14 @@ class VideoFeature(BaseFeatureProtocol):
             return JSONResponse(
                 {"id": project_id, "path": str(path), "sceneYaml": yaml_text}
             )
+        except FileNotFoundError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=404)
+
+    async def _project_reset(self, request: Request) -> JSONResponse:
+        project_id = request.path_params["project_id"]
+        try:
+            yaml_text = reset_scene_yaml(project_id)
+            return JSONResponse({"ok": True, "sceneYaml": yaml_text})
         except FileNotFoundError as exc:
             return JSONResponse({"error": str(exc)}, status_code=404)
 

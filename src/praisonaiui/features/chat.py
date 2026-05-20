@@ -467,15 +467,17 @@ async def _run_and_broadcast(
             }
 
             if event.type == RunEventType.RUN_CONTENT:
-                payload["token"] = event.token or ""
-                if event.token:
-                    full_response += event.token
+                token = event.token or ""
+                if token and token != "None":
+                    payload["token"] = token
+                    full_response += token
             elif event.type == RunEventType.RUN_COMPLETED:
-                payload["content"] = event.content or full_response
-                # Prefer SDKs final response over accumulated tokens —
-                # this matches what finalizeDelta() shows in the live view.
-                if event.content:
-                    full_response = event.content
+                content = event.content or full_response
+                if content == "None":
+                    content = ""
+                payload["content"] = content
+                if content:
+                    full_response = content
             elif event.type == RunEventType.RUN_ERROR:
                 payload["error"] = event.error or "Unknown error"
             elif event.type == RunEventType.TOOL_CALL_STARTED:
@@ -535,6 +537,16 @@ async def _run_and_broadcast(
                 payload["result"] = event.result
                 payload["tool_call_id"] = event.tool_call_id
                 _enrich_tool_payload(payload, tool_step_counter, is_completed=True)
+                extra = getattr(event, "extra_data", None) or {}
+                if extra.get("a2ui"):
+                    payload["a2ui"] = extra["a2ui"]
+                    payload["surface_id"] = extra.get("surface_id", "main")
+                    try:
+                        from praisonaiui.features.surfaces import ingest_a2ui_extra
+
+                        await ingest_a2ui_extra(extra, session_id=session_id)
+                    except ImportError:
+                        pass
                 # Merge COMPLETED into STARTED entry (richer args + result)
                 tc_id = payload.get("tool_call_id", "")
                 if tc_id in collected_tool_calls:

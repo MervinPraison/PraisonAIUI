@@ -1,6 +1,6 @@
 [project]
 name = "aiui"
-version = "0.3.116"
+version = "0.3.117"
 description = "YAML-driven website generator - CLI and compiler"
 readme = "README.md"
 license = {text = "MIT"}
@@ -114,6 +114,10 @@ teams = [
     "botbuilder-schema>=4.0.0",
 ]
 
+a2ui = [
+    "praisonaiagents[a2ui]>=1.6.38",
+]
+
 all = [
     "aiui[memory]",
     "aiui[knowledge]",
@@ -129,6 +133,7 @@ all = [
     "aiui[slack]",
     "aiui[discord]",
     "aiui[teams]",
+    "aiui[a2ui]",
 ]
 
 dev = [

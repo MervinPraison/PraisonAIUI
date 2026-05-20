@@ -62,6 +62,23 @@ When the HTTP sidecar is unavailable, lint and render fall back to subprocess ca
 
 The UI lives in `dashboard-plugins/video-studio/` (built-in) or `~/.praisonai/dashboard-plugins/video-studio/` for overrides. It uses `window.aiui.sdk.fetchJSON` and a frame scrubber with `postMessage` / `__pavSeek` for preview.
 
+## CLI parity
+
+The text box edits the same `scene.yaml` the CLI uses. Equivalent commands (from the video repo):
+
+```bash
+praisonai-video project create "My video"
+praisonai-video project lint <project-id>
+praisonai-video project preview <project-id>
+praisonai-video project test <project-id>
+praisonai-video project render <project-id>
+praisonai-video project reset <project-id>
+```
+
+Lint editor text without saving: `praisonai-video lint --stdin < scene.yaml`
+
+See `docs/integrations/praisonaiui.md` in the PraisonAI Video repo for the full mapping table.
+
 ## Related
 
 - [Agent UI host](agent-ui-host.md) — extension patterns (`registerView`, plugins, `@aiui.page`)

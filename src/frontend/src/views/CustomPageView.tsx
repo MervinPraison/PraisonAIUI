@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { DashboardPageProps } from '../types/dashboard'
 import { ComponentRenderer, type ComponentDict } from '../components/ComponentRenderer'
+import { SurfaceHost } from '../surfaces/SurfaceHost'
 
 interface KeyValue {
     label: string
@@ -44,6 +45,23 @@ export function CustomPageView({ page }: DashboardPageProps) {
     if (loading) return <div className="p-6 text-muted-foreground">Loading {page.title}...</div>
     if (error) return <div className="p-6 text-destructive">Error: {error}</div>
     if (!data) return null
+
+    const surfacePayload = data._surface as Record<string, unknown> | undefined
+    if (surfacePayload && (surfacePayload.messages || surfacePayload.id)) {
+        const surfaceId = String(surfacePayload.id ?? 'main')
+        const messages = (surfacePayload.messages ?? []) as Record<string, unknown>[]
+        return (
+            <div className="p-6 max-w-5xl">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold">{page.title}</h2>
+                    <button onClick={fetchData} className="px-3 py-1.5 text-sm rounded-md border hover:bg-accent">
+                        ↻ Refresh
+                    </button>
+                </div>
+                <SurfaceHost mode="auto" messages={messages} surfaceId={surfaceId} />
+            </div>
+        )
+    }
 
     if (data._components && Array.isArray(data._components)) {
         return (

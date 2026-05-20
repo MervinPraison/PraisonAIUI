@@ -16,7 +16,8 @@ graph TD
         GW["WebSocketGateway<br/>REST + WebSocket<br/>Bot management"]
     end
 
-    CHAT -->|"AG-UI protocol<br/>(SSE events)"| AGUI
+    CHAT -->|"WebSocket / SSE<br/>(RunEvent protocol)"| GW
+    CHAT -.->|"AG-UI (optional)<br/>POST /agui"| AGUI
     DASH -->|"REST API<br/>(/api/channels, /api/nodes)"| GW
 ```
 
@@ -110,7 +111,7 @@ sequenceDiagram
 
 ## Using Both Together
 
-`AIUIGateway.start()` in `integration.py` mounts both layers on the same server:
+`AIUIGateway.start()` in `integration.py` mounts the gateway and dashboard REST API on one server. Chat uses the built-in WebSocket/SSE `RunEvent` protocol; AG-UI is mounted separately via `AguiFeature` when enabled:
 
 ```python
 from praisonaiui.integration import AIUIGateway
@@ -121,10 +122,12 @@ agent = Agent(name="assistant", instructions="You are helpful.")
 gateway.register_agent(agent)
 
 await gateway.start()
-# Chat:  POST /agui        → AG-UI streaming (via AGUI class)
-# Admin: GET  /api/channels → Gateway REST API
-# Admin: GET  /api/nodes    → Gateway REST API
-# WS:    /ws                → WebSocket for real-time updates
+# Chat:  POST /run, WS /api/chat/ws  → RunEvent streaming (built-in)
+# AG-UI: POST /agui, GET /agui/status → CopilotKit-compatible SSE (AguiFeature)
+# Admin: GET  /api/channels            → Gateway REST API
+# Admin: GET  /api/nodes               → Gateway REST API
+# WS:    /ws                           → Legacy gateway WebSocket
+# A2UI:  GET/POST /api/surfaces/*      → Agent-driven surfaces (SurfaceFeature)
 ```
 
 ## Summary

@@ -212,6 +212,36 @@ class TestUnknownEvents:
 
 
 # ---------------------------------------------------------------------------
+# G9: A2UI tool results attach extra_data on TOOL_CALL_RESULT
+# ---------------------------------------------------------------------------
+
+class TestA2uiToolResultMapping:
+    """TOOL_CALL_RESULT with A2UI payload must populate extra_data.a2ui."""
+
+    def test_tool_call_result_a2ui_extra(self, mapping_fn, stream_event_cls, stream_event_types):
+        if not hasattr(stream_event_types, "TOOL_CALL_RESULT"):
+            pytest.skip("SDK lacks TOOL_CALL_RESULT")
+
+        a2ui_result = {
+            "mime_type": "application/json+a2ui",
+            "messages": [{"createSurface": {"surfaceId": "panel"}}],
+        }
+        event = stream_event_cls(
+            type=stream_event_types.TOOL_CALL_RESULT,
+            tool_call={
+                "id": "tc-1",
+                "name": "send_a2ui_messages",
+                "result": a2ui_result,
+            },
+        )
+        result = mapping_fn(event)
+        assert result is not None
+        assert result.extra_data is not None
+        assert "a2ui" in result.extra_data
+        assert result.extra_data["surface_id"] == "panel"
+
+
+# ---------------------------------------------------------------------------
 # G7: Full asyncio bridge test (emitter → to_thread → queue)
 # ---------------------------------------------------------------------------
 

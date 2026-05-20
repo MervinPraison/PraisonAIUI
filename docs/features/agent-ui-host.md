@@ -57,6 +57,8 @@ See [`examples/python/external-agent-dashboard/app.py`](../../examples/python/ex
 | `version` | Shell protocol version (`'1'`) |
 | `registerView(pageId, renderFn, cleanup?)` | Replace or add a full page renderer |
 | `registerComponent(type, renderFn)` | Override a layout component type |
+| `registerSurfaceRenderer(surfaceId, renderFn)` | Custom A2UI surface renderer |
+| `selectPage(pageId)` | Navigate programmatically (e.g. open full canvas) |
 | `registerSlot(name, renderFn)` | Inject DOM into named slots |
 | `sdk.fetchJSON(url, opts?)` | Authenticated fetch helper |
 | `sdk.el(tag, attrs?, children?)` | Small DOM builder |
@@ -77,6 +79,47 @@ Register only what you need; omit slots you do not use.
 Define pages with `@aiui.page()` returning `aiui.layout([...])`. Types are implemented once in [`ui.py`](../../src/praisonaiui/ui.py) and [`dashboard.js`](../../src/praisonaiui/templates/frontend/plugins/dashboard.js).
 
 **Kanban / board:** use `aiui.board(columns=[...])`. Columns contain `id`, `title`, and `cards` (from `aiui.card()` or dicts). The shell renders via `renderBoard`, composing existing card renderers (DRY).
+
+## A2UI surfaces (agent-driven UI)
+
+Three tiers work together:
+
+| Tier | Mechanism | Use case |
+|------|-----------|----------|
+| Dashboard | `aiui.layout()` → `_components` | Python-authored pages |
+| A2UI | `send_a2ui_messages` → `SurfaceHost` | Agent-generated UI in chat/canvas |
+| AG-UI | `POST /agui` SSE | CopilotKit / external clients |
+
+Register an empty canvas page:
+
+```python
+@aiui.page("agent-canvas", title="Agent Canvas", icon="🖼️")
+async def agent_canvas():
+    return {"_surface": {"id": "main", "messages": []}}
+```
+
+Or use `@aiui.surface_action("main")` for button callbacks. See [`examples/python/29-a2ui-canvas/`](../../examples/python/29-a2ui-canvas/app.py).
+
+### Chat + Canvas same-window preview
+
+Three dashboard modes:
+
+| Page | Route | Purpose |
+|------|-------|---------|
+| `chat-canvas` | `/chat-canvas` | **Split view** — chat left, live A2UI preview right |
+| `chat` | `/chat` | Vanilla chat only (unchanged) |
+| `canvas` | `/canvas` | Full-page surface workspace |
+
+Enable preview settings and list the combined page:
+
+```python
+aiui.set_chat_preview(enabled=True, surface_id="main", width="38%")
+aiui.set_pages(["chat-canvas", "chat", "canvas"])
+```
+
+`/ui-config.json` exposes `chat.preview: { enabled, surfaceId, width }` for the preview panel.
+
+Shared modules: `surface-utils.js` (render, load, WebSocket, actions), `canvas-preview.js` (preview panel), `a2ui-mapper.js` (default DOM mapper). Override rendering with `registerSurfaceRenderer("main", fn)`.
 
 ## Optional dashboard modules
 

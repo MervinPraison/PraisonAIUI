@@ -129,6 +129,16 @@ def scene_path(project_dir: Path) -> Path:
     return project_dir / "scene.yaml"
 
 
+def reset_scene_yaml(project_id: str) -> str:
+    """Restore default scene.yaml and visual-test spec."""
+    project_dir = resolve_project(project_id)
+    (project_dir / "scene.yaml").write_text(DEFAULT_SCENE_YAML, encoding="utf-8")
+    (project_dir / "scene.visual-test.yaml").write_text(
+        DEFAULT_VISUAL_TEST_YAML, encoding="utf-8"
+    )
+    return DEFAULT_SCENE_YAML
+
+
 def save_scene_yaml(project_id: str, yaml_text: str) -> Path:
     project_dir = resolve_project(project_id)
     scene = scene_path(project_dir)

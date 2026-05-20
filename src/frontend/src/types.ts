@@ -160,6 +160,8 @@ export interface ToolCall {
     args?: Record<string, unknown>
     result?: unknown
     error?: string
+    a2ui?: { messages: Record<string, unknown>[]; surface_id?: string }
+    surface_id?: string
 }
 
 export interface FileAttachment {

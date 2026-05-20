@@ -24,6 +24,8 @@ let _activeCleanup = null; // cleanup function for the active view
 // Paths are relative to /plugins/ where dashboard.js is served from
 const BUILTIN_VIEWS = {
   chat:           '/plugins/views/chat.js',
+  'chat-canvas':  '/plugins/views/chat-canvas.js',
+  canvas:         '/plugins/views/canvas.js',
   overview:       '/plugins/views/overview.js',
   agents:         '/plugins/views/agents.js',
   sessions:       '/plugins/views/sessions.js',
@@ -111,6 +113,11 @@ window.aiui.views = VIEW_REGISTRY;
 window.aiui.registerComponent = function(type, renderFn) {
   COMPONENT_REGISTRY[type] = renderFn;
 };
+const SURFACE_REGISTRY = {};
+window.aiui.registerSurfaceRenderer = function(surfaceId, renderFn) {
+  SURFACE_REGISTRY[surfaceId] = renderFn;
+};
+window.aiui.surfaces = SURFACE_REGISTRY;
 window.aiui.version = '1';
 window.aiui.components = COMPONENT_REGISTRY;
 window.aiui.registerSlot = function (name, renderFn) { SLOT_REGISTRY[name] = renderFn; };
@@ -1048,6 +1055,8 @@ async function selectPage(pageId) {
   window.dispatchEvent(new CustomEvent('aiui:page-change', { detail: { pageId, page } }));
 }
 
+window.aiui.selectPage = selectPage;
+
 async function loadGenericViewer(page, container) {
   const endpoint = page.api_endpoint || `/api/pages/${page.id}/data`;
   try {
@@ -1064,6 +1073,23 @@ async function loadGenericViewer(page, container) {
  * Structured format: { _components: [ { type: "card", ... }, { type: "columns", ... } ] }
  */
 function renderComponents(data, container) {
+  if (data && data._surface) {
+    const sid = data._surface.id || 'main';
+    const wrap = document.createElement('div');
+    wrap.className = 'db-surface-host';
+    wrap.dataset.surfaceId = sid;
+    if (SURFACE_REGISTRY[sid]) {
+      try { SURFACE_REGISTRY[sid](wrap, data._surface.messages || []); } catch (e) { console.warn('Surface renderer error:', e); }
+    } else {
+      const pre = document.createElement('pre');
+      pre.className = 'db-a2ui-fallback';
+      pre.textContent = JSON.stringify(data._surface.messages || [], null, 2);
+      wrap.appendChild(pre);
+    }
+    container.innerHTML = '';
+    container.appendChild(wrap);
+    return;
+  }
   if (data && data._components) {
     // Structured component rendering
     container.innerHTML = '';
@@ -1127,6 +1153,17 @@ function renderComponent(comp) {
     case 'dialog': return renderDialog(comp);
     case 'caption': return renderCaption(comp);
     case 'html_embed': return renderHtmlEmbed(comp);
+    case 'a2ui_surface': {
+      const wrap = document.createElement('div');
+      wrap.className = 'db-a2ui-surface';
+      const sid = comp.surface_id || 'main';
+      if (SURFACE_REGISTRY[sid]) {
+        try { SURFACE_REGISTRY[sid](wrap, comp.messages || []); } catch (e) { console.warn(e); }
+      } else {
+        wrap.innerHTML = '<pre>' + JSON.stringify(comp.messages || [], null, 2) + '</pre>';
+      }
+      return wrap;
+    }
     case 'skeleton': return renderSkeleton(comp);
     case 'tooltip_wrap': return renderTooltipWrap(comp);
     case 'time_input': return renderTimeInput(comp);

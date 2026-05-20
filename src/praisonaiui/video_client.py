@@ -19,9 +19,15 @@ logger = logging.getLogger(__name__)
 
 
 class VideoEngineError(Exception):
-    def __init__(self, message: str, status_code: int = 502):
+    def __init__(
+        self,
+        message: str,
+        status_code: int = 502,
+        detail: dict[str, Any] | None = None,
+    ):
         super().__init__(message)
         self.status_code = status_code
+        self.detail = detail
 
 
 def _headers() -> dict[str, str]:
@@ -46,9 +52,15 @@ def _request_urllib(
         with urlopen(req, timeout=timeout) as resp:
             raw = resp.read()
     except HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")[:500]
+        raw = exc.read().decode("utf-8", errors="replace")
+        payload: dict[str, Any] | None = None
+        try:
+            payload = json.loads(raw) if raw else None
+        except json.JSONDecodeError:
+            payload = None
+        msg = payload.get("error", raw[:500]) if isinstance(payload, dict) else raw[:500]
         raise VideoEngineError(
-            f"Video engine error {exc.code}: {detail}", exc.code
+            f"Video engine error {exc.code}: {msg}", exc.code, detail=payload
         ) from exc
     except URLError as exc:
         raise VideoEngineError(
@@ -82,8 +94,21 @@ async def _request(
     async with httpx.AsyncClient(timeout=timeout) as client:
         resp = await client.request(method, url, json=json_body, headers=_headers())
     if resp.status_code >= 400:
-        detail = resp.text[:500]
-        raise VideoEngineError(f"Video engine error {resp.status_code}: {detail}", resp.status_code)
+        payload: dict[str, Any] | None = None
+        try:
+            payload = resp.json()
+        except Exception:
+            payload = None
+        msg = (
+            payload.get("error", resp.text[:500])
+            if isinstance(payload, dict)
+            else resp.text[:500]
+        )
+        raise VideoEngineError(
+            f"Video engine error {resp.status_code}: {msg}",
+            resp.status_code,
+            detail=payload,
+        )
     if not resp.content:
         return {}
     return resp.json()
@@ -124,6 +149,8 @@ async def compile_scene(
     try:
         return await _request("POST", "/v1/compile", json_body=body, timeout=30.0)
     except VideoEngineError as exc:
+        if exc.status_code == 422 and exc.detail:
+            return exc.detail
         raise VideoEngineError(
             "Video engine unavailable for compile. Start: praisonai-video serve",
             exc.status_code,

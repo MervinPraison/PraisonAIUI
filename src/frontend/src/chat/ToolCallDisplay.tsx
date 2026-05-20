@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ToolCall } from '../types'
+import { SurfaceHost } from '../surfaces/SurfaceHost'
 
 interface ToolCallDisplayProps {
     toolCall: ToolCall
@@ -57,6 +58,18 @@ export function ToolCallDisplay({ toolCall }: ToolCallDisplayProps) {
             </button>
             {expanded && (
                 <div className="p-2 border-t space-y-2">
+                    {toolCall.a2ui?.messages?.length ? (
+                        <div>
+                            <span className="text-muted-foreground">UI:</span>
+                            <div className="mt-1">
+                                <SurfaceHost
+                                    mode="auto"
+                                    messages={toolCall.a2ui.messages}
+                                    surfaceId={toolCall.a2ui.surface_id ?? toolCall.surface_id}
+                                />
+                            </div>
+                        </div>
+                    ) : null}
                     {toolCall.args && Object.keys(toolCall.args).length > 0 && (
                         <div>
                             <span className="text-muted-foreground">Arguments:</span>

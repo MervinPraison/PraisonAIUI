@@ -1087,6 +1087,13 @@ function handleWsMessage(data) {
 
     case 'tool_call_completed':
       updateToolCall(data, 'done');
+      if (data.a2ui && data.a2ui.length) {
+        appendA2uiSurface(data.surface_id || 'main', data.a2ui);
+      }
+      break;
+
+    case 'a2ui_surface':
+      appendA2uiSurface(data.surface_id || 'main', data.messages || []);
       break;
 
     case 'reasoning_step':
@@ -1339,20 +1346,32 @@ function appendDelta(token, agentName) {
   }
 
   currentDeltaText += token;
+  if (currentDeltaText.trim() === 'None') {
+    currentDeltaText = '';
+    return;
+  }
   currentDeltaEl.innerHTML = renderMarkdown(currentDeltaText);
   messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function isBlankAssistantContent(content) {
+  if (content == null || content === undefined) return true;
+  const s = String(content).trim();
+  return !s || s === 'None';
 }
 
 function finalizeDelta(content, agentName) {
   if (currentDeltaEl) {
     currentDeltaEl.classList.remove('chat-msg-streaming');
-    if (content) {
+    if (!isBlankAssistantContent(content)) {
       currentDeltaEl.innerHTML = renderMarkdown(content);
       highlightCodeBlocks(currentDeltaEl);
+    } else if (isBlankAssistantContent(currentDeltaText)) {
+      currentDeltaEl.remove();
     }
     currentDeltaEl = null;
     currentDeltaText = '';
-  } else if (content) {
+  } else if (!isBlankAssistantContent(content)) {
     appendMessage('assistant', content, agentName);
   }
 }
@@ -1410,6 +1429,27 @@ function appendToolCall(data, status) {
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
+function appendA2uiSurface(surfaceId, messages) {
+  const messagesEl = document.getElementById('chat-messages');
+  if (!messagesEl) return;
+  const el = document.createElement('div');
+  el.className = 'chat-a2ui-surface';
+  el.dataset.surfaceId = surfaceId;
+  const sid = surfaceId || 'main';
+  if (window.aiui && window.aiui.surfaces && window.aiui.surfaces[sid]) {
+    try {
+      window.aiui.surfaces[sid](el, messages);
+    } catch (e) {
+      el.innerHTML = '<pre>' + escapeHtml(JSON.stringify(messages, null, 2)) + '</pre>';
+    }
+  } else {
+    el.innerHTML = '<div class="chat-a2ui-label">A2UI · ' + escapeHtml(sid) + '</div>' +
+      '<pre>' + escapeHtml(JSON.stringify(messages, null, 2)) + '</pre>';
+  }
+  messagesEl.appendChild(el);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
 function _updateToolDetails(el, data) {
   const detailsEl = el.querySelector('.chat-tool-details');
   if (!detailsEl) return;
@@ -1425,6 +1465,13 @@ function _updateToolDetails(el, data) {
     html += '<div class="tool-detail-section">' +
       '<div class="tool-detail-label">Arguments</div>' +
       '<pre>' + escapeHtml(args) + '</pre>' +
+    '</div>';
+  }
+  // A2UI surface preview
+  if (data.a2ui && data.a2ui.length) {
+    html += '<div class="tool-detail-section">' +
+      '<div class="tool-detail-label">A2UI Surface</div>' +
+      '<pre class="chat-a2ui-preview">' + escapeHtml(JSON.stringify(data.a2ui, null, 2)) + '</pre>' +
     '</div>';
   }
   // Result section

@@ -35,6 +35,7 @@
     let projects = [];
     let currentId = null;
     let lintTimer = null;
+    let saveTimer = null;
     let activeJobId = null;
     let jobPollTimer = null;
     let durationFrames = 90;
@@ -47,8 +48,9 @@
     const btnTest = el('button', { text: 'Visual test' });
     const btnPreview = el('button', { text: 'Start preview' });
     const btnRender = el('button', { text: 'Render MP4' });
+    const btnReset = el('button', { text: 'Reset scene' });
     const pathLabel = el('span', { className: 'vs-hint', text: '' });
-    bar.append(projectSelect, btnNew, btnLint, btnTest, btnPreview, btnRender, pathLabel);
+    bar.append(projectSelect, btnNew, btnLint, btnTest, btnPreview, btnRender, btnReset, pathLabel);
 
     const main = el('div', { className: 'vs-main' });
     const editorCol = el('div', { className: 'vs-editor' });
@@ -57,13 +59,38 @@
     editorCol.append(textarea, issuesList);
 
     const previewCol = el('div', { className: 'vs-preview' });
+    previewCol.append(el('p', { className: 'vs-section-label', text: 'Composition preview' }));
+    const previewHint = el('p', {
+      className: 'vs-hint',
+      text: 'Click Start preview (needs video engine). Frame 0 is blank for the hello scene — scrub to ~45.',
+    });
     const iframe = el('iframe', { title: 'Scene preview', sandbox: 'allow-scripts allow-same-origin' });
     const transport = el('div', { className: 'vs-transport' });
     const frameLabel = el('span', { text: 'Frame 0 / 90' });
     const frameSlider = el('input', { type: 'range', min: '0', max: '89', value: '0' });
     transport.append(frameLabel, frameSlider);
-    const previewHint = el('p', { className: 'vs-hint', text: 'Start preview to load the composition.' });
     previewCol.append(previewHint, iframe, transport);
+
+    previewCol.append(el('p', { className: 'vs-section-label', text: 'Rendered MP4' }));
+    const outputHint = el('p', {
+      className: 'vs-hint',
+      text: 'Render MP4 to generate a video. It will appear here with playback controls.',
+    });
+    const outputWrap = el('div', { className: 'vs-output-wrap' });
+    const videoEl = el('video', {
+      className: 'vs-output-video',
+      controls: 'controls',
+      playsinline: 'playsinline',
+      preload: 'metadata',
+    });
+    videoEl.setAttribute('controls', '');
+    const outputActions = el('div', { className: 'vs-output-actions' });
+    const btnPlay = el('button', { type: 'button', text: 'Play' });
+    const btnDownload = el('a', { className: 'vs-download-link', text: 'Download' });
+    btnDownload.style.display = 'none';
+    outputActions.append(btnPlay, btnDownload);
+    outputWrap.append(videoEl, outputActions);
+    previewCol.append(outputHint, outputWrap);
 
     main.append(editorCol, previewCol);
 
@@ -89,6 +116,7 @@
       pathLabel.textContent = data.path || '';
       await runLint();
       await loadPreviewUrl();
+      await loadRenderedMp4();
       try {
         const compiled = await api('/api/video/compile', {
           method: 'POST',
@@ -97,7 +125,9 @@
         if (compiled.ir && compiled.ir.videoConfig) {
           durationFrames = compiled.ir.videoConfig.durationInFrames || 90;
           frameSlider.max = String(Math.max(0, durationFrames - 1));
-          frameLabel.textContent = 'Frame 0 / ' + durationFrames;
+          const start = defaultPreviewFrame();
+          frameSlider.value = String(start);
+          frameLabel.textContent = 'Frame ' + start + ' / ' + durationFrames;
         }
       } catch (_) {
         /* compile may fail if engine down */
@@ -109,7 +139,7 @@
       try {
         const data = await api('/api/video/lint', {
           method: 'POST',
-          body: JSON.stringify({ projectId: currentId }),
+          body: JSON.stringify({ projectId: currentId, yaml: textarea.value }),
         });
         issuesList.innerHTML = '';
         (data.issues || []).forEach((issue) => {
@@ -133,6 +163,11 @@
       lintTimer = setTimeout(runLint, LINT_DEBOUNCE_MS);
     }
 
+    function scheduleSave() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => saveScene().catch(() => {}), 800);
+    }
+
     async function saveScene() {
       if (!currentId) return;
       await api('/api/video/projects/' + encodeURIComponent(currentId) + '/scene', {
@@ -141,34 +176,91 @@
       });
     }
 
+    function artifactUrl(filename) {
+      if (!currentId) return '';
+      return (
+        '/api/video/projects/' +
+        encodeURIComponent(currentId) +
+        '/artifacts/' +
+        encodeURIComponent(filename || 'out.mp4')
+      );
+    }
+
+    function showRenderedMp4(url) {
+      if (!url) return;
+      const src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+      videoEl.src = src;
+      btnDownload.href = url;
+      btnDownload.style.display = 'inline-block';
+      outputHint.textContent = 'Rendered video — use Play or the player controls below.';
+    }
+
+    function clearRenderedMp4() {
+      videoEl.removeAttribute('src');
+      videoEl.load();
+      btnDownload.style.display = 'none';
+      btnDownload.removeAttribute('href');
+      outputHint.textContent =
+        'Render MP4 to generate a video. It will appear here with playback controls.';
+    }
+
+    async function loadRenderedMp4() {
+      if (!currentId) {
+        clearRenderedMp4();
+        return;
+      }
+      const url = artifactUrl('out.mp4');
+      videoEl.onloadeddata = function () {
+        outputHint.textContent = 'Rendered video — use Play or the player controls below.';
+      };
+      videoEl.onerror = function () {
+        clearRenderedMp4();
+      };
+      videoEl.src = url + '?t=' + Date.now();
+    }
+
+    btnPlay.addEventListener('click', () => {
+      if (!videoEl.src) {
+        alert('No rendered MP4 yet. Click Render MP4 first.');
+        return;
+      }
+      videoEl.play().catch(function (err) {
+        alert(err.message || 'Could not play video');
+      });
+    });
+
     async function loadPreviewUrl() {
       if (!currentId) return;
       const data = await api('/api/video/preview-url?projectId=' + encodeURIComponent(currentId));
       previewUrl = data.url;
       if (previewUrl) {
-        iframe.src = previewUrl;
-        previewHint.textContent = '';
+        attachPreviewIframe(previewUrl);
+        previewHint.textContent =
+          'Composition preview — dark at frame 0; scrub or wait for frame 45.';
       } else {
         iframe.removeAttribute('src');
         previewHint.textContent = data.message || 'Start preview to load the composition.';
       }
     }
 
+    function defaultPreviewFrame() {
+      return Math.min(45, Math.max(0, durationFrames - 1));
+    }
+
     function seekFrame(n) {
       frameLabel.textContent = 'Frame ' + n + ' / ' + durationFrames;
       if (!iframe.contentWindow) return;
-      try {
-        iframe.contentWindow.postMessage({ type: 'pav-seek', frame: n }, '*');
-      } catch (_) {
-        /* cross-origin until preview same host */
-      }
-      try {
-        if (iframe.contentWindow.__pavSeek) {
-          iframe.contentWindow.__pavSeek(n);
-        }
-      } catch (_) {
-        /* ignore */
-      }
+      iframe.contentWindow.postMessage({ type: 'pav-seek', frame: n }, '*');
+    }
+
+    function attachPreviewIframe(url) {
+      const src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+      iframe.onload = function () {
+        const start = defaultPreviewFrame();
+        frameSlider.value = String(start);
+        seekFrame(start);
+      };
+      iframe.src = src;
     }
 
     frameSlider.addEventListener('input', () => {
@@ -177,7 +269,19 @@
 
     textarea.addEventListener('input', () => {
       scheduleLint();
-      saveScene().catch(() => {});
+      scheduleSave();
+    });
+
+    btnReset.addEventListener('click', async () => {
+      if (!currentId) return alert('Select a project first.');
+      if (!confirm('Restore the default hello scene? Unsaved edits will be lost.')) return;
+      const data = await api(
+        '/api/video/projects/' + encodeURIComponent(currentId) + '/reset',
+        { method: 'POST', body: '{}' }
+      );
+      textarea.value = data.sceneYaml || '';
+      await runLint();
+      await loadPreviewUrl();
     });
 
     projectSelect.addEventListener('change', () => {
@@ -218,10 +322,11 @@
       });
       if (data.url) {
         previewUrl = data.url;
-        iframe.src = data.url;
-        previewHint.textContent = '';
+        attachPreviewIframe(data.url);
+        previewHint.textContent =
+          'Composition loaded — use the scrubber (hello text visible around frame 45).';
       } else {
-        alert(data.message || 'Could not start preview.');
+        alert(data.message || 'Could not start preview. Is praisonai-video serve running?');
       }
     });
 
@@ -238,11 +343,10 @@
       jobPollTimer = null;
       btnRender.disabled = false;
       if (data.status === 'succeeded' && data.downloadUrl) {
+        showRenderedMp4(data.downloadUrl);
         jobsStrip.innerHTML = '';
-        jobsStrip.append(
-          'Render complete. ',
-          el('a', { href: data.downloadUrl, text: 'Download MP4' })
-        );
+        jobsStrip.append('Render complete — play the video on the right.');
+        videoEl.play().catch(function () {});
       } else if (data.error) {
         jobsStrip.textContent = 'Render failed: ' + data.error;
       }
@@ -271,6 +375,7 @@
 
     return () => {
       clearTimeout(lintTimer);
+      clearTimeout(saveTimer);
       clearInterval(jobPollTimer);
     };
   });

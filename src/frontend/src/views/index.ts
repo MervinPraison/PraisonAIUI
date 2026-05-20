@@ -19,6 +19,7 @@ import { UsageView } from './UsageView'
 import { DebugView } from './DebugView'
 import { RealtimeView } from './RealtimeView'
 import { CustomPageView } from './CustomPageView'
+import { CanvasView } from './CanvasView'
 
 /** Registry of built-in page components, keyed by page ID */
 export const BUILTIN_VIEWS: Record<string, ComponentType<DashboardPageProps>> = {
@@ -30,6 +31,7 @@ export const BUILTIN_VIEWS: Record<string, ComponentType<DashboardPageProps>> = 
     usage: UsageView as unknown as ComponentType<DashboardPageProps>,
     debug: DebugView as unknown as ComponentType<DashboardPageProps>,
     realtime: RealtimeView as unknown as ComponentType<DashboardPageProps>,
+    canvas: CanvasView as unknown as ComponentType<DashboardPageProps>,
 }
 
 /**

@@ -47,6 +47,7 @@ def auto_register_defaults() -> None:
     _BUILTIN_FEATURES = [
         (".agents", "AgentsCrudFeature"),
         (".approvals", "ApprovalsFeature"),
+        (".agui", "AguiFeature"),
         (".attachments", "AttachmentsFeature"),
         (".auth", "AuthFeature"),
         (".browser_automation", "BrowserAutomationFeature"),
@@ -73,6 +74,7 @@ def auto_register_defaults() -> None:
         (".sessions_ext", "SessionsFeature"),
         (".skills", "SkillsFeature"),
         (".subagents", "SubagentsFeature"),
+        (".surfaces", "SurfacesFeature"),
         (".theme", "ThemeFeature"),
         (".tts", "TTSFeature"),
         (".usage", "UsageFeature"),

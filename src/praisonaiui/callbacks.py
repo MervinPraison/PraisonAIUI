@@ -326,6 +326,55 @@ def page(
     return decorator
 
 
+def surface_page(
+    id: str,
+    *,
+    surface_id: str = "main",
+    title: str = "Canvas",
+    icon: str = "🖼️",
+    group: str = "Custom",
+    description: str = "",
+    order: int = 100,
+) -> Callable[[F], F]:
+    """Register a dashboard page backed by an A2UI surface."""
+
+    def decorator(func: F) -> F:
+        from praisonaiui.server import register_page
+
+        async def handler():
+            data = func()
+            if asyncio.iscoroutine(data):
+                data = await data
+            if isinstance(data, dict) and "_surface" in data:
+                return data
+            return {"_surface": {"id": surface_id, "messages": data or []}}
+
+        register_page(
+            id,
+            title=title,
+            icon=icon,
+            group=group,
+            description=description,
+            handler=handler,
+            order=order,
+        )
+        return func
+
+    return decorator
+
+
+def surface_action(surface_id: str = "main") -> Callable[[F], F]:
+    """Decorator to handle user actions from an A2UI surface."""
+
+    def decorator(func: F) -> F:
+        from praisonaiui.features.surfaces import register_surface_action
+
+        register_surface_action(surface_id, func)
+        return func
+
+    return decorator
+
+
 def resume(func: F) -> F:
     """Decorator for session resume handler.
 

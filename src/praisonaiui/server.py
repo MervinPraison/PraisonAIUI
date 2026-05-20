@@ -119,7 +119,7 @@ def reset_state() -> None:
     """
     global _style, _branding, _theme, _custom_css, _custom_js, _chat_features
     global _dashboard_config, _provider, _config_path, _config_cache
-    global _chat_mode, _brand_color, _effective_style, _selected_profile, _feedback_enabled
+    global _chat_mode, _chat_preview, _brand_color, _effective_style, _selected_profile, _feedback_enabled
     _callbacks.clear()
     _agents.clear()
     _pages.clear()
@@ -148,6 +148,7 @@ def reset_state() -> None:
     _config_path = None
     _config_cache = None
     _chat_mode = None
+    _chat_preview = None
     _brand_color = None
     _effective_style = "chat"
     _selected_profile = {"id": None}
@@ -376,6 +377,39 @@ def set_dashboard(
 
 # Chat mode config set via aiui.set_chat_mode()
 _chat_mode: Optional[dict[str, Any]] = None
+
+# Chat + canvas split preview (opt-in via chat-canvas page)
+_chat_preview: Optional[dict[str, Any]] = None
+
+
+def set_chat_preview(
+    enabled: bool = True,
+    *,
+    surface_id: str = "main",
+    width: str = "40%",
+) -> None:
+    """Configure same-window chat + canvas split preview.
+
+    When enabled, use the ``chat-canvas`` dashboard page (chat left, live
+    A2UI surface right). The vanilla ``chat`` page is unchanged.
+
+    Args:
+        enabled: Expose preview settings in ``/ui-config.json``.
+        surface_id: Default A2UI surface id for the preview panel.
+        width: CSS width of the preview column (e.g. ``"40%"``, ``"420px"``).
+
+    Example::
+
+        import praisonaiui as aiui
+        aiui.set_chat_preview(enabled=True, surface_id="main", width="38%")
+        aiui.set_pages(["chat-canvas", "chat", "canvas"])
+    """
+    global _chat_preview
+    _chat_preview = {
+        "enabled": enabled,
+        "surfaceId": surface_id,
+        "width": width,
+    }
 
 
 def set_chat_mode(
@@ -2088,6 +2122,17 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
                         payload.setdefault("icon", "🔧")
                         payload.setdefault("description", f"🔧 Using {name}")
                         payload.setdefault("step_number", tool_step_counter)
+                    extra = run_event.extra_data or {}
+                    if extra.get("a2ui"):
+                        payload["a2ui"] = extra["a2ui"]
+                        payload["surface_id"] = extra.get("surface_id", "main")
+                        if is_completed:
+                            try:
+                                from praisonaiui.features.surfaces import ingest_a2ui_extra
+
+                                await ingest_a2ui_extra(extra, session_id=session_id)
+                            except ImportError:
+                                pass
                     collected_tool_calls.append(payload)
                     yield f"data: {json.dumps(payload)}\n\n"
                 else:
@@ -2587,6 +2632,11 @@ def create_app(
 
         # Chat mode config
         _chat_mode_cfg = _chat_mode or {"mode": "fullpage"}
+        _chat_preview_cfg = _chat_preview or {
+            "enabled": False,
+            "surfaceId": "main",
+            "width": "40%",
+        }
 
         # Brand color
         _brand = _brand_color
@@ -2610,6 +2660,7 @@ def create_app(
                 "chat": {
                     "enabled": effective_style in ("chat", "agents", "playground", "dashboard"),
                     "mode": _chat_mode_cfg,
+                    "preview": _chat_preview_cfg,
                     **(
                         {
                             "features": _chat_features,
@@ -2826,6 +2877,22 @@ def create_app(
             "group": "Agent",
             "description": "AI agent chat",
             "order": 1,
+        },
+        {
+            "id": "chat-canvas",
+            "title": "Chat + Canvas",
+            "icon": "💬🖼️",
+            "group": "Agent",
+            "description": "Chat with live A2UI preview panel",
+            "order": 2,
+        },
+        {
+            "id": "canvas",
+            "title": "Canvas",
+            "icon": "🖼️",
+            "group": "Agent",
+            "description": "Live A2UI surface workspace",
+            "order": 6,
         },
         {
             "id": "channels",

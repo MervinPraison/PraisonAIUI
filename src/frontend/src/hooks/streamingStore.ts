@@ -264,6 +264,8 @@ function handleStoreEvent(
 
     case 'tool_call_completed':
     case 'team_tool_call_completed': {
+      const extra = event.extra_data as Record<string, unknown> | undefined
+      const a2uiRaw = (event.a2ui ?? extra?.a2ui) as Record<string, unknown>[] | undefined
       const tc: ToolCall = {
         name: event.name as string,
         description: event.description as string | undefined,
@@ -274,6 +276,10 @@ function handleStoreEvent(
         args: event.args as Record<string, unknown> | undefined,
         formatted_result: event.formatted_result as string | undefined,
         result: event.result,
+        surface_id: (event.surface_id ?? extra?.surface_id) as string | undefined,
+        a2ui: a2uiRaw?.length
+          ? { messages: a2uiRaw, surface_id: (event.surface_id ?? extra?.surface_id) as string | undefined }
+          : undefined,
       }
       if (tc.tool_call_id) toolCallMap.set(tc.tool_call_id, tc)
       const all = buildToolCallList(entry.state.toolCalls, tc)

@@ -111,8 +111,9 @@ YAML config → Pydantic models → Compiler → JSON manifests → React SPA
 ### Frontend Build
 1. Source in `src/frontend/src/` (React 19 + TypeScript + Vite)
 2. Build: `cd src/frontend && npm run build`
-3. Output: `src/frontend/dist/`
-4. Sync to templates: copy `dist/{index.html,assets/,icon.svg}` → `src/praisonaiui/templates/frontend/`
+3. Optional A2UI renderer (full agent-driven UI catalog): `npm install @a2ui/react @a2ui/web_core`
+4. Output: `src/frontend/dist/`
+5. Sync to templates: copy `dist/{index.html,assets/,icon.svg}` → `src/praisonaiui/templates/frontend/`
 5. Compiler copies templates to output dir during `aiui build`
 
 ## Gotchas
