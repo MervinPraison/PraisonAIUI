@@ -393,6 +393,26 @@ def set_dashboard(
     }
 
 
+_jobs_api_config: dict[str, str] = {"apiBase": "/api/jobs", "backend": "aiui"}
+
+
+def set_jobs_api(*, api_base: str = "/api/jobs", backend: str = "aiui") -> None:
+    """Configure dashboard jobs view API paths."""
+    global _jobs_api_config
+    _jobs_api_config = {
+        "apiBase": api_base.rstrip("/") or "/api/jobs",
+        "backend": backend,
+    }
+
+
+def set_jobs_backend(name: str) -> None:
+    """Shortcut: ``praisonai`` → ``/api/v1/runs``, ``aiui`` → ``/api/jobs``."""
+    if name == "praisonai":
+        set_jobs_api(api_base="/api/v1/runs", backend="praisonai")
+    else:
+        set_jobs_api(api_base="/api/jobs", backend="aiui")
+
+
 # Chat mode config set via aiui.set_chat_mode()
 _chat_mode: Optional[dict[str, Any]] = None
 
@@ -2744,6 +2764,7 @@ def create_app(
                     if _agent_settings
                     else {}
                 ),
+                "jobs": dict(_jobs_api_config),
                 "debug": _debug,
             }
         )

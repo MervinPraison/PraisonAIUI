@@ -172,6 +172,15 @@ window.aiui.registerView('my-board', async (container) => {
 
 Sample: [`sample-board`](../../src/praisonaiui/templates/frontend/dashboard-plugins/sample-board/).
 
+## Agent plugins vs dashboard plugins
+
+| System | Location | Purpose |
+|--------|----------|---------|
+| Agent plugins | `~/.praisonai/plugins/` | Python agent extensions |
+| Dashboard plugins | `~/.praisonai/dashboard-plugins/` | JS UI tabs |
+
+See [PraisonAI package integration](praisonai-package-integration.md) for backend wiring, jobs API, and deployment.
+
 ## Granular control — opt-in / opt-out
 
 | What you control | How | Example |
@@ -226,6 +235,7 @@ CLI: `aiui pages ids` lists built-in page ids for whitelists.
 
 | File | Role |
 |------|------|
+| [`praisonai-package-integration.md`](praisonai-package-integration.md) | Praison backend wiring |
 | [`server.py`](../../src/praisonaiui/server.py) | Pages API, `set_dashboard`, plugin chain |
 | [`dashboard_plugins.py`](../../src/praisonaiui/dashboard_plugins.py) | Manifest discovery and static routes |
 | [`dashboard.js`](../../src/praisonaiui/templates/frontend/plugins/dashboard.js) | Shell, registries, renderers |
