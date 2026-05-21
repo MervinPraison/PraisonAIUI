@@ -6,8 +6,8 @@ can call host-page JavaScript functions (e.g., navigate_to("/settings")).
 
 from __future__ import annotations
 
-from datetime import datetime
 from dataclasses import dataclass, field
+from datetime import datetime
 from functools import wraps
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 

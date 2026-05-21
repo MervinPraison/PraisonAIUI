@@ -9,12 +9,12 @@ Provides first-class MCP client functionality with:
 
 from __future__ import annotations
 
-import logging
 import json
+import logging
 import subprocess
-from pathlib import Path
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Protocol
 
 try:

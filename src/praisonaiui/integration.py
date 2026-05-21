@@ -144,6 +144,7 @@ class AIUIGateway:
         # ── Bootstrap datastore + SDK bridges (Pattern C parity) ───────
         try:
             from praisonai.ui._aiui_datastore import PraisonAISessionDataStore
+
             from praisonaiui.server import set_datastore
 
             set_datastore(PraisonAISessionDataStore())

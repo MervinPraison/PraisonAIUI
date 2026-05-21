@@ -7,7 +7,7 @@ import logging
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse
@@ -21,10 +21,11 @@ from praisonaiui.video_client import (
     lint,
     preview_start,
     registry,
-    render as engine_render,
     test_scene,
 )
-from praisonaiui.video_config import set_video_engine
+from praisonaiui.video_client import (
+    render as engine_render,
+)
 from praisonaiui.video_projects import (
     create_project,
     export_artifact_path,
