@@ -21,7 +21,7 @@ function actionFromNode(node) {
   return null;
 }
 
-def renderMappedComponent(comp, surfaceId, onAction) {
+function renderMappedComponent(comp, surfaceId, onAction) {
   const type = comp.component;
   if (!type) return null;
 

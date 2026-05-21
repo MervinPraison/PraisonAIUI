@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any
+
+from praisonaiui.sync import AsyncContext
 
 from praisonaiui.features.jobs import JobStatus
 from praisonaiui.features.video import _video_jobs
@@ -34,6 +37,23 @@ def _resolve_project_id(project_id: str | None) -> str:
         return projects[0]["id"]
     created = create_project("Agent video")
     return created["id"]
+
+
+def _run_coro(coro):
+    """Run async video helpers from sync agent tools."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    with AsyncContext() as ctx:
+        return ctx.run(coro)
+
+
+async def _lint_async(project_id: str, yaml_text: str | None = None) -> list[dict[str, Any]]:
+    if yaml_text is not None:
+        return await video_lint(yaml_text=yaml_text)
+    path = str(resolve_project(project_id) / "scene.yaml")
+    return await video_lint(path=path)
 
 
 def video_list_projects() -> str:
@@ -75,18 +95,11 @@ def video_reset_scene(project_id: str | None = None) -> str:
     return f"Reset scene to default hello template for project {pid}."
 
 
-async def _lint_async(project_id: str, yaml_text: str | None = None) -> list[dict[str, Any]]:
-    if yaml_text is not None:
-        return await video_lint(yaml_text=yaml_text)
-    path = str(resolve_project(project_id) / "scene.yaml")
-    return await video_lint(path=path)
-
-
 def video_lint_scene(project_id: str | None = None, yaml: str | None = None) -> str:
     """Lint scene YAML (file or inline). Returns issues or 'No issues.'"""
     pid = _resolve_project_id(project_id)
     try:
-        issues = asyncio.run(_lint_async(pid, yaml))
+        issues = _run_coro(_lint_async(pid, yaml))
     except VideoEngineError as exc:
         return f"Lint failed: {exc}"
     if not issues:
@@ -151,7 +164,7 @@ def video_render_project(
             get_job_store().save({**job, "prompt": job.get("prompt", "")})
         return job
 
-    job = asyncio.run(_run())
+    job = _run_coro(_run())
     mark_project_refresh(pid)
     if job.get("status") == JobStatus.SUCCEEDED.value:
         url = (job.get("result") or {}).get("downloadUrl", "")

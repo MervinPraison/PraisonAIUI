@@ -7,6 +7,7 @@ listing, running, and checking status of multi-step workflows
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from typing import Any, Dict, List
@@ -120,7 +121,9 @@ class WorkflowsFeature(BaseFeatureProtocol):
             return JSONResponse({"error": "Workflow not found"}, status_code=404)
         content_type = request.headers.get("content-type")
         body = await request.json() if content_type == "application/json" else {}
-        run_entry = _execute_workflow(wf_id, wf, body.get("input", {}))
+        run_entry = await asyncio.to_thread(
+            _execute_workflow, wf_id, wf, body.get("input", {})
+        )
         _runs[run_entry["id"]] = run_entry
         return JSONResponse(run_entry)
 
