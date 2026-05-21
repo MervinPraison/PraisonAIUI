@@ -10,6 +10,9 @@ console.log('[AIUI Loader] Starting...');
  *   - name: string           — unique identifier
  *   - init(): Promise<void>  — called once on load
  *   - onContentChange(root): void — called when SPA content changes
+ *
+ * Dashboard manifest plugins (CSS/JS) are loaded by dashboard.js
+ * loadDashboardPlugins() after /api/dashboard/plugins — not here.
  */
 (function () {
   'use strict';

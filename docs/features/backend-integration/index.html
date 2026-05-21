@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Backend Integration Contract - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Backend Integration Contract | PraisonAIUI Docs</title>
+  <script>
+    // Anti-flicker: apply dark mode class before first paint
+    // Default to dark to prevent flash; React will correct if needed
+    document.documentElement.classList.add('dark');
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/backend-integration" />
+  <meta property="og:title" content="Backend Integration Contract | PraisonAIUI Docs" />
+  <meta property="og:description" content="Backend Integration Contract - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/backend-integration" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Backend Integration Contract | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Backend Integration Contract - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Backend Integration Contract</h1>
+<p>PraisonAIUI supports a four-layer integration model so standalone mode and SDK-integrated mode can share the same feature APIs.</p>
+<h2>Four Layers</h2>
+<p>1. **Feature API layer**</p>
+<p>Endpoints live in feature modules and expose stable HTTP/CLI behaviour.</p>
+<p>2. **Feature manager layer**</p>
+<p>Each feature manager keeps local fallback logic for standalone operation.</p>
+<p>3. **Backend factory layer**</p>
+<p>`praisonaiui.backends` provides optional injected factories (`get_workflow_runner()`, `get_hooks_lister()`, `get_usage_query()`, etc.).</p>
+<p>4. **SDK/runtime layer**</p>
+<p>PraisonAI or praisonaiagents implementations are used when injected or importable.</p>
+<h2>Injection Contract</h2>
+<li>Injected backends are optional and must be callable.</li>
+<li>Features must keep local fallbacks when injected backends are absent or fail.</li>
+<li>Backend call signatures should remain minimal and dict/list based.</li>
+<li>Integration should not introduce hard imports in feature modules when a fallback already exists.</li>
+<h2>Operational Rule</h2>
+<p>When integrated, wrappers should inject backend callables at startup; when standalone, features should run without any backend injection.</p></noscript></div>
+</body>
+
+</html>

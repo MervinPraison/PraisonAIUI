@@ -65,6 +65,15 @@ aiui.set_dashboard(modules=["jobs"], sidebar=True, page_header=True)
 aiui.set_jobs_api(api_base="/api/v1/runs", backend="praisonai")
 ```
 
+Or via host bootstrap:
+
+```python
+from praisonai.integration.host_app import configure_host, create_host_app
+
+configure_host(pages=[...], modules=["jobs"], agents=[...])
+app = create_host_app()
+```
+
 ## API surface
 
 ### Chat and agents (dashboard)
@@ -175,6 +184,7 @@ After `praisonai claw` or `aiui run` with package bridges:
 ## Related
 
 - [Agent UI host](agent-ui-host.md) — extension API, opt-in matrix
+- [Backend integration](backend-integration.md) — L1 backend injection
 - [`integration.py`](../../src/praisonaiui/integration.py) — `AIUIGateway`
 - [`examples/python/praisonai-claw-board/`](../../examples/python/praisonai-claw-board/app.py) — board from jobs
 - [`examples/python/platform-board/`](../../examples/python/platform-board/app.py) — board from platform issues

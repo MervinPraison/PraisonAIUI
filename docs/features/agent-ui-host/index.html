@@ -96,6 +96,12 @@
 <li>`GET /dashboard-plugins/{name}/{path}` — static assets</li>
 <p>Plugins register views in `index.js`:</p>
 <p>Sample: [`sample-board`](../../src/praisonaiui/templates/frontend/dashboard-plugins/sample-board/).</p>
+<h2>Agent plugins vs dashboard plugins</h2>
+<p>| System | Location | Purpose |</p>
+<p>|--------|----------|---------|</p>
+<p>| Agent plugins | `~/.praisonai/plugins/` | Python agent extensions |</p>
+<p>| Dashboard plugins | `~/.praisonai/dashboard-plugins/` | JS UI tabs |</p>
+<p>See [PraisonAI package integration](praisonai-package-integration.md) for backend wiring, jobs API, and deployment.</p>
 <h2>Granular control — opt-in / opt-out</h2>
 <p>| What you control | How | Example |</p>
 <p>|------------------|-----|---------|</p>
@@ -121,6 +127,7 @@
 <h2>Related files</h2>
 <p>| File | Role |</p>
 <p>|------|------|</p>
+<p>| [`praisonai-package-integration.md`](praisonai-package-integration.md) | Praison backend wiring |</p>
 <p>| [`server.py`](../../src/praisonaiui/server.py) | Pages API, `set_dashboard`, plugin chain |</p>
 <p>| [`dashboard_plugins.py`](../../src/praisonaiui/dashboard_plugins.py) | Manifest discovery and static routes |</p>
 <p>| [`dashboard.js`](../../src/praisonaiui/templates/frontend/plugins/dashboard.js) | Shell, registries, renderers |</p>

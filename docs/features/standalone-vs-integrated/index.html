@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Standalone vs Integrated - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Standalone vs Integrated | PraisonAIUI Docs</title>
+  <script>
+    // Anti-flicker: apply dark mode class before first paint
+    // Default to dark to prevent flash; React will correct if needed
+    document.documentElement.classList.add('dark');
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/standalone-vs-integrated" />
+  <meta property="og:title" content="Standalone vs Integrated | PraisonAIUI Docs" />
+  <meta property="og:description" content="Standalone vs Integrated - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/standalone-vs-integrated" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Standalone vs Integrated | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Standalone vs Integrated - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Standalone vs Integrated</h1>
+<p>This page summarises the expected install and runtime shape for PraisonAIUI in both modes.</p>
+<h2>Install Matrix</h2>
+<p>| Mode | Package install | Runtime dependency | Behaviour |</p>
+<p>| --- | --- | --- | --- |</p>
+<p>| Standalone UI | `pip install praisonaiui` | Optional SDK packages absent | Uses built-in local managers and fallbacks |</p>
+<p>| Integrated (PraisonAI) | `pip install praisonaiui praisonai praisonaiagents` | SDK and wrapper available | Uses injected backends and SDK-aware managers |</p>
+<h2>Practical Differences</h2>
+<li>**Session/data handling**: standalone uses UI datastore fallback; integrated aligns with SDK-backed stores.</li>
+<li>**Feature backends**: standalone keeps in-memory/mock behaviour; integrated can route through injected factories.</li>
+<li>**Lifecycle hooks**: integrated mode can subscribe to SDK hooks (handoff, MCP lifecycle, tracing/eval stores).</li>
+<h2>Recommendation</h2>
+<p>Use standalone mode for local UI-only workflows. Use integrated mode when you need shared runtime state with PraisonAI agents, tools, tracing, approvals, and schedules.</p></noscript></div>
+</body>
+
+</html>

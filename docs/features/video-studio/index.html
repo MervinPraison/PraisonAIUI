@@ -29,12 +29,13 @@
 
 <body>
   <div id="root"><noscript><h1>Video Studio</h1>
-<p>The Video Studio integrates [PraisonAI Video](https://github.com/MervinPraison/praisonai-video) as an external Node render engine. PraisonAIUI provides the dashboard shell, project files, YAML editor, job UX, and HTTP proxying. The video engine handles parse, compile, lint, frame-accurate preview, and MP4 export.</p>
+<p>The Video Studio integrates [PraisonAI Video](https://github.com/MervinPraison/praisonai-video) as an external Node render engine. PraisonAIUI provides the dashboard shell, project files, YAML editor, job UX, and HTTP proxying. The video engine handles parse, compile, lint, and MP4 export. **Agents live in PraisonAI (Chat + tools), not inside the renderer.**</p>
 <h2>Prerequisites</h2>
 <p>1. Install PraisonAI Video CLI (`praisonai-video`) or run from the monorepo.</p>
 <p>2. Start the engine sidecar (recommended):</p>
 <p>3. Run the example app:</p>
 <p>Open the **Video** tab, create a project, edit `scene.yaml`, and use Lint / Render.</p>
+<p>For **Chat** to edit scenes, install `praisonaiagents` and set `OPENAI_API_KEY`. Optional: `VIDEO_STUDIO_PROJECT_ID` to target a specific project.</p>
 <h2>Configuration</h2>
 <p>| Variable | Default | Purpose |</p>
 <p>|----------|---------|---------|</p>
@@ -42,6 +43,8 @@
 <p>| `VIDEO_ENGINE_TOKEN` | (none) | Optional Bearer token forwarded to the engine |</p>
 <p>| `PRAISONAI_PROJECTS_DIR` | `~/.praisonai/projects` | On-disk project roots |</p>
 <p>| `PRAISONAI_VIDEO_CLI` | (auto-detect) | Path to `praisonai-video` or `dist/cli.js` for subprocess fallback |</p>
+<p>| `VIDEO_STUDIO_PROJECT_ID` | (auto) | Active project for agent tools when not passed explicitly |</p>
+<p>| `PRAISONAI_MODEL` | `gpt-4o-mini` | LLM for Video Editor agent in the example app |</p>
 <p>Python API:</p>
 <h2>Projects</h2>
 <p>Each project is a directory containing:</p>
@@ -53,20 +56,32 @@
 <p>All routes are under `/api/video/`:</p>
 <li>`GET /health` — sidecar status</li>
 <li>`POST /lint`, `POST /compile` — scene validation</li>
-<li>`GET /preview-url`, `POST /preview/start` — preview iframe URL</li>
-<li>`POST /render` — async render job (`type: video_render`)</li>
+<li>`GET /preview-url`, `POST /preview/start` — preview iframe URL (CLI; dashboard preview hidden)</li>
+<li>`POST /render` — async render job (`type: video_render`); optional `backend` (`playwright` | `remotion`) overrides `scene.yaml` `render.backend`</li>
 <li>`GET /jobs/{id}` — job status and download URL</li>
 <li>`GET|POST /projects` — list and create projects</li>
+<li>`GET /projects/{id}/studio-refresh` — poll after agent tool updates (`refresh: true` once)</li>
 <p>When the HTTP sidecar is unavailable, lint and render fall back to subprocess calls to `praisonai-video`.</p>
 <h2>Dashboard plugin</h2>
-<p>The UI lives in `dashboard-plugins/video-studio/` (built-in) or `~/.praisonai/dashboard-plugins/video-studio/` for overrides. It uses `window.aiui.sdk.fetchJSON` and a frame scrubber with `postMessage` / `__pavSeek` for preview.</p>
+<p>The UI lives in `dashboard-plugins/video-studio/` (built-in) or `~/.praisonai/dashboard-plugins/video-studio/` for overrides. It uses `window.aiui.sdk.fetchJSON`.</p>
+<p>**Frame-by-frame composition preview is hidden** in the dashboard (`SHOW_COMPOSITION_PREVIEW = false`) until serve preview + seek are reliable. Use **Render MP4** and the **Your video** player for output. Set the flag to `true` in `index.js` to re-enable the optional iframe scrubber.</p>
+<p>After agent tool writes, the editor reloads via `video-studio:refresh` (custom event) or polling `studio-refresh`.</p>
+<h2>Agent workflow (PraisonAI-first)</h2>
+<p>1. Open **Chat** with the Video Editor agent (example app registers tools when `praisonaiagents` is installed).</p>
+<p>2. Agent calls `video_get_scene` / `video_update_scene` / `video_lint_scene` / `video_render_project` (same outcomes as UI buttons).</p>
+<p>3. Video Studio tab picks up changes automatically.</p>
+<p>Tools are defined in `praisonaiui/video_agent_tools.py`. For Cursor/Codex outside the UI, use the skill at `skills/praisonai-video/SKILL.md` in the PraisonAI Video repo.</p>
+<h3>Optional render backends</h3>
+<p>Default is **Playwright** (no `render:` block in `scene.yaml`). Use Remotion only when required:</p>
+<p>`video_render_project(backend="playwright")` overrides YAML for one agent run. Hyperframes is deferred.</p>
 <h2>CLI parity</h2>
 <p>The text box edits the same `scene.yaml` the CLI uses. Equivalent commands (from the video repo):</p>
 <p>Lint editor text without saving: `praisonai-video lint --stdin < scene.yaml`</p>
 <p>See `docs/integrations/praisonaiui.md` in the PraisonAI Video repo for the full mapping table.</p>
 <h2>Related</h2>
 <li>[Agent UI host](agent-ui-host.md) — extension patterns (`registerView`, plugins, `@aiui.page`)</li>
-<li>PraisonAI Video integration doc: `docs/integrations/praisonaiui.md` in the video repo</li></noscript></div>
+<li>PraisonAI Video integration doc: `docs/integrations/praisonaiui.md` in the video repo</li>
+<li>PraisonAI Video skill: `skills/praisonai-video/SKILL.md` — YAML-first invariants for agents and CI</li></noscript></div>
 </body>
 
 </html>
