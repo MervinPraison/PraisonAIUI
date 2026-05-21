@@ -438,12 +438,14 @@ class JobsFeature(BaseFeatureProtocol):
     def _get_executor(self):
         """Try to get JobExecutor from praisonai.jobs."""
         try:
-            import importlib.util
+            if hasattr(self, "_sdk_executor"):
+                return self._sdk_executor
 
-            if importlib.util.find_spec("praisonai.jobs"):
-                # Would need to be initialized properly with store
-                return None  # For now, use mock execution
-            return None
+            from praisonai.jobs import JobExecutor
+            from praisonai.jobs.store import InMemoryJobStore
+
+            self._sdk_executor = JobExecutor(store=InMemoryJobStore())
+            return self._sdk_executor
         except Exception:
             return None
 

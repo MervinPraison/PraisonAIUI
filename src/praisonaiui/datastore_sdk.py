@@ -12,6 +12,10 @@ a sentinel system message (content ``""``).  This message is filtered out
 when returning messages to the frontend.
 
 If the SDK is not installed, AIUI falls back to ``JSONFileDataStore``.
+
+When AIUI is integrated into PraisonAI, ``PraisonAISessionDataStore`` (the
+wrapper used by the integration layer) is the canonical datastore entrypoint.
+``SDKFileDataStore`` remains the standalone AIUI adapter.
 """
 
 from __future__ import annotations

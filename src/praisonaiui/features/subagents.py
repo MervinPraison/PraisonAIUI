@@ -96,12 +96,35 @@ class SubagentManager(SubagentProtocol):
 
 
 _subagent_manager: Optional[SubagentManager] = None
+_handoff_subscription_attempted = False
+
+
+def _subscribe_sdk_handoff_hooks(mgr: SubagentManager) -> None:
+    """Subscribe to SDK handoff hooks when available."""
+    global _handoff_subscription_attempted
+    if _handoff_subscription_attempted:
+        return
+    _handoff_subscription_attempted = True
+    try:
+        from praisonaiagents.hooks import add_hook
+
+        def _on_handoff(event: Any) -> None:
+            payload = event if isinstance(event, dict) else {}
+            parent = payload.get("parent_agent") or payload.get("from_agent") or "parent"
+            child = payload.get("child_agent") or payload.get("to_agent") or "child"
+            session_id = payload.get("session_id") or "default"
+            mgr.register_spawn(str(parent), str(child), str(session_id))
+
+        add_hook("handoff", _on_handoff)
+    except Exception:
+        logger.debug("SDK handoff hooks unavailable for subagent tracking")
 
 
 def get_subagent_manager() -> SubagentManager:
     global _subagent_manager
     if _subagent_manager is None:
         _subagent_manager = SubagentManager()
+        _subscribe_sdk_handoff_hooks(_subagent_manager)
     return _subagent_manager
 
 

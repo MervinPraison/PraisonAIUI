@@ -78,6 +78,7 @@ def auto_register_defaults() -> None:
         (".theme", "ThemeFeature"),
         (".tts", "TTSFeature"),
         (".usage", "UsageFeature"),
+        (".realtime", "RealtimeFeature"),
         (".workflows", "WorkflowsFeature"),
         (".guardrails", "GuardrailsFeature"),
         (".eval", "EvalFeature"),

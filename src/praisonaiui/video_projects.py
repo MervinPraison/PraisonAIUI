@@ -155,6 +155,22 @@ def read_scene_yaml(project_id: str) -> str:
     return scene_path(resolve_project(project_id)).read_text(encoding="utf-8")
 
 
+def read_render_backend_from_scene(project_id: str) -> str | None:
+    """Optional render.backend from scene.yaml (playwright | remotion | hyperframes)."""
+    try:
+        import yaml
+    except ImportError:
+        return None
+    text = read_scene_yaml(project_id)
+    doc = yaml.safe_load(text) or {}
+    render = doc.get("render") if isinstance(doc, dict) else None
+    if isinstance(render, dict):
+        backend = render.get("backend")
+        if isinstance(backend, str) and backend.strip():
+            return backend.strip()
+    return None
+
+
 def export_artifact_path(project_id: str, filename: str = "out.mp4") -> Path:
     project_dir = resolve_project(project_id)
     exports = project_dir / "exports"

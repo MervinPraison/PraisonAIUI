@@ -6,6 +6,7 @@ can call host-page JavaScript functions (e.g., navigate_to("/settings")).
 
 from __future__ import annotations
 
+from datetime import datetime
 from dataclasses import dataclass, field
 from functools import wraps
 from typing import Any, Awaitable, Callable, Dict, List, Optional
@@ -229,7 +230,7 @@ async def call_copilot_function(name: str, arguments: Dict[str, Any]) -> Any:
 @copilot_function("get_page_info", "Get information about the current page", [])
 async def get_page_info() -> Dict[str, Any]:
     """Get basic page information."""
-    return {"title": "PraisonAIUI Chat", "url": "/", "timestamp": "TODO: implement in frontend"}
+    return {"title": "PraisonAIUI Chat", "url": "/", "timestamp": datetime.utcnow().isoformat()}
 
 
 @copilot_function(

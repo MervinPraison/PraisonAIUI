@@ -76,7 +76,10 @@ class SurfaceStore:
         normalised = normalise_a2ui_messages({"messages": messages})
         async with self._lock:
             state = self._surfaces.setdefault(surface_id, SurfaceState(id=surface_id))
-            state.messages.extend(normalised)
+            if any(m.get("createSurface") for m in normalised):
+                state.messages = list(normalised)
+            else:
+                state.messages.extend(normalised)
             state.updated_at = time.time()
             return state
 
@@ -154,7 +157,8 @@ async def ingest_a2ui_extra(
         return None
     surface_id = str(extra_data.get("surface_id", "main"))
     store = get_surface_store()
-    state = await store.apply_messages(surface_id, a2ui)
+    # Tool results are a full snapshot — replace, do not stack old components.
+    state = await store.set_messages(surface_id, a2ui)
     await broadcast_a2ui_surface(surface_id, state.messages, session_id=session_id)
     return {"surface_id": surface_id, "messages": state.messages}
 
@@ -183,7 +187,15 @@ async def _get_surface(request: Request) -> JSONResponse:
     store = get_surface_store()
     state = await store.get(surface_id)
     if not state:
-        return JSONResponse({"error": "Surface not found"}, status_code=404)
+        # Empty canvas is normal before the first A2UI push — not an error.
+        return JSONResponse(
+            {
+                "id": surface_id,
+                "messages": [],
+                "updated_at": None,
+                "metadata": {},
+            }
+        )
     return JSONResponse(
         {
             "id": state.id,

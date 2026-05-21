@@ -29,6 +29,25 @@ async def test_apply_messages(store):
 
 
 @pytest.mark.asyncio
+async def test_create_surface_replaces_messages(store):
+    await store.apply_messages(
+        "main",
+        [{"updateComponents": {"components": [{"component": "Button", "text": {"literal": "Old"}}]}}],
+    )
+    state = await store.apply_messages(
+        "main",
+        [{"createSurface": {"surfaceId": "main"}}, {"updateComponents": {"components": [{"component": "Button", "text": {"literal": "New"}}]}}],
+    )
+    assert len(state.messages) == 2
+    labels = [
+        c.get("text", {}).get("literal")
+        for m in state.messages
+        for c in (m.get("updateComponents", {}).get("components") or [])
+    ]
+    assert labels == ["New"]
+
+
+@pytest.mark.asyncio
 async def test_list_surfaces(store):
     await store.apply_messages("a", [{"createSurface": {"surfaceId": "a"}}])
     items = await store.list_surfaces()
@@ -69,3 +88,15 @@ def test_canvas_builtin_page(store):
     assert r.status_code == 200
     page_ids = [p["id"] for p in r.json().get("pages", [])]
     assert "canvas" in page_ids
+
+
+def test_get_missing_surface_returns_empty(store):
+    from praisonaiui.server import create_app
+
+    app = create_app()
+    client = TestClient(app)
+    r = client.get("/api/surfaces/does-not-exist")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["id"] == "does-not-exist"
+    assert data["messages"] == []

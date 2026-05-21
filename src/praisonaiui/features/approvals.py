@@ -32,6 +32,20 @@ RISK_LEVELS = ["low", "medium", "high", "critical"]
 RISK_ICONS = {"low": "✅", "medium": "⚠️", "high": "🟠", "critical": "🔴"}
 
 
+def _list_backend_approvals() -> List[Dict[str, Any]] | None:
+    """List approvals from injected backend when available."""
+    from praisonaiui.backends import get_approvals_lister
+
+    lister = get_approvals_lister()
+    if lister is None:
+        return None
+    try:
+        items = lister()
+    except Exception:
+        return None
+    return items if isinstance(items, list) else None
+
+
 # ── Approval Protocol ────────────────────────────────────────────────
 
 
@@ -200,10 +214,14 @@ class SDKApprovalManager(ApprovalProtocol):
 
     def __init__(self) -> None:
         from praisonaiagents.approval import get_approval_registry
+        from praisonaiagents.approval.protocols import ApprovalDecision, ApprovalRequest
 
         self._registry = get_approval_registry()
         self._simple = SimpleApprovalManager()
-        logger.info("SDKApprovalManager initialized (ApprovalRegistry available)")
+        self._ApprovalDecision = ApprovalDecision
+        self._ApprovalRequest = ApprovalRequest
+        self._registry.set_backend(_UIStoreBackend(self._simple))
+        logger.info("SDKApprovalManager initialized (ApprovalRegistry wired to UI store)")
 
     def list_pending(self) -> List[Dict[str, Any]]:
         return self._simple.list_pending()
@@ -212,12 +230,19 @@ class SDKApprovalManager(ApprovalProtocol):
         return self._simple.list_history(limit=limit)
 
     def request_approval(self, entry: Dict[str, Any]) -> Dict[str, Any]:
-        return self._simple.request_approval(entry)
+        result = self._simple.request_approval(entry)
+        tool = entry.get("tool_name")
+        if tool and entry.get("status") == "pending":
+            self._registry.add_requirement(tool, entry.get("risk_level", "high"))
+        return result
 
     def approve(
         self, approval_id: str, reason: str = "", approver: str = "user", always: bool = False
     ) -> Optional[Dict[str, Any]]:
-        return self._simple.approve(approval_id, reason, approver, always)
+        entry = self._simple.approve(approval_id, reason, approver, always)
+        if entry and always and entry.get("tool_name"):
+            self._registry.add_requirement(entry["tool_name"], entry.get("risk_level", "high"))
+        return entry
 
     def deny(
         self, approval_id: str, reason: str = "", approver: str = "user", always: bool = False
@@ -228,16 +253,51 @@ class SDKApprovalManager(ApprovalProtocol):
         return self._simple.get(approval_id)
 
     def get_policies(self) -> Dict[str, Any]:
-        return self._simple.get_policies()
+        policies = self._simple.get_policies()
+        policies["sdk_auto_approve_env"] = self._registry.is_env_auto_approve()
+        return policies
 
     def update_policies(self, updates: Dict[str, Any]) -> Dict[str, Any]:
-        return self._simple.update_policies(updates)
+        result = self._simple.update_policies(updates)
+        for tool in updates.get("always_deny_tools") or []:
+            self._registry.add_requirement(tool, "high")
+        for tool in updates.get("auto_approve_tools") or []:
+            self._registry.remove_requirement(tool)
+        return result
 
     def health(self) -> Dict[str, Any]:
         h = self._simple.health()
         h["provider"] = "SDKApprovalManager"
         h["sdk_available"] = True
         return h
+
+
+class _UIStoreBackend:
+    """Routes agent approval requests into the UI SimpleApprovalManager."""
+
+    def __init__(self, store: SimpleApprovalManager) -> None:
+        self._store = store
+
+    def request_approval_sync(self, request) -> Any:
+        from praisonaiagents.approval.protocols import ApprovalDecision
+
+        entry = self._store.request_approval(
+            {
+                "tool_name": request.tool_name,
+                "agent_name": getattr(request, "agent_name", "") or "",
+                "risk_level": request.risk_level or "medium",
+                "arguments": request.arguments or {},
+            }
+        )
+        status = entry.get("status", "pending")
+        if status == "approved":
+            return ApprovalDecision(approved=True, reason=entry.get("reason", ""))
+        if status == "denied":
+            return ApprovalDecision(approved=False, reason=entry.get("reason", "denied"))
+        return ApprovalDecision(approved=False, reason="Awaiting UI approval")
+
+    async def request_approval(self, request) -> Any:
+        return self.request_approval_sync(request)
 
 
 # ── Manager singleton ────────────────────────────────────────────────
@@ -322,6 +382,10 @@ class ApprovalsFeature(BaseFeatureProtocol):
 
     async def _list(self, request: Request) -> JSONResponse:
         mgr = get_approval_manager()
+        backend_items = _list_backend_approvals()
+        if backend_items is not None:
+            return JSONResponse({"approvals": backend_items, "count": len(backend_items)})
+
         status_filter = request.query_params.get("status", "all")
         if status_filter == "pending":
             items = mgr.list_pending()

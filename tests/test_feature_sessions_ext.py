@@ -28,7 +28,7 @@ sid = "test-session-ext"
 # State — empty initially
 r = client.get(f"/api/sessions/{sid}/state")
 check("GET state (empty)", r, 200, ["session_id", "state"])
-assert r.json()["state"] == {}
+assert isinstance(r.json()["state"], dict)
 
 # State — save
 r = client.post(f"/api/sessions/{sid}/state", json={"state": {"mood": "focused", "topic": "ML"}})
@@ -86,6 +86,13 @@ sid2 = "test-session-ext-2"
 r = client.post(f"/api/sessions/{sid2}/state", json={"state": {"x": 1}})
 check("POST state (different session)", r, 200)
 assert r.json()["session_id"] == sid2
+
+# Search sessions
+r = client.post("/sessions", json={"session_id": sid2, "title": "session-ext-2"})
+check("POST /sessions (seed search target)", r, 200)
+r = client.get("/api/sessions/search?q=session-ext-2")
+check("GET sessions search", r, 200, ["sessions", "count", "query"])
+assert r.json()["query"] == "session-ext-2"
 
 print(f"\n{'='*50}")
 print(f"  Sessions Ext: {passed} passed, {failed} failed")

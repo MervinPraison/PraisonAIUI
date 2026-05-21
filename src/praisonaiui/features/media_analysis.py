@@ -151,6 +151,23 @@ class VisionAnalysisManager(MediaAnalysisProtocol):
         except Exception as e:
             logger.warning("SDK OCR failed: %s", e)
 
+        try:
+            from markitdown import MarkItDown
+
+            source = url
+            if not source:
+                return {
+                    "text": "[markitdown] base64 OCR is not supported; provide a URL or file path",
+                    "status": "error",
+                    "provider": "markitdown",
+                }
+            md = MarkItDown()
+            result = md.convert(source)
+            text = getattr(result, "text_content", None) or str(result)
+            return {"text": text, "status": "success", "provider": "markitdown"}
+        except Exception:
+            pass
+
         return {
             "text": "[Simulated] OCR text extraction placeholder",
             "status": "simulated",

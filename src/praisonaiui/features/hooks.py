@@ -16,9 +16,26 @@ from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
 
-# In-memory hooks registry
+# UI-registered hooks (API-managed) + SDK hooks merged at list time
 _hooks: Dict[str, Dict[str, Any]] = {}
 _hook_log: List[Dict[str, Any]] = []
+
+
+def _all_hooks() -> List[Dict[str, Any]]:
+    """Merge SDK hooks with UI-registered hooks."""
+    from praisonaiui.backends import get_hooks_lister
+
+    lister = get_hooks_lister()
+    sdk_hooks = lister() if lister else None
+    if sdk_hooks is None:
+        from praisonaiui._sdk_hooks import list_sdk_hooks
+
+        sdk_hooks = list_sdk_hooks()
+
+    merged = {h["id"]: h for h in sdk_hooks if h.get("id")}
+    for hook_id, entry in _hooks.items():
+        merged[hook_id] = {**entry, "source": entry.get("source", "ui")}
+    return list(merged.values())
 
 
 class HooksFeature(BaseFeatureProtocol):
@@ -59,17 +76,17 @@ class HooksFeature(BaseFeatureProtocol):
         ]
 
     async def health(self) -> Dict[str, Any]:
+        hooks = _all_hooks()
         return {
             "status": "ok",
             "feature": self.name,
-            "total_hooks": len(_hooks),
+            "total_hooks": len(hooks),
             "log_entries": len(_hook_log),
         }
 
-    # ── API handlers ─────────────────────────────────────────────────
-
     async def _list(self, request: Request) -> JSONResponse:
-        return JSONResponse({"hooks": list(_hooks.values()), "count": len(_hooks)})
+        hooks = _all_hooks()
+        return JSONResponse({"hooks": hooks, "count": len(hooks)})
 
     async def _register(self, request: Request) -> JSONResponse:
         body = await request.json()
@@ -124,9 +141,13 @@ class HooksFeature(BaseFeatureProtocol):
     # ── CLI handlers ─────────────────────────────────────────────────
 
     def _cli_list(self) -> str:
-        if not _hooks:
+        hooks = _all_hooks()
+        if not hooks:
             return "No hooks registered"
-        lines = [f"  {h['id']} — {h['name']} ({h['event']}, {h['type']})" for h in _hooks.values()]
+        lines = [
+            f"  {h['id']} — {h.get('name', h['id'])} ({h.get('event', '?')}, {h.get('source', 'ui')})"
+            for h in hooks
+        ]
         return "\n".join(lines)
 
     def _cli_trigger(self, hook_id: str) -> str:

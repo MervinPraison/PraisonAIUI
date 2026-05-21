@@ -417,6 +417,18 @@ def _ensure_scheduler_started() -> None:
     global _scheduler_task
     if _scheduler_task is not None and not _scheduler_task.done():
         return
+
+    try:
+        from praisonaiui.backends import get_backend
+
+        start_schedule_loop = get_backend("schedule_loop")
+        if callable(start_schedule_loop):
+            started = start_schedule_loop()
+            if started:
+                return
+    except Exception:
+        pass
+
     import asyncio
 
     try:

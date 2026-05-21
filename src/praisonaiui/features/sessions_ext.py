@@ -72,6 +72,17 @@ def _get_session_store() -> SessionProtocol:
     return _session_store
 
 
+async def _get_datastore_session(session_id: str) -> Optional[Dict[str, Any]]:
+    """Read session from server datastore when available."""
+    try:
+        from praisonaiui.server import get_datastore
+
+        ds = get_datastore()
+        return await ds.get_session(session_id)
+    except Exception:
+        return None
+
+
 class _InMemorySessionStore(SessionProtocol):
     """Fallback in-memory store if praisonaiagents not available."""
 
@@ -149,6 +160,7 @@ class SessionsFeature(BaseFeatureProtocol):
     def routes(self) -> List[Route]:
         return [
             Route("/api/sessions", self._list_sessions, methods=["GET"]),
+            Route("/api/sessions/search", self._search_sessions, methods=["GET"]),
             Route("/api/sessions/{session_id}/state", self._get_state, methods=["GET"]),
             Route("/api/sessions/{session_id}/state", self._save_state, methods=["POST"]),
             Route("/api/sessions/{session_id}/context", self._build_context, methods=["POST"]),
@@ -277,6 +289,25 @@ class SessionsFeature(BaseFeatureProtocol):
                         "created_at": s.get("created_at", meta.get("_created_at")),
                         "updated_at": s.get("updated_at", meta.get("_updated_at")),
                         "title": s.get("title", ""),
+                        "model": s.get("model") or s.get("metadata", {}).get("model"),
+                        "tokens": (
+                            s.get("tokens")
+                            or s.get("usage", {}).get("tokens")
+                            or s.get("metadata", {}).get("tokens")
+                            or meta.get("_usage", {}).get("tokens", 0)
+                        ),
+                        "cost": (
+                            s.get("cost")
+                            or s.get("usage", {}).get("cost")
+                            or s.get("metadata", {}).get("cost")
+                            or 0
+                        ),
+                        "agent_id": (
+                            s.get("agent_id")
+                            or s.get("agent")
+                            or s.get("metadata", {}).get("agent_id")
+                        ),
+                        "source": s.get("source") or s.get("metadata", {}).get("source") or "datastore",
                     }
                 )
         except Exception as e:
@@ -312,6 +343,26 @@ class SessionsFeature(BaseFeatureProtocol):
 
         return JSONResponse({"sessions": sessions, "count": len(sessions)})
 
+    async def _search_sessions(self, request: Request) -> JSONResponse:
+        """GET /api/sessions/search?q= — filter sessions by title or id."""
+        query = (request.query_params.get("q") or "").strip().lower()
+        if not query:
+            return JSONResponse({"sessions": [], "count": 0})
+
+        list_resp = await self._list_sessions(request)
+        import json
+
+        body = json.loads(list_resp.body)
+        sessions = body.get("sessions") or []
+        matched = [
+            s
+            for s in sessions
+            if query in str(s.get("id", "")).lower()
+            or query in str(s.get("title", "")).lower()
+            or query in str(s.get("session_id", "")).lower()
+        ]
+        return JSONResponse({"sessions": matched, "count": len(matched), "query": query})
+
     async def _get_state(self, request: Request) -> JSONResponse:
         sid = request.path_params["session_id"]
         meta = _get_metadata(sid)
@@ -335,10 +386,15 @@ class SessionsFeature(BaseFeatureProtocol):
         meta = _get_metadata(sid)
         if meta:
             context_parts.append(f"Session state: {len(meta)} keys")
-        store = _get_session_store()
-        messages = (
-            store.get_chat_history(sid, max_items) if hasattr(store, "get_chat_history") else []
-        )
+        ds_session = await _get_datastore_session(sid)
+        messages = (ds_session or {}).get("messages", [])
+        if max_items:
+            messages = messages[-max_items:]
+        if not messages:
+            store = _get_session_store()
+            messages = (
+                store.get_chat_history(sid, max_items) if hasattr(store, "get_chat_history") else []
+            )
         for m in messages:
             content = m.get("content", "") or m.get("text", "")
             if content:
@@ -371,8 +427,11 @@ class SessionsFeature(BaseFeatureProtocol):
     async def _compact(self, request: Request) -> JSONResponse:
         """POST /api/sessions/{id}/compact — Summarize old messages to reduce context."""
         sid = request.path_params["session_id"]
-        store = _get_session_store()
-        messages = store.get_chat_history(sid) if hasattr(store, "get_chat_history") else []
+        ds_session = await _get_datastore_session(sid)
+        messages = (ds_session or {}).get("messages", [])
+        if not messages:
+            store = _get_session_store()
+            messages = store.get_chat_history(sid) if hasattr(store, "get_chat_history") else []
         before_count = len(messages)
         before_tokens = sum(len(str(m.get("content", "")).split()) * 1.3 for m in messages)
 
@@ -396,8 +455,11 @@ class SessionsFeature(BaseFeatureProtocol):
         """GET /api/sessions/{id}/preview — Return formatted preview without full history."""
         sid = request.path_params["session_id"]
         meta = _get_metadata(sid)
-        store = _get_session_store()
-        messages = store.get_chat_history(sid) if hasattr(store, "get_chat_history") else []
+        ds_session = await _get_datastore_session(sid)
+        messages = (ds_session or {}).get("messages", [])
+        if not messages:
+            store = _get_session_store()
+            messages = store.get_chat_history(sid) if hasattr(store, "get_chat_history") else []
 
         # Get first and last messages
         first_message = messages[0] if messages else None
@@ -440,9 +502,15 @@ class SessionsFeature(BaseFeatureProtocol):
         mode = body.get("mode", "clear")  # "clear" or "new"
         if mode == "clear":
             _session_metadata.pop(sid, None)
-            store = _get_session_store()
-            if hasattr(store, "clear_session"):
-                store.clear_session(sid)
+            try:
+                from praisonaiui.server import get_datastore
+
+                ds = get_datastore()
+                await ds.update_session(sid, {"messages": []})
+            except Exception:
+                store = _get_session_store()
+                if hasattr(store, "clear_session"):
+                    store.clear_session(sid)
         return JSONResponse(
             {
                 "session_id": sid,

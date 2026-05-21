@@ -839,7 +839,10 @@ async function loadAgents() {
 
 async function loadSessions() {
   try {
-    const resp = await fetch('/sessions');
+    let resp = await fetch('/api/sessions');
+    if (!resp.ok) {
+      resp = await fetch('/sessions');
+    }
     const data = await resp.json();
     const sessions = data.sessions || data || [];
     const list = document.getElementById('chat-sessions-list');

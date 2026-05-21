@@ -4,7 +4,7 @@ Architecture:
     UsageProtocol (ABC)              <- any backend implements this
       └── SimpleUsageManager         <- default in-memory with disk persistence
 
-    SDK gap: no token/cost tracking API in praisonaiagents.
+    SDK gap: bridged via ``backends.get_usage_sink()`` or praisonaiagents token collector.
 
     PraisonAIUsage (BaseFeatureProtocol)
       └── delegates to module-level functions (SimpleUsageManager pattern)
@@ -126,6 +126,49 @@ def _get_hour_key(timestamp: float) -> str:
     """Get hour key for time-series aggregation."""
     dt = datetime.fromtimestamp(timestamp)
     return dt.strftime("%Y-%m-%d-%H")
+
+
+def _ingest_from_usage_sink() -> None:
+    """Pull records from injected or global token usage sink into aggregates."""
+    from praisonaiui.backends import get_usage_sink
+
+    sink = get_usage_sink()
+    if sink is None:
+        try:
+            from praisonaiagents.telemetry.token_collector import _token_collector
+
+            sink = getattr(_token_collector, "_sink", None)
+        except ImportError:
+            return
+    if sink is None or not hasattr(sink, "records"):
+        return
+
+    seen = {r.get("timestamp") for r in _usage_records if isinstance(r, dict)}
+    for rec in sink.records:
+        ts = rec.get("timestamp")
+        if ts in seen:
+            continue
+        track_usage(
+            model=rec.get("model", "unknown"),
+            input_tokens=int(rec.get("input_tokens", 0)),
+            output_tokens=int(rec.get("output_tokens", 0)),
+            session_id=(rec.get("metadata") or {}).get("session_id", "unknown"),
+            agent_name=rec.get("agent_name", "unknown"),
+        )
+
+
+def _query_usage_backend() -> Dict[str, Any] | None:
+    """Query injected usage backend when available."""
+    from praisonaiui.backends import get_usage_query
+
+    query = get_usage_query()
+    if query is None:
+        return None
+    try:
+        data = query()
+    except Exception:
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def track_usage(
@@ -328,6 +371,11 @@ class UsageFeature(BaseFeatureProtocol):
         Response format matches the dashboard frontend expectations:
         {"usage": {..., "by_model": {...}, "by_session": {...}}, "sessions": {...}}
         """
+        backend_data = _query_usage_backend()
+        if backend_data:
+            return JSONResponse(backend_data)
+
+        _ingest_from_usage_sink()
         total_reqs = _aggregates["total_requests"]
         total_cost = _aggregates["total_cost"]
         total_tokens = _aggregates["total_input_tokens"] + _aggregates["total_output_tokens"]
@@ -557,3 +605,9 @@ def get_token_usage(session_id: str) -> Dict[str, Any]:
         "total_cost": round(stats["cost"], 4),
         "requests": stats["requests"],
     }
+
+
+def get_usage_aggregates() -> Dict[str, Any]:
+    """Return current in-memory usage aggregates."""
+    _ingest_from_usage_sink()
+    return _aggregates

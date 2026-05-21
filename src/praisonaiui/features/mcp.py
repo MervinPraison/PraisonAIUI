@@ -10,7 +10,9 @@ Provides first-class MCP client functionality with:
 from __future__ import annotations
 
 import logging
+import json
 import subprocess
+from pathlib import Path
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Protocol
@@ -322,7 +324,9 @@ class MCPClientManager:
     def __init__(self):
         self._clients: Dict[str, MCPClientProtocol] = {}
 
-    async def connect_server(self, server_config: Dict[str, Any]) -> MCPServer:
+    async def connect_server(
+        self, server_config: Dict[str, Any], session_context: Optional[Dict[str, Any]] = None
+    ) -> MCPServer:
         """Connect to an MCP server based on configuration."""
         name = server_config["name"]
 
@@ -366,7 +370,7 @@ class MCPClientManager:
                 server._client = client
 
                 # Fire connect hooks
-                await self._fire_connect_hooks(server, None)  # TODO: pass actual session context
+                await self._fire_connect_hooks(server, session_context)
             else:
                 server.status = MCPStatus.ERROR
                 server.last_error = "Connection failed"
@@ -380,7 +384,9 @@ class MCPClientManager:
         await self._notify_status_change(server)
         return server
 
-    async def disconnect_server(self, name: str) -> bool:
+    async def disconnect_server(
+        self, name: str, session_context: Optional[Dict[str, Any]] = None
+    ) -> bool:
         """Disconnect an MCP server by name."""
         if name not in _mcp_servers:
             return False
@@ -393,7 +399,7 @@ class MCPClientManager:
                 await client.disconnect()
 
                 # Fire disconnect hooks
-                await self._fire_disconnect_hooks(server, None)  # TODO: pass actual session context
+                await self._fire_disconnect_hooks(server, session_context)
 
             except Exception as e:
                 logger.exception(f"Error during MCP server {name} disconnect")
@@ -481,14 +487,18 @@ def add_status_change_callback(callback: Callable) -> None:
     _status_change_callbacks.append(callback)
 
 
-async def connect_mcp_server(config: Dict[str, Any]) -> MCPServer:
+async def connect_mcp_server(
+    config: Dict[str, Any], session_context: Optional[Dict[str, Any]] = None
+) -> MCPServer:
     """Connect to an MCP server."""
-    return await _manager.connect_server(config)
+    return await _manager.connect_server(config, session_context=session_context)
 
 
-async def disconnect_mcp_server(name: str) -> bool:
+async def disconnect_mcp_server(
+    name: str, session_context: Optional[Dict[str, Any]] = None
+) -> bool:
     """Disconnect an MCP server."""
-    return await _manager.disconnect_server(name)
+    return await _manager.disconnect_server(name, session_context=session_context)
 
 
 async def list_mcp_servers() -> List[MCPServer]:
@@ -505,8 +515,17 @@ async def get_mcp_server(name: str) -> Optional[MCPServer]:
 async def auto_discover_mcp_servers() -> None:
     """Auto-discover and connect MCP servers from configuration."""
     try:
-        # TODO: Load from actual config file
-        # For now, this is a placeholder
-        logger.info("MCP auto-discovery not yet implemented")
+        config_path = Path.home() / ".praisonai" / "mcp.json"
+        if not config_path.exists():
+            return
+
+        config_data = json.loads(config_path.read_text(encoding="utf-8"))
+        servers = config_data.get("servers", [])
+        if not isinstance(servers, list):
+            return
+
+        for server_config in servers:
+            if isinstance(server_config, dict) and server_config.get("name"):
+                await connect_mcp_server(server_config)
     except Exception as e:
         logger.exception(f"Failed to auto-discover MCP servers: {e}")

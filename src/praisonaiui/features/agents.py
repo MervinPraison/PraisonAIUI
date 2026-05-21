@@ -222,8 +222,9 @@ class SDKAgentRegistry(AgentRegistryProtocol):
     """Wraps praisonaiagents.Agent for production use."""
 
     def __init__(self) -> None:
-        from praisonaiagents import Agent  # noqa: F401
+        from praisonaiagents import Agent
 
+        self._Agent = Agent
         self._simple = SimpleAgentRegistry()
         logger.info("SDKAgentRegistry initialized (praisonaiagents available)")
 
@@ -231,7 +232,22 @@ class SDKAgentRegistry(AgentRegistryProtocol):
         self._simple.set_data_file(path)
 
     def create(self, agent_def: Dict[str, Any]) -> Dict[str, Any]:
-        return self._simple.create(agent_def)
+        agent = self._simple.create(agent_def)
+        try:
+            # Instantiate SDK Agent to validate integrated configuration.
+            self._Agent(
+                name=agent.get("name", "assistant"),
+                instructions=(
+                    agent.get("instructions")
+                    or agent.get("system_prompt")
+                    or "You are a helpful assistant."
+                ),
+                llm=agent.get("model", "gpt-4o-mini"),
+            )
+            _sync_to_gateway(agent)
+        except Exception as e:
+            logger.debug("SDK agent instantiation skipped: %s", e)
+        return agent
 
     def get(self, agent_id: str) -> Optional[Dict[str, Any]]:
         return self._simple.get(agent_id)

@@ -21,9 +21,46 @@ function actionFromNode(node) {
   return null;
 }
 
-function renderMappedComponent(comp, surfaceId, onAction) {
+def renderMappedComponent(comp, surfaceId, onAction) {
   const type = comp.component;
   if (!type) return null;
+
+  if (type === 'Column' || type === 'Row') {
+    const el = document.createElement('div');
+    el.className = 'db-a2ui-' + type.toLowerCase();
+    el.style.display = 'flex';
+    el.style.flexDirection = type === 'Column' ? 'column' : 'row';
+    el.style.gap = '8px';
+    const children = comp.children ?? comp.childComponents ?? [];
+    let hasChild = false;
+    for (const child of children) {
+      const childEl = renderMappedComponent(child, surfaceId, onAction);
+      if (childEl) {
+        el.appendChild(childEl);
+        hasChild = true;
+      }
+    }
+    return hasChild ? el : null;
+  }
+  if (type === 'Card') {
+    const el = document.createElement('div');
+    el.className = 'db-a2ui-card db-card';
+    el.style.padding = '12px';
+    const title = textFromNode(comp);
+    if (title) {
+      const h = document.createElement('div');
+      h.className = 'db-a2ui-text';
+      h.style.fontWeight = '600';
+      h.textContent = title;
+      el.appendChild(h);
+    }
+    const children = comp.children ?? comp.childComponents ?? [];
+    for (const child of children) {
+      const childEl = renderMappedComponent(child, surfaceId, onAction);
+      if (childEl) el.appendChild(childEl);
+    }
+    return el;
+  }
 
   if (type === 'Text') {
     const el = document.createElement('p');
@@ -78,7 +115,6 @@ function renderMappedComponent(comp, surfaceId, onAction) {
  */
 export function a2uiMessagesToFragment(messages, surfaceId, onAction) {
   const wrap = document.createDocumentFragment();
-  let sawUnmapped = false;
   let sawMapped = false;
 
   for (const msg of messages || []) {
@@ -91,13 +127,10 @@ export function a2uiMessagesToFragment(messages, surfaceId, onAction) {
       if (el) {
         wrap.appendChild(el);
         sawMapped = true;
-      } else {
-        sawUnmapped = true;
       }
     }
   }
 
   if (!sawMapped) return null;
-  if (sawUnmapped) return null;
   return wrap;
 }

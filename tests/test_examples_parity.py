@@ -175,6 +175,14 @@ def test_core_api(port: int) -> list:
     status, data = api_get(port, "/api/pages")
     results.append(("GET /api/pages", status == 200, f"status={status}"))
 
+    # A2UI surfaces
+    status, data = api_get(port, "/api/surfaces")
+    results.append(("GET /api/surfaces", status == 200, f"status={status}"))
+
+    status, data = api_get(port, "/api/surfaces/main")
+    ok = status == 200 and isinstance(data, dict) and "messages" in data
+    results.append(("GET /api/surfaces/main", ok, f"status={status}"))
+
     # Features
     status, data = api_get(port, "/api/features")
     results.append(("GET /api/features", status == 200, f"status={status}"))
@@ -281,6 +289,9 @@ def test_feature_cli(port: int) -> list:
         ("CLI workflows list", ["workflows", "list"]),
         ("CLI workflows status", ["workflows", "status"]),
         ("CLI config list", ["config", "list"]),
+        ("CLI surface list", ["surface", "list"]),
+        ("CLI surface get main", ["surface", "get", "main"]),
+        ("CLI surface status", ["surface", "status"]),
     ]
     for name, args in feature_cmds:
         rc, out = run_cli(args, port)
