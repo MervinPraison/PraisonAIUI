@@ -10,6 +10,18 @@
 
 // ── All features with their endpoints ──────────────────────────
 const FEATURES = [
+  { group: "PraisonAI Package", items: [
+    { name: "discovery", endpoints: [
+      { label: "Serve Discovery", method: "GET", url: "/__praisonai__/discovery" },
+      { label: "Gateway Info", method: "GET", url: "/info" },
+    ]},
+    { name: "jobs_v1", endpoints: [
+      { label: "List Runs", method: "GET", url: "/api/v1/runs" },
+    ]},
+    { name: "dash_plugins", endpoints: [
+      { label: "Dashboard Plugins", method: "GET", url: "/api/dashboard/plugins" },
+    ]},
+  ]},
   { group: "PraisonAI Gateway", items: [
     { name: "health",           endpoints: [
       { label: "Health",        method: "GET",  url: "/health" },

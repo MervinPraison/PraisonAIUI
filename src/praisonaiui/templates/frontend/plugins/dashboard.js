@@ -2355,6 +2355,17 @@ function onContentChange(root) {
   }
 }
 
+window.aiui.registerSlot('shell:header', () => {
+  const el = document.createElement('div');
+  el.className = 'db-shell-header-brand';
+  el.style.cssText = 'font-size:12px;color:var(--db-text-dim);padding:4px 0';
+  fetch('/ui-config.json').then((r) => r.json()).then((cfg) => {
+    const t = cfg?.site?.title;
+    if (t) el.textContent = t;
+  }).catch(() => {});
+  return el;
+});
+
 window.aiui.registerSlot('shell:sidebar:footer', () => {
   const el = document.createElement('div');
   el.innerHTML = '<span class="db-health-dot" style="color:var(--db-text-dim)">●</span> <span class="db-health-label">Checking…</span>';
