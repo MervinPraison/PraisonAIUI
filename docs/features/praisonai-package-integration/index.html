@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="PraisonAI package integration - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>PraisonAI package integration | PraisonAIUI Docs</title>
+  <script>
+    // Anti-flicker: apply dark mode class before first paint
+    // Default to dark to prevent flash; React will correct if needed
+    document.documentElement.classList.add('dark');
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/features/praisonai-package-integration" />
+  <meta property="og:title" content="PraisonAI package integration | PraisonAIUI Docs" />
+  <meta property="og:description" content="PraisonAI package integration - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/features/praisonai-package-integration" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="PraisonAI package integration | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="PraisonAI package integration - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>PraisonAI package integration</h1>
+<p>How **PraisonAIUI** (`aiui`) connects to **`praisonai-package`** — the agent runtime, gateway, and CLI. For generic UI hosting see [Agent UI host](agent-ui-host.md).</p>
+<h2>Division of labour</h2>
+<p>| Layer | Repo | Role |</p>
+<p>|-------|------|------|</p>
+<p>| Agent runtime | `praisonai-agents` | `Agent`, tools, memory, streaming |</p>
+<p>| Gateway, jobs, CLI | `praisonai` | WebSocket `/ws`, `/api/v1/runs`, `praisonai claw` |</p>
+<p>| Dashboard UI | **PraisonAIUI** | `dashboard.js`, `@aiui.page`, layout protocol |</p>
+<p>| Work tracking | `praisonai-platform` | Issues API (optional board data source) |</p>
+<p>Canonical app: `praisonai-package` → `src/praisonai/praisonai/claw/default_app.py`.</p>
+<h2>Deployment shapes</h2>
+<h3>1. Single process — `praisonai claw` (recommended)</h3>
+<p>Use when: local dev, full dashboard, agents registered in Python.</p>
+<h3>2. Unified — `AIUIGateway`</h3>
+<p>Use when: you need **WebSocket gateway protocol** and dashboard on **one port**.</p>
+<h3>3. Split — gateway + UI</h3>
+<p>| Service | Default port | Endpoints |</p>
+<p>|---------|--------------|-----------|</p>
+<p>| `praisonai gateway start` | 8765 | `ws://…/ws`, `/health`, `/info` |</p>
+<p>| `praisonai claw` or `aiui run` | 8082 | Dashboard, `/run` SSE, `/api/*` |</p>
+<p>Use when: gateway runs headless; UI is a separate process. Point chat at gateway via provider config or run `AIUIGateway` instead.</p>
+<h2>Wiring checklist</h2>
+<h2>API surface</h2>
+<h3>Chat and agents (dashboard)</h3>
+<p>| Endpoint | Purpose |</p>
+<p>|----------|---------|</p>
+<p>| `POST /run` | Stream agent run (SSE) |</p>
+<p>| `GET /sessions`, `POST /sessions` | Session CRUD |</p>
+<p>| `GET /agents`, `/api/agents/definitions` | Agent list / CRUD |</p>
+<p>| `GET /api/health` | Sidebar health slot |</p>
+<h3>Async jobs — two paths</h3>
+<p>| Backend | Base path | When |</p>
+<p>|---------|-----------|------|</p>
+<p>| **aiui** `JobsFeature` | `/api/jobs` | Default; in-process job store |</p>
+<p>| **praisonai** jobs server | `/api/v1/runs` | Standalone `praisonai jobs` / FastAPI router |</p>
+<p>Configure the dashboard jobs view:</p>
+<p>`/ui-config.json` exposes `jobs: { apiBase, backend }` for `jobs.js`.</p>
+<p>**Response shapes:** both return `{ jobs, total }`. Praison uses `job_id`; aiui uses `id`. The jobs view normalises either field.</p>
+<p>| Action | aiui | praisonai |</p>
+<p>|--------|------|-----------|</p>
+<p>| List | `GET /api/jobs` | `GET /api/v1/runs` |</p>
+<p>| Detail | `GET /api/jobs/{id}` | `GET /api/v1/runs/{id}` |</p>
+<p>| Cancel | `POST /api/jobs/{id}/cancel` | `POST /api/v1/runs/{id}/cancel` |</p>
+<p>| Stream | `GET /api/jobs/{id}/stream` | `GET /api/v1/runs/{id}/stream` |</p>
+<p>| Delete | `DELETE /api/jobs/{id}` | Not on package router |</p>
+<h3>REST invoke (automation)</h3>
+<p>| Path | Use |</p>
+<p>|------|-----|</p>
+<p>| `POST /api/v1/agents/{id}/invoke` | Sync invoke (n8n, scripts) — **package** `agent_invoke.py` |</p>
+<p>| `POST /run` | Streaming chat — **dashboard** chat page |</p>
+<p>Same agents if registered on both surfaces; different protocols.</p>
+<h3>Discovery (package serve)</h3>
+<p>| Endpoint | Purpose |</p>
+<p>|----------|---------|</p>
+<p>| `GET /__praisonai__/discovery` | Serve-mode capability discovery |</p>
+<p>| `GET /health`, `GET /info` | Gateway liveness and metadata |</p>
+<p>| `GET /api/gateway/status` | aiui gateway feature status |</p>
+<p>See **Feature Explorer** page in dashboard for live probes.</p>
+<h2>Parallel UI protocols (not dashboard replacements)</h2>
+<p>Under `praisonaiagents/ui/`:</p>
+<p>| Protocol | Purpose |</p>
+<p>|----------|---------|</p>
+<p>| **A2A** | Agent cards, `/.well-known/agent.json`, external agent hosts |</p>
+<p>| **AG-UI** | CopilotKit-style event stream (`POST /agui`) |</p>
+<p>| **A2UI** | Declarative surfaces in chat/canvas |</p>
+<p>Dashboard shell remains the ops console for `praisonai claw`. Use A2A/AG-UI/A2UI when embedding in other products.</p>
+<h2>Two plugin systems</h2>
+<p>| System | Location | Purpose |</p>
+<p>|--------|----------|---------|</p>
+<p>| **Agent plugins** | `~/.praisonai/plugins/` | Python agent extensions (`praisonaiagents.plugins`) |</p>
+<p>| **Dashboard plugins** | `~/.praisonai/dashboard-plugins/` | JS tabs + `manifest.json` for aiui shell |</p>
+<p>Do not mix folders. Agent plugins extend runtime; dashboard plugins extend UI tabs only.</p>
+<h2>Optional modules</h2>
+<p>Loads `jobs.js`, `auth.js`, `api.js` into the plugin chain and maps them in `BUILTIN_VIEWS`. Enable only what your deployment exposes.</p>
+<h2>Board / work tracking</h2>
+<p>Neither repo ships Hermes-style Kanban. Options:</p>
+<p>1. **`aiui.board()`** — columns from `@aiui.page` handler (jobs by status, custom data).</p>
+<p>2. **`praisonai-platform` issues** — map issue `status` → board columns (see `examples/python/praisonai-claw-board/`).</p>
+<p>3. **`dashboard-plugins`** — rich JS via `registerView` + `sdk.createBoard`.</p>
+<p>Advanced board UX (drag-drop, WebSocket sync) is **deferred** — use polling via `sdk.createBoard({ pollMs })` or a custom plugin.</p>
+<h2>Smoke checklist</h2>
+<p>After `praisonai claw` or `aiui run` with package bridges:</p>
+<li>[ ] `GET /api/health` → sidebar footer shows healthy</li>
+<li>[ ] Chat page sends message, streams reply</li>
+<li>[ ] Sessions page lists `~/.praisonai/sessions/` data</li>
+<li>[ ] Agents page CRUD (if agents registered)</li>
+<li>[ ] Jobs page (if `modules` includes `jobs` and jobs API configured)</li>
+<li>[ ] Explorer probes `/health`, `/ui-config.json`, `/api/dashboard/plugins`</li>
+<li>[ ] Auth/API pages (if `modules` includes `auth` / `api`)</li>
+<h2>Related</h2>
+<li>[Agent UI host](agent-ui-host.md) — extension API, opt-in matrix</li>
+<li>[`integration.py`](../../src/praisonaiui/integration.py) — `AIUIGateway`</li>
+<li>[`examples/python/praisonai-claw-board/`](../../examples/python/praisonai-claw-board/app.py) — board from jobs</li>
+<li>[`examples/python/platform-board/`](../../examples/python/platform-board/app.py) — board from platform issues</li></noscript></div>
+</body>
+
+</html>
