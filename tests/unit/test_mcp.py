@@ -479,7 +479,7 @@ class TestMCPGlobalFunctions:
             
             result = await connect_mcp_server(config)
             
-            mock_connect.assert_called_once_with(config)
+            mock_connect.assert_called_once_with(config, session_context=None)
             assert result == mock_server
 
     @pytest.mark.asyncio
@@ -490,7 +490,7 @@ class TestMCPGlobalFunctions:
             
             result = await disconnect_mcp_server("test")
             
-            mock_disconnect.assert_called_once_with("test")
+            mock_disconnect.assert_called_once_with("test", session_context=None)
             assert result is True
 
     @pytest.mark.asyncio
