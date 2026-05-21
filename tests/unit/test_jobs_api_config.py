@@ -26,8 +26,9 @@ def test_ui_config_includes_jobs_api(client):
 
 
 def test_set_jobs_backend_default():
-    from praisonaiui.server import _jobs_api_config, set_jobs_backend
+    from praisonaiui.server import _jobs_api_config, set_jobs_api, set_jobs_backend
 
+    set_jobs_api(api_base="/api/jobs", backend="aiui")
     set_jobs_backend("praisonai")
     assert _jobs_api_config["apiBase"] == "/api/v1/runs"
 
