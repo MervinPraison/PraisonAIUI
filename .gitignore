@@ -56,3 +56,4 @@ _site
 
 .praisonai
 tmp/
+*.db
