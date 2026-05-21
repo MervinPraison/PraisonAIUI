@@ -81,9 +81,11 @@ class BrowserAutomationManager(BrowserAutomationProtocol):
 
             agent = BrowserAgent()
             result = await agent.run(task=task, url=url)
+            if isinstance(result, dict) and result.get("error"):
+                return {"status": "failed", "error": str(result.get("error"))}
             return {"status": "completed", "result": str(result)}
         except Exception as e:
-            return {"status": "error", "error": str(e)}
+            return {"status": "failed", "error": str(e)}
 
 
 _browser_manager = None

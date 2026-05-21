@@ -16,12 +16,23 @@ export function CanvasView({ page }: DashboardPageProps) {
         try {
             setLoading(true)
             const res = await fetch(`/api/surfaces/${encodeURIComponent(surfaceId)}`)
+            if (res.status === 404) {
+                setMessages([])
+                setError(null)
+                return
+            }
             if (!res.ok) throw new Error(`HTTP ${res.status}`)
             const data = await res.json()
             setMessages((data.messages ?? []) as Record<string, unknown>[])
             setError(null)
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load surface')
+            const msg = err instanceof Error ? err.message : 'Failed to load surface'
+            if (msg.includes('404')) {
+                setMessages([])
+                setError(null)
+                return
+            }
+            setError(msg)
         } finally {
             setLoading(false)
         }

@@ -4,6 +4,7 @@
  * API: /api/memory, /api/memory/search, /api/memory/status, /api/memory/context
  */
 import { showToast, showConfirm } from '../toast.js';
+import { searchInput } from './_helpers.js';
 
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
@@ -43,7 +44,7 @@ export async function render(container) {
 
     <!-- Search + Actions -->
     <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center">
-      <input id="mem-search" type="text" placeholder="Search memory..." style="flex:1;padding:8px 14px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:8px;color:var(--db-text);font-size:13px;outline:none" />
+      <div style="flex:1">${searchInput('Search memory…', 'mem-search')}</div>
       <button id="mem-search-btn" style="padding:8px 18px;background:var(--db-accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">🔍 Search</button>
       <button id="mem-store-btn" style="padding:8px 18px;border:1px solid var(--db-border);background:transparent;color:var(--db-text);border-radius:8px;cursor:pointer;font-size:12px">+ Store</button>
       <button id="mem-clear-btn" style="padding:8px 18px;border:1px solid #ef4444;background:transparent;color:#ef4444;border-radius:8px;cursor:pointer;font-size:12px" title="Clear all memories">🗑 Clear All</button>

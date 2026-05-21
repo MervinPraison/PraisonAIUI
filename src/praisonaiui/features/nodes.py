@@ -140,6 +140,8 @@ class NodesFeature(BaseFeatureProtocol):
             "total_nodes": len(_nodes),
             "online_nodes": online,
             "connected_instances": len(_instances),
+            "sdk_gap": True,
+            "sdk_gap_message": "Node orchestration uses local fallback; no praisonaiagents nodes API detected.",
             **gateway_health(),
         }
 

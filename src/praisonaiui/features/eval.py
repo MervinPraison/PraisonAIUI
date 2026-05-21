@@ -147,6 +147,9 @@ class SDKEvalManager(EvalProtocol):
     def list_results(
         self, *, limit: int = 50, agent_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
+        sdk_results = self._list_results_from_sdk(limit=limit, agent_id=agent_id)
+        if sdk_results is not None:
+            return sdk_results
         return self._simple.list_results(limit=limit, agent_id=agent_id)
 
     def run_evaluation(self, eval_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -184,6 +187,31 @@ class SDKEvalManager(EvalProtocol):
 
     def get_scores(self) -> List[Dict[str, Any]]:
         return self._simple.get_scores()
+
+    def _list_results_from_sdk(
+        self, *, limit: int, agent_id: Optional[str]
+    ) -> Optional[List[Dict[str, Any]]]:
+        try:
+            from praisonaiagents import eval as eval_module
+
+            get_store = getattr(eval_module, "get_eval_store", None)
+            if not callable(get_store):
+                return None
+            store = get_store()
+            if store is None:
+                return None
+
+            if hasattr(store, "list_results"):
+                items = store.list_results(limit=limit, agent_id=agent_id)
+            elif hasattr(store, "list"):
+                items = store.list(limit=limit, agent_id=agent_id)
+            else:
+                return None
+            if isinstance(items, list):
+                return items
+            return None
+        except Exception:
+            return None
 
     def health(self) -> Dict[str, Any]:
         h = self._simple.health()

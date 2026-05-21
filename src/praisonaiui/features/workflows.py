@@ -7,6 +7,7 @@ listing, running, and checking status of multi-step workflows
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from typing import Any, Dict, List
@@ -17,9 +18,21 @@ from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
 
-# In-memory workflow registry + run history
 _workflows: Dict[str, Dict[str, Any]] = {}
 _runs: Dict[str, Dict[str, Any]] = {}
+
+
+def _execute_workflow(wf_id: str, wf: Dict[str, Any], input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Run via injected backend or built-in AgentFlow runner."""
+    from praisonaiui.backends import get_workflow_runner
+
+    runner = get_workflow_runner()
+    if runner is not None:
+        return runner(wf_id, workflow=wf, input_data=input_data)
+
+    from praisonaiui._workflow_runner import run_workflow
+
+    return run_workflow(wf_id, workflow=wf, input_data=input_data)
 
 
 class WorkflowsFeature(BaseFeatureProtocol):
@@ -70,8 +83,6 @@ class WorkflowsFeature(BaseFeatureProtocol):
             "total_runs": len(_runs),
         }
 
-    # ── API handlers ─────────────────────────────────────────────────
-
     async def _list(self, request: Request) -> JSONResponse:
         return JSONResponse({"workflows": list(_workflows.values()), "count": len(_workflows)})
 
@@ -108,20 +119,12 @@ class WorkflowsFeature(BaseFeatureProtocol):
         wf = _workflows.get(wf_id)
         if not wf:
             return JSONResponse({"error": "Workflow not found"}, status_code=404)
-        run_id = uuid.uuid4().hex[:12]
         content_type = request.headers.get("content-type")
         body = await request.json() if content_type == "application/json" else {}
-        run_entry = {
-            "id": run_id,
-            "workflow_id": wf_id,
-            "workflow_name": wf["name"],
-            "status": "completed",
-            "input": body.get("input", {}),
-            "output": {"message": f"Workflow '{wf['name']}' executed successfully"},
-            "started_at": time.time(),
-            "completed_at": time.time(),
-        }
-        _runs[run_id] = run_entry
+        run_entry = await asyncio.to_thread(
+            _execute_workflow, wf_id, wf, body.get("input", {})
+        )
+        _runs[run_entry["id"]] = run_entry
         return JSONResponse(run_entry)
 
     async def _status(self, request: Request) -> JSONResponse:
@@ -149,8 +152,6 @@ class WorkflowsFeature(BaseFeatureProtocol):
             return JSONResponse({"error": "Run not found"}, status_code=404)
         return JSONResponse(run)
 
-    # ── CLI handlers ─────────────────────────────────────────────────
-
     def _cli_list(self) -> str:
         if not _workflows:
             return "No workflows registered"
@@ -161,15 +162,9 @@ class WorkflowsFeature(BaseFeatureProtocol):
         wf = _workflows.get(workflow_id)
         if not wf:
             return f"Workflow {workflow_id} not found"
-        run_id = uuid.uuid4().hex[:12]
-        _runs[run_id] = {
-            "id": run_id,
-            "workflow_id": workflow_id,
-            "status": "completed",
-            "started_at": time.time(),
-            "completed_at": time.time(),
-        }
-        return f"Ran workflow {workflow_id} → run {run_id}"
+        run_entry = _execute_workflow(workflow_id, wf, {})
+        _runs[run_entry["id"]] = run_entry
+        return f"Ran workflow {workflow_id} → run {run_entry['id']} ({run_entry['status']})"
 
     def _cli_status(self) -> str:
         return f"Workflows: {len(_workflows)}, Runs: {len(_runs)}"
@@ -184,5 +179,4 @@ class WorkflowsFeature(BaseFeatureProtocol):
         return "\n".join(lines)
 
 
-# Backward-compat alias
 PraisonAIWorkflows = WorkflowsFeature

@@ -146,3 +146,20 @@
 .vs-download-link:hover {
   text-decoration: underline;
 }
+
+.vs-composition-details {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--db-border, #334155);
+}
+
+.vs-composition-details summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.vs-composition-details[open] .vs-hint {
+  margin-bottom: 8px;
+}

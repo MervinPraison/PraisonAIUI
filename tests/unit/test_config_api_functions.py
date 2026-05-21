@@ -145,6 +145,8 @@ class TestSetDashboard:
         assert srv._dashboard_config == {
             "sidebar": False,
             "pageHeader": False,
+            "modules": [],
+            "pluginDirs": [],
         }
 
     def test_defaults(self):

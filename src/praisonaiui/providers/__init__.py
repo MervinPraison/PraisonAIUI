@@ -664,7 +664,7 @@ class PraisonAIProvider(BaseProvider):
         except ImportError:
             pass
 
-        # Run agent.chat in a background thread while draining the
+        # Run agent.achat (async unified dispatch) while draining the
         # event queue concurrently so tokens stream in real-time.
         full_response = ""
         _chat_error = None
@@ -692,11 +692,21 @@ class PraisonAIProvider(BaseProvider):
                 chat_kwargs: Dict[str, Any] = {}
                 if "attachments" in kwargs and kwargs["attachments"]:
                     chat_kwargs["attachments"] = kwargs["attachments"]
-                # Sync OpenAIAdapter rejects stream=True; non-streaming avoids SDK
-                # returning None and emitting a literal "None" stream token.
-                response = await asyncio.to_thread(
-                    agent.chat, message, stream=False, **chat_kwargs
-                )
+                # Media agents return one payload — streaming breaks litellm image API.
+                _MEDIA_AGENT_TYPES = frozenset({"ImageAgent", "VideoAgent", "AudioAgent"})
+                is_media_agent = type(agent).__name__ in _MEDIA_AGENT_TYPES
+                if hasattr(agent, "achat") and not is_media_agent:
+                    response = await agent.achat(
+                        message, stream=True, **chat_kwargs
+                    )
+                elif hasattr(agent, "achat"):
+                    response = await agent.achat(
+                        message, stream=False, **chat_kwargs
+                    )
+                else:
+                    response = await asyncio.to_thread(
+                        agent.chat, message, stream=False, **chat_kwargs
+                    )
                 _raw_chat_response = response
                 full_response = _normalise_chat_response(response, _streamed_text)
             except Exception as exc:
@@ -788,9 +798,12 @@ class PraisonAIProvider(BaseProvider):
                 fallback_kwargs: Dict[str, Any] = {"stream": False}
                 if "attachments" in kwargs and kwargs["attachments"]:
                     fallback_kwargs["attachments"] = kwargs["attachments"]
-                fallback = await asyncio.to_thread(
-                    agent.chat, message, **fallback_kwargs
-                )
+                if hasattr(agent, "achat"):
+                    fallback = await agent.achat(message, **fallback_kwargs)
+                else:
+                    fallback = await asyncio.to_thread(
+                        agent.chat, message, **fallback_kwargs
+                    )
                 full_response = _normalise_chat_response(fallback, _streamed_text)
             except Exception as exc:
                 yield RunEvent(type=RunEventType.RUN_ERROR, error=str(exc))
@@ -869,9 +882,20 @@ class PraisonAIProvider(BaseProvider):
             from praisonaiui.features.usage import track_usage
 
             agent_model = getattr(agent, "llm", "unknown")
-            # Estimate tokens from response length (rough heuristic)
-            input_tokens = max(1, len(message) // 4)
-            output_tokens = max(1, len(full_response) // 4)
+            input_tokens = output_tokens = 0
+            try:
+                from praisonaiagents.telemetry.token_collector import _token_collector
+
+                recent = _token_collector.get_recent_interactions(1)
+                if recent:
+                    metrics = recent[-1].get("metrics") or {}
+                    input_tokens = int(metrics.get("input_tokens", 0))
+                    output_tokens = int(metrics.get("output_tokens", 0))
+            except ImportError:
+                pass
+            if not input_tokens and not output_tokens:
+                input_tokens = max(1, len(message) // 4)
+                output_tokens = max(1, len(full_response) // 4)
             track_usage(
                 model=str(agent_model),
                 input_tokens=input_tokens,

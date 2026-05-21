@@ -8,6 +8,7 @@ Architecture:
 from __future__ import annotations
 
 import logging
+import os
 from abc import ABC, abstractmethod
 from typing import Any, AsyncIterator, Dict, List, Optional
 
@@ -123,7 +124,17 @@ class OpenAIRealtimeManager(RealtimeProtocol):
             yield {"type": "error", "error": "Session not found"}
             return
 
-        # Mock event stream - in real implementation this would connect to OpenAI
+        # Prefer OpenAI-backed event when API key is present.
+        if os.environ.get("OPENAI_API_KEY"):
+            yield {
+                "type": "session.ready",
+                "session_id": session_id,
+                "provider": "openai",
+                "status": session.get("status", "created"),
+            }
+            return
+
+        # Mock event stream fallback
         yield {
             "type": "conversation.item.created",
             "item": {

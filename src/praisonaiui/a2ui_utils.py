@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, List, Optional
 
-A2UI_MIME_TYPE = "application/json+a2ui"
+from praisonaiagents.ui.protocols import A2UI_MIME_TYPE
+
 DEFAULT_SURFACE_ID = "main"
 A2UI_VERSION = "v0.9"
 
@@ -47,6 +49,42 @@ def _extract_raw_messages(result: Any) -> List[Dict[str, Any]]:
     if any(k in result for k in ("createSurface", "updateComponents", "updateDataModel", "deleteSurface")):
         return [result]
     return []
+
+
+def coerce_a2ui_tool_messages(raw: Any, *, surface_id: str = DEFAULT_SURFACE_ID) -> List[Dict[str, Any]]:
+    """Coerce common LLM tool-arg shapes into a valid A2UI message list."""
+    if raw is None:
+        raise ValueError("messages must be a list of A2UI message dicts or a JSON string")
+
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"messages JSON string is not valid JSON: {exc}") from exc
+
+    if isinstance(raw, dict):
+        if isinstance(raw.get("messages"), list):
+            raw = raw["messages"]
+        elif "components" in raw:
+            raw = [{"updateComponents": {"components": raw["components"]}}]
+        elif any(k in raw for k in ("createSurface", "updateComponents", "updateDataModel", "deleteSurface")):
+            raw = [raw]
+        elif raw.get("component"):
+            raw = [{"updateComponents": {"components": [raw]}}]
+        else:
+            raise ValueError("messages must be a list of A2UI message dicts or a JSON string")
+
+    if not isinstance(raw, list):
+        raise ValueError("messages must be a list of A2UI message dicts or a JSON string")
+
+    items = [dict(m) for m in raw if isinstance(m, dict)]
+    if not items:
+        raise ValueError("messages must contain at least one A2UI message dict")
+
+    if not any(m.get("createSurface") for m in items):
+        items.insert(0, {"createSurface": {"surfaceId": surface_id, "catalogId": "basic"}})
+
+    return normalise_a2ui_messages({"messages": items})
 
 
 def normalise_a2ui_messages(result: Any) -> List[Dict[str, Any]]:

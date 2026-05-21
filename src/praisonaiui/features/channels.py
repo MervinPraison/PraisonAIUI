@@ -231,6 +231,7 @@ class ChannelsFeature(BaseFeatureProtocol):
         """
         platform = entry["platform"]
         config = entry.get("config", {})
+        fallback_errors: List[str] = []
         # Platform-aware token resolution:
         # email/agentmail use api_key or dedicated env vars, not bot_token
         if platform == "agentmail":
@@ -248,7 +249,10 @@ class ChannelsFeature(BaseFeatureProtocol):
         else:
             token = config.get("bot_token", "")
         if not token:
-            return f"No token in channel config or environment for {platform}"
+            return (
+                f"No token configured for {platform}. "
+                "Set config.bot_token (or platform-specific token) or the matching env var."
+            )
         # Slack Socket Mode requires an app_token (xapp-...)
         if platform == "slack":
             if not self._resolve_slack_app_token(config):
@@ -321,13 +325,18 @@ class ChannelsFeature(BaseFeatureProtocol):
                     bot = gw._create_bot(platform, token, gw_agent, bot_config, ch_cfg)
             except Exception as e:
                 logger.debug(f"Gateway _create_bot failed: {e}")
+                fallback_errors.append(f"gateway: {e}")
 
         # ── Strategy 2: direct import from praisonai.bots ───────────────
         if bot is None:
             bot = self._create_bot_direct(platform, token, agent, config)
 
         if bot is None:
-            return f"Could not create {platform} bot — required packages may not be installed"
+            details = f" ({'; '.join(fallback_errors)})" if fallback_errors else ""
+            return (
+                f"Could not create {platform} bot. "
+                f"Check platform dependencies and channel config{details}"
+            )
 
         # ── Start the bot as an asyncio task ─────────────────────────────
         async def _run_safe(name: str, b: Any) -> None:

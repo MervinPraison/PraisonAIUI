@@ -9,6 +9,37 @@ import { showConfirm } from './toast.js';
 let jobsData = null;
 let refreshInterval = null;
 let activeStreams = {};
+let _jobsCfg = { apiBase: '/api/jobs', backend: 'aiui' };
+
+async function loadJobsConfig() {
+  if (window.__aiuiJobsConfig) {
+    _jobsCfg = window.__aiuiJobsConfig;
+    return;
+  }
+  try {
+    const res = await fetch('/ui-config.json');
+    const data = await res.json();
+    if (data.jobs) {
+      _jobsCfg = { apiBase: data.jobs.apiBase || '/api/jobs', backend: data.jobs.backend || 'aiui' };
+    }
+    window.__aiuiJobsConfig = _jobsCfg;
+  } catch (_) { /* defaults */ }
+}
+
+function jobsUrl(subpath) {
+  const base = (_jobsCfg.apiBase || '/api/jobs').replace(/\/$/, '');
+  return subpath ? `${base}/${subpath}` : base;
+}
+
+function normalizeJob(raw) {
+  const id = raw.id || raw.job_id;
+  return { ...raw, id, job_id: id };
+}
+
+function normalizeJobsResponse(data) {
+  const jobs = (data.jobs || []).map(normalizeJob);
+  return { jobs, total: data.total ?? jobs.length };
+}
 
 const STATUS_CONFIG = {
   queued: { icon: '⏳', color: '#6b7280', label: 'Queued' },
@@ -20,9 +51,9 @@ const STATUS_CONFIG = {
 
 async function fetchJobs() {
   try {
-    const resp = await fetch('/api/jobs');
+    const resp = await fetch(jobsUrl());
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
+    const data = normalizeJobsResponse(await resp.json());
     jobsData = data;
     return data;
   } catch (e) {
@@ -33,7 +64,7 @@ async function fetchJobs() {
 
 async function cancelJob(jobId) {
   try {
-    const resp = await fetch(`/api/jobs/${jobId}/cancel`, { method: 'POST' });
+    const resp = await fetch(jobsUrl(`${jobId}/cancel`), { method: 'POST' });
     const data = await resp.json();
     if (resp.ok) {
       showNotification(`Job "${jobId}" cancelled`, 'success');
@@ -49,8 +80,12 @@ async function cancelJob(jobId) {
 
 async function deleteJob(jobId) {
   if (!await showConfirm('Delete Job', `Delete job "${jobId}"?`)) return;
+  if (_jobsCfg.backend === 'praisonai') {
+    showNotification('Delete is not supported for praisonai jobs API', 'error');
+    return;
+  }
   try {
-    const resp = await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
+    const resp = await fetch(jobsUrl(jobId), { method: 'DELETE' });
     if (resp.ok) {
       showNotification(`Job "${jobId}" deleted`, 'success');
       await fetchJobs();
@@ -162,9 +197,7 @@ function renderJobRow(job) {
             ⏹️
           </button>
         ` : `
-          <button class="aiui-btn aiui-btn-sm aiui-btn-delete" onclick="window.aiuiDeleteJob('${job.id}')" title="Delete">
-            🗑️
-          </button>
+          ${_jobsCfg.backend !== 'praisonai' ? `<button class="aiui-btn aiui-btn-sm aiui-btn-delete" onclick="window.aiuiDeleteJob('${job.id}')" title="Delete">🗑️</button>` : ''}
         `}
         <button class="aiui-btn aiui-btn-sm aiui-btn-view" onclick="window.aiuiViewJob('${job.id}')" title="View Details">
           👁️
@@ -176,7 +209,7 @@ function renderJobRow(job) {
 
 async function viewJob(jobId) {
   try {
-    const resp = await fetch(`/api/jobs/${jobId}`);
+    const resp = await fetch(jobsUrl(jobId));
     const job = await resp.json();
     
     const modal = document.createElement('div');
@@ -238,7 +271,7 @@ function renderJobsUI() {
         <div class="aiui-empty-icon">📋</div>
         <h3>No Jobs</h3>
         <p>Submit agent jobs via the API to see them here.</p>
-        <p class="aiui-empty-hint">POST /api/jobs with a prompt to get started.</p>
+        <p class="aiui-empty-hint">POST ${jobsUrl()} with a prompt to get started.</p>
       </div>
     `;
     return;
@@ -570,8 +603,9 @@ window.aiuiViewJob = viewJob;
 export default {
   name: 'jobs',
   async init() {
+    await loadJobsConfig();
     injectStyles();
-    console.debug('[AIUI:jobs] Plugin loaded');
+    console.debug('[AIUI:jobs] Plugin loaded', _jobsCfg);
   },
   onContentChange(root) {
     checkForJobsPage(root);

@@ -141,6 +141,23 @@ class AIUIGateway:
                 "Install with: pip install starlette uvicorn"
             )
 
+        # ── Bootstrap datastore + SDK bridges (Pattern C parity) ───────
+        try:
+            from praisonai.ui._aiui_datastore import PraisonAISessionDataStore
+
+            from praisonaiui.server import set_datastore
+
+            set_datastore(PraisonAISessionDataStore())
+        except ImportError:
+            pass
+
+        try:
+            from praisonai.integration.host_app import setup_bridges
+
+            setup_bridges()
+        except ImportError:
+            pass
+
         # ── Register gateway agents with the server's provider system ──
         from praisonaiui.server import create_app, register_agent, set_provider
 

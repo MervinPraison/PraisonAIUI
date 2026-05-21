@@ -105,6 +105,8 @@ _custom_css: Optional[str] = None
 _custom_js: Optional[str] = None
 # Chat features override set via aiui.set_chat_features()
 _chat_features: Optional[dict[str, Any]] = None
+# External agent settings panel entries set via aiui.set_settings()
+_agent_settings: Optional[list[dict[str, Any]]] = None
 # Dashboard config set via aiui.set_dashboard()
 _dashboard_config: Optional[dict[str, Any]] = None
 # Feedback configuration
@@ -118,7 +120,7 @@ def reset_state() -> None:
     state leaking between tests.  Not for production use.
     """
     global _style, _branding, _theme, _custom_css, _custom_js, _chat_features
-    global _dashboard_config, _provider, _config_path, _config_cache
+    global _dashboard_config, _agent_settings, _provider, _config_path, _config_cache
     global _chat_mode, _chat_preview, _brand_color, _effective_style, _selected_profile, _feedback_enabled
     _callbacks.clear()
     _agents.clear()
@@ -143,6 +145,7 @@ def reset_state() -> None:
     _custom_css = None
     _custom_js = None
     _chat_features = None
+    _agent_settings = None
     _dashboard_config = None
     _provider = None
     _config_path = None
@@ -341,6 +344,21 @@ def set_chat_features(
     }
 
 
+def set_settings(entries: list[dict[str, Any]]) -> None:
+    """Expose external agent settings for the dashboard settings panel.
+
+    Args:
+        entries: List of setting descriptors (id, label, type, value, etc.).
+
+    Example::
+
+        import praisonaiui as aiui
+        aiui.set_settings([{"id": "model", "label": "Model", "value": "gpt-4o-mini"}])
+    """
+    global _agent_settings
+    _agent_settings = list(entries)
+
+
 def set_dashboard(
     *,
     sidebar: bool = True,
@@ -373,6 +391,26 @@ def set_dashboard(
         "modules": list(modules) if modules else [],
         "pluginDirs": list(plugin_dirs) if plugin_dirs else [],
     }
+
+
+_jobs_api_config: dict[str, str] = {"apiBase": "/api/jobs", "backend": "aiui"}
+
+
+def set_jobs_api(*, api_base: str = "/api/jobs", backend: str = "aiui") -> None:
+    """Configure dashboard jobs view API paths."""
+    global _jobs_api_config
+    _jobs_api_config = {
+        "apiBase": api_base.rstrip("/") or "/api/jobs",
+        "backend": backend,
+    }
+
+
+def set_jobs_backend(name: str) -> None:
+    """Shortcut: ``praisonai`` → ``/api/v1/runs``, ``aiui`` → ``/api/jobs``."""
+    if name == "praisonai":
+        set_jobs_api(api_base="/api/v1/runs", backend="praisonai")
+    else:
+        set_jobs_api(api_base="/api/jobs", backend="aiui")
 
 
 # Chat mode config set via aiui.set_chat_mode()
@@ -1178,6 +1216,14 @@ async def api_overview(request: Request) -> JSONResponse:
                 pass
             break
 
+    try:
+        from praisonaiui.features.usage import get_usage_aggregates
+
+        usage_stats = get_usage_aggregates()
+        total_requests = int(usage_stats.get("total_requests", 0))
+    except Exception:
+        total_requests = _usage_stats["total_requests"]
+
     return JSONResponse(
         {
             "status": "ok",
@@ -1194,7 +1240,7 @@ async def api_overview(request: Request) -> JSONResponse:
                 "active_tasks": len(_active_tasks),
                 "registered_agents": len(_agents),
                 "registered_profiles": len(profiles),
-                "total_requests": _usage_stats["total_requests"],
+                "total_requests": total_requests,
             },
             "agents": list(_agents.keys()),
             "config": {
@@ -1251,9 +1297,17 @@ async def api_logs(request: Request) -> JSONResponse:
 
 async def api_usage(request: Request) -> JSONResponse:
     """Return usage statistics."""
+    usage_data: dict[str, Any]
+    try:
+        from praisonaiui.features.usage import get_usage_aggregates
+
+        usage_data = get_usage_aggregates()
+    except Exception:
+        usage_data = _usage_stats
+
     return JSONResponse(
         {
-            "usage": _usage_stats,
+            "usage": usage_data,
             "sessions": {
                 "total": len(await _datastore.list_sessions()),
                 "active": len(_active_tasks),
@@ -1493,7 +1547,8 @@ async def api_mcp_connect(request: Request) -> JSONResponse:
                 {"error": "Either 'command' (for stdio) or 'url' (for SSE/HTTP) is required"},
                 status_code=400,
             )
-        server = await connect_mcp_server(body)
+        session_id = body.get("session_id") or request.query_params.get("session_id")
+        server = await connect_mcp_server(body, session_context={"session_id": session_id})
         server_data = {
             "name": server.name,
             "transport": server.transport.value,
@@ -1524,7 +1579,8 @@ async def api_mcp_disconnect(request: Request) -> JSONResponse:
         from praisonaiui.features.mcp import disconnect_mcp_server
 
         server_id = request.path_params["server_id"]
-        success = await disconnect_mcp_server(server_id)
+        session_id = request.query_params.get("session_id")
+        success = await disconnect_mcp_server(server_id, session_context={"session_id": session_id})
         if success:
             return JSONResponse({"success": True, "message": f"Disconnected from {server_id}"})
         return JSONResponse({"error": f"Server '{server_id}' not found"}, status_code=404)
@@ -1861,16 +1917,16 @@ def _get_version() -> str:
 
 def track_usage(session_id: str = "unknown", model: str = "unknown", tokens: int = 0):
     """Track token usage stats. Called from callbacks."""
-    _usage_stats["total_requests"] += 1
-    _usage_stats["total_tokens"] += tokens
-    if model not in _usage_stats["by_model"]:
-        _usage_stats["by_model"][model] = {"requests": 0, "tokens": 0}
-    _usage_stats["by_model"][model]["requests"] += 1
-    _usage_stats["by_model"][model]["tokens"] += tokens
-    if session_id not in _usage_stats["by_session"]:
-        _usage_stats["by_session"][session_id] = {"requests": 0, "tokens": 0}
-    _usage_stats["by_session"][session_id]["requests"] += 1
-    _usage_stats["by_session"][session_id]["tokens"] += tokens
+    from praisonaiui.features.usage import track_usage as track_feature_usage
+
+    input_tokens = int(tokens) if int(tokens) > 0 else 0
+    track_feature_usage(
+        model=model or "unknown",
+        input_tokens=input_tokens,
+        output_tokens=0,
+        session_id=session_id or "unknown",
+        agent_name="unknown",
+    )
 
 
 class LogBufferHandler(logging.Handler):
@@ -2701,6 +2757,14 @@ def create_app(
                     if _dash_cfg
                     else {}
                 ),
+                **(
+                    {
+                        "settings": _agent_settings,
+                    }
+                    if _agent_settings
+                    else {}
+                ),
+                "jobs": dict(_jobs_api_config),
                 "debug": _debug,
             }
         )

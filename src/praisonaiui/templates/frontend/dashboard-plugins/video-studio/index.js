@@ -1,11 +1,13 @@
 /**
- * Video Studio dashboard plugin — YAML editor, lint, preview iframe, render jobs.
+ * Video Studio dashboard plugin — YAML editor, lint, render jobs, MP4 player.
  */
 (function () {
   'use strict';
 
   const pageId = 'video-studio';
   const LINT_DEBOUNCE_MS = 300;
+  const SHOW_COMPOSITION_PREVIEW = false;
+  const REFRESH_POLL_MS = 3000;
 
   function el(tag, attrs, children) {
     const node = document.createElement(tag);
@@ -38,19 +40,34 @@
     let saveTimer = null;
     let activeJobId = null;
     let jobPollTimer = null;
-    let durationFrames = 90;
-    let previewUrl = null;
+    let refreshPollTimer = null;
 
     const bar = el('div', { className: 'vs-bar' });
     const projectSelect = el('select', { id: 'vs-project-select' });
     const btnNew = el('button', { text: 'New project' });
     const btnLint = el('button', { text: 'Lint' });
     const btnTest = el('button', { text: 'Visual test' });
-    const btnPreview = el('button', { text: 'Start preview' });
     const btnRender = el('button', { text: 'Render MP4' });
     const btnReset = el('button', { text: 'Reset scene' });
     const pathLabel = el('span', { className: 'vs-hint', text: '' });
-    bar.append(projectSelect, btnNew, btnLint, btnTest, btnPreview, btnRender, btnReset, pathLabel);
+    const barChildren = [projectSelect, btnNew, btnLint, btnTest, btnRender, btnReset, pathLabel];
+
+    let btnPreview = null;
+    let compositionDetails = null;
+    let iframe = null;
+    let frameSlider = null;
+    let frameLabel = null;
+    let previewHint = null;
+    let durationFrames = 90;
+    let previewUrl = null;
+
+    if (SHOW_COMPOSITION_PREVIEW) {
+      btnPreview = el('button', { text: 'Start preview' });
+      barChildren.splice(4, 0, btnPreview);
+    }
+    barChildren.forEach(function (c) {
+      bar.append(c);
+    });
 
     const main = el('div', { className: 'vs-main' });
     const editorCol = el('div', { className: 'vs-editor' });
@@ -59,19 +76,7 @@
     editorCol.append(textarea, issuesList);
 
     const previewCol = el('div', { className: 'vs-preview' });
-    previewCol.append(el('p', { className: 'vs-section-label', text: 'Composition preview' }));
-    const previewHint = el('p', {
-      className: 'vs-hint',
-      text: 'Click Start preview (needs video engine). Frame 0 is blank for the hello scene — scrub to ~45.',
-    });
-    const iframe = el('iframe', { title: 'Scene preview', sandbox: 'allow-scripts allow-same-origin' });
-    const transport = el('div', { className: 'vs-transport' });
-    const frameLabel = el('span', { text: 'Frame 0 / 90' });
-    const frameSlider = el('input', { type: 'range', min: '0', max: '89', value: '0' });
-    transport.append(frameLabel, frameSlider);
-    previewCol.append(previewHint, iframe, transport);
-
-    previewCol.append(el('p', { className: 'vs-section-label', text: 'Rendered MP4' }));
+    previewCol.append(el('p', { className: 'vs-section-label', text: 'Your video' }));
     const outputHint = el('p', {
       className: 'vs-hint',
       text: 'Render MP4 to generate a video. It will appear here with playback controls.',
@@ -92,6 +97,24 @@
     outputWrap.append(videoEl, outputActions);
     previewCol.append(outputHint, outputWrap);
 
+    if (SHOW_COMPOSITION_PREVIEW) {
+      compositionDetails = el('details', { className: 'vs-composition-details' });
+      const compositionSummary = el('summary', {
+        text: 'Optional: frame-by-frame preview (while editing YAML)',
+      });
+      previewHint = el('p', {
+        className: 'vs-hint',
+        text: 'Not the final MP4. Click Start preview in the toolbar (video engine must be running). First load may take ~30s.',
+      });
+      iframe = el('iframe', { title: 'Scene preview', sandbox: 'allow-scripts allow-same-origin' });
+      const transport = el('div', { className: 'vs-transport' });
+      frameLabel = el('span', { text: 'Frame 45 / 90' });
+      frameSlider = el('input', { type: 'range', min: '0', max: '89', value: '45' });
+      transport.append(frameLabel, frameSlider);
+      compositionDetails.append(compositionSummary, previewHint, iframe, transport);
+      previewCol.append(compositionDetails);
+    }
+
     main.append(editorCol, previewCol);
 
     const jobsStrip = el('div', { className: 'vs-jobs', text: 'No render job yet.' });
@@ -108,31 +131,58 @@
       });
     }
 
-    async function openProject(id) {
+    async function openProject(id, opts) {
       if (!id) return;
+      const reloadYaml = !opts || opts.reloadYaml !== false;
       currentId = id;
       const data = await api('/api/video/projects/' + encodeURIComponent(id));
-      textarea.value = data.sceneYaml || '';
+      if (reloadYaml) textarea.value = data.sceneYaml || '';
       pathLabel.textContent = data.path || '';
       await runLint();
-      await loadPreviewUrl();
       await loadRenderedMp4();
-      try {
-        const compiled = await api('/api/video/compile', {
-          method: 'POST',
-          body: JSON.stringify({ projectId: id }),
-        });
-        if (compiled.ir && compiled.ir.videoConfig) {
-          durationFrames = compiled.ir.videoConfig.durationInFrames || 90;
-          frameSlider.max = String(Math.max(0, durationFrames - 1));
-          const start = defaultPreviewFrame();
-          frameSlider.value = String(start);
-          frameLabel.textContent = 'Frame ' + start + ' / ' + durationFrames;
+      if (SHOW_COMPOSITION_PREVIEW) {
+        try {
+          const compiled = await api('/api/video/compile', {
+            method: 'POST',
+            body: JSON.stringify({ projectId: id }),
+          });
+          if (compiled.ir && compiled.ir.videoConfig) {
+            durationFrames = compiled.ir.videoConfig.durationInFrames || 90;
+            frameSlider.max = String(Math.max(0, durationFrames - 1));
+            const start = defaultPreviewFrame();
+            frameSlider.value = String(start);
+            frameLabel.textContent = 'Frame ' + start + ' / ' + durationFrames;
+          }
+        } catch (_) {
+          /* compile may fail if engine down */
         }
-      } catch (_) {
-        /* compile may fail if engine down */
       }
     }
+
+    async function refreshFromAgent() {
+      if (!currentId) return;
+      await openProject(currentId, { reloadYaml: true });
+    }
+
+    function onStudioRefresh() {
+      refreshFromAgent().catch(function () {});
+    }
+
+    window.addEventListener('video-studio:refresh', onStudioRefresh);
+
+    async function pollStudioRefresh() {
+      if (!currentId || document.hidden) return;
+      try {
+        const data = await api(
+          '/api/video/projects/' + encodeURIComponent(currentId) + '/studio-refresh'
+        );
+        if (data.refresh) await refreshFromAgent();
+      } catch (_) {
+        /* ignore */
+      }
+    }
+
+    refreshPollTimer = setInterval(pollStudioRefresh, REFRESH_POLL_MS);
 
     async function runLint() {
       if (!currentId) return;
@@ -229,43 +279,59 @@
       });
     });
 
-    async function loadPreviewUrl() {
-      if (!currentId) return;
-      const data = await api('/api/video/preview-url?projectId=' + encodeURIComponent(currentId));
-      previewUrl = data.url;
-      if (previewUrl) {
-        attachPreviewIframe(previewUrl);
-        previewHint.textContent =
-          'Composition preview — dark at frame 0; scrub or wait for frame 45.';
-      } else {
-        iframe.removeAttribute('src');
-        previewHint.textContent = data.message || 'Start preview to load the composition.';
+    if (SHOW_COMPOSITION_PREVIEW) {
+      async function startCompositionPreview() {
+        if (!currentId) return alert('Select a project first.');
+        compositionDetails.open = true;
+        previewHint.textContent = 'Building preview… (may take up to a minute the first time).';
+        btnPreview.disabled = true;
+        try {
+          const data = await api('/api/video/preview/start', {
+            method: 'POST',
+            body: JSON.stringify({ projectId: currentId }),
+          });
+          if (data.url) {
+            previewUrl = data.url;
+            attachPreviewIframe(data.url);
+            previewHint.textContent = 'Frame preview ready — scrub below (hello text is clearest around frame 45).';
+          } else {
+            iframe.removeAttribute('src');
+            previewHint.textContent =
+              data.message || 'Preview failed. Start: praisonai-video serve --port 3921';
+          }
+        } catch (err) {
+          previewHint.textContent = 'Preview error: ' + (err.message || err);
+        } finally {
+          btnPreview.disabled = false;
+        }
       }
-    }
 
-    function defaultPreviewFrame() {
-      return Math.min(45, Math.max(0, durationFrames - 1));
-    }
+      function defaultPreviewFrame() {
+        return Math.min(45, Math.max(0, durationFrames - 1));
+      }
 
-    function seekFrame(n) {
-      frameLabel.textContent = 'Frame ' + n + ' / ' + durationFrames;
-      if (!iframe.contentWindow) return;
-      iframe.contentWindow.postMessage({ type: 'pav-seek', frame: n }, '*');
-    }
+      function seekFrame(n) {
+        frameLabel.textContent = 'Frame ' + n + ' / ' + durationFrames;
+        if (!iframe.contentWindow) return;
+        iframe.contentWindow.postMessage({ type: 'pav-seek', frame: n }, '*');
+      }
 
-    function attachPreviewIframe(url) {
-      const src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
-      iframe.onload = function () {
-        const start = defaultPreviewFrame();
-        frameSlider.value = String(start);
-        seekFrame(start);
-      };
-      iframe.src = src;
-    }
+      function attachPreviewIframe(url) {
+        const src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+        iframe.onload = function () {
+          const start = defaultPreviewFrame();
+          frameSlider.value = String(start);
+          seekFrame(start);
+        };
+        iframe.src = src;
+      }
 
-    frameSlider.addEventListener('input', () => {
-      seekFrame(Number(frameSlider.value));
-    });
+      frameSlider.addEventListener('input', () => {
+        seekFrame(Number(frameSlider.value));
+      });
+
+      btnPreview.addEventListener('click', () => startCompositionPreview());
+    }
 
     textarea.addEventListener('input', () => {
       scheduleLint();
@@ -281,7 +347,6 @@
       );
       textarea.value = data.sceneYaml || '';
       await runLint();
-      await loadPreviewUrl();
     });
 
     projectSelect.addEventListener('change', () => {
@@ -311,22 +376,6 @@
         alert(result.passed ? 'Visual test passed.' : 'Visual test failed.\n' + (result.output || ''));
       } finally {
         btnTest.disabled = false;
-      }
-    });
-
-    btnPreview.addEventListener('click', async () => {
-      if (!currentId) return alert('Select a project first.');
-      const data = await api('/api/video/preview/start', {
-        method: 'POST',
-        body: JSON.stringify({ projectId: currentId }),
-      });
-      if (data.url) {
-        previewUrl = data.url;
-        attachPreviewIframe(data.url);
-        previewHint.textContent =
-          'Composition loaded — use the scrubber (hello text visible around frame 45).';
-      } else {
-        alert(data.message || 'Could not start preview. Is praisonai-video serve running?');
       }
     });
 
@@ -377,6 +426,8 @@
       clearTimeout(lintTimer);
       clearTimeout(saveTimer);
       clearInterval(jobPollTimer);
+      clearInterval(refreshPollTimer);
+      window.removeEventListener('video-studio:refresh', onStudioRefresh);
     };
   });
 })();

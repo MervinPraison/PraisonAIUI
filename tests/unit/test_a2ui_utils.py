@@ -15,6 +15,9 @@ class TestIsA2uiToolResult:
     def test_mime_type_dict(self):
         assert is_a2ui_tool_result({"mime_type": A2UI_MIME_TYPE, "messages": []})
 
+    def test_mimetype_alias(self):
+        assert is_a2ui_tool_result({"mimeType": A2UI_MIME_TYPE, "messages": []})
+
     def test_messages_list(self):
         assert is_a2ui_tool_result({"messages": [{"createSurface": {"surfaceId": "x"}}]})
 
@@ -61,6 +64,23 @@ class TestBuildA2uiExtra:
 
     def test_non_a2ui_returns_none(self):
         assert build_a2ui_extra({"result": "ok"}) is None
+
+
+class TestCoerceA2uiToolMessages:
+    def test_bare_button_dict(self):
+        from praisonaiui.a2ui_utils import coerce_a2ui_tool_messages
+
+        msgs = coerce_a2ui_tool_messages({"component": "Button", "text": {"literal": "Submit"}})
+        assert msgs[0]["createSurface"]["surfaceId"] == "main"
+        assert msgs[-1]["updateComponents"]["components"][0]["text"]["literal"] == "Submit"
+
+    def test_components_wrapper(self):
+        from praisonaiui.a2ui_utils import coerce_a2ui_tool_messages
+
+        msgs = coerce_a2ui_tool_messages(
+            {"components": [{"component": "Text", "text": {"literal": "Hi"}}]}
+        )
+        assert msgs[-1]["updateComponents"]["components"][0]["component"] == "Text"
 
 
 class TestToolCompletedExtra:

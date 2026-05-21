@@ -57,13 +57,36 @@ export async function loadSurface(host, surfaceId) {
   const sid = surfaceId || 'main';
   try {
     const res = await fetch('/api/surfaces/' + encodeURIComponent(sid));
+    if (res.status === 404) {
+      renderEmptySurface(host);
+      return;
+    }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    renderSurfaceContent(host, sid, data.messages || []);
+    const messages = data.messages || [];
+    if (!messages.length) {
+      renderEmptySurface(host);
+      return;
+    }
+    renderSurfaceContent(host, sid, messages);
   } catch (e) {
+    const msg = String(e?.message || e);
+    if (msg.includes('404')) {
+      renderEmptySurface(host);
+      return;
+    }
     host.innerHTML = '<div class="db-card" style="padding:16px;color:var(--db-text-dim)">' +
-      'Failed to load surface: ' + (e.message || e) + '</div>';
+      'Failed to load surface: ' + msg + '</div>';
   }
+}
+
+function renderEmptySurface(host) {
+  host.innerHTML =
+    '<div class="db-card" style="padding:20px;color:var(--db-text-dim);text-align:center">' +
+      '<div style="font-size:28px;margin-bottom:8px">🖼️</div>' +
+      '<p style="margin:0 0 6px">Canvas is empty</p>' +
+      '<p style="margin:0;font-size:12px">Ask the agent to build UI — it will appear here live.</p>' +
+    '</div>';
 }
 
 export function connectSurfaceWs(host, surfaceId, onMessage) {

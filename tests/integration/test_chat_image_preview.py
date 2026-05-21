@@ -269,6 +269,33 @@ async def test_direct_mode_image_agent_dict_yields_message_element():
 
 
 @pytest.mark.asyncio
+async def test_image_agent_achat_not_streamed():
+    """ImageAgent must not use achat(stream=True) — breaks litellm image API."""
+    from praisonaiui.providers import PraisonAIProvider
+
+    class ImageAgent:
+        name = "Image Bot"
+        agent_id = "img-1"
+
+        async def achat(self, message, stream=True, **kwargs):
+            assert stream is False
+            return {"data": [{"url": "https://example.com/stream-fix.png"}]}
+
+    provider = PraisonAIProvider(agent=ImageAgent())
+    events = [
+        ev
+        async for ev in provider._run_direct_mode(
+            "a sunset",
+            session_id="achat-no-stream",
+            agent_name=None,
+        )
+    ]
+    media = [e for e in events if e.type == RunEventType.MESSAGE_ELEMENT]
+    assert len(media) == 1
+    assert media[0].extra_data["element"]["url"] == "https://example.com/stream-fix.png"
+
+
+@pytest.mark.asyncio
 async def test_image_only_run_persists_without_text():
     broadcasts: list = []
     mock_datastore = AsyncMock()

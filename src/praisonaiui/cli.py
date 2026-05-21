@@ -2797,6 +2797,116 @@ pages_app = typer.Typer(name="pages", help="Manage sidebar pages (list, ids)", a
 app.add_typer(pages_app, name="pages")
 
 
+# ── Surfaces (A2UI canvas) ───────────────────────────────────────────
+surface_app = typer.Typer(
+    name="surface", help="Manage A2UI surfaces (agent canvas)", add_completion=False
+)
+app.add_typer(surface_app, name="surface")
+
+
+@surface_app.command("list")
+def surface_list(server: str = _SERVER_OPT) -> None:
+    """List all surfaces."""
+    try:
+        data = _api_get(server, "/api/surfaces")
+        surfaces = data.get("surfaces", [])
+        if not surfaces:
+            console.print("[dim]No surfaces yet (empty canvas is normal).[/dim]")
+            return
+        for s in surfaces:
+            console.print(
+                f"  {s.get('id', '?')} — {s.get('message_count', 0)} message(s)"
+            )
+        console.print(f"Total: {len(surfaces)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@surface_app.command("get")
+def surface_get(
+    surface_id: str = typer.Argument("main", help="Surface id"),
+    server: str = _SERVER_OPT,
+    as_json: bool = typer.Option(False, "--json", help="Print raw JSON"),
+) -> None:
+    """Get surface messages (empty list if not created yet)."""
+    import json as _json
+
+    try:
+        data = _api_get(server, f"/api/surfaces/{surface_id}")
+        if as_json:
+            console.print(_json.dumps(data, indent=2))
+            return
+        messages = data.get("messages") or []
+        console.print(f"Surface: {data.get('id', surface_id)}")
+        console.print(f"Messages: {len(messages)}")
+        if messages:
+            console.print(_json.dumps(messages, indent=2))
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@surface_app.command("push")
+def surface_push(
+    surface_id: str = typer.Argument("main", help="Surface id"),
+    file: Path = typer.Option(..., "--file", "-f", help="JSON file: {messages: [...]}"),
+    replace: bool = typer.Option(False, "--replace", help="Replace instead of append"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Push A2UI messages to a surface (same as POST /api/surfaces/{id}/messages)."""
+    import json as _json
+
+    try:
+        body = _json.loads(file.read_text(encoding="utf-8"))
+        if "messages" not in body:
+            raise typer.BadParameter("JSON file must contain a 'messages' array")
+        if replace:
+            body["replace"] = True
+        data = _api_post(server, f"/api/surfaces/{surface_id}/messages", body)
+        console.print(
+            f"[green]✓[/green] Pushed to {data.get('id', surface_id)} "
+            f"({data.get('message_count', '?')} message(s))"
+        )
+    except typer.BadParameter:
+        raise
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@surface_app.command("clear")
+def surface_clear(
+    surface_id: str = typer.Argument("main", help="Surface id"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Delete a surface (same as DELETE /api/surfaces/{id})."""
+    try:
+        data = _api_delete(server, f"/api/surfaces/{surface_id}")
+        console.print(f"[green]✓[/green] Cleared surface: {data.get('id', surface_id)}")
+    except Exception as e:
+        err = str(e)
+        if "404" in err:
+            console.print(f"[yellow]![/yellow] Surface '{surface_id}' not found (already empty)")
+            return
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@surface_app.command("status")
+def surface_status(server: str = _SERVER_OPT) -> None:
+    """Show surface feature status."""
+    try:
+        data = _api_get(server, "/api/surfaces")
+        surfaces = data.get("surfaces", [])
+        total_msgs = sum(s.get("message_count", 0) for s in surfaces)
+        console.print(f"Surfaces: {len(surfaces)}")
+        console.print(f"Total messages: {total_msgs}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
 @pages_app.command("list")
 def pages_list(server: str = _SERVER_OPT) -> None:
     """List all registered sidebar pages."""

@@ -7,7 +7,7 @@ import logging
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse
@@ -21,10 +21,11 @@ from praisonaiui.video_client import (
     lint,
     preview_start,
     registry,
-    render as engine_render,
     test_scene,
 )
-from praisonaiui.video_config import set_video_engine
+from praisonaiui.video_client import (
+    render as engine_render,
+)
 from praisonaiui.video_projects import (
     create_project,
     export_artifact_path,
@@ -34,6 +35,7 @@ from praisonaiui.video_projects import (
     resolve_project,
     save_scene_yaml,
 )
+from praisonaiui.video_studio_sync import consume_project_refresh
 
 from ._base import BaseFeatureProtocol
 
@@ -75,6 +77,11 @@ class VideoFeature(BaseFeatureProtocol):
             Route(
                 "/api/video/projects/{project_id}/artifacts/{filename}",
                 self._artifact_download,
+                methods=["GET"],
+            ),
+            Route(
+                "/api/video/projects/{project_id}/studio-refresh",
+                self._studio_refresh,
                 methods=["GET"],
             ),
         ]
@@ -187,10 +194,26 @@ class VideoFeature(BaseFeatureProtocol):
         store = get_job_store()
         store.save({**job, "prompt": f"Render {project_id}"})
 
-        asyncio.create_task(self._run_render(job_id, str(project_dir), str(out_path), job["test"]))
+        explicit_backend = body.get("backend")
+        if isinstance(explicit_backend, str):
+            explicit_backend = explicit_backend.strip() or None
+        else:
+            explicit_backend = None
+        asyncio.create_task(
+            self._run_render(
+                job_id, str(project_dir), str(out_path), job["test"], explicit_backend
+            )
+        )
         return JSONResponse({"jobId": job_id})
 
-    async def _run_render(self, job_id: str, project_path: str, out: str, test: bool) -> None:
+    async def _run_render(
+        self,
+        job_id: str,
+        project_path: str,
+        out: str,
+        test: bool,
+        explicit_backend: str | None = None,
+    ) -> None:
         job = _video_jobs.get(job_id)
         if not job:
             return
@@ -200,7 +223,14 @@ class VideoFeature(BaseFeatureProtocol):
         store.save({**job, "prompt": job.get("prompt", f"Render {job.get('projectId')}")})
 
         try:
-            result = await engine_render(project_path, out=out, test=test)
+            from praisonaiui.video_projects import read_render_backend_from_scene
+
+            backend = explicit_backend
+            if not backend and job.get("projectId"):
+                backend = read_render_backend_from_scene(job["projectId"])
+            result = await engine_render(
+                project_path, out=out, test=test, backend=backend
+            )
             status = result.get("status", "succeeded")
             if status == "succeeded" or result.get("artifactPath"):
                 artifact = result.get("artifactPath", out)
@@ -308,6 +338,10 @@ class VideoFeature(BaseFeatureProtocol):
             return JSONResponse({"ok": True})
         except FileNotFoundError as exc:
             return JSONResponse({"error": str(exc)}, status_code=404)
+
+    async def _studio_refresh(self, request: Request) -> JSONResponse:
+        project_id = request.path_params["project_id"]
+        return JSONResponse({"refresh": consume_project_refresh(project_id)})
 
     async def _artifact_download(self, request: Request) -> FileResponse | JSONResponse:
         project_id = request.path_params["project_id"]

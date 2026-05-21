@@ -143,14 +143,23 @@ class SDKTracingManager(TracingProtocol):
     def list_traces(
         self, *, limit: int = 50, agent_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
+        sdk_traces = self._list_traces_from_sdk(limit=limit, agent_id=agent_id)
+        if sdk_traces is not None:
+            return sdk_traces
         return self._simple.list_traces(limit=limit, agent_id=agent_id)
 
     def list_spans(
         self, *, limit: int = 100, trace_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
+        sdk_spans = self._list_spans_from_sdk(limit=limit, trace_id=trace_id)
+        if sdk_spans is not None:
+            return sdk_spans
         return self._simple.list_spans(limit=limit, trace_id=trace_id)
 
     def get_trace(self, trace_id: str) -> Optional[Dict[str, Any]]:
+        sdk_trace = self._get_trace_from_sdk(trace_id)
+        if sdk_trace is not None:
+            return sdk_trace
         return self._simple.get_trace(trace_id)
 
     def record_trace(self, trace: Dict[str, Any]) -> str:
@@ -158,6 +167,46 @@ class SDKTracingManager(TracingProtocol):
 
     def record_span(self, span: Dict[str, Any]) -> str:
         return self._simple.record_span(span)
+
+    def _list_traces_from_sdk(
+        self, *, limit: int, agent_id: Optional[str]
+    ) -> Optional[List[Dict[str, Any]]]:
+        try:
+            from praisonaiagents import trace as trace_module
+
+            getter = getattr(trace_module, "list_traces", None)
+            if not callable(getter):
+                return None
+            items = getter(limit=limit, agent_id=agent_id)
+            return items if isinstance(items, list) else None
+        except Exception:
+            return None
+
+    def _list_spans_from_sdk(
+        self, *, limit: int, trace_id: Optional[str]
+    ) -> Optional[List[Dict[str, Any]]]:
+        try:
+            from praisonaiagents import trace as trace_module
+
+            getter = getattr(trace_module, "list_spans", None)
+            if not callable(getter):
+                return None
+            items = getter(limit=limit, trace_id=trace_id)
+            return items if isinstance(items, list) else None
+        except Exception:
+            return None
+
+    def _get_trace_from_sdk(self, trace_id: str) -> Optional[Dict[str, Any]]:
+        try:
+            from praisonaiagents import trace as trace_module
+
+            getter = getattr(trace_module, "get_trace", None)
+            if not callable(getter):
+                return None
+            trace = getter(trace_id)
+            return trace if isinstance(trace, dict) else None
+        except Exception:
+            return None
 
     def health(self) -> Dict[str, Any]:
         h = self._simple.health()

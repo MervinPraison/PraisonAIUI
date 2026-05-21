@@ -9,7 +9,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -174,14 +174,19 @@ async def render(
     *,
     out: str | None = None,
     test: bool = False,
+    backend: str | None = None,
 ) -> dict[str, Any]:
     body: dict[str, Any] = {"projectPath": project_path, "test": test}
     if out:
         body["out"] = out
+    if backend:
+        body["backend"] = backend
     try:
         return await _request("POST", "/v1/render", json_body=body, timeout=10.0)
     except VideoEngineError:
-        return await asyncio.to_thread(_render_subprocess, project_path, out=out, test=test)
+        return await asyncio.to_thread(
+            _render_subprocess, project_path, out=out, test=test, backend=backend
+        )
 
 
 async def test_scene(project_path: str) -> dict[str, Any]:
@@ -254,7 +259,11 @@ def _lint_subprocess(*, path: str | None) -> list[dict]:
             }
         ]
     try:
-        cmd = [*_cli(), "lint", path]
+        p = Path(path)
+        if (p / "scene.yaml").is_file():
+            cmd = [*_cli(), "project", "lint", str(p)]
+        else:
+            cmd = [*_cli(), "lint", path]
     except VideoEngineError as exc:
         return [{"path": "(root)", "message": str(exc), "severity": "error"}]
     proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -272,14 +281,22 @@ def _lint_subprocess(*, path: str | None) -> list[dict]:
     return [{"path": "(root)", "message": msg, "severity": "error"}]
 
 
-def _render_subprocess(project_path: str, *, out: str | None, test: bool) -> dict[str, Any]:
-    scene = str(Path(project_path) / "scene.yaml")
+def _render_subprocess(
+    project_path: str,
+    *,
+    out: str | None,
+    test: bool,
+    backend: str | None = None,
+) -> dict[str, Any]:
     cmd = resolve_video_cli()
     if test:
-        cmd.extend(["render", scene, "--test-only"])
+        cmd.extend(["project", "test", project_path])
     else:
-        out_path = out or str(Path(project_path) / "exports" / "out.mp4")
-        cmd.extend(["render", scene, "--out", out_path])
+        cmd.extend(["project", "render", project_path])
+        if out:
+            cmd.extend(["--out", out])
+    if backend:
+        cmd.extend(["--backend", backend])
     proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if proc.returncode != 0:
         raise VideoEngineError(proc.stderr or proc.stdout or "render failed")
@@ -287,9 +304,8 @@ def _render_subprocess(project_path: str, *, out: str | None, test: bool) -> dic
 
 
 def _test_subprocess(project_path: str) -> dict[str, Any]:
-    scene = str(Path(project_path) / "scene.yaml")
     proc = subprocess.run(
-        [*resolve_video_cli(), "test", scene],
+        [*resolve_video_cli(), "project", "test", project_path],
         capture_output=True,
         text=True,
         check=False,
