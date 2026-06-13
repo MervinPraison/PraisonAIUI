@@ -12,7 +12,7 @@ from collections import deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, AsyncGenerator, Callable, Optional
+from typing import Any, AsyncGenerator, Callable, Dict, Optional
 
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
@@ -926,13 +926,39 @@ async def health(request: Request) -> JSONResponse:
         provider_info.update(provider_health)
     except Exception:
         pass
-    return JSONResponse(
-        {
-            "status": "ok",
-            "timestamp": datetime.utcnow().isoformat(),
-            "provider": provider_info,
-        }
-    )
+
+    sdk_gaps: list = []
+    integrated_flag: Optional[bool] = None
+    try:
+        from praisonaiui.backends import is_integrated_mode
+        from praisonaiui.features import get_features
+
+        integrated_flag = is_integrated_mode()
+        for name, feat in get_features().items():
+            try:
+                fh = await feat.health()
+                if fh.get("sdk_gap"):
+                    sdk_gaps.append(
+                        {
+                            "feature": name,
+                            "message": fh.get("sdk_gap_message", "SDK gap"),
+                        }
+                    )
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    payload: Dict[str, Any] = {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+        "provider": provider_info,
+    }
+    if sdk_gaps:
+        payload["sdk_gaps"] = sdk_gaps
+    if integrated_flag is not None:
+        payload["integrated"] = integrated_flag
+    return JSONResponse(payload)
 
 
 async def list_agents(request: Request) -> JSONResponse:
@@ -1497,6 +1523,33 @@ async def api_features(request: Request) -> JSONResponse:
     return JSONResponse({"features": list(infos), "count": len(infos)})
 
 
+def _mcp_stdio_connect_allowed(request: Request) -> bool:
+    """Allow stdio MCP only from localhost, with auth, or explicit dev override."""
+    if os.environ.get("PRAISONAIUI_ALLOW_REMOTE_MCP_STDIO", "").lower() in ("true", "1", "yes"):
+        return True
+    client = request.client
+    if client and client.host in ("127.0.0.1", "::1", "localhost"):
+        return True
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        token = auth[7:]
+        try:
+            from praisonaiui.features.auth import verify_api_key
+
+            if verify_api_key(token):
+                return True
+        except ImportError:
+            pass
+        try:
+            from praisonaiui.auth import validate_token
+
+            if validate_token(token):
+                return True
+        except ImportError:
+            pass
+    return False
+
+
 async def api_mcp_servers(request: Request) -> JSONResponse:
     """GET /api/mcp/servers — List all MCP servers with their status."""
     try:
@@ -1546,6 +1599,14 @@ async def api_mcp_connect(request: Request) -> JSONResponse:
             return JSONResponse(
                 {"error": "Either 'command' (for stdio) or 'url' (for SSE/HTTP) is required"},
                 status_code=400,
+            )
+        if "command" in body and not _mcp_stdio_connect_allowed(request):
+            return JSONResponse(
+                {
+                    "error": "Remote stdio MCP connections are not permitted",
+                    "hint": "Use localhost, provide Authorization, or set PRAISONAIUI_ALLOW_REMOTE_MCP_STDIO=true",
+                },
+                status_code=403,
             )
         session_id = body.get("session_id") or request.query_params.get("session_id")
         server = await connect_mcp_server(body, session_context={"session_id": session_id})
@@ -3030,6 +3091,22 @@ def create_app(
             "group": "Control",
             "description": "Async agent jobs",
             "order": 40,
+        },
+        {
+            "id": "jobs-board",
+            "title": "Jobs Board",
+            "icon": "📊",
+            "group": "Work",
+            "description": "Jobs kanban by status",
+            "order": 11,
+        },
+        {
+            "id": "kanban",
+            "title": "Kanban",
+            "icon": "📌",
+            "group": "Work",
+            "description": "Multi-agent task board",
+            "order": 10,
         },
         {
             "id": "approvals",
