@@ -12,6 +12,7 @@ import logging
 import os
 import time
 import uuid
+from enum import Enum
 from typing import Any, Dict, List
 
 from starlette.requests import Request
@@ -19,6 +20,12 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
+
+
+class ToolCapability(str, Enum):
+    """Tool capability classification for honesty layer."""
+    STUB = "stub"  # Returns simulated/demo data
+    LIVE = "live"  # Performs real I/O operations
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +38,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "search",
         "icon": "🔍",
         "required_keys": [],
+        "capability": ToolCapability.LIVE,
     },
     "tavily_search": {
         "name": "Tavily Search",
@@ -38,6 +46,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "search",
         "icon": "🔎",
         "required_keys": ["TAVILY_API_KEY"],
+        "capability": ToolCapability.LIVE,
     },
     "exa_search": {
         "name": "Exa Search",
@@ -45,6 +54,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "search",
         "icon": "🧠",
         "required_keys": ["EXA_API_KEY"],
+        "capability": ToolCapability.LIVE,
     },
     "web_search": {
         "name": "Web Search",
@@ -52,6 +62,8 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "search",
         "icon": "🌐",
         "required_keys": [],
+        "capability": ToolCapability.STUB,
+        "upgrade_env": "TAVILY_API_KEY",
     },
     # Crawling Tools
     "crawl4ai": {
@@ -60,6 +72,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "crawl",
         "icon": "🕷️",
         "required_keys": [],
+        "capability": ToolCapability.LIVE,
     },
     "web_crawl": {
         "name": "Web Crawl",
@@ -67,6 +80,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "crawl",
         "icon": "🕸️",
         "required_keys": [],
+        "capability": ToolCapability.LIVE,
     },
     "scrape_page": {
         "name": "Scrape Page",
@@ -74,6 +88,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "crawl",
         "icon": "📄",
         "required_keys": [],
+        "capability": ToolCapability.LIVE,
     },
     # File Tools
     "read_file": {
@@ -82,6 +97,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "file",
         "icon": "📖",
         "required_keys": [],
+        "capability": ToolCapability.LIVE,
     },
     "write_file": {
         "name": "Write File",
@@ -89,6 +105,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "file",
         "icon": "✍️",
         "required_keys": [],
+        "capability": ToolCapability.LIVE,
     },
     "list_files": {
         "name": "List Files",
@@ -96,6 +113,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "file",
         "icon": "📁",
         "required_keys": [],
+        "capability": ToolCapability.LIVE,
     },
     # Code Tools
     "execute_code": {
@@ -104,6 +122,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "code",
         "icon": "🐍",
         "required_keys": [],
+        "capability": ToolCapability.LIVE,
     },
     "analyze_code": {
         "name": "Analyze Code",
@@ -111,6 +130,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "code",
         "icon": "🔬",
         "required_keys": [],
+        "capability": ToolCapability.LIVE,
     },
     "ast_grep_search": {
         "name": "AST Grep Search",
@@ -118,6 +138,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "code",
         "icon": "🌳",
         "required_keys": [],
+        "capability": ToolCapability.LIVE,
     },
     # Shell Tools
     "execute_command": {
@@ -126,6 +147,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "shell",
         "icon": "💻",
         "required_keys": [],
+        "capability": ToolCapability.LIVE,
     },
     "list_processes": {
         "name": "List Processes",
@@ -133,6 +155,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "shell",
         "icon": "📊",
         "required_keys": [],
+        "capability": ToolCapability.LIVE,
     },
     "get_system_info": {
         "name": "System Info",
@@ -140,6 +163,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "shell",
         "icon": "ℹ️",
         "required_keys": [],
+        "capability": ToolCapability.LIVE,
     },
     # Skill Tools
     "run_skill_script": {
@@ -148,6 +172,7 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "skills",
         "icon": "⚡",
         "required_keys": [],
+        "capability": ToolCapability.LIVE,
     },
     "schedule_add": {
         "name": "Schedule Add",
@@ -155,6 +180,17 @@ _FALLBACK_TOOL_CATALOG = {
         "category": "schedule",
         "icon": "⏰",
         "required_keys": [],
+        "capability": ToolCapability.LIVE,
+    },
+    # Calculation Tools
+    "calculate": {
+        "name": "Calculate",
+        "description": "Evaluate basic math expressions (uses eval)",
+        "category": "math",
+        "icon": "🔢",
+        "required_keys": [],
+        "capability": ToolCapability.LIVE,
+        "warning": "Uses eval for calculation - restricted to basic math only",
     },
 }
 
@@ -269,6 +305,7 @@ def get_tool_catalog() -> Dict[str, Dict[str, Any]]:
                 "icon": icon,
                 "required_keys": [],
                 "sdk_tool": True,
+                "capability": ToolCapability.LIVE,
             }
 
         _sdk_tool_catalog = catalog
@@ -306,6 +343,43 @@ def _get_tool_status(tool_id: str) -> Dict[str, Any]:
         "keys_configured": keys_configured,
         "required_keys": required_keys,
     }
+
+
+def get_stub_tool_disclaimer(enabled_tools: List[str]) -> str:
+    """Generate system prompt disclaimer for stub tools.
+
+    Args:
+        enabled_tools: List of tool names that are enabled for the agent
+
+    Returns:
+        Disclaimer text to inject into system prompts
+    """
+    _ensure_skills_loaded()
+    catalog = get_tool_catalog()
+
+    stub_tools = []
+    for tool_name in enabled_tools:
+        tool_info = catalog.get(tool_name, {})
+        if tool_info.get("capability") == ToolCapability.STUB:
+            stub_tools.append({
+                "name": tool_name,
+                "description": tool_info.get("description", ""),
+                "upgrade_env": tool_info.get("upgrade_env")
+            })
+
+    if not stub_tools:
+        return ""
+
+    disclaimer_parts = ["IMPORTANT: Tool Capability Disclosure"]
+
+    for tool in stub_tools:
+        disclaimer_parts.append(f"- {tool['name']}: Returns simulated/demo data, not real results")
+        if tool["upgrade_env"]:
+            disclaimer_parts.append(f"  (Set {tool['upgrade_env']} environment variable for live data)")
+
+    disclaimer_parts.append("Always inform users that these tools provide simulated results for demonstration purposes.")
+
+    return "\n".join(disclaimer_parts)
 
 
 class SkillsFeature(BaseFeatureProtocol):
@@ -393,6 +467,8 @@ class SkillsFeature(BaseFeatureProtocol):
                     "category": info.get("category", "other"),
                     "icon": info.get("icon", "🔧"),
                     "type": "builtin",
+                    "capability": info.get("capability", ToolCapability.LIVE),
+                    "upgrade_env": info.get("upgrade_env"),
                     **status,
                 }
             )
@@ -464,6 +540,8 @@ class SkillsFeature(BaseFeatureProtocol):
                     "category": info.get("category", "other"),
                     "icon": info.get("icon", "🔧"),
                     "type": "builtin",
+                    "capability": info.get("capability", ToolCapability.LIVE),
+                    "upgrade_env": info.get("upgrade_env"),
                     **status,
                 }
             )
@@ -569,6 +647,10 @@ class SkillsFeature(BaseFeatureProtocol):
         enabled = sum(1 for s in _tool_state.values() if s.get("enabled", True))
         return f"Tools: {len(get_tool_catalog())} builtin, {len(_custom_skills)} custom, {enabled} enabled"
 
+
+# Public API exports
+get_tool_catalog = get_tool_catalog
+get_stub_tool_disclaimer = get_stub_tool_disclaimer
 
 # Backward-compat alias
 PraisonAISkills = SkillsFeature

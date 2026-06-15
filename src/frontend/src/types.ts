@@ -163,6 +163,8 @@ export interface ToolCall {
     a2ui?: { messages: Record<string, unknown>[]; surface_id?: string }
     surface_id?: string
     elements?: (MessageElementUnion | Record<string, unknown>)[]
+    capability?: 'stub' | 'live'
+    warning?: string
 }
 
 export interface FileAttachment {
