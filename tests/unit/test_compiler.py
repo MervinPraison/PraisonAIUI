@@ -18,6 +18,7 @@ from praisonaiui.schema.models import (
     SlotRef,
     TemplateConfig,
     ThemeConfig,
+    WidgetConfig,
 )
 from praisonaiui.themes import get_theme_css, inject_theme_css
 
@@ -482,3 +483,116 @@ class TestSimpleMdToHtml:
         html = Compiler._simple_md_to_html(md)
         assert "<h1>Hello</h1>" in html
         assert "<p>World</p>" in html
+
+
+class TestCompositionResolver:
+    """Tests for the CompositionResolver that fixes the fractured composition model (Issue #70)."""
+
+    def test_auto_bridge_sidebar_to_left_sidebar_zone(self, tmp_path: Path):
+        """Registered components.sidebar should auto-bridge to zones.leftSidebar in FlexibleLayout."""
+        from praisonaiui.schema.models import ZonesConfig
+
+        config = Config(
+            site=SiteConfig(title="Test Site"),
+            components={
+                "sidebar": ComponentConfig(type="DocsSidebar", props={"collapsible": True}),
+                "header": ComponentConfig(type="Header", props={"logoText": "Test"}),
+            },
+            templates={
+                "docs": TemplateConfig(
+                    layout="FlexibleLayout",
+                    slots={},
+                    zones=ZonesConfig(hero=[WidgetConfig(type="Announcement", props={})])
+                )
+            },
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+
+        compiler = Compiler(config, base_path=tmp_path)
+        result = compiler.compile(tmp_path / "output")
+        assert result.success is True
+
+        # Load ui-config.json and verify auto-bridging
+        ui_config_path = tmp_path / "output" / "ui-config.json"
+        ui_config = json.loads(ui_config_path.read_text())
+
+        docs_template = ui_config["templates"]["docs"]
+        assert "zones" in docs_template
+        zones = docs_template["zones"]
+
+        # Verify sidebar was auto-bridged to leftSidebar zone
+        assert "leftSidebar" in zones
+        left_sidebar_widgets = zones["leftSidebar"]
+        assert len(left_sidebar_widgets) == 1
+        assert left_sidebar_widgets[0]["type"] == "DocsSidebar"
+        assert left_sidebar_widgets[0]["props"]["collapsible"] is True
+
+        # Verify header was auto-bridged to header zone
+        assert "header" in zones
+        header_widgets = zones["header"]
+        assert len(header_widgets) == 1
+        assert header_widgets[0]["type"] == "Header"
+        assert header_widgets[0]["props"]["logoText"] == "Test"
+
+    def test_no_auto_bridge_for_non_flexible_layout(self, tmp_path: Path):
+        """CompositionResolver should only work for FlexibleLayout."""
+        config = Config(
+            site=SiteConfig(title="Test Site"),
+            components={
+                "sidebar": ComponentConfig(type="DocsSidebar", props={"collapsible": True}),
+            },
+            templates={
+                "docs": TemplateConfig(layout="ThreeColumnLayout", slots={})
+            },
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+
+        compiler = Compiler(config, base_path=tmp_path)
+        result = compiler.compile(tmp_path / "output")
+        assert result.success is True
+
+        # Load ui-config.json and verify no auto-bridging occurred
+        ui_config_path = tmp_path / "output" / "ui-config.json"
+        ui_config = json.loads(ui_config_path.read_text())
+
+        docs_template = ui_config["templates"]["docs"]
+        # Should not have zones for non-FlexibleLayout
+        assert "zones" not in docs_template or not docs_template.get("zones")
+
+    def test_no_duplicate_components_in_zones(self, tmp_path: Path):
+        """Components already used in zones should not be auto-bridged again."""
+        from praisonaiui.schema.models import ZonesConfig
+
+        config = Config(
+            site=SiteConfig(title="Test Site"),
+            components={
+                "sidebar": ComponentConfig(type="DocsSidebar", props={"collapsible": True}),
+            },
+            templates={
+                "docs": TemplateConfig(
+                    layout="FlexibleLayout",
+                    slots={},
+                    zones=ZonesConfig(
+                        leftSidebar=[WidgetConfig(type="DocsSidebar", props={"searchable": True})]
+                    )
+                )
+            },
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+
+        compiler = Compiler(config, base_path=tmp_path)
+        result = compiler.compile(tmp_path / "output")
+        assert result.success is True
+
+        # Load ui-config.json and verify no duplicate components
+        ui_config_path = tmp_path / "output" / "ui-config.json"
+        ui_config = json.loads(ui_config_path.read_text())
+
+        docs_template = ui_config["templates"]["docs"]
+        zones = docs_template["zones"]
+
+        # Should only have the explicitly defined DocsSidebar, not auto-bridged one
+        left_sidebar_widgets = zones["leftSidebar"]
+        assert len(left_sidebar_widgets) == 1
+        assert left_sidebar_widgets[0]["props"]["searchable"] is True
+        assert "collapsible" not in left_sidebar_widgets[0]["props"]

@@ -290,18 +290,61 @@ class Compiler:
         }
 
         # Add zones if present (WordPress-style widget areas)
+        zones_dict = {}
         if template.zones:
-            zones_dict = {}
             zones_data = template.zones.model_dump(by_alias=True, exclude_none=True)
             for zone_name, widgets in zones_data.items():
                 if widgets:
                     zones_dict[zone_name] = [
                         {"type": w.get("type"), "props": w.get("props", {})} for w in widgets
                     ]
-            if zones_dict:
-                result["zones"] = zones_dict
+
+        # CompositionResolver: Auto-bridge registered components to zones for FlexibleLayout
+        if template.layout == "FlexibleLayout":
+            zones_dict = self._resolve_composition_wiring(zones_dict)
+
+        if zones_dict:
+            result["zones"] = zones_dict
 
         return result
+
+    def _resolve_composition_wiring(self, zones_dict: dict) -> dict:
+        """
+        CompositionResolver: Auto-bridge registered components to appropriate zones.
+
+        Fixes the fractured composition model by automatically wiring components
+        that are registered but not explicitly placed in zones.
+        """
+        # Component to zone mapping for FlexibleLayout
+        component_zone_mapping = {
+            "sidebar": "leftSidebar",
+            "header": "header",
+            "footer": "footer",
+        }
+
+        for component_name, component_config in self.config.components.items():
+            # Check if this component is already referenced in zones
+            component_already_used = any(
+                any(widget.get("type") == component_config.type for widget in widgets)
+                for widgets in zones_dict.values()
+            )
+
+            # Skip if component is already used
+            if component_already_used:
+                continue
+
+            # Map component to appropriate zone based on naming convention
+            target_zone = component_zone_mapping.get(component_name)
+            if target_zone and target_zone not in zones_dict:
+                # Auto-bridge: create zone with reference to registered component
+                zones_dict[target_zone] = [
+                    {
+                        "type": component_config.type,
+                        "props": component_config.props
+                    }
+                ]
+
+        return zones_dict
 
     def _generate_docs_nav(self) -> dict:
         """Generate docs-nav.json content."""
