@@ -35,12 +35,36 @@
 <p>| --- | --- | --- | --- |</p>
 <p>| Standalone UI | `pip install praisonaiui` | Optional SDK packages absent | Uses built-in local managers and fallbacks |</p>
 <p>| Integrated (PraisonAI) | `pip install praisonaiui praisonai praisonaiagents` | SDK and wrapper available | Uses injected backends and SDK-aware managers |</p>
+<h2>Backend injection (integrated mode)</h2>
+<p>When hosted via `praisonai.integration.host_app.configure_host()`, the wrapper calls `praisonaiui.backends.set_backend()` for:</p>
+<p>| Backend key | Feature area |</p>
+<p>| --- | --- |</p>
+<p>| `hooks` | Hooks dashboard |</p>
+<p>| `workflows` | Workflow runs |</p>
+<p>| `usage_query` / `usage_sink` | Usage analytics |</p>
+<p>| `approvals_pending` / `approvals_policies` | HITL approvals |</p>
+<p>| `jobs_store` / `jobs_executor` | Async jobs (optional) |</p>
+<p>| `channel_bot` | Channel bots (optional) |</p>
+<p>| `tool_resolver` | Agent tool name resolution (optional) |</p>
+<p>Detect integrated mode in code: `praisonaiui.backends.is_integrated_mode()`.</p>
+<h2>Documented SDK gaps (local fallback)</h2>
+<p>These features work standalone with in-memory stores. Health responses include `sdk_gap: true`:</p>
+<p>| Feature | Gap | Standalone behaviour |</p>
+<p>| --- | --- | --- |</p>
+<p>| **nodes** | No cluster API in praisonaiagents | In-memory node registry |</p>
+<p>| **auth** | No SDK auth module | In-memory API keys / sessions |</p>
+<p>| **channels** | Bot runtime via praisonai wrapper | In-memory channel registry; bots need `praisonai[bot]` |</p>
+<p>| **jobs** | Mock success only when standalone and agent missing | Integrated mode fails job instead of fake success |</p>
+<p>| **realtime** | WebRTC needs `OPENAI_API_KEY` | Mock stream standalone; degraded error when integrated without key |</p>
+<p>| **media / code** | SDK paths optional | `status: simulated` standalone; `status: degraded` integrated on failure |</p>
+<p>View gaps in the dashboard sidebar footer (`GET /api/health` → `sdk_gaps` array).</p>
 <h2>Practical Differences</h2>
 <li>**Session/data handling**: standalone uses UI datastore fallback; integrated aligns with SDK-backed stores.</li>
-<li>**Feature backends**: standalone keeps in-memory/mock behaviour; integrated can route through injected factories.</li>
+<li>**Feature backends**: standalone keeps in-memory/mock behaviour; integrated routes through injected factories.</li>
 <li>**Lifecycle hooks**: integrated mode can subscribe to SDK hooks (handoff, MCP lifecycle, tracing/eval stores).</li>
 <h2>Recommendation</h2>
-<p>Use standalone mode for local UI-only workflows. Use integrated mode when you need shared runtime state with PraisonAI agents, tools, tracing, approvals, and schedules.</p></noscript></div>
+<p>Use standalone mode for local UI-only workflows. Use integrated mode when you need shared runtime state with PraisonAI agents, tools, tracing, approvals, and schedules.</p>
+<p>See also [backend-integration.md](backend-integration.md) and [praisonai-package-integration.md](praisonai-package-integration.md).</p></noscript></div>
 </body>
 
 </html>

@@ -106,7 +106,7 @@
 <h2>Board / work tracking</h2>
 <p>Neither repo ships Hermes-style Kanban. Options:</p>
 <p>1. **`aiui.board()`** — columns from `@aiui.page` handler (jobs by status, custom data).</p>
-<p>2. **`praisonai-platform` issues** — map issue `status` → board columns (see `examples/python/praisonai-claw-board/`).</p>
+<p>2. **`praisonai-platform` issues** — map issue `status` → board columns (see `examples/python/platform-board/`). Set `PRAISONAI_PLATFORM_URL` and `PRAISONAI_PLATFORM_WORKSPACE_ID` (default workspace `default`); issues are fetched from `GET /api/v1/workspaces/{workspace_id}/issues`.</p>
 <p>3. **`dashboard-plugins`** — rich JS via `registerView` + `sdk.createBoard`.</p>
 <p>Advanced board UX (drag-drop, WebSocket sync) is **deferred** — use polling via `sdk.createBoard({ pollMs })` or a custom plugin.</p>
 <h2>Smoke checklist</h2>
@@ -121,6 +121,8 @@
 <h2>Related</h2>
 <li>[Agent UI host](agent-ui-host.md) — extension API, opt-in matrix</li>
 <li>[Backend integration](backend-integration.md) — L1 backend injection</li>
+<li>[Standalone vs integrated](standalone-vs-integrated.md) — SDK gaps and fallbacks</li>
+<li>[PraisonAIUI repository](https://github.com/MervinPraison/PraisonAIUI)</li>
 <li>[`integration.py`](../../src/praisonaiui/integration.py) — `AIUIGateway`</li>
 <li>[`examples/python/praisonai-claw-board/`](../../examples/python/praisonai-claw-board/app.py) — board from jobs</li>
 <li>[`examples/python/platform-board/`](../../examples/python/platform-board/app.py) — board from platform issues</li></noscript></div>

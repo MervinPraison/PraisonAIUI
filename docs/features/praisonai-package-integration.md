@@ -164,7 +164,7 @@ Loads `jobs.js`, `auth.js`, `api.js` into the plugin chain and maps them in `BUI
 Neither repo ships Hermes-style Kanban. Options:
 
 1. **`aiui.board()`** — columns from `@aiui.page` handler (jobs by status, custom data).
-2. **`praisonai-platform` issues** — map issue `status` → board columns (see `examples/python/praisonai-claw-board/`).
+2. **`praisonai-platform` issues** — map issue `status` → board columns (see `examples/python/platform-board/`). Set `PRAISONAI_PLATFORM_URL` and `PRAISONAI_PLATFORM_WORKSPACE_ID` (default workspace `default`); issues are fetched from `GET /api/v1/workspaces/{workspace_id}/issues`.
 3. **`dashboard-plugins`** — rich JS via `registerView` + `sdk.createBoard`.
 
 Advanced board UX (drag-drop, WebSocket sync) is **deferred** — use polling via `sdk.createBoard({ pollMs })` or a custom plugin.
@@ -185,6 +185,8 @@ After `praisonai claw` or `aiui run` with package bridges:
 
 - [Agent UI host](agent-ui-host.md) — extension API, opt-in matrix
 - [Backend integration](backend-integration.md) — L1 backend injection
+- [Standalone vs integrated](standalone-vs-integrated.md) — SDK gaps and fallbacks
+- [PraisonAIUI repository](https://github.com/MervinPraison/PraisonAIUI)
 - [`integration.py`](../../src/praisonaiui/integration.py) — `AIUIGateway`
 - [`examples/python/praisonai-claw-board/`](../../examples/python/praisonai-claw-board/app.py) — board from jobs
 - [`examples/python/platform-board/`](../../examples/python/platform-board/app.py) — board from platform issues
