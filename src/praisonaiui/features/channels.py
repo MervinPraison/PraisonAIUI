@@ -81,6 +81,8 @@ def _validate_config_security(config: Dict[str, Any]) -> Optional[str]:
     
     Returns error message if secrets detected, None if safe.
     """
+    if not isinstance(config, dict):
+        return None
     for key, value in config.items():
         if key.lower() in SECRET_FIELD_PATTERNS:
             if isinstance(value, str) and value and not value.startswith("env:"):
@@ -93,12 +95,39 @@ def _validate_config_security(config: Dict[str, Any]) -> Optional[str]:
 
 def _redact_config_secrets(config: Dict[str, Any]) -> Dict[str, Any]:
     """Redact secret values in config for API responses."""
+    if not isinstance(config, dict):
+        return config
     redacted = config.copy()
     for key, value in config.items():
         if key.lower() in SECRET_FIELD_PATTERNS and isinstance(value, str) and value:
             if not value.startswith("env:"):
                 redacted[key] = "***REDACTED***"
     return redacted
+
+def _get_config_secret(config: Dict[str, Any], key: str, env_fallback: Optional[str] = None) -> str:
+    """Resolve a secret configuration value, supporting direct values, _ref keys, and env vars."""
+    if not isinstance(config, dict):
+        return os.environ.get(env_fallback, "") if env_fallback else ""
+    
+    # 1. Check direct key (e.g., "bot_token")
+    val = config.get(key)
+    if isinstance(val, str) and val.startswith("env:"):
+        return os.environ.get(val[4:], "")
+    if val:
+        return str(val)
+        
+    # 2. Check ref key (e.g., "bot_token_ref")
+    ref_val = config.get(f"{key}_ref")
+    if isinstance(ref_val, str) and ref_val.startswith("env:"):
+        return os.environ.get(ref_val[4:], "")
+    if ref_val:
+        return str(ref_val)
+        
+    # 3. Fallback to default env var if provided
+    if env_fallback:
+        return os.environ.get(env_fallback, "")
+        
+    return ""
 
 # In-memory channel registry — loaded from unified config.yaml
 from ._persistence import load_section, save_section
@@ -247,7 +276,7 @@ class ChannelsFeature(BaseFeatureProtocol):
 
         Returns the token string, or empty string if absent.
         """
-        return config.get("app_token") or os.environ.get("SLACK_APP_TOKEN", "")
+        return _get_config_secret(config, "app_token", "SLACK_APP_TOKEN")
 
     async def _start_channel_bot(self, channel_id: str, entry: Dict[str, Any]) -> Optional[str]:
         """Start a bot for the given channel.
@@ -262,22 +291,20 @@ class ChannelsFeature(BaseFeatureProtocol):
         platform = entry["platform"]
         config = entry.get("config", {})
         fallback_errors: List[str] = []
-        # Platform-aware token resolution:
+        # Platform-aware token resolution with _ref key support:
         # email/agentmail use api_key or dedicated env vars, not bot_token
         if platform == "agentmail":
             token = (
-                config.get("bot_token")
-                or config.get("api_key", "")
-                or os.environ.get("AGENTMAIL_API_KEY", "")
+                _get_config_secret(config, "bot_token") or
+                _get_config_secret(config, "api_key", "AGENTMAIL_API_KEY")
             )
         elif platform == "email":
             token = (
-                config.get("bot_token")
-                or config.get("app_password", "")
-                or os.environ.get("EMAIL_APP_PASSWORD", "")
+                _get_config_secret(config, "bot_token") or
+                _get_config_secret(config, "app_password", "EMAIL_APP_PASSWORD")
             )
         else:
-            token = config.get("bot_token", "")
+            token = _get_config_secret(config, "bot_token")
         if not token:
             return (
                 f"No token configured for {platform}. "
@@ -877,7 +904,7 @@ class ChannelsFeature(BaseFeatureProtocol):
         channels = []
         for channel in _channels.values():
             safe_channel = channel.copy()
-            safe_channel["config"] = _redact_config_secrets(channel["config"])
+            safe_channel["config"] = _redact_config_secrets(channel.get("config", {}))
             channels.append(safe_channel)
         
         return JSONResponse({"channels": channels, "count": len(channels)})
@@ -937,7 +964,7 @@ class ChannelsFeature(BaseFeatureProtocol):
         
         # Redact secrets in config
         safe_channel = channel.copy()
-        safe_channel["config"] = _redact_config_secrets(channel["config"])
+        safe_channel["config"] = _redact_config_secrets(channel.get("config", {}))
         return JSONResponse(safe_channel)
 
     async def _update(self, request: Request) -> JSONResponse:
@@ -1098,7 +1125,7 @@ class ChannelsFeature(BaseFeatureProtocol):
         # still test the token against the platform API directly.
         platform = channel.get("platform", "")
         config = channel.get("config", {})
-        token = config.get("token", config.get("bot_token", ""))
+        token = _get_config_secret(config, "bot_token") or _get_config_secret(config, "token")
 
         if not token:
             return JSONResponse({"success": False, "error": "No token configured for this channel"})
