@@ -43,6 +43,9 @@ class Compiler:
         Returns:
             CompileResult with generated files
         """
+        # Apply composition resolver before validation
+        self._apply_composition_resolver()
+
         # Validate first
         validation = validate_config(self.config, self.base_path)
         if not validation.valid:
@@ -110,6 +113,43 @@ class Compiler:
             files.extend(route_files)
 
         return CompileResult(success=True, files=files)
+
+    def _apply_composition_resolver(self) -> None:
+        """Apply composition resolver to auto-wire components to zones."""
+        for template_name, template in self.config.templates.items():
+            if template.layout == "FlexibleLayout" and template.zones:
+                # Auto-wire components to common zone mappings
+                self._auto_wire_component_to_zone(template, "sidebar", "leftSidebar")
+                self._auto_wire_component_to_zone(template, "header", "header")
+                self._auto_wire_component_to_zone(template, "footer", "footer")
+
+    def _auto_wire_component_to_zone(self, template, component_name: str, zone_name: str) -> None:
+        """Auto-wire a component to a zone if component exists but zone is empty."""
+        if component_name in self.config.components and template.zones:
+            # Convert zone name to proper attribute name
+            zone_attr = self._zone_name_to_attr(zone_name)
+
+            # Check if the zone attribute exists and is empty
+            if hasattr(template.zones, zone_attr):
+                current_zone = getattr(template.zones, zone_attr, None)
+
+                # If zone is empty, add the component as a widget
+                if current_zone is None:
+                    from praisonaiui.schema.models import WidgetConfig
+
+                    component = self.config.components[component_name]
+                    widget = WidgetConfig(type=component.type, props=component.props)
+                    setattr(template.zones, zone_attr, [widget])
+
+    def _zone_name_to_attr(self, zone_name: str) -> str:
+        """Convert camelCase zone name to snake_case attribute name."""
+        # Convert camelCase to snake_case
+        result = ""
+        for i, char in enumerate(zone_name):
+            if char.isupper() and i > 0:
+                result += "_"
+            result += char.lower()
+        return result
 
     def _generate_ui_config(self) -> dict:
         """Generate ui-config.json content."""

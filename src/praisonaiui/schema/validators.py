@@ -50,6 +50,7 @@ def validate_config(config: Config, base_path: Path | None = None) -> Validation
     - All template refs are valid
     - Content directories exist
     - Route patterns are valid globs
+    - Detect orphaned components (defined but not referenced)
 
     Args:
         config: The configuration to validate
@@ -60,6 +61,9 @@ def validate_config(config: Config, base_path: Path | None = None) -> Validation
     """
     errors: list[ValidationError] = []
     base = base_path or Path.cwd()
+
+    # Track component usage
+    used_components = set()
 
     # Validate component references in templates
     for template_name, template in config.templates.items():
@@ -75,6 +79,19 @@ def validate_config(config: Config, base_path: Path | None = None) -> Validation
                         suggestion=_find_similar(slot.ref, list(config.components.keys())),
                     )
                 )
+            elif slot.ref:
+                used_components.add(slot.ref)
+
+        # Check zone widget references to components
+        if template.zones:
+            zones_data = template.zones.model_dump(by_alias=True, exclude_none=True)
+            for zone_name, widgets in zones_data.items():
+                if widgets:
+                    for widget in widgets:
+                        widget_type = widget.get("type")
+                        # Check if widget type matches a component name
+                        if widget_type and widget_type in config.components:
+                            used_components.add(widget_type)
 
     # Validate route template references
     for route in config.routes:
@@ -106,6 +123,30 @@ def validate_config(config: Config, base_path: Path | None = None) -> Validation
                     message=f"Blog directory '{config.content.blog.dir}' not found",
                 )
             )
+
+    # Check for orphaned components (defined but never referenced)
+    # Components that can be auto-wired by CompositionResolver for FlexibleLayout
+    auto_wireable_components = {"sidebar", "header", "footer"}
+
+    for component_name in config.components:
+        if component_name not in used_components:
+            # Check if component can be auto-wired to FlexibleLayout zones
+            can_be_auto_wired = False
+            if component_name in auto_wireable_components:
+                for template in config.templates.values():
+                    if template.layout == "FlexibleLayout" and template.zones:
+                        can_be_auto_wired = True
+                        break
+
+            if not can_be_auto_wired:
+                errors.append(
+                    ValidationError(
+                        code=2003,
+                        category="validation",
+                        message=f"Component '{component_name}' is defined but never referenced in templates",
+                        suggestion="Either remove the component or add it to a template slot/zone",
+                    )
+                )
 
     if errors:
         return ValidationResult.failure(errors)
