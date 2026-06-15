@@ -306,7 +306,7 @@ jobs:
           trigger_phrase: "@claude"
           timeout_minutes: "30"
           direct_prompt: |
-            ${{ steps.check_fork.outputs.is_fork == 'true' && 'CRITICAL: FORK PR — comment only, do not push.\n\n' || format('PR #{0} on {1} — SAME REPO, NOT A FORK. You HAVE push permission to branch {2}. NEVER say this is a fork.\n\n', steps.check_fork.outputs.pr_number, steps.check_fork.outputs.head_repo, steps.check_fork.outputs.pr_branch) }}
+            ${{ steps.check_fork.outputs.is_fork == 'true' && 'CRITICAL: FORK PR — comment only, do not push.\n\n' || 'PR on MervinPraison/PraisonAIUI — SAME REPO, NOT A FORK. You HAVE push permission to this branch. NEVER say this is a fork.\n\n' }}
             You are the Lead Engineer doing FINAL review on this open PR in MervinPraison/PraisonAIUI.
             Read ALL reviewer comments (CodeRabbit, Gemini, Qodo, Copilot, human). Follow AGENTS.md.
             SCOPE: src/praisonaiui, src/frontend, tests, docs only.
@@ -338,6 +338,7 @@ jobs:
 
       - name: Run Claude Code Action
         if: steps.check_fork.outputs.is_pr_review != 'true'
+        uses: anthropics/claude-code-action@beta
         env:
           GH_TOKEN: ${{ steps.github-token.outputs.token }}
         with:
