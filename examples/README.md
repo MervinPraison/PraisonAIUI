@@ -15,14 +15,14 @@
 | 07 | [provider-praisonai](python/07-provider-praisonai/) | Custom `BaseProvider` subclass, `RunEvent` protocol | `aiui run app.py` |
 | 08 | [streaming](python/08-streaming/) | PraisonAI Agent streaming via `stream_emitter` | `aiui run app.py` |
 | 09 | [widget](python/09-widget/) | Copilot/sidebar mode | `aiui run app.py` |
-| 10 | [feature-showcase](python/10-feature-showcase/) | All protocol features seeded, `create_app()` | `python app.py` |
-| 11 | [ui-integration](python/11-ui-integration/) | Gradio ASGI mount, Streamlit iframe, REST embedding | `python app.py` |
-| 12 | [agent-dashboard](python/12-agent-dashboard/) | OpenClaw-style rendered HTML admin panel | `python app.py` |
+| 10 | [feature-showcase](python/10-feature-showcase/) | All protocol features seeded, `create_app()` | `aiui run app.py` |
+| 11 | [ui-integration](python/11-ui-integration/) | Gradio ASGI mount, Streamlit iframe, REST embedding | `aiui run app.py` |
+| 12 | [agent-dashboard](python/12-agent-dashboard/) | OpenClaw-style rendered HTML admin panel | `aiui run app.py` |
 | 13 | [real-dashboard](python/13-real-dashboard/) | Real PraisonAI Agent + native dashboard + live metrics | `aiui run app.py --style dashboard` |
-| 19 | [email-bot](python/19-email-bot/) | `EmailBot` IMAP/SMTP + agent replies + subject commands | `python app.py` |
-| 20 | [email-channel](python/20-email-channel/) | Email as AIUI dashboard channel via `/api/channels` | `python app.py` |
-| 21 | [agentmail-bot](python/21-agentmail-bot/) | `AgentMailBot` API-first email + programmatic inbox lifecycle | `python app.py` |
-| 22 | [agentmail-channel](python/22-agentmail-channel/) | AgentMail as AIUI dashboard channel via `/api/channels` | `python app.py` |
+| 19 | [email-bot](python/19-email-bot/) | `EmailBot` IMAP/SMTP + agent replies + subject commands | `aiui run app.py` |
+| 20 | [email-channel](python/20-email-channel/) | Email as AIUI dashboard channel via `/api/channels` | `aiui run app.py` |
+| 21 | [agentmail-bot](python/21-agentmail-bot/) | `AgentMailBot` API-first email + programmatic inbox lifecycle | `aiui run app.py` |
+| 22 | [agentmail-channel](python/22-agentmail-channel/) | AgentMail as AIUI dashboard channel via `/api/channels` | `aiui run app.py` |
 | 25 | [clean-chat](python/25-clean-chat/) | `set_dashboard(sidebar=False)` — dashboard chat without left nav | `aiui run app.py` |
 | 26 | [custom-theme-chat](python/26-custom-theme-chat/) | `register_theme()` — dynamic custom theme (teal/cyan) | `aiui run app.py` |
 

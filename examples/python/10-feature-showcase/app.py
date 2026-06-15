@@ -10,8 +10,7 @@ Demonstrates:
   - Protocol-driven feature auto-registration
 
 Run:
-    pip install praisonaiui
-    python app.py
+    aiui run app.py
     # Dashboard at http://localhost:8082
 """
 
