@@ -80,7 +80,7 @@ def seed_agentmail_channel():
             "name": "Agent Inbox",
             "platform": "agentmail",
             "config": {
-                "api_key": os.getenv("AGENTMAIL_API_KEY", ""),
+                "api_key_ref": "env:AGENTMAIL_API_KEY",
                 "domain": os.getenv("AGENTMAIL_DOMAIN", ""),
                 "inbox_id": os.getenv("AGENTMAIL_INBOX_ID", ""),
                 "polling_interval": 15,

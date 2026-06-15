@@ -85,6 +85,7 @@ def seed_email_channel():
                 "email_address": os.getenv("EMAIL_ADDRESS", "support@example.com"),
                 "imap_server": os.getenv("EMAIL_IMAP_SERVER", "imap.gmail.com"),
                 "smtp_server": os.getenv("EMAIL_SMTP_SERVER", "smtp.gmail.com"),
+                "app_password_ref": "env:EMAIL_APP_PASSWORD",
                 "polling_interval": 30,
             },
         })
