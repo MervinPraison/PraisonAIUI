@@ -220,6 +220,11 @@ export default function App() {
                 <ZoneWidgets widgets={zones.bottomNav} />
               </div>
             )}
+            {zones?.footer && (
+              <div className="border-t bg-muted/50">
+                <ZoneWidgets widgets={zones.footer} />
+              </div>
+            )}
           </div>
         )
       case 'ThreeColumnLayout':
