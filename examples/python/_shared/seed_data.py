@@ -27,15 +27,15 @@ def seed_via_api(client):
     # Channels
     client.post("/api/channels", json={
         "name": "Discord #general", "platform": "discord",
-        "config": {"guild_id": "123456789"}
+        "config": {"guild_id": "123456789", "bot_token_ref": "env:DISCORD_BOT_TOKEN"}
     })
     client.post("/api/channels", json={
         "name": "Telegram Support", "platform": "telegram",
-        "config": {"bot_token": "***masked***"}
+        "config": {"bot_token_ref": "env:TELEGRAM_BOT_TOKEN"}
     })
     client.post("/api/channels", json={
         "name": "Support Email", "platform": "email",
-        "config": {"email_address": "support@example.com"}
+        "config": {"email_address": "support@example.com", "app_password_ref": "env:EMAIL_APP_PASSWORD"}
     })
     
     # Agents
