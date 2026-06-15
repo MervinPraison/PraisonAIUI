@@ -1,6 +1,6 @@
 # YAML Chat with All Protocol Features
 #
-# What's New (vs chat-yaml-tools/):
+# What's New (vs yaml/04-tools/):
 #   • features: true — auto-registers all 8 protocol feature modules
 #     (approvals, schedules, memory, sessions, skills, hooks, workflows, config)
 #

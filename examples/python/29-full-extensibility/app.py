@@ -214,7 +214,9 @@ async def custom_view_fallback():
 
 
 if __name__ == "__main__":
+    import os
     import uvicorn
     from praisonaiui.server import create_app
     app = create_app()
-    uvicorn.run(app, host="0.0.0.0", port=8082)
+    host = os.getenv("HOST", "127.0.0.1")
+    uvicorn.run(app, host=host, port=8082)

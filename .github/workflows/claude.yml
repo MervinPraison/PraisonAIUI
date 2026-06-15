@@ -8,6 +8,9 @@ name: Claude Assistant
 #   - pull_request_review → full implementation when @claude mentioned in review
 #   - pull_request_review_comment → full implementation when @claude mentioned inline
 #
+# Escalate an issue with the `claude` label OR an @claude comment — not both.
+# If both fire within 3 minutes, the comment trigger is skipped (dedupe job).
+#
 # Focus: CLAUDE only. Copilot and CodeRabbit are GitHub Apps that react to PRs
 # automatically — no workflow file needed. auto-pr-comment.yml orchestrates the
 # CodeRabbit → Copilot → Claude review chain for PRs.
@@ -136,10 +139,11 @@ jobs:
   # ================================================================
   # Job 2 — Full Claude Code implementation
   # Triggers on: labeled `claude`, @claude comments, assignments
+  #
+  # Dedup: label + @claude comment on the same issue fires two events.
+  # Skip the comment trigger when `claude` was labelled within 3 minutes.
   # ================================================================
-  claude-response:
-    env:
-      ISSUE_NUMBER_RESOLVED: ${{ github.event.issue.number || github.event.pull_request.number }}
+  claude-dedupe:
     if: |
       github.event.action != 'opened' &&
       (github.event.action != 'labeled' || github.event.label.name == 'claude') &&
@@ -152,6 +156,55 @@ jobs:
       github.actor != 'dependabot[bot]' &&
       github.actor != 'cursor[bot]' &&
       github.actor != 'renovate[bot]'
+    runs-on: ubuntu-latest
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    permissions:
+      issues: read
+      pull-requests: read
+    steps:
+      - name: Skip duplicate comment after fresh claude label
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            if (context.eventName !== 'issue_comment' || context.payload.issue?.pull_request) {
+              core.setOutput('proceed', 'true');
+              return;
+            }
+            const issue = context.payload.issue;
+            const hasClaude = (issue.labels || []).some(l => l.name === 'claude');
+            if (!hasClaude) {
+              core.setOutput('proceed', 'true');
+              return;
+            }
+            const events = await github.rest.issues.listEvents({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              per_page: 30,
+            });
+            const windowMs = 3 * 60 * 1000;
+            const recentLabel = events.data.find(e =>
+              e.event === 'labeled' &&
+              e.label?.name === 'claude' &&
+              (Date.now() - new Date(e.created_at).getTime()) < windowMs
+            );
+            if (recentLabel) {
+              core.info('Skipping: claude label was added within 3 minutes — label trigger already handles this issue.');
+              core.setOutput('proceed', 'false');
+              return;
+            }
+            core.setOutput('proceed', 'true');
+
+  claude-response:
+    needs: claude-dedupe
+    env:
+      ISSUE_NUMBER_RESOLVED: ${{ github.event.issue.number || github.event.pull_request.number }}
+    if: needs.claude-dedupe.outputs.proceed == 'true'
+    concurrency:
+      group: claude-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -184,24 +237,34 @@ jobs:
         with:
           github-token: ${{ steps.github-token.outputs.token }}
           script: |
-            const isPR = context.eventName === 'pull_request' || (context.payload.issue && context.payload.issue.pull_request);
+            const isPR = context.eventName === 'pull_request' ||
+              context.eventName === 'pull_request_review' ||
+              context.eventName === 'pull_request_review_comment' ||
+              (context.payload.issue && context.payload.issue.pull_request);
             if (isPR) {
-              const prNumber = context.payload.pull_request ? context.payload.pull_request.number : context.payload.issue.number;
+              core.setOutput('is_pr_review', 'true');
+              const prNumber = context.payload.pull_request
+                ? context.payload.pull_request.number
+                : context.payload.issue.number;
+              core.setOutput('pr_number', String(prNumber));
               const pr = await github.rest.pulls.get({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: prNumber
+                pull_number: prNumber,
               });
-
               core.setOutput('pr_branch', pr.data.head.ref);
-
-              if (pr.data.head.repo && pr.data.head.repo.full_name !== context.repo.full_name) {
+              const headRepo = pr.data.head.repo?.full_name || context.repo.full_name;
+              core.setOutput('head_repo', headRepo);
+              if (headRepo !== `${context.repo.owner}/${context.repo.repo}`) {
                 core.setOutput('is_fork', 'true');
                 core.setOutput('clone_url', pr.data.head.repo.clone_url);
                 core.setOutput('branch', pr.data.head.ref);
                 return;
               }
+              core.setOutput('is_fork', 'false');
+              return;
             }
+            core.setOutput('is_pr_review', 'false');
             core.setOutput('is_fork', 'false');
 
       - name: Checkout repository
@@ -210,20 +273,71 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
           token: ${{ steps.github-token.outputs.token }}
+          ref: ${{ steps.check_fork.outputs.is_pr_review == 'true' && format('refs/pull/{0}/head', steps.check_fork.outputs.pr_number) || github.ref }}
 
-      - name: Fetch PR branch and Setup Remote
-        if: github.event.issue.pull_request
+      - name: Checkout PR branch for edits
+        if: steps.check_fork.outputs.is_pr_review == 'true' && steps.check_fork.outputs.is_fork != 'true'
         env:
           PR_BRANCH: ${{ steps.check_fork.outputs.pr_branch }}
-          IS_FORK: ${{ steps.check_fork.outputs.is_fork }}
         run: |
-          git fetch origin pull/${{ github.event.issue.number }}/head:"${PR_BRANCH}"
-          if [ "${IS_FORK}" = "true" ]; then
-            git remote set-url origin file://$(pwd)
-          fi
+          git checkout "${PR_BRANCH}"
+          git config --local user.name "MervinPraison"
+          git config --local user.email "454862+MervinPraison@users.noreply.github.com"
+          echo "On branch: $(git branch --show-current)"
+
+      - name: Fetch PR branch and Setup Remote
+        if: steps.check_fork.outputs.is_pr_review == 'true' && steps.check_fork.outputs.is_fork == 'true'
+        env:
+          PR_BRANCH: ${{ steps.check_fork.outputs.pr_branch }}
+        run: |
+          git fetch origin pull/${{ steps.check_fork.outputs.pr_number }}/head:"${PR_BRANCH}"
+          git checkout "${PR_BRANCH}"
+          git remote set-url origin file://$(pwd)
+
+      - name: Run Claude PR final review
+        if: steps.check_fork.outputs.is_pr_review == 'true'
+        uses: anthropics/claude-code-action@beta
+        env:
+          GH_TOKEN: ${{ steps.github-token.outputs.token }}
+        with:
+          allowed_bots: 'praisonai-triage-agent[bot]'
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.github-token.outputs.token }}
+          trigger_phrase: "@claude"
+          timeout_minutes: "30"
+          direct_prompt: |
+            ${{ steps.check_fork.outputs.is_fork == 'true' && 'CRITICAL: FORK PR — comment only, do not push.\n\n' || format('PR #{0} on {1} — SAME REPO, NOT A FORK. You HAVE push permission to branch {2}. NEVER say this is a fork.\n\n', steps.check_fork.outputs.pr_number, steps.check_fork.outputs.head_repo, steps.check_fork.outputs.pr_branch) }}
+            You are the Lead Engineer doing FINAL review on this open PR in MervinPraison/PraisonAIUI.
+            Read ALL reviewer comments (CodeRabbit, Gemini, Qodo, Copilot, human). Follow AGENTS.md.
+            SCOPE: src/praisonaiui, src/frontend, tests, docs only.
+
+            **Phase 1 — Review** architecture, security, tests, backward compat, import-time budget.
+            **Phase 2 — FIX (mandatory)** implement every VALID issue on THIS branch. Push commits before Phase 3.
+            Do NOT ask the author to fix. Do NOT open a new PR. Do NOT claim fork restrictions unless is_fork is true.
+            **Phase 3 — Verdict** approve only after fixes are pushed and tests pass; else request changes with specifics.
+
+            git config --global user.name "MervinPraison"
+            git config --global user.email "454862+MervinPraison@users.noreply.github.com"
+            gh auth setup-git
+            git status
+            git branch --show-current
+          allowed_tools: |
+            Bash(git:*)
+            Bash(python:*)
+            Bash(pip:*)
+            Bash(pytest:*)
+            Bash(ruff:*)
+            Bash(gh:*)
+            Bash(npm:*)
+            View
+            GlobTool
+            GrepTool
+            BatchTool
+            Edit
+            Replace
 
       - name: Run Claude Code Action
-        uses: anthropics/claude-code-action@beta
+        if: steps.check_fork.outputs.is_pr_review != 'true'
         env:
           GH_TOKEN: ${{ steps.github-token.outputs.token }}
         with:

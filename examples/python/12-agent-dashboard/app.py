@@ -504,4 +504,5 @@ if __name__ == "__main__":
     print("⚠️  DEPRECATED: This example uses unsafe innerHTML rendering")
     print("   For secure dashboards, use examples/15-dashboard-test/")
     print("   JSON API: http://localhost:8082/api/features")
-    uvicorn.run(app, host="0.0.0.0", port=8082, log_level="info")
+    host = os.getenv("HOST", "127.0.0.1")
+    uvicorn.run(app, host=host, port=8082, log_level="info")
