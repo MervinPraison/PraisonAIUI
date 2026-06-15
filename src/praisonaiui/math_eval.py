@@ -47,7 +47,12 @@ def eval_math_expression(expression: str) -> float | int:
             op = _BINOPS.get(type(node.op))
             if op is None:
                 raise ValueError("Unsupported operator")
-            return op(_walk(node.left), _walk(node.right))
+            left = _walk(node.left)
+            right = _walk(node.right)
+            if isinstance(node.op, ast.Pow):
+                if abs(right) > 100:
+                    raise ValueError("Exponent too large")
+            return op(left, right)
         if isinstance(node, ast.UnaryOp):
             op = _UNARYOPS.get(type(node.op))
             if op is None:

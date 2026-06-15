@@ -22,3 +22,20 @@ def test_rejects_unsafe_input():
         eval_math_expression("__import__('os').system('id')")
     with pytest.raises(ValueError):
         eval_math_expression("2 + x")
+
+
+def test_exponent_limits():
+    """Test protection against DoS via large exponents."""
+    # Valid small exponents should work
+    assert eval_math_expression("2**3") == 8
+    assert eval_math_expression("3**4") == 81
+    
+    # Large exponents should be rejected
+    with pytest.raises(ValueError, match="Exponent too large"):
+        eval_math_expression("2**101")
+    with pytest.raises(ValueError, match="Exponent too large"):
+        eval_math_expression("2**1000")
+    
+    # Negative large exponents should also be rejected  
+    with pytest.raises(ValueError, match="Exponent too large"):
+        eval_math_expression("2**-101")
