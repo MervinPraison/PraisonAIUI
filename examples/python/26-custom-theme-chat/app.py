@@ -18,6 +18,22 @@ import os
 
 import praisonaiui as aiui
 
+try:
+    from openai import AsyncOpenAI
+except ImportError:
+    AsyncOpenAI = None
+
+# Reuse client to prevent resource churn
+_client = None
+
+def _get_client():
+    global _client
+    if _client is None and AsyncOpenAI is not None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            _client = AsyncOpenAI(api_key=api_key)
+    return _client
+
 # ── Register custom teal/cyan theme ──────────────────────────────────
 aiui.register_theme("teal-dark", {
     "accent": "#14b8a6",        # teal-500
@@ -58,18 +74,14 @@ async def on_message(message: str):
     """Stream a response from OpenAI."""
     await aiui.think("Thinking...")
 
-    try:
-        from openai import AsyncOpenAI
-    except ImportError:
-        await aiui.say("❌ Please install openai: `pip install openai`")
+    client = _get_client()
+    if client is None:
+        if AsyncOpenAI is None:
+            await aiui.say("❌ Please install openai: `pip install openai`")
+        else:
+            await aiui.say("❌ Please set OPENAI_API_KEY environment variable.")
         return
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        await aiui.say("❌ Please set OPENAI_API_KEY environment variable.")
-        return
-
-    client = AsyncOpenAI(api_key=api_key)
     stream = await client.chat.completions.create(
         model=os.getenv("PRAISONAI_MODEL", "gpt-4o-mini"),
         messages=[

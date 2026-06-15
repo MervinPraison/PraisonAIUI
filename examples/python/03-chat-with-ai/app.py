@@ -40,8 +40,10 @@ def _get_client():
         _client = AsyncOpenAI(api_key=api_key)
     return _client
 
-# Keep per-session context in memory (DataStore handles persistence)
-_contexts: dict[str, list[dict]] = {}
+# Use SessionGovernor for bounded session memory management
+from praisonaiui.session_governor import SessionGovernor
+
+_governor = SessionGovernor(max_turns=20, max_sessions=100)
 
 
 @aiui.starters
@@ -66,20 +68,18 @@ async def on_message(message: str):
     """Send the message to OpenAI and stream the response."""
     session_id = message.session_id if hasattr(message, "session_id") else "default"
 
-    # Build conversation context
-    if session_id not in _contexts:
-        _contexts[session_id] = [
-            {"role": "system", "content": "You are a helpful, concise assistant."}
-        ]
-
-    _contexts[session_id].append({"role": "user", "content": str(message)})
+    # Add user message to bounded session context
+    _governor.add_message(session_id, {"role": "user", "content": str(message)})
 
     await aiui.think("Thinking...")
+
+    # Get bounded context for LLM
+    messages = _governor.get_context(session_id)
 
     # Stream from OpenAI
     stream = await _get_client().chat.completions.create(
         model="gpt-4o-mini",
-        messages=_contexts[session_id],
+        messages=messages,
         stream=True,
     )
 
@@ -90,8 +90,8 @@ async def on_message(message: str):
             full_response += delta.content
             await aiui.stream_token(delta.content)
 
-    # Save assistant response to context
-    _contexts[session_id].append({"role": "assistant", "content": full_response})
+    # Save assistant response to bounded context
+    _governor.add_message(session_id, {"role": "assistant", "content": full_response})
 
     # Feedback buttons
     await aiui.action_buttons([
