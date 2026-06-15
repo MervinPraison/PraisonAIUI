@@ -84,6 +84,8 @@ class ConfigFeatureRegistry:
         # Check top-level config fields
         config_dict = config.model_dump(exclude_none=True)
         for field_name in config_dict:
+            if field_name in ("schema_version", "schemaVersion"):
+                continue
             if not self.is_implemented(field_name):
                 unimplemented.append(field_name)
 

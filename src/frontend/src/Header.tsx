@@ -18,7 +18,7 @@ export function Header({ config }: { config: UIConfig }) {
     // Get logo configuration - support both header.logoImage and config.logo
     const logoConfig = config.logo
     const isDarkMode = document.documentElement.classList.contains('dark')
-    const logoSrc = header?.logoImage || (logoConfig ? (isDarkMode ? logoConfig.dark : logoConfig.light) : null)
+    const logoSrc = header?.logoImage || (logoConfig ? (isDarkMode ? (logoConfig.dark || logoConfig.light) : (logoConfig.light || logoConfig.dark)) : null)
     const logoHref = logoConfig?.href || '/'
 
     return (

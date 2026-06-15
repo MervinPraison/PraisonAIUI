@@ -116,14 +116,7 @@ export default function App() {
     const titleTemplate = config.seo?.titleTemplate || '%s | %s'
     const siteName = config.site?.title || 'Documentation'
     if (titleTemplate.includes('%s')) {
-      const parts = titleTemplate.split('%s')
-      if (parts.length >= 3) {
-        document.title = `${parts[0]}${title}${parts[1]}${siteName}${parts[2] || ''}`
-      } else if (parts.length === 2) {
-        document.title = titleTemplate.replace('%s', title).replace('%s', siteName)
-      } else {
-        document.title = titleTemplate.replace('%s', title)
-      }
+      document.title = titleTemplate.replace('%s', title).replace('%s', siteName)
     } else {
       document.title = `${title} | ${siteName}`
     }
@@ -322,7 +315,7 @@ export default function App() {
             <div className="min-h-screen bg-background text-foreground">
               <SkipLink enabled={config.a11y?.skipToContent} />
               <Header config={config} />
-              <main id="main-content">{renderLayout()}</main>
+              {renderLayout()}
               <Footer config={config} />
               <CopilotWidget config={config.chat} layout={config.layout} />
             </div>
@@ -332,7 +325,7 @@ export default function App() {
           <div className="min-h-screen bg-background text-foreground">
             <SkipLink enabled={config.a11y?.skipToContent} />
             <Header config={config} />
-            <main id="main-content">{renderLayout()}</main>
+            {renderLayout()}
             <Footer config={config} />
           </div>
         )
@@ -346,7 +339,7 @@ export default function App() {
               <div className="min-h-screen bg-background text-foreground">
                 <SkipLink enabled={config.a11y?.skipToContent} />
                 <Header config={config} />
-                <main id="main-content">{renderLayout()}</main>
+                {renderLayout()}
                 <Footer config={config} />
                 <CopilotWidget config={config.chat} layout={config.layout} />
               </div>
@@ -357,7 +350,7 @@ export default function App() {
           <div className="min-h-screen bg-background text-foreground">
             <SkipLink enabled={config.a11y?.skipToContent} />
             <Header config={config} />
-            <main id="main-content">{renderLayout()}</main>
+            {renderLayout()}
             <Footer config={config} />
           </div>
         )

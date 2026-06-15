@@ -125,7 +125,7 @@ def validate_config(config: Config, base_path: Path | None = None, strict: bool 
                         code=4001,
                         category="features",
                         message=f"Field '{field}' is experimental and not fully implemented: {feature.description}",
-                        suggestion="Remove this field or use --experimental flag to suppress warnings",
+                        suggestion="Remove this field or run validation without the --strict flag",
                     )
                 )
                 # Also emit runtime warning
