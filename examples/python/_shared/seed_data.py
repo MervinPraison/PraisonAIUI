@@ -11,16 +11,25 @@ than direct store manipulation.
 
 def seed_demo_data():
     """Populate feature stores with demo data.
-    
-    This is a no-op placeholder. Use API calls in tests to seed data,
-    as feature stores may use different backends (file, DB, etc.).
+
+    Seeds data via HTTP API calls to ensure compatibility across
+    different backend implementations (file, DB, etc.).
     """
-    pass
+    try:
+        from starlette.testclient import TestClient
+
+        from praisonaiui.server import create_app
+
+        app = create_app()
+        with TestClient(app) as client:
+            seed_via_api(client)
+    except ImportError:
+        pass
 
 
 def seed_via_api(client):
     """Seed demo data via API calls (recommended approach).
-    
+
     Args:
         client: Starlette TestClient instance
     """
@@ -37,7 +46,7 @@ def seed_via_api(client):
         "name": "Support Email", "platform": "email",
         "config": {"email_address": "support@example.com"}
     })
-    
+
     # Agents
     client.post("/api/agents/definitions", json={
         "name": "Summarizer",
@@ -49,21 +58,21 @@ def seed_via_api(client):
         "instructions": "You are an expert programmer.",
         "model": "gpt-4o"
     })
-    
+
     # Schedules
     client.post("/api/schedules", json={
         "name": "Daily Report",
         "schedule": {"kind": "every", "every_seconds": 86400},
         "message": "Generate daily summary"
     })
-    
+
     # Usage
     client.post("/api/usage/track", json={
         "model": "gpt-4o-mini",
         "input_tokens": 150,
         "output_tokens": 80
     })
-    
+
     # Jobs
     client.post("/api/jobs", json={
         "prompt": "Test job",
