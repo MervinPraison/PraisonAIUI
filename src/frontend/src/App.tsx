@@ -221,7 +221,7 @@ export default function App() {
               </div>
             )}
             {zones?.footer && (
-              <div className="border-t bg-muted/50">
+              <div className="border-t p-4 bg-muted/50">
                 <ZoneWidgets widgets={zones.footer} />
               </div>
             )}
