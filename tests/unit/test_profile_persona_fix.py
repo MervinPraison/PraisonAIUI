@@ -45,18 +45,26 @@ def test_profile_selection_changes_agent_instructions():
         server._selected_profile = {"id": None}
 
         # Test 1: No profile selected - should use default instructions
-        # We can't directly call _get_agent since it's in closure, but we can verify
-        # the behavior through the mock
+        import asyncio
+        from unittest.mock import AsyncMock
 
-        # Test 2: Set selected profile to "Code Expert"
-        server._selected_profile = {"id": "Code Expert"}
+        reply_cb = _callbacks["reply"]
 
-        # Verify that the agent would be created with profile-specific instructions
-        # Since _get_agent is in a closure, we verify the fix indirectly through
-        # the agent creation pattern
+        with patch("praisonaiui.say", new_callable=AsyncMock) as mock_say:
+            asyncio.run(reply_cb("test"))
+            mock_agent_class.assert_called_with(
+                name="Test Assistant",
+                instructions="Default instructions"
+            )
 
-        # The test verifies that the fix is structurally correct
-        assert True  # This passes if no import errors occur
+            # Test 2: Set selected profile to "Code Expert"
+            mock_agent_class.reset_mock()
+            server._selected_profile = {"id": "Code Expert"}
+            asyncio.run(reply_cb("test"))
+            mock_agent_class.assert_called_with(
+                name="Code Expert",
+                instructions="You are a coding expert. Be technical and precise."
+            )
 
 
 def test_profile_cache_keys_are_different():

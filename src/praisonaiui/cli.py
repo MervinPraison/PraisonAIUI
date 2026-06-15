@@ -1148,7 +1148,7 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
             profile_config = None
             if selected_profile_id and profiles:
                 for profile in profiles:
-                    if profile.get("name") == selected_profile_id or profile.get("id") == selected_profile_id:
+                    if isinstance(profile, dict) and (profile.get("name") == selected_profile_id or profile.get("id") == selected_profile_id):
                         profile_config = profile
                         break
 
@@ -1158,9 +1158,9 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
             effective_model = model
 
             if profile_config:
-                effective_instructions = profile_config.get("instructions", instructions)
-                effective_name = profile_config.get("name", agent_name)
-                effective_model = profile_config.get("model", model)
+                effective_instructions = profile_config.get("instructions") or instructions
+                effective_name = profile_config.get("name") or agent_name
+                effective_model = profile_config.get("model") or model
 
             agent_kwargs = {
                 "name": effective_name,
