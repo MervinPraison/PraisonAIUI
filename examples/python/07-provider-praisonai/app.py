@@ -17,14 +17,9 @@ Run:
 """
 
 import asyncio
-import os
-import sys
 
 import praisonaiui as aiui
 from praisonaiui.provider import BaseProvider, RunEvent, RunEventType
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '_shared'))
-from stream_bridge import StreamBridge
 
 # === Option 1: Provider-based (Direct Mode) ===
 # Uses PraisonAI Agent directly with streaming bridge
@@ -94,8 +89,8 @@ class FullFeaturedProvider(BaseProvider):
         yield RunEvent(type=RunEventType.REASONING_STARTED)
         yield RunEvent(type=RunEventType.REASONING_STEP, step="Analyzing the request...")
 
-        # Set up thread-safe streaming bridge
-        bridge = StreamBridge()
+        # Get the running event loop for thread-safe queue operations
+        loop = asyncio.get_running_loop()
         event_queue = asyncio.Queue()
         _has_streaming = False
 
@@ -110,27 +105,27 @@ class FullFeaturedProvider(BaseProvider):
                             step=evt.content,
                         )
                         # Use thread-safe queue operation
-                        bridge._loop.call_soon_threadsafe(event_queue.put_nowait, run_event)
+                        loop.call_soon_threadsafe(event_queue.put_nowait, run_event)
                     else:
                         run_event = RunEvent(
                             type=RunEventType.RUN_CONTENT,
                             token=evt.content,
                         )
-                        bridge._loop.call_soon_threadsafe(event_queue.put_nowait, run_event)
+                        loop.call_soon_threadsafe(event_queue.put_nowait, run_event)
                 elif evt.type == SET.DELTA_TOOL_CALL and evt.tool_call:
                     run_event = RunEvent(
                         type=RunEventType.TOOL_CALL_STARTED,
                         name=evt.tool_call.get("name"),
                         args=evt.tool_call.get("arguments"),
                     )
-                    bridge._loop.call_soon_threadsafe(event_queue.put_nowait, run_event)
+                    loop.call_soon_threadsafe(event_queue.put_nowait, run_event)
                 elif evt.type == SET.TOOL_CALL_END and evt.tool_call:
                     run_event = RunEvent(
                         type=RunEventType.TOOL_CALL_COMPLETED,
                         name=evt.tool_call.get("name"),
                         result=evt.tool_call.get("result"),
                     )
-                    bridge._loop.call_soon_threadsafe(event_queue.put_nowait, run_event)
+                    loop.call_soon_threadsafe(event_queue.put_nowait, run_event)
 
             agent.stream_emitter.add_callback(_on_stream)
             agent.stream_emitter.enable_metrics()
@@ -145,23 +140,20 @@ class FullFeaturedProvider(BaseProvider):
             async def _drain_events():
                 """Drain events concurrently with agent execution."""
                 while True:
-                    try:
-                        event = await asyncio.wait_for(event_queue.get(), timeout=1.0)
-                        yield event
-                    except asyncio.TimeoutError:
-                        # Check if agent is still running
-                        if chat_task.done():
-                            # Drain any remaining events
-                            while not event_queue.empty():
-                                try:
-                                    yield event_queue.get_nowait()
-                                except asyncio.QueueEmpty:
-                                    break
-                            break
-                    except Exception:
+                    event = await event_queue.get()
+                    if event is None:
                         break
+                    yield event
 
             chat_task = asyncio.create_task(asyncio.to_thread(agent.chat, message))
+
+            async def _signal_end():
+                try:
+                    await chat_task
+                finally:
+                    await event_queue.put(None)
+
+            signal_task = asyncio.create_task(_signal_end())
 
             try:
                 # Drain events while agent is running
@@ -179,6 +171,13 @@ class FullFeaturedProvider(BaseProvider):
                     agent.stream_emitter.remove_callback(_on_stream)
                 except Exception:
                     pass
+                # Ensure signal task is cleaned up
+                if not signal_task.done():
+                    signal_task.cancel()
+                    try:
+                        await signal_task
+                    except asyncio.CancelledError:
+                        pass
         else:
             # Fallback without streaming
             try:

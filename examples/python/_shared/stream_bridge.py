@@ -29,21 +29,16 @@ class StreamBridge:
         Args:
             loop: Event loop to use. If None, uses the current running loop.
         """
+        if loop is None:
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                raise RuntimeError("No running event loop found. StreamBridge must be initialized from an async context (or pass an explicit loop).")
         self._loop = loop
-        self._queue: asyncio.Queue | None = None
+        self._queue = asyncio.Queue()
         self._cancelled = False
         self._lock = threading.Lock()
 
-    def _ensure_queue(self) -> asyncio.Queue:
-        """Lazy initialization of the queue."""
-        if self._queue is None:
-            if self._loop is None:
-                try:
-                    self._loop = asyncio.get_running_loop()
-                except RuntimeError:
-                    raise RuntimeError("No running event loop found. Call from async context.")
-            self._queue = asyncio.Queue()
-        return self._queue
 
     def emit_token(self, token: str) -> None:
         """Emit a token from a worker thread (thread-safe).
@@ -55,12 +50,8 @@ class StreamBridge:
             if self._cancelled:
                 return
 
-            queue = self._ensure_queue()
-            if self._loop is None:
-                raise RuntimeError("Event loop not set")
-
             # Use call_soon_threadsafe for thread-safe queue operations
-            self._loop.call_soon_threadsafe(queue.put_nowait, token)
+            self._loop.call_soon_threadsafe(self._queue.put_nowait, token)
 
     def emit_end(self) -> None:
         """Signal end of stream (thread-safe)."""
@@ -75,11 +66,9 @@ class StreamBridge:
         Yields:
             Tokens as they arrive. Stops when None is received (end signal).
         """
-        queue = self._ensure_queue()
-
         while not self._cancelled:
             try:
-                token = await asyncio.wait_for(queue.get(), timeout=timeout)
+                token = await asyncio.wait_for(self._queue.get(), timeout=timeout)
             except asyncio.TimeoutError:
                 break
 
@@ -93,8 +82,7 @@ class StreamBridge:
         with self._lock:
             self._cancelled = True
             # Signal any waiting consumers
-            if self._queue is not None and self._loop is not None:
-                self._loop.call_soon_threadsafe(self._queue.put_nowait, None)
+            self._loop.call_soon_threadsafe(self._queue.put_nowait, None)
 
     def emitter_callback(self) -> Callable[[Any], None]:
         """Create a callback function for agent stream emitters.
