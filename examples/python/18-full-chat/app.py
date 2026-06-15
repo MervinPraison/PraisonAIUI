@@ -1,9 +1,12 @@
 """PraisonAIUI — Full Chat Example (with Gateway + Page Config).
 
-Dashboard with curated sidebar pages and a custom Feature Explorer:
-  - Uses ``aiui.set_pages()`` to show only essential built-in pages
+Clean chat-focused dashboard with curated sidebar pages:
+  - Uses ``aiui.set_pages()`` to show only essential pages (chat, sessions, agents, usage, config)
+  - Hides debug/admin pages for a streamlined experience
   - Adds a custom "Feature Explorer" page via ``@aiui.page()``
   - Registers three agents: Researcher, Writer, Coder
+
+Compare with 17-three-column-demo which shows ALL available pages.
 
 Modes:
   1. Gateway mode (recommended) — starts real agent execution + WebSocket
@@ -39,8 +42,14 @@ except ImportError as e:
 
 aiui.set_style("dashboard")
 
-# ── Configure sidebar pages ─────────────────────────────────
-aiui.set_pages(["chat", "sessions", "agents", "usage", "config"])
+# ── Page curation ───────────────────────────────────────────
+aiui.set_pages([
+    "chat",         # Main chat interface
+    "sessions",     # Session management
+    "agents",       # Agent configuration
+    "usage",        # Usage metrics
+    "config",       # Configuration settings
+])
 
 
 # ── Agent definitions ───────────────────────────────────────
