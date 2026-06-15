@@ -186,7 +186,7 @@ export default function App() {
         return (
           <div className="flex justify-center">
             <div className="w-full max-w-4xl px-6">
-              {zones?.hero && <ZoneWidgets widgets={zones.hero} />}
+              {zones?.hero && zones.hero.length > 0 && <ZoneWidgets widgets={zones.hero} />}
               <Content config={config} routes={routes} selectedItem={selectedItem} />
             </div>
           </div>
@@ -195,7 +195,7 @@ export default function App() {
         // Full width content
         return (
           <div className="px-6">
-            {zones?.hero && <ZoneWidgets widgets={zones.hero} />}
+            {zones?.hero && zones.hero.length > 0 && <ZoneWidgets widgets={zones.hero} />}
             <Content config={config} routes={routes} selectedItem={selectedItem} />
           </div>
         )
@@ -203,9 +203,9 @@ export default function App() {
         // WordPress-style zones layout
         return (
           <div className="flex flex-col">
-            {zones?.hero && <ZoneWidgets widgets={zones.hero} />}
+            {zones?.hero && zones.hero.length > 0 && <ZoneWidgets widgets={zones.hero} />}
             <div className="flex flex-1">
-              {zones?.leftSidebar && (
+              {zones?.leftSidebar && zones.leftSidebar.length > 0 && (
                 <aside className="w-64 border-r p-4 hidden md:block">
                   <ZoneWidgets widgets={zones.leftSidebar} />
                 </aside>
@@ -215,12 +215,12 @@ export default function App() {
               </div>
               <Toc selectedItem={selectedItem} zones={zones} />
             </div>
-            {zones?.bottomNav && (
+            {zones?.bottomNav && zones.bottomNav.length > 0 && (
               <div className="border-t p-4 bg-muted/30">
                 <ZoneWidgets widgets={zones.bottomNav} />
               </div>
             )}
-            {zones?.footer && (
+            {zones?.footer && zones.footer.length > 0 && (
               <div className="border-t p-4 bg-muted/50">
                 <ZoneWidgets widgets={zones.footer} />
               </div>
