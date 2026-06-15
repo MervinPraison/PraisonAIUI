@@ -202,8 +202,8 @@ export default function App() {
       case 'FlexibleLayout': {
         // WordPress-style zones layout with navigation invariant
         // When docs nav exists but no leftSidebar zone configured, render default nav
-        const hasExplicitLeftSidebar = zones?.leftSidebar && zones.leftSidebar.length > 0
-        const hasNavigation = nav && nav.items && nav.items.length > 0
+        const hasExplicitLeftSidebar = (zones?.leftSidebar?.length ?? 0) > 0
+        const hasNavigation = (nav?.items?.length ?? 0) > 0
         const shouldRenderNavigation = hasExplicitLeftSidebar || hasNavigation
         
         return (
@@ -213,7 +213,7 @@ export default function App() {
               {shouldRenderNavigation && (
                 <aside className="w-64 border-r p-4 hidden md:block">
                   {hasExplicitLeftSidebar ? (
-                    <ZoneWidgets widgets={zones.leftSidebar} />
+                    <ZoneWidgets widgets={zones?.leftSidebar} />
                   ) : (
                     <Sidebar nav={nav} activeItem={activeItemPath} onItemClick={handleItemClick} />
                   )}
