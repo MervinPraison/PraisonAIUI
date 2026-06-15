@@ -19,13 +19,13 @@ Example usage in chat handlers::
     @aiui.reply
     async def on_message(message: str):
         session_id = getattr(message, "session_id", "default")
-        
+
         # Replace: _contexts[session_id].append(...)
         governor.add_message(session_id, {"role": "user", "content": str(message)})
-        
+
         # Get bounded context for LLM
         context = governor.get_context(session_id)
-        
+
         # Stream from LLM...
         governor.add_message(session_id, {"role": "assistant", "content": response})
 """
@@ -68,7 +68,7 @@ class SessionGovernor:
 
     def add_message(self, session_id: str, message: Dict[str, Any]) -> None:
         """Add a message to the session with automatic bounds enforcement.
-        
+
         Args:
             session_id: Session identifier
             message: Message dict with 'role' and 'content' keys
@@ -86,17 +86,18 @@ class SessionGovernor:
         if len(messages) > self.max_turns * 2:  # 2 messages per turn (user + assistant)
             # Keep system message + recent turns
             system_msgs = [m for m in messages if m.get("role") == "system"]
-            recent_msgs = messages[-(self.max_turns * 2 - len(system_msgs)):]
+            keep_count = self.max_turns * 2 - len(system_msgs)
+            recent_msgs = messages[-keep_count:] if keep_count > 0 else []
             session["messages"] = system_msgs + recent_msgs
 
     def get_context(self, session_id: str) -> List[Dict[str, Any]]:
         """Get the full conversation context for a session.
-        
+
         Returns a list suitable for passing directly to LLM APIs.
-        
+
         Args:
             session_id: Session identifier
-            
+
         Returns:
             List of message dicts with 'role' and 'content' keys
         """
@@ -106,7 +107,7 @@ class SessionGovernor:
 
     def clear_session(self, session_id: str) -> None:
         """Clear all messages from a session while preserving system message.
-        
+
         Args:
             session_id: Session identifier
         """
@@ -119,7 +120,7 @@ class SessionGovernor:
 
     def delete_session(self, session_id: str) -> None:
         """Completely remove a session from memory.
-        
+
         Args:
             session_id: Session identifier
         """
@@ -128,10 +129,10 @@ class SessionGovernor:
 
     def get_session_stats(self, session_id: str) -> Dict[str, Any]:
         """Get statistics for a session.
-        
+
         Args:
             session_id: Session identifier
-            
+
         Returns:
             Dict with turn count, estimated tokens, and timestamps
         """
@@ -154,7 +155,7 @@ class SessionGovernor:
 
     def list_sessions(self) -> List[str]:
         """List all active session IDs, sorted by recent access.
-        
+
         Returns:
             List of session IDs, most recently accessed first
         """
@@ -166,14 +167,12 @@ class SessionGovernor:
 
     def get_memory_stats(self) -> Dict[str, Any]:
         """Get overall memory usage statistics.
-        
+
         Returns:
             Dict with session counts, memory usage estimates
         """
         total_messages = sum(len(s["messages"]) for s in self._sessions.values())
-        total_tokens = sum(
-            self._estimate_tokens(s["messages"]) for s in self._sessions.values()
-        )
+        total_tokens = sum(self._estimate_tokens(s["messages"]) for s in self._sessions.values())
 
         return {
             "active_sessions": len(self._sessions),
@@ -196,7 +195,7 @@ class SessionGovernor:
 
     def _evict_oldest_sessions(self) -> None:
         """Remove oldest sessions if we exceed max_sessions limit."""
-        while len(self._sessions) >= self.max_sessions:
+        while len(self._sessions) > self.max_sessions:
             # Find least recently accessed session
             oldest_session = min(
                 self._access_times.keys(),
@@ -206,7 +205,7 @@ class SessionGovernor:
 
     def _estimate_tokens(self, messages: List[Dict[str, Any]]) -> int:
         """Rough token estimation for session bounds checking.
-        
+
         Uses simple heuristic: ~1.3 tokens per word for English text.
         """
         total_chars = sum(len(str(m.get("content", ""))) for m in messages)
