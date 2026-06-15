@@ -39,16 +39,26 @@ jobs:
     steps:
       - name: Generate GitHub App Token
         id: app-token
+        continue-on-error: true
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.CLAUDE_APP_ID }}
           private-key: ${{ secrets.CLAUDE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
+      - name: Resolve GitHub token
+        id: github-token
+        run: |
+          if [ -n "${{ steps.app-token.outputs.token }}" ]; then
+            echo "token=${{ steps.app-token.outputs.token }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "token=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Triage and acknowledge issue
         uses: actions/github-script@v7
         with:
-          github-token: ${{ steps.app-token.outputs.token }}
+          github-token: ${{ steps.github-token.outputs.token }}
           script: |
             const issue = context.payload.issue;
             const title = (issue.title || '').toLowerCase();
@@ -152,16 +162,27 @@ jobs:
     steps:
       - name: Generate GitHub App Token
         id: app-token
+        continue-on-error: true
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.CLAUDE_APP_ID }}
           private-key: ${{ secrets.CLAUDE_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
+      - name: Resolve GitHub token
+        id: github-token
+        run: |
+          if [ -n "${{ steps.app-token.outputs.token }}" ]; then
+            echo "token=${{ steps.app-token.outputs.token }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "token=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check for Fork PR
         id: check_fork
         uses: actions/github-script@v7
         with:
+          github-token: ${{ steps.github-token.outputs.token }}
           script: |
             const isPR = context.eventName === 'pull_request' || (context.payload.issue && context.payload.issue.pull_request);
             if (isPR) {
@@ -188,7 +209,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.github-token.outputs.token }}
 
       - name: Fetch PR branch and Setup Remote
         if: github.event.issue.pull_request
@@ -204,11 +225,11 @@ jobs:
       - name: Run Claude Code Action
         uses: anthropics/claude-code-action@beta
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.github-token.outputs.token }}
         with:
           allowed_bots: 'praisonai-triage-agent[bot]'
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ steps.app-token.outputs.token }}
+          github_token: ${{ steps.github-token.outputs.token }}
           trigger_phrase: "@claude"
           label_trigger: "claude"
           timeout_minutes: "30"
