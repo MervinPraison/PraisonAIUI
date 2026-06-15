@@ -314,6 +314,35 @@ class Compiler:
                 "provider": self.config.search.provider,
             }
 
+        # ── Enterprise features (partial implementation) ──
+
+        # SEO configuration - basic implementation for static build
+        if self.config.seo:
+            result["seo"] = {
+                "titleTemplate": self.config.seo.title_template,
+                "defaultImage": self.config.seo.default_image,
+                "twitter": self.config.seo.twitter,
+            }
+
+        # A11y configuration - basic implementation for frontend
+        if self.config.a11y:
+            result["a11y"] = {
+                "skipToContent": self.config.a11y.skip_to_content,
+                "focusVisible": self.config.a11y.focus_visible,
+                "reduceMotion": self.config.a11y.reduce_motion,
+                "ariaLabels": self.config.a11y.aria_labels,
+            }
+
+        # I18n configuration - emit for frontend consumption (experimental)
+        if self.config.i18n:
+            result["i18n"] = {
+                "defaultLocale": self.config.i18n.default_locale,
+                "locales": self.config.i18n.locales,
+                "rtlLocales": self.config.i18n.rtl_locales,
+                "fallbackLocale": self.config.i18n.fallback_locale,
+                "translationsDir": self.config.i18n.translations_dir,
+            }
+
         return result
 
     def _serialize_template(self, template) -> dict:
@@ -588,18 +617,53 @@ class Compiler:
 
     def _build_seo_tags(self, path: str, title: str, description: str) -> str:
         """Build canonical, OG, and Twitter meta tags."""
-        t = self._escape_html(title)
         d = self._escape_html(description)
         p = self._escape_html(path)
-        return (
-            f'  <link rel="canonical" href="{p}" />\n'
-            f'  <meta property="og:title" content="{t}" />\n'
-            f'  <meta property="og:description" content="{d}" />\n'
-            f'  <meta property="og:url" content="{p}" />\n'
-            f'  <meta name="twitter:card" content="summary" />\n'
-            f'  <meta name="twitter:title" content="{t}" />\n'
-            f'  <meta name="twitter:description" content="{d}" />'
-        )
+
+        # Extract original page title by removing the site title suffix if present
+        site_title = self.config.site.title
+        page_title = title
+        suffix = f" | {site_title}"
+        if page_title.endswith(suffix):
+            page_title = page_title[:-len(suffix)]
+
+        # Use configured title template if available
+        if self.config.seo and self.config.seo.title_template:
+            template = self.config.seo.title_template
+            if "%s" in template:
+                parts = template.split("%s")
+                if len(parts) >= 3:
+                    t = self._escape_html(f"{parts[0]}{page_title}{parts[1]}{site_title}{''.join(parts[2:])}")
+                else:
+                    t = self._escape_html(template.replace("%s", page_title, 1))
+            else:
+                t = self._escape_html(template)
+        else:
+            t = self._escape_html(title)
+
+        tags = [
+            f'  <link rel="canonical" href="{p}" />',
+            f'  <meta property="og:title" content="{t}" />',
+            f'  <meta property="og:description" content="{d}" />',
+            f'  <meta property="og:url" content="{p}" />',
+        ]
+
+        # Add default OG image if configured
+        if self.config.seo and self.config.seo.default_image:
+            og_image = self._escape_html(self.config.seo.default_image)
+            tags.append(f'  <meta property="og:image" content="{og_image}" />')
+
+        # Add Twitter card tags
+        tags.append('  <meta name="twitter:card" content="summary" />')
+        tags.append(f'  <meta name="twitter:title" content="{t}" />')
+        tags.append(f'  <meta name="twitter:description" content="{d}" />')
+
+        # Add Twitter handle if configured
+        if self.config.seo and self.config.seo.twitter and "handle" in self.config.seo.twitter:
+            handle = self._escape_html(self.config.seo.twitter["handle"])
+            tags.append(f'  <meta name="twitter:site" content="{handle}" />')
+
+        return "\n".join(tags)
 
     def _get_noscript_content(self, output_dir: Path, path: str) -> str:
         """Load markdown file and convert to simple HTML for noscript block."""

@@ -37,6 +37,11 @@ export function ToolCallDisplay({ toolCall }: ToolCallDisplayProps) {
                 <span className="font-medium truncate">
                     {toolCall.icon && <span className="mr-1">{toolCall.icon}</span>}
                     {displayLabel}
+                    {toolCall.capability === 'stub' && (
+                        <span className="ml-1 text-[10px] text-orange-600 bg-orange-100 px-1 py-0.5 rounded">
+                            ⚠️ DEMO
+                        </span>
+                    )}
                 </span>
 
                 {toolCall.error && (
@@ -59,6 +64,22 @@ export function ToolCallDisplay({ toolCall }: ToolCallDisplayProps) {
             </button>
             {expanded && (
                 <div className="p-2 border-t space-y-2">
+                    {toolCall.capability === 'stub' && (
+                        <div className="p-2 rounded bg-orange-50 border border-orange-200 text-orange-800 text-xs">
+                            <div className="font-medium flex items-center gap-1">
+                                ⚠️ Simulated Tool
+                            </div>
+                            <div className="mt-1">
+                                This tool returns demonstration data, not real results.
+                            </div>
+                        </div>
+                    )}
+                    {toolCall.warning && (
+                        <div className="p-2 rounded bg-yellow-50 border border-yellow-200 text-yellow-800 text-xs">
+                            <div className="font-medium">⚠️ Warning</div>
+                            <div className="mt-1">{toolCall.warning}</div>
+                        </div>
+                    )}
                     {toolCall.elements?.length ? (
                         <div>
                             <span className="text-muted-foreground">Preview:</span>

@@ -18,15 +18,18 @@ Run:
     aiui run app.py --style dashboard
 """
 
-import os
-import time
 import asyncio
+import os
+import sys
+import time
 
 import praisonaiui as aiui
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '_shared'))
+from stream_bridge import StreamBridge
+
 try:
     from praisonaiagents import Agent
-    from praisonaiagents.streaming.events import StreamEventType
 except ImportError:
     raise ImportError(
         "praisonaiagents required: pip install praisonaiagents"
@@ -102,31 +105,21 @@ async def on_message(message: str):
 
     await aiui.think("Agent thinking...")
     start = time.time()
-    token_queue = asyncio.Queue()
 
-    def on_stream(event):
-        if event.type == StreamEventType.DELTA_TEXT and event.content:
-            token_queue.put_nowait(event.content)
-        elif event.type == StreamEventType.FIRST_TOKEN and event.content:
-            token_queue.put_nowait(event.content)
-        elif event.type == StreamEventType.STREAM_END:
-            token_queue.put_nowait(None)
-
-    agent.stream_emitter.add_callback(on_stream)
+    # Set up thread-safe streaming bridge
+    bridge = StreamBridge()
+    callback = bridge.emitter_callback()
+    agent.stream_emitter.add_callback(callback)
     full = []
 
     try:
-        task = asyncio.get_event_loop().run_in_executor(
-            None, lambda: agent.chat(str(message), stream=True)
+        # Run agent.chat concurrently with token consumption
+        task = asyncio.create_task(
+            asyncio.to_thread(lambda: agent.chat(str(message), stream=True))
         )
 
-        while True:
-            try:
-                tok = await asyncio.wait_for(token_queue.get(), timeout=60)
-            except asyncio.TimeoutError:
-                break
-            if tok is None:
-                break
+        # Consume tokens as they arrive and stream to UI
+        async for tok in bridge.consume():
             full.append(tok)
             await aiui.stream_token(tok)
 
@@ -139,7 +132,8 @@ async def on_message(message: str):
         await aiui.say(f"❌ Error: {e}")
 
     finally:
-        agent.stream_emitter.remove_callback(on_stream)
+        agent.stream_emitter.remove_callback(callback)
+        bridge.cancel()
 
 
 # ── @page — live metrics from real calls ─────────────────────────────

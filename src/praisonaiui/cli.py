@@ -220,7 +220,7 @@ def validate(
         console.print(f"[red]Error:[/red] Failed to parse configuration: {e}")
         raise typer.Exit(code=1)
 
-    result = validate_config(cfg, config.parent)
+    result = validate_config(cfg, config.parent, strict=strict)
 
     if result.valid:
         console.print("[green]✓[/green] Configuration is valid")
