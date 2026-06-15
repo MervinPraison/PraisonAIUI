@@ -65,13 +65,11 @@ class FullFeaturedProvider(BaseProvider):
 
         def calculate(expression: str) -> str:
             """Evaluate a math expression safely."""
+            from praisonaiui.math_eval import eval_math_expression
+
             try:
-                # Safe evaluation of basic math
-                allowed = set("0123456789+-*/.() ")
-                if all(c in allowed for c in expression):
-                    result = eval(expression)
-                    return f"Result: {result}"
-                return "Error: Only basic math operations allowed"
+                result = eval_math_expression(expression)
+                return f"Result: {result}"
             except Exception as e:
                 return f"Error: {e}"
 
