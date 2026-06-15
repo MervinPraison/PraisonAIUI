@@ -290,8 +290,15 @@ class Compiler:
                 "ariaLabels": self.config.a11y.aria_labels,
             }
         
-        # I18n configuration - schema only, warn at validation
-        # Note: i18n is intentionally not emitted as it's not runtime implemented
+        # I18n configuration - emit for frontend consumption (experimental)
+        if self.config.i18n:
+            result["i18n"] = {
+                "defaultLocale": self.config.i18n.default_locale,
+                "locales": self.config.i18n.locales,
+                "rtlLocales": self.config.i18n.rtl_locales,
+                "fallbackLocale": self.config.i18n.fallback_locale,
+                "translationsDir": self.config.i18n.translations_dir,
+            }
 
         return result
 

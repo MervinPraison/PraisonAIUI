@@ -10,6 +10,18 @@ import { Toc } from './Toc'
 import { Footer } from './Footer'
 import { ChatLayout, AgentUILayout, CopilotWidget, PlaygroundLayout } from './layouts'
 
+function SkipLink({ enabled }: { enabled?: boolean }) {
+  if (!enabled) return null
+  return (
+    <a
+      href="#main-content"
+      className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 z-50 bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium"
+    >
+      Skip to main content
+    </a>
+  )
+}
+
 export default function App() {
   const [config, setConfig] = useState<UIConfig>({})
   const [nav, setNav] = useState<DocsNav>({})
@@ -100,8 +112,21 @@ export default function App() {
 
   // Update SEO meta tags dynamically
   const updateSEO = (title: string, path: string, description?: string) => {
-    // Update title
-    document.title = `${title} | ${config.site?.title || 'Documentation'}`
+    // Update title using SEO titleTemplate if available
+    const titleTemplate = config.seo?.titleTemplate || '%s | %s'
+    const siteName = config.site?.title || 'Documentation'
+    if (titleTemplate.includes('%s')) {
+      const parts = titleTemplate.split('%s')
+      if (parts.length >= 3) {
+        document.title = `${parts[0]}${title}${parts[1]}${siteName}${parts[2] || ''}`
+      } else if (parts.length === 2) {
+        document.title = titleTemplate.replace('%s', title).replace('%s', siteName)
+      } else {
+        document.title = titleTemplate.replace('%s', title)
+      }
+    } else {
+      document.title = `${title} | ${siteName}`
+    }
 
     // Update canonical URL
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement
@@ -137,6 +162,30 @@ export default function App() {
       document.head.appendChild(ogUrl)
     }
     ogUrl.content = window.location.origin + path
+
+    // Update Twitter meta tags if configured
+    if (config.seo?.twitter) {
+      Object.entries(config.seo.twitter).forEach(([key, value]) => {
+        let twitterMeta = document.querySelector(`meta[name="twitter:${key}"]`) as HTMLMetaElement
+        if (!twitterMeta) {
+          twitterMeta = document.createElement('meta')
+          twitterMeta.name = `twitter:${key}`
+          document.head.appendChild(twitterMeta)
+        }
+        twitterMeta.content = value
+      })
+    }
+
+    // Set default image if available
+    if (config.seo?.defaultImage) {
+      let ogImage = document.querySelector('meta[property="og:image"]') as HTMLMetaElement
+      if (!ogImage) {
+        ogImage = document.createElement('meta')
+        ogImage.setAttribute('property', 'og:image')
+        document.head.appendChild(ogImage)
+      }
+      ogImage.content = config.seo.defaultImage
+    }
   }
 
   const handleItemClick = (item: NavItem) => {
@@ -271,8 +320,9 @@ export default function App() {
         if (config.chat?.enabled) {
           return (
             <div className="min-h-screen bg-background text-foreground">
+              <SkipLink enabled={config.a11y?.skipToContent} />
               <Header config={config} />
-              {renderLayout()}
+              <main id="main-content">{renderLayout()}</main>
               <Footer config={config} />
               <CopilotWidget config={config.chat} layout={config.layout} />
             </div>
@@ -280,8 +330,9 @@ export default function App() {
         }
         return (
           <div className="min-h-screen bg-background text-foreground">
+            <SkipLink enabled={config.a11y?.skipToContent} />
             <Header config={config} />
-            {renderLayout()}
+            <main id="main-content">{renderLayout()}</main>
             <Footer config={config} />
           </div>
         )
@@ -293,8 +344,9 @@ export default function App() {
           if (layoutMode && ['bottom-right', 'bottom-left', 'top-right', 'top-left'].includes(layoutMode)) {
             return (
               <div className="min-h-screen bg-background text-foreground">
+                <SkipLink enabled={config.a11y?.skipToContent} />
                 <Header config={config} />
-                {renderLayout()}
+                <main id="main-content">{renderLayout()}</main>
                 <Footer config={config} />
                 <CopilotWidget config={config.chat} layout={config.layout} />
               </div>
@@ -303,8 +355,9 @@ export default function App() {
         }
         return (
           <div className="min-h-screen bg-background text-foreground">
+            <SkipLink enabled={config.a11y?.skipToContent} />
             <Header config={config} />
-            {renderLayout()}
+            <main id="main-content">{renderLayout()}</main>
             <Footer config={config} />
           </div>
         )

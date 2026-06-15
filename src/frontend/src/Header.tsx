@@ -15,19 +15,25 @@ export function Header({ config }: { config: UIConfig }) {
         cta?: { label: string; href: string }
     } | undefined
 
+    // Get logo configuration - support both header.logoImage and config.logo
+    const logoConfig = config.logo
+    const isDarkMode = document.documentElement.classList.contains('dark')
+    const logoSrc = header?.logoImage || (logoConfig ? (isDarkMode ? logoConfig.dark : logoConfig.light) : null)
+    const logoHref = logoConfig?.href || '/'
+
     return (
         <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
             <div className="max-w-screen-2xl mx-auto flex h-16 items-center px-6 gap-8">
-                <a href="/" className="flex items-center gap-3 group cursor-pointer" onClick={(e) => {
+                <a href={logoHref} className="flex items-center gap-3 group cursor-pointer" onClick={(e) => {
                     e.preventDefault()
-                    window.history.pushState({}, '', '/')
+                    window.history.pushState({}, '', logoHref)
                     window.location.reload()
                 }}>
-                    {header?.logoImage ? (
+                    {logoSrc ? (
                         <img 
-                            src={header.logoImage} 
+                            src={logoSrc} 
                             alt="Logo" 
-                            className="w-8 h-8 rounded-lg shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-shadow"
+                            className="w-8 h-8 rounded-lg shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-shadow object-contain"
                         />
                     ) : (
                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-shadow">
