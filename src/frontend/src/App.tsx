@@ -205,11 +205,13 @@ export default function App() {
           <div className="flex flex-col">
             {zones?.hero && <ZoneWidgets widgets={zones.hero} />}
             <div className="flex flex-1">
-              {zones?.leftSidebar && (
+              {zones?.leftSidebar ? (
                 <aside className="w-64 border-r p-4 hidden md:block">
                   <ZoneWidgets widgets={zones.leftSidebar} />
                 </aside>
-              )}
+              ) : nav?.items && nav.items.length > 0 ? (
+                <Sidebar nav={nav} activeItem={activeItemPath} onItemClick={handleItemClick} />
+              ) : null}
               <div className="flex-1">
                 <Content config={config} routes={routes} selectedItem={selectedItem} />
               </div>
