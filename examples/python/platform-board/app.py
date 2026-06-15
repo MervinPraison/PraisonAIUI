@@ -29,11 +29,20 @@ async def _fetch_issues() -> tuple[list, str | None]:
 
     if response.status_code in (401, 403):
         return [], f"Platform auth failed (HTTP {response.status_code})"
-    if response.status_code >= 400:
+    if response.status_code != 200:
         return [], f"Platform error (HTTP {response.status_code})"
 
-    data = response.json()
-    issues = data if isinstance(data, list) else data.get("issues") or data.get("items") or []
+    try:
+        data = response.json()
+    except ValueError:
+        return [], "Platform returned invalid JSON"
+
+    if isinstance(data, list):
+        issues = data
+    elif isinstance(data, dict):
+        issues = data.get("issues") or data.get("items") or []
+    else:
+        issues = []
     return issues, None
 
 
