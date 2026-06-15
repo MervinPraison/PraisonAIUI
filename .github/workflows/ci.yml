@@ -28,9 +28,11 @@ jobs:
         run: ruff check src/praisonaiui
 
       - name: Test with pytest
-        # Integration tests are environment-sensitive (LLM API keys,
-        # long-running flows). Unit tests are the contract CI guards.
+        # Unit tests are the primary CI contract; integration smoke validates backends.
         run: pytest tests/unit -v --no-cov --timeout=60
+
+      - name: Integration smoke tests
+        run: pytest tests/integration/test_agentic_roundtrip.py tests/test_feature_sdk_backends.py -q --no-cov --timeout=120
 
   docs:
     runs-on: ubuntu-latest

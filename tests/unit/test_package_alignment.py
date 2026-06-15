@@ -51,3 +51,22 @@ def test_view_wrappers_delegate(dashboard_source):
     """Views should exist in BUILTIN_VIEWS for modular pages."""
     for page_id in ("agents", "sessions", "schedules", "config", "channels", "logs", "usage", "jobs"):
         assert page_id in dashboard_source or f"'{page_id}'" in dashboard_source
+
+
+def test_plugins_config_includes_auth_api_modules():
+    """Optional dashboard modules appear in dynamic plugins.json."""
+    from starlette.testclient import TestClient
+
+    import praisonaiui as aiui
+    import praisonaiui.server as server
+
+    aiui.set_style("dashboard")
+    aiui.set_dashboard(modules=["jobs", "auth", "api"])
+    app = server.create_app()
+    client = TestClient(app)
+    resp = client.get("/plugins/plugins.json")
+    assert resp.status_code == 200
+    plugins = resp.json().get("plugins") or []
+    assert "jobs" in plugins
+    assert "auth" in plugins
+    assert "api" in plugins

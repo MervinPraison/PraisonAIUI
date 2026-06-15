@@ -4,6 +4,7 @@
  * Enhanced session management with reset, compact, and preview.
  */
 import { showToast, showConfirm } from './toast.js';
+import { pageToolbar } from './views/_helpers.js';
 
 let sessions = [];
 let selectedSession = null;
@@ -149,10 +150,7 @@ function renderSessionsUI() {
   if (!container) return;
   
   container.innerHTML = `
-    <div class="aiui-sessions-header">
-      <h2>Sessions</h2>
-      <span class="aiui-sessions-count">${sessions.length} sessions</span>
-    </div>
+    ${pageToolbar('Sessions', `<span class="aiui-sessions-count">${sessions.length} sessions</span>`)}
     
     <div class="aiui-sessions-list">
       ${sessions.length === 0 

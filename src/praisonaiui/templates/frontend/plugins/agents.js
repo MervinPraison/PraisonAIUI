@@ -4,6 +4,7 @@
  * Provides full CRUD for agent management with an editor interface.
  */
 import { showConfirm } from './toast.js';
+import { pageToolbar } from './views/_helpers.js';
 
 let agentsData = null;
 let modelsData = null;
@@ -281,12 +282,7 @@ function renderAgentsUI() {
 
   if (!agentsData || agentsData.agents.length === 0) {
     container.innerHTML = `
-      <div class="aiui-agents-header">
-        <h2>Agents</h2>
-        <button class="aiui-btn aiui-btn-primary" onclick="window.aiuiCreateAgent()">
-          + New Agent
-        </button>
-      </div>
+      ${pageToolbar('Agents', '<button class="aiui-btn aiui-btn-primary" onclick="window.aiuiCreateAgent()">+ New Agent</button>')}
       <div class="aiui-agents-empty">
         <div class="aiui-empty-icon">🤖</div>
         <h3>No Agents</h3>
@@ -302,15 +298,7 @@ function renderAgentsUI() {
   const cards = agentsData.agents.map(renderAgentCard).join('');
   
   container.innerHTML = `
-    <div class="aiui-agents-header">
-      <div class="aiui-agents-title">
-        <h2>Agents</h2>
-        <span class="aiui-agents-count">${agentsData.count} agents</span>
-      </div>
-      <button class="aiui-btn aiui-btn-primary" onclick="window.aiuiCreateAgent()">
-        + New Agent
-      </button>
-    </div>
+    ${pageToolbar(`Agents <span class="aiui-agents-count">${agentsData.count} agents</span>`, '<button class="aiui-btn aiui-btn-primary" onclick="window.aiuiCreateAgent()">+ New Agent</button>')}
     <div class="aiui-agents-grid">
       ${cards}
     </div>

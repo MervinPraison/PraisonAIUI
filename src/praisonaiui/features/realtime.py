@@ -130,11 +130,24 @@ class OpenAIRealtimeManager(RealtimeProtocol):
                 "type": "session.ready",
                 "session_id": session_id,
                 "provider": "openai",
+                "transport": "webrtc",
                 "status": session.get("status", "created"),
+                "client_secret": session.get("client_secret"),
             }
             return
 
-        # Mock event stream fallback
+        from praisonaiui.backends import is_integrated_mode
+
+        if is_integrated_mode():
+            yield {
+                "type": "error",
+                "status": "degraded",
+                "error": "OPENAI_API_KEY required for realtime WebRTC in integrated mode",
+                "session_id": session_id,
+            }
+            return
+
+        # Standalone mock event stream fallback
         yield {
             "type": "conversation.item.created",
             "item": {
@@ -149,10 +162,31 @@ class OpenAIRealtimeManager(RealtimeProtocol):
         self, session_id: str, tool_name: str, args: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Handle tool calls from realtime API."""
+        from praisonaiui.backends import get_tool_resolver
+
+        resolver = get_tool_resolver()
+        if resolver is not None and hasattr(resolver, "resolve"):
+            tool = resolver.resolve(tool_name)
+            if tool is not None:
+                try:
+                    result = tool(**args) if callable(tool) else str(tool)
+                    return {
+                        "type": "function_call_output",
+                        "call_id": args.get("call_id", "unknown"),
+                        "output": str(result),
+                    }
+                except Exception as exc:
+                    return {
+                        "type": "error",
+                        "error": str(exc),
+                        "call_id": args.get("call_id", "unknown"),
+                    }
+
         return {
             "type": "function_call_output",
             "call_id": args.get("call_id", "unknown"),
-            "output": f"Tool {tool_name} called with args: {args}",
+            "output": f"Tool {tool_name} not available",
+            "status": "degraded",
         }
 
     async def close_session(self, session_id: str) -> None:

@@ -114,9 +114,9 @@ export async function render(container) {
   });
 
   // Search handler
-  const searchInput = container.querySelector('#mem-search');
+  const searchEl = container.querySelector('#mem-search');
   container.querySelector('#mem-search-btn')?.addEventListener('click', async () => {
-    const query = searchInput.value.trim();
+    const query = searchEl.value.trim();
     if (!query) return;
     const resultsDiv = container.querySelector('#mem-results');
     resultsDiv.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
@@ -187,7 +187,7 @@ export async function render(container) {
   });
 
   // Enter key = search
-  searchInput?.addEventListener('keydown', (e) => {
+  searchEl?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') container.querySelector('#mem-search-btn')?.click();
   });
 }

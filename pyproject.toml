@@ -61,9 +61,9 @@ postgres = [
 
 praisonai = [
     # Core agents SDK with knowledge support
-    "praisonaiagents[knowledge,search,crawl]>=1.5.56",
+    "praisonaiagents[knowledge,search,crawl]>=1.6.46",
     # PraisonAI wrapper (includes CLI, bots, gateway support)
-    "praisonai[bot,api,os]>=2.0.0",
+    "praisonai[bot,api,os]>=4.6.0",
     # Gateway dependencies
     "fastapi>=0.115.0",
     "sse-starlette>=1.6.0",

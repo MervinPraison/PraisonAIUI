@@ -16,7 +16,7 @@ import logging
 import time
 import uuid
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -105,33 +105,168 @@ class SimpleJobStore(JobStoreProtocol):
 
 
 class SDKJobStore(JobStoreProtocol):
-    """Wraps praisonai.jobs for production use."""
+    """Uses praisonai.jobs store when the package is installed."""
 
     def __init__(self) -> None:
-        from praisonai.jobs import JobExecutor  # noqa: F401
+        from praisonaiui.backends import get_jobs_store_factory
 
-        self._simple = SimpleJobStore()
-        logger.info("SDKJobStore initialized (praisonai.jobs available)")
+        factory = get_jobs_store_factory()
+        if factory is not None:
+            self._sdk = factory()
+            logger.info("SDKJobStore initialized (injected jobs_store backend)")
+            return
+        from praisonai.jobs.server import get_store
+
+        self._sdk = get_store()
+        logger.info("SDKJobStore initialized (praisonai.jobs store)")
+
+    @staticmethod
+    def _parse_sdk_status(status: Optional[str]) -> Any:
+        if not status:
+            return None
+        from praisonai.jobs.models import JobStatus as SdkStatus
+
+        try:
+            return SdkStatus(status)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _ts_to_float(value: Any) -> Any:
+        if value is None:
+            return None
+        if hasattr(value, "timestamp"):
+            return value.timestamp()
+        return value
+
+    @staticmethod
+    def _float_to_dt(value: Any) -> Any:
+        if value is None:
+            return None
+        if isinstance(value, (int, float)):
+            return datetime.fromtimestamp(value, tz=timezone.utc)
+        return value
+
+    @classmethod
+    def _job_to_dict(cls, job: Any) -> Dict[str, Any]:
+        return {
+            "id": job.id,
+            "job_id": job.id,
+            "status": job.status.value if hasattr(job.status, "value") else job.status,
+            "prompt": job.prompt,
+            "agent_file": job.agent_file,
+            "agent_yaml": job.agent_yaml,
+            "recipe_name": job.recipe_name,
+            "framework": job.framework,
+            "config": job.config or {},
+            "webhook_url": job.webhook_url,
+            "timeout": job.timeout,
+            "session_id": job.session_id,
+            "idempotency_key": job.idempotency_key,
+            "progress_percentage": getattr(job, "progress_percentage", 0.0),
+            "progress_step": getattr(job, "progress_step", None),
+            "created_at": cls._ts_to_float(job.created_at),
+            "started_at": cls._ts_to_float(job.started_at),
+            "completed_at": cls._ts_to_float(job.completed_at),
+            "result": job.result,
+            "error": job.error,
+            "metrics": job.metrics,
+        }
+
+    @classmethod
+    def _dict_to_job(cls, job: Dict[str, Any]) -> Any:
+        from praisonai.jobs.models import Job as SdkJob
+        from praisonai.jobs.models import JobStatus as SdkStatus
+
+        status = job.get("status", JobStatus.QUEUED.value)
+        if isinstance(status, str):
+            status = SdkStatus(status)
+
+        return SdkJob(
+            id=job.get("id") or job.get("job_id") or f"run_{uuid.uuid4().hex[:12]}",
+            status=status,
+            prompt=job.get("prompt", ""),
+            agent_file=job.get("agent_file"),
+            agent_yaml=job.get("agent_yaml"),
+            recipe_name=job.get("recipe_name"),
+            framework=job.get("framework", "praisonai"),
+            config=job.get("config") or {},
+            webhook_url=job.get("webhook_url"),
+            timeout=job.get("timeout", 3600),
+            session_id=job.get("session_id"),
+            idempotency_key=job.get("idempotency_key"),
+            progress_percentage=job.get("progress_percentage", 0.0),
+            progress_step=job.get("progress_step"),
+            created_at=cls._float_to_dt(job.get("created_at")) or datetime.now(timezone.utc),
+            started_at=cls._float_to_dt(job.get("started_at")),
+            completed_at=cls._float_to_dt(job.get("completed_at")),
+            result=job.get("result"),
+            error=job.get("error"),
+            metrics=job.get("metrics"),
+        )
+
+    async def get_job_async(self, job_id: str) -> Optional[Dict[str, Any]]:
+        job = await self._sdk.get(job_id)
+        return self._job_to_dict(job) if job else None
+
+    async def get_by_idempotency_key_async(self, key: str) -> Optional[Dict[str, Any]]:
+        job = await self._sdk.get_by_idempotency_key(key)
+        return self._job_to_dict(job) if job else None
+
+    async def save_job_async(self, job: Dict[str, Any]) -> None:
+        await self._sdk.save(self._dict_to_job(job))
+
+    async def delete_job_async(self, job_id: str) -> bool:
+        return await self._sdk.delete(job_id)
+
+    async def list_jobs_async(
+        self,
+        *,
+        status: Optional[str] = None,
+        session_id: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        st = self._parse_sdk_status(status)
+        jobs = await self._sdk.list_jobs(status=st, session_id=session_id, limit=limit, offset=offset)
+        return [self._job_to_dict(j) for j in jobs]
+
+    async def count_jobs_async(
+        self,
+        *,
+        status: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> int:
+        st = self._parse_sdk_status(status)
+        return await self._sdk.count(status=st, session_id=session_id)
+
+    async def stats_async(self) -> Dict[str, Any]:
+        if hasattr(self._sdk, "get_stats"):
+            raw = await self._sdk.get_stats()
+            raw["provider"] = "SDKJobStore"
+            raw["sdk_available"] = True
+            return raw
+        total = await self.count_jobs_async()
+        return {"provider": "SDKJobStore", "sdk_available": True, "total_jobs": total}
 
     def get(self, job_id: str) -> Optional[Dict[str, Any]]:
-        return self._simple.get(job_id)
+        return _run_store_coro(self.get_job_async(job_id))
 
     def list_all(self) -> List[Dict[str, Any]]:
-        return self._simple.list_all()
+        return _run_store_coro(self.list_jobs_async(limit=10000))
 
     def save(self, job: Dict[str, Any]) -> None:
-        self._simple.save(job)
+        _run_store_coro(self.save_job_async(job))
 
     def delete(self, job_id: str) -> bool:
-        return self._simple.delete(job_id)
+        return _run_store_coro(self.delete_job_async(job_id))
 
     def stats(self) -> Dict[str, Any]:
-        return self._simple.stats()
+        return _run_store_coro(self.stats_async())
 
     def health(self) -> Dict[str, Any]:
-        h = self._simple.health()
-        h["provider"] = "SDKJobStore"
-        h["sdk_available"] = True
+        h = self.stats()
+        h["status"] = "ok"
         return h
 
 
@@ -154,6 +289,56 @@ def get_job_store() -> JobStoreProtocol:
     return _job_store
 
 
+def _run_store_coro(coro: Any) -> Any:
+    """Run an async store call from sync contexts (CLI)."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    raise RuntimeError("Sync job store access from async context; use store_* helpers")
+
+
+async def _store_get(store: JobStoreProtocol, job_id: str) -> Optional[Dict[str, Any]]:
+    if hasattr(store, "get_job_async"):
+        return await store.get_job_async(job_id)
+    return store.get(job_id)
+
+
+async def _store_save(store: JobStoreProtocol, job: Dict[str, Any]) -> None:
+    if hasattr(store, "save_job_async"):
+        await store.save_job_async(job)
+    else:
+        store.save(job)
+
+
+async def _store_delete(store: JobStoreProtocol, job_id: str) -> bool:
+    if hasattr(store, "delete_job_async"):
+        return await store.delete_job_async(job_id)
+    return store.delete(job_id)
+
+
+async def _store_count(
+    store: JobStoreProtocol,
+    *,
+    status: Optional[str] = None,
+    session_id: Optional[str] = None,
+) -> int:
+    if hasattr(store, "count_jobs_async"):
+        return await store.count_jobs_async(status=status, session_id=session_id)
+    jobs = store.list_all()
+    if status:
+        jobs = [j for j in jobs if j.get("status") == status]
+    if session_id:
+        jobs = [j for j in jobs if j.get("session_id") == session_id]
+    return len(jobs)
+
+
+async def _store_stats(store: JobStoreProtocol) -> Dict[str, Any]:
+    if hasattr(store, "stats_async"):
+        return await store.stats_async()
+    return store.stats()
+
+
 class JobsFeature(BaseFeatureProtocol):
     """Async job management for agent execution."""
 
@@ -173,6 +358,7 @@ class JobsFeature(BaseFeatureProtocol):
             Route("/api/jobs", self._list, methods=["GET"]),
             Route("/api/jobs", self._submit, methods=["POST"]),
             Route("/api/jobs/stats", self._stats, methods=["GET"]),
+            Route("/api/jobs/board", self._board, methods=["GET"]),
             Route("/api/jobs/{job_id}", self._get, methods=["GET"]),
             Route("/api/jobs/{job_id}", self._delete, methods=["DELETE"]),
             Route("/api/jobs/{job_id}/status", self._status, methods=["GET"]),
@@ -198,10 +384,11 @@ class JobsFeature(BaseFeatureProtocol):
         from ._gateway_helpers import gateway_health
 
         store = get_job_store()
+        store_health = await _store_stats(store)
         return {
             "status": "ok",
             "feature": self.name,
-            **store.health(),
+            **store_health,
             **gateway_health(),
         }
 
@@ -215,17 +402,31 @@ class JobsFeature(BaseFeatureProtocol):
         page = int(request.query_params.get("page", 1))
         page_size = int(request.query_params.get("page_size", 20))
 
-        jobs = store.list_all()
+        if hasattr(store, "list_jobs_async"):
+            offset = (page - 1) * page_size
+            jobs = await store.list_jobs_async(
+                status=status_filter,
+                session_id=session_id,
+                limit=page_size,
+                offset=offset,
+            )
+            total = await _store_count(
+                store,
+                status=status_filter,
+                session_id=session_id,
+            )
+        else:
+            jobs = store.list_all()
 
-        if status_filter:
-            jobs = [j for j in jobs if j.get("status") == status_filter]
-        if session_id:
-            jobs = [j for j in jobs if j.get("session_id") == session_id]
+            if status_filter:
+                jobs = [j for j in jobs if j.get("status") == status_filter]
+            if session_id:
+                jobs = [j for j in jobs if j.get("session_id") == session_id]
 
-        jobs.sort(key=lambda j: j.get("created_at", 0), reverse=True)
-        total = len(jobs)
-        offset = (page - 1) * page_size
-        jobs = jobs[offset : offset + page_size]
+            jobs.sort(key=lambda j: j.get("created_at", 0), reverse=True)
+            total = len(jobs)
+            offset = (page - 1) * page_size
+            jobs = jobs[offset : offset + page_size]
 
         return JSONResponse(
             {
@@ -235,6 +436,32 @@ class JobsFeature(BaseFeatureProtocol):
                 "page_size": page_size,
             }
         )
+
+    async def _board(self, request: Request) -> JSONResponse:
+        """Kanban-style column layout from job statuses."""
+        store = get_job_store()
+        if hasattr(store, "list_jobs_async"):
+            jobs = await store.list_jobs_async(limit=10000)
+        else:
+            jobs = store.list_all()
+        cols = ["queued", "running", "succeeded", "failed", "cancelled"]
+        columns = []
+        for col_id in cols:
+            cards = []
+            for job in jobs:
+                if job.get("status") != col_id:
+                    continue
+                title = (job.get("prompt") or job.get("id") or "Job")[:80]
+                cards.append(
+                    {
+                        "id": job.get("id"),
+                        "title": title,
+                        "footer": job.get("status", col_id),
+                        "status": col_id,
+                    }
+                )
+            columns.append({"id": col_id, "title": col_id.replace("_", " ").title(), "cards": cards})
+        return JSONResponse({"board": "jobs", "columns": columns, "tasks_total": len(jobs)})
 
     async def _submit(self, request: Request) -> JSONResponse:
         """Submit a new job for execution."""
@@ -270,11 +497,16 @@ class JobsFeature(BaseFeatureProtocol):
         # Check idempotency
         idem_key = body.get("idempotency_key")
         if idem_key:
-            for existing in store.list_all():
-                if existing.get("idempotency_key") == idem_key:
+            if hasattr(store, "get_by_idempotency_key_async"):
+                existing = await store.get_by_idempotency_key_async(idem_key)
+                if existing:
                     return JSONResponse(existing, status_code=200)
+            else:
+                for existing in store.list_all():
+                    if existing.get("idempotency_key") == idem_key:
+                        return JSONResponse(existing, status_code=200)
 
-        store.save(job)
+        await _store_save(store, job)
 
         # Start execution
         asyncio.create_task(self._execute_job(job_id))
@@ -298,13 +530,14 @@ class JobsFeature(BaseFeatureProtocol):
     async def _execute_job(self, job_id: str) -> None:
         """Execute a job using gateway-registered agents when available."""
         store = get_job_store()
-        job = store.get(job_id)
+        job = await _store_get(store, job_id)
         if not job:
             return
 
         # Mark as running
         job["status"] = JobStatus.RUNNING.value
         job["started_at"] = time.time()
+        await _store_save(store, job)
         await self._notify_progress(job_id)
 
         try:
@@ -329,6 +562,7 @@ class JobsFeature(BaseFeatureProtocol):
                     await asyncio.sleep(1)
                     job["progress_percentage"] = praison_job.progress_percentage
                     job["progress_step"] = praison_job.progress_step
+                    await _store_save(store, job)
                     await self._notify_progress(job_id)
 
                 if praison_job.status.value == "succeeded":
@@ -364,9 +598,11 @@ class JobsFeature(BaseFeatureProtocol):
                         model = job.get("config", {}).get("model", "gpt-4o-mini")
 
                         # Resolve tools from job config
-                        agent_tools = []
                         tool_names = job.get("config", {}).get("tools", [])
-                        if tool_names:
+                        from praisonaiui.backends import resolve_tools
+
+                        agent_tools = resolve_tools(tool_names) if tool_names else []
+                        if tool_names and not agent_tools:
                             try:
                                 from praisonai.tool_resolver import ToolResolver
 
@@ -392,10 +628,12 @@ class JobsFeature(BaseFeatureProtocol):
                 if agent is not None:
                     job["progress_percentage"] = 10
                     job["progress_step"] = "Creating agent..."
+                    await _store_save(store, job)
                     await self._notify_progress(job_id)
 
                     job["progress_percentage"] = 30
                     job["progress_step"] = "Executing agent..."
+                    await _store_save(store, job)
                     await self._notify_progress(job_id)
 
                     # Execute in thread pool
@@ -409,17 +647,32 @@ class JobsFeature(BaseFeatureProtocol):
                     job["result"] = result
                     job["metrics"] = {"model": model}
                 else:
-                    # Mock fallback
+                    from praisonaiui.backends import is_integrated_mode, resolve_tools
+
+                    if is_integrated_mode():
+                        job["status"] = JobStatus.FAILED.value
+                        job["error"] = (
+                            "Agent execution unavailable in integrated mode. "
+                            "Install praisonaiagents and ensure the agent can be created."
+                        )
+                        job["completed_at"] = time.time()
+                        await _store_save(store, job)
+                        await self._notify_progress(job_id)
+                        return
+
+                    # Standalone mock fallback
                     logger.warning("No agent available, using mock execution")
                     for i in range(5):
                         if job.get("_cancel_requested"):
                             job["status"] = JobStatus.CANCELLED.value
                             job["completed_at"] = time.time()
+                            await _store_save(store, job)
                             await self._notify_progress(job_id)
                             return
 
                         job["progress_percentage"] = (i + 1) * 20
                         job["progress_step"] = f"Step {i + 1}/5"
+                        await _store_save(store, job)
                         await self._notify_progress(job_id)
                         await asyncio.sleep(0.5)
 
@@ -433,12 +686,20 @@ class JobsFeature(BaseFeatureProtocol):
 
         job["completed_at"] = time.time()
         job["progress_percentage"] = 100.0
+        await _store_save(store, job)
         await self._notify_progress(job_id)
 
     def _get_executor(self):
-        """Try to get JobExecutor from praisonai.jobs."""
+        """Try to get JobExecutor from injected backend or praisonai.jobs."""
         try:
             if hasattr(self, "_sdk_executor"):
+                return self._sdk_executor
+
+            from praisonaiui.backends import get_jobs_executor_factory
+
+            factory = get_jobs_executor_factory()
+            if factory is not None:
+                self._sdk_executor = factory()
                 return self._sdk_executor
 
             from praisonai.jobs import JobExecutor
@@ -452,7 +713,7 @@ class JobsFeature(BaseFeatureProtocol):
     async def _notify_progress(self, job_id: str) -> None:
         """Notify all progress listeners."""
         if job_id in _progress_callbacks:
-            job = get_job_store().get(job_id)
+            job = await _store_get(get_job_store(), job_id)
             if job:
                 for queue in _progress_callbacks[job_id]:
                     try:
@@ -463,7 +724,7 @@ class JobsFeature(BaseFeatureProtocol):
     async def _get(self, request: Request) -> JSONResponse:
         """Get a job by ID."""
         job_id = request.path_params["job_id"]
-        job = get_job_store().get(job_id)
+        job = await _store_get(get_job_store(), job_id)
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
         return JSONResponse(job)
@@ -471,7 +732,7 @@ class JobsFeature(BaseFeatureProtocol):
     async def _status(self, request: Request) -> JSONResponse:
         """Get job status."""
         job_id = request.path_params["job_id"]
-        job = get_job_store().get(job_id)
+        job = await _store_get(get_job_store(), job_id)
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
 
@@ -500,7 +761,7 @@ class JobsFeature(BaseFeatureProtocol):
     async def _result(self, request: Request) -> JSONResponse:
         """Get job result."""
         job_id = request.path_params["job_id"]
-        job = get_job_store().get(job_id)
+        job = await _store_get(get_job_store(), job_id)
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
 
@@ -535,7 +796,8 @@ class JobsFeature(BaseFeatureProtocol):
     async def _cancel(self, request: Request) -> JSONResponse:
         """Cancel a running job."""
         job_id = request.path_params["job_id"]
-        job = get_job_store().get(job_id)
+        store = get_job_store()
+        job = await _store_get(store, job_id)
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
 
@@ -552,6 +814,7 @@ class JobsFeature(BaseFeatureProtocol):
         job["_cancel_requested"] = True
         job["status"] = JobStatus.CANCELLED.value
         job["completed_at"] = time.time()
+        await _store_save(store, job)
 
         return JSONResponse(
             {
@@ -565,7 +828,7 @@ class JobsFeature(BaseFeatureProtocol):
         """Delete a completed job."""
         store = get_job_store()
         job_id = request.path_params["job_id"]
-        job = store.get(job_id)
+        job = await _store_get(store, job_id)
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
 
@@ -579,13 +842,13 @@ class JobsFeature(BaseFeatureProtocol):
                 {"error": "Cannot delete running job. Cancel first."}, status_code=409
             )
 
-        store.delete(job_id)
+        await _store_delete(store, job_id)
         return JSONResponse({"deleted": job_id})
 
     async def _stream(self, request: Request) -> StreamingResponse:
         """Stream job progress via SSE."""
         job_id = request.path_params["job_id"]
-        job = get_job_store().get(job_id)
+        job = await _store_get(get_job_store(), job_id)
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
 
@@ -602,7 +865,7 @@ class JobsFeature(BaseFeatureProtocol):
                 last_progress = -1
 
                 while True:
-                    current_job = get_job_store().get(job_id)
+                    current_job = await _store_get(get_job_store(), job_id)
                     if not current_job:
                         yield 'event: error\ndata: {"error": "Job not found"}\n\n'
                         break
@@ -661,7 +924,7 @@ class JobsFeature(BaseFeatureProtocol):
     async def _stats(self, request: Request) -> JSONResponse:
         """Get executor statistics."""
         store = get_job_store()
-        s = store.stats()
+        s = await _store_stats(store)
         s["max_concurrent"] = 10
         return JSONResponse(s)
 

@@ -266,15 +266,10 @@ class ChannelsFeature(BaseFeatureProtocol):
         try:
             from praisonaiagents import Agent
 
-            # G3: Resolve tools via praisonai wrapper
-            agent_tools = []
-            try:
-                from praisonai.tool_resolver import ToolResolver
+            # G3: Resolve tools via backend or praisonai wrapper
+            from praisonaiui.backends import resolve_tools
 
-                resolver = ToolResolver()
-                agent_tools = resolver.resolve_many(["internet_search"])
-            except ImportError:
-                pass  # praisonai not installed — no tools
+            agent_tools = resolve_tools(["internet_search"])
 
             agent = Agent(
                 name="assistant",
@@ -373,7 +368,19 @@ class ChannelsFeature(BaseFeatureProtocol):
 
     @staticmethod
     def _create_bot_direct(platform: str, token: str, agent: Any, config: Dict[str, Any]) -> Any:
-        """Try to directly instantiate a bot class by platform name."""
+        """Try injected backend, then direct import by platform name."""
+        from praisonaiui.backends import get_channel_bot_factory
+
+        factory = get_channel_bot_factory()
+        if factory is not None:
+            try:
+                bot = factory(platform, token, agent, config)
+                if bot is not None:
+                    logger.info("Created %s bot via injected channel_bot backend", platform)
+                    return bot
+            except Exception as exc:
+                logger.debug("channel_bot backend failed for %s: %s", platform, exc)
+
         bot_classes: Dict[str, List[str]] = {
             "discord": [
                 "praisonai.bots.discord.DiscordBot",

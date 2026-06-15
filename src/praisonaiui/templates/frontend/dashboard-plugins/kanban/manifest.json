@@ -1,0 +1,14 @@
+{
+  "name": "kanban",
+  "label": "Kanban",
+  "description": "Multi-agent task board with drag-drop columns",
+  "icon": "📌",
+  "version": "0.1.0",
+  "group": "Work",
+  "tab": {
+    "path": "/kanban",
+    "position": "after:jobs-board"
+  },
+  "entry": "index.js",
+  "css": "styles.css"
+}

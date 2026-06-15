@@ -5,6 +5,7 @@
  * Shows job status, execution stats, and provides start/stop/run-now controls.
  */
 import { showConfirm } from './toast.js';
+import { pageToolbar } from './views/_helpers.js';
 
 let schedulesData = null;
 let refreshInterval = null;
@@ -249,17 +250,7 @@ function renderSchedulesUI() {
   const cards = schedulesData.schedules.map(renderJobCard).join('');
   
   container.innerHTML = `
-    <div class="aiui-schedules-header">
-      <h2>Scheduled Jobs</h2>
-      <div class="aiui-schedules-summary">
-        <span class="aiui-summary-stat">
-          ${getStatusDot(true)} ${enabledCount} Active
-        </span>
-        <span class="aiui-summary-stat">
-          ${schedulesData.count} Total
-        </span>
-      </div>
-    </div>
+    ${pageToolbar('Scheduled Jobs', `<div class="aiui-schedules-summary"><span class="aiui-summary-stat">${getStatusDot(true)} ${enabledCount} Active</span><span class="aiui-summary-stat">${schedulesData.count} Total</span></div>`)}
     <div class="aiui-schedules-grid">
       ${cards}
     </div>

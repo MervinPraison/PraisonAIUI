@@ -310,27 +310,20 @@ def _sync_to_gateway(agent_def: Dict[str, Any]) -> None:
             "reflection": agent_def.get("reflection", False),
         }
 
-        # G8: Resolve tool name strings to callables via ToolResolver
+        # G8: Resolve tool name strings to callables via backend ToolResolver
         tool_names = agent_def.get("tools", [])
         if tool_names:
-            agent_tools = []
-            try:
-                from praisonai.tool_resolver import ToolResolver
+            from praisonaiui.backends import resolve_tools
 
-                resolver = ToolResolver()
-                for tn in tool_names:
-                    if isinstance(tn, str) and tn.strip():
-                        resolved = resolver.resolve(tn.strip())
-                        if resolved:
-                            agent_tools.append(resolved)
-                        else:
-                            logger.warning(
-                                f"Tool '{tn}' not found for agent '{agent_def.get('id')}'"
-                            )
-            except ImportError:
-                logger.debug("ToolResolver not available, skipping tool resolution")
+            agent_tools = resolve_tools(tool_names)
             if agent_tools:
                 agent_kwargs["tools"] = agent_tools
+            else:
+                for tn in tool_names:
+                    if isinstance(tn, str) and tn.strip():
+                        logger.warning(
+                            f"Tool '{tn}' not found for agent '{agent_def.get('id')}'"
+                        )
 
         agent = Agent(**agent_kwargs)
         gw.register_agent(agent, agent_id=agent_def["id"])
@@ -668,20 +661,12 @@ class AgentsCrudFeature(BaseFeatureProtocol):
                 from praisonaiagents import Agent
 
                 # Resolve tools from CRUD definition
-                agent_tools = []
                 tool_names = agent_def.get("tools", [])
+                agent_tools = []
                 if tool_names:
-                    try:
-                        from praisonai.tool_resolver import ToolResolver
+                    from praisonaiui.backends import resolve_tools
 
-                        resolver = ToolResolver()
-                        for tn in tool_names:
-                            if isinstance(tn, str) and tn.strip():
-                                resolved = resolver.resolve(tn.strip())
-                                if resolved:
-                                    agent_tools.append(resolved)
-                    except ImportError:
-                        pass
+                    agent_tools = resolve_tools(tool_names)
 
                 agent = Agent(
                     name=agent_def.get("name", "assistant"),

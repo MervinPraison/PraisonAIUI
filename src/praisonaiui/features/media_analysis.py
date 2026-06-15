@@ -111,7 +111,16 @@ class VisionAnalysisManager(MediaAnalysisProtocol):
         except Exception as e:
             logger.warning("SDK VisionAgent failed: %s", e)
 
-        # Fallback: return metadata-only analysis
+        from praisonaiui.backends import is_integrated_mode
+
+        if is_integrated_mode():
+            return {
+                "error": "Vision analysis unavailable (SDK agent failed)",
+                "status": "degraded",
+                "provider": "none",
+            }
+
+        # Standalone fallback: metadata-only analysis
         return {
             "analysis": f"[Simulated] Image analysis for: {url or 'base64 data'}",
             "status": "simulated",
@@ -167,6 +176,16 @@ class VisionAnalysisManager(MediaAnalysisProtocol):
             return {"text": text, "status": "success", "provider": "markitdown"}
         except Exception:
             pass
+
+        from praisonaiui.backends import is_integrated_mode
+
+        if is_integrated_mode():
+            return {
+                "text": "",
+                "status": "degraded",
+                "provider": "none",
+                "error": "OCR unavailable (SDK and markitdown failed)",
+            }
 
         return {
             "text": "[Simulated] OCR text extraction placeholder",

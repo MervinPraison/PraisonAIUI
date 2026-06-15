@@ -7,6 +7,7 @@ aiui to praisonai imports.
 
 from __future__ import annotations
 
+import os
 from typing import Any, Callable, Dict, List, Optional
 
 _backends: Dict[str, Any] = {}
@@ -30,6 +31,13 @@ def clear_backends() -> None:
 def list_backends() -> List[str]:
     """Return names of registered backends."""
     return list(_backends.keys())
+
+
+def is_integrated_mode() -> bool:
+    """True when PraisonAI host has injected SDK bridges."""
+    if os.environ.get("PRAISONAI_INTEGRATED", "").strip().lower() in ("1", "true", "yes"):
+        return True
+    return any(k in _backends for k in ("hooks", "workflows", "usage_query", "usage_sink"))
 
 
 def get_workflow_runner() -> Optional[Callable[..., Dict[str, Any]]]:
@@ -59,3 +67,60 @@ def get_approvals_lister() -> Optional[Callable[..., List[Dict[str, Any]]]]:
     """Return SDK approvals lister callable if injected."""
     lister = get_backend("approvals")
     return lister if callable(lister) else None
+
+
+def get_jobs_store_factory() -> Optional[Callable[[], Any]]:
+    """Return jobs store factory if injected by praisonai host."""
+    factory = get_backend("jobs_store")
+    return factory if callable(factory) else None
+
+
+def get_jobs_executor_factory() -> Optional[Callable[[], Any]]:
+    """Return jobs executor factory if injected by praisonai host."""
+    factory = get_backend("jobs_executor")
+    return factory if callable(factory) else None
+
+
+def get_channel_bot_factory() -> Optional[Callable[..., Any]]:
+    """Return channel bot factory(platform, token, agent, config) if injected."""
+    factory = get_backend("channel_bot")
+    return factory if callable(factory) else None
+
+
+def get_tool_resolver() -> Any:
+    """Return ToolResolver-like object from backend or praisonai wrapper."""
+    resolver = get_backend("tool_resolver")
+    if resolver is not None:
+        return resolver() if callable(resolver) and not hasattr(resolver, "resolve") else resolver
+    try:
+        from praisonai.tool_resolver import ToolResolver
+
+        return ToolResolver()
+    except ImportError:
+        return None
+
+
+def get_kanban_store_factory() -> Optional[Callable[[], Any]]:
+    """Return kanban store factory if injected by praisonai host."""
+    factory = get_backend("kanban_store")
+    return factory if callable(factory) else None
+
+
+def get_kanban_api_base() -> Optional[str]:
+    """Optional external kanban API base (wrapper mounts its own router)."""
+    base = get_backend("kanban_api_base")
+    return str(base).rstrip("/") if base else None
+
+
+def resolve_tools(tool_names: List[Any]) -> List[Any]:
+    """Resolve tool name strings via injected or default ToolResolver."""
+    resolver = get_tool_resolver()
+    if resolver is None:
+        return []
+    resolved: List[Any] = []
+    for name in tool_names:
+        if isinstance(name, str) and name.strip():
+            tool = resolver.resolve(name.strip())
+            if tool is not None:
+                resolved.append(tool)
+    return resolved

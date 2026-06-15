@@ -54,3 +54,45 @@ def test_usage_feature_uses_injected_query():
     assert data["usage"]["total_requests"] == 7
     assert data["usage"]["total_tokens"] == 70
     clear_backends()
+
+
+def test_is_integrated_mode_detects_injected_backends():
+    clear_backends()
+    assert not __import__("praisonaiui.backends", fromlist=["is_integrated_mode"]).is_integrated_mode()
+    set_backend("hooks", lambda: [])
+    assert __import__("praisonaiui.backends", fromlist=["is_integrated_mode"]).is_integrated_mode()
+    clear_backends()
+
+
+def test_resolve_tools_uses_injected_resolver():
+    clear_backends()
+
+    class _Resolver:
+        def resolve(self, name: str):
+            return f"tool:{name}"
+
+    set_backend("tool_resolver", _Resolver())
+    from praisonaiui.backends import resolve_tools
+
+    assert resolve_tools(["search"]) == ["tool:search"]
+    clear_backends()
+
+
+def test_health_includes_sdk_gaps():
+    import asyncio
+
+    from praisonaiui.features.nodes import NodesFeature
+
+    feat = NodesFeature()
+    data = asyncio.run(feat.health())
+    assert data.get("sdk_gap") is True
+    assert data.get("sdk_gap_message")
+
+
+def test_kanban_store_factory_backend():
+    clear_backends()
+    set_backend("kanban_store", lambda: object())
+    from praisonaiui.backends import get_kanban_store_factory
+
+    assert get_kanban_store_factory() is not None
+    clear_backends()

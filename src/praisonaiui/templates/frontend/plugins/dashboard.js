@@ -53,6 +53,8 @@ const BUILTIN_VIEWS = {
   'theme-picker': '/plugins/views/theme-picker.js',
   feedback:       '/plugins/views/feedback.js',
   jobs:           '/plugins/views/jobs.js',
+  kanban:         '/plugins/views/kanban.js',
+  'jobs-board':   '/plugins/views/jobs-board.js',
   auth:           '/plugins/views/auth.js',
   api:            '/plugins/views/api.js',
 };
@@ -256,6 +258,33 @@ const DASHBOARD_STYLE = `
   .aiui-board-column-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--db-text-dim); margin: 0 0 4px; }
   .aiui-board-column-cards { display: flex; flex-direction: column; gap: 8px; }
   .aiui-board-card .db-card { margin: 0; }
+  .aiui-board-card-selected .db-card { outline: 2px solid var(--db-accent); }
+  .aiui-board-dragging { opacity: 0.5; }
+  .aiui-board-drop-target { background: var(--db-accent-glow); border-radius: var(--db-radius); min-height: 40px; }
+  .aiui-board-trash {
+    margin-top: 16px; padding: 12px; text-align: center; border: 2px dashed var(--db-border);
+    border-radius: var(--db-radius); color: var(--db-text-dim); font-size: 13px;
+  }
+  .aiui-board-toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .aiui-board-toolbar-label { font-size: 13px; color: var(--db-text-dim); }
+  .aiui-board-lane { margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,0.02); border-radius: var(--db-radius); }
+  .aiui-board-lane-title { font-size: 11px; font-weight: 600; color: var(--db-text-dim); margin-bottom: 6px; text-transform: uppercase; }
+  .aiui-board-drawer-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999;
+    display: flex; justify-content: flex-end;
+  }
+  .aiui-board-drawer {
+    width: min(420px, 90vw); height: 100%; background: var(--db-sidebar-bg);
+    border-left: 1px solid var(--db-border); padding: 20px; overflow-y: auto; position: relative;
+  }
+  .aiui-board-drawer-close {
+    position: absolute; top: 12px; right: 12px; background: none; border: none;
+    color: var(--db-text); font-size: 24px; cursor: pointer;
+  }
+  .aiui-board-drawer-body { white-space: pre-wrap; font-size: 13px; color: var(--db-text-dim); }
+  .aiui-board-drawer-meta { font-size: 12px; color: var(--db-text-dim); margin: 8px 0; }
+  .aiui-board-drawer-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .aiui-board-page-header { margin-bottom: 8px; }
   .db-slot-host { min-height: 0; }
   .db-sidebar-footer { margin-top: auto; padding: 10px 14px; border-top: 1px solid var(--db-border); font-size: 11px; color: var(--db-text-dim); }
   .db-mobile-header { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 40; min-height: 48px; align-items: center; gap: 8px; padding: 8px 12px; background: var(--db-sidebar-bg); border-bottom: 1px solid var(--db-border); }
@@ -2373,8 +2402,17 @@ window.aiui.registerSlot('shell:sidebar:footer', () => {
     const ok = d && (d.status === 'ok' || d.status === 'healthy');
     const dot = el.querySelector('.db-health-dot');
     const label = el.querySelector('.db-health-label');
-    if (dot) dot.style.color = ok ? '#22c55e' : '#ef4444';
-    if (label) label.textContent = ok ? 'Connected' : 'Degraded';
+    const gaps = (d && d.sdk_gaps) || [];
+    if (dot) dot.style.color = ok && !gaps.length ? '#22c55e' : (gaps.length ? '#f59e0b' : '#ef4444');
+    if (label) {
+      if (gaps.length) {
+        label.textContent = `SDK gaps (${gaps.length})`;
+        label.title = gaps.map((g) => `${g.feature}: ${g.message}`).join('\n');
+      } else {
+        label.textContent = ok ? (d.integrated ? 'Integrated' : 'Connected') : 'Degraded';
+        label.title = '';
+      }
+    }
   }).catch(() => { const label = el.querySelector('.db-health-label'); if (label) label.textContent = 'Offline'; });
   return el;
 });

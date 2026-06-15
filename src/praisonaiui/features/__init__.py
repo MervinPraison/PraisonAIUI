@@ -60,6 +60,7 @@ def auto_register_defaults() -> None:
         (".hooks", "HooksFeature"),
         (".i18n", "I18nFeature"),
         (".jobs", "JobsFeature"),
+        (".kanban", "KanbanFeature"),
         (".logs", "LogsFeature"),
         (".marketplace", "MarketplaceFeature"),
         (".media_analysis", "MediaAnalysisFeature"),

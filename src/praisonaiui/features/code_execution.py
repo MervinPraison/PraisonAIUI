@@ -88,7 +88,19 @@ class SandboxExecutionManager(CodeExecutionProtocol):
         except Exception as e:
             logger.warning("SDK execute_code failed: %s", e)
 
-        # Fallback: simulate execution for safety
+        from praisonaiui.backends import is_integrated_mode
+
+        if is_integrated_mode():
+            entry = {
+                "language": language,
+                "status": "degraded",
+                "error": "Code execution unavailable (praisonaiagents.tools.code missing or failed)",
+                "sandbox": self._sandbox,
+            }
+            self._history.append(entry)
+            return entry
+
+        # Standalone fallback: simulate execution for safety
         entry = {
             "language": language,
             "status": "simulated",

@@ -190,6 +190,8 @@ class AuthFeature(BaseFeatureProtocol):
             "mode": _auth_config.get("mode", "none"),
             "api_keys": len(_auth_config.get("api_keys", {})),
             "active_sessions": len(_active_sessions),
+            "sdk_gap": True,
+            "sdk_gap_message": "Auth uses in-memory store; no praisonaiagents auth API.",
             **gateway_health(),
         }
 
