@@ -1129,7 +1129,14 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
     _agent_cache = {}
 
     def _get_agent():
-        if "agent" not in _agent_cache:
+        # Get currently selected profile
+        from praisonaiui.server import get_selected_profile
+        selected_profile_id = get_selected_profile()
+
+        # Create cache key based on profile (or 'default' if no profile selected)
+        cache_key = selected_profile_id if selected_profile_id else "default"
+
+        if cache_key not in _agent_cache:
             try:
                 from praisonaiagents import Agent
             except ImportError:
@@ -1137,23 +1144,36 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
                     "praisonaiagents package required for YAML chat. "
                     "Install with: pip install praisonai"
                 )
+
+            # Resolve instructions based on selected profile
+            profile_instructions = instructions  # Default to root instructions
+            profile_name = agent_name  # Default to root agent name
+
+            if selected_profile_id and profiles:
+                # Find the selected profile and use its instructions if available
+                for profile in profiles:
+                    if profile.get("name") == selected_profile_id:
+                        profile_instructions = profile.get("instructions", instructions)
+                        profile_name = profile.get("name", agent_name)
+                        break
+
             agent_kwargs = {
-                "name": agent_name,
-                "instructions": instructions,
+                "name": profile_name,
+                "instructions": profile_instructions,
             }
             if model:
                 agent_kwargs["model"] = model
             if _resolved_tools:
                 agent_kwargs["tools"] = _resolved_tools
-            _agent_cache["agent"] = Agent(**agent_kwargs)
+            _agent_cache[cache_key] = Agent(**agent_kwargs)
             # Disable the Responses API on the OpenAI client so the Chat
             # Completions streaming path is used instead.  The Responses API
             # returns the full text at once and only emits FIRST_TOKEN[:50],
             # preventing real token-by-token streaming in the UI.
-            _client = getattr(_agent_cache["agent"], "_openai_client", None)
+            _client = getattr(_agent_cache[cache_key], "_openai_client", None)
             if _client and not _client.base_url:
                 _client.base_url = "https://api.openai.com/v1"
-        return _agent_cache["agent"]
+        return _agent_cache[cache_key]
 
     async def on_reply(msg):
         from praisonaiui.callbacks import _set_context
