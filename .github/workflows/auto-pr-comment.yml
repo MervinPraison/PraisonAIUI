@@ -23,6 +23,11 @@ on:
         required: true
         type: number
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 env:
   MAX_POLL_ATTEMPTS: 20
   POLL_DELAY_MS: 30000
