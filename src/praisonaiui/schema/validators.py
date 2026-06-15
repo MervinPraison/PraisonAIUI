@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -41,7 +42,7 @@ class ValidationResult:
         return cls(valid=False, errors=errors)
 
 
-def validate_config(config: Config, base_path: Path | None = None) -> ValidationResult:
+def validate_config(config: Config, base_path: Path | None = None, strict: bool = False) -> ValidationResult:
     """
     Validate a configuration object.
 
@@ -50,10 +51,12 @@ def validate_config(config: Config, base_path: Path | None = None) -> Validation
     - All template refs are valid
     - Content directories exist
     - Route patterns are valid globs
+    - Feature implementation status (if strict=True)
 
     Args:
         config: The configuration to validate
         base_path: Base path for resolving relative paths
+        strict: If True, warns about unimplemented/experimental features
 
     Returns:
         ValidationResult with any errors found
@@ -106,6 +109,31 @@ def validate_config(config: Config, base_path: Path | None = None) -> Validation
                     message=f"Blog directory '{config.content.blog.dir}' not found",
                 )
             )
+
+    # Validate feature implementation status
+    if strict:
+        from praisonaiui.schema.features import get_feature_registry
+
+        registry = get_feature_registry()
+        experimental_fields = registry.get_experimental_fields(config)
+
+        for field in experimental_fields:
+            feature = registry.get_feature(field)
+            if feature:
+                errors.append(
+                    ValidationError(
+                        code=4001,
+                        category="features",
+                        message=f"Field '{field}' is experimental and not fully implemented: {feature.description}",
+                        suggestion="Remove this field or use --experimental flag to suppress warnings",
+                    )
+                )
+                # Also emit runtime warning
+                warnings.warn(
+                    f"Config field '{field}' is experimental: {feature.description}",
+                    UserWarning,
+                    stacklevel=2
+                )
 
     if errors:
         return ValidationResult.failure(errors)

@@ -271,6 +271,28 @@ class Compiler:
                 "provider": self.config.search.provider,
             }
 
+        # ── Enterprise features (partial implementation) ──
+        
+        # SEO configuration - basic implementation for static build
+        if self.config.seo:
+            result["seo"] = {
+                "titleTemplate": self.config.seo.title_template,
+                "defaultImage": self.config.seo.default_image,
+                "twitter": self.config.seo.twitter,
+            }
+        
+        # A11y configuration - basic implementation for frontend
+        if self.config.a11y:
+            result["a11y"] = {
+                "skipToContent": self.config.a11y.skip_to_content,
+                "focusVisible": self.config.a11y.focus_visible,
+                "reduceMotion": self.config.a11y.reduce_motion,
+                "ariaLabels": self.config.a11y.aria_labels,
+            }
+        
+        # I18n configuration - schema only, warn at validation
+        # Note: i18n is intentionally not emitted as it's not runtime implemented
+
         return result
 
     def _serialize_template(self, template) -> dict:
@@ -546,15 +568,34 @@ class Compiler:
         t = self._escape_html(title)
         d = self._escape_html(description)
         p = self._escape_html(path)
-        return (
-            f'  <link rel="canonical" href="{p}" />\n'
-            f'  <meta property="og:title" content="{t}" />\n'
-            f'  <meta property="og:description" content="{d}" />\n'
-            f'  <meta property="og:url" content="{p}" />\n'
-            f'  <meta name="twitter:card" content="summary" />\n'
-            f'  <meta name="twitter:title" content="{t}" />\n'
-            f'  <meta name="twitter:description" content="{d}" />'
-        )
+        
+        # Use configured title template if available
+        if self.config.seo and self.config.seo.title_template:
+            t = self._escape_html(self.config.seo.title_template.replace("%s", title))
+        
+        tags = [
+            f'  <link rel="canonical" href="{p}" />',
+            f'  <meta property="og:title" content="{t}" />',
+            f'  <meta property="og:description" content="{d}" />',
+            f'  <meta property="og:url" content="{p}" />',
+        ]
+        
+        # Add default OG image if configured
+        if self.config.seo and self.config.seo.default_image:
+            og_image = self._escape_html(self.config.seo.default_image)
+            tags.append(f'  <meta property="og:image" content="{og_image}" />')
+        
+        # Add Twitter card tags
+        tags.append(f'  <meta name="twitter:card" content="summary" />')
+        tags.append(f'  <meta name="twitter:title" content="{t}" />')
+        tags.append(f'  <meta name="twitter:description" content="{d}" />')
+        
+        # Add Twitter handle if configured
+        if self.config.seo and self.config.seo.twitter and "handle" in self.config.seo.twitter:
+            handle = self._escape_html(self.config.seo.twitter["handle"])
+            tags.append(f'  <meta name="twitter:site" content="{handle}" />')
+        
+        return "\n".join(tags)
 
     def _get_noscript_content(self, output_dir: Path, path: str) -> str:
         """Load markdown file and convert to simple HTML for noscript block."""

@@ -10,6 +10,7 @@ export function Header({ config }: { config: UIConfig }) {
         : config.components?.header
     const header = (headerComponent?.props || headerSlot?.props) as {
         logoText?: string
+        logoImage?: string
         links?: { label: string; href: string }[]
         cta?: { label: string; href: string }
     } | undefined
@@ -22,9 +23,17 @@ export function Header({ config }: { config: UIConfig }) {
                     window.history.pushState({}, '', '/')
                     window.location.reload()
                 }}>
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-shadow">
-                        <span className="text-primary-foreground text-xs font-bold">AI</span>
-                    </div>
+                    {header?.logoImage ? (
+                        <img 
+                            src={header.logoImage} 
+                            alt="Logo" 
+                            className="w-8 h-8 rounded-lg shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-shadow"
+                        />
+                    ) : (
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-shadow">
+                            <span className="text-primary-foreground text-xs font-bold">AI</span>
+                        </div>
+                    )}
                     <span className="font-semibold text-lg tracking-tight">{header?.logoText || config.site?.title || 'PraisonAIUI'}</span>
                 </a>
 
