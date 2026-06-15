@@ -98,28 +98,9 @@ async def agent_canvas():
     return {"_surface": {"id": "main", "messages": []}}
 ```
 
-Or use `@aiui.surface_action("main")` for button callbacks. See [`examples/python/29-a2ui-canvas/`](../../examples/python/29-a2ui-canvas/app.py).
+Or use `@aiui.surface_action("main")` for button callbacks.
 
-### Chat + Canvas same-window preview
-
-Three dashboard modes:
-
-| Page | Route | Purpose |
-|------|-------|---------|
-| `chat-canvas` | `/chat-canvas` | **Split view** — chat left, live A2UI preview right |
-| `chat` | `/chat` | Vanilla chat only (unchanged) |
-| `canvas` | `/canvas` | Full-page surface workspace |
-
-Enable preview settings and list the combined page:
-
-```python
-aiui.set_chat_preview(enabled=True, surface_id="main", width="38%")
-aiui.set_pages(["chat-canvas", "chat", "canvas"])
-```
-
-`/ui-config.json` exposes `chat.preview: { enabled, surfaceId, width }` for the preview panel.
-
-Shared modules: `surface-utils.js` (render, load, WebSocket, actions), `canvas-preview.js` (preview panel), `a2ui-mapper.js` (default DOM mapper). Override rendering with `registerSurfaceRenderer("main", fn)`.
+**Full guide:** [A2UI canvas](a2ui-canvas.md) — chat-canvas split view, `send_a2ui_messages`, HTTP/CLI, `coerce_a2ui_tool_messages`, troubleshooting. Example: [`examples/python/30-a2ui-canvas/`](../../examples/python/30-a2ui-canvas/app.py).
 
 ## Optional dashboard modules
 

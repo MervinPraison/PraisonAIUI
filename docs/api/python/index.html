@@ -104,6 +104,15 @@
 <p>| `sidebar` | `bool` | `True` | Show the left sidebar navigation |</p>
 <p>| `page_header` | `bool` | `True` | Show the page title/description header |</p>
 <p>---</p>
+<h3>`aiui.set_chat_preview(enabled, *, surface_id, width)`</h3>
+<p>Configure the **chat + canvas** split preview (`chat-canvas` page). The vanilla `chat` page is unchanged.</p>
+<p>| Parameter | Type | Default | Description |</p>
+<p>|-----------|------|---------|-------------|</p>
+<p>| `enabled` | `bool` | `True` | Expose preview settings in `/ui-config.json` |</p>
+<p>| `surface_id` | `str` | `"main"` | Default A2UI surface id for the preview panel |</p>
+<p>| `width` | `str` | `"40%"` | CSS width of the preview column (e.g. `"38%"`, `"420px"`) |</p>
+<p>See [A2UI canvas](../features/a2ui-canvas.md).</p>
+<p>---</p>
 <h3>`aiui.register_theme(name, variables)`</h3>
 <p>Register a custom theme preset. The theme becomes available in the theme picker UI and via `/api/theme`.</p>
 <p>| Parameter | Type | Description |</p>
@@ -200,6 +209,9 @@
 <p>---</p>
 <h3>`@aiui.resume`</h3>
 <p>Resume interrupted sessions.</p>
+<p>---</p>
+<h3>`@aiui.surface_action(surface_id)`</h3>
+<p>Handle user actions from an A2UI surface (button clicks, form submits).</p>
 <p>---</p>
 <h2>Message Functions</h2>
 <p>Async functions for sending messages to the user. Call inside callback handlers.</p>
