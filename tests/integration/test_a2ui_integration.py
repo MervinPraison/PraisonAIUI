@@ -176,11 +176,11 @@ def test_send_a2ui_messages_real_tool_extra():
 
 
 def test_example_app_wiring():
-    """Smoke: example 29 registers agent, pages, and preview config."""
+    """Smoke: example 30 registers agent, pages, and preview config."""
     import sys
     from pathlib import Path
 
-    example_dir = Path(__file__).resolve().parents[2] / "examples" / "python" / "29-a2ui-canvas"
+    example_dir = Path(__file__).resolve().parents[2] / "examples" / "python" / "30-a2ui-canvas"
     if not example_dir.is_dir():
         pytest.skip("example app not present")
 

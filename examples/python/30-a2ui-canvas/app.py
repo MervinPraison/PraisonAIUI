@@ -1,4 +1,4 @@
-"""Example 29 — A2UI canvas and send_a2ui_messages integration.
+"""Example 30 — A2UI canvas and send_a2ui_messages integration.
 
 Run:
     python app.py

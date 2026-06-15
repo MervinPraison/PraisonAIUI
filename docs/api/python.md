@@ -227,6 +227,25 @@ aiui.set_dashboard(page_header=False)   # Hide page titles
 
 ---
 
+### `aiui.set_chat_preview(enabled, *, surface_id, width)`
+
+Configure the **chat + canvas** split preview (`chat-canvas` page). The vanilla `chat` page is unchanged.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `enabled` | `bool` | `True` | Expose preview settings in `/ui-config.json` |
+| `surface_id` | `str` | `"main"` | Default A2UI surface id for the preview panel |
+| `width` | `str` | `"40%"` | CSS width of the preview column (e.g. `"38%"`, `"420px"`) |
+
+```python
+aiui.set_chat_preview(enabled=True, surface_id="main", width="38%")
+aiui.set_pages(["chat-canvas", "chat", "canvas"])
+```
+
+See [A2UI canvas](../features/a2ui-canvas.md).
+
+---
+
 ### `aiui.register_theme(name, variables)`
 
 Register a custom theme preset. The theme becomes available in the theme picker UI and via `/api/theme`.
@@ -555,6 +574,19 @@ Resume interrupted sessions.
 @aiui.resume
 async def on_resume(session_id):
     await aiui.say("Welcome back! Resuming your session.")
+```
+
+---
+
+### `@aiui.surface_action(surface_id)`
+
+Handle user actions from an A2UI surface (button clicks, form submits).
+
+```python
+@aiui.surface_action("main")
+async def on_surface_action(action: dict):
+    # action includes component_id, action name, data, session_id
+    return {"status": "ok"}
 ```
 
 ---
