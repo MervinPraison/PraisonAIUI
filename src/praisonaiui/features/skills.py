@@ -345,7 +345,7 @@ def _get_tool_status(tool_id: str) -> Dict[str, Any]:
     }
 
 
-def get_stub_tool_disclaimer(enabled_tools: List[str]) -> str:
+def get_stub_tool_disclaimer(enabled_tools: List[str] | None) -> str:
     """Generate system prompt disclaimer for stub tools.
 
     Args:
@@ -354,6 +354,9 @@ def get_stub_tool_disclaimer(enabled_tools: List[str]) -> str:
     Returns:
         Disclaimer text to inject into system prompts
     """
+    if not enabled_tools:
+        return ""
+
     _ensure_skills_loaded()
     catalog = get_tool_catalog()
 
