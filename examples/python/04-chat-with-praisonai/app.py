@@ -15,7 +15,19 @@ Run:
 """
 
 import asyncio
+import sys
+
 import praisonaiui as aiui
+
+# Support --datastore json flag as documented
+if "--datastore" in sys.argv:
+    try:
+        idx = sys.argv.index("--datastore")
+        if idx + 1 < len(sys.argv) and sys.argv[idx + 1] == "json":
+            from praisonaiui.datastore import JSONFileDataStore
+            aiui.set_datastore(JSONFileDataStore())
+    except (IndexError, ImportError):
+        pass
 
 # Lazy agent — only created when first message is sent
 _agent = None

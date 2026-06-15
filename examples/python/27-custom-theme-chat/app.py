@@ -1,12 +1,11 @@
-"""Clean Chat — Dashboard chat without the sidebar navigation.
+"""Custom Theme Chat — Dashboard chat with custom cyan/teal theme.
 
-What's New (vs 18-full-chat/):
-    • aiui.set_dashboard(sidebar=False) — hides the left nav panel
-    • Uses the dashboard style for the rich chat UI (session list, agents)
-    • But without the sidebar clutter (Chat, Channels, Agents, Skills, etc.)
-    • Protocol-driven: all config flows through /ui-config.json
+Demonstrates dynamic theme registration using aiui.register_theme()
+to create a custom color palette with cyan accent colors.
 
-This gives you the dashboard chat experience in a cleaner layout.
+Key colors (dark mode):
+  - Background: #0a0a0f (near black)
+  - Accent: #14b8a6 (teal/cyan)
 
 Requires: pip install openai  (or pip install praisonai)
 Set OPENAI_API_KEY before running.
@@ -19,12 +18,38 @@ import os
 
 import praisonaiui as aiui
 
-# ── Dashboard style, but no sidebar navigation ─────────────
+try:
+    from openai import AsyncOpenAI
+except ImportError:
+    AsyncOpenAI = None
+
+# Reuse client to prevent resource churn
+_client = None
+
+def _get_client():
+    global _client
+    if _client is None and AsyncOpenAI is not None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            _client = AsyncOpenAI(api_key=api_key)
+    return _client
+
+# ── Register custom teal/cyan theme ──────────────────────────────────
+aiui.register_theme("teal-dark", {
+    "accent": "#14b8a6",        # teal-500
+    "accentRgb": "20,184,166",
+})
+
+# Apply the custom theme
+aiui.set_theme(preset="teal-dark", dark_mode=True, radius="md")
+
+# Configure branding
+aiui.set_branding(title="AI Chat", logo="🤖")
+
+# Dashboard style with sidebar disabled for clean look
 aiui.set_style("dashboard")
 aiui.set_dashboard(sidebar=False, page_header=False)
-aiui.set_branding(title="AI Chat", logo="💬")
-aiui.set_theme(preset="blue", dark_mode=True, radius="lg")
-aiui.set_pages(["chat"])  # Only show the chat page
+aiui.set_pages(["chat"])
 
 
 @aiui.starters
@@ -49,18 +74,14 @@ async def on_message(message: str):
     """Stream a response from OpenAI."""
     await aiui.think("Thinking...")
 
-    try:
-        from openai import AsyncOpenAI
-    except ImportError:
-        await aiui.say("❌ Please install openai: `pip install openai`")
+    client = _get_client()
+    if client is None:
+        if AsyncOpenAI is None:
+            await aiui.say("❌ Please install openai: `pip install openai`")
+        else:
+            await aiui.say("❌ Please set OPENAI_API_KEY environment variable.")
         return
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        await aiui.say("❌ Please set OPENAI_API_KEY environment variable.")
-        return
-
-    client = AsyncOpenAI(api_key=api_key)
     stream = await client.chat.completions.create(
         model=os.getenv("PRAISONAI_MODEL", "gpt-4o-mini"),
         messages=[

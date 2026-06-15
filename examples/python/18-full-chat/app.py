@@ -1,9 +1,12 @@
 """PraisonAIUI — Full Chat Example (with Gateway + Page Config).
 
-Dashboard with curated sidebar pages and a custom Feature Explorer:
-  - Uses ``aiui.set_pages()`` to show only essential built-in pages
+Clean chat-focused dashboard with curated sidebar pages:
+  - Uses ``aiui.set_pages()`` to show only essential pages (chat, sessions, agents, usage, config)
+  - Hides debug/admin pages for a streamlined experience
   - Adds a custom "Feature Explorer" page via ``@aiui.page()``
   - Registers three agents: Researcher, Writer, Coder
+
+Compare with 17-three-column-demo which shows ALL available pages.
 
 Modes:
   1. Gateway mode (recommended) — starts real agent execution + WebSocket
@@ -22,14 +25,14 @@ Usage:
 
 import asyncio
 import os
-import sys
 
 import praisonaiui as aiui
 
 # ── Check gateway availability ──────────────────────────────
 try:
-    from praisonaiui.integration import AIUIGateway
     from praisonaiagents import Agent
+
+    from praisonaiui.integration import AIUIGateway
     GATEWAY_OK = True
 except ImportError as e:
     print(f"⚠️  Gateway dependencies not found: {e}")
@@ -38,6 +41,15 @@ except ImportError as e:
     GATEWAY_OK = False
 
 aiui.set_style("dashboard")
+
+# ── Page curation ───────────────────────────────────────────
+aiui.set_pages([
+    "chat",         # Main chat interface
+    "sessions",     # Session management
+    "agents",       # Agent configuration
+    "usage",        # Usage metrics
+    "config",       # Configuration settings
+])
 
 
 # ── Agent definitions ───────────────────────────────────────
@@ -122,12 +134,13 @@ def _register_agents_in_dashboard():
 
 async def main():
     port = int(os.getenv("PORT", "8082"))
+    host = os.getenv("HOST", "127.0.0.1")
 
     if GATEWAY_OK:
         print("🚀 Starting with Gateway mode (full execution + streaming)")
         print()
 
-        gateway = AIUIGateway(host="0.0.0.0", port=port)
+        gateway = AIUIGateway(host=host, port=port)
 
         # Register agents with gateway for real execution
         for agent_def in AGENTS:
@@ -153,8 +166,9 @@ async def main():
     else:
         # Standalone: REST APIs only, no agent execution
         print("📦 Starting in standalone mode (REST APIs only, no agent execution)")
-        from praisonaiui.server import create_app
         import uvicorn
+
+        from praisonaiui.server import create_app
 
         _register_agents_in_dashboard()
 
@@ -162,10 +176,10 @@ async def main():
         print()
         print(f"   Dashboard:  http://localhost:{port}")
         print(f"   Explorer:   http://localhost:{port} → 🔬 Feature Explorer")
-        print(f"   Note:       POST endpoints may fail without gateway")
+        print("   Note:       POST endpoints may fail without gateway")
         print()
 
-        config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
+        config = uvicorn.Config(app, host=host, port=port, log_level="info")
         server = uvicorn.Server(config)
         await server.serve()
 

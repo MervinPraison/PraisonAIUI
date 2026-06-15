@@ -173,6 +173,7 @@ def __getattr__(name: str):
         "register_page",
         "set_datastore",
         "get_datastore",
+        "SessionGovernor",
         "set_provider",
         "get_provider",
         "set_style",
@@ -370,6 +371,9 @@ def __getattr__(name: str):
 
         return getattr(chat_settings, name)
     if name in _server_attrs:
+        if name == "SessionGovernor":
+            from praisonaiui.session_governor import SessionGovernor
+            return SessionGovernor
         from praisonaiui import server
 
         return getattr(server, name)
@@ -469,6 +473,7 @@ __all__ = [
     "register_page",
     "set_datastore",
     "get_datastore",
+    "SessionGovernor",
     "set_provider",
     "get_provider",
     "set_style",
