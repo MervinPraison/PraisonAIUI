@@ -1,6 +1,6 @@
 # YAML Chat with Tools & Model Selection
 #
-# What's New (vs chat-yaml-profiles/):
+# What's New (vs yaml/02-profiles/):
 #   • model — specify which LLM to use
 #   • tools — give the agent built-in tool capabilities
 #

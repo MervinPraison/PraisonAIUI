@@ -85,6 +85,7 @@ def seed_email_channel():
                 "email_address": os.getenv("EMAIL_ADDRESS", "support@example.com"),
                 "imap_server": os.getenv("EMAIL_IMAP_SERVER", "imap.gmail.com"),
                 "smtp_server": os.getenv("EMAIL_SMTP_SERVER", "smtp.gmail.com"),
+                "app_password_ref": "env:EMAIL_APP_PASSWORD",
                 "polling_interval": 30,
             },
         })
@@ -182,4 +183,5 @@ if __name__ == "__main__":
         print(f"✅ Dashboard at http://localhost:8084")
         print(f"   Channels: http://localhost:8084/api/channels")
         print(f"   Platforms: http://localhost:8084/api/channels/platforms")
-        uvicorn.run(app, host="0.0.0.0", port=8084, log_level="info")
+        host = os.getenv("HOST", "127.0.0.1")
+        uvicorn.run(app, host=host, port=8084, log_level="info")

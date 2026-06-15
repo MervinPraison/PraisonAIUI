@@ -171,7 +171,8 @@ def run_standalone():
 
     aiui_app.routes.insert(0, Route("/", landing, methods=["GET"]))
     print("✅ UI Integration Demo at http://localhost:8082")
-    uvicorn.run(aiui_app, host="0.0.0.0", port=8082, log_level="info")
+    host = os.getenv("HOST", "127.0.0.1")
+    uvicorn.run(aiui_app, host=host, port=8082, log_level="info")
 
 
 if __name__ == "__main__":

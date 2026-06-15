@@ -227,5 +227,7 @@ async def on_welcome():
 app = create_app()
 
 if __name__ == "__main__":
+    import os
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8083)
+    host = os.getenv("HOST", "127.0.0.1")
+    uvicorn.run(app, host=host, port=8083)

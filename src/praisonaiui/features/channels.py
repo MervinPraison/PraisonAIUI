@@ -70,6 +70,65 @@ SUPPORTED_PLATFORMS = [
     "nostr",
 ]
 
+# Secret field patterns that should never be persisted in config
+SECRET_FIELD_PATTERNS = {
+    "api_key", "bot_token", "app_password", "password", "secret", 
+    "private_key", "access_token", "refresh_token", "webhook_secret"
+}
+
+def _validate_config_security(config: Dict[str, Any]) -> Optional[str]:
+    """Validate channel config doesn't contain inline secrets.
+    
+    Returns error message if secrets detected, None if safe.
+    """
+    if not isinstance(config, dict):
+        return None
+    for key, value in config.items():
+        if key.lower() in SECRET_FIELD_PATTERNS:
+            if isinstance(value, str) and value and not value.startswith("env:"):
+                # Check for common secret patterns
+                if (value.startswith(("sk-", "xoxb-", "xoxp-", "xapp-", "am_", "bot")) or
+                    len(value) > 20):
+                    return (f"Detected inline secret in '{key}'. Use env reference: "
+                           f"'{key}_ref': 'env:YOUR_ENV_VAR'")
+    return None
+
+def _redact_config_secrets(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Redact secret values in config for API responses."""
+    if not isinstance(config, dict):
+        return config
+    redacted = config.copy()
+    for key, value in config.items():
+        if key.lower() in SECRET_FIELD_PATTERNS and isinstance(value, str) and value:
+            if not value.startswith("env:"):
+                redacted[key] = "***REDACTED***"
+    return redacted
+
+def _get_config_secret(config: Dict[str, Any], key: str, env_fallback: Optional[str] = None) -> str:
+    """Resolve a secret configuration value, supporting direct values, _ref keys, and env vars."""
+    if not isinstance(config, dict):
+        return os.environ.get(env_fallback, "") if env_fallback else ""
+    
+    # 1. Check direct key (e.g., "bot_token")
+    val = config.get(key)
+    if isinstance(val, str) and val.startswith("env:"):
+        return os.environ.get(val[4:], "")
+    if val:
+        return str(val)
+        
+    # 2. Check ref key (e.g., "bot_token_ref")
+    ref_val = config.get(f"{key}_ref")
+    if isinstance(ref_val, str) and ref_val.startswith("env:"):
+        return os.environ.get(ref_val[4:], "")
+    if ref_val:
+        return str(ref_val)
+        
+    # 3. Fallback to default env var if provided
+    if env_fallback:
+        return os.environ.get(env_fallback, "")
+        
+    return ""
+
 # In-memory channel registry — loaded from unified config.yaml
 from ._persistence import load_section, save_section
 
@@ -217,7 +276,7 @@ class ChannelsFeature(BaseFeatureProtocol):
 
         Returns the token string, or empty string if absent.
         """
-        return config.get("app_token") or os.environ.get("SLACK_APP_TOKEN", "")
+        return _get_config_secret(config, "app_token", "SLACK_APP_TOKEN")
 
     async def _start_channel_bot(self, channel_id: str, entry: Dict[str, Any]) -> Optional[str]:
         """Start a bot for the given channel.
@@ -232,22 +291,20 @@ class ChannelsFeature(BaseFeatureProtocol):
         platform = entry["platform"]
         config = entry.get("config", {})
         fallback_errors: List[str] = []
-        # Platform-aware token resolution:
+        # Platform-aware token resolution with _ref key support:
         # email/agentmail use api_key or dedicated env vars, not bot_token
         if platform == "agentmail":
             token = (
-                config.get("bot_token")
-                or config.get("api_key", "")
-                or os.environ.get("AGENTMAIL_API_KEY", "")
+                _get_config_secret(config, "bot_token") or
+                _get_config_secret(config, "api_key", "AGENTMAIL_API_KEY")
             )
         elif platform == "email":
             token = (
-                config.get("bot_token")
-                or config.get("app_password", "")
-                or os.environ.get("EMAIL_APP_PASSWORD", "")
+                _get_config_secret(config, "bot_token") or
+                _get_config_secret(config, "app_password", "EMAIL_APP_PASSWORD")
             )
         else:
-            token = config.get("bot_token", "")
+            token = _get_config_secret(config, "bot_token")
         if not token:
             return (
                 f"No token configured for {platform}. "
@@ -842,7 +899,14 @@ class ChannelsFeature(BaseFeatureProtocol):
         # Auto-start enabled channels on first request (lazy startup)
         await self._auto_start_enabled_channels()
         self._sync_running_status()
-        channels = list(_channels.values())
+        
+        # Redact secrets in all channel configs
+        channels = []
+        for channel in _channels.values():
+            safe_channel = channel.copy()
+            safe_channel["config"] = _redact_config_secrets(channel.get("config", {}))
+            channels.append(safe_channel)
+        
         return JSONResponse({"channels": channels, "count": len(channels)})
 
     async def _add(self, request: Request) -> JSONResponse:
@@ -856,6 +920,14 @@ class ChannelsFeature(BaseFeatureProtocol):
                 status_code=400,
             )
         config = body.get("config", {})
+        
+        # Security validation: reject inline secrets
+        security_error = _validate_config_security(config)
+        if security_error:
+            return JSONResponse(
+                {"error": security_error},
+                status_code=400,
+            )
         entry = {
             "id": channel_id,
             "name": body.get("name", channel_id),
@@ -877,7 +949,11 @@ class ChannelsFeature(BaseFeatureProtocol):
         # Sync live status before responding so the frontend sees the real state
         self._sync_running_status()
         _persist_channels()
-        return JSONResponse(entry, status_code=201)
+        
+        # Redact secrets in response
+        response_entry = entry.copy()
+        response_entry["config"] = _redact_config_secrets(entry["config"])
+        return JSONResponse(response_entry, status_code=201)
 
     async def _get(self, request: Request) -> JSONResponse:
         channel_id = request.path_params["channel_id"]
@@ -885,7 +961,11 @@ class ChannelsFeature(BaseFeatureProtocol):
         if not channel:
             return JSONResponse({"error": "Channel not found"}, status_code=404)
         self._sync_running_status()
-        return JSONResponse(channel)
+        
+        # Redact secrets in config
+        safe_channel = channel.copy()
+        safe_channel["config"] = _redact_config_secrets(channel.get("config", {}))
+        return JSONResponse(safe_channel)
 
     async def _update(self, request: Request) -> JSONResponse:
         channel_id = request.path_params["channel_id"]
@@ -893,11 +973,25 @@ class ChannelsFeature(BaseFeatureProtocol):
         if not channel:
             return JSONResponse({"error": "Channel not found"}, status_code=404)
         body = await request.json()
+        
+        # Security validation for config updates
+        if "config" in body:
+            security_error = _validate_config_security(body["config"])
+            if security_error:
+                return JSONResponse(
+                    {"error": security_error},
+                    status_code=400,
+                )
+        
         for key in ("name", "platform", "enabled", "config"):
             if key in body:
                 channel[key] = body[key]
         _persist_channels()
-        return JSONResponse(channel)
+        
+        # Redact secrets in response
+        safe_channel = channel.copy()
+        safe_channel["config"] = _redact_config_secrets(channel["config"])
+        return JSONResponse(safe_channel)
 
     async def _delete(self, request: Request) -> JSONResponse:
         """Delete a channel and stop its bot."""
@@ -1031,7 +1125,7 @@ class ChannelsFeature(BaseFeatureProtocol):
         # still test the token against the platform API directly.
         platform = channel.get("platform", "")
         config = channel.get("config", {})
-        token = config.get("token", config.get("bot_token", ""))
+        token = _get_config_secret(config, "bot_token") or _get_config_secret(config, "token")
 
         if not token:
             return JSONResponse({"success": False, "error": "No token configured for this channel"})
