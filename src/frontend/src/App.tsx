@@ -241,15 +241,24 @@ export default function App() {
             <Content config={config} routes={routes} selectedItem={selectedItem} />
           </div>
         )
-      case 'FlexibleLayout':
-        // WordPress-style zones layout
+      case 'FlexibleLayout': {
+        // WordPress-style zones layout with navigation invariant
+        // When docs nav exists but no leftSidebar zone configured, render default nav
+        const hasExplicitLeftSidebar = (zones?.leftSidebar?.length ?? 0) > 0
+        const hasNavigation = (nav?.items?.length ?? 0) > 0
+        const shouldRenderNavigation = hasExplicitLeftSidebar || hasNavigation
+        
         return (
           <div className="flex flex-col">
             {zones?.hero && <ZoneWidgets widgets={zones.hero} />}
             <div className="flex flex-1">
-              {zones?.leftSidebar && (
+              {shouldRenderNavigation && (
                 <aside className="w-64 border-r p-4 hidden md:block">
-                  <ZoneWidgets widgets={zones.leftSidebar} />
+                  {hasExplicitLeftSidebar ? (
+                    <ZoneWidgets widgets={zones?.leftSidebar} />
+                  ) : (
+                    <Sidebar nav={nav} activeItem={activeItemPath} onItemClick={handleItemClick} />
+                  )}
                 </aside>
               )}
               <div className="flex-1">
@@ -264,6 +273,7 @@ export default function App() {
             )}
           </div>
         )
+      }
       case 'ThreeColumnLayout':
       default:
         // Classic: Sidebar + Content + TOC with zones
