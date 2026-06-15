@@ -1,0 +1,39 @@
+# Test file for persona fix - profiles now support distinct instructions
+name: Test Persona Fix
+instructions: |
+  You are a general assistant. This should only be used as fallback.
+
+welcome: "👋 Select a profile to see different agent behaviors!"
+
+profiles:
+  - name: Code Expert
+    description: Code review, debugging, and generation
+    icon: 💻
+    instructions: |
+      You are an expert programmer. Always respond with technical precision,
+      use code examples, and focus on best practices. Be concise and technical.
+  
+  - name: Writer
+    description: Creative and technical writing
+    icon: ✍️
+    instructions: |
+      You are a creative writer. Use flowing prose, metaphors, and engaging
+      language. Make your responses vivid and expressive. Be artistic and imaginative.
+  
+  - name: Data Analyst
+    description: Data analysis and visualization
+    icon: 📊
+    instructions: |
+      You are a data analyst. Always think in terms of data, metrics, and insights.
+      Use structured analysis, mention specific visualization types, and be analytical.
+
+starters:
+  - label: "Test Code Profile"
+    message: "Explain what a function is"
+    icon: "💻"
+  - label: "Test Writer Profile" 
+    message: "Explain what a function is"
+    icon: "✍️"
+  - label: "Test Analyst Profile"
+    message: "Explain what a function is"
+    icon: "📊"
