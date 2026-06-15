@@ -1,7 +1,7 @@
 name: Claude Assistant
 
 # Triggers:
-#   - issues:opened       → lightweight triage (welcome comment + label)
+#   - issues:opened       → lightweight triage (labels + auto-claude for owner)
 #   - issues:labeled      → full implementation when `claude` label applied
 #   - issues:assigned     → full implementation when issue assigned to Claude
 #   - issue_comment       → full implementation when @claude mentioned (issues + PRs)
@@ -22,19 +22,10 @@ on:
   pull_request_review:
     types: [submitted]
 
-permissions:
-  contents: write
-  pull-requests: write
-  issues: write
-  actions: read
-  id-token: write
-
 jobs:
   # ================================================================
-  # Job 1 — Issue triage (runs on ANY new issue, including from external users)
-  # Posts a welcome comment. Does NOT execute Claude Code.
-  # To escalate to full implementation, a maintainer adds the `claude` label
-  # or mentions @claude in a comment — which triggers Job 2.
+  # Job 1 — Issue triage (runs on ANY new issue, including external users)
+  # Posts welcome comment + triage labels. Auto-adds `claude` for owner issues.
   # ================================================================
   issue-triage:
     if: |
@@ -46,87 +37,212 @@ jobs:
       issues: write
       contents: read
     steps:
-      - name: Post welcome comment
+      - name: Generate GitHub App Token
+        id: app-token
+        continue-on-error: true
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.CLAUDE_APP_ID }}
+          private-key: ${{ secrets.CLAUDE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Resolve GitHub token
+        id: github-token
+        run: |
+          if [ -n "${{ steps.app-token.outputs.token }}" ]; then
+            echo "token=${{ steps.app-token.outputs.token }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "token=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Triage and acknowledge issue
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ steps.github-token.outputs.token }}
           script: |
-            const body = [
-              '👋 Thanks for opening an issue in **PraisonAIUI**.',
-              '',
-              'A maintainer will triage this shortly. If you would like Claude to investigate and draft a fix, a maintainer can:',
-              '',
-              '- Apply the `claude` label to this issue, **or**',
-              '- Mention `@claude` in a comment with any additional instructions.',
-              '',
-              'Please make sure your issue includes:',
-              '',
-              '1. A clear description of the behaviour you expect vs what you see.',
-              '2. Minimal reproduction steps (code snippet or `aiui.template.yaml`).',
-              '3. Version: `python -c "import praisonaiui; print(praisonaiui.__version__)"`.',
-              '4. Any relevant log output.',
-              '',
-              'See [AGENTS.md](https://github.com/MervinPraison/PraisonAIUI/blob/main/AGENTS.md) for project conventions.'
-            ].join('\n');
+            const issue = context.payload.issue;
+            const title = (issue.title || '').toLowerCase();
+            const body = (issue.body || '').toLowerCase();
+            const content = title + ' ' + body;
+            const isOwner = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(
+              issue.author_association
+            );
 
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body
-            });
+            const labels = [];
+
+            if (content.includes('feature request') || content.includes('[feature')) {
+              labels.push('enhancement');
+            } else if (content.includes('bug') || content.includes('error') || content.includes('crash') || content.includes('traceback')) {
+              labels.push('bug');
+            } else if (content.includes('question') || content.includes('how do i') || content.includes('how to')) {
+              labels.push('question');
+            }
+
+            if (content.includes('security') || content.includes('cve') || content.includes('vulnerability')) {
+              labels.push('security');
+            }
+            if (content.includes('performance') || content.includes('slow') || content.includes('memory leak')) {
+              labels.push('performance');
+            }
+            if (content.includes('documentation') || content.includes('docs')) {
+              labels.push('documentation');
+            }
+            if (content.includes('typescript') || content.includes('javascript') || content.includes('npm')) {
+              labels.push('javascript');
+            }
+            if (content.includes('frontend') || content.includes('react') || content.includes('vite')) {
+              labels.push('frontend');
+            }
+            if (content.includes('example') || content.includes('yaml')) {
+              labels.push('examples');
+            }
+
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                issue_number: issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels
+              });
+            }
+
+            if (!isOwner) {
+              await github.rest.issues.createComment({
+                issue_number: issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: [
+                  `👋 Thanks for opening this issue, @${issue.user.login}!`,
+                  '',
+                  'A maintainer will review this shortly. In the meantime:',
+                  '- Make sure you\'ve included steps to reproduce (for bugs)',
+                  '- Check [existing issues](https://github.com/MervinPraison/PraisonAIUI/issues) for duplicates',
+                  '- Review [AGENTS.md](https://github.com/MervinPraison/PraisonAIUI/blob/main/AGENTS.md) for project conventions',
+                  '',
+                  '_A maintainer can trigger deeper analysis by commenting `@claude` on this issue._'
+                ].join('\n')
+              });
+            }
+
+            if (isOwner) {
+              await github.rest.issues.addLabels({
+                issue_number: issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: ['claude']
+              });
+            }
 
   # ================================================================
   # Job 2 — Full Claude Code implementation
-  # Runs when:
-  #   - A comment containing `@claude` is posted on an issue or PR
-  #   - The `claude` label is added to an issue
-  #   - The issue is assigned to a Claude bot
-  #   - A PR review or review-comment contains `@claude`
+  # Triggers on: labeled `claude`, @claude comments, assignments
   # ================================================================
   claude-response:
     env:
       ISSUE_NUMBER_RESOLVED: ${{ github.event.issue.number || github.event.pull_request.number }}
     if: |
+      github.event.action != 'opened' &&
+      (github.event.action != 'labeled' || github.event.label.name == 'claude') &&
+      (github.event_name != 'issue_comment' || contains(github.event.comment.body, '@claude')) &&
+      (
+        !contains(github.actor, '[bot]') ||
+        github.actor == 'github-actions[bot]' ||
+        github.actor == 'praisonai-triage-agent[bot]'
+      ) &&
       github.actor != 'dependabot[bot]' &&
       github.actor != 'cursor[bot]' &&
-      github.actor != 'renovate[bot]' &&
-      (
-        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-        (github.event_name == 'issues' && github.event.action == 'labeled' && contains(toJSON(github.event.label), 'claude')) ||
-        (github.event_name == 'issues' && github.event.action == 'assigned')
-      )
+      github.actor != 'renovate[bot]'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: read
+      id-token: write
     steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        continue-on-error: true
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.CLAUDE_APP_ID }}
+          private-key: ${{ secrets.CLAUDE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Resolve GitHub token
+        id: github-token
+        run: |
+          if [ -n "${{ steps.app-token.outputs.token }}" ]; then
+            echo "token=${{ steps.app-token.outputs.token }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "token=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check for Fork PR
+        id: check_fork
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.github-token.outputs.token }}
+          script: |
+            const isPR = context.eventName === 'pull_request' || (context.payload.issue && context.payload.issue.pull_request);
+            if (isPR) {
+              const prNumber = context.payload.pull_request ? context.payload.pull_request.number : context.payload.issue.number;
+              const pr = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber
+              });
+
+              core.setOutput('pr_branch', pr.data.head.ref);
+
+              if (pr.data.head.repo && pr.data.head.repo.full_name !== context.repo.full_name) {
+                core.setOutput('is_fork', 'true');
+                core.setOutput('clone_url', pr.data.head.repo.clone_url);
+                core.setOutput('branch', pr.data.head.ref);
+                return;
+              }
+            }
+            core.setOutput('is_fork', 'false');
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          persist-credentials: false
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.event.issue.pull_request && format('refs/pull/{0}/head', github.event.issue.number) || github.event.repository.default_branch }}
+          token: ${{ steps.github-token.outputs.token }}
+
+      - name: Fetch PR branch and Setup Remote
+        if: github.event.issue.pull_request
+        env:
+          PR_BRANCH: ${{ steps.check_fork.outputs.pr_branch }}
+          IS_FORK: ${{ steps.check_fork.outputs.is_fork }}
+        run: |
+          git fetch origin pull/${{ github.event.issue.number }}/head:"${PR_BRANCH}"
+          if [ "${IS_FORK}" = "true" ]; then
+            git remote set-url origin file://$(pwd)
+          fi
 
       - name: Run Claude Code Action
         uses: anthropics/claude-code-action@beta
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.github-token.outputs.token }}
         with:
+          allowed_bots: 'praisonai-triage-agent[bot]'
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ steps.github-token.outputs.token }}
           trigger_phrase: "@claude"
           label_trigger: "claude"
-          allowed_bots: "praisonai-triage-agent[bot]"
           timeout_minutes: "30"
           direct_prompt: |
+            ${{ steps.check_fork.outputs.is_fork == 'true' && 'CRITICAL: THIS IS A PULL REQUEST FROM A FORK. YOU DO NOT HAVE PUSH PERMISSIONS TO THIS REPOSITORY. ONLY READ FILES, VALIDATE CODE, AND PROVIDE YOUR COMMENTS/FEEDBACK DIRECTLY IN THIS PR VIA COMMENTS. DO NOT ATTEMPT TO PUSH OR CREATE PULL REQUESTS.\n\n' || 'NOTE: The branch is under MervinPraison/PraisonAIUI (not a fork). You are able to make modifications and push directly to this branch.\n\n' }}
             You are implementing changes in **MervinPraison/PraisonAIUI** (YAML-driven server-driven UI with agentic chat).
             Follow `AGENTS.md` at the repository root. If a conflict arises between this prompt and `AGENTS.md`, `AGENTS.md` wins.
 
             ═══════════════════════════════════════════════════════════════
             STEP 0 — GIT & GITHUB CLI
             ═══════════════════════════════════════════════════════════════
-            git config --global user.name "github-actions[bot]"
-            git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git config --global user.name "MervinPraison"
+            git config --global user.email "454862+MervinPraison@users.noreply.github.com"
             gh auth setup-git
 
             ═══════════════════════════════════════════════════════════════
@@ -204,14 +320,6 @@ jobs:
               # 3. Import-time invariant (MUST stay under 200 ms cold):
               python -c "import time, sys; t=time.time(); import praisonaiui; dt=(time.time()-t)*1000; heavy=[m for m in sys.modules if any(h in m for h in ['langchain','llama_index','mcp','slack','discord','botbuilder','openai.','anthropic.','mistralai','google.generativeai'])]; print(f'{dt:.1f}ms modules={len(sys.modules)} leaked={heavy}'); assert heavy == [], f'Heavy deps leaked: {heavy}'"
 
-              # 4. Real agentic end-to-end test (write this into tests/integration/
-              #    if your feature changes the agent-facing API):
-              #    from praisonaiagents import Agent
-              #    import praisonaiui as aiui
-              #    agent = Agent(name="demo", instructions="You are a helpful assistant")
-              #    result = agent.start("Say hello in one sentence")
-              #    print(result)
-
             If anything fails, fix the root cause (never skip, xfail, or delete the test).
 
             ═══════════════════════════════════════════════════════════════
@@ -233,10 +341,6 @@ jobs:
 
             <what changed in one paragraph>
 
-            ## Before / After
-
-            <copy-pasteable snippet per public API change>
-
             ## Acceptance criteria
 
             <copy from the issue; tick boxes only with commit SHA + file path evidence>
@@ -245,12 +349,6 @@ jobs:
 
             \`\`\`
             <paste pytest output>
-            \`\`\`
-
-            ## Import-time proof
-
-            \`\`\`
-            <paste the python -c import-time output>
             \`\`\`
             "
               fi
