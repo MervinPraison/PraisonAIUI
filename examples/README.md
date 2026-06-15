@@ -59,7 +59,7 @@ See also: [`docs/examples/basic.md`](../docs/examples/basic.md) and [`docs/examp
 | 02 | [profiles](yaml/02-profiles/) | YAML agent profiles / persona switching | `aiui run chat.yaml` |
 | 03 | [tools](yaml/03-tools/) | Built-in YAML tool registration | `aiui run chat.yaml` |
 | 04 | [features](yaml/04-features/) | Feature flags and dashboard options in YAML | `aiui run chat.yaml` |
-| 12 | [playground](yaml/12-playground/) | YAML agent playground with multiple profiles | `aiui run chat.yaml` |
+| 12 | [playground](yaml/12-playground/) | YAML agent playground with multiple profiles | `aiui run chat.yaml --style agents` |
 
 ---
 
