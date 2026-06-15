@@ -1,6 +1,6 @@
-# YAML Playground — Multi-agent tabbed UI, no Python needed
+# YAML Agents Playground — Multi-agent tabbed UI, no Python needed
 #
-# What's New (vs chat-yaml-profiles/):
+# What's New (vs yaml/02-profiles/):
 #   • style: agents — activates tabbed AgentUILayout (sidebar with Agents/History tabs)
 #   • Multiple agent profiles with different system prompts
 #   • Per-agent starter messages

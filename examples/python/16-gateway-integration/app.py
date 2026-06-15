@@ -154,13 +154,14 @@ def _register_agents_in_dashboard():
 
 # ── Main ────────────────────────────────────────────────────
 async def main():
+    host = os.getenv("HOST", "127.0.0.1")
     if GATEWAY_OK:
         print("🚀 Starting with Gateway mode (full execution + streaming)")
         print()
 
         # Create the gateway
         gateway = AIUIGateway(
-            host="0.0.0.0",
+            host=host,
             port=8083,
         )
 
@@ -195,7 +196,7 @@ async def main():
         _register_agents_in_dashboard()
 
         app = create_app()
-        config = uvicorn.Config(app, host="0.0.0.0", port=8083, log_level="info")
+        config = uvicorn.Config(app, host=host, port=8083, log_level="info")
         server = uvicorn.Server(config)
         await server.serve()
 

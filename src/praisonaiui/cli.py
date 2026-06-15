@@ -220,7 +220,7 @@ def validate(
         console.print(f"[red]Error:[/red] Failed to parse configuration: {e}")
         raise typer.Exit(code=1)
 
-    result = validate_config(cfg, config.parent)
+    result = validate_config(cfg, config.parent, strict=strict)
 
     if result.valid:
         console.print("[green]✓[/green] Configuration is valid")
@@ -1087,41 +1087,15 @@ def _register_yaml_chat(chat_yaml: dict) -> None:
 
             _resolved_tools.append(web_search)
         elif tname == "calculate":
+            from praisonaiui.math_eval import eval_math_expression
 
             def calculate(expression: str) -> str:
                 """Evaluate a math expression safely."""
-                import ast
-
-                allowed = set("0123456789+-*/.() ")
-                if all(c in allowed for c in expression):
-                    try:
-                        tree = ast.parse(expression, mode="eval")
-                        # Only allow numeric literals and basic operators
-                        for node in ast.walk(tree):
-                            if not isinstance(
-                                node,
-                                (
-                                    ast.Expression,
-                                    ast.BinOp,
-                                    ast.UnaryOp,
-                                    ast.Constant,
-                                    ast.Add,
-                                    ast.Sub,
-                                    ast.Mult,
-                                    ast.Div,
-                                    ast.FloorDiv,
-                                    ast.Mod,
-                                    ast.Pow,
-                                    ast.USub,
-                                    ast.UAdd,
-                                ),
-                            ):
-                                return "Error: Only basic math operations allowed"
-                        result = eval(compile(tree, "<calc>", "eval"))
-                        return f"Result: {result}"
-                    except Exception as e:
-                        return f"Error: {e}"
-                return "Error: Only basic math operations allowed"
+                try:
+                    result = eval_math_expression(expression)
+                    return f"Result: {result}"
+                except Exception as e:
+                    return f"Error: {e}"
 
             _resolved_tools.append(calculate)
 

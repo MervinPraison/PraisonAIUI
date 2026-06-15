@@ -1,6 +1,6 @@
 # Clean Chat — Dashboard chat without sidebar (YAML version)
 #
-# This is the YAML equivalent of examples/python/25-clean-chat/app.py
+# This is the YAML equivalent of examples/python/26-clean-chat/app.py
 # All config is protocol-driven through the same /ui-config.json endpoint.
 #
 # Run:

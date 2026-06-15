@@ -27,14 +27,25 @@
         'display:flex;gap:16px;align-items:center;padding:12px;' +
         'background:var(--db-card-bg, #1f2937);border-radius:8px;' +
         'border-left:4px solid var(--db-accent, #818cf8)';
-      row.innerHTML =
-        '<div style="font-size:24px">' + (ev.icon || '•') + '</div>' +
-        '<div style="flex:1">' +
-          '<div style="font-weight:600;color:var(--db-text, #fff)">' +
-            (ev.label || '') + '</div>' +
-          '<div style="font-size:12px;color:var(--db-text-muted, #94a3b8);' +
-            'margin-top:4px">' + (ev.time || '') + '</div>' +
-        '</div>';
+      const iconDiv = document.createElement('div');
+      iconDiv.style.cssText = 'font-size:24px';
+      iconDiv.textContent = ev.icon || '•';
+      
+      const contentDiv = document.createElement('div');
+      contentDiv.style.cssText = 'flex:1';
+      
+      const labelDiv = document.createElement('div');
+      labelDiv.style.cssText = 'font-weight:600;color:var(--db-text, #fff)';
+      labelDiv.textContent = ev.label || '';
+      
+      const timeDiv = document.createElement('div');
+      timeDiv.style.cssText = 'font-size:12px;color:var(--db-text-muted, #94a3b8);margin-top:4px';
+      timeDiv.textContent = ev.time || '';
+      
+      contentDiv.appendChild(labelDiv);
+      contentDiv.appendChild(timeDiv);
+      row.appendChild(iconDiv);
+      row.appendChild(contentDiv);
       el.appendChild(row);
     });
     return el;
@@ -47,12 +58,38 @@
     const box = document.createElement('div');
     box.style.cssText = 'padding:24px;background:var(--db-card-bg, #1f2937);' +
       'border-radius:12px;color:var(--db-text, #fff)';
-    box.innerHTML =
-      '<h2 style="margin:0 0 16px 0">⚡ Client-Only View</h2>' +
-      '<p>This entire page is rendered by JavaScript in the browser — ' +
-      'it does <b>not</b> call <code>/api/pages/custom-view/data</code>.</p>' +
-      '<p>Registered via <code>window.aiui.registerView(\'custom-view\', ...)</code>.</p>' +
-      '<p>Current time: <span id="aiui-clock"></span></p>';
+    const h2 = document.createElement('h2');
+    h2.style.cssText = 'margin:0 0 16px 0';
+    h2.textContent = '⚡ Client-Only View';
+    
+    const p1 = document.createElement('p');
+    p1.textContent = 'This entire page is rendered by JavaScript in the browser — it does ';
+    const strongCode = document.createElement('strong');
+    strongCode.textContent = 'not';
+    p1.appendChild(strongCode);
+    p1.appendChild(document.createTextNode(' call '));
+    const code1 = document.createElement('code');
+    code1.textContent = '/api/pages/custom-view/data';
+    p1.appendChild(code1);
+    p1.appendChild(document.createTextNode('.'));
+    
+    const p2 = document.createElement('p');
+    p2.textContent = 'Registered via ';
+    const code2 = document.createElement('code');
+    code2.textContent = 'window.aiui.registerView(\'custom-view\', ...)';
+    p2.appendChild(code2);
+    p2.appendChild(document.createTextNode('.'));
+    
+    const p3 = document.createElement('p');
+    p3.textContent = 'Current time: ';
+    const clockSpan = document.createElement('span');
+    clockSpan.id = 'aiui-clock';
+    p3.appendChild(clockSpan);
+    
+    box.appendChild(h2);
+    box.appendChild(p1);
+    box.appendChild(p2);
+    box.appendChild(p3);
     container.appendChild(box);
     const clock = box.querySelector('#aiui-clock');
     const tick = function () { clock.textContent = new Date().toLocaleTimeString(); };
