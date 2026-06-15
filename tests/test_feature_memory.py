@@ -1,11 +1,14 @@
 """Per-feature test: Memory — Protocol compliance + API + CLI parity."""
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from starlette.testclient import TestClient
 
 # Reset memory manager before creating app to ensure clean state
 from praisonaiui.features import memory as memory_mod
+
 memory_mod._memory_manager = None
 
 from praisonaiui.server import create_app
@@ -31,11 +34,15 @@ def check(name, r, status=200, keys=None):
 # ── Protocol Compliance Tests ────────────────────────────────────────
 print("\n── Memory: Protocol Tests ──")
 
-from praisonaiui.features.memory import (
-    MemoryProtocol, SimpleMemoryManager, SDKMemoryManager,
-    get_memory_manager, set_memory_manager, PraisonAIMemory,
-)
 from abc import ABC
+
+from praisonaiui.features.memory import (
+    MemoryProtocol,
+    SDKMemoryManager,
+    SimpleMemoryManager,
+    get_memory_manager,
+    set_memory_manager,
+)
 
 # MemoryProtocol is ABC
 assert issubclass(MemoryProtocol, ABC), "MemoryProtocol must be ABC"
@@ -194,7 +201,9 @@ assert r.json()["count"] == 0
 # ── CLI Parity ───────────────────────────────────────────────────────
 print("\n── Memory: CLI Parity ──")
 from typer.testing import CliRunner
+
 from praisonaiui.cli import app as cli_app
+
 runner = CliRunner()
 
 result = runner.invoke(cli_app, ["memory", "--help"])

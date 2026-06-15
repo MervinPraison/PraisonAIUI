@@ -163,6 +163,7 @@ def test_send_a2ui_messages_real_tool_extra():
     pytest.importorskip("a2ui", reason="a2ui-agent-sdk not installed")
 
     from praisonaiagents.tools.a2ui_tools import send_a2ui_messages
+
     from praisonaiui.providers import _tool_completed_extra_from_result
 
     result = send_a2ui_messages(

@@ -3,8 +3,6 @@
 import json
 from pathlib import Path
 
-import pytest
-
 from praisonaiui.compiler.compiler import Compiler
 from praisonaiui.schema.models import (
     AuthConfig,

@@ -7,7 +7,6 @@ from praisonaiui.schema.models import (
     AuthConfig,
     ChatConfig,
     ChatFeaturesConfig,
-    ChatInputConfig,
     ChatProfileConfig,
     ChatStarterConfig,
     Config,

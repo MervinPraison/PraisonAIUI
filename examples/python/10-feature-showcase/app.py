@@ -11,7 +11,7 @@ Demonstrates:
 
 Run:
     pip install praisonaiui
-    python app.py
+    aiui run app.py
     # Dashboard at http://localhost:8082
     # Set HOST=0.0.0.0 for Docker/LAN demos (defaults to 127.0.0.1)
 """

@@ -1,5 +1,7 @@
 """Gateway integration tests — verifies _gateway_ref singleton and feature wiring."""
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 passed = failed = 0
@@ -76,6 +78,7 @@ _gateway_ref.set_gateway(None)
 print("\n── App Creation Smoke Test ──")
 
 from starlette.testclient import TestClient
+
 from praisonaiui.server import create_app
 
 client = TestClient(create_app())

@@ -11,19 +11,10 @@ Run with:
 
 from __future__ import annotations
 
-import json
-import os
-import shutil
-import tempfile
-import time
-from pathlib import Path
-from unittest.mock import patch
-
 import pytest
 from starlette.testclient import TestClient
 
 from praisonaiui.server import create_app
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -52,7 +43,7 @@ def _isolate_persistence(tmp_path, monkeypatch):
         pass
     # Clear config runtime
     try:
-        from praisonaiui.features.config_runtime import _runtime_config, _config_history
+        from praisonaiui.features.config_runtime import _config_history, _runtime_config
         _runtime_config.clear()
         _config_history.clear()
     except ImportError:
@@ -831,6 +822,7 @@ class TestPersistence:
 
         # Read the single config.yaml from the store's actual path
         import yaml
+
         import praisonaiui.config_store as cs
         config_path = cs.get_config_store().path
         assert config_path.exists(), "config.yaml should exist"

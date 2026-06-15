@@ -12,7 +12,7 @@ What's New (vs full-dashboard/):
     • All data from PraisonAIUI feature APIs
 
 Run:
-    PYTHONPATH=src python app.py
+    python app.py
     # Dashboard at http://localhost:8082
 """
 

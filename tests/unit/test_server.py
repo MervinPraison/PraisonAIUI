@@ -232,6 +232,7 @@ class TestReplyTypeDispatch:
 
         # Simulate what run_agent does
         import asyncio
+
         from praisonaiui.server import MessageContext
 
         msg = MessageContext(text="Hello world")

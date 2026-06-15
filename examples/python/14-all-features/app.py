@@ -1,15 +1,8 @@
 """Example 14: All Features Demo — Comprehensive API test suite.
 
 Demonstrates ALL 16 PraisonAIUI features with real API calls.
-Run: PYTHONPATH=src python examples/python/14-all-features/app.py
+Run: aiui run app.py
 """
-
-import sys
-import os
-
-# Add paths for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "src"))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from starlette.testclient import TestClient
 from praisonaiui.server import create_app

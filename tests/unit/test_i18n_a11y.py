@@ -1,6 +1,5 @@
 """Tests for i18n and accessibility configuration."""
 
-import pytest
 
 from praisonaiui.schema.models import (
     A11yConfig,

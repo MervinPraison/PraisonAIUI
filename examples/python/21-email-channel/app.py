@@ -31,7 +31,7 @@ Requires:
     export EMAIL_APP_PASSWORD=your_app_password
 
 Run:
-    python app.py
+    aiui run app.py
     # Dashboard at http://localhost:8084
 """
 

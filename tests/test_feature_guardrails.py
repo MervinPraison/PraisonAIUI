@@ -1,11 +1,14 @@
 """Per-feature test: Guardrails — Protocol compliance + CRUD API + violations."""
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from starlette.testclient import TestClient
 
 # Reset guardrail manager before creating app to ensure clean state
 from praisonaiui.features import guardrails as gr_mod
+
 gr_mod._guardrail_manager = None
 
 from praisonaiui.server import create_app
@@ -31,11 +34,13 @@ def check(name, r, status=200, keys=None):
 # ── Protocol Compliance Tests ────────────────────────────────────────
 print("\n── Guardrails: Protocol Tests ──")
 
-from praisonaiui.features.guardrails import (
-    GuardrailProtocol, SimpleGuardrailManager, SDKGuardrailManager,
-    get_guardrail_manager, PraisonAIGuardrails,
-)
 from abc import ABC
+
+from praisonaiui.features.guardrails import (
+    GuardrailProtocol,
+    SDKGuardrailManager,
+    SimpleGuardrailManager,
+)
 
 # GuardrailProtocol is ABC
 assert issubclass(GuardrailProtocol, ABC), "GuardrailProtocol must be ABC"
@@ -229,7 +234,9 @@ check("GET /api/instances (still served)", client.get("/api/instances"), 200,
 # ── CLI Parity (guardrails help) ─────────────────────────────────────
 print("\n── Guardrails: CLI Parity ──")
 from typer.testing import CliRunner
+
 from praisonaiui.cli import app as cli_app
+
 runner = CliRunner()
 
 result = runner.invoke(cli_app, ["guardrails", "--help"])

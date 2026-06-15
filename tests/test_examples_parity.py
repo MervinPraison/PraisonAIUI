@@ -17,8 +17,8 @@ import signal
 import subprocess
 import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -363,7 +363,7 @@ def test_example(name: str, app_file: str, port: int, is_yaml: bool = False) -> 
 
 def main():
     print(f"\n{BOLD}PraisonAIUI — Comprehensive Example Testing{RESET}")
-    print(f"Testing API endpoints + CLI parity for all examples\n")
+    print("Testing API endpoints + CLI parity for all examples\n")
 
     # Discover examples
     python_examples = sorted((EXAMPLES / "python").iterdir())

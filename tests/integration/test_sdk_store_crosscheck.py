@@ -15,8 +15,7 @@ import uuid
 import pytest
 from starlette.testclient import TestClient
 
-from praisonaiui.server import create_app, set_datastore, _callbacks
-
+from praisonaiui.server import _callbacks, create_app, set_datastore
 
 # ---------------------------------------------------------------------------
 # Fixtures

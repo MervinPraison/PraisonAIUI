@@ -1,6 +1,5 @@
 """Tests for AIUI_DATA_DIR environment variable support."""
 import importlib
-import os
 from pathlib import Path
 
 
@@ -46,13 +45,13 @@ class TestDataDir:
     def test_env_var_read_at_call_time(self, monkeypatch, tmp_path):
         """Env var is read at function call time, not module import time."""
         from praisonaiui.server import _get_data_dir
-        
+
         # First call with one value
         dir1 = str(tmp_path / "dir1")
         monkeypatch.setenv("AIUI_DATA_DIR", dir1)
         result1 = _get_data_dir()
         assert str(result1) == dir1
-        
+
         # Second call with different value
         dir2 = str(tmp_path / "dir2")
         monkeypatch.setenv("AIUI_DATA_DIR", dir2)

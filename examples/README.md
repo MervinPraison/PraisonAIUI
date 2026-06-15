@@ -21,8 +21,8 @@ See also: [`docs/examples/basic.md`](../docs/examples/basic.md) and [`docs/examp
 | 07 | [provider-praisonai](python/07-provider-praisonai/) | Custom `BaseProvider` subclass, `RunEvent` protocol | `aiui run app.py` |
 | 08 | [streaming](python/08-streaming/) | PraisonAI Agent streaming via `stream_emitter` | `aiui run app.py` |
 | 09 | [widget](python/09-widget/) | Copilot/sidebar mode | `aiui run app.py` |
-| 10 | [feature-showcase](python/10-feature-showcase/) | All protocol features seeded, `create_app()` | `python app.py` |
-| 11 | [ui-integration](python/11-ui-integration/) | Gradio ASGI mount, Streamlit iframe, REST embedding | `python app.py` |
+| 10 | [feature-showcase](python/10-feature-showcase/) | All protocol features seeded, `create_app()` | `aiui run app.py` |
+| 11 | [ui-integration](python/11-ui-integration/) | Gradio ASGI mount, Streamlit iframe, REST embedding | `aiui run app.py` |
 | 12 | [agent-dashboard](python/12-agent-dashboard/) | OpenClaw-style rendered HTML admin panel | `python app.py` |
 | 13 | [real-dashboard](python/13-real-dashboard/) | Real PraisonAI Agent + native dashboard + live metrics | `aiui run app.py --style dashboard` |
 | 14 | [all-features](python/14-all-features/) | Integration test suite for all 16 feature APIs | `python app.py` |
@@ -30,19 +30,19 @@ See also: [`docs/examples/basic.md`](../docs/examples/basic.md) and [`docs/examp
 | 16 | [gateway-integration](python/16-gateway-integration/) | `AIUIGateway` — real agent execution + WebSocket streaming | `python app.py` |
 | 17 | [three-column-demo](python/17-three-column-demo/) | Three-column feature explorer with gateway | `python app.py` |
 | 18 | [full-chat](python/18-full-chat/) | `aiui.set_pages()` page curation + custom explorer page | `python app.py` |
-| 19 | [email-bot](python/19-email-bot/) | `EmailBot` IMAP/SMTP + agent replies + subject commands | `python app.py` |
 | 19 | [components-showcase](python/19-components-showcase/) | All 54 UI component types in one dashboard | `aiui run app.py --style dashboard` |
-| 20 | [email-channel](python/20-email-channel/) | Email as AIUI dashboard channel via `/api/channels` | `python app.py` |
-| 21 | [agentmail-bot](python/21-agentmail-bot/) | `AgentMailBot` API-first email + programmatic inbox lifecycle | `python app.py` |
-| 22 | [agentmail-channel](python/22-agentmail-channel/) | AgentMail as AIUI dashboard channel via `/api/channels` | `python app.py` |
-| 23 | [e2e-components-test](python/23-e2e-components-test/) | Components, docs, and chat rendering in one app | `python app.py` |
-| 24 | [custom-design](python/24-custom-design/) | Every chat design knob (`set_theme`, branding, layout) | `aiui run app.py` |
-| 25 | [clean-chat](python/25-clean-chat/) | `set_dashboard(sidebar=False)` — dashboard chat without left nav | `aiui run app.py` |
-| 26 | [custom-theme-chat](python/26-custom-theme-chat/) | `register_theme()` — dynamic custom theme (teal/cyan) | `aiui run app.py` |
-| 27 | [multica-style](python/27-multica-style/) | Multica-inspired UI features (glass, gradients, motion) | `python app.py` |
-| 28 | [full-extensibility](python/28-full-extensibility/) | All extension points: pages, forms, `set_custom_js`, plugins | `python app.py` |
-| 29 | [a2ui-canvas](python/29-a2ui-canvas/) | A2UI canvas + `send_a2ui_messages` integration | `python app.py` |
-| 30 | [image-preview](python/30-image-preview/) | `ImageAgent` inline chat image preview via `MESSAGE_ELEMENT` | `aiui run app.py` |
+| 20 | [email-bot](python/20-email-bot/) | `EmailBot` IMAP/SMTP + agent replies + subject commands | `python app.py` |
+| 21 | [email-channel](python/21-email-channel/) | Email as AIUI dashboard channel via `/api/channels` | `aiui run app.py` |
+| 22 | [agentmail-bot](python/22-agentmail-bot/) | `AgentMailBot` API-first email + programmatic inbox lifecycle | `python app.py` |
+| 23 | [agentmail-channel](python/23-agentmail-channel/) | AgentMail as AIUI dashboard channel via `/api/channels` | `aiui run app.py` |
+| 24 | [e2e-components-test](python/24-e2e-components-test/) | Components, docs, and chat rendering in one app | `python app.py` |
+| 25 | [custom-design](python/25-custom-design/) | Every chat design knob (`set_theme`, branding, layout) | `aiui run app.py` |
+| 26 | [clean-chat](python/26-clean-chat/) | `set_dashboard(sidebar=False)` — dashboard chat without left nav | `aiui run app.py` |
+| 27 | [custom-theme-chat](python/27-custom-theme-chat/) | `register_theme()` — dynamic custom theme (teal/cyan) | `aiui run app.py` |
+| 28 | [multica-style](python/28-multica-style/) | Multica-inspired UI features (glass, gradients, motion) | `python app.py` |
+| 29 | [full-extensibility](python/29-full-extensibility/) | All extension points: pages, forms, `set_custom_js`, plugins | `python app.py` |
+| 30 | [a2ui-canvas](python/30-a2ui-canvas/) | A2UI canvas + `send_a2ui_messages` integration | `python app.py` |
+| 31 | [image-preview](python/31-image-preview/) | `ImageAgent` inline chat image preview via `MESSAGE_ELEMENT` | `aiui run app.py` |
 | — | [external-agent-dashboard](python/external-agent-dashboard/) | Minimal external agent on dashboard shell | `aiui run app.py` |
 | — | [platform-board](python/platform-board/) | Kanban board from PraisonAI Platform issues API | `aiui run app.py` |
 | — | [praisonai-claw-board](python/praisonai-claw-board/) | Kanban board from `aiui` jobs store | `aiui run app.py` |

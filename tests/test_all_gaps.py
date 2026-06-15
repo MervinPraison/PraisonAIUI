@@ -3,14 +3,18 @@
 Tests protocol compliance, API endpoints, and feature registration
 for: Memory, MediaAnalysis, TTS, Marketplace, CodeExecution, PWA, i18n, DevicePairing.
 """
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 # Reset singletons before app creation
 from praisonaiui.features import memory as _mem
+
 _mem._memory_manager = None
 
 from starlette.testclient import TestClient
+
 from praisonaiui.server import create_app
 
 app = create_app()
@@ -61,44 +65,52 @@ print("\n═══ Protocol Compliance ═══")
 from abc import ABC
 
 # Memory
-from praisonaiui.features.memory import MemoryProtocol, SimpleMemoryManager, SDKMemoryManager
+from praisonaiui.features.memory import MemoryProtocol, SDKMemoryManager, SimpleMemoryManager
+
 assert issubclass(MemoryProtocol, ABC); passed += 1; print("  ✓ MemoryProtocol is ABC")
 assert isinstance(SimpleMemoryManager(), MemoryProtocol); passed += 1; print("  ✓ SimpleMemoryManager")
 assert isinstance(SDKMemoryManager(), MemoryProtocol); passed += 1; print("  ✓ SDKMemoryManager")
 
 # TTS
-from praisonaiui.features.tts import TTSProtocol, BrowserTTSManager, OpenAITTSManager
+from praisonaiui.features.tts import BrowserTTSManager, OpenAITTSManager, TTSProtocol
+
 assert issubclass(TTSProtocol, ABC); passed += 1; print("  ✓ TTSProtocol is ABC")
 assert isinstance(BrowserTTSManager(), TTSProtocol); passed += 1; print("  ✓ BrowserTTSManager")
 assert isinstance(OpenAITTSManager(), TTSProtocol); passed += 1; print("  ✓ OpenAITTSManager")
 
 # Marketplace
-from praisonaiui.features.marketplace import MarketplaceProtocol, LocalMarketplaceManager
+from praisonaiui.features.marketplace import LocalMarketplaceManager, MarketplaceProtocol
+
 assert issubclass(MarketplaceProtocol, ABC); passed += 1; print("  ✓ MarketplaceProtocol is ABC")
 assert isinstance(LocalMarketplaceManager(), MarketplaceProtocol); passed += 1; print("  ✓ LocalMarketplaceManager")
 
 # Code Execution
 from praisonaiui.features.code_execution import CodeExecutionProtocol, SandboxExecutionManager
+
 assert issubclass(CodeExecutionProtocol, ABC); passed += 1; print("  ✓ CodeExecutionProtocol is ABC")
 assert isinstance(SandboxExecutionManager(), CodeExecutionProtocol); passed += 1; print("  ✓ SandboxExecutionManager")
 
 # PWA
-from praisonaiui.features.pwa import PWAProtocol, DefaultPWAManager
+from praisonaiui.features.pwa import DefaultPWAManager, PWAProtocol
+
 assert issubclass(PWAProtocol, ABC); passed += 1; print("  ✓ PWAProtocol is ABC")
 assert isinstance(DefaultPWAManager(), PWAProtocol); passed += 1; print("  ✓ DefaultPWAManager")
 
 # i18n
 from praisonaiui.features.i18n import I18nProtocol, JSONLocaleManager
+
 assert issubclass(I18nProtocol, ABC); passed += 1; print("  ✓ I18nProtocol is ABC")
 assert isinstance(JSONLocaleManager(), I18nProtocol); passed += 1; print("  ✓ JSONLocaleManager")
 
 # Device Pairing
-from praisonaiui.features.device_pairing import PairingProtocol, DefaultPairingManager
+from praisonaiui.features.device_pairing import DefaultPairingManager, PairingProtocol
+
 assert issubclass(PairingProtocol, ABC); passed += 1; print("  ✓ PairingProtocol is ABC")
 assert isinstance(DefaultPairingManager(), PairingProtocol); passed += 1; print("  ✓ DefaultPairingManager")
 
 # Media Analysis
 from praisonaiui.features.media_analysis import MediaAnalysisProtocol, VisionAnalysisManager
+
 assert issubclass(MediaAnalysisProtocol, ABC); passed += 1; print("  ✓ MediaAnalysisProtocol is ABC")
 assert isinstance(VisionAnalysisManager(), MediaAnalysisProtocol); passed += 1; print("  ✓ VisionAnalysisManager")
 

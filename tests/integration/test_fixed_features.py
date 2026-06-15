@@ -11,14 +11,10 @@ Run with:
 
 from __future__ import annotations
 
-import time
-from typing import Any, Dict
-
 import pytest
 from starlette.testclient import TestClient
 
 from praisonaiui.server import create_app
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -33,7 +29,7 @@ def _isolate_persistence(tmp_path, monkeypatch):
 
     # Clear channels
     try:
-        from praisonaiui.features.channels import _channels, _live_bots, PraisonAIChannels
+        from praisonaiui.features.channels import PraisonAIChannels, _channels, _live_bots
         _channels.clear()
         _live_bots.clear()
         PraisonAIChannels._auto_started = False

@@ -14,11 +14,9 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict
 
 import pytest
 import yaml
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────
 
@@ -296,9 +294,7 @@ class TestSingleton:
 
     def test_init_config_store_sets_singleton(self, tmp_config_dir: Path):
         """init_config_store creates and sets the global singleton."""
-        from praisonaiui.config_store import (
-            init_config_store, get_config_store, set_config_store
-        )
+        from praisonaiui.config_store import get_config_store, init_config_store, set_config_store
         # Reset to clean state
         set_config_store(None)
 

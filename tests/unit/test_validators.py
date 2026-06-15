@@ -1,12 +1,10 @@
 """Tests for validators."""
 
-from pathlib import Path
 
-import pytest
 
 from praisonaiui.schema.models import (
-    Config,
     ComponentConfig,
+    Config,
     ContentConfig,
     ContentSourceConfig,
     RouteConfig,
