@@ -12,16 +12,19 @@ than direct store manipulation.
 def seed_demo_data():
     """Populate feature stores with demo data.
 
-    Seeds demo data via HTTP API calls to ensure compatibility across
+    Seeds data via HTTP API calls to ensure compatibility across
     different backend implementations (file, DB, etc.).
     """
-    from starlette.testclient import TestClient
+    try:
+        from starlette.testclient import TestClient
 
-    from praisonaiui.server import create_app
+        from praisonaiui.server import create_app
 
-    app = create_app()
-    client = TestClient(app)
-    seed_via_api(client)
+        app = create_app()
+        client = TestClient(app)
+        seed_via_api(client)
+    except ImportError:
+        pass
 
 
 def seed_via_api(client):
