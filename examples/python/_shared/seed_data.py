@@ -21,8 +21,8 @@ def seed_demo_data():
         from praisonaiui.server import create_app
 
         app = create_app()
-        client = TestClient(app)
-        seed_via_api(client)
+        with TestClient(app) as client:
+            seed_via_api(client)
     except ImportError:
         pass
 
