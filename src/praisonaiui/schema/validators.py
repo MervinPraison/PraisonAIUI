@@ -89,9 +89,11 @@ def validate_config(config: Config, base_path: Path | None = None) -> Validation
                 if widgets:
                     for widget in widgets:
                         widget_type = widget.get("type")
-                        # Check if widget type matches a component name
-                        if widget_type and widget_type in config.components:
-                            used_components.add(widget_type)
+                        # Check if widget type matches a component type
+                        if widget_type:
+                            for comp_name, comp in config.components.items():
+                                if comp.type == widget_type:
+                                    used_components.add(comp_name)
 
     # Validate route template references
     for route in config.routes:
@@ -134,7 +136,7 @@ def validate_config(config: Config, base_path: Path | None = None) -> Validation
             can_be_auto_wired = False
             if component_name in auto_wireable_components:
                 for template in config.templates.values():
-                    if template.layout == "FlexibleLayout" and template.zones:
+                    if template.layout == "FlexibleLayout":
                         can_be_auto_wired = True
                         break
 

@@ -117,7 +117,10 @@ class Compiler:
     def _apply_composition_resolver(self) -> None:
         """Apply composition resolver to auto-wire components to zones."""
         for template_name, template in self.config.templates.items():
-            if template.layout == "FlexibleLayout" and template.zones:
+            if template.layout == "FlexibleLayout":
+                if template.zones is None:
+                    from praisonaiui.schema.models import ZonesConfig
+                    template.zones = ZonesConfig()
                 # Auto-wire components to common zone mappings
                 self._auto_wire_component_to_zone(template, "sidebar", "leftSidebar")
                 self._auto_wire_component_to_zone(template, "header", "header")
@@ -339,52 +342,11 @@ class Compiler:
                         {"type": w.get("type"), "props": w.get("props", {})} for w in widgets
                     ]
 
-        # CompositionResolver: Auto-bridge registered components to zones for FlexibleLayout
-        if template.layout == "FlexibleLayout":
-            zones_dict = self._resolve_composition_wiring(zones_dict)
-
         if zones_dict:
             result["zones"] = zones_dict
 
         return result
 
-    def _resolve_composition_wiring(self, zones_dict: dict) -> dict:
-        """
-        CompositionResolver: Auto-bridge registered components to appropriate zones.
-
-        Fixes the fractured composition model by automatically wiring components
-        that are registered but not explicitly placed in zones.
-        """
-        # Component to zone mapping for FlexibleLayout
-        component_zone_mapping = {
-            "sidebar": "leftSidebar",
-            "header": "header",
-            "footer": "footer",
-        }
-
-        for component_name, component_config in self.config.components.items():
-            # Check if this component is already referenced in zones
-            component_already_used = any(
-                any(widget.get("type") == component_config.type for widget in widgets)
-                for widgets in zones_dict.values()
-            )
-
-            # Skip if component is already used
-            if component_already_used:
-                continue
-
-            # Map component to appropriate zone based on naming convention
-            target_zone = component_zone_mapping.get(component_name)
-            if target_zone and target_zone not in zones_dict:
-                # Auto-bridge: create zone with reference to registered component
-                zones_dict[target_zone] = [
-                    {
-                        "type": component_config.type,
-                        "props": component_config.props
-                    }
-                ]
-
-        return zones_dict
 
     def _generate_docs_nav(self) -> dict:
         """Generate docs-nav.json content."""

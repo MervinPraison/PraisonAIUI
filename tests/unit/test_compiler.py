@@ -536,13 +536,16 @@ class TestCompositionResolver:
 
     def test_no_auto_bridge_for_non_flexible_layout(self, tmp_path: Path):
         """CompositionResolver should only work for FlexibleLayout."""
+        from praisonaiui.schema.models import ZonesConfig
+
         config = Config(
             site=SiteConfig(title="Test Site"),
             components={
                 "sidebar": ComponentConfig(type="DocsSidebar", props={"collapsible": True}),
             },
             templates={
-                "docs": TemplateConfig(layout="ThreeColumnLayout", slots={})
+                "docs": TemplateConfig(layout="ThreeColumnLayout", slots={}),
+                "dummy": TemplateConfig(layout="FlexibleLayout", zones=ZonesConfig())
             },
             routes=[RouteConfig(match="/docs/**", template="docs")],
         )
