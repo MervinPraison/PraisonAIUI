@@ -98,7 +98,13 @@ const aiuiSdk = {
         wrap.innerHTML = '';
         if (data?._components) data._components.forEach((c) => wrap.appendChild(renderComponent(c)));
         else if (data?.columns) wrap.appendChild(renderBoard({ type: 'board', columns: data.columns }));
-      } catch (e) { wrap.innerHTML = `<div class="db-alert db-alert-error">${e.message}</div>`; }
+      } catch (e) { 
+        wrap.innerHTML = '';
+        const alertEl = document.createElement('div');
+        alertEl.className = 'db-alert db-alert-error';
+        alertEl.textContent = e.message;
+        wrap.appendChild(alertEl);
+      }
     }
     refresh();
     const interval = opts?.pollMs ? setInterval(refresh, opts.pollMs) : null;
@@ -919,7 +925,14 @@ function buildSidebar(pages) {
   fetch('/ui-config.json').then(r => r.json()).then(cfg => {
     const title = cfg.site?.title || 'PraisonAI';
     const logo = cfg.site?.logo || '🦞';
-    header.innerHTML = `<span>${title}</span> <span class="logo">${logo}</span>`;
+    header.innerHTML = '';
+    const titleSpan = document.createElement('span');
+    titleSpan.textContent = title;
+    header.appendChild(titleSpan);
+    const logoSpan = document.createElement('span');
+    logoSpan.className = 'logo';
+    logoSpan.textContent = logo;
+    header.appendChild(logoSpan);
     
     // Apply sidebar config from server
     if (cfg.dashboard) {
@@ -963,7 +976,11 @@ function buildSidebar(pages) {
       const item = document.createElement('div');
       item.className = 'db-nav-item';
       item.dataset.navId = page.id;
-      item.innerHTML = `<span class="db-nav-icon">${page.icon || '📄'}</span> ${page.title}`;
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'db-nav-icon';
+      iconSpan.textContent = page.icon || '📄';
+      item.appendChild(iconSpan);
+      item.appendChild(document.createTextNode(' ' + page.title));
       item.addEventListener('click', () => selectPage(page.id));
       sidebar.appendChild(item);
     });
@@ -981,7 +998,11 @@ function buildSidebar(pages) {
     for (const page of footerPages) {
       const btn = document.createElement('div');
       btn.className = 'db-nav-item';
-      btn.innerHTML = `<span class="db-nav-icon">${page.icon || '�'}</span> ${page.title}`;
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'db-nav-icon';
+      iconSpan.textContent = page.icon || '⚙';
+      btn.appendChild(iconSpan);
+      btn.appendChild(document.createTextNode(' ' + page.title));
       btn.addEventListener('click', () => {
         // Use built-in handler if available, otherwise navigate to page
         if (page.id === 'inspector') {
@@ -1093,7 +1114,13 @@ async function loadGenericViewer(page, container) {
     const data = await res.json();
     renderComponents(data, container);
   } catch (e) {
-    container.innerHTML = `<div class="db-viewer"><pre>No data available for ${page.title}.</pre></div>`;
+    container.innerHTML = '';
+    const viewer = document.createElement('div');
+    viewer.className = 'db-viewer';
+    const pre = document.createElement('pre');
+    pre.textContent = `No data available for ${page.title}.`;
+    viewer.appendChild(pre);
+    container.appendChild(viewer);
   }
 }
 
@@ -1127,7 +1154,13 @@ function renderComponents(data, container) {
     });
   } else {
     // Raw JSON viewer
-    container.innerHTML = `<div class="db-viewer"><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+    container.innerHTML = '';
+    const viewer = document.createElement('div');
+    viewer.className = 'db-viewer';
+    const pre = document.createElement('pre');
+    pre.textContent = JSON.stringify(data, null, 2);
+    viewer.appendChild(pre);
+    container.appendChild(viewer);
   }
 }
 
@@ -1189,7 +1222,9 @@ function renderComponent(comp) {
       if (SURFACE_REGISTRY[sid]) {
         try { SURFACE_REGISTRY[sid](wrap, comp.messages || []); } catch (e) { console.warn(e); }
       } else {
-        wrap.innerHTML = '<pre>' + JSON.stringify(comp.messages || [], null, 2) + '</pre>';
+        const pre = document.createElement('pre');
+        pre.textContent = JSON.stringify(comp.messages || [], null, 2);
+        wrap.appendChild(pre);
       }
       return wrap;
     }
@@ -1206,7 +1241,9 @@ function renderComponent(comp) {
     default: {
       const div = document.createElement('div');
       div.className = 'db-viewer';
-      div.innerHTML = `<pre>${JSON.stringify(comp, null, 2)}</pre>`;
+      const pre = document.createElement('pre');
+      pre.textContent = JSON.stringify(comp, null, 2);
+      div.appendChild(pre);
       return div;
     }
   }
@@ -1246,11 +1283,28 @@ function renderBoard(comp) {
 function renderCard(comp) {
   const card = document.createElement('div');
   card.className = 'db-card';
-  let html = '';
-  if (comp.title) html += `<div class="db-card-title">${comp.title}</div>`;
-  if (comp.value !== undefined) html += `<div class="db-card-value">${comp.value}</div>`;
-  if (comp.footer) html += `<div class="db-card-footer">${comp.footer}</div>`;
-  card.innerHTML = html;
+  
+  if (comp.title) {
+    const titleEl = document.createElement('div');
+    titleEl.className = 'db-card-title';
+    titleEl.textContent = comp.title;
+    card.appendChild(titleEl);
+  }
+  
+  if (comp.value !== undefined) {
+    const valueEl = document.createElement('div');
+    valueEl.className = 'db-card-value';
+    valueEl.textContent = comp.value;
+    card.appendChild(valueEl);
+  }
+  
+  if (comp.footer) {
+    const footerEl = document.createElement('div');
+    footerEl.className = 'db-card-footer';
+    footerEl.textContent = comp.footer;
+    card.appendChild(footerEl);
+  }
+  
   return card;
 }
 
@@ -1267,12 +1321,18 @@ function renderChart(comp) {
   // Simplified chart — renders as a card with data info
   const card = document.createElement('div');
   card.className = 'db-card';
-  card.innerHTML = `
-    <div class="db-card-title">${comp.title || 'Chart'}</div>
-    <div style="color:var(--db-text-dim);font-size:13px;">
-      📊 ${(comp.data || []).length} data points
-    </div>
-  `;
+  
+  const titleEl = document.createElement('div');
+  titleEl.className = 'db-card-title';
+  titleEl.textContent = comp.title || 'Chart';
+  card.appendChild(titleEl);
+  
+  const infoEl = document.createElement('div');
+  infoEl.style.color = 'var(--db-text-dim)';
+  infoEl.style.fontSize = '13px';
+  infoEl.textContent = `📊 ${(comp.data || []).length} data points`;
+  card.appendChild(infoEl);
+  
   return card;
 }
 
@@ -1281,15 +1341,33 @@ function renderTable(comp) {
   wrapper.className = 'db-viewer';
   const headers = comp.headers || [];
   const rows = comp.rows || [];
-  let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+  
+  const table = document.createElement('table');
+  table.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;';
+  
   if (headers.length) {
-    html += '<tr>' + headers.map(h => `<th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase;">${h}</th>`).join('') + '</tr>';
+    const thead = document.createElement('tr');
+    headers.forEach(h => {
+      const th = document.createElement('th');
+      th.style.cssText = 'text-align:left;padding:8px 12px;border-bottom:1px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase;';
+      th.textContent = h;
+      thead.appendChild(th);
+    });
+    table.appendChild(thead);
   }
+  
   rows.forEach(row => {
-    html += '<tr>' + row.map(cell => `<td style="padding:8px 12px;border-bottom:1px solid var(--db-border);">${cell}</td>`).join('') + '</tr>';
+    const tr = document.createElement('tr');
+    row.forEach(cell => {
+      const td = document.createElement('td');
+      td.style.cssText = 'padding:8px 12px;border-bottom:1px solid var(--db-border);';
+      td.textContent = cell !== null && cell !== undefined ? cell : '';
+      tr.appendChild(td);
+    });
+    table.appendChild(tr);
   });
-  html += '</table>';
-  wrapper.innerHTML = html;
+  
+  wrapper.appendChild(table);
   return wrapper;
 }
 
@@ -1999,7 +2077,14 @@ function renderKeyValueList(comp) {
   (comp.items || []).forEach(item => {
     const row = document.createElement('div');
     row.className = 'db-kv-item';
-    row.innerHTML = `<span class="db-kv-label">${item.label || ''}</span><span class="db-kv-value">${item.value !== undefined ? item.value : ''}</span>`;
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'db-kv-label';
+    labelSpan.textContent = item.label || '';
+    row.appendChild(labelSpan);
+    const valueSpan = document.createElement('span');
+    valueSpan.className = 'db-kv-value';
+    valueSpan.textContent = item.value !== undefined ? item.value : '';
+    row.appendChild(valueSpan);
     el.appendChild(row);
   });
   return el;

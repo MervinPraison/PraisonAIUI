@@ -1,5 +1,9 @@
 """Agent Dashboard — OpenClaw/agent-ui style admin panel.
 
+⚠️  DEPRECATED: This example uses unsafe innerHTML rendering and will be removed in v0.5.0.
+    For secure admin dashboards, use examples/15-dashboard-test/ or examples/13-real-dashboard/
+    which use the component-based rendering model.
+
 What's New (vs full-dashboard/):
     • Rendered HTML dashboard — not just JSON APIs
     • Sidebar navigation with live page switching
@@ -14,6 +18,8 @@ Run:
 
 import os
 import sys
+import warnings
+
 import uvicorn
 from starlette.responses import HTMLResponse
 from starlette.routing import Route
@@ -23,7 +29,6 @@ from praisonaiui.server import create_app
 # Use shared seed data helper
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from _shared.seed_data import seed_demo_data
-
 
 # ── HTML Template ────────────────────────────────────────────────────
 
@@ -480,6 +485,13 @@ setInterval(loadOverview, 10000);
 seed_demo_data()
 
 if __name__ == "__main__":
+    warnings.warn(
+        "examples/12-agent-dashboard uses unsafe innerHTML rendering and will be removed in v0.5.0. "
+        "Use examples/15-dashboard-test/ or examples/13-real-dashboard/ for secure admin dashboards.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
     app = create_app()
 
     # Add the dashboard HTML landing page
@@ -489,6 +501,8 @@ if __name__ == "__main__":
     app.routes.insert(0, Route("/", dashboard_landing, methods=["GET"]))
 
     print("✅ Agent Dashboard at http://localhost:8082")
+    print("⚠️  DEPRECATED: This example uses unsafe innerHTML rendering")
+    print("   For secure dashboards, use examples/15-dashboard-test/")
     print("   JSON API: http://localhost:8082/api/features")
     host = os.getenv("HOST", "127.0.0.1")
     uvicorn.run(app, host=host, port=8082, log_level="info")
