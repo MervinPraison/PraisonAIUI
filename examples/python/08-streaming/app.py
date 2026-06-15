@@ -10,14 +10,17 @@ Run:
     aiui run app.py
 """
 
-import os
 import asyncio
+import os
+import sys
 
 import praisonaiui as aiui
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '_shared'))
+from stream_bridge import StreamBridge
+
 try:
     from praisonaiagents import Agent
-    from praisonaiagents.streaming.events import StreamEventType
 except ImportError:
     raise ImportError(
         "praisonaiagents package required. Install with: pip install praisonaiagents"
@@ -70,36 +73,22 @@ async def on_message(message: str):
 
     await aiui.think("Thinking...")
 
-    # Set up a streaming callback that forwards tokens to PraisonAIUI
-    token_queue = asyncio.Queue()
+    # Set up thread-safe streaming bridge
+    bridge = StreamBridge()
 
-    def on_stream_event(event):
-        """Callback invoked by the Agent's stream_emitter for each token."""
-        if event.type == StreamEventType.DELTA_TEXT and event.content:
-            token_queue.put_nowait(event.content)
-        elif event.type == StreamEventType.FIRST_TOKEN and event.content:
-            token_queue.put_nowait(event.content)
-        elif event.type == StreamEventType.STREAM_END:
-            token_queue.put_nowait(None)  # Sentinel
-
-    # Register callback
-    agent.stream_emitter.add_callback(on_stream_event)
+    # Register callback using the bridge
+    callback = bridge.emitter_callback()
+    agent.stream_emitter.add_callback(callback)
     agent.stream_emitter.enable_metrics()
 
     try:
-        # Run agent.chat in a thread (it's synchronous)
-        chat_task = asyncio.get_event_loop().run_in_executor(
-            None, lambda: agent.chat(str(message), stream=True)
+        # Run agent.chat concurrently with token consumption
+        chat_task = asyncio.create_task(
+            asyncio.to_thread(lambda: agent.chat(str(message), stream=True))
         )
 
-        # Drain tokens as they arrive and stream to UI
-        while True:
-            try:
-                token = await asyncio.wait_for(token_queue.get(), timeout=60.0)
-            except asyncio.TimeoutError:
-                break
-            if token is None:  # Sentinel from STREAM_END
-                break
+        # Consume tokens as they arrive and stream to UI
+        async for token in bridge.consume():
             await aiui.stream_token(token)
 
         # Wait for the chat to fully complete
@@ -107,7 +96,8 @@ async def on_message(message: str):
 
     finally:
         # Clean up callback
-        agent.stream_emitter.remove_callback(on_stream_event)
+        agent.stream_emitter.remove_callback(callback)
+        bridge.cancel()
 
 
 @aiui.cancel
