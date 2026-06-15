@@ -1,8 +1,11 @@
 """Per-feature test: Nodes & Instances — API + gateway integration."""
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from starlette.testclient import TestClient
+
 from praisonaiui.server import create_app
 
 client = TestClient(create_app())
@@ -135,6 +138,7 @@ assert "worker-gpu-1" in ids
 print("\n── Nodes: Gateway Enrichment ──")
 
 from praisonaiui.features import _gateway_ref
+
 
 class MockGateway:
     def health(self):

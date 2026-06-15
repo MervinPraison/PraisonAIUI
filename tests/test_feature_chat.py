@@ -5,10 +5,7 @@ TDD: These tests define the expected behaviour BEFORE the feature is built.
 
 from __future__ import annotations
 
-import json
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-
 
 # ── Unit tests for ChatFeature protocol ──────────────────────────────
 

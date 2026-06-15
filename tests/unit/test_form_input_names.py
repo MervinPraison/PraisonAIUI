@@ -27,7 +27,6 @@ from praisonaiui.ui import (
     textarea_input,
 )
 
-
 # ── Python dict shape ─────────────────────────────────────────────
 
 class TestInputNameKwarg:

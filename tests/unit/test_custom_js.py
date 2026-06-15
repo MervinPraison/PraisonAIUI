@@ -7,8 +7,9 @@ from their Python app without modifying the package's frontend bundle.
 
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
+
+import pytest
 from starlette.testclient import TestClient
 
 from praisonaiui import server as srv

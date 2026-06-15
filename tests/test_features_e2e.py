@@ -3,14 +3,14 @@
 Tests every API endpoint for each feature through the Starlette TestClient.
 """
 
-import json
-import sys
 import os
+import sys
 
 # Ensure we can import the package from source
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from starlette.testclient import TestClient
+
 from praisonaiui.server import create_app
 
 app = create_app()
@@ -275,7 +275,6 @@ print("\n── Config Runtime ──")
 r = client.get("/api/config/runtime")
 check("GET /api/config/runtime (empty)", r, 200, ["config"])
 
-import urllib.request
 # PATCH requires special handling with TestClient
 r = client.request("PATCH", "/api/config/runtime", json={"model": "gpt-4o", "temperature": "0.7"})
 check("PATCH /api/config/runtime", r, 200, ["config", "applied"])

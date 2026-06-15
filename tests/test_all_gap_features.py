@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import pytest
 
-
 # ── Helper ───────────────────────────────────────────────────────
 
 def _make_features():

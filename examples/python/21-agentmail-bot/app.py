@@ -23,10 +23,10 @@ Requires:
     export AGENTMAIL_DOMAIN=mycompany.com   (custom domain for new inboxes)
 
 Run:
-    aiui run app.py            # Start agentmail bot
-    aiui run app.py --probe    # Test API connectivity only
-    aiui run app.py --handlers # With custom command handlers
-    aiui run app.py --inbox    # Demo inbox lifecycle
+    python app.py              # Start agentmail bot
+    python app.py --probe      # Test API connectivity only
+    python app.py --handlers   # With custom command handlers
+    python app.py --inbox      # Demo inbox lifecycle
 """
 
 import asyncio

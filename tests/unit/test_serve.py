@@ -1,9 +1,6 @@
 """Tests for serve command and SPA handler."""
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
-import pytest
 
 
 class TestServeCommand:
@@ -12,6 +9,7 @@ class TestServeCommand:
     def test_serve_command_exists(self):
         """Verify serve command is registered."""
         from typer.testing import CliRunner
+
         from praisonaiui.cli import app
 
         runner = CliRunner()
@@ -22,6 +20,7 @@ class TestServeCommand:
     def test_serve_requires_output_directory(self, tmp_path):
         """Verify serve fails without output directory."""
         from typer.testing import CliRunner
+
         from praisonaiui.cli import app
 
         runner = CliRunner()
@@ -93,7 +92,7 @@ site:
     def test_serve_no_build_skips_build(self, tmp_path):
         """Test that --no-build skips the build step."""
         from typer.testing import CliRunner
-        from praisonaiui.cli import app
+
 
         runner = CliRunner()
         output_dir = tmp_path / "aiui"
@@ -113,6 +112,7 @@ class TestPortHandling:
     def test_default_port_help_shows_8000(self):
         """Verify help text shows default port 8000."""
         from typer.testing import CliRunner
+
         from praisonaiui.cli import app
 
         runner = CliRunner()
@@ -122,7 +122,7 @@ class TestPortHandling:
     def test_custom_port_accepted(self):
         """Test that custom port can be specified."""
         from typer.testing import CliRunner
-        from praisonaiui.cli import app
+
 
         runner = CliRunner()
         # Just verify the option is accepted (would need mock server to test fully)

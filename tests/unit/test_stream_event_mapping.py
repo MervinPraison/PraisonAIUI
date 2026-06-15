@@ -12,15 +12,8 @@ Tests prove:
 """
 
 import asyncio
-import logging
-import uuid
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Optional, Dict, Any
-from unittest.mock import patch
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Fixtures — import from installed SDK
@@ -251,7 +244,7 @@ class TestAsyncBridge:
     @pytest.mark.asyncio
     async def test_bridge_delivers_events_to_queue(self, mapping_fn):
         """Events emitted by SDK must reach the asyncio queue via bridge."""
-        from praisonaiagents.streaming import StreamEventEmitter, StreamEvent, StreamEventType
+        from praisonaiagents.streaming import StreamEvent, StreamEventEmitter, StreamEventType
 
         event_queue: asyncio.Queue = asyncio.Queue()
         _loop = asyncio.get_running_loop()
@@ -294,7 +287,7 @@ class TestAsyncBridge:
     @pytest.mark.asyncio
     async def test_bridge_handles_no_errors_silently(self, mapping_fn):
         """Bridge must not crash when SDK emitter fires events rapidly."""
-        from praisonaiagents.streaming import StreamEventEmitter, StreamEvent, StreamEventType
+        from praisonaiagents.streaming import StreamEvent, StreamEventEmitter, StreamEventType
 
         event_queue: asyncio.Queue = asyncio.Queue()
         _loop = asyncio.get_running_loop()

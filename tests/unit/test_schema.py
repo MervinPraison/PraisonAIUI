@@ -1,10 +1,9 @@
 """Tests for schema models - TDD: write tests first."""
 
-import pytest
 
 from praisonaiui.schema.models import (
-    Config,
     ComponentConfig,
+    Config,
     ContentConfig,
     ContentSourceConfig,
     RouteConfig,

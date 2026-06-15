@@ -1,8 +1,11 @@
 """Per-feature test: Channels — API + gateway integration + CLI parity."""
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from starlette.testclient import TestClient
+
 from praisonaiui.server import create_app
 
 client = TestClient(create_app())
@@ -119,6 +122,7 @@ print("\n── Channels: Gateway Integration ──")
 
 # Test _get_gateway_health returns None when no gateway is set
 from praisonaiui.features.channels import PraisonAIChannels
+
 ch_feature = PraisonAIChannels()
 gw_health = ch_feature._get_gateway_health()
 try:
@@ -130,6 +134,7 @@ except AssertionError as e:
 
 # Test with mock gateway set via _gateway_ref
 from praisonaiui.features import _gateway_ref
+
 
 class MockGateway:
     def health(self):

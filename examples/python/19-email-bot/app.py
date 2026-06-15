@@ -24,8 +24,8 @@ Requires:
     export EMAIL_SMTP_SERVER=smtp.gmail.com   (default)
 
 Run:
-    aiui run app.py            # Start email bot
-    aiui run app.py --probe    # Test connectivity only
+    python app.py              # Start email bot
+    python app.py --probe      # Test connectivity only
 """
 
 import asyncio

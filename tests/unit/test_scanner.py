@@ -1,10 +1,8 @@
 """Tests for docs scanner."""
 
-from pathlib import Path
 
-import pytest
 
-from praisonaiui.compiler.docs_scanner import DocPage, DocsScanner
+from praisonaiui.compiler.docs_scanner import DocsScanner
 
 
 class TestDocsScanner:

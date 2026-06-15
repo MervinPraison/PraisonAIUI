@@ -1,6 +1,5 @@
 """Unit tests for A2UI payload detection and normalisation."""
 
-import pytest
 
 from praisonaiui.a2ui_utils import (
     A2UI_MIME_TYPE,

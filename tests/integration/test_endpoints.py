@@ -25,7 +25,6 @@ from praisonaiui.server import (
     set_datastore,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -50,7 +49,7 @@ def client():
 @pytest.fixture
 def str_app():
     """App with str-typed @reply (simulates chat-app/app.py)."""
-    from praisonaiui.callbacks import reply, welcome, starters, profiles, cancel
+    from praisonaiui.callbacks import cancel, profiles, reply, starters, welcome
 
     @welcome
     async def on_welcome():
@@ -59,7 +58,7 @@ def str_app():
 
     @reply
     async def on_message(message: str):
-        from praisonaiui.callbacks import say, think, action_buttons
+        from praisonaiui.callbacks import action_buttons, say, think
         await think("Processing...")
         await say(f"Echo: {message}")
         await action_buttons([{"name": "like", "label": "👍"}])
@@ -274,7 +273,6 @@ class TestRunEndpoint:
         events = _parse_sse(r.text)
         session_id = events[0]["session_id"]
         # Verify session exists via the datastore
-        import asyncio
         session = asyncio.get_event_loop().run_until_complete(
             _srv._datastore.get_session(session_id)
         )

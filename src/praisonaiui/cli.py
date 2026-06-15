@@ -1416,7 +1416,7 @@ def run(
                         tree = ast.parse(source)
                         for node in ast.walk(tree):
                             if isinstance(node, ast.ImportFrom) and node.module:
-                                if 'AIUIGateway' in str(node.names) and 'integration' in node.module:
+                                if any(alias.name == 'AIUIGateway' for alias in node.names) and 'integration' in node.module:
                                     console.print("[cyan]ℹ️[/cyan] Auto-detected gateway app, using praisonai backend")
                                     backend = "praisonai"
                                     break

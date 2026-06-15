@@ -17,7 +17,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ── Helper: create a minimal valid PDF with extractable text ─────────
 
 def _make_test_pdf(text: str = "Hello from test PDF") -> bytes:
@@ -124,8 +123,9 @@ class TestAttachmentManagerPDF:
     def test_pdf_text_extraction(self):
         """Verify pypdf can extract text from our test PDF."""
         pytest.importorskip("pypdf")
-        from pypdf import PdfReader
         import io
+
+        from pypdf import PdfReader
 
         pdf_data = _make_test_pdf("Extractable text here")
         reader = PdfReader(io.BytesIO(pdf_data))
@@ -240,8 +240,9 @@ class TestHTTPAttachmentFlow:
 
     def test_upload_pdf_via_api(self):
         """POST /api/chat/attachments returns valid metadata."""
-        from praisonaiui.server import create_app
         from starlette.testclient import TestClient
+
+        from praisonaiui.server import create_app
 
         app = create_app()
         client = TestClient(app)
@@ -261,8 +262,9 @@ class TestHTTPAttachmentFlow:
 
     def test_chat_send_accepts_attachment_ids(self):
         """POST /api/chat/send accepts attachment_ids field."""
-        from praisonaiui.server import create_app
         from starlette.testclient import TestClient
+
+        from praisonaiui.server import create_app
 
         app = create_app()
         client = TestClient(app)

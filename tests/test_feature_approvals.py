@@ -1,8 +1,11 @@
 """Per-feature test: Approvals — API + CLI parity."""
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from starlette.testclient import TestClient
+
 from praisonaiui.server import create_app
 
 client = TestClient(create_app())
@@ -81,6 +84,7 @@ check("GET /api/approvals/config", client.get("/api/approvals/config"), 200)
 
 print("\n── Approvals: CLI Parity ──")
 from typer.testing import CliRunner
+
 from praisonaiui.cli import app as cli_app
 
 runner = CliRunner()

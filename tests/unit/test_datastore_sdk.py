@@ -9,13 +9,9 @@ Verifies:
 - graceful fallback when SDK not available
 """
 
-import asyncio
-import json
-import os
 import shutil
 import tempfile
 import uuid
-from unittest.mock import patch, MagicMock
 
 import pytest
 

@@ -1,18 +1,16 @@
 """Tests for plugin system."""
 
-from typing import Any, Dict, List
+from typing import Any, List
 
 import pytest
 
 from praisonaiui.plugins import (
     BasePlugin,
     PluginManager,
-    PluginProtocol,
     get_plugin_manager,
     register_plugin,
     unregister_plugin,
 )
-from praisonaiui.schema import Config
 
 
 class TestPluginManager:

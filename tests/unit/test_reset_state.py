@@ -87,7 +87,7 @@ class TestThemeIntegration:
         assert mgr.get_theme() == "zinc"
 
     def test_theme_manager_default_vars_match_zinc(self):
-        from praisonaiui.features.theme import get_theme_manager, PRESET_COLORS
+        from praisonaiui.features.theme import PRESET_COLORS, get_theme_manager
         mgr = get_theme_manager()
         v = mgr.get_vars()
         assert v["--db-accent"] == PRESET_COLORS["zinc"]["accent"]

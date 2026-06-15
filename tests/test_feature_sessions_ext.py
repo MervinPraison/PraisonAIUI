@@ -1,8 +1,11 @@
 """Per-feature test: Extended Sessions — API tests."""
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from starlette.testclient import TestClient
+
 from praisonaiui.server import create_app
 
 client = TestClient(create_app())

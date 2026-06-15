@@ -1,8 +1,11 @@
 """Per-feature test: Skills — API + CLI parity."""
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from starlette.testclient import TestClient
+
 from praisonaiui.server import create_app
 
 client = TestClient(create_app())
@@ -67,7 +70,9 @@ client.delete(f"/api/skills/{s2}")
 
 print("\n── Skills: CLI Parity ──")
 from typer.testing import CliRunner
+
 from praisonaiui.cli import app as cli_app
+
 runner = CliRunner()
 
 result = runner.invoke(cli_app, ["skills", "--help"])

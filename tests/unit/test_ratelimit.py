@@ -1,8 +1,9 @@
 """Unit tests for ratelimit.py - Rate limiting middleware."""
 
 import time
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
 
 
 class TestRateLimitConfig:
@@ -59,7 +60,7 @@ class TestRateLimiter:
 
     def test_limiter_creation(self):
         """Test RateLimiter creation."""
-        from praisonaiui.ratelimit import RateLimiter, RateLimitConfig
+        from praisonaiui.ratelimit import RateLimitConfig, RateLimiter
 
         config = RateLimitConfig()
         limiter = RateLimiter(config)
@@ -67,7 +68,7 @@ class TestRateLimiter:
 
     def test_get_key_by_ip(self):
         """Test key generation by IP address."""
-        from praisonaiui.ratelimit import RateLimiter, RateLimitConfig
+        from praisonaiui.ratelimit import RateLimitConfig, RateLimiter
 
         config = RateLimitConfig(by_ip=True, by_user=False)
         limiter = RateLimiter(config)
@@ -82,7 +83,7 @@ class TestRateLimiter:
 
     def test_get_key_with_forwarded_header(self):
         """Test key generation with X-Forwarded-For header."""
-        from praisonaiui.ratelimit import RateLimiter, RateLimitConfig
+        from praisonaiui.ratelimit import RateLimitConfig, RateLimiter
 
         config = RateLimitConfig(by_ip=True, by_user=False)
         limiter = RateLimiter(config)
@@ -97,7 +98,7 @@ class TestRateLimiter:
 
     def test_is_allowed_excluded_path(self):
         """Test that excluded paths are always allowed."""
-        from praisonaiui.ratelimit import RateLimiter, RateLimitConfig
+        from praisonaiui.ratelimit import RateLimitConfig, RateLimiter
 
         config = RateLimitConfig(exclude_paths=["/health"])
         limiter = RateLimiter(config)
@@ -111,7 +112,7 @@ class TestRateLimiter:
 
     def test_is_allowed_first_request(self):
         """Test that first request is allowed."""
-        from praisonaiui.ratelimit import RateLimiter, RateLimitConfig
+        from praisonaiui.ratelimit import RateLimitConfig, RateLimiter
 
         config = RateLimitConfig(requests_per_minute=60, burst_limit=10)
         limiter = RateLimiter(config)
@@ -129,7 +130,7 @@ class TestRateLimiter:
 
     def test_is_allowed_burst_limit(self):
         """Test burst limit enforcement."""
-        from praisonaiui.ratelimit import RateLimiter, RateLimitConfig
+        from praisonaiui.ratelimit import RateLimitConfig, RateLimiter
 
         config = RateLimitConfig(
             requests_per_minute=100,
@@ -155,7 +156,7 @@ class TestRateLimiter:
 
     def test_is_allowed_minute_limit(self):
         """Test per-minute limit enforcement."""
-        from praisonaiui.ratelimit import RateLimiter, RateLimitConfig
+        from praisonaiui.ratelimit import RateLimitConfig, RateLimiter
 
         config = RateLimitConfig(
             requests_per_minute=5,
@@ -181,7 +182,7 @@ class TestRateLimiter:
 
     def test_cleanup_old_buckets(self):
         """Test cleanup of old buckets."""
-        from praisonaiui.ratelimit import RateLimiter, RateLimitConfig, RateLimitBucket
+        from praisonaiui.ratelimit import RateLimitBucket, RateLimitConfig, RateLimiter
 
         config = RateLimitConfig()
         limiter = RateLimiter(config)
@@ -288,8 +289,9 @@ class TestRateLimitMiddleware:
     @pytest.mark.asyncio
     async def test_dispatch_custom_on_limited(self):
         """Test dispatch uses custom on_limited callback."""
-        from praisonaiui.ratelimit import RateLimitMiddleware
         from starlette.responses import JSONResponse
+
+        from praisonaiui.ratelimit import RateLimitMiddleware
 
         mock_app = MagicMock()
         custom_response = JSONResponse({"custom": "error"}, status_code=429)

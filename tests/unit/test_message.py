@@ -1,8 +1,9 @@
 """Unit tests for message.py \u2014 composable Message API."""
 
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 class TestMessage:

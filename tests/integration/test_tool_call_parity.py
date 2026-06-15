@@ -10,7 +10,6 @@ Run with:
 """
 
 import json
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from starlette.testclient import TestClient
@@ -19,7 +18,6 @@ from praisonaiui.server import (
     _callbacks,
     create_app,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -343,7 +341,6 @@ class TestMultiToolExercise:
     @pytest.mark.slow
     def test_multi_tool_produces_files(self, client):
         """Multi-tool prompt should create the requested files."""
-        import os
 
         r = client.post("/run", json={"message": self.MULTI_TOOL_PROMPT})
         assert r.status_code == 200

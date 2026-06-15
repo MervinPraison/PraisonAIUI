@@ -5,7 +5,6 @@ from starlette.testclient import TestClient
 
 from praisonaiui.features.surfaces import (
     SurfaceStore,
-    get_surface_store,
     set_surface_store,
 )
 

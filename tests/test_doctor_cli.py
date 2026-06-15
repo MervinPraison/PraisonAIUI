@@ -1,7 +1,8 @@
 """Tests for the `aiui doctor` CLI command."""
 import json
-import pytest
+
 from typer.testing import CliRunner
+
 from praisonaiui.cli import app
 
 runner = CliRunner()
