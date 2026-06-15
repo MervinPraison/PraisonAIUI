@@ -82,7 +82,7 @@ export function Content({ config, routes, selectedItem }: ContentProps) {
 
     if (selectedItem) {
         return (
-            <main className="flex-1 p-8 max-w-3xl">
+            <main id="main-content" className="flex-1 p-8 max-w-3xl">
                 {loadingContent ? (
                     <div className="text-muted-foreground">Loading content...</div>
                 ) : markdown ? (

@@ -36,17 +36,14 @@ python app.py
 ## Testing the custom component + custom view
 
 The `timeline` component and the `custom-view` page are client-side extensions.
-Load `plugin.js` into the page:
+`app.py` loads `plugin.js` automatically via `aiui.set_custom_js()` — no DevTools paste required.
 
 1. Open http://localhost:8082 in the browser
-2. Open DevTools → Console
-3. Paste the full contents of `plugin.js` and press Enter
-4. Navigate to **Custom Component** → the timeline now renders as a styled list
-5. Navigate to **Client-Only View** → a JS-rendered clock appears
+2. Navigate to **Custom Component** → the timeline renders as a styled list
+3. Navigate to **Client-Only View** → a JS-rendered clock appears
 
-> **Gap**: There is currently no Python API to inject client-side JS from
-> `app.py`. A proposed `aiui.set_custom_js(path)` would close this gap —
-> see the `docs/features/how-to-add-a-feature.md` guide.
+> **Note:** `aiui.set_custom_js(path)` injects client-side JS from a file path at page load.
+> See `docs/features/how-to-add-a-feature.md` for the extension API contract.
 
 ## Testing the form action
 
