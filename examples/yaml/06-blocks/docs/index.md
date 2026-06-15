@@ -1,31 +1,18 @@
-# Component Blocks Showcase
+# shadcn Dependencies Installation Demo
 
-A complete showcase of all shadcn UI component blocks, inspired by [ui.shadcn.com/themes](https://ui.shadcn.com/themes).
+This example demonstrates the automatic installation of shadcn UI components at build time using the `dependencies.shadcn` configuration.
 
-## Dashboard Cards
+## How it works
 
-Revenue cards, subscription stats, and analytics displays.
+When you build this project, PraisonAIUI will automatically download and install the following 22 shadcn components:
 
-## Forms
+- **UI Components**: card, button, input, label, avatar, badge, progress, separator, switch, checkbox, radio-group, select, slider, tabs, accordion, dialog, dropdown-menu, popover, tooltip, table
+- **Advanced Components**: calendar, chart
 
-Authentication forms, payment forms, and input variations.
+## What gets installed
 
-## Calendar & Date
+The components are downloaded from the shadcn/ui registry and installed in your project's components directory. They become available for use in your custom components and templates.
 
-Date pickers, calendar widgets, and scheduling components.
+## Note
 
-## Charts
-
-Area charts, bar charts, line graphs for data visualization.
-
-## Tables
-
-Data tables with sorting, filtering, and pagination.
-
-## Navigation
-
-Tabs, accordions, and dropdown menus for navigation patterns.
-
----
-
-This example uses the auto-download feature to install all 22 components at build time.
+This example demonstrates dependency installation only. For actual component showcases with live demos, see the shadcn documentation at [ui.shadcn.com](https://ui.shadcn.com).
