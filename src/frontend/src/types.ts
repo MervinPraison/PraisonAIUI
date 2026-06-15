@@ -20,6 +20,33 @@ export interface SiteConfig {
     theme?: ThemeConfig
 }
 
+export interface SEOConfig {
+    titleTemplate?: string
+    defaultImage?: string
+    twitter?: Record<string, string>
+}
+
+export interface I18nConfig {
+    defaultLocale?: string
+    locales?: string[]
+    rtlLocales?: string[]
+    fallbackLocale?: string
+    translationsDir?: string
+}
+
+export interface A11yConfig {
+    skipToContent?: boolean
+    focusVisible?: boolean
+    reduceMotion?: boolean
+    ariaLabels?: Record<string, string>
+}
+
+export interface LogoConfig {
+    light?: string
+    dark?: string
+    href?: string
+}
+
 export interface WidgetConfig {
     type: string
     props?: Record<string, unknown>
@@ -58,6 +85,10 @@ export interface UIConfig {
     widgets?: InputWidget[]
     components?: Record<string, { props?: Record<string, unknown> }>
     templates?: Record<string, TemplateConfig>
+    seo?: SEOConfig
+    i18n?: I18nConfig
+    a11y?: A11yConfig
+    logo?: LogoConfig
 }
 
 export interface DocsNav {
@@ -163,6 +194,8 @@ export interface ToolCall {
     a2ui?: { messages: Record<string, unknown>[]; surface_id?: string }
     surface_id?: string
     elements?: (MessageElementUnion | Record<string, unknown>)[]
+    capability?: 'stub' | 'live'
+    warning?: string
 }
 
 export interface FileAttachment {

@@ -1,6 +1,6 @@
-# YAML Playground — Multi-agent tabbed UI, no Python needed
+# YAML Agents Playground — Multi-agent tabbed UI, no Python needed
 #
-# What's New (vs chat-yaml-profiles/):
+# What's New (vs yaml/02-profiles/):
 #   • style: agents — activates tabbed AgentUILayout (sidebar with Agents/History tabs)
 #   • Multiple agent profiles with different system prompts
 #   • Per-agent starter messages
@@ -25,15 +25,27 @@ profiles:
     description: "A helpful general-purpose assistant"
     icon: "🤖"
     default: true
+    instructions: |
+      You are a helpful, concise assistant. Answer questions clearly
+      and directly. Provide balanced, well-rounded responses.
   - name: "Code Expert"
     description: "Specialized in writing and debugging code"
     icon: "💻"
+    instructions: |
+      You are a senior software engineer. Focus on code quality,
+      best practices, and technical accuracy. Always include working examples.
   - name: "Data Analyst"
     description: "Analyzes data and provides insights"
     icon: "📊"
+    instructions: |
+      You are a data scientist. Think analytically, suggest appropriate
+      visualizations, and provide data-driven insights. Be methodical and precise.
   - name: "Creative Writer"
     description: "Helps with creative writing and content"
     icon: "✍️"
+    instructions: |
+      You are a creative writer. Use vivid language, storytelling techniques,
+      and engaging narrative structures. Be imaginative and expressive.
 
 welcome: "👋 Welcome to the AI Playground! Select an agent from the sidebar to get started."
 

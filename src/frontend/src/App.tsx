@@ -10,6 +10,18 @@ import { Toc } from './Toc'
 import { Footer } from './Footer'
 import { ChatLayout, AgentUILayout, CopilotWidget, PlaygroundLayout } from './layouts'
 
+function SkipLink({ enabled }: { enabled?: boolean }) {
+  if (!enabled) return null
+  return (
+    <a
+      href="#main-content"
+      className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 z-50 bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium"
+    >
+      Skip to main content
+    </a>
+  )
+}
+
 export default function App() {
   const [config, setConfig] = useState<UIConfig>({})
   const [nav, setNav] = useState<DocsNav>({})
@@ -100,8 +112,14 @@ export default function App() {
 
   // Update SEO meta tags dynamically
   const updateSEO = (title: string, path: string, description?: string) => {
-    // Update title
-    document.title = `${title} | ${config.site?.title || 'Documentation'}`
+    // Update title using SEO titleTemplate if available
+    const titleTemplate = config.seo?.titleTemplate || '%s | %s'
+    const siteName = config.site?.title || 'Documentation'
+    if (titleTemplate.includes('%s')) {
+      document.title = titleTemplate.replace('%s', title).replace('%s', siteName)
+    } else {
+      document.title = `${title} | ${siteName}`
+    }
 
     // Update canonical URL
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement
@@ -137,6 +155,30 @@ export default function App() {
       document.head.appendChild(ogUrl)
     }
     ogUrl.content = window.location.origin + path
+
+    // Update Twitter meta tags if configured
+    if (config.seo?.twitter) {
+      Object.entries(config.seo.twitter).forEach(([key, value]) => {
+        let twitterMeta = document.querySelector(`meta[name="twitter:${key}"]`) as HTMLMetaElement
+        if (!twitterMeta) {
+          twitterMeta = document.createElement('meta')
+          twitterMeta.name = `twitter:${key}`
+          document.head.appendChild(twitterMeta)
+        }
+        twitterMeta.content = value
+      })
+    }
+
+    // Set default image if available
+    if (config.seo?.defaultImage) {
+      let ogImage = document.querySelector('meta[property="og:image"]') as HTMLMetaElement
+      if (!ogImage) {
+        ogImage = document.createElement('meta')
+        ogImage.setAttribute('property', 'og:image')
+        document.head.appendChild(ogImage)
+      }
+      ogImage.content = config.seo.defaultImage
+    }
   }
 
   const handleItemClick = (item: NavItem) => {
@@ -199,15 +241,24 @@ export default function App() {
             <Content config={config} routes={routes} selectedItem={selectedItem} />
           </div>
         )
-      case 'FlexibleLayout':
-        // WordPress-style zones layout
+      case 'FlexibleLayout': {
+        // WordPress-style zones layout with navigation invariant
+        // When docs nav exists but no leftSidebar zone configured, render default nav
+        const hasExplicitLeftSidebar = (zones?.leftSidebar?.length ?? 0) > 0
+        const hasNavigation = (nav?.items?.length ?? 0) > 0
+        const shouldRenderNavigation = hasExplicitLeftSidebar || hasNavigation
+        
         return (
           <div className="flex flex-col">
             {zones?.hero && zones.hero.length > 0 && <ZoneWidgets widgets={zones.hero} />}
             <div className="flex flex-1">
-              {zones?.leftSidebar && zones.leftSidebar.length > 0 && (
+              {shouldRenderNavigation && (
                 <aside className="w-64 border-r p-4 hidden md:block">
-                  <ZoneWidgets widgets={zones.leftSidebar} />
+                  {hasExplicitLeftSidebar ? (
+                    <ZoneWidgets widgets={zones?.leftSidebar} />
+                  ) : (
+                    <Sidebar nav={nav} activeItem={activeItemPath} onItemClick={handleItemClick} />
+                  )}
                 </aside>
               )}
               <div className="flex-1">
@@ -227,6 +278,7 @@ export default function App() {
             )}
           </div>
         )
+      }
       case 'ThreeColumnLayout':
       default:
         // Classic: Sidebar + Content + TOC with zones
@@ -276,6 +328,7 @@ export default function App() {
         if (config.chat?.enabled) {
           return (
             <div className="min-h-screen bg-background text-foreground">
+              <SkipLink enabled={config.a11y?.skipToContent} />
               <Header config={config} />
               {renderLayout()}
               <Footer config={config} />
@@ -285,6 +338,7 @@ export default function App() {
         }
         return (
           <div className="min-h-screen bg-background text-foreground">
+            <SkipLink enabled={config.a11y?.skipToContent} />
             <Header config={config} />
             {renderLayout()}
             <Footer config={config} />
@@ -298,6 +352,7 @@ export default function App() {
           if (layoutMode && ['bottom-right', 'bottom-left', 'top-right', 'top-left'].includes(layoutMode)) {
             return (
               <div className="min-h-screen bg-background text-foreground">
+                <SkipLink enabled={config.a11y?.skipToContent} />
                 <Header config={config} />
                 {renderLayout()}
                 <Footer config={config} />
@@ -308,6 +363,7 @@ export default function App() {
         }
         return (
           <div className="min-h-screen bg-background text-foreground">
+            <SkipLink enabled={config.a11y?.skipToContent} />
             <Header config={config} />
             {renderLayout()}
             <Footer config={config} />
