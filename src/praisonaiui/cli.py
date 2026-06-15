@@ -1400,6 +1400,30 @@ def run(
 
         is_chat_mode = "reply" in _callbacks or "on:reply" in _callbacks
 
+        # ── Bootstrap Detection ───────────────────────────────────────
+        # Auto-detect app type to determine optimal backend
+        if backend == "standalone":  # Only auto-detect if not explicitly set
+            if hasattr(user_module, 'main') and callable(getattr(user_module, 'main')):
+                # Check if main function has async signature (gateway pattern)
+                import inspect
+                main_func = getattr(user_module, 'main')
+                if inspect.iscoroutinefunction(main_func):
+                    # Likely an AIUIGateway app - check for gateway imports
+                    import ast
+                    import inspect as _inspect
+                    try:
+                        source = _inspect.getsource(user_module)
+                        tree = ast.parse(source)
+                        for node in ast.walk(tree):
+                            if isinstance(node, ast.ImportFrom) and node.module:
+                                if 'AIUIGateway' in str(node.names) and 'integration' in node.module:
+                                    console.print("[cyan]ℹ️[/cyan] Auto-detected gateway app, using praisonai backend")
+                                    backend = "praisonai"
+                                    break
+                    except (OSError, TypeError, SyntaxError):
+                        # If source inspection fails, continue with standalone
+                        pass
+
     # ── Resolve final style ──────────────────────────────────────
     # Priority: CLI explicit --style > aiui.set_style() > auto-detect
     # Only auto-detect when CLI used the default value ("chat")
@@ -1528,10 +1552,21 @@ def run(
             )
         )
 
-        # Run gateway
+        # Run gateway - check if user module defines its own main function
         import asyncio
+        import inspect
 
-        asyncio.run(gateway.start())
+        if hasattr(user_module, 'main') and callable(getattr(user_module, 'main')):
+            # Call user's main function directly (gateway pattern)
+            main_func = getattr(user_module, 'main')
+            if inspect.iscoroutinefunction(main_func):
+                console.print("[yellow]ℹ️[/yellow] Delegating to user-defined async main()")
+                asyncio.run(main_func())
+            else:
+                console.print("[yellow]ℹ️[/yellow] Delegating to user-defined main()")
+                main_func()
+        else:
+            asyncio.run(gateway.start())
     else:
         # Set up datastore
         from praisonaiui.server import set_datastore
