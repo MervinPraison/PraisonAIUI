@@ -80,3 +80,6 @@ export { applyTheme, SHADCN_THEMES, RADIUS_PRESETS } from '../themes'
 
 // Theme toggle component
 export { ThemeToggle } from './theme-toggle'
+
+// Session search component
+export { SessionSearch } from './SessionSearch'

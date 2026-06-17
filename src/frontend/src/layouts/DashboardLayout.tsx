@@ -4,6 +4,7 @@ import type { DashboardPageDef, DashboardTabGroup } from '../types/dashboard'
 import { ChatArea, SessionManager } from '../chat'
 import { ProfilePicker } from '../chat/ProfilePicker'
 import { resolveView } from '../views'
+import { SessionSearch } from '../components/SessionSearch'
 
 interface DashboardLayoutProps {
     config?: ChatConfig
@@ -36,6 +37,7 @@ export function DashboardLayout({ config, layout: _layout, title, logo }: Dashbo
     const [navCollapsed, setNavCollapsed] = useState(false)
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [sessionListKey, setSessionListKey] = useState(0)
+    const [showSessionSearch, setShowSessionSearch] = useState(false)
     // Protocol-driven: pages fetched from /api/pages
     const [pages, setPages] = useState<DashboardPageDef[]>([])
     const [tabGroups, setTabGroups] = useState<DashboardTabGroup[]>([])
@@ -58,8 +60,22 @@ export function DashboardLayout({ config, layout: _layout, title, logo }: Dashbo
             })
     }, [])
 
+    // Add Ctrl+K keyboard shortcut
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault()
+                setShowSessionSearch(true)
+            }
+        }
+        document.addEventListener('keydown', handleKeyDown)
+        return () => document.removeEventListener('keydown', handleKeyDown)
+    }, [])
+
     const handleSessionSelect = useCallback((sessionId: string) => {
         setCurrentSessionId(sessionId)
+        // Switch to chat tab when session is selected
+        setActiveTab('chat')
     }, [])
 
     const handleNewSession = useCallback(() => {
@@ -220,6 +236,11 @@ export function DashboardLayout({ config, layout: _layout, title, logo }: Dashbo
                     {renderContent()}
                 </div>
             </main>
+            <SessionSearch
+                isOpen={showSessionSearch}
+                onClose={() => setShowSessionSearch(false)}
+                onSessionSelect={handleSessionSelect}
+            />
         </div>
     )
 }

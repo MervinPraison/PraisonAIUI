@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import type { ChatConfig, LayoutConfig } from '../types'
 import { ChatArea, SessionManager } from '../chat'
 import { ProfilePicker } from '../chat/ProfilePicker'
+import { SessionSearch } from '../components/SessionSearch'
 
 interface ChatLayoutProps {
     config?: ChatConfig
@@ -14,6 +15,7 @@ export function ChatLayout({ config, layout, title }: ChatLayoutProps) {
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [showSessions, setShowSessions] = useState(true)
     const [sessionListKey, setSessionListKey] = useState(0)
+    const [showSessionSearch, setShowSessionSearch] = useState(false)
 
     const handleSessionSelect = useCallback((sessionId: string) => {
         setCurrentSessionId(sessionId)
@@ -28,6 +30,18 @@ export function ChatLayout({ config, layout, title }: ChatLayoutProps) {
         setCurrentSessionId(sessionId)
         // Refresh the session list to show the new session
         setSessionListKey((k) => k + 1)
+    }, [])
+
+    // Add Ctrl+K keyboard shortcut
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault()
+                setShowSessionSearch(true)
+            }
+        }
+        document.addEventListener('keydown', handleKeyDown)
+        return () => document.removeEventListener('keydown', handleKeyDown)
     }, [])
 
     if (mode === 'fullscreen') {
@@ -69,6 +83,11 @@ export function ChatLayout({ config, layout, title }: ChatLayoutProps) {
                         />
                     </main>
                 </div>
+                <SessionSearch
+                    isOpen={showSessionSearch}
+                    onClose={() => setShowSessionSearch(false)}
+                    onSessionSelect={handleSessionSelect}
+                />
             </div>
         )
     }
