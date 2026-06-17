@@ -28,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
+      actions: write
     steps:
       - name: Resolve issue number
         id: resolve
@@ -51,17 +52,16 @@ jobs:
             });
 
             const labels = (issue.labels || []).map(l => typeof l === 'string' ? l : l.name);
-            if (labels.includes('claude')) {
-              console.log(`Issue #${issueNumber} already has 'claude' label — skipping.`);
-              return;
+            if (!labels.includes('claude')) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                labels: ['claude'],
+              });
+            } else {
+              console.log(`Issue #${issueNumber} already has 'claude' label.`);
             }
-
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber,
-              labels: ['claude'],
-            });
 
             const body = [
               '🤖 Auto-triaging with Claude.',
@@ -83,3 +83,12 @@ jobs:
               issue_number: issueNumber,
               body,
             });
+
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'claude.yml',
+              ref: 'main',
+              inputs: { issue_number: issueNumber },
+            });
+            console.log(`Dispatched Claude Assistant for issue #${issueNumber}`);
