@@ -333,7 +333,7 @@ class Compiler:
                 "ariaLabels": self.config.a11y.aria_labels,
             }
 
-        # I18n configuration - emit for frontend consumption (experimental)
+        # I18n configuration - emit for frontend consumption
         if self.config.i18n:
             result["i18n"] = {
                 "defaultLocale": self.config.i18n.default_locale,

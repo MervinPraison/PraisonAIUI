@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, type KeyboardEvent, type ChangeEvent } from 'react'
+import { useLocale } from '../i18n/LocaleProvider'
 
 interface ChatInputProps {
     onSend: (message: string, files?: File[]) => void
@@ -12,9 +13,11 @@ export function ChatInput({
     onSend,
     onCancel,
     isStreaming = false,
-    placeholder = 'Type a message...',
+    placeholder,
     enableFileUpload = false,
 }: ChatInputProps) {
+    const { t } = useLocale()
+    const finalPlaceholder = placeholder || t('chat.placeholder', 'Type a message...')
     const [input, setInput] = useState('')
     const [files, setFiles] = useState<File[]>([])
     const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -119,7 +122,7 @@ export function ChatInput({
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
                             onInput={handleInput}
-                            placeholder={placeholder}
+                            placeholder={finalPlaceholder}
                             disabled={isStreaming}
                             rows={1}
                             className="flex-1 resize-none bg-transparent px-3 py-2.5 text-sm focus:outline-none disabled:opacity-50 placeholder:text-muted-foreground/60"

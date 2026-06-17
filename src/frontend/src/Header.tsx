@@ -1,7 +1,9 @@
 // Header component
 import type { UIConfig } from './types'
+import { useLocale } from './i18n/LocaleProvider'
 
 export function Header({ config }: { config: UIConfig }) {
+    const { locale, locales, setLocale, t } = useLocale()
     // Resolve header component via template slot ref (e.g., header_main)
     const headerSlot = config.templates?.docs?.slots?.header
     const headerRef = headerSlot?.ref
@@ -56,6 +58,21 @@ export function Header({ config }: { config: UIConfig }) {
                 </nav>
 
                 <div className="flex items-center gap-2">
+                    {locales.length > 1 && (
+                        <select
+                            value={locale}
+                            onChange={(e) => setLocale(e.target.value)}
+                            className="h-9 px-3 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
+                            aria-label={t('locale.switcher')}
+                            data-testid="locale-select"
+                        >
+                            {locales.map((loc) => (
+                                <option key={loc} value={loc}>
+                                    {loc.toUpperCase()}
+                                </option>
+                            ))}
+                        </select>
+                    )}
                     {header?.cta && (
                         <a
                             href={header.cta.href}

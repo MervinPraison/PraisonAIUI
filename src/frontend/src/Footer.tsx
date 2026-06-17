@@ -1,7 +1,9 @@
 // Footer component
 import type { UIConfig } from './types'
+import { useLocale } from './i18n/LocaleProvider'
 
 export function Footer({ config }: { config: UIConfig }) {
+    const { t } = useLocale()
     // Resolve footer component via template slot ref (e.g., footer_main)
     const footerSlot = config.templates?.docs?.slots?.footer
     const footerRef = footerSlot?.ref
@@ -20,7 +22,7 @@ export function Footer({ config }: { config: UIConfig }) {
                     <div className="w-5 h-5 rounded bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center">
                         <span className="text-primary-foreground text-[8px] font-bold">AI</span>
                     </div>
-                    <span>{footer?.text || `© ${new Date().getFullYear()} PraisonAIUI`}</span>
+                    <span>{footer?.text || t('footer.copyright', `© ${new Date().getFullYear()} PraisonAIUI`)}</span>
                 </div>
                 <nav className="flex items-center gap-6">
                     {footer?.links?.map((link) => (
