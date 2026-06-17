@@ -13,6 +13,7 @@ def simple_jobs_client():
     import praisonaiui.server as server
     from praisonaiui.features import jobs as jobs_mod
 
+    server.reset_state()
     jobs_mod._job_store = jobs_mod.SimpleJobStore()
     app = server.create_app()
     return TestClient(app)

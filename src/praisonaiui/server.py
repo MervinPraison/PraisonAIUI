@@ -122,6 +122,7 @@ def reset_state() -> None:
     global _style, _branding, _theme, _custom_css, _custom_js, _chat_features
     global _dashboard_config, _agent_settings, _provider, _config_path, _config_cache
     global _chat_mode, _chat_preview, _brand_color, _effective_style, _selected_profile, _feedback_enabled
+    global _jobs_api_config
     _callbacks.clear()
     _agents.clear()
     _pages.clear()
@@ -156,6 +157,13 @@ def reset_state() -> None:
     _effective_style = "chat"
     _selected_profile = {"id": None}
     _feedback_enabled = True
+    _jobs_api_config = {"apiBase": "/api/jobs", "backend": "aiui"}
+    try:
+        from praisonaiui.jobs_proxy import set_jobs_proxy
+
+        set_jobs_proxy(None)
+    except ImportError:
+        pass
     # Reset ThemeManager singleton (custom themes, mode, etc.)
     try:
         from praisonaiui.features.theme import reset_theme_manager
@@ -394,6 +402,19 @@ def set_dashboard(
 
 
 _jobs_api_config: dict[str, str] = {"apiBase": "/api/jobs", "backend": "aiui"}
+
+
+def set_jobs_proxy(url: str | None) -> None:
+    """Forward ``/api/jobs/*`` to an external jobs server ``/api/v1/runs/*``."""
+    from praisonaiui.jobs_proxy import set_jobs_proxy as _set
+
+    _set(url)
+
+
+def get_jobs_proxy_url() -> str | None:
+    from praisonaiui.jobs_proxy import get_jobs_proxy_url as _get
+
+    return _get()
 
 
 def set_jobs_api(*, api_base: str = "/api/jobs", backend: str = "aiui") -> None:
@@ -3006,6 +3027,9 @@ def create_app(
         pass
 
     # ── Auto-register and mount feature protocol routes ──────────────
+    from praisonaiui.jobs_proxy import jobs_proxy_routes
+
+    routes.extend(jobs_proxy_routes())
     auto_register_defaults()
     for feature in get_features().values():
         routes.extend(feature.routes())

@@ -60,6 +60,7 @@ def test_plugins_config_includes_auth_api_modules():
     import praisonaiui as aiui
     import praisonaiui.server as server
 
+    server.reset_state()
     aiui.set_style("dashboard")
     aiui.set_dashboard(modules=["jobs", "auth", "api"])
     app = server.create_app()

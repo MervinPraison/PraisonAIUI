@@ -8,8 +8,10 @@ from starlette.testclient import TestClient
 
 @pytest.fixture
 def client():
-    from praisonaiui.server import create_app, set_jobs_api
+    import praisonaiui.server as server
+    from praisonaiui.server import create_app, reset_state, set_jobs_api
 
+    reset_state()
     set_jobs_api(api_base="/api/v1/runs", backend="praisonai")
     app = create_app()
     return TestClient(app)

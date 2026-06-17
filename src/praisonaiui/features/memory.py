@@ -214,7 +214,7 @@ class SDKMemoryManager(MemoryProtocol):
             except ImportError:
                 logger.warning("praisonaiagents not installed; falling back to local index")
                 return None
-            except Exception as e:
+            except BaseException as e:
                 logger.warning("SDK Memory init failed: %s; using local index", e)
                 return None
         return self._sdk_memory
@@ -530,7 +530,11 @@ class SDKMemoryManager(MemoryProtocol):
         return super().get_context(query, limit=limit)
 
     def health(self) -> Dict[str, Any]:
-        sdk = self._get_sdk_memory()
+        sdk = None
+        try:
+            sdk = self._get_sdk_memory()
+        except BaseException:
+            sdk = None
         return {
             "status": "ok" if sdk is not None else "degraded",
             "provider": "SDKMemoryManager",
@@ -616,8 +620,11 @@ class MemoryFeature(BaseFeatureProtocol):
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
 
-        mgr = get_memory_manager()
-        h = mgr.health()
+        try:
+            mgr = get_memory_manager()
+            h = mgr.health()
+        except BaseException:
+            h = {"status": "degraded", "provider": "memory", "sdk_available": False}
         h["feature"] = self.name
         h.update(gateway_health())
         return h
