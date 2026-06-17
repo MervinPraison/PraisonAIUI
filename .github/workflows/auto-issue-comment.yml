@@ -1,8 +1,7 @@
 name: Auto Issue Comment
 
-# Optional: automatically escalate every new issue to Claude for a full
-# investigation + draft fix. Disabled by default (only workflow_dispatch).
-# To enable auto-triage on every new issue, uncomment the `issues:` trigger.
+# Automatically escalate every new issue to Claude for a full investigation
+# + draft fix. Manual re-trigger: workflow_dispatch with issue_number.
 #
 # Note: `@claude` mentions only trigger claude.yml when the commenter is a
 # HUMAN user (or github-actions[bot] via PAT). This workflow posts the
@@ -15,8 +14,8 @@ on:
         description: "Issue number to triage with Claude"
         required: true
         type: number
-  # issues:
-  #   types: [opened]
+  issues:
+    types: [opened]
 
 jobs:
   # Escalate an issue to full Claude implementation by adding the `claude`
