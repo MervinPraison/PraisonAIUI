@@ -63,6 +63,7 @@ def auto_register_defaults() -> None:
         (".kanban", "KanbanFeature"),
         (".logs", "LogsFeature"),
         (".marketplace", "MarketplaceFeature"),
+        (".mcp_api", "MCPAPIFeature"),
         (".media_analysis", "MediaAnalysisFeature"),
         (".memory", "MemoryFeature"),
         (".knowledge", "KnowledgeFeature"),

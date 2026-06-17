@@ -43,6 +43,7 @@ const BUILTIN_VIEWS = {
   tools:          '/plugins/views/skills.js',
   nodes:          '/plugins/views/nodes.js',
   instances:      '/plugins/views/nodes.js',
+  mcp:            '/plugins/views/mcp.js',
   explorer:       '/plugins/views/explorer.js',
   debug:          '/plugins/views/debug.js',
   guardrails:     '/plugins/views/guardrails.js',

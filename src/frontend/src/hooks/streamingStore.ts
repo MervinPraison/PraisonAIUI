@@ -320,6 +320,22 @@ function handleStoreEvent(
       break
     }
 
+    case 'approval_required': {
+      // Handle approval request - trigger modal via global event
+      const approval = {
+        id: event.id as string,
+        tool_name: event.tool_name as string,
+        arguments: event.arguments as Record<string, unknown> || {},
+        risk_level: event.risk_level as string || 'medium',
+        agent_name: event.agent_name as string,
+        description: event.description as string,
+        session_id: sessionId,
+      }
+      // Dispatch custom event for approval modal
+      window.dispatchEvent(new CustomEvent('approval-required', { detail: approval }))
+      break
+    }
+
     case 'end':
     case 'done':
     case 'run_cancelled':

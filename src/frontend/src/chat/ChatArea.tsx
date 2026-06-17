@@ -5,6 +5,7 @@ import { ChatMessages } from './ChatMessages'
 import { ChatInput } from './ChatInput'
 import { StarterMessages } from './StarterMessages'
 import { TaskSidebar } from './TaskSidebar'
+import { ApprovalModal } from './ApprovalModal'
 
 interface ChatAreaProps {
     config?: ChatConfig
@@ -174,6 +175,9 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
                 sessionId={externalSessionId || 'default'}
                 onTaskClick={handleTaskClick}
             />
+            
+            {/* Global approval modal */}
+            <ApprovalModal />
         </div>
     )
 }
