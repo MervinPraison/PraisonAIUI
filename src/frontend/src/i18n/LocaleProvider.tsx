@@ -9,6 +9,7 @@ interface LocaleContextValue {
   t: (key: string, variables?: Record<string, string>) => string
   isRTL: boolean
   strings: Record<string, string>
+  loading: boolean
 }
 
 const LocaleContext = createContext<LocaleContextValue | null>(null)
@@ -29,7 +30,7 @@ interface LocaleProviderProps {
 export function LocaleProvider({ config, children }: LocaleProviderProps) {
   const [locale, setLocaleState] = useState(config?.defaultLocale || 'en')
   const [strings, setStrings] = useState<Record<string, string>>({})
-  const [, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   const locales = config?.locales || ['en']
   const rtlLocales = config?.rtlLocales || []
@@ -46,17 +47,23 @@ export function LocaleProvider({ config, children }: LocaleProviderProps) {
 
   // Load strings from API when locale changes
   useEffect(() => {
+    const abortController = new AbortController()
+    
     async function loadStrings() {
       if (!config || locales.length <= 1) return
       
       setLoading(true)
       try {
-        const response = await fetch(`/api/i18n/strings/${locale}`)
+        const response = await fetch(`/api/i18n/strings/${locale}`, {
+          signal: abortController.signal
+        })
         if (response.ok) {
           const data = await response.json()
           setStrings(data.strings || {})
         }
       } catch (error) {
+        // Ignore abort errors
+        if (error instanceof Error && error.name === 'AbortError') return
         console.error('Failed to load translations:', error)
       } finally {
         setLoading(false)
@@ -64,9 +71,18 @@ export function LocaleProvider({ config, children }: LocaleProviderProps) {
     }
 
     loadStrings()
+    
+    // Cleanup: abort the request if component unmounts or locale changes
+    return () => abortController.abort()
   }, [locale, config, locales.length])
 
   const setLocale = useCallback(async (newLocale: string) => {
+    // Validate locale format (e.g., 'en', 'en-US', 'zh-CN')
+    if (!/^[a-z]{2}(-[A-Z]{2})?$/.test(newLocale)) {
+      console.error('Invalid locale format:', newLocale)
+      return
+    }
+    
     if (!locales.includes(newLocale)) return
     
     setLocaleState(newLocale)
@@ -86,10 +102,12 @@ export function LocaleProvider({ config, children }: LocaleProviderProps) {
   const t = useCallback((key: string, variables?: Record<string, string>) => {
     let text = strings[key] || key
     
-    // Apply variable substitution
+    // Apply variable substitution with proper escaping
     if (variables) {
       Object.entries(variables).forEach(([k, v]) => {
-        text = text.replace(new RegExp(`{${k}}`, 'g'), v)
+        // Escape special regex characters in the key to prevent injection
+        const escapedKey = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        text = text.replace(new RegExp(`{${escapedKey}}`, 'g'), v)
       })
     }
     
@@ -103,7 +121,8 @@ export function LocaleProvider({ config, children }: LocaleProviderProps) {
     setLocale,
     t,
     isRTL,
-    strings
+    strings,
+    loading
   }
 
   return (

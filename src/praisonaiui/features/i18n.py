@@ -8,6 +8,7 @@ Architecture:
 from __future__ import annotations
 
 import logging
+import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
@@ -18,6 +19,10 @@ from starlette.routing import Route
 from ._base import BaseFeatureProtocol
 
 logger = logging.getLogger(__name__)
+
+# Compile regex patterns once for performance
+LOCALE_PATTERN = re.compile(r'^[a-z]{2}(-[A-Z]{2})?$')
+KEY_PATTERN = re.compile(r'^[a-zA-Z0-9._-]+$')
 
 
 # ── I18n Protocol ────────────────────────────────────────────────────
@@ -200,6 +205,11 @@ class I18nFeature(BaseFeatureProtocol):
     async def _strings(self, request: Request) -> JSONResponse:
         mgr = get_i18n_manager()
         locale = request.path_params["locale"]
+
+        # Validate locale format to prevent injection
+        if not LOCALE_PATTERN.match(locale):
+            return JSONResponse({"error": f"Invalid locale format: '{locale}'"}, status_code=400)
+
         strings = mgr.get_strings(locale)
         if not strings:
             return JSONResponse({"error": f"Locale '{locale}' not found"}, status_code=404)
@@ -208,10 +218,21 @@ class I18nFeature(BaseFeatureProtocol):
     async def _translate(self, request: Request) -> JSONResponse:
         mgr = get_i18n_manager()
         body = await request.json()
-        text = mgr.t(
-            body.get("key", ""), locale=body.get("locale", ""), **body.get("variables", {})
-        )
-        return JSONResponse({"key": body.get("key", ""), "text": text})
+
+        # Validate locale if provided
+        locale = body.get("locale", "")
+        if locale:
+            if not LOCALE_PATTERN.match(locale):
+                return JSONResponse({"error": f"Invalid locale format: '{locale}'"}, status_code=400)
+
+        # Validate key format (alphanumeric with dots)
+        key = body.get("key", "")
+        if key:
+            if not KEY_PATTERN.match(key):
+                return JSONResponse({"error": f"Invalid key format: '{key}'"}, status_code=400)
+
+        text = mgr.t(key, locale=locale, **body.get("variables", {}))
+        return JSONResponse({"key": key, "text": text})
 
     async def _get_locale(self, request: Request) -> JSONResponse:
         mgr = get_i18n_manager()
@@ -220,7 +241,13 @@ class I18nFeature(BaseFeatureProtocol):
     async def _set_locale(self, request: Request) -> JSONResponse:
         mgr = get_i18n_manager()
         body = await request.json()
-        mgr.set_locale(body.get("locale", "en"))
+        locale = body.get("locale", "en")
+
+        # Validate locale format to prevent injection
+        if not LOCALE_PATTERN.match(locale):
+            return JSONResponse({"error": f"Invalid locale format: '{locale}'"}, status_code=400)
+
+        mgr.set_locale(locale)
         return JSONResponse({"locale": mgr.get_locale()})
 
 
