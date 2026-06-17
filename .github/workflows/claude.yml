@@ -29,7 +29,7 @@ on:
       issue_number:
         description: 'Issue number for Claude implementation'
         required: true
-        type: number
+        type: string
 
 jobs:
   # ================================================================
