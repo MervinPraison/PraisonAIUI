@@ -148,6 +148,22 @@ def _stream_event_to_run_event(stream_event) -> Optional[RunEvent]:
 # Approval helpers
 # ---------------------------------------------------------------------------
 
+# Module-level cache for approval manager
+_approval_manager_cache = None
+_approval_manager_load_attempted = False
+
+def _get_approval_manager_cached():
+    """Lazy load and cache the approval manager."""
+    global _approval_manager_cache, _approval_manager_load_attempted
+    if not _approval_manager_load_attempted:
+        try:
+            from praisonaiui.features.approvals import get_approval_manager
+            _approval_manager_cache = get_approval_manager()
+        except ImportError:
+            _approval_manager_cache = None
+        _approval_manager_load_attempted = True
+    return _approval_manager_cache
+
 # High-risk tools that should require approval
 HIGH_RISK_TOOLS = {
     "execute_command", "run_shell", "bash", "shell", "cmd",
@@ -180,9 +196,11 @@ def _get_tool_risk_level(tool_name: str) -> str:
 def _request_tool_approval(tool_name: str, arguments: Any, agent_name: str, risk_level: str) -> Optional[str]:
     """Request approval for tool execution via the approval feature."""
     try:
-        from praisonaiui.features.approvals import get_approval_manager
-        
-        mgr = get_approval_manager()
+        # Import is at module level via _get_approval_manager_cached
+        mgr = _get_approval_manager_cached()
+        if mgr is None:
+            return None
+
         entry = mgr.request_approval({
             "tool_name": tool_name,
             "arguments": arguments,
@@ -207,7 +225,7 @@ def _hook_event_to_run_events(hook_event_name: str, event_data) -> List[RunEvent
     if hook_event_name == "before_tool":
         tool_name = getattr(event_data, "tool_name", None)
         args = getattr(event_data, "arguments", None)
-        
+
         # Check if this tool requires approval
         should_check_approval = _should_check_approval(tool_name)
         if should_check_approval:
@@ -219,11 +237,13 @@ def _hook_event_to_run_events(hook_event_name: str, event_data) -> List[RunEvent
                 risk_level=_get_tool_risk_level(tool_name),
             )
             if approval_id:
-                # Emit approval required event
+                # Emit approval required event - using RUN_PAUSED as closest match
+                # The extra_data contains the approval info for frontend handling
                 events.append(
                     RunEvent(
-                        type="approval_required",
+                        type=RunEventType.RUN_PAUSED,
                         extra_data={
+                            "type": "approval_required",
                             "id": approval_id,
                             "tool_name": tool_name,
                             "arguments": args,
@@ -231,7 +251,7 @@ def _hook_event_to_run_events(hook_event_name: str, event_data) -> List[RunEvent
                         }
                     )
                 )
-        
+
         events.append(
             RunEvent(
                 type=RunEventType.TOOL_CALL_STARTED,
