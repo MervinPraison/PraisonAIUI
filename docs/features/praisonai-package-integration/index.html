@@ -74,6 +74,8 @@
 <p>| Cancel | `POST /api/jobs/{id}/cancel` | `POST /api/v1/runs/{id}/cancel` |</p>
 <p>| Stream | `GET /api/jobs/{id}/stream` | `GET /api/v1/runs/{id}/stream` |</p>
 <p>| Delete | `DELETE /api/jobs/{id}` | Not on package router |</p>
+<p>**Split jobs server (optional):** proxy aiui `/api/jobs/*` to an external jobs host:</p>
+<p>Use when the dashboard and jobs server run on different ports. Prefer `set_jobs_backend("praisonai")` when the browser can call `/api/v1/runs` on the same origin.</p>
 <h3>REST invoke (automation)</h3>
 <p>| Path | Use |</p>
 <p>|------|-----|</p>

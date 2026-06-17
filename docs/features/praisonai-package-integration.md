@@ -111,6 +111,15 @@ aiui.set_jobs_api(api_base="/api/v1/runs", backend="praisonai")
 | Stream | `GET /api/jobs/{id}/stream` | `GET /api/v1/runs/{id}/stream` |
 | Delete | `DELETE /api/jobs/{id}` | Not on package router |
 
+**Split jobs server (optional):** proxy aiui `/api/jobs/*` to an external jobs host:
+
+```python
+aiui.set_jobs_proxy("http://127.0.0.1:9000")  # forwards to /api/v1/runs/*
+aiui.set_jobs_api(api_base="/api/jobs", backend="aiui")
+```
+
+Use when the dashboard and jobs server run on different ports. Prefer `set_jobs_backend("praisonai")` when the browser can call `/api/v1/runs` on the same origin.
+
 ### REST invoke (automation)
 
 | Path | Use |
