@@ -145,6 +145,57 @@ def _stream_event_to_run_event(stream_event) -> Optional[RunEvent]:
 
 
 # ---------------------------------------------------------------------------
+# Approval helpers
+# ---------------------------------------------------------------------------
+
+# High-risk tools that should require approval
+HIGH_RISK_TOOLS = {
+    "execute_command", "run_shell", "bash", "shell", "cmd",
+    "write_file", "delete_file", "modify_file",
+    "send_email", "make_api_call", "http_request",
+    "database_query", "sql_execute",
+}
+
+def _should_check_approval(tool_name: str) -> bool:
+    """Check if a tool requires approval before execution."""
+    if not tool_name:
+        return False
+    # Check if tool is in high-risk list
+    tool_lower = tool_name.lower()
+    return any(risk in tool_lower for risk in HIGH_RISK_TOOLS)
+
+def _get_tool_risk_level(tool_name: str) -> str:
+    """Determine risk level of a tool."""
+    if not tool_name:
+        return "medium"
+    tool_lower = tool_name.lower()
+    if any(word in tool_lower for word in ["delete", "remove", "drop", "destroy"]):
+        return "critical"
+    if any(word in tool_lower for word in ["write", "modify", "execute", "send", "sql"]):
+        return "high"
+    if any(word in tool_lower for word in ["read", "get", "list", "search"]):
+        return "low"
+    return "medium"
+
+def _request_tool_approval(tool_name: str, arguments: Any, agent_name: str, risk_level: str) -> Optional[str]:
+    """Request approval for tool execution via the approval feature."""
+    try:
+        from praisonaiui.features.approvals import get_approval_manager
+        
+        mgr = get_approval_manager()
+        entry = mgr.request_approval({
+            "tool_name": tool_name,
+            "arguments": arguments,
+            "agent_name": agent_name,
+            "risk_level": risk_level,
+            "description": f"Tool {tool_name} requires approval for execution",
+        })
+        return entry.get("id")
+    except Exception as e:
+        logger.debug("Failed to request approval: %s", e)
+        return None
+
+# ---------------------------------------------------------------------------
 # Hook → RunEvent bridge
 # ---------------------------------------------------------------------------
 
@@ -154,11 +205,38 @@ def _hook_event_to_run_events(hook_event_name: str, event_data) -> List[RunEvent
     events = []
 
     if hook_event_name == "before_tool":
+        tool_name = getattr(event_data, "tool_name", None)
+        args = getattr(event_data, "arguments", None)
+        
+        # Check if this tool requires approval
+        should_check_approval = _should_check_approval(tool_name)
+        if should_check_approval:
+            # Create approval request
+            approval_id = _request_tool_approval(
+                tool_name=tool_name,
+                arguments=args,
+                agent_name=getattr(event_data, "agent_name", None),
+                risk_level=_get_tool_risk_level(tool_name),
+            )
+            if approval_id:
+                # Emit approval required event
+                events.append(
+                    RunEvent(
+                        type="approval_required",
+                        extra_data={
+                            "id": approval_id,
+                            "tool_name": tool_name,
+                            "arguments": args,
+                            "risk_level": _get_tool_risk_level(tool_name),
+                        }
+                    )
+                )
+        
         events.append(
             RunEvent(
                 type=RunEventType.TOOL_CALL_STARTED,
-                name=getattr(event_data, "tool_name", None),
-                args=getattr(event_data, "arguments", None),
+                name=tool_name,
+                args=args,
             )
         )
     elif hook_event_name == "after_tool":

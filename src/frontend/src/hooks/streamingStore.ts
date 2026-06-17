@@ -320,6 +320,16 @@ function handleStoreEvent(
       break
     }
 
+    case 'approval_required':
+    case 'approval_pending': {
+      // Emit custom event for dashboard to handle
+      const approvalData = event.data || event
+      window.dispatchEvent(new CustomEvent('aiui:approval-required', {
+        detail: approvalData
+      }))
+      break
+    }
+      
     case 'end':
     case 'done':
     case 'run_cancelled':

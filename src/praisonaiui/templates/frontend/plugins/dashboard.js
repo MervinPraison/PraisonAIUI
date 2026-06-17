@@ -9,6 +9,123 @@
 // Record load time for overview stats
 window.__aiuiLoadTime = window.__aiuiLoadTime || Date.now();
 
+// ── Approval Modal System ────────────────────────────────────────────
+// Handles approval_required events from SSE stream
+let approvalModalShown = false;
+let pendingApprovals = [];
+let approvalSSESource = null;
+
+function showApprovalModal(approval) {
+  if (approvalModalShown) {
+    pendingApprovals.push(approval);
+    return;
+  }
+  approvalModalShown = true;
+  
+  const overlay = document.createElement('div');
+  overlay.className = 'db-modal-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s';
+  
+  const modal = document.createElement('div');
+  modal.className = 'db-approval-modal';
+  modal.style.cssText = 'background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;animation:slideIn 0.2s;backdrop-filter:blur(10px)';
+  
+  const riskIcons = {low: '✅', medium: '⚠️', high: '🟠', critical: '🔴'};
+  const icon = riskIcons[approval.risk_level] || '⚠️';
+  
+  modal.innerHTML = `
+    <h2 style="margin:0 0 16px;font-size:20px;font-weight:600;color:var(--db-text)">Tool Execution Approval Required</h2>
+    <div style="padding:16px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <span style="font-size:24px">${icon}</span>
+        <div>
+          <div style="font-weight:500;font-size:16px">${approval.tool_name || 'Unknown Tool'}</div>
+          <div style="font-size:13px;color:var(--db-text-dim);margin-top:4px">Risk Level: ${approval.risk_level || 'medium'}</div>
+        </div>
+      </div>
+      ${approval.agent_name ? `<div style="font-size:13px;color:var(--db-text-dim);margin-top:8px">Agent: ${approval.agent_name}</div>` : ''}
+      ${approval.description ? `<div style="font-size:13px;margin-top:8px">${approval.description}</div>` : ''}
+      ${approval.arguments ? `<details style="margin-top:12px"><summary style="cursor:pointer;font-size:13px;color:var(--db-text-dim)">Arguments</summary><pre style="font-size:11px;margin:8px 0 0;padding:8px;background:rgba(0,0,0,0.2);border-radius:4px;overflow-x:auto">${JSON.stringify(approval.arguments, null, 2)}</pre></details>` : ''}
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="approval-always" style="cursor:pointer">
+        <span>Always ${approval.risk_level === 'critical' ? 'deny' : 'allow'} this tool</span>
+      </label>
+    </div>
+    <div style="display:flex;gap:12px;justify-content:flex-end">
+      <button id="approval-deny" style="padding:8px 20px;background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3);border-radius:6px;cursor:pointer;font-size:14px;font-weight:500">✗ Deny</button>
+      <button id="approval-approve" style="padding:8px 20px;background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3);border-radius:6px;cursor:pointer;font-size:14px;font-weight:500">✓ Approve</button>
+    </div>
+  `;
+  
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  
+  async function resolveApproval(approved) {
+    const always = document.getElementById('approval-always').checked;
+    const endpoint = approved ? `/api/approvals/${approval.id}/approve` : `/api/approvals/${approval.id}/deny`;
+    
+    try {
+      await fetch(endpoint, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({always, reason: approved ? 'Approved via UI' : 'Denied via UI'})
+      });
+    } catch (e) {
+      console.error('Failed to resolve approval:', e);
+    }
+    
+    overlay.style.animation = 'fadeOut 0.2s';
+    setTimeout(() => {
+      overlay.remove();
+      approvalModalShown = false;
+      if (pendingApprovals.length > 0) {
+        showApprovalModal(pendingApprovals.shift());
+      }
+    }, 200);
+  }
+  
+  document.getElementById('approval-approve').addEventListener('click', () => resolveApproval(true));
+  document.getElementById('approval-deny').addEventListener('click', () => resolveApproval(false));
+  
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      resolveApproval(false);
+    }
+  });
+}
+
+function initApprovalStream() {
+  if (approvalSSESource) return;
+  
+  try {
+    approvalSSESource = new EventSource('/api/approvals/stream');
+    
+    approvalSSESource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.event === 'new' && data.data) {
+          showApprovalModal(data.data);
+        }
+      } catch (e) {
+        console.error('Failed to parse approval SSE:', e);
+      }
+    };
+    
+    approvalSSESource.onerror = () => {
+      console.warn('Approval SSE connection error, retrying...');
+      if (approvalSSESource) {
+        approvalSSESource.close();
+        approvalSSESource = null;
+      }
+      setTimeout(initApprovalStream, 5000);
+    };
+  } catch (e) {
+    console.error('Failed to init approval stream:', e);
+  }
+}
+
 // ── Extensible Component Registry ────────────────────────────────────
 // Maps component type names to custom render functions.
 // Custom renderers take priority over the built-in switch in renderComponent().
@@ -625,6 +742,11 @@ const DASHBOARD_STYLE = `
   .db-popover { position: relative; display: inline-block; }
   .db-popover-content { display: none; position: absolute; top: calc(100% + 8px); left: 0; min-width: 200px; padding: 16px; background: var(--db-sidebar-bg); border: 1px solid var(--db-border); border-radius: var(--db-radius); z-index: 100; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
   .db-popover.open .db-popover-content { display: block; }
+
+  /* ── Approval Modal Animations ──────────────────────── */
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 `;
 
 let activePageId = null;
@@ -803,6 +925,16 @@ async function init() {
   }
 
   await buildDashboard();
+  
+  // Initialize approval stream for modal notifications
+  initApprovalStream();
+  
+  // Listen for approval events from chat stream
+  window.addEventListener('aiui:approval-required', (e) => {
+    if (e.detail) {
+      showApprovalModal(e.detail);
+    }
+  });
 }
 
 async function buildDashboard() {
