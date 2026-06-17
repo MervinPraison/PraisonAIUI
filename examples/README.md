@@ -23,7 +23,7 @@ See also: [`docs/examples/basic.md`](../docs/examples/basic.md) and [`docs/examp
 | 09 | [widget](python/09-widget/) | Copilot/sidebar mode | `aiui run app.py` |
 | 10 | [feature-showcase](python/10-feature-showcase/) | All protocol features seeded, `create_app()` | `aiui run app.py` |
 | 11 | [ui-integration](python/11-ui-integration/) | Gradio ASGI mount, Streamlit iframe, REST embedding | `aiui run app.py` |
-| 12 | [agent-dashboard](python/12-agent-dashboard/) | OpenClaw-style rendered HTML admin panel | `python app.py` |
+| 12 | ~~agent-dashboard~~ → [dashboard-test](python/15-dashboard-test/) | *Removed in v0.5.0* — Use secure protocol-first dashboard | `python app.py` |
 | 13 | [real-dashboard](python/13-real-dashboard/) | Real PraisonAI Agent + native dashboard + live metrics | `aiui run app.py --style dashboard` |
 | 14 | [all-features](python/14-all-features/) | Integration test suite for all 16 feature APIs | `python app.py` |
 | 15 | [dashboard-test](python/15-dashboard-test/) | Protocol-first page registration, view registry | `python app.py` |
