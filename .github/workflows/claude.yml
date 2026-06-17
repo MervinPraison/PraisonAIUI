@@ -360,6 +360,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.github-token.outputs.token }}
           model: opus
+          mode: ${{ github.event_name == 'workflow_dispatch' && 'agent' || 'tag' }}
           trigger_phrase: "@claude"
           label_trigger: "claude"
           timeout_minutes: "30"
