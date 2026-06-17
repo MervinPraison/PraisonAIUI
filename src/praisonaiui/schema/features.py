@@ -59,8 +59,8 @@ class ConfigFeatureRegistry:
                              "SEO configuration with title templates, OG tags, Twitter meta - basic implementation"),
             "a11y": FeatureInfo("a11y", FeatureStatus.IMPLEMENTED, "0.5.0",
                                "Accessibility configuration - basic implementation for skip links and ARIA labels"),
-            "i18n": FeatureInfo("i18n", FeatureStatus.EXPERIMENTAL, None,
-                               "Internationalization accepted in schema but content pipeline/routing not implemented"),
+            "i18n": FeatureInfo("i18n", FeatureStatus.IMPLEMENTED, "0.5.0",
+                               "Internationalization configuration with multi-language support"),
         }
 
     def get_feature(self, name: str) -> FeatureInfo | None:

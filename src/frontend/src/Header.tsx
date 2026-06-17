@@ -1,5 +1,6 @@
 // Header component
 import type { UIConfig } from './types'
+import { LocaleSwitcher } from './i18n'
 
 export function Header({ config }: { config: UIConfig }) {
     // Resolve header component via template slot ref (e.g., header_main)
@@ -56,6 +57,7 @@ export function Header({ config }: { config: UIConfig }) {
                 </nav>
 
                 <div className="flex items-center gap-2">
+                    <LocaleSwitcher />
                     {header?.cta && (
                         <a
                             href={header.cta.href}
