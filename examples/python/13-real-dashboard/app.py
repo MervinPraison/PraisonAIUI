@@ -1,6 +1,6 @@
 """Real Agent Dashboard — PraisonAI agents + PraisonAIUI dashboard.
 
-Unlike 12-agent-dashboard (mock data), this runs REAL PraisonAI agents.
+This example uses secure component-based rendering with REAL PraisonAI agents.
 Uses PraisonAIUI's native dashboard with @reply, @page, register_agent()
 — all backed by actual LLM calls.
 
