@@ -4,6 +4,8 @@ import type { DashboardPageDef, DashboardTabGroup } from '../types/dashboard'
 import { ChatArea, SessionManager } from '../chat'
 import { ProfilePicker } from '../chat/ProfilePicker'
 import { resolveView } from '../views'
+import { SessionSearch } from '../components/SessionSearch'
+import { useSessionSearch } from '../hooks/useSessionSearch'
 
 interface DashboardLayoutProps {
     config?: ChatConfig
@@ -39,6 +41,9 @@ export function DashboardLayout({ config, layout: _layout, title, logo }: Dashbo
     // Protocol-driven: pages fetched from /api/pages
     const [pages, setPages] = useState<DashboardPageDef[]>([])
     const [tabGroups, setTabGroups] = useState<DashboardTabGroup[]>([])
+    
+    // Session search palette (Ctrl+K)
+    const { open: sessionSearchOpen, onOpenChange: onSessionSearchChange } = useSessionSearch()
 
     // Fetch registered pages from the backend protocol endpoint
     useEffect(() => {
@@ -60,7 +65,11 @@ export function DashboardLayout({ config, layout: _layout, title, logo }: Dashbo
 
     const handleSessionSelect = useCallback((sessionId: string) => {
         setCurrentSessionId(sessionId)
-    }, [])
+        // If selecting a session, ensure we're on the chat tab
+        if (activeTab !== 'chat') {
+            setActiveTab('chat')
+        }
+    }, [activeTab])
 
     const handleNewSession = useCallback(() => {
         setCurrentSessionId(null)
@@ -124,6 +133,14 @@ export function DashboardLayout({ config, layout: _layout, title, logo }: Dashbo
 
     return (
         <div className="flex h-screen bg-background text-foreground">
+            {/* Session search palette */}
+            <SessionSearch 
+                open={sessionSearchOpen}
+                onOpenChange={onSessionSearchChange}
+                onSessionSelect={handleSessionSelect}
+                currentSessionId={currentSessionId}
+            />
+            
             {/* Sidebar navigation */}
             <aside
                 className={`${navCollapsed ? 'w-14' : 'w-52'} flex-shrink-0 border-r bg-card flex flex-col transition-all duration-200`}

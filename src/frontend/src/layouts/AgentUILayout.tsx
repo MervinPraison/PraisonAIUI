@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ChatConfig, ChatProfile } from '../types'
 import { ChatArea, SessionManager } from '../chat'
+import { SessionSearch } from '../components/SessionSearch'
+import { useSessionSearch } from '../hooks/useSessionSearch'
 
 interface AgentUILayoutProps {
     config?: ChatConfig
@@ -13,6 +15,9 @@ export function AgentUILayout({ config, title }: AgentUILayoutProps) {
     const [selectedProfile, setSelectedProfile] = useState<ChatProfile | undefined>(defaultProfile)
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [activeTab, setActiveTab] = useState<'agents' | 'sessions'>('agents')
+    
+    // Session search palette (Ctrl+K)
+    const { open: sessionSearchOpen, onOpenChange: onSessionSearchChange } = useSessionSearch()
 
     // Fetch profiles dynamically from the API (same as ProfilePicker in ChatLayout)
     useEffect(() => {
@@ -42,6 +47,14 @@ export function AgentUILayout({ config, title }: AgentUILayoutProps) {
 
     return (
         <div className="flex h-screen bg-background">
+            {/* Session search palette */}
+            <SessionSearch 
+                open={sessionSearchOpen}
+                onOpenChange={onSessionSearchChange}
+                onSessionSelect={handleSessionSelect}
+                currentSessionId={currentSessionId}
+            />
+            
             {/* Sidebar */}
             <aside className="w-64 border-r flex flex-col">
                 <header className="border-b px-4 py-3">
