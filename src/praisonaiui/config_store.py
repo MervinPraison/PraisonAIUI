@@ -145,7 +145,7 @@ class YAMLConfigStore:
         try:
             import yaml
 
-            with open(self._path) as f:
+            with open(self._path, encoding="utf-8") as f:
                 loaded = yaml.safe_load(f) or {}
             # Merge with defaults so new keys are always present
             self._data = copy.deepcopy(_DEFAULT_CONFIG)
@@ -200,7 +200,7 @@ class YAMLConfigStore:
             return
 
         try:
-            with open(json_path) as f:
+            with open(json_path, encoding="utf-8") as f:
                 data = json.load(f)
             agents = data.get("agents", {})
             if agents:

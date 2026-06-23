@@ -222,7 +222,7 @@ def update_component_exports(frontend_path: Optional[Path] = None) -> bool:
         return False
 
     # Read current exports
-    current_content = index_path.read_text()
+    current_content = index_path.read_text(encoding="utf-8")
 
     # Check which components are missing from exports
     missing_exports = []

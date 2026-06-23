@@ -413,7 +413,7 @@ class SDKMemoryManager(MemoryProtocol):
                 if json_file.name == "config.json":
                     continue
                 try:
-                    data = json.loads(json_file.read_text())
+                    data = json.loads(json_file.read_text(encoding="utf-8"))
                     if not isinstance(data, list):
                         continue
                     # Determine type from filename

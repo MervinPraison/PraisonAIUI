@@ -471,7 +471,7 @@ class Compiler:
         """Patch anti-flicker script in index.html to respect darkMode."""
         theme = self.config.site.theme
         dark_mode = theme.dark_mode if theme else True
-        html = html_path.read_text()
+        html = html_path.read_text(encoding="utf-8")
         if not dark_mode:
             # Remove the dark class addition for light-mode sites
             html = html.replace(
@@ -538,7 +538,7 @@ class Compiler:
         if not template_path.exists():
             return []
 
-        template_html = template_path.read_text()
+        template_html = template_path.read_text(encoding="utf-8")
         site_title = self.config.site.title
         site_desc = self.config.site.description or f"Documentation built with {site_title}"
         files: list[str] = []
@@ -677,7 +677,7 @@ class Compiler:
         md_content = None
         for candidate in md_candidates:
             if candidate.exists():
-                md_content = candidate.read_text()
+                md_content = candidate.read_text(encoding="utf-8")
                 break
 
         if not md_content:

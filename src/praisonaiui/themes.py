@@ -246,7 +246,7 @@ def _read_disk_cache() -> Optional[dict]:
         age = time.time() - path.stat().st_mtime
         if age > _DISK_CACHE_TTL:
             return None
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
 
