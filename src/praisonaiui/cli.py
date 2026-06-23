@@ -3035,15 +3035,10 @@ def doctor(
 
     # Check 3: Gateway Status
     def _gateway_extractor(data):
-        # Extract health status from nested health object
-        health = data.get("health", {}) if isinstance(data.get("health"), dict) else {}
-        status = health.get("status", "unknown")
-        # Get provider type from health data or fall back to provider name
-        provider_type = health.get("provider", data.get("name", "unknown"))
-        # Count agents from the agents array
+        status = data.get("status", "unknown")
+        provider_type = data.get("provider", data.get("name", "unknown"))
         agents_list = data.get("agents", [])
         agent_count = len(agents_list) if isinstance(agents_list, list) else 0
-        # Pass if status is ok or healthy
         check_status = "pass" if status in ("ok", "healthy") else "warn"
         return check_status, f"{provider_type} ({agent_count} agents)"
 
