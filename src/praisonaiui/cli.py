@@ -1818,15 +1818,17 @@ def health_check(
     import json as _json
     from urllib.request import urlopen
 
+    from praisonaiui.health_utils import is_success_status
+
     try:
         with urlopen(f"{server}/health") as resp:
             data = _json.loads(resp.read())
             status = data.get("status", "unknown")
             ts = data.get("timestamp", "")
-            if status == "healthy":
+            if is_success_status(status):
                 console.print(
                     Panel.fit(
-                        f"Server: [green]healthy[/green] ({ts})",
+                        f"Server: [green]{status}[/green] ({ts})",
                         title="Health Check",
                         border_style="green",
                     )
@@ -1903,13 +1905,15 @@ def provider_status(
     import json as _json
     from urllib.request import urlopen
 
+    from praisonaiui.health_utils import is_success_status
+
     try:
         with urlopen(f"{server}/api/provider") as resp:
             data = _json.loads(resp.read())
             console.print(f"[bold]Provider:[/bold] {data.get('name', 'unknown')}")
             console.print(f"[bold]Module:[/bold]   {data.get('module', 'unknown')}")
             status = data.get("status", "unknown")
-            color = "green" if status == "ok" else "red"
+            color = "green" if is_success_status(status) else "red"
             console.print(f"[bold]Status:[/bold]   [{color}]{status}[/{color}]")
             agents = data.get("agents", [])
             if agents:
@@ -2041,12 +2045,14 @@ app.add_typer(features_app, name="features")
 @features_app.command("list")
 def features_list(server: str = _SERVER_OPT) -> None:
     """List all registered protocol features."""
+    from praisonaiui.health_utils import is_success_status
+
     try:
         data = _api_get(server, "/api/features")
         for f in data.get("features", []):
             h = f.get("health", {})
             status = h.get("status", "?")
-            color = "green" if status == "ok" else "red"
+            color = "green" if is_success_status(status) else "red"
             console.print(f"  [{color}]●[/{color}] {f['name']} — {f.get('description', '')}")
             if f.get("routes"):
                 console.print(f"    routes: {', '.join(f['routes'])}")
@@ -2058,15 +2064,17 @@ def features_list(server: str = _SERVER_OPT) -> None:
 @features_app.command("status")
 def features_status(server: str = _SERVER_OPT) -> None:
     """Show feature health summary."""
+    from praisonaiui.health_utils import is_success_status
+
     try:
         data = _api_get(server, "/api/features")
         features = data.get("features", [])
-        ok = sum(1 for f in features if f.get("health", {}).get("status") == "ok")
+        ok = sum(1 for f in features if is_success_status(f.get("health", {}).get("status")))
         console.print(f"Features: {ok}/{len(features)} healthy")
         for f in features:
             h = f.get("health", {})
             status = h.get("status", "?")
-            color = "green" if status == "ok" else "red"
+            color = "green" if is_success_status(status) else "red"
             console.print(f"  [{color}]●[/{color}] {f['name']}: {status}")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
@@ -3038,9 +3046,11 @@ def doctor(
             return {"name": name, "status": "fail", "detail": str(e)}
 
     # Check 1: Server Health
+    from praisonaiui.health_utils import is_success_status
+
     def _health_extractor(data):
         status = data.get("status", "unknown")
-        if status == "healthy":
+        if is_success_status(status):
             return "pass", f"running on {server.split('://')[-1]}"
         return "warn", f"status: {status}"
 
