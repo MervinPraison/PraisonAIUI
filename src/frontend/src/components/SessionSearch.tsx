@@ -30,23 +30,33 @@ export function SessionSearch({ open, onOpenChange, onSessionSelect, currentSess
   // Fetch sessions when dialog opens
   useEffect(() => {
     if (!open) return
-    
+
+    let active = true
     const fetchSessions = async () => {
       try {
         setLoading(true)
         const res = await fetch('/sessions')
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
-        setSessions(data.sessions || [])
+        if (active) {
+          setSessions(data.sessions || [])
+        }
       } catch (err) {
         console.error('Failed to fetch sessions:', err)
-        setSessions([])
+        if (active) {
+          setSessions([])
+        }
       } finally {
-        setLoading(false)
+        if (active) {
+          setLoading(false)
+        }
       }
     }
 
     fetchSessions()
+    return () => {
+      active = false
+    }
   }, [open])
 
   const handleSelect = useCallback((sessionId: string) => {
@@ -73,23 +83,28 @@ export function SessionSearch({ open, onOpenChange, onSessionSelect, currentSess
   }
 
   // Group sessions by date
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const lastWeek = new Date(today)
+  lastWeek.setDate(lastWeek.getDate() - 7)
+
+  const todayStr = today.toDateString()
+  const yesterdayStr = yesterday.toDateString()
+
   const groupedSessions = sessions.reduce((groups, session) => {
     const date = new Date(session.updated_at)
-    const today = new Date()
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    const lastWeek = new Date(today)
-    lastWeek.setDate(lastWeek.getDate() - 7)
-    
+    const dateStr = date.toDateString()
+
     let group = 'Older'
-    if (date.toDateString() === today.toDateString()) {
+    if (dateStr === todayStr) {
       group = 'Today'
-    } else if (date.toDateString() === yesterday.toDateString()) {
+    } else if (dateStr === yesterdayStr) {
       group = 'Yesterday'
     } else if (date > lastWeek) {
       group = 'This Week'
     }
-    
+
     if (!groups[group]) groups[group] = []
     groups[group].push(session)
     return groups
@@ -110,7 +125,7 @@ export function SessionSearch({ open, onOpenChange, onSessionSelect, currentSess
       />
       <CommandList>
         {loading ? (
-          <CommandEmpty>Loading sessions...</CommandEmpty>
+          <div className="py-6 text-center text-sm text-muted-foreground">Loading sessions...</div>
         ) : sessions.length === 0 ? (
           <CommandEmpty>No sessions found. Start a chat to create one.</CommandEmpty>
         ) : (

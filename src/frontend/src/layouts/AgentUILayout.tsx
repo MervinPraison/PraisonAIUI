@@ -155,7 +155,12 @@ export function AgentUILayout({ config, title }: AgentUILayoutProps) {
                     </header>
                 )}
                 <div className="flex-1 overflow-hidden">
-                    <ChatArea config={config} className="h-full" />
+                    <ChatArea
+                        config={config}
+                        className="h-full"
+                        sessionId={currentSessionId}
+                        onSessionChange={handleSessionSelect}
+                    />
                 </div>
             </main>
         </div>

@@ -18,7 +18,7 @@ export function ChatLayout({ config, layout, title }: ChatLayoutProps) {
     const [sessionListKey, setSessionListKey] = useState(0)
     
     // Session search palette (Ctrl+K)
-    const { open: sessionSearchOpen, onOpenChange: onSessionSearchChange } = useSessionSearch()
+    const { open: sessionSearchOpen, onOpenChange: onSessionSearchChange } = useSessionSearch(mode === 'fullscreen')
 
     const handleSessionSelect = useCallback((sessionId: string) => {
         setCurrentSessionId(sessionId)

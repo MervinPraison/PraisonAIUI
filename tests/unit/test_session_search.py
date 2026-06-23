@@ -1,6 +1,6 @@
 """Unit tests for session search functionality."""
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from starlette.testclient import TestClient
@@ -9,8 +9,8 @@ from starlette.testclient import TestClient
 def test_sessions_endpoint_returns_list(test_client):
     """Test that /sessions endpoint returns a list of sessions."""
     # Mock the session manager to return test sessions
-    with patch("praisonaiui.server._session_manager") as mock_manager:
-        mock_manager.list_sessions.return_value = [
+    with patch("praisonaiui.server._datastore") as mock_datastore:
+        mock_datastore.list_sessions = AsyncMock(return_value=[
             {
                 "id": "session-1",
                 "title": "Test Session 1",
@@ -25,7 +25,7 @@ def test_sessions_endpoint_returns_list(test_client):
                 "updated_at": "2024-01-02T01:00:00Z",
                 "message_count": 10,
             },
-        ]
+        ])
 
         response = test_client.get("/sessions")
         assert response.status_code == 200
@@ -39,8 +39,8 @@ def test_sessions_endpoint_returns_list(test_client):
 
 def test_sessions_endpoint_empty_list(test_client):
     """Test that /sessions endpoint returns empty list when no sessions."""
-    with patch("praisonaiui.server._session_manager") as mock_manager:
-        mock_manager.list_sessions.return_value = []
+    with patch("praisonaiui.server._datastore") as mock_datastore:
+        mock_datastore.list_sessions = AsyncMock(return_value=[])
 
         response = test_client.get("/sessions")
         assert response.status_code == 200
@@ -93,6 +93,6 @@ def test_session_search_filters_by_id():
 @pytest.fixture
 def test_client():
     """Create a test client for the app."""
-    from praisonaiui.server import app
+    from praisonaiui.server import create_app
 
-    return TestClient(app)
+    return TestClient(create_app())
