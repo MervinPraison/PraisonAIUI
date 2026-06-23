@@ -1,6 +1,7 @@
 """CLI module - Typer-based command line interface."""
 
 import asyncio
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -9,6 +10,39 @@ from rich.console import Console
 from rich.panel import Panel
 
 from praisonaiui.__version__ import __version__
+
+# Configure UTF-8 on Windows to handle Unicode output
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _supports_unicode() -> bool:
+    """Return True if stdout can encode non-ASCII (UTF-aware) output.
+
+    Legacy Windows consoles (cp1252/cp437) cannot encode emoji/box-drawing
+    characters and raise UnicodeEncodeError. When reconfigure() above succeeds
+    the encoding becomes utf-8 and rich symbols are kept; otherwise we fall
+    back to ASCII so output never crashes.
+    """
+    try:
+        encoding = sys.stdout.encoding or ""
+    except Exception:
+        return False
+    return "utf" in encoding.lower()
+
+
+def _icon(symbol: str, fallback: str) -> str:
+    """Return ``symbol`` on UTF-aware terminals, else ``fallback`` (ASCII).
+
+    Preserves the rich emoji UI on macOS/Linux and modern Windows terminals
+    while degrading gracefully on legacy code pages instead of crashing.
+    """
+    return symbol if _supports_unicode() else fallback
+
 
 app = typer.Typer(
     name="aiui",
@@ -341,7 +375,7 @@ def serve(
 
     # Build first unless --no-build
     if not no_build:
-        console.print("[yellow]⏳[/yellow] Building manifests...")
+        console.print(f"[yellow]{_icon('⏳', '...')}[/yellow] Building manifests...")
         build(config=config, output=output, minify=False)
 
     # Check if output directory exists
@@ -369,7 +403,9 @@ def serve(
         raise typer.Exit(code=4)
 
     if actual_port != port:
-        console.print(f"[yellow]⚠️[/yellow] Port {port} in use, using {actual_port}")
+        console.print(
+            f"[yellow]{_icon('⚠️', '[WARNING]')}[/yellow] Port {port} in use, using {actual_port}"
+        )
 
     # Build Starlette app with security
     from starlette.applications import Starlette
@@ -1348,7 +1384,7 @@ def run(
 
     if is_yaml:
         # Load YAML chat configuration
-        console.print(f"[yellow]⏳[/yellow] Loading {app_file}...")
+        console.print(f"[yellow]{_icon('⏳', '...')}[/yellow] Loading {app_file}...")
         import yaml as _yaml
 
         with open(app_file, encoding="utf-8") as f:
@@ -1386,7 +1422,7 @@ def run(
         is_chat_mode = True
     else:
         # Load the user's app module FIRST to register callbacks
-        console.print(f"[yellow]⏳[/yellow] Loading {app_file}...")
+        console.print(f"[yellow]{_icon('⏳', '...')}[/yellow] Loading {app_file}...")
         spec = importlib.util.spec_from_file_location("user_app", app_file)
         if spec is None or spec.loader is None:
             console.print(f"[red]Error:[/red] Could not load {app_file}")
@@ -1452,7 +1488,7 @@ def run(
 
     # Build static files only if --config was explicitly provided
     if config is not None and config.exists():
-        console.print("[yellow]⏳[/yellow] Building static files...")
+        console.print(f"[yellow]{_icon('⏳', '...')}[/yellow] Building static files...")
         build(config=config, output=output, minify=False)
 
     # If chat mode: set up chat frontend directly from templates
@@ -1510,7 +1546,9 @@ def run(
         raise typer.Exit(code=4)
 
     if actual_port != port:
-        console.print(f"[yellow]⚠️[/yellow] Port {port} in use, using {actual_port}")
+        console.print(
+            f"[yellow]{_icon('⚠️', '[WARNING]')}[/yellow] Port {port} in use, using {actual_port}"
+        )
 
     static_dir = output if output.exists() else None
 
@@ -1855,10 +1893,16 @@ def health_check(
                     health = feat.get("health", {})
                     healthy = health.get("healthy", True)
                     detail = health.get("detail", "ok")
-                    icon = "[green]✅[/green]" if healthy else "[yellow]⚠️[/yellow]"
+                    icon = (
+                        f"[green]{_icon('✅', '[OK]')}[/green]"
+                        if healthy
+                        else f"[yellow]{_icon('⚠️', '[WARNING]')}[/yellow]"
+                    )
                     console.print(f"  {icon} {name}: {detail}")
         except Exception as e:
-            console.print(f"[yellow]⚠️[/yellow] Could not fetch feature health: {e}")
+            console.print(
+                f"[yellow]{_icon('⚠️', '[WARNING]')}[/yellow] Could not fetch feature health: {e}"
+            )
 
 
 # Register "health" as an alias for health-check (backward compatibility)
@@ -3132,21 +3176,23 @@ def doctor(
     console.print()
 
     status_icons = {
-        "pass": "[green]✅[/green]",
-        "warn": "[yellow]⚠️[/yellow]",
-        "fail": "[red]❌[/red]",
+        "pass": f"[green]{_icon('✅', '[PASS]')}[/green]",
+        "warn": f"[yellow]{_icon('⚠️', '[WARN]')}[/yellow]",
+        "fail": f"[red]{_icon('❌', '[FAIL]')}[/red]",
     }
 
+    arrow = _icon("▶", ">")
+    border = _icon("═", "=") * 43
     for i, check in enumerate(checks, 1):
-        icon = status_icons.get(check["status"], "❓")
-        console.print(f"▶ {i}. {check['name']:20} {icon} {check['detail']}")
+        icon = status_icons.get(check["status"], _icon("❓", "[?]"))
+        console.print(f"{arrow} {i}. {check['name']:20} {icon} {check['detail']}")
 
     console.print()
-    console.print("═" * 43)
+    console.print(border)
     console.print(
         f"  SUMMARY: [green]{passed} passed[/green], [yellow]{warnings} warning{'s' if warnings != 1 else ''}[/yellow], [red]{failed} failed[/red]"
     )
-    console.print("═" * 43)
+    console.print(border)
 
     if failed > 0:
         raise typer.Exit(code=1)
