@@ -1,12 +1,14 @@
 """Tests for i18n and accessibility configuration."""
 
 
+from praisonaiui.schema.features import get_feature_registry
 from praisonaiui.schema.models import (
     A11yConfig,
     Config,
     I18nConfig,
     SiteConfig,
 )
+from praisonaiui.schema.validators import validate_config
 
 
 class TestI18nConfig:
@@ -112,3 +114,28 @@ class TestConfigWithI18nA11y:
 
         assert config.i18n.locales == ["en", "ja"]
         assert config.a11y.reduce_motion is True
+
+    def test_i18n_implemented_status(self):
+        """Test that i18n is marked as IMPLEMENTED in feature registry."""
+        registry = get_feature_registry()
+        assert registry.is_implemented("i18n") is True
+        assert registry.is_experimental("i18n") is False
+
+    def test_strict_validation_passes_with_i18n(self):
+        """Test that strict validation passes with valid i18n config."""
+        config = Config(
+            site=SiteConfig(title="Test Site"),
+            i18n=I18nConfig(
+                defaultLocale="en",
+                locales=["en", "es", "fr"],
+                rtlLocales=["ar"],
+                fallbackLocale="en"
+            ),
+        )
+
+        result = validate_config(config, strict=True)
+
+        # Should not have experimental error (code 4001) for i18n
+        assert not any(e.code == 4001 and 'i18n' in e.message for e in result.errors)
+        # Validation should pass with no errors related to i18n being experimental
+        assert result.valid or len([e for e in result.errors if 'i18n' in e.message and 'experimental' in e.message]) == 0

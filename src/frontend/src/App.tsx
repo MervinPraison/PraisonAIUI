@@ -9,6 +9,7 @@ import { ZoneWidgets } from './Widgets'
 import { Toc } from './Toc'
 import { Footer } from './Footer'
 import { ChatLayout, AgentUILayout, CopilotWidget, PlaygroundLayout } from './layouts'
+import { LocaleProvider } from './i18n'
 
 function SkipLink({ enabled }: { enabled?: boolean }) {
   if (!enabled) return null
@@ -394,5 +395,9 @@ export default function App() {
     }
   }
 
-  return renderByStyle()
+  return (
+    <LocaleProvider config={config.i18n}>
+      {renderByStyle()}
+    </LocaleProvider>
+  )
 }
