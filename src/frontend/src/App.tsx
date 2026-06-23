@@ -31,84 +31,32 @@ export default function App() {
   const [selectedItem, setSelectedItem] = useState<NavItem | null>(null)
   const [activeItemPath, setActiveItemPath] = useState<string>('')
 
-  useEffect(() => {
-    async function loadManifests() {
-      try {
-        const [configRes, navRes, routesRes] = await Promise.all([
-          fetch('/ui-config.json'),
-          fetch('/docs-nav.json'),
-          fetch('/route-manifest.json'),
-        ])
-
-        if (!configRes.ok || !navRes.ok || !routesRes.ok) {
-          throw new Error('Failed to load manifests')
+  // Helper function to find nav item by path
+  const findNavItemByPath = (navData: DocsNav, path: string): NavItem | null => {
+    const findItem = (items: NavItem[]): NavItem | null => {
+      for (const item of items) {
+        if (item.path === path || item.path === path.replace(/^\//, '')) {
+          return item
         }
-
-        const configData = await configRes.json()
-        const navData = await navRes.json()
-        setConfig(configData)
-        setNav(navData)
-        setRoutes(await routesRes.json())
-
-        // Apply theme from YAML config
-        const theme = configData.site?.theme
-        applyTheme(
-          theme?.preset || 'zinc',
-          theme?.darkMode !== false,
-          theme?.radius || 'md'
-        )
-
-        // Handle initial URL path for SPA routing
-        const currentPath = window.location.pathname
-        if (currentPath && currentPath !== '/') {
-          // Find matching nav item by path
-          const findItem = (items: NavItem[]): NavItem | null => {
-            for (const item of items) {
-              if (item.path === currentPath || item.path === currentPath.replace(/^\//, '')) {
-                return item
-              }
-              if (item.children) {
-                const found = findItem(item.children)
-                if (found) return found
-              }
-            }
-            return null
-          }
-
-          // Search all nav groups
-          if (navData.items) {
-            for (const group of navData.items) {
-              if (group.children) {
-                const found = findItem(group.children)
-                if (found) {
-                  setSelectedItem(found)
-                  setActiveItemPath(found.path || found.title)
-                  break
-                }
-              }
-            }
-          }
+        if (item.children) {
+          const found = findItem(item.children)
+          if (found) return found
         }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error')
-      } finally {
-        setLoading(false)
       }
+      return null
     }
 
-    loadManifests()
-
-    // Handle browser back/forward navigation
-    const handlePopState = () => {
-      const path = window.location.pathname
-      if (path === '/') {
-        setSelectedItem(null)
-        setActiveItemPath('')
+    // Search all nav groups
+    if (navData.items) {
+      for (const group of navData.items) {
+        if (group.children) {
+          const found = findItem(group.children)
+          if (found) return found
+        }
       }
     }
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [])
+    return null
+  }
 
   // Update SEO meta tags dynamically
   const updateSEO = (title: string, path: string, description?: string) => {
@@ -116,7 +64,12 @@ export default function App() {
     const titleTemplate = config.seo?.titleTemplate || '%s | %s'
     const siteName = config.site?.title || 'Documentation'
     if (titleTemplate.includes('%s')) {
-      document.title = titleTemplate.replace('%s', title).replace('%s', siteName)
+      // Replace first %s with page title, second %s (if exists) with site name
+      let formattedTitle = titleTemplate.replace('%s', title)
+      if (formattedTitle.includes('%s')) {
+        formattedTitle = formattedTitle.replace('%s', siteName)
+      }
+      document.title = formattedTitle
     } else {
       document.title = `${title} | ${siteName}`
     }
@@ -180,6 +133,75 @@ export default function App() {
       ogImage.content = config.seo.defaultImage
     }
   }
+
+  useEffect(() => {
+    async function loadManifests() {
+      try {
+        const [configRes, navRes, routesRes] = await Promise.all([
+          fetch('/ui-config.json'),
+          fetch('/docs-nav.json'),
+          fetch('/route-manifest.json'),
+        ])
+
+        if (!configRes.ok || !navRes.ok || !routesRes.ok) {
+          throw new Error('Failed to load manifests')
+        }
+
+        const configData = await configRes.json()
+        const navData = await navRes.json()
+        setConfig(configData)
+        setNav(navData)
+        setRoutes(await routesRes.json())
+
+        // Apply theme from YAML config
+        const theme = configData.site?.theme
+        applyTheme(
+          theme?.preset || 'zinc',
+          theme?.darkMode !== false,
+          theme?.radius || 'md'
+        )
+
+        // Handle initial URL path for SPA routing
+        const currentPath = window.location.pathname
+        if (currentPath && currentPath !== '/') {
+          const found = findNavItemByPath(navData, currentPath)
+          if (found) {
+            setSelectedItem(found)
+            setActiveItemPath(found.path || found.title)
+          }
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadManifests()
+  }, [])
+
+  // Handle browser back/forward navigation in a separate effect
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname
+      const found = findNavItemByPath(nav, path)
+      
+      if (found) {
+        setSelectedItem(found)
+        setActiveItemPath(found.path || found.title)
+        // Use updateSEO function for consistency
+        updateSEO(found.title, path)
+      } else if (path === '/') {
+        setSelectedItem(null)
+        setActiveItemPath('')
+        // Reset title to site title
+        document.title = config.site?.title || 'Documentation'
+      }
+    }
+    
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [nav, config])
 
   const handleItemClick = (item: NavItem) => {
     setSelectedItem(item)
