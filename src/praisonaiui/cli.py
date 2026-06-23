@@ -1818,15 +1818,17 @@ def health_check(
     import json as _json
     from urllib.request import urlopen
 
+    from praisonaiui.health_utils import is_success_status
+
     try:
         with urlopen(f"{server}/health") as resp:
             data = _json.loads(resp.read())
             status = data.get("status", "unknown")
             ts = data.get("timestamp", "")
-            if status == "healthy":
+            if is_success_status(status):
                 console.print(
                     Panel.fit(
-                        f"Server: [green]healthy[/green] ({ts})",
+                        f"Server: [green]{status}[/green] ({ts})",
                         title="Health Check",
                         border_style="green",
                     )
@@ -1883,13 +1885,15 @@ def provider_status(
     import json as _json
     from urllib.request import urlopen
 
+    from praisonaiui.health_utils import is_success_status
+
     try:
         with urlopen(f"{server}/api/provider") as resp:
             data = _json.loads(resp.read())
             console.print(f"[bold]Provider:[/bold] {data.get('name', 'unknown')}")
             console.print(f"[bold]Module:[/bold]   {data.get('module', 'unknown')}")
             status = data.get("status", "unknown")
-            color = "green" if status == "ok" else "red"
+            color = "green" if is_success_status(status) else "red"
             console.print(f"[bold]Status:[/bold]   [{color}]{status}[/{color}]")
             agents = data.get("agents", [])
             if agents:
@@ -3018,9 +3022,11 @@ def doctor(
             return {"name": name, "status": "fail", "detail": str(e)}
 
     # Check 1: Server Health
+    from praisonaiui.health_utils import is_success_status
+
     def _health_extractor(data):
         status = data.get("status", "unknown")
-        if status == "healthy":
+        if is_success_status(status):
             return "pass", f"running on {server.split('://')[-1]}"
         return "warn", f"status: {status}"
 
