@@ -290,7 +290,7 @@ def _load_data() -> None:
     if not _data_file or not _data_file.exists():
         return
     try:
-        with open(_data_file) as f:
+        with open(_data_file, encoding="utf-8") as f:
             data = json.load(f)
         _aggregates.update(data.get("aggregates", {}))
         for record in data.get("records", []):

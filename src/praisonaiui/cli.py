@@ -213,7 +213,7 @@ def validate(
         raise typer.Exit(code=2)
 
     try:
-        with open(config) as f:
+        with open(config, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         cfg = Config.model_validate(data)
     except Exception as e:
@@ -264,7 +264,7 @@ def build(
         raise typer.Exit(code=2)
 
     try:
-        with open(config) as f:
+        with open(config, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         cfg = Config.model_validate(data)
     except Exception as e:
@@ -549,7 +549,7 @@ def dev(
                 )
                 tmp_cfg = None
                 if has_override and config_file.exists():
-                    with open(config_file) as f:
+                    with open(config_file, encoding="utf-8") as f:
                         config = yaml.safe_load(f.read())
                     if "site" not in config:
                         config["site"] = {}
@@ -945,7 +945,7 @@ def dev(
                         yaml_path = examples_dir / example_name / "aiui.template.yaml"
                         yaml_content = ""
                         if yaml_path.exists():
-                            with open(yaml_path) as f:
+                            with open(yaml_path, encoding="utf-8") as f:
                                 yaml_content = f.read()
                         self.send_response(200)
                         self.send_header("Content-type", "application/json")
@@ -1351,7 +1351,7 @@ def run(
         console.print(f"[yellow]⏳[/yellow] Loading {app_file}...")
         import yaml as _yaml
 
-        with open(app_file) as f:
+        with open(app_file, encoding="utf-8") as f:
             chat_yaml = _yaml.safe_load(f) or {}
 
         # Apply config from YAML (override CLI defaults only if present)

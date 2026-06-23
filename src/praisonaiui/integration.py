@@ -299,7 +299,7 @@ def create_gateway_from_yaml(
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config not found: {config_path}")
 
-    with open(config_path) as f:
+    with open(config_path, encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     # Extract gateway settings

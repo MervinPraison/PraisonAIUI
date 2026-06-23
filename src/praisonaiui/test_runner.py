@@ -311,7 +311,7 @@ def test_sessions(server: str = _SERVER_OPT) -> None:
     r.check(f"Session file exists: {session_file.name}", session_file.exists())
 
     if session_file.exists():
-        data = json.loads(session_file.read_text())
+        data = json.loads(session_file.read_text(encoding="utf-8"))
         file_msgs = data.get("messages", [])
         r.check(
             "File contains messages",
@@ -800,7 +800,7 @@ def test_features(server: str = _SERVER_OPT) -> None:
         # Try loading from .env
         for env_path in [Path.cwd() / ".env", Path.home() / ".env"]:
             if env_path.exists():
-                for line in env_path.read_text().splitlines():
+                for line in env_path.read_text(encoding="utf-8").splitlines():
                     if line.startswith("TELEGRAM_BOT_TOKEN="):
                         tg_token = line.split("=", 1)[1].strip().strip('"').strip("'")
                         break

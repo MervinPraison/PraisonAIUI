@@ -2620,7 +2620,7 @@ def load_config_from_yaml(config_path: Path) -> Optional[dict]:
     try:
         import yaml
 
-        with open(config_path) as f:
+        with open(config_path, encoding="utf-8") as f:
             return yaml.safe_load(f)
     except Exception:
         return None
