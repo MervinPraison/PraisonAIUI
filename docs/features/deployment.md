@@ -163,10 +163,10 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 ```bash
 # Quick health check
-aiui health --server http://localhost:8082
+aiui health-check --server http://localhost:8082
 
-# Detailed per-feature health
-aiui health --server http://localhost:8082 --detailed
+# Detailed per-feature health  
+aiui health-check --server http://localhost:8082 --detailed
 
 # Full diagnostic (7 checks)
 aiui doctor --server http://localhost:8082

@@ -1799,7 +1799,7 @@ def sessions_messages(
 # ---------------------------------------------------------------------------
 # Subcommand: health
 # ---------------------------------------------------------------------------
-@app.command()
+@app.command("health-check")
 def health_check(
     server: str = typer.Option(
         "http://127.0.0.1:8000",
@@ -1857,6 +1857,26 @@ def health_check(
                     console.print(f"  {icon} {name}: {detail}")
         except Exception as e:
             console.print(f"[yellow]⚠️[/yellow] Could not fetch feature health: {e}")
+
+
+# Register "health" as an alias for health-check (backward compatibility)
+@app.command("health")
+def health(
+    server: str = typer.Option(
+        "http://127.0.0.1:8000",
+        "--server",
+        "-s",
+        help="Server URL",
+    ),
+    detailed: bool = typer.Option(
+        False,
+        "--detailed",
+        "-d",
+        help="Show per-feature health",
+    ),
+) -> None:
+    """Check server health (alias for health-check)."""
+    health_check(server=server, detailed=detailed)
 
 
 # ---------------------------------------------------------------------------
