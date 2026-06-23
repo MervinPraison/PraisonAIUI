@@ -36,6 +36,72 @@ class TestHealthEndpoint:
         assert data["status"] == "ok"
         assert "timestamp" in data
 
+    def test_health_live_is_fast(self, client):
+        """Test liveness endpoint returns quickly."""
+        import time
+
+        start = time.time()
+        response = client.get("/health/live")
+        duration = time.time() - start
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+        assert "timestamp" in data
+        # Should respond in under 100ms (generous for tests)
+        assert duration < 0.1
+
+    def test_health_ready_with_deep_check(self, client):
+        """Test readiness endpoint with deep feature checks."""
+        response = client.get("/health/ready")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+        assert "timestamp" in data
+        assert "provider" in data
+
+    def test_health_ready_without_deep_check(self, client):
+        """Test readiness endpoint with deep=false skips feature checks."""
+        response = client.get("/health/ready?deep=false")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+        assert "timestamp" in data
+        # Features should not be present when deep=false
+        assert "features" not in data
+
+    def test_api_health_is_cached(self, client):
+        """Test /api/health endpoint uses caching."""
+        import time
+
+        # First request
+        response1 = client.get("/api/health")
+        assert response1.status_code == 200
+        data1 = response1.json()
+
+        # Second request should be cached
+        time.sleep(0.1)
+        response2 = client.get("/api/health")
+        assert response2.status_code == 200
+        data2 = response2.json()
+
+        # Timestamps should be identical (cached)
+        assert data1["timestamp"] == data2["timestamp"]
+
+    def test_health_endpoints_accessible(self, client):
+        """Test all health endpoints are accessible."""
+        endpoints = [
+            "/health",
+            "/health/live",
+            "/health/ready",
+            "/api/health",
+            "/api/health/live",
+            "/api/health/ready",
+        ]
+        for endpoint in endpoints:
+            response = client.get(endpoint)
+            assert response.status_code == 200
+
 
 class TestAgentsEndpoint:
     """Tests for agents endpoint."""

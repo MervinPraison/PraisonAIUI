@@ -939,7 +939,11 @@ def register_page_action(page_id: str):
 
 
 async def health(request: Request) -> JSONResponse:
-    """Health check endpoint."""
+    """Health check endpoint - deep health with feature checks.
+
+    For backward compatibility, performs deep health checks on all features.
+    Use /health/live for fast liveness checks or /health/ready for parallel checks.
+    """
     provider = get_provider()
     provider_info = {"name": type(provider).__name__}
     try:
@@ -980,6 +984,120 @@ async def health(request: Request) -> JSONResponse:
     if integrated_flag is not None:
         payload["integrated"] = integrated_flag
     return JSONResponse(payload)
+
+
+async def health_live(request: Request) -> JSONResponse:
+    """Fast liveness check - confirms server is running.
+
+    Returns immediately with minimal checks. Use for load balancer health probes.
+    Target: <500ms response time.
+    """
+    return JSONResponse({
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+    })
+
+
+async def health_ready(request: Request) -> JSONResponse:
+    """Readiness check with parallel feature health checks.
+
+    Performs health checks on all features in parallel with timeout.
+    Use ?deep=false for basic readiness without feature checks.
+    """
+    import asyncio
+
+    # Check for deep query parameter
+    deep = request.query_params.get("deep", "true").lower() != "false"
+
+    provider = get_provider()
+    provider_info = {"name": type(provider).__name__}
+    try:
+        provider_health = await provider.health()
+        provider_info.update(provider_health)
+    except Exception:
+        pass
+
+    features_health = {}
+    sdk_gaps: list = []
+    integrated_flag: Optional[bool] = None
+
+    if deep:
+        try:
+            from praisonaiui.backends import is_integrated_mode
+            from praisonaiui.features import get_features
+
+            integrated_flag = is_integrated_mode()
+
+            async def _safe_health(name: str, feat) -> tuple[str, Dict[str, Any]]:
+                """Wrapper to safely call feature health with timeout."""
+                try:
+                    result = await asyncio.wait_for(feat.health(), timeout=0.5)
+                    return (name, result)
+                except asyncio.TimeoutError:
+                    return (name, {"healthy": False, "detail": "timeout"})
+                except Exception as e:
+                    return (name, {"healthy": False, "detail": str(e)})
+
+            # Run all feature health checks in parallel
+            features = get_features()
+            health_tasks = [_safe_health(name, feat) for name, feat in features.items()]
+            results = await asyncio.gather(*health_tasks)
+
+            # Process results
+            for name, health_data in results:
+                features_health[name] = health_data
+                if health_data.get("sdk_gap"):
+                    sdk_gaps.append({
+                        "feature": name,
+                        "message": health_data.get("sdk_gap_message", "SDK gap"),
+                    })
+        except Exception:
+            pass
+
+    payload: Dict[str, Any] = {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+        "provider": provider_info,
+    }
+
+    if deep and features_health:
+        payload["features"] = features_health
+
+    if sdk_gaps:
+        payload["sdk_gaps"] = sdk_gaps
+
+    if integrated_flag is not None:
+        payload["integrated"] = integrated_flag
+
+    return JSONResponse(payload)
+
+
+# Health cache for dashboard polling
+_health_cache: Dict[str, Any] = {}
+_health_cache_time: float = 0
+
+
+async def health_cached(request: Request) -> JSONResponse:
+    """Cached health endpoint for dashboard - 30 second TTL.
+
+    Returns cached deep health status to avoid repeated expensive checks.
+    """
+    import json
+    import time
+
+    global _health_cache, _health_cache_time
+
+    current_time = time.time()
+    if _health_cache and (current_time - _health_cache_time) < 30:
+        return JSONResponse(_health_cache)
+
+    # Refresh cache by calling health_ready
+    response = await health_ready(request)
+    # Extract JSON content from response
+    _health_cache = json.loads(response.body.decode())
+    _health_cache_time = current_time
+
+    return JSONResponse(_health_cache)
 
 
 async def list_agents(request: Request) -> JSONResponse:
@@ -2583,6 +2701,10 @@ class AuthEnforcementMiddleware:
     EXEMPT_PATHS = {
         "/health",
         "/api/health",
+        "/health/live",
+        "/health/ready",
+        "/api/health/live",
+        "/api/health/ready",
         "/api/auth/login",
         "/login",
         "/api/protocol",
@@ -2859,7 +2981,11 @@ def create_app(
 
     routes = [
         Route("/health", health, methods=["GET"]),
-        Route("/api/health", health, methods=["GET"]),
+        Route("/api/health", health_cached, methods=["GET"]),
+        Route("/health/live", health_live, methods=["GET"]),
+        Route("/health/ready", health_ready, methods=["GET"]),
+        Route("/api/health/live", health_live, methods=["GET"]),
+        Route("/api/health/ready", health_ready, methods=["GET"]),
         Route("/login", login_handler, methods=["POST"]),
         Route("/register", register_handler, methods=["POST"]),
         Route("/logout", logout_handler, methods=["POST"]),
