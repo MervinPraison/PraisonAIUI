@@ -97,18 +97,65 @@ export default function App() {
     }
 
     loadManifests()
+  }, [])
 
-    // Handle browser back/forward navigation
+  // Handle browser back/forward navigation in a separate effect
+  useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname
-      if (path === '/') {
+      
+      // Find matching nav item by path
+      const findItem = (items: NavItem[]): NavItem | null => {
+        for (const item of items) {
+          if (item.path === path || item.path === path.replace(/^\//, '')) {
+            return item
+          }
+          if (item.children) {
+            const found = findItem(item.children)
+            if (found) return found
+          }
+        }
+        return null
+      }
+      
+      // Search all nav groups for the matching path
+      let found: NavItem | null = null
+      if (nav.items) {
+        for (const group of nav.items) {
+          if (group.children) {
+            found = findItem(group.children)
+            if (found) break
+          }
+        }
+      }
+      
+      if (found) {
+        setSelectedItem(found)
+        setActiveItemPath(found.path || found.title)
+        // Update SEO meta tags with current page title
+        const siteName = config.site?.title || 'Documentation'
+        const titleTemplate = config.seo?.titleTemplate || '%s | %s'
+        if (titleTemplate.includes('%s')) {
+          // Replace first %s with page title, second %s (if exists) with site name
+          let formattedTitle = titleTemplate.replace('%s', found.title)
+          if (formattedTitle.includes('%s')) {
+            formattedTitle = formattedTitle.replace('%s', siteName)
+          }
+          document.title = formattedTitle
+        } else {
+          document.title = `${found.title} | ${siteName}`
+        }
+      } else if (path === '/') {
         setSelectedItem(null)
         setActiveItemPath('')
+        // Reset title to site title
+        document.title = config.site?.title || 'Documentation'
       }
     }
+    
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [])
+  }, [nav, config])
 
   // Update SEO meta tags dynamically
   const updateSEO = (title: string, path: string, description?: string) => {
@@ -116,7 +163,12 @@ export default function App() {
     const titleTemplate = config.seo?.titleTemplate || '%s | %s'
     const siteName = config.site?.title || 'Documentation'
     if (titleTemplate.includes('%s')) {
-      document.title = titleTemplate.replace('%s', title).replace('%s', siteName)
+      // Replace first %s with page title, second %s (if exists) with site name
+      let formattedTitle = titleTemplate.replace('%s', title)
+      if (formattedTitle.includes('%s')) {
+        formattedTitle = formattedTitle.replace('%s', siteName)
+      }
+      document.title = formattedTitle
     } else {
       document.title = `${title} | ${siteName}`
     }
