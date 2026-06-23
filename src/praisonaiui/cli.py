@@ -1,6 +1,7 @@
 """CLI module - Typer-based command line interface."""
 
 import asyncio
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -9,6 +10,14 @@ from rich.console import Console
 from rich.panel import Panel
 
 from praisonaiui.__version__ import __version__
+
+# Configure UTF-8 on Windows to handle Unicode output
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 app = typer.Typer(
     name="aiui",
@@ -341,7 +350,7 @@ def serve(
 
     # Build first unless --no-build
     if not no_build:
-        console.print("[yellow]⏳[/yellow] Building manifests...")
+        console.print("[yellow]...[/yellow] Building manifests...")
         build(config=config, output=output, minify=False)
 
     # Check if output directory exists
@@ -369,7 +378,7 @@ def serve(
         raise typer.Exit(code=4)
 
     if actual_port != port:
-        console.print(f"[yellow]⚠️[/yellow] Port {port} in use, using {actual_port}")
+        console.print(f"[yellow][WARNING][/yellow] Port {port} in use, using {actual_port}")
 
     # Build Starlette app with security
     from starlette.applications import Starlette
@@ -1348,7 +1357,7 @@ def run(
 
     if is_yaml:
         # Load YAML chat configuration
-        console.print(f"[yellow]⏳[/yellow] Loading {app_file}...")
+        console.print(f"[yellow]...[/yellow] Loading {app_file}...")
         import yaml as _yaml
 
         with open(app_file) as f:
@@ -1386,7 +1395,7 @@ def run(
         is_chat_mode = True
     else:
         # Load the user's app module FIRST to register callbacks
-        console.print(f"[yellow]⏳[/yellow] Loading {app_file}...")
+        console.print(f"[yellow]...[/yellow] Loading {app_file}...")
         spec = importlib.util.spec_from_file_location("user_app", app_file)
         if spec is None or spec.loader is None:
             console.print(f"[red]Error:[/red] Could not load {app_file}")
@@ -1452,7 +1461,7 @@ def run(
 
     # Build static files only if --config was explicitly provided
     if config is not None and config.exists():
-        console.print("[yellow]⏳[/yellow] Building static files...")
+        console.print("[yellow]...[/yellow] Building static files...")
         build(config=config, output=output, minify=False)
 
     # If chat mode: set up chat frontend directly from templates
@@ -1510,7 +1519,7 @@ def run(
         raise typer.Exit(code=4)
 
     if actual_port != port:
-        console.print(f"[yellow]⚠️[/yellow] Port {port} in use, using {actual_port}")
+        console.print(f"[yellow][WARNING][/yellow] Port {port} in use, using {actual_port}")
 
     static_dir = output if output.exists() else None
 
@@ -1853,10 +1862,10 @@ def health_check(
                     health = feat.get("health", {})
                     healthy = health.get("healthy", True)
                     detail = health.get("detail", "ok")
-                    icon = "[green]✅[/green]" if healthy else "[yellow]⚠️[/yellow]"
+                    icon = "[green][OK][/green]" if healthy else "[yellow][WARNING][/yellow]"
                     console.print(f"  {icon} {name}: {detail}")
         except Exception as e:
-            console.print(f"[yellow]⚠️[/yellow] Could not fetch feature health: {e}")
+            console.print(f"[yellow][WARNING][/yellow] Could not fetch feature health: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -3099,21 +3108,21 @@ def doctor(
     console.print()
 
     status_icons = {
-        "pass": "[green]✅[/green]",
-        "warn": "[yellow]⚠️[/yellow]",
-        "fail": "[red]❌[/red]",
+        "pass": "[green][PASS][/green]",
+        "warn": "[yellow][WARN][/yellow]",
+        "fail": "[red][FAIL][/red]",
     }
 
     for i, check in enumerate(checks, 1):
-        icon = status_icons.get(check["status"], "❓")
-        console.print(f"▶ {i}. {check['name']:20} {icon} {check['detail']}")
+        icon = status_icons.get(check["status"], "[?]")
+        console.print(f"> {i}. {check['name']:20} {icon} {check['detail']}")
 
     console.print()
-    console.print("═" * 43)
+    console.print("=" * 43)
     console.print(
         f"  SUMMARY: [green]{passed} passed[/green], [yellow]{warnings} warning{'s' if warnings != 1 else ''}[/yellow], [red]{failed} failed[/red]"
     )
-    console.print("═" * 43)
+    console.print("=" * 43)
 
     if failed > 0:
         raise typer.Exit(code=1)
