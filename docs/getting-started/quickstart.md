@@ -101,6 +101,6 @@ If something isn't working:
 
 ```bash
 aiui doctor               # Check server health
-aiui health --detailed     # Detailed health check
+aiui health-check --detailed  # Detailed health check (alias: aiui health)
 aiui test all              # Run all integration tests
 ```

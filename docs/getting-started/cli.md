@@ -276,10 +276,13 @@ aiui features list     # List all registered features
 aiui features status   # Feature health summary
 ```
 
-### `aiui health`
+### `aiui health-check`
+
+Check server health. Can also be invoked as `aiui health` for convenience.
 
 ```bash
-aiui health [--detailed]    # Check server health
+aiui health-check [--detailed]    # Check server health
+aiui health [--detailed]          # Alias for health-check
 ```
 
 ### `aiui session-ext`
