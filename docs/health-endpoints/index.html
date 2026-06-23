@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Health Endpoints Guide - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Health Endpoints Guide | PraisonAIUI Docs</title>
+  <script>
+    // Anti-flicker: apply dark mode class before first paint
+    // Default to dark to prevent flash; React will correct if needed
+    document.documentElement.classList.add('dark');
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/health-endpoints" />
+  <meta property="og:title" content="Health Endpoints Guide | PraisonAIUI Docs" />
+  <meta property="og:description" content="Health Endpoints Guide - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/health-endpoints" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Health Endpoints Guide | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Health Endpoints Guide - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Health Endpoints Guide</h1>
+<h2>Overview</h2>
+<p>PraisonAIUI provides multiple health endpoints optimized for different use cases:</p>
+<li>**`/health/live`** - Fast liveness check (<500ms)</li>
+<li>**`/health/ready`** - Readiness check with optional deep checks</li>
+<li>**`/health`** - Legacy endpoint (backward compatibility)</li>
+<h2>Endpoints</h2>
+<h3>Liveness Check: `/health/live`</h3>
+<p>Fast endpoint to verify the server is running. Returns immediately with minimal processing.</p>
+<p>**Use for:**</p>
+<li>Load balancer health probes</li>
+<li>Kubernetes liveness probes</li>
+<li>High-frequency monitoring</li>
+<p>**Response time:** <500ms (typically <100ms)</p>
+<p>**Example:**</p>
+<p>**Response:**</p>
+<h3>Readiness Check: `/health/ready`</h3>
+<p>Verifies the server is ready to handle requests. Performs parallel health checks on all features with timeout protection.</p>
+<p>**Use for:**</p>
+<li>Kubernetes readiness probes</li>
+<li>Pre-deployment validation</li>
+<li>Detailed diagnostics</li>
+<p>**Query parameters:**</p>
+<li>`?deep=false` - Skip feature checks for faster response</li>
+<p>**Response time:**</p>
+<li>With deep checks: <1s (parallel execution)</li>
+<li>Without deep checks: <200ms</li>
+<p>**Example:**</p>
+<p>**Response with deep checks:**</p>
+<h3>API Health: `/api/health`</h3>
+<p>Cached version of readiness check for dashboard polling. 30-second TTL to reduce load.</p>
+<p>**Use for:**</p>
+<li>Dashboard health indicators</li>
+<li>Frequent client polling</li>
+<li>Status pages</li>
+<p>**Response:** Same as `/health/ready` but cached for 30 seconds</p>
+<h2>Deployment Configurations</h2>
+<h3>Kubernetes</h3>
+<h3>AWS ALB/ELB</h3>
+<h3>Docker Compose</h3>
+<h3>Nginx</h3>
+<h2>Migration Guide</h2>
+<p>If you're upgrading from a version using only `/health`:</p>
+<p>1. **Update monitoring:** Change health checks to use `/health/live` for liveness</p>
+<p>2. **Update readiness:** Use `/health/ready?deep=false` for readiness probes</p>
+<p>3. **Update dashboards:** Point status indicators to `/api/health` (cached)</p>
+<p>4. **Backward compatibility:** The `/health` endpoint remains available but may be slow</p>
+<h2>Performance Characteristics</h2>
+<p>| Endpoint | Cold Start | Warm (p50) | Warm (p95) | Use Case |</p>
+<p>|----------|------------|------------|------------|----------|</p>
+<p>| `/health/live` | <100ms | <20ms | <50ms | Liveness probes |</p>
+<p>| `/health/ready?deep=false` | <200ms | <50ms | <100ms | Basic readiness |</p>
+<p>| `/health/ready` | <1s | <500ms | <800ms | Full diagnostics |</p>
+<p>| `/api/health` (cached) | <1s* | <20ms | <50ms | Dashboard polling |</p>
+<p>*First request only, then cached for 30s</p>
+<h2>Troubleshooting</h2>
+<h3>Slow `/health` responses</h3>
+<p>If you're seeing slow responses on the legacy `/health` endpoint:</p>
+<li>Switch to `/health/live` for fast checks</li>
+<li>Use `/health/ready?deep=false` if you don't need feature health</li>
+<li>Enable caching with `/api/health` for frequent polling</li>
+<h3>Feature timeouts</h3>
+<p>Features that timeout in `/health/ready` will show:</p>
+<p>This indicates the feature took longer than 500ms to respond. The server is still operational, but that specific feature may be experiencing issues.</p>
+<h3>High latency under load</h3>
+<p>Under high load, use `/health/live` exclusively for monitoring. It has minimal overhead and won't impact performance.</p></noscript></div>
+</body>
+
+</html>
