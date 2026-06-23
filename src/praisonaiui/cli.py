@@ -2025,12 +2025,14 @@ app.add_typer(features_app, name="features")
 @features_app.command("list")
 def features_list(server: str = _SERVER_OPT) -> None:
     """List all registered protocol features."""
+    from praisonaiui.health_utils import is_success_status
+
     try:
         data = _api_get(server, "/api/features")
         for f in data.get("features", []):
             h = f.get("health", {})
             status = h.get("status", "?")
-            color = "green" if status == "ok" else "red"
+            color = "green" if is_success_status(status) else "red"
             console.print(f"  [{color}]●[/{color}] {f['name']} — {f.get('description', '')}")
             if f.get("routes"):
                 console.print(f"    routes: {', '.join(f['routes'])}")
@@ -2042,15 +2044,17 @@ def features_list(server: str = _SERVER_OPT) -> None:
 @features_app.command("status")
 def features_status(server: str = _SERVER_OPT) -> None:
     """Show feature health summary."""
+    from praisonaiui.health_utils import is_success_status
+
     try:
         data = _api_get(server, "/api/features")
         features = data.get("features", [])
-        ok = sum(1 for f in features if f.get("health", {}).get("status") == "ok")
+        ok = sum(1 for f in features if is_success_status(f.get("health", {}).get("status")))
         console.print(f"Features: {ok}/{len(features)} healthy")
         for f in features:
             h = f.get("health", {})
             status = h.get("status", "?")
-            color = "green" if status == "ok" else "red"
+            color = "green" if is_success_status(status) else "red"
             console.print(f"  [{color}]●[/{color}] {f['name']}: {status}")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")

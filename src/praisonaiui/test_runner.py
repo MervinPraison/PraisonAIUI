@@ -354,9 +354,11 @@ def test_endpoints(server: str = _SERVER_OPT) -> None:
 
     # ── Health ───────────────────────────────────────────────────────
     console.print("\n[dim]Health[/dim]")
+    from praisonaiui.health_utils import is_success_status
+
     try:
         data = _get(server, "/health")
-        r.check("GET /health", data.get("status") == "ok")
+        r.check("GET /health", is_success_status(data.get("status")))
     except Exception as e:
         r.check("GET /health", False, str(e))
 
