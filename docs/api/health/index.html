@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Health API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Health API Reference | PraisonAIUI Docs</title>
+  <script>
+    // Anti-flicker: apply dark mode class before first paint
+    // Default to dark to prevent flash; React will correct if needed
+    document.documentElement.classList.add('dark');
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="/docs/api/health" />
+  <meta property="og:title" content="Health API Reference | PraisonAIUI Docs" />
+  <meta property="og:description" content="Health API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+  <meta property="og:url" content="/docs/api/health" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Health API Reference | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Health API Reference - Documentation for PraisonAIUI - YAML-driven website generator" />
+</head>
+
+<body>
+  <div id="root"><noscript><h1>Health API Reference</h1>
+<p>The AIUI health API provides endpoints to monitor server and provider health status.</p>
+<h2>Health Status Values</h2>
+<p>The following status values are used throughout the health API:</p>
+<p>| Status | Meaning | Color Code |</p>
+<p>|--------|---------|------------|</p>
+<p>| `"ok"` | Service is functioning normally | Green |</p>
+<p>| `"healthy"` | Service is functioning normally (legacy) | Green |</p>
+<p>| `"degraded"` | Service is partially functional | Yellow |</p>
+<p>| `"error"` | Service has errors | Red |</p>
+<p>| `"unknown"` | Status cannot be determined | Yellow |</p>
+<p>> **Note:** Both `"ok"` and `"healthy"` indicate successful operation. The system accepts either value for backward compatibility.</p>
+<h2>Endpoints</h2>
+<h3>GET /health</h3>
+<p>Returns the overall server health status.</p>
+<p>**Response:**</p>
+<h3>GET /api/provider</h3>
+<p>Returns information about the active AI provider.</p>
+<p>**Response:**</p>
+<h3>GET /api/provider/health</h3>
+<p>Returns detailed health information from the provider gateway.</p>
+<p>**Response:**</p>
+<h2>CLI Commands</h2>
+<h3>health-check</h3>
+<p>Check server health status:</p>
+<p>The command displays:</p>
+<li>Green panel for `"ok"` or `"healthy"` status</li>
+<li>Yellow panel for other statuses</li>
+<li>Red error message if server is unreachable</li>
+<h3>doctor</h3>
+<p>Run comprehensive diagnostics:</p>
+<p>The doctor command checks:</p>
+<p>1. Server Health</p>
+<p>2. Provider Status</p>
+<p>3. Gateway Status</p>
+<p>4. Features Loaded</p>
+<p>5. Config Store</p>
+<p>6. Datastore</p>
+<p>7. Channels</p>
+<h3>provider status</h3>
+<p>Check provider health:</p>
+<h2>Python API</h2>
+<h2>JavaScript/Dashboard</h2>
+<p>The dashboard automatically accepts both `"ok"` and `"healthy"` as success statuses:</p></noscript></div>
+</body>
+
+</html>
