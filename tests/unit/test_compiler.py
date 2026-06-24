@@ -599,3 +599,56 @@ class TestCompositionResolver:
         assert len(left_sidebar_widgets) == 1
         assert left_sidebar_widgets[0]["props"]["searchable"] is True
         assert "collapsible" not in left_sidebar_widgets[0]["props"]
+
+
+class TestCompilerUtf8Writes:
+    """Regression tests for issue #150 — UTF-8 on write (Windows cp1252)."""
+
+    SPARKLE = "\u2728"
+
+    def test_doc_page_written_as_utf8(self, tmp_path: Path):
+        docs_dir = tmp_path / "docs"
+        docs_dir.mkdir()
+        (docs_dir / "index.md").write_text(
+            f"# Welcome\n\n## {self.SPARKLE} Features\n\nHello!", encoding="utf-8"
+        )
+
+        config = Config(
+            site=SiteConfig(title="Unicode Site"),
+            content=ContentConfig(docs=ContentSourceConfig(dir=str(docs_dir))),
+            templates={"docs": TemplateConfig(layout="Default", slots={})},
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+
+        compiler = Compiler(config, base_path=tmp_path)
+        result = compiler.compile(tmp_path / "output")
+        assert result.success is True
+
+        page = tmp_path / "output" / "docs" / "index" / "index.html"
+        assert page.exists()
+        raw = page.read_bytes()
+        assert self.SPARKLE in raw.decode("utf-8")
+        assert b"\xe2\x9c\xa8" in raw
+
+    def test_write_json_uses_utf8(self, minimal_config: Config, tmp_path: Path):
+        compiler = Compiler(minimal_config, base_path=tmp_path)
+        target = tmp_path / "out.json"
+        compiler._write_json(target, {"sparkle": self.SPARKLE}, indent=2)
+        raw = target.read_bytes()
+        assert self.SPARKLE in raw.decode("utf-8")
+        assert b"\xe2\x9c\xa8" in raw
+
+    def test_plugins_json_uses_utf8(self, tmp_path: Path):
+        frontend_dir = tmp_path / "frontend"
+        plugins_dst = frontend_dir / "plugins"
+        plugins_dst.mkdir(parents=True)
+        config = Config(
+            site=SiteConfig(title="Plugin Site"),
+            templates={"docs": TemplateConfig(layout="Default", slots={})},
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+        compiler = Compiler(config, base_path=tmp_path)
+        compiler._copy_plugins(tmp_path / "output", frontend_dir)
+        plugins_file = tmp_path / "output" / "plugins" / "plugins.json"
+        assert plugins_file.exists()
+        assert plugins_file.read_bytes().decode("utf-8")

@@ -256,7 +256,7 @@ def _write_disk_cache(data: dict) -> None:
     try:
         path = _disk_cache_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data))
+        path.write_text(json.dumps(data), encoding="utf-8")
     except OSError:
         pass  # Non-critical — build still works
 
@@ -357,7 +357,7 @@ def inject_theme_css(
     # Write to theme.css
     theme_file = output_dir / "assets" / "theme.css"
     theme_file.parent.mkdir(parents=True, exist_ok=True)
-    theme_file.write_text(css)
+    theme_file.write_text(css, encoding="utf-8")
 
 
 def get_available_themes() -> list[str]:

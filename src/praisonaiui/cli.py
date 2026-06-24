@@ -157,7 +157,7 @@ routes:
     template: "docs"
 """
 
-    config_path.write_text(minimal_config)
+    config_path.write_text(minimal_config, encoding="utf-8")
     console.print(Panel(f"[green]✓[/green] Created {config_path}", title="Success"))
 
 
@@ -598,7 +598,7 @@ def dev(
                     if dark_mode is not None:
                         config["site"]["theme"]["darkMode"] = dark_mode
                     tmp_cfg = example_path / ".aiui.tmp.yaml"
-                    with open(tmp_cfg, "w") as f:
+                    with open(tmp_cfg, "w", encoding="utf-8") as f:
                         yaml.dump(config, f, default_flow_style=False)
                     build_config = str(tmp_cfg)
 
@@ -1025,7 +1025,7 @@ def dev(
                         if example_name and example_name in examples:
                             yaml_path = examples_dir / example_name / "aiui.template.yaml"
                             # Write the new YAML
-                            with open(yaml_path, "w") as f:
+                            with open(yaml_path, "w", encoding="utf-8") as f:
                                 f.write(yaml_content)
                             console.print(
                                 f"[yellow]Rebuilding {example_name} with edited YAML...[/yellow]"
@@ -1520,12 +1520,14 @@ def run(
             },
             "style": style,
         }
-        with open(ui_config_path, "w") as f:
+        with open(ui_config_path, "w", encoding="utf-8") as f:
             _json.dump(ui_cfg, f, indent=2)
 
         # Write minimal route-manifest and docs-nav so the SPA doesn't error
-        (output / "route-manifest.json").write_text('{"routes": []}')
-        (output / "docs-nav.json").write_text('{"items": []}')
+        (output / "route-manifest.json").write_text(
+            '{"routes": []}', encoding="utf-8"
+        )
+        (output / "docs-nav.json").write_text('{"items": []}', encoding="utf-8")
 
     # Find available port
     def find_available_port(start_port: int, max_attempts: int = 10) -> int:
