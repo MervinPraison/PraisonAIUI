@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react'
 import type { ChatConfig, LayoutConfig } from '../types'
 import { ChatArea, SessionManager } from '../chat'
 import { ProfilePicker } from '../chat/ProfilePicker'
+import { SessionSearch } from '../components/SessionSearch'
+import { useSessionSearch } from '../hooks/useSessionSearch'
 
 interface ChatLayoutProps {
     config?: ChatConfig
@@ -14,6 +16,9 @@ export function ChatLayout({ config, layout, title }: ChatLayoutProps) {
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [showSessions, setShowSessions] = useState(true)
     const [sessionListKey, setSessionListKey] = useState(0)
+    
+    // Session search palette (Ctrl+K)
+    const { open: sessionSearchOpen, onOpenChange: onSessionSearchChange } = useSessionSearch(mode === 'fullscreen')
 
     const handleSessionSelect = useCallback((sessionId: string) => {
         setCurrentSessionId(sessionId)
@@ -33,6 +38,14 @@ export function ChatLayout({ config, layout, title }: ChatLayoutProps) {
     if (mode === 'fullscreen') {
         return (
             <div className="flex h-screen bg-background">
+                {/* Session search palette */}
+                <SessionSearch 
+                    open={sessionSearchOpen}
+                    onOpenChange={onSessionSearchChange}
+                    onSessionSelect={handleSessionSelect}
+                    currentSessionId={currentSessionId}
+                />
+                
                 {/* Session sidebar */}
                 {showSessions && config?.features?.history !== false && (
                     <aside className="w-64 border-r flex-shrink-0">
