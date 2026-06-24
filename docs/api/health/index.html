@@ -48,8 +48,18 @@
 <p>Returns information about the active AI provider.</p>
 <p>**Response:**</p>
 <h3>GET /api/provider/health</h3>
-<p>Returns detailed health information from the provider gateway.</p>
+<p>Returns detailed JSON health information from the provider gateway. Always</p>
+<p>responds with `Content-Type: application/json`. The base fields from the</p>
+<p>provider's `health()` payload are merged with the normalised fields below.</p>
 <p>**Response:**</p>
+<p>| Field | Type | Description |</p>
+<p>|-------|------|-------------|</p>
+<p>| `status` | string | One of the health status values above. |</p>
+<p>| `type` | string | Provider type (from `provider` field, falls back to class name). |</p>
+<p>| `agents` | integer | Count of agents reported by the provider. |</p>
+<p>| `detail` | string | Human-readable detail; `"ok"` for healthy providers. |</p>
+<p>> **Note:** Any unmatched `/api/*` path returns a JSON `404` (never the SPA</p>
+<p>> HTML shell), so API clients can rely on parsing the response body.</p>
 <h2>CLI Commands</h2>
 <h3>health-check</h3>
 <p>Check server health status:</p>
