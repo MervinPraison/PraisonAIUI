@@ -941,9 +941,16 @@ def register_page_action(page_id: str):
 async def health(request: Request) -> JSONResponse:
     """Health check endpoint - deep health with feature checks.
 
-    For backward compatibility, performs deep health checks on all features.
-    Use /health/live for fast liveness checks or /health/ready for parallel checks.
+    Performs deep health checks on all features in parallel with a per-feature
+    timeout so a single slow feature cannot block the whole response. Pass
+    ?deep=false for an immediate liveness response. Use /health/live for the
+    fastest liveness probe or /health/ready for the readiness probe.
     """
+    import asyncio
+
+    if request.query_params.get("deep", "true").lower() == "false":
+        return await health_live(request)
+
     provider = get_provider()
     provider_info = {"name": type(provider).__name__}
     try:
@@ -959,18 +966,28 @@ async def health(request: Request) -> JSONResponse:
         from praisonaiui.features import get_features
 
         integrated_flag = is_integrated_mode()
-        for name, feat in get_features().items():
+
+        async def _safe_health(name: str, feat) -> tuple[str, Dict[str, Any]]:
             try:
-                fh = await feat.health()
-                if fh.get("sdk_gap"):
-                    sdk_gaps.append(
-                        {
-                            "feature": name,
-                            "message": fh.get("sdk_gap_message", "SDK gap"),
-                        }
-                    )
-            except Exception:
-                continue
+                result = await asyncio.wait_for(feat.health(), timeout=0.5)
+                return (name, result)
+            except asyncio.TimeoutError:
+                return (name, {"healthy": False, "detail": "timeout"})
+            except Exception as e:
+                return (name, {"healthy": False, "detail": str(e)})
+
+        features = get_features()
+        health_tasks = [_safe_health(name, feat) for name, feat in features.items()]
+        results = await asyncio.gather(*health_tasks)
+
+        for name, fh in results:
+            if fh.get("sdk_gap"):
+                sdk_gaps.append(
+                    {
+                        "feature": name,
+                        "message": fh.get("sdk_gap_message", "SDK gap"),
+                    }
+                )
     except Exception:
         pass
 

@@ -1859,7 +1859,7 @@ def health_check(
     from praisonaiui.health_utils import is_success_status
 
     try:
-        with urlopen(f"{server}/health") as resp:
+        with urlopen(f"{server}/health/live") as resp:
             data = _json.loads(resp.read())
             status = data.get("status", "unknown")
             ts = data.get("timestamp", "")
@@ -1988,7 +1988,7 @@ def provider_health(
     from urllib.request import urlopen
 
     try:
-        with urlopen(f"{server}/health") as resp:
+        with urlopen(f"{server}/health/ready?deep=false") as resp:
             data = _json.loads(resp.read())
             provider = data.get("provider", {})
             console.print(f"[green]✓[/green] Provider: {provider.get('name', 'unknown')}")
@@ -3098,7 +3098,7 @@ def doctor(
             return "pass", f"running on {server.split('://')[-1]}"
         return "warn", f"status: {status}"
 
-    checks.append(_check("Server Health", "/health", _health_extractor))
+    checks.append(_check("Server Health", "/health/live", _health_extractor))
 
     # Check 2: Provider Status
     def _provider_extractor(data):
