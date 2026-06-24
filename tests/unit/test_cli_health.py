@@ -68,7 +68,7 @@ class TestDoctorCommand:
     def test_doctor_health_extractor_accepts_success_statuses(self, status):
         """Test doctor command's health extractor accepts both ok and healthy."""
         def mock_api_get(server, path):
-            if path == "/health":
+            if path == "/health/live":
                 return {"status": status}
             elif path == "/api/provider":
                 return {"name": "TestProvider"}
@@ -102,7 +102,7 @@ class TestDoctorCommand:
     def test_doctor_health_extractor_warns_for_non_success_statuses(self, status):
         """Test doctor command's health extractor warns for non-success statuses."""
         def mock_api_get(server, path):
-            if path == "/health":
+            if path == "/health/live":
                 return {"status": status}
             return {}
 

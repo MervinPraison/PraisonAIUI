@@ -102,6 +102,49 @@ class TestHealthEndpoint:
             response = client.get(endpoint)
             assert response.status_code == 200
 
+    def test_health_live_under_500ms(self, client):
+        """Liveness probe must respond well under 500ms."""
+        import time
+
+        start = time.perf_counter()
+        response = client.get("/health/live")
+        duration = time.perf_counter() - start
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+        assert duration < 0.5
+
+    def test_health_deep_false_is_liveness(self, client):
+        """Legacy /health?deep=false returns an immediate liveness response."""
+        response = client.get("/health?deep=false")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+        assert "timestamp" in data
+        assert "provider" not in data
+
+    def test_health_slow_feature_does_not_block(self, client):
+        """A slow feature must not block the legacy /health response."""
+        import asyncio
+        import time
+
+        from praisonaiui.features import _features
+
+        class _SlowFeature:
+            async def health(self):
+                await asyncio.sleep(5)
+                return {"healthy": True}
+
+        _features["__slow_test__"] = _SlowFeature()
+        try:
+            start = time.perf_counter()
+            response = client.get("/health")
+            duration = time.perf_counter() - start
+            assert response.status_code == 200
+            assert duration < 2.0
+        finally:
+            _features.pop("__slow_test__", None)
+
 
 class TestAgentsEndpoint:
     """Tests for agents endpoint."""

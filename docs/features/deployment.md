@@ -49,7 +49,7 @@ services:
     volumes:
       - aiui-data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health/live"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -81,7 +81,7 @@ curl -H "Authorization: Bearer <api-key>" http://localhost:8082/api/config
 ```
 
 **Exempt paths** (always accessible without auth):
-- `/health`, `/api/health` — health checks
+- `/health`, `/health/live`, `/health/ready`, `/api/health` — health checks
 - `/api/auth/login`, `/login` — login endpoints
 - `/api/protocol`, `/api/protocol/negotiate` — protocol discovery
 
@@ -146,8 +146,36 @@ This affects:
 ### Health Endpoint
 
 ```bash
+# Fast liveness probe (<500ms) - use for load balancers and K8s livenessProbe
+curl http://localhost:8082/health/live
+# Returns: {"status": "ok", "timestamp": "2024-..."}
+
+# Readiness probe with parallel feature checks - use for K8s readinessProbe
+curl http://localhost:8082/health/ready
+
+# Deep diagnostics (parallel feature checks, deep by default)
 curl http://localhost:8082/health
-# Returns: {"status": "healthy", "timestamp": "2024-..."}
+# Pass ?deep=false for an immediate liveness response
+```
+
+### Kubernetes Probes
+
+Use the fast liveness endpoint for probes to avoid timeouts:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 8082
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 1
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 8082
+  initialDelaySeconds: 5
+  periodSeconds: 10
 ```
 
 ### Docker HEALTHCHECK
@@ -156,7 +184,7 @@ The Dockerfile includes a built-in health check:
 
 ```dockerfile
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:${AIUI_PORT}/health || exit 1
+    CMD curl -f http://localhost:${AIUI_PORT}/health/live || exit 1
 ```
 
 ### CLI Health Commands
@@ -199,7 +227,7 @@ curl -H "X-API-Key: <key>" http://localhost:8082/api/config
 
 - **Internal networks**: Use `AUTH_ENFORCE=false` if behind a trusted reverse proxy
 - **Public exposure**: Always set `AUTH_ENFORCE=true` and use HTTPS
-- **Load balancers**: Health check path is `/health` (exempt from auth)
+- **Load balancers**: Health check path is `/health/live` (fast, exempt from auth)
 
 ## Managed Hosting
 
@@ -209,7 +237,9 @@ Hosting platforms should expose these endpoints:
 
 | Endpoint | Purpose |
 |----------|---------|
-| `/health` | Health check (returns `{"status": "healthy"}`) |
+| `/health/live` | Fast liveness probe (returns `{"status": "ok"}`) |
+| `/health/ready` | Readiness probe (parallel feature checks) |
+| `/health` | Deep health (parallel feature checks; `?deep=false` for liveness) |
 | `/api/protocol` | Protocol version and capabilities |
 | `/api/protocol/negotiate` | Capability negotiation |
 | `/api/features` | List of registered features |
