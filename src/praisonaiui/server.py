@@ -825,8 +825,17 @@ async def _plugins_config(request: Request) -> JSONResponse:
     return JSONResponse({"plugins": plugins})
 
 
-async def _serve_index(request: Request) -> HTMLResponse:
-    """Serve dynamically generated HTML based on active style."""
+async def _serve_index(request: Request) -> Response:
+    """Serve dynamically generated HTML based on active style.
+
+    Unmatched ``/api/*`` paths return a JSON 404 instead of the SPA shell so
+    API clients never receive HTML with a 200 status.
+    """
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(
+            {"error": "Not Found", "path": request.url.path},
+            status_code=404,
+        )
     style = _effective_style  # Single source of truth (set by create_app)
     return HTMLResponse(_build_html(style))
 
@@ -1525,6 +1534,34 @@ async def api_provider(request: Request) -> JSONResponse:
     except Exception:
         info["agents"] = []
     return JSONResponse(info)
+
+
+async def api_provider_health(request: Request) -> JSONResponse:
+    """Return JSON health information for the active provider gateway."""
+    provider = get_provider()
+    try:
+        health = await provider.health()
+    except Exception as exc:
+        health = {"status": "error", "detail": str(exc)}
+    agents: list = []
+    try:
+        listed = await provider.list_agents()
+        if isinstance(listed, list):
+            agents = listed
+    except Exception:
+        agents = []
+    status = health.get("status", "unknown")
+    detail = health.get("detail") or (
+        "ok" if status in ("ok", "healthy") else str(health)
+    )
+    body = {
+        **health,
+        "type": health.get("provider", type(provider).__name__),
+        "status": status,
+        "agents": len(agents),
+        "detail": detail,
+    }
+    return JSONResponse(body)
 
 
 async def api_action_click(request: Request) -> JSONResponse:
@@ -3026,6 +3063,7 @@ def create_app(
         # Note: /api/usage is now provided by PraisonAIUsage feature
         Route("/api/debug", api_debug, methods=["GET"]),
         Route("/api/provider", api_provider, methods=["GET"]),
+        Route("/api/provider/health", api_provider_health, methods=["GET"]),
         # Action callback API
         Route("/api/actions/{action_id}/click", api_action_click, methods=["POST"]),
         # Page registry protocol
@@ -3499,6 +3537,15 @@ def create_app(
                 response_status = 404
 
             if response_status == 404:
+                request_path = scope.get("path", "")
+                if request_path.startswith("/api/"):
+                    # Never serve the SPA HTML shell for unmatched API paths.
+                    response = JSONResponse(
+                        {"error": "Not Found", "path": request_path},
+                        status_code=404,
+                    )
+                    await response(scope, receive, send)
+                    return
                 # SPA fallback — serve the generated index page
                 from starlette.responses import HTMLResponse
 

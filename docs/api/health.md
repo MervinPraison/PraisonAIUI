@@ -48,17 +48,30 @@ Returns information about the active AI provider.
 
 ### GET /api/provider/health
 
-Returns detailed health information from the provider gateway.
+Returns detailed JSON health information from the provider gateway. Always
+responds with `Content-Type: application/json`. The base fields from the
+provider's `health()` payload are merged with the normalised fields below.
 
 **Response:**
 ```json
 {
-  "type": "gateway",
   "status": "ok",
+  "provider": "PraisonAIProvider",
+  "type": "PraisonAIProvider",
   "agents": 5,
-  "detail": "All agents operational"
+  "detail": "ok"
 }
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | One of the health status values above. |
+| `type` | string | Provider type (from `provider` field, falls back to class name). |
+| `agents` | integer | Count of agents reported by the provider. |
+| `detail` | string | Human-readable detail; `"ok"` for healthy providers. |
+
+> **Note:** Any unmatched `/api/*` path returns a JSON `404` (never the SPA
+> HTML shell), so API clients can rely on parsing the response body.
 
 ## CLI Commands
 
