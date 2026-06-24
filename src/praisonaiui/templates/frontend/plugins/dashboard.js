@@ -694,6 +694,19 @@ const DASHBOARD_STYLE = `
   .db-dialog-title { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
   .db-dialog-desc { font-size: 13px; color: var(--db-text-dim); margin: 0 0 16px; }
 
+  /* ── Session Search Palette (Ctrl+K) ─────────────────── */
+  .db-session-search-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300; display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh; backdrop-filter: blur(4px); }
+  .db-session-search { background: var(--db-sidebar-bg); border: 1px solid var(--db-border); border-radius: 12px; width: 560px; max-width: 90vw; max-height: 60vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
+  .db-session-search-input { width: 100%; padding: 16px 18px; font-size: 15px; color: var(--db-text); background: transparent; border: none; border-bottom: 1px solid var(--db-border); outline: none; box-sizing: border-box; }
+  .db-session-search-list { overflow-y: auto; padding: 6px; }
+  .db-session-search-empty { padding: 24px; text-align: center; font-size: 13px; color: var(--db-text-dim); }
+  .db-session-search-group { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--db-text-dim); padding: 10px 12px 4px; }
+  .db-session-search-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; }
+  .db-session-search-item:hover, .db-session-search-item.active { background: var(--db-hover); }
+  .db-session-search-item-title { font-size: 14px; font-weight: 500; color: var(--db-text); }
+  .db-session-search-item-meta { font-size: 12px; color: var(--db-text-dim); }
+  .db-session-search-item-current { font-size: 11px; padding: 2px 8px; border-radius: 6px; background: var(--db-accent); color: #fff; }
+
   /* ── Caption ─────────────────────────────────────────── */
   .db-caption { font-size: 12px; color: var(--db-text-dim); margin-bottom: 8px; }
 
@@ -942,10 +955,13 @@ function openCommandPalette() {
   const input = overlay.querySelector('.db-cmdk-input');
   const listEl = overlay.querySelector('.db-cmdk-list');
 
+  const sessionAction = { id: '__sessions', title: 'Search sessions…', icon: '⌕', group: 'Actions', action: 'sessions' };
   const renderResults = (q) => {
     const query = q.trim().toLowerCase();
-    const items = pagesData
+    const candidates = pagesData
       .filter((p) => p.id !== activePageId || query)
+      .concat([sessionAction]);
+    const items = candidates
       .map((p) => ({ page: p, score: paletteScore(p, query) }))
       .filter((x) => query === '' || x.score > 0)
       .sort((a, b) => b.score - a.score || (a.page.order || 0) - (b.page.order || 0))
@@ -1004,6 +1020,10 @@ function runPaletteItem(idx) {
   const page = _paletteResults[idx];
   if (!page) return;
   closeCommandPalette();
+  if (page.action === 'sessions') {
+    openSessionSearch();
+    return;
+  }
   selectPage(page.id);
 }
 
@@ -1021,6 +1041,179 @@ function initCommandPalette() {
     }
   });
 }
+
+// ── Session Search Palette ──────────────────────────────────────────
+// Vanilla-JS port of the React SessionSearch / useSessionSearch behavior so
+// that the dashboard style reaches C-01 parity. The palette lists sessions
+// from GET /sessions with live filtering; Enter or click navigates to the
+// chat page and loads the chosen session. It is reachable from the Ctrl+K
+// command palette ("Search sessions…") and via window.aiui.openSessionSearch.
+let sessionSearchOpen = false;
+let sessionSearchOverlay = null;
+let sessionSearchInitialized = false;
+
+function getCurrentSessionId() {
+  try {
+    const params = new URLSearchParams(location.search);
+    return params.get('session') || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function selectSession(sessionId) {
+  closeSessionSearch();
+  // Navigate to the chat page first so its view mounts and registers the
+  // aiui:session-select listener, then dispatch on the next tick.
+  const navigate = (typeof selectPage === 'function')
+    ? Promise.resolve(selectPage('chat'))
+    : Promise.resolve();
+  navigate.finally(() => {
+    window.dispatchEvent(new CustomEvent('aiui:session-select', { detail: { sessionId } }));
+  });
+}
+
+function renderSessionSearchList(listEl, sessions, query, currentSessionId) {
+  const q = (query || '').trim().toLowerCase();
+  const filtered = q
+    ? sessions.filter((s) => (`${s.title || ''} ${s.id || ''}`).toLowerCase().includes(q))
+    : sessions;
+
+  listEl.innerHTML = '';
+  if (!filtered.length) {
+    const empty = document.createElement('div');
+    empty.className = 'db-session-search-empty';
+    empty.textContent = sessions.length ? 'No sessions matching your search.' : 'No sessions found. Start a chat to create one.';
+    listEl.appendChild(empty);
+    return;
+  }
+
+  filtered.forEach((session, i) => {
+    const item = document.createElement('div');
+    item.className = 'db-session-search-item' + (i === 0 ? ' active' : '');
+    item.dataset.sessionId = session.id || '';
+
+    const info = document.createElement('div');
+    const title = document.createElement('div');
+    title.className = 'db-session-search-item-title';
+    title.textContent = session.title || 'Untitled Session';
+    info.appendChild(title);
+    const meta = document.createElement('div');
+    meta.className = 'db-session-search-item-meta';
+    const count = session.message_count !== undefined ? `${session.message_count} messages` : '';
+    meta.textContent = count;
+    info.appendChild(meta);
+    item.appendChild(info);
+
+    if (currentSessionId && currentSessionId === session.id) {
+      const badge = document.createElement('span');
+      badge.className = 'db-session-search-item-current';
+      badge.textContent = 'Current';
+      item.appendChild(badge);
+    }
+
+    item.addEventListener('click', () => selectSession(session.id));
+    item.addEventListener('mouseenter', () => {
+      listEl.querySelectorAll('.db-session-search-item').forEach((el) => el.classList.remove('active'));
+      item.classList.add('active');
+    });
+    listEl.appendChild(item);
+  });
+}
+
+async function openSessionSearch() {
+  if (sessionSearchOpen) return;
+  sessionSearchOpen = true;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'db-session-search-overlay';
+  const palette = document.createElement('div');
+  palette.className = 'db-session-search';
+  palette.setAttribute('role', 'dialog');
+  palette.setAttribute('aria-label', 'Search sessions');
+
+  const input = document.createElement('input');
+  input.className = 'db-session-search-input';
+  input.type = 'text';
+  input.placeholder = 'Search sessions...';
+  input.setAttribute('aria-label', 'Search sessions');
+
+  const list = document.createElement('div');
+  list.className = 'db-session-search-list';
+  list.innerHTML = '<div class="db-session-search-empty">Loading sessions...</div>';
+
+  palette.appendChild(input);
+  palette.appendChild(list);
+  overlay.appendChild(palette);
+  document.body.appendChild(overlay);
+  sessionSearchOverlay = overlay;
+
+  const currentSessionId = getCurrentSessionId();
+  let sessions = [];
+
+  let debounce = null;
+  input.addEventListener('input', () => {
+    if (debounce) clearTimeout(debounce);
+    debounce = setTimeout(() => {
+      renderSessionSearchList(list, sessions, input.value, currentSessionId);
+    }, 150);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const active = list.querySelector('.db-session-search-item.active') || list.querySelector('.db-session-search-item');
+      if (active && active.dataset.sessionId) selectSession(active.dataset.sessionId);
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const items = Array.from(list.querySelectorAll('.db-session-search-item'));
+      if (!items.length) return;
+      let idx = items.findIndex((el) => el.classList.contains('active'));
+      items.forEach((el) => el.classList.remove('active'));
+      idx = e.key === 'ArrowDown' ? Math.min(items.length - 1, idx + 1) : Math.max(0, idx - 1);
+      items[idx].classList.add('active');
+      items[idx].scrollIntoView({ block: 'nearest' });
+    }
+  });
+
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSessionSearch(); });
+
+  try {
+    const res = await fetch('/sessions');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    sessions = data.sessions || [];
+  } catch (err) {
+    console.error('[AIUI] Failed to fetch sessions:', err);
+    sessions = [];
+  }
+  renderSessionSearchList(list, sessions, '', currentSessionId);
+  input.focus();
+}
+
+function closeSessionSearch() {
+  sessionSearchOpen = false;
+  if (sessionSearchOverlay) {
+    sessionSearchOverlay.remove();
+    sessionSearchOverlay = null;
+  }
+}
+
+function initSessionSearch() {
+  if (sessionSearchInitialized) return;
+  sessionSearchInitialized = true;
+  // The Ctrl+K binding is owned by the command palette (initCommandPalette),
+  // which exposes a "Search sessions…" entry that calls openSessionSearch.
+  // Here we only handle Escape so the session palette can be dismissed.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sessionSearchOpen) {
+      closeSessionSearch();
+    }
+  });
+}
+
+window.aiui = window.aiui || {};
+window.aiui.openSessionSearch = openSessionSearch;
 
 async function init() {
   // Inject styles
@@ -1044,6 +1237,9 @@ async function init() {
 
   // Initialize approval stream for modal notifications
   initApprovalStream();
+
+  // Initialize Ctrl+K session search palette
+  initSessionSearch();
   
   // Listen for approval events from chat stream
   window.addEventListener('aiui:approval-required', (e) => {
