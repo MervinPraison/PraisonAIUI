@@ -146,6 +146,47 @@ class TestHealthEndpoint:
             _features.pop("__slow_test__", None)
 
 
+class TestProviderHealthEndpoint:
+    """Tests for the provider health JSON route (#151)."""
+
+    def test_api_provider_health_is_json(self, client):
+        """/api/provider/health returns JSON, not the SPA HTML shell."""
+        response = client.get("/api/provider/health")
+        assert response.status_code == 200
+        assert "application/json" in response.headers["content-type"]
+        body = response.json()
+        assert "status" in body
+        assert "type" in body
+        assert "agents" in body
+        assert "detail" in body
+
+    def test_api_provider_health_accept_json(self, client):
+        """Accept: application/json still yields JSON body."""
+        response = client.get(
+            "/api/provider/health", headers={"Accept": "application/json"}
+        )
+        assert response.status_code == 200
+        assert "application/json" in response.headers["content-type"]
+        assert "status" in response.json()
+
+    def test_unknown_api_path_not_html(self, client):
+        """Unmatched /api/* paths return JSON 404, never SPA HTML 200."""
+        response = client.get("/api/this-route-does-not-exist")
+        assert response.status_code == 404
+        assert "text/html" not in response.headers.get("content-type", "")
+        assert "application/json" in response.headers["content-type"]
+
+    def test_provider_health_route_before_catchall(self, client):
+        """The dedicated route is registered before the SPA catch-all."""
+        paths = [getattr(r, "path", None) for r in client.app.routes]
+        assert "/api/provider/health" in paths
+        catchall = next(
+            (i for i, p in enumerate(paths) if p == "/{path:path}"), None
+        )
+        if catchall is not None:
+            assert paths.index("/api/provider/health") < catchall
+
+
 class TestAgentsEndpoint:
     """Tests for agents endpoint."""
 
