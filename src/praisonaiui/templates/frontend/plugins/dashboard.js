@@ -174,6 +174,7 @@ const BUILTIN_VIEWS = {
   'jobs-board':   '/plugins/views/jobs-board.js',
   auth:           '/plugins/views/auth.js',
   api:            '/plugins/views/api.js',
+  mcp:            '/plugins/views/mcp.js',
 };
 
 const SLOT_REGISTRY = {};
@@ -747,6 +748,20 @@ const DASHBOARD_STYLE = `
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
   @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  /* ── Command Palette (Ctrl+K) ────────────────────────── */
+  .db-cmdk-overlay { position: fixed; inset: 0; z-index: 10002; display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); animation: fadeIn 0.15s ease; }
+  .db-cmdk-box { width: 560px; max-width: 92vw; background: var(--db-sidebar-bg); border: 1px solid var(--db-border); border-radius: 12px; box-shadow: 0 16px 60px rgba(0,0,0,0.55); overflow: hidden; animation: slideIn 0.15s ease; }
+  .db-cmdk-input { width: 100%; box-sizing: border-box; padding: 16px 20px; font-size: 15px; color: var(--db-text); background: transparent; border: none; border-bottom: 1px solid var(--db-border); outline: none; }
+  .db-cmdk-input::placeholder { color: var(--db-text-dim); }
+  .db-cmdk-list { max-height: 50vh; overflow-y: auto; padding: 6px; }
+  .db-cmdk-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 14px; color: var(--db-text); }
+  .db-cmdk-item.active { background: var(--db-accent); color: #fff; }
+  .db-cmdk-item.active .db-cmdk-group { color: rgba(255,255,255,0.8); }
+  .db-cmdk-icon { width: 20px; text-align: center; flex-shrink: 0; }
+  .db-cmdk-title { flex: 1; }
+  .db-cmdk-group { font-size: 11px; color: var(--db-text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+  .db-cmdk-empty { padding: 24px; text-align: center; font-size: 13px; color: var(--db-text-dim); }
 `;
 
 let activePageId = null;
@@ -909,6 +924,104 @@ function setupMobileNav(root, sidebar) {
   }
 }
 
+let _paletteEl = null;
+let _paletteActive = -1;
+let _paletteResults = [];
+
+function openCommandPalette() {
+  if (_paletteEl) { closeCommandPalette(); return; }
+  const overlay = document.createElement('div');
+  overlay.className = 'db-cmdk-overlay';
+  overlay.innerHTML = `
+    <div class="db-cmdk-box" role="dialog" aria-label="Command palette">
+      <input class="db-cmdk-input" type="text" placeholder="Search pages and actions…" autocomplete="off" spellcheck="false">
+      <div class="db-cmdk-list"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  _paletteEl = overlay;
+  const input = overlay.querySelector('.db-cmdk-input');
+  const listEl = overlay.querySelector('.db-cmdk-list');
+
+  const renderResults = (q) => {
+    const query = q.trim().toLowerCase();
+    const items = pagesData
+      .filter((p) => p.id !== activePageId || query)
+      .map((p) => ({ page: p, score: paletteScore(p, query) }))
+      .filter((x) => query === '' || x.score > 0)
+      .sort((a, b) => b.score - a.score || (a.page.order || 0) - (b.page.order || 0))
+      .slice(0, 50)
+      .map((x) => x.page);
+    _paletteResults = items;
+    _paletteActive = items.length ? 0 : -1;
+    listEl.innerHTML = items.length
+      ? items
+          .map(
+            (p, i) =>
+              `<div class="db-cmdk-item${i === 0 ? ' active' : ''}" data-idx="${i}" data-id="${p.id}"><span class="db-cmdk-icon">${p.icon || '•'}</span><span class="db-cmdk-title">${p.title}</span>${p.group ? `<span class="db-cmdk-group">${p.group}</span>` : ''}</div>`
+          )
+          .join('')
+      : '<div class="db-cmdk-empty">No matches</div>';
+    listEl.querySelectorAll('.db-cmdk-item').forEach((el) => {
+      el.addEventListener('click', () => runPaletteItem(parseInt(el.dataset.idx, 10)));
+      el.addEventListener('mousemove', () => setPaletteActive(parseInt(el.dataset.idx, 10)));
+    });
+  };
+
+  input.addEventListener('input', () => renderResults(input.value));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setPaletteActive(_paletteActive + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setPaletteActive(_paletteActive - 1); }
+    else if (e.key === 'Enter') { e.preventDefault(); runPaletteItem(_paletteActive); }
+    else if (e.key === 'Escape') { e.preventDefault(); closeCommandPalette(); }
+  });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeCommandPalette(); });
+  renderResults('');
+  input.focus();
+}
+
+function paletteScore(page, query) {
+  if (!query) return 1;
+  const hay = `${page.title} ${page.id} ${page.group || ''} ${page.description || ''}`.toLowerCase();
+  if (hay.includes(query)) return 100 - hay.indexOf(query);
+  let qi = 0;
+  for (let i = 0; i < hay.length && qi < query.length; i++) {
+    if (hay[i] === query[qi]) qi++;
+  }
+  return qi === query.length ? 1 : 0;
+}
+
+function setPaletteActive(idx) {
+  if (!_paletteEl || !_paletteResults.length) return;
+  const n = _paletteResults.length;
+  _paletteActive = ((idx % n) + n) % n;
+  const items = _paletteEl.querySelectorAll('.db-cmdk-item');
+  items.forEach((el, i) => el.classList.toggle('active', i === _paletteActive));
+  const activeEl = items[_paletteActive];
+  if (activeEl) activeEl.scrollIntoView({ block: 'nearest' });
+}
+
+function runPaletteItem(idx) {
+  const page = _paletteResults[idx];
+  if (!page) return;
+  closeCommandPalette();
+  selectPage(page.id);
+}
+
+function closeCommandPalette() {
+  if (_paletteEl) { _paletteEl.remove(); _paletteEl = null; }
+  _paletteActive = -1;
+  _paletteResults = [];
+}
+
+function initCommandPalette() {
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      openCommandPalette();
+    }
+  });
+}
+
 async function init() {
   // Inject styles
   const style = document.createElement('style');
@@ -925,7 +1038,10 @@ async function init() {
   }
 
   await buildDashboard();
-  
+
+  // Initialize Ctrl+K / Cmd+K command palette
+  initCommandPalette();
+
   // Initialize approval stream for modal notifications
   initApprovalStream();
   

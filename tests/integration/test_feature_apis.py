@@ -734,6 +734,19 @@ class TestPagesAPI:
         if ev:
             assert ev["group"] == "Control"
 
+    def test_mcp_page_registered(self, client):
+        r = client.get("/api/pages")
+        pages = r.json().get("pages", r.json())
+        mcp = next((p for p in pages if p["id"] == "mcp"), None)
+        assert mcp is not None, "MCP page should be registered"
+        assert mcp["group"] == "Agent"
+        assert mcp["api_endpoint"] == "/api/mcp/servers"
+
+    def test_mcp_servers_endpoint(self, client):
+        r = client.get("/api/mcp/servers")
+        assert r.status_code == 200
+        assert "servers" in r.json()
+
 
 # ===========================================================================
 # Persistence across restart

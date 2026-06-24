@@ -3315,6 +3315,14 @@ def create_app(
             "order": 15,
         },
         {
+            "id": "mcp",
+            "title": "MCP",
+            "icon": "🔌",
+            "group": "Agent",
+            "description": "Model Context Protocol servers",
+            "order": 30,
+        },
+        {
             "id": "config",
             "title": "Config",
             "icon": "⚙️",
@@ -3408,6 +3416,7 @@ def create_app(
         "sessions": "/sessions",
         "cron": "/api/schedules",
         "channels": "/api/channels",
+        "mcp": "/api/mcp/servers",
     }
 
     # Read page whitelist from config.yaml if set_pages() was not called
