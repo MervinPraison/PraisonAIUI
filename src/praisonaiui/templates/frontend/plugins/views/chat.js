@@ -19,6 +19,7 @@ let currentRunId = null;
 let agents = [];
 let messageQueue = [];
 let focusMode = false;
+let sessionSelectHandler = null;
 let containerRef = null;
 let currentDeltaEl = null;
 let currentDeltaBodyEl = null;
@@ -784,10 +785,21 @@ export async function render(container) {
 
   await loadSessions();
   connectWebSocket();
+
+  // Load a session chosen from the dashboard Ctrl+K search palette
+  sessionSelectHandler = (e) => {
+    const id = e.detail && e.detail.sessionId;
+    if (id) loadSession(id);
+  };
+  window.addEventListener('aiui:session-select', sessionSelectHandler);
 }
 
 export function cleanup() {
   if (ws) { try { ws.close(); } catch(e) {} ws = null; }
+  if (sessionSelectHandler) {
+    window.removeEventListener('aiui:session-select', sessionSelectHandler);
+    sessionSelectHandler = null;
+  }
   currentSessionId = null;
   currentAgentName = null;
   isStreaming = false;
