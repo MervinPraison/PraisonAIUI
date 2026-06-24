@@ -171,7 +171,7 @@ class YAMLConfigStore:
             # Write to temp file in same directory, then atomic rename
             fd, tmp_path = tempfile.mkstemp(dir=str(self._path.parent), suffix=".yaml.tmp")
             try:
-                with os.fdopen(fd, "w") as f:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
                     yaml.dump(
                         self._data,
                         f,

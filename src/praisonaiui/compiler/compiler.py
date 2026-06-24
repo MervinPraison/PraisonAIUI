@@ -422,7 +422,9 @@ class Compiler:
 
     def _write_json(self, path: Path, data: dict, indent: int | None) -> None:
         """Write JSON data to file."""
-        path.write_text(json.dumps(data, indent=indent, ensure_ascii=False))
+        path.write_text(
+            json.dumps(data, indent=indent, ensure_ascii=False), encoding="utf-8"
+        )
 
     def _copy_viewer(self, output_dir: Path) -> None:
         """Copy frontend bundle to output directory."""
@@ -478,7 +480,7 @@ class Compiler:
                 "document.documentElement.classList.add('dark');",
                 "/* light mode — no dark class */",
             )
-        html_path.write_text(html)
+        html_path.write_text(html, encoding="utf-8")
 
     def _copy_plugins(self, output_dir: Path, frontend_dir: Path) -> None:
         """Copy frontend plugins and generate plugins.json config."""
@@ -519,7 +521,9 @@ class Compiler:
                 ordered.append(p)
 
         plugins_config = {"plugins": ordered}
-        (plugins_dst / "plugins.json").write_text(json.dumps(plugins_config, indent=2))
+        (plugins_dst / "plugins.json").write_text(
+            json.dumps(plugins_config, indent=2), encoding="utf-8"
+        )
 
     def _generate_route_pages(self, output_dir: Path, nav: dict) -> list[str]:
         """Generate per-route HTML files for SPA fallback and SEO.
@@ -593,7 +597,7 @@ class Compiler:
                     f'<div id="root"><noscript>{noscript_content}</noscript></div>',
                 )
 
-            page_file.write_text(html)
+            page_file.write_text(html, encoding="utf-8")
             files.append(f"{relative}/index.html")
 
         return files

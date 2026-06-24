@@ -1466,7 +1466,7 @@ async def api_config_handler(request: Request) -> JSONResponse:
             config_data = body.get("config", body)
             import yaml
 
-            with open(_config_path, "w") as f:
+            with open(_config_path, "w", encoding="utf-8") as f:
                 yaml.dump(config_data, f, default_flow_style=False, allow_unicode=True)
             _config_cache = config_data
             return JSONResponse({"status": "saved", "config_path": str(_config_path)})

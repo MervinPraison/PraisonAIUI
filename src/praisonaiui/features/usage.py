@@ -278,7 +278,7 @@ def _save_data() -> None:
             "saved_at": time.time(),
         }
         _data_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(_data_file, "w") as f:
+        with open(_data_file, "w", encoding="utf-8") as f:
             json.dump(data, f)
     except Exception:
         pass  # Silently fail
