@@ -268,6 +268,26 @@ jobs:
               core.setOutput('pr_branch', pr.data.head.ref);
               const headRepo = pr.data.head.repo?.full_name || context.repo.full_name;
               core.setOutput('head_repo', headRepo);
+
+              let mergeState = '';
+              try {
+                const gql = await github.graphql(
+                  `query($owner: String!, $repo: String!, $number: Int!) {
+                    repository(owner: $owner, name: $repo) {
+                      pullRequest(number: $number) { mergeStateStatus }
+                    }
+                  }`,
+                  { owner: context.repo.owner, repo: context.repo.repo, number: prNumber }
+                );
+                mergeState = (gql.repository.pullRequest.mergeStateStatus || '').toUpperCase();
+              } catch (e) {
+                core.warning(`GraphQL mergeStateStatus failed: ${e.message}`);
+              }
+              if (!mergeState) {
+                mergeState = (pr.data.mergeable_state || pr.data.merge_state_status || '').toUpperCase();
+              }
+              core.setOutput('merge_state', mergeState);
+
               if (headRepo !== `${context.repo.owner}/${context.repo.repo}`) {
                 core.setOutput('is_fork', 'true');
                 core.setOutput('clone_url', pr.data.head.repo.clone_url);
@@ -279,6 +299,7 @@ jobs:
             }
             core.setOutput('is_pr_review', 'false');
             core.setOutput('is_fork', 'false');
+            core.setOutput('merge_state', '');
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -321,6 +342,8 @@ jobs:
           timeout_minutes: "30"
           direct_prompt: |
             ${{ steps.check_fork.outputs.is_fork == 'true' && 'CRITICAL: FORK PR — comment only, do not push.\n\n' || 'PR on MervinPraison/PraisonAIUI — SAME REPO, NOT A FORK. You HAVE push permission to this branch. NEVER say this is a fork.\n\n' }}
+            ${{ steps.check_fork.outputs.is_fork != 'true' && steps.check_fork.outputs.merge_state == 'DIRTY' && format('PRIORITY — RESOLVE MERGE CONFLICTS (branch: {0}, PR #{1}):\n- DO NOT create a new branch or PR\n- git fetch origin main && git rebase origin/main\n- Resolve conflicts: keep this PR intent, merge in main newer logic\n- git add -A && git rebase --continue (repeat until done)\n- git push --force-with-lease origin {0}\n- Run targeted pytest/ruff on changed paths\n- Comment files resolved and what you skipped\n- Only after conflicts are resolved, proceed with review phases below if still needed\n\n', steps.check_fork.outputs.pr_branch, steps.check_fork.outputs.pr_number) || '' }}
+            ${{ steps.check_fork.outputs.merge_state != 'DIRTY' && format('CONTEXT: PR #{0} on branch {1}. merge_state={2}.\n\n', steps.check_fork.outputs.pr_number, steps.check_fork.outputs.pr_branch, steps.check_fork.outputs.merge_state) || '' }}
             You are the Lead Engineer doing FINAL review on this open PR in MervinPraison/PraisonAIUI.
             Read ALL reviewer comments (CodeRabbit, Gemini, Qodo, Copilot, human). Follow AGENTS.md.
             SCOPE: src/praisonaiui, src/frontend, tests, docs only.
