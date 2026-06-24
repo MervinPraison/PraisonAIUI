@@ -207,7 +207,7 @@ wheels = [
 
 [[package]]
 name = "aiui"
-version = "0.3.121"
+version = "0.3.122"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
@@ -367,9 +367,9 @@ requires-dist = [
     { name = "mem0ai", marker = "extra == 'knowledge'", specifier = ">=0.1.0" },
     { name = "mem0ai", extras = ["graph"], marker = "extra == 'graph'", specifier = ">=0.1.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0" },
-    { name = "praisonai", extras = ["bot", "api", "os"], marker = "extra == 'praisonai'", specifier = ">=2.0.0" },
+    { name = "praisonai", extras = ["bot", "api", "os"], marker = "extra == 'praisonai'", specifier = ">=4.6.0" },
     { name = "praisonaiagents", extras = ["a2ui"], marker = "extra == 'a2ui'", specifier = ">=1.6.38" },
-    { name = "praisonaiagents", extras = ["knowledge", "search", "crawl"], marker = "extra == 'praisonai'", specifier = ">=1.5.56" },
+    { name = "praisonaiagents", extras = ["knowledge", "search", "crawl"], marker = "extra == 'praisonai'", specifier = ">=1.6.46" },
     { name = "praisonaiagents", extras = ["llm"], marker = "extra == 'dev'", specifier = ">=1.5.56" },
     { name = "psutil", marker = "extra == 'praisonai'", specifier = ">=5.9.0" },
     { name = "pydantic", specifier = ">=2.0" },
@@ -4961,13 +4961,14 @@ wheels = [
 
 [[package]]
 name = "praisonai"
-version = "4.5.33"
+version = "4.6.71"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "litellm" },
     { name = "markdown" },
     { name = "mcp" },
     { name = "praisonaiagents" },
+    { name = "pydantic" },
     { name = "pyparsing" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
@@ -4975,9 +4976,9 @@ dependencies = [
     { name = "textual" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/71/cd/afe5d205376ab485d218d30e6a882efd4cc02a8340f15d397138c60712ee/praisonai-4.5.33.tar.gz", hash = "sha256:ae32eacb9a0247088a6f6fc43be6460eeaa8cc8c07a2aad46fcd01fc44bfa777", size = 1686757, upload-time = "2026-03-10T06:07:47.771Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a3/a6/609ab1bdeef2575a32e8042d8014c739201561573db946db4d703be91511/praisonai-4.6.71.tar.gz", hash = "sha256:eddea7915f4d70f0932e968c5b26fb4f3cb17cb83972d4a583418559dae61f09", size = 2129838, upload-time = "2026-06-22T23:54:32.224Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cc/e4/1130314a1f9ddaa90612d931d23fca80feca95a2b18d74d76859fa660b24/praisonai-4.5.33-py3-none-any.whl", hash = "sha256:3bc4ac16af293609126c5b7e3788cde95927a98bedd6e2c8528eb3328253f38a", size = 1979940, upload-time = "2026-03-10T06:07:45.016Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/53/ece82f6b7c01f0b0fe9bf34442ae3fa2ab87c909f36babb5534b4984c80b/praisonai-4.6.71-py3-none-any.whl", hash = "sha256:fc60aa5a9b87430ec7be2f5a638bc1330b26bbb19275ff4f6ec20f4a49088fc3", size = 2559663, upload-time = "2026-06-22T23:54:29.49Z" },
 ]
 
 [package.optional-dependencies]
@@ -4989,8 +4990,11 @@ api = [
 ]
 bot = [
     { name = "aiohttp" },
+    { name = "aiui" },
     { name = "brotlicffi" },
+    { name = "ddgs" },
     { name = "discord-py" },
+    { name = "psutil" },
     { name = "python-telegram-bot" },
     { name = "slack-bolt" },
     { name = "slack-sdk" },
@@ -5004,7 +5008,7 @@ os = [
 
 [[package]]
 name = "praisonaiagents"
-version = "1.6.43"
+version = "1.6.71"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -5014,9 +5018,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "rich" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a7/73/d37d1478c8471869b1a7aa7af0d1b70cdff26de39fc4abebd5529f1c49f7/praisonaiagents-1.6.43.tar.gz", hash = "sha256:6ec949d38b650969a91f7494828f21bfcad0da36a3ec433eb46e8fa072dda42e", size = 1436634, upload-time = "2026-05-20T11:09:16.645Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/be/9b/4e1431d7b2125dab034192984d5f419e96bd412d314871450855d52e5bab/praisonaiagents-1.6.71.tar.gz", hash = "sha256:ea048bc8dc00bea911be050e881c7bbaf167ac2d4805b4c3013958ba8ee63e59", size = 1589730, upload-time = "2026-06-22T23:52:30.753Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0c/97/768038d2d3a2f791de7e6cf0df2783c590b9262ba3ec895308236715b033/praisonaiagents-1.6.43-py3-none-any.whl", hash = "sha256:27028366b0bde0267abdbfe4140d4d5a4eed7e5c9bdb544243973dba8d5cb57b", size = 1511490, upload-time = "2026-05-20T11:09:14.467Z" },
+    { url = "https://files.pythonhosted.org/packages/b8/cf/b177db73453470093a421f8cdb07e959d546ebfc147842cfdd5937827e0e/praisonaiagents-1.6.71-py3-none-any.whl", hash = "sha256:50878751aa9b27960aeeda80190ed291c6bd2fa8ab9cf398cda3f55908860eae", size = 1679696, upload-time = "2026-06-22T23:52:28.673Z" },
 ]
 
 [package.optional-dependencies]
