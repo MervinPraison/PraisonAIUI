@@ -34,6 +34,9 @@ env:
   CLAUDE_TRIGGER_LOGINS: '["MervinPraison","github-actions[bot]"]'
   # GH_TOKEN (user PAT) posts as MervinPraison for @copilot; fallback to github.token for @claude
   GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
+  CLAUDE_UI_SCOPE: 'SCOPE: Focus ONLY on PraisonAIUI (src/praisonaiui, src/frontend, tests, docs). Do not expand into praisonaiagents or the monorepo unless the issue explicitly requires it.'
+  CLAUDE_FINAL_PHASES_COMPACT: "**Phase 1: Review per AGENTS.md** (lazy imports, backward compat, import-time <200ms; SDK/product value gate — genuine UI value, correct UI vs praisonaiagents layering, no scope creep)\n**Phase 2: FIX valid issues** found by prior reviewers — push to THIS branch\n**Phase 3: Final verdict** — approve PR if ready, else request changes"
+  CLAUDE_FINAL_PHASES_DETAILED: "**Phase 1: Review per AGENTS.md**\n1. Protocol-driven: check heavy implementations vs core SDK\n2. Backward compatible: ensure zero feature regressions\n3. Performance: no hot-path regressions (lazy imports, import-time <200ms)\n4. SDK/product value: review whether the change genuinely adds value — stronger PraisonAIUI UX and correct layering (UI/frontend here; core agent logic belongs in praisonaiagents). Reject scope creep; request changes or recommend closing if value is unclear\n\n**Phase 2: FIX Valid Issues**\n5. For any VALID bugs or architectural flaws found by Gemini, CodeRabbit, Qodo, Copilot, or any other reviewer: implement the fix\n6. Push all code fixes directly to THIS branch (do NOT create a new PR)\n7. Comment a summary of exact files modified and what you skipped\n\n**Phase 3: Final Verdict**\n8. If all issues are resolved, approve the PR / close the Issue\n9. If blocking issues remain, request changes / leave clear action items"
 
 jobs:
   # ================================================================
@@ -200,12 +203,12 @@ jobs:
             if (reviews.copilot.length) summaryParts.push('Copilot: ' + reviews.copilot.length + ' comments');
             if (reviews.greptile.length) summaryParts.push('Greptile: ' + reviews.greptile.length + ' comments');
             const reviewSummary = summaryParts.length ? summaryParts.join(' | ') : 'No bot reviews detected';
-            const claudeBody = '@claude You are the FINAL architecture reviewer. If the branch is under MervinPraison/PraisonAIUI (not a fork), you are able to make modifications to this branch and push directly. SCOPE: Focus ONLY on PraisonAIUI (src/praisonaiui, src/frontend, tests, docs). Read ALL prior reviewer comments. ' + reviewSummary + '.\n\n' +
+            const scope = process.env.CLAUDE_UI_SCOPE;
+            const phases = process.env.CLAUDE_FINAL_PHASES_COMPACT;
+            const claudeBody = '@claude You are the FINAL architecture reviewer. If the branch is under MervinPraison/PraisonAIUI (not a fork), you are able to make modifications to this branch and push directly. ' + scope + ' Read ALL prior reviewer comments. ' + reviewSummary + '.\n\n' +
               'Review Context: ' + comments.data.length + ' total comments, ' +
               (reviews.coderabbit.length + reviews.qodo.length + reviews.gemini.length + reviews.copilot.length + reviews.greptile.length) + ' bot reviews.\n\n' +
-              '**Phase 1: Review per AGENTS.md** (lazy imports, backward compat, import-time <200ms)\n' +
-              '**Phase 2: FIX valid issues** found by prior reviewers — push to THIS branch\n' +
-              '**Phase 3: Final verdict** — approve PR if ready, else request changes';
+              phases;
             await github.rest.issues.createComment({issue_number: pr, owner: context.repo.owner, repo: context.repo.repo, body: claudeBody});
             console.log('Claude fallback triggered on PR #' + pr + ' with ' + reviewSummary);
 
@@ -326,11 +329,13 @@ jobs:
           github-token: ${{ env.GH_TOKEN }}
           script: |
             const pr = parseInt(process.env.PR_NUMBER, 10);
+            const scope = process.env.CLAUDE_UI_SCOPE;
+            const phases = process.env.CLAUDE_FINAL_PHASES_DETAILED;
             await github.rest.issues.createComment({
               issue_number: pr,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '@claude You are the FINAL architecture reviewer. If the branch is under MervinPraison/PraisonAIUI (not a fork), you are able to make modifications to this branch and push directly. SCOPE: Focus ONLY on PraisonAIUI (src/praisonaiui, tests, docs). Do not expand scope into praisonaiagents or the monorepo unless the issue explicitly requires it. Read ALL comments above from Gemini, Qodo, CodeRabbit, and Copilot carefully before responding.\n\n**Phase 1: Review per AGENTS.md**\n1. Protocol-driven: check heavy implementations vs core SDK\n2. Backward compatible: ensure zero feature regressions\n3. Performance: no hot-path regressions\n\n**Phase 2: FIX Valid Issues**\n4. For any VALID bugs or architectural flaws found by Gemini, CodeRabbit, Qodo, Copilot, or any other reviewer: implement the fix\n5. Push all code fixes directly to THIS branch (do NOT create a new PR)\n6. Comment a summary of exact files modified and what you skipped\n\n**Phase 3: Final Verdict**\n7. If all issues are resolved, approve the PR / close the Issue\n8. If blocking issues remain, request changes / leave clear action items'
+              body: '@claude You are the FINAL architecture reviewer. If the branch is under MervinPraison/PraisonAIUI (not a fork), you are able to make modifications to this branch and push directly. ' + scope + ' Read ALL comments above from Gemini, Qodo, CodeRabbit, and Copilot carefully before responding.\n\n' + phases
             });
             console.log(`Claude triggered on PR #${pr}`);
 
@@ -430,11 +435,13 @@ jobs:
           github-token: ${{ env.GH_TOKEN }}
           script: |
             const pr = parseInt(process.env.PR_NUMBER, 10);
+            const scope = process.env.CLAUDE_UI_SCOPE;
+            const phases = process.env.CLAUDE_FINAL_PHASES_DETAILED;
             await github.rest.issues.createComment({
               issue_number: pr,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '@claude You are the FINAL architecture reviewer. If the branch is under MervinPraison/PraisonAIUI (not a fork), you are able to make modifications to this branch and push directly. SCOPE: Focus ONLY on PraisonAIUI (src/praisonaiui, tests, docs). Do not expand scope into praisonaiagents or the monorepo unless the issue explicitly requires it. Read ALL comments above from Gemini, Qodo, CodeRabbit, and Copilot carefully before responding.\n\n**Phase 1: Review per AGENTS.md**\n1. Protocol-driven: check heavy implementations vs core SDK\n2. Backward compatible: ensure zero feature regressions\n3. Performance: no hot-path regressions\n\n**Phase 2: FIX Valid Issues**\n4. For any VALID bugs or architectural flaws found by Gemini, CodeRabbit, Qodo, Copilot, or any other reviewer: implement the fix\n5. Push all code fixes directly to THIS branch (do NOT create a new PR)\n6. Comment a summary of exact files modified and what you skipped\n\n**Phase 3: Final Verdict**\n7. If all issues are resolved, approve the PR / close the Issue\n8. If blocking issues remain, request changes / leave clear action items'
+              body: '@claude You are the FINAL architecture reviewer. If the branch is under MervinPraison/PraisonAIUI (not a fork), you are able to make modifications to this branch and push directly. ' + scope + ' Read ALL comments above from Gemini, Qodo, CodeRabbit, and Copilot carefully before responding.\n\n' + phases
             });
             console.log(`Claude triggered on PR #${pr}`);
 
@@ -481,11 +488,13 @@ jobs:
         with:
           github-token: ${{ env.GH_TOKEN }}
           script: |
+            const scope = process.env.CLAUDE_UI_SCOPE;
+            const phases = process.env.CLAUDE_FINAL_PHASES_DETAILED;
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '@claude You are the Lead Engineer. If the branch is under MervinPraison/PraisonAIUI (not a fork), you are able to make modifications to this branch and push directly. SCOPE: Focus ONLY on PraisonAIUI (src/praisonaiui, tests, docs). Do not expand scope into praisonaiagents or the monorepo unless the issue explicitly requires it. Read ALL analysis and reviews above carefully (Gemini, CodeRabbit, Qodo, Copilot, etc).\n\n**Phase 1: Review per AGENTS.md**\n1. Protocol-driven: check heavy implementations vs core SDK\n2. Backward compatible: ensure zero feature regressions\n3. Performance: no hot-path regressions\n\n**Phase 2: FIX Valid Issues**\n4. For any VALID bugs or architectural flaws found by Gemini, CodeRabbit, Qodo, Copilot, or any other reviewer: implement the fix\n5. Push all code fixes directly to THIS branch (do NOT create a new PR)\n6. Comment a summary of exact files modified and what you skipped\n\n**Phase 3: Final Verdict**\n7. If all issues are resolved, approve the PR / close the Issue\n8. If blocking issues remain, request changes / leave clear action items'
+              body: '@claude You are the Lead Engineer. If the branch is under MervinPraison/PraisonAIUI (not a fork), you are able to make modifications to this branch and push directly. ' + scope + ' Read ALL analysis and reviews above carefully (Gemini, CodeRabbit, Qodo, Copilot, etc).\n\n' + phases
             });
 
   # ================================================================
@@ -595,7 +604,7 @@ jobs:
               issue_number: pr,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '@claude You are the FINAL architecture reviewer on this bot-authored PR. Push fixes directly to THIS branch (do NOT open a new PR). SCOPE: PraisonAIUI only (src/praisonaiui, src/frontend, tests, docs). Read ALL CodeRabbit/Qodo comments above.\n\n**Phase 1:** Review per AGENTS.md (lazy imports, backward compat, import-time <200ms)\n**Phase 2:** FIX valid reviewer issues on this branch\n**Phase 3:** Approve PR if ready, else request changes with clear action items'
+              body: '@claude You are the FINAL architecture reviewer on this bot-authored PR. Push fixes directly to THIS branch (do NOT open a new PR). ' + process.env.CLAUDE_UI_SCOPE + ' Read ALL CodeRabbit/Qodo comments above.\n\n' + process.env.CLAUDE_FINAL_PHASES_COMPACT
             });
             console.log('Claude final review triggered on bot PR #' + pr);
 
@@ -635,6 +644,6 @@ jobs:
               issue_number: pr,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '@claude You are the FINAL architecture reviewer. Push fixes directly to THIS branch. SCOPE: PraisonAIUI (src/praisonaiui, src/frontend, tests, docs). Read all prior reviewer comments.\n\n**Phase 1:** Review per AGENTS.md\n**Phase 2:** FIX valid issues on this branch\n**Phase 3:** Approve PR if ready, else request changes'
+              body: '@claude You are the FINAL architecture reviewer. If the branch is under MervinPraison/PraisonAIUI (not a fork), you are able to make modifications to this branch and push directly. ' + process.env.CLAUDE_UI_SCOPE + ' Read all prior reviewer comments.\n\n' + process.env.CLAUDE_FINAL_PHASES_COMPACT
             });
             console.log('Claude manually triggered on PR #' + pr);
