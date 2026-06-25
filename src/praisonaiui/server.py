@@ -947,49 +947,70 @@ def register_page_action(page_id: str):
     return decorator
 
 
+_DEEP_HEALTH_CACHE: Dict[str, Any] = {}
+_DEEP_HEALTH_CACHE_TIME: float = 0.0
+_DEEP_HEALTH_TTL: float = 5.0
+
+
 async def health(request: Request) -> JSONResponse:
     """Health check endpoint - deep health with feature checks.
 
-    Performs deep health checks on all features in parallel with a per-feature
-    timeout so a single slow feature cannot block the whole response. Pass
-    ?deep=false for an immediate liveness response. Use /health/live for the
-    fastest liveness probe or /health/ready for the readiness probe.
+    The provider check and every feature check run concurrently under a single
+    overall deadline so neither the provider nor a slow feature can serialise
+    the response. A short-TTL cache absorbs repeated probes. Pass ?deep=false
+    for an immediate liveness response. Use /health/live for the fastest
+    liveness probe or /health/ready for the readiness probe.
     """
     import asyncio
+    import time
 
     if request.query_params.get("deep", "true").lower() == "false":
         return await health_live(request)
 
+    global _DEEP_HEALTH_CACHE, _DEEP_HEALTH_CACHE_TIME
+
+    now = time.monotonic()
+    if _DEEP_HEALTH_CACHE and (now - _DEEP_HEALTH_CACHE_TIME) < _DEEP_HEALTH_TTL:
+        cached = dict(_DEEP_HEALTH_CACHE)
+        cached["timestamp"] = datetime.utcnow().isoformat()
+        cached["cached"] = True
+        return JSONResponse(cached)
+
     provider = get_provider()
     provider_info = {"name": type(provider).__name__}
-    try:
-        provider_health = await provider.health()
-        provider_info.update(provider_health)
-    except Exception:
-        pass
+
+    async def _safe_provider() -> Dict[str, Any]:
+        try:
+            return await asyncio.wait_for(provider.health(), timeout=0.5)
+        except Exception:
+            return {}
 
     sdk_gaps: list = []
     integrated_flag: Optional[bool] = None
+
+    async def _safe_health(name: str, feat) -> tuple[str, Dict[str, Any]]:
+        try:
+            result = await asyncio.wait_for(feat.health(), timeout=0.5)
+            return (name, result)
+        except asyncio.TimeoutError:
+            return (name, {"healthy": False, "detail": "timeout"})
+        except Exception as e:
+            return (name, {"healthy": False, "detail": str(e)})
+
     try:
         from praisonaiui.backends import is_integrated_mode
         from praisonaiui.features import get_features
 
         integrated_flag = is_integrated_mode()
-
-        async def _safe_health(name: str, feat) -> tuple[str, Dict[str, Any]]:
-            try:
-                result = await asyncio.wait_for(feat.health(), timeout=0.5)
-                return (name, result)
-            except asyncio.TimeoutError:
-                return (name, {"healthy": False, "detail": "timeout"})
-            except Exception as e:
-                return (name, {"healthy": False, "detail": str(e)})
-
         features = get_features()
-        health_tasks = [_safe_health(name, feat) for name, feat in features.items()]
-        results = await asyncio.gather(*health_tasks)
+        feature_tasks = [_safe_health(name, feat) for name, feat in features.items()]
 
-        for name, fh in results:
+        provider_result, *feature_results = await asyncio.gather(
+            _safe_provider(), *feature_tasks
+        )
+        provider_info.update(provider_result)
+
+        for name, fh in feature_results:
             if fh.get("sdk_gap"):
                 sdk_gaps.append(
                     {
@@ -998,7 +1019,10 @@ async def health(request: Request) -> JSONResponse:
                     }
                 )
     except Exception:
-        pass
+        try:
+            provider_info.update(await _safe_provider())
+        except Exception:
+            pass
 
     payload: Dict[str, Any] = {
         "status": "ok",
@@ -1009,6 +1033,9 @@ async def health(request: Request) -> JSONResponse:
         payload["sdk_gaps"] = sdk_gaps
     if integrated_flag is not None:
         payload["integrated"] = integrated_flag
+
+    _DEEP_HEALTH_CACHE = payload
+    _DEEP_HEALTH_CACHE_TIME = time.monotonic()
     return JSONResponse(payload)
 
 
