@@ -20,6 +20,10 @@ def client():
     # Clear state before each test
     _agents.clear()
     _callbacks.clear()
+    import praisonaiui.server as _srv
+
+    _srv._DEEP_HEALTH_CACHE = {}
+    _srv._DEEP_HEALTH_CACHE_TIME = 0.0
     set_datastore(MemoryDataStore())
     app = create_app()
     return TestClient(app)
@@ -144,6 +148,44 @@ class TestHealthEndpoint:
             assert duration < 2.0
         finally:
             _features.pop("__slow_test__", None)
+
+    def test_health_many_features_under_budget(self, client):
+        """Deep /health with many slow features stays bounded (parallel)."""
+        import asyncio
+        import time
+
+        from praisonaiui.features import _features
+
+        class _SlowFeature:
+            async def health(self):
+                await asyncio.sleep(0.4)
+                return {"healthy": True}
+
+        for i in range(40):
+            _features[f"__perf_{i}__"] = _SlowFeature()
+        try:
+            start = time.perf_counter()
+            response = client.get("/health")
+            duration = time.perf_counter() - start
+            assert response.status_code == 200
+            assert duration < 1.5
+        finally:
+            for i in range(40):
+                _features.pop(f"__perf_{i}__", None)
+
+    def test_health_deep_is_cached(self, client):
+        """Repeat /health probes hit the short-TTL cache and stay fast."""
+        import time
+
+        first = client.get("/health")
+        assert first.status_code == 200
+
+        start = time.perf_counter()
+        second = client.get("/health")
+        duration = time.perf_counter() - start
+        assert second.status_code == 200
+        assert second.json().get("cached") is True
+        assert duration < 0.1
 
 
 class TestProviderHealthEndpoint:
