@@ -138,7 +138,23 @@ Final rule: conclude only when evidence shows missing = 0.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PUBLISH WORKFLOW (reference)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Step 1 — Publish praisonaiagents (Core SDK):
+GitHub Actions (recommended):
+  GitHub → Actions → "PyPI Release" → Run workflow → bump: patch
+  Requires repo secrets: PYPI_TOKEN, GH_TOKEN
+  Requires GitHub Environment "pypi" with required reviewers (Settings → Environments)
+
+Manual — Publish aiui (PraisonAIUI):
+  cd /Users/praison/PraisonAIUI
+  # Bump version in pyproject.toml and src/praisonaiui/__version__.py
+  rm -rf dist && uv lock && uv build && uv publish --token "$PYPI_TOKEN"
+  git add pyproject.toml uv.lock src/praisonaiui/__version__.py
+  git commit -m "Release vX.Y.Z" && git tag vX.Y.Z && git push && git push --tags
+  gh release create vX.Y.Z --title "PraisonAIUI vX.Y.Z" --notes "Release vX.Y.Z" --latest
+
+  PyPI package name: aiui
+  Verify: pip index versions aiui | head -1
+
+PraisonAI stack (separate repo — publish SDK before wrapper):
   cd /Users/praison/praisonai-package/src/praisonai-agents
   praisonai publish pypi
   # Uses uv internally: uv lock → uv build → uv publish
