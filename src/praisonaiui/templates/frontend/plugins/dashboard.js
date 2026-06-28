@@ -408,6 +408,37 @@ const DASHBOARD_STYLE = `
   .aiui-board-drawer-body { white-space: pre-wrap; font-size: 13px; color: var(--db-text-dim); }
   .aiui-board-drawer-meta { font-size: 12px; color: var(--db-text-dim); margin: 8px 0; }
   .aiui-board-drawer-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .aiui-board-card-dense { padding: 10px 12px; }
+  .aiui-board-card-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .aiui-board-card-check { margin: 0; cursor: pointer; }
+  .aiui-board-card-id { font-family: var(--db-mono, monospace); font-size: 10px; color: var(--db-text-dim); }
+  .aiui-board-status-dot { font-size: 10px; line-height: 1; }
+  .aiui-board-priority { margin-left: auto; font-size: 10px; opacity: 0.85; }
+  .aiui-board-card-name { font-size: 13px; text-transform: none; letter-spacing: 0; color: var(--db-text); margin: 0 0 6px; font-weight: 500; }
+  .aiui-board-card-foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; color: var(--db-text-dim); }
+  .aiui-board-chip { padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,0.06); font-size: 10px; }
+  .aiui-board-tenant { background: var(--db-accent-glow); color: var(--db-accent); }
+  .aiui-board-card-age { opacity: 0.8; }
+  .aiui-board-card-count { opacity: 0.9; }
+  .aiui-board-progress { margin-left: auto; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--db-border); font-size: 10px; }
+  .aiui-board-drawer-field { margin: 8px 0; }
+  .aiui-board-drawer-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--db-text-dim); margin-bottom: 4px; }
+  .aiui-board-drawer-input { width: 100%; padding: 6px 8px; background: var(--db-card-bg); border: 1px solid var(--db-border); border-radius: var(--db-radius); color: var(--db-text); font-size: 13px; }
+  .aiui-board-drawer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .aiui-board-drawer-h { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--db-text-dim); margin: 16px 0 8px; }
+  .aiui-board-markdown { font-size: 13px; line-height: 1.5; color: var(--db-text-dim); }
+  .aiui-board-markdown p { margin: 0 0 6px; }
+  .aiui-board-markdown pre { background: var(--db-card-bg); border: 1px solid var(--db-border); border-radius: var(--db-radius); padding: 8px; overflow-x: auto; }
+  .aiui-board-markdown code { font-family: var(--db-mono, monospace); font-size: 12px; }
+  .aiui-board-history { display: flex; flex-direction: column; gap: 4px; }
+  .aiui-board-history-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--db-text-dim); }
+  .aiui-board-history-when { opacity: 0.7; white-space: nowrap; }
+  .aiui-board-comments { display: flex; flex-direction: column; gap: 10px; }
+  .aiui-board-comment { border-left: 2px solid var(--db-border); padding-left: 10px; }
+  .aiui-board-comment-head { display: flex; gap: 8px; align-items: baseline; }
+  .aiui-board-comment-author { font-size: 12px; font-weight: 600; color: var(--db-text); }
+  .aiui-board-comment-when { font-size: 11px; color: var(--db-text-dim); }
+  .aiui-board-comment-input { width: 100%; margin-top: 10px; padding: 8px; background: var(--db-card-bg); border: 1px solid var(--db-border); border-radius: var(--db-radius); color: var(--db-text); font-size: 13px; resize: vertical; }
   .aiui-board-page-header { margin-bottom: 8px; }
   .db-slot-host { min-height: 0; }
   .db-sidebar-footer { margin-top: auto; padding: 10px 14px; border-top: 1px solid var(--db-border); font-size: 11px; color: var(--db-text-dim); }

@@ -5,7 +5,12 @@ from __future__ import annotations
 from starlette.testclient import TestClient
 
 from praisonaiui.backends import clear_backends, set_backend
-from praisonaiui.features.kanban import get_kanban_store, reset_kanban_store
+from praisonaiui.features.kanban import (
+    _child_progress,
+    _task_card,
+    get_kanban_store,
+    reset_kanban_store,
+)
 from praisonaiui.server import create_app, reset_state
 
 
@@ -81,6 +86,9 @@ def test_kanban_uses_injected_store():
         def move_task(self, task_id, status):
             return None
 
+        def add_comment(self, task_id, comment):
+            return None
+
         def bulk_update(self, task_ids, status):
             return {"updated": 0}
 
@@ -103,6 +111,92 @@ def test_kanban_uses_injected_store():
     assert resp.json()["tasks_total"] == 0
     clear_backends()
     reset_kanban_store()
+
+
+def test_task_card_enriched_dto():
+    card = _task_card(
+        {
+            "id": "t1",
+            "title": "Refactor auth",
+            "status": "running",
+            "assignee": "coder",
+            "priority": "P2",
+            "tenant": "acme",
+            "created_at": "2024-01-01T00:00:00+00:00",
+            "comments": [{"text": "a"}, {"text": "b"}],
+        }
+    )
+    assert card["tenant"] == "acme"
+    assert card["created_at"] == "2024-01-01T00:00:00+00:00"
+    assert card["comment_count"] == 2
+    assert card["progress"] is None
+
+
+def test_child_progress_from_children_and_meta():
+    children = {"children": [{"status": "done"}, {"status": "ready"}, {"status": "done"}]}
+    assert _child_progress(children) == {"done": 2, "total": 3}
+
+    explicit = {"meta": {"progress": {"done": 1, "total": 4}}}
+    assert _child_progress(explicit) == {"done": 1, "total": 4}
+
+    assert _child_progress({}) is None
+    assert _child_progress({"meta": {"progress": {"done": 0, "total": 0}}}) is None
+
+
+def test_card_in_board_carries_progress_and_counts():
+    clear_backends()
+    client = _client()
+    store = get_kanban_store()
+    store.create_task(
+        {
+            "id": "px",
+            "title": "Parent",
+            "status": "todo",
+            "tenant": "acme",
+            "children": [{"status": "done"}, {"status": "todo"}],
+        }
+    )
+    board = client.get("/api/kanban/board").json()
+    todo_cards = next(c for c in board["columns"] if c["id"] == "todo")["cards"]
+    card = next(c for c in todo_cards if c["id"] == "px")
+    assert card["tenant"] == "acme"
+    assert card["progress"] == {"done": 1, "total": 2}
+    assert card["comment_count"] == 0
+    clear_backends()
+
+
+def test_kanban_add_comment():
+    clear_backends()
+    client = _client()
+    create = client.post("/api/kanban/tasks", json={"title": "Has comments", "status": "todo"})
+    task_id = create.json()["id"]
+
+    resp = client.post(f"/api/kanban/tasks/{task_id}/comments", json={"text": "please unblock"})
+    assert resp.status_code == 200
+    task = resp.json()
+    assert len(task["comments"]) == 1
+    assert task["comments"][0]["text"] == "please unblock"
+    assert task["comments"][0]["author"] == "human"
+
+    board = client.get("/api/kanban/board").json()
+    todo_cards = next(c for c in board["columns"] if c["id"] == "todo")["cards"]
+    card = next(c for c in todo_cards if c["id"] == task_id)
+    assert card["comment_count"] == 1
+    clear_backends()
+
+
+def test_kanban_add_comment_validation():
+    clear_backends()
+    client = _client()
+    create = client.post("/api/kanban/tasks", json={"title": "T", "status": "todo"})
+    task_id = create.json()["id"]
+
+    empty = client.post(f"/api/kanban/tasks/{task_id}/comments", json={"text": "   "})
+    assert empty.status_code == 400
+
+    missing = client.post("/api/kanban/tasks/nope/comments", json={"text": "hi"})
+    assert missing.status_code == 404
+    clear_backends()
 
 
 def test_jobs_board_endpoint():
