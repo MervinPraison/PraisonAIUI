@@ -46,10 +46,33 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _child_progress(task: Dict[str, Any]) -> Optional[Dict[str, int]]:
+    """Derive done/total subtask progress from task.children or meta.
+
+    Accepts either a list of child dicts under "children" (each with a status)
+    or an explicit {"done": int, "total": int} under meta["progress"].
+    Returns None when there is nothing to report.
+    """
+    meta = task.get("meta") or {}
+    explicit = meta.get("progress")
+    if isinstance(explicit, dict):
+        total = explicit.get("total")
+        done = explicit.get("done")
+        if isinstance(total, int) and total > 0 and isinstance(done, int):
+            return {"done": max(0, min(done, total)), "total": total}
+    children = task.get("children")
+    if isinstance(children, list) and children:
+        total = len(children)
+        done = sum(1 for c in children if isinstance(c, dict) and c.get("status") == "done")
+        return {"done": done, "total": total}
+    return None
+
+
 def _task_card(task: Dict[str, Any]) -> Dict[str, Any]:
     """Normalise task dict to board card component."""
     title = (task.get("title") or task.get("id") or "Task")[:120]
     footer_parts = [p for p in (task.get("assignee"), task.get("priority")) if p]
+    comments = task.get("comments") or []
     return {
         "id": task.get("id"),
         "title": title,
@@ -57,8 +80,12 @@ def _task_card(task: Dict[str, Any]) -> Dict[str, Any]:
         "status": task.get("status"),
         "assignee": task.get("assignee"),
         "priority": task.get("priority"),
+        "tenant": task.get("tenant"),
+        "created_at": task.get("created_at"),
+        "comment_count": len(comments),
+        "progress": _child_progress(task),
         "body": task.get("body"),
-        "comments": task.get("comments") or [],
+        "comments": comments,
         "meta": task.get("meta") or {},
     }
 
@@ -89,6 +116,9 @@ class KanbanStoreProtocol(ABC):
 
     @abstractmethod
     def move_task(self, task_id: str, status: str) -> Optional[Dict[str, Any]]: ...
+
+    @abstractmethod
+    def add_comment(self, task_id: str, comment: Dict[str, Any]) -> Optional[Dict[str, Any]]: ...
 
     @abstractmethod
     def bulk_update(self, task_ids: List[str], status: str) -> Dict[str, Any]: ...
@@ -174,6 +204,7 @@ class SimpleKanbanStore(KanbanStoreProtocol):
             "priority": data.get("priority"),
             "tenant": data.get("tenant"),
             "board": data.get("board", "default"),
+            "children": data.get("children") or [],
             "comments": [],
             "meta": data.get("meta") or {},
             "created_at": _now_iso(),
@@ -188,7 +219,7 @@ class SimpleKanbanStore(KanbanStoreProtocol):
         task = self._tasks.get(task_id)
         if not task:
             return None
-        for key in ("title", "body", "assignee", "priority", "tenant", "meta"):
+        for key in ("title", "body", "assignee", "priority", "tenant", "meta", "children"):
             if key in data:
                 task[key] = data[key]
         if "status" in data and data["status"] in VALID_STATUSES:
@@ -207,6 +238,24 @@ class SimpleKanbanStore(KanbanStoreProtocol):
         task["status"] = status
         task["updated_at"] = _now_iso()
         self._emit("task_moved", task, {"from_status": old, "to_status": status})
+        return dict(task)
+
+    def add_comment(self, task_id: str, comment: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        task = self._tasks.get(task_id)
+        if not task:
+            return None
+        text = str((comment or {}).get("text") or "").strip()
+        if not text:
+            return None
+        entry = {
+            "id": f"c_{uuid.uuid4().hex[:8]}",
+            "author": (comment or {}).get("author") or "human",
+            "text": text,
+            "created_at": _now_iso(),
+        }
+        task.setdefault("comments", []).append(entry)
+        task["updated_at"] = _now_iso()
+        self._emit("task_commented", task, {"comment_id": entry["id"]})
         return dict(task)
 
     def bulk_update(self, task_ids: List[str], status: str) -> Dict[str, Any]:
@@ -263,6 +312,9 @@ class InjectedKanbanStore(KanbanStoreProtocol):
 
     def move_task(self, task_id: str, status: str) -> Optional[Dict[str, Any]]:
         return self._call("move_task", task_id, status)
+
+    def add_comment(self, task_id: str, comment: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        return self._call("add_comment", task_id, comment)
 
     def bulk_update(self, task_ids: List[str], status: str) -> Dict[str, Any]:
         return self._call("bulk_update", task_ids, status)
@@ -331,6 +383,7 @@ class KanbanFeature(BaseFeatureProtocol):
             Route("/api/kanban/tasks/{task_id}", self._patch, methods=["PATCH"]),
             Route("/api/kanban/tasks/{task_id}", self._delete, methods=["DELETE"]),
             Route("/api/kanban/tasks/{task_id}/move", self._move, methods=["POST"]),
+            Route("/api/kanban/tasks/{task_id}/comments", self._add_comment, methods=["POST"]),
             Route("/api/kanban/events", self._events, methods=["GET"]),
             Route("/api/kanban/health", self._health, methods=["GET"]),
             Route("/api/kanban/boards", self._boards, methods=["GET"]),
@@ -378,6 +431,16 @@ class KanbanFeature(BaseFeatureProtocol):
         task = store.move_task(request.path_params["task_id"], status)
         if not task:
             return JSONResponse({"error": "not found or invalid status"}, status_code=404)
+        return JSONResponse(task)
+
+    async def _add_comment(self, request: Request) -> JSONResponse:
+        store = get_kanban_store()
+        body = await request.json()
+        if not isinstance(body, dict) or not str(body.get("text") or "").strip():
+            return JSONResponse({"error": "text required"}, status_code=400)
+        task = store.add_comment(request.path_params["task_id"], body)
+        if not task:
+            return JSONResponse({"error": "not found"}, status_code=404)
         return JSONResponse(task)
 
     async def _bulk(self, request: Request) -> JSONResponse:
