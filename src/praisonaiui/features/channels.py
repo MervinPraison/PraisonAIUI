@@ -224,13 +224,15 @@ class ChannelsFeature(BaseFeatureProtocol):
             try:
                 error = await self._start_channel_bot(channel_id, entry)
                 if error:
+                    entry["running"] = False
                     entry["start_error"] = error
                     logger.warning("Auto-start '%s' failed: %s", channel_id, error)
                 else:
                     logger.info("Auto-started channel '%s' (%s)", channel_id, entry.get("platform"))
             except Exception as e:
+                entry["running"] = False
                 entry["start_error"] = str(e)
-                logger.warning("Auto-start '%s' exception: %s", channel_id, e)
+                logger.exception("Auto-start '%s' exception: %s", channel_id, e)
         self._sync_running_status()
 
     # ── Gateway integration ──────────────────────────────────────────
@@ -255,6 +257,10 @@ class ChannelsFeature(BaseFeatureProtocol):
             all_bots.setdefault(ch_id, info.get("bot"))
 
         for ch_id, ch in _channels.items():
+            if ch.get("start_error"):
+                ch["running"] = False
+                continue
+
             bot = all_bots.get(ch_id)
             info = _live_bots.get(ch_id, {})
             task = info.get("task")
@@ -411,12 +417,19 @@ class ChannelsFeature(BaseFeatureProtocol):
 
         # Also register in gateway if available
         if gw is not None:
-            channel_bots = getattr(gw, "_channel_bots", None)
-            channel_tasks = getattr(gw, "_channel_tasks", None)
-            if channel_bots is not None:
-                channel_bots[channel_id] = bot
-            if channel_tasks is not None:
-                channel_tasks.append(task)
+            try:
+                channel_bots = getattr(gw, "_channel_bots", None)
+                if isinstance(channel_bots, dict):
+                    channel_bots[channel_id] = bot
+                channel_tasks = getattr(gw, "_channel_tasks", None)
+                if isinstance(channel_tasks, dict):
+                    channel_tasks[channel_id] = task
+                elif isinstance(channel_tasks, list):
+                    channel_tasks.append(task)
+            except Exception as e:
+                logger.warning(
+                    "Gateway task registration failed for '%s': %s", channel_id, e
+                )
 
         entry["running"] = True
         entry.pop("start_error", None)
