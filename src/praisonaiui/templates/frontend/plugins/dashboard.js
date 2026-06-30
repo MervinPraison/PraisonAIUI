@@ -316,8 +316,12 @@ const DASHBOARD_STYLE = `
     padding: 20px; font-size: 15px; font-weight: 600;
     letter-spacing: -0.01em; border-bottom: 1px solid var(--db-border);
     display: flex; align-items: center; gap: 10px;
+    min-width: 0; padding-right: 28px;
   }
-  .db-sidebar-header .logo { font-size: 20px; }
+  .db-sidebar-header > span:not(.logo) {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .db-sidebar-header .logo { font-size: 20px; flex-shrink: 0; }
   .db-sidebar-toggle {
     position: absolute;
     right: -12px;
@@ -583,6 +587,22 @@ const DASHBOARD_STYLE = `
     appearance: none; cursor: pointer;
   }
   .db-form-select:focus { border-color: var(--db-accent); }
+  .db-form-select option, select.db-form-select option {
+    background-color: var(--db-sidebar-bg);
+    color: var(--db-text);
+  }
+  .db-form-select option:checked, select.db-form-select option:checked {
+    background-color: var(--db-accent);
+    color: #fff;
+  }
+  .db-active select option, #root select option {
+    background-color: var(--db-sidebar-bg);
+    color: var(--db-text);
+  }
+  .db-active select option:checked, #root select option:checked {
+    background-color: var(--db-accent);
+    color: #fff;
+  }
   .db-form-textarea {
     width: 100%; padding: 8px 12px; font-size: 13px; color: var(--db-text);
     background: var(--db-card-bg); border: 1px solid var(--db-border); border-radius: 6px;
