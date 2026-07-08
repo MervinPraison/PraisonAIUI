@@ -149,9 +149,42 @@ function claudeFinalAlreadyTriggered(comments) {
   return comments.some(isFinalClaudeTriggerComment);
 }
 
+const ALL_PRIOR = [...REQUIRED_PRIOR, ...OPTIONAL_PRIOR];
+
+function lastFinalClaudeTriggerTime(comments) {
+  let latest = 0;
+  for (const c of comments) {
+    if (!isFinalClaudeTriggerComment(c)) continue;
+    const t = new Date(c.created_at).getTime();
+    if (t > latest) latest = t;
+  }
+  return latest;
+}
+
+function hasNewPriorActivitySince(comments, reviews, since) {
+  const isPrior = (login) => ALL_PRIOR.some((name) => login.includes(name));
+  const newComment = comments.some(
+    (c) => isPrior(loginOf(c)) && new Date(c.created_at).getTime() > since
+  );
+  if (newComment) return true;
+  return reviews.some(
+    (r) => isPrior(loginOf(r)) && new Date(r.submitted_at).getTime() > since
+  );
+}
+
 function claudeFinalReady(comments, reviews = [], options = {}) {
-  if (!options.allowStaleRepost && claudeFinalAlreadyTriggered(comments)) {
-    return { ready: false, reason: 'claude FINAL already triggered', already: true };
+  if (claudeFinalAlreadyTriggered(comments)) {
+    if (!options.allowStaleRepost) {
+      return { ready: false, reason: 'claude FINAL already triggered', already: true };
+    }
+    const since = lastFinalClaudeTriggerTime(comments);
+    if (!hasNewPriorActivitySince(comments, reviews, since)) {
+      return {
+        ready: false,
+        reason: 'claude FINAL already triggered and not stale',
+        already: true,
+      };
+    }
   }
   const prior = priorReviewersReady(comments, reviews, options);
   if (!prior.ready) {
