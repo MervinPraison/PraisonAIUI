@@ -9,6 +9,8 @@
  * Config-driven: auto-discovers agents and sessions from existing APIs.
  */
 
+import { showToast } from '../toast.js';
+
 // ── State ────────────────────────────────────────────────────────
 let ws = null;
 let currentSessionId = null;
@@ -1063,6 +1065,7 @@ function connectWebSocket() {
 
     ws.onerror = (e) => {
       console.error('[Chat] WebSocket error:', e);
+      setStatus('error');
     };
   } catch (e) {
     console.warn('[Chat] WebSocket connection failed:', e);
@@ -1359,6 +1362,9 @@ function appendMessage(role, content, agentName, elements) {
 
   const msgEl = document.createElement('div');
   msgEl.className = 'chat-msg chat-msg-' + role;
+  if (role === 'system' && typeof content === 'string' && content.startsWith('❌')) {
+    msgEl.setAttribute('role', 'alert');
+  }
 
   const avatarEl = document.createElement('div');
   avatarEl.className = 'chat-msg-avatar';
@@ -1907,12 +1913,20 @@ function sendMessage() {
     if (pendingAttachments.length > 0) {
       payload.attachment_ids = pendingAttachments.map(a => a.id);
     }
-    ws.send(JSON.stringify(payload));
-    setStreaming(true);
-    setStatus('streaming');
+    try {
+      ws.send(JSON.stringify(payload));
+      setStreaming(true);
+      setStatus('streaming');
+    } catch (e) {
+      const msg = 'Connection lost. Message not sent.';
+      appendMessage('system', '❌ ' + msg);
+      setStatus('error');
+      try { showToast(msg, 'error'); } catch (_) {}
+    }
   } else {
     // Fallback to HTTP
     setStatus('sending…');
+    const offlineHint = (typeof navigator !== 'undefined' && navigator.onLine === false) ? 'You are offline. ' : '';
     fetch('/api/chat/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1925,13 +1939,19 @@ function sendMessage() {
     }).then((r) => r.json()).then((data) => {
       if (data.error) {
         appendMessage('system', '❌ ' + data.error);
+        setStatus('error');
+        try { showToast(data.error, 'error'); } catch (_) {}
       } else if (data.content || data.response) {
         appendMessage('assistant', data.content || data.response, data.agent_name);
+        setStatus('connected');
+      } else {
+        setStatus('connected');
       }
-      setStatus('connected');
     }).catch((e) => {
-      appendMessage('system', '❌ ' + e.message);
+      const msg = offlineHint + (e.message || 'Network error');
+      appendMessage('system', '❌ ' + msg);
       setStatus('error');
+      try { showToast(msg, 'error'); } catch (_) {}
     });
   }
 
