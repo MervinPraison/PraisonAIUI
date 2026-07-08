@@ -15,7 +15,7 @@ on:
   pull_request_review:
     types: [submitted]
   pull_request:
-    types: [opened]
+    types: [opened, synchronize]
   workflow_dispatch:
     inputs:
       pr_number:
@@ -229,6 +229,10 @@ jobs:
       issues: write
       pull-requests: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
       - name: Wait for Copilot to respond (poll)
         id: poll
         uses: actions/github-script@v7
@@ -338,6 +342,20 @@ jobs:
               body: '@claude You are the FINAL architecture reviewer. If the branch is under MervinPraison/PraisonAIUI (not a fork), you are able to make modifications to this branch and push directly. ' + scope + ' Read ALL comments above from Gemini, Qodo, CodeRabbit, and Copilot carefully before responding.\n\n' + phases
             });
             console.log(`Claude triggered on PR #${pr}`);
+
+      - name: Sync pipeline status labels
+        if: steps.check_claude.outputs.already_triggered != 'true'
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ needs.copilot-after-coderabbit.outputs.pr_number }}
+        with:
+          github-token: ${{ env.GH_TOKEN }}
+          script: |
+            const path = require('path');
+            const ps = require(path.join(process.env.GITHUB_WORKSPACE, '.github/scripts/pipeline-status.js'));
+            const pr = parseInt(process.env.PR_NUMBER, 10);
+            await ps.ensurePipelineLabels(github, context.repo.owner, context.repo.repo, core);
+            await ps.syncPipelineLabels(github, context.repo.owner, context.repo.repo, pr, core);
 
   # ================================================================
   # Claude after Qodo fallback path (same polling approach)
@@ -647,3 +665,45 @@ jobs:
               body: '@claude You are the FINAL architecture reviewer. If the branch is under MervinPraison/PraisonAIUI (not a fork), you are able to make modifications to this branch and push directly. ' + process.env.CLAUDE_UI_SCOPE + ' Read all prior reviewer comments.\n\n' + process.env.CLAUDE_FINAL_PHASES_COMPACT
             });
             console.log('Claude manually triggered on PR #' + pr);
+
+  # ================================================================
+  # BOT PRs: kick CodeRabbit + Qodo
+  # ================================================================
+  bot-pr-trigger-reviews:
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.action == 'opened' &&
+      (
+        github.event.pull_request.user.login == 'github-actions[bot]' ||
+        github.event.pull_request.user.login == 'praisonai-triage-agent[bot]' ||
+        github.event.pull_request.user.type == 'Bot'
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Trigger CodeRabbit and Qodo reviews
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ env.GH_TOKEN }}
+          script: |
+            const path = require('path');
+            const chain = require(path.join(process.env.GITHUB_WORKSPACE, '.github/scripts/bot-pr-review-chain.js'));
+            const pr = context.payload.pull_request.number;
+            await chain.kickReviewChain(github, context.repo.owner, context.repo.repo, pr, core);
+
+      - name: Sync pipeline status labels
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ env.GH_TOKEN }}
+          script: |
+            const path = require('path');
+            const ps = require(path.join(process.env.GITHUB_WORKSPACE, '.github/scripts/pipeline-status.js'));
+            const pr = context.payload.pull_request.number;
+            await ps.ensurePipelineLabels(github, context.repo.owner, context.repo.repo, core);
+            await ps.syncPipelineLabels(github, context.repo.owner, context.repo.repo, pr, core);

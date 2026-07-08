@@ -1,6 +1,6 @@
 name: PyPI Release
 
-# Requires GitHub Environment "pypi" with required reviewers.
+# Requires GitHub Environment "pypi" (manual) or "pypi-auto" (ci/nightly patch).
 # Secrets: PYPI_TOKEN (or PYPI_API_TOKEN), GH_TOKEN
 
 on:
@@ -25,6 +25,16 @@ on:
         required: false
         default: ''
         type: string
+      source:
+        description: 'Trigger source (audit trail)'
+        required: false
+        default: manual
+        type: string
+      trigger_sha:
+        description: 'SHA that triggered this release'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write
@@ -37,12 +47,24 @@ jobs:
   release:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: pypi
+    environment: >-
+      ${{
+        (inputs.source == 'ci' || inputs.source == 'nightly') &&
+        inputs.bump == 'patch' &&
+        'pypi-auto' || 'pypi'
+      }}
     env:
       UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN || secrets.PYPI_API_TOKEN }}
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
       PACKAGE: aiui
     steps:
+      - name: Release audit
+        run: |
+          echo "Source: ${{ inputs.source }}"
+          echo "Trigger SHA: ${{ inputs.trigger_sha }}"
+          echo "Bump: ${{ inputs.bump }}"
+          echo "Environment: ${{ (inputs.source == 'ci' || inputs.source == 'nightly') && inputs.bump == 'patch' && 'pypi-auto' || 'pypi' }}"
+
       - name: Checkout main
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
