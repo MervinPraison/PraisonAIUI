@@ -1064,7 +1064,11 @@ function closeCommandPalette() {
   _paletteResults = [];
 }
 
+let _paletteInitialized = false;
+
 function initCommandPalette() {
+  if (_paletteInitialized) return;
+  _paletteInitialized = true;
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
       e.preventDefault();
@@ -1072,6 +1076,11 @@ function initCommandPalette() {
     }
   });
 }
+
+window.aiui = window.aiui || {};
+window.aiui.openCommandPalette = openCommandPalette;
+window.aiui.closeCommandPalette = closeCommandPalette;
+window.openCommandPalette = openCommandPalette;
 
 // ── Session Search Palette ──────────────────────────────────────────
 // Vanilla-JS port of the React SessionSearch / useSessionSearch behavior so
