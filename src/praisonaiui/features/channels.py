@@ -93,15 +93,35 @@ def _validate_config_security(config: Dict[str, Any]) -> Optional[str]:
                            f"'{key}_ref': 'env:YOUR_ENV_VAR'")
     return None
 
+# Suffixes that identify secret-bearing config keys not covered by the
+# exact-match SECRET_FIELD_PATTERNS set (e.g. app_token, signing_secret).
+_SECRET_KEY_SUFFIXES = ("_token", "_key", "_secret", "_password")
+
+
+def _is_secret_key(key: str) -> bool:
+    """True if a config key holds a secret and must be redacted on read."""
+    lowered = key.lower()
+    return lowered in SECRET_FIELD_PATTERNS or lowered.endswith(_SECRET_KEY_SUFFIXES)
+
+
 def _redact_config_secrets(config: Dict[str, Any]) -> Dict[str, Any]:
-    """Redact secret values in config for API responses."""
+    """Redact secret values in config for API responses.
+
+    Any key matching a known secret name or a secret-bearing suffix is
+    replaced with ``***REDACTED***`` and a ``<key>_set`` boolean is added so
+    the UI can indicate whether a value is configured without exposing it.
+    Values referencing env vars (``env:...``) are left as-is — they contain
+    no literal secret.
+    """
     if not isinstance(config, dict):
         return config
     redacted = config.copy()
     for key, value in config.items():
-        if key.lower() in SECRET_FIELD_PATTERNS and isinstance(value, str) and value:
-            if not value.startswith("env:"):
-                redacted[key] = "***REDACTED***"
+        if _is_secret_key(key) and isinstance(value, str) and value:
+            if value.startswith("env:"):
+                continue
+            redacted[key] = "***REDACTED***"
+            redacted[f"{key}_set"] = True
     return redacted
 
 def _get_config_secret(config: Dict[str, Any], key: str, env_fallback: Optional[str] = None) -> str:
@@ -1030,7 +1050,11 @@ class ChannelsFeature(BaseFeatureProtocol):
                 channel["start_error"] = error
         else:
             await self._stop_channel_bot(channel_id)
-        return JSONResponse(channel)
+
+        # Redact secrets in response
+        safe_channel = channel.copy()
+        safe_channel["config"] = _redact_config_secrets(channel.get("config", {}))
+        return JSONResponse(safe_channel)
 
     async def _status(self, request: Request) -> JSONResponse:
         channel_id = request.path_params["channel_id"]
