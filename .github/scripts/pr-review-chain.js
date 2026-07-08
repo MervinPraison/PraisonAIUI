@@ -150,7 +150,7 @@ function claudeFinalAlreadyTriggered(comments) {
 }
 
 function claudeFinalReady(comments, reviews = [], options = {}) {
-  if (claudeFinalAlreadyTriggered(comments)) {
+  if (!options.allowStaleRepost && claudeFinalAlreadyTriggered(comments)) {
     return { ready: false, reason: 'claude FINAL already triggered', already: true };
   }
   const prior = priorReviewersReady(comments, reviews, options);
@@ -194,6 +194,8 @@ async function maybeTriggerClaudeFinal(github, owner, repo, prNumber, finalBody,
     prCreatedAt: pr.created_at,
     optionalWaitMs: options.optionalWaitMs,
     allowCopilotTimeout: options.allowCopilotTimeout !== false,
+    allowStaleRepost: options.allowStaleRepost === true,
+    skipCopilot: options.skipCopilot,
   });
   if (!gate.ready) {
     core?.info?.(`PR #${prNumber}: skip Claude FINAL — ${gate.reason}`);
