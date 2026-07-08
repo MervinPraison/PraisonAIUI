@@ -13,11 +13,12 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[2]
 FRONTEND = (
-    Path(__file__).resolve().parents[2]
-    / "src" / "praisonaiui" / "templates" / "frontend" / "plugins"
+    ROOT / "src" / "praisonaiui" / "templates" / "frontend" / "plugins"
 )
 DASHBOARD_JS = FRONTEND / "dashboard.js"
+GENERATOR = ROOT / "scripts" / "patch_dashboard_modular.py"
 
 
 class TestDashboardShellOrder:
@@ -48,3 +49,17 @@ class TestDashboardShellOrder:
             body,
         )
         assert m, "shellHeader insert must be guarded by children.length"
+
+    def test_generator_emits_main_before_insert_before(self):
+        src = GENERATOR.read_text()
+        append_idx = src.find("root.appendChild(main);\n  const shellHeader")
+        insert_idx = src.find("root.insertBefore(shellHeader, main)")
+        assert append_idx != -1, (
+            "generator must emit root.appendChild(main) before shellHeader"
+        )
+        assert insert_idx != -1, (
+            "generator must emit root.insertBefore(shellHeader, main)"
+        )
+        assert append_idx < insert_idx, (
+            "generator must append main to root before insertBefore references it"
+        )

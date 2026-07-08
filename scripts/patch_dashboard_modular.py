@@ -199,11 +199,11 @@ text = text.replace(
     root.appendChild(sidebar);
     setupMobileNav(root, sidebar);
   }
+  root.appendChild(main);
   const shellHeader = document.createElement('div');
   shellHeader.id = 'db-shell-header-slot';
   renderSlot('shell:header', shellHeader);
-  if (shellHeader.children.length) root.insertBefore(shellHeader, main);
-  root.appendChild(main);""",
+  if (shellHeader.children.length) root.insertBefore(shellHeader, main);""",
 )
 
 # 6) selectPage toolbar
