@@ -3,9 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 
 import pytest
 from starlette.testclient import TestClient
+
+
+def _praisonai_jobs_available() -> bool:
+    try:
+        return importlib.util.find_spec("praisonai.jobs") is not None
+    except ModuleNotFoundError:
+        return False
 
 
 @pytest.fixture
