@@ -76,23 +76,6 @@ SECRET_FIELD_PATTERNS = {
     "private_key", "access_token", "refresh_token", "webhook_secret"
 }
 
-def _validate_config_security(config: Dict[str, Any]) -> Optional[str]:
-    """Validate channel config doesn't contain inline secrets.
-
-    Returns error message if secrets detected, None if safe.
-    """
-    if not isinstance(config, dict):
-        return None
-    for key, value in config.items():
-        if key.lower() in SECRET_FIELD_PATTERNS:
-            if isinstance(value, str) and value and not value.startswith("env:"):
-                # Check for common secret patterns
-                if (value.startswith(("sk-", "xoxb-", "xoxp-", "xapp-", "am_", "bot")) or
-                    len(value) > 20):
-                    return (f"Detected inline secret in '{key}'. Use env reference: "
-                           f"'{key}_ref': 'env:YOUR_ENV_VAR'")
-    return None
-
 # Suffixes that identify secret-bearing config keys not covered by the
 # exact-match SECRET_FIELD_PATTERNS set (e.g. app_token, signing_secret).
 _SECRET_KEY_SUFFIXES = ("_token", "_key", "_secret", "_password")
@@ -102,6 +85,24 @@ def _is_secret_key(key: str) -> bool:
     """True if a config key holds a secret and must be redacted on read."""
     lowered = key.lower()
     return lowered in SECRET_FIELD_PATTERNS or lowered.endswith(_SECRET_KEY_SUFFIXES)
+
+
+def _validate_config_security(config: Dict[str, Any]) -> Optional[str]:
+    """Validate channel config doesn't contain inline secrets.
+
+    Returns error message if secrets detected, None if safe.
+    """
+    if not isinstance(config, dict):
+        return None
+    for key, value in config.items():
+        if _is_secret_key(key):
+            if isinstance(value, str) and value and not value.startswith("env:"):
+                # Check for common secret patterns
+                if (value.startswith(("sk-", "xoxb-", "xoxp-", "xapp-", "am_", "bot")) or
+                    len(value) > 20):
+                    return (f"Detected inline secret in '{key}'. Use env reference: "
+                           f"'{key}_ref': 'env:YOUR_ENV_VAR'")
+    return None
 
 
 def _redact_config_secrets(config: Dict[str, Any]) -> Dict[str, Any]:

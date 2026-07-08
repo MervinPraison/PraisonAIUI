@@ -18,6 +18,7 @@ from praisonaiui.features import channels as channels_mod
 from praisonaiui.features.channels import (
     ChannelsFeature,
     _redact_config_secrets,
+    _validate_config_security,
 )
 
 _DISCORD_TOKEN = "MTQ" + "a1b2c3d4e5f6g7h8i9j0k1l2"
@@ -99,6 +100,19 @@ def test_redact_is_non_mutating():
     original = {"bot_token": _DISCORD_TOKEN}
     _redact_config_secrets(original)
     assert original["bot_token"] == _DISCORD_TOKEN
+
+
+# ── Write path rejects inline secrets on suffix keys ─────────────────
+
+
+def test_validate_rejects_inline_suffix_secret():
+    err = _validate_config_security({"app_token": "xapp-1-" + "a" * 30})
+    assert err is not None
+    assert "app_token" in err
+
+
+def test_validate_allows_env_reference_suffix_key():
+    assert _validate_config_security({"signing_secret": "env:SLACK_SIGNING_SECRET"}) is None
 
 
 # ── Read handlers must not leak ──────────────────────────────────────
