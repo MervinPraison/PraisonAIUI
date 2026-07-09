@@ -31,8 +31,10 @@ def test_jobs_submit_and_get(simple_jobs_client):
 
 
 def _praisonai_jobs_available() -> bool:
+    import importlib.util
+
     try:
-        return __import__("importlib").util.find_spec("praisonai.jobs") is not None
+        return importlib.util.find_spec("praisonai.jobs") is not None
     except ModuleNotFoundError:
         return False
 
