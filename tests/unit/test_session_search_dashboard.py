@@ -31,6 +31,9 @@ class TestDashboardSessionSearch:
         # keydown listener physically lives.
         src = self._src()
         assert "initSessionSearch" in src
+        # Ctrl+K / Cmd+K ownership lives in the command palette
+        # (initCommandPalette), which exposes a "Search sessions…" entry that
+        # calls openSessionSearch. initSessionSearch only owns Escape-to-close.
         m = re.search(
             r"function initCommandPalette\(\)\s*\{(.*?)^}",
             src, re.DOTALL | re.MULTILINE,
@@ -44,6 +47,16 @@ class TestDashboardSessionSearch:
         # The palette must route the "sessions" action to openSessionSearch().
         assert "openSessionSearch()" in src
         assert "action: 'sessions'" in src or 'action: "sessions"' in src
+
+        # initSessionSearch owns only Escape-to-close for the session palette.
+        m = re.search(
+            r"function initSessionSearch\(\)\s*\{(.*?)^}",
+            src, re.DOTALL | re.MULTILINE,
+        )
+        assert m, "initSessionSearch not found"
+        assert "Escape" in m.group(1), (
+            "initSessionSearch must own Escape-to-close for the session palette"
+        )
 
     def test_palette_fetches_sessions_endpoint(self):
         src = self._src()
