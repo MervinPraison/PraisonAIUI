@@ -72,13 +72,13 @@ SUPPORTED_PLATFORMS = [
 
 # Secret field patterns that should never be persisted in config
 SECRET_FIELD_PATTERNS = {
-    "api_key", "bot_token", "app_password", "password", "secret", 
+    "api_key", "bot_token", "app_password", "password", "secret",
     "private_key", "access_token", "refresh_token", "webhook_secret"
 }
 
 def _validate_config_security(config: Dict[str, Any]) -> Optional[str]:
     """Validate channel config doesn't contain inline secrets.
-    
+
     Returns error message if secrets detected, None if safe.
     """
     if not isinstance(config, dict):
@@ -108,25 +108,25 @@ def _get_config_secret(config: Dict[str, Any], key: str, env_fallback: Optional[
     """Resolve a secret configuration value, supporting direct values, _ref keys, and env vars."""
     if not isinstance(config, dict):
         return os.environ.get(env_fallback, "") if env_fallback else ""
-    
+
     # 1. Check direct key (e.g., "bot_token")
     val = config.get(key)
     if isinstance(val, str) and val.startswith("env:"):
         return os.environ.get(val[4:], "")
     if val:
         return str(val)
-        
+
     # 2. Check ref key (e.g., "bot_token_ref")
     ref_val = config.get(f"{key}_ref")
     if isinstance(ref_val, str) and ref_val.startswith("env:"):
         return os.environ.get(ref_val[4:], "")
     if ref_val:
         return str(ref_val)
-        
+
     # 3. Fallback to default env var if provided
     if env_fallback:
         return os.environ.get(env_fallback, "")
-        
+
     return ""
 
 # In-memory channel registry — loaded from unified config.yaml
@@ -912,14 +912,14 @@ class ChannelsFeature(BaseFeatureProtocol):
         # Auto-start enabled channels on first request (lazy startup)
         await self._auto_start_enabled_channels()
         self._sync_running_status()
-        
+
         # Redact secrets in all channel configs
         channels = []
         for channel in _channels.values():
             safe_channel = channel.copy()
             safe_channel["config"] = _redact_config_secrets(channel.get("config", {}))
             channels.append(safe_channel)
-        
+
         return JSONResponse({"channels": channels, "count": len(channels)})
 
     async def _add(self, request: Request) -> JSONResponse:
@@ -933,7 +933,7 @@ class ChannelsFeature(BaseFeatureProtocol):
                 status_code=400,
             )
         config = body.get("config", {})
-        
+
         # Security validation: reject inline secrets
         security_error = _validate_config_security(config)
         if security_error:
@@ -962,7 +962,7 @@ class ChannelsFeature(BaseFeatureProtocol):
         # Sync live status before responding so the frontend sees the real state
         self._sync_running_status()
         _persist_channels()
-        
+
         # Redact secrets in response
         response_entry = entry.copy()
         response_entry["config"] = _redact_config_secrets(entry["config"])
@@ -974,7 +974,7 @@ class ChannelsFeature(BaseFeatureProtocol):
         if not channel:
             return JSONResponse({"error": "Channel not found"}, status_code=404)
         self._sync_running_status()
-        
+
         # Redact secrets in config
         safe_channel = channel.copy()
         safe_channel["config"] = _redact_config_secrets(channel.get("config", {}))
@@ -986,7 +986,7 @@ class ChannelsFeature(BaseFeatureProtocol):
         if not channel:
             return JSONResponse({"error": "Channel not found"}, status_code=404)
         body = await request.json()
-        
+
         # Security validation for config updates
         if "config" in body:
             security_error = _validate_config_security(body["config"])
@@ -995,12 +995,12 @@ class ChannelsFeature(BaseFeatureProtocol):
                     {"error": security_error},
                     status_code=400,
                 )
-        
+
         for key in ("name", "platform", "enabled", "config"):
             if key in body:
                 channel[key] = body[key]
         _persist_channels()
-        
+
         # Redact secrets in response
         safe_channel = channel.copy()
         safe_channel["config"] = _redact_config_secrets(channel["config"])
