@@ -12,9 +12,9 @@ def test_feature_registry_basic():
     assert registry.is_implemented("site")
     assert registry.is_implemented("seo")
     assert registry.is_implemented("a11y")
-
-    # Test experimental features
-    assert registry.is_experimental("i18n")
+    # i18n graduated to implemented (since 0.5.0)
+    assert registry.is_implemented("i18n")
+    assert not registry.is_experimental("i18n")
 
     # Test non-existent features
     assert not registry.is_implemented("nonexistent")
@@ -34,14 +34,14 @@ def test_feature_registry_with_config():
     experimental = registry.get_experimental_fields(config)
     assert experimental == []
 
-    # Config with experimental features
-    config_with_experimental = Config(
+    # i18n is now an implemented feature, so it is not reported as experimental
+    config_with_i18n = Config(
         site=SiteConfig(title="Test"),
         i18n=I18nConfig(locales=["en", "es"])
     )
 
-    experimental = registry.get_experimental_fields(config_with_experimental)
-    assert "i18n" in experimental
+    experimental = registry.get_experimental_fields(config_with_i18n)
+    assert "i18n" not in experimental
 
 
 def test_feature_info():
@@ -55,5 +55,5 @@ def test_feature_info():
 
     i18n_info = registry.get_feature("i18n")
     assert i18n_info is not None
-    assert i18n_info.status == FeatureStatus.EXPERIMENTAL
-    assert i18n_info.since is None
+    assert i18n_info.status == FeatureStatus.IMPLEMENTED
+    assert i18n_info.since == "0.5.0"
