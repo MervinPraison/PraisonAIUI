@@ -30,8 +30,15 @@ def test_jobs_submit_and_get(simple_jobs_client):
     assert detail.json()["id"] == job_id
 
 
+def _praisonai_jobs_available() -> bool:
+    try:
+        return __import__("importlib").util.find_spec("praisonai.jobs") is not None
+    except ModuleNotFoundError:
+        return False
+
+
 @pytest.mark.skipif(
-    __import__("importlib").util.find_spec("praisonai.jobs") is None,
+    not _praisonai_jobs_available(),
     reason="praisonai package not installed",
 )
 def test_sdk_job_store_roundtrip():
