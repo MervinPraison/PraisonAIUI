@@ -480,6 +480,9 @@ const DASHBOARD_STYLE = `
   @keyframes db-spin { to { transform: rotate(360deg); } }
   .db-spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid var(--db-border); border-top-color: var(--db-accent); border-radius: 50%; animation: db-spin 0.8s linear infinite; }
 
+  /* Init error banner */
+  .db-error { margin: 24px; padding: 16px 20px; border: 1px solid #b91c1c; border-radius: 8px; background: rgba(185, 28, 28, 0.12); color: #fca5a5; font-size: 14px; }
+
   /* Hide React docs layout when dashboard is active */
   .db-active .sidebar:not(.db-sidebar), .db-active .topnav, .db-active .toc-sidebar,
   .db-active > .main-content, .db-active > nav:not(.db-sidebar) { display: none !important; }
@@ -1495,6 +1498,20 @@ function buildSidebar(pages) {
   return sidebar;
 }
 
+function showDashboardInitError(message) {
+  const root = document.getElementById('root');
+  if (!root) return;
+  let banner = document.getElementById('db-init-error');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'db-init-error';
+    banner.className = 'db-error';
+    banner.setAttribute('role', 'alert');
+    root.appendChild(banner);
+  }
+  banner.textContent = message;
+}
+
 async function selectPage(pageId) {
   // Cleanup previous view if it has a cleanup function
   if (_activeCleanup) { try { _activeCleanup(); } catch(e) {} _activeCleanup = null; }
@@ -1513,7 +1530,15 @@ async function selectPage(pageId) {
 
   const page = pagesData.find(p => p.id === pageId);
   const main = document.getElementById('db-main-content');
-  if (!main || !page) return;
+  if (!main) {
+    console.error('[AIUI] selectPage aborted: #db-main-content not in DOM — dashboard shell incomplete');
+    showDashboardInitError('Dashboard shell layout incomplete. Reload the page or check the dashboard plugin.');
+    return;
+  }
+  if (!page) {
+    console.error(`[AIUI] selectPage aborted: page '${pageId}' not found in pagesData`);
+    return;
+  }
 
   // Set page header (controlled by dashboard config protocol)
   const showPageHeader = main.dataset.showPageHeader !== 'false';
