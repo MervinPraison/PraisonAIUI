@@ -25,18 +25,25 @@ class TestDashboardSessionSearch:
         return DASHBOARD_JS.read_text()
 
     def test_ctrl_k_keydown_handler_present(self):
+        # The Ctrl+K binding is owned by the command palette, which exposes a
+        # "Search sessions…" entry that routes to openSessionSearch(). Assert the
+        # UX contract (Ctrl+K reaches session search) rather than where the
+        # keydown listener physically lives.
         src = self._src()
         assert "initSessionSearch" in src
         m = re.search(
-            r"function initSessionSearch\(\)\s*\{(.*?)^}",
+            r"function initCommandPalette\(\)\s*\{(.*?)^}",
             src, re.DOTALL | re.MULTILINE,
         )
-        assert m, "initSessionSearch not found"
+        assert m, "initCommandPalette not found"
         body = m.group(1)
         assert "keydown" in body
         assert "ctrlKey" in body and "metaKey" in body
         assert "'k'" in body or '"k"' in body
         assert "preventDefault" in body
+        # The palette must route the "sessions" action to openSessionSearch().
+        assert "openSessionSearch()" in src
+        assert "action: 'sessions'" in src or 'action: "sessions"' in src
 
     def test_palette_fetches_sessions_endpoint(self):
         src = self._src()
