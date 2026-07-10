@@ -386,16 +386,17 @@ function injectStyles() {
 }
 
 function checkForChannelsPage(root) {
-  // Look for a channels page container or dashboard section
-  const channelsSection = root.querySelector('[data-page="channels"]') ||
-                          root.querySelector('.channels-page') ||
+  // The dashboard channels view (plugins/views/channels.js) now owns the full
+  // CRUD UI and mounts into the [data-page="channels"] container. Only take over
+  // legacy standalone containers that the dashboard view does not manage, so we
+  // never clobber the Add Channel modal and card actions.
+  const channelsSection = root.querySelector('.channels-page') ||
                           root.querySelector('#channels');
-  
+
   if (channelsSection && !channelsSection.hasAttribute('data-aiui-channels')) {
     channelsSection.setAttribute('data-aiui-channels', 'true');
     fetchChannels().then(renderChannelsUI);
-    
-    // Set up auto-refresh every 30 seconds
+
     if (refreshInterval) clearInterval(refreshInterval);
     refreshInterval = setInterval(async () => {
       await fetchChannels();

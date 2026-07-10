@@ -88,6 +88,7 @@ const FEATURES = [
     { name: "channels",       endpoints: [
       { label: "List Channels", method: "GET",  url: "/api/channels" },
       { label: "Platforms",     method: "GET",  url: "/api/channels/platforms" },
+      { label: "Add Channel",   method: "POST", url: "/api/channels", body: { platform: "telegram", name: "my-bot", enabled: true, config: { bot_token: "env:TELEGRAM_BOT_TOKEN" } } },
     ]},
     { name: "agents_crud",    endpoints: [
       { label: "All Agents",    method: "GET",  url: "/api/agents" },
