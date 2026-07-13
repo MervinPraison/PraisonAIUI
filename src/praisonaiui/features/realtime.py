@@ -116,7 +116,14 @@ class OpenAIRealtimeManager(RealtimeProtocol):
         logger.debug(f"Audio chunk for session {session_id}: {len(audio_data)} bytes")
 
     async def receive_audio(self, session_id: str) -> AsyncIterator[Dict[str, Any]]:
-        """Receive events from OpenAI realtime session."""
+        """Receive events from OpenAI realtime session.
+
+        First-event contract:
+            - Unknown session         -> ``error`` (Session not found)
+            - ``OPENAI_API_KEY`` set  -> ``session.ready`` (WebRTC handshake)
+            - Integrated mode, no key -> ``error`` (status=degraded)
+            - Standalone, no key      -> ``conversation.item.created`` (mock)
+        """
         # In WebRTC mode, events come via WebRTC connection
         # This method would handle transcript/tool call events
         session = self._sessions.get(session_id)
