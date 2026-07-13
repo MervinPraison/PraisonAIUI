@@ -1596,10 +1596,18 @@ def run(
         # Run gateway - check if user module defines its own main function
         import asyncio
         import inspect
+        import os
 
         if hasattr(user_module, 'main') and callable(getattr(user_module, 'main')):
             # Call user's main function directly (gateway pattern)
             main_func = getattr(user_module, 'main')
+            # Propagate CLI --port/--host to gateway examples that read the
+            # PORT/HOST environment variables. Explicit env set by the user
+            # takes precedence over the CLI flag.
+            if "PORT" not in os.environ:
+                os.environ["PORT"] = str(actual_port)
+            if "HOST" not in os.environ:
+                os.environ["HOST"] = host
             if inspect.iscoroutinefunction(main_func):
                 console.print("[yellow]ℹ️[/yellow] Delegating to user-defined async main()")
                 asyncio.run(main_func())
