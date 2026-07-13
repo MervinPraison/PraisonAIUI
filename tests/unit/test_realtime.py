@@ -90,9 +90,10 @@ class TestSessionLifecycle:
             assert "openai package not installed" in session_info["error"]
 
     @pytest.mark.asyncio
-    async def test_session_lifecycle_with_mocked_openai(self):
+    async def test_session_lifecycle_with_mocked_openai(self, monkeypatch):
         """Test full session lifecycle with mocked OpenAI."""
         import sys
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         manager = OpenAIRealtimeManager()
 
         # Mock OpenAI client and response
@@ -139,6 +140,27 @@ class TestSessionLifecycle:
 
             # Verify session is removed from internal tracking
             assert session_id not in manager._sessions
+
+    @pytest.mark.asyncio
+    async def test_receive_audio_yields_session_ready_with_api_key(self, monkeypatch):
+        """With OPENAI_API_KEY set, receive_audio yields session.ready first."""
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        manager = OpenAIRealtimeManager()
+        session_id = "session_ready_test"
+        manager._sessions[session_id] = {
+            "status": "created",
+            "client_secret": "secret_abc",
+        }
+
+        events = []
+        async for event in manager.receive_audio(session_id):
+            events.append(event)
+            break
+
+        assert len(events) == 1
+        assert events[0]["type"] == "session.ready"
+        assert events[0]["provider"] == "openai"
+        assert events[0]["client_secret"] == "secret_abc"
 
     @pytest.mark.asyncio
     async def test_receive_audio_invalid_session(self):
