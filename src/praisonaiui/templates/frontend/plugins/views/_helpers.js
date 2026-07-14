@@ -57,6 +57,101 @@ export function searchInput(placeholder = 'Search…', id = 'db-search-input') {
   return `<input id="${id}" type="search" placeholder="${placeholder}" style="width:100%;max-width:320px;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:8px;color:var(--db-text);font-size:13px;box-sizing:border-box" />`;
 }
 
+/** Escape a string for safe interpolation into template literals. */
+export function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
+/**
+ * Inline SVG sparkline (no external library).
+ *
+ * @param {number[]} values - Series values (empty renders a flat baseline).
+ * @param {Object} [opts]
+ * @param {number} [opts.width=96]
+ * @param {number} [opts.height=32]
+ * @param {string} [opts.color] - Stroke colour (defaults to accent token).
+ * @returns {string} SVG markup.
+ */
+export function sparklineSVG(values, { width = 96, height = 32, color = 'var(--db-accent,#6366f1)' } = {}) {
+  const data = Array.isArray(values) ? values.filter((v) => typeof v === 'number' && !isNaN(v)) : [];
+  const pad = 2;
+  const w = width - pad * 2;
+  const h = height - pad * 2;
+  if (data.length < 2) {
+    const y = height / 2;
+    return `<svg class="db-sparkline" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" aria-hidden="true"><line x1="${pad}" y1="${y}" x2="${width - pad}" y2="${y}" stroke="var(--db-border,#3f3f46)" stroke-width="1.5" /></svg>`;
+  }
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const pts = data.map((v, i) => {
+    const x = pad + (i / (data.length - 1)) * w;
+    const yy = pad + h - ((v - min) / range) * h;
+    return `${x.toFixed(1)},${yy.toFixed(1)}`;
+  });
+  const areaPts = `${pad},${(pad + h).toFixed(1)} ${pts.join(' ')} ${(pad + w).toFixed(1)},${(pad + h).toFixed(1)}`;
+  return `<svg class="db-sparkline" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+    <polygon points="${areaPts}" fill="${color}" opacity="0.12" />
+    <polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+  </svg>`;
+}
+
+/**
+ * Metric card with value, subtitle, optional delta and sparkline.
+ * Renders a clickable card that navigates via data-nav (handled by caller).
+ *
+ * @param {Object} opts
+ * @param {string} opts.title      - Card label.
+ * @param {string|number} opts.value - Primary value (already formatted).
+ * @param {string} [opts.subtitle] - Secondary label.
+ * @param {number} [opts.delta]    - Signed percentage delta.
+ * @param {number[]} [opts.spark]  - Sparkline series.
+ * @param {string} [opts.nav]      - Page id to navigate to on click.
+ * @param {string} [opts.accent]   - Value colour override.
+ * @returns {string} HTML string.
+ */
+export function metricCard({ title, value, subtitle = '', delta, spark, nav, accent }) {
+  let deltaHtml = '';
+  if (typeof delta === 'number' && !isNaN(delta) && delta !== 0) {
+    const up = delta > 0;
+    const col = up ? '#22c55e' : '#ef4444';
+    const arrow = up ? '▲' : '▼';
+    deltaHtml = `<span style="font-size:11px;color:${col};margin-left:6px">${arrow} ${Math.abs(delta).toFixed(0)}%</span>`;
+  }
+  const sparkHtml = Array.isArray(spark) ? `<div style="margin-top:8px">${sparklineSVG(spark)}</div>` : '';
+  const clickable = nav ? `data-nav="${esc(nav)}" role="button" tabindex="0" style="cursor:pointer"` : '';
+  return `<div class="db-card db-metric-card" ${clickable}>
+    <div class="db-card-title">${esc(title)}</div>
+    <div class="db-card-value"${accent ? ` style="color:${accent}"` : ''}>${esc(value)}${deltaHtml}</div>
+    <div class="db-card-footer">${esc(subtitle)}</div>
+    ${sparkHtml}
+  </div>`;
+}
+
+/** Relative "time ago" label from an ISO string or epoch (ms or s). */
+export function timeAgo(input) {
+  if (input == null) return '';
+  let ms;
+  if (typeof input === 'number') {
+    ms = input < 1e12 ? input * 1000 : input;
+  } else {
+    const t = Date.parse(input);
+    if (isNaN(t)) return '';
+    ms = t;
+  }
+  const diff = Date.now() - ms;
+  if (diff < 0) return 'now';
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
 /** Modal shell for view-local dialogs. */
 export function modalShell(id, innerHtml) {
   return `<div id="${id}" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center;padding:20px">
