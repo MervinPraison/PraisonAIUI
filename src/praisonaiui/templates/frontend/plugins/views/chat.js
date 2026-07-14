@@ -36,6 +36,50 @@ let contextRefreshDebounce = null;
 let lastContextPct = 0;
 let finopsConfig = null;
 let sessionCostState = { tokens: 0, model: '', estimate: false };
+let lastUserMessage = '';  // last sent user text, drives per-turn memory search
+
+// ── i18n State ───────────────────────────────────────────────────
+let i18nStrings = {};
+const I18N_FALLBACK = {
+  'chat.context.healthy': 'Context healthy',
+  'chat.context.warning': 'Approaching context limit',
+  'chat.context.critical': 'Context nearly full',
+  'chat.context.estimate': 'Estimate',
+  'chat.compaction.banner': 'Context nearly full — older messages may be summarized on next send',
+  'chat.compaction.compacted': 'Context compacted',
+  'chat.memory.chip': '{count} memories',
+  'chat.memory.empty_turn': 'No memories for this turn',
+};
+
+function t(key, params) {
+  let text = i18nStrings[key] != null ? i18nStrings[key] : (I18N_FALLBACK[key] != null ? I18N_FALLBACK[key] : key);
+  if (params) {
+    for (const k in params) {
+      text = text.split('{' + k + '}').join(String(params[k]));
+    }
+  }
+  return text;
+}
+
+async function loadI18nStrings() {
+  let locale = 'en';
+  try {
+    const stored = (typeof localStorage !== 'undefined') ? localStorage.getItem('aiui-locale') : null;
+    if (stored) {
+      locale = stored;
+    } else {
+      const lr = await fetch('/api/i18n/locale');
+      if (lr.ok) { const ld = await lr.json(); if (ld && ld.locale) locale = ld.locale; }
+    }
+  } catch (e) { /* fall back to English */ }
+  try {
+    const resp = await fetch('/api/i18n/strings/' + encodeURIComponent(locale));
+    if (resp.ok) {
+      const data = await resp.json();
+      i18nStrings = (data && data.strings) || {};
+    }
+  } catch (e) { /* keep English fallback */ }
+}
 
 // ── Floating Chat State ──────────────────────────────────────────
 let chatModeConfig = { mode: 'fullpage' };
@@ -699,7 +743,10 @@ function setupResizeHandles(wrapper) {
 export async function render(container) {
   injectStyles();
   containerRef = container;
-  
+
+  // Load translations for ring/banner/chip (English fallback on failure)
+  await loadI18nStrings();
+
   // Fetch chat mode config
   try {
     const configRes = await fetch('/ui-config.json');
@@ -790,15 +837,16 @@ export async function render(container) {
             <textarea id="chat-input" placeholder="Type a message…" rows="1"></textarea>
             <div class="chat-compose-actions">
               <div class="chat-session-cost-chip" id="chat-session-cost-chip" tabindex="0"></div>
-              <div class="chat-ring-wrap chat-ring-healthy" id="chat-ring-wrap">
+              <div class="chat-ring-wrap chat-ring-healthy" id="chat-ring-wrap"
+                role="progressbar" aria-label="Context usage"
+                aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
                 <svg viewBox="0 0 48 48" aria-hidden="true">
                   <circle class="chat-ring-track" cx="24" cy="24" r="20"></circle>
                   <circle class="chat-ring-arc" id="chat-ring-arc" cx="24" cy="24" r="20"
                     stroke-dasharray="125.66" stroke-dashoffset="125.66"></circle>
                 </svg>
                 <button class="chat-ring-send" id="chat-send-btn" title="Send"
-                  role="progressbar" aria-label="Send message"
-                  aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">➤</button>
+                  type="button" aria-label="Send message">➤</button>
                 <div class="chat-ring-tooltip" id="chat-ring-tooltip"></div>
               </div>
             </div>
@@ -1864,7 +1912,6 @@ function ringStateFor(pct) {
 function updateContextRing(stats) {
   const wrap = document.getElementById('chat-ring-wrap');
   const arc = document.getElementById('chat-ring-arc');
-  const sendBtn = document.getElementById('chat-send-btn');
   if (!wrap || !arc) return;
 
   const used = Number(stats.used) || 0;
@@ -1888,10 +1935,8 @@ function updateContextRing(stats) {
   arc.setAttribute('stroke-dasharray', RING_CIRCUMFERENCE.toFixed(2));
   arc.setAttribute('stroke-dashoffset', (RING_CIRCUMFERENCE * (1 - clamped / 100)).toFixed(2));
 
-  if (sendBtn) {
-    sendBtn.setAttribute('aria-valuenow', String(Math.round(pct)));
-    sendBtn.setAttribute('aria-valuemax', '100');
-  }
+  wrap.setAttribute('aria-valuenow', String(Math.round(pct)));
+  wrap.setAttribute('aria-valuemax', '100');
 
   updateRingTooltip(stats, pct);
   updateCompactionBanner(pct, estimate);
@@ -1912,9 +1957,11 @@ function updateRingTooltip(stats, pct) {
     ['Memory', b.memory || 0],
   ];
   const maxVal = Math.max(1, ...rows.map((r) => r[1]));
-  const title = stats.estimate ? 'Context breakdown (estimate)' : 'Context breakdown';
+  const statusKey = pct >= 85 ? 'chat.context.critical' : (pct >= 60 ? 'chat.context.warning' : 'chat.context.healthy');
+  const title = stats.estimate ? escapeHtml(t('chat.context.estimate')) : escapeHtml(t(statusKey));
   tip.innerHTML =
     '<h5>' + title + '</h5>' +
+    '<div class="chat-ring-tt-status">' + escapeHtml(t(statusKey)) + '</div>' +
     rows.map(([lbl, val]) =>
       '<div class="chat-ring-tt-row">' +
         '<span class="lbl">' + lbl + '</span>' +
@@ -1942,9 +1989,7 @@ function updateCompactionBanner(pct, estimate) {
   banner.classList.add('open');
   banner.classList.toggle('critical', pct >= 95);
   banner.setAttribute('role', pct >= 95 ? 'alert' : 'status');
-  textEl.textContent = pct >= 95
-    ? 'Context ' + Math.round(pct) + '% — older messages will be summarized on next send'
-    : 'Context ' + Math.round(pct) + '% — older messages may be summarized on next send';
+  textEl.textContent = t('chat.compaction.banner');
 }
 
 function dismissCompactionBanner() {
@@ -1962,7 +2007,7 @@ function flashCompactionCompacted(data) {
   banner.classList.remove('critical');
   banner.setAttribute('role', 'status');
   const removed = data && data.removed_tokens ? ' (' + data.removed_tokens + ' tokens freed)' : '';
-  textEl.textContent = 'Context compacted' + removed;
+  textEl.textContent = t('chat.compaction.compacted') + removed;
   sessionStorage.removeItem('aiui-compaction-dismissed');
   setTimeout(() => {
     if (lastContextPct < 85) banner.classList.remove('open');
@@ -2009,32 +2054,46 @@ function updateMemoryChip(count, loading) {
   chip.classList.remove('loading');
   const n = Number(count) || 0;
   if (n <= 0) {
-    // E5: hide chip when no memories retrieved this turn
-    chip.classList.remove('visible');
-    chip.innerHTML = '';
+    // E5: no memories retrieved this turn — show muted empty-turn label
+    chip.classList.add('visible');
+    chip.title = t('chat.memory.empty_turn');
+    chip.innerHTML = '🧠 0';
     return;
   }
   chip.classList.add('visible');
-  chip.innerHTML = '🧠 ' + n + ' ' + (n === 1 ? 'memory' : 'memories');
+  chip.title = '';
+  chip.innerHTML = '🧠 ' + escapeHtml(t('chat.memory.chip', { count: n }));
 }
 
+// Per-turn memory search: count hits for the last user message, not total store.
 async function refreshMemoryChip() {
   const chip = document.getElementById('chat-memory-chip');
   if (!chip) return;
+  const query = (lastUserMessage || '').trim();
+  if (!query) {
+    updateMemoryChip(0, false);
+    return;
+  }
   updateMemoryChip(0, true);
   try {
-    const endpoint = currentSessionId
-      ? '/api/memory/session/' + encodeURIComponent(currentSessionId)
-      : '/api/memory';
-    let resp = await fetch(endpoint);
-    if (!resp.ok) resp = await fetch('/api/memory');
-    if (!resp.ok) { chip.classList.remove('loading'); chip.innerHTML = '🧠 —'; chip.classList.add('visible'); return; }
+    const resp = await fetch('/api/memory/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        limit: 10,
+        session_id: currentSessionId || undefined,
+      }),
+    });
+    if (!resp.ok) { chip.classList.remove('loading'); chip.classList.add('visible'); chip.title = ''; chip.innerHTML = '🧠 —'; return; }
     const data = await resp.json();
-    const items = data.memories || [];
-    updateMemoryChip(items.length, false);
+    const results = data.results || [];
+    updateMemoryChip(results.length, false);
   } catch (e) {
     // E6: memory search failed — muted dash
     chip.classList.remove('loading');
+    chip.classList.add('visible');
+    chip.title = '';
     chip.innerHTML = '🧠 —';
   }
 }
@@ -2334,6 +2393,9 @@ function sendMessage() {
   const input = document.getElementById('chat-input');
   const content = input.value.trim();
   if (!content && pendingAttachments.length === 0) return;
+
+  // Track last user text so the memory chip searches this turn's query
+  if (content) lastUserMessage = content;
 
   // Generate session ID if needed
   if (!currentSessionId) {
