@@ -22,6 +22,7 @@ let agents = [];
 let messageQueue = [];
 let focusMode = false;
 let sessionSelectHandler = null;
+let prefillHandler = null;
 let containerRef = null;
 let currentDeltaEl = null;
 let currentDeltaBodyEl = null;
@@ -683,6 +684,26 @@ function setupResizeHandles(wrapper) {
   });
 }
 
+// ── Prefill Composer Listener (singleton) ───────────────────────
+// Code Studio's "Send to Agent" dispatches a window-level
+// 'aiui:prefill-composer' event. This SPA calls render() on every
+// visit to /chat, so the listener is installed once at module scope
+// and guarded to avoid stacking duplicate handlers across navigations.
+function ensurePrefillListener() {
+  if (prefillHandler) return;
+  prefillHandler = (e) => {
+    const text = e.detail && e.detail.text;
+    if (!text) return;
+    const el = document.getElementById('chat-input');
+    if (!el) return;
+    el.value = text;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 150) + 'px';
+    el.focus();
+  };
+  window.addEventListener('aiui:prefill-composer', prefillHandler);
+}
+
 // ── Main render (ES module entry point) ─────────────────────────
 export async function render(container) {
   injectStyles();
@@ -819,16 +840,7 @@ export async function render(container) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
-  window.addEventListener('aiui:prefill-composer', (e) => {
-    const text = e.detail && e.detail.text;
-    if (!text) return;
-    const el = document.getElementById('chat-input');
-    if (!el) return;
-    el.value = text;
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 150) + 'px';
-    el.focus();
-  });
+  ensurePrefillListener();
   input.addEventListener('input', () => {
     input.style.height = 'auto';
     input.style.height = Math.min(input.scrollHeight, 150) + 'px';
@@ -903,6 +915,10 @@ export function cleanup() {
   if (sessionSelectHandler) {
     window.removeEventListener('aiui:session-select', sessionSelectHandler);
     sessionSelectHandler = null;
+  }
+  if (prefillHandler) {
+    window.removeEventListener('aiui:prefill-composer', prefillHandler);
+    prefillHandler = null;
   }
   currentSessionId = null;
   currentAgentName = null;
