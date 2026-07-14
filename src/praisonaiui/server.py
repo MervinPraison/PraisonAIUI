@@ -3469,6 +3469,14 @@ def create_app(
             "order": 40,
         },
         {
+            "id": "code-studio",
+            "title": "Code Studio",
+            "icon": "💻",
+            "group": "Control",
+            "description": "Write, run, and share code in a sandbox",
+            "order": 45,
+        },
+        {
             "id": "telemetry",
             "title": "Telemetry",
             "icon": "📈",
@@ -3516,6 +3524,7 @@ def create_app(
         "channels": "/api/channels",
         "mcp": "/api/mcp/servers",
         "marketplace": "/api/marketplace/plugins",
+        "code-studio": "/api/code/languages",
     }
 
     # Read page whitelist from config.yaml if set_pages() was not called

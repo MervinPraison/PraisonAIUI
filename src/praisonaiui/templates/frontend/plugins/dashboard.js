@@ -177,6 +177,7 @@ const BUILTIN_VIEWS = {
   api:            '/plugins/views/api.js',
   mcp:            '/plugins/views/mcp.js',
   marketplace:    '/plugins/views/marketplace.js',
+  'code-studio':  '/plugins/views/code-studio.js',
 };
 
 const SLOT_REGISTRY = {};

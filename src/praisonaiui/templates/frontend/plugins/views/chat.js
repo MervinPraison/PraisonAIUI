@@ -818,6 +818,17 @@ export async function render(container) {
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
+
+  window.addEventListener('aiui:prefill-composer', (e) => {
+    const text = e.detail && e.detail.text;
+    if (!text) return;
+    const el = document.getElementById('chat-input');
+    if (!el) return;
+    el.value = text;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 150) + 'px';
+    el.focus();
+  });
   input.addEventListener('input', () => {
     input.style.height = 'auto';
     input.style.height = Math.min(input.scrollHeight, 150) + 'px';
