@@ -1292,6 +1292,42 @@ function getStoredToken() {
   }
 }
 
+// Attach the stored gateway token to same-origin requests so that protected
+// dashboard APIs (/api/pages, /ui-config.json, view modules, …) authenticate
+// after onboarding. Wrapping window.fetch once keeps every existing caller
+// unchanged and is a no-op when no token is stored or in standalone mode.
+let _authFetchInstalled = false;
+function installAuthFetch() {
+  if (_authFetchInstalled || typeof window.fetch !== 'function') return;
+  _authFetchInstalled = true;
+  const nativeFetch = window.fetch.bind(window);
+
+  function isSameOrigin(url) {
+    try {
+      return new URL(url, window.location.href).origin === window.location.origin;
+    } catch (e) {
+      return true; // relative/opaque URLs are same-origin
+    }
+  }
+
+  window.fetch = function (input, init) {
+    const token = getStoredToken();
+    if (!token) return nativeFetch(input, init);
+
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    if (!isSameOrigin(url)) return nativeFetch(input, init);
+
+    const opts = { ...(init || {}) };
+    const headers = new Headers(
+      opts.headers || (typeof input !== 'string' && input && input.headers) || undefined
+    );
+    if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
+    opts.headers = headers;
+    if (!opts.credentials) opts.credentials = 'same-origin';
+    return nativeFetch(input, opts);
+  };
+}
+
 async function fetchAuthStatus() {
   try {
     const headers = {};
@@ -1549,6 +1585,9 @@ function renderOnboarding(status) {
 }
 
 async function init() {
+  // Attach stored gateway token to same-origin requests (no-op without a token).
+  installAuthFetch();
+
   // Inject styles
   const style = document.createElement('style');
   style.textContent = DASHBOARD_STYLE;
