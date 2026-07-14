@@ -224,6 +224,15 @@ export async function render(container) {
     renderActivity();
   }
 
+  let pendingHandled = !pendingCardId;
+  function tryDeepLink(data) {
+    for (const col of data.columns || []) {
+      for (const card of col.cards || []) {
+        if (card.id === pendingCardId) { pendingHandled = true; selectCard(card); return; }
+      }
+    }
+  }
+
   const board = createInteractiveBoard(p1Body, {
     apiBase: '/api/kanban',
     eventsUrl: '/api/kanban/events',
@@ -234,8 +243,8 @@ export async function render(container) {
     boardSwitcher: true,
     boardState,
     onOpen: (card) => {
+      pendingHandled = true;
       selectCard(card);
-      if (pendingHandled === false) pendingHandled = true;
     },
     fetch: async () => {
       const [boardRes, boardsRes] = await Promise.all([
@@ -252,15 +261,6 @@ export async function render(container) {
       return data;
     },
   });
-
-  let pendingHandled = !pendingCardId;
-  function tryDeepLink(data) {
-    for (const col of data.columns || []) {
-      for (const card of col.cards || []) {
-        if (card.id === pendingCardId) { pendingHandled = true; selectCard(card); return; }
-      }
-    }
-  }
 
   renderDetail();
   renderActivity();
