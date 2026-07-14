@@ -1279,7 +1279,316 @@ function initSessionSearch() {
 window.aiui = window.aiui || {};
 window.aiui.openSessionSearch = openSessionSearch;
 
+// ── First-run Onboarding Gate ────────────────────────────────────────
+// Shown on first visit when running in gateway mode and unauthenticated.
+// Replaces the raw HTTP 401 experience with a guided token flow.
+const ONBOARD_SKIP_KEY = 'aiui_onboard_skip';
+const ONBOARD_TOKEN_KEY = 'aiui_gateway_token';
+
+function getStoredToken() {
+  try {
+    return window.sessionStorage.getItem(ONBOARD_TOKEN_KEY) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+// Attach the stored gateway token to same-origin requests so that protected
+// dashboard APIs (/api/pages, /ui-config.json, view modules, …) authenticate
+// after onboarding. Wrapping window.fetch once keeps every existing caller
+// unchanged and is a no-op when no token is stored or in standalone mode.
+let _authFetchInstalled = false;
+function installAuthFetch() {
+  if (_authFetchInstalled || typeof window.fetch !== 'function') return;
+  _authFetchInstalled = true;
+  const nativeFetch = window.fetch.bind(window);
+
+  function isSameOrigin(url) {
+    try {
+      return new URL(url, window.location.href).origin === window.location.origin;
+    } catch (e) {
+      return true; // relative/opaque URLs are same-origin
+    }
+  }
+
+  window.fetch = function (input, init) {
+    const token = getStoredToken();
+    if (!token) return nativeFetch(input, init);
+
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    if (!isSameOrigin(url)) return nativeFetch(input, init);
+
+    const opts = { ...(init || {}) };
+    const headers = new Headers(
+      opts.headers || (typeof input !== 'string' && input && input.headers) || undefined
+    );
+    if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
+    opts.headers = headers;
+    if (!opts.credentials) opts.credentials = 'same-origin';
+    return nativeFetch(input, opts);
+  };
+}
+
+async function fetchAuthStatus() {
+  try {
+    const headers = {};
+    const token = getStoredToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch('/api/auth/status', { headers, credentials: 'same-origin' });
+    if (!res.ok) return { authenticated: false, mode: 'gateway', auth_required: true };
+    return await res.json();
+  } catch (e) {
+    return null;
+  }
+}
+
+async function consumeToken(token) {
+  if (!token) return false;
+  try {
+    const res = await fetch('/api/auth/status', {
+      headers: { 'Authorization': `Bearer ${token}` },
+      credentials: 'same-origin',
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (data && data.authenticated) {
+      try { window.sessionStorage.setItem(ONBOARD_TOKEN_KEY, token); } catch (e) { /* ignore */ }
+      return true;
+    }
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function maybeShowOnboarding() {
+  let params;
+  try {
+    params = new URLSearchParams(window.location.search);
+  } catch (e) {
+    params = null;
+  }
+
+  // Magic link: ?token= auto-consume, then strip from history.
+  const urlToken = params ? params.get('token') : null;
+  if (urlToken) {
+    const ok = await consumeToken(urlToken);
+    try {
+      params.delete('token');
+      const qs = params.toString();
+      const clean = window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash;
+      window.history.replaceState({}, document.title, clean);
+    } catch (e) { /* ignore */ }
+    if (ok) return;
+  }
+
+  const status = await fetchAuthStatus();
+  if (!status) return;
+
+  // Standalone / no-auth / already authenticated → straight to dashboard.
+  if (status.authenticated) return;
+  if (status.mode === 'none' || status.mode === 'standalone') return;
+  if (status.auth_required === false) return;
+
+  // "Don't show again" persisted for this device.
+  try {
+    if (window.localStorage.getItem(ONBOARD_SKIP_KEY) === '1') return;
+  } catch (e) { /* ignore */ }
+
+  await renderOnboarding(status);
+}
+
+function renderOnboarding(status) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.id = 'aiui-onboarding';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Welcome to PraisonAIUI');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;background:var(--db-bg,#0b0e14);padding:16px';
+
+    const gatewayUrl = (status && status.gateway_url) || window.location.origin;
+    const state = { step: 1 };
+
+    function close() {
+      overlay.remove();
+      resolve();
+    }
+
+    function card(inner) {
+      return `<div style="background:var(--db-card-bg,#151922);border:1px solid var(--db-border,#2a2f3a);border-radius:12px;padding:28px;max-width:440px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,0.4)">${inner}</div>`;
+    }
+
+    function steps() {
+      let dots = '';
+      for (let i = 1; i <= 4; i++) {
+        const on = i === state.step;
+        dots += `<span aria-current="${on ? 'step' : 'false'}" style="width:8px;height:8px;border-radius:50%;background:${on ? 'var(--db-accent,#4f8cff)' : 'var(--db-border,#2a2f3a)'}"></span>`;
+      }
+      return `<div style="display:flex;gap:8px;justify-content:center;margin-bottom:20px">${dots}</div>`;
+    }
+
+    function render() {
+      if (state.step === 1) renderWelcome();
+      else if (state.step === 2) renderAuth();
+      else if (state.step === 3) renderProvider();
+      else renderReady();
+    }
+
+    function renderWelcome() {
+      overlay.innerHTML = card(`
+        ${steps()}
+        <h1 style="margin:0 0 8px;font-size:22px;font-weight:600;color:var(--db-text,#e6e9ef);text-align:center">Welcome to PraisonAIUI</h1>
+        <p style="margin:0 0 20px;color:var(--db-text-muted,#9aa4b2);text-align:center;font-size:14px">Confirm your gateway to get started.</p>
+        <label style="display:block;font-size:13px;color:var(--db-text-muted,#9aa4b2);margin-bottom:6px">Gateway URL</label>
+        <input id="ob-url" type="text" value="${gatewayUrl}" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--db-border,#2a2f3a);background:var(--db-bg,#0b0e14);color:var(--db-text,#e6e9ef);font-size:14px;margin-bottom:6px">
+        <div id="ob-url-err" aria-live="assertive" style="min-height:18px;color:#ff6b6b;font-size:13px;margin-bottom:12px"></div>
+        <button id="ob-continue" style="width:100%;padding:11px;border:none;border-radius:8px;background:var(--db-accent,#4f8cff);color:#fff;font-size:14px;font-weight:600;cursor:pointer">Continue</button>
+        <button id="ob-standalone" style="width:100%;padding:8px;margin-top:10px;border:none;background:none;color:var(--db-text-muted,#9aa4b2);font-size:13px;cursor:pointer;text-decoration:underline">Use standalone mode</button>
+      `);
+      overlay.querySelector('#ob-continue').addEventListener('click', async () => {
+        const url = overlay.querySelector('#ob-url').value.trim();
+        const errEl = overlay.querySelector('#ob-url-err');
+        errEl.textContent = '';
+        try {
+          await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+        } catch (e) {
+          errEl.textContent = `Cannot reach gateway at ${url}`;
+          return;
+        }
+        state.step = 2;
+        render();
+      });
+      overlay.querySelector('#ob-standalone').addEventListener('click', () => {
+        try { window.localStorage.setItem(ONBOARD_SKIP_KEY, '1'); } catch (e) { /* ignore */ }
+        close();
+      });
+    }
+
+    function renderAuth() {
+      overlay.innerHTML = card(`
+        ${steps()}
+        <h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:var(--db-text,#e6e9ef)">Authenticate</h1>
+        <p style="margin:0 0 16px;color:var(--db-text-muted,#9aa4b2);font-size:14px">Paste your gateway token to connect.</p>
+        <textarea id="ob-token" rows="3" placeholder="gw_xxxx…" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--db-border,#2a2f3a);background:var(--db-bg,#0b0e14);color:var(--db-text,#e6e9ef);font-size:13px;font-family:monospace;resize:vertical"></textarea>
+        <div id="ob-auth-err" aria-live="assertive" style="min-height:18px;color:#ff6b6b;font-size:13px;margin:6px 0 10px"></div>
+        <button id="ob-connect" style="width:100%;padding:11px;border:none;border-radius:8px;background:var(--db-accent,#4f8cff);color:#fff;font-size:14px;font-weight:600;cursor:pointer">Connect</button>
+        <button id="ob-copy-link" style="width:100%;padding:8px;margin-top:10px;border:1px solid var(--db-border,#2a2f3a);background:none;color:var(--db-text-muted,#9aa4b2);font-size:13px;cursor:pointer;border-radius:8px">Copy magic link</button>
+        <button id="ob-back" style="width:100%;padding:8px;margin-top:8px;border:none;background:none;color:var(--db-text-muted,#9aa4b2);font-size:13px;cursor:pointer">Back</button>
+      `);
+      const connectBtn = overlay.querySelector('#ob-connect');
+      connectBtn.addEventListener('click', async () => {
+        const token = overlay.querySelector('#ob-token').value.trim();
+        const errEl = overlay.querySelector('#ob-auth-err');
+        errEl.textContent = '';
+        if (!token) { errEl.textContent = 'Enter a token to continue'; return; }
+        connectBtn.disabled = true;
+        connectBtn.textContent = 'Connecting…';
+        const ok = await consumeToken(token);
+        connectBtn.disabled = false;
+        connectBtn.textContent = 'Connect';
+        if (ok) {
+          state.step = 3;
+          render();
+        } else {
+          errEl.textContent = 'Invalid token — check ~/.praisonai/.env';
+        }
+      });
+      overlay.querySelector('#ob-copy-link').addEventListener('click', () => {
+        const token = overlay.querySelector('#ob-token').value.trim();
+        const link = `${window.location.origin}${window.location.pathname}?token=${encodeURIComponent(token || 'YOUR_TOKEN')}`;
+        try { navigator.clipboard.writeText(link); } catch (e) { /* ignore */ }
+      });
+      overlay.querySelector('#ob-back').addEventListener('click', () => { state.step = 1; render(); });
+    }
+
+    function renderProvider() {
+      overlay.innerHTML = card(`
+        ${steps()}
+        <h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:var(--db-text,#e6e9ef)">Provider setup</h1>
+        <p style="margin:0 0 16px;color:var(--db-text-muted,#9aa4b2);font-size:14px">Optional — configure API keys in Settings.</p>
+        <div id="ob-providers" style="margin-bottom:16px;color:var(--db-text-muted,#9aa4b2);font-size:13px">Loading provider status…</div>
+        <button id="ob-provider-next" style="width:100%;padding:11px;border:none;border-radius:8px;background:var(--db-accent,#4f8cff);color:#fff;font-size:14px;font-weight:600;cursor:pointer">Continue</button>
+        <button id="ob-provider-skip" style="width:100%;padding:8px;margin-top:10px;border:none;background:none;color:var(--db-text-muted,#9aa4b2);font-size:13px;cursor:pointer;text-decoration:underline">Skip</button>
+      `);
+      loadProviderStatus();
+      overlay.querySelector('#ob-provider-next').addEventListener('click', () => { state.step = 4; render(); });
+      overlay.querySelector('#ob-provider-skip').addEventListener('click', () => { state.step = 4; render(); });
+    }
+
+    async function loadProviderStatus() {
+      const el = overlay.querySelector('#ob-providers');
+      if (!el) return;
+      try {
+        const headers = {};
+        const token = getStoredToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch('/api/config', { headers, credentials: 'same-origin' });
+        const cfg = res.ok ? await res.json() : {};
+        const providers = ['OpenAI', 'Anthropic', 'Google'];
+        el.innerHTML = providers.map((p) => {
+          const key = `${p.toLowerCase()}`;
+          const configured = cfg && (cfg[`${key}_configured`] || (cfg.providers && cfg.providers[key]));
+          const label = configured ? 'configured' : 'missing';
+          const color = configured ? '#4caf50' : 'var(--db-text-muted,#9aa4b2)';
+          return `<div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:var(--db-text,#e6e9ef)">${p}</span><span style="color:${color}">${label}</span></div>`;
+        }).join('');
+      } catch (e) {
+        el.textContent = 'Provider status unavailable.';
+      }
+    }
+
+    function renderReady() {
+      overlay.innerHTML = card(`
+        ${steps()}
+        <div style="text-align:center;font-size:40px;margin-bottom:8px">✅</div>
+        <h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:var(--db-text,#e6e9ef);text-align:center">You're all set</h1>
+        <p style="margin:0 0 20px;color:var(--db-text-muted,#9aa4b2);text-align:center;font-size:14px">Gateway connected. Ready to open your dashboard.</p>
+        <button id="ob-open" style="width:100%;padding:11px;border:none;border-radius:8px;background:var(--db-accent,#4f8cff);color:#fff;font-size:14px;font-weight:600;cursor:pointer">Open Dashboard</button>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:14px;color:var(--db-text-muted,#9aa4b2);font-size:13px;cursor:pointer;justify-content:center">
+          <input id="ob-dont-show" type="checkbox"> Don't show again on this device
+        </label>
+      `);
+      overlay.querySelector('#ob-open').addEventListener('click', () => {
+        if (overlay.querySelector('#ob-dont-show').checked) {
+          try { window.localStorage.setItem(ONBOARD_SKIP_KEY, '1'); } catch (e) { /* ignore */ }
+        }
+        close();
+      });
+    }
+
+    // Focus trap: keep focus within the overlay; ESC disabled on auth step.
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && state.step === 2) {
+        e.preventDefault();
+        return;
+      }
+      if (e.key === 'Tab') {
+        const focusable = overlay.querySelectorAll('button, input, textarea, a[href]');
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    });
+
+    document.body.appendChild(overlay);
+    render();
+    const firstInput = overlay.querySelector('input, button');
+    if (firstInput) firstInput.focus();
+  });
+}
+
 async function init() {
+  // Attach stored gateway token to same-origin requests (no-op without a token).
+  installAuthFetch();
+
   // Inject styles
   const style = document.createElement('style');
   style.textContent = DASHBOARD_STYLE;
@@ -1292,6 +1601,13 @@ async function init() {
     await applyThemeFromConfig(cfg);
   } catch (e) {
     console.warn('[AIUI] Failed to load theme config:', e);
+  }
+
+  // First-run onboarding gate — runs before protected dashboard APIs.
+  try {
+    await maybeShowOnboarding();
+  } catch (e) {
+    console.warn('[AIUI] Onboarding gate error:', e);
   }
 
   await buildDashboard();
