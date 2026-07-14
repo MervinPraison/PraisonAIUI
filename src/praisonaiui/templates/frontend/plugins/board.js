@@ -525,6 +525,7 @@ export function createInteractiveBoard(root, opts = {}) {
         selected,
         onSelect: opts.interactive !== false ? onSelect : null,
         onOpen: (card) => {
+          if (typeof opts.onOpen === 'function') { opts.onOpen(card); return; }
           if (openDrawer && openDrawer.isOpen()) openDrawer.close();
           openDrawer = openTaskDrawer(card, {
             apiBase: drawerApiBase,

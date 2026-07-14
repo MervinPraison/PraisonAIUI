@@ -3325,6 +3325,14 @@ def create_app(
             "order": 40,
         },
         {
+            "id": "work",
+            "title": "Work Hub",
+            "icon": "🗂️",
+            "group": "Work",
+            "description": "Unified kanban, card detail, chat and job log",
+            "order": 9,
+        },
+        {
             "id": "jobs-board",
             "title": "Jobs Board",
             "icon": "📊",
