@@ -25,6 +25,28 @@ def test_kanban_banner_links_to_work_hub():
     assert "Work Hub" in source
 
 
+def test_mini_chat_module_exists():
+    assert (VIEWS / "mini-chat.js").exists()
+
+
+def test_mini_chat_uses_agent_transport():
+    source = (VIEWS / "mini-chat.js").read_text(encoding="utf-8")
+    assert "export function createMiniChat" in source
+    assert "WebSocket" in source
+    assert "/api/chat/ws" in source
+    assert "run_completed" in source
+    assert "run_error" in source
+
+
+def test_work_hub_chat_wired_to_agent_transport():
+    source = (VIEWS / "work-hub.js").read_text(encoding="utf-8")
+    assert "import { createMiniChat }" in source
+    assert "createMiniChat(" in source
+    assert "onDelta" in source
+    assert "onComplete" in source
+    assert "onError" in source
+
+
 def test_board_supports_on_open_override():
     source = (FRONTEND / "board.js").read_text(encoding="utf-8")
     assert "typeof opts.onOpen === 'function'" in source
