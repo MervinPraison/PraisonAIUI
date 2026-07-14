@@ -32,6 +32,14 @@ function openPalette() {
   else if (window.openCommandPalette) window.openCommandPalette();
 }
 
+function chatWithAgent(agentName) {
+  if (agentName) {
+    const url = `/chat?agent=${encodeURIComponent(agentName)}`;
+    history.pushState({ pageId: 'chat' }, '', url);
+  }
+  navigate('chat');
+}
+
 async function fetchJson(url) {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -162,7 +170,7 @@ function renderAgentTable(agents) {
       <td style="padding:10px 12px"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--db-card-bg);border:1px solid var(--db-border)">${esc(a.model || '—')}</span></td>
       <td style="padding:10px 12px;color:var(--db-text-dim);font-size:12px">${esc(timeAgo(a.last_active || a.updated_at) || (a.status || 'idle'))}</td>
       <td style="padding:10px 12px;color:var(--db-text-dim);font-size:12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(preview.slice(0, 80))}</td>
-      <td style="padding:10px 12px"><button class="db-agent-chat" data-agent-id="${esc(id)}" style="font-size:11px;padding:4px 12px;background:var(--db-accent,#6366f1);color:#fff;border:none;border-radius:6px;cursor:pointer">Chat</button></td>
+      <td style="padding:10px 12px"><button class="db-agent-chat" data-agent-id="${esc(id)}" data-agent-name="${esc(a.name || id)}" style="font-size:11px;padding:4px 12px;background:var(--db-accent,#6366f1);color:#fff;border:none;border-radius:6px;cursor:pointer">Chat</button></td>
     </tr>`;
   }).join('');
   return `<div class="db-card" style="padding:0;overflow-x:auto">
@@ -316,7 +324,7 @@ function openDrawer(agent) {
           <div style="display:flex;flex-wrap:wrap;gap:6px">${tools.map((t) => `<span style="font-size:11px;padding:3px 9px;border-radius:10px;background:var(--db-card-bg);border:1px solid var(--db-border)">${esc(typeof t === 'string' ? t : t.name || 'tool')}</span>`).join('')}</div>
         </div>` : ''}
         <div style="margin-top:24px;display:flex;gap:10px">
-          <button class="ov-drawer-chat" data-agent-id="${esc(id)}" style="flex:1;padding:9px;background:var(--db-accent,#6366f1);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:500">Chat now</button>
+          <button class="ov-drawer-chat" data-agent-name="${esc(agent.name || id)}" style="flex:1;padding:9px;background:var(--db-accent,#6366f1);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:500">Chat now</button>
           <button class="ov-drawer-traces" style="padding:9px 14px;border:1px solid var(--db-border);background:transparent;color:var(--db-text);border-radius:8px;cursor:pointer">View traces</button>
         </div>
       </div>
@@ -325,9 +333,9 @@ function openDrawer(agent) {
   const close = () => { host.innerHTML = ''; };
   host.querySelector('.ov-drawer-overlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) close(); });
   host.querySelector('.ov-drawer-close').addEventListener('click', close);
-  host.querySelector('.ov-drawer-chat')?.addEventListener('click', () => {
-    window.dispatchEvent(new CustomEvent('aiui:select-agent', { detail: { agentId: id } }));
-    navigate('chat');
+  host.querySelector('.ov-drawer-chat')?.addEventListener('click', (e) => {
+    close();
+    chatWithAgent(e.currentTarget.dataset.agentName);
   });
   host.querySelector('.ov-drawer-traces')?.addEventListener('click', () => { close(); navigate('traces'); });
 }
@@ -354,8 +362,7 @@ function bindEvents(container, data) {
   container.querySelectorAll('.db-agent-chat').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      window.dispatchEvent(new CustomEvent('aiui:select-agent', { detail: { agentId: btn.dataset.agentId } }));
-      navigate('chat');
+      chatWithAgent(btn.dataset.agentName);
     });
   });
 
