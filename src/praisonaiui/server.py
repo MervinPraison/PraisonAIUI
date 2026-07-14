@@ -3373,6 +3373,14 @@ def create_app(
             "order": 20,
         },
         {
+            "id": "marketplace",
+            "title": "Marketplace",
+            "icon": "🧩",
+            "group": "Agent",
+            "description": "Browse, install & manage plugins",
+            "order": 22,
+        },
+        {
             "id": "memory",
             "title": "Memory",
             "icon": "🧠",
@@ -3499,6 +3507,7 @@ def create_app(
         "cron": "/api/schedules",
         "channels": "/api/channels",
         "mcp": "/api/mcp/servers",
+        "marketplace": "/api/marketplace/plugins",
     }
 
     # Read page whitelist from config.yaml if set_pages() was not called

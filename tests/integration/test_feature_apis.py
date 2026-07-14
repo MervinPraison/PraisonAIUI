@@ -516,8 +516,32 @@ class TestProtocolAPI:
 
 class TestMarketplaceAPI:
     def test_list_marketplace(self, client):
-        r = client.get("/api/marketplace")
+        r = client.get("/api/marketplace/plugins")
         assert r.status_code == 200
+
+    def test_list_plugins(self, client):
+        r = client.get("/api/marketplace/plugins")
+        assert r.status_code == 200
+        data = r.json()
+        assert "plugins" in data
+        assert isinstance(data["plugins"], list)
+
+    def test_install_uninstall_roundtrip(self, client):
+        r = client.post("/api/marketplace/install", json={"plugin_id": "web_search"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "installed"
+
+        r = client.get("/api/marketplace/plugins")
+        installed = [p for p in r.json()["plugins"] if p.get("installed")]
+        assert any(p["id"] == "web_search" for p in installed)
+
+        r = client.post("/api/marketplace/uninstall", json={"plugin_id": "web_search"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "uninstalled"
+
+    def test_install_unknown_plugin(self, client):
+        r = client.post("/api/marketplace/install", json={"plugin_id": "does_not_exist"})
+        assert r.status_code == 404
 
 
 # ===========================================================================
@@ -746,6 +770,14 @@ class TestPagesAPI:
         r = client.get("/api/mcp/servers")
         assert r.status_code == 200
         assert "servers" in r.json()
+
+    def test_marketplace_page_registered(self, client):
+        r = client.get("/api/pages")
+        pages = r.json().get("pages", r.json())
+        mkt = next((p for p in pages if p["id"] == "marketplace"), None)
+        assert mkt is not None, "Marketplace page should be registered"
+        assert mkt["group"] == "Agent"
+        assert mkt["api_endpoint"] == "/api/marketplace/plugins"
 
 
 # ===========================================================================
