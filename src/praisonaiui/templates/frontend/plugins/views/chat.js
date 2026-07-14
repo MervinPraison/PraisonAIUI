@@ -29,6 +29,12 @@ let currentDeltaText = '';
 let pendingMediaElements = [];
 let pendingAttachments = [];  // { id, filename, content_type, preview_url }
 
+// ── Context Ring State ───────────────────────────────────────────
+const RING_CIRCUMFERENCE = 2 * Math.PI * 20;  // r=20 → ~125.66
+let contextPollTimer = null;
+let contextRefreshDebounce = null;
+let lastContextPct = 0;
+
 // ── Floating Chat State ──────────────────────────────────────────
 let chatModeConfig = { mode: 'fullpage' };
 let isMinimized = false;
@@ -276,6 +282,62 @@ function injectStyles() {
 
     .chat-metrics { display:flex; gap:12px; padding:4px 12px; font-size:11px; color:var(--db-text-dim); }
     .chat-metrics span { display:flex; align-items:center; gap:4px; }
+
+    /* ── Context Token Ring ─────────────────────────────────────── */
+    .chat-ring-wrap { position:relative; width:48px; height:48px; min-width:48px; flex-shrink:0; }
+    .chat-ring-wrap svg { position:absolute; inset:0; width:48px; height:48px; transform:rotate(-90deg); }
+    .chat-ring-track { fill:none; stroke:var(--db-border,#333); stroke-width:4; }
+    .chat-ring-arc { fill:none; stroke-width:4; stroke-linecap:round; transition:stroke-dashoffset .2s ease, stroke .2s ease; }
+    .chat-ring-healthy .chat-ring-arc { stroke:#22c55e; }
+    .chat-ring-warning .chat-ring-arc { stroke:#eab308; }
+    .chat-ring-critical .chat-ring-arc { stroke:#eab308; }
+    .chat-ring-over .chat-ring-arc { stroke:#ef4444; }
+    .chat-ring-estimate .chat-ring-arc { stroke-dasharray:4 3 !important; }
+    .chat-ring-over .chat-ring-arc { animation:ring-pulse 1.1s ease-in-out infinite; }
+    @keyframes ring-pulse { 50% { opacity:.4; } }
+    .chat-ring-send { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:32px; height:32px; border-radius:50%; border:none; background:var(--db-accent); color:#fff; cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; padding:0; transition:filter .15s; }
+    .chat-ring-send:hover { filter:brightness(1.1); }
+    .chat-ring-send:disabled { opacity:.5; cursor:not-allowed; }
+    .chat-ring-tooltip { position:absolute; bottom:56px; right:0; z-index:20; display:none; min-width:180px; padding:10px 12px; background:var(--db-card-bg,#27272a); border:1px solid var(--db-border); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.4); font-size:11px; color:var(--db-text); }
+    .chat-ring-wrap:hover .chat-ring-tooltip, .chat-ring-wrap:focus-within .chat-ring-tooltip { display:block; }
+    .chat-ring-tooltip h5 { margin:0 0 6px; font-size:11px; font-weight:600; }
+    .chat-ring-tt-row { display:flex; align-items:center; gap:6px; margin:3px 0; }
+    .chat-ring-tt-row .lbl { width:64px; color:var(--db-text-dim); }
+    .chat-ring-tt-bar { flex:1; height:6px; border-radius:3px; background:rgba(var(--db-accent-rgb,100,100,255),.15); overflow:hidden; }
+    .chat-ring-tt-bar > i { display:block; height:100%; background:var(--db-accent); }
+    .chat-ring-tt-val { width:36px; text-align:right; color:var(--db-text-dim); }
+    .chat-ring-tt-total { margin-top:6px; padding-top:6px; border-top:1px solid var(--db-border); font-weight:600; }
+
+    /* ── Compaction Banner ──────────────────────────────────────── */
+    .chat-compaction-banner { display:none; align-items:center; gap:8px; padding:8px 16px; border-bottom:1px solid rgba(234,179,8,.3); background:rgba(234,179,8,.1); color:#eab308; font-size:12.5px; }
+    .chat-compaction-banner.open { display:flex; }
+    .chat-compaction-banner.critical { border-bottom-color:rgba(239,68,68,.35); background:rgba(239,68,68,.1); color:#ef4444; }
+    .chat-compaction-banner .cb-text { flex:1; }
+    .chat-compaction-banner .cb-dismiss { background:none; border:none; cursor:pointer; color:inherit; font-size:14px; padding:0 4px; line-height:1; }
+
+    /* ── Memory Chip ────────────────────────────────────────────── */
+    .chat-compose-footer { display:flex; align-items:center; gap:12px; padding:6px 2px 0; }
+    .chat-memory-chip { display:none; align-items:center; gap:5px; padding:3px 10px; border-radius:14px; border:1px solid rgba(147,51,234,.25); background:rgba(147,51,234,.08); color:rgba(147,51,234,.9); font-size:12px; cursor:pointer; transition:all .15s; }
+    .chat-memory-chip.visible { display:inline-flex; }
+    .chat-memory-chip:hover { background:rgba(147,51,234,.16); }
+    .chat-memory-chip.loading { opacity:.6; }
+
+    /* ── Enhanced memory cards ──────────────────────────────────── */
+    .chat-mem-item .mem-head { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+    .chat-mem-item .mem-badge { font-size:10px; padding:1px 6px; border-radius:6px; background:rgba(147,51,234,.12); color:rgba(147,51,234,.85); font-weight:600; text-transform:uppercase; }
+    .chat-mem-item .mem-time { font-size:10px; color:var(--db-text-dim); margin-left:auto; }
+    .chat-mem-item .mem-relevance { height:5px; border-radius:3px; background:rgba(147,51,234,.12); overflow:hidden; margin-top:5px; }
+    .chat-mem-item .mem-relevance > i { display:block; height:100%; background:rgba(147,51,234,.7); }
+    .chat-mem-item .mem-snippet { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+    @media (max-width:520px) {
+      .chat-ring-wrap, .chat-ring-wrap svg { width:36px; height:36px; min-width:36px; }
+      .chat-ring-send { width:24px; height:24px; font-size:12px; }
+    }
+    @media (prefers-reduced-motion:reduce) {
+      .chat-ring-arc { transition:none; }
+      .chat-ring-over .chat-ring-arc { animation:none; }
+    }
 
     .chat-memory-panel { display:none; border-bottom:1px solid var(--db-border); background:var(--db-sidebar-bg,var(--db-card-bg)); max-height:300px; overflow-y:auto; padding:10px 14px; font-size:13px; }
     .chat-memory-panel.open { display:block; }
@@ -685,6 +747,11 @@ export async function render(container) {
             <button class="chat-icon-btn danger" id="chat-abort-btn" style="display:none" title="Stop">⬛ Stop</button>
           </div>
         </div>
+        <div class="chat-compaction-banner" id="chat-compaction-banner">
+          <span>⚠</span>
+          <span class="cb-text" id="chat-compaction-text"></span>
+          <button class="cb-dismiss" id="chat-compaction-dismiss" title="Dismiss" aria-label="Dismiss">✕</button>
+        </div>
         <div class="chat-memory-panel" id="chat-memory-panel">
           <div class="chat-memory-panel-header">
             <h4>🧠 Agent Memories</h4>
@@ -709,8 +776,21 @@ export async function render(container) {
             <input type="file" id="chat-file-input" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,image/*,application/pdf" multiple style="display:none" />
             <textarea id="chat-input" placeholder="Type a message…" rows="1"></textarea>
             <div class="chat-compose-actions">
-              <button class="chat-send-btn" id="chat-send-btn">Send ↵</button>
+              <div class="chat-ring-wrap chat-ring-healthy" id="chat-ring-wrap">
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                  <circle class="chat-ring-track" cx="24" cy="24" r="20"></circle>
+                  <circle class="chat-ring-arc" id="chat-ring-arc" cx="24" cy="24" r="20"
+                    stroke-dasharray="125.66" stroke-dashoffset="125.66"></circle>
+                </svg>
+                <button class="chat-ring-send" id="chat-send-btn" title="Send"
+                  role="progressbar" aria-label="Send message"
+                  aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">➤</button>
+                <div class="chat-ring-tooltip" id="chat-ring-tooltip"></div>
+              </div>
             </div>
+          </div>
+          <div class="chat-compose-footer">
+            <button class="chat-memory-chip" id="chat-memory-chip" aria-expanded="false"></button>
           </div>
         </div>
       </div>
@@ -766,6 +846,15 @@ export async function render(container) {
     if (panel) panel.classList.remove('open');
   });
 
+  const memChip = document.getElementById('chat-memory-chip');
+  if (memChip) memChip.addEventListener('click', () => toggleMemoryPanel());
+  const compactionDismiss = document.getElementById('chat-compaction-dismiss');
+  if (compactionDismiss) compactionDismiss.addEventListener('click', dismissCompactionBanner);
+
+  // Initial context ring render (estimate for empty/new session)
+  refreshContextStats();
+  startContextPoll();
+
   await loadAgents();
 
   // Pre-select agent if passed via URL query param (from Agents page "Run" button)
@@ -798,6 +887,8 @@ export async function render(container) {
 
 export function cleanup() {
   if (ws) { try { ws.close(); } catch(e) {} ws = null; }
+  stopContextPoll();
+  if (contextRefreshDebounce) { clearTimeout(contextRefreshDebounce); contextRefreshDebounce = null; }
   if (sessionSelectHandler) {
     window.removeEventListener('aiui:session-select', sessionSelectHandler);
     sessionSelectHandler = null;
@@ -902,6 +993,9 @@ async function loadSessions() {
 async function loadSession(sessionId) {
   currentSessionId = sessionId;
   refreshStreamingUI();
+  // E13: reset context ring + memory chip for the new session
+  refreshContextStats();
+  refreshMemoryChip();
   const messagesEl = document.getElementById('chat-messages');
   const welcome = document.getElementById('chat-welcome');
   if (welcome) welcome.style.display = 'none';
@@ -1087,6 +1181,24 @@ function handleWsMessage(data) {
       setStatus('connected');
       setStreaming(false);
       drainQueue();
+      // Refresh context ring + memory chip after turn completes
+      scheduleContextRefresh();
+      refreshMemoryChip();
+      break;
+
+    case 'context_update':
+      updateContextRing({
+        used: data.used,
+        limit: data.limit,
+        usage_pct: data.usage_pct,
+        breakdown: data.breakdown,
+        estimate: data.estimate,
+      });
+      break;
+
+    case 'context_compacted':
+      flashCompactionCompacted(data);
+      scheduleContextRefresh();
       break;
 
     case 'run_started':
@@ -1171,6 +1283,8 @@ function handleWsMessage(data) {
       setStatus('connected');
       setStreaming(false);
       drainQueue();
+      scheduleContextRefresh();
+      refreshMemoryChip();
       break;
 
     case 'team_run_error':
@@ -1712,6 +1826,191 @@ function completeMemoryIndicator() {
   }
 }
 
+// ── Context Token Ring ──────────────────────────────────────────
+function ringStateFor(pct) {
+  if (pct >= 95) return 'over';
+  if (pct >= 85) return 'critical';
+  if (pct >= 60) return 'warning';
+  return 'healthy';
+}
+
+function updateContextRing(stats) {
+  const wrap = document.getElementById('chat-ring-wrap');
+  const arc = document.getElementById('chat-ring-arc');
+  const sendBtn = document.getElementById('chat-send-btn');
+  if (!wrap || !arc) return;
+
+  const used = Number(stats.used) || 0;
+  const limit = Number(stats.limit) || 0;
+  const estimate = !!stats.estimate;
+
+  // E2: unknown/zero limit — hide ring, keep send button usable
+  if (!limit || limit <= 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = '';
+
+  let pct = stats.usage_pct != null ? Number(stats.usage_pct) : (used / limit) * 100;
+  if (!isFinite(pct) || pct < 0) pct = 0;
+  const clamped = Math.min(pct, 100);
+  lastContextPct = pct;
+
+  const state = ringStateFor(pct);
+  wrap.className = 'chat-ring-wrap chat-ring-' + state + (estimate ? ' chat-ring-estimate' : '');
+  arc.setAttribute('stroke-dasharray', RING_CIRCUMFERENCE.toFixed(2));
+  arc.setAttribute('stroke-dashoffset', (RING_CIRCUMFERENCE * (1 - clamped / 100)).toFixed(2));
+
+  if (sendBtn) {
+    sendBtn.setAttribute('aria-valuenow', String(Math.round(pct)));
+    sendBtn.setAttribute('aria-valuemax', '100');
+  }
+
+  updateRingTooltip(stats, pct);
+  updateCompactionBanner(pct, estimate);
+}
+
+function updateRingTooltip(stats, pct) {
+  const tip = document.getElementById('chat-ring-tooltip');
+  if (!tip) return;
+  const b = stats.breakdown || {};
+  const used = Number(stats.used) || 0;
+  const limit = Number(stats.limit) || 0;
+  const fmt = (n) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n);
+  const rows = [
+    ['System', b.system || 0],
+    ['Tools', b.tools || 0],
+    ['Messages', b.messages || 0],
+    ['Memory', b.memory || 0],
+  ];
+  const maxVal = Math.max(1, ...rows.map((r) => r[1]));
+  const title = stats.estimate ? 'Context breakdown (estimate)' : 'Context breakdown';
+  tip.innerHTML =
+    '<h5>' + title + '</h5>' +
+    rows.map(([lbl, val]) =>
+      '<div class="chat-ring-tt-row">' +
+        '<span class="lbl">' + lbl + '</span>' +
+        '<span class="chat-ring-tt-bar"><i style="width:' + Math.round((val / maxVal) * 100) + '%"></i></span>' +
+        '<span class="chat-ring-tt-val">' + fmt(val) + '</span>' +
+      '</div>'
+    ).join('') +
+    '<div class="chat-ring-tt-total">Total: ' + fmt(used) + ' / ' + fmt(limit) + ' (' + Math.round(pct) + '%)</div>';
+}
+
+function updateCompactionBanner(pct, estimate) {
+  const banner = document.getElementById('chat-compaction-banner');
+  const textEl = document.getElementById('chat-compaction-text');
+  if (!banner || !textEl) return;
+
+  if (pct < 85) {
+    banner.classList.remove('open', 'critical');
+    return;
+  }
+  // E4: respect per-session dismissal until usage drops below 85 then rises
+  if (sessionStorage.getItem('aiui-compaction-dismissed') === (currentSessionId || 'default')) {
+    if (pct < 85) sessionStorage.removeItem('aiui-compaction-dismissed');
+    else return;
+  }
+  banner.classList.add('open');
+  banner.classList.toggle('critical', pct >= 95);
+  banner.setAttribute('role', pct >= 95 ? 'alert' : 'status');
+  textEl.textContent = pct >= 95
+    ? 'Context ' + Math.round(pct) + '% — older messages will be summarized on next send'
+    : 'Context ' + Math.round(pct) + '% — older messages may be summarized on next send';
+}
+
+function dismissCompactionBanner() {
+  const banner = document.getElementById('chat-compaction-banner');
+  if (banner) banner.classList.remove('open', 'critical');
+  sessionStorage.setItem('aiui-compaction-dismissed', currentSessionId || 'default');
+}
+
+// E21: flash a transient "Context compacted" banner after WS event
+function flashCompactionCompacted(data) {
+  const banner = document.getElementById('chat-compaction-banner');
+  const textEl = document.getElementById('chat-compaction-text');
+  if (!banner || !textEl) return;
+  banner.classList.add('open');
+  banner.classList.remove('critical');
+  banner.setAttribute('role', 'status');
+  const removed = data && data.removed_tokens ? ' (' + data.removed_tokens + ' tokens freed)' : '';
+  textEl.textContent = 'Context compacted' + removed;
+  sessionStorage.removeItem('aiui-compaction-dismissed');
+  setTimeout(() => {
+    if (lastContextPct < 85) banner.classList.remove('open');
+  }, 4000);
+}
+
+async function refreshContextStats() {
+  try {
+    const qs = currentSessionId ? '?session_id=' + encodeURIComponent(currentSessionId) : '';
+    const resp = await fetch('/api/chat/context-stats' + qs);
+    if (!resp.ok) return;  // E1: keep last estimate on error
+    const stats = await resp.json();
+    updateContextRing(stats);
+  } catch (e) {
+    // E1/E11: network error — ring keeps prior state
+  }
+}
+
+// E10: debounce rapid refreshes (e.g. multiple completions)
+function scheduleContextRefresh() {
+  if (contextRefreshDebounce) clearTimeout(contextRefreshDebounce);
+  contextRefreshDebounce = setTimeout(refreshContextStats, 100);
+}
+
+// E11: poll fallback when WS context_update isn't emitted by backend
+function startContextPoll() {
+  if (contextPollTimer) clearInterval(contextPollTimer);
+  contextPollTimer = setInterval(refreshContextStats, 5000);
+}
+
+function stopContextPoll() {
+  if (contextPollTimer) { clearInterval(contextPollTimer); contextPollTimer = null; }
+}
+
+// ── Memory Chip ─────────────────────────────────────────────────
+function updateMemoryChip(count, loading) {
+  const chip = document.getElementById('chat-memory-chip');
+  if (!chip) return;
+  if (loading) {
+    chip.classList.add('visible', 'loading');
+    chip.innerHTML = '🧠 …';
+    return;
+  }
+  chip.classList.remove('loading');
+  const n = Number(count) || 0;
+  if (n <= 0) {
+    // E5: hide chip when no memories retrieved this turn
+    chip.classList.remove('visible');
+    chip.innerHTML = '';
+    return;
+  }
+  chip.classList.add('visible');
+  chip.innerHTML = '🧠 ' + n + ' ' + (n === 1 ? 'memory' : 'memories');
+}
+
+async function refreshMemoryChip() {
+  const chip = document.getElementById('chat-memory-chip');
+  if (!chip) return;
+  updateMemoryChip(0, true);
+  try {
+    const endpoint = currentSessionId
+      ? '/api/memory/session/' + encodeURIComponent(currentSessionId)
+      : '/api/memory';
+    let resp = await fetch(endpoint);
+    if (!resp.ok) resp = await fetch('/api/memory');
+    if (!resp.ok) { chip.classList.remove('loading'); chip.innerHTML = '🧠 —'; chip.classList.add('visible'); return; }
+    const data = await resp.json();
+    const items = data.memories || [];
+    updateMemoryChip(items.length, false);
+  } catch (e) {
+    // E6: memory search failed — muted dash
+    chip.classList.remove('loading');
+    chip.innerHTML = '🧠 —';
+  }
+}
+
 function showStreamMetrics(metrics) {
   let metricsEl = document.getElementById('chat-stream-metrics');
   if (!metricsEl) {
@@ -1734,6 +2033,9 @@ function toggleMemoryPanel() {
   const panel = document.getElementById('chat-memory-panel');
   if (!panel) return;
   const isOpen = panel.classList.toggle('open');
+  // E17: brain button + chip open the same panel; keep chip aria in sync
+  const chip = document.getElementById('chat-memory-chip');
+  if (chip) chip.setAttribute('aria-expanded', String(isOpen));
   if (isOpen) loadMemories();
 }
 
@@ -1763,12 +2065,26 @@ async function loadMemories() {
       return;
     }
 
-    listEl.innerHTML = items.map(m => `
+    listEl.innerHTML = items.map(m => {
+      const type = m.memory_type || m.type || 'long';
+      const snippet = m.text || m.value || m.content || '';
+      const relevance = Number(m.relevance != null ? m.relevance : m.score);
+      const relPct = isFinite(relevance) ? Math.round(Math.max(0, Math.min(1, relevance)) * 100) : null;
+      const ts = m.created_at || m.timestamp;
+      const relBar = relPct != null
+        ? `<div class="mem-relevance" title="Relevance ${relPct}%"><i style="width:${relPct}%"></i></div>`
+        : '';
+      const timeStr = ts ? timeAgo(ts) : '';
+      return `
       <div class="chat-mem-item">
-        <div class="mem-type">${m.memory_type || 'long'}</div>
-        <div class="mem-text">${escapeHtml(m.text || '')}</div>
-      </div>
-    `).join('');
+        <div class="mem-head">
+          <span class="mem-badge">${escapeHtml(type)}</span>
+          ${timeStr ? `<span class="mem-time">${escapeHtml(timeStr)}</span>` : ''}
+        </div>
+        <div class="mem-text mem-snippet">${escapeHtml(snippet)}</div>
+        ${relBar}
+      </div>`;
+    }).join('');
   } catch (err) {
     listEl.innerHTML = `<span class="chat-mem-empty">Error: ${err.message}</span>`;
   }
@@ -2016,7 +2332,7 @@ function refreshStreamingUI() {
   const abortBtn = document.getElementById('chat-abort-btn');
   const sendBtn = document.getElementById('chat-send-btn');
   if (abortBtn) abortBtn.style.display = inStreamingSession ? '' : 'none';
-  if (sendBtn) sendBtn.textContent = inStreamingSession ? 'Queue ↵' : 'Send ↵';
+  if (sendBtn) sendBtn.title = inStreamingSession ? 'Queue message' : 'Send message';
   // Update status badge too
   if (!inStreamingSession && isStreaming) {
     setStatus('connected');  // other session streaming, but we're not in it

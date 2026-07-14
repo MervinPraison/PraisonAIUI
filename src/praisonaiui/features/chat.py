@@ -671,6 +671,93 @@ async def _run_and_broadcast(
             pass
 
 
+DEFAULT_CONTEXT_LIMIT = 128000
+_TOKENS_PER_CHAR = 0.25
+_SYSTEM_BASELINE_TOKENS = 800
+_TOOLS_BASELINE_TOKENS = 400
+
+
+def _estimate_context_stats(
+    messages: List[Dict[str, Any]],
+    *,
+    session_id: str,
+    limit: int = DEFAULT_CONTEXT_LIMIT,
+    model: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Compute a char-based context usage estimate for a session.
+
+    No tokenizer dependency: approximates tokens as ``chars * 0.25`` and
+    adds fixed system/tools baselines. Returns a wire-safe dict with a
+    deterministic, sorted breakdown. ``estimate`` is always ``True`` since
+    this is a heuristic, not a provider-reported count.
+    """
+    message_chars = 0
+    tool_chars = 0
+    memory_chars = 0
+    for m in messages:
+        content = m.get("content") or ""
+        message_chars += len(str(content))
+        tool_calls = m.get("toolCalls") or m.get("tool_calls") or []
+        for tc in tool_calls:
+            tool_chars += len(str(tc.get("args", "")))
+            tool_chars += len(str(tc.get("result", "")))
+        for el in m.get("elements") or []:
+            memory_chars += len(str(el.get("url", "")))
+
+    system_tokens = _SYSTEM_BASELINE_TOKENS
+    tools_tokens = _TOOLS_BASELINE_TOKENS + int(tool_chars * _TOKENS_PER_CHAR)
+    messages_tokens = int(message_chars * _TOKENS_PER_CHAR)
+    memory_tokens = int(memory_chars * _TOKENS_PER_CHAR)
+
+    breakdown = {
+        "memory": memory_tokens,
+        "messages": messages_tokens,
+        "system": system_tokens,
+        "tools": tools_tokens,
+    }
+    used = system_tokens + tools_tokens + messages_tokens + memory_tokens
+    safe_limit = limit if limit and limit > 0 else DEFAULT_CONTEXT_LIMIT
+    usage_pct = round((used / safe_limit) * 100, 1) if safe_limit else 0.0
+
+    result: Dict[str, Any] = {
+        "breakdown": breakdown,
+        "estimate": True,
+        "limit": limit,
+        "session_id": session_id,
+        "usage_pct": usage_pct,
+        "used": used,
+    }
+    if model:
+        result["model"] = model
+    return result
+
+
+async def _chat_context_stats(request: Request) -> JSONResponse:
+    """GET /api/chat/context-stats?session_id= — context budget estimate.
+
+    Config-driven fallback for the composer token ring. Computes a
+    char-based estimate from persisted messages; unknown sessions return
+    a zero-usage estimate rather than 404 so the UI can always render.
+    """
+    session_id = request.query_params.get("session_id", "")
+    try:
+        limit = int(request.query_params.get("limit", str(DEFAULT_CONTEXT_LIMIT)))
+    except (TypeError, ValueError):
+        limit = DEFAULT_CONTEXT_LIMIT
+
+    messages: List[Dict[str, Any]] = []
+    if session_id:
+        try:
+            from praisonaiui.server import _datastore
+
+            messages = await _datastore.get_messages(session_id) or []
+        except Exception:
+            messages = []
+
+    stats = _estimate_context_stats(messages, session_id=session_id, limit=limit)
+    return JSONResponse(stats)
+
+
 async def _chat_history(request: Request) -> JSONResponse:
     """GET /api/chat/history/{session_id} — get message history."""
     session_id = request.path_params["session_id"]
@@ -854,6 +941,7 @@ class ChatFeature(BaseFeatureProtocol):
     def routes(self) -> List[Route]:
         return [
             Route("/api/chat/send", _chat_send, methods=["POST"]),
+            Route("/api/chat/context-stats", _chat_context_stats, methods=["GET"]),
             Route("/api/chat/history/{session_id}", _chat_history, methods=["GET"]),
             Route("/api/chat/abort", _chat_abort, methods=["POST"]),
             WebSocketRoute("/api/chat/ws", _chat_ws),
