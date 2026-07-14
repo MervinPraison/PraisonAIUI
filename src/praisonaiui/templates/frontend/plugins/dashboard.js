@@ -171,6 +171,7 @@ const BUILTIN_VIEWS = {
   feedback:       '/plugins/views/feedback.js',
   jobs:           '/plugins/views/jobs.js',
   kanban:         '/plugins/views/kanban.js',
+  work:           '/plugins/views/work-hub.js',
   'jobs-board':   '/plugins/views/jobs-board.js',
   auth:           '/plugins/views/auth.js',
   api:            '/plugins/views/api.js',
