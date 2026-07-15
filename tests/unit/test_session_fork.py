@@ -125,3 +125,49 @@ def test_fork_index_out_of_range_returns_400(store, client):
 def test_fork_virtual_agent_session_blocked(client):
     resp = client.post("/api/sessions/agent:support/fork", json={})
     assert resp.status_code == 400
+
+
+def _persistent_stores(tmp_path):
+    """Build the persistent datastores that ship as the default (SDK + JSON)."""
+    stores = []
+    from praisonaiui.datastore import JSONFileDataStore
+
+    stores.append(JSONFileDataStore(data_dir=str(tmp_path / "json")))
+    try:
+        from praisonaiui.datastore_sdk import SDKFileDataStore
+
+        stores.append(SDKFileDataStore(session_dir=str(tmp_path / "sdk")))
+    except (ImportError, Exception):
+        pass
+    return stores
+
+
+def test_fork_metadata_persists_on_default_stores(tmp_path):
+    """Fork lineage must survive on the persistent stores, not just MemoryDataStore.
+
+    Regression: SDKFileDataStore/JSONFileDataStore (the shipped defaults) previously
+    dropped session-level ``metadata`` in ``update_session``, so parent lineage was
+    silently lost outside of tests running on MemoryDataStore.
+    """
+    import praisonaiui.server as server
+
+    for ds in _persistent_stores(tmp_path):
+        original = server._datastore
+        server._datastore = ds
+        try:
+            client = TestClient(server.create_app())
+            _seed(ds, "parent", 2)
+            resp = client.post(
+                "/api/sessions/parent/fork",
+                json={"agent_id": "support_bot"},
+            )
+            assert resp.status_code == 200, type(ds).__name__
+            child_id = resp.json()["session_id"]
+
+            child = asyncio.run(ds.get_session(child_id))
+            meta = child.get("metadata", {})
+            assert meta.get("parent_session_id") == "parent", type(ds).__name__
+            assert meta.get("agent_id") == "support_bot", type(ds).__name__
+            assert meta.get("source") == "playground-fork", type(ds).__name__
+        finally:
+            server._datastore = original

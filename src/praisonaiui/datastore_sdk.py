@@ -33,6 +33,8 @@ logger = logging.getLogger(__name__)
 # Sentinel key used to identify the AIUI metadata message inside SDK sessions
 _META_KEY = "_aiui_meta"
 _TITLE_KEY = "_aiui_title"
+# Bucket holding arbitrary session-level metadata (e.g. fork lineage)
+_CUSTOM_META_KEY = "_aiui_custom"
 
 
 class SDKFileDataStore(BaseDataStore):
@@ -116,6 +118,10 @@ class SDKFileDataStore(BaseDataStore):
             result["platform"] = meta["platform"]
         if meta.get("icon"):
             result["icon"] = meta["icon"]
+        # Surface any custom session-level metadata (e.g. fork lineage)
+        custom = meta.get(_CUSTOM_META_KEY)
+        if isinstance(custom, dict) and custom:
+            result["metadata"] = custom
         return result
 
     async def create_session(self, session_id: Optional[str] = None) -> dict[str, Any]:
@@ -183,6 +189,8 @@ class SDKFileDataStore(BaseDataStore):
             await self._persist_meta(session_id, "platform", kwargs["platform"])
         if "icon" in kwargs:
             await self._persist_meta(session_id, "icon", kwargs["icon"])
+        if "metadata" in kwargs and isinstance(kwargs["metadata"], dict):
+            await self._persist_meta(session_id, _CUSTOM_META_KEY, kwargs["metadata"])
 
     async def close(self) -> None:
         pass

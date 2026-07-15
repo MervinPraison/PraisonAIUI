@@ -476,6 +476,18 @@ class JSONFileDataStore(BaseDataStore):
 
         return await asyncio.to_thread(_get)
 
+    async def update_session(self, session_id: str, **kwargs: Any) -> None:
+        def _update() -> None:
+            path = self._session_path(session_id)
+            data = self._read_session(path)
+            if data is None:
+                return
+            data.update(kwargs)
+            data["updated_at"] = datetime.now(timezone.utc).isoformat()
+            self._write_session(path, data)
+
+        await asyncio.to_thread(_update)
+
     def _read_feedback(self) -> list[dict[str, Any]]:
         """Read feedback from JSON file."""
         try:
