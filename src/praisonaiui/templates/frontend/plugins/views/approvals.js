@@ -2,6 +2,8 @@
  * Approvals View — execution approval queue
  * API: /api/approvals
  */
+import { isSkillApproval } from '/plugins/views/_helpers.js';
+
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
 
@@ -33,11 +35,13 @@ export async function render(container) {
     const card = document.createElement('div');
     card.className = 'db-card';
     card.style.cssText = 'margin-bottom:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between';
+    const isSkill = isSkillApproval(a);
     card.innerHTML = `
       <div style="flex:1">
         <div style="font-weight:500;font-size:14px">${riskIcons[a.risk_level] || '❓'} ${a.tool_name || a.action || 'Unknown'}</div>
         <div style="font-size:12px;color:var(--db-text-dim);margin-top:4px">Agent: ${a.agent_name || '—'} · ${a.reason || ''}</div>
         <div style="font-size:11px;color:var(--db-text-dim)">${a.created_at ? new Date(a.created_at * 1000).toLocaleString() : ''}</div>
+        ${isSkill ? `<a href="/skills?tab=pending&approval_id=${encodeURIComponent(a.id || a.approval_id || '')}" data-skill-studio="1" style="font-size:11px;color:var(--db-accent);text-decoration:none">Skill write? Open Skills Studio →</a>` : ''}
       </div>
       <div style="display:flex;gap:8px">
         <button class="approv-yes" data-id="${a.id || a.approval_id}" style="padding:6px 16px;background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3);border-radius:6px;cursor:pointer;font-size:12px">✓ Approve</button>

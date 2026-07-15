@@ -243,3 +243,103 @@ export function modalShell(id, innerHtml) {
     <div style="background:var(--db-sidebar-bg);border:1px solid var(--db-border);border-radius:12px;max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:20px">${innerHtml}</div>
   </div>`;
 }
+
+/**
+ * Line-level diff between two text blocks using an LCS table.
+ * Normalises CRLF/CR to LF before comparing. Bounded for large inputs.
+ *
+ * @param {string} before
+ * @param {string} after
+ * @param {number} [maxLines=2000] - Truncate each side to this many lines.
+ * @returns {{type:('add'|'del'|'ctx'), text:string}[]}
+ */
+export function diffLines(before, after, maxLines = 2000) {
+  const norm = (s) => String(s == null ? '' : s).replace(/\r\n?/g, '\n');
+  const a = norm(before).split('\n').slice(0, maxLines);
+  const b = norm(after).split('\n').slice(0, maxLines);
+  const n = a.length;
+  const m = b.length;
+  const lcs = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      lcs[i][j] = a[i] === b[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+    }
+  }
+  const out = [];
+  let i = 0;
+  let j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) {
+      out.push({ type: 'ctx', text: a[i] });
+      i++;
+      j++;
+    } else if (lcs[i + 1][j] >= lcs[i][j + 1]) {
+      out.push({ type: 'del', text: a[i] });
+      i++;
+    } else {
+      out.push({ type: 'add', text: b[j] });
+      j++;
+    }
+  }
+  while (i < n) { out.push({ type: 'del', text: a[i] }); i++; }
+  while (j < m) { out.push({ type: 'add', text: b[j] }); j++; }
+  return out;
+}
+
+/**
+ * Minimal, XSS-safe markdown preview. All content is escaped first; only a
+ * small, fixed set of inline/block constructs are re-enabled. No raw HTML,
+ * scripts, or attributes from source ever reach the DOM.
+ *
+ * @param {string} md
+ * @returns {string} sanitised HTML string
+ */
+export function renderMarkdownPreview(md) {
+  const lines = String(md == null ? '' : md).replace(/\r\n?/g, '\n').split('\n');
+  const inline = (s) => esc(s)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  const html = [];
+  let inList = false;
+  const closeList = () => { if (inList) { html.push('</ul>'); inList = false; } };
+  for (const raw of lines) {
+    const line = raw.replace(/\t/g, '  ');
+    const h = line.match(/^(#{1,6})\s+(.*)$/);
+    const li = line.match(/^\s*[-*]\s+(.*)$/);
+    if (h) {
+      closeList();
+      const lvl = h[1].length;
+      html.push(`<h${lvl}>${inline(h[2])}</h${lvl}>`);
+    } else if (li) {
+      if (!inList) { html.push('<ul>'); inList = true; }
+      html.push(`<li>${inline(li[1])}</li>`);
+    } else if (line.trim() === '') {
+      closeList();
+    } else {
+      closeList();
+      html.push(`<p>${inline(line)}</p>`);
+    }
+  }
+  closeList();
+  return html.join('');
+}
+
+/**
+ * True when a pending approval represents a skill write (rules R1-R5).
+ *
+ * @param {Object} a - approval record
+ * @returns {boolean}
+ */
+export function isSkillApproval(a) {
+  if (!a || typeof a !== 'object') return false;
+  const NAMES = ['write_skill', 'skill_write', 'save_skill', 'create_skill'];
+  const tool = String(a.tool_name || '').toLowerCase();
+  const action = String(a.action || '').toLowerCase();
+  if (NAMES.includes(tool) || NAMES.includes(action)) return true;
+  if (String(a.type || '').toLowerCase() === 'skill_write') return true;
+  if (a.metadata && String(a.metadata.kind || '').toLowerCase() === 'skill') return true;
+  const path = String((a.arguments && a.arguments.path) || '');
+  if (path.endsWith('SKILL.md') || path.includes('.praisonai/skills/')) return true;
+  return false;
+}
