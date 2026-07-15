@@ -130,6 +130,91 @@ export function metricCard({ title, value, subtitle = '', delta, spark, nav, acc
   </div>`;
 }
 
+/**
+ * Bucket evaluation records into per-day average score series.
+ *
+ * @param {Array} evaluations - Records with `timestamp` (epoch seconds) and `score`.
+ * @param {number} [days=7]    - Number of trailing days to include.
+ * @param {string|null} [agentId=null] - Optional agent filter.
+ * @returns {Array<{date: string, avg: number, count: number}>} Ascending by date.
+ */
+export function bucketByDay(evaluations, days = 7, agentId = null) {
+  const list = Array.isArray(evaluations) ? evaluations : [];
+  const cutoff = Date.now() / 1000 - days * 86400;
+  const acc = {};
+  for (const ev of list) {
+    if (!ev || typeof ev.timestamp !== 'number') continue;
+    if (ev.timestamp < cutoff) continue;
+    if (agentId && ev.agent_id !== agentId) continue;
+    if (ev.score == null || isNaN(ev.score)) continue;
+    const date = new Date(ev.timestamp * 1000).toISOString().slice(0, 10);
+    if (!acc[date]) acc[date] = { date, sum: 0, count: 0 };
+    acc[date].sum += Number(ev.score);
+    acc[date].count += 1;
+  }
+  return Object.values(acc)
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+    .map((b) => ({ date: b.date, avg: b.sum / b.count, count: b.count }));
+}
+
+/**
+ * Regression check comparing a current value against a pinned baseline.
+ *
+ * @param {number} current
+ * @param {number} baseline
+ * @param {number} [threshold=0.10] - Relative drop that counts as a regression.
+ * @returns {{isRegression: boolean, delta: number, label: string}}
+ */
+export function detectRegression(current, baseline, threshold = 0.1) {
+  const c = Number(current);
+  const b = Number(baseline);
+  if (!isFinite(c) || !isFinite(b) || b === 0) {
+    return { isRegression: false, delta: 0, label: '' };
+  }
+  const delta = (c - b) / b;
+  const isRegression = delta <= -threshold;
+  const pct = Math.round(delta * 100);
+  return { isRegression, delta, label: `${pct >= 0 ? '+' : ''}${pct}%` };
+}
+
+/**
+ * Coloured trend arrow comparing current vs previous value.
+ *
+ * @param {number} current
+ * @param {number} previous
+ * @returns {string} HTML span (empty string when no meaningful change).
+ */
+export function trendArrow(current, previous) {
+  const c = Number(current);
+  const p = Number(previous);
+  if (!isFinite(c) || !isFinite(p) || p === 0) return '';
+  const delta = ((c - p) / p) * 100;
+  if (Math.abs(delta) < 0.5) {
+    return '<span style="font-size:11px;color:var(--db-text-dim,#a1a1aa)">→ 0%</span>';
+  }
+  const up = delta > 0;
+  const col = up ? '#22c55e' : '#ef4444';
+  const arrow = up ? '↑' : '↓';
+  return `<span style="font-size:11px;color:${col}">${arrow} ${Math.abs(delta).toFixed(1)}%</span>`;
+}
+
+/**
+ * Regression pill badge, colour-graded by drop severity.
+ *
+ * @param {number} delta - Signed relative delta (e.g. -0.12 for -12%).
+ * @param {string} [suffix='vs baseline']
+ * @returns {string} HTML string (empty when delta is not a regression).
+ */
+export function regressionBadge(delta, suffix = 'vs baseline') {
+  const d = Number(delta);
+  if (!isFinite(d) || d > -0.05) return '';
+  const pct = Math.round(d * 100);
+  const red = d <= -0.1;
+  const col = red ? '#ef4444' : '#f59e0b';
+  const bg = red ? 'rgba(239,68,68,.12)' : 'rgba(245,158,11,.12)';
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:.7rem;font-weight:600;color:${col};background:${bg}">${pct}% ${esc(suffix)}</span>`;
+}
+
 /** Relative "time ago" label from an ISO string or epoch (ms or s). */
 export function timeAgo(input) {
   if (input == null) return '';
