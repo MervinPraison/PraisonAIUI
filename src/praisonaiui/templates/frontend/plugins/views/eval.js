@@ -351,12 +351,12 @@ function wire(container, ordered, scores) {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const session = btn.dataset.session;
-      if (window.aiui?.selectPage && document.querySelector('[data-page="runs"], [data-nav="runs"]')) {
-        navigate('runs');
-      } else {
-        try { history.pushState({}, '', `/runs?session=${encodeURIComponent(session)}`); } catch (err) { /* ignore */ }
-        navigate('traces');
-      }
+      const hasRuns = window.aiui?.selectPage
+        && document.querySelector('[data-page="runs"], [data-nav="runs"]');
+      try {
+        history.pushState({}, '', `/runs?session=${encodeURIComponent(session)}`);
+      } catch (err) { /* ignore */ }
+      navigate(hasRuns ? 'runs' : 'traces');
     });
   });
 

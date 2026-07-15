@@ -76,7 +76,7 @@ def test_cockpit_debug_link_falls_back_to_traces():
     src = _eval_source()
     assert "session_id" in src
     assert "/runs?session=" in src
-    assert "navigate('traces')" in src
+    assert "'traces'" in src
 
 
 def test_cockpit_escapes_case_content():
