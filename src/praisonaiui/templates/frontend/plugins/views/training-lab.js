@@ -213,10 +213,13 @@ export async function render(container) {
     const btn = detailEl.querySelector('#training-apply');
     if (!sel || !btn) return;
     try {
-      const res = await fetch('/api/agents');
+      const res = await fetch('/api/agents/definitions');
       const agents = (await res.json()).agents || [];
       sel.innerHTML = '<option value="">Select agent…</option>' +
-        agents.map((a) => `<option value="${esc(a.id)}">${esc(a.name || a.id)}</option>`).join('');
+        agents.map((a) => {
+          const id = a.id || a.agent_id || '';
+          return `<option value="${esc(id)}">${esc(a.name || id)}</option>`;
+        }).join('');
     } catch (e) { /* keep placeholder */ }
 
     btn.addEventListener('click', async () => {

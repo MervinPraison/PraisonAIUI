@@ -628,10 +628,12 @@ window.aiuiDeleteAgent = deleteAgent;
 window.aiuiDuplicateAgent = duplicateAgent;
 window.aiuiViewTraining = (id) => {
   if (window.aiui?.selectPage) {
-    window.aiui.selectPage('training');
+    // Set the agent_id param *before* navigating so the Training Lab view
+    // picks up the filter on its initial render.
     const u = new URL(window.location.href);
     u.searchParams.set('agent_id', id);
     history.replaceState(null, '', u.toString());
+    window.aiui.selectPage('training');
   } else {
     window.location.href = `/?page=training&agent_id=${encodeURIComponent(id)}`;
   }

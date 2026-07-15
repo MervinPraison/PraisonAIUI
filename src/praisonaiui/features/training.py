@@ -83,6 +83,7 @@ def _summarize_session(session_id: str, path: Path, data: dict[str, Any]) -> dic
     requested = metadata.get("target_iterations")
     requested = int(requested) if isinstance(requested, (int, float)) else completed
     mode = metadata.get("mode", "llm")
+    agent_id = metadata.get("agent_id") or data.get("agent_id")
 
     scores = _iter_scores(iterations)
     avg_score = report.get("avg_score")
@@ -105,6 +106,7 @@ def _summarize_session(session_id: str, path: Path, data: dict[str, Any]) -> dic
 
     return {
         "session_id": session_id,
+        "agent_id": agent_id,
         "completed_iterations": completed,
         "requested_iterations": requested,
         "early_stopped": early_stopped,

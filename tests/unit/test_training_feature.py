@@ -10,13 +10,17 @@ from starlette.requests import Request
 from praisonaiui.features.training import TrainingFeature
 
 
-def _write_session(storage, session_id, *, iterations, target=None, passed=None, mode="llm"):
+def _write_session(
+    storage, session_id, *, iterations, target=None, passed=None, mode="llm", agent_id=None
+):
     report = {
         "total_iterations": len(iterations),
         "metadata": {"mode": mode},
     }
     if target is not None:
         report["metadata"]["target_iterations"] = target
+    if agent_id is not None:
+        report["metadata"]["agent_id"] = agent_id
     if passed is not None:
         report["passed"] = passed
     payload = {"report": report, "iterations": iterations, "scenarios": []}
@@ -76,6 +80,20 @@ async def test_list_sessions_ordering(storage):
     resp = await feat._list_sessions(_request("/api/training/sessions"))
     data = await _json(resp)
     assert [s["session_id"] for s in data["sessions"]] == ["train-new", "train-old"]
+
+
+@pytest.mark.asyncio
+async def test_list_sessions_agent_id_filter(storage):
+    _write_session(storage, "train-a", iterations=[{"score": 9.0}], agent_id="alpha")
+    _write_session(storage, "train-b", iterations=[{"score": 9.0}], agent_id="beta")
+
+    feat = TrainingFeature()
+    resp = await feat._list_sessions(
+        _request("/api/training/sessions", query_string=b"agent_id=alpha")
+    )
+    data = await _json(resp)
+    assert [s["session_id"] for s in data["sessions"]] == ["train-a"]
+    assert data["sessions"][0]["agent_id"] == "alpha"
 
 
 @pytest.mark.asyncio
