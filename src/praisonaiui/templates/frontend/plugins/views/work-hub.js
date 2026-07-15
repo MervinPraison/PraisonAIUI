@@ -9,6 +9,7 @@
  * (?board=&card=&tab=) is kept in sync for deep links.
  */
 import { createInteractiveBoard, relativeTime, escapeHtml } from '../board.js';
+import { createMiniChat } from './mini-chat.js';
 
 const STYLE_ID = 'work-hub-styles';
 
@@ -35,6 +36,11 @@ function injectStyles() {
     .work-hub-chat-msg { padding:8px 10px; border-radius:8px; font-size:13px; line-height:1.5;
       background:var(--db-card-bg,#27272a); border:1px solid var(--db-border,#3f3f46); }
     .work-hub-chat-msg .role { font-size:11px; font-weight:600; color:var(--db-accent,#6366f1); }
+    .work-hub-chat-msg .work-hub-chat-body { white-space:pre-wrap; }
+    .work-hub-chat-streaming .work-hub-chat-body::after { content:'▌'; animation:work-hub-blink 1s infinite; }
+    .work-hub-chat-error { border-color:#ef4444; }
+    .work-hub-chat-error .work-hub-chat-body { color:#ef4444; }
+    @keyframes work-hub-blink { 50% { opacity:0; } }
     .work-hub-composer { display:flex; gap:8px; align-items:flex-end; }
     .work-hub-composer textarea { flex:1; resize:none; min-height:40px; max-height:64px; padding:8px 10px;
       background:var(--db-card-bg,#27272a); border:1px solid var(--db-border,#3f3f46); border-radius:8px;
@@ -71,6 +77,14 @@ export async function render(container) {
   let selectedCard = null;
   let activeTab = params.get('tab') || 'description';
   const pendingCardId = params.get('card');
+  let miniChat = null;
+
+  function teardownChat() {
+    if (miniChat) {
+      try { miniChat.disconnect(); } catch (_) { /* noop */ }
+      miniChat = null;
+    }
+  }
 
   const hub = document.createElement('div');
   hub.className = 'work-hub';
@@ -99,6 +113,7 @@ export async function render(container) {
   }
 
   function renderDetail() {
+    teardownChat();
     if (!selectedCard) {
       p2.innerHTML = '<div class="work-hub-empty">Select a card to see its details.</div>';
       return;
@@ -153,7 +168,9 @@ export async function render(container) {
   }
 
   function renderChat(body, card) {
-    const agentId = card.assignee || (card.meta || {}).agent_id || '';
+    const meta = card.meta || {};
+    const agentId = card.assignee || meta.agent_id || '';
+    const sessionId = meta.session_id || '';
     body.innerHTML = `
       <div class="work-hub-chat-log" id="work-hub-chat-log">
         <div class="work-hub-empty">Ask the assigned agent (${escapeHtml(agentId)}) about this card.</div>
@@ -162,21 +179,74 @@ export async function render(container) {
         <textarea id="work-hub-composer" rows="2" placeholder="Message ${escapeHtml(agentId)}…"></textarea>
         <button class="db-btn db-btn-sm" id="work-hub-send">Send</button>
       </div>
-      <div style="margin-top:8px;font-size:12px"><a href="/chat" style="color:var(--db-accent,#6366f1)">Open full chat →</a></div>`;
+      <div style="margin-top:8px;font-size:12px"><a href="${sessionId ? '/chat?session_id=' + encodeURIComponent(sessionId) : '/chat'}" style="color:var(--db-accent,#6366f1)">Open full chat →</a></div>`;
 
     const log = body.querySelector('#work-hub-chat-log');
     const ta = body.querySelector('#work-hub-composer');
     const send = body.querySelector('#work-hub-send');
-    send.addEventListener('click', () => {
-      const text = ta.value.trim();
-      if (!text) return;
-      const msg = document.createElement('div');
-      msg.className = 'work-hub-chat-msg';
-      msg.innerHTML = `<div class="role">You</div>${escapeHtml(text)}`;
+
+    teardownChat();
+    miniChat = createMiniChat({ agentId, sessionId });
+
+    function appendMsg(role, text) {
       if (log.querySelector('.work-hub-empty')) log.innerHTML = '';
-      log.appendChild(msg);
-      ta.value = '';
+      const el = document.createElement('div');
+      el.className = 'work-hub-chat-msg';
+      el.innerHTML = `<div class="role">${escapeHtml(role)}</div>${escapeHtml(text)}`;
+      log.appendChild(el);
       log.scrollTop = log.scrollHeight;
+      return el;
+    }
+
+    function submit() {
+      const text = ta.value.trim();
+      if (!text || !miniChat) return;
+      appendMsg('You', text);
+      ta.value = '';
+
+      if (log.querySelector('.work-hub-empty')) log.innerHTML = '';
+      const reply = document.createElement('div');
+      reply.className = 'work-hub-chat-msg work-hub-chat-streaming';
+      const roleEl = document.createElement('div');
+      roleEl.className = 'role';
+      roleEl.textContent = agentId || 'Agent';
+      const textEl = document.createElement('div');
+      textEl.className = 'work-hub-chat-body';
+      textEl.textContent = '…';
+      reply.appendChild(roleEl);
+      reply.appendChild(textEl);
+      log.appendChild(reply);
+      log.scrollTop = log.scrollHeight;
+
+      let acc = '';
+      send.disabled = true;
+      miniChat.send({
+        text,
+        onDelta: (token) => {
+          acc += token;
+          textEl.textContent = acc;
+          log.scrollTop = log.scrollHeight;
+        },
+        onComplete: (content) => {
+          reply.classList.remove('work-hub-chat-streaming');
+          if (content && content.trim()) textEl.textContent = content;
+          else if (!acc) textEl.textContent = '(no response)';
+          send.disabled = false;
+          log.scrollTop = log.scrollHeight;
+        },
+        onError: (err) => {
+          reply.classList.remove('work-hub-chat-streaming');
+          reply.classList.add('work-hub-chat-error');
+          textEl.textContent = '⚠ ' + ((err && err.message) || 'Could not reach agent.');
+          send.disabled = false;
+          log.scrollTop = log.scrollHeight;
+        },
+      });
+    }
+
+    send.addEventListener('click', submit);
+    ta.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
     });
   }
 
@@ -265,5 +335,5 @@ export async function render(container) {
   renderDetail();
   renderActivity();
 
-  return () => board.destroy();
+  return () => { teardownChat(); board.destroy(); };
 }
