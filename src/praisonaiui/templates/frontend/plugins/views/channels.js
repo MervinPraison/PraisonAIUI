@@ -90,7 +90,10 @@ export async function render(container) {
           <h2 style="margin:0;font-size:1.5rem">Messaging Channels</h2>
           <div style="margin-top:4px;font-size:13px;color:var(--db-text-dim)">${online} Online · ${channels.length} Total</div>
         </div>
-        <button id="ch-add" style="padding:8px 18px;background:var(--db-accent,#6366f1);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:.85rem">+ Add Channel</button>
+        <div style="display:flex;align-items:center;gap:12px">
+          <a href="/inbox" style="font-size:.85rem;color:var(--db-accent,#6366f1);text-decoration:none">Open Inbox →</a>
+          <button id="ch-add" style="padding:8px 18px;background:var(--db-accent,#6366f1);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:.85rem">+ Add Channel</button>
+        </div>
       </div>
       <div id="ch-grid" class="db-columns" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px"></div>
       <div id="ch-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center"></div>

@@ -316,6 +316,16 @@ class SessionsFeature(BaseFeatureProtocol):
                             or s.get("agent")
                             or s.get("metadata", {}).get("agent_id")
                         ),
+                        "platform": (
+                            s.get("platform")
+                            or s.get("metadata", {}).get("platform")
+                            or meta.get("_platform")
+                        ),
+                        "channel_id": (
+                            s.get("channel_id")
+                            or s.get("metadata", {}).get("channel_id")
+                            or (sid[len("channel-"):] if sid.startswith("channel-") else None)
+                        ),
                         "source": s.get("source") or s.get("metadata", {}).get("source") or "datastore",
                     }
                 )
