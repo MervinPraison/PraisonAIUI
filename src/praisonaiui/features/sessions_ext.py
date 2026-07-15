@@ -132,6 +132,14 @@ class _InMemorySessionStore(SessionProtocol):
 _session_metadata: Dict[str, Dict[str, Any]] = {}
 
 
+_MESSAGE_COPY_FIELDS = ("role", "content", "text", "tool_calls", "name", "metadata")
+
+
+def _sanitize_message(message: Dict[str, Any]) -> Dict[str, Any]:
+    """Copy a message for a forked session, stripping ephemeral identifiers."""
+    return {k: message[k] for k in _MESSAGE_COPY_FIELDS if k in message}
+
+
 def _get_metadata(session_id: str) -> Dict[str, Any]:
     """Get session metadata (labels, usage, etc)."""
     if session_id not in _session_metadata:
@@ -166,6 +174,7 @@ class SessionsFeature(BaseFeatureProtocol):
             Route("/api/sessions/{session_id}/context", self._build_context, methods=["POST"]),
             Route("/api/sessions/{session_id}/compact", self._compact, methods=["POST"]),
             Route("/api/sessions/{session_id}/reset", self._reset, methods=["POST"]),
+            Route("/api/sessions/{session_id}/fork", self._fork, methods=["POST"]),
             Route("/api/sessions/{session_id}/preview", self._preview, methods=["GET"]),
             Route("/api/sessions/{session_id}/labels", self._labels, methods=["GET"]),
             Route("/api/sessions/{session_id}/labels", self._set_labels, methods=["POST"]),
@@ -516,6 +525,89 @@ class SessionsFeature(BaseFeatureProtocol):
                 "session_id": sid,
                 "reset_mode": mode,
                 "timestamp": time.time(),
+            }
+        )
+
+    async def _fork(self, request: Request) -> JSONResponse:
+        """POST /api/sessions/{id}/fork — Branch a session into a new child.
+
+        Body (all optional):
+            up_to_index: int   — keep messages[0..up_to_index] inclusive
+            title_suffix: str  — appended to the parent title (default " (fork)")
+            agent_id: str      — override recorded on the child metadata
+            labels: list[str]  — labels applied to the child
+        """
+        source_id = request.path_params["session_id"]
+
+        if source_id.startswith("agent:"):
+            return JSONResponse(
+                {"error": "Cannot fork a virtual agent session"}, status_code=400
+            )
+
+        content_type = request.headers.get("content-type") or ""
+        body = await request.json() if content_type.startswith("application/json") else {}
+
+        try:
+            from praisonaiui.server import get_datastore
+
+            ds = get_datastore()
+        except Exception as e:
+            logger.warning(f"fork: datastore unavailable: {e}")
+            return JSONResponse({"error": "Datastore unavailable"}, status_code=503)
+
+        source = await ds.get_session(source_id)
+        if source is None:
+            return JSONResponse({"error": "Source session not found"}, status_code=404)
+
+        messages = await ds.get_messages(source_id)
+        total = len(messages)
+
+        up_to_index = body.get("up_to_index")
+        if up_to_index is not None:
+            if not isinstance(up_to_index, int) or up_to_index < 0 or up_to_index >= max(total, 1):
+                return JSONResponse(
+                    {"error": "up_to_index out of range", "total_messages": total},
+                    status_code=400,
+                )
+            messages = messages[: up_to_index + 1]
+
+        child = await ds.create_session()
+        child_id = child.get("id") or child.get("session_id")
+
+        for msg in messages:
+            await ds.add_message(child_id, _sanitize_message(msg))
+
+        suffix = body.get("title_suffix", " (fork)")
+        parent_title = source.get("title") or ""
+        child_meta = {
+            "parent_session_id": source_id,
+            "forked_at": time.time(),
+            "fork_point_index": up_to_index,
+            "source": "playground-fork",
+        }
+        if body.get("agent_id"):
+            child_meta["agent_id"] = body["agent_id"]
+
+        try:
+            await ds.update_session(
+                child_id,
+                title=f"{parent_title}{suffix}",
+                metadata=child_meta,
+            )
+        except Exception as e:
+            logger.warning(f"fork: update_session metadata failed: {e}")
+
+        labels = body.get("labels")
+        if isinstance(labels, list) and labels:
+            _get_metadata(child_id)["_labels"] = [str(x) for x in labels]
+
+        return JSONResponse(
+            {
+                "session_id": child_id,
+                "parent_id": source_id,
+                "forked_at_index": up_to_index,
+                "message_count": len(messages),
+                "created_at": time.time(),
             }
         )
 
