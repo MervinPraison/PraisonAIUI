@@ -34,6 +34,8 @@ const RING_CIRCUMFERENCE = 2 * Math.PI * 20;  // r=20 → ~125.66
 let contextPollTimer = null;
 let contextRefreshDebounce = null;
 let lastContextPct = 0;
+let finopsConfig = null;
+let sessionCostState = { tokens: 0, model: '', estimate: false };
 
 // ── Floating Chat State ──────────────────────────────────────────
 let chatModeConfig = { mode: 'fullpage' };
@@ -321,6 +323,16 @@ function injectStyles() {
     .chat-memory-chip.visible { display:inline-flex; }
     .chat-memory-chip:hover { background:rgba(147,51,234,.16); }
     .chat-memory-chip.loading { opacity:.6; }
+
+    /* ── Session Cost Chip (FinOps) ─────────────────────────────── */
+    .chat-session-cost-chip { display:none; align-items:center; gap:4px; font-size:11px; font-weight:500; padding:4px 10px; border-radius:20px; color:var(--db-text-dim); background:rgba(99,102,241,.08); border:1px solid rgba(99,102,241,.18); white-space:nowrap; cursor:default; }
+    .chat-session-cost-chip.visible { display:inline-flex; }
+    .chat-session-cost-chip.estimate { font-style:italic; }
+    #chat-finops-banner:empty { display:none; }
+    @media (max-width:480px) {
+      .chat-session-cost-chip .cost-chip-model { display:none; }
+    }
+    .chat-floating-container .chat-session-cost-chip { display:none !important; }
 
     /* ── Enhanced memory cards ──────────────────────────────────── */
     .chat-mem-item .mem-head { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
@@ -770,12 +782,14 @@ export async function render(container) {
           </div>
         </div>
         <div class="chat-compose">
+          <div id="chat-finops-banner"></div>
           <div class="chat-attach-strip" id="chat-attach-strip"></div>
           <div class="chat-compose-row">
             <button class="chat-attach-btn" id="chat-attach-btn" title="Attach file (PDF, image)">📎</button>
             <input type="file" id="chat-file-input" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,image/*,application/pdf" multiple style="display:none" />
             <textarea id="chat-input" placeholder="Type a message…" rows="1"></textarea>
             <div class="chat-compose-actions">
+              <div class="chat-session-cost-chip" id="chat-session-cost-chip" tabindex="0"></div>
               <div class="chat-ring-wrap chat-ring-healthy" id="chat-ring-wrap">
                 <svg viewBox="0 0 48 48" aria-hidden="true">
                   <circle class="chat-ring-track" cx="24" cy="24" r="20"></circle>
@@ -865,6 +879,7 @@ export async function render(container) {
   // Initial context ring render (estimate for empty/new session)
   refreshContextStats();
   startContextPoll();
+  loadFinopsConfig();
 
   await loadAgents();
 
@@ -1195,6 +1210,7 @@ function handleWsMessage(data) {
       // Refresh context ring + memory chip after turn completes
       scheduleContextRefresh();
       refreshMemoryChip();
+      updateFinopsBanner();
       break;
 
     case 'context_update':
@@ -1879,6 +1895,7 @@ function updateContextRing(stats) {
 
   updateRingTooltip(stats, pct);
   updateCompactionBanner(pct, estimate);
+  updateSessionCostChip(stats);
 }
 
 function updateRingTooltip(stats, pct) {
@@ -2037,6 +2054,124 @@ function showStreamMetrics(metrics) {
   if (metrics.tokens_per_second != null) parts.push(`<span>📊 ${metrics.tokens_per_second.toFixed(1)} tok/s</span>`);
   if (metrics.total_tokens != null) parts.push(`<span>🔢 ${metrics.total_tokens} tokens</span>`);
   metricsEl.innerHTML = parts.join('') || '';
+}
+
+// ── Session Cost Chip (FinOps / STITCH-013) ─────────────────────
+function finopsChipEnabled() {
+  if (!finopsConfig) return true;  // default on until config loads
+  if (finopsConfig.enabled === false) return false;
+  return finopsConfig.show_session_chip !== false;
+}
+
+function fmtChipTokens(n) {
+  const v = Number(n) || 0;
+  if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+  if (v >= 1000) return (v / 1000).toFixed(1) + 'k';
+  return String(Math.round(v));
+}
+
+function shortModel(model) {
+  const s = model == null ? '' : String(model);
+  const idx = s.lastIndexOf('/');
+  return idx >= 0 ? s.slice(idx + 1) : s;
+}
+
+function updateSessionCostChip(stats) {
+  const chip = document.getElementById('chat-session-cost-chip');
+  if (!chip) return;
+  // E9/E2: hide when no session, feature disabled, or chip toggled off
+  if (!currentSessionId || !finopsChipEnabled()) {
+    chip.classList.remove('visible');
+    chip.innerHTML = '';
+    return;
+  }
+  const tokens = Number(stats && stats.used) || sessionCostState.tokens || 0;
+  const model = shortModel((stats && stats.model) || sessionCostState.model || currentAgentName || '');
+  const estimate = !!(stats && stats.estimate);
+  sessionCostState = { tokens, model, estimate };
+  if (tokens <= 0) {
+    chip.classList.remove('visible');
+    chip.innerHTML = '';
+    return;
+  }
+  chip.classList.add('visible');
+  chip.classList.toggle('estimate', estimate);
+  const prefix = estimate ? '~' : '';
+  const modelHtml = model
+    ? ` · <span class="cost-chip-model">${escapeChip(model)}</span>`
+    : '';
+  chip.innerHTML = prefix + fmtChipTokens(tokens) + modelHtml;
+  chip.setAttribute('aria-label', 'Session token usage ' + Math.round(tokens) + ' tokens, model ' + (model || 'unknown'));
+  chip.title = 'Session spend\nTokens: ' + Math.round(tokens).toLocaleString() + '\nModel: ' + (model || 'unknown');
+}
+
+function escapeChip(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
+async function loadFinopsConfig() {
+  try {
+    const res = await fetch('/api/config/runtime');
+    if (!res.ok) return;
+    const data = await res.json();
+    finopsConfig = (data && data.config && data.config.finops) || finopsConfig;
+  } catch (e) {
+    // graceful: keep default-on behaviour
+  }
+  updateFinopsBanner();
+}
+
+function finopsBannerDismissed() {
+  return sessionStorage.getItem('finops-banner-dismissed') === '1';
+}
+
+async function updateFinopsBanner() {
+  const host = document.getElementById('chat-finops-banner');
+  if (!host) return;
+  if (!finopsConfig || finopsConfig.enabled === false) { host.innerHTML = ''; return; }
+  const budget = finopsConfig.daily_token_budget != null ? Number(finopsConfig.daily_token_budget) : null;
+  if (!budget || budget <= 0) { host.innerHTML = ''; return; }
+  if (finopsBannerDismissed()) { host.innerHTML = ''; return; }
+  let today = 0;
+  try {
+    const res = await fetch('/api/usage/timeseries?hours=24');
+    if (!res.ok) { host.innerHTML = ''; return; }  // E1: hide, no toast
+    const data = await res.json();
+    const ts = Array.isArray(data.timeseries) ? data.timeseries : [];
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const dated = ts.filter((p) => typeof p.hour_key === 'string');
+    const scope = dated.length ? dated.filter((p) => p.hour_key.startsWith(todayKey)) : ts;
+    today = scope.reduce((sum, p) => sum + (Number(p.tokens) || 0), 0);
+  } catch (e) {
+    host.innerHTML = '';
+    return;
+  }
+  const pct = Math.min((today / budget) * 100, 100);
+  const warnPct = Number(finopsConfig.warn_pct) || 80;
+  const criticalPct = Number(finopsConfig.critical_pct) || 95;
+  if (pct < warnPct) { host.innerHTML = ''; return; }
+  const critical = pct >= criticalPct;
+  const color = critical ? '#ef4444' : '#eab308';
+  const bg = critical ? 'rgba(239,68,68,.1)' : 'rgba(234,179,8,.1)';
+  const copy = critical
+    ? 'Daily token budget at ' + Math.round(pct) + '% — review usage'
+    : 'Daily token budget at ' + Math.round(pct) + '% — consider lighter models';
+  host.innerHTML =
+    '<div class="chat-finops-banner-inner" role="' + (critical ? 'alert' : 'status') + '"' +
+    ' style="display:flex;align-items:center;gap:8px;padding:8px 14px;margin-bottom:8px;border:1px solid ' + color +
+    ';border-radius:10px;background:' + bg + ';color:' + color + ';font-size:12px;font-weight:500">' +
+    '<span aria-hidden="true">💰</span>' +
+    '<span style="flex:1">' + escapeChip(copy) + '</span>' +
+    '<button type="button" class="finops-banner-dismiss" title="Dismiss" aria-label="Dismiss"' +
+    ' style="background:none;border:none;color:inherit;cursor:pointer;font-size:13px;padding:0 4px">✕</button>' +
+    '</div>';
+  const dismiss = host.querySelector('.finops-banner-dismiss');
+  if (dismiss) dismiss.addEventListener('click', () => {
+    sessionStorage.setItem('finops-banner-dismissed', '1');
+    host.innerHTML = '';
+  });
 }
 
 // ── Memory Panel ────────────────────────────────────────────────

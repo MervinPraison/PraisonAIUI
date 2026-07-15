@@ -11,7 +11,11 @@
  *
  * Renders into [data-page="overview"].
  */
-import { metricCard, esc, timeAgo } from '/plugins/views/_helpers.js';
+import {
+  metricCard, esc, timeAgo,
+  sumTodayTokens, computeBudgetPct, budgetLevelFor,
+  costStripHTML, budgetBannerHTML,
+} from '/plugins/views/_helpers.js';
 
 const METRICS_POLL_MS = 30000;
 const APPROVALS_POLL_MS = 10000;
@@ -76,6 +80,8 @@ async function loadAll() {
     fetchJson('/api/gateway/status'),
     fetchJson('/api/features'),
     fetchJson('/api/traces?limit=10'),
+    fetchJson('/api/usage/models'),
+    fetchJson('/api/config/runtime'),
   ]);
 
   const agents = toArray(settled(results, 0, {}), 'agents');
@@ -87,13 +93,17 @@ async function loadAll() {
   const gateway = settled(results, 6, null);
   const features = toArray(settled(results, 7, {}), 'features');
   const traces = toArray(settled(results, 8, {}), 'traces');
+  const models = toArray(settled(results, 9, {}), 'models');
+  const runtime = settled(results, 10, null);
 
   return {
-    agents, sessions, pending, usage, timeseries, channels, gateway, features, traces,
+    agents, sessions, pending, usage, timeseries, channels, gateway, features, traces, models,
+    finops: (runtime && runtime.config && runtime.config.finops) || null,
     errors: {
       agents: results[0].status === 'rejected',
       sessions: results[1].status === 'rejected',
       usage: results[3].status === 'rejected',
+      timeseries: results[4].status === 'rejected',
     },
   };
 }
@@ -150,6 +160,35 @@ function renderMetrics(data) {
   ];
 
   return `<div class="db-metric-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px">${cards.join('')}</div>`;
+}
+
+function finopsState(data) {
+  const finops = data.finops || {};
+  // E1: usage timeseries unreachable → hide all FinOps UI (no error toast)
+  if (data.errors.usage || data.errors.timeseries) return null;
+  // E2: master toggle off → hide
+  if (finops.enabled === false) return null;
+  const ts = data.timeseries && Array.isArray(data.timeseries.timeseries) ? data.timeseries.timeseries : [];
+  const today = sumTodayTokens(ts);
+  const todayCost = ts.reduce((sum, p) => sum + (Number(p.cost) || 0), 0);
+  const budget = finops.daily_token_budget != null ? Number(finops.daily_token_budget) : null;
+  const warnPct = Number(finops.warn_pct) || 80;
+  const criticalPct = Number(finops.critical_pct) || 95;
+  const pct = computeBudgetPct(today, budget);
+  const level = budgetLevelFor(pct, warnPct, criticalPct);
+  return { today, todayCost, budget, warnPct, criticalPct, pct, level };
+}
+
+function renderFinOps(data) {
+  const st = finopsState(data);
+  if (!st) return '';
+  const bannerDismissed = sessionStorage.getItem('finops-banner-dismissed') === '1';
+  const banner = (st.level !== 'none' && !bannerDismissed) ? budgetBannerHTML(st.level, st.pct) : '';
+  const strip = costStripHTML({
+    todayTokens: st.today, todayCost: st.todayCost, budget: st.budget,
+    warnPct: st.warnPct, criticalPct: st.criticalPct, models: data.models,
+  });
+  return `<div id="ov-finops-banner">${banner}</div>${strip}`;
 }
 
 function renderAgentTable(agents) {
@@ -265,6 +304,8 @@ function shell(data) {
 
     <div id="ov-metrics">${renderMetrics(data)}</div>
 
+    <div id="ov-finops">${renderFinOps(data)}</div>
+
     <div class="db-ov-columns" style="display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-top:20px">
       <div>
         <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">Active Agents</h3>
@@ -350,6 +391,17 @@ function bindEvents(container, data) {
   });
 
   container.querySelector('[data-omnibar]')?.addEventListener('click', openPalette);
+
+  container.querySelector('.db-finops-banner-usage')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    navigate('usage');
+  });
+  container.querySelector('.db-finops-banner-dismiss')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    sessionStorage.setItem('finops-banner-dismissed', '1');
+    const host = container.querySelector('#ov-finops-banner');
+    if (host) host.innerHTML = '';
+  });
 
   container.querySelectorAll('.db-agent-row').forEach((row) => {
     row.addEventListener('click', (e) => {
