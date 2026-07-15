@@ -1363,6 +1363,38 @@ async function consumeToken(token) {
   }
 }
 
+async function probeGatewayReachable(urlString) {
+  let base;
+  try {
+    base = new URL(urlString);
+  } catch (e) {
+    return { ok: false, reason: 'invalid_url' };
+  }
+  if (base.protocol !== 'http:' && base.protocol !== 'https:') {
+    return { ok: false, reason: 'invalid_url' };
+  }
+
+  const probe = new URL('/api/auth/status', base);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const res = await fetch(probe.toString(), {
+      method: 'GET',
+      credentials: 'omit',
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (res.type === 'opaque' || res.status === 0) {
+      return { ok: false, reason: 'opaque' };
+    }
+    return { ok: true, status: res.status };
+  } catch (e) {
+    clearTimeout(timeout);
+    return { ok: false, reason: e.name === 'AbortError' ? 'timeout' : 'network' };
+  }
+}
+
 async function maybeShowOnboarding() {
   let params;
   try {
@@ -1448,18 +1480,36 @@ function renderOnboarding(status) {
         <button id="ob-continue" style="width:100%;padding:11px;border:none;border-radius:8px;background:var(--db-accent,#4f8cff);color:#fff;font-size:14px;font-weight:600;cursor:pointer">Continue</button>
         <button id="ob-standalone" style="width:100%;padding:8px;margin-top:10px;border:none;background:none;color:var(--db-text-muted,#9aa4b2);font-size:13px;cursor:pointer;text-decoration:underline">Use standalone mode</button>
       `);
-      overlay.querySelector('#ob-continue').addEventListener('click', async () => {
+      const continueBtn = overlay.querySelector('#ob-continue');
+      continueBtn.addEventListener('click', async () => {
         const url = overlay.querySelector('#ob-url').value.trim();
         const errEl = overlay.querySelector('#ob-url-err');
+        const override = overlay.querySelector('#ob-url-override');
         errEl.textContent = '';
-        try {
-          await fetch(url, { method: 'HEAD', mode: 'no-cors' });
-        } catch (e) {
-          errEl.textContent = `Cannot reach gateway at ${url}`;
+        if (override && override.checked) {
+          state.step = 2;
+          render();
           return;
         }
-        state.step = 2;
-        render();
+        continueBtn.disabled = true;
+        continueBtn.textContent = 'Checking…';
+        const result = await probeGatewayReachable(url);
+        continueBtn.disabled = false;
+        continueBtn.textContent = 'Continue';
+        if (result.ok) {
+          state.step = 2;
+          render();
+          return;
+        }
+        if (result.reason === 'invalid_url') {
+          errEl.textContent = `Enter a valid http(s) URL`;
+        } else if (result.reason === 'opaque') {
+          errEl.innerHTML = `Cannot verify gateway from browser. <label style="cursor:pointer"><input id="ob-url-override" type="checkbox" style="vertical-align:middle"> Continue anyway</label>`;
+        } else if (result.reason === 'timeout') {
+          errEl.textContent = `Gateway did not respond at ${url}`;
+        } else {
+          errEl.textContent = `Cannot reach gateway at ${url}`;
+        }
       });
       overlay.querySelector('#ob-standalone').addEventListener('click', () => {
         try { window.localStorage.setItem(ONBOARD_SKIP_KEY, '1'); } catch (e) { /* ignore */ }
