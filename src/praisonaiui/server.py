@@ -3469,6 +3469,14 @@ def create_app(
             "order": 40,
         },
         {
+            "id": "training",
+            "title": "Training",
+            "icon": "🧪",
+            "group": "Control",
+            "description": "Inspect praisonai-train sessions & apply profiles",
+            "order": 42,
+        },
+        {
             "id": "code-studio",
             "title": "Code Studio",
             "icon": "💻",

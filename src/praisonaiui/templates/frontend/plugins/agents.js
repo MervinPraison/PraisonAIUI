@@ -192,6 +192,9 @@ function renderAgentCard(agent) {
           <button class="aiui-btn aiui-btn-sm" onclick="window.aiuiDuplicateAgent('${agent.id}')" title="Duplicate">
             📋
           </button>
+          <button class="aiui-btn aiui-btn-sm" onclick="window.aiuiViewTraining('${agent.id}')" title="View training history">
+            🧪
+          </button>
           <button class="aiui-btn aiui-btn-sm aiui-btn-danger" onclick="window.aiuiDeleteAgent('${agent.id}', '${agent.name}')" title="Delete">
             🗑️
           </button>
@@ -623,6 +626,16 @@ window.aiuiEditAgent = async (id) => {
 };
 window.aiuiDeleteAgent = deleteAgent;
 window.aiuiDuplicateAgent = duplicateAgent;
+window.aiuiViewTraining = (id) => {
+  if (window.aiui?.selectPage) {
+    window.aiui.selectPage('training');
+    const u = new URL(window.location.href);
+    u.searchParams.set('agent_id', id);
+    history.replaceState(null, '', u.toString());
+  } else {
+    window.location.href = `/?page=training&agent_id=${encodeURIComponent(id)}`;
+  }
+};
 window.aiuiCloseEditor = closeEditor;
 window.aiuiSaveAgent = saveAgent;
 
