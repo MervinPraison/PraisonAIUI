@@ -397,9 +397,14 @@ async function refreshApprovals() {
   data.pending = pending;
   const metricsEl = _container.querySelector('#ov-metrics');
   const attnEl = _container.querySelector('#ov-attention');
-  if (metricsEl) metricsEl.innerHTML = renderMetrics(data);
-  if (attnEl) attnEl.innerHTML = renderAttention(data);
-  bindEvents(_container, data);
+  if (metricsEl) {
+    metricsEl.innerHTML = renderMetrics(data);
+    bindEvents(metricsEl, data);
+  }
+  if (attnEl) {
+    attnEl.innerHTML = renderAttention(data);
+    bindEvents(attnEl, data);
+  }
 }
 
 function startPolling() {
