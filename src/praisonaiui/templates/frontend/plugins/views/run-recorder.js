@@ -239,7 +239,7 @@ function injectStyles() {
     .rr-json { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; line-height:1.6;
       white-space:pre-wrap; background:var(--db-card-bg,#27272a); border:1px solid var(--db-border,#3f3f46);
       border-radius:8px; padding:10px; max-height:50vh; overflow:auto; }
-    .rr-timeline-row.selected { background:var(--db-card-bg,#27272a) !important; }
+    .db-timeline-row.selected { background:var(--db-card-bg,#27272a) !important; }
     .rr-log-hi { background:rgba(234,179,8,.14); }
     .rr-banner { padding:10px 14px; margin:12px; border-radius:8px; font-size:13px; }
     @media (max-width:1023px) {
