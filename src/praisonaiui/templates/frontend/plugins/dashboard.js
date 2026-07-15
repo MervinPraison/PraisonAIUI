@@ -156,6 +156,7 @@ const BUILTIN_VIEWS = {
   approvals:      '/plugins/views/approvals.js',
   usage:          '/plugins/views/usage.js',
   channels:       '/plugins/views/channels.js',
+  inbox:          '/plugins/views/inbox.js',
   skills:         '/plugins/views/skills.js',
   tools:          '/plugins/views/skills.js',
   nodes:          '/plugins/views/nodes.js',

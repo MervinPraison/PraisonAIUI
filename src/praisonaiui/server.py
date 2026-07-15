@@ -3285,6 +3285,14 @@ def create_app(
             "order": 5,
         },
         {
+            "id": "inbox",
+            "title": "Channel Inbox",
+            "icon": "📥",
+            "group": "Agent",
+            "description": "Unified multi-channel conversation triage",
+            "order": 6,
+        },
+        {
             "id": "sessions",
             "title": "Sessions",
             "icon": "📋",
