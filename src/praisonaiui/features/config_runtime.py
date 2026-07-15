@@ -176,6 +176,49 @@ CONFIG_SCHEMA = {
                 },
             },
         },
+        "finops": {
+            "type": "object",
+            "title": "FinOps & Budgets",
+            "description": (
+                "Alerts appear on Overview and Chat. Does not block agent runs."
+            ),
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "title": "Enable FinOps",
+                    "default": True,
+                },
+                "daily_token_budget": {
+                    "type": "integer",
+                    "title": "Daily Token Budget",
+                    "minimum": 0,
+                },
+                "daily_cost_budget_usd": {
+                    "type": "number",
+                    "title": "Daily Cost Budget (USD)",
+                    "minimum": 0,
+                },
+                "warn_pct": {
+                    "type": "integer",
+                    "title": "Warn Threshold (%)",
+                    "minimum": 1,
+                    "maximum": 99,
+                    "default": 80,
+                },
+                "critical_pct": {
+                    "type": "integer",
+                    "title": "Critical Threshold (%)",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "default": 95,
+                },
+                "show_session_chip": {
+                    "type": "boolean",
+                    "title": "Show Session Cost Chip",
+                    "default": True,
+                },
+            },
+        },
     },
 }
 
@@ -216,6 +259,24 @@ def validate_config(config: Dict[str, Any], schema: Dict[str, Any] = None) -> Li
                 if "maximum" in prop_schema and value > prop_schema["maximum"]:
                     errors.append(f"{key}: must be <= {prop_schema['maximum']}")
 
+    errors.extend(_validate_finops(config.get("finops")))
+    return errors
+
+
+def _validate_finops(finops: Any) -> List[str]:
+    """Cross-field validation for the FinOps section (E4/E21)."""
+    if not isinstance(finops, dict):
+        return []
+    errors: List[str] = []
+    warn = finops.get("warn_pct", 80)
+    critical = finops.get("critical_pct", 95)
+    if isinstance(warn, (int, float)) and isinstance(critical, (int, float)):
+        if critical <= warn:
+            errors.append("finops.critical_pct: must be greater than warn_pct")
+    for field in ("daily_token_budget", "daily_cost_budget_usd"):
+        val = finops.get(field)
+        if isinstance(val, (int, float)) and val < 0:
+            errors.append(f"finops.{field}: must be >= 0")
     return errors
 
 
