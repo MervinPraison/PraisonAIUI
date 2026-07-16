@@ -147,7 +147,10 @@ export async function render(container) {
     } else if (activeTab === 'traces') {
       const sessionId = meta.session_id;
       body.innerHTML = sessionId
-        ? `<a href="/traces?session_id=${encodeURIComponent(sessionId)}" style="color:var(--db-accent,#6366f1)">Open traces for this session →</a>`
+        ? `<div style="display:flex;flex-direction:column;gap:8px">
+            <a href="/runs?session_id=${encodeURIComponent(sessionId)}" style="color:var(--db-accent,#6366f1)">Debug this run →</a>
+            <a href="/traces?session_id=${encodeURIComponent(sessionId)}" style="color:var(--db-accent,#6366f1)">Open traces for this session →</a>
+          </div>`
         : '<div class="work-hub-empty">No traces linked.</div>';
     }
   }

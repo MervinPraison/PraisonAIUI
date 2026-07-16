@@ -543,3 +543,96 @@ export function isSkillApproval(a) {
   if (path.endsWith('SKILL.md') || path.includes('.praisonai/skills/')) return true;
   return false;
 }
+
+/**
+ * Human-readable duration from milliseconds.
+ *   0 → "0ms", 850 → "850ms", 1500 → "1.5s", 65000 → "1m 5s", 3720000 → "1h 2m"
+ *
+ * @param {number} ms
+ * @returns {string}
+ */
+export function formatDuration(ms) {
+  const n = Number(ms);
+  if (!isFinite(n) || n < 0) return '—';
+  if (n < 1000) return `${Math.round(n)}ms`;
+  const s = n / 1000;
+  if (s < 60) return `${(Math.round(s * 10) / 10)}s`;
+  const m = Math.floor(s / 60);
+  const rs = Math.round(s % 60);
+  if (m < 60) return rs ? `${m}m ${rs}s` : `${m}m`;
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  return rm ? `${h}h ${rm}m` : `${h}h`;
+}
+
+/**
+ * Shared empty / placeholder panel.
+ *
+ * @param {Object} opts
+ * @param {string} [opts.icon]       - Emoji or glyph.
+ * @param {string} opts.title        - Headline.
+ * @param {string} [opts.body]       - Secondary line.
+ * @param {string} [opts.actionHtml] - Optional trailing action markup.
+ * @returns {string}
+ */
+export function emptyState({ icon = '', title, body = '', actionHtml = '' }) {
+  return `<div class="db-empty-state" style="text-align:center;padding:2.5rem 1.5rem;color:var(--db-text-dim)">
+    ${icon ? `<div style="font-size:2.5rem;opacity:.4;margin-bottom:.75rem">${icon}</div>` : ''}
+    <div style="color:var(--db-text);font-weight:600;margin-bottom:.35rem">${esc(title)}</div>
+    ${body ? `<div style="font-size:13px;margin-bottom:1rem">${esc(body)}</div>` : ''}
+    ${actionHtml}
+  </div>`;
+}
+
+/**
+ * Composite trace-SDK + gateway status pill.
+ *
+ * @param {Object} [status] - Response from /api/traces/status.
+ * @returns {string}
+ */
+export function traceStatusBadge(status) {
+  const s = status || {};
+  if (s.gateway_connected === false) {
+    return '<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(239,68,68,.15);color:#ef4444">● Gateway down</span>';
+  }
+  const sdkOn = s.trace_available || s.obs_available;
+  if (!sdkOn) {
+    return '<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(234,179,8,.15);color:#eab308">○ Traces SDK off</span>';
+  }
+  return '<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(34,197,94,.15);color:#22c55e">● Connected</span>';
+}
+
+const TIMELINE_LANES = {
+  message: { icon: '💬', color: 'var(--db-accent-chat,#6366f1)' },
+  tool: { icon: '🔧', color: 'var(--db-accent-tool,#f59e0b)' },
+  llm: { icon: '🤖', color: 'var(--db-accent-llm,#8b5cf6)' },
+  error: { icon: '⛔', color: '#ef4444' },
+  approval: { icon: '✋', color: '#eab308' },
+  system: { icon: '⚙️', color: 'var(--db-text-dim,#a1a1aa)' },
+  trace_start: { icon: '▶️', color: 'var(--db-text-dim,#a1a1aa)' },
+};
+
+/**
+ * Render one timeline event row. Safe against untrusted API strings (esc only).
+ *
+ * @param {Object} ev
+ * @param {string} ev.type      - One of the lane keys.
+ * @param {string} ev.id        - Row id (used for selection).
+ * @param {number} ev.timestamp - Unix seconds.
+ * @param {string} [ev.label]   - Primary label.
+ * @param {number} [ev.duration_ms]
+ * @returns {string}
+ */
+export function timelineRow(ev) {
+  const lane = TIMELINE_LANES[ev.type] || TIMELINE_LANES.system;
+  const isError = ev.type === 'error';
+  const when = ev.timestamp ? new Date(ev.timestamp * 1000).toLocaleTimeString() : '';
+  const dur = typeof ev.duration_ms === 'number' ? formatDuration(ev.duration_ms) : '';
+  return `<div class="db-timeline-row" data-event-id="${esc(ev.id)}" role="button" tabindex="0"
+    style="display:flex;align-items:center;gap:10px;padding:7px 12px;min-height:32px;cursor:pointer;border-left:${isError ? '3px' : '2px'} solid ${lane.color};${isError ? 'background:rgba(239,68,68,.06);' : ''}border-bottom:1px solid var(--db-border)">
+    <span style="font-size:13px;width:18px;text-align:center">${lane.icon}</span>
+    <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ev.label || ev.type)}</span>
+    ${dur ? `<span style="font-size:11px;color:var(--db-text-dim);min-width:52px;text-align:right">${esc(dur)}</span>` : ''}
+    <span style="font-size:11px;color:var(--db-text-dim);min-width:64px;text-align:right">${esc(when)}</span>
+  </div>`;
+}

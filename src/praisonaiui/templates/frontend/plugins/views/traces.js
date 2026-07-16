@@ -24,7 +24,8 @@ export async function render(container) {
 
   container.innerHTML = `
     <div style="padding:24px;max-width:1200px;margin:0 auto">
-      <h2 style="margin:0 0 20px;font-size:1.5rem">🔍 Traces</h2>
+      <h2 style="margin:0 0 12px;font-size:1.5rem">🔍 Traces</h2>
+      <a href="/runs" style="display:inline-flex;align-items:center;gap:8px;margin-bottom:20px;padding:10px 14px;border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.06);border-radius:10px;color:var(--db-accent,#6366f1);text-decoration:none;font-size:13px">⏱️ Try the Run Flight Recorder — unified per-session timeline →</a>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px">
         <div class="db-card" style="padding:16px;border-radius:12px">
           <div style="font-size:.8rem;opacity:.6">Total Traces</div>
