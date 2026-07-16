@@ -165,6 +165,7 @@ const BUILTIN_VIEWS = {
   debug:          '/plugins/views/debug.js',
   guardrails:     '/plugins/views/guardrails.js',
   eval:           '/plugins/views/eval.js',
+  training:       '/plugins/views/training-lab.js',
   telemetry:      '/plugins/views/telemetry.js',
   traces:         '/plugins/views/traces.js',
   security:       '/plugins/views/security.js',
