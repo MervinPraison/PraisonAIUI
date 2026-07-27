@@ -44,15 +44,18 @@ import sys
 # ── Import praisonaiui ──────────────────────────────────────
 import praisonaiui as aiui
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from _shared.console import icon, safe_print
+
 # ── Check gateway availability ──────────────────────────────
 try:
     from praisonaiui.integration import AIUIGateway
     from praisonaiagents import Agent
     GATEWAY_OK = True
 except ImportError as e:
-    print(f"⚠️  Gateway dependencies missing: {e}")
-    print("   Install with: pip install praisonai praisonaiagents")
-    print("   Falling back to standalone mode.")
+    safe_print(f"{icon('⚠️', '[WARN]')}  Gateway dependencies missing: {e}")
+    safe_print("   Install with: pip install praisonai praisonaiagents")
+    safe_print("   Falling back to standalone mode.")
     GATEWAY_OK = False
 
 # ── Set dashboard style ─────────────────────────────────────
@@ -149,15 +152,15 @@ def _register_agents_in_dashboard():
             "model": agent_def["model"],
             "icon": agent_def["icon"],
         })
-        print(f"   ✓ Dashboard: {agent_def['icon']} {agent_def['name']}")
+        safe_print(f"   {icon('✓', '[OK]')} Dashboard: {agent_def['name']}")
 
 
 # ── Main ────────────────────────────────────────────────────
 async def main():
     host = os.getenv("HOST", "127.0.0.1")
     if GATEWAY_OK:
-        print("🚀 Starting with Gateway mode (full execution + streaming)")
-        print()
+        safe_print(f"{icon('🚀', '[START]')} Starting with Gateway mode (full execution + streaming)")
+        safe_print()
 
         # Create the gateway
         gateway = AIUIGateway(
@@ -174,22 +177,22 @@ async def main():
                 self_reflect=False,
             )
             gateway.register_agent(agent, agent_id=agent_def["agent_id"])
-            print(f"   ✓ Gateway:   {agent_def['icon']} {agent_def['name']} ({agent_def['model']})")
+            safe_print(f"   {icon('✓', '[OK]')} Gateway:   {agent_def['name']} ({agent_def['model']})")
 
         # ── Register agents in dashboard CRUD storage ───────
         _register_agents_in_dashboard()
 
-        print()
-        print(f"   Dashboard:  http://localhost:8083")
-        print(f"   WebSocket:  ws://localhost:8083/ws")
-        print(f"   Inspector:  http://localhost:8083 → 🔍 Feature Inspector")
-        print()
+        safe_print()
+        safe_print("   Dashboard:  http://localhost:8083")
+        safe_print("   WebSocket:  ws://localhost:8083/ws")
+        safe_print(f"   Inspector:  http://localhost:8083 {icon('→', '->')} {icon('🔍', '')} Feature Inspector")
+        safe_print()
 
         # Start the gateway — this runs the full server
         await gateway.start()
     else:
         # Fallback to standalone mode (same as example 15)
-        print("📦 Starting in standalone mode (CRUD only, no agent execution)")
+        safe_print(f"{icon('📦', '[INFO]')} Starting in standalone mode (CRUD only, no agent execution)")
         from praisonaiui.server import create_app
         import uvicorn
 

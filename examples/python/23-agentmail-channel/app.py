@@ -40,7 +40,9 @@ import sys
 # ── Imports ─────────────────────────────────────────────────────────
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from _shared.console import icon, safe_print
 from praisonaiui.server import create_app
 import uvicorn
 
@@ -88,11 +90,11 @@ def seed_agentmail_channel():
         })
         if r.status_code in (200, 201):
             channel_id = r.json().get("id", "unknown")
-            print(f"   ✅ AgentMail channel registered: {channel_id}")
+            safe_print(f"   {icon('✅', '[OK]')} AgentMail channel registered: {channel_id}")
         else:
-            print(f"   ⚠️  Channel registration: {r.status_code} — {r.json()}")
+            safe_print(f"   {icon('⚠️', '[WARN]')}  Channel registration: {r.status_code} - {r.json()}")
     else:
-        print("   ✓ AgentMail channel already exists")
+        safe_print(f"   {icon('✓', '[OK]')} AgentMail channel already exists")
 
     # Also seed email + telegram for comparison in dashboard
     for name, platform in [("Support Email", "email"), ("Telegram Support", "telegram")]:
@@ -103,7 +105,7 @@ def seed_agentmail_channel():
                 "platform": platform,
                 "config": {},
             })
-            print(f"   ✓ Seeded {platform} channel")
+            safe_print(f"   {icon('✓', '[OK]')} Seeded {platform} channel")
 
 
 # ── Verify agentmail platform support ──────────────────────────────
@@ -120,9 +122,9 @@ def verify_agentmail_support():
         platforms = r.json().get("platforms", [])
         am_supported = "agentmail" in platforms
         email_supported = "email" in platforms
-        print(f"   Supported platforms: {platforms}")
-        print(f"   email supported: {'✅ Yes' if email_supported else '❌ No'}")
-        print(f"   agentmail supported: {'✅ Yes' if am_supported else '❌ No'}")
+        safe_print(f"   Supported platforms: {platforms}")
+        safe_print(f"   email supported: {icon('✅', '[OK]') + ' Yes' if email_supported else icon('❌', '[X]') + ' No'}")
+        safe_print(f"   agentmail supported: {icon('✅', '[OK]') + ' Yes' if am_supported else icon('❌', '[X]') + ' No'}")
         return am_supported
     return False
 
@@ -136,51 +138,51 @@ def test_channel_api():
     app = create_app()
     client = TestClient(app)
 
-    print("\n📋 Channel API Test")
-    print("=" * 40)
+    safe_print(f"\n{icon('📋', '[TEST]')} Channel API Test")
+    safe_print("=" * 40)
 
     # List channels
     r = client.get("/api/channels")
     channels = r.json().get("channels", [])
-    print(f"   GET /api/channels: {len(channels)} channels")
+    safe_print(f"   GET /api/channels: {len(channels)} channels")
     for ch in channels:
-        icon = {"email": "📧", "agentmail": "📩"}.get(ch.get("platform", ""), "💬")
-        print(f"      {icon} {ch.get('name', '?')} ({ch.get('platform', '?')})")
+        ch_icon = {"email": icon("📧", "[email]"), "agentmail": icon("📩", "[mail]")}.get(ch.get("platform", ""), icon("💬", "[chat]"))
+        safe_print(f"      {ch_icon} {ch.get('name', '?')} ({ch.get('platform', '?')})")
 
     # Get agentmail channel status
     am_ch = next((ch for ch in channels if ch.get("platform") == "agentmail"), None)
     if am_ch:
         ch_id = am_ch.get("id")
         r = client.get(f"/api/channels/{ch_id}/status")
-        print(f"   GET /api/channels/{ch_id}/status: {r.json()}")
+        safe_print(f"   GET /api/channels/{ch_id}/status: {r.json()}")
 
-    print()
+    safe_print()
 
 
 # ── Main ────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("📩 PraisonAIUI — AgentMail Channel Integration")
-    print("=" * 50)
-    print()
+    safe_print(f"{icon('📩', '[MAIL]')} PraisonAIUI - AgentMail Channel Integration")
+    safe_print("=" * 50)
+    safe_print()
 
     if "--test" in sys.argv:
         # Test mode: verify APIs + seed data
-        print("🔍 Verifying agentmail platform support...")
+        safe_print(f"{icon('🔍', '[VERIFY]')} Verifying agentmail platform support...")
         verify_agentmail_support()
-        print()
-        print("🌱 Seeding agentmail channel...")
+        safe_print()
+        safe_print(f"{icon('🌱', '[SEED]')} Seeding agentmail channel...")
         seed_agentmail_channel()
         test_channel_api()
     else:
         # Run the dashboard
-        print("🌱 Seeding channels...")
+        safe_print(f"{icon('🌱', '[SEED]')} Seeding channels...")
         seed_agentmail_channel()
-        print()
+        safe_print()
 
         app = create_app()
-        print(f"✅ Dashboard at http://localhost:8084")
-        print(f"   Channels: http://localhost:8084/api/channels")
-        print(f"   Platforms: http://localhost:8084/api/channels/platforms")
+        safe_print(f"{icon('✅', '[OK]')} Dashboard at http://localhost:8084")
+        safe_print("   Channels: http://localhost:8084/api/channels")
+        safe_print("   Platforms: http://localhost:8084/api/channels/platforms")
         host = os.getenv("HOST", "127.0.0.1")
         uvicorn.run(app, host=host, port=8084, log_level="info")

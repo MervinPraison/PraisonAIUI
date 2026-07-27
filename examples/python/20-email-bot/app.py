@@ -32,6 +32,9 @@ import asyncio
 import os
 import sys
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from _shared.console import icon, safe_print
+
 # ── Check prerequisites ─────────────────────────────────────────────
 
 try:
@@ -40,8 +43,8 @@ try:
     SDK_OK = True
 except ImportError:
     SDK_OK = False
-    print("⚠️  Missing dependencies. Install with:")
-    print("   pip install praisonai[email] praisonaiagents")
+    safe_print(f"{icon('⚠️', '[WARN]')}  Missing dependencies. Install with:")
+    safe_print("   pip install praisonai[email] praisonaiagents")
     sys.exit(1)
 
 
@@ -68,8 +71,8 @@ agent = Agent(
 async def run_simple():
     """Start email bot with automatic env var resolution."""
     bot = Bot("email", agent=agent)
-    print(f"📧 Starting email bot for: {os.getenv('EMAIL_ADDRESS', '(not set)')}")
-    print("   Listening for new emails... (Ctrl+C to stop)")
+    safe_print(f"{icon('📧', '[EMAIL]')} Starting email bot for: {os.getenv('EMAIL_ADDRESS', '(not set)')}")
+    safe_print("   Listening for new emails... (Ctrl+C to stop)")
     await bot.start()
 
 
@@ -96,9 +99,9 @@ async def run_with_handlers():
     @bot.on_message
     async def log_email(message):
         subject = message.metadata.get("subject", "(no subject)")
-        print(f"📨 From: {message.sender.username}")
-        print(f"   Subject: {subject}")
-        print(f"   Preview: {message.text[:100]}...")
+        safe_print(f"{icon('📨', '[MSG]')} From: {message.sender.username}")
+        safe_print(f"   Subject: {subject}")
+        safe_print(f"   Preview: {message.text[:100]}...")
 
     # Custom command: emails with subject starting with "/status"
     @bot.on_command("status")
@@ -118,11 +121,11 @@ async def run_with_handlers():
             reply_to=message.message_id,
         )
 
-    print(f"📧 Starting email bot with custom handlers")
-    print(f"   Email: {bot._email_address}")
-    print(f"   Poll interval: {config.polling_interval}s")
-    print(f"   Allowed senders: {'all' if not config.allowed_users else config.allowed_users}")
-    print("   Listening... (Ctrl+C to stop)")
+    safe_print(f"{icon('📧', '[EMAIL]')} Starting email bot with custom handlers")
+    safe_print(f"   Email: {bot._email_address}")
+    safe_print(f"   Poll interval: {config.polling_interval}s")
+    safe_print(f"   Allowed senders: {'all' if not config.allowed_users else config.allowed_users}")
+    safe_print("   Listening... (Ctrl+C to stop)")
     await bot.start()
 
 
@@ -131,17 +134,17 @@ async def run_with_handlers():
 async def run_probe():
     """Test email server connectivity."""
     bot = Bot("email", agent=agent)
-    print("🔍 Testing email server connectivity...")
+    safe_print(f"{icon('🔍', '[PROBE]')} Testing email server connectivity...")
     result = await bot.probe()
 
-    print(f"\n   Connection: {'✅ OK' if result.ok else '❌ FAILED'}")
-    print(f"   Platform:   {result.platform}")
+    safe_print(f"\n   Connection: {icon('✅', '[OK]') + ' OK' if result.ok else icon('❌', '[FAIL]') + ' FAILED'}")
+    safe_print(f"   Platform:   {result.platform}")
     if result.bot_username:
-        print(f"   Email:      {result.bot_username}")
+        safe_print(f"   Email:      {result.bot_username}")
     if result.elapsed_ms:
-        print(f"   Latency:    {result.elapsed_ms:.0f}ms")
+        safe_print(f"   Latency:    {result.elapsed_ms:.0f}ms")
     if result.error:
-        print(f"   Error:      {result.error}")
+        safe_print(f"   Error:      {result.error}")
 
 
 # ── Main ────────────────────────────────────────────────────────────

@@ -25,8 +25,12 @@ Usage:
 
 import asyncio
 import os
+import sys
 
 import praisonaiui as aiui
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from _shared.console import icon, safe_print
 
 # ── Check gateway availability ──────────────────────────────
 try:
@@ -35,9 +39,9 @@ try:
     from praisonaiui.integration import AIUIGateway
     GATEWAY_OK = True
 except ImportError as e:
-    print(f"⚠️  Gateway dependencies not found: {e}")
-    print("   Install with: pip install praisonai praisonaiagents")
-    print("   Falling back to standalone mode (REST APIs only).\n")
+    safe_print(f"{icon('⚠️', '[WARN]')}  Gateway dependencies not found: {e}")
+    safe_print("   Install with: pip install praisonai praisonaiagents")
+    safe_print("   Falling back to standalone mode (REST APIs only).\n")
     GATEWAY_OK = False
 
 aiui.set_style("dashboard")
@@ -127,7 +131,7 @@ def _register_agents_in_dashboard():
             "model": agent_def["model"],
             "icon": agent_def["icon"],
         })
-        print(f"   ✓ Agent: {agent_def['icon']} {agent_def['name']}")
+        safe_print(f"   {icon('✓', '[OK]')} Agent: {agent_def['name']}")
 
 
 # ── Main ────────────────────────────────────────────────────
@@ -137,8 +141,8 @@ async def main():
     host = os.getenv("HOST", "127.0.0.1")
 
     if GATEWAY_OK:
-        print("🚀 Starting with Gateway mode (full execution + streaming)")
-        print()
+        safe_print(f"{icon('🚀', '[START]')} Starting with Gateway mode (full execution + streaming)")
+        safe_print()
 
         gateway = AIUIGateway(host=host, port=port)
 
@@ -151,21 +155,21 @@ async def main():
                 reflection=False,
             )
             gateway.register_agent(agent, agent_id=agent_def["agent_id"])
-            print(f"   ✓ Gateway:  {agent_def['icon']} {agent_def['name']} ({agent_def['model']})")
+            safe_print(f"   {icon('✓', '[OK]')} Gateway:  {agent_def['name']} ({agent_def['model']})")
 
         # Also register in dashboard CRUD
         _register_agents_in_dashboard()
 
-        print()
-        print(f"   Dashboard:  http://localhost:{port}")
-        print(f"   Explorer:   http://localhost:{port} → 🔬 Feature Explorer")
-        print(f"   WebSocket:  ws://localhost:{port}/ws")
-        print()
+        safe_print()
+        safe_print(f"   Dashboard:  http://localhost:{port}")
+        safe_print(f"   Explorer:   http://localhost:{port} {icon('→', '->')} {icon('🔬', '')} Feature Explorer")
+        safe_print(f"   WebSocket:  ws://localhost:{port}/ws")
+        safe_print()
 
         await gateway.start()
     else:
         # Standalone: REST APIs only, no agent execution
-        print("📦 Starting in standalone mode (REST APIs only, no agent execution)")
+        safe_print(f"{icon('📦', '[INFO]')} Starting in standalone mode (REST APIs only, no agent execution)")
         import uvicorn
 
         from praisonaiui.server import create_app
@@ -173,11 +177,11 @@ async def main():
         _register_agents_in_dashboard()
 
         app = create_app()
-        print()
-        print(f"   Dashboard:  http://localhost:{port}")
-        print(f"   Explorer:   http://localhost:{port} → 🔬 Feature Explorer")
-        print("   Note:       POST endpoints may fail without gateway")
-        print()
+        safe_print()
+        safe_print(f"   Dashboard:  http://localhost:{port}")
+        safe_print(f"   Explorer:   http://localhost:{port} {icon('→', '->')} {icon('🔬', '')} Feature Explorer")
+        safe_print("   Note:       POST endpoints may fail without gateway")
+        safe_print()
 
         config = uvicorn.Config(app, host=host, port=port, log_level="info")
         server = uvicorn.Server(config)

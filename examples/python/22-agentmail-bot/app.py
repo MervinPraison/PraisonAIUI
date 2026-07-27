@@ -33,6 +33,9 @@ import asyncio
 import os
 import sys
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from _shared.console import icon, safe_print
+
 # ── Check prerequisites ─────────────────────────────────────────────
 
 try:
@@ -41,8 +44,8 @@ try:
     SDK_OK = True
 except ImportError:
     SDK_OK = False
-    print("⚠️  Missing dependencies. Install with:")
-    print("   pip install praisonai agentmail praisonaiagents")
+    safe_print(f"{icon('⚠️', '[WARN]')}  Missing dependencies. Install with:")
+    safe_print("   pip install praisonai agentmail praisonaiagents")
     sys.exit(1)
 
 
@@ -69,9 +72,9 @@ agent = Agent(
 async def run_simple():
     """Start agentmail bot with automatic env var resolution."""
     bot = Bot("agentmail", agent=agent)
-    print(f"📩 Starting AgentMail bot")
-    print(f"   API key: {'✅ set' if os.getenv('AGENTMAIL_API_KEY') else '❌ not set'}")
-    print("   Listening for new emails... (Ctrl+C to stop)")
+    safe_print(f"{icon('📩', '[MAIL]')} Starting AgentMail bot")
+    safe_print(f"   API key: {icon('✅', '[OK]') + ' set' if os.getenv('AGENTMAIL_API_KEY') else icon('❌', '[X]') + ' not set'}")
+    safe_print("   Listening for new emails... (Ctrl+C to stop)")
     await bot.start()
 
 
@@ -99,9 +102,9 @@ async def run_with_handlers():
     @bot.on_message
     async def log_email(message):
         subject = message.metadata.get("subject", "(no subject)")
-        print(f"📨 From: {message.sender.username}")
-        print(f"   Subject: {subject}")
-        print(f"   Preview: {message.text[:100]}...")
+        safe_print(f"{icon('📨', '[MSG]')} From: {message.sender.username}")
+        safe_print(f"   Subject: {subject}")
+        safe_print(f"   Preview: {message.text[:100]}...")
 
     # Custom command: emails with subject starting with "/status"
     @bot.on_command("status")
@@ -121,10 +124,10 @@ async def run_with_handlers():
             reply_to=message.message_id,
         )
 
-    print(f"📩 Starting AgentMail bot with custom handlers")
-    print(f"   Email: {bot.email_address or '(will be assigned on start)'}")
-    print(f"   Poll interval: {config.polling_interval}s")
-    print("   Listening... (Ctrl+C to stop)")
+    safe_print(f"{icon('📩', '[MAIL]')} Starting AgentMail bot with custom handlers")
+    safe_print(f"   Email: {bot.email_address or '(will be assigned on start)'}")
+    safe_print(f"   Poll interval: {config.polling_interval}s")
+    safe_print("   Listening... (Ctrl+C to stop)")
     await bot.start()
 
 
@@ -136,30 +139,30 @@ async def run_inbox_demo():
         token=os.environ.get("AGENTMAIL_API_KEY", ""),
     )
 
-    print("📩 AgentMail Inbox Lifecycle Demo")
-    print("=" * 50)
+    safe_print(f"{icon('📩', '[MAIL]')} AgentMail Inbox Lifecycle Demo")
+    safe_print("=" * 50)
 
     # Create inbox
-    print("\n1. Creating inbox...")
+    safe_print("\n1. Creating inbox...")
     inbox = await bot.create_inbox(domain=os.getenv("AGENTMAIL_DOMAIN"))
-    print(f"   ✅ Created: {inbox.get('email_address', 'unknown')}")
-    print(f"   ID: {inbox.get('id', 'unknown')}")
+    safe_print(f"   {icon('✅', '[OK]')} Created: {inbox.get('email_address', 'unknown')}")
+    safe_print(f"   ID: {inbox.get('id', 'unknown')}")
 
     # List inboxes
-    print("\n2. Listing inboxes...")
+    safe_print("\n2. Listing inboxes...")
     inboxes = await bot.list_inboxes()
-    print(f"   Found: {len(inboxes)} inbox(es)")
+    safe_print(f"   Found: {len(inboxes)} inbox(es)")
     for ib in inboxes:
-        print(f"      📧 {ib.get('email_address', '?')} (id: {ib.get('id', '?')})")
+        safe_print(f"      {icon('📧', '[EMAIL]')} {ib.get('email_address', '?')} (id: {ib.get('id', '?')})")
 
     # Delete inbox
     inbox_id = inbox.get("id", "")
     if inbox_id:
-        print(f"\n3. Deleting inbox {inbox_id}...")
+        safe_print(f"\n3. Deleting inbox {inbox_id}...")
         deleted = await bot.delete_inbox(inbox_id)
-        print(f"   {'✅ Deleted' if deleted else '❌ Failed to delete'}")
+        safe_print(f"   {icon('✅', '[OK]') + ' Deleted' if deleted else icon('❌', '[X]') + ' Failed to delete'}")
 
-    print("\n✅ Inbox lifecycle complete")
+    safe_print(f"\n{icon('✅', '[OK]')} Inbox lifecycle complete")
 
 
 # ── Probe: Test connectivity ────────────────────────────────────────
@@ -167,17 +170,17 @@ async def run_inbox_demo():
 async def run_probe():
     """Test AgentMail API connectivity."""
     bot = Bot("agentmail", agent=agent)
-    print("🔍 Testing AgentMail API connectivity...")
+    safe_print(f"{icon('🔍', '[PROBE]')} Testing AgentMail API connectivity...")
     result = await bot.probe()
 
-    print(f"\n   Connection: {'✅ OK' if result.ok else '❌ FAILED'}")
-    print(f"   Platform:   {result.platform}")
+    safe_print(f"\n   Connection: {icon('✅', '[OK]') + ' OK' if result.ok else icon('❌', '[FAIL]') + ' FAILED'}")
+    safe_print(f"   Platform:   {result.platform}")
     if result.bot_username:
-        print(f"   Email:      {result.bot_username}")
+        safe_print(f"   Email:      {result.bot_username}")
     if result.elapsed_ms:
-        print(f"   Latency:    {result.elapsed_ms:.0f}ms")
+        safe_print(f"   Latency:    {result.elapsed_ms:.0f}ms")
     if result.error:
-        print(f"   Error:      {result.error}")
+        safe_print(f"   Error:      {result.error}")
 
 
 # ── Main ────────────────────────────────────────────────────────────
