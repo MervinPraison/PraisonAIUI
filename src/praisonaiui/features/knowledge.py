@@ -26,16 +26,23 @@ from ._base import BaseFeatureProtocol
 
 logger = logging.getLogger(__name__)
 
+_EMBEDDING_ERROR_MARKERS = (
+    "does not have access",
+    "model_not_found",
+    "does not exist or you do not have access",
+    "notfounderror",
+)
+
+
+def _is_embedding_error(err_msg: str) -> bool:
+    """True when an error string indicates an unavailable embedding model."""
+    lowered = err_msg.lower()
+    return any(marker in lowered for marker in _EMBEDDING_ERROR_MARKERS)
+
 
 def _is_embedding_unavailable(err: BaseException) -> bool:
-    """Detect an embedding model access / not-found failure."""
-    msg = str(err).lower()
-    return (
-        "does not have access" in msg
-        or "model_not_found" in msg
-        or "does not exist" in msg
-        or "notfounderror" in msg
-    )
+    """Detect an embedding model access / not-found failure from an exception."""
+    return _is_embedding_error(str(err))
 
 
 # ── Knowledge Protocol ───────────────────────────────────────────────
@@ -102,13 +109,13 @@ class KnowledgeProtocol(ABC):
         """Get corpus statistics."""
         return {"total": 0}
 
+    def last_search_meta(self) -> Dict[str, Any]:
+        """Metadata for the most recent search: {"mode": ..., "error": ...}."""
+        return {"mode": "vector", "error": None}
+
     def health(self) -> Dict[str, Any]:
         """Health check for this backend."""
         return {"status": "ok", "provider": self.__class__.__name__}
-
-    def last_search_meta(self) -> Dict[str, Any]:
-        """Metadata about the most recent search (mode, error)."""
-        return {"mode": "vector", "error": None}
 
 
 # ── Simple Knowledge Manager (Default, no deps) ─────────────────────
@@ -264,7 +271,7 @@ class SDKKnowledgeManager(KnowledgeProtocol):
                         "using local in-memory index"
                     )
                     self._sdk_knowledge = None
-                elif _is_embedding_unavailable(e):
+                elif _is_embedding_error(err_msg):
                     self._embedding_unavailable = True
                     self._embedding_error = err_msg
                     logger.warning("Embedding model unavailable: %s", e)
@@ -274,6 +281,10 @@ class SDKKnowledgeManager(KnowledgeProtocol):
 
         self._sdk_probed = True
         return self._sdk_knowledge
+
+    def last_search_meta(self) -> Dict[str, Any]:
+        """Metadata for the most recent search: {"mode": ..., "error": ...}."""
+        return dict(self._last_search_meta)
 
     def store(
         self,
@@ -331,10 +342,11 @@ class SDKKnowledgeManager(KnowledgeProtocol):
                         for i, r in enumerate(results[:limit])
                     ]
             except BaseException as e:
+                err_msg = str(e)
                 logger.warning("SDK knowledge search failed: %s; falling back to local", e)
-                if _is_embedding_unavailable(e):
+                if _is_embedding_error(err_msg):
                     self._embedding_unavailable = True
-                    self._embedding_error = str(e)
+                    self._embedding_error = err_msg
 
         # Fallback to local text search
         query_lower = query.lower()
@@ -360,9 +372,6 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         else:
             self._last_search_meta = {"mode": "local", "error": None}
         return results
-
-    def last_search_meta(self) -> Dict[str, Any]:
-        return dict(self._last_search_meta)
 
     def add_file(
         self,
