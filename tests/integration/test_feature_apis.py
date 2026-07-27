@@ -488,12 +488,16 @@ class TestTelemetryAPI:
 
 class TestTracingAPI:
     def test_list_traces(self, client):
-        r = client.get("/api/tracing")
+        r = client.get("/api/traces")
         assert r.status_code == 200
+        data = r.json()
+        assert isinstance(data, (list, dict))
 
     def test_tracing_status(self, client):
-        r = client.get("/api/tracing/status")
+        r = client.get("/api/traces/status")
         assert r.status_code == 200
+        data = r.json()
+        assert "status" in data or "feature" in data
 
 
 # ===========================================================================
