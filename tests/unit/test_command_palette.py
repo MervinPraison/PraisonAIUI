@@ -22,7 +22,7 @@ DASHBOARD_JS = FRONTEND / "dashboard.js"
 
 class TestCommandPalette:
     def _src(self) -> str:
-        return DASHBOARD_JS.read_text()
+        return DASHBOARD_JS.read_text(encoding="utf-8")
 
     def test_open_command_palette_exposed_globally(self):
         src = self._src()

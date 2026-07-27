@@ -27,7 +27,7 @@ DASHBOARD_JS = (
 
 
 def _style() -> str:
-    src = DASHBOARD_JS.read_text()
+    src = DASHBOARD_JS.read_text(encoding="utf-8")
     m = re.search(r"const DASHBOARD_STYLE = `(.*?)`;", src, re.DOTALL)
     assert m, "DASHBOARD_STYLE template literal not found"
     return m.group(1)

@@ -94,7 +94,7 @@ class TestBuildCommand:
             ["build", "--config", str(project_dir / "aiui.template.yaml"), "--output", str(output)],
         )
 
-        ui_config = json.loads((output / "ui-config.json").read_text())
+        ui_config = json.loads((output / "ui-config.json").read_text(encoding="utf-8"))
         assert ui_config["site"]["title"] == "Integration Test Site"
         assert "header_main" in ui_config["components"]
         assert "footer_main" in ui_config["components"]
@@ -111,7 +111,7 @@ class TestBuildCommand:
             ],
         )
 
-        content = (output / "ui-config.json").read_text()
+        content = (output / "ui-config.json").read_text(encoding="utf-8")
         assert "\n" not in content  # Minified = no newlines
 
     def test_build_invalid_config(self, tmp_path: Path):
@@ -215,8 +215,8 @@ class TestFullPipeline:
         assert (output / "index.html").exists()
 
         # Verify content
-        ui_config = json.loads((output / "ui-config.json").read_text())
+        ui_config = json.loads((output / "ui-config.json").read_text(encoding="utf-8"))
         assert ui_config["site"]["title"] == "Integration Test Site"
 
-        routes = json.loads((output / "route-manifest.json").read_text())
+        routes = json.loads((output / "route-manifest.json").read_text(encoding="utf-8"))
         assert len(routes["routes"]) >= 1

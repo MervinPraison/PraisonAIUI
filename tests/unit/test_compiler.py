@@ -86,7 +86,7 @@ class TestCompilerUiConfig:
         result = compiler.compile(tmp_path / "output")
         assert result.success is True
 
-        ui_config = json.loads((tmp_path / "output" / "ui-config.json").read_text())
+        ui_config = json.loads((tmp_path / "output" / "ui-config.json").read_text(encoding="utf-8"))
         assert ui_config["site"]["title"] == "Test Site"
         assert "templates" in ui_config
         assert "docs" in ui_config["templates"]
@@ -96,7 +96,7 @@ class TestCompilerUiConfig:
         result = compiler.compile(tmp_path / "output")
         assert result.success is True
 
-        ui_config = json.loads((tmp_path / "output" / "ui-config.json").read_text())
+        ui_config = json.loads((tmp_path / "output" / "ui-config.json").read_text(encoding="utf-8"))
         assert "header_main" in ui_config["components"]
         assert ui_config["components"]["header_main"]["props"]["logoText"] == "MySite"
         assert "footer_main" in ui_config["components"]
@@ -107,7 +107,7 @@ class TestCompilerUiConfig:
         result = compiler.compile(tmp_path / "output")
         assert result.success is True
 
-        ui_config = json.loads((tmp_path / "output" / "ui-config.json").read_text())
+        ui_config = json.loads((tmp_path / "output" / "ui-config.json").read_text(encoding="utf-8"))
         docs_template = ui_config["templates"]["docs"]
         assert docs_template["slots"]["header"]["ref"] == "header_main"
         assert docs_template["slots"]["footer"]["ref"] == "footer_main"
@@ -123,7 +123,7 @@ class TestCompilerRouteManifest:
         assert "route-manifest.json" in result.files
 
         manifest = json.loads(
-            (tmp_path / "output" / "route-manifest.json").read_text()
+            (tmp_path / "output" / "route-manifest.json").read_text(encoding="utf-8")
         )
         assert len(manifest["routes"]) == 1
         assert manifest["routes"][0]["pattern"] == "/docs/**"
@@ -147,7 +147,7 @@ class TestCompilerRouteManifest:
         assert result.success is True
 
         manifest = json.loads(
-            (tmp_path / "output" / "route-manifest.json").read_text()
+            (tmp_path / "output" / "route-manifest.json").read_text(encoding="utf-8")
         )
         # First route in list gets highest priority
         assert manifest["routes"][0]["priority"] > manifest["routes"][1]["priority"]
@@ -200,7 +200,7 @@ class TestCompilerOutputFiles:
         compiler = Compiler(minimal_config, base_path=tmp_path)
         compiler.compile(tmp_path / "output", minify=True)
 
-        content = (tmp_path / "output" / "ui-config.json").read_text()
+        content = (tmp_path / "output" / "ui-config.json").read_text(encoding="utf-8")
         # Minified JSON should not have newlines
         assert "\n" not in content
 
@@ -208,7 +208,7 @@ class TestCompilerOutputFiles:
         compiler = Compiler(minimal_config, base_path=tmp_path)
         compiler.compile(tmp_path / "output", minify=False)
 
-        content = (tmp_path / "output" / "ui-config.json").read_text()
+        content = (tmp_path / "output" / "ui-config.json").read_text(encoding="utf-8")
         # Non-minified JSON should have newlines
         assert "\n" in content
 
@@ -228,7 +228,7 @@ class TestCompilerDocsContent:
         result = compiler.compile(tmp_path / "output")
         assert "docs-nav.json" in result.files
 
-        nav = json.loads((tmp_path / "output" / "docs-nav.json").read_text())
+        nav = json.loads((tmp_path / "output" / "docs-nav.json").read_text(encoding="utf-8"))
         assert "items" in nav
 
     def test_no_docs_nav_without_content(self, minimal_config: Config, tmp_path: Path):
@@ -291,7 +291,7 @@ class TestCompilerThemeCss:
         assert result.success is True
         theme_css = tmp_path / "output" / "assets" / "theme.css"
         assert theme_css.exists(), "assets/theme.css must be generated"
-        content = theme_css.read_text()
+        content = theme_css.read_text(encoding="utf-8")
         assert ":root {" in content
         assert "--radius:" in content
 
@@ -340,7 +340,7 @@ class TestInjectThemeCss:
         inject_theme_css(tmp_path, preset="zinc", dark_mode=True, radius="0.5rem")
         theme_file = tmp_path / "assets" / "theme.css"
         assert theme_file.exists()
-        content = theme_file.read_text()
+        content = theme_file.read_text(encoding="utf-8")
         assert ":root {" in content
 
     def test_creates_assets_dir(self, tmp_path: Path):
@@ -367,7 +367,7 @@ class TestThemePipelineIntegration:
         assert result.success is True
         assert "assets/theme.css" in result.files
 
-        theme_css = (tmp_path / "output" / "assets" / "theme.css").read_text()
+        theme_css = (tmp_path / "output" / "assets" / "theme.css").read_text(encoding="utf-8")
         assert ":root {" in theme_css
         assert ".dark {" in theme_css
         assert "--radius: 1rem" in theme_css  # xl = 1rem
@@ -386,7 +386,7 @@ class TestThemePipelineIntegration:
         result = compiler.compile(tmp_path / "output")
         assert result.success is True
 
-        theme_css = (tmp_path / "output" / "assets" / "theme.css").read_text()
+        theme_css = (tmp_path / "output" / "assets" / "theme.css").read_text(encoding="utf-8")
         assert ":root {" in theme_css
         assert ".dark" not in theme_css
 
@@ -405,7 +405,7 @@ class TestThemePipelineIntegration:
         assert result.success is True
 
         ui_config = json.loads(
-            (tmp_path / "output" / "ui-config.json").read_text()
+            (tmp_path / "output" / "ui-config.json").read_text(encoding="utf-8")
         )
         theme = ui_config["site"]["theme"]
         assert theme["preset"] == "blue"
@@ -426,7 +426,7 @@ class TestThemePipelineIntegration:
 
         theme_css_path = tmp_path / "output" / "assets" / "theme.css"
         assert theme_css_path.exists(), "theme.css must always be generated"
-        content = theme_css_path.read_text()
+        content = theme_css_path.read_text(encoding="utf-8")
         assert ":root {" in content
         assert "--radius:" in content
 
@@ -444,7 +444,7 @@ class TestThemePipelineIntegration:
         result = compiler.compile(tmp_path / "output")
         assert result.success is True
 
-        index_html = (tmp_path / "output" / "index.html").read_text()
+        index_html = (tmp_path / "output" / "index.html").read_text(encoding="utf-8")
         assert "classList.add('dark')" not in index_html
 
     def test_dark_mode_antiflicker_has_dark_class(self, tmp_path: Path):
@@ -461,7 +461,7 @@ class TestThemePipelineIntegration:
         result = compiler.compile(tmp_path / "output")
         assert result.success is True
 
-        index_html = (tmp_path / "output" / "index.html").read_text()
+        index_html = (tmp_path / "output" / "index.html").read_text(encoding="utf-8")
         assert "classList.add('dark')" in index_html
 
 
@@ -514,7 +514,7 @@ class TestCompositionResolver:
 
         # Load ui-config.json and verify auto-bridging
         ui_config_path = tmp_path / "output" / "ui-config.json"
-        ui_config = json.loads(ui_config_path.read_text())
+        ui_config = json.loads(ui_config_path.read_text(encoding="utf-8"))
 
         docs_template = ui_config["templates"]["docs"]
         assert "zones" in docs_template
@@ -556,7 +556,7 @@ class TestCompositionResolver:
 
         # Load ui-config.json and verify no auto-bridging occurred
         ui_config_path = tmp_path / "output" / "ui-config.json"
-        ui_config = json.loads(ui_config_path.read_text())
+        ui_config = json.loads(ui_config_path.read_text(encoding="utf-8"))
 
         docs_template = ui_config["templates"]["docs"]
         # Should not have zones for non-FlexibleLayout
@@ -589,7 +589,7 @@ class TestCompositionResolver:
 
         # Load ui-config.json and verify no duplicate components
         ui_config_path = tmp_path / "output" / "ui-config.json"
-        ui_config = json.loads(ui_config_path.read_text())
+        ui_config = json.loads(ui_config_path.read_text(encoding="utf-8"))
 
         docs_template = ui_config["templates"]["docs"]
         zones = docs_template["zones"]
