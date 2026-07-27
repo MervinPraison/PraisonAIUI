@@ -6,6 +6,7 @@ Wraps praisonai.capabilities functions as HTTP endpoints.
 
 from __future__ import annotations
 
+import os
 import time
 import uuid
 from dataclasses import asdict
@@ -16,6 +17,35 @@ from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
+
+
+def _default_embedding_model() -> str:
+    """Resolve the default embedding model from environment."""
+    return os.environ.get(
+        "AIUI_EMBEDDING_MODEL",
+        os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
+    )
+
+
+def _embedding_fallback_models() -> list[str]:
+    """Resolve the embedding fallback chain from environment."""
+    raw = os.environ.get(
+        "AIUI_EMBEDDING_FALLBACK_MODELS",
+        "text-embedding-ada-002,text-embedding-3-small",
+    )
+    return [m.strip() for m in raw.split(",") if m.strip()]
+
+
+def _is_model_not_found(err: BaseException) -> bool:
+    """Heuristically detect embedding model access / not-found errors."""
+    msg = str(err).lower()
+    return (
+        "does not have access" in msg
+        or "model_not_found" in msg
+        or "does not exist" in msg
+        or "notfounderror" in msg
+    )
+
 
 # Lazy import capabilities
 _capabilities = None
@@ -280,29 +310,57 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
 
         body = await request.json()
         input_text = body.get("input", "")
-        model = body.get("model", "text-embedding-3-small")
+        model = body.get("model") or _default_embedding_model()
 
-        try:
-            result = await caps.aembed(
-                input=input_text,
-                model=model,
-            )
+        candidates = [model]
+        for fallback in _embedding_fallback_models():
+            if fallback not in candidates:
+                candidates.append(fallback)
 
-            data = _result_to_dict(result)
+        last_err: BaseException | None = None
+        for candidate in candidates:
+            try:
+                result = await caps.aembed(
+                    input=input_text,
+                    model=candidate,
+                )
+                data = _result_to_dict(result)
+                return JSONResponse(
+                    {
+                        "object": "list",
+                        "data": [
+                            {
+                                "object": "embedding",
+                                "index": 0,
+                                "embedding": data.get("embedding", []),
+                            }
+                        ],
+                        "model": candidate,
+                        "usage": data.get("usage", {"prompt_tokens": 0, "total_tokens": 0}),
+                    }
+                )
+            except Exception as e:
+                last_err = e
+                if not _is_model_not_found(e):
+                    break
+
+        if last_err is not None and _is_model_not_found(last_err):
             return JSONResponse(
                 {
-                    "object": "list",
-                    "data": [
-                        {"object": "embedding", "index": 0, "embedding": data.get("embedding", [])}
-                    ],
-                    "model": model,
-                    "usage": data.get("usage", {"prompt_tokens": 0, "total_tokens": 0}),
-                }
+                    "error": {
+                        "message": (
+                            f"Embedding model unavailable: {last_err}. "
+                            "Set AIUI_EMBEDDING_MODEL to a model your project can access "
+                            "(e.g. text-embedding-ada-002)."
+                        ),
+                        "type": "model_not_found",
+                    }
+                },
+                status_code=503,
             )
-        except Exception as e:
-            return JSONResponse(
-                {"error": {"message": str(e), "type": "api_error"}}, status_code=500
-            )
+        return JSONResponse(
+            {"error": {"message": str(last_err), "type": "api_error"}}, status_code=500
+        )
 
     async def _image_generate(self, request: Request) -> JSONResponse:
         """POST /v1/images/generations — Generate images."""

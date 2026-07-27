@@ -27,6 +27,17 @@ from ._base import BaseFeatureProtocol
 logger = logging.getLogger(__name__)
 
 
+def _is_embedding_unavailable(err: BaseException) -> bool:
+    """Detect an embedding model access / not-found failure."""
+    msg = str(err).lower()
+    return (
+        "does not have access" in msg
+        or "model_not_found" in msg
+        or "does not exist" in msg
+        or "notfounderror" in msg
+    )
+
+
 # ── Knowledge Protocol ───────────────────────────────────────────────
 
 
@@ -94,6 +105,10 @@ class KnowledgeProtocol(ABC):
     def health(self) -> Dict[str, Any]:
         """Health check for this backend."""
         return {"status": "ok", "provider": self.__class__.__name__}
+
+    def last_search_meta(self) -> Dict[str, Any]:
+        """Metadata about the most recent search (mode, error)."""
+        return {"mode": "vector", "error": None}
 
 
 # ── Simple Knowledge Manager (Default, no deps) ─────────────────────
@@ -171,7 +186,11 @@ class SimpleKnowledgeManager(KnowledgeProtocol):
             "status": "ok",
             "provider": "SimpleKnowledgeManager",
             "total_entries": len(self._entries),
+            "embedding": {"available": False, "reason": "no_vector_backend"},
         }
+
+    def last_search_meta(self) -> Dict[str, Any]:
+        return {"mode": "local", "error": None}
 
 
 # ── SDK Knowledge Manager (wraps praisonaiagents.knowledge) ──────────
@@ -191,6 +210,9 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         self._sdk_knowledge = None
         self._sdk_probed = False  # True once we've verified SDK actually works
         self._local_index: Dict[str, Dict[str, Any]] = {}
+        self._embedding_unavailable = False
+        self._embedding_error: Optional[str] = None
+        self._last_search_meta: Dict[str, Any] = {"mode": "vector", "error": None}
 
     def _get_sdk_knowledge(self) -> Any:
         """Lazy-init SDK Knowledge with health probe.
@@ -242,6 +264,10 @@ class SDKKnowledgeManager(KnowledgeProtocol):
                         "using local in-memory index"
                     )
                     self._sdk_knowledge = None
+                elif _is_embedding_unavailable(e):
+                    self._embedding_unavailable = True
+                    self._embedding_error = err_msg
+                    logger.warning("Embedding model unavailable: %s", e)
                 else:
                     # Other errors (e.g. empty DB) are fine — SDK works
                     pass
@@ -294,6 +320,7 @@ class SDKKnowledgeManager(KnowledgeProtocol):
             try:
                 results = sdk.search(query, limit=limit, user_id="praisonaiui")
                 if isinstance(results, list) and results:
+                    self._last_search_meta = {"mode": "vector", "error": None}
                     return [
                         {
                             "id": str(r.get("id", i)),
@@ -305,6 +332,9 @@ class SDKKnowledgeManager(KnowledgeProtocol):
                     ]
             except BaseException as e:
                 logger.warning("SDK knowledge search failed: %s; falling back to local", e)
+                if _is_embedding_unavailable(e):
+                    self._embedding_unavailable = True
+                    self._embedding_error = str(e)
 
         # Fallback to local text search
         query_lower = query.lower()
@@ -314,7 +344,25 @@ class SDKKnowledgeManager(KnowledgeProtocol):
                 results.append(e)
             if len(results) >= limit:
                 break
+
+        if self._embedding_unavailable:
+            self._last_search_meta = {
+                "mode": "fallback",
+                "error": (
+                    "Vector search unavailable: "
+                    f"{self._embedding_error or 'embedding model not accessible'}. "
+                    "Set AIUI_EMBEDDING_MODEL=text-embedding-ada-002 or enable embedding "
+                    "models in your provider project."
+                ),
+            }
+        elif sdk is not None:
+            self._last_search_meta = {"mode": "vector", "error": None}
+        else:
+            self._last_search_meta = {"mode": "local", "error": None}
         return results
+
+    def last_search_meta(self) -> Dict[str, Any]:
+        return dict(self._last_search_meta)
 
     def add_file(
         self,
@@ -453,11 +501,25 @@ class SDKKnowledgeManager(KnowledgeProtocol):
 
     def health(self) -> Dict[str, Any]:
         sdk = self._get_sdk_knowledge()
+        embedding_available = sdk is not None and not self._embedding_unavailable
+        warnings: List[str] = []
+        embedding: Dict[str, Any] = {"available": embedding_available}
+        if self._embedding_unavailable:
+            embedding["error"] = self._embedding_error
+            warnings.append(
+                "Embedding model unavailable; knowledge search degraded to local text "
+                "matching. Set AIUI_EMBEDDING_MODEL to an accessible model."
+            )
+        status = "ok"
+        if sdk is None or self._embedding_unavailable:
+            status = "degraded"
         return {
-            "status": "ok" if sdk is not None else "degraded",
+            "status": status,
             "provider": "SDKKnowledgeManager",
             "sdk_available": sdk is not None,
             "total_indexed": len(self._local_index),
+            "embedding": embedding,
+            "warnings": warnings,
         }
 
 
@@ -626,7 +688,15 @@ class KnowledgeFeature(BaseFeatureProtocol):
             query=query,
             limit=body.get("limit", 10),
         )
-        return JSONResponse({"results": results, "count": len(results)})
+        meta = mgr.last_search_meta()
+        return JSONResponse(
+            {
+                "results": results,
+                "count": len(results),
+                "search_mode": meta.get("mode", "unknown"),
+                "warning": meta.get("error"),
+            }
+        )
 
     async def _add_file(self, request: Request) -> JSONResponse:
         """POST /api/knowledge/add-file — ingest a file."""
@@ -675,6 +745,8 @@ class KnowledgeFeature(BaseFeatureProtocol):
                 "files": stats.get("files", 0),
                 "backend": h.get("provider", "unknown"),
                 "status": h.get("status", "ok"),
+                "embedding": h.get("embedding", {"available": True}),
+                "warnings": h.get("warnings", []),
             }
         )
 
