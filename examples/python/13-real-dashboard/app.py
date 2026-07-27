@@ -26,6 +26,7 @@ import time
 import praisonaiui as aiui
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '_shared'))
+from console import safe_print as print
 from stream_bridge import StreamBridge
 
 try:
