@@ -49,13 +49,16 @@ templates:
 routes:
   - match: "/docs/**"
     template: docs
-"""
+""",
+        encoding="utf-8",
     )
 
     docs_dir = tmp_path / "docs"
     docs_dir.mkdir()
-    (docs_dir / "index.md").write_text("# Welcome\n\nHello from integration test.")
-    (docs_dir / "guide.md").write_text("# Guide\n\nA test guide.")
+    (docs_dir / "index.md").write_text(
+        "# Welcome\n\nHello from integration test.", encoding="utf-8"
+    )
+    (docs_dir / "guide.md").write_text("# Guide\n\nA test guide.", encoding="utf-8")
 
     return tmp_path
 
@@ -94,7 +97,7 @@ class TestBuildCommand:
             ["build", "--config", str(project_dir / "aiui.template.yaml"), "--output", str(output)],
         )
 
-        ui_config = json.loads((output / "ui-config.json").read_text())
+        ui_config = json.loads((output / "ui-config.json").read_text(encoding="utf-8"))
         assert ui_config["site"]["title"] == "Integration Test Site"
         assert "header_main" in ui_config["components"]
         assert "footer_main" in ui_config["components"]
@@ -111,12 +114,12 @@ class TestBuildCommand:
             ],
         )
 
-        content = (output / "ui-config.json").read_text()
+        content = (output / "ui-config.json").read_text(encoding="utf-8")
         assert "\n" not in content  # Minified = no newlines
 
     def test_build_invalid_config(self, tmp_path: Path):
         config = tmp_path / "bad.yaml"
-        config.write_text("not: valid: yaml: config")
+        config.write_text("not: valid: yaml: config", encoding="utf-8")
         result = runner.invoke(
             app,
             ["build", "--config", str(config), "--output", str(tmp_path / "out")],
@@ -141,7 +144,8 @@ templates:
 routes:
   - match: "/docs/**"
     template: docs
-"""
+""",
+            encoding="utf-8",
         )
         result = runner.invoke(
             app,
@@ -215,8 +219,8 @@ class TestFullPipeline:
         assert (output / "index.html").exists()
 
         # Verify content
-        ui_config = json.loads((output / "ui-config.json").read_text())
+        ui_config = json.loads((output / "ui-config.json").read_text(encoding="utf-8"))
         assert ui_config["site"]["title"] == "Integration Test Site"
 
-        routes = json.loads((output / "route-manifest.json").read_text())
+        routes = json.loads((output / "route-manifest.json").read_text(encoding="utf-8"))
         assert len(routes["routes"]) >= 1
