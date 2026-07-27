@@ -108,7 +108,7 @@ class TestFormInputDataLabel:
             / "src" / "praisonaiui" / "templates" / "frontend"
             / "plugins" / "dashboard.js"
         )
-        return p.read_text()
+        return p.read_text(encoding="utf-8")
 
     @pytest.mark.parametrize("renderer", [
         "renderTextInput",

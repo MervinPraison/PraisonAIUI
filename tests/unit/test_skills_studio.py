@@ -48,41 +48,41 @@ class TestI18nKeys:
 
 class TestHelpersJs:
     def test_helpers_export_functions(self):
-        src = HELPERS_JS.read_text()
+        src = HELPERS_JS.read_text(encoding="utf-8")
         assert "export function diffLines(" in src
         assert "export function renderMarkdownPreview(" in src
         assert "export function isSkillApproval(" in src
 
     def test_diff_normalises_crlf(self):
-        src = HELPERS_JS.read_text()
+        src = HELPERS_JS.read_text(encoding="utf-8")
         assert "replace(/\\r\\n?/g, '\\n')" in src
 
     def test_preview_escapes_first(self):
-        src = HELPERS_JS.read_text()
+        src = HELPERS_JS.read_text(encoding="utf-8")
         assert "esc(s)" in src
 
 
 class TestSkillsJs:
     def test_exports_render_and_cleanup(self):
-        src = SKILLS_JS.read_text()
+        src = SKILLS_JS.read_text(encoding="utf-8")
         assert "export async function render" in src
         assert "export function cleanup" in src
 
     def test_tab_shell_present(self):
-        src = SKILLS_JS.read_text()
+        src = SKILLS_JS.read_text(encoding="utf-8")
         assert "class=\"ss-tab\"" in src
         assert "tabBtn('pending'" in src
         assert "tabBtn('installed'" in src
         assert "tabBtn('history'" in src
 
     def test_url_state_and_deep_link(self):
-        src = SKILLS_JS.read_text()
+        src = SKILLS_JS.read_text(encoding="utf-8")
         assert "approval_id" in src
         assert "currentApprovalId(" in src
         assert "openDiff(" in src
 
     def test_uses_existing_apis(self):
-        src = SKILLS_JS.read_text()
+        src = SKILLS_JS.read_text(encoding="utf-8")
         assert "/api/approvals/pending" in src
         assert "/api/approvals/history" in src
         assert "/api/skills" in src
@@ -90,30 +90,30 @@ class TestSkillsJs:
         assert "/api/approvals/${id}/${verb}" in src
 
     def test_imports_skill_helpers(self):
-        src = SKILLS_JS.read_text()
+        src = SKILLS_JS.read_text(encoding="utf-8")
         assert "isSkillApproval" in src
         assert "diffLines" in src
         assert "renderMarkdownPreview" in src
 
     def test_no_browser_eval(self):
-        src = SKILLS_JS.read_text()
+        src = SKILLS_JS.read_text(encoding="utf-8")
         assert "eval(" not in src
 
     def test_proposed_content_escaped_in_diff(self):
-        src = SKILLS_JS.read_text()
+        src = SKILLS_JS.read_text(encoding="utf-8")
         # Diff rows must escape line text; no raw interpolation of r.text.
         assert "esc(r.text)" in src
         assert "${r.text}" not in src
 
     def test_empty_state_and_no_existing_labels(self):
-        src = SKILLS_JS.read_text()
+        src = SKILLS_JS.read_text(encoding="utf-8")
         assert "No pending skill writes" in src
         assert "No existing skill" in src
 
 
 class TestApprovalsCrossLink:
     def test_skill_row_links_to_studio(self):
-        src = APPROVALS_JS.read_text()
+        src = APPROVALS_JS.read_text(encoding="utf-8")
         assert "isSkillApproval" in src
         assert "/skills?tab=pending&approval_id=" in src
 

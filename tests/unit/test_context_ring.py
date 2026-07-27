@@ -136,47 +136,47 @@ class TestRingThresholds:
 
 class TestChatJsComponents:
     def test_ring_dom_present(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         assert 'id="chat-ring-wrap"' in src
         assert 'id="chat-ring-arc"' in src
         assert 'id="chat-ring-tooltip"' in src
 
     def test_send_button_inside_ring_preserved_id(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         assert 'class="chat-ring-send" id="chat-send-btn"' in src
         assert 'aria-valuenow' in src
         assert 'aria-valuemax' in src
 
     def test_compaction_banner_present(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         assert 'id="chat-compaction-banner"' in src
         assert "function updateCompactionBanner(" in src
         assert "function dismissCompactionBanner(" in src
 
     def test_memory_chip_present(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         assert 'id="chat-memory-chip"' in src
         assert "function refreshMemoryChip(" in src
 
     def test_ring_state_machine_thresholds(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         assert "function ringStateFor(" in src
         assert "pct >= 95" in src
         assert "pct >= 85" in src
         assert "pct >= 60" in src
 
     def test_ws_context_events_handled(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         assert "case 'context_update':" in src
         assert "case 'context_compacted':" in src
 
     def test_poll_fallback_and_debounce(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         assert "function startContextPoll(" in src
         assert "function scheduleContextRefresh(" in src
 
     def test_existing_memory_panel_and_metrics_preserved(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         # Regression: do not remove existing shipped elements
         assert 'id="chat-memory-panel"' in src
         assert 'id="chat-memory-btn"' in src

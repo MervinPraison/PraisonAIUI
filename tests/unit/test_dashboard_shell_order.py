@@ -23,7 +23,7 @@ GENERATOR = ROOT / "scripts" / "patch_dashboard_modular.py"
 
 class TestDashboardShellOrder:
     def _build_body(self) -> str:
-        src = DASHBOARD_JS.read_text()
+        src = DASHBOARD_JS.read_text(encoding="utf-8")
         m = re.search(
             r"function buildDashboard\([^)]*\)\s*\{(.*?)^}",
             src, re.DOTALL | re.MULTILINE,
@@ -51,7 +51,7 @@ class TestDashboardShellOrder:
         assert m, "shellHeader insert must be guarded by children.length"
 
     def test_generator_emits_main_before_insert_before(self):
-        src = GENERATOR.read_text()
+        src = GENERATOR.read_text(encoding="utf-8")
         append_idx = src.find("root.appendChild(main);\n  const shellHeader")
         insert_idx = src.find("root.insertBefore(shellHeader, main)")
         assert append_idx != -1, (

@@ -30,7 +30,7 @@ class TestCompilerChatOutput:
         result = compiler.compile(tmp_path)
 
         assert result.success
-        ui_config = json.loads((tmp_path / "ui-config.json").read_text())
+        ui_config = json.loads((tmp_path / "ui-config.json").read_text(encoding="utf-8"))
         assert ui_config["style"] == "chat"
 
     def test_layout_in_ui_config(self, tmp_path: Path):
@@ -43,7 +43,7 @@ class TestCompilerChatOutput:
         result = compiler.compile(tmp_path)
 
         assert result.success
-        ui_config = json.loads((tmp_path / "ui-config.json").read_text())
+        ui_config = json.loads((tmp_path / "ui-config.json").read_text(encoding="utf-8"))
         assert ui_config["layout"]["mode"] == "bottom-right"
         assert ui_config["layout"]["width"] == "400px"
         assert ui_config["layout"]["height"] == "600px"
@@ -73,7 +73,7 @@ class TestCompilerChatOutput:
         result = compiler.compile(tmp_path)
 
         assert result.success
-        ui_config = json.loads((tmp_path / "ui-config.json").read_text())
+        ui_config = json.loads((tmp_path / "ui-config.json").read_text(encoding="utf-8"))
         assert ui_config["chat"]["enabled"] is True
         assert ui_config["chat"]["name"] == "AI Assistant"
         assert len(ui_config["chat"]["starters"]) == 1
@@ -96,7 +96,7 @@ class TestCompilerChatOutput:
         result = compiler.compile(tmp_path)
 
         assert result.success
-        ui_config = json.loads((tmp_path / "ui-config.json").read_text())
+        ui_config = json.loads((tmp_path / "ui-config.json").read_text(encoding="utf-8"))
         assert ui_config["auth"]["enabled"] is True
         assert "password" in ui_config["auth"]["providers"]
         assert "google" in ui_config["auth"]["providers"]
@@ -128,7 +128,7 @@ class TestCompilerChatOutput:
         result = compiler.compile(tmp_path)
 
         assert result.success
-        ui_config = json.loads((tmp_path / "ui-config.json").read_text())
+        ui_config = json.loads((tmp_path / "ui-config.json").read_text(encoding="utf-8"))
         assert len(ui_config["widgets"]) == 2
         assert ui_config["widgets"][0]["type"] == "slider"
         assert ui_config["widgets"][0]["name"] == "temperature"

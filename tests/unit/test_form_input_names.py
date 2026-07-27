@@ -84,7 +84,7 @@ class TestRenderersEmitName:
     via `el.name` (which has priority over `el.dataset.label`)."""
 
     def _src(self):
-        return DASHBOARD_JS.read_text()
+        return DASHBOARD_JS.read_text(encoding="utf-8")
 
     @pytest.mark.parametrize("renderer", [
         "renderTextInput",
@@ -117,7 +117,7 @@ class TestSubmitCollectorPriority:
     """renderFormAction submit handler must prefer `name` over `data-label`."""
 
     def test_name_has_priority_over_label(self):
-        source = DASHBOARD_JS.read_text()
+        source = DASHBOARD_JS.read_text(encoding="utf-8")
         m = re.search(
             r"function renderFormAction\(comp\)\s*\{(.*?)^}",
             source, re.DOTALL | re.MULTILINE,

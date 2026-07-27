@@ -21,7 +21,7 @@ DASHBOARD_JS = FRONTEND / "dashboard.js"
 
 class TestSelectPageGuard:
     def _select_page_body(self) -> str:
-        src = DASHBOARD_JS.read_text()
+        src = DASHBOARD_JS.read_text(encoding="utf-8")
         m = re.search(
             r"async function selectPage\(pageId\)\s*\{(.*?)^}",
             src, re.DOTALL | re.MULTILINE,
@@ -56,7 +56,7 @@ class TestSelectPageGuard:
         assert "console.error" in m.group(1)
 
     def test_show_dashboard_init_error_helper_present(self):
-        src = DASHBOARD_JS.read_text()
+        src = DASHBOARD_JS.read_text(encoding="utf-8")
         m = re.search(
             r"function showDashboardInitError\(message\)\s*\{(.*?)^}",
             src, re.DOTALL | re.MULTILINE,

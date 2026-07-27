@@ -16,7 +16,7 @@ class TestFrontendNavigation:
         index_path = Path("src/praisonaiui/templates/frontend/index.html")
         assert index_path.exists(), "index.html should exist"
 
-        content = index_path.read_text()
+        content = index_path.read_text(encoding="utf-8")
         assert "/assets/index.js" in content, "Should reference index.js"
         assert "/assets/index.css" in content, "Should reference index.css"
 
@@ -26,7 +26,7 @@ class TestFrontendNavigation:
         if bundle_path.exists():
             # Check if the bundle contains popstate handling code
             # Note: The bundle is minified, so we check for the event name
-            content = bundle_path.read_text()
+            content = bundle_path.read_text(encoding="utf-8")
             assert "popstate" in content, "Bundle should contain popstate event handler"
 
     def test_title_template_handling(self):

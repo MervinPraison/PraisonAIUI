@@ -23,7 +23,7 @@ SERVER = _ROOT / "src" / "praisonaiui" / "server.py"
 
 
 def _inbox() -> str:
-    return INBOX_VIEW.read_text()
+    return INBOX_VIEW.read_text(encoding="utf-8")
 
 
 class TestThreePaneShell:
@@ -109,21 +109,21 @@ class TestEmptyState:
 
 class TestRegistration:
     def test_route_registered_in_dashboard(self):
-        src = DASHBOARD.read_text()
+        src = DASHBOARD.read_text(encoding="utf-8")
         assert "inbox:" in src
         assert "/plugins/views/inbox.js" in src
 
     def test_page_registered_in_server(self):
-        src = SERVER.read_text()
+        src = SERVER.read_text(encoding="utf-8")
         assert '"id": "inbox"' in src
         assert "Channel Inbox" in src
 
     def test_channels_links_to_inbox(self):
-        assert 'href="/inbox"' in CHANNELS_VIEW.read_text()
+        assert 'href="/inbox"' in CHANNELS_VIEW.read_text(encoding="utf-8")
 
 
 class TestSessionsPlatformField:
     def test_sessions_list_surfaces_platform(self):
-        src = SESSIONS_EXT.read_text()
+        src = SESSIONS_EXT.read_text(encoding="utf-8")
         assert '"platform"' in src
         assert '"channel_id"' in src
