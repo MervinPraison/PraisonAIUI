@@ -111,7 +111,7 @@ class TestBuiltinSchemaCoverage:
         ui_src = (
             Path(__file__).resolve().parents[2]
             / "src" / "praisonaiui" / "ui.py"
-        ).read_text()
+        ).read_text(encoding="utf-8")
         py_types = set(re.findall(r'"type":\s*"(\w+)"', ui_src))
         schemas = srv.get_component_schemas()
         missing = py_types - set(schemas)

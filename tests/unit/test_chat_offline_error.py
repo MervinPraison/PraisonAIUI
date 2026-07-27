@@ -25,13 +25,13 @@ CHAT_JS = FRONTEND / "views" / "chat.js"
 
 class TestSelectPageShellError:
     def test_shell_error_helper_defined(self):
-        src = DASHBOARD_JS.read_text()
+        src = DASHBOARD_JS.read_text(encoding="utf-8")
         assert "function showDashboardInitError(" in src
         assert "'alert'" in src
         assert "db-error" in src
 
     def test_select_page_calls_shell_error_on_missing_main(self):
-        src = DASHBOARD_JS.read_text()
+        src = DASHBOARD_JS.read_text(encoding="utf-8")
         idx = src.find("const main = document.getElementById('db-main-content')")
         assert idx != -1
         region = src[idx:idx + 400]
@@ -41,16 +41,16 @@ class TestSelectPageShellError:
 
 class TestChatOfflineMessaging:
     def test_toast_imported(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         assert "import { showToast } from '../toast.js';" in src
 
     def test_offline_hint_in_fallback(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         assert "navigator.onLine === false" in src
         assert "You are offline. " in src
 
     def test_fallback_catch_shows_toast(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         idx = src.find("fetch('/api/chat/send'")
         assert idx != -1
         region = src[idx:idx + 900]
@@ -62,7 +62,7 @@ class TestChatOfflineMessaging:
 
 class TestSystemErrorRoleAlert:
     def test_append_message_sets_role_alert(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         idx = src.find("function appendMessage(")
         assert idx != -1
         region = src[idx:idx + 700]
@@ -72,7 +72,7 @@ class TestSystemErrorRoleAlert:
 
 class TestWebSocketSendGuard:
     def test_ws_send_wrapped_in_try_catch(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         idx = src.find("ws.send(JSON.stringify(payload))")
         assert idx != -1
         before = src[max(0, idx - 120):idx]

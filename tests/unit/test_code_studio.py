@@ -50,28 +50,28 @@ class TestCodeStudioFrontend:
         assert (VIEWS / "code-studio.js").is_file()
 
     def test_view_exports_render(self):
-        src = (VIEWS / "code-studio.js").read_text()
+        src = (VIEWS / "code-studio.js").read_text(encoding="utf-8")
         assert "export async function render" in src
         assert "export function cleanup" in src
 
     def test_view_calls_execute_api(self):
-        src = (VIEWS / "code-studio.js").read_text()
+        src = (VIEWS / "code-studio.js").read_text(encoding="utf-8")
         assert "/api/code/execute" in src
         assert "/api/code/languages" in src
 
     def test_no_browser_eval(self):
-        src = (VIEWS / "code-studio.js").read_text()
+        src = (VIEWS / "code-studio.js").read_text(encoding="utf-8")
         assert "eval(" not in src
 
     def test_registered_in_dashboard(self):
-        src = (PLUGINS / "dashboard.js").read_text()
+        src = (PLUGINS / "dashboard.js").read_text(encoding="utf-8")
         assert "'code-studio'" in src
         assert "code-studio.js" in src
 
     def test_send_to_agent_event(self):
-        src = (VIEWS / "code-studio.js").read_text()
+        src = (VIEWS / "code-studio.js").read_text(encoding="utf-8")
         assert "aiui:prefill-composer" in src
 
     def test_chat_has_prefill_listener(self):
-        src = (VIEWS / "chat.js").read_text()
+        src = (VIEWS / "chat.js").read_text(encoding="utf-8")
         assert "aiui:prefill-composer" in src

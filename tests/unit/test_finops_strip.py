@@ -154,13 +154,13 @@ class TestFinOpsValidation:
 
 class TestHelpersJs:
     def test_donut_and_strip_helpers_present(self):
-        src = HELPERS_JS.read_text()
+        src = HELPERS_JS.read_text(encoding="utf-8")
         assert "export function MiniDonutSVG(" in src
         assert "export function costStripHTML(" in src
         assert "export function budgetBannerHTML(" in src
 
     def test_math_helpers_present(self):
-        src = HELPERS_JS.read_text()
+        src = HELPERS_JS.read_text(encoding="utf-8")
         assert "export function computeBudgetPct(" in src
         assert "export function budgetLevelFor(" in src
         assert "export function sumTodayTokens(" in src
@@ -168,53 +168,53 @@ class TestHelpersJs:
         assert "export function formatCost(" in src
 
     def test_donut_empty_state_accessible(self):
-        src = HELPERS_JS.read_text()
+        src = HELPERS_JS.read_text(encoding="utf-8")
         assert 'aria-label="No model data"' in src
 
     def test_strip_navigates_and_is_region(self):
-        src = HELPERS_JS.read_text()
+        src = HELPERS_JS.read_text(encoding="utf-8")
         assert 'data-nav="usage"' in src
         assert 'role="region"' in src
 
 
 class TestOverviewJs:
     def test_finops_imports_and_render(self):
-        src = OVERVIEW_JS.read_text()
+        src = OVERVIEW_JS.read_text(encoding="utf-8")
         assert "costStripHTML" in src
         assert "budgetBannerHTML" in src
         assert "function renderFinOps(" in src
         assert 'id="ov-finops"' in src
 
     def test_fetches_models_and_config(self):
-        src = OVERVIEW_JS.read_text()
+        src = OVERVIEW_JS.read_text(encoding="utf-8")
         assert "/api/usage/models" in src
         assert "/api/config/runtime" in src
 
     def test_graceful_degrade_state_machine(self):
-        src = OVERVIEW_JS.read_text()
+        src = OVERVIEW_JS.read_text(encoding="utf-8")
         assert "function finopsState(" in src
         assert "finops.enabled === false" in src
 
 
 class TestChatJs:
     def test_session_cost_chip_present(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         assert 'id="chat-session-cost-chip"' in src
         assert "function updateSessionCostChip(" in src
 
     def test_finops_banner_present(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         assert 'id="chat-finops-banner"' in src
         assert "function updateFinopsBanner(" in src
         assert "function loadFinopsConfig(" in src
 
     def test_chip_updates_on_run_completed(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         assert "updateFinopsBanner()" in src
         assert "updateSessionCostChip(stats)" in src
 
     def test_context_ring_regression_preserved(self):
-        src = CHAT_JS.read_text()
+        src = CHAT_JS.read_text(encoding="utf-8")
         assert 'id="chat-ring-wrap"' in src
         assert "function ringStateFor(" in src
         assert 'class="chat-ring-send" id="chat-send-btn"' in src

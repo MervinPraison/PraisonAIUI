@@ -22,7 +22,7 @@ EXPLORER_VIEW = _FRONTEND / "views" / "explorer.js"
 
 
 def _view() -> str:
-    return CHANNELS_VIEW.read_text()
+    return CHANNELS_VIEW.read_text(encoding="utf-8")
 
 
 class TestAddChannelControls:
@@ -91,6 +91,6 @@ class TestEmptyState:
 
 class TestExplorerPreset:
     def test_explorer_has_add_channel_post(self):
-        src = EXPLORER_VIEW.read_text()
+        src = EXPLORER_VIEW.read_text(encoding="utf-8")
         assert "Add Channel" in src
         assert "env:TELEGRAM_BOT_TOKEN" in src

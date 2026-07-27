@@ -22,7 +22,7 @@ CHAT_JS = FRONTEND / "views" / "chat.js"
 
 class TestDashboardSessionSearch:
     def _src(self) -> str:
-        return DASHBOARD_JS.read_text()
+        return DASHBOARD_JS.read_text(encoding="utf-8")
 
     def test_ctrl_k_keydown_handler_present(self):
         # The Ctrl+K binding is owned by the command palette, which exposes a
@@ -107,7 +107,7 @@ class TestDashboardSessionSearch:
 
 class TestChatViewSessionSelectListener:
     def _src(self) -> str:
-        return CHAT_JS.read_text()
+        return CHAT_JS.read_text(encoding="utf-8")
 
     def test_chat_listens_for_session_select(self):
         src = self._src()

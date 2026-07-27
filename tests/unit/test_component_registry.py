@@ -24,7 +24,7 @@ DASHBOARD_JS = (
 @pytest.fixture
 def dashboard_source():
     """Read dashboard.js source."""
-    return DASHBOARD_JS.read_text()
+    return DASHBOARD_JS.read_text(encoding="utf-8")
 
 
 class TestComponentRegistry:
@@ -68,7 +68,7 @@ class TestPythonJSComponentParity:
             Path(__file__).resolve().parents[2]
             / "src" / "praisonaiui" / "ui.py"
         )
-        source = ui_py.read_text()
+        source = ui_py.read_text(encoding="utf-8")
 
         # Extract all "type": "xxx" patterns from ui.py
         py_types = set(re.findall(r'"type":\s*"(\w+)"', source))
