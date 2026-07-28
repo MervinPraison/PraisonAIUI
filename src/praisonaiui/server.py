@@ -2860,7 +2860,14 @@ def create_app(
     require_auth: bool = False,
     config_path: Optional[Path] = None,
 ) -> Starlette:
-    """Create the Starlette application."""
+    """Create the Starlette application.
+
+    URL-token auth (``TokenQueryMiddleware``) is opt-in: it activates only
+    when ``AIUI_REQUIRE_TOKEN`` is truthy, YAML ``auth.requireToken`` is set,
+    or ``require_auth=True``. A bare ``GATEWAY_AUTH_TOKEN`` /
+    ``AIUI_URL_TOKEN`` env var (e.g. leaked into a developer shell after a
+    gateway run) no longer forces 401 on standalone ``/api/*`` (#238, #251).
+    """
     from praisonaiui.auth import (
         AuthMiddleware,
         login_handler,
@@ -2874,10 +2881,13 @@ def create_app(
         config = load_config_from_yaml(config_path)
 
     # Extract auth settings from config
+    _config_requires_token = False
     if config:
         auth_config = config.get("auth", {})
         if auth_config.get("requireAuth") or auth_config.get("require_auth"):
             require_auth = True
+        if auth_config.get("requireToken") or auth_config.get("require_token"):
+            _config_requires_token = True
 
     middleware = [
         Middleware(
@@ -2891,10 +2901,20 @@ def create_app(
     # Add optional AUTH_ENFORCE middleware (env var driven)
     middleware.append(Middleware(AuthEnforcementMiddleware))
 
-    # URL-token auth — opt-in via env. Enables query-param / cookie auth so
-    # dashboards can be shared by URL (Jupyter model).
+    # URL-token auth — opt-in. Enables query-param / cookie auth so dashboards
+    # can be shared by URL (Jupyter model). The mere presence of a token env
+    # var (e.g. GATEWAY_AUTH_TOKEN leaking into a developer shell after a
+    # gateway run) must NOT force auth on standalone create_app() — that broke
+    # ad-hoc TestClient scripts (#238, #251). Activation now requires an
+    # explicit opt-in: AIUI_REQUIRE_TOKEN=1, YAML auth.requireToken, or the
+    # require_auth flag.
     _tok = os.environ.get("AIUI_URL_TOKEN") or os.environ.get("GATEWAY_AUTH_TOKEN")
-    if _tok:
+    _token_auth_opt_in = (
+        os.environ.get("AIUI_REQUIRE_TOKEN", "").lower() in ("true", "1", "yes")
+        or _config_requires_token
+        or require_auth
+    )
+    if _tok and _token_auth_opt_in:
         from praisonaiui.auth import TokenQueryMiddleware
         middleware.append(
             Middleware(TokenQueryMiddleware, expected_token=_tok)
