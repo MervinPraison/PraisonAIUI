@@ -95,7 +95,7 @@ async def test_default_sqlite_url():
 
     with patch.dict(os.environ, {}, clear=True):
         store = SQLAlchemyDataStore()
-        expected = str(Path.home() / ".praisonaiui" / "aiui.db")
+        expected = (Path.home() / ".praisonaiui" / "aiui.db").as_posix()
         assert expected in store._database_url
         assert store._database_url.startswith("sqlite+aiosqlite:///")
 
@@ -108,7 +108,7 @@ async def test_respects_aiui_data_dir_env():
     with tempfile.TemporaryDirectory() as tmpdir:
         with patch.dict(os.environ, {"AIUI_DATA_DIR": tmpdir}):
             store = SQLAlchemyDataStore()
-            expected = str(Path(tmpdir) / "aiui.db")
+            expected = (Path(tmpdir) / "aiui.db").as_posix()
             assert expected in store._database_url
 
 

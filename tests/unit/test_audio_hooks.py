@@ -305,7 +305,7 @@ class TestAudioSessionManagement:
         session = _audio_sessions[session_id]
         assert session["chunks_received"] == 1
         assert session["bytes_received"] == len(test_data)
-        assert session["last_chunk_at"] > session["started_at"]
+        assert session["last_chunk_at"] >= session["started_at"]
 
         # Check global stats were updated
         assert _audio_stats["total_chunks"] == 1

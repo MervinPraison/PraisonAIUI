@@ -151,17 +151,32 @@ class TestCompetitorScrub:
     """The peer framework's name must never reappear in the source tree."""
 
     def test_zero_matches_in_source(self):
-        import subprocess
-        r = subprocess.run(
-            ["grep", "-rn", "-i", "chainlit",
-             "src/praisonaiui", "docs", "examples", "tests",
-             "--include=*.py", "--include=*.md", "--include=*.yaml",
-             "--include=*.yml", "--include=*.ts", "--include=*.tsx"],
-            capture_output=True, text=True, cwd=_repo_root(),
-        )
-        hits = [line for line in r.stdout.splitlines()
-                if ".pyc" not in line
-                and "tests/unit/test_unified_naming" not in line]
+        import pathlib
+
+        root = pathlib.Path(_repo_root())
+        needle = "chainlit"
+        suffixes = {".py", ".md", ".yaml", ".yml", ".ts", ".tsx"}
+        search_dirs = ["src/praisonaiui", "docs", "examples", "tests"]
+
+        hits = []
+        for rel in search_dirs:
+            base = root / rel
+            if not base.exists():
+                continue
+            for path in base.rglob("*"):
+                if not path.is_file() or path.suffix not in suffixes:
+                    continue
+                rel_path = path.relative_to(root).as_posix()
+                if "test_unified_naming" in rel_path:
+                    continue
+                try:
+                    text = path.read_text(encoding="utf-8", errors="ignore")
+                except OSError:
+                    continue
+                for lineno, line in enumerate(text.splitlines(), 1):
+                    if needle in line.lower():
+                        hits.append(f"{rel_path}:{lineno}:{line}")
+
         assert not hits, f"Competitor name reappeared: {hits}"
 
 

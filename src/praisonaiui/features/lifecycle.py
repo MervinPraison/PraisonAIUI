@@ -175,7 +175,7 @@ async def run_startup_hooks() -> None:
         return
 
     _log.info(f"Running {len(_startup_hooks)} startup hooks")
-    start_time = time.time()
+    start_time = time.perf_counter()
 
     for hook in _startup_hooks:
         try:
@@ -187,7 +187,7 @@ async def run_startup_hooks() -> None:
             _log.error(f"Startup hook failed: {getattr(hook, '__name__', str(hook))}: {e}")
             # Continue with other hooks - individual failures shouldn't break startup
 
-    execution_time = time.time() - start_time
+    execution_time = time.perf_counter() - start_time
     _lifecycle_state.update(
         {
             "startup_completed": True,
@@ -209,7 +209,7 @@ async def run_shutdown_hooks() -> None:
 
     _lifecycle_state["shutdown_initiated"] = True
     _log.info(f"Running {len(_shutdown_hooks)} shutdown hooks")
-    start_time = time.time()
+    start_time = time.perf_counter()
 
     # Get shutdown timeout from environment
     timeout = float(os.environ.get("AIUI_SHUTDOWN_TIMEOUT", "30.0"))
@@ -227,7 +227,7 @@ async def run_shutdown_hooks() -> None:
 
     try:
         await asyncio.wait_for(_execute_hooks(), timeout=timeout)
-        execution_time = time.time() - start_time
+        execution_time = time.perf_counter() - start_time
         _lifecycle_state["shutdown_time"] = execution_time
         _log.info(f"Shutdown hooks completed in {execution_time:.3f}s")
     except asyncio.TimeoutError:
