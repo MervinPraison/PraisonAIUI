@@ -591,7 +591,7 @@ class SQLAlchemyDataStore(BaseDataStore):
         base = Path(os.environ.get("AIUI_DATA_DIR", str(Path.home() / ".praisonaiui")))
         base.mkdir(parents=True, exist_ok=True)
         db_path = base / "aiui.db"
-        return f"sqlite+aiosqlite:///{db_path}"
+        return f"sqlite+aiosqlite:///{db_path.as_posix()}"
 
     async def _ensure_initialized(self) -> None:
         """Lazy initialization of SQLAlchemy engine and tables."""
