@@ -89,13 +89,15 @@ async def test_missing_dependencies_error(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_default_sqlite_url():
+async def test_default_sqlite_url(tmp_path):
     """Default should create ~/.praisonaiui/aiui.db"""
     from praisonaiui.datastore import SQLAlchemyDataStore
 
-    with patch.dict(os.environ, {}, clear=True):
+    home = str(tmp_path)
+    env = {"HOME": home, "USERPROFILE": home}
+    with patch.dict(os.environ, env, clear=True):
         store = SQLAlchemyDataStore()
-        expected = (Path.home() / ".praisonaiui" / "aiui.db").as_posix()
+        expected = (Path(home) / ".praisonaiui" / "aiui.db").as_posix()
         assert expected in store._database_url
         assert store._database_url.startswith("sqlite+aiosqlite:///")
 
