@@ -32,4 +32,13 @@ const comment = ciFix.buildCiFixComment({
 });
 assert('comment mentions product guardrails', comment.includes('Product guardrails'));
 
+const skip = ciFix.shouldSkipCiFix({
+  comments: [],
+  headSha: 'abc1234567890abcdef1234567890abcdef12',
+  labels: [],
+  claudeInProgress: false,
+  failedChecks: [{ name: 'python', workflow: 'CI' }],
+});
+assert('ci fix without FINAL review allowed', !skip.skip);
+
 process.exit(failed ? 1 : 0);

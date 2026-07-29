@@ -46,10 +46,9 @@ function hasRecentCiFixComment(comments, headSha) {
   });
 }
 
-function shouldSkipCiFix({ comments, headSha, labels, hasFinal, claudeInProgress, failedChecks }) {
+function shouldSkipCiFix({ comments, headSha, labels, claudeInProgress, failedChecks }) {
   if (!failedChecks.length) return { skip: true, reason: 'no failed checks' };
   if (labels.includes(CI_FIX_LABEL)) return { skip: true, reason: 'ci fix pending' };
-  if (!hasFinal) return { skip: true, reason: 'awaiting final claude review trigger' };
   if (claudeInProgress) return { skip: true, reason: 'claude in progress' };
   if (hasCiFixCommentForSha(comments, headSha)) {
     return { skip: true, reason: 'already commented for this sha' };
@@ -221,7 +220,6 @@ async function maybeTriggerCiFixClaude(github, owner, repo, prNumber, core, opts
     return { skipped: true, reason: 'no failed checks yet (may be pending)' };
   }
 
-  const hasFinal = mergeGate.hasFinalClaudeReviewTrigger(ctx.comments);
   const claudeInProgress = await mergeGate.hasInProgressClaudeAssistant(
     github, owner, repo, prNumber
   );
@@ -229,7 +227,6 @@ async function maybeTriggerCiFixClaude(github, owner, repo, prNumber, core, opts
     comments: ctx.comments,
     headSha,
     labels,
-    hasFinal,
     claudeInProgress,
     failedChecks: failedRuns,
   });

@@ -205,7 +205,7 @@ const headAfterRebase = conflictIso(-21 * 60 * 1000);
 const rebaseComments = [conflictTrigger, rebaseDone, finalAfterRebase];
 assert('conflict blocks before rebase done', mg.hasRecentConflictComment([conflictTrigger], headAfterRebase));
 assert('conflict clears after rebase + FINAL on HEAD', !mg.hasRecentConflictComment(rebaseComments, headAfterRebase));
-assert('conflict still blocks without FINAL on HEAD', mg.hasRecentConflictComment(
+assert('conflict clears after rebase without FINAL on HEAD', !mg.hasRecentConflictComment(
   [conflictTrigger, rebaseDone],
   headAfterRebase
 ));

@@ -113,7 +113,7 @@ function conflictRebaseQuiescent(comments, headPushedAt) {
   );
   if (!rebaseDone) return false;
 
-  return finalClaudeCompletedOnSha(comments, headPushedAt);
+  return true;
 }
 
 function hasRecentConflictComment(comments, headPushedAt = null) {
