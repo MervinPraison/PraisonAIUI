@@ -21,12 +21,23 @@ def client():
     _agents.clear()
     _callbacks.clear()
     import praisonaiui.server as _srv
+    from praisonaiui.features import _features
 
     _srv._DEEP_HEALTH_CACHE = {}
     _srv._DEEP_HEALTH_CACHE_TIME = 0.0
+    # Snapshot and clear the global feature registry so a feature leaked by an
+    # earlier test (e.g. one that crashed before its cleanup) cannot slow down
+    # /health and flake the deep-health timing/cache assertions under the full
+    # suite. See issue #256.
+    _features_snapshot = dict(_features)
+    _features.clear()
     set_datastore(MemoryDataStore())
     app = create_app()
-    return TestClient(app)
+    try:
+        yield TestClient(app)
+    finally:
+        _features.clear()
+        _features.update(_features_snapshot)
 
 
 class TestHealthEndpoint:
