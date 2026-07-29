@@ -224,25 +224,37 @@ def test_constant_time_comparison():
 
 
 def test_timing_attack_resistance():
-    """Test timing attack resistance - all incorrect tokens take similar time."""
+    """Test timing attack resistance - all incorrect tokens take similar time.
+
+    Timing is inherently noisy: a single sample per token trips on scheduler
+    spikes when the full suite runs under CPU contention (issue #256). We take
+    several samples per token and compare the *median* time, which is resistant
+    to transient spikes, so the test measures the constant-time property rather
+    than system load.
+    """
     correct = "secret123456789012345678901234567890"
     wrong_same_length = "wrongg123456789012345678901234567890"
     wrong_diff_length = "wrong"
+    tokens = [wrong_same_length, wrong_diff_length, ""]
 
-    # Measure times for different wrong tokens
-    times = []
-    for wrong_token in [wrong_same_length, wrong_diff_length, ""]:
-        start = time.perf_counter()
-        for _ in range(1000):  # Multiple iterations for better timing measurement
-            _constant_time_eq(correct, wrong_token)
-        end = time.perf_counter()
-        times.append(end - start)
+    def _median_time(wrong_token: str) -> float:
+        samples = []
+        for _ in range(7):
+            start = time.perf_counter()
+            for _ in range(1000):
+                _constant_time_eq(correct, wrong_token)
+            samples.append(time.perf_counter() - start)
+        samples.sort()
+        return samples[len(samples) // 2]
 
-    # Times should be similar (within reasonable variance)
-    # This is a best-effort test - timing can be affected by system load
+    # Warm up so JIT/cache effects do not skew the first token's samples.
+    _median_time(correct)
+
+    times = [_median_time(token) for token in tokens]
+
+    # Median times should be similar (all wrong tokens take comparable time).
     avg_time = sum(times) / len(times)
     for t in times:
-        # Allow up to 50% variance due to system noise
         assert abs(t - avg_time) / avg_time < 0.5, f"Timing variance too high: {times}"
 
 
