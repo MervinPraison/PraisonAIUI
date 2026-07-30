@@ -2902,24 +2902,19 @@ def create_app(
     middleware.append(Middleware(AuthEnforcementMiddleware))
 
     # URL-token auth — opt-in. Enables query-param / cookie auth so dashboards
-    # can be shared by URL (Jupyter model). AIUI_URL_TOKEN is the explicit
-    # opt-in signal. The mere presence of GATEWAY_AUTH_TOKEN (e.g. leaked into a
-    # developer shell after a gateway run) must NOT force auth on standalone
-    # create_app() — that broke ad-hoc TestClient scripts (#238, #251).
-    # GATEWAY_AUTH_TOKEN is only honoured when the developer explicitly opts in
-    # via AIUI_REQUIRE_TOKEN=1/true/yes, YAML auth.requireToken / auth.urlToken,
-    # or the require_auth flag.
-    _explicit_tok = os.environ.get("AIUI_URL_TOKEN")
-    _gateway_tok = os.environ.get("GATEWAY_AUTH_TOKEN")
+    # can be shared by URL (Jupyter model). The mere presence of a token env
+    # var (e.g. GATEWAY_AUTH_TOKEN leaking into a developer shell after a
+    # gateway run) must NOT force auth on standalone create_app() — that broke
+    # ad-hoc TestClient scripts (#238, #251). Activation now requires an
+    # explicit opt-in: AIUI_REQUIRE_TOKEN=1, YAML auth.requireToken, or the
+    # require_auth flag.
+    _tok = os.environ.get("AIUI_URL_TOKEN") or os.environ.get("GATEWAY_AUTH_TOKEN")
     _token_auth_opt_in = (
-        os.environ.get("AIUI_REQUIRE_TOKEN", "").strip().lower() in ("true", "1", "yes")
+        os.environ.get("AIUI_REQUIRE_TOKEN", "").lower() in ("true", "1", "yes")
         or _config_requires_token
         or require_auth
     )
-    if config and config.get("auth", {}).get("urlToken"):
-        _token_auth_opt_in = True
-    _tok = _explicit_tok or (_gateway_tok if _token_auth_opt_in else None)
-    if _tok:
+    if _tok and _token_auth_opt_in:
         from praisonaiui.auth import TokenQueryMiddleware
         middleware.append(
             Middleware(TokenQueryMiddleware, expected_token=_tok)
