@@ -280,7 +280,7 @@ jobs:
           model: claude-opus-4-8
           trigger_phrase: '@claude-merge-gate-internal'
           direct_prompt: |
-            You are the MERGE GATE reviewer for PraisonAI PR #${{ matrix.pr_number }}.
+            You are the MERGE GATE reviewer for PraisonAIUI PR #${{ matrix.pr_number }}.
             READ-ONLY: do not modify code, commit, push, rebase, or create branches.
 
             CRITICAL OUTPUT RULE:
@@ -295,12 +295,13 @@ jobs:
             Review checklist:
             1. Read AGENTS.md and the PR diff on the current branch.
             2. Read all PR comments and reviews (FINAL architecture reviewer / Lead Engineer must have run).
-            3. Confirm SDK value gate: change strengthens praisonaiagents (no scope creep).
-            4. Do not bloat the Agent class with additional params — only if absolutely required; we already support many params.
-            5. If agent.py adds >100 lines or new Agent __init__ params, respond MERGE_GATE_VERDICT: BLOCK (manual review required).
-            6. BLOCK if labels security/breaking-change/needs-manual-review/release, sensitive paths (.github/workflows, auth, pyproject.toml), secrets in diff, PR >800 lines or >30 files, or SDK changes without tests. Label `merge-gate-ci-only` exempts CI-only changes under `.github/workflows/`, `.github/actions/`, or merge-gate scripts.
-            7. Confirm no CHANGES_REQUESTED reviews and CI green on HEAD ${{ matrix.head_sha }}.
-            8. If ready to merge: MERGE_GATE_VERDICT: APPROVE. Otherwise: MERGE_GATE_VERDICT: BLOCK with reasons.
+            3. Confirm product value gate: change strengthens PraisonAIUI UX (no scope creep). The aim is a LIGHTWEIGHT AND POWERFUL package — BLOCK changes that add params/modules/exports duplicating existing UI capabilities (YAML config, plugins, feature modules, existing server hooks), or add knobs/fields with no live consumer, i.e. scope creep for the sake of it.
+            4. Layering routing: BLOCK if core agent logic was added here instead of praisonaiagents; BLOCK if agent-callable tools were added here instead of PraisonAI-Tools.
+            5. Do not bloat server.py or create_app() with additional params — only if absolutely required; prefer existing config/plugin patterns.
+            6. If server.py or create_app() adds >100 lines or new top-level params without a clear live consumer, respond MERGE_GATE_VERDICT: BLOCK (manual review required).
+            7. BLOCK if labels security/breaking-change/needs-manual-review/release, sensitive paths (.github/workflows, auth, pyproject.toml), secrets in diff, PR >800 lines or >30 files, or product code changes without tests. Label `merge-gate-ci-only` exempts CI-only changes under `.github/workflows/`, `.github/actions/`, or merge-gate scripts.
+            8. Confirm no CHANGES_REQUESTED reviews and CI green on HEAD ${{ matrix.head_sha }}.
+            9. If ready to merge: MERGE_GATE_VERDICT: APPROVE. Otherwise: MERGE_GATE_VERDICT: BLOCK with reasons.
 
             Do not approve or merge via GitHub UI/API — only post the verdict comment.
           disallowed_tools: |

@@ -349,6 +349,9 @@ jobs:
             SCOPE: src/praisonaiui, src/frontend, tests, docs only.
 
             **Phase 1 — Review** architecture, security, tests, backward compat, import-time budget.
+            Product value gate: change must strengthen PraisonAIUI UX (no scope creep). BLOCK params/modules/exports
+            duplicating existing UI capabilities or knobs with no live consumer. Core agent logic belongs in
+            praisonaiagents; agent-callable tools in PraisonAI-Tools — not here.
             **Phase 2 — FIX (mandatory)** implement every VALID issue on THIS branch. Push commits before Phase 3.
             Do NOT ask the author to fix. Do NOT open a new PR. Do NOT claim fork restrictions unless is_fork is true.
             **Phase 3 — Verdict** approve only after fixes are pushed and tests pass; else request changes with specifics.
@@ -403,6 +406,11 @@ jobs:
             STEP 1 — READ GUIDELINES
             ═══════════════════════════════════════════════════════════════
             Read `AGENTS.md` and any `docs/principles.md`. Key invariants:
+              • AIM: This package must stay LIGHTWEIGHT AND POWERFUL. Do a CRITICAL REVIEW at each stage
+                (issue triage, fix planning, PR review/implementation) and reject scope creep for the sake
+                of adding features. Prefer existing YAML config, plugins, feature modules, and server hooks
+                over new server.py/create_app() params or exports. Even when fixing a raised issue, keep the
+                fix minimal — do NOT expand surface area or add knobs with no live consumer.
               • Cold import of `praisonaiui` must stay under 200 ms; module count must not grow.
               • Heavy / optional deps (`mcp`, `langchain`, `llama_index`, `semantic_kernel`,
                 `slack_sdk`, `discord.py`, `botbuilder.core`, `openai`, `anthropic`, `mistralai`,
@@ -438,6 +446,12 @@ jobs:
 
             CONCEPTUAL CHECKS (if ANY fails — add a comment, do NOT open a PR):
               • Does it duplicate an existing public symbol in `src/praisonaiui/__init__.py`?
+              • Does it duplicate existing UI capability via YAML config, plugins, or feature modules
+                instead of adding new server params? → Reject as scope creep; prefer existing patterns.
+              • Does it add core agent runtime logic here instead of praisonaiagents, or agent-callable
+                tools here instead of PraisonAI-Tools? → Route externally; do not implement here.
+              • Does it bloat server.py or create_app() with new params without a clear live consumer?
+                → Prefer existing config/plugin hooks; only add params if absolutely required.
               • Does it add new class-first message types (`class Ask*Message`, `class *Message`
                 with a verb in the name)? → Use a verb-first helper instead.
               • Does it add a new hard dependency to `pyproject.toml` `[project] dependencies`?

@@ -158,12 +158,14 @@ function buildCiFixComment({ headSha, failedChecks, failureSummaries }) {
     '',
     '**Product guardrails (AGENTS.md):**',
     '- Do not disturb PraisonAIUI contracts or frontend/backend layering to accommodate scope creep.',
+    '- Core agent runtime belongs in praisonaiagents; agent-callable tools belong in PraisonAI-Tools — not here.',
+    '- Prefer existing YAML config, plugins, and feature modules over new server.py/create_app() params or knobs with no live consumer.',
     '- Tests must continue to guard backward compatibility and UX behaviour — passing CI by lowering test standards is not acceptable.',
     '- If the feature does not genuinely add product value, recommend reverting or narrowing scope instead of patching around failures.',
     '',
     '## What to do',
     '1. State your verdict: **legitimate fix**, **regression fix**, or **needs human review** — and why (1–3 sentences).',
-    '2. Fix root cause with **minimal changes**; never bloat the Agent class with extra params.',
+    '2. Fix root cause with **minimal changes**; never bloat server.py or create_app() with extra params.',
     exampleTest
       ? `3. Run failing tests locally, e.g. \`pytest ${exampleTest} -q\`, plus any related tests touched by the PR.`
       : '3. Run failing tests locally with targeted pytest, plus any related tests touched by the PR.',
