@@ -565,7 +565,7 @@ jobs:
 
             const finalBody = mergeGate.FINAL_CLAUDE_REVIEW_BODY;
             const staleOpts = { allowStaleRepost: true, skipCopilot: true, optionalWaitMs: 0 };
-            const missingOpts = { allowCopilotTimeout: true, optionalWaitMs: 0 };
+            const missingOpts = { skipCopilot: true, optionalWaitMs: 0 };
 
             if (hasFinal && isStale) {
               const gate = mergeGate.shouldSkipStaleFinalRecovery(comments, headPushedAt, headPusher);
@@ -654,7 +654,7 @@ jobs:
 
               const opts = hasFinal && isStale
                 ? { allowStaleRepost: true, skipCopilot: true, optionalWaitMs: 0 }
-                : { allowCopilotTimeout: true, optionalWaitMs: 0 };
+                : { skipCopilot: true, optionalWaitMs: 0 };
               const result = await chain.maybeTriggerClaudeFinal(
                 github, owner, repo, pr.number,
                 mergeGate.FINAL_CLAUDE_REVIEW_BODY, core, opts
