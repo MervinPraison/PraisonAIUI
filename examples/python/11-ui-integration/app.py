@@ -20,6 +20,7 @@ import sys
 
 # Use shared seed data helper
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from _shared.console import safe_print as print
 from _shared.seed_data import seed_demo_data
 
 

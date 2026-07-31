@@ -4,8 +4,14 @@ Demonstrates ALL 16 PraisonAIUI features with real API calls.
 Run: aiui run app.py
 """
 
+import os
+import sys
+
 from starlette.testclient import TestClient
 from praisonaiui.server import create_app
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from _shared.console import safe_print as print
 
 
 def test_all_features():
