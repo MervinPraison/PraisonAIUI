@@ -1376,6 +1376,7 @@ async function probeGatewayReachable(urlString) {
   }
 
   const probe = new URL('/api/auth/status', base);
+  const sameOrigin = base.origin === window.location.origin;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
 
@@ -1392,7 +1393,14 @@ async function probeGatewayReachable(urlString) {
     return { ok: true, status: res.status };
   } catch (e) {
     clearTimeout(timeout);
-    return { ok: false, reason: e.name === 'AbortError' ? 'timeout' : 'network' };
+    if (e.name === 'AbortError') {
+      return { ok: false, reason: 'timeout' };
+    }
+    // A rejected fetch on a cross-origin URL is ambiguous: the gateway may be
+    // up but blocking CORS, or genuinely unreachable. The browser cannot tell
+    // these apart, so surface the "Continue anyway" opt-in rather than a
+    // definitive unreachable error. Same-origin rejections are genuine.
+    return { ok: false, reason: sameOrigin ? 'network' : 'opaque' };
   }
 }
 
