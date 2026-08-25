@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://adp.io/schemas/v1alpha1/theme.schema.json",
+  "$id": "theme.schema.json",
   "title": "ADP Theme",
   "description": "Theme configuration — preset shorthand or DTCG 2025.10 token reference",
   "oneOf": [

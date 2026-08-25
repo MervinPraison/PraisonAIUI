@@ -20,7 +20,6 @@ spec:
     darkMode: true
 
   navigation:
-    mode: manual
     tabs:
       - tab: "Documentation"
         groups:
@@ -74,6 +73,8 @@ spec:
       include:
         - "**/*.md"
         - "**/*.mdx"
+      nav:
+        mode: manual
 
   components:
     header_main:

@@ -17,7 +17,7 @@ There is no single existing standard for **designing full application UI from a 
 - **Catalog standards** (OpenUI, Backstage) declare component metadata without runtime layout.
 - **Design token standards** (DTCG 2025.10) declare theming without structure.
 
-**Recommendation:** Define an **Application Design Protocol (ADP)** that synthesises proven patterns from 44 surveyed standards into a UI-only manifest format. Author in YAML (default) or JSON; validate with JSON Schema 2020-12; compile to JSON runtime manifests; render with a catalog-constrained component registry.
+**Recommendation:** Define an **Application Design Protocol (ADP)** that synthesises proven patterns from 46 surveyed standards into a UI-only manifest format.
 
 PraisonAIUI already implements approximately 60% of this model. ADP formalises, extends, and publishes what exists today.
 
@@ -51,7 +51,7 @@ A protocol that lets a developer (or LLM) describe an application's visual desig
 
 ---
 
-## 3. Standards landscape — 44 protocols in 10 categories
+## 3. Standards landscape — 46 protocols in 10 categories
 
 Each entry describes **how UI/layout/navigation is declared** — the primary comparison dimension.
 
@@ -302,7 +302,7 @@ spec:
 ### Data flow
 
 ```
-application.yaml → Parse → JSON Schema validate → Cross-ref rules (R1–R20)
+application.yaml → Parse → JSON Schema validate → Cross-ref rules (R1–R30)
         → Compile → ui-config.json + route-manifest.json + docs-nav.json
         → React / static renderer
 ```
@@ -406,12 +406,14 @@ See [adp/aiui-mapping.md](./adp/aiui-mapping.md) for field-by-field mapping.
 | 42 | XAML | https://learn.microsoft.com/en-us/windows/apps/develop/platform/xaml/xaml-overview |
 | 43 | Jetpack Compose | https://developer.android.com/develop/ui/compose |
 | 44 | SwiftUI | https://developer.apple.com/xcode/swiftui/ |
+| 45 | HTML + CSS | https://html.spec.whatwg.org/ |
+| 46 | Flutter | https://flutter.dev/ |
 
 ---
 
 ## 13. Conclusion
 
-ADP is feasible and largely prefigured by PraisonAIUI's existing architecture. The research across 44 standards yields a clear synthesis:
+ADP is feasible and largely prefigured by PraisonAIUI's existing architecture. The research across 46 standards yields a clear synthesis:
 
 - **Envelope** from Backstage/K8s
 - **Composition** from PraisonAIUI (components → templates → routes)
@@ -419,5 +421,7 @@ ADP is feasible and largely prefigured by PraisonAIUI's existing architecture. T
 - **Theming** from DTCG
 - **Validation** from AWP (structural schema + R-rules)
 - **Authoring** in YAML (default) with JSON alternate (Mintlify pattern)
+
+**Status:** Research draft — see [adp/implementation-status.md](./adp/implementation-status.md) for implementation gaps.
 
 The draft spec, JSON Schema files, and example manifests are published alongside this report in [`docs/protocols/adp/`](./adp/).

@@ -24,7 +24,7 @@ Inspired by AWP validation rules R1–R32 pattern.
 | **R5** | MUST | Every `spec.components` entry MUST have a unique ID |
 | **R6** | MUST | Every component `type` MUST exist in the published component catalog |
 | **R7** | MUST | Component `props` MUST validate against catalog JSON Schema for that type |
-| **R8** | MUST NOT | A component ID be referenced by `ref:` if it does not exist in `spec.components` |
+| **R8** | MUST NOT | A component ID be referenced by `ref:` unless it exists in `spec.components` |
 | **R9** | SHOULD | Unused components (defined but never referenced) SHOULD emit a warning |
 
 ## Template rules
@@ -34,7 +34,7 @@ Inspired by AWP validation rules R1–R32 pattern.
 | **R10** | MUST | Every `spec.templates` entry MUST declare a valid `layout` from the catalog |
 | **R11** | MUST | Slot names in `templates.*.slots` MUST be valid for the declared layout |
 | **R12** | MUST | Zone names in `templates.*.zones` MUST be valid for `FlexibleLayout` |
-| **R13** | MUST NOT | A template declare both `slots` and `zones` for the same region |
+| **R13** | MUST | Each template MUST declare either `slots` or `zones`, not both |
 | **R14** | MUST | Inline slot `{ type: X }` types MUST exist in the component catalog |
 | **R15** | MUST | Slot `{ ref: id }` MUST resolve to a component in `spec.components` |
 
@@ -47,13 +47,18 @@ Inspired by AWP validation rules R1–R32 pattern.
 | **R18** | MUST | Route slot overrides MUST use valid slot names for the target template's layout |
 | **R19** | SHOULD | At least one route SHOULD match the site root or docs base path |
 
-## Content rules
+## Content and navigation rules
 
 | Rule | Level | Description |
 |------|-------|-------------|
 | **R20** | MUST | If `content.docs.dir` is declared, the directory MUST exist at compile time |
-| **R21** | MUST | If `navigation.mode` is `manual`, `navigation.tabs` MUST be non-empty |
-| **R22** | SHOULD | If `navigation.mode` is `auto`, a content source MUST be declared |
+| **R21** | MUST | If `content.docs.nav.mode` is `manual`, `navigation.tabs` MUST be non-empty |
+| **R22** | SHOULD | If `content.docs.nav.mode` is `auto`, a content source MUST be declared |
+
+Navigation model:
+
+- **`navigation.tabs`** — top tab bar (Mintlify-style)
+- **`content.docs.nav.mode`** — sidebar source: `auto` (filesystem scan) or `manual` (use `navigation.tabs` groups)
 
 ## File include rules
 
@@ -70,12 +75,14 @@ Inspired by AWP validation rules R1–R32 pattern.
 | **R26** | MUST | If `theme.tokens` is declared, the referenced file MUST exist and validate against DTCG 2025.10 |
 | **R27** | MUST NOT | Both `theme.preset` and `theme.tokens` be declared simultaneously |
 
-## Renderer rules (runtime)
+## Renderer conformance (target — not yet implemented in PraisonAIUI)
+
+These rules define the target behaviour for ADP-conformant renderers. See [implementation-status.md](./implementation-status.md).
 
 | Rule | Level | Description |
 |------|-------|-------------|
 | **R28** | MUST | Renderers MUST resolve the active template from `route-manifest.json` at runtime |
-| **R29** | MUST | Renderers MUST honour `navigation.mode` when building sidebar |
+| **R29** | MUST | Renderers MUST honour `content.docs.nav.mode` when building sidebar |
 | **R30** | MUST | Renderers MUST apply ARIA roles from catalog for each rendered component |
 
 ---

@@ -105,25 +105,32 @@ theme:
   tokens: $yaml: ./theme.tokens.json   # DTCG 2025.10 file
 ```
 
-### 4.3 Navigation (`spec.navigation`)
+### 4.3 Navigation
+
+ADP separates **top tab bar** from **sidebar source**:
 
 ```yaml
 navigation:
-  mode: auto              # auto | manual
-  tabs:
+  tabs:                   # Top tab bar (Mintlify-style)
     - tab: Documentation
       groups:
         - group: Getting Started
-          icon: rocket
-          prefix: getting-started
-          pages:
-            - index
-            - getting-started/installation
+          pages: [index, getting-started/installation]
+
+content:
+  docs:
+    dir: ./docs
+    nav:
+      mode: auto           # auto | manual — sidebar source
+      sort: filesystem
+      collapsible: true
+      maxDepth: 4
 ```
 
-- `mode: auto` — sidebar generated from filesystem scan of content dir
-- `mode: manual` — sidebar driven by `navigation.tabs` definition
-- Renderers MUST honour the declared navigation mode
+- **`navigation.tabs`** — top-level tab bar with grouped pages
+- **`content.docs.nav.mode: auto`** — sidebar generated from filesystem scan
+- **`content.docs.nav.mode: manual`** — sidebar driven by `navigation.tabs` groups
+- Renderers MUST honour `content.docs.nav.mode` when building sidebar (R29)
 
 ### 4.4 Components (`spec.components`)
 
@@ -151,7 +158,10 @@ templates:
       left: { ref: sidebar_docs }
       main: { type: DocContent }
       right: null           # Explicitly hide slot
-    zones:                  # Alternative to slots; ordered widget lists
+
+  landing:
+    layout: FlexibleLayout
+    zones:
       hero:
         - type: HeroBanner
           props: { title: "Welcome" }
@@ -160,8 +170,8 @@ templates:
 Rules:
 - `layout` MUST be a known layout type in the catalog
 - Each slot value MUST be `{ ref: id }`, `{ type: ComponentType }`, or `null`
-- Zones MUST NOT coexist with slots for the same region in the same template
-- A template MUST declare either `slots` or `zones`, not both (unified in future v1)
+- Zones MUST use zone names valid for `FlexibleLayout`
+- A template MUST declare either `slots` or `zones`, not both (R13)
 
 ### 4.6 Routes (`spec.routes`)
 
@@ -200,22 +210,29 @@ content:
 
 ## 5. Component catalog
 
-Implementations MUST publish a `component-catalog.schema.json` defining allowed component types. Each entry MUST include:
+Implementations MUST publish a `component-catalog.schema.json` (meta-schema) and a catalog instance such as [`catalogs/default.catalog.json`](./catalogs/default.catalog.json):
 
 ```json
 {
-  "Header": {
-    "description": "Site header with logo and navigation",
-    "props": {
-      "type": "object",
-      "properties": {
-        "logoText": { "type": "string" }
+  "name": "adp-default-catalog",
+  "version": "1.0.0",
+  "components": {
+    "Header": {
+      "description": "Site header with logo and navigation",
+      "props": {
+        "type": "object",
+        "properties": { "logoText": { "type": "string" } },
+        "required": ["logoText"],
+        "additionalProperties": false
       },
-      "required": ["logoText"],
-      "additionalProperties": false
-    },
-    "aria": {
-      "role": "banner"
+      "aria": { "role": "banner" },
+      "slots": ["header"]
+    }
+  },
+  "layouts": {
+    "ThreeColumnLayout": {
+      "description": "Header + sidebar + main + TOC + footer",
+      "slots": ["header", "left", "main", "right", "footer"]
     }
   }
 }
@@ -289,7 +306,7 @@ An implementation is **ADP-conformant** if and only if it:
 ## 10. Related documents
 
 - [Research report](../application-design-protocol-report.md)
-- [Validation rules](./validation-rules.md)
+- [Implementation status](./implementation-status.md)
 - [PraisonAIUI mapping](./aiui-mapping.md)
 - [JSON Schema: application](./schema/application.schema.json)
 - [JSON Schema: component catalog](./schema/component-catalog.schema.json)

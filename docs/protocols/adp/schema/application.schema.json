@@ -1,11 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://adp.io/schemas/v1alpha1/application.schema.json",
+  "$id": "application.schema.json",
   "title": "ADP Application",
   "description": "Application Design Protocol — Application kind manifest",
   "type": "object",
   "required": ["schemaVersion", "apiVersion", "kind", "metadata", "spec"],
   "additionalProperties": false,
+  "patternProperties": {
+    "^x-adp-": {}
+  },
   "properties": {
     "schemaVersion": {
       "type": "integer",
@@ -24,6 +27,9 @@
       "type": "object",
       "required": ["name"],
       "additionalProperties": false,
+      "patternProperties": {
+        "^x-adp-": {}
+      },
       "properties": {
         "name": { "type": "string", "minLength": 1 },
         "version": { "type": "string" },
@@ -41,6 +47,9 @@
       "type": "object",
       "required": ["site", "templates", "routes"],
       "additionalProperties": false,
+      "patternProperties": {
+        "^x-adp-": {}
+      },
       "properties": {
         "site": { "$ref": "#/$defs/site" },
         "theme": { "$ref": "#/$defs/theme" },
@@ -52,6 +61,7 @@
         "templates": { "$ref": "#/$defs/templates" },
         "routes": { "$ref": "#/$defs/routes" },
         "content": { "$ref": "#/$defs/content" },
+        "dependencies": { "$ref": "#/$defs/dependencies" },
         "seo": { "$ref": "#/$defs/seo" },
         "i18n": { "$ref": "#/$defs/i18n" },
         "a11y": { "$ref": "#/$defs/a11y" }
@@ -63,6 +73,9 @@
       "type": "object",
       "required": ["title"],
       "additionalProperties": false,
+      "patternProperties": {
+        "^x-adp-": {}
+      },
       "properties": {
         "title": { "type": "string" },
         "description": { "type": "string" },
@@ -80,25 +93,43 @@
       }
     },
     "theme": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "preset": {
-          "type": "string",
-          "enum": [
-            "zinc", "slate", "stone", "gray", "neutral",
-            "red", "orange", "amber", "yellow", "lime", "green",
-            "emerald", "teal", "cyan", "sky", "blue", "indigo",
-            "violet", "purple", "fuchsia", "pink", "rose"
-          ]
+      "oneOf": [
+        {
+          "title": "Preset theme",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "preset": {
+              "type": "string",
+              "enum": [
+                "zinc", "slate", "stone", "gray", "neutral",
+                "red", "orange", "amber", "yellow", "lime", "green",
+                "emerald", "teal", "cyan", "sky", "blue", "indigo",
+                "violet", "purple", "fuchsia", "pink", "rose"
+              ]
+            },
+            "radius": {
+              "type": "string",
+              "enum": ["none", "sm", "md", "lg", "xl"]
+            },
+            "darkMode": { "type": "boolean" }
+          },
+          "required": ["preset"]
         },
-        "radius": {
-          "type": "string",
-          "enum": ["none", "sm", "md", "lg", "xl"]
-        },
-        "darkMode": { "type": "boolean" },
-        "tokens": { "type": "string", "description": "Path to DTCG token file" }
-      }
+        {
+          "title": "DTCG token reference",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tokens": {
+              "type": "string",
+              "description": "Path or URL to DTCG 2025.10 compliant tokens.json"
+            },
+            "darkMode": { "type": "boolean" }
+          },
+          "required": ["tokens"]
+        }
+      ]
     },
     "slotRef": {
       "oneOf": [
@@ -155,6 +186,14 @@
     "template": {
       "type": "object",
       "required": ["layout"],
+      "allOf": [
+        {
+          "oneOf": [
+            { "required": ["slots"] },
+            { "required": ["zones"] }
+          ]
+        }
+      ],
       "additionalProperties": false,
       "properties": {
         "layout": {
@@ -234,11 +273,6 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "mode": {
-          "type": "string",
-          "enum": ["auto", "manual"],
-          "default": "auto"
-        },
         "tabs": {
           "type": "array",
           "items": { "$ref": "#/$defs/navTab" }
@@ -251,6 +285,7 @@
       "properties": {
         "primary": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "type": { "type": "string", "enum": ["button", "github"] },
             "label": { "type": "string" },
@@ -262,6 +297,7 @@
           "items": {
             "type": "object",
             "required": ["label", "href"],
+            "additionalProperties": false,
             "properties": {
               "label": { "type": "string" },
               "href": { "type": "string" }
@@ -283,6 +319,7 @@
           "items": {
             "type": "object",
             "required": ["header"],
+            "additionalProperties": false,
             "properties": {
               "header": { "type": "string" },
               "items": {
@@ -290,6 +327,7 @@
                 "items": {
                   "type": "object",
                   "required": ["label", "href"],
+                  "additionalProperties": false,
                   "properties": {
                     "label": { "type": "string" },
                     "href": { "type": "string" }
@@ -312,6 +350,16 @@
         }
       }
     },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shadcn": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
     "contentSource": {
       "type": "object",
       "required": ["dir"],
@@ -326,14 +374,30 @@
           "type": "array",
           "items": { "type": "string" }
         },
+        "indexFiles": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
         "nav": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "mode": { "type": "string", "enum": ["auto", "manual"] },
             "sort": { "type": "string", "enum": ["filesystem", "alpha", "date"] },
             "collapsible": { "type": "boolean" },
             "maxDepth": { "type": "integer", "minimum": 1, "maximum": 10 }
-          }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": { "mode": { "const": "manual" } },
+                "required": ["mode"]
+              },
+              "then": {
+                "description": "Manual sidebar mode requires navigation.tabs at spec level"
+              }
+            }
+          ]
         }
       }
     },
@@ -350,7 +414,11 @@
       "additionalProperties": false,
       "properties": {
         "titleTemplate": { "type": "string" },
-        "defaultImage": { "type": "string" }
+        "defaultImage": { "type": "string" },
+        "twitter": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
       }
     },
     "i18n": {
@@ -359,7 +427,9 @@
       "properties": {
         "defaultLocale": { "type": "string" },
         "locales": { "type": "array", "items": { "type": "string" } },
-        "rtlLocales": { "type": "array", "items": { "type": "string" } }
+        "rtlLocales": { "type": "array", "items": { "type": "string" } },
+        "fallbackLocale": { "type": "string" },
+        "translationsDir": { "type": "string" }
       }
     },
     "a11y": {
