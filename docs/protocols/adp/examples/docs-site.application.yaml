@@ -1,0 +1,103 @@
+schemaVersion: 1
+apiVersion: adp.io/v1alpha1
+kind: Application
+
+metadata:
+  name: praisonaiui-docs
+  version: "1.0.0"
+  labels:
+    generator: praisonaiui
+
+spec:
+  site:
+    title: "PraisonAIUI Docs"
+    description: "Documentation for PraisonAIUI - YAML-driven website generator"
+    ui: shadcn
+
+  theme:
+    preset: zinc
+    radius: md
+    darkMode: true
+
+  navigation:
+    mode: manual
+    tabs:
+      - tab: "Documentation"
+        groups:
+          - group: "Getting Started"
+            icon: rocket
+            prefix: getting-started
+            pages:
+              - index
+              - getting-started/installation
+              - getting-started/quickstart
+          - group: "Core Concepts"
+            icon: lightbulb
+            prefix: concepts
+            pages:
+              - concepts/architecture
+              - concepts/configuration
+              - concepts/templates
+      - tab: "API Reference"
+        groups:
+          - group: "API Reference"
+            icon: code
+            prefix: api
+            pages:
+              - api/cli
+              - api/python
+
+  navbar:
+    primary:
+      type: github
+      href: "https://github.com/MervinPraison/PraisonAIUI"
+    links:
+      - label: "Submit Issues"
+        href: "https://github.com/MervinPraison/PraisonAIUI/issues"
+
+  footer:
+    socials:
+      github: "https://github.com/MervinPraison/PraisonAI"
+    links:
+      - header: "Resources"
+        items:
+          - label: "GitHub"
+            href: "https://github.com/MervinPraison/PraisonAI"
+
+  search:
+    enabled: true
+    provider: fusejs
+
+  content:
+    docs:
+      dir: "./docs"
+      include:
+        - "**/*.md"
+        - "**/*.mdx"
+
+  components:
+    header_main:
+      type: Header
+      props:
+        logoText: "PraisonAIUI"
+    footer_main:
+      type: Footer
+      props:
+        text: "© 2026 PraisonAI"
+    sidebar_docs:
+      type: DocsSidebar
+      props:
+        source: docs-nav
+
+  templates:
+    docs:
+      layout: ThreeColumnLayout
+      slots:
+        header: { ref: header_main }
+        left: { ref: sidebar_docs }
+        main: { type: DocContent }
+        footer: { ref: footer_main }
+
+  routes:
+    - match: "/docs/**"
+      template: docs

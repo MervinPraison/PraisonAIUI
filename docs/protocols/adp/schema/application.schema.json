@@ -1,0 +1,379 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adp.io/schemas/v1alpha1/application.schema.json",
+  "title": "ADP Application",
+  "description": "Application Design Protocol — Application kind manifest",
+  "type": "object",
+  "required": ["schemaVersion", "apiVersion", "kind", "metadata", "spec"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "ADP envelope version"
+    },
+    "apiVersion": {
+      "type": "string",
+      "const": "adp.io/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "Application"
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string" },
+        "labels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "required": ["site", "templates", "routes"],
+      "additionalProperties": false,
+      "properties": {
+        "site": { "$ref": "#/$defs/site" },
+        "theme": { "$ref": "#/$defs/theme" },
+        "navigation": { "$ref": "#/$defs/navigation" },
+        "navbar": { "$ref": "#/$defs/navbar" },
+        "footer": { "$ref": "#/$defs/footer" },
+        "search": { "$ref": "#/$defs/search" },
+        "components": { "$ref": "#/$defs/components" },
+        "templates": { "$ref": "#/$defs/templates" },
+        "routes": { "$ref": "#/$defs/routes" },
+        "content": { "$ref": "#/$defs/content" },
+        "seo": { "$ref": "#/$defs/seo" },
+        "i18n": { "$ref": "#/$defs/i18n" },
+        "a11y": { "$ref": "#/$defs/a11y" }
+      }
+    }
+  },
+  "$defs": {
+    "site": {
+      "type": "object",
+      "required": ["title"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "ui": {
+          "type": "string",
+          "enum": ["shadcn", "mui", "chakra"],
+          "default": "shadcn"
+        },
+        "routeBaseDocs": { "type": "string", "default": "/docs" },
+        "customCss": { "type": "string" },
+        "plugins": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "preset": {
+          "type": "string",
+          "enum": [
+            "zinc", "slate", "stone", "gray", "neutral",
+            "red", "orange", "amber", "yellow", "lime", "green",
+            "emerald", "teal", "cyan", "sky", "blue", "indigo",
+            "violet", "purple", "fuchsia", "pink", "rose"
+          ]
+        },
+        "radius": {
+          "type": "string",
+          "enum": ["none", "sm", "md", "lg", "xl"]
+        },
+        "darkMode": { "type": "boolean" },
+        "tokens": { "type": "string", "description": "Path to DTCG token file" }
+      }
+    },
+    "slotRef": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["ref"],
+          "additionalProperties": false,
+          "properties": {
+            "ref": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "type": "string" },
+            "props": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      ]
+    },
+    "widget": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string" },
+        "props": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "type": "string" },
+          "props": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "template": {
+      "type": "object",
+      "required": ["layout"],
+      "additionalProperties": false,
+      "properties": {
+        "layout": {
+          "type": "string",
+          "enum": [
+            "ThreeColumnLayout",
+            "TwoColumnLayout",
+            "CenteredLayout",
+            "FullWidthLayout",
+            "FlexibleLayout"
+          ]
+        },
+        "slots": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/slotRef" }
+        },
+        "zones": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/widget" }
+          }
+        }
+      }
+    },
+    "templates": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/template" }
+    },
+    "route": {
+      "type": "object",
+      "required": ["match", "template"],
+      "additionalProperties": false,
+      "properties": {
+        "match": { "type": "string" },
+        "template": { "type": "string" },
+        "slots": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/slotRef" }
+        }
+      }
+    },
+    "routes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/route" }
+    },
+    "navGroup": {
+      "type": "object",
+      "required": ["group"],
+      "additionalProperties": false,
+      "properties": {
+        "group": { "type": "string" },
+        "icon": { "type": "string" },
+        "prefix": { "type": "string" },
+        "pages": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "navTab": {
+      "type": "object",
+      "required": ["tab"],
+      "additionalProperties": false,
+      "properties": {
+        "tab": { "type": "string" },
+        "url": { "type": "string" },
+        "groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/navGroup" }
+        }
+      }
+    },
+    "navigation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["auto", "manual"],
+          "default": "auto"
+        },
+        "tabs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/navTab" }
+        }
+      }
+    },
+    "navbar": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "primary": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": ["button", "github"] },
+            "label": { "type": "string" },
+            "href": { "type": "string" }
+          }
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "href"],
+            "properties": {
+              "label": { "type": "string" },
+              "href": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "footer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "socials": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["header"],
+            "properties": {
+              "header": { "type": "string" },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["label", "href"],
+                  "properties": {
+                    "label": { "type": "string" },
+                    "href": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "search": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "provider": {
+          "type": "string",
+          "enum": ["fusejs", "lunrjs", "pagefind"]
+        }
+      }
+    },
+    "contentSource": {
+      "type": "object",
+      "required": ["dir"],
+      "additionalProperties": false,
+      "properties": {
+        "dir": { "type": "string" },
+        "include": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "exclude": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "nav": {
+          "type": "object",
+          "properties": {
+            "mode": { "type": "string", "enum": ["auto", "manual"] },
+            "sort": { "type": "string", "enum": ["filesystem", "alpha", "date"] },
+            "collapsible": { "type": "boolean" },
+            "maxDepth": { "type": "integer", "minimum": 1, "maximum": 10 }
+          }
+        }
+      }
+    },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "docs": { "$ref": "#/$defs/contentSource" },
+        "blog": { "$ref": "#/$defs/contentSource" }
+      }
+    },
+    "seo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "titleTemplate": { "type": "string" },
+        "defaultImage": { "type": "string" }
+      }
+    },
+    "i18n": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "defaultLocale": { "type": "string" },
+        "locales": { "type": "array", "items": { "type": "string" } },
+        "rtlLocales": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "a11y": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "skipToContent": { "type": "boolean" },
+        "focusVisible": { "type": "boolean" },
+        "reduceMotion": { "type": "boolean" },
+        "ariaLabels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    }
+  }
+}
