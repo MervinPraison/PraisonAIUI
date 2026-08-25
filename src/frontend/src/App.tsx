@@ -32,11 +32,14 @@ export default function App() {
   const [selectedItem, setSelectedItem] = useState<NavItem | null>(null)
   const [activeItemPath, setActiveItemPath] = useState<string>('')
 
-  // Helper function to find nav item by path
+  // Helper function to find nav item by path (searches top-level items and nested children)
   const findNavItemByPath = (navData: DocsNav, path: string): NavItem | null => {
+    const normalizedPath = path.replace(/\/$/, '') || '/'
+
     const findItem = (items: NavItem[]): NavItem | null => {
       for (const item of items) {
-        if (item.path === path || item.path === path.replace(/^\//, '')) {
+        const itemPath = (item.path ?? '').replace(/\/$/, '')
+        if (itemPath === normalizedPath || itemPath === normalizedPath.replace(/^\//, '')) {
           return item
         }
         if (item.children) {
@@ -47,23 +50,14 @@ export default function App() {
       return null
     }
 
-    // Search all nav groups
-    if (navData.items) {
-      for (const group of navData.items) {
-        if (group.children) {
-          const found = findItem(group.children)
-          if (found) return found
-        }
-      }
-    }
-    return null
+    return navData.items ? findItem(navData.items) : null
   }
 
-  // Update SEO meta tags dynamically
-  const updateSEO = (title: string, path: string, description?: string) => {
+  const updateSEO = (title: string, path: string, description?: string, configOverride?: UIConfig) => {
+    const cfg = configOverride ?? config
     // Update title using SEO titleTemplate if available
-    const titleTemplate = config.seo?.titleTemplate || '%s | %s'
-    const siteName = config.site?.title || 'Documentation'
+    const titleTemplate = cfg.seo?.titleTemplate || '%s | %s'
+    const siteName = cfg.site?.title || 'Documentation'
     if (titleTemplate.includes('%s')) {
       // Replace first %s with page title, second %s (if exists) with site name
       let formattedTitle = titleTemplate.replace('%s', title)
@@ -91,7 +85,7 @@ export default function App() {
       metaDesc.name = 'description'
       document.head.appendChild(metaDesc)
     }
-    metaDesc.content = description || `${title} - ${config.site?.description || ''}`
+    metaDesc.content = description || `${title} - ${cfg.site?.description || ''}`
 
     // Update Open Graph tags
     let ogTitle = document.querySelector('meta[property="og:title"]') as HTMLMetaElement
@@ -111,8 +105,8 @@ export default function App() {
     ogUrl.content = window.location.origin + path
 
     // Update Twitter meta tags if configured
-    if (config.seo?.twitter) {
-      Object.entries(config.seo.twitter).forEach(([key, value]) => {
+    if (cfg.seo?.twitter) {
+      Object.entries(cfg.seo.twitter).forEach(([key, value]) => {
         let twitterMeta = document.querySelector(`meta[name="twitter:${key}"]`) as HTMLMetaElement
         if (!twitterMeta) {
           twitterMeta = document.createElement('meta')
@@ -124,15 +118,21 @@ export default function App() {
     }
 
     // Set default image if available
-    if (config.seo?.defaultImage) {
+    if (cfg.seo?.defaultImage) {
       let ogImage = document.querySelector('meta[property="og:image"]') as HTMLMetaElement
       if (!ogImage) {
         ogImage = document.createElement('meta')
         ogImage.setAttribute('property', 'og:image')
         document.head.appendChild(ogImage)
       }
-      ogImage.content = config.seo.defaultImage
+      ogImage.content = cfg.seo.defaultImage
     }
+  }
+
+  const selectNavItem = (item: NavItem) => {
+    setSelectedItem(item)
+    setActiveItemPath(item.path || item.title)
+    updateSEO(item.title, item.path || '/')
   }
 
   useEffect(() => {
@@ -163,12 +163,20 @@ export default function App() {
         )
 
         // Handle initial URL path for SPA routing
-        const currentPath = window.location.pathname
-        if (currentPath && currentPath !== '/') {
+        const currentPath = window.location.pathname.replace(/\/$/, '') || '/'
+        if (currentPath !== '/') {
           const found = findNavItemByPath(navData, currentPath)
           if (found) {
             setSelectedItem(found)
             setActiveItemPath(found.path || found.title)
+            updateSEO(found.title, found.path || currentPath, undefined, configData)
+          }
+        } else {
+          const docsHome = findNavItemByPath(navData, '/docs/index')
+          if (docsHome) {
+            setSelectedItem(docsHome)
+            setActiveItemPath(docsHome.path || docsHome.title)
+            updateSEO(docsHome.title, docsHome.path || '/docs/index', undefined, configData)
           }
         }
       } catch (err) {
@@ -184,19 +192,20 @@ export default function App() {
   // Handle browser back/forward navigation in a separate effect
   useEffect(() => {
     const handlePopState = () => {
-      const path = window.location.pathname
+      const path = window.location.pathname.replace(/\/$/, '') || '/'
       const found = findNavItemByPath(nav, path)
       
       if (found) {
-        setSelectedItem(found)
-        setActiveItemPath(found.path || found.title)
-        // Use updateSEO function for consistency
-        updateSEO(found.title, path)
+        selectNavItem(found)
       } else if (path === '/') {
-        setSelectedItem(null)
-        setActiveItemPath('')
-        // Reset title to site title
-        document.title = config.site?.title || 'Documentation'
+        const docsHome = findNavItemByPath(nav, '/docs/index')
+        if (docsHome) {
+          selectNavItem(docsHome)
+        } else {
+          setSelectedItem(null)
+          setActiveItemPath('')
+          document.title = config.site?.title || 'Documentation'
+        }
       }
     }
     

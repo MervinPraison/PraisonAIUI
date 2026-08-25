@@ -163,14 +163,72 @@ function updateTocSidebar(article) {
 
 /* ───────── Markdown → HTML Converter ───────── */
 
+function convertMkdocsTabs(md) {
+  const lines = md.split('\n');
+  const out = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const tabMatch = lines[i].match(/^===\s+"([^"]+)"\s*$/);
+    if (!tabMatch) {
+      out.push(lines[i]);
+      i++;
+      continue;
+    }
+
+    const title = tabMatch[1];
+    i++;
+    while (i < lines.length && lines[i].trim() === '') i++;
+
+    const block = [];
+    while (i < lines.length) {
+      if (/^===\s+"[^"]+"\s*$/.test(lines[i])) break;
+      if (lines[i].trim() === '' && i + 1 < lines.length && /^===\s+"[^"]+"\s*$/.test(lines[i + 1])) break;
+
+      if (lines[i].startsWith('    ') || lines[i].trimStart().startsWith('```')) {
+        block.push(lines[i].replace(/^    /, ''));
+        i++;
+        continue;
+      }
+
+      if (block.length > 0 && lines[i].trim() === '') {
+        block.push('');
+        i++;
+        continue;
+      }
+
+      break;
+    }
+
+    out.push(`### \u200Btab:${title}`);
+    out.push('');
+    out.push(...block);
+    out.push('');
+  }
+
+  return out.join('\n');
+}
+
 function markdownToHtml(md) {
-  // Clean up MkDocs-specific syntax
+  // Clean up MkDocs-specific syntax (mirrors src/frontend/src/markdown/mkdocsPreprocess.ts)
   let html = md
-    .replace(/<div[^>]*markdown[^>]*>/gi, '')
-    .replace(/<\/div>/gi, '')
-    .replace(/===\s+"([^"]+)"/g, '**$1**')
+    .replace(/<div[^>]*markdown[^>]*>\s*/gi, '')
+    .replace(/<\/div>\s*/gi, '');
+
+  const iconMap = {
+    ':material-file-document:': '📄',
+    ':material-puzzle:': '🧩',
+    ':material-palette:': '🎨',
+    ':material-rocket-launch:': '🚀',
+  };
+  for (const [shortcode, emoji] of Object.entries(iconMap)) {
+    html = html.replaceAll(shortcode, emoji);
+  }
+  html = html
     .replace(/:material-[\w-]+:/g, '•')
     .replace(/:octicons-[\w-]+(?:-\d+)?:/g, '•');
+
+  html = convertMkdocsTabs(html);
 
   const lines = html.split('\n');
   const result = [];
@@ -207,7 +265,7 @@ function markdownToHtml(md) {
     // Code blocks
     if (line.trimStart().startsWith('```')) {
       if (inCodeBlock) {
-        result.push(`<pre class="bg-gray-900 rounded-lg p-4 my-4 overflow-x-auto"><code class="language-${codeLang}">${escapeHtml(codeContent.trim())}</code></pre>`);
+        result.push(`<pre class="bg-muted text-foreground border border-border rounded-lg p-4 my-4 overflow-x-auto"><code class="language-${codeLang}">${escapeHtml(codeContent.trim())}</code></pre>`);
         inCodeBlock = false; codeContent = '';
       } else {
         flushList(); flushTable(); inCodeBlock = true;
@@ -292,8 +350,8 @@ function inlineMarkdown(text) {
   return text
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`([^`]+)`/g, '<code class="bg-gray-800 px-1.5 py-0.5 rounded text-sm">$1</code>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-400 hover:text-blue-300 underline">$1</a>');
+    .replace(/`([^`]+)`/g, '<code class="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-sm font-mono">$1</code>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary hover:underline">$1</a>');
 }
 
 function escapeHtml(text) {

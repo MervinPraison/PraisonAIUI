@@ -1,9 +1,11 @@
 // Content component — markdown rendering and landing page
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Separator } from '@/components/ui/separator'
 import { SHADCN_THEMES } from './themes'
+import { enhanceMkdocsDom } from './markdown/mkdocsEnhance'
+import { preprocessMkdocsMarkdown } from './markdown/mkdocsPreprocess'
 import type { UIConfig, NavItem, RouteManifest } from './types'
 
 interface ContentProps {
@@ -15,6 +17,7 @@ interface ContentProps {
 export function Content({ config, routes, selectedItem }: ContentProps) {
     const [markdown, setMarkdown] = useState<string>('')
     const [loadingContent, setLoadingContent] = useState(false)
+    const articleRef = useRef<HTMLElement>(null)
     const theme = config.site?.theme
 
     // Load markdown content when selected item changes
@@ -27,12 +30,11 @@ export function Content({ config, routes, selectedItem }: ContentProps) {
         const loadContent = async () => {
             setLoadingContent(true)
             try {
-                // Convert path like /docs/getting-started/installation to docs/getting-started/installation.md
                 const docPath = (selectedItem.path ?? '').replace(/^\//, '') + '.md'
                 const response = await fetch(`/${docPath}`)
                 if (response.ok) {
                     const content = await response.text()
-                    setMarkdown(content)
+                    setMarkdown(preprocessMkdocsMarkdown(content))
                 } else {
                     setMarkdown(`*Content for **${selectedItem.title}** not found.*`)
                 }
@@ -46,7 +48,11 @@ export function Content({ config, routes, selectedItem }: ContentProps) {
         loadContent()
     }, [selectedItem])
 
-    // Custom components for react-markdown with Tailwind styling
+    useEffect(() => {
+        if (!markdown || !articleRef.current) return
+        enhanceMkdocsDom(articleRef.current)
+    }, [markdown])
+
     const markdownComponents = {
         h1: ({ children }: { children?: React.ReactNode }) => <h1 className="text-3xl font-bold mt-8 mb-4">{children}</h1>,
         h2: ({ children }: { children?: React.ReactNode }) => <h2 className="text-2xl font-semibold mt-8 mb-4 text-primary">{children}</h2>,
@@ -59,16 +65,14 @@ export function Content({ config, routes, selectedItem }: ContentProps) {
         li: ({ children }: { children?: React.ReactNode }) => <li className="text-muted-foreground">{children}</li>,
         blockquote: ({ children }: { children?: React.ReactNode }) => <blockquote className="border-l-4 border-primary pl-4 my-4 italic text-muted-foreground">{children}</blockquote>,
         code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
-            // Check if this is inside a pre block (fenced code block)
             const isInline = !className && String(children).indexOf('\n') === -1
             if (isInline) {
                 return <code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-sm font-mono">{children}</code>
             }
-            // Block code - rendered by pre wrapper
-            return <code className="block font-mono">{children}</code>
+            return <code className={`block font-mono text-foreground ${className ?? ''}`}>{children}</code>
         },
         pre: ({ children }: { children?: React.ReactNode }) => (
-            <pre className="bg-muted p-4 rounded-lg text-sm overflow-auto my-4 font-mono whitespace-pre">{children}</pre>
+            <pre className="bg-muted text-foreground border border-border p-4 rounded-lg text-sm overflow-auto my-4 font-mono whitespace-pre">{children}</pre>
         ),
         table: ({ children }: { children?: React.ReactNode }) => <div className="overflow-auto my-4"><table className="w-full border-collapse text-sm">{children}</table></div>,
         thead: ({ children }: { children?: React.ReactNode }) => <thead className="bg-muted/50">{children}</thead>,
@@ -86,7 +90,10 @@ export function Content({ config, routes, selectedItem }: ContentProps) {
                 {loadingContent ? (
                     <div className="text-muted-foreground">Loading content...</div>
                 ) : markdown ? (
-                    <article className="prose max-w-none">
+                    <article
+                        ref={articleRef}
+                        className="prose prose-neutral dark:prose-invert max-w-none prose-pre:bg-muted prose-pre:text-foreground prose-code:text-foreground"
+                    >
                         <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                             {markdown}
                         </Markdown>
@@ -118,7 +125,7 @@ export function Content({ config, routes, selectedItem }: ContentProps) {
                 <p className="text-sm text-muted-foreground mb-2">
                     <strong>Current theme from YAML:</strong>
                 </p>
-                <pre className="text-primary text-sm">
+                <pre className="bg-muted text-foreground border border-border p-3 rounded-lg text-sm overflow-auto">
                     {`site:
   theme:
     preset: "${theme?.preset || 'zinc'}"
@@ -150,7 +157,7 @@ export function Content({ config, routes, selectedItem }: ContentProps) {
             <p className="text-muted-foreground mb-4">
                 <span className="font-medium text-primary">{routes.routes?.length || 0}</span> routes configured.
             </p>
-            <pre className="bg-muted p-4 rounded-lg text-sm overflow-auto">
+            <pre className="bg-muted text-foreground border border-border p-4 rounded-lg text-sm overflow-auto">
                 {JSON.stringify(routes.routes?.slice(0, 3), null, 2)}
             </pre>
         </main>

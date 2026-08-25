@@ -56,3 +56,27 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Readable code blocks in light and dark prose */
+  .prose pre {
+    @apply bg-muted text-foreground border border-border;
+  }
+
+  .prose pre code {
+    @apply text-foreground bg-transparent;
+    color: inherit;
+  }
+
+  .prose :not(pre) > code {
+    @apply bg-primary/10 text-primary;
+  }
+
+  .prose .aiui-feature-grid > li {
+    @apply list-none;
+  }
+
+  .prose .aiui-tabs pre {
+    @apply my-2;
+  }
+}

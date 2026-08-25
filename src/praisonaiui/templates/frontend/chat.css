@@ -475,6 +475,7 @@
 }
 
 /* ── Light Theme (Gap 19) ─────────────────────────────────────────*/
+:root:not(.dark) .chat-container,
 [data-theme="light"] .chat-container,
 .chat-container.light {
     --chat-bg: #fff;
