@@ -122,6 +122,8 @@ async function loadContent(root) {
 
     // Update the "On This Page" ToC if toc plugin is active
     updateTocSidebar(article);
+
+    window.dispatchEvent(new CustomEvent('aiui:content-loaded', { detail: { root: article } }));
     
     console.debug('[AIUI:content-loader] Loaded content from', mdPath);
   } catch (err) {
@@ -433,6 +435,8 @@ async function navigateToContent(targetPath) {
 
     // Update the "On This Page" ToC
     updateTocSidebar(article);
+
+    window.dispatchEvent(new CustomEvent('aiui:content-loaded', { detail: { root: article } }));
 
     // Remove anti-flicker CSS (critical: ensures content is visible)
     const af = document.getElementById('aiui-anti-flicker');

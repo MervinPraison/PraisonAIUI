@@ -96,7 +96,12 @@ export interface DocsNav {
 }
 
 export interface RouteManifest {
-    routes?: { pattern: string; template: string }[]
+    routes?: {
+        pattern: string
+        template: string
+        priority?: number
+        slotOverrides?: Record<string, SlotConfig | null>
+    }[]
 }
 
 // Message element types (matching Python schema)

@@ -82,6 +82,7 @@ function addCopyButtons(root) {
     if (pre.dataset.copyProcessed) return;
     if (pre.closest('.mermaid-diagram')) return;
     if (pre.querySelector('.mermaid')) return;
+    if (pre.querySelector('code.language-mermaid')) return;
 
     pre.dataset.copyProcessed = 'true';
 

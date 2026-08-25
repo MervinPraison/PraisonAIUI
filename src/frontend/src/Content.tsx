@@ -6,6 +6,8 @@ import { Separator } from '@/components/ui/separator'
 import { SHADCN_THEMES } from './themes'
 import { enhanceMkdocsDom } from './markdown/mkdocsEnhance'
 import { preprocessMkdocsMarkdown } from './markdown/mkdocsPreprocess'
+import { slugify } from './markdown/slug'
+import { MobileToc } from './Toc'
 import type { UIConfig, NavItem, RouteManifest } from './types'
 
 interface ContentProps {
@@ -51,13 +53,16 @@ export function Content({ config, routes, selectedItem }: ContentProps) {
     useEffect(() => {
         if (!markdown || !articleRef.current) return
         enhanceMkdocsDom(articleRef.current)
+        window.dispatchEvent(new CustomEvent('aiui:content-loaded', { detail: { root: articleRef.current } }))
     }, [markdown])
 
+    const headingId = (children?: React.ReactNode) => slugify(String(children ?? ''))
+
     const markdownComponents = {
-        h1: ({ children }: { children?: React.ReactNode }) => <h1 className="text-3xl font-bold mt-8 mb-4">{children}</h1>,
-        h2: ({ children }: { children?: React.ReactNode }) => <h2 className="text-2xl font-semibold mt-8 mb-4 text-primary">{children}</h2>,
-        h3: ({ children }: { children?: React.ReactNode }) => <h3 className="text-xl font-semibold mt-6 mb-3">{children}</h3>,
-        h4: ({ children }: { children?: React.ReactNode }) => <h4 className="text-lg font-semibold mt-4 mb-2">{children}</h4>,
+        h1: ({ children }: { children?: React.ReactNode }) => <h1 id={headingId(children)} className="text-3xl font-bold mt-8 mb-4 scroll-mt-20">{children}</h1>,
+        h2: ({ children }: { children?: React.ReactNode }) => <h2 id={headingId(children)} className="text-2xl font-semibold mt-8 mb-4 text-primary scroll-mt-20">{children}</h2>,
+        h3: ({ children }: { children?: React.ReactNode }) => <h3 id={headingId(children)} className="text-xl font-semibold mt-6 mb-3 scroll-mt-20">{children}</h3>,
+        h4: ({ children }: { children?: React.ReactNode }) => <h4 id={headingId(children)} className="text-lg font-semibold mt-4 mb-2 scroll-mt-20">{children}</h4>,
         p: ({ children }: { children?: React.ReactNode }) => <p className="my-3 text-muted-foreground leading-relaxed">{children}</p>,
         a: ({ href, children }: { href?: string; children?: React.ReactNode }) => <a href={href} className="text-primary hover:underline">{children}</a>,
         ul: ({ children }: { children?: React.ReactNode }) => <ul className="list-disc pl-6 my-4 space-y-1">{children}</ul>,
@@ -87,6 +92,7 @@ export function Content({ config, routes, selectedItem }: ContentProps) {
     if (selectedItem) {
         return (
             <main id="main-content" className="flex-1 p-8 max-w-3xl">
+                <MobileToc selectedItem={selectedItem} />
                 {loadingContent ? (
                     <div className="text-muted-foreground">Loading content...</div>
                 ) : markdown ? (

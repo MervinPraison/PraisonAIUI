@@ -300,7 +300,13 @@ let lastUrl = '';
 
 export default {
   name: 'mermaid',
-  async init() { await loadMermaidLib(); },
+  async init() {
+    await loadMermaidLib();
+    window.addEventListener('aiui:content-loaded', (event) => {
+      const root = event.detail?.root || document;
+      renderMermaidBlocks(root);
+    });
+  },
   onContentChange(root) {
     const currentUrl = location.pathname + location.hash;
 

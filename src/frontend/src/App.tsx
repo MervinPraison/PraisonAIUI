@@ -3,13 +3,14 @@ import { applyTheme } from './themes'
 import './index.css'
 import type { UIConfig, DocsNav, RouteManifest, NavItem } from './types'
 import { Header } from './Header'
-import { Sidebar } from './Sidebar'
+import { Sidebar, MobileNavSheet } from './Sidebar'
 import { Content } from './Content'
 import { ZoneWidgets } from './Widgets'
 import { Toc } from './Toc'
 import { Footer } from './Footer'
 import { ChatLayout, AgentUILayout, CopilotWidget, PlaygroundLayout } from './layouts'
 import { LocaleProvider } from './i18n'
+import { resolveTemplate, shouldShowToc } from './resolver'
 
 function SkipLink({ enabled }: { enabled?: boolean }) {
   if (!enabled) return null
@@ -31,6 +32,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [selectedItem, setSelectedItem] = useState<NavItem | null>(null)
   const [activeItemPath, setActiveItemPath] = useState<string>('')
+  const [currentPath, setCurrentPath] = useState(() => window.location.pathname.replace(/\/$/, '') || '/')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   // Helper function to find nav item by path (searches top-level items and nested children)
   const findNavItemByPath = (navData: DocsNav, path: string): NavItem | null => {
@@ -164,6 +167,7 @@ export default function App() {
 
         // Handle initial URL path for SPA routing
         const currentPath = window.location.pathname.replace(/\/$/, '') || '/'
+        setCurrentPath(currentPath)
         if (currentPath !== '/') {
           const found = findNavItemByPath(navData, currentPath)
           if (found) {
@@ -193,6 +197,7 @@ export default function App() {
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname.replace(/\/$/, '') || '/'
+      setCurrentPath(path)
       const found = findNavItemByPath(nav, path)
       
       if (found) {
@@ -216,12 +221,41 @@ export default function App() {
   const handleItemClick = (item: NavItem) => {
     setSelectedItem(item)
     setActiveItemPath(item.path || item.title)
-    // Use History API for SEO-friendly URLs
     const path = item.path || `/${item.title.toLowerCase().replace(/\s+/g, '-')}`
+    setCurrentPath(path.replace(/\/$/, '') || '/')
     window.history.pushState({ path }, item.title, path)
-    // Update SEO meta tags
     updateSEO(item.title, path)
   }
+
+  const templateMatch = resolveTemplate(
+    currentPath.replace(/^\//, ''),
+    routes,
+    config.templates ?? {},
+  )
+  const activeTemplateKey = templateMatch?.template ?? 'docs'
+  const activeTemplate = config.templates?.[activeTemplateKey] ?? config.templates?.docs
+  const layout = templateMatch?.layout ?? activeTemplate?.layout ?? 'ThreeColumnLayout'
+  const zones = activeTemplate?.zones
+  const showToc = shouldShowToc(templateMatch)
+  const showGlobalFooter = !(layout === 'FlexibleLayout' && (zones?.footer?.length ?? 0) > 0)
+
+  const docsChrome = (
+    <>
+      <MobileNavSheet
+        open={mobileNavOpen}
+        onOpenChange={setMobileNavOpen}
+        nav={nav}
+        activeItem={activeItemPath}
+        onItemClick={handleItemClick}
+        title={config.site?.title || 'Navigation'}
+      />
+      <Header
+        config={config}
+        templateKey={activeTemplateKey}
+        onMenuClick={() => setMobileNavOpen(true)}
+      />
+    </>
+  )
 
   if (loading) {
     return (
@@ -240,15 +274,10 @@ export default function App() {
     )
   }
 
-  // Determine layout from templates config
-  const layout = config.templates?.docs?.layout || 'ThreeColumnLayout'
-  const zones = config.templates?.docs?.zones
-
   // Render based on layout type
   const renderLayout = () => {
     switch (layout) {
       case 'TwoColumnLayout':
-        // Sidebar + Content (no TOC)
         return (
           <div className="flex">
             <Sidebar nav={nav} activeItem={activeItemPath} onItemClick={handleItemClick} />
@@ -256,7 +285,6 @@ export default function App() {
           </div>
         )
       case 'CenteredLayout':
-        // Centered content, no sidebar
         return (
           <div className="flex justify-center">
             <div className="w-full max-w-4xl px-6">
@@ -266,7 +294,6 @@ export default function App() {
           </div>
         )
       case 'FullWidthLayout':
-        // Full width content
         return (
           <div className="px-6">
             {zones?.hero && zones.hero.length > 0 && <ZoneWidgets widgets={zones.hero} />}
@@ -274,12 +301,10 @@ export default function App() {
           </div>
         )
       case 'FlexibleLayout': {
-        // WordPress-style zones layout with navigation invariant
-        // When docs nav exists but no leftSidebar zone configured, render default nav
         const hasExplicitLeftSidebar = (zones?.leftSidebar?.length ?? 0) > 0
         const hasNavigation = (nav?.items?.length ?? 0) > 0
         const shouldRenderNavigation = hasExplicitLeftSidebar || hasNavigation
-        
+
         return (
           <div className="flex flex-col">
             {zones?.hero && zones.hero.length > 0 && <ZoneWidgets widgets={zones.hero} />}
@@ -296,7 +321,7 @@ export default function App() {
               <div className="flex-1">
                 <Content config={config} routes={routes} selectedItem={selectedItem} />
               </div>
-              <Toc selectedItem={selectedItem} zones={zones} />
+              <Toc selectedItem={selectedItem} zones={zones} showToc={showToc} />
             </div>
             {zones?.bottomNav && zones.bottomNav.length > 0 && (
               <div className="border-t p-4 bg-muted/30">
@@ -313,12 +338,11 @@ export default function App() {
       }
       case 'ThreeColumnLayout':
       default:
-        // Classic: Sidebar + Content + TOC with zones
         return (
           <div className="flex">
             <Sidebar nav={nav} activeItem={activeItemPath} onItemClick={handleItemClick} />
             <Content config={config} routes={routes} selectedItem={selectedItem} />
-            <Toc selectedItem={selectedItem} zones={zones} />
+            {showToc && <Toc selectedItem={selectedItem} zones={zones} showToc={showToc} />}
           </div>
         )
     }
@@ -356,14 +380,13 @@ export default function App() {
         // Dashboard is handled entirely by plugin dashboard.js — React yields
         return null
       case 'custom':
-        // For custom, show docs with copilot widget if chat enabled
         if (config.chat?.enabled) {
           return (
             <div className="min-h-screen bg-background text-foreground">
               <SkipLink enabled={config.a11y?.skipToContent} />
-              <Header config={config} />
+              {docsChrome}
               {renderLayout()}
-              <Footer config={config} />
+              {showGlobalFooter && <Footer config={config} templateKey={activeTemplateKey} />}
               <CopilotWidget config={config.chat} layout={config.layout} />
             </div>
           )
@@ -371,23 +394,22 @@ export default function App() {
         return (
           <div className="min-h-screen bg-background text-foreground">
             <SkipLink enabled={config.a11y?.skipToContent} />
-            <Header config={config} />
+            {docsChrome}
             {renderLayout()}
-            <Footer config={config} />
+            {showGlobalFooter && <Footer config={config} templateKey={activeTemplateKey} />}
           </div>
         )
       case 'docs':
       default:
-        // Docs mode - optionally with copilot widget
         if (config.chat?.enabled) {
           const layoutMode = config.layout?.mode
           if (layoutMode && ['bottom-right', 'bottom-left', 'top-right', 'top-left'].includes(layoutMode)) {
             return (
               <div className="min-h-screen bg-background text-foreground">
                 <SkipLink enabled={config.a11y?.skipToContent} />
-                <Header config={config} />
+                {docsChrome}
                 {renderLayout()}
-                <Footer config={config} />
+                {showGlobalFooter && <Footer config={config} templateKey={activeTemplateKey} />}
                 <CopilotWidget config={config.chat} layout={config.layout} />
               </div>
             )
@@ -396,9 +418,9 @@ export default function App() {
         return (
           <div className="min-h-screen bg-background text-foreground">
             <SkipLink enabled={config.a11y?.skipToContent} />
-            <Header config={config} />
+            {docsChrome}
             {renderLayout()}
-            <Footer config={config} />
+            {showGlobalFooter && <Footer config={config} templateKey={activeTemplateKey} />}
           </div>
         )
     }

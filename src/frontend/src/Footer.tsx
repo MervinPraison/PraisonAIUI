@@ -1,9 +1,8 @@
 // Footer component
 import type { UIConfig } from './types'
 
-export function Footer({ config }: { config: UIConfig }) {
-    // Resolve footer component via template slot ref (e.g., footer_main)
-    const footerSlot = config.templates?.docs?.slots?.footer
+export function Footer({ config, templateKey = 'docs' }: { config: UIConfig; templateKey?: string }) {
+    const footerSlot = config.templates?.[templateKey]?.slots?.footer
     const footerRef = footerSlot?.ref
     const footerComponent = footerRef
         ? config.components?.[footerRef]
