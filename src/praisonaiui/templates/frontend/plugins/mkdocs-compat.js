@@ -211,10 +211,10 @@ function enhanceTabs(article) {
  */
 function cleanMkDocsContent(root) {
   const articles = new Set();
-  if (root.matches?.('article.prose, main .prose, .prose, main.flex-1, #main-content')) {
+  if (root.matches?.('article.prose, main .prose, .prose, #main-content')) {
     articles.add(root);
   }
-  root.querySelectorAll('article.prose, main .prose, .prose, main.flex-1, #main-content').forEach((el) => articles.add(el));
+  root.querySelectorAll('article.prose, main .prose, .prose, #main-content').forEach((el) => articles.add(el));
   if (articles.size === 0) return;
 
   for (const article of articles) {

@@ -8,47 +8,60 @@ import { enhanceMkdocsDom } from './markdown/mkdocsEnhance'
 import { preprocessMkdocsMarkdown } from './markdown/mkdocsPreprocess'
 import { slugify } from './markdown/slug'
 import { MobileToc } from './Toc'
+import { docPathToMarkdown, normalizeDocPath } from './pathUtils'
 import type { UIConfig, NavItem, RouteManifest } from './types'
 
 interface ContentProps {
     config: UIConfig
     routes: RouteManifest
     selectedItem: NavItem | null
+    currentPath: string
 }
 
-export function Content({ config, routes, selectedItem }: ContentProps) {
+export function Content({ config, routes, selectedItem, currentPath }: ContentProps) {
     const [markdown, setMarkdown] = useState<string>('')
     const [loadingContent, setLoadingContent] = useState(false)
     const articleRef = useRef<HTMLElement>(null)
     const theme = config.site?.theme
 
-    // Load markdown content when selected item changes
+    // Load markdown from URL path (source of truth) to avoid stale selectedItem races
     useEffect(() => {
-        if (!selectedItem?.path) {
-            setMarkdown('')
+        const urlPath = normalizeDocPath(currentPath)
+        if (urlPath === '/') {
+            if (!selectedItem?.path) {
+                setMarkdown('')
+            }
             return
         }
 
+        const mdUrl = docPathToMarkdown(urlPath)
+        const pageTitle = selectedItem?.title ?? urlPath.split('/').pop() ?? 'page'
+        let cancelled = false
+
         const loadContent = async () => {
             setLoadingContent(true)
+            setMarkdown('')
             try {
-                const docPath = (selectedItem.path ?? '').replace(/^\//, '') + '.md'
-                const response = await fetch(`/${docPath}`)
+                const response = await fetch(mdUrl)
+                if (cancelled) return
                 if (response.ok) {
                     const content = await response.text()
                     setMarkdown(preprocessMkdocsMarkdown(content))
                 } else {
-                    setMarkdown(`*Content for **${selectedItem.title}** not found.*`)
+                    setMarkdown(`*Content for **${pageTitle}** not found.*`)
                 }
             } catch {
-                setMarkdown(`*Failed to load content for **${selectedItem.title}**.*`)
+                if (!cancelled) {
+                    setMarkdown(`*Failed to load content for **${pageTitle}**.*`)
+                }
             } finally {
-                setLoadingContent(false)
+                if (!cancelled) setLoadingContent(false)
             }
         }
 
         loadContent()
-    }, [selectedItem])
+        return () => { cancelled = true }
+    }, [currentPath, selectedItem?.title, selectedItem?.path])
 
     useEffect(() => {
         if (!markdown || !articleRef.current) return

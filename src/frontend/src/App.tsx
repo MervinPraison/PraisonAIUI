@@ -11,6 +11,7 @@ import { Footer } from './Footer'
 import { ChatLayout, AgentUILayout, CopilotWidget, PlaygroundLayout } from './layouts'
 import { LocaleProvider } from './i18n'
 import { resolveTemplate, shouldShowToc } from './resolver'
+import { normalizeDocPath } from './pathUtils'
 
 function SkipLink({ enabled }: { enabled?: boolean }) {
   if (!enabled) return null
@@ -32,17 +33,17 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [selectedItem, setSelectedItem] = useState<NavItem | null>(null)
   const [activeItemPath, setActiveItemPath] = useState<string>('')
-  const [currentPath, setCurrentPath] = useState(() => window.location.pathname.replace(/\/$/, '') || '/')
+  const [currentPath, setCurrentPath] = useState(() => normalizeDocPath(window.location.pathname))
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   // Helper function to find nav item by path (searches top-level items and nested children)
   const findNavItemByPath = (navData: DocsNav, path: string): NavItem | null => {
-    const normalizedPath = path.replace(/\/$/, '') || '/'
+    const normalizedPath = normalizeDocPath(path)
 
     const findItem = (items: NavItem[]): NavItem | null => {
       for (const item of items) {
-        const itemPath = (item.path ?? '').replace(/\/$/, '')
-        if (itemPath === normalizedPath || itemPath === normalizedPath.replace(/^\//, '')) {
+        const itemPath = normalizeDocPath(item.path ?? '')
+        if (itemPath === normalizedPath) {
           return item
         }
         if (item.children) {
@@ -138,6 +139,32 @@ export default function App() {
     updateSEO(item.title, item.path || '/')
   }
 
+  // Keep React nav state in sync when plugins perform SPA navigation
+  useEffect(() => {
+    const onPluginNavigate = (event: Event) => {
+      const detail = (event as CustomEvent<{ path?: string }>).detail
+      const path = normalizeDocPath(detail?.path ?? window.location.pathname)
+      setCurrentPath(path)
+      setMobileNavOpen(false)
+
+      const found = findNavItemByPath(nav, path)
+      if (found) {
+        selectNavItem(found)
+        return
+      }
+
+      if (path === '/') {
+        const docsHome = findNavItemByPath(nav, '/docs/index')
+        if (docsHome) {
+          selectNavItem(docsHome)
+        }
+      }
+    }
+
+    window.addEventListener('aiui:navigate', onPluginNavigate)
+    return () => window.removeEventListener('aiui:navigate', onPluginNavigate)
+  }, [nav, config])
+
   useEffect(() => {
     async function loadManifests() {
       try {
@@ -168,14 +195,14 @@ export default function App() {
         applyStoredThemePreference(yamlDark)
 
         // Handle initial URL path for SPA routing
-        const currentPath = window.location.pathname.replace(/\/$/, '') || '/'
-        setCurrentPath(currentPath)
-        if (currentPath !== '/') {
-          const found = findNavItemByPath(navData, currentPath)
+        const initialPath = normalizeDocPath(window.location.pathname)
+        setCurrentPath(initialPath)
+        if (initialPath !== '/') {
+          const found = findNavItemByPath(navData, initialPath)
           if (found) {
             setSelectedItem(found)
             setActiveItemPath(found.path || found.title)
-            updateSEO(found.title, found.path || currentPath, undefined, configData)
+            updateSEO(found.title, found.path || initialPath, undefined, configData)
           }
         } else {
           const docsHome = findNavItemByPath(navData, '/docs/index')
@@ -198,7 +225,7 @@ export default function App() {
   // Handle browser back/forward navigation in a separate effect
   useEffect(() => {
     const handlePopState = () => {
-      const path = window.location.pathname.replace(/\/$/, '') || '/'
+      const path = normalizeDocPath(window.location.pathname)
       setCurrentPath(path)
       const found = findNavItemByPath(nav, path)
       
@@ -221,10 +248,10 @@ export default function App() {
   }, [nav, config])
 
   const handleItemClick = (item: NavItem) => {
+    const path = normalizeDocPath(item.path || `/${item.title.toLowerCase().replace(/\s+/g, '-')}`)
     setSelectedItem(item)
     setActiveItemPath(item.path || item.title)
-    const path = item.path || `/${item.title.toLowerCase().replace(/\s+/g, '-')}`
-    setCurrentPath(path.replace(/\/$/, '') || '/')
+    setCurrentPath(path)
     window.history.pushState({ path }, item.title, path)
     updateSEO(item.title, path)
   }
@@ -283,7 +310,7 @@ export default function App() {
         return (
           <div className="flex">
             <Sidebar nav={nav} activeItem={activeItemPath} onItemClick={handleItemClick} />
-            <Content config={config} routes={routes} selectedItem={selectedItem} />
+            <Content config={config} routes={routes} selectedItem={selectedItem} currentPath={currentPath} />
           </div>
         )
       case 'CenteredLayout':
@@ -291,7 +318,7 @@ export default function App() {
           <div className="flex justify-center">
             <div className="w-full max-w-4xl px-6">
               {zones?.hero && zones.hero.length > 0 && <ZoneWidgets widgets={zones.hero} />}
-              <Content config={config} routes={routes} selectedItem={selectedItem} />
+              <Content config={config} routes={routes} selectedItem={selectedItem} currentPath={currentPath} />
             </div>
           </div>
         )
@@ -303,7 +330,7 @@ export default function App() {
             )}
             <div className="flex-1 px-6">
               {zones?.hero && zones.hero.length > 0 && <ZoneWidgets widgets={zones.hero} />}
-              <Content config={config} routes={routes} selectedItem={selectedItem} />
+              <Content config={config} routes={routes} selectedItem={selectedItem} currentPath={currentPath} />
             </div>
           </div>
         )
@@ -326,7 +353,7 @@ export default function App() {
                 </aside>
               )}
               <div className="flex-1">
-                <Content config={config} routes={routes} selectedItem={selectedItem} />
+                <Content config={config} routes={routes} selectedItem={selectedItem} currentPath={currentPath} />
               </div>
               <Toc selectedItem={selectedItem} zones={zones} showToc={showToc} />
             </div>
@@ -348,7 +375,7 @@ export default function App() {
         return (
           <div className="flex">
             <Sidebar nav={nav} activeItem={activeItemPath} onItemClick={handleItemClick} />
-            <Content config={config} routes={routes} selectedItem={selectedItem} />
+            <Content config={config} routes={routes} selectedItem={selectedItem} currentPath={currentPath} />
             {showToc && <Toc selectedItem={selectedItem} zones={zones} showToc={showToc} />}
           </div>
         )

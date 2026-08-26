@@ -37,6 +37,7 @@ export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
             <button
                 key={item.title + (item.path || '')}
                 type="button"
+                data-nav-path={item.path || ''}
                 onClick={() => onItemClick(item)}
                 className={`w-full text-left px-3 py-1.5 text-sm rounded-md transition-all duration-150 ${isActive
                     ? 'bg-primary/10 text-primary font-medium border-l-2 border-primary'

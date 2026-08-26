@@ -174,10 +174,10 @@ export default {
       const normalized = (path || '/').replace(/\/$/, '') || '/';
 
       if (normalized === '/' || normalized === '/index.html') {
-        // Navigating TO homepage
         hasRendered = false;
-        const root = document.getElementById('root');
-        if (root) replaceHomepage(root);
+        document.querySelector('[data-aiui-plugin="homepage"]')?.remove();
+        setHomepageMode(false);
+        return;
       } else if (hasRendered) {
         // Navigating AWAY from homepage
         hasRendered = false;

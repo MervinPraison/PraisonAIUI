@@ -57,15 +57,19 @@ function normalizePath(p) {
  *   - Updates URL via native pushState (React Router can't see it)
  *   - Dispatches aiui:navigate so content-loader.js swaps content
  */
+function mainHasVisibleContent() {
+  const main = document.querySelector('main.flex-1');
+  if (!main) return false;
+  return (main.textContent?.trim().length ?? 0) > 30;
+}
+
 function spaNavigate(path) {
   const target = normalizePath(path);
   const current = normalizePath(window.location.pathname);
-  if (target === current) return;
+  if (target === current && mainHasVisibleContent()) return;
 
-  const targetUrl = target === '/' ? '/' : target + '/';
-
-  // Update browser URL using the NATIVE pushState (not React Router's wrapper)
-  _nativePushState.call(window.history, null, '', targetUrl);
+  // Canonical URL: no trailing slash (matches React pushState)
+  _nativePushState.call(window.history, null, '', target);
 
   // Tell content-loader + topnav + homepage plugins to update
   window.dispatchEvent(new CustomEvent('aiui:navigate', {
@@ -91,6 +95,19 @@ function interceptClicks() {
     if (btn.className && /uppercase/.test(btn.className)) return;
     const text = btn.textContent.trim();
     if (!text) return;
+
+    // Prefer explicit path from sidebar button (reliable; title slug fallback is brittle)
+    const navPath = btn.dataset.navPath;
+    if (navPath) {
+      const normalized = normalizePath(navPath);
+      if (knownPaths.has(normalized)) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        spaNavigate(normalized);
+        return;
+      }
+    }
 
     // Try to match by <a> href first (most reliable)
     if (btn.tagName === 'A' && btn.href) {
