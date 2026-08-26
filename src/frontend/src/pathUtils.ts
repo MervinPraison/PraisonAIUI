@@ -10,5 +10,5 @@ export function docPathToMarkdown(path: string): string {
     if (normalized === '/') {
         return '/docs/index.md'
     }
-    return `${normalized.replace(/\/index$/, '')}.md`
+    return `${normalized}.md`
 }

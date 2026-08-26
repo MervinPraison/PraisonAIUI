@@ -39,3 +39,9 @@ class TestSpaNavigation:
         source = Path("src/frontend/src/pathUtils.ts").read_text(encoding="utf-8")
         assert "normalizeDocPath" in source
         assert "docPathToMarkdown" in source
+
+    def test_doc_index_maps_to_docs_index_md_not_docs_md(self):
+        source = Path("src/frontend/src/pathUtils.ts").read_text(encoding="utf-8")
+        assert "replace(/\\/index$/, '')" not in source
+        loader = Path("src/praisonaiui/templates/frontend/plugins/content-loader.js").read_text(encoding="utf-8")
+        assert "replace(/\\/index$/, '')" not in loader

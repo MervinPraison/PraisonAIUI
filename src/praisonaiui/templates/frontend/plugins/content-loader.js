@@ -26,7 +26,6 @@ function getMarkdownPath() {
     return '/docs/index.md';
   }
   path = path.replace(/\/$/, '');
-  path = path.replace(/\/index$/, '');
   return path + '.md';
 }
 
@@ -35,7 +34,7 @@ function pathToMd(path) {
   if (normalized === '/' || normalized === '/index.html') {
     return '/docs/index.md';
   }
-  return normalized.replace(/\/index$/, '') + '.md';
+  return normalized + '.md';
 }
 
 function setContentMode(active) {
