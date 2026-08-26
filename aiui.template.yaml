@@ -9,6 +9,13 @@ site:
     radius: "md"
     darkMode: true
 
+seo:
+  siteUrl: "https://ui.praison.ai"
+  titleTemplate: "%s | %s"
+  robots:
+    index: true
+    follow: true
+
 # Mintlify-style navigation: few tabs, many groups per tab
 navigation:
   tabs:

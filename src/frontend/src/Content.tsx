@@ -8,7 +8,7 @@ import { enhanceMkdocsDom } from './markdown/mkdocsEnhance'
 import { preprocessMkdocsMarkdown } from './markdown/mkdocsPreprocess'
 import { slugify } from './markdown/slug'
 import { MobileToc } from './Toc'
-import { docPathToMarkdown, normalizeDocPath } from './pathUtils'
+import { docPathToMarkdown, isInternalDocHref, normalizeDocHref, normalizeDocPath } from './pathUtils'
 import type { UIConfig, NavItem, RouteManifest } from './types'
 
 interface ContentProps {
@@ -41,7 +41,6 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
 
         const loadContent = async () => {
             setLoadingContent(true)
-            setMarkdown('')
             try {
                 const response = await fetch(mdUrl)
                 if (cancelled) return
@@ -72,13 +71,10 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
     useEffect(() => {
         if (!markdown || !articleRef.current) return
         const article = articleRef.current
-        const runEnhance = () => {
+        const frame = window.requestAnimationFrame(() => {
             enhanceMkdocsDom(article)
-            window.dispatchEvent(new CustomEvent('aiui:content-loaded', { detail: { root: article } }))
-        }
-        runEnhance()
-        const timer = window.setTimeout(runEnhance, 50)
-        return () => window.clearTimeout(timer)
+        })
+        return () => window.cancelAnimationFrame(frame)
     }, [markdown])
 
     const headingId = (children?: React.ReactNode) => slugify(String(children ?? ''))
@@ -89,7 +85,14 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
         h3: ({ children }: { children?: React.ReactNode }) => <h3 id={headingId(children)} className="text-xl font-semibold mt-6 mb-3 scroll-mt-20">{children}</h3>,
         h4: ({ children }: { children?: React.ReactNode }) => <h4 id={headingId(children)} className="text-lg font-semibold mt-4 mb-2 scroll-mt-20">{children}</h4>,
         p: ({ children }: { children?: React.ReactNode }) => <p className="my-3 text-foreground leading-relaxed">{children}</p>,
-        a: ({ href, children }: { href?: string; children?: React.ReactNode }) => <a href={href} className="text-primary hover:underline">{children}</a>,
+        a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
+            const seoHref = href && isInternalDocHref(href) ? normalizeDocHref(href) : href
+            return (
+                <a href={seoHref} className="text-primary hover:underline">
+                    {children}
+                </a>
+            )
+        },
         ul: ({ children }: { children?: React.ReactNode }) => <ul className="list-disc pl-6 my-4 space-y-1">{children}</ul>,
         ol: ({ children }: { children?: React.ReactNode }) => <ol className="list-decimal pl-6 my-4 space-y-1">{children}</ol>,
         li: ({ children }: { children?: React.ReactNode }) => <li className="text-foreground">{children}</li>,
@@ -118,24 +121,26 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
         return (
             <main id="main-content" className="flex-1 p-8 max-w-3xl">
                 <MobileToc selectedItem={selectedItem} />
-                {loadingContent ? (
+                {loadingContent && !markdown && (
                     <div className="text-muted-foreground">Loading content...</div>
-                ) : markdown ? (
+                )}
+                {markdown ? (
                     <article
+                        key={currentPath}
                         ref={articleRef}
-                        className="prose prose-neutral dark:prose-invert max-w-none prose-pre:bg-muted prose-pre:text-foreground prose-code:text-foreground"
+                        className={`prose prose-neutral dark:prose-invert max-w-none prose-pre:bg-muted prose-pre:text-foreground prose-code:text-foreground${loadingContent ? ' opacity-60' : ''}`}
                     >
                         <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                             {markdown}
                         </Markdown>
                     </article>
-                ) : (
+                ) : !loadingContent ? (
                     <div className="bg-muted/50 border rounded-lg p-6">
                         <p className="text-muted-foreground">
                             Content for <strong className="text-primary">{selectedItem.title}</strong> would be displayed here.
                         </p>
                     </div>
-                )}
+                ) : null}
             </main>
         )
     }

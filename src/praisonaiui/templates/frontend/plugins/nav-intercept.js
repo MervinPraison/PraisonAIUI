@@ -88,7 +88,7 @@ function interceptClicks() {
   // CAPTURE phase on document — fires BEFORE React 18's event delegation on #root
   document.addEventListener('click', function (e) {
     // Only intercept sidebar nav buttons/links
-    const btn = e.target.closest('aside button, aside a');
+    const btn = e.target.closest('aside button, aside a, main a[href^="/docs"], article a[href^="/docs"]');
     if (!btn) return;
 
     // Skip group headers (uppercase section labels like "CONCEPTS", "FEATURES")
@@ -151,14 +151,23 @@ function patchHistory() {
   window.history.pushState = function (state, title, url) {
     if (url && typeof url === 'string') {
       let path;
-      try { path = new URL(url, window.location.origin).pathname; } catch (_) { path = url; }
+      let parsed;
+      try {
+        parsed = new URL(url, window.location.origin);
+        path = parsed.pathname;
+      } catch (_) {
+        path = url;
+      }
       const normalized = normalizePath(path);
       const current = normalizePath(window.location.pathname);
 
       if (knownPaths.has(normalized) && normalized !== current) {
-        // Hijack: do SPA navigation instead of React Router's navigation
         spaNavigate(normalized);
-        return; // don't call the wrapped pushState
+        return;
+      }
+      if (parsed && normalized !== path) {
+        parsed.pathname = normalized;
+        url = parsed.pathname + parsed.search + parsed.hash;
       }
     }
     return wrappedPush.call(this, state, title, url);
@@ -167,13 +176,23 @@ function patchHistory() {
   window.history.replaceState = function (state, title, url) {
     if (url && typeof url === 'string') {
       let path;
-      try { path = new URL(url, window.location.origin).pathname; } catch (_) { path = url; }
+      let parsed;
+      try {
+        parsed = new URL(url, window.location.origin);
+        path = parsed.pathname;
+      } catch (_) {
+        path = url;
+      }
       const normalized = normalizePath(path);
       const current = normalizePath(window.location.pathname);
 
       if (knownPaths.has(normalized) && normalized !== current) {
         spaNavigate(normalized);
         return;
+      }
+      if (parsed && normalized !== path) {
+        parsed.pathname = normalized;
+        url = parsed.pathname + parsed.search + parsed.hash;
       }
     }
     return wrappedReplace.call(this, state, title, url);
@@ -192,12 +211,26 @@ function handlePopState() {
   });
 }
 
+function canonicalizeUrlBar() {
+  const current = window.location.pathname;
+  const normalized = normalizePath(current);
+  if (normalized === current) return;
+
+  const next = normalized + window.location.search + window.location.hash;
+  _nativeReplaceState.call(window.history, null, '', next);
+  window.dispatchEvent(new CustomEvent('aiui:navigate', {
+    detail: { path: normalized, fromPath: current }
+  }));
+  console.debug('[AIUI:nav] Canonical URL:', current, '→', normalized);
+}
+
 /* ── Plugin export ───────────────────────────────────────────────── */
 
 export default {
   name: 'nav-intercept',
   async init() {
     await loadNavData();
+    canonicalizeUrlBar();
     interceptClicks();
     patchHistory();
     handlePopState();

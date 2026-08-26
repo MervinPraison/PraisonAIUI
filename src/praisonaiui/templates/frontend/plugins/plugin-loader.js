@@ -2,17 +2,9 @@ console.log('[AIUI Loader] Starting...');
 
 /**
  * AIUI Plugin Loader
- * 
- * Core infrastructure that loads and manages frontend plugins.
- * Each plugin is a self-contained JS module with init() and onContentChange() hooks.
- * 
- * Plugin contract:
- *   - name: string           — unique identifier
- *   - init(): Promise<void>  — called once on load
- *   - onContentChange(root): void — called when SPA content changes
  *
- * Dashboard manifest plugins (CSS/JS) are loaded by dashboard.js
- * loadDashboardPlugins() after /api/dashboard/plugins — not here.
+ * Loads frontend plugins and notifies them only on explicit content events.
+ * Avoids MutationObserver during React reconciliation (prevents removeChild crashes).
  */
 (function () {
   'use strict';
@@ -23,15 +15,23 @@ console.log('[AIUI Loader] Starting...');
 
   /** @type {Array<{name: string, init?: Function, onContentChange?: Function}>} */
   const loadedPlugins = [];
+  let spaNavigating = false;
 
-  /**
-   * Dynamically import a plugin module and call its init().
-   */
+  function isReactDocsActive() {
+    return Boolean(document.querySelector('#main-content article.prose'));
+  }
+
+  function isReactDocsRoot(root) {
+    if (!root) return isReactDocsActive();
+    if (root.matches && root.matches('#main-content article.prose')) return true;
+    if (root.closest && root.closest('#main-content article.prose')) return true;
+    return isReactDocsActive();
+  }
+
   async function loadPlugin(name) {
     try {
       const url = `${PLUGINS_BASE}${name}.js?v=${Date.now()}`;
       const mod = await import(url);
-      // ESM module namespaces are frozen — spread into a mutable object
       const raw = mod.default || mod;
       const plugin = { ...raw, name: raw.name || name };
 
@@ -46,17 +46,38 @@ console.log('[AIUI Loader] Starting...');
     }
   }
 
-  /**
-   * Notify all plugins that content has changed.
-   */
-  function notifyContentChange() {
-    const root = document.querySelector(ROOT_SELECTOR);
-    if (!root) return;
+  function teardownPluginDom(root) {
+    if (!root || isReactDocsActive()) return;
+    root.querySelectorAll('[data-aiui-plugin]').forEach(function (el) { el.remove(); });
+    root.querySelectorAll('[data-mermaid-processed]').forEach(function (el) {
+      el.classList.remove('aiui-mermaid-hidden');
+      delete el.dataset.mermaidProcessed;
+    });
+    root.querySelectorAll('.aiui-code-wrapper').forEach(function (wrapper) {
+      const pre = wrapper.querySelector('pre');
+      if (pre && wrapper.parentNode) {
+        wrapper.parentNode.insertBefore(pre, wrapper);
+        wrapper.remove();
+      }
+    });
+    root.querySelectorAll('pre.aiui-code-has-copy > .aiui-copy-btn').forEach(function (btn) {
+      btn.remove();
+    });
+    root.querySelectorAll('pre[data-copy-processed]').forEach(function (pre) {
+      pre.classList.remove('aiui-code-has-copy');
+      delete pre.dataset.copyProcessed;
+    });
+  }
+
+  function notifyContentChange(root) {
+    if (spaNavigating || isReactDocsRoot(root)) return;
+    const target = root || document.querySelector(ROOT_SELECTOR);
+    if (!target) return;
 
     for (const plugin of loadedPlugins) {
       if (typeof plugin.onContentChange === 'function') {
         try {
-          plugin.onContentChange(root);
+          plugin.onContentChange(target);
         } catch (err) {
           console.warn(`[AIUI] Plugin "${plugin.name}" error in onContentChange:`, err);
         }
@@ -64,37 +85,27 @@ console.log('[AIUI Loader] Starting...');
     }
   }
 
-  /**
-   * Set up MutationObserver to detect SPA content changes.
-   */
-  function observeContentChanges() {
-    const root = document.querySelector(ROOT_SELECTOR);
-    if (!root) return;
-
-    let debounceTimer = null;
-    const observer = new MutationObserver(() => {
-      // Debounce rapid DOM mutations (SPA transitions)
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(notifyContentChange, 150);
+  function bindContentEvents() {
+    window.addEventListener('aiui:navigate', function () {
+      spaNavigating = true;
+      teardownPluginDom(document.querySelector(ROOT_SELECTOR));
     });
 
-    observer.observe(root, {
-      childList: true,
-      subtree: true,
+    window.addEventListener('aiui:content-loaded', function (event) {
+      spaNavigating = false;
+      const root = event.detail && event.detail.root;
+      if (isReactDocsRoot(root)) return;
+      window.requestAnimationFrame(function () {
+        notifyContentChange(root || document.querySelector(ROOT_SELECTOR));
+      });
     });
   }
 
-  /**
-   * Remove the server-injected anti-flicker CSS after plugins have rendered.
-   */
   function removeAntiFlicker() {
     const el = document.getElementById('aiui-anti-flicker');
     if (el) el.remove();
   }
 
-  /**
-   * Main entry point — fetch config, load plugins, observe changes.
-   */
   async function main() {
     try {
       const res = await fetch(PLUGINS_CONFIG);
@@ -112,16 +123,11 @@ console.log('[AIUI Loader] Starting...');
         return;
       }
 
-      // Load all plugins in parallel
+      bindContentEvents();
       await Promise.allSettled(pluginNames.map(loadPlugin));
-
-      // Set up observer for SPA content changes
-      observeContentChanges();
-
-      // Initial content change — immediate, no delay
-      notifyContentChange();
-
-      // Remove the anti-flicker CSS now that plugins have rendered
+      if (!isReactDocsActive()) {
+        notifyContentChange(document.querySelector(ROOT_SELECTOR));
+      }
       removeAntiFlicker();
 
       console.debug(`[AIUI] ${loadedPlugins.length} plugin(s) active.`);
@@ -131,7 +137,6 @@ console.log('[AIUI Loader] Starting...');
     }
   }
 
-  // Start when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', main);
   } else {

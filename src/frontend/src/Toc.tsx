@@ -30,14 +30,12 @@ function usePageHeadings(selectedItem: NavItem | null) {
     useEffect(() => {
         refreshHeadings()
         const timer = window.setTimeout(refreshHeadings, 100)
-        return () => window.clearTimeout(timer)
+        const timer2 = window.setTimeout(refreshHeadings, 500)
+        return () => {
+            window.clearTimeout(timer)
+            window.clearTimeout(timer2)
+        }
     }, [selectedItem, refreshHeadings])
-
-    useEffect(() => {
-        const onContentLoaded = () => refreshHeadings()
-        window.addEventListener('aiui:content-loaded', onContentLoaded)
-        return () => window.removeEventListener('aiui:content-loaded', onContentLoaded)
-    }, [refreshHeadings])
 
     return headings
 }

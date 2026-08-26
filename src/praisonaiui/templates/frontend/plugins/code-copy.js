@@ -1,9 +1,7 @@
 /**
  * AIUI Code Copy Plugin
  *
- * Adds a "Copy" button to every code block (<pre><code>).
- * Shows "Copied!" feedback with a smooth animation.
- * Excludes mermaid diagram blocks.
+ * Adds a "Copy" button to code blocks without reparenting nodes React owns.
  */
 
 let stylesInjected = false;
@@ -15,11 +13,11 @@ function injectStyles() {
   const style = document.createElement('style');
   style.id = 'aiui-code-copy-styles';
   style.textContent = `
-    .aiui-code-wrapper {
+    pre.aiui-code-has-copy {
       position: relative;
     }
 
-    .aiui-copy-btn {
+    pre.aiui-code-has-copy > .aiui-copy-btn {
       position: absolute;
       top: 0.5rem;
       right: 0.5rem;
@@ -43,7 +41,7 @@ function injectStyles() {
       -webkit-backdrop-filter: blur(8px);
     }
 
-    .aiui-code-wrapper:hover .aiui-copy-btn {
+    pre.aiui-code-has-copy:hover > .aiui-copy-btn {
       opacity: 1;
     }
 
@@ -74,26 +72,22 @@ function injectStyles() {
 const COPY_ICON = '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
 const CHECK_ICON = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>';
 
-function addCopyButtons(root) {
-  const codeBlocks = root.querySelectorAll('pre');
+function isReactArticleBlock(pre) {
+  return Boolean(pre.closest('#main-content article.prose'));
+}
 
-  codeBlocks.forEach(function (pre) {
-    // Skip if already processed or is a mermaid block
+function addCopyButtons(root) {
+  root.querySelectorAll('pre').forEach(function (pre) {
     if (pre.dataset.copyProcessed) return;
+    if (isReactArticleBlock(pre)) return;
     if (pre.closest('.mermaid-diagram')) return;
-    if (pre.querySelector('.mermaid')) return;
     if (pre.querySelector('code.language-mermaid')) return;
 
     pre.dataset.copyProcessed = 'true';
+    pre.classList.add('aiui-code-has-copy');
 
-    // Wrap in a relative container
-    const wrapper = document.createElement('div');
-    wrapper.className = 'aiui-code-wrapper';
-    pre.parentNode.insertBefore(wrapper, pre);
-    wrapper.appendChild(pre);
-
-    // Create copy button
     const btn = document.createElement('button');
+    btn.type = 'button';
     btn.className = 'aiui-copy-btn';
     btn.innerHTML = COPY_ICON + '<span>Copy</span>';
     btn.setAttribute('aria-label', 'Copy code');
@@ -110,7 +104,6 @@ function addCopyButtons(root) {
           btn.classList.remove('copied');
         }, 2000);
       }).catch(function () {
-        // Fallback for non-HTTPS contexts
         const textarea = document.createElement('textarea');
         textarea.value = text;
         textarea.style.position = 'fixed';
@@ -132,7 +125,7 @@ function addCopyButtons(root) {
       });
     });
 
-    wrapper.appendChild(btn);
+    pre.appendChild(btn);
   });
 }
 

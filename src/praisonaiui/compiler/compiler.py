@@ -65,7 +65,8 @@ class Compiler:
 
         # Ensure output directory exists
         output_dir.mkdir(parents=True, exist_ok=True)
-        files: list[str] = []
+        (output_dir / ".nojekyll").touch()
+        files: list[str] = [".nojekyll"]
 
         indent = None if minify else 2
 
@@ -111,6 +112,8 @@ class Compiler:
             nav = self._generate_docs_nav()
             route_files = self._generate_route_pages(output_dir, nav)
             files.extend(route_files)
+            files.extend(self._generate_sitemap(output_dir, nav))
+            files.extend(self._generate_robots(output_dir))
 
         return CompileResult(success=True, files=files)
 
@@ -322,6 +325,8 @@ class Compiler:
                 "titleTemplate": self.config.seo.title_template,
                 "defaultImage": self.config.seo.default_image,
                 "twitter": self.config.seo.twitter,
+                "siteUrl": self.config.seo.site_url or self._site_url(),
+                "robots": self.config.seo.robots,
             }
 
         # A11y configuration - basic implementation for frontend
@@ -441,6 +446,7 @@ class Compiler:
                 output_dir / "index.html",
             )
             self._patch_antiflicker(output_dir / "index.html")
+            self._patch_static_shell(output_dir / "index.html")
             # Create 404.html as a copy of patched index.html
             # for SPA routing on static hosts like GitHub Pages
             shutil.copy(
@@ -475,6 +481,29 @@ class Compiler:
         dark_mode = theme.dark_mode if theme else True
         html = html_path.read_text(encoding="utf-8")
         html = html.replace("__AIUI_DARK_DEFAULT__", "true" if dark_mode else "false")
+        html_path.write_text(html, encoding="utf-8")
+
+    def _patch_static_shell(self, html_path: Path) -> None:
+        """Patch built index.html for static hosts (GitHub Pages).
+
+        - Strip trailing slashes from the URL bar before React hydrates.
+        - Load plugin-loader.js (not included in the Vite bundle).
+        """
+        html = html_path.read_text(encoding="utf-8")
+        canonical_script = (
+            '<script id="aiui-canonical-url">'
+            "(function(){var p=location.pathname.replace(/\\/+$/, '')||'/';"
+            "if(p!==location.pathname){history.replaceState(null,'',"
+            "p+location.search+location.hash);}})();"
+            "</script>"
+        )
+        if 'id="aiui-canonical-url"' not in html:
+            html = html.replace("<head>", f"<head>\n  {canonical_script}", 1)
+        if "plugin-loader.js" not in html:
+            html = html.replace(
+                "</body>",
+                '  <script src="/plugins/plugin-loader.js"></script>\n</body>',
+            )
         html_path.write_text(html, encoding="utf-8")
 
     def _copy_plugins(self, output_dir: Path, frontend_dir: Path) -> None:
@@ -523,8 +552,10 @@ class Compiler:
     def _generate_route_pages(self, output_dir: Path, nav: dict) -> list[str]:
         """Generate per-route HTML files for SPA fallback and SEO.
 
-        For each page in the docs navigation, creates an index.html at
-        the route path (e.g. _site/docs/concepts/configuration/index.html).
+        For each page in the docs navigation, creates a flat HTML file at
+        the route path (e.g. _site/docs/concepts/configuration.html).
+        GitHub Pages serves /docs/concepts/configuration from that file
+        without appending a trailing slash.
         Each file is a copy of the SPA shell with page-specific:
           - <title> tag
           - <meta name="description">
@@ -549,15 +580,15 @@ class Compiler:
             path = page["path"]  # e.g. "/docs/concepts/configuration"
             title = page["title"]  # e.g. "YAML Configuration"
 
-            # Build file system path
+            # Build file system path — flat .html file so static hosts (GitHub Pages)
+            # serve /docs/testing without a trailing-slash redirect.
             relative = path.lstrip("/")
-            page_dir = output_dir / relative
-            page_dir.mkdir(parents=True, exist_ok=True)
-            page_file = page_dir / "index.html"
+            page_file = output_dir / f"{relative}.html"
+            page_file.parent.mkdir(parents=True, exist_ok=True)
 
             # Build page-specific HTML
             page_title = f"{title} | {site_title}"
-            page_desc = f"{title} - {site_desc}"
+            page_desc = page.get("description") or f"{title} - {site_desc}"
 
             html = template_html
 
@@ -575,6 +606,7 @@ class Compiler:
 
             # Add canonical URL, OG tags, and noscript content before </head>
             seo_tags = self._build_seo_tags(path, page_title, page_desc)
+            json_ld = self._build_json_ld(path, title, page_desc)
 
             # Try to load markdown content for noscript pre-rendering
             noscript_content = self._get_noscript_content(output_dir, path)
@@ -582,7 +614,7 @@ class Compiler:
             # Inject SEO tags before </head>
             html = html.replace(
                 "</head>",
-                f"{seo_tags}\n</head>",
+                f"{seo_tags}\n{json_ld}\n</head>",
             )
 
             # Inject noscript block inside <div id="root">
@@ -593,31 +625,93 @@ class Compiler:
                 )
 
             page_file.write_text(html, encoding="utf-8")
-            files.append(f"{relative}/index.html")
+            files.append(f"{relative}.html")
 
         return files
 
     def _collect_nav_pages(self, nav: dict) -> list[dict]:
         """Recursively collect all pages from docs-nav.json."""
         pages: list[dict] = []
-        for item in nav.get("items", []):
-            if item.get("path"):
-                pages.append({"path": item["path"], "title": item.get("title", "")})
-            for child in item.get("children", []):
-                if child.get("path"):
-                    pages.append({"path": child["path"], "title": child.get("title", "")})
-                # Handle deeper nesting if present
-                for grandchild in child.get("children", []):
-                    if grandchild.get("path"):
-                        pages.append(
-                            {"path": grandchild["path"], "title": grandchild.get("title", "")}
-                        )
+
+        def walk(items: list[dict]) -> None:
+            for item in items:
+                if item.get("path"):
+                    pages.append(
+                        {
+                            "path": item["path"],
+                            "title": item.get("title", ""),
+                            "description": item.get("description", ""),
+                        }
+                    )
+                if item.get("children"):
+                    walk(item["children"])
+
+        walk(nav.get("items", []))
         return pages
+
+    def _site_url(self) -> str | None:
+        if self.config.seo and self.config.seo.site_url:
+            return self.config.seo.site_url.rstrip("/")
+        for candidate in (self.base_path / "CNAME", self.base_path / "docs" / "CNAME"):
+            if candidate.exists():
+                domain = candidate.read_text(encoding="utf-8").strip()
+                if domain and "." in domain:
+                    return f"https://{domain.rstrip('/')}"
+        return None
+
+    def _absolute_url(self, path: str) -> str:
+        site = self._site_url()
+        if not site:
+            return path
+        if not path.startswith("/"):
+            path = f"/{path}"
+        return f"{site}{path}"
+
+    def _generate_sitemap(self, output_dir: Path, nav: dict) -> list[str]:
+        site = self._site_url()
+        if not site:
+            return []
+
+        urls = []
+        for page in self._collect_nav_pages(nav):
+            path = page["path"].rstrip("/") or "/"
+            loc = self._escape_html(self._absolute_url(path))
+            urls.append(f"  <url><loc>{loc}</loc></url>")
+
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            + "\n".join(urls)
+            + "\n</urlset>\n"
+        )
+        (output_dir / "sitemap.xml").write_text(xml, encoding="utf-8")
+        return ["sitemap.xml"]
+
+    def _generate_robots(self, output_dir: Path) -> list[str]:
+        robots = self.config.seo.robots if self.config.seo else None
+        allow_index = robots.get("index", True) if robots else True
+        allow_follow = robots.get("follow", True) if robots else True
+
+        lines = ["User-agent: *"]
+        if allow_index:
+            lines.append("Allow: /")
+        else:
+            lines.append("Disallow: /")
+        if not allow_follow:
+            lines.append("Disallow: /docs/")
+
+        site = self._site_url()
+        if site:
+            lines.append(f"Sitemap: {site}/sitemap.xml")
+
+        (output_dir / "robots.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return ["robots.txt"]
 
     def _build_seo_tags(self, path: str, title: str, description: str) -> str:
         """Build canonical, OG, and Twitter meta tags."""
         d = self._escape_html(description)
-        p = self._escape_html(path)
+        canonical = self._escape_html(self._absolute_url(path))
+        og_url = canonical
 
         # Extract original page title by removing the site title suffix if present
         site_title = self.config.site.title
@@ -641,15 +735,19 @@ class Compiler:
             t = self._escape_html(title)
 
         tags = [
-            f'  <link rel="canonical" href="{p}" />',
+            f'  <link rel="canonical" href="{canonical}" />',
             f'  <meta property="og:title" content="{t}" />',
             f'  <meta property="og:description" content="{d}" />',
-            f'  <meta property="og:url" content="{p}" />',
+            f'  <meta property="og:url" content="{og_url}" />',
+            f'  <meta property="og:type" content="article" />',
         ]
 
         # Add default OG image if configured
         if self.config.seo and self.config.seo.default_image:
-            og_image = self._escape_html(self.config.seo.default_image)
+            image = self.config.seo.default_image
+            if not image.startswith(("http://", "https://")):
+                image = self._absolute_url(image)
+            og_image = self._escape_html(image)
             tags.append(f'  <meta property="og:image" content="{og_image}" />')
 
         # Add Twitter card tags
@@ -662,7 +760,31 @@ class Compiler:
             handle = self._escape_html(self.config.seo.twitter["handle"])
             tags.append(f'  <meta name="twitter:site" content="{handle}" />')
 
+        robots = self.config.seo.robots if self.config.seo else None
+        if robots:
+            index = "index" if robots.get("index", True) else "noindex"
+            follow = "follow" if robots.get("follow", True) else "nofollow"
+            tags.append(f'  <meta name="robots" content="{index}, {follow}" />')
+
         return "\n".join(tags)
+
+    def _build_json_ld(self, path: str, title: str, description: str) -> str:
+        url = self._absolute_url(path)
+        site_url = self._site_url()
+        payload: dict = {
+            "@context": "https://schema.org",
+            "@type": "TechArticle",
+            "headline": title,
+            "description": description,
+            "url": url,
+        }
+        if site_url:
+            payload["isPartOf"] = {
+                "@type": "WebSite",
+                "name": self.config.site.title,
+                "url": f"{site_url}/",
+            }
+        return f'  <script type="application/ld+json">{json.dumps(payload, ensure_ascii=False)}</script>'
 
     def _get_noscript_content(self, output_dir: Path, path: str) -> str:
         """Load markdown file and convert to simple HTML for noscript block."""

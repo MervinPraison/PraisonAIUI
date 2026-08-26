@@ -1,24 +1,16 @@
 /**
  * AIUI Content Loader Plugin
  *
- * Loads page-specific markdown content based on the current URL.
- * Replaces the default React debug/template view with actual docs content.
- *
+ * Loads page-specific markdown for the initial React debug shell only.
  * SPA sidebar navigation is owned by React (App.tsx syncs on aiui:navigate).
- * This plugin only injects markdown for the initial debug shell and as a
- * fallback when React fails to render visible content.
  *
- * URL mapping: /docs/getting-started/installation/ → /docs/getting-started/installation.md
+ * Must never inject into or hide React-managed <main> after the app mounts —
+ * that races React reconciliation and causes removeChild / insertBefore crashes.
  */
 
 let currentPath = '';
 let loadedPath = '';
 let spaNavigating = false;
-let navGen = 0;
-
-/** Match React Content.tsx prose classes so light-mode contrast CSS applies. */
-const PROSE_ARTICLE_CLASS =
-  'prose prose-neutral dark:prose-invert max-w-none prose-pre:bg-muted prose-pre:text-foreground prose-code:text-foreground p-6';
 
 function getMarkdownPath() {
   let path = window.location.pathname;
@@ -37,29 +29,6 @@ function pathToMd(path) {
   return normalized + '.md';
 }
 
-function setContentMode(active) {
-  let styleEl = document.getElementById('aiui-content-loader-css');
-  if (!styleEl) {
-    styleEl = document.createElement('style');
-    styleEl.id = 'aiui-content-loader-css';
-    document.head.appendChild(styleEl);
-  }
-
-  if (active) {
-    styleEl.textContent = `
-      body.aiui-content-loaded main.flex-1 > :not([data-aiui-plugin]) {
-        opacity: 0 !important;
-        position: absolute !important;
-        pointer-events: none !important;
-      }
-    `;
-    document.body.classList.add('aiui-content-loaded');
-  } else {
-    styleEl.textContent = '';
-    document.body.classList.remove('aiui-content-loaded');
-  }
-}
-
 function hasPluginArticle() {
   return !!document.querySelector('[data-aiui-plugin="content-loader"]');
 }
@@ -73,7 +42,9 @@ function mainHasVisibleContent() {
 
 function teardownPluginContent() {
   document.querySelectorAll('[data-aiui-plugin="content-loader"]').forEach(el => el.remove());
-  setContentMode(false);
+  const styleEl = document.getElementById('aiui-content-loader-css');
+  if (styleEl) styleEl.textContent = '';
+  document.body.classList.remove('aiui-content-loaded');
 }
 
 function isDefaultView(root) {
@@ -83,6 +54,10 @@ function isDefaultView(root) {
   }
   return false;
 }
+
+/** Match React Content.tsx prose classes so light-mode contrast CSS applies. */
+const PROSE_ARTICLE_CLASS =
+  'prose prose-neutral dark:prose-invert max-w-none prose-pre:bg-muted prose-pre:text-foreground prose-code:text-foreground p-6';
 
 async function injectPluginContent(targetPath) {
   let path = (targetPath || '/').replace(/\/+$/, '') || '/';
@@ -119,25 +94,23 @@ async function injectPluginContent(targetPath) {
   article.innerHTML = markdownToHtml(markdown);
   container.appendChild(article);
 
-  if (main) setContentMode(true);
-
   const h1 = article.querySelector('h1');
   if (h1) {
     document.title = h1.textContent.trim() + ' | PraisonAIUI Docs';
   }
 
-  updateTocSidebar(article);
   window.dispatchEvent(new CustomEvent('aiui:content-loaded', { detail: { root: article } }));
 
   const af = document.getElementById('aiui-anti-flicker');
   if (af) af.remove();
 
-  console.debug('[AIUI:content-loader] Injected fallback content from', mdPath);
+  console.debug('[AIUI:content-loader] Injected debug-shell content from', mdPath);
   return true;
 }
 
 async function loadContent(root) {
   if (spaNavigating) return;
+  if (mainHasVisibleContent() && !isDefaultView(root)) return;
 
   const mdPath = getMarkdownPath();
   if (mdPath === loadedPath && hasPluginArticle()) return;
@@ -153,69 +126,12 @@ async function loadContent(root) {
   }
 }
 
-function repairIfEmpty() {
-  if (mainHasVisibleContent() || hasPluginArticle()) return;
-  if (document.body.classList.contains('aiui-content-loaded')) {
-    setContentMode(false);
-  }
-  loadedPath = '';
-  const path = window.location.pathname.replace(/\/+$/, '') || '/';
-  if (path === '/' || path === '/index.html') return;
-  injectPluginContent(path);
-}
-
-async function navigateToContent(targetPath) {
-  const gen = ++navGen;
+function navigateToContent() {
   spaNavigating = true;
-
-  try {
-    currentPath = window.location.pathname;
-    teardownPluginContent();
-    loadedPath = '';
-
-    let path = (targetPath || '/').replace(/\/+$/, '') || '/';
-    if (path === '/' || path === '/index.html') {
-      return;
-    }
-
-    // React App.tsx syncs selectedItem on aiui:navigate and renders markdown.
-    window.setTimeout(async () => {
-      if (gen !== navGen) return;
-      if (mainHasVisibleContent()) return;
-      await injectPluginContent(path);
-    }, 600);
-  } catch (err) {
-    console.warn('[AIUI:content-loader] Failed to navigate:', targetPath, err);
-    setContentMode(false);
-  } finally {
-    setTimeout(() => { spaNavigating = false; }, 300);
-  }
-}
-
-function updateTocSidebar(article) {
-  const headings = article.querySelectorAll('h2, h3');
-  if (headings.length === 0) return;
-
-  const asides = document.querySelectorAll('aside');
-  for (const aside of asides) {
-    const nav = aside.querySelector('nav');
-    if (!nav) continue;
-    const header = aside.querySelector('h4, h3, p');
-    if (header && /on this page/i.test(header.textContent)) {
-      const existingLinks = nav.querySelectorAll('a');
-      existingLinks.forEach(a => a.style.display = 'none');
-
-      headings.forEach(h => {
-        const link = document.createElement('a');
-        link.href = '#' + h.id;
-        link.textContent = h.textContent;
-        link.className = existingLinks[0] ? existingLinks[0].className : '';
-        link.style.paddingLeft = h.tagName === 'H3' ? '1rem' : '0';
-        nav.appendChild(link);
-      });
-      break;
-    }
-  }
+  currentPath = window.location.pathname;
+  teardownPluginContent();
+  loadedPath = '';
+  setTimeout(() => { spaNavigating = false; }, 100);
 }
 
 /* ───────── Markdown → HTML Converter ───────── */
@@ -421,11 +337,6 @@ export default {
     console.debug('[AIUI:content-loader] Plugin loaded for path:', currentPath);
   },
   onContentChange(root) {
-    if (document.body.classList.contains('aiui-content-loaded') && !hasPluginArticle() && !mainHasVisibleContent()) {
-      setContentMode(false);
-      loadedPath = '';
-    }
     loadContent(root);
-    repairIfEmpty();
   },
 };

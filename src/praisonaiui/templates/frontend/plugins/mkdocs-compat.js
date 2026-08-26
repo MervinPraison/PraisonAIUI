@@ -119,7 +119,12 @@ function enhanceFeatureGrid(article) {
   }
 }
 
+function isReactManagedArticle(article) {
+  return article.closest('#main-content') && !article.dataset.aiuiPlugin;
+}
+
 function enhanceTabs(article) {
+  if (isReactManagedArticle(article)) return;
   if (article.querySelector('[data-aiui-tabs]')) return;
 
   const tabHeadings = Array.from(article.querySelectorAll('h3')).filter((h3) =>
@@ -175,15 +180,19 @@ function enhanceTabs(article) {
     panel.className = index === 0 ? 'aiui-tab-panel p-4 block' : 'aiui-tab-panel p-4 hidden';
     panel.dataset.tabPanel = String(index);
     for (const node of section.nodes) {
-      panel.appendChild(node);
+      panel.appendChild(node.cloneNode(true));
     }
     panels.appendChild(panel);
+
+    section.heading.classList.add('hidden');
+    for (const node of section.nodes) {
+      if (node instanceof HTMLElement) {
+        node.classList.add('hidden');
+      }
+    }
   });
 
   article.insertBefore(wrapper, sections[0].heading);
-  for (const section of sections) {
-    section.heading.remove();
-  }
 
   buttons.addEventListener('click', (event) => {
     const target = event.target.closest('.aiui-tab-button');
@@ -218,6 +227,7 @@ function cleanMkDocsContent(root) {
   if (articles.size === 0) return;
 
   for (const article of articles) {
+    if (isReactManagedArticle(article)) continue;
     delete article.dataset.mkdocsClean;
 
     let html = article.innerHTML;
@@ -261,7 +271,7 @@ function cleanMkDocsContent(root) {
     for (const p of article.querySelectorAll('p')) {
       const text = p.textContent.trim();
       if (/^<\/?div[\s>]/.test(text) || text === '</div>') {
-        p.remove();
+        p.classList.add('hidden');
       }
     }
 

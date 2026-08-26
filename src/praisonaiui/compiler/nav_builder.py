@@ -13,6 +13,7 @@ class NavItem:
 
     title: str
     path: str
+    description: str = ""
     children: list["NavItem"] = field(default_factory=list)
 
 
@@ -38,7 +39,11 @@ class NavBuilder:
             full_path = f"{self.base_path}/{page.slug}".rstrip("/")
 
             # Create NavItem for this page
-            item = NavItem(title=page.title, path=full_path)
+            item = NavItem(
+                title=page.title,
+                path=full_path,
+                description=str(page.frontmatter.get("description", "") or ""),
+            )
 
             # Determine parent path
             parts = page.slug.split("/")
@@ -76,6 +81,8 @@ class NavBuilder:
     def _item_to_dict(self, item: NavItem) -> dict:
         """Convert a NavItem to dictionary."""
         result = {"title": item.title, "path": item.path}
+        if item.description:
+            result["description"] = item.description
         if item.children:
             result["children"] = [self._item_to_dict(child) for child in item.children]
         return result

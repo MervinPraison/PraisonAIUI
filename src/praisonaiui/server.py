@@ -760,10 +760,19 @@ def _build_html(style: str) -> str:
         except Exception:
             pass
 
+    canonical_script = (
+        '<script id="aiui-canonical-url">'
+        "(function(){var p=location.pathname.replace(/\\/+$/, '')||'/';"
+        "if(p!==location.pathname){history.replaceState(null,'',"
+        "p+location.search+location.hash);}})();"
+        "</script>"
+    )
+
     return (
         '<!doctype html><html lang="en"><head>'
         '<meta charset="UTF-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1.0">'
+        f"{canonical_script}"
         f"{theme_bootstrap}"
         f'<link rel="stylesheet" href="/assets/index.css?v={cache_bust}">'
         f"{anti_flicker}"
@@ -823,10 +832,8 @@ async def _plugins_config(request: Request) -> JSONResponse:
             "syntax-highlight",
             "code-copy",
             "content-loader",
-            "toc",
             "mermaid",
             "nav-intercept",
-            "mkdocs-compat",
             "homepage",
         ]
     else:
@@ -3597,6 +3604,8 @@ def create_app(
     # Always mount built-in frontend plugins and assets BEFORE catch-all /
     _frontend_dir = Path(__file__).parent / "templates" / "frontend"
     _plugins_dir = _frontend_dir / "plugins"
+    if static_dir and (Path(static_dir) / "plugins").is_dir():
+        _plugins_dir = Path(static_dir) / "plugins"
     _assets_dir = _frontend_dir / "assets"
 
     # Dynamic plugins.json route — MUST come before static /plugins mount
@@ -3623,6 +3632,13 @@ def create_app(
             routes.append(Route("/", _serve_index, methods=["GET"]))
 
         _static_app = StaticFiles(directory=str(static_dir), html=True)
+        _static_root = Path(static_dir)
+
+        async def _serve_static_file(scope, receive, send, file_path: Path, media_type: str | None = None):
+            from starlette.responses import FileResponse
+
+            response = FileResponse(str(file_path), media_type=media_type)
+            await response(scope, receive, send)
 
         async def _http_only_static(scope, receive, send):
             if scope["type"] != "http":
@@ -3631,7 +3647,25 @@ def create_app(
                     await send({"type": "websocket.close", "code": 1008})
                 return
 
-            # Try StaticFiles first; on 404, fall back to SPA index
+            request_path = scope.get("path", "")
+            rel = request_path.lstrip("/")
+            if rel:
+                exact = _static_root / rel
+                if exact.is_file():
+                    await _serve_static_file(scope, receive, send, exact)
+                    return
+                if not request_path.endswith("/"):
+                    html_path = _static_root / f"{rel}.html"
+                    if html_path.is_file():
+                        await _serve_static_file(scope, receive, send, html_path, media_type="text/html")
+                        return
+                if exact.is_dir():
+                    index = exact / "index.html"
+                    if index.is_file():
+                        await _serve_static_file(scope, receive, send, index, media_type="text/html")
+                        return
+
+            # Try StaticFiles; on 404, fall back to SPA index
             # (paths like /chat, /memory don't have static files but need
             # the SPA shell so JS routing can take over).
             response_started = False

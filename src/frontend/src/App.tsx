@@ -57,86 +57,110 @@ export default function App() {
     return navData.items ? findItem(navData.items) : null
   }
 
-  const updateSEO = (title: string, path: string, description?: string, configOverride?: UIConfig) => {
-    const cfg = configOverride ?? config
-    // Update title using SEO titleTemplate if available
+  const seoOrigin = (cfg: UIConfig) => (cfg.seo?.siteUrl || window.location.origin).replace(/\/+$/, '')
+
+  const formatSeoTitle = (title: string, cfg: UIConfig) => {
     const titleTemplate = cfg.seo?.titleTemplate || '%s | %s'
     const siteName = cfg.site?.title || 'Documentation'
     if (titleTemplate.includes('%s')) {
-      // Replace first %s with page title, second %s (if exists) with site name
       let formattedTitle = titleTemplate.replace('%s', title)
       if (formattedTitle.includes('%s')) {
         formattedTitle = formattedTitle.replace('%s', siteName)
       }
-      document.title = formattedTitle
-    } else {
-      document.title = `${title} | ${siteName}`
+      return formattedTitle
     }
+    return `${title} | ${siteName}`
+  }
 
-    // Update canonical URL
+  const updateSEO = (title: string, path: string, description?: string, configOverride?: UIConfig) => {
+    const cfg = configOverride ?? config
+    const canonicalPath = normalizeDocPath(path)
+    const formattedTitle = formatSeoTitle(title, cfg)
+    const metaDescription = description || `${title} - ${cfg.site?.description || ''}`
+    const absoluteUrl = `${seoOrigin(cfg)}${canonicalPath}`
+
+    document.title = formattedTitle
+
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement
     if (!canonical) {
       canonical = document.createElement('link')
       canonical.rel = 'canonical'
       document.head.appendChild(canonical)
     }
-    canonical.href = window.location.origin + path
+    canonical.href = absoluteUrl
 
-    // Update meta description
     let metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement
     if (!metaDesc) {
       metaDesc = document.createElement('meta')
       metaDesc.name = 'description'
       document.head.appendChild(metaDesc)
     }
-    metaDesc.content = description || `${title} - ${cfg.site?.description || ''}`
+    metaDesc.content = metaDescription
 
-    // Update Open Graph tags
-    let ogTitle = document.querySelector('meta[property="og:title"]') as HTMLMetaElement
-    if (!ogTitle) {
-      ogTitle = document.createElement('meta')
-      ogTitle.setAttribute('property', 'og:title')
-      document.head.appendChild(ogTitle)
-    }
-    ogTitle.content = title
-
-    let ogUrl = document.querySelector('meta[property="og:url"]') as HTMLMetaElement
-    if (!ogUrl) {
-      ogUrl = document.createElement('meta')
-      ogUrl.setAttribute('property', 'og:url')
-      document.head.appendChild(ogUrl)
-    }
-    ogUrl.content = window.location.origin + path
-
-    // Update Twitter meta tags if configured
-    if (cfg.seo?.twitter) {
-      Object.entries(cfg.seo.twitter).forEach(([key, value]) => {
-        let twitterMeta = document.querySelector(`meta[name="twitter:${key}"]`) as HTMLMetaElement
-        if (!twitterMeta) {
-          twitterMeta = document.createElement('meta')
-          twitterMeta.name = `twitter:${key}`
-          document.head.appendChild(twitterMeta)
-        }
-        twitterMeta.content = value
-      })
-    }
-
-    // Set default image if available
-    if (cfg.seo?.defaultImage) {
-      let ogImage = document.querySelector('meta[property="og:image"]') as HTMLMetaElement
-      if (!ogImage) {
-        ogImage = document.createElement('meta')
-        ogImage.setAttribute('property', 'og:image')
-        document.head.appendChild(ogImage)
+    const ensureMeta = (selector: string, create: () => HTMLMetaElement) => {
+      let el = document.querySelector(selector) as HTMLMetaElement | null
+      if (!el) {
+        el = create()
+        document.head.appendChild(el)
       }
-      ogImage.content = cfg.seo.defaultImage
+      return el
+    }
+
+    ensureMeta('meta[property="og:title"]', () => {
+      const el = document.createElement('meta')
+      el.setAttribute('property', 'og:title')
+      return el
+    }).content = formattedTitle
+
+    ensureMeta('meta[property="og:description"]', () => {
+      const el = document.createElement('meta')
+      el.setAttribute('property', 'og:description')
+      return el
+    }).content = metaDescription
+
+    ensureMeta('meta[property="og:url"]', () => {
+      const el = document.createElement('meta')
+      el.setAttribute('property', 'og:url')
+      return el
+    }).content = absoluteUrl
+
+    ensureMeta('meta[name="twitter:title"]', () => {
+      const el = document.createElement('meta')
+      el.name = 'twitter:title'
+      return el
+    }).content = formattedTitle
+
+    ensureMeta('meta[name="twitter:description"]', () => {
+      const el = document.createElement('meta')
+      el.name = 'twitter:description'
+      return el
+    }).content = metaDescription
+
+    if (cfg.seo?.twitter?.handle) {
+      ensureMeta('meta[name="twitter:site"]', () => {
+        const el = document.createElement('meta')
+        el.name = 'twitter:site'
+        return el
+      }).content = cfg.seo.twitter.handle
+    }
+
+    if (cfg.seo?.defaultImage) {
+      const image = cfg.seo.defaultImage.startsWith('http')
+        ? cfg.seo.defaultImage
+        : `${seoOrigin(cfg)}${cfg.seo.defaultImage}`
+      ensureMeta('meta[property="og:image"]', () => {
+        const el = document.createElement('meta')
+        el.setAttribute('property', 'og:image')
+        return el
+      }).content = image
     }
   }
 
   const selectNavItem = (item: NavItem) => {
+    const path = normalizeDocPath(item.path || '/')
     setSelectedItem(item)
     setActiveItemPath(item.path || item.title)
-    updateSEO(item.title, item.path || '/')
+    updateSEO(item.title, path, item.description)
   }
 
   // Keep React nav state in sync when plugins perform SPA navigation
@@ -197,19 +221,22 @@ export default function App() {
         // Handle initial URL path for SPA routing
         const initialPath = normalizeDocPath(window.location.pathname)
         setCurrentPath(initialPath)
+        if (initialPath !== window.location.pathname) {
+          window.history.replaceState(null, '', initialPath + window.location.search + window.location.hash)
+        }
         if (initialPath !== '/') {
           const found = findNavItemByPath(navData, initialPath)
           if (found) {
             setSelectedItem(found)
             setActiveItemPath(found.path || found.title)
-            updateSEO(found.title, found.path || initialPath, undefined, configData)
+            updateSEO(found.title, initialPath, found.description, configData)
           }
         } else {
           const docsHome = findNavItemByPath(navData, '/docs/index')
           if (docsHome) {
             setSelectedItem(docsHome)
             setActiveItemPath(docsHome.path || docsHome.title)
-            updateSEO(docsHome.title, docsHome.path || '/docs/index', undefined, configData)
+            updateSEO(docsHome.title, normalizeDocPath(docsHome.path || '/docs/index'), docsHome.description, configData)
           }
         }
       } catch (err) {
@@ -253,7 +280,7 @@ export default function App() {
     setActiveItemPath(item.path || item.title)
     setCurrentPath(path)
     window.history.pushState({ path }, item.title, path)
-    updateSEO(item.title, path)
+    updateSEO(item.title, path, item.description)
   }
 
   const templateMatch = resolveTemplate(

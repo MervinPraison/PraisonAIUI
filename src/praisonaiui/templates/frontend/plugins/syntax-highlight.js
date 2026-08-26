@@ -118,6 +118,10 @@ function swapThemeIfNeeded() {
   highlightCodeBlocks();
 }
 
+function isReactArticleBlock(node) {
+  return Boolean(node.closest && node.closest('#main-content article.prose'));
+}
+
 /**
  * Highlight all unprocessed code blocks.
  */
@@ -131,6 +135,7 @@ function highlightCodeBlocks() {
 
   const blocks = document.querySelectorAll('pre code:not([data-hljs-highlighted])');
   for (const block of blocks) {
+    if (isReactArticleBlock(block)) continue;
     if (block.classList.contains('language-mermaid') ||
         block.closest('.mermaid') ||
         block.closest('[data-aiui-plugin="mermaid"]')) {
@@ -155,6 +160,7 @@ export default {
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
     window.addEventListener('aiui:content-loaded', () => {
+      if (document.querySelector('#main-content article.prose')) return;
       highlightCodeBlocks();
       setTimeout(highlightCodeBlocks, 300);
     });
@@ -162,8 +168,15 @@ export default {
     console.debug('[AIUI:syntax] Plugin loaded.');
   },
   onContentChange() {
+    if (document.querySelector('#main-content article.prose')) return;
     highlightCodeBlocks();
-    setTimeout(highlightCodeBlocks, 300);
-    setTimeout(highlightCodeBlocks, 800);
+    setTimeout(() => {
+      if (document.querySelector('#main-content article.prose')) return;
+      highlightCodeBlocks();
+    }, 300);
+    setTimeout(() => {
+      if (document.querySelector('#main-content article.prose')) return;
+      highlightCodeBlocks();
+    }, 800);
   },
 };

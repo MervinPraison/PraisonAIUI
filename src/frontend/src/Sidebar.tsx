@@ -7,6 +7,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet'
+import { normalizeDocPath } from './pathUtils'
 import type { DocsNav, NavItem } from './types'
 
 interface NavTreeProps {
@@ -33,20 +34,25 @@ export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
             )
         }
 
+        const href = normalizeDocPath(item.path || '/')
+
         return (
-            <button
+            <a
                 key={item.title + (item.path || '')}
-                type="button"
+                href={href}
                 data-nav-path={item.path || ''}
-                onClick={() => onItemClick(item)}
-                className={`w-full text-left px-3 py-1.5 text-sm rounded-md transition-all duration-150 ${isActive
+                onClick={(event) => {
+                    event.preventDefault()
+                    onItemClick(item)
+                }}
+                className={`block w-full text-left px-3 py-1.5 text-sm rounded-md transition-all duration-150 ${isActive
                     ? 'bg-primary/10 text-primary font-medium border-l-2 border-primary'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     }`}
                 style={{ paddingLeft: `${12 + depth * 12}px` }}
             >
                 {item.title}
-            </button>
+            </a>
         )
     }
 

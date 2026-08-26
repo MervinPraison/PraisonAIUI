@@ -187,9 +187,11 @@ class A11yConfig(BaseModel):
 class SEOConfig(BaseModel):
     """SEO configuration."""
 
-    title_template: str = Field(default="%s", alias="titleTemplate")
+    title_template: str = Field(default="%s | %s", alias="titleTemplate")
     default_image: Optional[str] = Field(default=None, alias="defaultImage")
     twitter: Optional[dict[str, str]] = None
+    site_url: Optional[str] = Field(default=None, alias="siteUrl")
+    robots: Optional[dict[str, bool]] = None
 
 
 class DependenciesConfig(BaseModel):

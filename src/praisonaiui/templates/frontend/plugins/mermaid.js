@@ -274,6 +274,8 @@ async function renderMermaidBlocks(root) {
   if (targets.length === 0) return;
 
   for (const codeEl of targets) {
+    if (codeEl.closest('#main-content article.prose')) continue;
+
     let container = codeEl.closest('pre') || codeEl.parentElement;
     if (!container) continue;
 
@@ -317,10 +319,12 @@ export default {
     await loadMermaidLib();
     window.addEventListener('aiui:content-loaded', (event) => {
       const root = event.detail?.root || document;
+      if (root.matches?.('#main-content article.prose') || root.closest?.('#main-content article.prose')) return;
       renderMermaidBlocks(root);
     });
   },
   onContentChange(root) {
+    if (document.querySelector('#main-content article.prose')) return;
     const currentUrl = location.pathname + location.hash;
 
     // Only tear down on actual navigation

@@ -627,8 +627,9 @@ class TestCompilerUtf8Writes:
         result = compiler.compile(tmp_path / "output")
         assert result.success is True
 
-        page = tmp_path / "output" / "docs" / "index" / "index.html"
+        page = tmp_path / "output" / "docs" / "index.html"
         assert page.exists()
+        assert not (tmp_path / "output" / "docs" / "index").is_dir()
         raw = page.read_bytes()
         assert self.SPARKLE in raw.decode("utf-8")
         assert b"\xe2\x9c\xa8" in raw

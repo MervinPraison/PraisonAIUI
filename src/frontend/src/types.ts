@@ -4,6 +4,7 @@ export interface NavItem {
     title: string
     href?: string
     path?: string
+    description?: string
     children?: NavItem[]
 }
 
@@ -24,6 +25,8 @@ export interface SEOConfig {
     titleTemplate?: string
     defaultImage?: string
     twitter?: Record<string, string>
+    siteUrl?: string
+    robots?: { index?: boolean; follow?: boolean }
 }
 
 export interface I18nConfig {
