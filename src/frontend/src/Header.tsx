@@ -3,6 +3,7 @@ import { Menu } from 'lucide-react'
 import type { UIConfig } from './types'
 import { LocaleSwitcher } from './i18n'
 import { Button } from '@/components/ui/button'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export function Header({
     config,
@@ -78,6 +79,7 @@ export function Header({
                 </nav>
 
                 <div className="flex items-center gap-2 ml-auto">
+                    <ThemeToggle />
                     <LocaleSwitcher />
                     {header?.cta && (
                         <a

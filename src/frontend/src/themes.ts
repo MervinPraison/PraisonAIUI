@@ -136,7 +136,9 @@ export const NAMED_THEME_PRESETS = {
 
 export type NamedThemePreset = keyof typeof NAMED_THEME_PRESETS
 
-export type ThemePreset = typeof THEME_PRESETS[number]
+export const THEME_STORAGE_KEY = 'aiui-theme-preference'
+
+export type ThemePreference = 'light' | 'dark' | 'system'
 
 export const RADIUS_PRESETS = {
     none: '0',
@@ -145,6 +147,8 @@ export const RADIUS_PRESETS = {
     lg: '0.75rem',
     xl: '1rem',
 } as const
+
+export type ThemePreset = typeof THEME_PRESETS[number]
 
 export type RadiusPreset = keyof typeof RADIUS_PRESETS
 
@@ -197,6 +201,43 @@ export function applyDarkMode(enabled: boolean): void {
  */
 export function isDarkMode(): boolean {
     return document.documentElement.classList.contains('dark')
+}
+
+/**
+ * Apply stored user theme preference over YAML default dark mode.
+ */
+export function applyStoredThemePreference(yamlDefaultDark: boolean): void {
+    let stored: string | null = null
+    try {
+        stored = localStorage.getItem(THEME_STORAGE_KEY)
+    } catch {
+        return
+    }
+    if (stored === 'light') {
+        applyDarkMode(false)
+    } else if (stored === 'dark') {
+        applyDarkMode(true)
+    } else if (stored === 'system') {
+        applyDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches)
+    } else {
+        applyDarkMode(yamlDefaultDark)
+    }
+}
+
+/**
+ * Persist and apply a theme preference.
+ */
+export function setThemePreference(preference: ThemePreference): void {
+    try {
+        localStorage.setItem(THEME_STORAGE_KEY, preference)
+    } catch {
+        // ignore storage failures
+    }
+    if (preference === 'system') {
+        applyDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches)
+    } else {
+        applyDarkMode(preference === 'dark')
+    }
 }
 
 /**

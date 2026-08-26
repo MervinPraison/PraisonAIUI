@@ -9,6 +9,10 @@
  * selectors. This prevents React reconciler crashes (removeChild errors).
  */
 
+/** Match React Content.tsx prose classes so light-mode contrast CSS applies. */
+const PROSE_ARTICLE_CLASS =
+  'prose prose-neutral dark:prose-invert max-w-none prose-pre:bg-muted prose-pre:text-foreground prose-code:text-foreground p-6';
+
 let hasRendered = false;
 
 function isHomepage() {
@@ -76,7 +80,7 @@ async function replaceHomepage(root) {
 
     // Create article FIRST, then hide-old + show-new atomically
     const article = document.createElement('article');
-    article.className = 'prose max-w-none dark:prose-invert p-6';
+    article.className = PROSE_ARTICLE_CLASS;
     article.dataset.aiuiPlugin = 'homepage';
     article.innerHTML = simpleMarkdownToHtml(markdown);
     main.appendChild(article);
@@ -104,7 +108,7 @@ function simpleMarkdownToHtml(md) {
 
   function flushList() {
     if (listItems.length > 0) {
-      result.push('<ul>' + listItems.join('') + '</ul>');
+      result.push('<ul class="list-disc pl-6 my-2 text-foreground">' + listItems.join('') + '</ul>');
       listItems = [];
     }
   }
@@ -112,7 +116,7 @@ function simpleMarkdownToHtml(md) {
   for (const line of lines) {
     if (line.trimStart().startsWith('```')) {
       if (inCodeBlock) {
-        result.push(`<pre><code class="language-${codeLang}">${escapeHtml(codeContent.trim())}</code></pre>`);
+        result.push(`<pre class="bg-muted text-foreground border border-border rounded-lg p-4 my-4 overflow-x-auto"><code class="language-${codeLang}">${escapeHtml(codeContent.trim())}</code></pre>`);
         inCodeBlock = false; codeContent = '';
       } else {
         flushList(); inCodeBlock = true;
@@ -130,17 +134,17 @@ function simpleMarkdownToHtml(md) {
       flushList();
       const lvl = hm[1].length;
       const id = hm[2].toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
-      result.push(`<h${lvl} id="${id}">${inlineMarkdown(hm[2])}</h${lvl}>`);
+      result.push(`<h${lvl} id="${id}" class="scroll-mt-20 text-foreground">${inlineMarkdown(hm[2])}</h${lvl}>`);
       continue;
     }
     if (/^[-*_]{3,}$/.test(trimmed)) { flushList(); result.push('<hr>'); continue; }
     const lm = trimmed.match(/^[-*+]\s+(.*)/);
-    if (lm) { listItems.push(`<li>${inlineMarkdown(lm[1])}</li>`); continue; }
+    if (lm) { listItems.push(`<li class="text-foreground">${inlineMarkdown(lm[1])}</li>`); continue; }
     const om = trimmed.match(/^\d+\.\s+(.*)/);
-    if (om) { listItems.push(`<li>${inlineMarkdown(om[1])}</li>`); continue; }
+    if (om) { listItems.push(`<li class="text-foreground">${inlineMarkdown(om[1])}</li>`); continue; }
 
     flushList();
-    result.push(`<p>${inlineMarkdown(trimmed)}</p>`);
+    result.push(`<p class="my-2 text-foreground">${inlineMarkdown(trimmed)}</p>`);
   }
   flushList();
   return result.join('\n');

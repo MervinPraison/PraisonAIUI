@@ -21,8 +21,30 @@ class TestLightModeContrast:
         assert "hsl(var(--foreground))" in source
         assert "hsl(var(--muted))" in source
         assert "color: inherit !important" not in source
+        assert "aiui:content-loaded" in source
 
     def test_content_uses_foreground_for_body_and_tables(self):
         source = Path("src/frontend/src/Content.tsx").read_text(encoding="utf-8")
         assert 'p className="my-3 text-foreground' in source
         assert 'td className="px-4 py-2 text-foreground' in source
+
+    def test_content_loader_plugin_matches_react_prose_classes(self):
+        source = Path("src/praisonaiui/templates/frontend/plugins/content-loader.js").read_text(encoding="utf-8")
+        assert "prose-neutral" in source
+        assert "PROSE_ARTICLE_CLASS" in source
+        assert 'class="my-2 text-foreground"' in source
+        assert 'class="px-4 py-2 text-foreground"' in source
+
+    def test_homepage_plugin_matches_react_prose_classes(self):
+        source = Path("src/praisonaiui/templates/frontend/plugins/homepage.js").read_text(encoding="utf-8")
+        assert "prose-neutral" in source
+        assert 'class="my-2 text-foreground"' in source
+
+    def test_server_anti_flicker_uses_theme_tokens(self):
+        source = Path("src/praisonaiui/server.py").read_text(encoding="utf-8")
+        assert "hsl(var(--background))" in source
+        assert "#0f172a" not in source.split("anti_flicker")[1].split("react_script")[0]
+
+    def test_prose_contrast_rules_apply_without_prose_neutral(self):
+        css = Path("src/frontend/src/index.css").read_text(encoding="utf-8")
+        assert "article.prose :where(p, li, td, th" in css

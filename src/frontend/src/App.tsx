@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { applyTheme } from './themes'
+import { applyTheme, applyStoredThemePreference } from './themes'
 import './index.css'
 import type { UIConfig, DocsNav, RouteManifest, NavItem } from './types'
 import { Header } from './Header'
@@ -159,11 +159,13 @@ export default function App() {
 
         // Apply theme from YAML config
         const theme = configData.site?.theme
+        const yamlDark = theme?.darkMode !== false
         applyTheme(
           theme?.preset || 'zinc',
-          theme?.darkMode !== false,
+          yamlDark,
           theme?.radius || 'md'
         )
+        applyStoredThemePreference(yamlDark)
 
         // Handle initial URL path for SPA routing
         const currentPath = window.location.pathname.replace(/\/$/, '') || '/'
@@ -237,7 +239,7 @@ export default function App() {
   const layout = templateMatch?.layout ?? activeTemplate?.layout ?? 'ThreeColumnLayout'
   const zones = activeTemplate?.zones
   const showToc = shouldShowToc(templateMatch)
-  const showGlobalFooter = !(layout === 'FlexibleLayout' && (zones?.footer?.length ?? 0) > 0)
+  const showGlobalFooter = true
 
   const docsChrome = (
     <>
@@ -259,7 +261,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="dark flex items-center justify-center min-h-screen bg-background">
+      <div className="flex items-center justify-center min-h-screen bg-background">
         <span className="text-muted-foreground">Loading...</span>
       </div>
     )
@@ -267,7 +269,7 @@ export default function App() {
 
   if (error) {
     return (
-      <div className="dark flex flex-col items-center justify-center min-h-screen gap-4 bg-background">
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-background">
         <h2 className="text-xl font-semibold text-destructive">Failed to load</h2>
         <p className="text-muted-foreground">{error}</p>
       </div>
@@ -295,9 +297,14 @@ export default function App() {
         )
       case 'FullWidthLayout':
         return (
-          <div className="px-6">
-            {zones?.hero && zones.hero.length > 0 && <ZoneWidgets widgets={zones.hero} />}
-            <Content config={config} routes={routes} selectedItem={selectedItem} />
+          <div className="flex">
+            {(nav?.items?.length ?? 0) > 0 && (
+              <Sidebar nav={nav} activeItem={activeItemPath} onItemClick={handleItemClick} />
+            )}
+            <div className="flex-1 px-6">
+              {zones?.hero && zones.hero.length > 0 && <ZoneWidgets widgets={zones.hero} />}
+              <Content config={config} routes={routes} selectedItem={selectedItem} />
+            </div>
           </div>
         )
       case 'FlexibleLayout': {

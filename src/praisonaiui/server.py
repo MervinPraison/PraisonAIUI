@@ -687,12 +687,21 @@ def _build_html(style: str) -> str:
     title = f"{_site_title} Dashboard" if style == "dashboard" else _site_title
     cache_bust = int(_server_start_time)
 
-    # Anti-flicker: dark background + hide React content until plugins render
+    # Anti-flicker: hide React content until plugins render (uses theme CSS vars)
     anti_flicker = ""
+    theme_bootstrap = (
+        '<script id="aiui-theme-bootstrap">'
+        "(function(){try{var t=localStorage.getItem('aiui-theme-preference');"
+        "if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches))"
+        "document.documentElement.classList.add('dark');"
+        "else if(t==='light')document.documentElement.classList.remove('dark');"
+        "}catch(e){}})();"
+        "</script>"
+    )
     if style == "docs":
         anti_flicker = (
             '<style id="aiui-anti-flicker">'
-            "html,body{background:#0f172a!important;color:#e2e8f0}"
+            "html,body{background:hsl(var(--background))!important;color:hsl(var(--foreground))}"
             "#root>*{opacity:0;transition:opacity .15s ease}"
             "</style>"
         )
@@ -752,15 +761,16 @@ def _build_html(style: str) -> str:
             pass
 
     return (
-        '<!doctype html><html lang="en" style="background:#0f172a;color:#e2e8f0"><head>'
+        '<!doctype html><html lang="en"><head>'
         '<meta charset="UTF-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1.0">'
+        f"{theme_bootstrap}"
         f'<link rel="stylesheet" href="/assets/index.css?v={cache_bust}">'
         f"{anti_flicker}"
         f"{theme_vars_tag}"
         f"{custom_css_tag}"
         f"<title>{title}</title>"
-        '</head><body style="background:#0f172a;margin:0">'
+        '</head><body style="margin:0">'
         '<div id="root"></div>'
         f"{react_script}"
         f'<script src="/plugins/plugin-loader.js?v={cache_bust}"></script>'

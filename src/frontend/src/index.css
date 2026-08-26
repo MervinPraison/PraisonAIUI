@@ -97,19 +97,19 @@
 }
 
 /* Prose readability — must beat @tailwindcss/typography defaults (unlayered) */
-article.prose.prose-neutral :where(p, li, td, th, blockquote, strong, em, h1, h3, h4, h5, h6) {
+article.prose :where(p, li, td, th, blockquote, strong, em, h1, h3, h4, h5, h6) {
   color: hsl(var(--foreground)) !important;
   -webkit-text-fill-color: unset !important;
   opacity: 1 !important;
 }
 
-article.prose.prose-neutral :where(h2) {
+article.prose :where(h2) {
   color: hsl(var(--primary)) !important;
   -webkit-text-fill-color: unset !important;
   opacity: 1 !important;
 }
 
-article.prose.prose-neutral .aiui-feature-grid > li {
+article.prose .aiui-feature-grid > li {
   color: hsl(var(--foreground)) !important;
 }
 

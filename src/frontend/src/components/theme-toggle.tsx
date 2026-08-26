@@ -6,22 +6,16 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-
-type Theme = "light" | "dark" | "system"
+import { setThemePreference, type ThemePreference } from "../themes"
 
 interface ThemeToggleProps {
-    theme?: Theme
-    onThemeChange?: (theme: Theme) => void
+    theme?: ThemePreference
+    onThemeChange?: (theme: ThemePreference) => void
 }
 
 export function ThemeToggle({ onThemeChange }: ThemeToggleProps) {
-    const setTheme = (newTheme: Theme) => {
-        if (newTheme === "system") {
-            const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-            document.documentElement.classList.toggle("dark", systemDark)
-        } else {
-            document.documentElement.classList.toggle("dark", newTheme === "dark")
-        }
+    const setTheme = (newTheme: ThemePreference) => {
+        setThemePreference(newTheme)
         onThemeChange?.(newTheme)
     }
 

@@ -154,6 +154,11 @@ export default {
     const observer = new MutationObserver(() => swapThemeIfNeeded());
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
+    window.addEventListener('aiui:content-loaded', () => {
+      highlightCodeBlocks();
+      setTimeout(highlightCodeBlocks, 300);
+    });
+
     console.debug('[AIUI:syntax] Plugin loaded.');
   },
   onContentChange() {

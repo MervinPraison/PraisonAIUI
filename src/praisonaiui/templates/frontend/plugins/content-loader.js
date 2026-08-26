@@ -14,6 +14,10 @@ let currentPath = '';
 let loadedPath = '';
 let spaNavigating = false;  // Guard: prevent loadContent from racing with SPA nav
 
+/** Match React Content.tsx prose classes so light-mode contrast CSS applies. */
+const PROSE_ARTICLE_CLASS =
+  'prose prose-neutral dark:prose-invert max-w-none prose-pre:bg-muted prose-pre:text-foreground prose-code:text-foreground p-6';
+
 /**
  * Map the current URL to a markdown file path.
  * /docs/getting-started/installation → /docs/getting-started/installation.md
@@ -108,7 +112,7 @@ async function loadContent(root) {
 
     // Create and inject our article FIRST
     const article = document.createElement('article');
-    article.className = 'prose max-w-none dark:prose-invert p-6';
+    article.className = PROSE_ARTICLE_CLASS;
     article.dataset.aiuiPlugin = 'content-loader';
     article.innerHTML = markdownToHtml(markdown);
     main.appendChild(article);
@@ -240,7 +244,7 @@ function markdownToHtml(md) {
 
   function flushList() {
     if (listItems.length > 0) {
-      result.push('<ul class="list-disc pl-6 my-2">' + listItems.join('') + '</ul>');
+      result.push('<ul class="list-disc pl-6 my-2 text-foreground">' + listItems.join('') + '</ul>');
       listItems = [];
     }
   }
@@ -249,11 +253,11 @@ function markdownToHtml(md) {
     if (tableRows.length > 0) {
       let tableHtml = '<table class="min-w-full my-4"><thead><tr>';
       const headers = tableRows[0];
-      headers.forEach(h => { tableHtml += `<th class="px-4 py-2 text-left font-semibold">${inlineMarkdown(h.trim())}</th>`; });
+      headers.forEach(h => { tableHtml += `<th class="px-4 py-2 text-left font-semibold text-foreground">${inlineMarkdown(h.trim())}</th>`; });
       tableHtml += '</tr></thead><tbody>';
       for (let i = 2; i < tableRows.length; i++) {
         tableHtml += '<tr>';
-        tableRows[i].forEach(cell => { tableHtml += `<td class="px-4 py-2">${inlineMarkdown(cell.trim())}</td>`; });
+        tableRows[i].forEach(cell => { tableHtml += `<td class="px-4 py-2 text-foreground">${inlineMarkdown(cell.trim())}</td>`; });
         tableHtml += '</tr>';
       }
       tableHtml += '</tbody></table>';
@@ -304,7 +308,7 @@ function markdownToHtml(md) {
       const lvl = hm[1].length;
       const text = hm[2];
       const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
-      result.push(`<h${lvl} id="${id}" class="scroll-mt-20">${inlineMarkdown(text)}</h${lvl}>`);
+      result.push(`<h${lvl} id="${id}" class="scroll-mt-20 text-foreground">${inlineMarkdown(text)}</h${lvl}>`);
       continue;
     }
     
@@ -335,13 +339,13 @@ function markdownToHtml(md) {
     
     // List items
     const lm = trimmed.match(/^[-*+]\s+(.*)/);
-    if (lm) { listItems.push(`<li>${inlineMarkdown(lm[1])}</li>`); continue; }
+    if (lm) { listItems.push(`<li class="text-foreground">${inlineMarkdown(lm[1])}</li>`); continue; }
     const om = trimmed.match(/^\d+\.\s+(.*)/);
-    if (om) { listItems.push(`<li>${inlineMarkdown(om[1])}</li>`); continue; }
+    if (om) { listItems.push(`<li class="text-foreground">${inlineMarkdown(om[1])}</li>`); continue; }
 
     // Regular paragraphs
     flushList();
-    result.push(`<p class="my-2">${inlineMarkdown(trimmed)}</p>`);
+    result.push(`<p class="my-2 text-foreground">${inlineMarkdown(trimmed)}</p>`);
   }
   flushList();
   flushTable();
@@ -419,7 +423,7 @@ async function navigateToContent(targetPath) {
 
     // Create and inject our article
     const article = document.createElement('article');
-    article.className = 'prose max-w-none dark:prose-invert p-6';
+    article.className = PROSE_ARTICLE_CLASS;
     article.dataset.aiuiPlugin = 'content-loader';
     article.innerHTML = markdownToHtml(markdown);
     container.appendChild(article);
