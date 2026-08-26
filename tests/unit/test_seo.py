@@ -51,7 +51,13 @@ class TestSeoBuild:
         llms = (tmp_path / "output" / "llms.txt").read_text(encoding="utf-8")
         assert llms.startswith("# Test Docs")
         assert "https://ui.praison.ai/docs/guide" in llms
+        assert "llms-full.txt" in llms
         assert "llms.txt" in result.files
+
+        llms_full = (tmp_path / "output" / "llms-full.txt").read_text(encoding="utf-8")
+        assert "# Guide" in llms_full
+        assert "llms-full.txt" in result.files
+        assert "<lastmod>" in sitemap
 
         nav = yaml.safe_load((tmp_path / "output" / "docs-nav.json").read_text(encoding="utf-8"))
         assert nav["items"][0]["description"] == "Guide description"
@@ -77,3 +83,35 @@ class TestSeoBuild:
         assert "siteUrl" in source
         assert "og:description" in source
         assert "twitter:description" in source
+        assert "aiui-jsonld" in source
+        assert 'og:type' in source
+        assert "twitter:card" in source
+
+    def test_build_excludes_noindex_from_sitemap(self, tmp_path: Path):
+        docs_dir = tmp_path / "docs"
+        docs_dir.mkdir()
+        (docs_dir / "public.md").write_text("# Public\n\nVisible page.\n", encoding="utf-8")
+        (docs_dir / "draft.md").write_text(
+            "---\nnoindex: true\n---\n\n# Draft\n\nHidden page.\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "CNAME").write_text("ui.praison.ai\n", encoding="utf-8")
+
+        config = Config(
+            site=SiteConfig(title="Test Docs"),
+            seo=SEOConfig(site_url="https://ui.praison.ai"),
+            content=ContentConfig(docs=ContentSourceConfig(dir=str(docs_dir))),
+            templates={"docs": TemplateConfig(layout="Default", slots={})},
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+
+        compiler = Compiler(config, base_path=tmp_path)
+        result = compiler.compile(tmp_path / "output")
+        assert result.success is True
+
+        sitemap = (tmp_path / "output" / "sitemap.xml").read_text(encoding="utf-8")
+        assert "docs/public" in sitemap
+        assert "docs/draft" not in sitemap
+
+        draft_html = (tmp_path / "output" / "docs" / "draft.html").read_text(encoding="utf-8")
+        assert 'content="noindex, nofollow"' in draft_html

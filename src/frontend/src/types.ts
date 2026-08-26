@@ -5,6 +5,7 @@ export interface NavItem {
     href?: string
     path?: string
     description?: string
+    noindex?: boolean
     children?: NavItem[]
 }
 

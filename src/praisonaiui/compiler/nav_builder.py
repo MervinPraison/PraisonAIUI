@@ -14,6 +14,7 @@ class NavItem:
     title: str
     path: str
     description: str = ""
+    noindex: bool = False
     children: list["NavItem"] = field(default_factory=list)
 
 
@@ -42,7 +43,8 @@ class NavBuilder:
             item = NavItem(
                 title=page.title,
                 path=full_path,
-                description=str(page.frontmatter.get("description", "") or ""),
+                description=page.description,
+                noindex=page.noindex,
             )
 
             # Determine parent path
@@ -83,6 +85,8 @@ class NavBuilder:
         result = {"title": item.title, "path": item.path}
         if item.description:
             result["description"] = item.description
+        if item.noindex:
+            result["noindex"] = True
         if item.children:
             result["children"] = [self._item_to_dict(child) for child in item.children]
         return result

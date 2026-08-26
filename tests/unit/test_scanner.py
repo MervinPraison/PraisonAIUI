@@ -107,3 +107,26 @@ Content here.
         assert len(pages) == 2
         assert pages[0].order == 1
         assert pages[1].order == 2
+
+    def test_auto_description_from_first_paragraph(self, tmp_path):
+        docs_dir = tmp_path / "docs"
+        docs_dir.mkdir()
+        (docs_dir / "page.md").write_text(
+            "# Title\n\nThis is the introductory paragraph for search snippets.\n\nMore content.",
+            encoding="utf-8",
+        )
+
+        scanner = DocsScanner(docs_dir)
+        pages = scanner.scan()
+
+        assert pages[0].description == "This is the introductory paragraph for search snippets."
+
+    def test_noindex_from_frontmatter(self, tmp_path):
+        docs_dir = tmp_path / "docs"
+        docs_dir.mkdir()
+        (docs_dir / "draft.md").write_text("---\nnoindex: true\n---\n\n# Draft\n", encoding="utf-8")
+
+        scanner = DocsScanner(docs_dir)
+        pages = scanner.scan()
+
+        assert pages[0].noindex is True

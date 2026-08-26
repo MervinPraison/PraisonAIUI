@@ -72,7 +72,13 @@ export default function App() {
     return `${title} | ${siteName}`
   }
 
-  const updateSEO = (title: string, path: string, description?: string, configOverride?: UIConfig) => {
+  const updateSEO = (
+    title: string,
+    path: string,
+    description?: string,
+    configOverride?: UIConfig,
+    noindex?: boolean,
+  ) => {
     const cfg = configOverride ?? config
     const canonicalPath = normalizeDocPath(path)
     const formattedTitle = formatSeoTitle(title, cfg)
@@ -106,6 +112,12 @@ export default function App() {
       return el
     }
 
+    ensureMeta('meta[name="robots"]', () => {
+      const el = document.createElement('meta')
+      el.name = 'robots'
+      return el
+    }).content = noindex ? 'noindex, nofollow' : 'index, follow'
+
     ensureMeta('meta[property="og:title"]', () => {
       const el = document.createElement('meta')
       el.setAttribute('property', 'og:title')
@@ -123,6 +135,18 @@ export default function App() {
       el.setAttribute('property', 'og:url')
       return el
     }).content = absoluteUrl
+
+    ensureMeta('meta[property="og:type"]', () => {
+      const el = document.createElement('meta')
+      el.setAttribute('property', 'og:type')
+      return el
+    }).content = 'article'
+
+    ensureMeta('meta[name="twitter:card"]', () => {
+      const el = document.createElement('meta')
+      el.name = 'twitter:card'
+      return el
+    }).content = 'summary'
 
     ensureMeta('meta[name="twitter:title"]', () => {
       const el = document.createElement('meta')
@@ -153,14 +177,39 @@ export default function App() {
         el.setAttribute('property', 'og:image')
         return el
       }).content = image
+      ensureMeta('meta[name="twitter:image"]', () => {
+        const el = document.createElement('meta')
+        el.name = 'twitter:image'
+        return el
+      }).content = image
     }
+
+    let jsonLd = document.querySelector('script#aiui-jsonld') as HTMLScriptElement | null
+    if (!jsonLd) {
+      jsonLd = document.createElement('script')
+      jsonLd.type = 'application/ld+json'
+      jsonLd.id = 'aiui-jsonld'
+      document.head.appendChild(jsonLd)
+    }
+    jsonLd.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'TechArticle',
+      headline: title,
+      description: metaDescription,
+      url: absoluteUrl,
+      isPartOf: {
+        '@type': 'WebSite',
+        name: cfg.site?.title || 'Documentation',
+        url: `${seoOrigin(cfg)}/`,
+      },
+    })
   }
 
   const selectNavItem = (item: NavItem) => {
     const path = normalizeDocPath(item.path || '/')
     setSelectedItem(item)
     setActiveItemPath(item.path || item.title)
-    updateSEO(item.title, path, item.description)
+    updateSEO(item.title, path, item.description, undefined, item.noindex)
   }
 
   // Keep React nav state in sync when plugins perform SPA navigation
@@ -229,14 +278,14 @@ export default function App() {
           if (found) {
             setSelectedItem(found)
             setActiveItemPath(found.path || found.title)
-            updateSEO(found.title, initialPath, found.description, configData)
+            updateSEO(found.title, initialPath, found.description, configData, found.noindex)
           }
         } else {
           const docsHome = findNavItemByPath(navData, '/docs/index')
           if (docsHome) {
             setSelectedItem(docsHome)
             setActiveItemPath(docsHome.path || docsHome.title)
-            updateSEO(docsHome.title, normalizeDocPath(docsHome.path || '/docs/index'), docsHome.description, configData)
+            updateSEO(docsHome.title, normalizeDocPath(docsHome.path || '/docs/index'), docsHome.description, configData, docsHome.noindex)
           }
         }
       } catch (err) {
@@ -280,7 +329,7 @@ export default function App() {
     setActiveItemPath(item.path || item.title)
     setCurrentPath(path)
     window.history.pushState({ path }, item.title, path)
-    updateSEO(item.title, path, item.description)
+    updateSEO(item.title, path, item.description, undefined, item.noindex)
   }
 
   const templateMatch = resolveTemplate(

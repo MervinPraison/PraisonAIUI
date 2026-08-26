@@ -15,6 +15,8 @@ class DocPage:
     slug: str
     title: str
     order: int = 0
+    description: str = ""
+    noindex: bool = False
     frontmatter: dict = field(default_factory=dict)
 
 
@@ -82,6 +84,10 @@ class DocsScanner:
 
         # Determine title (from frontmatter or first heading)
         title = frontmatter.get("title") or self._extract_title(content) or slug
+        description = str(frontmatter.get("description", "") or "").strip()
+        if not description:
+            description = self._extract_description(content)
+        noindex = bool(frontmatter.get("noindex", False))
 
         # Extract order from frontmatter or filename
         order = frontmatter.get("order", 0)
@@ -96,8 +102,41 @@ class DocsScanner:
             slug=slug,
             title=title,
             order=order,
+            description=description,
+            noindex=noindex,
             frontmatter=frontmatter,
         )
+
+    def _extract_description(self, content: str) -> str:
+        """First paragraph after frontmatter — used for meta description when omitted."""
+        if content.startswith("---"):
+            end_idx = content.find("---", 3)
+            if end_idx != -1:
+                content = content[end_idx + 3 :]
+
+        in_code = False
+        for line in content.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("```"):
+                in_code = not in_code
+                continue
+            if in_code or not stripped:
+                continue
+            if stripped.startswith("#"):
+                continue
+            if stripped.startswith(("-", "*", "+", "|", ">", "!", "---")):
+                continue
+
+            text = stripped
+            text = re.sub(r"!\[([^\]]*)\]\([^)]+\)", r"\1", text)
+            text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+            text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+            text = re.sub(r"\*([^*]+)\*", r"\1", text)
+            text = re.sub(r"`([^`]+)`", r"\1", text)
+            text = re.sub(r"\s+", " ", text).strip()
+            if len(text) >= 20:
+                return text[:160].rstrip()
+        return ""
 
     def _path_to_slug(self, file_path: Path) -> str:
         """Convert a file path to a URL slug."""

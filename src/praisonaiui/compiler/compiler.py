@@ -115,6 +115,7 @@ class Compiler:
             files.extend(self._generate_sitemap(output_dir, nav))
             files.extend(self._generate_robots(output_dir))
             files.extend(self._generate_llms_txt(output_dir, nav))
+            files.extend(self._generate_llms_full_txt(output_dir, nav))
             self._patch_homepage_seo(output_dir, nav)
 
         return CompileResult(success=True, files=files)
@@ -501,6 +502,12 @@ class Compiler:
         )
         if 'id="aiui-canonical-url"' not in html:
             html = html.replace("<head>", f"<head>\n  {canonical_script}", 1)
+        if 'rel="sitemap"' not in html:
+            html = html.replace(
+                "<head>",
+                '<head>\n  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />',
+                1,
+            )
         if "plugin-loader.js" not in html:
             html = html.replace(
                 "</body>",
@@ -591,6 +598,7 @@ class Compiler:
             # Build page-specific HTML
             page_title = f"{title} | {site_title}"
             page_desc = page.get("description") or f"{title} - {site_desc}"
+            page_noindex = bool(page.get("noindex"))
 
             html = template_html
 
@@ -607,7 +615,7 @@ class Compiler:
             )
 
             # Add canonical URL, OG tags, and noscript content before </head>
-            seo_tags = self._build_seo_tags(path, page_title, page_desc)
+            seo_tags = self._build_seo_tags(path, page_title, page_desc, noindex=page_noindex)
             json_ld = self._build_json_ld(path, title, page_desc)
 
             # Try to load markdown content for noscript pre-rendering
@@ -646,6 +654,7 @@ class Compiler:
                             "path": item["path"],
                             "title": item.get("title", ""),
                             "description": item.get("description", ""),
+                            "noindex": bool(item.get("noindex")),
                         }
                     )
                 if item.get("children"):
@@ -679,11 +688,15 @@ class Compiler:
 
         urls = []
         site_root = self._absolute_url("/")
-        urls.append(f"  <url><loc>{self._escape_html(site_root)}</loc></url>")
+        root_lastmod = self._format_lastmod(self.base_path / "docs" / "index.md")
+        urls.append(self._sitemap_url_entry(site_root, root_lastmod))
         for page in self._collect_nav_pages(nav):
+            if page.get("noindex"):
+                continue
             path = page["path"].rstrip("/") or "/"
-            loc = self._escape_html(self._absolute_url(path))
-            urls.append(f"  <url><loc>{loc}</loc></url>")
+            loc = self._absolute_url(path)
+            lastmod = self._format_lastmod(self._resolve_md_source(path))
+            urls.append(self._sitemap_url_entry(loc, lastmod))
 
         xml = (
             '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -693,6 +706,46 @@ class Compiler:
         )
         (output_dir / "sitemap.xml").write_text(xml, encoding="utf-8")
         return ["sitemap.xml"]
+
+    @staticmethod
+    def _sitemap_url_entry(loc: str, lastmod: str | None) -> str:
+        safe_loc = Compiler._escape_html(loc)
+        if lastmod:
+            return f"  <url><loc>{safe_loc}</loc><lastmod>{lastmod}</lastmod></url>"
+        return f"  <url><loc>{safe_loc}</loc></url>"
+
+    @staticmethod
+    def _format_lastmod(path: Path | None) -> str | None:
+        if not path or not path.is_file():
+            return None
+        from datetime import UTC, datetime
+
+        mtime = path.stat().st_mtime
+        return datetime.fromtimestamp(mtime, tz=UTC).strftime("%Y-%m-%d")
+
+    def _resolve_md_source(self, route_path: str) -> Path | None:
+        """Map a docs route path to its source markdown file."""
+        if not self.config.content or not self.config.content.docs:
+            return None
+
+        base = self.config.site.route_base_docs.rstrip("/")
+        if not route_path.startswith(base):
+            return None
+
+        rel = route_path[len(base) :].lstrip("/")
+        docs_dir = self.base_path / self.config.content.docs.dir
+        candidates = [
+            docs_dir / f"{rel}.md",
+            docs_dir / rel / "index.md",
+            docs_dir / rel / "README.md",
+        ]
+        if rel in ("", "index"):
+            candidates.insert(0, docs_dir / "index.md")
+
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate
+        return None
 
     def _generate_robots(self, output_dir: Path) -> list[str]:
         robots = self.config.seo.robots if self.config.seo else None
@@ -710,6 +763,7 @@ class Compiler:
         site = self._site_url()
         if site:
             lines.append(f"Sitemap: {site}/sitemap.xml")
+            lines.append(f"# LLM index: {site}/llms.txt")
 
         (output_dir / "robots.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
         return ["robots.txt"]
@@ -732,15 +786,52 @@ class Compiler:
         ]
 
         for page in self._collect_nav_pages(nav):
+            if page.get("noindex"):
+                continue
             path = page["path"].rstrip("/") or "/"
             title = page["title"]
             desc = page.get("description") or title
             url = self._absolute_url(path)
             lines.append(f"- [{title}]({url}): {desc}")
 
+        lines.extend(["", "## Full export", "", f"- [Complete documentation]({site}/llms-full.txt): All pages in one file"])
         content = "\n".join(lines).rstrip() + "\n"
         (output_dir / "llms.txt").write_text(content, encoding="utf-8")
         return ["llms.txt"]
+
+    def _generate_llms_full_txt(self, output_dir: Path, nav: dict) -> list[str]:
+        """Generate llms-full.txt — concatenated markdown for AI crawlers."""
+        site = self._site_url()
+        if not site:
+            return []
+
+        sections: list[str] = []
+        for page in self._collect_nav_pages(nav):
+            if page.get("noindex"):
+                continue
+            md_path = self._resolve_md_source(page["path"])
+            if not md_path:
+                continue
+            body = self._strip_frontmatter(md_path.read_text(encoding="utf-8")).strip()
+            if not body:
+                continue
+            url = self._absolute_url(page["path"].rstrip("/") or "/")
+            title = page["title"]
+            sections.append(f"# {title}\n\nSource: {url}\n\n{body}")
+
+        if not sections:
+            return []
+
+        (output_dir / "llms-full.txt").write_text("\n\n---\n\n".join(sections) + "\n", encoding="utf-8")
+        return ["llms-full.txt"]
+
+    @staticmethod
+    def _strip_frontmatter(content: str) -> str:
+        if content.startswith("---"):
+            end_idx = content.find("---", 3)
+            if end_idx != -1:
+                return content[end_idx + 3 :].lstrip("\n")
+        return content
 
     def _patch_homepage_seo(self, output_dir: Path, nav: dict) -> None:
         """Add canonical and crawl hints to root index.html."""
@@ -796,7 +887,7 @@ class Compiler:
             "</nav>"
         )
 
-    def _build_seo_tags(self, path: str, title: str, description: str) -> str:
+    def _build_seo_tags(self, path: str, title: str, description: str, *, noindex: bool = False) -> str:
         """Build canonical, OG, and Twitter meta tags."""
         d = self._escape_html(description)
         canonical = self._escape_html(self._absolute_url(path))
@@ -850,7 +941,9 @@ class Compiler:
             tags.append(f'  <meta name="twitter:site" content="{handle}" />')
 
         robots = self.config.seo.robots if self.config.seo else None
-        if robots:
+        if noindex:
+            tags.append('  <meta name="robots" content="noindex, nofollow" />')
+        elif robots:
             index = "index" if robots.get("index", True) else "noindex"
             follow = "follow" if robots.get("follow", True) else "nofollow"
             tags.append(f'  <meta name="robots" content="{index}, {follow}" />')
