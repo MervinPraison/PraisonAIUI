@@ -48,3 +48,14 @@ class TestLightModeContrast:
     def test_prose_contrast_rules_apply_without_prose_neutral(self):
         css = Path("src/frontend/src/index.css").read_text(encoding="utf-8")
         assert "article.prose :where(p, li, td, th" in css
+
+    def test_theme_colors_use_hsl_wrapper(self):
+        css = Path("src/frontend/src/index.css").read_text(encoding="utf-8")
+        assert "--color-background: hsl(var(--background))" in css
+        assert "background-color: hsl(var(--background))" in css
+        assert "--color-background: var(--background)" not in css
+
+    def test_index_html_theme_bootstrap_respects_storage(self):
+        html = Path("src/praisonaiui/templates/frontend/index.html").read_text(encoding="utf-8")
+        assert "aiui-theme-preference" in html
+        assert "__AIUI_DARK_DEFAULT__" in html

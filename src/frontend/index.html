@@ -11,9 +11,7 @@
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <title>Documentation</title>
   <script>
-    // Anti-flicker: apply dark mode class before first paint
-    // Default to dark to prevent flash; React will correct if needed
-    document.documentElement.classList.add('dark');
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=__AIUI_DARK_DEFAULT__;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
   </script>
   <link rel="stylesheet" href="/assets/theme.css">
 </head>

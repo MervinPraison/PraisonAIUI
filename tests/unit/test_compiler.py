@@ -445,10 +445,11 @@ class TestThemePipelineIntegration:
         assert result.success is True
 
         index_html = (tmp_path / "output" / "index.html").read_text(encoding="utf-8")
-        assert "classList.add('dark')" not in index_html
+        assert "__AIUI_DARK_DEFAULT__" not in index_html
+        assert "var d=false" in index_html
 
     def test_dark_mode_antiflicker_has_dark_class(self, tmp_path: Path):
-        """G-NEW-7: When darkMode=true, anti-flicker script SHOULD add .dark class."""
+        """G-NEW-7: When darkMode=true, theme bootstrap defaults to dark."""
         config = Config(
             site=SiteConfig(
                 title="Dark Site",
@@ -462,6 +463,8 @@ class TestThemePipelineIntegration:
         assert result.success is True
 
         index_html = (tmp_path / "output" / "index.html").read_text(encoding="utf-8")
+        assert "__AIUI_DARK_DEFAULT__" not in index_html
+        assert "var d=true" in index_html
         assert "classList.add('dark')" in index_html
 
 

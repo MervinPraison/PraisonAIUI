@@ -470,16 +470,11 @@ class Compiler:
             self._copy_plugins(output_dir, frontend_dir)
 
     def _patch_antiflicker(self, html_path: Path) -> None:
-        """Patch anti-flicker script in index.html to respect darkMode."""
+        """Patch theme bootstrap in index.html to respect darkMode."""
         theme = self.config.site.theme
         dark_mode = theme.dark_mode if theme else True
         html = html_path.read_text(encoding="utf-8")
-        if not dark_mode:
-            # Remove the dark class addition for light-mode sites
-            html = html.replace(
-                "document.documentElement.classList.add('dark');",
-                "/* light mode — no dark class */",
-            )
+        html = html.replace("__AIUI_DARK_DEFAULT__", "true" if dark_mode else "false")
         html_path.write_text(html, encoding="utf-8")
 
     def _copy_plugins(self, output_dir: Path, frontend_dir: Path) -> None:
