@@ -36,7 +36,7 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
         }
 
         const mdUrl = docPathToMarkdown(urlPath)
-        const pageTitle = selectedItem?.title ?? urlPath.split('/').pop() ?? 'page'
+        const pageTitle = urlPath.split('/').pop()?.replace(/-/g, ' ') ?? 'page'
         let cancelled = false
 
         const loadContent = async () => {
@@ -67,7 +67,7 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
             cancelled = true
             setLoadingContent(false)
         }
-    }, [currentPath, selectedItem])
+    }, [currentPath])
 
     useEffect(() => {
         if (!markdown || !articleRef.current) return
