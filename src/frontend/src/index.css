@@ -58,14 +58,29 @@
 }
 
 @layer components {
-  /* Readable code blocks in light and dark prose */
-  .prose pre {
-    @apply bg-muted text-foreground border border-border;
+  /* Readable prose in light and dark mode */
+  .prose-neutral {
+    --tw-prose-body: hsl(var(--foreground));
+    --tw-prose-headings: hsl(var(--foreground));
+    --tw-prose-bold: hsl(var(--foreground));
+    --tw-prose-counters: hsl(var(--muted-foreground));
+    --tw-prose-bullets: hsl(var(--muted-foreground));
+    --tw-prose-pre-code: hsl(var(--foreground));
+    --tw-prose-pre-bg: hsl(var(--muted));
+    --tw-prose-code: hsl(var(--foreground));
   }
 
-  .prose pre code {
+  .prose pre,
+  .prose-neutral :where(pre) {
+    @apply bg-muted text-foreground border border-border;
+    color: hsl(var(--foreground)) !important;
+    background-color: hsl(var(--muted)) !important;
+  }
+
+  .prose pre code,
+  .prose-neutral :where(pre code) {
     @apply text-foreground bg-transparent;
-    color: inherit;
+    color: inherit !important;
   }
 
   .prose :not(pre) > code {
@@ -79,4 +94,26 @@
   .prose .aiui-tabs pre {
     @apply my-2;
   }
+}
+
+/* Prose readability — must beat @tailwindcss/typography defaults (unlayered) */
+article.prose.prose-neutral :where(p, li, td, th, blockquote, strong, em, h1, h3, h4, h5, h6) {
+  color: hsl(var(--foreground)) !important;
+  -webkit-text-fill-color: unset !important;
+  opacity: 1 !important;
+}
+
+article.prose.prose-neutral :where(h2) {
+  color: hsl(var(--primary)) !important;
+  -webkit-text-fill-color: unset !important;
+  opacity: 1 !important;
+}
+
+article.prose.prose-neutral .aiui-feature-grid > li {
+  color: hsl(var(--foreground)) !important;
+}
+
+.dark article.prose.dark\:prose-invert :where(p, li, td, th, blockquote, strong, h1, h2, h3, h4) {
+  color: hsl(var(--foreground)) !important;
+  -webkit-text-fill-color: unset !important;
 }

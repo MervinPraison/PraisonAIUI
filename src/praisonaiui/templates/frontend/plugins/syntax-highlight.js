@@ -33,12 +33,11 @@ function applyPreStyles() {
     pre code.hljs {
       background: transparent !important;
       padding: 0 !important;
-      color: inherit !important;
     }
     pre {
-      background: ${dark ? 'rgba(15, 23, 42, 0.6)' : 'var(--muted, #f4f4f5)'} !important;
-      color: ${dark ? 'inherit' : 'var(--foreground, #18181b)'} !important;
-      border: 1px solid ${dark ? 'rgba(148, 163, 184, 0.1)' : 'var(--border, #e4e4e7)'};
+      background: ${dark ? 'rgba(15, 23, 42, 0.6)' : 'hsl(var(--muted))'} !important;
+      color: ${dark ? 'inherit' : 'hsl(var(--foreground))'} !important;
+      border: 1px solid ${dark ? 'rgba(148, 163, 184, 0.1)' : 'hsl(var(--border))'};
       border-radius: 0.5rem;
       padding: 1rem !important;
       overflow-x: auto;

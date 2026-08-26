@@ -141,17 +141,23 @@ function injectStyles() {
   const style = document.createElement('style');
   style.id = 'aiui-mermaid-styles';
   style.textContent = `
-    /* Mermaid diagram container */
+    /* Mermaid diagram container — theme-aware */
     .mermaid-diagram {
       display: flex;
       justify-content: center;
       margin: 1.5rem 0;
       padding: 1.5rem;
       border-radius: 12px;
-      background: rgba(15, 23, 42, 0.5);
-      border: 1px solid rgba(148, 163, 184, 0.15);
       overflow-x: auto;
       transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    :root:not(.dark) .mermaid-diagram {
+      background: hsl(var(--muted));
+      border: 1px solid hsl(var(--border));
+    }
+    .dark .mermaid-diagram {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.15);
     }
     .mermaid-diagram:hover {
       border-color: rgba(20, 184, 166, 0.4);
@@ -190,18 +196,25 @@ function injectStyles() {
       ry: 8;
     }
 
-    /* ===== Heading visibility fix ===== */
-    /* Headings use gradient/opacity that's nearly invisible in dark mode */
-    article.prose h1, article.prose h2, article.prose h3,
-    article.prose h4, article.prose h5, article.prose h6,
-    main h1, main h2, main h3, main h4, main h5, main h6,
-    .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+    /* ===== Heading visibility fix (dark mode only) ===== */
+    .dark article.prose h1, .dark article.prose h2, .dark article.prose h3,
+    .dark article.prose h4, .dark article.prose h5, .dark article.prose h6,
+    .dark main h1, .dark main h2, .dark main h3, .dark main h4, .dark main h5, .dark main h6,
+    .dark .prose h1, .dark .prose h2, .dark .prose h3, .dark .prose h4, .dark .prose h5, .dark .prose h6 {
       color: #f1f5f9 !important;
       opacity: 1 !important;
       -webkit-text-fill-color: #f1f5f9 !important;
       background: none !important;
       -webkit-background-clip: unset !important;
       background-clip: unset !important;
+    }
+    :root:not(.dark) article.prose h1, :root:not(.dark) article.prose h2, :root:not(.dark) article.prose h3,
+    :root:not(.dark) article.prose h4, :root:not(.dark) article.prose h5, :root:not(.dark) article.prose h6,
+    :root:not(.dark) .prose h1, :root:not(.dark) .prose h2, :root:not(.dark) .prose h3,
+    :root:not(.dark) .prose h4, :root:not(.dark) .prose h5, :root:not(.dark) .prose h6 {
+      color: hsl(var(--foreground)) !important;
+      -webkit-text-fill-color: unset !important;
+      opacity: 1 !important;
     }
   `;
   document.head.appendChild(style);

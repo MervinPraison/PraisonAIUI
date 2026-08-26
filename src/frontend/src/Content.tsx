@@ -52,8 +52,14 @@ export function Content({ config, routes, selectedItem }: ContentProps) {
 
     useEffect(() => {
         if (!markdown || !articleRef.current) return
-        enhanceMkdocsDom(articleRef.current)
-        window.dispatchEvent(new CustomEvent('aiui:content-loaded', { detail: { root: articleRef.current } }))
+        const article = articleRef.current
+        const runEnhance = () => {
+            enhanceMkdocsDom(article)
+            window.dispatchEvent(new CustomEvent('aiui:content-loaded', { detail: { root: article } }))
+        }
+        runEnhance()
+        const timer = window.setTimeout(runEnhance, 50)
+        return () => window.clearTimeout(timer)
     }, [markdown])
 
     const headingId = (children?: React.ReactNode) => slugify(String(children ?? ''))
@@ -63,12 +69,12 @@ export function Content({ config, routes, selectedItem }: ContentProps) {
         h2: ({ children }: { children?: React.ReactNode }) => <h2 id={headingId(children)} className="text-2xl font-semibold mt-8 mb-4 text-primary scroll-mt-20">{children}</h2>,
         h3: ({ children }: { children?: React.ReactNode }) => <h3 id={headingId(children)} className="text-xl font-semibold mt-6 mb-3 scroll-mt-20">{children}</h3>,
         h4: ({ children }: { children?: React.ReactNode }) => <h4 id={headingId(children)} className="text-lg font-semibold mt-4 mb-2 scroll-mt-20">{children}</h4>,
-        p: ({ children }: { children?: React.ReactNode }) => <p className="my-3 text-muted-foreground leading-relaxed">{children}</p>,
+        p: ({ children }: { children?: React.ReactNode }) => <p className="my-3 text-foreground leading-relaxed">{children}</p>,
         a: ({ href, children }: { href?: string; children?: React.ReactNode }) => <a href={href} className="text-primary hover:underline">{children}</a>,
         ul: ({ children }: { children?: React.ReactNode }) => <ul className="list-disc pl-6 my-4 space-y-1">{children}</ul>,
         ol: ({ children }: { children?: React.ReactNode }) => <ol className="list-decimal pl-6 my-4 space-y-1">{children}</ol>,
-        li: ({ children }: { children?: React.ReactNode }) => <li className="text-muted-foreground">{children}</li>,
-        blockquote: ({ children }: { children?: React.ReactNode }) => <blockquote className="border-l-4 border-primary pl-4 my-4 italic text-muted-foreground">{children}</blockquote>,
+        li: ({ children }: { children?: React.ReactNode }) => <li className="text-foreground">{children}</li>,
+        blockquote: ({ children }: { children?: React.ReactNode }) => <blockquote className="border-l-4 border-primary pl-4 my-4 italic text-foreground/80">{children}</blockquote>,
         code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
             const isInline = !className && String(children).indexOf('\n') === -1
             if (isInline) {
@@ -83,7 +89,7 @@ export function Content({ config, routes, selectedItem }: ContentProps) {
         thead: ({ children }: { children?: React.ReactNode }) => <thead className="bg-muted/50">{children}</thead>,
         tr: ({ children }: { children?: React.ReactNode }) => <tr className="border-b">{children}</tr>,
         th: ({ children }: { children?: React.ReactNode }) => <th className="px-4 py-2 text-left font-medium">{children}</th>,
-        td: ({ children }: { children?: React.ReactNode }) => <td className="px-4 py-2 text-muted-foreground">{children}</td>,
+        td: ({ children }: { children?: React.ReactNode }) => <td className="px-4 py-2 text-foreground">{children}</td>,
         hr: () => <hr className="my-6 border-border" />,
         strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-semibold text-foreground">{children}</strong>,
         em: ({ children }: { children?: React.ReactNode }) => <em>{children}</em>,
