@@ -28,6 +28,7 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
     useEffect(() => {
         const urlPath = normalizeDocPath(currentPath)
         if (urlPath === '/') {
+            setLoadingContent(false)
             if (!selectedItem?.path) {
                 setMarkdown('')
             }
@@ -55,13 +56,18 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
                     setMarkdown(`*Failed to load content for **${pageTitle}**.*`)
                 }
             } finally {
-                if (!cancelled) setLoadingContent(false)
+                if (!cancelled) {
+                    setLoadingContent(false)
+                }
             }
         }
 
         loadContent()
-        return () => { cancelled = true }
-    }, [currentPath, selectedItem?.title, selectedItem?.path])
+        return () => {
+            cancelled = true
+            setLoadingContent(false)
+        }
+    }, [currentPath, selectedItem])
 
     useEffect(() => {
         if (!markdown || !articleRef.current) return

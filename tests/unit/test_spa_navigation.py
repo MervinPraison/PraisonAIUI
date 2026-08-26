@@ -14,11 +14,12 @@ class TestSpaNavigation:
         source = Path("src/frontend/src/Sidebar.tsx").read_text(encoding="utf-8")
         assert "data-nav-path" in source
 
-    def test_content_fetches_from_current_path(self):
+    def test_content_fetch_clears_loading_on_cancel(self):
         source = Path("src/frontend/src/Content.tsx").read_text(encoding="utf-8")
-        assert "currentPath" in source
-        assert "docPathToMarkdown" in source
+        assert "setLoadingContent(false)" in source
         assert "cancelled = true" in source
+        # Cleanup must reset loading — not only the finally block
+        assert source.index("cancelled = true") < source.rindex("setLoadingContent(false)")
 
     def test_app_syncs_react_state_on_plugin_navigate(self):
         source = Path("src/frontend/src/App.tsx").read_text(encoding="utf-8")
