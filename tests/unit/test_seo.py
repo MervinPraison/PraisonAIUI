@@ -38,12 +38,20 @@ class TestSeoBuild:
         assert '<meta property="og:url" content="https://ui.praison.ai/docs/guide" />' in page
         assert "application/ld+json" in page
         assert "Guide description" in page
+        assert '<nav aria-label="Documentation">' in page
+        assert 'href="https://ui.praison.ai/docs/guide"' in page
 
         sitemap = (tmp_path / "output" / "sitemap.xml").read_text(encoding="utf-8")
         assert "https://ui.praison.ai/docs/guide" in sitemap
+        assert "https://ui.praison.ai/" in sitemap
 
         robots = (tmp_path / "output" / "robots.txt").read_text(encoding="utf-8")
         assert "Sitemap: https://ui.praison.ai/sitemap.xml" in robots
+
+        llms = (tmp_path / "output" / "llms.txt").read_text(encoding="utf-8")
+        assert llms.startswith("# Test Docs")
+        assert "https://ui.praison.ai/docs/guide" in llms
+        assert "llms.txt" in result.files
 
         nav = yaml.safe_load((tmp_path / "output" / "docs-nav.json").read_text(encoding="utf-8"))
         assert nav["items"][0]["description"] == "Guide description"

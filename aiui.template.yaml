@@ -12,6 +12,7 @@ site:
 seo:
   siteUrl: "https://ui.praison.ai"
   titleTemplate: "%s | %s"
+  defaultImage: "/icon.svg"
   robots:
     index: true
     follow: true

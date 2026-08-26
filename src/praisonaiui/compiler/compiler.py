@@ -114,6 +114,8 @@ class Compiler:
             files.extend(route_files)
             files.extend(self._generate_sitemap(output_dir, nav))
             files.extend(self._generate_robots(output_dir))
+            files.extend(self._generate_llms_txt(output_dir, nav))
+            self._patch_homepage_seo(output_dir, nav)
 
         return CompileResult(success=True, files=files)
 
@@ -610,6 +612,10 @@ class Compiler:
 
             # Try to load markdown content for noscript pre-rendering
             noscript_content = self._get_noscript_content(output_dir, path)
+            crawl_nav = self._build_crawl_nav_html(nav)
+            noscript_block = crawl_nav
+            if noscript_content:
+                noscript_block += noscript_content
 
             # Inject SEO tags before </head>
             html = html.replace(
@@ -617,12 +623,11 @@ class Compiler:
                 f"{seo_tags}\n{json_ld}\n</head>",
             )
 
-            # Inject noscript block inside <div id="root">
-            if noscript_content:
-                html = html.replace(
-                    '<div id="root"></div>',
-                    f'<div id="root"><noscript>{noscript_content}</noscript></div>',
-                )
+            # Inject noscript crawl content inside <div id="root">
+            html = html.replace(
+                '<div id="root"></div>',
+                f'<div id="root"><noscript>{noscript_block}</noscript></div>',
+            )
 
             page_file.write_text(html, encoding="utf-8")
             files.append(f"{relative}.html")
@@ -673,6 +678,8 @@ class Compiler:
             return []
 
         urls = []
+        site_root = self._absolute_url("/")
+        urls.append(f"  <url><loc>{self._escape_html(site_root)}</loc></url>")
         for page in self._collect_nav_pages(nav):
             path = page["path"].rstrip("/") or "/"
             loc = self._escape_html(self._absolute_url(path))
@@ -706,6 +713,88 @@ class Compiler:
 
         (output_dir / "robots.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
         return ["robots.txt"]
+
+    def _generate_llms_txt(self, output_dir: Path, nav: dict) -> list[str]:
+        """Generate llms.txt index for AI crawlers (llmstxt.org convention)."""
+        site = self._site_url()
+        if not site:
+            return []
+
+        site_title = self.config.site.title
+        site_desc = self.config.site.description or f"Documentation for {site_title}"
+        lines = [
+            f"# {site_title}",
+            "",
+            f"> {site_desc}",
+            "",
+            "## Documentation",
+            "",
+        ]
+
+        for page in self._collect_nav_pages(nav):
+            path = page["path"].rstrip("/") or "/"
+            title = page["title"]
+            desc = page.get("description") or title
+            url = self._absolute_url(path)
+            lines.append(f"- [{title}]({url}): {desc}")
+
+        content = "\n".join(lines).rstrip() + "\n"
+        (output_dir / "llms.txt").write_text(content, encoding="utf-8")
+        return ["llms.txt"]
+
+    def _patch_homepage_seo(self, output_dir: Path, nav: dict) -> None:
+        """Add canonical and crawl hints to root index.html."""
+        index_path = output_dir / "index.html"
+        if not index_path.exists():
+            return
+
+        docs_home = "/docs/index"
+        for page in self._collect_nav_pages(nav):
+            if page["path"].rstrip("/").endswith("/docs/index") or page["path"] == "/docs/index":
+                docs_home = page["path"].rstrip("/") or "/docs/index"
+                break
+
+        site_title = self.config.site.title
+        site_desc = self.config.site.description or f"Documentation for {site_title}"
+        page_title = f"{site_title}"
+        seo_tags = self._build_seo_tags(docs_home, page_title, site_desc)
+        crawl_nav = self._build_crawl_nav_html(nav)
+
+        html = index_path.read_text(encoding="utf-8")
+        html = html.replace(
+            "<title>Documentation</title>",
+            f"<title>{self._escape_html(page_title)}</title>",
+        )
+        html = html.replace(
+            'content="Documentation built with PraisonAIUI"',
+            f'content="{self._escape_html(site_desc)}"',
+        )
+        if "</head>" in html and 'rel="canonical"' not in html:
+            html = html.replace("</head>", f"{seo_tags}\n</head>", 1)
+        if '<div id="root"></div>' in html:
+            html = html.replace(
+                '<div id="root"></div>',
+                f'<div id="root"><noscript>{crawl_nav}</noscript></div>',
+            )
+        index_path.write_text(html, encoding="utf-8")
+
+    def _build_crawl_nav_html(self, nav: dict) -> str:
+        """Static nav links for non-JS crawlers."""
+        links: list[str] = []
+        for page in self._collect_nav_pages(nav):
+            path = page["path"].rstrip("/") or "/"
+            title = self._escape_html(page["title"])
+            url = self._escape_html(self._absolute_url(path))
+            links.append(f'<li><a href="{url}">{title}</a></li>')
+
+        if not links:
+            return ""
+
+        return (
+            '<nav aria-label="Documentation">'
+            f'<ul>{"".join(links)}</ul>'
+            "</nav>"
+        )
 
     def _build_seo_tags(self, path: str, title: str, description: str) -> str:
         """Build canonical, OG, and Twitter meta tags."""
@@ -853,13 +942,35 @@ class Compiler:
             # List items
             if re.match(r"^[-*+]\s+", stripped):
                 text = re.sub(r"^[-*+]\s+", "", stripped)
-                result.append(f"<li>{text}</li>")
+                result.append(f"<li>{Compiler._inline_md_to_html(text)}</li>")
                 continue
 
             # Paragraphs
-            result.append(f"<p>{stripped}</p>")
+            result.append(f"<p>{Compiler._inline_md_to_html(stripped)}</p>")
 
         return "\n".join(result)
+
+    @staticmethod
+    def _inline_md_to_html(text: str) -> str:
+        """Convert inline markdown (links, emphasis) for noscript HTML."""
+        escaped = (
+            text.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
+
+        def link_repl(match: re.Match[str]) -> str:
+            label = match.group(1)
+            href = match.group(2)
+            if href.startswith("/") or href.startswith("http://") or href.startswith("https://"):
+                safe_href = href.replace('"', "&quot;")
+                return f'<a href="{safe_href}">{label}</a>'
+            return label
+
+        escaped = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", link_repl, escaped)
+        escaped = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", escaped)
+        escaped = re.sub(r"`([^`]+)`", r"<code>\1</code>", escaped)
+        return escaped
 
     @staticmethod
     def _escape_html(text: str) -> str:
