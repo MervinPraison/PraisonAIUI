@@ -96,6 +96,65 @@
   .prose .aiui-tabs pre {
     @apply my-2;
   }
+
+  .mermaid-diagram {
+    display: flex;
+    justify-content: center;
+    margin: 1.5rem 0;
+    padding: 1.5rem;
+    border-radius: 12px;
+    overflow-x: auto;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  :root:not(.dark) .mermaid-diagram:not(.mermaid-error) {
+    background: hsl(var(--muted));
+    border: 1px solid hsl(var(--border));
+  }
+
+  .dark .mermaid-diagram:not(.mermaid-error) {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+  }
+
+  .mermaid-diagram:not(.mermaid-error):hover {
+    border-color: rgba(20, 184, 166, 0.4);
+    box-shadow: 0 0 24px rgba(13, 148, 136, 0.12);
+  }
+
+  .mermaid-diagram svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .mermaid-diagram .nodeLabel,
+  .mermaid-diagram .label div,
+  .mermaid-diagram .cluster-label .nodeLabel {
+    color: #ffffff !important;
+    fill: #ffffff !important;
+    font-family: "Inter", system-ui, -apple-system, sans-serif !important;
+    font-weight: 500 !important;
+  }
+
+  .mermaid-diagram .edgeLabel {
+    color: #e2e8f0 !important;
+    fill: #e2e8f0 !important;
+    background-color: rgba(15, 23, 42, 0.85) !important;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .mermaid-diagram .cluster-label .nodeLabel {
+    font-weight: 600 !important;
+    font-size: 0.95em;
+  }
+
+  .mermaid-diagram .node rect,
+  .mermaid-diagram .node circle,
+  .mermaid-diagram .node polygon {
+    rx: 8;
+    ry: 8;
+  }
 }
 
 /* Prose readability — must beat @tailwindcss/typography defaults (unlayered) */

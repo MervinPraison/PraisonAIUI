@@ -104,3 +104,10 @@ class TestSpaNavigation:
         source = Path("src/frontend/src/App.tsx").read_text(encoding="utf-8")
         assert "replaceState(null, '', initialPath" in source
         assert "normalizeDocPath(path)" in source or "canonicalPath = normalizeDocPath" in source
+
+    def test_content_renders_mermaid_in_react_not_plugin(self):
+        content = Path("src/frontend/src/Content.tsx").read_text(encoding="utf-8")
+        assert "MermaidDiagram" in content
+        assert "language-mermaid" in content
+        plugin = Path("src/praisonaiui/templates/frontend/plugins/mermaid.js").read_text(encoding="utf-8")
+        assert "isReactArticleBlock" in plugin or "article.prose" in plugin

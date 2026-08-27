@@ -1,11 +1,12 @@
 // Content component — markdown rendering and landing page
-import { useEffect, useRef, useState } from 'react'
+import { Children, isValidElement, useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Separator } from '@/components/ui/separator'
 import { SHADCN_THEMES } from './themes'
 import { enhanceMkdocsDom } from './markdown/mkdocsEnhance'
 import { preprocessMkdocsMarkdown } from './markdown/mkdocsPreprocess'
+import { MermaidDiagram } from './markdown/MermaidDiagram'
 import { slugify } from './markdown/slug'
 import { MobileToc } from './Toc'
 import { docPathToMarkdown, isInternalDocHref, normalizeDocHref, normalizeDocPath } from './pathUtils'
@@ -79,6 +80,18 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
 
     const headingId = (children?: React.ReactNode) => slugify(String(children ?? ''))
 
+    const mermaidChartFromPre = (children?: React.ReactNode): string | null => {
+        try {
+            const child = Children.only(children)
+            if (!isValidElement<{ className?: string; children?: React.ReactNode }>(child)) return null
+            const className = child.props.className ?? ''
+            if (!className.includes('language-mermaid')) return null
+            return String(child.props.children ?? '').replace(/\n$/, '').trim()
+        } catch {
+            return null
+        }
+    }
+
     const markdownComponents = {
         h1: ({ children }: { children?: React.ReactNode }) => <h1 id={headingId(children)} className="text-3xl font-bold mt-8 mb-4 scroll-mt-20">{children}</h1>,
         h2: ({ children }: { children?: React.ReactNode }) => <h2 id={headingId(children)} className="text-2xl font-semibold mt-8 mb-4 text-primary scroll-mt-20">{children}</h2>,
@@ -104,9 +117,13 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
             }
             return <code className={`block font-mono text-foreground ${className ?? ''}`}>{children}</code>
         },
-        pre: ({ children }: { children?: React.ReactNode }) => (
-            <pre className="bg-muted text-foreground border border-border p-4 rounded-lg text-sm overflow-auto my-4 font-mono whitespace-pre">{children}</pre>
-        ),
+        pre: ({ children }: { children?: React.ReactNode }) => {
+            const chart = mermaidChartFromPre(children)
+            if (chart) return <MermaidDiagram chart={chart} />
+            return (
+                <pre className="bg-muted text-foreground border border-border p-4 rounded-lg text-sm overflow-auto my-4 font-mono whitespace-pre">{children}</pre>
+            )
+        },
         table: ({ children }: { children?: React.ReactNode }) => <div className="overflow-auto my-4"><table className="w-full border-collapse text-sm">{children}</table></div>,
         thead: ({ children }: { children?: React.ReactNode }) => <thead className="bg-muted/50">{children}</thead>,
         tr: ({ children }: { children?: React.ReactNode }) => <tr className="border-b">{children}</tr>,
