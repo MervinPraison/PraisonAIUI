@@ -111,6 +111,9 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
         li: ({ children }: { children?: React.ReactNode }) => <li className="text-foreground">{children}</li>,
         blockquote: ({ children }: { children?: React.ReactNode }) => <blockquote className="border-l-4 border-primary pl-4 my-4 italic text-foreground/80">{children}</blockquote>,
         code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
+            if (className?.includes('language-mermaid')) {
+                return <MermaidDiagram chart={String(children ?? '').replace(/\n$/, '').trim()} />
+            }
             const isInline = !className && String(children).indexOf('\n') === -1
             if (isInline) {
                 return <code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-sm font-mono">{children}</code>
@@ -118,6 +121,9 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
             return <code className={`block font-mono text-foreground ${className ?? ''}`}>{children}</code>
         },
         pre: ({ children }: { children?: React.ReactNode }) => {
+            if (isValidElement(children) && children.type === MermaidDiagram) {
+                return children
+            }
             const chart = mermaidChartFromPre(children)
             if (chart) return <MermaidDiagram chart={chart} />
             return (
