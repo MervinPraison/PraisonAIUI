@@ -109,5 +109,6 @@ class TestSpaNavigation:
         content = Path("src/frontend/src/Content.tsx").read_text(encoding="utf-8")
         assert "MermaidDiagram" in content
         assert "language-mermaid" in content
+        assert "children.type === MermaidDiagram" in content
         plugin = Path("src/praisonaiui/templates/frontend/plugins/mermaid.js").read_text(encoding="utf-8")
-        assert "isReactArticleBlock" in plugin or "article.prose" in plugin
+        assert "article.prose" in plugin
