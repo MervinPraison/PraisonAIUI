@@ -51,6 +51,44 @@ export interface LogoConfig {
     href?: string
 }
 
+export interface NavTabGroupConfig {
+    group: string
+    icon?: string
+    prefix?: string
+    pages?: string[]
+}
+
+export interface NavTabConfig {
+    tab: string
+    url?: string
+    groups?: NavTabGroupConfig[]
+}
+
+export interface NavigationConfig {
+    tabs?: NavTabConfig[]
+}
+
+export interface NavbarLinkConfig {
+    label: string
+    href: string
+}
+
+export interface NavbarPrimaryConfig {
+    type?: 'button' | 'github'
+    label?: string
+    href: string
+}
+
+export interface NavbarConfig {
+    primary?: NavbarPrimaryConfig
+    links?: NavbarLinkConfig[]
+}
+
+export interface SearchConfig {
+    enabled?: boolean
+    provider?: string
+}
+
 export interface WidgetConfig {
     type: string
     props?: Record<string, unknown>
@@ -93,6 +131,13 @@ export interface UIConfig {
     i18n?: I18nConfig
     a11y?: A11yConfig
     logo?: LogoConfig
+    navigation?: NavigationConfig
+    navbar?: NavbarConfig
+    search?: SearchConfig
+    footer?: {
+        socials?: Record<string, string>
+        links?: { header: string; items: NavbarLinkConfig[] }[]
+    }
 }
 
 export interface DocsNav {

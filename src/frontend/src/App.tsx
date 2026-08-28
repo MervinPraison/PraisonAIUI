@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { applyTheme, applyStoredThemePreference } from './themes'
 import './index.css'
 import type { UIConfig, DocsNav, RouteManifest, NavItem } from './types'
@@ -12,6 +12,7 @@ import { ChatLayout, AgentUILayout, CopilotWidget, PlaygroundLayout } from './la
 import { LocaleProvider } from './i18n'
 import { resolveTemplate, shouldShowToc } from './resolver'
 import { normalizeDocPath } from './pathUtils'
+import { detectActiveTabIndex, filterNavByTab } from './docs/navTabs'
 
 function SkipLink({ enabled }: { enabled?: boolean }) {
   if (!enabled) return null
@@ -35,6 +36,19 @@ export default function App() {
   const [activeItemPath, setActiveItemPath] = useState<string>('')
   const [currentPath, setCurrentPath] = useState(() => normalizeDocPath(window.location.pathname))
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [activeTabIndex, setActiveTabIndex] = useState(0)
+
+  const navTabs = config.navigation?.tabs ?? []
+  const filteredNav = useMemo<DocsNav>(() => {
+    if (!navTabs.length) return nav
+    return { items: filterNavByTab(nav.items ?? [], navTabs[activeTabIndex]) }
+  }, [nav, navTabs, activeTabIndex])
+
+  useEffect(() => {
+    if (navTabs.length) {
+      setActiveTabIndex(detectActiveTabIndex(navTabs, currentPath))
+    }
+  }, [currentPath, navTabs])
 
   // Helper function to find nav item by path (searches top-level items and nested children)
   const findNavItemByPath = (navData: DocsNav, path: string): NavItem | null => {
@@ -349,7 +363,7 @@ export default function App() {
       <MobileNavSheet
         open={mobileNavOpen}
         onOpenChange={setMobileNavOpen}
-        nav={nav}
+        nav={filteredNav}
         activeItem={activeItemPath}
         onItemClick={handleItemClick}
         title={config.site?.title || 'Navigation'}
@@ -358,6 +372,9 @@ export default function App() {
         config={config}
         templateKey={activeTemplateKey}
         onMenuClick={() => setMobileNavOpen(true)}
+        navTabs={navTabs}
+        activeTabIndex={activeTabIndex}
+        onTabChange={setActiveTabIndex}
       />
     </>
   )
@@ -449,8 +466,8 @@ export default function App() {
       case 'ThreeColumnLayout':
       default:
         return (
-          <div className="flex">
-            <Sidebar nav={nav} activeItem={activeItemPath} onItemClick={handleItemClick} />
+          <div className="docs-shell flex w-full min-h-[calc(100vh-3.5rem)]">
+            <Sidebar nav={filteredNav} activeItem={activeItemPath} onItemClick={handleItemClick} />
             <Content config={config} routes={routes} selectedItem={selectedItem} currentPath={currentPath} />
             {showToc && <Toc selectedItem={selectedItem} zones={zones} showToc={showToc} />}
           </div>

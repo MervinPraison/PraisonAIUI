@@ -190,6 +190,9 @@ function detectActiveTab(tabs) {
 function renderTabBar(root) {
   if (!tabConfig || !tabConfig.tabs || tabConfig.tabs.length === 0) return;
 
+  // React header owns tab navigation when present
+  if (document.querySelector('[data-aiui-header-tabs="true"]')) return;
+
   const existing = document.querySelector('[data-aiui-plugin="topnav"]');
   if (existing) {
     // Don't auto-detect tab if user manually clicked one

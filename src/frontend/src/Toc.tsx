@@ -22,6 +22,7 @@ function collectHeadings(): TocHeading[] {
 
 function usePageHeadings(selectedItem: NavItem | null) {
     const [headings, setHeadings] = useState<TocHeading[]>([])
+    const [activeId, setActiveId] = useState('')
 
     const refreshHeadings = useCallback(() => {
         setHeadings(collectHeadings())
@@ -37,39 +38,72 @@ function usePageHeadings(selectedItem: NavItem | null) {
         }
     }, [selectedItem, refreshHeadings])
 
-    return headings
+    useEffect(() => {
+        if (!headings.length) return
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const visible = entries
+                    .filter((entry) => entry.isIntersecting)
+                    .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+                if (visible[0]?.target.id) {
+                    setActiveId(visible[0].target.id)
+                }
+            },
+            { rootMargin: '-20% 0px -70% 0px', threshold: 0 },
+        )
+
+        for (const heading of headings) {
+            const el = document.getElementById(heading.id)
+            if (el) observer.observe(el)
+        }
+
+        return () => observer.disconnect()
+    }, [headings])
+
+    return { headings, activeId }
 }
 
-function TocLinks({ headings }: { headings: TocHeading[] }) {
+function TocLinks({ headings, activeId }: { headings: TocHeading[]; activeId: string }) {
     if (headings.length === 0) {
         return <p className="text-sm text-muted-foreground">No sections on this page.</p>
     }
 
     return (
-        <div className="space-y-2">
-            {headings.map((heading) => (
-                <a
-                    key={heading.id}
-                    href={`#${heading.id}`}
-                    className={`flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors ${heading.level === 3 ? 'pl-3 text-sm' : heading.level === 4 ? 'pl-6 text-sm' : 'font-medium'}`}
-                >
-                    <span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0" />
-                    {heading.text}
-                </a>
-            ))}
+        <div className="space-y-2.5">
+            {headings.map((heading) => {
+                const isActive = heading.id === activeId
+                return (
+                    <a
+                        key={heading.id}
+                        href={`#${heading.id}`}
+                        className={`flex items-start gap-2 text-[13px] leading-snug transition-colors ${heading.level === 3 ? 'pl-3' : heading.level === 4 ? 'pl-5' : ''
+                            } ${isActive
+                                ? 'text-primary font-medium'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                    >
+                        <span
+                            className={`mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full ${isActive ? 'bg-primary' : 'bg-muted-foreground/30'
+                                }`}
+                        />
+                        <span>{heading.text}</span>
+                    </a>
+                )
+            })}
         </div>
     )
 }
 
 export function MobileToc({ selectedItem }: { selectedItem: NavItem | null }) {
-    const headings = usePageHeadings(selectedItem)
+    const { headings, activeId } = usePageHeadings(selectedItem)
     if (!selectedItem || headings.length === 0) return null
 
     return (
-        <details className="lg:hidden border border-border rounded-lg mb-6 px-4 py-3 bg-muted/20">
+        <details className="lg:hidden border border-border/60 rounded-lg mb-6 px-4 py-3 bg-muted/20">
             <summary className="text-sm font-medium cursor-pointer">On this page</summary>
             <nav className="mt-3">
-                <TocLinks headings={headings} />
+                <TocLinks headings={headings} activeId={activeId} />
             </nav>
         </details>
     )
@@ -84,7 +118,7 @@ export function Toc({
     zones?: ZonesConfig
     showToc?: boolean
 }) {
-    const headings = usePageHeadings(selectedItem)
+    const { headings, activeId } = usePageHeadings(selectedItem)
     const rightSidebarWidgets = zones?.rightSidebar || []
 
     if (!showToc && rightSidebarWidgets.filter((w) => w.type !== 'Toc').length === 0) {
@@ -92,21 +126,21 @@ export function Toc({
     }
 
     return (
-        <aside className="w-64 hidden lg:block border-l border-border/50">
-            <div className="sticky top-20 px-4 py-6 space-y-4">
+        <aside className="docs-toc w-[16rem] min-w-[16rem] shrink-0 hidden lg:block">
+            <div className="sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto px-4 py-6">
                 {showToc && (
                     <div>
-                        <h4 className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-widest mb-4">
+                        <h4 className="text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider mb-4">
                             On this page
                         </h4>
-                        <nav className="text-sm">
-                            <TocLinks headings={headings} />
+                        <nav>
+                            <TocLinks headings={headings} activeId={activeId} />
                         </nav>
                     </div>
                 )}
 
                 {rightSidebarWidgets.filter((w) => w.type !== 'Toc').length > 0 && (
-                    <div className="pt-4 border-t border-border/50">
+                    <div className="pt-4 mt-4 border-t border-border/40">
                         <ZoneWidgets widgets={rightSidebarWidgets.filter((w) => w.type !== 'Toc')} />
                     </div>
                 )}

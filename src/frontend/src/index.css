@@ -163,6 +163,15 @@
     rx: 8;
     ry: 8;
   }
+
+  /* Mintlify-style docs shell */
+  .docs-shell {
+    width: 100%;
+  }
+
+  .docs-main-inner {
+    min-height: calc(100vh - 3.5rem);
+  }
 }
 
 /* Prose readability — must beat @tailwindcss/typography defaults (unlayered) */

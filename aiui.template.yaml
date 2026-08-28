@@ -81,11 +81,12 @@ navigation:
 # Navbar actions
 navbar:
   primary:
-    type: "github"
-    href: "https://github.com/MervinPraison/PraisonAIUI"
+    type: "button"
+    label: "Get started"
+    href: "/docs/getting-started/quickstart"
   links:
-    - label: "Submit Issues"
-      href: "https://github.com/MervinPraison/PraisonAIUI/issues"
+    - label: "GitHub"
+      href: "https://github.com/MervinPraison/PraisonAIUI"
 
 # Footer
 footer:

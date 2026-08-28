@@ -1,6 +1,6 @@
-// Sidebar component — navigation tree
+// Sidebar component — Mintlify-style navigation tree
+import { ChevronRight } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import {
     Sheet,
     SheetContent,
@@ -23,11 +23,11 @@ export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
 
         if (hasChildren) {
             return (
-                <div key={item.title + (item.path || '')}>
-                    <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-muted-foreground/70 uppercase tracking-widest mt-4 first:mt-0">
+                <div key={item.title + (item.path || '')} className="mb-4">
+                    <div className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider">
                         {item.title}
                     </div>
-                    <div className="space-y-0.5">
+                    <div className="space-y-0.5 mt-1">
                         {item.children!.map((child) => renderItem(child, depth + 1))}
                     </div>
                 </div>
@@ -45,19 +45,22 @@ export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
                     event.preventDefault()
                     onItemClick(item)
                 }}
-                className={`block w-full text-left px-3 py-1.5 text-sm rounded-md transition-all duration-150 ${isActive
-                    ? 'bg-primary/10 text-primary font-medium border-l-2 border-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                className={`group flex items-center gap-1.5 w-full text-left px-3 py-1.5 text-[13px] rounded-md transition-colors ${isActive
+                    ? 'text-primary font-medium bg-primary/10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
                     }`}
-                style={{ paddingLeft: `${12 + depth * 12}px` }}
+                style={{ paddingLeft: `${12 + depth * 10}px` }}
             >
-                {item.title}
+                {depth > 0 && (
+                    <ChevronRight className={`h-3 w-3 shrink-0 opacity-0 group-hover:opacity-40 ${isActive ? 'opacity-60 text-primary' : ''}`} />
+                )}
+                <span className="truncate">{item.title}</span>
             </a>
         )
     }
 
     return (
-        <nav className="space-y-0.5">
+        <nav className="space-y-0.5 pb-6">
             {nav.items?.map((group) => renderItem(group))}
         </nav>
     )
@@ -69,10 +72,11 @@ interface SidebarProps extends NavTreeProps {
 
 export function Sidebar({ nav, activeItem, onItemClick }: SidebarProps) {
     return (
-        <aside className="w-64 min-w-[16rem] border-r border-border/50 hidden md:block">
-            <ScrollArea className="h-[calc(100vh-4rem)] py-4 px-2">
-                <NavTree nav={nav} activeItem={activeItem} onItemClick={onItemClick} />
-                <Separator className="my-4" />
+        <aside className="docs-sidebar w-[17rem] min-w-[17rem] shrink-0 hidden md:block border-r border-border/40">
+            <ScrollArea className="h-[calc(100vh-3.5rem)] sticky top-14">
+                <div className="py-5 px-2">
+                    <NavTree nav={nav} activeItem={activeItem} onItemClick={onItemClick} />
+                </div>
             </ScrollArea>
         </aside>
     )

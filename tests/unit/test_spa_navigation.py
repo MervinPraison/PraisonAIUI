@@ -110,7 +110,8 @@ class TestSpaNavigation:
         assert "MermaidDiagram" in content
         assert "language-mermaid" in content
         assert "children.type === MermaidDiagram" in content
-        assert "min-w-0 w-full" in content
+        assert "docs-main flex-1 min-w-0" in content
+        assert "max-w-[720px]" in content
         css = Path("src/frontend/src/index.css").read_text(encoding="utf-8")
         assert "width: 100% !important" in css
         themes = Path("src/frontend/src/markdown/mermaidThemes.ts").read_text(encoding="utf-8")
@@ -118,3 +119,25 @@ class TestSpaNavigation:
         assert "fitMermaidSvg" in themes
         plugin = Path("src/praisonaiui/templates/frontend/plugins/mermaid.js").read_text(encoding="utf-8")
         assert "article.prose" in plugin
+
+    def test_mintlify_layout_shell_and_header(self):
+        app = Path("src/frontend/src/App.tsx").read_text(encoding="utf-8")
+        header = Path("src/frontend/src/Header.tsx").read_text(encoding="utf-8")
+        content = Path("src/frontend/src/Content.tsx").read_text(encoding="utf-8")
+        toc = Path("src/frontend/src/Toc.tsx").read_text(encoding="utf-8")
+        assert "docs-shell" in app
+        assert "filterNavByTab" in app
+        assert 'data-aiui-header-tabs' in header
+        assert "max-w-[720px]" in content
+        assert "On this page" in toc
+        assert "docs-toc" in toc
+
+    def test_topnav_skips_when_react_header_owns_tabs(self):
+        source = Path("src/praisonaiui/templates/frontend/plugins/topnav.js").read_text(encoding="utf-8")
+        assert 'data-aiui-header-tabs="true"' in source
+
+    def test_nav_tabs_filter_by_path_prefix(self):
+        source = Path("src/frontend/src/docs/navTabs.ts").read_text(encoding="utf-8")
+        assert "collectPaths" in source
+        assert "pathMatchesPage" in source
+        assert "startsWith(`${prefixPath}/`)" in source

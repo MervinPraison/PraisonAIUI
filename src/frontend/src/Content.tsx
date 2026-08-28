@@ -142,34 +142,37 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
 
     if (selectedItem) {
         return (
-            <main id="main-content" className="flex-1 min-w-0 w-full p-8">
-                <MobileToc selectedItem={selectedItem} />
-                {loadingContent && !markdown && (
-                    <div className="text-muted-foreground">Loading content...</div>
-                )}
-                {markdown ? (
-                    <article
-                        key={currentPath}
-                        ref={articleRef}
-                        className={`prose prose-neutral dark:prose-invert max-w-none prose-pre:bg-muted prose-pre:text-foreground prose-code:text-foreground${loadingContent ? ' opacity-60' : ''}`}
-                    >
-                        <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                            {markdown}
-                        </Markdown>
-                    </article>
-                ) : !loadingContent ? (
-                    <div className="bg-muted/50 border rounded-lg p-6">
-                        <p className="text-muted-foreground">
-                            Content for <strong className="text-primary">{selectedItem.title}</strong> would be displayed here.
-                        </p>
-                    </div>
-                ) : null}
+            <main id="main-content" className="docs-main flex-1 min-w-0">
+                <div className="docs-main-inner mx-auto w-full max-w-[720px] px-6 py-8 lg:px-8">
+                    <MobileToc selectedItem={selectedItem} />
+                    {loadingContent && !markdown && (
+                        <div className="text-muted-foreground">Loading content...</div>
+                    )}
+                    {markdown ? (
+                        <article
+                            key={currentPath}
+                            ref={articleRef}
+                            className={`prose prose-neutral dark:prose-invert max-w-none prose-pre:bg-muted prose-pre:text-foreground prose-code:text-foreground${loadingContent ? ' opacity-60' : ''}`}
+                        >
+                            <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                {markdown}
+                            </Markdown>
+                        </article>
+                    ) : !loadingContent ? (
+                        <div className="bg-muted/50 border rounded-lg p-6">
+                            <p className="text-muted-foreground">
+                                Content for <strong className="text-primary">{selectedItem.title}</strong> would be displayed here.
+                            </p>
+                        </div>
+                    ) : null}
+                </div>
             </main>
         )
     }
 
     return (
-        <main className="flex-1 p-8 max-w-3xl">
+        <main id="main-content" className="docs-main flex-1 min-w-0">
+            <div className="docs-main-inner mx-auto w-full max-w-[720px] px-6 py-8 lg:px-8">
             <h1 className="text-4xl font-bold tracking-tight mb-4">
                 {config.site?.title || 'Documentation'}
             </h1>
@@ -219,6 +222,7 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
             <pre className="bg-muted text-foreground border border-border p-4 rounded-lg text-sm overflow-auto">
                 {JSON.stringify(routes.routes?.slice(0, 3), null, 2)}
             </pre>
+            </div>
         </main>
     )
 }
