@@ -142,7 +142,7 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
 
     if (selectedItem) {
         return (
-            <main id="main-content" className="flex-1 p-8 max-w-3xl">
+            <main id="main-content" className="flex-1 min-w-0 w-full p-8">
                 <MobileToc selectedItem={selectedItem} />
                 {loadingContent && !markdown && (
                     <div className="text-muted-foreground">Loading content...</div>

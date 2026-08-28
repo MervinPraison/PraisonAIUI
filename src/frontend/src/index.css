@@ -98,13 +98,19 @@
   }
 
   .mermaid-diagram {
-    display: flex;
-    justify-content: center;
+    display: block;
+    width: 100%;
     margin: 1.5rem 0;
-    padding: 1.5rem;
+    padding: 1rem 1.25rem;
     border-radius: 12px;
     overflow-x: auto;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .mermaid-diagram-svg {
+    width: 100%;
+    min-width: 100%;
+    display: block;
   }
 
   :root:not(.dark) .mermaid-diagram:not(.mermaid-error) {
@@ -123,8 +129,10 @@
   }
 
   .mermaid-diagram svg {
+    width: 100% !important;
     max-width: 100%;
-    height: auto;
+    height: auto !important;
+    display: block;
   }
 
   .mermaid-diagram .nodeLabel,

@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { getMermaidConfig, isDarkMode } from './mermaidThemes'
+import { fitMermaidSvg, getMermaidConfig, isDarkMode } from './mermaidThemes'
 
 let renderCounter = 0
 
@@ -10,6 +10,7 @@ function nextRenderId(baseId: string): string {
 
 export function MermaidDiagram({ chart }: { chart: string }) {
     const baseId = useId()
+    const containerRef = useRef<HTMLDivElement>(null)
     const svgRef = useRef<HTMLDivElement>(null)
     const bindFunctionsRef = useRef<((element: Element) => void) | undefined>(undefined)
     const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -17,6 +18,9 @@ export function MermaidDiagram({ chart }: { chart: string }) {
     const [svgMarkup, setSvgMarkup] = useState('')
 
     useEffect(() => {
+        const container = containerRef.current
+        if (!container) return
+
         let cancelled = false
 
         const render = async () => {
@@ -26,11 +30,15 @@ export function MermaidDiagram({ chart }: { chart: string }) {
             const mermaid = (await import('mermaid')).default
             mermaid.initialize(getMermaidConfig(isDarkMode()))
 
+            const styles = getComputedStyle(container)
+            const paddingX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight)
+            const containerWidth = container.clientWidth - paddingX
+
             try {
                 const { svg, bindFunctions } = await mermaid.render(nextRenderId(baseId), chart)
                 if (cancelled) return
                 bindFunctionsRef.current = bindFunctions
-                setSvgMarkup(svg)
+                setSvgMarkup(fitMermaidSvg(svg, containerWidth))
                 setStatus('ready')
             } catch (err) {
                 if (cancelled) return
@@ -41,10 +49,15 @@ export function MermaidDiagram({ chart }: { chart: string }) {
 
         void render()
 
-        const observer = new MutationObserver(() => {
+        const observer = new ResizeObserver(() => {
             void render()
         })
-        observer.observe(document.documentElement, {
+        observer.observe(container)
+
+        const themeObserver = new MutationObserver(() => {
+            void render()
+        })
+        themeObserver.observe(document.documentElement, {
             attributes: true,
             attributeFilter: ['class'],
         })
@@ -52,6 +65,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
         return () => {
             cancelled = true
             observer.disconnect()
+            themeObserver.disconnect()
         }
     }, [chart, baseId])
 
@@ -70,13 +84,14 @@ export function MermaidDiagram({ chart }: { chart: string }) {
 
     return (
         <div
-            className={`mermaid-diagram my-4 overflow-x-auto${status === 'loading' ? ' mermaid-loading text-muted-foreground text-sm' : ''}`}
+            ref={containerRef}
+            className={`mermaid-diagram w-full${status === 'loading' ? ' mermaid-loading text-muted-foreground text-sm' : ''}`}
             aria-busy={status === 'loading'}
             aria-label={status === 'loading' ? 'Loading diagram' : 'Mermaid diagram'}
         >
             {status === 'loading' ? 'Loading diagram…' : null}
             {svgMarkup ? (
-                <div ref={svgRef} dangerouslySetInnerHTML={{ __html: svgMarkup }} />
+                <div ref={svgRef} className="mermaid-diagram-svg w-full" dangerouslySetInnerHTML={{ __html: svgMarkup }} />
             ) : null}
         </div>
     )

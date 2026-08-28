@@ -38,7 +38,7 @@ export const MERMAID_DARK_THEME = {
         noteTextColor: '#f1f5f9',
         titleColor: '#f8fafc',
         fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
-        fontSize: '14px',
+        fontSize: '16px',
     },
 }
 
@@ -77,7 +77,7 @@ export const MERMAID_LIGHT_THEME = {
         noteTextColor: '#1e293b',
         titleColor: '#0f172a',
         fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
-        fontSize: '14px',
+        fontSize: '16px',
     },
 }
 
@@ -91,5 +91,28 @@ export function getMermaidConfig(dark: boolean) {
         startOnLoad: false,
         securityLevel: 'strict' as const,
         ...theme,
+        flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis' as const,
+        },
+        sequence: {
+            useMaxWidth: true,
+            wrap: true,
+        },
+        er: { useMaxWidth: true },
+        gantt: { useMaxWidth: true },
     }
+}
+
+/** Ensure rendered SVG stretches to the diagram container (Mintlify-style). */
+export function fitMermaidSvg(svg: string, containerWidth: number): string {
+    const width = Math.max(Math.floor(containerWidth), 320)
+    return svg.replace(/<svg([^>]*)>/, (_match, attrs: string) => {
+        const cleaned = attrs
+            .replace(/\swidth="[^"]*"/g, '')
+            .replace(/\sheight="[^"]*"/g, '')
+            .replace(/\sstyle="[^"]*"/g, '')
+        return `<svg${cleaned} width="${width}" style="width:100%;max-width:100%;height:auto;display:block;">`
+    })
 }

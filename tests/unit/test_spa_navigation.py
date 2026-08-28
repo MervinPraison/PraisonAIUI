@@ -110,5 +110,11 @@ class TestSpaNavigation:
         assert "MermaidDiagram" in content
         assert "language-mermaid" in content
         assert "children.type === MermaidDiagram" in content
+        assert "min-w-0 w-full" in content
+        css = Path("src/frontend/src/index.css").read_text(encoding="utf-8")
+        assert "width: 100% !important" in css
+        themes = Path("src/frontend/src/markdown/mermaidThemes.ts").read_text(encoding="utf-8")
+        assert "useMaxWidth: true" in themes
+        assert "fitMermaidSvg" in themes
         plugin = Path("src/praisonaiui/templates/frontend/plugins/mermaid.js").read_text(encoding="utf-8")
         assert "article.prose" in plugin
