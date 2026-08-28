@@ -96,11 +96,11 @@ function interceptClicks() {
     const text = btn.textContent.trim();
     if (!text) return;
 
-    // Prefer explicit path from sidebar button (reliable; title slug fallback is brittle)
+    // Sidebar links always carry data-nav-path — intercept immediately (no docs-nav.json wait)
     const navPath = btn.dataset.navPath;
     if (navPath) {
       const normalized = normalizePath(navPath);
-      if (knownPaths.has(normalized)) {
+      if (normalized.startsWith('/')) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();

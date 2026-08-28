@@ -1,4 +1,4 @@
-console.log('[AIUI Loader] Starting...');
+console.debug('[AIUI Loader] Starting...');
 
 /**
  * AIUI Plugin Loader
@@ -89,6 +89,9 @@ console.log('[AIUI Loader] Starting...');
     window.addEventListener('aiui:navigate', function () {
       spaNavigating = true;
       teardownPluginDom(document.querySelector(ROOT_SELECTOR));
+      window.setTimeout(function () {
+        if (isReactDocsActive()) spaNavigating = false;
+      }, 0);
     });
 
     window.addEventListener('aiui:content-loaded', function (event) {

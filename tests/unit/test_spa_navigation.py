@@ -9,6 +9,7 @@ class TestSpaNavigation:
         assert "target + '/'" not in source
         assert "data-nav-path" in source or "dataset.navPath" in source
         assert "mainHasVisibleContent" in source
+        assert "normalized.startsWith('/')" in source
 
     def test_sidebar_buttons_expose_nav_path(self):
         source = Path("src/frontend/src/Sidebar.tsx").read_text(encoding="utf-8")
@@ -16,10 +17,11 @@ class TestSpaNavigation:
 
     def test_content_fetch_clears_loading_on_cancel(self):
         source = Path("src/frontend/src/Content.tsx").read_text(encoding="utf-8")
-        assert "setLoadingContent(false)" in source
-        assert "cancelled = true" in source
-        # Cleanup must reset loading — not only the finally block
-        assert source.index("cancelled = true") < source.rindex("setLoadingContent(false)")
+        assert "AbortController" in source
+        assert "controller.abort()" in source
+        assert "setMarkdown('')" in source
+        assert "loadedPath" in source
+        assert "aiui:content-loaded" in source
 
     def test_app_syncs_react_state_on_plugin_navigate(self):
         source = Path("src/frontend/src/App.tsx").read_text(encoding="utf-8")

@@ -339,11 +339,8 @@ export default function App() {
 
   const handleItemClick = (item: NavItem) => {
     const path = normalizeDocPath(item.path || `/${item.title.toLowerCase().replace(/\s+/g, '-')}`)
-    setSelectedItem(item)
-    setActiveItemPath(item.path || item.title)
-    setCurrentPath(path)
     window.history.pushState({ path }, item.title, path)
-    updateSEO(item.title, path, item.description, undefined, item.noindex)
+    window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path } }))
   }
 
   const templateMatch = resolveTemplate(

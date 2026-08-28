@@ -21,6 +21,7 @@ interface ContentProps {
 
 export function Content({ config, routes, selectedItem, currentPath }: ContentProps) {
     const [markdown, setMarkdown] = useState<string>('')
+    const [loadedPath, setLoadedPath] = useState('')
     const [loadingContent, setLoadingContent] = useState(false)
     const articleRef = useRef<HTMLElement>(null)
     const theme = config.site?.theme
@@ -30,6 +31,7 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
         const urlPath = normalizeDocPath(currentPath)
         if (urlPath === '/') {
             setLoadingContent(false)
+            setLoadedPath('')
             if (!selectedItem?.path) {
                 setMarkdown('')
             }
@@ -38,25 +40,33 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
 
         const mdUrl = docPathToMarkdown(urlPath)
         const pageTitle = urlPath.split('/').pop()?.replace(/-/g, ' ') ?? 'page'
-        let cancelled = false
+        const controller = new AbortController()
+
+        setMarkdown('')
+        setLoadedPath('')
+        setLoadingContent(true)
 
         const loadContent = async () => {
-            setLoadingContent(true)
             try {
-                const response = await fetch(mdUrl)
-                if (cancelled) return
+                const response = await fetch(mdUrl, { signal: controller.signal })
+                if (controller.signal.aborted) return
                 if (response.ok) {
                     const content = await response.text()
                     setMarkdown(preprocessMkdocsMarkdown(content))
+                    setLoadedPath(urlPath)
+                    window.dispatchEvent(new CustomEvent('aiui:content-loaded', {
+                        detail: { path: urlPath },
+                    }))
                 } else {
                     setMarkdown(`*Content for **${pageTitle}** not found.*`)
+                    setLoadedPath(urlPath)
                 }
-            } catch {
-                if (!cancelled) {
-                    setMarkdown(`*Failed to load content for **${pageTitle}**.*`)
-                }
+            } catch (err) {
+                if (controller.signal.aborted) return
+                setMarkdown(`*Failed to load content for **${pageTitle}**.*`)
+                setLoadedPath(urlPath)
             } finally {
-                if (!cancelled) {
+                if (!controller.signal.aborted) {
                     setLoadingContent(false)
                 }
             }
@@ -64,10 +74,10 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
 
         loadContent()
         return () => {
-            cancelled = true
+            controller.abort()
             setLoadingContent(false)
         }
-    }, [currentPath])
+    }, [currentPath, selectedItem?.path])
 
     useEffect(() => {
         if (!markdown || !articleRef.current) return
@@ -140,31 +150,34 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
         em: ({ children }: { children?: React.ReactNode }) => <em>{children}</em>,
     }
 
+    const contentReady = loadedPath === normalizeDocPath(currentPath) && markdown.length > 0
+
     if (selectedItem) {
         return (
             <main id="main-content" className="docs-main flex-1 min-w-0">
                 <div className="docs-main-inner mx-auto w-full max-w-[720px] px-6 py-8 lg:px-8">
                     <MobileToc selectedItem={selectedItem} />
-                    {loadingContent && !markdown && (
-                        <div className="text-muted-foreground">Loading content...</div>
+                    {loadingContent && (
+                        <div className="text-muted-foreground animate-pulse">Loading content...</div>
                     )}
-                    {markdown ? (
+                    {contentReady && (
                         <article
                             key={currentPath}
                             ref={articleRef}
-                            className={`prose prose-neutral dark:prose-invert max-w-none prose-pre:bg-muted prose-pre:text-foreground prose-code:text-foreground${loadingContent ? ' opacity-60' : ''}`}
+                            className="prose prose-neutral dark:prose-invert max-w-none prose-pre:bg-muted prose-pre:text-foreground prose-code:text-foreground"
                         >
                             <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                                 {markdown}
                             </Markdown>
                         </article>
-                    ) : !loadingContent ? (
+                    )}
+                    {!loadingContent && !contentReady && loadedPath === normalizeDocPath(currentPath) && (
                         <div className="bg-muted/50 border rounded-lg p-6">
                             <p className="text-muted-foreground">
                                 Content for <strong className="text-primary">{selectedItem.title}</strong> would be displayed here.
                             </p>
                         </div>
-                    ) : null}
+                    )}
                 </div>
             </main>
         )
