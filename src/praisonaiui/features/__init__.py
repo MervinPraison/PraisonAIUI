@@ -83,6 +83,7 @@ def auto_register_defaults() -> None:
         (".workflows", "WorkflowsFeature"),
         (".guardrails", "GuardrailsFeature"),
         (".eval", "EvalFeature"),
+        (".training", "TrainingFeature"),
         (".telemetry", "TelemetryFeature"),
         (".tracing", "TracingFeature"),
         (".security", "SecurityFeature"),
