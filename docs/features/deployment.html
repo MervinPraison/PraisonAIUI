@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Production deployment guide for AIUI — covering Docker, environment variables, configuration, and security." />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Deployment Guide | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/features/deployment" />
+  <meta property="og:title" content="Deployment Guide | PraisonAIUI Docs" />
+  <meta property="og:description" content="Production deployment guide for AIUI — covering Docker, environment variables, configuration, and security." />
+  <meta property="og:url" content="https://ui.praison.ai/docs/features/deployment" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Deployment Guide | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Production deployment guide for AIUI — covering Docker, environment variables, configuration, and security." />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Deployment Guide", "description": "Production deployment guide for AIUI — covering Docker, environment variables, configuration, and security.", "url": "https://ui.praison.ai/docs/features/deployment", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>Deployment Guide</h1>
+<p>Production deployment guide for AIUI — covering Docker, environment variables, configuration, and security.</p>
+<h2>Quick Start (Docker)</h2>
+<h3>Build the Image</h3>
+<h3>Run with Default Settings</h3>
+<h3>Run with Custom Data Directory</h3>
+<h3>Docker Compose Example</h3>
+<h2>Environment Variables</h2>
+<p>| Variable | Default | Description |</p>
+<p>|----------|---------|-------------|</p>
+<p>| <code>AIUI_DATA_DIR</code> | <code>~/.praisonaiui</code> | Data directory for config, sessions, logs |</p>
+<p>| <code>AIUI_PORT</code> | <code>8082</code> | Server port (Docker only) |</p>
+<p>| <code>AIUI_HOST</code> | <code>0.0.0.0</code> | Server bind address (Docker only) |</p>
+<p>| <code>AUTH_ENFORCE</code> | <code>false</code> | Enforce Bearer token auth on <code>/api/*</code> routes |</p>
+<p>| <code>OPENAI_API_KEY</code> | — | OpenAI API key for LLM provider |</p>
+<h3>Auth Enforcement</h3>
+<p>When <code>AUTH_ENFORCE=true</code>, all <code>/api/*</code> routes require a valid Bearer token in the <code>Authorization</code> header:</p>
+<p><strong>Exempt paths</strong> (always accessible without auth):</p>
+<li><code>/health</code>, <code>/health/live</code>, <code>/health/ready</code>, <code>/api/health</code> — health checks</li>
+<li><code>/api/auth/login</code>, <code>/login</code> — login endpoints</li>
+<li><code>/api/protocol</code>, <code>/api/protocol/negotiate</code> — protocol discovery</li>
+<h2>Configuration</h2>
+<h3>Config File Location</h3>
+<p>The config file is located at <code>AIUI_DATA_DIR/config.yaml</code> (default: <code>~/.praisonaiui/config.yaml</code>).</p>
+<h3>Config Structure</h3>
+<h3>Site Title Customization</h3>
+<p>The site title is configurable via <code>site.title</code> in config.yaml:</p>
+<p>This affects:</p>
+<li>HTML <code>&lt;title&gt;</code> tag</li>
+<li>Dashboard header</li>
+<li><code>/ui-config.json</code> response</li>
+<h2>Health Monitoring</h2>
+<h3>Health Endpoint</h3>
+<h3>Kubernetes Probes</h3>
+<p>Use the fast liveness endpoint for probes to avoid timeouts:</p>
+<h3>Docker HEALTHCHECK</h3>
+<p>The Dockerfile includes a built-in health check:</p>
+<h3>CLI Health Commands</h3>
+<h2>Security</h2>
+<h3>Auth Modes</h3>
+<p>AIUI supports multiple authentication modes:</p>
+<p>| Mode | Description |</p>
+<p>|------|-------------|</p>
+<p>| <code>none</code> | No authentication (default) |</p>
+<p>| <code>api_key</code> | API key in <code>X-API-Key</code> header or <code>api_key</code> query param |</p>
+<p>| <code>session</code> | Session token in <code>Authorization: Bearer &lt;token&gt;</code> header |</p>
+<p>| <code>password</code> | Username/password login |</p>
+<h3>API Key Management</h3>
+<h3>Network Considerations</h3>
+<li><strong>Internal networks</strong>: Use <code>AUTH_ENFORCE=false</code> if behind a trusted reverse proxy</li>
+<li><strong>Public exposure</strong>: Always set <code>AUTH_ENFORCE=true</code> and use HTTPS</li>
+<li><strong>Load balancers</strong>: Health check path is <code>/health/live</code> (fast, exempt from auth)</li>
+<h2>Managed Hosting</h2>
+<h3>Required Endpoints</h3>
+<p>Hosting platforms should expose these endpoints:</p>
+<p>| Endpoint | Purpose |</p>
+<p>|----------|---------|</p>
+<p>| <code>/health/live</code> | Fast liveness probe (returns <code>{"status": "ok"}</code>) |</p>
+<p>| <code>/health/ready</code> | Readiness probe (parallel feature checks) |</p>
+<p>| <code>/health</code> | Deep health (parallel feature checks; <code>?deep=false</code> for liveness) |</p>
+<p>| <code>/api/protocol</code> | Protocol version and capabilities |</p>
+<p>| <code>/api/protocol/negotiate</code> | Capability negotiation |</p>
+<p>| <code>/api/features</code> | List of registered features |</p>
+<h3>Protocol Discovery</h3>
+<h3>Minimum Viable Deployment</h3>
+<p>For a minimal AIUI deployment:</p>
+<p>1. <strong>Required</strong>: <code>OPENAI_API_KEY</code> environment variable</p>
+<p>2. <strong>Recommended</strong>: Persistent volume for <code>AIUI_DATA_DIR</code></p>
+<p>3. <strong>Optional</strong>: <code>AUTH_ENFORCE=true</code> for multi-tenant environments</p></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Reference for import praisonaiui as aiui." />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Python SDK API | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/api/python" />
+  <meta property="og:title" content="Python SDK API | PraisonAIUI Docs" />
+  <meta property="og:description" content="Reference for import praisonaiui as aiui." />
+  <meta property="og:url" content="https://ui.praison.ai/docs/api/python" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Python SDK API | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Reference for import praisonaiui as aiui." />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Python SDK API", "description": "Reference for import praisonaiui as aiui.", "url": "https://ui.praison.ai/docs/api/python", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>Python SDK API</h1>
+<p>Reference for <code>import praisonaiui as aiui</code>.</p>
+<h2>Server Configuration</h2>
+<p>These functions configure the server. Call them at module level in your <code>app.py</code>, before the server starts.</p>
+<h3>`aiui.set_style(style)`</h3>
+<p>Set the UI style.</p>
+<p>| Parameter | Type | Values |</p>
+<p>|-----------|------|--------|</p>
+<p>| <code>style</code> | <code>str</code> | <code>"chat"</code>, <code>"dashboard"</code>, <code>"agents"</code>, <code>"playground"</code>, <code>"docs"</code>, <code>"custom"</code> |</p>
+<p>Priority: <code>set_style()</code> → CLI <code>--style</code> flag → auto-detection.</p>
+<h3>`aiui.set_branding(title, logo)`</h3>
+<p>Configure the sidebar branding (title text and logo emoji).</p>
+<p>| Parameter | Type | Default |</p>
+<p>|-----------|------|---------|</p>
+<p>| <code>title</code> | <code>str</code> | <code>"PraisonAI"</code> |</p>
+<p>| <code>logo</code> | <code>str</code> | <code>"🦞"</code> |</p>
+<p>Also configurable via <code>config.yaml</code>:</p>
+<p>---</p>
+<h3>`aiui.set_datastore(store)`</h3>
+<p>Set the persistence backend for sessions and messages.</p>
+<p>---</p>
+<h3>`aiui.set_provider(provider)`</h3>
+<p>Set the AI provider for chat completions.</p>
+<p>---</p>
+<h3>`aiui.register_agent(config)`</h3>
+<p>Register an AI agent for the dashboard. Agents appear in the sidebar and can be selected for chat.</p>
+<p>---</p>
+<h3>`aiui.remove_page(page_id)`</h3>
+<p>Remove a page from the sidebar.</p>
+<p>---</p>
+<h3>`aiui.set_chat_mode(mode, *, position, size, resizable, minimized)`</h3>
+<p>Configure chat window display mode — full page, floating window, or sidebar panel.</p>
+<p>| Parameter | Type | Default | Description |</p>
+<p>|-----------|------|---------|-------------|</p>
+<p>| <code>mode</code> | <code>str</code> | <code>"fullpage"</code> | <code>"fullpage"</code>, <code>"floating"</code>, or <code>"sidebar"</code> |</p>
+<p>| <code>position</code> | <code>tuple[int, int]</code> | <code>(20, 20)</code> | (bottom, right) pixel offset for floating mode |</p>
+<p>| <code>size</code> | <code>tuple[int, int]</code> | <code>(400, 500)</code> | (width, height) initial size for floating mode |</p>
+<p>| <code>resizable</code> | <code>bool</code> | <code>True</code> | Allow resizing the floating window |</p>
+<p>| <code>minimized</code> | <code>bool</code> | <code>False</code> | Start minimized (floating mode only) |</p>
+<p>---</p>
+<h3>`aiui.set_sidebar_config(*, collapsible, default_collapsed, width, min_width, max_width)`</h3>
+<p>Configure sidebar behavior and dimensions.</p>
+<p>| Parameter | Type | Default | Description |</p>
+<p>|-----------|------|---------|-------------|</p>
+<p>| <code>collapsible</code> | <code>bool</code> | <code>True</code> | Allow sidebar to be collapsed |</p>
+<p>| <code>default_collapsed</code> | <code>bool</code> | <code>False</code> | Start with sidebar collapsed |</p>
+<p>| <code>width</code> | <code>int</code> | <code>260</code> | Default sidebar width in pixels |</p>
+<p>| <code>min_width</code> | <code>int</code> | <code>200</code> | Minimum width when resizing |</p>
+<p>| <code>max_width</code> | <code>int</code> | <code>360</code> | Maximum width when resizing |</p>
+<p>---</p>
+<h3>`aiui.set_brand_color(color)`</h3>
+<p>Set the brand/primary accent color. Overrides the theme's default accent.</p>
+<p>| Parameter | Type | Description |</p>
+<p>|-----------|------|-------------|</p>
+<p>| <code>color</code> | <code>str</code> | Hex color (e.g. <code>"#6366f1"</code>) or CSS color value |</p>
+<p>---</p>
+<h3>`aiui.set_chat_features(*, history, streaming, file_upload, audio, reasoning, tools, multimedia, feedback)`</h3>
+<p>Configure which chat features are enabled in the UI.</p>
+<p>| Parameter | Type | Default | Description |</p>
+<p>|-----------|------|---------|-------------|</p>
+<p>| <code>history</code> | <code>bool</code> | <code>True</code> | Show session history sidebar |</p>
+<p>| <code>streaming</code> | <code>bool</code> | <code>True</code> | Enable streaming responses |</p>
+<p>| <code>file_upload</code> | <code>bool</code> | <code>False</code> | Show file upload button |</p>
+<p>| <code>audio</code> | <code>bool</code> | <code>False</code> | Show audio input button |</p>
+<p>| <code>reasoning</code> | <code>bool</code> | <code>True</code> | Show reasoning/thinking steps |</p>
+<p>| <code>tools</code> | <code>bool</code> | <code>True</code> | Show tool call displays |</p>
+<p>| <code>multimedia</code> | <code>bool</code> | <code>True</code> | Enable multimedia rendering |</p>
+<p>| <code>feedback</code> | <code>bool</code> | <code>False</code> | Show feedback buttons |</p>
+<p>---</p>
+<h3>`aiui.set_dashboard(*, sidebar, page_header)`</h3>
+<p>Configure dashboard layout options.</p>
+<p>| Parameter | Type | Default | Description |</p>
+<p>|-----------|------|---------|-------------|</p>
+<p>| <code>sidebar</code> | <code>bool</code> | <code>True</code> | Show the left sidebar navigation |</p>
+<p>| <code>page_header</code> | <code>bool</code> | <code>True</code> | Show the page title/description header |</p>
+<p>---</p>
+<h3>`aiui.set_chat_preview(enabled, *, surface_id, width)`</h3>
+<p>Configure the <strong>chat + canvas</strong> split preview (<code>chat-canvas</code> page). The vanilla <code>chat</code> page is unchanged.</p>
+<p>| Parameter | Type | Default | Description |</p>
+<p>|-----------|------|---------|-------------|</p>
+<p>| <code>enabled</code> | <code>bool</code> | <code>True</code> | Expose preview settings in <code>/ui-config.json</code> |</p>
+<p>| <code>surface_id</code> | <code>str</code> | <code>"main"</code> | Default A2UI surface id for the preview panel |</p>
+<p>| <code>width</code> | <code>str</code> | <code>"40%"</code> | CSS width of the preview column (e.g. <code>"38%"</code>, <code>"420px"</code>) |</p>
+<p>See A2UI canvas.</p>
+<p>---</p>
+<h3>`aiui.register_theme(name, variables)`</h3>
+<p>Register a custom theme preset. The theme becomes available in the theme picker UI and via <code>/api/theme</code>.</p>
+<p>| Parameter | Type | Description |</p>
+<p>|-----------|------|-------------|</p>
+<p>| <code>name</code> | <code>str</code> | Unique theme name (e.g. <code>"ocean"</code>, <code>"sunset"</code>) |</p>
+<p>| <code>variables</code> | <code>dict[str, str]</code> | Dict with at least <code>{"accent": "#hexcolor"}</code> |</p>
+<p>See CSS Architecture for all available CSS variables.</p>
+<p>---</p>
+<h3>`aiui.set_custom_js(path)`</h3>
+<p>Inject a local JavaScript file into the UI. Reads the file at <code>path</code> and</p>
+<p>serves it at <code>/custom.js</code>. A <code>&lt;script src="/custom.js"&gt;</code> tag is injected</p>
+<p>into the host HTML <strong>after</strong> the plugin loader, so <code>window.aiui</code> and all</p>
+<p>registry APIs (<code>registerView</code>, <code>registerComponent</code>) are ready when your</p>
+<p>code runs.</p>
+<p>| Parameter | Type | Description |</p>
+<p>|-----------|------|-------------|</p>
+<p>| <code>path</code> | <code>str \| Path</code> | Local filesystem path to a <code>.js</code> file |</p>
+<p>Raises <code>FileNotFoundError</code> if the path does not exist.</p>
+<p>Where <code>plugin.js</code> uses the client-side extension APIs:</p>
+<p>---</p>
+<h3>`aiui.register_component_schema(component_type, schema)`</h3>
+<p>Register a JSON Schema contract for a component dict. Built-in schemas</p>
+<p>are auto-derived from every <code>aiui.ui.*</code> builder at startup; user schemas</p>
+<p>take priority and are merged on top.</p>
+<p>| Parameter | Type | Description |</p>
+<p>|-----------|------|-------------|</p>
+<p>| <code>component_type</code> | <code>str</code> | Component type string (e.g. <code>"timeline"</code>) |</p>
+<p>| <code>schema</code> | <code>dict</code> | JSON Schema dict (Draft 2020-12 compatible) |</p>
+<h3>`aiui.get_component_schemas()`</h3>
+<p>Returns the merged registry as a <code>dict[str, dict]</code>. Also available as a</p>
+<p>JSON endpoint: <code>GET /api/components/schemas</code>.</p>
+<p>---</p>
+<h3>`aiui.prompt(question, *, options=None, timeout=300.0)`</h3>
+<p>Pause the agent and wait for the user to answer. Preferred entry point</p>
+<p>for interactive agent flows — supersedes the legacy <code>AskUserMessage</code></p>
+<p>class.</p>
+<p>| Parameter | Type | Description |</p>
+<p>|-----------|------|-------------|</p>
+<p>| <code>question</code> | <code>str</code> | Text shown to the user. |</p>
+<p>| <code>options</code>  | <code>list[str] \| None</code> | Optional list of choices. When given, the user picks one; otherwise they type free text. |</p>
+<p>| <code>timeout</code>  | <code>float</code> | Seconds to wait before giving up. Default 300 (5 min). |</p>
+<p>Returns a <code>PromptResult</code> dataclass (<code>text</code>, <code>choice</code>, <code>message_id</code>).</p>
+<p>The result is truthy when the user answered, falsy on timeout.</p>
+<p>---</p>
+<h3>`aiui.error(content, *, details=None)`</h3>
+<p>Emit an error message to the chat. A thin helper around <code>Message</code> with</p>
+<p><code>metadata={"kind": "error"}</code> — keeps the public surface small.</p>
+<p>---</p>
+<h3>`aiui.configure(*, datastore=None, branding=None, theme=None, chat=None, custom_css=None, custom_js=None, style=None)`</h3>
+<p>One-stop configuration function. Every keyword is optional, so you only</p>
+<p>set what you need. Replaces the dozen individual <code>set_*</code> setters for</p>
+<p>most common cases (the <code>set_*</code> functions remain for advanced control).</p>
+<p>| Parameter | Type | Description |</p>
+<p>|-----------|------|-------------|</p>
+<p>| <code>datastore</code> | <code>str</code> | Storage backend: <code>"memory"</code>, <code>"json"</code>, <code>"json:/path"</code>, <code>"sdk"</code>, <code>"sdk:/path"</code>. |</p>
+<p>| <code>branding</code>  | <code>dict</code> | Forwarded to <code>set_branding(...)</code>. Keys: <code>title</code>, <code>logo</code>, <code>subtitle</code>. |</p>
+<p>| <code>theme</code>     | <code>dict</code> | Forwarded to <code>set_theme(...)</code>. Keys: <code>preset</code>, <code>dark</code>/<code>dark_mode</code>, <code>radius</code>, <code>brand_color</code>. |</p>
+<p>| <code>chat</code>      | <code>dict</code> | Forwarded to <code>set_chat_features(...)</code>. Keys: <code>feedback</code>, <code>mode</code>, plus any chat-feature flag. |</p>
+<p>| <code>custom_css</code>| <code>str \| Path</code> | Path to a CSS file; same as <code>set_custom_css</code>. |</p>
+<p>| <code>custom_js</code> | <code>str \| Path</code> | Path to a JS file; same as <code>set_custom_js</code>. |</p>
+<p>| <code>style</code>     | <code>str</code> | UI style — <code>"chat"</code>, <code>"dashboard"</code>, etc. |</p>
+<p>---</p>
+<h2>Callback Decorators</h2>
+<h3>`@aiui.reply`</h3>
+<p>Handle incoming chat messages. This is the core callback.</p>
+<p>The <code>message</code> object has:</p>
+<li><code>message.content</code> — user's text</li>
+<li><code>message.session_id</code> — session identifier</li>
+<li><code>message.images</code> — attached images (if any)</li>
+<p>---</p>
+<h3>`@aiui.welcome`</h3>
+<p>Send a welcome message when a user connects.</p>
+<p>---</p>
+<h3>`@aiui.goodbye`</h3>
+<p>Cleanup when a user disconnects.</p>
+<p>---</p>
+<h3>`@aiui.starters`</h3>
+<p>Define conversation starters shown to new users.</p>
+<p>---</p>
+<h3>`@aiui.profiles`</h3>
+<p>Define chat profiles (agent personas users can choose).</p>
+<p>---</p>
+<h3>`@aiui.page(slug, title, icon, group, order)`</h3>
+<p>Register a custom dashboard page.</p>
+<p>---</p>
+<h3>`@aiui.on(event)`</h3>
+<p>Listen for server events.</p>
+<p>---</p>
+<h3>`@aiui.login`</h3>
+<p>Handle authentication.</p>
+<p>---</p>
+<h3>`@aiui.settings`</h3>
+<p>Provide user settings.</p>
+<p>---</p>
+<h3>`@aiui.resume`</h3>
+<p>Resume interrupted sessions.</p>
+<p>---</p>
+<h3>`@aiui.surface_action(surface_id)`</h3>
+<p>Handle user actions from an A2UI surface (button clicks, form submits).</p>
+<p>---</p>
+<h2>Message Functions</h2>
+<p>Async functions for sending messages to the user. Call inside callback handlers.</p>
+<p>| Function | Purpose |</p>
+<p>|----------|---------|</p>
+<p>| <code>await aiui.say(text)</code> | Send a complete message |</p>
+<p>| <code>await aiui.stream(text)</code> | Stream a response progressively |</p>
+<p>| <code>await aiui.stream_token(token)</code> | Stream token-by-token |</p>
+<p>| <code>await aiui.think(text)</code> | Show a thinking indicator |</p>
+<p>| <code>await aiui.ask(question)</code> | Ask user a question (returns answer) |</p>
+<p>| <code>await aiui.image(url)</code> | Send an image |</p>
+<p>| <code>await aiui.audio(url)</code> | Send audio |</p>
+<p>| <code>await aiui.video(url)</code> | Send video |</p>
+<p>| <code>await aiui.file(url)</code> | Send a file |</p>
+<p>| <code>await aiui.action_buttons(buttons)</code> | Show action buttons |</p>
+<p>| <code>await aiui.tool(name, data)</code> | Show tool call result |</p>
+<p>---</p>
+<h2>UI Components</h2>
+<p>Build custom page layouts with UI components.</p>
+<p>| Component | Usage |</p>
+<p>|-----------|-------|</p>
+<p>| <code>aiui.layout(children)</code> | Root container for a page |</p>
+<p>| <code>aiui.card(title, *, value, footer)</code> | Metric/stat card with title, value, and optional footer |</p>
+<p>| <code>aiui.columns(children)</code> | Horizontal column layout |</p>
+<p>| <code>aiui.chart(data, type)</code> | Chart (line, bar, pie) |</p>
+<p>| <code>aiui.table(headers, rows)</code> | Data table |</p>
+<p>| <code>aiui.text(content)</code> | Text block |</p>
+<p>See Component API Reference for all 48 components.</p>
+<p>---</p>
+<h2>Data Classes</h2>
+<p>| Class | Purpose |</p>
+<p>|-------|---------|</p>
+<p>| <code>aiui.Message</code> | Incoming/outgoing message |</p>
+<p>| <code>aiui.AskUserMessage</code> | User response to <code>ask()</code> |</p>
+<p>| <code>aiui.Step</code> | Processing step indicator |</p>
+<p>| <code>aiui.BaseDataStore</code> | Abstract datastore interface |</p>
+<p>| <code>aiui.MemoryDataStore</code> | In-memory store |</p>
+<p>| <code>aiui.JSONFileDataStore</code> | Persistent JSON file store |</p>
+<p>| <code>aiui.BaseProvider</code> | Abstract AI provider interface |</p>
+<p>| <code>aiui.PraisonAIProvider</code> | PraisonAI provider implementation |</p>
+<p>| <code>aiui.RunEvent</code> | Streaming event |</p>
+<p>| <code>aiui.RunEventType</code> | Event type enum |</p>
+<p>---</p>
+<h2>Feature Protocol</h2>
+<p>Register custom features that appear in the dashboard.</p>
+<p>| Function | Purpose |</p>
+<p>|----------|---------|</p>
+<p>| <code>aiui.register_feature(feature)</code> | Register a feature |</p>
+<p>| <code>aiui.get_features()</code> | List all features |</p>
+<p>| <code>aiui.get_feature(name)</code> | Get a specific feature |</p>
+<p>| <code>aiui.auto_register_defaults()</code> | Auto-register built-in features |</p></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

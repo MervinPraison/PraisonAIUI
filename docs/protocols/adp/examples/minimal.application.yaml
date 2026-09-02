@@ -1,0 +1,32 @@
+schemaVersion: 1
+apiVersion: adp.io/v1alpha1
+kind: Application
+
+metadata:
+  name: minimal-docs
+  version: "1.0.0"
+
+spec:
+  site:
+    title: "Minimal Docs"
+    description: "Smallest valid ADP Application manifest"
+    ui: shadcn
+
+  theme:
+    preset: zinc
+    radius: md
+    darkMode: true
+
+  content:
+    docs:
+      dir: "./docs"
+
+  templates:
+    docs:
+      layout: TwoColumnLayout
+      slots:
+        main: { type: DocContent }
+
+  routes:
+    - match: "/docs/**"
+      template: docs

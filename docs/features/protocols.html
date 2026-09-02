@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="PraisonAIUI uses a protocol-driven architecture to wire features into the server. Every feature module implements the BaseFeatureProtocol ABC, which auto-regist" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Feature Protocols | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/features/protocols" />
+  <meta property="og:title" content="Feature Protocols | PraisonAIUI Docs" />
+  <meta property="og:description" content="PraisonAIUI uses a protocol-driven architecture to wire features into the server. Every feature module implements the BaseFeatureProtocol ABC, which auto-regist" />
+  <meta property="og:url" content="https://ui.praison.ai/docs/features/protocols" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Feature Protocols | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="PraisonAIUI uses a protocol-driven architecture to wire features into the server. Every feature module implements the BaseFeatureProtocol ABC, which auto-regist" />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Feature Protocols", "description": "PraisonAIUI uses a protocol-driven architecture to wire features into the server. Every feature module implements the BaseFeatureProtocol ABC, which auto-regist", "url": "https://ui.praison.ai/docs/features/protocols", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>Feature Protocols</h1>
+<p>PraisonAIUI uses a <strong>protocol-driven architecture</strong> to wire features into the server. Every feature module implements the <code>BaseFeatureProtocol</code> ABC, which auto-registers API routes, CLI commands, and health checks.</p>
+<h2>Architecture</h2>
+<h2>Quick Start</h2>
+<h3>List All Features</h3>
+<h3>Python — Create a Custom Feature</h3>
+<h2>BaseFeatureProtocol API</h2>
+<p>Every feature module must implement:</p>
+<p>| Method | Return | Required | Description |</p>
+<p>|--------|--------|----------|-------------|</p>
+<p>| <code>name</code> | <code>str</code> | ✓ | Unique feature identifier |</p>
+<p>| <code>description</code> | <code>str</code> | ✓ | Human-readable description |</p>
+<p>| <code>routes()</code> | <code>List[Route]</code> | ✓ | Starlette routes to mount |</p>
+<p>| <code>cli_commands()</code> | <code>List[dict]</code> | ○ | CLI command metadata |</p>
+<p>| <code>health()</code> | <code>dict</code> | ○ | Health check (default: <code>{"status": "ok"}</code>) |</p>
+<p>| <code>info()</code> | <code>dict</code> | ○ | Metadata for <code>/api/features</code> listing |</p>
+<h3>`cli_commands()` Format</h3>
+<h2>Registry Functions</h2>
+<h2>Built-in Features Reference</h2>
+<h3>1. Approvals</h3>
+<p>Tool-execution approval management with policies, history, and SSE streaming.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/approvals</code> | GET | List all approvals |</p>
+<p>| <code>/api/approvals</code> | POST | Create approval request |</p>
+<p>| <code>/api/approvals/pending</code> | GET | List pending approvals |</p>
+<p>| <code>/api/approvals/history</code> | GET | List resolved approvals |</p>
+<p>| <code>/api/approvals/policies</code> | GET | Get auto-approve/deny policies |</p>
+<p>| <code>/api/approvals/policies</code> | PUT | Update policies |</p>
+<p>| <code>/api/approvals/stream</code> | GET | SSE stream for real-time updates |</p>
+<p>| <code>/api/approvals/{id}</code> | GET | Get single approval |</p>
+<p>| <code>/api/approvals/{id}/approve</code> | POST | Approve request |</p>
+<p>| <code>/api/approvals/{id}/deny</code> | POST | Deny request |</p>
+<p><strong>CLI:</strong> <code>aiui approval list</code>, <code>aiui approval pending</code></p>
+<h3>2. Channels</h3>
+<p>Multi-platform messaging channel management (Discord, Slack, Telegram, WhatsApp, etc.).</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/channels</code> | GET | List all channels (enriched with gateway status) |</p>
+<p>| <code>/api/channels</code> | POST | Add a channel |</p>
+<p>| <code>/api/channels/platforms</code> | GET | List supported platforms |</p>
+<p>| <code>/api/channels/{id}</code> | GET | Get channel details |</p>
+<p>| <code>/api/channels/{id}</code> | PUT | Update channel |</p>
+<p>| <code>/api/channels/{id}</code> | DELETE | Remove channel |</p>
+<p>| <code>/api/channels/{id}/toggle</code> | POST | Enable/disable |</p>
+<p>| <code>/api/channels/{id}/status</code> | GET | Live status (gateway-enriched) |</p>
+<p>| <code>/api/channels/{id}/restart</code> | POST | Restart channel bot (via gateway) |</p>
+<p><strong>CLI:</strong> <code>aiui channel list</code>, <code>aiui channel status</code>, <code>aiui channel platforms</code></p>
+<h3>3. Schedules</h3>
+<p>Manage scheduled jobs (cron, interval, one-shot).</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/schedules</code> | GET | List all jobs |</p>
+<p>| <code>/api/schedules</code> | POST | Add a job |</p>
+<p>| <code>/api/schedules/{id}</code> | GET | Get job details |</p>
+<p>| <code>/api/schedules/{id}</code> | PUT | Update schedule config |</p>
+<p>| <code>/api/schedules/{id}</code> | DELETE | Remove job |</p>
+<p>| <code>/api/schedules/{id}/toggle</code> | POST | Enable/disable |</p>
+<p>| <code>/api/schedules/{id}/run</code> | POST | Trigger immediately |</p>
+<p>| <code>/api/schedules/{id}/stop</code> | POST | Stop running schedule |</p>
+<p>| <code>/api/schedules/{id}/stats</code> | GET | Get execution statistics |</p>
+<p><strong>CLI:</strong> <code>aiui schedule list</code>, <code>aiui schedule add &lt;name&gt; &lt;msg&gt;</code>, <code>aiui schedule remove &lt;id&gt;</code>, <code>aiui schedule status</code></p>
+<h3>4. Memory</h3>
+<p>Agent memory management (short-term, long-term, entity).</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/memory</code> | GET | List memories (filter: <code>?type=short\|long\|entity\|all</code>) |</p>
+<p>| <code>/api/memory</code> | POST | Add memory entry |</p>
+<p>| <code>/api/memory/search</code> | POST | Search memories |</p>
+<p>| <code>/api/memory/{id}</code> | GET | Get single memory |</p>
+<p>| <code>/api/memory/{id}</code> | DELETE | Delete memory |</p>
+<p>| <code>/api/memory</code> | DELETE | Clear memories (filter: <code>?type=all</code>) |</p>
+<p><strong>CLI:</strong> <code>aiui memory list</code>, <code>aiui memory add &lt;text&gt;</code>, <code>aiui memory search &lt;query&gt;</code>, <code>aiui memory clear</code>, <code>aiui memory status</code></p>
+<h3>5. Nodes</h3>
+<p>Execution node registration, agent bindings, and instance presence.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/nodes</code> | GET | List all nodes |</p>
+<p>| <code>/api/nodes</code> | POST | Register a node |</p>
+<p>| <code>/api/nodes/{id}</code> | GET | Get node details |</p>
+<p>| <code>/api/nodes/{id}</code> | PUT | Update node |</p>
+<p>| <code>/api/nodes/{id}</code> | DELETE | Remove node |</p>
+<p>| <code>/api/nodes/{id}/status</code> | GET | Node status (gateway-enriched) |</p>
+<p>| <code>/api/nodes/{id}/agents</code> | GET/PUT | Get/set agent bindings |</p>
+<p>| <code>/api/instances</code> | GET | List connected instances |</p>
+<p>| <code>/api/instances/heartbeat</code> | POST | Record presence heartbeat |</p>
+<p><strong>CLI:</strong> <code>aiui node list</code>, <code>aiui node status</code>, <code>aiui node instances</code></p>
+<h3>6. Extended Sessions</h3>
+<p>Advanced session management (state, context, labels, usage).</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/sessions/{id}/state</code> | GET | Get session state |</p>
+<p>| <code>/api/sessions/{id}/state</code> | POST | Save session state |</p>
+<p>| <code>/api/sessions/{id}/context</code> | POST | Build context |</p>
+<p>| <code>/api/sessions/{id}/compact</code> | POST | Compact session (with stats) |</p>
+<p>| <code>/api/sessions/{id}/reset</code> | POST | Reset session |</p>
+<p>| <code>/api/sessions/{id}/preview</code> | GET | Formatted preview |</p>
+<p>| <code>/api/sessions/{id}/labels</code> | GET/POST | Get/set labels |</p>
+<p>| <code>/api/sessions/{id}/usage</code> | GET | Get usage stats |</p>
+<h3>7. Skills</h3>
+<p>Agent skill registration and discovery.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/skills</code> | GET | List all tools (filter: <code>?category=</code>, <code>?enabled=</code>, <code>?search=</code>) |</p>
+<p>| <code>/api/skills</code> | POST | Register custom skill |</p>
+<p>| <code>/api/skills/categories</code> | GET | List tool categories |</p>
+<p>| <code>/api/skills/{id}</code> | GET | Get tool details |</p>
+<p>| <code>/api/skills/{id}</code> | PUT | Update custom skill |</p>
+<p>| <code>/api/skills/{id}</code> | DELETE | Remove custom skill |</p>
+<p>| <code>/api/skills/{id}/toggle</code> | POST | Toggle enabled/disabled |</p>
+<p>| <code>/api/skills/{id}/config</code> | PUT | Set tool configuration/API keys |</p>
+<p><strong>CLI:</strong> <code>aiui skills list</code>, <code>aiui skills status</code></p>
+<h3>8. Hooks</h3>
+<p>Pre/post operation hooks for tool calls, agent runs, etc.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/hooks</code> | GET | List hooks |</p>
+<p>| <code>/api/hooks</code> | POST | Register hook |</p>
+<p>| <code>/api/hooks/log</code> | GET | View execution log |</p>
+<p>| <code>/api/hooks/{id}</code> | GET | Get hook details |</p>
+<p>| <code>/api/hooks/{id}</code> | DELETE | Remove hook |</p>
+<p>| <code>/api/hooks/{id}/trigger</code> | POST | Trigger manually |</p>
+<p><strong>CLI:</strong> <code>aiui hooks list</code>, <code>aiui hooks trigger &lt;id&gt;</code>, <code>aiui hooks log</code></p>
+<h3>9. Workflows</h3>
+<p>Multi-step workflow orchestration (Pipeline, Route, Parallel, Loop).</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/workflows</code> | GET | List workflows |</p>
+<p>| <code>/api/workflows</code> | POST | Create workflow |</p>
+<p>| <code>/api/workflows/runs</code> | GET | List all runs |</p>
+<p>| <code>/api/workflows/runs/{id}</code> | GET | Get run details |</p>
+<p>| <code>/api/workflows/{id}</code> | GET | Get workflow |</p>
+<p>| <code>/api/workflows/{id}</code> | DELETE | Delete workflow |</p>
+<p>| <code>/api/workflows/{id}/run</code> | POST | Execute workflow |</p>
+<p>| <code>/api/workflows/{id}/status</code> | GET | Workflow status |</p>
+<p><strong>CLI:</strong> <code>aiui workflows list</code>, <code>aiui workflows run &lt;id&gt;</code>, <code>aiui workflows status</code>, <code>aiui workflows runs</code></p>
+<h3>10. Config Runtime</h3>
+<p>Live runtime configuration without server restart.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/config/runtime</code> | GET | Get all config |</p>
+<p>| <code>/api/config/runtime</code> | PATCH | Merge config values |</p>
+<p>| <code>/api/config/runtime</code> | PUT | Replace all config |</p>
+<p>| <code>/api/config/runtime/history</code> | GET | Change history |</p>
+<p>| <code>/api/config/runtime/{key}</code> | GET | Get single key |</p>
+<p>| <code>/api/config/runtime/{key}</code> | PUT | Set single key |</p>
+<p>| <code>/api/config/runtime/{key}</code> | DELETE | Delete key |</p>
+<p>| <code>/api/config/schema</code> | GET | JSON Schema for form rendering |</p>
+<p>| <code>/api/config/validate</code> | POST | Validate config without applying |</p>
+<p>| <code>/api/config/apply</code> | POST | Validate and apply config |</p>
+<p>| <code>/api/config/defaults</code> | GET | Get default values from schema |</p>
+<p><strong>CLI:</strong> <code>aiui config get [key]</code>, <code>aiui config set &lt;key&gt; &lt;value&gt;</code>, <code>aiui config list</code>, <code>aiui config history</code></p>
+<h3>11. Jobs</h3>
+<p>Async job submission and monitoring with real-time SSE streaming.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/jobs</code> | GET | List jobs (filter: <code>?status=</code>, <code>?limit=</code>, <code>?offset=</code>) |</p>
+<p>| <code>/api/jobs</code> | POST | Submit job (returns 202) |</p>
+<p>| <code>/api/jobs/stats</code> | GET | Executor statistics |</p>
+<p>| <code>/api/jobs/{id}</code> | GET | Get job details |</p>
+<p>| <code>/api/jobs/{id}</code> | DELETE | Delete completed job |</p>
+<p>| <code>/api/jobs/{id}/status</code> | GET | Get status + progress |</p>
+<p>| <code>/api/jobs/{id}/result</code> | GET | Get result (409 if not complete) |</p>
+<p>| <code>/api/jobs/{id}/cancel</code> | POST | Cancel running job |</p>
+<p>| <code>/api/jobs/{id}/stream</code> | GET | SSE stream (status/progress/result/error events) |</p>
+<p><strong>CLI:</strong> <code>aiui job list</code>, <code>aiui job status [id]</code>, <code>aiui job stats</code></p>
+<h3>12. Usage</h3>
+<p>Usage analytics with per-model cost tracking, time-series data, and breakdowns.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/usage</code> | GET | Summary (totals, averages) |</p>
+<p>| <code>/api/usage/details</code> | GET | Detailed usage records |</p>
+<p>| <code>/api/usage/models</code> | GET | Per-model breakdown |</p>
+<p>| <code>/api/usage/sessions</code> | GET | Per-session breakdown |</p>
+<p>| <code>/api/usage/agents</code> | GET | Per-agent breakdown |</p>
+<p>| <code>/api/usage/timeseries</code> | GET | Time-series data for charts |</p>
+<p>| <code>/api/usage/costs</code> | GET | Cost table (21 models) |</p>
+<p>| <code>/api/usage/track</code> | POST | Track usage event |</p>
+<p><strong>CLI:</strong> <code>aiui usage summary</code>, <code>aiui usage models</code>, <code>aiui usage cost</code></p>
+<h3>13. Agents</h3>
+<p>Agent definition CRUD with model selection, execution via <code>praisonaiagents.Agent</code>.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/agents/definitions</code> | GET | List all agent definitions |</p>
+<p>| <code>/api/agents/definitions</code> | POST | Create new agent |</p>
+<p>| <code>/api/agents/definitions/{id}</code> | GET | Get agent details |</p>
+<p>| <code>/api/agents/definitions/{id}</code> | PUT | Update agent |</p>
+<p>| <code>/api/agents/definitions/{id}</code> | DELETE | Delete agent |</p>
+<p>| <code>/api/agents/models</code> | GET | List available models (13 models) |</p>
+<p>| <code>/api/agents/duplicate/{id}</code> | POST | Duplicate an agent |</p>
+<p>| <code>/api/agents/run/{id}</code> | POST | Execute agent via <code>Agent.start()</code> |</p>
+<p><strong>CLI:</strong> <code>aiui agents list</code>, <code>aiui agents create</code></p>
+<h3>14. OpenAI API</h3>
+<p>OpenAI-compatible <code>/v1/*</code> API routes wrapping <code>praisonai.capabilities</code>.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/v1</code> | GET | API info / endpoint list |</p>
+<p>| <code>/v1/chat/completions</code> | POST | Chat completions |</p>
+<p>| <code>/v1/completions</code> | POST | Legacy text completions |</p>
+<p>| <code>/v1/embeddings</code> | POST | Create embeddings |</p>
+<p>| <code>/v1/images/generations</code> | POST | Generate images |</p>
+<p>| <code>/v1/audio/transcriptions</code> | POST | Transcribe audio |</p>
+<p>| <code>/v1/audio/speech</code> | POST | Text to speech |</p>
+<p>| <code>/v1/moderations</code> | POST | Content moderation |</p>
+<p>| <code>/v1/models</code> | GET | List available models |</p>
+<p>| <code>/v1/models/{id}</code> | GET | Get model info |</p>
+<p>| <code>/v1/responses</code> | POST | OpenAI Responses API |</p>
+<p>| <code>/v1/files</code> | GET/POST | File management |</p>
+<p>| <code>/v1/files/{id}</code> | GET/DELETE | File operations |</p>
+<p>| <code>/v1/assistants</code> | GET/POST | Assistants API |</p>
+<h3>15. Logs</h3>
+<p>Real-time log streaming via WebSocket with level filtering.</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/logs/stream</code> | WS | WebSocket for real-time log streaming |</p>
+<p>| <code>/api/logs/levels</code> | GET | Available log levels with colors |</p>
+<p>| <code>/api/logs/stats</code> | GET | Log buffer statistics |</p>
+<p>| <code>/api/logs/clear</code> | POST | Clear log buffer |</p>
+<p><strong>CLI:</strong> <code>aiui logs tail</code>, <code>aiui logs clear</code></p>
+<h3>16. Auth</h3>
+<p>Multi-mode authentication (none, api_key, session, password).</p>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/auth/status</code> | GET | Current auth status |</p>
+<p>| <code>/api/auth/config</code> | GET | Get auth config |</p>
+<p>| <code>/api/auth/config</code> | PUT | Set auth config |</p>
+<p>| <code>/api/auth/keys</code> | GET | List API keys |</p>
+<p>| <code>/api/auth/keys</code> | POST | Create API key |</p>
+<p>| <code>/api/auth/keys/{id}</code> | DELETE | Revoke API key |</p>
+<p>| <code>/api/auth/login</code> | POST | Login with password |</p>
+<p>| <code>/api/auth/logout</code> | POST | Logout session |</p>
+<p>| <code>/api/auth/sessions</code> | GET | List active sessions |</p>
+<p>| <code>/api/auth/password</code> | POST | Set/change password |</p>
+<h2>Route Ordering</h2>
+<p>&gt; <strong>Important:</strong> When defining routes with parametric paths (e.g., <code>/{id}</code>), always place literal paths (e.g., <code>/log</code>, <code>/runs</code>) <strong>before</strong> the parametric route. Starlette matches routes in order, and a parametric route will capture literal segments as parameter values.</p>
+<h2>Integration Example</h2></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

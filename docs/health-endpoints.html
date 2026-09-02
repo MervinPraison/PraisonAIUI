@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="PraisonAIUI provides multiple health endpoints optimized for different use cases:" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Health Endpoints Guide | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/health-endpoints" />
+  <meta property="og:title" content="Health Endpoints Guide | PraisonAIUI Docs" />
+  <meta property="og:description" content="PraisonAIUI provides multiple health endpoints optimized for different use cases:" />
+  <meta property="og:url" content="https://ui.praison.ai/docs/health-endpoints" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Health Endpoints Guide | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="PraisonAIUI provides multiple health endpoints optimized for different use cases:" />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Health Endpoints Guide", "description": "PraisonAIUI provides multiple health endpoints optimized for different use cases:", "url": "https://ui.praison.ai/docs/health-endpoints", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>Health Endpoints Guide</h1>
+<h2>Overview</h2>
+<p>PraisonAIUI provides multiple health endpoints optimized for different use cases:</p>
+<li><strong><code>/health/live</code></strong> - Fast liveness check (&lt;500ms)</li>
+<li><strong><code>/health/ready</code></strong> - Readiness check with optional deep checks</li>
+<li><strong><code>/health</code></strong> - Legacy endpoint (backward compatibility)</li>
+<h2>Endpoints</h2>
+<h3>Liveness Check: `/health/live`</h3>
+<p>Fast endpoint to verify the server is running. Returns immediately with minimal processing.</p>
+<p><strong>Use for:</strong></p>
+<li>Load balancer health probes</li>
+<li>Kubernetes liveness probes</li>
+<li>High-frequency monitoring</li>
+<p><strong>Response time:</strong> &lt;500ms (typically &lt;100ms)</p>
+<p><strong>Example:</strong></p>
+<p><strong>Response:</strong></p>
+<h3>Readiness Check: `/health/ready`</h3>
+<p>Verifies the server is ready to handle requests. Performs parallel health checks on all features with timeout protection.</p>
+<p><strong>Use for:</strong></p>
+<li>Kubernetes readiness probes</li>
+<li>Pre-deployment validation</li>
+<li>Detailed diagnostics</li>
+<p><strong>Query parameters:</strong></p>
+<li><code>?deep=false</code> - Skip feature checks for faster response</li>
+<p><strong>Response time:</strong></p>
+<li>With deep checks: &lt;1s (parallel execution)</li>
+<li>Without deep checks: &lt;200ms</li>
+<p><strong>Example:</strong></p>
+<p><strong>Response with deep checks:</strong></p>
+<h3>API Health: `/api/health`</h3>
+<p>Cached version of readiness check for dashboard polling. 30-second TTL to reduce load.</p>
+<p><strong>Use for:</strong></p>
+<li>Dashboard health indicators</li>
+<li>Frequent client polling</li>
+<li>Status pages</li>
+<p><strong>Response:</strong> Same as <code>/health/ready</code> but cached for 30 seconds</p>
+<h2>Deployment Configurations</h2>
+<h3>Kubernetes</h3>
+<h3>AWS ALB/ELB</h3>
+<h3>Docker Compose</h3>
+<h3>Nginx</h3>
+<h2>Migration Guide</h2>
+<p>If you're upgrading from a version using only <code>/health</code>:</p>
+<p>1. <strong>Update monitoring:</strong> Change health checks to use <code>/health/live</code> for liveness</p>
+<p>2. <strong>Update readiness:</strong> Use <code>/health/ready?deep=false</code> for readiness probes</p>
+<p>3. <strong>Update dashboards:</strong> Point status indicators to <code>/api/health</code> (cached)</p>
+<p>4. <strong>Backward compatibility:</strong> The <code>/health</code> endpoint remains available but may be slow</p>
+<h2>Performance Characteristics</h2>
+<p>| Endpoint | Cold Start | Warm (p50) | Warm (p95) | Use Case |</p>
+<p>|----------|------------|------------|------------|----------|</p>
+<p>| <code>/health/live</code> | &lt;100ms | &lt;20ms | &lt;50ms | Liveness probes |</p>
+<p>| <code>/health/ready?deep=false</code> | &lt;200ms | &lt;50ms | &lt;100ms | Basic readiness |</p>
+<p>| <code>/health/ready</code> | &lt;1s | &lt;500ms | &lt;800ms | Full diagnostics |</p>
+<p>| <code>/api/health</code> (cached) | &lt;1s* | &lt;20ms | &lt;50ms | Dashboard polling |</p>
+<p>*First request only, then cached for 30s</p>
+<h2>Troubleshooting</h2>
+<h3>Slow `/health` responses</h3>
+<p>If you're seeing slow responses on the legacy <code>/health</code> endpoint:</p>
+<li>Switch to <code>/health/live</code> for fast checks</li>
+<li>Use <code>/health/ready?deep=false</code> if you don't need feature health</li>
+<li>Enable caching with <code>/api/health</code> for frequent polling</li>
+<h3>Feature timeouts</h3>
+<p>Features that timeout in <code>/health/ready</code> will show:</p>
+<p>This indicates the feature took longer than 500ms to respond. The server is still operational, but that specific feature may be experiencing issues.</p>
+<h3>High latency under load</h3>
+<p>Under high load, use <code>/health/live</code> exclusively for monitoring. It has minimal overhead and won't impact performance.</p></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

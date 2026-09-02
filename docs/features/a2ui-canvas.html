@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="PraisonAIUI hosts A2UI v0.9 surfaces: agents push structured UI messages to a live canvas while users chat in the same window or on a full-page workspace." />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>A2UI canvas — agent-driven UI | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/features/a2ui-canvas" />
+  <meta property="og:title" content="A2UI canvas — agent-driven UI | PraisonAIUI Docs" />
+  <meta property="og:description" content="PraisonAIUI hosts A2UI v0.9 surfaces: agents push structured UI messages to a live canvas while users chat in the same window or on a full-page workspace." />
+  <meta property="og:url" content="https://ui.praison.ai/docs/features/a2ui-canvas" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="A2UI canvas — agent-driven UI | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="PraisonAIUI hosts A2UI v0.9 surfaces: agents push structured UI messages to a live canvas while users chat in the same window or on a full-page workspace." />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "A2UI canvas — agent-driven UI", "description": "PraisonAIUI hosts A2UI v0.9 surfaces: agents push structured UI messages to a live canvas while users chat in the same window or on a full-page workspace.", "url": "https://ui.praison.ai/docs/features/a2ui-canvas", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>A2UI canvas — agent-driven UI</h1>
+<p>PraisonAIUI hosts <strong>A2UI v0.9</strong> surfaces: agents push structured UI messages to a live canvas while users chat in the same window or on a full-page workspace.</p>
+<p>For dashboard extension patterns (views, plugins, layout JSON), see Agent UI host.</p>
+<h2>Quick start</h2>
+<p>Run the full example: <code>examples/python/30-a2ui-canvas/app.py</code>.</p>
+<h2>Dashboard pages</h2>
+<p>| Page id | Route | Purpose |</p>
+<p>|---------|-------|---------|</p>
+<p>| <code>chat-canvas</code> | <code>/chat-canvas</code> | Split view — chat left, live A2UI preview right |</p>
+<p>| <code>chat</code> | <code>/chat</code> | Vanilla chat (unchanged) |</p>
+<p>| <code>canvas</code> | <code>/canvas</code> | Full-page surface workspace |</p>
+<p>Enable the split preview with <code>set_chat_preview</code>. Settings appear in <code>/ui-config.json</code> as <code>chat.preview: { enabled, surfaceId, width }</code>.</p>
+<h2>Agent integration</h2>
+<p>Agents should call <strong><code>send_a2ui_messages</code></strong> (from <code>praisonaiagents.tools.a2ui_tools</code>) with A2UI message dicts:</p>
+<p>Wrap the tool with <strong><code>coerce_a2ui_tool_messages</code></strong> so common LLM argument shapes still work:</p>
+<p><code>coerce_a2ui_tool_messages</code> accepts:</p>
+<li>A JSON string or list of message dicts</li>
+<li>A dict with a <code>messages</code> key</li>
+<li>A bare <code>components</code> list (wrapped in <code>updateComponents</code>)</li>
+<li>A single component dict (wrapped in <code>updateComponents</code>)</li>
+<li>Missing <code>createSurface</code> (inserted automatically for the given <code>surface_id</code>)</li>
+<p>Tool results are detected by <code>a2ui_utils</code> and ingested into the surface store; connected clients receive WebSocket <code>a2ui_surface</code> events.</p>
+<h2>HTTP API</h2>
+<p>| Method | Path | Behaviour |</p>
+<p>|--------|------|-----------|</p>
+<p>| <code>GET</code> | <code>/api/surfaces</code> | List surfaces and message counts |</p>
+<p>| <code>GET</code> | <code>/api/surfaces/{id}</code> | Surface state; <strong>200 with <code>{ messages: [] }</code></strong> if not created yet (empty canvas is normal) |</p>
+<p>| <code>POST</code> | <code>/api/surfaces/{id}/messages</code> | Append or replace messages (<code>replace: true</code> in body) |</p>
+<p>| <code>POST</code> | <code>/api/surfaces/{id}/actions</code> | User action from a button/component |</p>
+<p>| <code>DELETE</code> | <code>/api/surfaces/{id}</code> | Clear surface |</p>
+<p>Realtime updates use the existing dashboard WebSocket (<code>a2ui_surface</code> payload).</p>
+<h2>CLI</h2>
+<p>Manage surfaces against a running server (<code>--server</code> / <code>AIUI_SERVER</code>, default <code>http://127.0.0.1:8000</code>):</p>
+<p><code>messages.json</code> must contain <code>{ "messages": [ ... ] }</code>.</p>
+<h2>Frontend modules</h2>
+<p>Shared dashboard JS (lazy-loaded with <code>chat-canvas</code>):</p>
+<p>| Module | Role |</p>
+<p>|--------|------|</p>
+<p>| <code>surface-utils.js</code> | Load surface, WebSocket sync, post actions |</p>
+<p>| <code>canvas-preview.js</code> | Right-hand preview panel |</p>
+<p>| <code>a2ui-mapper.js</code> | Default DOM mapper (Text, Button, Column, Row, Card, …) |</p>
+<p>| <code>plugins/views/chat-canvas.js</code> | Composes chat + preview without modifying <code>chat.js</code> |</p>
+<p>Override rendering: <code>window.aiui.registerSurfaceRenderer("main", fn)</code>.</p>
+<h2>Troubleshooting</h2>
+<p>| Symptom | Likely cause | Fix |</p>
+<p>|---------|--------------|-----|</p>
+<p>| Chat works but canvas stays empty | Agent did not call <code>send_a2ui_messages</code> | Strengthen instructions; wrap tool with <code>coerce_a2ui_tool_messages</code> |</p>
+<p>| Tool error / invalid JSON | LLM passed wrong shape | Use coercion wrapper; include schema prompt from <code>praisonaiagents.ui.a2ui.adapter</code> |</p>
+<p>| Preview shows raw JSON | Component type not in <code>a2ui-mapper</code> | Extend mapper or use supported components |</p>
+<p>| <code>GET /api/surfaces/main</code> empty | Normal before first push | Push via agent or <code>aiui surface push</code> |</p>
+<p>| Button click does nothing | No <code>@aiui.surface_action</code> handler | Register handler for that <code>surface_id</code> |</p>
+<h2>Related</h2>
+<li>Agent UI host — <code>registerSurfaceRenderer</code>, layout tiers</li>
+<li>Python API — <code>set_chat_preview</code></li>
+<li>Python API — <code>@aiui.surface_action</code></li></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>
