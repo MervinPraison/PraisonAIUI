@@ -1,0 +1,46 @@
+# Meeting Agent — PraisonAIUI example config (PAI-MEET-UI, issue #260)
+# Composes existing features (attachments, knowledge, chat, Slack) via YAML.
+# Run with: aiui run app.py
+
+site:
+  title: Meeting Agent
+  description: Upload meetings, browse summaries and action items, ask questions.
+  logo: "🗓️"
+  theme:
+    preset: slate
+    darkMode: true
+    radius: md
+
+style: dashboard
+
+layout:
+  mode: dashboard
+
+dashboard:
+  sidebar: true
+  pageHeader: true
+
+pages:
+  - upload
+  - meetings
+  - meeting-detail
+  - chat
+
+chat:
+  enabled: true
+  name: Meeting Assistant
+  features:
+    streaming: true
+    reasoning: true
+    tools: true
+    fileUpload: true
+    feedback: true
+  input:
+    placeholder: "Ask about a past meeting..."
+  starters:
+    - label: "What did we decide about billing?"
+      message: "What did we decide about billing?"
+      icon: "🔎"
+    - label: "List open action items"
+      message: "List open action items and their owners"
+      icon: "✅"
