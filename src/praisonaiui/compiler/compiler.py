@@ -919,7 +919,7 @@ class Compiler:
             f'  <meta property="og:title" content="{t}" />',
             f'  <meta property="og:description" content="{d}" />',
             f'  <meta property="og:url" content="{og_url}" />',
-            f'  <meta property="og:type" content="article" />',
+            '  <meta property="og:type" content="article" />',
         ]
 
         # Add default OG image if configured
