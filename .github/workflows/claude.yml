@@ -153,7 +153,8 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (
-      github.event.action != 'opened' &&
+      (github.event_name == 'issues' && github.event.action == 'opened' && contains(toJSON(github.event.issue.labels), 'claude')) ||
+      (github.event.action != 'opened' &&
       (github.event.action != 'labeled' || github.event.label.name == 'claude') &&
       (github.event_name != 'issue_comment' || contains(github.event.comment.body, '@claude')) &&
       (
@@ -164,6 +165,7 @@ jobs:
       github.actor != 'dependabot[bot]' &&
       github.actor != 'cursor[bot]' &&
       github.actor != 'renovate[bot]'
+      )
       )
     runs-on: ubuntu-latest
     outputs:

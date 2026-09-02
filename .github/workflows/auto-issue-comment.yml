@@ -24,7 +24,7 @@ jobs:
   trigger-claude:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'issues' && !contains(toJSON(github.event.issue.labels), 'claude'))
+      github.event_name == 'issues'
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -52,7 +52,8 @@ jobs:
             });
 
             const labels = (issue.labels || []).map(l => typeof l === 'string' ? l : l.name);
-            if (!labels.includes('claude')) {
+            const hadClaude = labels.includes('claude');
+            if (!hadClaude) {
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -60,7 +61,7 @@ jobs:
                 labels: ['claude'],
               });
             } else {
-              console.log(`Issue #${issueNumber} already has 'claude' label.`);
+              console.log(`Issue #${issueNumber} already has 'claude' label — dispatching Claude only.`);
             }
 
             const body = [
