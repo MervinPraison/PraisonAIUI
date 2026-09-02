@@ -3338,6 +3338,14 @@ def create_app(
             "order": 20,
         },
         {
+            "id": "runs",
+            "title": "Runs",
+            "icon": "⏱️",
+            "group": "Control",
+            "description": "Run flight recorder — timeline debugger",
+            "order": 22,
+        },
+        {
             "id": "usage",
             "title": "Usage",
             "icon": "📈",
@@ -3565,6 +3573,7 @@ def create_app(
     ]
     _page_api_overrides = {
         "sessions": "/sessions",
+        "runs": "/api/sessions",
         "cron": "/api/schedules",
         "channels": "/api/channels",
         "mcp": "/api/mcp/servers",

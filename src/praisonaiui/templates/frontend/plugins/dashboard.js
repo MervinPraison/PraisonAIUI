@@ -146,6 +146,7 @@ const BUILTIN_VIEWS = {
   overview:       '/plugins/views/overview.js',
   agents:         '/plugins/views/agents.js',
   sessions:       '/plugins/views/sessions.js',
+  runs:           '/plugins/views/run-recorder.js',
   memory:         '/plugins/views/memory.js',
   knowledge:      '/plugins/views/knowledge.js',
   logs:           '/plugins/views/logs.js',

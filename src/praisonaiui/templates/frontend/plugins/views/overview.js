@@ -277,10 +277,15 @@ function renderTimeline(traces) {
     const label = t.name || t.event || t.tool || t.type || 'event';
     const agent = t.agent_name || t.agent || '';
     const when = timeAgo(t.timestamp || t.created_at || t.start_time);
+    const sid = (t.metadata && t.metadata.session_id) || t.session_id || '';
+    const debug = sid
+      ? `<a class="ov-run-link" data-session-id="${esc(sid)}" href="/runs?session_id=${encodeURIComponent(sid)}" style="color:var(--db-accent,#6366f1);font-size:12px;text-decoration:none">Debug →</a>`
+      : '';
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--db-border);font-size:13px">
       <span style="color:var(--db-text-dim);font-size:11px;min-width:64px">${esc(when)}</span>
       <span style="flex:1">${esc(label)}</span>
       ${agent ? `<span style="color:var(--db-text-dim);font-size:12px">${esc(agent)}</span>` : ''}
+      ${debug}
     </div>`;
   }).join('');
 }
@@ -401,6 +406,15 @@ function bindEvents(container, data) {
     sessionStorage.setItem('finops-banner-dismissed', '1');
     const host = container.querySelector('#ov-finops-banner');
     if (host) host.innerHTML = '';
+  });
+
+  container.querySelectorAll('.ov-run-link').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const sid = link.dataset.sessionId;
+      history.pushState({ pageId: 'runs' }, '', `/runs?session_id=${encodeURIComponent(sid)}`);
+      navigate('runs');
+    });
   });
 
   container.querySelectorAll('.db-agent-row').forEach((row) => {
