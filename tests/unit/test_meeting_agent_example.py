@@ -61,7 +61,7 @@ def test_app_builds_and_dashboard_reachable(example):
 def test_meeting_pages_registered(example):
     client = TestClient(example.app)
     ids = {p["id"] for p in client.get("/api/pages").json().get("pages", [])}
-    assert {"upload", "meetings", "meeting-detail"} <= ids
+    assert {"upload", "live-bot", "meetings", "meeting-detail", "calendar"} <= ids
 
 
 def test_no_heavy_deps_imported_by_example(example):
@@ -92,3 +92,12 @@ def test_slack_blocks_shape(example):
     blocks = example._summary_blocks(example.SAMPLE_MEETINGS[0])
     assert blocks[0]["type"] == "header"
     assert any(b["type"] == "context" for b in blocks)
+
+
+def test_upload_route_registered(example):
+    paths = {getattr(r, "path", "") for r in example.app.routes}
+    assert "/api/meetings/upload" in paths
+    assert "/api/meetings/{meeting_id}/retry" in paths
+    assert "/api/meetings" in paths
+    assert "/api/recall/bots" in paths
+    assert "/webhooks/recall" in paths
