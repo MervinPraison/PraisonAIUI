@@ -88,6 +88,7 @@ def schedule_recall_bot(
         },
     )
 
+    realtime = settings.realtime_recording_config() is not None
     logger.info("Scheduled Recall bot %s for meeting %s", bot_id, meeting_id)
     return {
         "meeting_id": meeting_id,
@@ -96,6 +97,8 @@ def schedule_recall_bot(
         "live_status": "scheduled",
         "title": meeting_title,
         "meeting_url": url,
+        "realtime_transcript_enabled": realtime,
+        "realtime_webhook_url": settings.webhook_url if realtime else None,
     }
 
 

@@ -54,12 +54,17 @@ def _load_local_env() -> None:
 
 _load_local_env()
 
+aiui.set_custom_js(_EXAMPLE_DIR / "plugin.js")
+
 from pipeline import retry_pipeline, run_ingest_pipeline
 from recall_routes import (
+    api_meeting_live_transcript,
     api_recall_bot_status,
     api_recall_calendar_bootstrap,
     api_recall_calendar_callback,
     api_recall_calendar_status,
+    api_recall_calendar_sync,
+    api_recall_calendar_upcoming,
     api_recall_cancel_bot,
     api_recall_config_status,
     api_recall_schedule_bot,
@@ -107,6 +112,19 @@ def _recall_schedule_tool():
     return schedule_recall_bot
 
 
+def _upcoming_meetings_tool():
+    from praisonai_tools.tools.decorator import tool
+
+    from integrations.recall.calendar_service import list_upcoming_calendar_meetings
+
+    @tool
+    def get_upcoming_meetings(hours: int = 24) -> list[dict]:
+        """List upcoming calendar events with video links and bot schedule status."""
+        return list_upcoming_calendar_meetings(hours=hours)
+
+    return get_upcoming_meetings
+
+
 def _load_meeting_tools():
     """Lazy-load meeting tools (keeps import-time deps light)."""
     from praisonai_tools.tools.meeting_tools import (
@@ -132,6 +150,7 @@ def _load_meeting_tools():
     ]
     if os.getenv("RECALL_API_KEY"):
         tools.append(_recall_schedule_tool())
+        tools.append(_upcoming_meetings_tool())
     return tools
 
 
@@ -275,6 +294,15 @@ def _meeting(meeting_id: str) -> dict | None:
     return next((m for m in SAMPLE_MEETINGS if m["id"] == meeting_id), None)
 
 
+def _pick_detail_meeting(meetings: list[dict[str, Any]]) -> dict[str, Any]:
+    """Prefer an in-progress live meeting for the detail view."""
+    for live in ("live", "joining", "waiting_room"):
+        for m in meetings:
+            if (m.get("live_status") or "").lower() == live:
+                return m
+    return meetings[0] if meetings else SAMPLE_MEETINGS[0]
+
+
 def _status_variant(status: str) -> str:
     return {
         "Ready": "default",
@@ -405,12 +433,13 @@ async def live_bot_page():
         [
             aiui.text(
                 "Send a Recall.ai Meeting Bot to a Zoom, Google Meet, or Teams URL. "
-                "When the call ends, the Phase 1 summarize + index pipeline runs "
-                "automatically on the Recall transcript."
+                "Real-time ``transcript.data`` chunks stream during the call; when the "
+                "call ends, the Phase 1 summarize + index pipeline runs on the full transcript."
             ),
             aiui.alert(
                 "Requires RECALL_API_KEY, RECALL_WEBHOOK_VERIFICATION_SECRET, and "
-                "PUBLIC_API_BASE_URL (HTTPS tunnel) in the server environment.",
+                "PUBLIC_API_BASE_URL (HTTPS tunnel). Register ``transcript.data`` on the "
+                "same /webhooks/recall endpoint for live captions.",
                 variant="info",
                 title="Recall credentials",
             ),
@@ -422,8 +451,8 @@ async def live_bot_page():
                 language="bash",
             ),
             aiui.text(
-                "Poll status: ``GET /api/recall/bots/{meeting_id}``. "
-                "Cancel: ``POST /api/recall/bots/{meeting_id}/cancel``."
+                "Live transcript SSE: ``GET /api/meetings/{meeting_id}/live-transcript`` "
+                "with ``Accept: text/event-stream``. Poll fallback: same URL without SSE."
             ),
         ]
     )
@@ -431,28 +460,49 @@ async def live_bot_page():
 
 @aiui.page("calendar", title="Calendar", icon="📅", group="Meetings", order=5)
 async def calendar_page():
+    upcoming: list[dict[str, Any]] = []
+    status_note = "Set RECALL_API_KEY to load calendar status."
+    if os.getenv("RECALL_API_KEY"):
+        try:
+            from integrations.recall.calendar_service import list_upcoming_calendar_meetings
+
+            upcoming = list_upcoming_calendar_meetings(hours=48)
+            status_note = f"{len(upcoming)} upcoming event(s) with video links (48h window)."
+        except Exception as exc:  # noqa: BLE001
+            status_note = f"Calendar API unavailable: {exc}"
+
+    rows = [
+        [
+            e.get("title", "—"),
+            str(e.get("start", ""))[:16],
+            e.get("platform") or "—",
+            "Yes" if e.get("bot_scheduled") else "No",
+        ]
+        for e in upcoming[:10]
+    ]
     return aiui.layout(
         [
             aiui.text(
                 "Google Calendar V2 auto-schedules Recall bots for eligible future "
-                "events with video links (default: CALENDAR_AUTO_RECORD=true)."
+                "events with video links when CALENDAR_AUTO_RECORD=true (default)."
+            ),
+            aiui.alert(status_note, variant="info", title="Calendar status"),
+            aiui.table(
+                headers=["Title", "Start", "Platform", "Bot scheduled"],
+                rows=rows or [["—", "—", "—", "—"]],
             ),
             aiui.alert(
-                "Complete Calendar V2 setup via Recall MCP "
-                "(start_calendar_integration_setup) using "
-                "``PUBLIC_API_BASE_URL/api/recall/calendar/callback`` as "
-                "production_redirect_uri, then bootstrap with "
-                "``POST /api/recall/calendar/setup/bootstrap``.",
+                "Complete Calendar V2 setup via Recall MCP, bootstrap OAuth callback, "
+                "then register calendar webhooks (calendar.sync_events, calendar.update) "
+                "on /webhooks/recall.",
                 variant="info",
-                title="Calendar V2 setup",
+                title="Setup",
             ),
             aiui.code_block(
-                "GET /api/recall/calendar/status",
+                "GET /api/recall/calendar/status\n"
+                "GET /api/recall/calendar/upcoming?hours=24\n"
+                "POST /api/recall/calendar/sync {\"calendar_id\":\"...\"}",
                 language="bash",
-            ),
-            aiui.text(
-                "Recording opt-in: connecting a calendar syncs events; bots are "
-                "sent only when CALENDAR_AUTO_RECORD is enabled (default on)."
             ),
         ]
     )
@@ -466,7 +516,8 @@ async def meetings_page():
             m["title"],
             m["date"],
             m["status"],
-            str(len(m["actions"])),
+            m.get("live_status") or "—",
+            m["id"],
             m["duration"],
         ]
         for m in meetings
@@ -475,7 +526,7 @@ async def meetings_page():
         [
             aiui.metric("Meetings", value=len(meetings)),
             aiui.table(
-                headers=["Title", "Date", "Status", "Actions", "Duration"],
+                headers=["Title", "Date", "Status", "Live", "ID", "Duration"],
                 rows=rows,
             ),
         ]
@@ -485,18 +536,28 @@ async def meetings_page():
 @aiui.page("meeting-detail", title="Meeting detail", icon="📝", group="Meetings", order=4)
 async def meeting_detail_page():
     meetings = _list_meeting_views()
-    meeting = meetings[0]
+    meeting = _pick_detail_meeting(meetings)
     action_rows = [[a["task"], a["owner"], a["due"]] for a in meeting["actions"]]
-    live = meeting.get("live_status") or ""
+    live = (meeting.get("live_status") or "").lower()
     header: list[Any] = [
         aiui.text(meeting["title"]),
         aiui.badge(meeting["status"], variant=_status_variant(meeting["status"])),
+        aiui.text(f"ID: {meeting['id']}"),
     ]
     if live:
-        header.append(aiui.badge(live.title(), variant="outline"))
+        variant = "default" if live == "live" else "outline"
+        header.append(aiui.badge(live.title(), variant=variant))
     body: list[Any] = []
     if meeting.get("error"):
         body.append(aiui.alert(meeting["error"], variant="warning"))
+    if live == "live":
+        body.append(
+            aiui.alert(
+                "Live transcript auto-refreshes every 3 seconds on this page.",
+                variant="info",
+                title="Live",
+            )
+        )
     return aiui.layout(
         header
         + body
@@ -646,6 +707,13 @@ _meeting_routes = [
             methods=["POST"],
         ),
         Route("/api/recall/calendar/status", api_recall_calendar_status, methods=["GET"]),
+        Route("/api/recall/calendar/upcoming", api_recall_calendar_upcoming, methods=["GET"]),
+        Route("/api/recall/calendar/sync", api_recall_calendar_sync, methods=["POST"]),
+        Route(
+            "/api/meetings/{meeting_id}/live-transcript",
+            api_meeting_live_transcript,
+            methods=["GET"],
+        ),
     ]
 # Prepend so custom /api/* routes win over the SPA catch-all from create_app().
 app.routes[0:0] = _meeting_routes

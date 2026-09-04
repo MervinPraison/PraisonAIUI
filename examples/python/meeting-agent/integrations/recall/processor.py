@@ -8,9 +8,50 @@ from typing import Any
 from integrations.recall.client import RecallAPIError, RecallClient
 from integrations.recall.config import RecallSettings
 from integrations.recall.store import RecallStore, webhook_event_key
-from integrations.recall.transcript import transcript_download_to_text
+from integrations.recall.transcript import transcript_data_to_line, transcript_download_to_text
 
 logger = logging.getLogger(__name__)
+
+
+def _speaker_prefix(line: str) -> str:
+    if ":" in line:
+        return line.split(":", 1)[0] + ":"
+    return ""
+
+
+def _upsert_live_transcript(meeting_id: str, line: str, *, partial: bool = False) -> str:
+    """Merge one live caption line; partial updates replace the last same-speaker line."""
+    from praisonai_tools.tools.meeting_tools import get_meeting
+    from integrations.recall.live import publish_live_chunk
+
+    record = get_meeting.__wrapped__(meeting_id)
+    meta = record.get("metadata") or {} if isinstance(record, dict) else {}
+    existing = str(meta.get("transcript") or "")
+    lines = existing.splitlines()
+    prefix = _speaker_prefix(line)
+
+    if lines and lines[-1] == line:
+        full = existing
+    elif partial and lines and prefix and lines[-1].startswith(prefix):
+        lines[-1] = line
+        full = "\n".join(lines)
+    elif not partial and lines and prefix and lines[-1].startswith(prefix):
+        # Final utterance replaces the in-progress partial for this speaker.
+        lines[-1] = line
+        full = "\n".join(lines)
+    else:
+        full = f"{existing}\n{line}".strip() if existing else line
+
+    _merge_metadata(
+        meeting_id,
+        {"transcript": full, "live_status": "live", "status": "live"},
+    )
+    publish_live_chunk(meeting_id, line=line, full_text=full, live_status="live")
+    return full
+
+
+def _append_live_transcript(meeting_id: str, line: str) -> str:
+    return _upsert_live_transcript(meeting_id, line, partial=False)
 
 
 def _merge_metadata(meeting_id: str, patch: dict[str, Any]) -> None:
@@ -73,11 +114,29 @@ def process_recall_webhook(
         return
 
     if event_type == "bot.in_call_recording" and meeting_id:
-        _merge_metadata(meeting_id, {"live_status": "live", "status": "live"})
+        _merge_metadata(meeting_id, {"live_status": "live", "status": "live", "error": ""})
+        from integrations.recall.live import set_live_status
+
+        set_live_status(meeting_id, "live")
+        return
+
+    if event_type == "transcript.data" and meeting_id:
+        line = transcript_data_to_line(payload)
+        if line:
+            _append_live_transcript(meeting_id, line)
+        return
+
+    if event_type == "transcript.partial_data" and meeting_id:
+        line = transcript_data_to_line(payload)
+        if line:
+            _upsert_live_transcript(meeting_id, line, partial=True)
         return
 
     if event_type == "bot.call_ended" and meeting_id:
         _merge_metadata(meeting_id, {"live_status": "ended"})
+        from integrations.recall.live import set_live_status
+
+        set_live_status(meeting_id, "ended")
         return
 
     if event_type == "bot.fatal" and meeting_id:

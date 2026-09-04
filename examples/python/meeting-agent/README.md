@@ -53,7 +53,8 @@ domain in dev — not localhost). Register in Recall:
 
 - URL: `{PUBLIC_API_BASE_URL}/webhooks/recall`
 - Events: `bot.joining_call`, `bot.in_call_recording`, `bot.done`, `bot.fatal`,
-  `recording.done`, `transcript.done`, `transcript.failed`
+  `recording.done`, `transcript.done`, `transcript.failed`, `transcript.data`
+- Calendar (Part B): `calendar.sync_events`, `calendar.update` on the same URL
 
 Use Recall MCP `create_webhook_endpoint` or the dashboard. Verify with
 `send_test_webhook_endpoint`.
@@ -90,10 +91,24 @@ See `.env.example`:
 Never commit real secrets. Reuse the existing REST key (`Mervin Praison`) when
 its purpose is clear; otherwise create a purpose-named key via Recall MCP.
 
+## Phase 2 Part B — live transcript + calendar auto-schedule
+
+| Feature | API |
+|---------|-----|
+| Live transcript (SSE) | `GET /api/meetings/{id}/live-transcript` (`Accept: text/event-stream`) |
+| Live transcript (poll) | Same URL, default JSON |
+| Upcoming calendar events | `GET /api/recall/calendar/upcoming?hours=24` |
+| Manual calendar sync | `POST /api/recall/calendar/sync` `{"calendar_id":"..."}` |
+| Agent tool | `get_upcoming_meetings(hours=24)` in chat when Recall is configured |
+
+Every new bot schedule **automatically** attaches `recording_config.realtime_endpoints`
+pointing at `{PUBLIC_API_BASE_URL}/webhooks/recall` with `transcript.data` — no Recall
+dashboard toggle for live transcript. Requires `PUBLIC_API_BASE_URL` in `.env`.
+
 ## Tests
 
 From repo root:
 
 ```bash
-pytest tests/unit/test_meeting_agent_example.py tests/unit/test_meeting_agent_pipeline.py tests/unit/test_meeting_agent_recall.py -v
+pytest tests/unit/test_meeting_agent_example.py tests/unit/test_meeting_agent_pipeline.py tests/unit/test_meeting_agent_recall.py tests/unit/test_meeting_agent_part_b.py -v
 ```

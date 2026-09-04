@@ -9,10 +9,16 @@ import os
 from typing import Any
 
 from starlette.requests import Request
-from starlette.responses import JSONResponse, PlainTextResponse, Response
+from starlette.responses import JSONResponse, PlainTextResponse, Response, StreamingResponse
 
 from integrations.recall.calendar import forward_calendar_callback
+from integrations.recall.calendar_service import (
+    list_upcoming_calendar_meetings,
+    process_calendar_webhook,
+    sync_calendar_events,
+)
 from integrations.recall.config import RecallConfigError, load_recall_settings
+from integrations.recall.live import snapshot_for_api, wait_for_update
 from integrations.recall.processor import process_recall_webhook
 from integrations.recall.service import cancel_recall_bot, schedule_recall_bot
 from integrations.recall.store import RecallStore
@@ -103,6 +109,17 @@ async def webhook_recall(request: Request) -> Response:
         return JSONResponse({"error": "invalid JSON"}, status_code=400)
 
     event_type = str(payload.get("event") or payload.get("type") or "unknown")
+    if event_type.startswith("calendar."):
+        asyncio.create_task(
+            asyncio.to_thread(
+                process_calendar_webhook,
+                event_type,
+                payload,
+                settings=settings,
+            )
+        )
+        return PlainTextResponse("ok", status_code=200)
+
     asyncio.create_task(
         asyncio.to_thread(process_recall_webhook, event_type, payload, settings=settings)
     )
@@ -178,28 +195,111 @@ async def api_recall_calendar_status(_request: Request) -> JSONResponse:
         "off",
     }
     public_url = os.getenv("PUBLIC_API_BASE_URL", "").strip()
+    calendars: list[dict[str, Any]] = []
+    try:
+        from integrations.recall.client import RecallClient
+
+        settings = load_recall_settings()
+        calendars = RecallClient(settings).list_calendars(status="connected")
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Could not list calendars: %s", exc)
+
     return JSONResponse(
         {
             "calendar_v2": {
                 "auto_record_eligible_events": auto_record,
-                "opt_in_rule": (
-                    "When CALENDAR_AUTO_RECORD=true (default), Recall Calendar V2 "
-                    "schedules bots for every eligible future calendar event with a "
-                    "video link. Set CALENDAR_AUTO_RECORD=false to disable auto-schedule."
-                ),
+                "connected_calendars": len(calendars),
+                "calendars": [
+                    {
+                        "id": c.get("id"),
+                        "platform": c.get("platform"),
+                        "email": c.get("platform_email") or c.get("email"),
+                        "status": c.get("status"),
+                    }
+                    for c in calendars
+                    if isinstance(c, dict)
+                ],
                 "callback_configured": bool(_calendar_regional_uri),
                 "public_api_base_url_set": bool(public_url),
+                "webhook_events": ["calendar.sync_events", "calendar.update"],
                 "next_step": (
-                    "Complete Google Calendar V2 setup via Recall MCP "
-                    "(start_calendar_integration_setup) with production_redirect_uri="
-                    f"{public_url}/api/recall/calendar/callback"
-                    if public_url
-                    else "Set PUBLIC_API_BASE_URL to an HTTPS tunnel URL, then run "
-                    "Recall MCP calendar setup."
+                    "Register calendar webhooks on the same /webhooks/recall URL, "
+                    "then complete Google Calendar V2 OAuth via Recall MCP."
                 ),
             }
         }
     )
+
+
+async def api_recall_calendar_upcoming(request: Request) -> JSONResponse:
+    hours = int(request.query_params.get("hours", "24"))
+    try:
+        rows = await asyncio.to_thread(list_upcoming_calendar_meetings, hours=hours)
+    except RecallConfigError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=503)
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse({"error": str(exc)}, status_code=502)
+    return JSONResponse({"events": rows, "hours": hours})
+
+
+async def api_recall_calendar_sync(request: Request) -> JSONResponse:
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        body = {}
+    calendar_id = str(body.get("calendar_id") or request.query_params.get("calendar_id") or "").strip()
+    if not calendar_id:
+        return JSONResponse({"error": "calendar_id is required"}, status_code=400)
+    try:
+        settings = load_recall_settings()
+        result = await asyncio.to_thread(
+            sync_calendar_events,
+            calendar_id,
+            updated_since=body.get("updated_at__gte"),
+            settings=settings,
+        )
+    except RecallConfigError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=503)
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse({"error": str(exc)}, status_code=502)
+    return JSONResponse(result)
+
+
+async def api_meeting_live_transcript(request: Request) -> Response:
+    meeting_id = request.path_params["meeting_id"]
+    accept = request.headers.get("accept", "")
+    try:
+        from praisonai_tools.tools.meeting_tools import get_meeting
+
+        record = get_meeting.__wrapped__(meeting_id)
+    except ImportError:
+        return JSONResponse({"error": "meeting tools unavailable"}, status_code=503)
+    if "error" in record:
+        return JSONResponse(record, status_code=404)
+
+    if "text/event-stream" not in accept:
+        return JSONResponse(snapshot_for_api(meeting_id, record))
+
+    async def event_stream():
+        last_text = ""
+        while True:
+            try:
+                from praisonai_tools.tools.meeting_tools import get_meeting
+
+                record = get_meeting.__wrapped__(meeting_id)
+            except ImportError:
+                break
+            snap = snapshot_for_api(meeting_id, record)
+            text = snap.get("transcript") or ""
+            live = (snap.get("live_status") or "").lower()
+            if text != last_text:
+                yield f"data: {json.dumps(snap)}\n\n"
+                last_text = text
+            if live not in ("live", "joining", "waiting_room", "scheduled", ""):
+                break
+            await asyncio.to_thread(wait_for_update, meeting_id, 25.0)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 async def api_recall_config_status(_request: Request) -> JSONResponse:

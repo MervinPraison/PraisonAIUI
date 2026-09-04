@@ -9,6 +9,8 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any
 
+from integrations.recall.client import RecallClient
+
 
 def _state_db_path() -> str:
     env = os.getenv("PRAISONAI_MEETINGS_DIR")
@@ -54,6 +56,32 @@ def _connect() -> sqlite3.Connection:
 def webhook_event_key(event_type: str, payload: dict[str, Any]) -> str:
     """Build a stable idempotency key from webhook metadata."""
     data = payload.get("data") or {}
+
+    # Streaming transcript events fire many times per bot — never dedupe on bot_id alone.
+    if event_type in ("transcript.data", "transcript.partial_data"):
+        inner = data.get("data") if isinstance(data, dict) else {}
+        bot_id = RecallClient.extract_bot_id(payload) or ""
+        if isinstance(inner, dict):
+            words = inner.get("words")
+            if isinstance(words, list) and words:
+                first = words[0] if isinstance(words[0], dict) else {}
+                last = words[-1] if isinstance(words[-1], dict) else {}
+                word_text = " ".join(
+                    w.get("text", "") for w in words if isinstance(w, dict)
+                ).strip()
+                return (
+                    f"{event_type}:{bot_id}:"
+                    f"{first.get('start', first.get('start_time', ''))}:"
+                    f"{last.get('end', last.get('end_time', ''))}:"
+                    f"{word_text}"
+                )
+            text = str(inner.get("text") or "").strip()
+            start = inner.get("start") or inner.get("start_time") or ""
+            end = inner.get("end") or inner.get("end_time") or ""
+            speaker = inner.get("speaker") or inner.get("speaker_name") or ""
+            return f"{event_type}:{bot_id}:{start}:{end}:{speaker}:{text}"
+        return f"{event_type}:{json.dumps(payload, sort_keys=True)}"
+
     for part in (
         payload.get("id"),
         data.get("id") if isinstance(data, dict) else None,
@@ -164,3 +192,22 @@ class RecallStore:
                 (event_id,),
             ).fetchone()
         return row is not None
+
+    @staticmethod
+    def get_scheduled_bot(event_id: str) -> dict[str, Any] | None:
+        with closing(_connect()) as conn:
+            row = conn.execute(
+                """
+                SELECT event_id, meeting_id, bot_id, scheduled_at
+                FROM recall_scheduled_bots WHERE event_id = ?
+                """,
+                (event_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "event_id": row[0],
+            "meeting_id": row[1],
+            "bot_id": row[2],
+            "scheduled_at": row[3],
+        }

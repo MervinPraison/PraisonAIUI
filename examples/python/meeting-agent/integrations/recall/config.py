@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import Any
 from urllib.parse import urlparse
 
 
@@ -34,6 +35,31 @@ class RecallSettings:
     @property
     def calendar_callback_url(self) -> str:
         return f"{self.public_api_base_url.rstrip('/')}/api/recall/calendar/callback"
+
+    def realtime_recording_config(self) -> dict[str, Any] | None:
+        """Recording config with live ``transcript.data`` webhooks (no dashboard toggle)."""
+        if not self.public_api_base_url:
+            return None
+        return {
+            "transcript": {
+                "provider": {
+                    "recallai_streaming": {
+                        "mode": "prioritize_low_latency",
+                        "language_code": "en",
+                    }
+                },
+                "diarization": {
+                    "use_separate_streams_when_available": True,
+                },
+            },
+            "realtime_endpoints": [
+                {
+                    "type": "webhook",
+                    "url": self.webhook_url,
+                        "events": ["transcript.data", "transcript.partial_data"],
+                }
+            ],
+        }
 
 
 def _require(name: str) -> str:
