@@ -45,9 +45,9 @@ def _duration_seconds(started_at: str | None, completed_at: str | None) -> int |
 
 
 def recover(meeting_id: str, bot_id: str | None = None) -> dict:
-    from integrations.recall.client import RecallClient
-    from integrations.recall.config import load_recall_settings
-    from integrations.recall.transcript import transcript_download_to_text
+    from meeting_integrations.recall.client import RecallClient
+    from meeting_integrations.recall.config import load_recall_settings
+    from meeting_integrations.recall.transcript import transcript_download_to_text
     from pipeline import merge_meeting_metadata, run_post_transcript_pipeline
     from praisonai_tools.tools.meeting_tools import get_meeting
 

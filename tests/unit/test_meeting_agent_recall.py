@@ -32,7 +32,7 @@ def recall_env(monkeypatch, tmp_path):
     monkeypatch.setenv("RECALL_REGION", "eu-central-1")
     monkeypatch.setenv("RECALL_API_KEY", "test-recall-key")
     monkeypatch.setenv("RECALL_WEBHOOK_VERIFICATION_SECRET", _SECRET)
-    monkeypatch.setenv("RECALL_WORKSPACE_ID", "33a035c7-03c1-4ec9-b752-18cdfbbefc42")
+    monkeypatch.setenv("RECALL_WORKSPACE_ID", "test-workspace")
     monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://dev.example.test")
     monkeypatch.setenv("PRAISONAI_MEETINGS_DIR", str(tmp_path))
     monkeypatch.setenv("PRAISONAI_MEETINGS_DB", str(tmp_path / "meetings.db"))
@@ -40,7 +40,7 @@ def recall_env(monkeypatch, tmp_path):
 
 
 def test_verify_request_accepts_valid_signature():
-    verify_mod = _load("recall_verify", _ROOT / "integrations" / "recall" / "verify.py")
+    verify_mod = _load("recall_verify", _ROOT / "meeting_integrations" / "recall" / "verify.py")
     import hmac
     import hashlib
 
@@ -63,7 +63,7 @@ def test_verify_request_accepts_valid_signature():
 
 
 def test_verify_request_rejects_bad_signature():
-    verify_mod = _load("recall_verify", _ROOT / "integrations" / "recall" / "verify.py")
+    verify_mod = _load("recall_verify", _ROOT / "meeting_integrations" / "recall" / "verify.py")
     with pytest.raises(verify_mod.VerificationError):
         verify_mod.verify_request_from_recall(
             secret=_SECRET,
@@ -78,7 +78,7 @@ def test_verify_request_rejects_bad_signature():
 
 def test_schedule_bot_persists_intent_before_api():
     pytest.importorskip("praisonai_tools")  # external PraisonAI-Tools dep, optional in CI
-    service = _load("recall_service", _ROOT / "integrations" / "recall" / "service.py")
+    service = _load("recall_service", _ROOT / "meeting_integrations" / "recall" / "service.py")
     client = MagicMock()
     client.create_bot.return_value = {"id": "bot-abc"}
 
@@ -104,7 +104,7 @@ def test_webhook_rejects_invalid_signature():
 
 def test_webhook_accepts_valid_signature_and_queues():
     example = _load("meeting_agent_recall_app2", _ROOT / "app.py")
-    verify_mod = _load("recall_verify2", _ROOT / "integrations" / "recall" / "verify.py")
+    verify_mod = _load("recall_verify2", _ROOT / "meeting_integrations" / "recall" / "verify.py")
     import hmac
     import hashlib
 
@@ -136,7 +136,7 @@ def test_webhook_accepts_valid_signature_and_queues():
 
 
 def test_transcript_download_to_text():
-    tx = _load("recall_transcript", _ROOT / "integrations" / "recall" / "transcript.py")
+    tx = _load("recall_transcript", _ROOT / "meeting_integrations" / "recall" / "transcript.py")
     data = [
         {"speaker": "Alice", "words": [{"text": "Hello"}, {"text": "team"}]},
         {"speaker": "Bob", "text": "Hi there"},

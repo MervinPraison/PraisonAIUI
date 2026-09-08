@@ -6,8 +6,8 @@ import logging
 import re
 from typing import Any
 
-from integrations.recall.client import RecallAPIError, RecallClient
-from integrations.recall.config import RecallConfigError, RecallSettings, load_recall_settings
+from meeting_integrations.recall.client import RecallAPIError, RecallClient
+from meeting_integrations.recall.config import RecallConfigError, RecallSettings, load_recall_settings
 
 logger = logging.getLogger(__name__)
 

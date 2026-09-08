@@ -10,7 +10,7 @@ from typing import Any
 
 import httpx
 
-from integrations.recall.config import RecallSettings
+from meeting_integrations.recall.config import RecallSettings
 
 logger = logging.getLogger(__name__)
 

@@ -93,9 +93,7 @@ def load_recall_settings(*, require_public_url: bool = False) -> RecallSettings:
         api_key=_require("RECALL_API_KEY"),
         webhook_verification_secret=_require("RECALL_WEBHOOK_VERIFICATION_SECRET"),
         public_api_base_url=public_url,
-        workspace_id=os.getenv(
-            "RECALL_WORKSPACE_ID", "33a035c7-03c1-4ec9-b752-18cdfbbefc42"
-        ).strip(),
+        workspace_id=os.getenv("RECALL_WORKSPACE_ID", "").strip(),
         bot_name=os.getenv("RECALL_BOT_NAME", "Praison Meeting Agent").strip()
         or "Praison Meeting Agent",
         calendar_auto_record=auto_record not in {"0", "false", "no", "off"},

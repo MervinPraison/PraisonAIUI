@@ -6,9 +6,9 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from integrations.recall.client import RecallAPIError, RecallClient
-from integrations.recall.config import RecallSettings
-from integrations.recall.store import RecallStore
+from meeting_integrations.recall.client import RecallAPIError, RecallClient
+from meeting_integrations.recall.config import RecallSettings
+from meeting_integrations.recall.store import RecallStore
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ def list_upcoming_calendar_meetings(
     client: RecallClient | None = None,
 ) -> list[dict[str, Any]]:
     """List upcoming Recall calendar events with video links (for UI + agent tool)."""
-    from integrations.recall.config import load_recall_settings
+    from meeting_integrations.recall.config import load_recall_settings
 
     settings = settings or load_recall_settings()
     client = client or RecallClient(settings)

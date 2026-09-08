@@ -11,18 +11,18 @@ from typing import Any
 from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse, Response, StreamingResponse
 
-from integrations.recall.calendar import forward_calendar_callback
-from integrations.recall.calendar_service import (
+from meeting_integrations.recall.calendar import forward_calendar_callback
+from meeting_integrations.recall.calendar_service import (
     list_upcoming_calendar_meetings,
     process_calendar_webhook,
     sync_calendar_events,
 )
-from integrations.recall.config import RecallConfigError, load_recall_settings
-from integrations.recall.live import snapshot_for_api, wait_for_update
-from integrations.recall.processor import process_recall_webhook
-from integrations.recall.service import cancel_recall_bot, schedule_recall_bot
-from integrations.recall.store import RecallStore
-from integrations.recall.verify import VerificationError, verify_request_from_recall
+from meeting_integrations.recall.config import RecallConfigError, load_recall_settings
+from meeting_integrations.recall.live import snapshot_for_api, wait_for_update
+from meeting_integrations.recall.processor import process_recall_webhook
+from meeting_integrations.recall.service import cancel_recall_bot, schedule_recall_bot
+from meeting_integrations.recall.store import RecallStore
+from meeting_integrations.recall.verify import VerificationError, verify_request_from_recall
 
 logger = logging.getLogger(__name__)
 
@@ -208,7 +208,7 @@ async def api_recall_calendar_status(_request: Request) -> JSONResponse:
     public_url = os.getenv("PUBLIC_API_BASE_URL", "").strip()
     calendars: list[dict[str, Any]] = []
     try:
-        from integrations.recall.client import RecallClient
+        from meeting_integrations.recall.client import RecallClient
 
         settings = load_recall_settings()
         calendars = RecallClient(settings).list_calendars(status="connected")

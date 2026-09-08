@@ -17,9 +17,10 @@ Meeting Bots for live Zoom / Meet / Teams capture.
 
 ## Recall.ai workspace
 
-This integration targets the **Praison** workspace in **EU (Frankfurt)**:
+This integration targets your Recall workspace in **EU (Frankfurt)** by default:
 
-- Workspace ID: `33a035c7-03c1-4ec9-b752-18cdfbbefc42`
+- Workspace ID: set `RECALL_WORKSPACE_ID` to your own (optional — the API key
+  already scopes requests to a workspace)
 - API region: `eu-central-1`
 
 Follow the [Recall onboarding guide](https://docs.recall.ai/docs/agent-quickstarts) via Recall MCP (`recall://guides/onboarding`) for credential and webhook setup.

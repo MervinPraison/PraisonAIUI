@@ -27,7 +27,7 @@ def part_b_env(monkeypatch, tmp_path):
     monkeypatch.setenv("RECALL_REGION", "eu-central-1")
     monkeypatch.setenv("RECALL_API_KEY", "test-recall-key")
     monkeypatch.setenv("RECALL_WEBHOOK_VERIFICATION_SECRET", "whsec_test")
-    monkeypatch.setenv("RECALL_WORKSPACE_ID", "33a035c7-03c1-4ec9-b752-18cdfbbefc42")
+    monkeypatch.setenv("RECALL_WORKSPACE_ID", "test-workspace")
     monkeypatch.setenv("PUBLIC_API_BASE_URL", "https://dev.example.test")
     monkeypatch.setenv("PRAISONAI_MEETINGS_DIR", str(tmp_path))
     monkeypatch.setenv("PRAISONAI_MEETINGS_DB", str(tmp_path / "meetings.db"))
@@ -35,7 +35,7 @@ def part_b_env(monkeypatch, tmp_path):
 
 
 def test_transcript_data_to_line():
-    tx = _load("part_b_transcript", _ROOT / "integrations" / "recall" / "transcript.py")
+    tx = _load("part_b_transcript", _ROOT / "meeting_integrations" / "recall" / "transcript.py")
     payload = {
         "data": {
             "data": {
@@ -48,7 +48,7 @@ def test_transcript_data_to_line():
 
 
 def test_live_hub_publish_and_snapshot():
-    live = _load("part_b_live", _ROOT / "integrations" / "recall" / "live.py")
+    live = _load("part_b_live", _ROOT / "meeting_integrations" / "recall" / "live.py")
     live.publish_live_chunk("m-live", line="Alice: Hi", full_text="Alice: Hi", live_status="live")
     snap = live.snapshot_for_api("m-live", {"metadata": {}})
     assert snap["transcript"] == "Alice: Hi"
@@ -56,8 +56,8 @@ def test_live_hub_publish_and_snapshot():
 
 
 def test_create_bot_includes_realtime_config():
-    client_mod = _load("part_b_client", _ROOT / "integrations" / "recall" / "client.py")
-    config_mod = _load("part_b_config", _ROOT / "integrations" / "recall" / "config.py")
+    client_mod = _load("part_b_client", _ROOT / "meeting_integrations" / "recall" / "client.py")
+    config_mod = _load("part_b_config", _ROOT / "meeting_integrations" / "recall" / "config.py")
     settings = config_mod.load_recall_settings()
     client = client_mod.RecallClient(settings)
     client._request = MagicMock(return_value={"id": "bot-1"})  # noqa: SLF001
@@ -76,7 +76,7 @@ def test_create_bot_includes_realtime_config():
 
 
 def test_calendar_eligibility():
-    cal = _load("part_b_calendar", _ROOT / "integrations" / "recall" / "calendar_service.py")
+    cal = _load("part_b_calendar", _ROOT / "meeting_integrations" / "recall" / "calendar_service.py")
     assert cal.is_eligible_for_auto_record(
         {
             "is_deleted": False,
@@ -88,7 +88,7 @@ def test_calendar_eligibility():
 
 
 def test_transcript_webhook_keys_are_unique_per_utterance():
-    store = _load("part_b_store", _ROOT / "integrations" / "recall" / "store.py")
+    store = _load("part_b_store", _ROOT / "meeting_integrations" / "recall" / "store.py")
     bot = "bot-1"
     p1 = {
         "data": {
@@ -109,8 +109,8 @@ def test_transcript_webhook_keys_are_unique_per_utterance():
 
 def test_upsert_live_transcript_replaces_partial():
     pytest.importorskip("praisonai_tools")  # external PraisonAI-Tools dep, optional in CI
-    processor = _load("part_b_processor2", _ROOT / "integrations" / "recall" / "processor.py")
-    with patch("integrations.recall.live.publish_live_chunk") as publish:
+    processor = _load("part_b_processor2", _ROOT / "meeting_integrations" / "recall" / "processor.py")
+    with patch("meeting_integrations.recall.live.publish_live_chunk") as publish:
         with patch("praisonai_tools.tools.meeting_tools.get_meeting") as get_m:
             get_m.__wrapped__ = MagicMock(
                 return_value={"metadata": {"transcript": "Alice: hel"}}
@@ -121,8 +121,8 @@ def test_upsert_live_transcript_replaces_partial():
 
 
 def test_process_transcript_data_webhook():
-    processor = _load("part_b_processor", _ROOT / "integrations" / "recall" / "processor.py")
-    config_mod = _load("part_b_config2", _ROOT / "integrations" / "recall" / "config.py")
+    processor = _load("part_b_processor", _ROOT / "meeting_integrations" / "recall" / "processor.py")
+    config_mod = _load("part_b_config2", _ROOT / "meeting_integrations" / "recall" / "config.py")
     settings = config_mod.load_recall_settings()
 
     with patch.object(processor, "_append_live_transcript") as append:

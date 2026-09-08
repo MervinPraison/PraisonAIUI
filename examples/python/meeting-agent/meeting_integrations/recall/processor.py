@@ -5,10 +5,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from integrations.recall.client import RecallAPIError, RecallClient
-from integrations.recall.config import RecallSettings
-from integrations.recall.store import RecallStore, webhook_event_key
-from integrations.recall.transcript import transcript_data_to_line, transcript_download_to_text
+from meeting_integrations.recall.client import RecallAPIError, RecallClient
+from meeting_integrations.recall.config import RecallSettings
+from meeting_integrations.recall.store import RecallStore, webhook_event_key
+from meeting_integrations.recall.transcript import transcript_data_to_line, transcript_download_to_text
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ def _speaker_prefix(line: str) -> str:
 def _upsert_live_transcript(meeting_id: str, line: str, *, partial: bool = False) -> str:
     """Merge one live caption line; partial updates replace the last same-speaker line."""
     from praisonai_tools.tools.meeting_tools import get_meeting
-    from integrations.recall.live import publish_live_chunk
+    from meeting_integrations.recall.live import publish_live_chunk
     from pipeline import _metadata_lock
 
     # Hold the merge lock across the read too: streaming transcript events are
@@ -120,7 +120,7 @@ def process_recall_webhook(
 
     if event_type == "bot.in_call_recording" and meeting_id:
         _merge_metadata(meeting_id, {"live_status": "live", "status": "live", "error": ""})
-        from integrations.recall.live import set_live_status
+        from meeting_integrations.recall.live import set_live_status
 
         set_live_status(meeting_id, "live")
         return
@@ -139,7 +139,7 @@ def process_recall_webhook(
 
     if event_type == "bot.call_ended" and meeting_id:
         _merge_metadata(meeting_id, {"live_status": "ended"})
-        from integrations.recall.live import set_live_status
+        from meeting_integrations.recall.live import set_live_status
 
         set_live_status(meeting_id, "ended")
         return
