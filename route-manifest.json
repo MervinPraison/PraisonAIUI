@@ -1,0 +1,1 @@
+{"routes": [{"pattern": "/docs/**", "template": "docs", "priority": 1}]}

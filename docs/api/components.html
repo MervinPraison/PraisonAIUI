@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Python functions for building dashboard UIs. Each function returns a dict that the frontend renders as a real UI element — 36 components organized into tiers." />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Component API Reference | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/api/components" />
+  <meta property="og:title" content="Component API Reference | PraisonAIUI Docs" />
+  <meta property="og:description" content="Python functions for building dashboard UIs. Each function returns a dict that the frontend renders as a real UI element — 36 components organized into tiers." />
+  <meta property="og:url" content="https://ui.praison.ai/docs/api/components" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Component API Reference | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Python functions for building dashboard UIs. Each function returns a dict that the frontend renders as a real UI element — 36 components organized into tiers." />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Component API Reference", "description": "Python functions for building dashboard UIs. Each function returns a dict that the frontend renders as a real UI element — 36 components organized into tiers.", "url": "https://ui.praison.ai/docs/api/components", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>Component API Reference</h1>
+<p>Python functions for building dashboard UIs. Each function returns a dict that the frontend renders as a real UI element — <strong>36 components</strong> organized into tiers.</p>
+<h2>Essential Components</h2>
+<h3>`aiui.metric(label, *, value, delta, delta_color)`</h3>
+<p>A metric card with optional delta indicator.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>label</code> | <code>str</code> | ✅ | — | Metric label |</p>
+<p>| <code>value</code> | <code>Any</code> | ✅ | — | Main metric value |</p>
+<p>| <code>delta</code> | <code>str</code> | ❌ | <code>None</code> | Change indicator (e.g. "+5%") |</p>
+<p>| <code>delta_color</code> | <code>str</code> | ❌ | <code>"normal"</code> | <code>"normal"</code>, <code>"inverse"</code>, or <code>"off"</code> |</p>
+<h3>`aiui.progress_bar(label, *, value, max_value)`</h3>
+<p>A progress bar.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>label</code> | <code>str</code> | ✅ | — | Label above the bar |</p>
+<p>| <code>value</code> | <code>int\|float</code> | ✅ | — | Current value |</p>
+<p>| <code>max_value</code> | <code>int\|float</code> | ❌ | <code>100</code> | Maximum value |</p>
+<h3>`aiui.alert(message, *, variant, title)`</h3>
+<p>An alert/notification box.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>message</code> | <code>str</code> | ✅ | — | Alert body text |</p>
+<p>| <code>variant</code> | <code>str</code> | ❌ | <code>"info"</code> | <code>"info"</code>, <code>"success"</code>, <code>"warning"</code>, <code>"error"</code> |</p>
+<p>| <code>title</code> | <code>str</code> | ❌ | <code>None</code> | Optional bold title |</p>
+<h3>`aiui.badge(text, *, variant)`</h3>
+<p>An inline badge/tag.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>text</code> | <code>str</code> | ✅ | — | Badge label |</p>
+<p>| <code>variant</code> | <code>str</code> | ❌ | <code>"default"</code> | <code>"default"</code>, <code>"secondary"</code>, <code>"destructive"</code>, <code>"outline"</code> |</p>
+<h3>`aiui.separator()`</h3>
+<p>A horizontal separator line. No parameters.</p>
+<h3>`aiui.tabs(items)`</h3>
+<p>A tabbed container.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| <code>items</code> | <code>Sequence[dict]</code> | ✅ | List of <code>{"label": str, "children": [comp_dicts]}</code> |</p>
+<h3>`aiui.accordion(items)`</h3>
+<p>A collapsible accordion.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| <code>items</code> | <code>Sequence[dict]</code> | ✅ | List of <code>{"title": str, "content": str_or_comp}</code> |</p>
+<h3>`aiui.image_display(src, *, alt, caption, width)`</h3>
+<p>An image with optional caption.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>src</code> | <code>str</code> | ✅ | — | Image URL or path |</p>
+<p>| <code>alt</code> | <code>str</code> | ❌ | <code>""</code> | Alt text |</p>
+<p>| <code>caption</code> | <code>str</code> | ❌ | <code>None</code> | Caption below image |</p>
+<p>| <code>width</code> | <code>str</code> | ❌ | <code>None</code> | CSS width (e.g. <code>"300px"</code>, <code>"50%"</code>) |</p>
+<h3>`aiui.code_block(code, *, language)`</h3>
+<p>A code block with syntax highlighting.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>code</code> | <code>str</code> | ✅ | — | Source code text |</p>
+<p>| <code>language</code> | <code>str</code> | ❌ | <code>"text"</code> | Language for highlighting |</p>
+<h3>`aiui.json_view(data)`</h3>
+<p>A formatted JSON viewer.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| <code>data</code> | <code>Any</code> | ✅ | Any JSON-serializable data |</p>
+<p>---</p>
+<h2>Form Input Components</h2>
+<h3>`aiui.text_input(label, *, value, placeholder)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>label</code> | <code>str</code> | ✅ | — | Input label |</p>
+<p>| <code>value</code> | <code>str</code> | ❌ | <code>""</code> | Default value |</p>
+<p>| <code>placeholder</code> | <code>str</code> | ❌ | <code>""</code> | Placeholder text |</p>
+<h3>`aiui.number_input(label, *, value, min_val, max_val, step)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>label</code> | <code>str</code> | ✅ | — | Input label |</p>
+<p>| <code>value</code> | <code>int\|float</code> | ❌ | <code>0</code> | Default value |</p>
+<p>| <code>min_val</code> | <code>int\|float</code> | ❌ | <code>None</code> | Minimum allowed |</p>
+<p>| <code>max_val</code> | <code>int\|float</code> | ❌ | <code>None</code> | Maximum allowed |</p>
+<p>| <code>step</code> | <code>int\|float</code> | ❌ | <code>1</code> | Increment step |</p>
+<h3>`aiui.select_input(label, *, options, value)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>label</code> | <code>str</code> | ✅ | — | Input label |</p>
+<p>| <code>options</code> | <code>Sequence[str]</code> | ✅ | — | Option strings |</p>
+<p>| <code>value</code> | <code>str</code> | ❌ | <code>""</code> | Default selected |</p>
+<h3>`aiui.slider_input(label, *, value, min_val, max_val, step)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>label</code> | <code>str</code> | ✅ | — | Input label |</p>
+<p>| <code>value</code> | <code>int\|float</code> | ❌ | <code>0</code> | Default value |</p>
+<p>| <code>min_val</code> | <code>int\|float</code> | ❌ | <code>0</code> | Minimum |</p>
+<p>| <code>max_val</code> | <code>int\|float</code> | ❌ | <code>100</code> | Maximum |</p>
+<p>| <code>step</code> | <code>int\|float</code> | ❌ | <code>1</code> | Increment step |</p>
+<h3>`aiui.checkbox_input(label, *, checked)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>label</code> | <code>str</code> | ✅ | — | Checkbox label |</p>
+<p>| <code>checked</code> | <code>bool</code> | ❌ | <code>False</code> | Default state |</p>
+<h3>`aiui.switch_input(label, *, checked)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>label</code> | <code>str</code> | ✅ | — | Switch label |</p>
+<p>| <code>checked</code> | <code>bool</code> | ❌ | <code>False</code> | Default state |</p>
+<h3>`aiui.radio_input(label, *, options, value)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>label</code> | <code>str</code> | ✅ | — | Group label |</p>
+<p>| <code>options</code> | <code>Sequence[str]</code> | ✅ | — | Option strings |</p>
+<p>| <code>value</code> | <code>str</code> | ❌ | <code>""</code> | Default selected |</p>
+<h3>`aiui.textarea_input(label, *, value, placeholder, rows)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>label</code> | <code>str</code> | ✅ | — | Input label |</p>
+<p>| <code>value</code> | <code>str</code> | ❌ | <code>""</code> | Default value |</p>
+<p>| <code>placeholder</code> | <code>str</code> | ❌ | <code>""</code> | Placeholder text |</p>
+<p>| <code>rows</code> | <code>int</code> | ❌ | <code>4</code> | Visible rows |</p>
+<h3>`aiui.multiselect_input(label, *, options, value)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>label</code> | <code>str</code> | ✅ | — | Input label |</p>
+<p>| <code>options</code> | <code>Sequence[str]</code> | ✅ | — | Available choices |</p>
+<p>| <code>value</code> | <code>Sequence[str]</code> | ❌ | <code>()</code> | Default selections |</p>
+<h3>`aiui.date_input(label, *, value)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>label</code> | <code>str</code> | ✅ | — | Input label |</p>
+<p>| <code>value</code> | <code>str</code> | ❌ | <code>None</code> | ISO date string |</p>
+<h3>`aiui.time_input(label, *, value)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>label</code> | <code>str</code> | ✅ | — | Input label |</p>
+<p>| <code>value</code> | <code>str</code> | ❌ | <code>None</code> | <code>"HH:MM"</code> string |</p>
+<h3>`aiui.color_picker_input(label, *, value)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>label</code> | <code>str</code> | ✅ | — | Input label |</p>
+<p>| <code>value</code> | <code>str</code> | ❌ | <code>"#000000"</code> | Default hex color |</p>
+<p>---</p>
+<h2>Layout & Advanced Components</h2>
+<h3>`aiui.container(children, *, title)`</h3>
+<p>A container wrapper with optional title.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>children</code> | <code>Sequence[dict]</code> | ✅ | — | Child component dicts |</p>
+<p>| <code>title</code> | <code>str</code> | ❌ | <code>None</code> | Optional heading |</p>
+<h3>`aiui.expander(title, *, children, expanded)`</h3>
+<p>A collapsible section.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>title</code> | <code>str</code> | ✅ | — | Section heading |</p>
+<p>| <code>children</code> | <code>Sequence[dict]</code> | ✅ | — | Content components |</p>
+<p>| <code>expanded</code> | <code>bool</code> | ❌ | <code>False</code> | Initially expanded? |</p>
+<h3>`aiui.divider(text)`</h3>
+<p>A horizontal divider with optional center text.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>text</code> | <code>str</code> | ❌ | <code>None</code> | Label in the middle of the line |</p>
+<h3>`aiui.header(text, *, level)`</h3>
+<p>A heading element.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>text</code> | <code>str</code> | ✅ | — | Heading text |</p>
+<p>| <code>level</code> | <code>int</code> | ❌ | <code>1</code> | Heading level 1–6 |</p>
+<h3>`aiui.markdown_text(content)`</h3>
+<p>A markdown-rendered text block.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| <code>content</code> | <code>str</code> | ✅ | Markdown content string |</p>
+<h3>`aiui.link(text, *, href, external)`</h3>
+<p>A hyperlink.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>text</code> | <code>str</code> | ✅ | — | Link text |</p>
+<p>| <code>href</code> | <code>str</code> | ✅ | — | URL |</p>
+<p>| <code>external</code> | <code>bool</code> | ❌ | <code>False</code> | Open in new tab? |</p>
+<h3>`aiui.button_group(buttons)`</h3>
+<p>A row of buttons.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| <code>buttons</code> | <code>Sequence[dict]</code> | ✅ | List of <code>{"label": str, "variant": str}</code> |</p>
+<h3>`aiui.stat_group(stats)`</h3>
+<p>A grid of stat/metric cards.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| <code>stats</code> | <code>Sequence[dict]</code> | ✅ | List of <code>{"label": str, "value": Any, "delta": str}</code> |</p>
+<h3>`aiui.avatar(*, src, name, fallback)`</h3>
+<p>An avatar image or initials.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>src</code> | <code>str</code> | ❌ | <code>None</code> | Image URL |</p>
+<p>| <code>name</code> | <code>str</code> | ❌ | <code>None</code> | Display name |</p>
+<p>| <code>fallback</code> | <code>str</code> | ❌ | <code>None</code> | Fallback text (e.g. initials) |</p>
+<h3>`aiui.callout(content, *, variant, title)`</h3>
+<p>A callout/highlight box.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>content</code> | <code>str</code> | ✅ | — | Callout body text |</p>
+<p>| <code>variant</code> | <code>str</code> | ❌ | <code>"info"</code> | <code>"info"</code>, <code>"success"</code>, <code>"warning"</code>, <code>"error"</code> |</p>
+<p>| <code>title</code> | <code>str</code> | ❌ | <code>None</code> | Optional bold title |</p>
+<h3>`aiui.empty(text)`</h3>
+<p>An empty state placeholder.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>text</code> | <code>str</code> | ❌ | <code>"No data"</code> | Placeholder message |</p>
+<h3>`aiui.spinner(text)`</h3>
+<p>A loading spinner with text.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>text</code> | <code>str</code> | ❌ | <code>"Loading..."</code> | Loading message |</p>
+<p>---</p>
+<h2>Media Components</h2>
+<h3>`aiui.audio_player(src, *, autoplay)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>src</code> | <code>str</code> | ✅ | — | Audio file URL |</p>
+<p>| <code>autoplay</code> | <code>bool</code> | ❌ | <code>False</code> | Auto-play? |</p>
+<h3>`aiui.video_player(src, *, autoplay, poster)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>src</code> | <code>str</code> | ✅ | — | Video file URL |</p>
+<p>| <code>autoplay</code> | <code>bool</code> | ❌ | <code>False</code> | Auto-play? |</p>
+<p>| <code>poster</code> | <code>str</code> | ❌ | <code>None</code> | Poster image URL |</p>
+<h3>`aiui.file_download(label, *, href, filename)`</h3>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>label</code> | <code>str</code> | ✅ | — | Button label |</p>
+<p>| <code>href</code> | <code>str</code> | ✅ | — | File URL |</p>
+<p>| <code>filename</code> | <code>str</code> | ❌ | <code>None</code> | Suggested filename |</p>
+<h3>`aiui.gallery(items)`</h3>
+<p>An image/media gallery grid.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| <code>items</code> | <code>Sequence[dict]</code> | ✅ | List of <code>{"src": str, "alt": str, "caption": str}</code> |</p>
+<p>---</p>
+<h2>Dashboard Components</h2>
+<h3>`aiui.toast(message, *, variant, duration)`</h3>
+<p>A toast notification.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>message</code> | <code>str</code> | ✅ | — | Notification text |</p>
+<p>| <code>variant</code> | <code>str</code> | ❌ | <code>"info"</code> | <code>"info"</code>, <code>"success"</code>, <code>"warning"</code>, <code>"error"</code> |</p>
+<p>| <code>duration</code> | <code>int</code> | ❌ | <code>3000</code> | Auto-dismiss ms |</p>
+<h3>`aiui.dialog(title, *, children, description)`</h3>
+<p>A modal dialog.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>title</code> | <code>str</code> | ✅ | — | Dialog heading |</p>
+<p>| <code>children</code> | <code>Sequence[dict]</code> | ✅ | — | Content components |</p>
+<p>| <code>description</code> | <code>str</code> | ❌ | <code>None</code> | Subtitle |</p>
+<h3>`aiui.caption(text)`</h3>
+<p>Small muted caption text.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| <code>text</code> | <code>str</code> | ✅ | Caption content |</p>
+<h3>`aiui.html_embed(content)`</h3>
+<p>Raw HTML embed (trusted content only).</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| <code>content</code> | <code>str</code> | ✅ | HTML string |</p>
+<h3>`aiui.skeleton(*, width, height, variant)`</h3>
+<p>A skeleton loading placeholder.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>width</code> | <code>str</code> | ❌ | <code>None</code> | CSS width |</p>
+<p>| <code>height</code> | <code>str</code> | ❌ | <code>None</code> | CSS height |</p>
+<p>| <code>variant</code> | <code>str</code> | ❌ | <code>"text"</code> | <code>"text"</code>, <code>"card"</code>, or <code>"avatar"</code> |</p>
+<h3>`aiui.tooltip_wrap(child, *, content)`</h3>
+<p>Wrap a component with a hover tooltip.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| <code>child</code> | <code>dict</code> | ✅ | Component to wrap |</p>
+<p>| <code>content</code> | <code>str</code> | ✅ | Tooltip text |</p>
+<p>---</p>
+<h2>Navigation Components</h2>
+<h3>`aiui.breadcrumb(items)`</h3>
+<p>A breadcrumb navigation trail.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| <code>items</code> | <code>Sequence[dict]</code> | ✅ | List of <code>{"label": str, "href": str\|None}</code> |</p>
+<h3>`aiui.pagination(*, total, page, per_page)`</h3>
+<p>Pagination controls.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>total</code> | <code>int</code> | ✅ | — | Total items |</p>
+<p>| <code>page</code> | <code>int</code> | ❌ | <code>1</code> | Current page (1-based) |</p>
+<p>| <code>per_page</code> | <code>int</code> | ❌ | <code>10</code> | Items per page |</p>
+<h3>`aiui.key_value_list(items, *, title)`</h3>
+<p>A key-value display list.</p>
+<p>| Parameter | Type | Required | Default | Description |</p>
+<p>|-----------|------|----------|---------|-------------|</p>
+<p>| <code>items</code> | <code>Sequence[dict]</code> | ✅ | — | List of <code>{"label": str, "value": Any}</code> |</p>
+<p>| <code>title</code> | <code>str</code> | ❌ | <code>None</code> | Optional heading |</p>
+<h3>`aiui.popover(trigger, *, children)`</h3>
+<p>A popover overlay triggered by a component.</p>
+<p>| Parameter | Type | Required | Description |</p>
+<p>|-----------|------|----------|-------------|</p>
+<p>| <code>trigger</code> | <code>dict</code> | ✅ | Component that triggers the popover |</p>
+<p>| <code>children</code> | <code>Sequence[dict]</code> | ✅ | Content inside the popover |</p>
+<p>---</p>
+<h2>Composition</h2>
+<p>Components are designed to compose. Use <code>columns()</code> for horizontal layout within a <code>layout()</code>:</p>
+<h2>Component Count Summary</h2>
+<p>| Category | Components | Count |</p>
+<p>|----------|-----------|-------|</p>
+<p>| Core | <code>layout</code>, <code>card</code>, <code>columns</code>, <code>table</code>, <code>text</code>, <code>chart</code> | 6 |</p>
+<p>| Essential | <code>metric</code>, <code>progress_bar</code>, <code>alert</code>, <code>badge</code>, <code>separator</code>, <code>tabs</code>, <code>accordion</code>, <code>image_display</code>, <code>code_block</code>, <code>json_view</code> | 10 |</p>
+<p>| Form Inputs | <code>text_input</code>, <code>number_input</code>, <code>select_input</code>, <code>slider_input</code>, <code>checkbox_input</code>, <code>switch_input</code>, <code>radio_input</code>, <code>textarea_input</code>, <code>multiselect_input</code>, <code>date_input</code>, <code>time_input</code>, <code>color_picker_input</code> | 12 |</p>
+<p>| Layout &amp; Advanced | <code>container</code>, <code>expander</code>, <code>divider</code>, <code>header</code>, <code>markdown_text</code>, <code>link</code>, <code>button_group</code>, <code>stat_group</code>, <code>avatar</code>, <code>callout</code>, <code>empty</code>, <code>spinner</code> | 12 |</p>
+<p>| Media | <code>audio_player</code>, <code>video_player</code>, <code>file_download</code>, <code>gallery</code> | 4 |</p>
+<p>| Dashboard | <code>toast</code>, <code>dialog</code>, <code>caption</code>, <code>html_embed</code>, <code>skeleton</code>, <code>tooltip_wrap</code> | 6 |</p>
+<p>| Navigation | <code>breadcrumb</code>, <code>pagination</code>, <code>key_value_list</code>, <code>popover</code> | 4 |</p>
+<p>| <strong>Total</strong> | | <strong>54</strong> |</p>
+<h2>Custom Component Types</h2>
+<p>The <code>dashboard.js</code> renderer supports any dict with a <code>type</code> key. Unknown types render as formatted JSON, making it safe to experiment:</p>
+<p>---</p>
+<h2>Component Render Protocol</h2>
+<p>Understanding how components flow from Python to the browser.</p>
+<h3>Data Flow</h3>
+<h3>Step-by-Step</h3>
+<p>1. <strong>Python</strong>: Call <code>aiui.card("Revenue", value="$1,500")</code> — returns a dict:</p>
+<p>2. <strong>Server</strong>: <code>@aiui.page()</code> handler returns <code>aiui.layout([...])</code>:</p>
+<p>3. <strong>API</strong>: <code>GET /api/pages/{id}/data</code> returns the JSON</p>
+<p>4. <strong>Frontend</strong>: <code>dashboard.js</code> detects <code>_components</code> key and calls <code>renderComponents()</code>:</p>
+<p>5. <strong>Renderer</strong>: <code>renderComponent(comp)</code> dispatches on <code>comp.type</code>:</p>
+<p>6. <strong>DOM</strong>: Each renderer creates HTML elements with <code>db-*</code> CSS classes</p>
+<h3>The `_components` Key</h3>
+<p>The magic key that triggers structured rendering:</p>
+<p><code>aiui.layout(children)</code> automatically wraps children in <code>{"_components": [...]}</code>.</p>
+<h3>Component Dict Protocol</h3>
+<p>Every component function returns a dict with:</p>
+<p>| Key | Required | Description |</p>
+<p>|-----|----------|-------------|</p>
+<p>| <code>type</code> | ✅ | Component type name (e.g. <code>"card"</code>, <code>"table"</code>) |</p>
+<p>| Other keys | Varies | Component-specific properties |</p>
+<h3>CSS Classes</h3>
+<p>All components use <code>db-*</code> prefixed CSS classes:</p>
+<p>| Component | CSS Class |</p>
+<p>|-----------|-----------|</p>
+<p>| Card | <code>.db-card</code>, <code>.db-card-title</code>, <code>.db-card-value</code>, <code>.db-card-footer</code> |</p>
+<p>| Table | <code>.db-viewer table</code> |</p>
+<p>| Alert | <code>.db-alert</code>, <code>.db-alert-info</code>, <code>.db-alert-success</code>, etc. |</p>
+<p>| Badge | <code>.db-badge</code>, <code>.db-badge-secondary</code>, <code>.db-badge-destructive</code> |</p>
+<p>| Tabs | <code>.db-tabs</code>, <code>.db-tab-list</code>, <code>.db-tab-btn</code>, <code>.db-tab-panel</code> |</p>
+<h3>Extending with Custom Components</h3>
+<p>To add a new component type:</p>
+<p>1. <strong>Python</strong>: Add function to <code>ui.py</code>:</p>
+<p>2. <strong>Frontend</strong>: Add renderer to <code>dashboard.js</code>:</p>
+<p>3. <strong>CSS</strong>: Add styles for <code>.db-timeline</code></p>
+<p>Until the frontend renderer is added, unknown types render as formatted JSON.</p></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

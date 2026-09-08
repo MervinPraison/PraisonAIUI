@@ -1,0 +1,449 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "application.schema.json",
+  "title": "ADP Application",
+  "description": "Application Design Protocol — Application kind manifest",
+  "type": "object",
+  "required": ["schemaVersion", "apiVersion", "kind", "metadata", "spec"],
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x-adp-": {}
+  },
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "ADP envelope version"
+    },
+    "apiVersion": {
+      "type": "string",
+      "const": "adp.io/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "Application"
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-adp-": {}
+      },
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string" },
+        "labels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "required": ["site", "templates", "routes"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-adp-": {}
+      },
+      "properties": {
+        "site": { "$ref": "#/$defs/site" },
+        "theme": { "$ref": "#/$defs/theme" },
+        "navigation": { "$ref": "#/$defs/navigation" },
+        "navbar": { "$ref": "#/$defs/navbar" },
+        "footer": { "$ref": "#/$defs/footer" },
+        "search": { "$ref": "#/$defs/search" },
+        "components": { "$ref": "#/$defs/components" },
+        "templates": { "$ref": "#/$defs/templates" },
+        "routes": { "$ref": "#/$defs/routes" },
+        "content": { "$ref": "#/$defs/content" },
+        "dependencies": { "$ref": "#/$defs/dependencies" },
+        "seo": { "$ref": "#/$defs/seo" },
+        "i18n": { "$ref": "#/$defs/i18n" },
+        "a11y": { "$ref": "#/$defs/a11y" }
+      }
+    }
+  },
+  "$defs": {
+    "site": {
+      "type": "object",
+      "required": ["title"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-adp-": {}
+      },
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "ui": {
+          "type": "string",
+          "enum": ["shadcn", "mui", "chakra"],
+          "default": "shadcn"
+        },
+        "routeBaseDocs": { "type": "string", "default": "/docs" },
+        "customCss": { "type": "string" },
+        "plugins": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "theme": {
+      "oneOf": [
+        {
+          "title": "Preset theme",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "preset": {
+              "type": "string",
+              "enum": [
+                "zinc", "slate", "stone", "gray", "neutral",
+                "red", "orange", "amber", "yellow", "lime", "green",
+                "emerald", "teal", "cyan", "sky", "blue", "indigo",
+                "violet", "purple", "fuchsia", "pink", "rose"
+              ]
+            },
+            "radius": {
+              "type": "string",
+              "enum": ["none", "sm", "md", "lg", "xl"]
+            },
+            "darkMode": { "type": "boolean" }
+          },
+          "required": ["preset"]
+        },
+        {
+          "title": "DTCG token reference",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tokens": {
+              "type": "string",
+              "description": "Path or URL to DTCG 2025.10 compliant tokens.json"
+            },
+            "darkMode": { "type": "boolean" }
+          },
+          "required": ["tokens"]
+        }
+      ]
+    },
+    "slotRef": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["ref"],
+          "additionalProperties": false,
+          "properties": {
+            "ref": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "type": "string" },
+            "props": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      ]
+    },
+    "widget": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string" },
+        "props": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "type": "string" },
+          "props": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "template": {
+      "type": "object",
+      "required": ["layout"],
+      "allOf": [
+        {
+          "oneOf": [
+            { "required": ["slots"] },
+            { "required": ["zones"] }
+          ]
+        }
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "layout": {
+          "type": "string",
+          "enum": [
+            "ThreeColumnLayout",
+            "TwoColumnLayout",
+            "CenteredLayout",
+            "FullWidthLayout",
+            "FlexibleLayout"
+          ]
+        },
+        "slots": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/slotRef" }
+        },
+        "zones": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/widget" }
+          }
+        }
+      }
+    },
+    "templates": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/template" }
+    },
+    "route": {
+      "type": "object",
+      "required": ["match", "template"],
+      "additionalProperties": false,
+      "properties": {
+        "match": { "type": "string" },
+        "template": { "type": "string" },
+        "slots": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/slotRef" }
+        }
+      }
+    },
+    "routes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/route" }
+    },
+    "navGroup": {
+      "type": "object",
+      "required": ["group"],
+      "additionalProperties": false,
+      "properties": {
+        "group": { "type": "string" },
+        "icon": { "type": "string" },
+        "prefix": { "type": "string" },
+        "pages": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "navTab": {
+      "type": "object",
+      "required": ["tab"],
+      "additionalProperties": false,
+      "properties": {
+        "tab": { "type": "string" },
+        "url": { "type": "string" },
+        "groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/navGroup" }
+        }
+      }
+    },
+    "navigation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tabs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/navTab" }
+        }
+      }
+    },
+    "navbar": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "primary": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": { "type": "string", "enum": ["button", "github"] },
+            "label": { "type": "string" },
+            "href": { "type": "string" }
+          }
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "href"],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "type": "string" },
+              "href": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "footer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "socials": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["header"],
+            "additionalProperties": false,
+            "properties": {
+              "header": { "type": "string" },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["label", "href"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": { "type": "string" },
+                    "href": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "search": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "provider": {
+          "type": "string",
+          "enum": ["fusejs", "lunrjs", "pagefind"]
+        }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shadcn": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "contentSource": {
+      "type": "object",
+      "required": ["dir"],
+      "additionalProperties": false,
+      "properties": {
+        "dir": { "type": "string" },
+        "include": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "exclude": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "indexFiles": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "nav": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": { "type": "string", "enum": ["auto", "manual"] },
+            "sort": { "type": "string", "enum": ["filesystem", "alpha", "date"] },
+            "collapsible": { "type": "boolean" },
+            "maxDepth": { "type": "integer", "minimum": 1, "maximum": 10 }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": { "mode": { "const": "manual" } },
+                "required": ["mode"]
+              },
+              "then": {
+                "description": "Manual sidebar mode requires navigation.tabs at spec level"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "docs": { "$ref": "#/$defs/contentSource" },
+        "blog": { "$ref": "#/$defs/contentSource" }
+      }
+    },
+    "seo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "titleTemplate": { "type": "string" },
+        "defaultImage": { "type": "string" },
+        "twitter": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "i18n": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "defaultLocale": { "type": "string" },
+        "locales": { "type": "array", "items": { "type": "string" } },
+        "rtlLocales": { "type": "array", "items": { "type": "string" } },
+        "fallbackLocale": { "type": "string" },
+        "translationsDir": { "type": "string" }
+      }
+    },
+    "a11y": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "skipToContent": { "type": "boolean" },
+        "focusVisible": { "type": "boolean" },
+        "reduceMotion": { "type": "boolean" },
+        "ariaLabels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    }
+  }
+}

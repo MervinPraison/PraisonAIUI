@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Complete guide to the aiui.template.yaml configuration schema." />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>YAML Configuration | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/concepts/configuration" />
+  <meta property="og:title" content="YAML Configuration | PraisonAIUI Docs" />
+  <meta property="og:description" content="Complete guide to the aiui.template.yaml configuration schema." />
+  <meta property="og:url" content="https://ui.praison.ai/docs/concepts/configuration" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="YAML Configuration | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Complete guide to the aiui.template.yaml configuration schema." />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "YAML Configuration", "description": "Complete guide to the aiui.template.yaml configuration schema.", "url": "https://ui.praison.ai/docs/concepts/configuration", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>YAML Configuration</h1>
+<p>Complete guide to the <code>aiui.template.yaml</code> configuration schema.</p>
+<h2>Overview</h2>
+<p>PraisonAIUI uses a single YAML file to configure your entire site. This file defines:</p>
+<li><strong>Site metadata</strong> - Title, description, theme</li>
+<li><strong>Content sources</strong> - Where to find your docs</li>
+<li><strong>Components</strong> - Reusable UI elements</li>
+<li><strong>Templates</strong> - Page layouts with slots</li>
+<li><strong>Routes</strong> - URL patterns to template mappings</li>
+<h2>Schema Version</h2>
+<p>Always specify the schema version:</p>
+<h2>Site Configuration</h2>
+<p>&gt; <strong>Note</strong>: The <code>ui</code> field is a theming hint. Components are UI-agnostic and use CSS classes you can style with any framework.</p>
+<h2>Component Dependencies</h2>
+<p>Auto-install shadcn components at build time:</p>
+<p>When you run <code>aiui build</code>, any missing components are automatically installed via <code>npx shadcn add</code>.</p>
+<h2>Content Sources</h2>
+<h2>Components</h2>
+<p>Define reusable components:</p>
+<h3>Built-in Component Types</h3>
+<p>| Type | Description |</p>
+<p>|------|-------------|</p>
+<p>| <code>Header</code> | Site header with logo, nav, CTA |</p>
+<p>| <code>Footer</code> | Site footer |</p>
+<p>| <code>DocsSidebar</code> | Documentation sidebar navigation |</p>
+<p>| <code>Toc</code> | Table of contents |</p>
+<p>| <code>DocContent</code> | Rendered markdown content |</p>
+<h2>Templates</h2>
+<p>Templates combine a layout with slot assignments:</p>
+<h3>Layouts</h3>
+<p>| Layout | Description |</p>
+<p>|--------|-------------|</p>
+<p>| <code>ThreeColumnLayout</code> | Sidebar + Content + TOC |</p>
+<p>| <code>TwoColumnLayout</code> | Sidebar + Content |</p>
+<p>| <code>CenteredLayout</code> | Centered content, no sidebar |</p>
+<p>| <code>FullWidthLayout</code> | Full width content |</p>
+<p>| <code>FlexibleLayout</code> | WordPress-style widget zones |</p>
+<h2>Widget Zones</h2>
+<p>Place widgets in layout zones without modifying markdown:</p>
+<h3>Available Zones</h3>
+<p>| Zone | Description |</p>
+<p>|------|-------------|</p>
+<p>| <code>header</code> | Top header |</p>
+<p>| <code>topNav</code> | Below header nav |</p>
+<p>| <code>hero</code> | Hero banners |</p>
+<p>| <code>leftSidebar</code> | Left column |</p>
+<p>| <code>main</code> | Main content |</p>
+<p>| <code>rightSidebar</code> | Right column |</p>
+<p>| <code>bottomNav</code> | Pagination area |</p>
+<p>| <code>footer</code> | Footer widgets |</p>
+<h3>Built-in Widgets</h3>
+<p>| Widget | Description |</p>
+<p>|--------|-------------|</p>
+<p>| <code>StatsCard</code> | Metrics display |</p>
+<p>| <code>QuickLinks</code> | Navigation links |</p>
+<p>| <code>Newsletter</code> | Email signup |</p>
+<p>| <code>HeroBanner</code> | Hero section |</p>
+<p>| <code>SocialLinks</code> | Social icons |</p>
+<p>| <code>Copyright</code> | Copyright text |</p>
+<p>See Widget Zones for full documentation.</p>
+<h2>Routes</h2>
+<p>Map URL patterns to templates:</p>
+<p>Route matching uses glob patterns:</p>
+<li><code>*</code> - Single segment</li>
+<li><code>**</code> - Multiple segments</li>
+<h2>Complete Example</h2></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

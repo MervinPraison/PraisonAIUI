@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="How PraisonAIUI (aiui) connects to praisonai-package — the agent runtime, gateway, and CLI. For generic UI hosting see Agent UI host." />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>PraisonAI package integration | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/features/praisonai-package-integration" />
+  <meta property="og:title" content="PraisonAI package integration | PraisonAIUI Docs" />
+  <meta property="og:description" content="How PraisonAIUI (aiui) connects to praisonai-package — the agent runtime, gateway, and CLI. For generic UI hosting see Agent UI host." />
+  <meta property="og:url" content="https://ui.praison.ai/docs/features/praisonai-package-integration" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="PraisonAI package integration | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="How PraisonAIUI (aiui) connects to praisonai-package — the agent runtime, gateway, and CLI. For generic UI hosting see Agent UI host." />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "PraisonAI package integration", "description": "How PraisonAIUI (aiui) connects to praisonai-package — the agent runtime, gateway, and CLI. For generic UI hosting see Agent UI host.", "url": "https://ui.praison.ai/docs/features/praisonai-package-integration", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>PraisonAI package integration</h1>
+<p>How <strong>PraisonAIUI</strong> (<code>aiui</code>) connects to <strong><code>praisonai-package</code></strong> — the agent runtime, gateway, and CLI. For generic UI hosting see Agent UI host.</p>
+<h2>Division of labour</h2>
+<p>| Layer | Repo | Role |</p>
+<p>|-------|------|------|</p>
+<p>| Agent runtime | <code>praisonai-agents</code> | <code>Agent</code>, tools, memory, streaming |</p>
+<p>| Gateway, jobs, CLI | <code>praisonai</code> | WebSocket <code>/ws</code>, <code>/api/v1/runs</code>, <code>praisonai claw</code> |</p>
+<p>| Dashboard UI | <strong>PraisonAIUI</strong> | <code>dashboard.js</code>, <code>@aiui.page</code>, layout protocol |</p>
+<p>| Work tracking | <code>praisonai-platform</code> | Issues API (optional board data source) |</p>
+<p>Canonical app: <code>praisonai-package</code> → <code>src/praisonai/praisonai/claw/default_app.py</code>.</p>
+<h2>Deployment shapes</h2>
+<h3>1. Single process — `praisonai claw` (recommended)</h3>
+<p>Use when: local dev, full dashboard, agents registered in Python.</p>
+<h3>2. Unified — `AIUIGateway`</h3>
+<p>Use when: you need <strong>WebSocket gateway protocol</strong> and dashboard on <strong>one port</strong>.</p>
+<h3>3. Split — gateway + UI</h3>
+<p>| Service | Default port | Endpoints |</p>
+<p>|---------|--------------|-----------|</p>
+<p>| <code>praisonai gateway start</code> | 8765 | <code>ws://…/ws</code>, <code>/health</code>, <code>/info</code> |</p>
+<p>| <code>praisonai claw</code> or <code>aiui run</code> | 8082 | Dashboard, <code>/run</code> SSE, <code>/api/*</code> |</p>
+<p>Use when: gateway runs headless; UI is a separate process. Point chat at gateway via provider config or run <code>AIUIGateway</code> instead.</p>
+<h2>Wiring checklist</h2>
+<p>Or via host bootstrap:</p>
+<h2>API surface</h2>
+<h3>Chat and agents (dashboard)</h3>
+<p>| Endpoint | Purpose |</p>
+<p>|----------|---------|</p>
+<p>| <code>POST /run</code> | Stream agent run (SSE) |</p>
+<p>| <code>GET /sessions</code>, <code>POST /sessions</code> | Session CRUD |</p>
+<p>| <code>GET /agents</code>, <code>/api/agents/definitions</code> | Agent list / CRUD |</p>
+<p>| <code>GET /api/health</code> | Sidebar health slot |</p>
+<h3>Async jobs — two paths</h3>
+<p>| Backend | Base path | When |</p>
+<p>|---------|-----------|------|</p>
+<p>| <strong>aiui</strong> <code>JobsFeature</code> | <code>/api/jobs</code> | Default; in-process job store |</p>
+<p>| <strong>praisonai</strong> jobs server | <code>/api/v1/runs</code> | Standalone <code>praisonai jobs</code> / FastAPI router |</p>
+<p>Configure the dashboard jobs view:</p>
+<p><code>/ui-config.json</code> exposes <code>jobs: { apiBase, backend }</code> for <code>jobs.js</code>.</p>
+<p><strong>Response shapes:</strong> both return <code>{ jobs, total }</code>. Praison uses <code>job_id</code>; aiui uses <code>id</code>. The jobs view normalises either field.</p>
+<p>| Action | aiui | praisonai |</p>
+<p>|--------|------|-----------|</p>
+<p>| List | <code>GET /api/jobs</code> | <code>GET /api/v1/runs</code> |</p>
+<p>| Detail | <code>GET /api/jobs/{id}</code> | <code>GET /api/v1/runs/{id}</code> |</p>
+<p>| Cancel | <code>POST /api/jobs/{id}/cancel</code> | <code>POST /api/v1/runs/{id}/cancel</code> |</p>
+<p>| Stream | <code>GET /api/jobs/{id}/stream</code> | <code>GET /api/v1/runs/{id}/stream</code> |</p>
+<p>| Delete | <code>DELETE /api/jobs/{id}</code> | Not on package router |</p>
+<p><strong>Split jobs server (optional):</strong> proxy aiui <code>/api/jobs/*</code> to an external jobs host:</p>
+<p>Use when the dashboard and jobs server run on different ports. Prefer <code>set_jobs_backend("praisonai")</code> when the browser can call <code>/api/v1/runs</code> on the same origin.</p>
+<h3>REST invoke (automation)</h3>
+<p>| Path | Use |</p>
+<p>|------|-----|</p>
+<p>| <code>POST /api/v1/agents/{id}/invoke</code> | Sync invoke (n8n, scripts) — <strong>package</strong> <code>agent_invoke.py</code> |</p>
+<p>| <code>POST /run</code> | Streaming chat — <strong>dashboard</strong> chat page |</p>
+<p>Same agents if registered on both surfaces; different protocols.</p>
+<h3>Discovery (package serve)</h3>
+<p>| Endpoint | Purpose |</p>
+<p>|----------|---------|</p>
+<p>| <code>GET /__praisonai__/discovery</code> | Serve-mode capability discovery |</p>
+<p>| <code>GET /health</code>, <code>GET /info</code> | Gateway liveness and metadata |</p>
+<p>| <code>GET /api/gateway/status</code> | aiui gateway feature status |</p>
+<p>See <strong>Feature Explorer</strong> page in dashboard for live probes.</p>
+<h2>Parallel UI protocols (not dashboard replacements)</h2>
+<p>Under <code>praisonaiagents/ui/</code>:</p>
+<p>| Protocol | Purpose |</p>
+<p>|----------|---------|</p>
+<p>| <strong>A2A</strong> | Agent cards, <code>/.well-known/agent.json</code>, external agent hosts |</p>
+<p>| <strong>AG-UI</strong> | CopilotKit-style event stream (<code>POST /agui</code>) |</p>
+<p>| <strong>A2UI</strong> | Declarative surfaces in chat/canvas |</p>
+<p>Dashboard shell remains the ops console for <code>praisonai claw</code>. Use A2A/AG-UI/A2UI when embedding in other products.</p>
+<h2>Two plugin systems</h2>
+<p>| System | Location | Purpose |</p>
+<p>|--------|----------|---------|</p>
+<p>| <strong>Agent plugins</strong> | <code>~/.praisonai/plugins/</code> | Python agent extensions (<code>praisonaiagents.plugins</code>) |</p>
+<p>| <strong>Dashboard plugins</strong> | <code>~/.praisonai/dashboard-plugins/</code> | JS tabs + <code>manifest.json</code> for aiui shell |</p>
+<p>Do not mix folders. Agent plugins extend runtime; dashboard plugins extend UI tabs only.</p>
+<h2>Optional modules</h2>
+<p>Loads <code>jobs.js</code>, <code>auth.js</code>, <code>api.js</code> into the plugin chain and maps them in <code>BUILTIN_VIEWS</code>. Enable only what your deployment exposes.</p>
+<h2>Board / work tracking</h2>
+<p>Neither repo ships Hermes-style Kanban. Options:</p>
+<p>1. <strong><code>aiui.board()</code></strong> — columns from <code>@aiui.page</code> handler (jobs by status, custom data).</p>
+<p>2. <strong><code>praisonai-platform</code> issues</strong> — map issue <code>status</code> → board columns (see <code>examples/python/platform-board/</code>). Set <code>PRAISONAI_PLATFORM_URL</code> and <code>PRAISONAI_PLATFORM_WORKSPACE_ID</code> (default workspace <code>default</code>); issues are fetched from <code>GET /api/v1/workspaces/{workspace_id}/issues</code>.</p>
+<p>3. <strong><code>dashboard-plugins</code></strong> — rich JS via <code>registerView</code> + <code>sdk.createBoard</code>.</p>
+<p>Advanced board UX (drag-drop, WebSocket sync) is <strong>deferred</strong> — use polling via <code>sdk.createBoard({ pollMs })</code> or a custom plugin.</p>
+<h2>Smoke checklist</h2>
+<p>After <code>praisonai claw</code> or <code>aiui run</code> with package bridges:</p>
+<li>[ ] <code>GET /api/health</code> → sidebar footer shows healthy</li>
+<li>[ ] Chat page sends message, streams reply</li>
+<li>[ ] Sessions page lists <code>~/.praisonai/sessions/</code> data</li>
+<li>[ ] Agents page CRUD (if agents registered)</li>
+<li>[ ] Jobs page (if <code>modules</code> includes <code>jobs</code> and jobs API configured)</li>
+<li>[ ] Explorer probes <code>/health</code>, <code>/ui-config.json</code>, <code>/api/dashboard/plugins</code></li>
+<li>[ ] Auth/API pages (if <code>modules</code> includes <code>auth</code> / <code>api</code>)</li>
+<h2>Related</h2>
+<li>Agent UI host — extension API, opt-in matrix</li>
+<li>Backend integration — L1 backend injection</li>
+<li>Standalone vs integrated — SDK gaps and fallbacks</li>
+<li><a href="https://github.com/MervinPraison/PraisonAIUI">PraisonAIUI repository</a></li>
+<li><code>integration.py</code> — <code>AIUIGateway</code></li>
+<li><code>examples/python/praisonai-claw-board/</code> — board from jobs</li>
+<li><code>examples/python/platform-board/</code> — board from platform issues</li></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

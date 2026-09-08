@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="PraisonAIUI supports rich inline message elements for displaying images, PDFs, videos, audio, files, and code blocks within chat messages." />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Message Elements | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/features/message-elements" />
+  <meta property="og:title" content="Message Elements | PraisonAIUI Docs" />
+  <meta property="og:description" content="PraisonAIUI supports rich inline message elements for displaying images, PDFs, videos, audio, files, and code blocks within chat messages." />
+  <meta property="og:url" content="https://ui.praison.ai/docs/features/message-elements" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Message Elements | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="PraisonAIUI supports rich inline message elements for displaying images, PDFs, videos, audio, files, and code blocks within chat messages." />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Message Elements", "description": "PraisonAIUI supports rich inline message elements for displaying images, PDFs, videos, audio, files, and code blocks within chat messages.", "url": "https://ui.praison.ai/docs/features/message-elements", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>Message Elements</h1>
+<p>PraisonAIUI supports rich inline message elements for displaying images, PDFs, videos, audio, files, and code blocks within chat messages.</p>
+<h2>Element Types</h2>
+<h3>1. Image Elements</h3>
+<p>Display images with thumbnail and click-to-zoom functionality.</p>
+<p><strong>Properties:</strong></p>
+<li><code>url</code> (required): Image URL</li>
+<li><code>name</code> (optional): Display name</li>
+<li><code>alt</code> (optional): Alt text for accessibility</li>
+<li><code>display</code> (optional): Display mode - "inline" (default), "side", "page"</li>
+<li><code>width</code> (optional): Fixed width in pixels</li>
+<li><code>height</code> (optional): Fixed height in pixels</li>
+<h3>2. PDF Elements</h3>
+<p>Display PDF documents with inline viewer or link to open in new tab.</p>
+<p><strong>Properties:</strong></p>
+<li><code>url</code> (required): PDF URL</li>
+<li><code>name</code> (optional): Display name</li>
+<li><code>display</code> (optional):</li>
+<li><code>"inline"</code>: Embedded PDF viewer (600px height)</li>
+<li><code>"side"</code>: Smaller embedded viewer (400px height)</li>
+<li><code>"page"</code>: Link to open in new tab</li>
+<h3>3. Video Elements</h3>
+<p>Display videos with native HTML5 video player.</p>
+<p><strong>Properties:</strong></p>
+<li><code>url</code> (required): Video URL</li>
+<li><code>name</code> (optional): Display name</li>
+<li><code>controls</code> (optional): Show video controls (default: True)</li>
+<li><code>autoplay</code> (optional): Auto-play video (default: False)</li>
+<li><code>loop</code> (optional): Loop video (default: False)</li>
+<h3>4. Audio Elements</h3>
+<p>Display audio with native HTML5 audio player.</p>
+<p><strong>Properties:</strong></p>
+<li><code>url</code> (required): Audio URL</li>
+<li><code>name</code> (optional): Display name</li>
+<li><code>controls</code> (optional): Show audio controls (default: True)</li>
+<li><code>autoplay</code> (optional): Auto-play audio (default: False)</li>
+<li><code>loop</code> (optional): Loop audio (default: False)</li>
+<h3>5. File Elements</h3>
+<p>Display downloadable files with file type icons and size information.</p>
+<p><strong>Properties:</strong></p>
+<li><code>url</code> (required): File download URL</li>
+<li><code>name</code> (optional): Display name</li>
+<li><code>size</code> (optional): File size in bytes</li>
+<li><code>mime_type</code> (optional): MIME type for file type detection</li>
+<h3>6. Code Elements</h3>
+<p>Display syntax-highlighted code blocks with copy functionality.</p>
+<p><strong>Properties:</strong></p>
+<li><code>content</code> (required): Code content</li>
+<li><code>language</code> (optional): Programming language for syntax highlighting</li>
+<li><code>name</code> (optional): Display name</li>
+<h2>Display Modes</h2>
+<p>All elements support three display modes:</p>
+<li><strong><code>inline</code></strong> (default): Full width, normal display</li>
+<li><strong><code>side</code></strong>: Smaller size, suitable for sidebars</li>
+<li><strong><code>page</code></strong>: Full page width, maximum size</li>
+<h2>Size Limits</h2>
+<li><strong>File elements</strong>: Maximum 100MB per file</li>
+<li><strong>Code elements</strong>: Maximum 1MB per code block</li>
+<li><strong>Images</strong>: No size limit (browser-dependent)</li>
+<h2>Accessibility Features</h2>
+<li><strong>Images</strong>: Alt text support, keyboard navigation for zoom</li>
+<li><strong>PDFs</strong>: Proper ARIA labels and roles</li>
+<li><strong>Videos/Audio</strong>: Native browser accessibility</li>
+<li><strong>Files</strong>: Icon-based file type recognition</li>
+<li><strong>Code</strong>: Copy button with keyboard support</li>
+<h2>Low-Level API</h2>
+<p>For advanced use cases, you can use the low-level element API:</p>
+<h2>Legacy Support</h2>
+<p>The new element system maintains backward compatibility with existing message properties:</p>
+<li><code>message.images</code> (still supported)</li>
+<li><code>message.files</code> (still supported)</li>
+<li>New <code>message.elements</code> takes precedence when both are present</li>
+<p>This ensures existing code continues to work while providing a migration path to the new standardized element system.</p>
+<h2>Agent-generated images (streaming)</h2>
+<p>When an agent or tool <strong>creates</strong> an image during a chat run, the UI receives <code>message_element</code> events over WebSocket/SSE and renders them inline. This uses the same element dict shape as above but is driven by the RunEvent protocol, not only <code>Message.send()</code>.</p>
+<p>See <strong>Image Preview in Chat</strong> for the full architecture: detection (<code>media_utils</code>), provider bridge, persistence, and swappable backends.</p></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

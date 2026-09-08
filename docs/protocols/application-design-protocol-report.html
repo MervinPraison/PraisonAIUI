@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="There is no single existing standard for designing full application UI from a declarative text file. Instead, the problem is addressed in fragments:" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Application Design Protocol (ADP) — Research Report | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/protocols/application-design-protocol-report" />
+  <meta property="og:title" content="Application Design Protocol (ADP) — Research Report | PraisonAIUI Docs" />
+  <meta property="og:description" content="There is no single existing standard for designing full application UI from a declarative text file. Instead, the problem is addressed in fragments:" />
+  <meta property="og:url" content="https://ui.praison.ai/docs/protocols/application-design-protocol-report" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Application Design Protocol (ADP) — Research Report | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="There is no single existing standard for designing full application UI from a declarative text file. Instead, the problem is addressed in fragments:" />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Application Design Protocol (ADP) — Research Report", "description": "There is no single existing standard for designing full application UI from a declarative text file. Instead, the problem is addressed in fragments:", "url": "https://ui.praison.ai/docs/protocols/application-design-protocol-report", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>Application Design Protocol (ADP) — Research Report</h1>
+<p><strong>Version:</strong> 1.0 (draft)</p>
+<p><strong>Date:</strong> August 2026</p>
+<p><strong>Scope:</strong> UI, layout, navigation, theming — declarative application design from text manifests</p>
+<p><strong>Status:</strong> Research and recommendation; not yet a published standard</p>
+<h2>2. Problem statement</h2>
+<h3>2.1 What we need</h3>
+<p>A protocol that lets a developer (or LLM) describe an application's visual design — pages, navigation, components, themes, routes — in <strong>one or more text files</strong>, without writing application code.</p>
+<h3>2.2 What exists today (fragmented)</h3>
+<p>| Need | Who solves it | Gap |</p>
+<p>|------|---------------|-----|</p>
+<p>| Docs site from config | Mintlify, PraisonAIUI, Docusaurus | No shared spec; Mintlify uses JSON, others use YAML or JS |</p>
+<p>| Component catalog | OpenUI, A2UI | No layout or routing |</p>
+<p>| Layout trees | JSON Forms uiSchema | Forms only, not app shells |</p>
+<p>| Theming | DTCG, Material 3 | Tokens only, no pages |</p>
+<p>| Agent-generated UI | A2UI | Runtime streaming, not human-authored static sites |</p>
+<p>| Software metadata | Backstage | Catalog entities, not UI composition |</p>
+<h3>2.3 Design goals for ADP</h3>
+<p>1. <strong>Human-readable</strong> — editable without IDE plugins</p>
+<p>2. <strong>LLM-safe</strong> — structural schema rejects unknown fields</p>
+<p>3. <strong>Portable</strong> — same manifest renders on any ADP-compliant runtime</p>
+<p>4. <strong>Validatable</strong> — fail fast at build time, not in the browser</p>
+<p>5. <strong>Extensible</strong> — plugins add catalog entries, not inline code</p>
+<p>6. <strong>Accessible</strong> — ARIA hints required in component catalog</p>
+<p>---</p>
+<h2>3. Standards landscape — 46 protocols in 10 categories</h2>
+<p>Each entry describes <strong>how UI/layout/navigation is declared</strong> — the primary comparison dimension.</p>
+<h3>Category A: Web platform baseline (5)</h3>
+<p>| Standard | Format | How UI/layout/navigation is declared | Schema | Versioning |</p>
+<p>|----------|--------|--------------------------------------|--------|------------|</p>
+<p>| <strong>HTML + CSS</strong> | <code>.html</code> + <code>.css</code> | Semantic elements; CSS Flexbox/Grid; <code>&lt;nav&gt;</code> + links | Living spec grammar | Browser Baseline |</p>
+<p>| <strong>Web Components + DSD</strong> | HTML + JS | Custom element tree; slots; Declarative Shadow DOM | DOM IDL | Platform flags |</p>
+<p>| <strong>WAI-ARIA + APG</strong> | HTML attributes | Landmarks, widget roles, keyboard patterns | WAI-ARIA 1.2 | Rec track |</p>
+<p>| <strong>DTCG Design Tokens</strong> | JSON | Token groups: <code>$value</code>, <code>$type</code>, <code>{alias}</code> refs — <strong>no layout</strong> | DTCG 2025.10 | Date editions |</p>
+<p>| <strong>OpenUI</strong> | YAML/JSON | Component catalog: <code>components{id: props}</code> — <strong>no layout tree</strong> | Prop definitions | Per-library version |</p>
+<h3>Category B: Schema-driven forms and layout (3)</h3>
+<p>| Standard | Format | How UI/layout/navigation is declared | Schema | Versioning |</p>
+<p>|----------|--------|--------------------------------------|--------|------------|</p>
+<p>| <strong>JSON Forms</strong> | JSON Schema + UI Schema | <code>VerticalLayout</code>, <code>Control</code>, <code>Categorization</code> with <code>scope</code> pointers | JSON Schema + uiSchema | Package SemVer |</p>
+<p>| <strong>RJSF</strong> | JSON Schema + uiSchema | Schema-tree mirroring; <code>ui:widget</code>, <code>ui:options</code> | React convention | Package SemVer |</p>
+<p>| <strong>Google A2UI</strong> | JSONL stream | Flat adjacency-list; <code>createSurface</code>; catalog-constrained types | JSON Schema catalog | v0.9.1 / v1.0 RC |</p>
+<h3>Category C: Docs-site generators (6)</h3>
+<p>| Standard | Format | How UI/layout/navigation is declared | Schema | Versioning |</p>
+<p>|----------|--------|--------------------------------------|--------|------------|</p>
+<p>| <strong>Mintlify</strong> | JSON (<code>docs.json</code>) | <code>navigation.groups[].pages[]</code>; <code>$schema</code> URL; <code>$ref</code> splitting | Published JSON Schema URL | Platform |</p>
+<p>| <strong>PraisonAIUI</strong> | YAML | <code>components</code> → <code>templates{layout, slots, zones}</code> → <code>routes</code> | Pydantic (internal) | <code>schemaVersion: 1</code> |</p>
+<p>| <strong>Docusaurus</strong> | JS config | <code>themeConfig.navbar</code>, plugin sidebar config | TypeScript types | Package SemVer |</p>
+<p>| <strong>Hugo</strong> | TOML/YAML | <code>menu.main[]</code>, theme selection | Hugo schema | Release train |</p>
+<p>| <strong>Jekyll</strong> | YAML | Frontmatter per page; <code>_data/</code> nav | Conventions | SemVer |</p>
+<p>| <strong>Gatsby</strong> | JS/TS | <code>siteMetadata</code> + <code>plugins[]</code> | JS object | Major versions |</p>
+<h3>Category D: Native declarative UI — reference only (5)</h3>
+<p>| Standard | Format | Serialised wire format? | Navigation model |</p>
+<p>|----------|--------|-------------------------|------------------|</p>
+<p>| <strong>Jetpack Compose</strong> | Kotlin | No | <code>NavHost</code> + routes |</p>
+<p>| <strong>SwiftUI</strong> | Swift | No | <code>NavigationStack</code> |</p>
+<p>| <strong>Flutter</strong> | Dart | No | <code>Router</code> / <code>Navigator</code> |</p>
+<p>| <strong>Qt QML</strong> | <code>.qml</code> | Yes | <code>StackView</code>, bindings |</p>
+<p>| <strong>XAML</strong> | XML | Yes (dialect-fragmented) | <code>Frame</code>, <code>NavigationView</code> |</p>
+<h3>Category E: Design systems (2)</h3>
+<p>| Standard | Format | Theming model |</p>
+<p>|----------|--------|---------------|</p>
+<p>| <strong>Material Design 3</strong> | DTCG JSON | reference → system → component token tiers |</p>
+<p>| <strong>Bootstrap 5.3</strong> | SCSS → CSS vars | Sass maps → <code>--bs-*</code> custom properties |</p>
+<h3>Category F: Design-to-code bridges — not source-of-truth (3)</h3>
+<p>| Standard | Output | Why not ADP source |</p>
+<p>|----------|--------|-------------------|</p>
+<p>| <strong>Figma MCP</strong> | React+Tailwind context | Proprietary; bridge only |</p>
+<p>| <strong>Webflow export</strong> | HTML/CSS/JS ZIP | No schema; paid export |</p>
+<p>| <strong>Framer export</strong> | React bundles | Platform lock-in |</p>
+<h3>Category G: Component documentation (1)</h3>
+<p>| Standard | Format | Navigation |</p>
+<p>|----------|--------|------------|</p>
+<p>| <strong>Storybook CSF 3</strong> | TS modules | Sidebar via <code>title</code> path hierarchy |</p>
+<h3>Category H: Configuration and packaging (12)</h3>
+<p>| Standard | Format | Composition mechanism | ADP borrow |</p>
+<p>|----------|--------|----------------------|------------|</p>
+<p>| <strong>Kubernetes CRD</strong> | YAML | <code>apiVersion/kind/spec</code>; structural OpenAPI | Structural validation |</p>
+<p>| <strong>Helm</strong> | YAML + templates | Subcharts; values merge; <code>values.schema.json</code> | Defaults + overrides |</p>
+<p>| <strong>Backstage catalog</strong> | YAML | <code>$yaml:</code>/<code>$json:</code> includes; relation graph | Envelope + includes |</p>
+<p>| <strong>OpenAPI 3.1</strong> | YAML/JSON | <code>$ref</code>, <code>components</code> registry | JSON Schema foundation |</p>
+<p>| <strong>AsyncAPI 3.x</strong> | YAML/JSON | Channels → messages | Future event UI |</p>
+<p>| <strong>JSON Schema 2020-12</strong> | JSON | <code>$ref</code>, <code>$defs</code>, conditionals | Validation dialect |</p>
+<p>| <strong>CloudEvents</strong> | JSON envelope | Fixed envelope + opaque payload | Future event wrapper |</p>
+<p>| <strong>Docker Compose</strong> | YAML | Multi-file merge; profiles | Override stacking |</p>
+<p>| <strong>CUE</strong> | CUE | Unify schema + data | Power-user compile layer |</p>
+<p>| <strong>Jsonnet</strong> | Jsonnet → JSON | <code>import</code> + merge | Theme variants |</p>
+<p>| <strong>Pkl</strong> | <code>.pkl</code> | <code>amends</code>, mixins | Typed config model |</p>
+<p>| <strong>OCI Artifact</strong> | JSON manifest | Multi-layer blobs | Bundle packaging |</p>
+<h3>Category I: Agent and workflow protocols (7)</h3>
+<p>| Standard | Format | UI/state declaration | ADP borrow |</p>
+<p>|----------|--------|---------------------|------------|</p>
+<p>| <strong>MCP</strong> | JSON-RPC | Tool schemas — no UI layout | Future widget actions |</p>
+<p>| <strong>AG-UI</strong> | Streaming JSON | EventType enum; snapshots + deltas | Streaming model |</p>
+<p>| <strong>A2A</strong> | Proto → JSON-RPC | Agent Cards | Transport |</p>
+<p>| <strong>AWP</strong> | Multi-file YAML | 7 layers; rules R1–R32 | Layer + validation model |</p>
+<p>| <strong>LangGraph</strong> | workflow.yaml | Graph nodes + edges | Layout graph |</p>
+<p>| <strong>AutoGen</strong> | ComponentModel JSON | <code>{provider, type, version, config}</code> | Pluggable components |</p>
+<p>| <strong>CrewAI</strong> | JSONC/YAML | Agent arrays — weak schema | Anti-pattern |</p>
+<h3>Category J: Application packaging (2)</h3>
+<p>| Standard | Format | Application declaration |</p>
+<p>|----------|--------|------------------------|</p>
+<p>| <strong>OAM</strong> | YAML | <code>Application</code> with <code>components[]</code>, <code>traits[]</code> |</p>
+<p>| <strong>CNAB</strong> | bundle.json | Parameters, credentials, actions |</p>
+<p>---</p>
+<h2>4. How they do it — mechanism comparison matrix</h2>
+<p>| Mechanism | Standards | How it works | ADP |</p>
+<p>|-----------|-----------|--------------|-----|</p>
+<p>| <strong>Envelope document</strong> | K8s, Backstage, OAM, AWP | <code>apiVersion</code> + <code>kind</code> + <code>metadata</code> + <code>spec</code> | Adopt |</p>
+<p>| <strong>Component registry + ref</strong> | PraisonAIUI, OpenUI | Named map; templates use <code>ref:</code> | Adopt |</p>
+<p>| <strong>Layout + slots</strong> | PraisonAIUI, JSON Forms | Layout type + named regions | Adopt (unified) |</p>
+<p>| <strong>Route → template</strong> | PraisonAIUI, Flutter | URL glob → template | Adopt |</p>
+<p>| <strong>Navigation tree</strong> | Mintlify, Storybook | Hierarchical groups → pages | Adopt |</p>
+<p>| <strong>Design token file</strong> | DTCG, Material 3 | Token JSON with aliases | Adopt |</p>
+<p>| <strong>Catalog allowlist</strong> | A2UI, OpenUI | Closed component vocabulary | Adopt |</p>
+<p>| <strong>Schema + uiSchema split</strong> | JSON Forms, RJSF | Data vs presentation | Partial |</p>
+<p>| <strong>Streaming surfaces</strong> | A2UI, AG-UI | Incremental JSON updates | Future |</p>
+<p>| <strong>Layered spec</strong> | AWP, Helm | Separate files merged at compile | Adopt |</p>
+<p>| <strong>File includes</strong> | Backstage, Mintlify | <code>$yaml:</code> / <code>$ref</code> external files | Adopt |</p>
+<p>| <strong>Structural pruning</strong> | K8s CRD | Reject unknown fields | Adopt |</p>
+<p>| <strong>Validation rules R1–Rn</strong> | AWP | Cross-ref beyond JSON Schema | Adopt |</p>
+<p>| <strong>JS executable config</strong> | Docusaurus, Gatsby | Code config | Reject |</p>
+<p>| <strong>Visual canvas</strong> | Figma, Webflow | Proprietary designer | Reject |</p>
+<p>| <strong>Code-only UI</strong> | Compose, SwiftUI | No wire format | Out of scope |</p>
+<p>---</p>
+<h2>5. Side-by-side: four closest analogues</h2>
+<p>| Dimension | PraisonAIUI | Mintlify | A2UI | Backstage |</p>
+<p>|-----------|-------------|----------|------|-----------|</p>
+<p>| <strong>Authoring format</strong> | YAML | JSON | JSON (stream) | YAML |</p>
+<p>| <strong>Envelope</strong> | <code>schemaVersion</code> only | Flat JSON | Message <code>version</code> | <code>apiVersion/kind/metadata/spec</code> |</p>
+<p>| <strong>Navigation</strong> | <code>navigation.tabs[]</code> + filesystem | <code>navigation.groups[]</code> | N/A | N/A (metadata catalog) |</p>
+<p>| <strong>Components</strong> | <code>components{id: type, props}</code> | N/A | Catalog + adjacency list | Entity kinds |</p>
+<p>| <strong>Layout</strong> | <code>templates{layout, slots, zones}</code> | Theme only | Surfaces | N/A |</p>
+<p>| <strong>Routes</strong> | <code>routes{match, template}</code> | Page paths in nav | N/A | N/A |</p>
+<p>| <strong>Schema published</strong> | Pydantic only | <code>$schema</code> URL | JSON Schema catalog | JSON Schema per kind |</p>
+<p>| <strong>Runtime</strong> | React SPA | Hosted platform | Any renderer | Catalog API |</p>
+<p>| <strong>Primary use</strong> | Docs sites | Docs sites | Agent-generated UI | Software inventory |</p>
+<p><strong>Synthesis:</strong> ADP combines PraisonAIUI's composition model, Mintlify's schema publishing, A2UI's catalog allowlist, and Backstage's envelope and file includes.</p>
+<p>---</p>
+<h2>6. YAML vs alternatives — structured debate</h2>
+<h3>6.1 The assumption</h3>
+<p>YAML is the best authoring format for application design manifests.</p>
+<h3>6.2 Counter-evidence</h3>
+<p><strong>Mintlify</strong> — the closest commercial docs-site analogue — uses <strong>JSON</strong> (<code>docs.json</code>) with a published <code>$schema</code> URL for IDE autocomplete. This works well for flat-to-moderately-nested config but becomes verbose for deep layout trees.</p>
+<p><strong>A2UI</strong> uses <strong>JSON</strong> as both authoring and wire format because LLMs emit structured JSON reliably and ambiguity is unacceptable at runtime.</p>
+<p><strong>Docusaurus and Gatsby</strong> use <strong>JavaScript/TypeScript</strong> config for programmatic power — but this sacrifices portability and LLM generation safety.</p>
+<h3>6.3 Format comparison</h3>
+<p>| Format | Strengths | Weaknesses for ADP |</p>
+<p>|--------|-----------|-------------------|</p>
+<p>| <strong>YAML</strong> | Comments; readable nesting; LLM-friendly; PraisonAIUI continuity | Ambiguous typing; merge key footguns; no native DRY |</p>
+<p>| <strong>JSON</strong> | Unambiguous; <code>$schema</code> IDE support; Mintlify-proven | No comments; verbose for layout trees |</p>
+<p>| <strong>TOML</strong> | Clear flat tables (Hugo) | Poor for nested templates/zones |</p>
+<p>| <strong>CUE / Jsonnet / Pkl</strong> | Typed composition without templating | Learning curve; not LLM-default |</p>
+<p>| <strong>HCL</strong> | Modules, expressions | Ecosystem-bound; overkill for UI-only |</p>
+<p>| <strong>JS/TS</strong> | Full programmatic power | Not portable; not LLM-safe |</p>
+<h3>6.4 Recommendation</h3>
+<li><strong>Primary authoring:</strong> YAML — best for nested <code>templates</code> / <code>zones</code> trees</li>
+<li><strong>Alternate authoring:</strong> JSON — for teams preferring Mintlify-style <code>$schema</code> tooling</li>
+<li><strong>Never at runtime:</strong> YAML — always compile to JSON before serve</li>
+<li><strong>Composition:</strong> <code>$yaml:</code> file includes (Backstage), not Helm Go templates</li>
+<li><strong>Power users:</strong> Optional CUE/Jsonnet compiles to YAML before validation</li>
+<p><strong>Verdict:</strong> YAML remains the recommended default, but ADP MUST accept JSON as an equivalent authoring format with identical semantics.</p>
+<p>---</p>
+<h2>7. ADP design principles</h2>
+<p>1. <strong>Declarative, not executable</strong> — manifests describe intent; runtimes render; no inline code or templating logic in core spec.</p>
+<p>2. <strong>Schema-first</strong> — JSON Schema 2020-12 is canonical; YAML is authoring convenience.</p>
+<p>3. <strong>Structural strictness</strong> — unknown fields rejected in strict mode (K8s CRD pattern).</p>
+<p>4. <strong>Catalog allowlist</strong> — component <code>type</code> must exist in published catalog (A2UI pattern).</p>
+<p>5. <strong>Envelope consistency</strong> — every document uses <code>apiVersion</code>, <code>kind</code>, <code>metadata</code>, <code>spec</code>.</p>
+<p>6. <strong>Separation of concerns</strong> — theme, navigation, components, templates, routes are distinct spec sections.</p>
+<p>7. <strong>Compile, don't interpret</strong> — YAML → validated JSON manifest → static assets at build time.</p>
+<p>8. <strong>Accessibility by default</strong> — catalog entries include ARIA role hints (WAI-ARIA pattern).</p>
+<p>9. <strong>Versioned protocol</strong> — <code>schemaVersion</code> integer + <code>apiVersion</code> string; breaking changes bump version.</p>
+<p>10. <strong>Extension namespace</strong> — <code>x-adp-*</code> prefix reserved; plugins register catalog layers.</p>
+<p>11. <strong>File composition</strong> — <code>$yaml:</code> includes for modular configs (Backstage pattern).</p>
+<p>12. <strong>Route-driven rendering</strong> — URL resolution selects template; no hardcoded layout in renderer.</p>
+<p>---</p>
+<h2>8. Proposed ADP document model</h2>
+<h3>Data flow</h3>
+<p>---</p>
+<h2>9. PraisonAIUI alignment and gaps</h2>
+<h3>Already aligned</h3>
+<p>| PraisonAIUI today | ADP equivalent |</p>
+<p>|-------------------|----------------|</p>
+<p>| <code>schemaVersion: 1</code> | <code>schemaVersion</code> + <code>apiVersion</code> |</p>
+<p>| <code>components</code> + <code>ref:</code> | <code>spec.components</code> + slot refs |</p>
+<p>| <code>templates.layout</code> + <code>slots</code> | <code>spec.templates</code> |</p>
+<p>| <code>routes</code> | <code>spec.routes</code> |</p>
+<p>| <code>site.theme</code> | <code>spec.theme</code> |</p>
+<p>| Compiler → JSON manifests | ADP compile pipeline |</p>
+<p>| Pydantic validation | JSON Schema + cross-ref rules |</p>
+<h3>Gaps to close</h3>
+<p>| Gap | ADP fix |</p>
+<p>|-----|---------|</p>
+<p>| No published JSON Schema | Publish <code>application.schema.json</code> |</p>
+<p>| <code>navigation.tabs</code> compiled but not rendered | Mandate runtime consumption in spec |</p>
+<p>| <code>route-manifest.json</code> not used for routing | Mandate route-driven template resolution |</p>
+<p>| Dual slots + zones models | Unified: zones = ordered slot arrays |</p>
+<p>| Closed hardcoded component types | Published <code>component-catalog.schema.json</code> |</p>
+<p>| No envelope (<code>kind</code>, <code>metadata</code>) | Add Backstage-style envelope |</p>
+<p>---</p>
+<h2>10. Migration path</h2>
+<p>Existing <code>aiui.template.yaml</code> files remain valid. Migration steps:</p>
+<p>1. Add <code>apiVersion: adp.io/v1alpha1</code> and <code>kind: Application</code> (optional during transition).</p>
+<p>2. Wrap top-level keys under <code>spec:</code> (compiler accepts both shapes during v1alpha1).</p>
+<p>3. Rename <code>site</code> fields unchanged; map <code>navigation</code>, <code>templates</code>, <code>routes</code> as-is.</p>
+<p>4. Publish catalog; register custom component types via plugin schema layers.</p>
+<p>See adp/aiui-mapping.md for field-by-field mapping.</p>
+<p>---</p>
+<h2>11. Open questions</h2>
+<p>1. <strong>Should ADP standardise layout type names</strong> (<code>ThreeColumnLayout</code>) or allow runtime-defined layouts?</p>
+<p>2. <strong>Should navigation support both filesystem-auto and manual tabs</strong> in one spec, or require a mode switch?</p>
+<p>3. <strong>Should agent-driven surfaces (A2UI) be a separate <code>kind: Surface</code></strong> or embedded in Application?</p>
+<p>4. <strong>Should theme reference DTCG token files directly</strong> or use simplified preset shorthand?</p>
+<p>---</p>
+<h2>12. Appendix A — Standards index</h2>
+<p>| # | Standard | URL |</p>
+<p>|---|----------|-----|</p>
+<p>| 1 | A2UI | https://a2ui.org/ |</p>
+<p>| 2 | AG-UI | https://docs.ag-ui.com/ |</p>
+<p>| 3 | AWP | https://github.com/veegee82/agent-workflow-protocol |</p>
+<p>| 4 | AsyncAPI | https://www.asyncapi.com/ |</p>
+<p>| 5 | Backstage catalog | https://backstage.io/docs/features/software-catalog/descriptor-format |</p>
+<p>| 6 | Bootstrap | https://getbootstrap.com/ |</p>
+<p>| 7 | CloudEvents | https://cloudevents.io/ |</p>
+<p>| 8 | CNAB | https://cnab.io/ |</p>
+<p>| 9 | CrewAI | https://docs.crewai.com/ |</p>
+<p>| 10 | CUE | https://cuelang.org/ |</p>
+<p>| 11 | Docusaurus | https://docusaurus.io/ |</p>
+<p>| 12 | DTCG Design Tokens | https://www.designtokens.org/ |</p>
+<p>| 13 | Figma Code Connect | https://developers.figma.com/docs/code-connect/ |</p>
+<p>| 14 | Framer | https://www.framer.com/ |</p>
+<p>| 15 | Gatsby | https://www.gatsbyjs.com/ |</p>
+<p>| 16 | Helm | https://helm.sh/ |</p>
+<p>| 17 | Hugo | https://gohugo.io/ |</p>
+<p>| 18 | Jekyll | https://jekyllrb.com/ |</p>
+<p>| 19 | JSON Forms | https://jsonforms.io/ |</p>
+<p>| 20 | JSON Schema | https://json-schema.org/ |</p>
+<p>| 21 | Kubernetes CRD | https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/ |</p>
+<p>| 22 | LangGraph | https://langchain-ai.github.io/langgraph/ |</p>
+<p>| 23 | Material Design 3 | https://m3.material.io/ |</p>
+<p>| 24 | MCP | https://modelcontextprotocol.io/ |</p>
+<p>| 25 | Mintlify | https://mintlify.com/docs |</p>
+<p>| 26 | OAM | https://oam.dev/ |</p>
+<p>| 27 | OCI Artifact | https://opencontainers.org/ |</p>
+<p>| 28 | OpenAPI | https://www.openapis.org/ |</p>
+<p>| 29 | OpenUI | https://openuispec.org/ |</p>
+<p>| 30 | Pkl | https://pkl-lang.org/ |</p>
+<p>| 31 | PraisonAIUI | https://github.com/MervinPraison/PraisonAIUI |</p>
+<p>| 32 | RJSF | https://rjsf-team.github.io/react-jsonschema-form/ |</p>
+<p>| 33 | Storybook CSF | https://storybook.js.org/docs/api/csf |</p>
+<p>| 34 | W3C ARIA APG | https://www.w3.org/WAI/ARIA/apg/ |</p>
+<p>| 35 | Web Components | https://web.dev/articles/declarative-shadow-dom |</p>
+<p>| 36 | Webflow | https://webflow.com/ |</p>
+<p>| 37 | AutoGen | https://microsoft.github.io/autogen/ |</p>
+<p>| 38 | A2A | https://google.github.io/A2A/ |</p>
+<p>| 39 | Jsonnet | https://jsonnet.org/ |</p>
+<p>| 40 | Docker Compose | https://docs.docker.com/compose/ |</p>
+<p>| 41 | Qt QML | https://doc.qt.io/qt-6/qmlapplications.html |</p>
+<p>| 42 | XAML | https://learn.microsoft.com/en-us/windows/apps/develop/platform/xaml/xaml-overview |</p>
+<p>| 43 | Jetpack Compose | https://developer.android.com/develop/ui/compose |</p>
+<p>| 44 | SwiftUI | https://developer.apple.com/xcode/swiftui/ |</p>
+<p>| 45 | HTML + CSS | https://html.spec.whatwg.org/ |</p>
+<p>| 46 | Flutter | https://flutter.dev/ |</p>
+<p>---</p>
+<h2>13. Conclusion</h2>
+<p>ADP is feasible and largely prefigured by PraisonAIUI's existing architecture. The research across 46 standards yields a clear synthesis:</p>
+<li><strong>Envelope</strong> from Backstage/K8s</li>
+<li><strong>Composition</strong> from PraisonAIUI (components → templates → routes)</li>
+<li><strong>Catalog</strong> from A2UI/OpenUI</li>
+<li><strong>Theming</strong> from DTCG</li>
+<li><strong>Validation</strong> from AWP (structural schema + R-rules)</li>
+<li><strong>Authoring</strong> in YAML (default) with JSON alternate (Mintlify pattern)</li>
+<p><strong>Status:</strong> Research draft — see adp/implementation-status.md for implementation gaps.</p>
+<p>The draft spec, JSON Schema files, and example manifests are published alongside this report in <code>docs/protocols/adp/</code>.</p></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

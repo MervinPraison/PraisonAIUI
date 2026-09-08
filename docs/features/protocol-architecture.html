@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="All feature modules in PraisonAIUI implement a Protocol ABC pattern for type-safe, swappable backends." />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Protocol Architecture Reference | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/features/protocol-architecture" />
+  <meta property="og:title" content="Protocol Architecture Reference | PraisonAIUI Docs" />
+  <meta property="og:description" content="All feature modules in PraisonAIUI implement a Protocol ABC pattern for type-safe, swappable backends." />
+  <meta property="og:url" content="https://ui.praison.ai/docs/features/protocol-architecture" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Protocol Architecture Reference | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="All feature modules in PraisonAIUI implement a Protocol ABC pattern for type-safe, swappable backends." />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Protocol Architecture Reference", "description": "All feature modules in PraisonAIUI implement a Protocol ABC pattern for type-safe, swappable backends.", "url": "https://ui.praison.ai/docs/features/protocol-architecture", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>Protocol Architecture Reference</h1>
+<p>All feature modules in PraisonAIUI implement a <strong>Protocol ABC</strong> pattern for type-safe, swappable backends.</p>
+<h2>Pattern</h2>
+<h2>Batch 1: Full SDK Wrappers</h2>
+<p>| File | Protocol | SDK Class | Fallback | Getter |</p>
+<p>|------|----------|-----------|----------|--------|</p>
+<p>| <code>guardrails.py</code> | <code>GuardrailProtocol</code> | <code>SDKGuardrailManager</code> | <code>SimpleGuardrailManager</code> | <code>get_guardrail_manager()</code> |</p>
+<p>| <code>tracing.py</code> | <code>TracingProtocol</code> | <code>SDKTracingManager</code> | <code>SimpleTracingManager</code> | <code>get_tracing_manager()</code> |</p>
+<p>| <code>eval.py</code> | <code>EvalProtocol</code> | <code>SDKEvalManager</code> | <code>SimpleEvalManager</code> | <code>get_eval_manager()</code> |</p>
+<p>| <code>approvals.py</code> | <code>ApprovalProtocol</code> | <code>SDKApprovalManager</code> | <code>SimpleApprovalManager</code> | <code>get_approval_manager()</code> |</p>
+<h2>Batch 2: SDK Wrappers + Refactored Stores</h2>
+<p>| File | Protocol | SDK Class | Fallback | Getter |</p>
+<p>|------|----------|-----------|----------|--------|</p>
+<p>| <code>security.py</code> | <code>SecurityProtocol</code> | <code>SDKSecurityManager</code> | <code>SimpleSecurityManager</code> | <code>get_security_manager()</code> |</p>
+<p>| <code>telemetry.py</code> | <code>TelemetryProtocol</code> | <code>SDKTelemetryManager</code> | <code>SimpleTelemetryManager</code> | <code>get_telemetry_manager()</code> |</p>
+<p>| <code>jobs.py</code> | <code>JobStoreProtocol</code> | <code>SDKJobStore</code> | <code>SimpleJobStore</code> | <code>get_job_store()</code> |</p>
+<p>| <code>agents.py</code> | <code>AgentRegistryProtocol</code> | <code>SDKAgentRegistry</code> | <code>SimpleAgentRegistry</code> | <code>get_agent_registry()</code> |</p>
+<h2>Batch 3: Formalized ABCs</h2>
+<p>| File | Protocol | Notes |</p>
+<p>|------|----------|-------|</p>
+<p>| <code>sessions_ext.py</code> | <code>SessionProtocol</code> | Formalized existing SDK-first pattern |</p>
+<p>| <code>schedules.py</code> | <code>ScheduleProtocol</code> | Formalized existing SDK-first pattern |</p>
+<p>| <code>channels.py</code> | <code>ChannelProtocol</code> | SDK gap: no channel management API |</p>
+<p>| <code>usage.py</code> | <code>UsageProtocol</code> | SDK gap: no token/cost tracking API |</p>
+<p>| <code>logs.py</code> | <code>LogProtocol</code> | UI-only by design |</p>
+<p>| <code>auth.py</code> | <code>AuthProtocol</code> | SDK gap: no auth API |</p>
+<p>| <code>config_runtime.py</code> | <code>ConfigProtocol</code> | UI-only by design |</p>
+<p>| <code>nodes.py</code> | <code>NodeProtocol</code> | SDK gap: no node/cluster API |</p>
+<h2>Pre-existing</h2>
+<p>| File | Protocol | Notes |</p>
+<p>|------|----------|-------|</p>
+<p>| <code>memory.py</code> | <code>MemoryProtocol</code> | P0 fix: SDK-first default |</p>
+<p>| <code>skills.py</code> | <code>BaseFeatureProtocol</code> | P1 fix: <code>get_tool_catalog()</code> |</p>
+<h2>SDK Gaps</h2>
+<p>Features where <code>praisonaiagents</code> SDK lacks backend support:</p>
+<p>| Feature | Gap | Recommendation |</p>
+<p>|---------|-----|----------------|</p>
+<p>| <strong>Usage</strong> | No token/cost tracking API | Add <code>UsageTracker</code> to <code>praisonaiagents.telemetry</code> |</p>
+<p>| <strong>Auth</strong> | No authentication module | Add <code>praisonaiagents.auth</code> with key/session persistence |</p>
+<p>| <strong>Nodes</strong> | No node/cluster management | Add <code>praisonaiagents.nodes</code> for node discovery |</p>
+<p>| <strong>Channels</strong> | No channel management API | Add <code>praisonaiagents.channels</code> with <code>ChannelStore</code> |</p>
+<p>| <strong>Config</strong> | No runtime config persistence | Add <code>praisonaiagents.config</code> with file-backed store |</p>
+<h2>Naming Convention</h2>
+<p>All feature classes MUST follow the <code>{Name}Feature</code> pattern:</p>
+<p>| ✅ Correct | ❌ Incorrect |</p>
+<p>|-----------|------------|</p>
+<p>| <code>SchedulesFeature</code> | <code>PraisonAISchedules</code> |</p>
+<p>| <code>KnowledgeFeature</code> | <code>PraisonAIKnowledge</code> |</p>
+<p>| <code>AgentsCrudFeature</code> | <code>PraisonAIAgentsFeature</code> |</p>
+<p>| <code>MemoryFeature</code> | <code>PraisonAIMemory</code> |</p>
+<h3>Rules</h3>
+<p>1. <strong>Class name</strong>: <code>{Name}Feature</code> — PascalCase, ends with <code>Feature</code></p>
+<p>2. <strong><code>feature_name</code></strong>: <code>lowercase_snake</code> — this is the registry key, <strong>never change it</strong></p>
+<p>3. <strong>Module file</strong>: <code>{name}.py</code> — matches <code>feature_name</code></p>
+<p>4. <strong>Backward-compat aliases</strong>: old <code>PraisonAI{Name}</code> names are kept as aliases</p>
+<h3>Example</h3>
+<h3>Why This Convention?</h3>
+<li><strong>AIUI is a universal UI framework</strong>, not PraisonAI-specific</li>
+<li><strong>Class names signal framework identity</strong> to third-party developers</li>
+<li><strong><code>feature_name</code> stays unchanged</strong> for backward compatibility with existing configs</li>
+<li><strong>Aliases preserve imports</strong> for existing code using old names</li></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

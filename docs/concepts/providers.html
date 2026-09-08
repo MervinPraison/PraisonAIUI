@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="PraisonAIUI uses a provider protocol — a simple abstraction that lets you plug in any AI backend." />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Providers | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/concepts/providers" />
+  <meta property="og:title" content="Providers | PraisonAIUI Docs" />
+  <meta property="og:description" content="PraisonAIUI uses a provider protocol — a simple abstraction that lets you plug in any AI backend." />
+  <meta property="og:url" content="https://ui.praison.ai/docs/concepts/providers" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Providers | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="PraisonAIUI uses a provider protocol — a simple abstraction that lets you plug in any AI backend." />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Providers", "description": "PraisonAIUI uses a provider protocol — a simple abstraction that lets you plug in any AI backend.", "url": "https://ui.praison.ai/docs/concepts/providers", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>Providers</h1>
+<p>PraisonAIUI uses a <strong>provider protocol</strong> — a simple abstraction that lets you plug in any AI backend.</p>
+<h2>Architecture</h2>
+<p>The provider protocol is the <strong>only contract</strong> between the frontend and any AI backend. All dashboard pages (<code>/api/overview</code>, <code>/api/config</code>, <code>/api/logs</code>, etc.) are provider-agnostic — they always work regardless of which backend is active. The provider only handles agent execution (<code>run()</code>), agent listing (<code>list_agents()</code>), and health checks (<code>health()</code>).</p>
+<h2>How It Works</h2>
+<p>1. User sends a message → <code>POST /run</code></p>
+<p>2. Server calls <code>provider.run(message)</code> on the active provider</p>
+<p>3. Provider yields <code>RunEvent</code> objects (start, content, tool calls, reasoning, completion)</p>
+<p>4. Server serialises each <code>RunEvent</code> to an SSE <code>data:</code> frame</p>
+<p>5. Frontend <code>useSSE.ts</code> parses events and renders components</p>
+<h2>Built-in Provider: PraisonAI</h2>
+<p>PraisonAI is the default provider. It wraps the <code>@aiui.reply</code> callback system:</p>
+<p>No extra config needed — <code>PraisonAIProvider</code> is used automatically.</p>
+<h3>Agent Tools and Reflection</h3>
+<p>The default provider resolves tools for agents using <code>ToolResolver</code> from the <code>praisonai</code> package. Agents created via the CRUD API or <code>~/.praisonaiui/config.yaml</code> get their tool names (strings) automatically resolved to callable Python functions:</p>
+<p>When no tools are configured, the provider gives agents sensible defaults (<code>internet_search</code>).</p>
+<p>Agents also support <code>reflection: true</code> (default) for self-reflection mode, where the agent evaluates its own response quality before returning.</p>
+<h2>Swapping Providers</h2>
+<h2>Writing a Custom Provider</h2>
+<p>Implement <code>BaseProvider.run()</code> — that's it:</p>
+<h3>Inline media (images, video, files)</h3>
+<p>Any provider can attach rich media to chat messages using `<code>MESSAGE_ELEMENT</code>`</p>
+<p>events. The UI renders them inline and persists them in session history.</p>
+<p>Tool results from PraisonAI agents are also detected automatically when they</p>
+<p>match OpenAI image shapes (`<code>{"data": [{"url": "..."}]}</code>`) or explicit element</p>
+<p>dicts — no provider code required.</p>
+<p>Callback handlers can use `<code>Message.add_image()</code><code> or </code><code>await aiui.image(url)</code>`</p>
+<p>and the default `<code>PraisonAIProvider</code><code> maps those to </code><code>MESSAGE_ELEMENT</code>` events.</p>
+<p>Full architecture, data flows, and tests: Image Preview in Chat.</p>
+<h3>With Tool Calls and Reasoning</h3>
+<h2>RunEvent Reference</h2>
+<p>Every event has a <code>type</code> field and optional payload fields:</p>
+<p>| Field | Type | Used By |</p>
+<p>|-------|------|---------|</p>
+<p>| <code>type</code> | <code>RunEventType</code> | All events |</p>
+<p>| <code>content</code> | <code>str</code> | <code>RUN_COMPLETED</code>, <code>RUN_CONTENT</code> |</p>
+<p>| <code>token</code> | <code>str</code> | <code>RUN_CONTENT</code> (streaming) |</p>
+<p>| <code>name</code> | <code>str</code> | <code>TOOL_CALL_*</code> |</p>
+<p>| <code>args</code> | <code>dict</code> | <code>TOOL_CALL_STARTED</code> |</p>
+<p>| <code>result</code> | <code>any</code> | <code>TOOL_CALL_COMPLETED</code> |</p>
+<p>| <code>step</code> | <code>str</code> | <code>REASONING_STEP</code> |</p>
+<p>| <code>error</code> | <code>str</code> | <code>RUN_ERROR</code> |</p>
+<p>| <code>agent_name</code> | <code>str</code> | Multi-agent events |</p>
+<p>| <code>extra_data</code> | <code>dict</code> | Custom payload (includes <code>element</code> for <code>message_element</code>) |</p>
+<h3>Event Types (27 total)</h3>
+<p>=== "Agent Events"</p>
+<p>| Type | Description |</p>
+<p>|------|-------------|</p>
+<p>| <code>run_started</code> | Agent run begins |</p>
+<p>| <code>run_content</code> | Streaming token or content chunk |</p>
+<p>| <code>run_completed</code> | Agent run finished |</p>
+<p>| <code>run_error</code> | Error occurred |</p>
+<p>| <code>run_cancelled</code> | User cancelled |</p>
+<p>| <code>tool_call_started</code> | Tool invocation started |</p>
+<p>| <code>tool_call_completed</code> | Tool returned result |</p>
+<p>| <code>reasoning_started</code> | Thinking begun |</p>
+<p>| <code>reasoning_step</code> | Individual reasoning step |</p>
+<p>| <code>reasoning_completed</code> | Thinking finished |</p>
+<p>| <code>memory_update_started</code> | Memory write begun |</p>
+<p>| <code>memory_update_completed</code> | Memory write done |</p>
+<p>| <code>updating_memory</code> | Memory being updated |</p>
+<p>| <code>run_paused</code> | Run paused (e.g. waiting for user) |</p>
+<p>| <code>run_continued</code> | Run resumed |</p>
+<p>| <code>message_element</code> | Inline media element (image, video, file, etc.) — see Image Preview in Chat |</p>
+<p>=== "Team Events"</p>
+<p>| Type | Description |</p>
+<p>|------|-------------|</p>
+<p>| <code>team_run_started</code> | Team run begins |</p>
+<p>| <code>team_run_content</code> | Team streaming content |</p>
+<p>| <code>team_run_completed</code> | Team run finished |</p>
+<p>| <code>team_run_error</code> | Team error |</p>
+<p>| <code>team_run_cancelled</code> | Team cancelled |</p>
+<p>| <code>team_tool_call_started</code> | Team tool call started |</p>
+<p>| <code>team_tool_call_completed</code> | Team tool call done |</p>
+<p>| <code>team_reasoning_started</code> | Team reasoning begun |</p>
+<p>| <code>team_reasoning_step</code> | Team reasoning step |</p>
+<p>| <code>team_reasoning_completed</code> | Team reasoning done |</p>
+<p>| <code>team_memory_update_started</code> | Team memory update started |</p>
+<p>| <code>team_memory_update_completed</code> | Team memory update done |</p>
+<h2>API Summary</h2>
+<h3>`BaseProvider` (abstract)</h3>
+<p>:   Subclass and implement <code>run()</code> to create a custom provider.</p>
+<p>| Method | Description |</p>
+<p>|--------|-------------|</p>
+<p>| <code>run(message, *, session_id, agent_name, <strong>kw)</code> | </strong>Required.** Async generator yielding <code>RunEvent</code> objects |</p>
+<p>| <code>list_agents()</code> | Optional. Returns list of available agents |</p>
+<p>| <code>health()</code> | Optional. Returns health check dict |</p>
+<h3>`RunEvent` (dataclass)</h3>
+<p>:   Structured event with <code>type: RunEventType</code> and optional payload fields (see table above).</p>
+<li><code>to_dict()</code> → serialise to JSON-compatible dict matching the frontend <code>SSEEvent</code> interface</li>
+<h3>`RunEventType` (enum)</h3>
+<p>:   27 string values matching the frontend <code>types.ts</code> — see Agent Events and Team Events tabs above.</p>
+<h3>Helper Functions</h3>
+<p>| Function | Description |</p>
+<p>|----------|-------------|</p>
+<p>| <code>praisonaiui.set_provider(provider)</code> | Set the active provider |</p>
+<p>| <code>praisonaiui.get_provider()</code> | Get the active provider (lazy-inits <code>PraisonAIProvider</code>) |</p></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

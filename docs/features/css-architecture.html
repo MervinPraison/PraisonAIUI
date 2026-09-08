@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="A beginner-friendly guide to how PraisonAIUI creates its visual appearance — what controls the colors, fonts, and layout you see on screen." />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>How the UI Looks Are Built | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/features/css-architecture" />
+  <meta property="og:title" content="How the UI Looks Are Built | PraisonAIUI Docs" />
+  <meta property="og:description" content="A beginner-friendly guide to how PraisonAIUI creates its visual appearance — what controls the colors, fonts, and layout you see on screen." />
+  <meta property="og:url" content="https://ui.praison.ai/docs/features/css-architecture" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="How the UI Looks Are Built | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="A beginner-friendly guide to how PraisonAIUI creates its visual appearance — what controls the colors, fonts, and layout you see on screen." />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "How the UI Looks Are Built", "description": "A beginner-friendly guide to how PraisonAIUI creates its visual appearance — what controls the colors, fonts, and layout you see on screen.", "url": "https://ui.praison.ai/docs/features/css-architecture", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>How the UI Looks Are Built</h1>
+<p>A beginner-friendly guide to how PraisonAIUI creates its visual appearance — what controls the colors, fonts, and layout you see on screen.</p>
+<h2>The Big Picture</h2>
+<p>PraisonAIUI's appearance comes from <strong>three layers</strong> working together:</p>
+<p><strong>In plain English:</strong></p>
+<p>1. You choose a theme preset (like "zinc" or "blue") in your config</p>
+<p>2. The system translates that into CSS variables (color codes)</p>
+<p>3. Every button, text, and background reads those variables to know what color to be</p>
+<h2>Configuring from YAML</h2>
+<h3>Theme</h3>
+<h3>Custom CSS</h3>
+<p>---</p>
+<h2>What You Can Control</h2>
+<h3>Theme Presets</h3>
+<p>The preset sets your <strong>color palette</strong> — it changes the accent color used for buttons, active states, and highlights across the entire UI.</p>
+<p>| Category | Options |</p>
+<p>|----------|---------|</p>
+<p>| <strong>Neutral</strong> | zinc (default), slate, stone, gray, neutral |</p>
+<p>| <strong>Warm</strong> | red, orange, amber, yellow |</p>
+<p>| <strong>Cool</strong> | blue, indigo, violet, purple, cyan, sky, teal |</p>
+<p>| <strong>Nature</strong> | green, emerald, lime |</p>
+<p>| <strong>Vibrant</strong> | pink, rose, fuchsia |</p>
+<h3>Dark Mode</h3>
+<p>When light mode is on, all backgrounds flip to white/light gray and text becomes dark.</p>
+<h3>Border Radius</h3>
+<p>| Value | Effect |</p>
+<p>|-------|--------|</p>
+<p>| <code>none</code> | Sharp, square corners |</p>
+<p>| <code>sm</code> | Slightly rounded |</p>
+<p>| <code>md</code> | Medium rounded (default) |</p>
+<p>| <code>lg</code> | More rounded |</p>
+<p>| <code>xl</code> | Very rounded, pill-shaped buttons |</p>
+<h3>Dashboard CSS Variables</h3>
+<p>For fine-grained control, override these variables in <code>customCss</code>:</p>
+<p>| Variable | Default (dark) | What It Controls |</p>
+<p>|----------|---------------|-----------------|</p>
+<p>| <code>--db-bg</code> | <code>#0a0a0f</code> | Page background |</p>
+<p>| <code>--db-sidebar-bg</code> | <code>#111118</code> | Sidebar background |</p>
+<p>| <code>--db-accent</code> | <code>#6366f1</code> | Buttons, active items, highlights |</p>
+<p>| <code>--db-text</code> | <code>#e4e4e7</code> | Primary text |</p>
+<p>| <code>--db-text-dim</code> | <code>#71717a</code> | Secondary/muted text |</p>
+<p>| <code>--db-border</code> | <code>rgba(255,255,255,0.06)</code> | Borders and dividers |</p>
+<p>| <code>--db-card-bg</code> | <code>rgba(255,255,255,0.03)</code> | Card backgrounds |</p>
+<p>| <code>--db-radius</code> | <code>10px</code> | Corner roundness |</p>
+<p>---</p>
+<h2>Priority Order</h2>
+<p>When the same setting is defined in multiple places:</p>
+<p>| Priority | Source | Example |</p>
+<p>|----------|--------|---------|</p>
+<p>| 1 (highest) | <strong>CLI flag</strong> | <code>--style chat</code> |</p>
+<p>| 2 | <strong>Python API</strong> | <code>aiui.set_theme(preset="blue")</code> |</p>
+<p>| 3 | <strong>YAML config</strong> | <code>site.theme.preset: blue</code> |</p>
+<p>| 4 (lowest) | <strong>Built-in defaults</strong> | zinc, dark, md radius |</p>
+<p>---</p>
+<h2>Two Chat Systems Explained</h2>
+<p>PraisonAIUI includes <strong>two different chat interfaces</strong>. Understanding the difference helps you choose the right one and know what features to expect.</p>
+<h3>React Chat — The Full-Featured Chat</h3>
+<p><strong>When it's active:</strong> <code>style: chat</code>, <code>style: agents</code>, or <code>style: playground</code></p>
+<p>This is the <strong>recommended chat</strong> for most users. It's built with React and benefits from the full modern web stack.</p>
+<p><strong>What you get:</strong></p>
+<p>| Feature | How it works |</p>
+<p>|---------|-------------|</p>
+<p>| 🎨 <strong>Your theme colors</strong> | Automatically follows your <code>preset</code> and <code>darkMode</code> settings |</p>
+<p>| 📋 <strong>Copy code button</strong> | Click to copy any code block — shows "✓ Copied" feedback |</p>
+<p>| 🌈 <strong>Syntax highlighting</strong> | Code is color-coded by language (Python, JavaScript, etc.) |</p>
+<p>| 📊 <strong>Markdown tables</strong> | Tables render as proper formatted tables |</p>
+<p>| 🔤 <strong>Rich typography</strong> | Headers, bold, italic, lists — all beautifully styled |</p>
+<p>| 📎 <strong>File attachments</strong> | Upload files to include as context |</p>
+<h3>Dashboard Chat — The Admin Chat</h3>
+<p><strong>When it's active:</strong> <code>style: dashboard</code></p>
+<p>This is a lighter chat built as a dashboard plugin. It's designed for quick admin interactions within the dashboard.</p>
+<p><strong>What you get:</strong></p>
+<p>| Feature | How it works |</p>
+<p>|---------|-------------|</p>
+<p>| 🎨 <strong>Dashboard theme</strong> | Uses the dashboard's color scheme (now follows your preset!) |</p>
+<p>| 💬 <strong>Basic markdown</strong> | Bold, italic, headings, code blocks, links, lists |</p>
+<p>| 🔧 <strong>Tool call display</strong> | Shows when the AI is using tools |</p>
+<p>| 📋 <strong>Session management</strong> | Create, switch, and manage conversations |</p>
+<p>| 🤖 <strong>Agent selection</strong> | Pick which AI agent to chat with |</p>
+<p><strong>What it doesn't have (yet):</strong></p>
+<li>❌ Copy button on code blocks</li>
+<li>❌ Syntax highlighting (code blocks are plain text)</li>
+<li>❌ Markdown tables</li>
+<h3>Which Should I Use?</h3>
+<p>| If you want... | Use this style |</p>
+<p>|----------------|---------------|</p>
+<p>| Best chat experience with all features | <code>style: chat</code> |</p>
+<p>| Multi-agent dashboard with admin controls | <code>style: dashboard</code> |</p>
+<p>| Agent profiles and switching | <code>style: agents</code> |</p>
+<p>| Side-by-side prompt testing | <code>style: playground</code> |</p>
+<p>---</p>
+<h2>File Map</h2>
+<p>Where does each piece of styling live?</p>
+<p>| File | What It Does |</p>
+<p>|------|-------------|</p>
+<p>| <code>src/frontend/src/index.css</code> | Main CSS — imports Tailwind, defines default color variables |</p>
+<p>| <code>src/frontend/src/themes.ts</code> | Theme engine — translates preset names to CSS variable values |</p>
+<p>| <code>src/frontend/src/chat/ChatMessages.tsx</code> | React chat — has copy buttons, syntax highlighting |</p>
+<p>| <code>templates/frontend/plugins/views/chat.js</code> | Dashboard chat — basic markdown, dashboard theme |</p>
+<p>| <code>templates/frontend/plugins/dashboard.js</code> | Dashboard — defines <code>--db-*</code> color variables + reads config |</p>
+<h2>Related Pages</h2>
+<li>Theming — Theme presets and YAML configuration</li>
+<li>Styles — The 6 UI styles (chat, agents, playground, etc.)</li>
+<li>Dark Mode — Dark mode toggle</li>
+<li>Dashboard — Dashboard feature overview</li></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>
