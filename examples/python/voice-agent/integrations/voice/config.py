@@ -18,6 +18,7 @@ class VoiceSettings:
     public_api_base_url: str | None
     default_assistant_id: str | None
     default_phone_number_id: str | None
+    public_api_key: str | None
     api_base: str
 
     @property
@@ -61,5 +62,13 @@ def load_voice_settings(*, require_key: bool = True) -> VoiceSettings:
         public_api_base_url=_env("PUBLIC_API_BASE_URL") or None,
         default_assistant_id=_env("VOICE_ASSISTANT_ID") or None,
         default_phone_number_id=_env("VOICE_PHONE_NUMBER_ID") or None,
+        public_api_key=_env("VOICE_PUBLIC_API_KEY") or None,
         api_base=api_base.rstrip("/"),
     )
+
+
+def get_web_sdk_settings() -> tuple[str, str]:
+    """Browser SDK URL + legacy global name (global unused for ESM imports)."""
+    url = _env("VOICE_WEB_SDK_URL") or "https://esm.sh/@vapi-ai/web@2.7.0"
+    global_name = _env("VOICE_WEB_SDK_GLOBAL") or "Vapi"
+    return url, global_name

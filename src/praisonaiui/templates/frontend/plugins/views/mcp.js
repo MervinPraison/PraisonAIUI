@@ -116,7 +116,7 @@ function openConnectForm(host, container) {
       <h3 style="margin:0 0 16px;font-size:14px;font-weight:600">Connect MCP Server</h3>
       <div class="db-form-group">
         <label class="db-form-label">Name</label>
-        <input id="mcp-f-name" class="db-form-input" placeholder="my-server">
+        <input id="mcp-f-name" class="db-form-input" value="everything-demo" placeholder="my-server">
       </div>
       <div class="db-form-group">
         <label class="db-form-label">Transport</label>
@@ -128,11 +128,11 @@ function openConnectForm(host, container) {
       <div id="mcp-f-stdio">
         <div class="db-form-group">
           <label class="db-form-label">Command</label>
-          <input id="mcp-f-command" class="db-form-input" placeholder="npx">
+          <input id="mcp-f-command" class="db-form-input" value="npx" placeholder="npx" required>
         </div>
         <div class="db-form-group">
           <label class="db-form-label">Arguments (space-separated)</label>
-          <input id="mcp-f-args" class="db-form-input" placeholder="-y @modelcontextprotocol/server-filesystem /tmp">
+          <input id="mcp-f-args" class="db-form-input" value="-y @modelcontextprotocol/server-everything" placeholder="-y @modelcontextprotocol/server-everything">
         </div>
       </div>
       <div id="mcp-f-url" style="display:none">

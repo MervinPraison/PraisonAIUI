@@ -1,0 +1,3 @@
+httpx
+elevenlabs>=2.47.0
+openai

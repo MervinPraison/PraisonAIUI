@@ -252,6 +252,7 @@ window.aiui.registerSurfaceRenderer = function(surfaceId, renderFn) {
 window.aiui.surfaces = SURFACE_REGISTRY;
 window.aiui.version = '1';
 window.aiui.components = COMPONENT_REGISTRY;
+window.aiui.renderComponent = renderComponent;
 window.aiui.registerSlot = function (name, renderFn) { SLOT_REGISTRY[name] = renderFn; };
 window.aiui.slots = SLOT_REGISTRY;
 window.aiui.sdk = aiuiSdk;
