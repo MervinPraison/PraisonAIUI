@@ -315,6 +315,13 @@ class ChannelsFeature(BaseFeatureProtocol):
 
         Returns None on success, or an error string on failure.
         """
+        # Idempotent start (#277): stop any bot already running for this channel
+        # before creating a new one. Without this, a toggle off/on, a re-add, or
+        # an autostart+manual race leaves a duplicate bot with duplicate event
+        # handlers attached while _live_bots only tracks the latest task.
+        if channel_id in _live_bots:
+            await self._stop_channel_bot(channel_id)
+
         platform = entry["platform"]
         config = entry.get("config", {})
         fallback_errors: List[str] = []
@@ -905,9 +912,15 @@ class ChannelsFeature(BaseFeatureProtocol):
         try:
             if hasattr(bot, "stop"):
                 await bot.stop()
-            # Cancel the task if still running
+            # Cancel the task and await it so the old bot is fully torn down
+            # before this returns — otherwise a restart (#277) can spawn a new
+            # bot while the previous task is still cancelling (a zombie).
             if info and info.get("task") and not info["task"].done():
                 info["task"].cancel()
+                try:
+                    await info["task"]
+                except asyncio.CancelledError:
+                    pass
             logger.info(f"Stopped bot for channel '{channel_id}'")
         except Exception as e:
             logger.error(f"Error stopping bot for '{channel_id}': {e}")
@@ -918,6 +931,19 @@ class ChannelsFeature(BaseFeatureProtocol):
         gw = self._get_gateway()
         if gw is not None:
             getattr(gw, "_channel_bots", {}).pop(channel_id, None)
+            # Mirror start-time registration: drop the task from the gateway
+            # too, so a restart (#277) leaves no stale/cancelled task behind.
+            # The dict form is overwritten on restart, but the list form would
+            # otherwise accumulate a cancelled task on every restart.
+            channel_tasks = getattr(gw, "_channel_tasks", None)
+            task = info.get("task") if info else None
+            if isinstance(channel_tasks, dict):
+                channel_tasks.pop(channel_id, None)
+            elif isinstance(channel_tasks, list) and task is not None:
+                try:
+                    channel_tasks.remove(task)
+                except ValueError:
+                    pass
 
         # Update local state
         ch = _channels.get(channel_id)
