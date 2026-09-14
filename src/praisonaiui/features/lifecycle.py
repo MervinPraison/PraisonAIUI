@@ -168,7 +168,9 @@ async def run_startup_hooks() -> None:
     """Execute all registered startup hooks.
 
     Called by the server during application startup.
-    Blocks until all hooks complete.
+    Has a timeout from AIUI_STARTUP_TIMEOUT (default 60s) so a hung hook
+    cannot block the server from reaching the lifespan ``yield`` — startup is
+    marked completed on timeout so ``/health/live`` still responds.
     """
     if _lifecycle_state["startup_completed"]:
         _log.warning("Startup hooks already executed")
@@ -177,15 +179,24 @@ async def run_startup_hooks() -> None:
     _log.info(f"Running {len(_startup_hooks)} startup hooks")
     start_time = time.perf_counter()
 
-    for hook in _startup_hooks:
-        try:
-            _log.debug(f"Executing startup hook: {getattr(hook, '__name__', str(hook))}")
-            result = hook()
-            if asyncio.iscoroutine(result):
-                await result
-        except Exception as e:
-            _log.error(f"Startup hook failed: {getattr(hook, '__name__', str(hook))}: {e}")
-            # Continue with other hooks - individual failures shouldn't break startup
+    # Get startup timeout from environment (mirrors AIUI_SHUTDOWN_TIMEOUT)
+    timeout = float(os.environ.get("AIUI_STARTUP_TIMEOUT", "60.0"))
+
+    async def _execute_hooks():
+        for hook in _startup_hooks:
+            try:
+                _log.debug(f"Executing startup hook: {getattr(hook, '__name__', str(hook))}")
+                result = hook()
+                if asyncio.iscoroutine(result):
+                    await result
+            except Exception as e:
+                _log.error(f"Startup hook failed: {getattr(hook, '__name__', str(hook))}: {e}")
+                # Continue with other hooks - individual failures shouldn't break startup
+
+    try:
+        await asyncio.wait_for(_execute_hooks(), timeout=timeout)
+    except asyncio.TimeoutError:
+        _log.error(f"Startup hooks timed out after {timeout}s")
 
     execution_time = time.perf_counter() - start_time
     _lifecycle_state.update(

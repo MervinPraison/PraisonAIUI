@@ -247,6 +247,25 @@ class TestLifecycleHooks:
             assert _lifecycle_state["shutdown_initiated"] is True
 
     @pytest.mark.asyncio
+    async def test_startup_timeout(self):
+        """Test startup timeout mechanism — a hung hook must not block forever."""
+
+        @on_app_startup
+        async def slow_hook():
+            await asyncio.sleep(2)  # Simulate hung startup
+
+        # Set short timeout
+        with patch.dict(os.environ, {"AIUI_STARTUP_TIMEOUT": "0.1"}):
+            start_time = time.time()
+            await run_startup_hooks()
+            elapsed = time.time() - start_time
+
+            # Should timeout quickly and still mark startup completed so the
+            # server reaches lifespan yield and /health/live responds
+            assert elapsed < 0.5
+            assert _lifecycle_state["startup_completed"] is True
+
+    @pytest.mark.asyncio
     async def test_startup_idempotent(self):
         """Test that startup hooks are only run once."""
         call_count = 0
