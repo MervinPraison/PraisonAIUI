@@ -462,6 +462,24 @@ async def _run_and_broadcast(
     collected_tool_calls: Dict[str, Dict] = {}  # Merge STARTED+COMPLETED per tool_call_id
     collected_elements: List[Dict[str, Any]] = []
 
+    # Register this run so ``abort_run(run_id)`` can cancel it, and announce the
+    # run to WS clients up-front. Without this the ``_active_runs`` registry was
+    # never populated, so the Stop button and ``POST /api/chat/abort`` were
+    # silent no-ops that always returned ``no_active_run`` (issue #274). The
+    # ``run_started`` event also lets the frontend capture ``run_id`` and enable
+    # the Stop button immediately, before the first token arrives.
+    self_task = asyncio.current_task()
+    if self_task is not None:
+        mgr._active_runs[run_id] = self_task
+    started_event: Dict[str, Any] = {
+        "type": "run_started",
+        "session_id": session_id,
+        "run_id": run_id,
+    }
+    if agent_name:
+        started_event["agent_name"] = agent_name
+    await mgr.broadcast(session_id, started_event)
+
     try:
         # Pass image attachments to provider for SDK native multimodal handling
         run_kwargs = {}
@@ -644,6 +662,9 @@ async def _run_and_broadcast(
                 "error": str(e),
             },
         )
+    finally:
+        # Always deregister the run, on normal completion, error, or abort.
+        mgr._active_runs.pop(run_id, None)
 
     # Save assistant response
     if full_response or collected_elements:
