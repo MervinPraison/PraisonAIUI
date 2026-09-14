@@ -348,6 +348,61 @@ class TestMCPClientManager:
             await manager.connect_server(config)
 
     @pytest.mark.asyncio
+    async def test_reconnect_same_name_disconnects_old(self):
+        """Reconnecting the same name disconnects the previous client (no leak)."""
+        manager = MCPClientManager()
+
+        old_client = AsyncMock()
+        old_client.disconnect = AsyncMock()
+        manager._clients["srv"] = old_client
+
+        config = {"name": "srv", "command": "echo", "args": []}
+        with patch("praisonaiui.features.mcp.StdioMCPClient") as mock_client_class:
+            new_client = AsyncMock()
+            new_client.connect.return_value = True
+            new_client.list_tools.return_value = []
+            mock_client_class.return_value = new_client
+
+            await manager.connect_server(config)
+
+        old_client.disconnect.assert_awaited_once()
+        assert manager._clients["srv"] is new_client
+
+    @pytest.mark.asyncio
+    async def test_connect_failure_removes_client(self):
+        """A failed connect (returns False) removes the client from the registry."""
+        manager = MCPClientManager()
+        config = {"name": "srv", "command": "echo", "args": []}
+
+        with patch("praisonaiui.features.mcp.StdioMCPClient") as mock_client_class:
+            client = AsyncMock()
+            client.connect.return_value = False
+            mock_client_class.return_value = client
+
+            server = await manager.connect_server(config)
+
+        assert server.status == MCPStatus.ERROR
+        client.disconnect.assert_awaited_once()
+        assert "srv" not in manager._clients
+
+    @pytest.mark.asyncio
+    async def test_connect_exception_removes_client(self):
+        """A connect that raises removes the client from the registry."""
+        manager = MCPClientManager()
+        config = {"name": "srv", "command": "echo", "args": []}
+
+        with patch("praisonaiui.features.mcp.StdioMCPClient") as mock_client_class:
+            client = AsyncMock()
+            client.connect.side_effect = Exception("boom")
+            mock_client_class.return_value = client
+
+            server = await manager.connect_server(config)
+
+        assert server.status == MCPStatus.ERROR
+        client.disconnect.assert_awaited_once()
+        assert "srv" not in manager._clients
+
+    @pytest.mark.asyncio
     async def test_disconnect_server_success(self):
         """Test successful server disconnect."""
         manager = MCPClientManager()
