@@ -361,6 +361,13 @@ class MCPClientManager:
             connection_data=server_config,
         )
 
+        # Disconnect any existing client for this name (reconnect) before
+        # replacing it, otherwise the previous stdio subprocess/streams are
+        # orphaned when the reference is overwritten.
+        previous_client = self._clients.pop(name, None)
+        if previous_client is not None:
+            await self._safe_disconnect(name, previous_client)
+
         # Register server
         _mcp_servers[name] = server
         self._clients[name] = client
@@ -380,6 +387,7 @@ class MCPClientManager:
             else:
                 server.status = MCPStatus.ERROR
                 server.last_error = "Connection failed"
+                await self._cleanup_failed_client(name, client)
 
         except asyncio.TimeoutError:
             logger.error("Timed out connecting MCP server %s", name)
@@ -390,10 +398,26 @@ class MCPClientManager:
             logger.exception(f"Failed to connect MCP server {name}")
             server.status = MCPStatus.ERROR
             server.last_error = str(e)
+            await self._cleanup_failed_client(name, client)
 
         # Notify final status
         await self._notify_status_change(server)
         return server
+
+    async def _safe_disconnect(self, name: str, client: MCPClientProtocol) -> None:
+        """Disconnect a client, logging (not raising) on failure."""
+        try:
+            await client.disconnect()
+        except Exception:
+            logger.exception(f"Error disconnecting MCP client {name}")
+
+    async def _cleanup_failed_client(self, name: str, client: MCPClientProtocol) -> None:
+        """Release a client whose connection failed and drop it from the registry."""
+        await self._safe_disconnect(name, client)
+        # Only remove if this client is still the registered one (avoid evicting
+        # a newer client from a concurrent reconnect).
+        if self._clients.get(name) is client:
+            del self._clients[name]
 
     async def disconnect_server(
         self, name: str, session_context: Optional[Dict[str, Any]] = None
