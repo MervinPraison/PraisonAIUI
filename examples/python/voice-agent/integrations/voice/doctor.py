@@ -17,6 +17,25 @@ def _tcp_open(host: str, port: int, timeout: float = 2.0) -> bool:
         return False
 
 
+_MCP_PROBE_TIMEOUT_SEC = 2.0
+
+
+def _is_slow_mcp_probe(detail: str) -> bool:
+    lowered = detail.lower()
+    return any(token in lowered for token in ("timed out", "timeout", "temporarily unavailable"))
+
+
+def _mcp_servers_probe(app_port: int) -> tuple[str, str]:
+    """Probe MCP list endpoint; slow stdio connect must not fail the whole doctor run."""
+    status, detail = _http_status(
+        f"http://127.0.0.1:{app_port}/api/mcp/servers",
+        timeout=_MCP_PROBE_TIMEOUT_SEC,
+    )
+    if status == "fail" and _is_slow_mcp_probe(detail):
+        return "warn", detail
+    return status, detail
+
+
 def _http_status(url: str, timeout: float = 5.0) -> tuple[str, str]:
     try:
         req = Request(url, headers={"User-Agent": "praisonai-voice-doctor"})
@@ -64,7 +83,7 @@ def run_voice_doctor(*, app_port: int = 8001, sidecar_port: int = 8002) -> dict[
         checks.append({"name": "Speech Engine config", "status": status, "detail": detail})
         status, detail = _http_status(f"http://127.0.0.1:{app_port}/api/voice/realtime/config")
         checks.append({"name": "GPT Realtime config", "status": status, "detail": detail})
-        status, detail = _http_status(f"http://127.0.0.1:{app_port}/api/mcp/servers")
+        status, detail = _mcp_servers_probe(app_port)
         checks.append({"name": "MCP servers API", "status": status, "detail": detail})
     else:
         checks.append(
