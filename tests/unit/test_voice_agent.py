@@ -478,6 +478,26 @@ def test_voice_doctor_report(monkeypatch):
     assert report["summary"]["failed"] >= 1
 
 
+def test_voice_doctor_mcp_probe_timeout_is_warn(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key-12345678")
+
+    def fake_http_status(url: str, timeout: float = 5.0):
+        if "/api/mcp/servers" in url:
+            assert timeout == 2.0
+            return "fail", "timed out"
+        return "pass", "HTTP 200"
+
+    with _voice_modules() as imp:
+        doctor = imp("integrations.voice.doctor")
+        monkeypatch.setattr(doctor, "_tcp_open", lambda *args, **kwargs: True)
+        monkeypatch.setattr(doctor, "_http_status", fake_http_status)
+        report = doctor.run_voice_doctor(app_port=8001, sidecar_port=59998)
+
+    mcp = next(c for c in report["checks"] if c["name"] == "MCP servers API")
+    assert mcp["status"] == "warn"
+    assert mcp["detail"] == "timed out"
+
+
 def test_call_detail_ui_includes_analytics():
     with _voice_modules() as imp:
         ui = imp("integrations.voice.call_detail_ui")
