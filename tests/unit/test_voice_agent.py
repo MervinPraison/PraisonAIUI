@@ -20,17 +20,10 @@ import pytest
 
 _ROOT = Path(__file__).resolve().parents[2] / "examples" / "python" / "voice-agent"
 
-_INTEGRATIONS_PREFIX = ("integrations", "integrations.")
-
 
 @contextlib.contextmanager
 def _voice_modules():
-    """Import the example's ``integrations.voice`` package in isolation.
-
-    Saves and clears any already-imported ``integrations*`` modules, puts the
-    example directory first on ``sys.path``, then restores the previous state
-    on exit so unrelated tests keep their own ``integrations`` package.
-    """
+    """Import the example's ``integrations.voice`` package in isolation."""
     saved = {
         name: mod
         for name, mod in list(sys.modules.items())
@@ -69,6 +62,40 @@ def test_execute_tool_get_current_time():
     assert "utc" in raw
 
 
+def test_demo_tool_reply_time_and_echo():
+    with _voice_modules() as imp:
+        tools = imp("integrations.voice.tools")
+        time_reply = tools.demo_tool_reply("What time is it?")
+        echo_reply = tools.demo_tool_reply("Echo hello world")
+    assert time_reply is not None
+    assert "UTC time" in time_reply
+    assert echo_reply is not None
+    assert "hello world" in echo_reply.lower()
+
+
+def test_speech_engine_demo_fast_path():
+    with _voice_modules() as imp:
+        se = imp("integrations.voice.speech_engine")
+
+        class Msg:
+            def __init__(self, role, content):
+                self.role = role
+                self.content = content
+
+        reply = se._try_demo_tool_reply([Msg("user", "Tell me the time please")])
+    assert reply is not None
+    assert "UTC time" in reply
+
+
+def test_openai_tool_schemas():
+    with _voice_modules() as imp:
+        tools = imp("integrations.voice.tools")
+        schemas = tools.openai_tool_schemas()
+        names = [s["function"]["name"] for s in schemas]
+    assert "get_current_time" in names
+    assert "echo_message" in names
+
+
 def test_tool_calls_webhook_response():
     with _voice_modules() as imp:
         processor = imp("integrations.voice.processor")
@@ -86,6 +113,22 @@ def test_tool_calls_webhook_response():
         result = processor.process_voice_webhook("tool-calls", payload, settings=settings)
     assert result["results"][0]["name"] == "echo_message"
     assert "hello" in result["results"][0]["result"]
+
+
+def test_tool_calls_accepts_arguments_field():
+    with _voice_modules() as imp:
+        processor = imp("integrations.voice.processor")
+        config = imp("integrations.voice.config")
+        settings = config.load_voice_settings()
+        payload = {
+            "message": {
+                "type": "tool-calls",
+                "call": {"id": "call-2"},
+                "toolCallList": [{"id": "tc-2", "name": "get_current_time", "arguments": {}}],
+            }
+        }
+        result = processor.process_voice_webhook("tool-calls", payload, settings=settings)
+    assert "time" in result["results"][0]["result"].lower()
 
 
 def test_assistant_request_returns_default_assistant(monkeypatch):
@@ -123,7 +166,6 @@ def test_transcript_appends_final_lines():
 
 
 def test_transcript_preserves_live_status():
-    """A transcript/conversation event must not reset an in-progress call to 'unknown'."""
     with _voice_modules() as imp:
         processor = imp("integrations.voice.processor")
         config = imp("integrations.voice.config")
@@ -153,12 +195,6 @@ def test_transcript_preserves_live_status():
 
 
 def test_status_updates_are_not_collapsed_by_idempotency_key():
-    """Distinct status transitions must each be applied, not dropped as duplicates.
-
-    A large static field (``call``) sorts before ``status``; a truncated JSON key
-    would collapse successive updates to the same prefix and freeze the dashboard
-    status on the first value.
-    """
     with _voice_modules() as imp:
         processor = imp("integrations.voice.processor")
         config = imp("integrations.voice.config")
@@ -206,3 +242,257 @@ def test_create_call_request_body(monkeypatch):
         body = client._request.call_args.kwargs["json_body"]  # noqa: SLF001
     assert body["assistantId"] == "asst-1"
     assert body["customer"]["number"] == "+15551234567"
+
+
+def test_transcript_hub_publish_sync():
+    with _voice_modules() as imp:
+        live = imp("integrations.voice.live")
+        hub = live.TranscriptHub()
+        hub.publish("call-x", {"type": "transcript", "text": "hello"})
+
+
+def test_dynamic_assistant_request(monkeypatch):
+    monkeypatch.setenv("VOICE_ASSISTANT_ID", "asst-123")
+    monkeypatch.setenv("VOICE_DYNAMIC_ASSISTANT", "true")
+    with _voice_modules() as imp:
+        processor = imp("integrations.voice.processor")
+        config = imp("integrations.voice.config")
+        settings = config.load_voice_settings()
+        result = processor.process_voice_webhook(
+            "assistant-request",
+            {"message": {"type": "assistant-request", "call": {"id": "c1"}}},
+            settings=settings,
+        )
+    assert "assistant" in result
+    assert result["assistant"]["name"] == "Praison Voice Assistant"
+
+
+def test_chat_bridge_session_id():
+    with _voice_modules() as imp:
+        bridge = imp("integrations.voice.chat_bridge")
+        assert bridge.voice_session_id("abc-123") == "voice-abc-123"
+
+
+def test_speech_engine_settings_ws_url(monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "el-test-key")
+    monkeypatch.setenv("SPEECH_ENGINE_PUBLIC_URL", "https://speech-tunnel.example.test")
+    with _voice_modules() as imp:
+        se = imp("integrations.voice.speech_engine")
+        settings = se.load_speech_engine_settings()
+    assert settings.public_ws_url == "wss://speech-tunnel.example.test/ws"
+
+
+def test_speech_engine_transcript_prompt():
+    with _voice_modules() as imp:
+        se = imp("integrations.voice.speech_engine")
+
+        class Msg:
+            def __init__(self, role, content):
+                self.role = role
+                self.content = content
+
+        prompt = se._transcript_to_prompt([Msg("user", "What time is it?")])
+    assert "user: What time is it?" in prompt
+
+
+def test_speech_engine_transcript_display_includes_agent_reply():
+    with _voice_modules() as imp:
+        se = imp("integrations.voice.speech_engine")
+
+        class Msg:
+            def __init__(self, role, content):
+                self.role = role
+                self.content = content
+
+        text = se._transcript_display_text([Msg("user", "Hello")], "Hi there!")
+    assert text == "user: Hello\nagent: Hi there!"
+
+
+def test_speech_engine_persist_turn(tmp_path, monkeypatch):
+    monkeypatch.setenv("PRAISONAI_VOICE_DIR", str(tmp_path))
+    with _voice_modules() as imp:
+        se = imp("integrations.voice.speech_engine")
+        store = imp("integrations.voice.store")
+
+        class Msg:
+            def __init__(self, role, content):
+                self.role = role
+                self.content = content
+
+        se._persist_conversation_turn("conv-test-1", [Msg("user", "What time is it?")], "It is noon UTC.")
+        record = store.VoiceCallStore.get_call("conv-test-1")
+    assert record is not None
+    assert "user: What time is it?" in record["transcript"]
+    assert "agent: It is noon UTC." in record["transcript"]
+
+
+def test_transcript_publishes_to_hub():
+    with _voice_modules() as imp:
+        processor = imp("integrations.voice.processor")
+        config = imp("integrations.voice.config")
+        live = imp("integrations.voice.live")
+        settings = config.load_voice_settings()
+        payload = {
+            "message": {
+                "type": "transcript",
+                "call": {"id": "call-hub"},
+                "role": "assistant",
+                "transcriptType": "partial",
+                "transcript": "One moment",
+            }
+        }
+        processor.process_voice_webhook("transcript", payload, settings=settings)
+        live.transcript_hub.publish("call-hub", {"type": "ping"})
+
+
+def test_realtime_settings_and_session_config(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("REALTIME_MODEL", "gpt-realtime-2.1-mini")
+    monkeypatch.setenv("REALTIME_VOICE", "marin")
+    monkeypatch.setenv("REALTIME_REASONING_EFFORT", "low")
+    with _voice_modules() as imp:
+        rt = imp("integrations.voice.realtime")
+        settings = rt.load_realtime_settings()
+        session = rt.build_session_config(settings)
+    assert settings.model == "gpt-realtime-2.1-mini"
+    assert session["type"] == "realtime"
+    assert session["model"] == "gpt-realtime-2.1-mini"
+    assert session["reasoning"]["effort"] == "low"
+    assert session["audio"]["output"]["voice"] == "marin"
+    assert "input_audio_transcription" in session
+
+
+def test_call_detail_ui_layout():
+    with _voice_modules() as imp:
+        ui = imp("integrations.voice.call_detail_ui")
+        layout = ui.build_call_detail_layout(
+            {
+                "call_id": "conv-test",
+                "status": "in-progress",
+                "customer_number": "web-speech-engine",
+                "transcript": "user: hello\nagent: hi",
+                "summary": "",
+                "metadata": {"user_id": "u-1", "praison_session_id": "voice-user-u-1"},
+            }
+        )
+        children = layout.get("_components") or []
+        types = [c.get("type") for c in children]
+    assert "badge" in types
+    assert "key_value_list" in types
+    assert "tabs" in types
+
+
+def test_voice_memory_bind_and_history(tmp_path, monkeypatch):
+    monkeypatch.setenv("PRAISONAI_VOICE_DIR", str(tmp_path))
+    monkeypatch.setenv("VOICE_MEMORY_ENABLED", "true")
+    with _voice_modules() as imp:
+        sm = imp("integrations.voice.session_memory")
+        store = imp("integrations.voice.store")
+        session_id = sm.bind_call_user("call-a", "user-123")
+        assert session_id == "voice-user-user-123"
+        sm.append_session_turn(session_id, "user", "codeword is blue")
+        sm.append_session_turn(session_id, "assistant", "Got it.")
+        block = sm.history_context_block(session_id)
+        assert "codeword is blue" in block
+        assert sm.resolve_call_user("call-a") == "user-123"
+        store.VoiceCallStore.set_pending_user("user-pending")
+        bound = sm.bind_call_from_pending("call-b")
+        assert bound == "voice-user-user-pending"
+        assert sm.resolve_call_user("call-b") == "user-pending"
+        assert store.VoiceCallStore.consume_pending_user() is None
+
+
+def test_realtime_persist_transcript(tmp_path, monkeypatch):
+    monkeypatch.setenv("PRAISONAI_VOICE_DIR", str(tmp_path))
+    with _voice_modules() as imp:
+        rt = imp("integrations.voice.realtime")
+        store = imp("integrations.voice.store")
+        rt.mark_session_started("rt-call-1")
+        rt.persist_transcript_line("rt-call-1", "user", "My name is Alex")
+        rt.persist_transcript_line("rt-call-1", "agent", "Hi Alex!")
+        record = store.VoiceCallStore.get_call("rt-call-1")
+    assert record is not None
+    assert "user: My name is Alex" in record["transcript"]
+    assert "agent: Hi Alex!" in record["transcript"]
+
+
+def test_call_finalize_analytics():
+    with _voice_modules() as imp:
+        cf = imp("integrations.voice.call_finalize")
+        transcript = "user: hello\nagent: hi there\nuser: thanks"
+        assert cf.count_turns(transcript) == 3
+        assert cf.format_duration(45) == "45s"
+        assert cf.format_duration(125) == "2m 5s"
+        record = {
+            "transcript": transcript,
+            "created_at": "2026-01-01T12:00:00+00:00",
+            "metadata": {"ended_at": "2026-01-01T12:01:30+00:00"},
+        }
+        analytics = cf.analytics_for_record(record)
+    assert analytics["turn_count"] == 3
+    assert analytics["duration_sec"] == 90
+    assert analytics["duration"] == "1m 30s"
+
+
+@pytest.mark.asyncio
+async def test_finalize_call_persists_summary_and_analytics(tmp_path, monkeypatch):
+    monkeypatch.setenv("PRAISONAI_VOICE_DIR", str(tmp_path))
+
+    async def fake_summary(_transcript: str) -> str:
+        return "Demo call about scheduling."
+
+    enqueued: list[tuple] = []
+
+    def fake_enqueue(call_id, summary, status):
+        enqueued.append((call_id, summary, status))
+
+    with _voice_modules() as imp:
+        cf = imp("integrations.voice.call_finalize")
+        store = imp("integrations.voice.store")
+        chat_bridge = imp("integrations.voice.chat_bridge")
+        monkeypatch.setattr(cf, "generate_call_summary", fake_summary)
+        monkeypatch.setattr(chat_bridge, "enqueue_call_summary", fake_enqueue)
+        store.VoiceCallStore.upsert_call(
+            "call-final",
+            status="in-progress",
+            transcript="user: book a meeting\nagent: sure",
+        )
+        await cf.finalize_call("call-final", status="ended (customer-ended-call)")
+        record = store.VoiceCallStore.get_call("call-final")
+    assert record is not None
+    assert record["summary"] == "Demo call about scheduling."
+    assert record["metadata"]["turn_count"] == 2
+    assert record["metadata"]["duration_sec"] is not None
+    assert enqueued == [("call-final", "Demo call about scheduling.", "ended (customer-ended-call)")]
+
+
+def test_voice_doctor_report(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key-12345678")
+    with _voice_modules() as imp:
+        doctor = imp("integrations.voice.doctor")
+        report = doctor.run_voice_doctor(app_port=59999, sidecar_port=59998)
+    assert "checks" in report
+    assert "summary" in report
+    names = [c["name"] for c in report["checks"]]
+    assert "OPENAI_API_KEY" in names
+    assert report["summary"]["failed"] >= 1
+
+
+def test_call_detail_ui_includes_analytics():
+    with _voice_modules() as imp:
+        ui = imp("integrations.voice.call_detail_ui")
+        layout = ui.build_call_detail_layout(
+            {
+                "call_id": "conv-analytics",
+                "status": "ended (customer-ended-call)",
+                "customer_number": "web-speech-engine",
+                "transcript": "user: one\nagent: two",
+                "summary": "Short demo.",
+                "metadata": {"turn_count": 2, "duration_sec": 30},
+                "created_at": "2026-01-01T12:00:00+00:00",
+            }
+        )
+        kv = next(c for c in (layout.get("_components") or []) if c.get("type") == "key_value_list")
+        labels = [item.get("label") for item in kv.get("items") or []]
+    assert "Duration" in labels
+    assert "Turns" in labels

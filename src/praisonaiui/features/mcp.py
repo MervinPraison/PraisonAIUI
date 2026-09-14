@@ -9,6 +9,8 @@ Provides first-class MCP client functionality with:
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import json
 import logging
 import subprocess
@@ -109,25 +111,27 @@ class StdioMCPClient:
         self.args = args
         self.session: Optional[ClientSession] = None
         self._connected = False
-        self._session_manager = None
+        self._exit_stack: contextlib.AsyncExitStack | None = None
         # For test backward compatibility
         self.process: Optional[subprocess.Popen] = None
 
     async def connect(self) -> bool:
         """Connect via stdio subprocess using official MCP SDK."""
+        # Store the stack on self before entering contexts so that a caller
+        # cancellation (e.g. asyncio.wait_for timeout, which raises the
+        # BaseException CancelledError past the except below) can still find
+        # and close the partially-entered stack via disconnect().
+        exit_stack = contextlib.AsyncExitStack()
+        self._exit_stack = exit_stack
         try:
-            # Use official MCP stdio_client instead of raw subprocess
             server_params = StdioServerParameters(command=self.command, args=self.args)
-
-            # Create a new session using stdio_client context manager
-            session_manager = stdio_client(server_params)
-            self.session = await session_manager.__aenter__()
-
-            # Initialize the MCP session
+            read_stream, write_stream = await exit_stack.enter_async_context(
+                stdio_client(server_params)
+            )
+            self.session = await exit_stack.enter_async_context(
+                ClientSession(read_stream, write_stream)
+            )
             await self.session.initialize()
-
-            # Store the context manager for cleanup
-            self._session_manager = session_manager
 
             self._connected = True
             logger.info(f"Connected to MCP stdio server: {self.command}")
@@ -135,24 +139,24 @@ class StdioMCPClient:
 
         except Exception as e:
             logger.error(f"Failed to connect to MCP stdio server: {e}")
+            await exit_stack.aclose()
+            self._exit_stack = None
             self._connected = False
+            self.session = None
             return False
 
     async def disconnect(self) -> None:
         """Properly disconnect the MCP session."""
-        if self.session and self._connected:
+        if self._exit_stack:
             try:
-                # Properly exit the context manager
-                if hasattr(self, "_session_manager"):
-                    await self._session_manager.__aexit__(None, None, None)
-                else:
-                    await self.session.close()
+                await self._exit_stack.aclose()
             except Exception as e:
                 logger.warning(f"Error during MCP session close: {e}")
             finally:
+                self._exit_stack = None
                 self.session = None
                 self._connected = False
-                self.process = None  # Reset for backward compatibility
+                self.process = None
 
     async def list_tools(self) -> List[ToolInfo]:
         """List tools via proper MCP protocol."""
@@ -203,20 +207,23 @@ class SSEMCPClient:
         self.headers = headers or {}
         self.session: Optional[ClientSession] = None
         self._connected = False
-        self._session_manager = None
+        self._exit_stack: contextlib.AsyncExitStack | None = None
 
     async def connect(self) -> bool:
         """Connect via SSE using official MCP SDK."""
+        # Store the stack on self before entering contexts so a caller
+        # cancellation (e.g. asyncio.wait_for timeout) can still close the
+        # partially-entered stack via disconnect(). See StdioMCPClient.connect.
+        exit_stack = contextlib.AsyncExitStack()
+        self._exit_stack = exit_stack
         try:
-            # Use official MCP sse_client context manager
-            session_manager = sse_client(self.url, headers=self.headers)
-            self.session = await session_manager.__aenter__()
-
-            # Initialize the MCP session
+            read_stream, write_stream = await exit_stack.enter_async_context(
+                sse_client(self.url, headers=self.headers)
+            )
+            self.session = await exit_stack.enter_async_context(
+                ClientSession(read_stream, write_stream)
+            )
             await self.session.initialize()
-
-            # Store the context manager for cleanup
-            self._session_manager = session_manager
 
             self._connected = True
             logger.info(f"Connected to MCP SSE server at {self.url}")
@@ -224,21 +231,21 @@ class SSEMCPClient:
 
         except Exception as e:
             logger.error(f"Failed to connect to MCP SSE server: {e}")
+            await exit_stack.aclose()
+            self._exit_stack = None
             self._connected = False
+            self.session = None
             return False
 
     async def disconnect(self) -> None:
         """Properly disconnect SSE."""
-        if self.session and self._connected:
+        if self._exit_stack:
             try:
-                # Properly exit the context manager
-                if hasattr(self, "_session_manager") and self._session_manager:
-                    await self._session_manager.__aexit__(None, None, None)
-                else:
-                    await self.session.close()
+                await self._exit_stack.aclose()
             except Exception as e:
                 logger.warning(f"Error during MCP SSE session close: {e}")
             finally:
+                self._exit_stack = None
                 self.session = None
                 self._connected = False
 
@@ -362,8 +369,7 @@ class MCPClientManager:
         await self._notify_status_change(server)
 
         try:
-            # Attempt connection
-            connected = await client.connect()
+            connected = await asyncio.wait_for(client.connect(), timeout=120.0)
             if connected:
                 server.status = MCPStatus.CONNECTED
                 server.tools = await client.list_tools()
@@ -375,6 +381,11 @@ class MCPClientManager:
                 server.status = MCPStatus.ERROR
                 server.last_error = "Connection failed"
 
+        except asyncio.TimeoutError:
+            logger.error("Timed out connecting MCP server %s", name)
+            server.status = MCPStatus.ERROR
+            server.last_error = "Connection timed out after 120s (check npx/Node and server args)"
+            await client.disconnect()
         except Exception as e:
             logger.exception(f"Failed to connect MCP server {name}")
             server.status = MCPStatus.ERROR

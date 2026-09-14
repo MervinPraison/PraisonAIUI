@@ -110,18 +110,27 @@ class TestStdioMCPClient:
         """Test successful stdio connection."""
         client = StdioMCPClient("echo", ["test"])
 
-        with patch("praisonaiui.features.mcp.stdio_client") as mock_stdio_client:
-            # Mock the context manager
-            mock_session_manager = AsyncMock()
+        with (
+            patch("praisonaiui.features.mcp.stdio_client") as mock_stdio_client,
+            patch("praisonaiui.features.mcp.ClientSession") as mock_client_session,
+            patch("praisonaiui.features.mcp.contextlib.AsyncExitStack") as mock_stack_cls,
+        ):
+            mock_read = MagicMock()
+            mock_write = MagicMock()
             mock_session = AsyncMock()
-            mock_session_manager.__aenter__.return_value = mock_session
-            mock_stdio_client.return_value = mock_session_manager
+            mock_stack = AsyncMock()
+            mock_stack.enter_async_context = AsyncMock(
+                side_effect=[(mock_read, mock_write), mock_session]
+            )
+            mock_stack_cls.return_value = mock_stack
+            mock_stdio_client.return_value = MagicMock()
+            mock_client_session.return_value = mock_session
 
             result = await client.connect()
 
             assert result is True
             assert client.session == mock_session
-            mock_stdio_client.assert_called_once()
+            assert mock_stack.enter_async_context.await_count == 2
             mock_session.initialize.assert_called_once()
 
     @pytest.mark.asyncio
@@ -138,16 +147,13 @@ class TestStdioMCPClient:
         """Test stdio disconnect."""
         client = StdioMCPClient("echo", ["test"])
 
-        # Mock session and session manager
-        mock_session = AsyncMock()
-        mock_session_manager = AsyncMock()
-        client.session = mock_session
-        client._session_manager = mock_session_manager
+        mock_stack = AsyncMock()
+        client._exit_stack = mock_stack
         client._connected = True
 
         await client.disconnect()
 
-        mock_session_manager.__aexit__.assert_called_once_with(None, None, None)
+        mock_stack.aclose.assert_called_once()
         assert client.session is None
         assert client.process is None
 
@@ -156,18 +162,14 @@ class TestStdioMCPClient:
         """Test stdio disconnect with exception handling."""
         client = StdioMCPClient("echo", ["test"])
 
-        # Mock session that throws exception during disconnect
-        mock_session = AsyncMock()
-        mock_session_manager = AsyncMock()
-        mock_session_manager.__aexit__.side_effect = Exception("Disconnect failed")
-        client.session = mock_session
-        client._session_manager = mock_session_manager
+        mock_stack = AsyncMock()
+        mock_stack.aclose.side_effect = Exception("Disconnect failed")
+        client._exit_stack = mock_stack
         client._connected = True
 
-        # Should not raise exception
         await client.disconnect()
 
-        mock_session_manager.__aexit__.assert_called_once()
+        mock_stack.aclose.assert_called_once()
         assert client.session is None
         assert client.process is None
 

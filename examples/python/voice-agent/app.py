@@ -2,7 +2,7 @@
 
   - Outbound calls     → POST /api/voice/calls
   - Provider webhooks  → POST /webhooks/voice (tool-calls, transcript, end-of-call)
-  - Dashboard          → Calls list + call detail + chat
+  - Dashboard          → Calls list + live call detail + web talk + chat bridge
 
 Run:
     cd examples/python/voice-agent
@@ -20,17 +20,40 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from starlette.routing import Route
-from voice_routes import (
-    api_voice_call_detail,
-    api_voice_config_status,
-    api_voice_create_call,
-    api_voice_list_calls,
-    webhook_voice,
-)
-
 import praisonaiui as aiui
 from praisonaiui.server import create_app
+from starlette.routing import Route, WebSocketRoute
+
+from memory_routes import (
+    api_voice_memory_attach_user,
+    api_voice_memory_bind,
+    api_voice_memory_config,
+    api_voice_memory_for_call,
+    api_voice_memory_resolve,
+)
+from realtime_routes import (
+    api_realtime_config,
+    api_realtime_end,
+    api_realtime_new_call,
+    api_realtime_session,
+    api_realtime_transcript,
+)
+from speech_engine_routes import (
+    api_speech_engine_config,
+    api_speech_engine_token,
+    speech_engine_websocket,
+)
+from voice_routes import (
+    api_voice_call_detail,
+    api_voice_call_detail_ui,
+    api_voice_config_status,
+    api_voice_create_call,
+    api_voice_doctor,
+    api_voice_list_calls,
+    api_voice_live_transcript,
+    api_voice_web_config,
+    webhook_voice,
+)
 
 _EXAMPLE_DIR = Path(__file__).resolve().parent
 if str(_EXAMPLE_DIR) not in sys.path:
@@ -47,68 +70,54 @@ def _load_local_env() -> None:
             continue
         key, _, value = line.partition("=")
         key, value = key.strip(), value.strip()
-        if key and key not in os.environ:
+        if key:
             os.environ[key] = value
 
 
 _load_local_env()
 
-aiui.set_pages(["chat", "voice-calls", "call-detail", "config"])
+aiui.set_pages(
+    [
+        "chat",
+        "voice-calls",
+        "call-detail",
+        "web-talk",
+        "eleven-talk",
+        "realtime-talk",
+        "mcp",
+        "config",
+    ]
+)
 aiui.set_style("dashboard")
-
-_agent: Any | None = None
+aiui.set_custom_js(_EXAMPLE_DIR / "plugin.js")
 
 
 def get_agent():
-    global _agent
-    if _agent is not None:
-        return _agent
-    from integrations.voice.tools import echo_message, get_current_time, register_tool
-    from praisonaiagents import Agent
+    from integrations.voice.agent_runner import get_voice_agent
 
-    register_tool("get_current_time", get_current_time)
-    register_tool("echo_message", echo_message)
-
-    _agent = Agent(
-        name="Voice Assistant",
-        instructions=(
-            "You help with voice and phone agent demos. "
-            "Use tools when the caller asks for the time or wants a message echoed."
-        ),
-        model="gpt-4o-mini",
-        tools=[get_current_time, echo_message],
-    )
-    from praisonaiagents.escalation.loop_guard import LoopGuard, LoopGuardConfig
-
-    max_turn_sec = float(os.getenv("VOICE_AGENT_LOOP_GUARD_MAX_SEC", "600"))
-    _agent._loop_guard = LoopGuard(
-        LoopGuardConfig(enabled=True, max_time_per_turn=max_turn_sec)
-    )
-    return _agent
+    return get_voice_agent()
 
 
-def _demo_tool_reply(text: str) -> str | None:
-    """Fast path for demo tool queries — no LLM required."""
-    from integrations.voice.tools import echo_message, get_current_time
+aiui.register_agent("voice-assistant", get_agent())
 
-    lower = text.lower().strip()
-    if any(p in lower for p in ("what time", "current time", "tell me the time", "time is it")):
-        return str(get_current_time()["spoken"])
-    if lower.startswith("echo "):
-        return str(echo_message(text[5:])["spoken"])
-    if lower.startswith("repeat "):
-        return str(echo_message(text[7:])["spoken"])
-    return None
+
+@aiui.on_app_startup
+async def _start_voice_chat_bridge() -> None:
+    from integrations.voice.chat_bridge import start_chat_bridge_worker
+
+    start_chat_bridge_worker()
 
 
 @aiui.reply
 async def on_message(message: str):
     """Chat with the voice demo agent."""
+    from integrations.voice.tools import demo_tool_reply
+
     text = str(message).strip()
     if not text:
         return
 
-    demo = _demo_tool_reply(text)
+    demo = demo_tool_reply(text)
     if demo is not None:
         await aiui.say(demo)
         return
@@ -126,19 +135,25 @@ async def on_message(message: str):
 
 
 def _list_calls() -> list[dict[str, Any]]:
+    from integrations.voice.call_finalize import analytics_for_record
     from integrations.voice.store import VoiceCallStore
 
     rows = VoiceCallStore.list_calls()
-    return [
-        {
-            "id": r["call_id"],
-            "status": r["status"],
-            "customer_number": r.get("customer_number") or "—",
-            "transcript_preview": (r.get("transcript") or "")[:120],
-            "updated_at": r.get("updated_at") or "",
-        }
-        for r in rows
-    ]
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        analytics = analytics_for_record(r)
+        out.append(
+            {
+                "id": r["call_id"],
+                "status": r["status"],
+                "customer_number": r.get("customer_number") or "—",
+                "transcript_preview": (r.get("transcript") or "")[:120],
+                "duration": analytics.get("duration") or "—",
+                "turn_count": analytics.get("turn_count") or 0,
+                "updated_at": r.get("updated_at") or "",
+            }
+        )
+    return out
 
 
 def _pick_call(calls: list[dict[str, Any]]) -> dict[str, Any]:
@@ -149,19 +164,22 @@ def _pick_call(calls: list[dict[str, Any]]) -> dict[str, Any]:
 @aiui.page("voice-calls", title="Voice calls", icon="📞", group="Voice", order=1)
 async def voice_calls_page():
     calls = _list_calls()
-    rows = [[c["id"], c["customer_number"], c["status"], c["updated_at"]] for c in calls]
+    rows = [
+        [c["id"], c["customer_number"], c["status"], c["duration"], str(c["turn_count"]), c["updated_at"]]
+        for c in calls
+    ]
     return aiui.layout(
         [
             aiui.text("Outbound and inbound voice calls via telephony provider"),
             aiui.table(
-                headers=["Call ID", "Customer", "Status", "Updated"],
-                rows=rows or [["—", "—", "—", "—"]],
+                headers=["Call ID", "Customer", "Status", "Duration", "Turns", "Updated"],
+                rows=rows or [["—", "—", "—", "—", "—", "—"]],
             ),
             aiui.alert(
-                "Start a call: POST /api/voice/calls with {\"customer_number\": \"+1...\"}. "
-                "Set provider webhook URL to {PUBLIC_API_BASE_URL}/webhooks/voice",
+                "Open **Call detail** for live transcript (SSE). "
+                "Voice sessions also appear in **Chat** sidebar as 📞 entries.",
                 variant="info",
-                title="Setup",
+                title="Phase 2",
             ),
         ]
     )
@@ -169,23 +187,65 @@ async def voice_calls_page():
 
 @aiui.page("call-detail", title="Call detail", icon="🎙️", group="Voice", order=2)
 async def call_detail_page():
+    """Server fallback — plugin.js registerView overrides with live SSE + UI components."""
+    from integrations.voice.call_detail_ui import build_call_detail_layout
     from integrations.voice.store import VoiceCallStore
 
     calls = _list_calls()
     picked = _pick_call(calls)
     record = VoiceCallStore.get_call(picked["id"]) if picked.get("id") and picked["id"] != "—" else None
-    transcript = (record or {}).get("transcript") or "(empty)"
-    summary = (record or {}).get("summary") or "(not available yet)"
-    status = (record or {}).get("status") or picked.get("status") or "unknown"
+    if record:
+        return build_call_detail_layout(record)
     return aiui.layout(
         [
-            aiui.text(f"Call {picked.get('id', '—')}"),
-            aiui.badge(status, variant="default"),
-            aiui.tabs(
-                [
-                    {"label": "Transcript", "children": [aiui.code_block(transcript, language="text")]},
-                    {"label": "Summary", "children": [aiui.text(summary)]},
-                ]
+            aiui.alert(
+                "No calls yet. Start from ElevenLabs talk, GPT Realtime, or Web talk.",
+                variant="info",
+                title="Call detail",
+            ),
+        ]
+    )
+
+
+@aiui.page("web-talk", title="Web talk", icon="🎤", group="Voice", order=3)
+async def web_talk_page():
+    return aiui.layout(
+        [
+            aiui.text("Browser voice widget — client view loads from plugin.js"),
+            aiui.alert(
+                "Set VOICE_PUBLIC_API_KEY, VOICE_ASSISTANT_ID, VOICE_WEB_SDK_URL, and "
+                "VOICE_WEB_SDK_GLOBAL in .env.",
+                variant="info",
+                title="Web SDK",
+            ),
+        ]
+    )
+
+
+@aiui.page("eleven-talk", title="ElevenLabs talk", icon="🗣️", group="Voice", order=4)
+async def eleven_talk_page():
+    return aiui.layout(
+        [
+            aiui.text("Browser voice via ElevenLabs Speech Engine — loads from plugin.js"),
+            aiui.alert(
+                "Set ELEVENLABS_API_KEY, run setup_speech_engine.py after start_dev.ps1, "
+                "then click Start conversation.",
+                variant="info",
+                title="Speech Engine",
+            ),
+        ]
+    )
+
+
+@aiui.page("realtime-talk", title="GPT Realtime", icon="⚡", group="Voice", order=5)
+async def realtime_talk_page():
+    return aiui.layout(
+        [
+            aiui.text("Browser voice via OpenAI gpt-realtime-2.1-mini — loads from plugin.js"),
+            aiui.alert(
+                "Set OPENAI_API_KEY and REALTIME_MODEL=gpt-realtime-2.1-mini.",
+                variant="warning",
+                title="OpenAI Realtime",
             ),
         ]
     )
@@ -196,8 +256,25 @@ app.routes[0:0] = [
     Route("/api/voice/calls", api_voice_create_call, methods=["POST"]),
     Route("/api/voice/calls", api_voice_list_calls, methods=["GET"]),
     Route("/api/voice/calls/{call_id}", api_voice_call_detail, methods=["GET"]),
+    Route("/api/voice/calls/{call_id}/ui", api_voice_call_detail_ui, methods=["GET"]),
+    Route("/api/voice/calls/{call_id}/live-transcript", api_voice_live_transcript, methods=["GET"]),
     Route("/api/voice/config", api_voice_config_status, methods=["GET"]),
+    Route("/api/voice/doctor", api_voice_doctor, methods=["GET"]),
+    Route("/api/voice/web-config", api_voice_web_config, methods=["GET"]),
+    Route("/api/voice/speech-engine/config", api_speech_engine_config, methods=["GET"]),
+    Route("/api/voice/speech-engine/token", api_speech_engine_token, methods=["GET"]),
+    Route("/api/voice/memory/config", api_voice_memory_config, methods=["GET"]),
+    Route("/api/voice/memory/bind", api_voice_memory_bind, methods=["POST"]),
+    Route("/api/voice/memory/attach-user", api_voice_memory_attach_user, methods=["POST"]),
+    Route("/api/voice/memory/resolve", api_voice_memory_resolve, methods=["GET"]),
+    Route("/api/voice/memory/for-call", api_voice_memory_for_call, methods=["GET"]),
+    Route("/api/voice/realtime/config", api_realtime_config, methods=["GET"]),
+    Route("/api/voice/realtime/new-call", api_realtime_new_call, methods=["POST"]),
+    Route("/api/voice/realtime/session", api_realtime_session, methods=["POST"]),
+    Route("/api/voice/realtime/transcript", api_realtime_transcript, methods=["POST"]),
+    Route("/api/voice/realtime/end", api_realtime_end, methods=["POST"]),
     Route("/webhooks/voice", webhook_voice, methods=["POST"]),
+    WebSocketRoute("/ws", speech_engine_websocket),
 ]
 
 if __name__ == "__main__":

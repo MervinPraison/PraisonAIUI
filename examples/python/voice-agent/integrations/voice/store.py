@@ -43,6 +43,15 @@ def _connect() -> sqlite3.Connection:
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS voice_memory_pending (
+            key TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
     return conn
 
 
@@ -146,14 +155,25 @@ class VoiceCallStore:
 
     @staticmethod
     def append_transcript_line(call_id: str, line: str) -> str:
-        with closing(_connect()) as conn:
+        now = datetime.now(timezone.utc).isoformat()
+        with closing(_connect()) as conn, conn:
             row = conn.execute(
                 "SELECT transcript FROM voice_calls WHERE call_id = ?",
                 (call_id,),
             ).fetchone()
-        existing = row[0] if row else ""
-        full = f"{existing}\n{line}".strip() if existing else line
-        VoiceCallStore.upsert_call(call_id, transcript=full)
+            existing = row[0] if row else ""
+            full = f"{existing}\n{line}".strip() if existing else line
+            conn.execute(
+                """
+                INSERT INTO voice_calls (
+                    call_id, status, transcript, summary, metadata_json, created_at, updated_at
+                ) VALUES (?, 'unknown', ?, '', '{}', ?, ?)
+                ON CONFLICT(call_id) DO UPDATE SET
+                    transcript = excluded.transcript,
+                    updated_at = excluded.updated_at
+                """,
+                (call_id, full, now, now),
+            )
         return full
 
     @staticmethod
@@ -161,7 +181,8 @@ class VoiceCallStore:
         with closing(_connect()) as conn:
             rows = conn.execute(
                 """
-                SELECT call_id, status, customer_number, transcript, summary, metadata_json, updated_at
+                SELECT call_id, status, customer_number, transcript, summary, metadata_json,
+                       created_at, updated_at
                 FROM voice_calls ORDER BY updated_at DESC LIMIT ?
                 """,
                 (max(1, limit),),
@@ -176,17 +197,43 @@ class VoiceCallStore:
                     "transcript": row[3],
                     "summary": row[4],
                     "metadata": json.loads(row[5] or "{}"),
-                    "updated_at": row[6],
+                    "created_at": row[6],
+                    "updated_at": row[7],
                 }
             )
         return out
+
+    @staticmethod
+    def set_pending_user(user_id: str) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        with closing(_connect()) as conn, conn:
+            conn.execute(
+                """
+                INSERT INTO voice_memory_pending (key, user_id, updated_at)
+                VALUES ('browser', ?, ?)
+                ON CONFLICT(key) DO UPDATE SET user_id = excluded.user_id, updated_at = excluded.updated_at
+                """,
+                (user_id, now),
+            )
+
+    @staticmethod
+    def consume_pending_user() -> str | None:
+        with closing(_connect()) as conn, conn:
+            row = conn.execute(
+                "SELECT user_id FROM voice_memory_pending WHERE key = 'browser'",
+            ).fetchone()
+            if not row:
+                return None
+            conn.execute("DELETE FROM voice_memory_pending WHERE key = 'browser'")
+            return str(row[0])
 
     @staticmethod
     def get_call(call_id: str) -> dict[str, Any] | None:
         with closing(_connect()) as conn:
             row = conn.execute(
                 """
-                SELECT call_id, status, customer_number, transcript, summary, metadata_json, updated_at
+                SELECT call_id, status, customer_number, transcript, summary, metadata_json,
+                       created_at, updated_at
                 FROM voice_calls WHERE call_id = ?
                 """,
                 (call_id,),
@@ -200,5 +247,6 @@ class VoiceCallStore:
             "transcript": row[3],
             "summary": row[4],
             "metadata": json.loads(row[5] or "{}"),
-            "updated_at": row[6],
+            "created_at": row[6],
+            "updated_at": row[7],
         }

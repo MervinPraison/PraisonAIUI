@@ -28,7 +28,7 @@ def _load_env() -> None:
             continue
         key, _, value = line.partition("=")
         key, value = key.strip(), value.strip()
-        if key and key not in os.environ:
+        if key:
             os.environ[key] = value
 
 
@@ -115,6 +115,119 @@ def ensure_server_secret() -> str:
         _write_env_value("VOICE_SERVER_URL_SECRET", secret)
         print("Generated VOICE_SERVER_URL_SECRET")
     return secret
+
+
+def ensure_assistant_model(api_key: str, api_base: str, assistant_id: str) -> dict[str, Any]:
+    assistant = _request("GET", f"/assistant/{assistant_id}", api_key=api_key, api_base=api_base)
+    if not isinstance(assistant, dict):
+        raise RuntimeError("Could not load assistant")
+    model = dict(assistant.get("model") or {})
+    target = os.getenv("VOICE_AGENT_MODEL", "gpt-4o-mini")
+    if model.get("provider") != "openai" or model.get("model") != target:
+        model["provider"] = "openai"
+        model["model"] = target
+        patched = _request(
+            "PATCH",
+            f"/assistant/{assistant_id}",
+            api_key=api_key,
+            api_base=api_base,
+            body={"model": model},
+        )
+        if patched is None:
+            raise RuntimeError(f"Failed to set assistant model to {target}")
+        print(f"Set assistant model to openai/{target}")
+    return model
+
+
+def ensure_agent_model_env() -> str:
+    """Ensure VOICE_AGENT_MODEL is set in .env and return the target model."""
+    target = os.getenv("VOICE_AGENT_MODEL", "").strip() or "gpt-4o-mini"
+    if not os.getenv("VOICE_AGENT_MODEL", "").strip():
+        _write_env_value("VOICE_AGENT_MODEL", target)
+        print(f"Set VOICE_AGENT_MODEL={target} in .env")
+    return target
+
+
+def ensure_openai_credential(api_key: str, api_base: str, openai_api_key: str) -> tuple[str, str]:
+    """Create or reuse an OpenAI-compatible credential in the provider account."""
+    existing = _request("GET", "/credential", api_key=api_key, api_base=api_base)
+    if isinstance(existing, list):
+        preferred = sorted(
+            [item for item in existing if isinstance(item, dict) and item.get("id")],
+            key=lambda item: 0 if str(item.get("provider") or "") == "openai" else 1,
+        )
+        for item in preferred:
+            provider = str(item.get("provider") or "")
+            if provider in ("openai", "custom-llm"):
+                cred_id = str(item["id"])
+                print(f"Reusing credential ({provider}): {cred_id}")
+                updated = _request(
+                    "PATCH",
+                    f"/credential/{cred_id}",
+                    api_key=api_key,
+                    api_base=api_base,
+                    body={
+                        "provider": provider,
+                        "apiKey": openai_api_key,
+                        "name": "Praison Voice OpenAI",
+                    },
+                )
+                if updated is None:
+                    raise RuntimeError("Failed to update OpenAI credential")
+                return cred_id, provider
+
+    for provider in ("openai", "custom-llm"):
+        created = _request(
+            "POST",
+            "/credential",
+            api_key=api_key,
+            api_base=api_base,
+            body={
+                "provider": provider,
+                "apiKey": openai_api_key,
+                "name": "Praison Voice OpenAI",
+            },
+        )
+        if isinstance(created, dict) and created.get("id"):
+            cred_id = str(created["id"])
+            print(f"Created credential ({provider}): {cred_id}")
+            return cred_id, provider
+
+    raise RuntimeError(
+        "Failed to create OpenAI credential. Add the key manually in the provider dashboard "
+        "under Provider Keys / OpenAI, or enable gpt-4o-mini on your OpenAI project."
+    )
+
+
+def ensure_openai_on_assistant(
+    api_key: str, api_base: str, assistant_id: str, openai_credential_id: str, *, provider: str
+) -> None:
+    assistant = _request("GET", f"/assistant/{assistant_id}", api_key=api_key, api_base=api_base)
+    if not isinstance(assistant, dict):
+        raise RuntimeError("Could not load assistant for OpenAI setup")
+
+    target_model = os.getenv("VOICE_AGENT_MODEL", "gpt-4o-mini")
+    if provider == "custom-llm":
+        model = dict(assistant.get("model") or {})
+        model["model"] = target_model
+        model["provider"] = "custom-llm"
+        model["url"] = "https://api.openai.com/v1"
+        model["metadataSendMode"] = "off"
+        model.pop("credentialId", None)
+    else:
+        # Native OpenAI — drop custom-llm-only fields from prior config.
+        model = {"provider": "openai", "model": target_model}
+
+    patched = _request(
+        "PATCH",
+        f"/assistant/{assistant_id}",
+        api_key=api_key,
+        api_base=api_base,
+        body={"model": model},
+    )
+    if patched is None:
+        raise RuntimeError("Failed to attach OpenAI credential to assistant")
+    print(f"Configured assistant model ({provider}): {target_model}")
 
 
 def ensure_tools(api_key: str, api_base: str, assistant_id: str) -> list[str]:
@@ -230,8 +343,18 @@ def main() -> int:
 
     secret = ensure_server_secret()
     webhook_url = f"{public_base}/webhooks/voice"
+    target_model = ensure_agent_model_env()
+    openai_api_key = os.getenv("OPENAI_API_KEY", "").strip()
 
     try:
+        if openai_api_key:
+            cred_id, cred_provider = ensure_openai_credential(api_key, api_base, openai_api_key)
+            ensure_openai_on_assistant(
+                api_key, api_base, assistant_id, cred_id, provider=cred_provider
+            )
+            print(f"Assistant model target: {target_model}")
+        else:
+            print("OPENAI_API_KEY not set — skipping provider OpenAI credential setup")
         ensure_tools(api_key, api_base, assistant_id)
         ensure_webhook(api_key, api_base, assistant_id, webhook_url, secret)
     except RuntimeError as exc:
