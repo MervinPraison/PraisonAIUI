@@ -155,12 +155,14 @@ class SDKFileDataStore(BaseDataStore):
         role = message.get("role", "user")
         content = message.get("content", "")
 
-        # UI-specific fields go into metadata
-        metadata: dict[str, Any] = {}
-        if "toolCalls" in message:
-            metadata["toolCalls"] = message["toolCalls"]
-        if "elements" in message:
-            metadata["elements"] = message["elements"]
+        # All non-core fields (toolCalls, elements, platform, sender, icon,
+        # channel_id, …) are preserved in metadata so channel and voice
+        # context survives reload — matching the SQLAlchemy backend.
+        metadata: dict[str, Any] = {
+            k: v
+            for k, v in message.items()
+            if k not in ("role", "content") and v is not None
+        }
 
         await asyncio.to_thread(
             self._store.add_message,
@@ -290,10 +292,13 @@ class SDKFileDataStore(BaseDataStore):
                 "role": msg.role,
                 "content": msg.content,
             }
-            # Restore UI-specific fields from metadata
-            if "toolCalls" in meta:
-                d["toolCalls"] = meta["toolCalls"]
-            if "elements" in meta:
-                d["elements"] = meta["elements"]
+            # Restore all persisted metadata (toolCalls, elements, platform,
+            # sender, icon, channel_id, …). Internal sentinel keys never
+            # appear here (the sentinel message is skipped above), but guard
+            # against them defensively without clobbering role/content.
+            for k, v in meta.items():
+                if k in (_META_KEY, _TITLE_KEY, _CUSTOM_META_KEY):
+                    continue
+                d.setdefault(k, v)
             messages.append(d)
         return messages

@@ -117,6 +117,51 @@ async def test_elements_persisted_in_metadata(adapter):
     assert messages[0]["elements"] == elements
 
 
+# ── Channel metadata round-trip ──────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_channel_metadata_round_trip(adapter):
+    """platform/sender/icon/channel_id survive a write→read cycle."""
+    sid = str(uuid.uuid4())
+    await adapter.create_session(sid)
+    await adapter.add_message(sid, {
+        "role": "user",
+        "content": "[Bob] hi",
+        "platform": "discord",
+        "sender": "Bob",
+        "icon": "game",
+        "channel_id": "ch-99",
+    })
+
+    messages = await adapter.get_messages(sid)
+    assert len(messages) == 1
+    assert messages[0]["platform"] == "discord"
+    assert messages[0]["sender"] == "Bob"
+    assert messages[0]["icon"] == "game"
+    assert messages[0]["channel_id"] == "ch-99"
+    # Core fields still intact
+    assert messages[0]["role"] == "user"
+    assert messages[0]["content"] == "[Bob] hi"
+
+
+@pytest.mark.asyncio
+async def test_none_metadata_values_dropped(adapter):
+    """None-valued fields are not persisted (kept out of the payload)."""
+    sid = str(uuid.uuid4())
+    await adapter.create_session(sid)
+    await adapter.add_message(sid, {
+        "role": "assistant",
+        "content": "reply",
+        "platform": "voice",
+        "sender": None,
+    })
+
+    messages = await adapter.get_messages(sid)
+    assert messages[0]["platform"] == "voice"
+    assert "sender" not in messages[0]
+
+
 # ── Title auto-generation ────────────────────────────────────────────
 
 
