@@ -145,6 +145,52 @@ async def test_auto_start_skips_disabled_channels():
 
 
 @pytest.mark.asyncio
+async def test_start_channel_bot_is_idempotent_stops_existing_first():
+    """Regression for #277: starting a bot for a channel that already has a
+    live bot must stop the existing one first so no duplicate bot/task lingers.
+    """
+    feature = ChannelsFeature()
+    gw = _GatewayDictTasks()
+    entry = {"id": "ch6", "platform": "discord", "config": {"bot_token": "x" * 30}}
+
+    with patch.object(feature, "_get_gateway", return_value=gw), patch.object(
+        feature, "_create_bot_direct", side_effect=lambda *a, **k: _FakeBot()
+    ), patch.object(feature, "_attach_chat_bridge"):
+        await feature._start_channel_bot("ch6", entry)
+        first = channels_mod._live_bots["ch6"]
+
+        await feature._start_channel_bot("ch6", entry)
+        second = channels_mod._live_bots["ch6"]
+
+    # A new bot/task replaced the first, and only one entry is tracked.
+    assert second is not first
+    assert first["bot"] is not second["bot"]
+    assert list(channels_mod._live_bots.keys()).count("ch6") == 1
+    # The first task was cancelled by the pre-start _stop_channel_bot guard.
+    assert first["task"].cancelled() or first["task"].done()
+    # Gateway has exactly one (fresh) bot reference — no stale entry.
+    assert gw._channel_bots["ch6"] is second["bot"]
+
+
+@pytest.mark.asyncio
+async def test_start_channel_bot_no_existing_does_not_stop():
+    """Guard must be a no-op on first start (nothing in _live_bots)."""
+    feature = ChannelsFeature()
+    gw = _GatewayDictTasks()
+    entry = {"id": "ch7", "platform": "discord", "config": {"bot_token": "x" * 30}}
+
+    with patch.object(feature, "_get_gateway", return_value=gw), patch.object(
+        feature, "_create_bot_direct", return_value=_FakeBot()
+    ), patch.object(feature, "_attach_chat_bridge"), patch.object(
+        feature, "_stop_channel_bot"
+    ) as mock_stop:
+        error = await feature._start_channel_bot("ch7", entry)
+
+    assert error is None
+    mock_stop.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_auto_start_failure_sets_not_running_and_error():
     feature = ChannelsFeature()
     entry = {
