@@ -170,6 +170,28 @@ async def test_start_channel_bot_is_idempotent_stops_existing_first():
     assert first["task"].cancelled() or first["task"].done()
     # Gateway has exactly one (fresh) bot reference — no stale entry.
     assert gw._channel_bots["ch6"] is second["bot"]
+    # ...and exactly one (fresh) task reference in the dict registry.
+    assert gw._channel_tasks["ch6"] is second["task"]
+
+
+@pytest.mark.asyncio
+async def test_restart_leaves_no_stale_task_in_list_gateway():
+    """Regression for #277: with a list-based gateway _channel_tasks, a restart
+    must not accumulate the old cancelled task alongside the fresh one.
+    """
+    feature = ChannelsFeature()
+    gw = _GatewayListTasks()
+    entry = {"id": "ch8", "platform": "discord", "config": {"bot_token": "x" * 30}}
+
+    with patch.object(feature, "_get_gateway", return_value=gw), patch.object(
+        feature, "_create_bot_direct", side_effect=lambda *a, **k: _FakeBot()
+    ), patch.object(feature, "_attach_chat_bridge"):
+        await feature._start_channel_bot("ch8", entry)
+        await feature._start_channel_bot("ch8", entry)
+        current = channels_mod._live_bots["ch8"]
+
+    # Only the fresh task remains in the list — the cancelled one was removed.
+    assert gw._channel_tasks == [current["task"]]
 
 
 @pytest.mark.asyncio

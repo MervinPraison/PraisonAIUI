@@ -931,6 +931,19 @@ class ChannelsFeature(BaseFeatureProtocol):
         gw = self._get_gateway()
         if gw is not None:
             getattr(gw, "_channel_bots", {}).pop(channel_id, None)
+            # Mirror start-time registration: drop the task from the gateway
+            # too, so a restart (#277) leaves no stale/cancelled task behind.
+            # The dict form is overwritten on restart, but the list form would
+            # otherwise accumulate a cancelled task on every restart.
+            channel_tasks = getattr(gw, "_channel_tasks", None)
+            task = info.get("task") if info else None
+            if isinstance(channel_tasks, dict):
+                channel_tasks.pop(channel_id, None)
+            elif isinstance(channel_tasks, list) and task is not None:
+                try:
+                    channel_tasks.remove(task)
+                except ValueError:
+                    pass
 
         # Update local state
         ch = _channels.get(channel_id)
