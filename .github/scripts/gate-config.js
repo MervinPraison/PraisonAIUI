@@ -4,6 +4,10 @@
 
 module.exports = {
   repoFullName: 'MervinPraison/PraisonAIUI',
+  gitUser: 'MervinPraison',
+  gitEmail: '454862+MervinPraison@users.noreply.github.com',
+  triggerLogins: ['MervinPraison', 'github-actions[bot]'],
+  allowedTriageBots: ['praisonai-triage-agent[bot]'],
   productPathPrefixes: ['src/praisonaiui/', 'src/frontend/', 'tests/'],
   sensitivePathPatterns: [
     /^\.github\/workflows\//,
