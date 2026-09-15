@@ -44,6 +44,43 @@ def _icon(symbol: str, fallback: str) -> str:
     return symbol if _supports_unicode() else fallback
 
 
+def _load_env_files() -> int:
+    """Load environment variables from the standard PraisonAI ``.env`` files.
+
+    Mirrors the PraisonAI CLI convention so ``env:VAR`` references (e.g. in
+    Channels config) resolve when the server was started without the shell
+    exporting the tokens. Reads ``~/.praisonai/.env`` first, then a ``.env`` in
+    the current working directory. Existing process env vars are never
+    overridden, and parsing is intentionally dependency-free (no python-dotenv).
+
+    Returns the number of variables newly set into ``os.environ``.
+    """
+    import os
+
+    loaded = 0
+    for env_path in (Path.home() / ".praisonai" / ".env", Path.cwd() / ".env"):
+        try:
+            if not env_path.is_file():
+                continue
+            for line in env_path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                if line.startswith("export "):
+                    line = line[len("export "):]
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key and key not in os.environ:
+                    os.environ[key] = value
+                    loaded += 1
+        except Exception:
+            # Never let env loading break startup — resolution falls back to
+            # the existing process environment.
+            continue
+    return loaded
+
+
 app = typer.Typer(
     name="aiui",
     help="PraisonAIUI - YAML-driven website generator",
@@ -1379,6 +1416,17 @@ def run(
     if not app_file.exists():
         console.print(f"[red]Error:[/red] App file not found: {app_file}")
         raise typer.Exit(code=1)
+
+    # Auto-load standard PraisonAI env files so `env:VAR` references (e.g. in
+    # Channels config) resolve even when the shell did not export the tokens.
+    # This matches the PraisonAI CLI convention and fixes the "Connected but
+    # bot never replies" class of issues caused by empty env-resolved tokens.
+    _loaded = _load_env_files()
+    if _loaded:
+        console.print(
+            f"[green]{_icon('✓', 'OK')}[/green] Loaded {_loaded} environment "
+            f"variable(s) from PraisonAI config"
+        )
 
     is_yaml = app_file.suffix in (".yaml", ".yml")
 
