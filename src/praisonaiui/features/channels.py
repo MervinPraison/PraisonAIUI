@@ -652,13 +652,24 @@ class ChannelsFeature(BaseFeatureProtocol):
         if hasattr(bot, "_session") and hasattr(bot._session, "chat"):
             _original_chat = bot._session.chat
 
-            async def _wrapped_chat(agent: Any, user_id: str, text: str) -> str:
+            async def _wrapped_chat(
+                agent: Any,
+                user_id: str,
+                text: str,
+                *args: Any,
+                **kwargs: Any,
+            ) -> str:
                 """Wrap agent chat to broadcast responses AND intermediate
                 tool/step events to the Chat UI.
 
                 Hooks into the agent's StreamEventEmitter (same pattern as
                 PraisonAIProvider._run_direct_mode) to capture tool_call,
                 reasoning, and content events during execution.
+
+                Any extra positional/keyword arguments (e.g. ``chat_id``,
+                ``platform``, ``thread_id``) are forwarded untouched to the
+                wrapped session ``chat`` so per-conversation memory/session
+                continuity is preserved instead of raising ``TypeError``.
                 """
                 from .chat import _enrich_tool_payload, get_chat_manager
 
@@ -831,7 +842,7 @@ class ChannelsFeature(BaseFeatureProtocol):
                 drain_task = asyncio.create_task(_drain_events())
 
                 try:
-                    response = await _original_chat(agent, user_id, text)
+                    response = await _original_chat(agent, user_id, text, *args, **kwargs)
                 finally:
                     # Signal drain to stop and clean up callback
                     try:
