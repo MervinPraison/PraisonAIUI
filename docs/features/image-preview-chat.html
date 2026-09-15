@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Protocol-driven inline media for agent-generated images (and other element types) during chat streaming. Any backend that implements BaseProvider can emit image" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Image Preview in Chat | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/features/image-preview-chat" />
+  <meta property="og:title" content="Image Preview in Chat | PraisonAIUI Docs" />
+  <meta property="og:description" content="Protocol-driven inline media for agent-generated images (and other element types) during chat streaming. Any backend that implements BaseProvider can emit image" />
+  <meta property="og:url" content="https://ui.praison.ai/docs/features/image-preview-chat" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Image Preview in Chat | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Protocol-driven inline media for agent-generated images (and other element types) during chat streaming. Any backend that implements BaseProvider can emit image" />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Image Preview in Chat", "description": "Protocol-driven inline media for agent-generated images (and other element types) during chat streaming. Any backend that implements BaseProvider can emit image", "url": "https://ui.praison.ai/docs/features/image-preview-chat", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>Image Preview in Chat</h1>
+<p>Protocol-driven inline media for agent-generated images (and other element types) during chat streaming. Any backend that implements <code>BaseProvider</code> can emit images without PraisonAI-specific code in chat or the frontend.</p>
+<h2>Problem This Solves</h2>
+<p>Before this feature, PraisonAIUI could <strong>render</strong> images (<code>Message.add_image</code>, <code>ElementRenderer</code>) but the <strong>wire protocol dropped media</strong> during agent runs. ImageAgent / tool results appeared as JSON in the tool-call panel instead of inline <code>&lt;img&gt;</code> previews.</p>
+<h2>Architecture</h2>
+<p>Modular layers — same pattern as A2UI surfaces:</p>
+<h3>Layer responsibilities</h3>
+<p>| Layer | Module | Backend-agnostic? |</p>
+<p>|-------|--------|-------------------|</p>
+<p>| <strong>Detection</strong> | <code>media_utils.py</code> | Yes — normalises OpenAI, URL, b64, element dicts |</p>
+<p>| <strong>Protocol</strong> | <code>provider.py</code> — <code>RunEventType.MESSAGE_ELEMENT</code> | Yes |</p>
+<p>| <strong>Adapter</strong> | <code>providers/__init__.py</code> — PraisonAI bridge only | No — maps SDK/callback queue → protocol |</p>
+<p>| <strong>Transport</strong> | <code>chat.py</code> — broadcast + persist | Yes |</p>
+<p>| <strong>Storage</strong> | <code>attachments.py</code> — <code>GET /api/chat/media/{id}</code> | Yes — reuses attachment store for b64 |</p>
+<p>| <strong>UI</strong> | <code>chat.js</code>, <code>ElementRenderer</code> | Yes — renders <code>{type, url, alt}</code> |</p>
+<p>Detection and UI do <strong>not</strong> import PraisonAI. Only the provider adapter knows ImageAgent / OpenAI <code>{data: [{url}]}</code> shapes.</p>
+<h2>Wire protocol</h2>
+<h3>Event type</h3>
+<p>Defined in Python as <code>RunEventType.MESSAGE_ELEMENT</code> and mirrored in <code>types.ts</code>.</p>
+<h3>Helper (any provider)</h3>
+<p>Element shape reuses the existing message element schema (<code>image</code>, <code>pdf</code>, <code>video</code>, <code>audio</code>, <code>file</code>, <code>code</code>).</p>
+<h2>Data flow paths</h2>
+<h3>1. Custom provider (swappable backend)</h3>
+<p>Example app: <code>examples/python/30-image-preview/app.py</code>.</p>
+<h3>2. Callback handler (`@aiui.reply`)</h3>
+<p><code>PraisonAIProvider</code> maps queue events (<code>image</code>, <code>message</code> + <code>elements</code>) → <code>MESSAGE_ELEMENT</code>.</p>
+<h3>3. Tool results (automatic detection)</h3>
+<p>When a tool completes, <code>tool_completed_extra()</code> in <code>a2ui_utils.py</code> calls <code>build_media_extra()</code> from <code>media_utils</code>. Supported shapes:</p>
+<p>| Input shape | Example |</p>
+<p>|-------------|---------|</p>
+<p>| OpenAI / ImageAgent | <code>{"data": [{"url": "...", "b64_json": "...", "revised_prompt": "..."}]}</code> |</p>
+<p>| Explicit element | <code>{"type": "image", "url": "..."}</code> |</p>
+<p>| Plain URL string | <code>"https://cdn.example.com/out.png"</code> |</p>
+<p>| Data URL | <code>"data:image/png;base64,..."</code> |</p>
+<p>| Nested elements | <code>{"elements": [{"type": "video", "url": "..."}]}</code> |</p>
+<p><code>chat.py</code> broadcasts <code>message_element</code> for each detected element and attaches <code>elements</code> to the persisted assistant message.</p>
+<h3>4. ImageAgent direct mode</h3>
+<p>If the registered agent's <code>chat()</code> returns an OpenAI-shaped dict, <code>PraisonAIProvider._run_direct_mode</code> runs <code>extract_media_elements()</code> and emits <code>MESSAGE_ELEMENT</code> events before <code>RUN_COMPLETED</code>.</p>
+<h2>Base64 storage</h2>
+<p>Large <code>b64_json</code> payloads are <strong>not</strong> stored inline in message history. They are decoded and saved via <code>AttachmentManager</code>, then served at:</p>
+<p>If storage fails, the system falls back to a <code>data:image/png;base64,...</code> URL.</p>
+<h2>Frontend rendering</h2>
+<p>| Surface | Handler |</p>
+<p>|---------|---------|</p>
+<p>| Dashboard chat (template) | <code>chat.js</code> — <code>case 'message_element': appendMediaElement()</code> |</p>
+<p>| React chat | <code>streamingStore.ts</code> — <code>pendingElements</code> + <code>ElementRenderer</code> |</p>
+<p>| Tool call panel | Thumbnail from <code>toolCall.elements</code> when expanded |</p>
+<p>| Session reload | <code>elements</code> on messages from <code>/api/chat/history</code> and <code>/sessions/{id}/runs</code> |</p>
+<p>See also Message Elements for element properties and display modes.</p>
+<h2>Deduplication</h2>
+<p><code>_collect_element()</code> in <code>chat.py</code> dedupes by URL so the same image is not stored twice when both a <code>MESSAGE_ELEMENT</code> event and a tool completion carry the same URL.</p>
+<h2>Out of scope</h2>
+<li><strong>REST image generation</strong> (<code>POST /v1/images/generations</code>) — separate OpenAI-compat endpoint; not wired into chat streaming</li>
+<li><strong>Canvas / A2UI surfaces</strong> — separate feature for agent-driven UI catalogs</li>
+<li><strong>Auto-registering ImageAgent</strong> — agents are configured explicitly by the user</li>
+<h2>Tests</h2>
+<p>Coverage includes: detection normalisation, b64 fallback, provider callback bridge, <code>_run_and_broadcast</code> persistence, media serve route, ImageAgent dict responses, URL dedup.</p>
+<h2>Related docs</h2>
+<li>Providers — provider protocol and inline media snippet</li>
+<li>Message Elements — element types and Python API</li>
+<li>Attachments — user file uploads (separate from generated media serve path)</li>
+<li>Gateway Chat — WebSocket event flow</li></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="This guide explains every way a user can extend PraisonAIUI — and which approach fits your use case." />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>How to Add a Feature to PraisonAIUI | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/features/how-to-add-a-feature" />
+  <meta property="og:title" content="How to Add a Feature to PraisonAIUI | PraisonAIUI Docs" />
+  <meta property="og:description" content="This guide explains every way a user can extend PraisonAIUI — and which approach fits your use case." />
+  <meta property="og:url" content="https://ui.praison.ai/docs/features/how-to-add-a-feature" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="How to Add a Feature to PraisonAIUI | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="This guide explains every way a user can extend PraisonAIUI — and which approach fits your use case." />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "How to Add a Feature to PraisonAIUI", "description": "This guide explains every way a user can extend PraisonAIUI — and which approach fits your use case.", "url": "https://ui.praison.ai/docs/features/how-to-add-a-feature", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>How to Add a Feature to PraisonAIUI</h1>
+<p>This guide explains every way a user can extend PraisonAIUI — and which approach fits your use case.</p>
+<h2>Extension Points at a Glance</h2>
+<p>| I want to add… | Use | Side | Effort |</p>
+<p>|----------------|-----|------|--------|</p>
+<p>| A new dashboard page | <code>@aiui.page()</code> | Server | 5 lines |</p>
+<p>| A form that saves data | <code>aiui.form_action()</code> + <code>@aiui.register_page_action()</code> | Both | 15 lines |</p>
+<p>| A brand-new UI component type | <code>window.aiui.registerComponent()</code> + dict type | Both | 20 lines |</p>
+<p>| A page rendered entirely in the browser | <code>window.aiui.registerView()</code> | Client | 10 lines |</p>
+<p>| Ship client-side JS from Python | <code>aiui.set_custom_js(path)</code> | Server | 1 line |</p>
+<p>| A typed contract for a component | <code>aiui.register_component_schema(type, schema)</code> | Server | 5 lines |</p>
+<p>| A custom theme | <code>aiui.register_theme()</code> | Server | 1 line |</p>
+<p>| A new AI backend | Subclass <code>aiui.BaseProvider</code> | Server | ~50 lines |</p>
+<p>| A whole new feature module (routes, state) | Subclass <code>BaseFeatureProtocol</code> + <code>register_feature()</code> | Server | ~100 lines |</p>
+<p>| Persistence backend | Subclass <code>aiui.BaseDataStore</code> | Server | ~50 lines |</p>
+<h2>1. Add a new page</h2>
+<p><strong>Goal</strong>: Show a new page in the sidebar with custom content.</p>
+<p><strong>What happens</strong>:</p>
+<p>1. The page is registered in the server's page registry.</p>
+<p>2. It appears in the sidebar at <code>/api/pages</code>.</p>
+<p>3. When the user clicks it, the frontend fetches <code>/api/pages/analytics/data</code>.</p>
+<p>4. Your handler returns a dict; <code>aiui.layout()</code> wraps it in <code>{"_components": [...]}</code>.</p>
+<p>5. <code>dashboard.js</code> loops over <code>_components</code> and calls <code>renderComponent(comp)</code> on each.</p>
+<p>See Dashboard for the full <code>@aiui.page()</code> signature.</p>
+<p>---</p>
+<h2>2. Add an interactive form</h2>
+<p><strong>Goal</strong>: Let users submit data from the UI back to your Python code.</p>
+<p><strong>What happens</strong>:</p>
+<p>1. The form renders with all inputs.</p>
+<p>2. On submit, the frontend POSTs to <code>/api/pages/contact/action</code>.</p>
+<p>3. The server invokes <code>handle_contact(data)</code> with the form values keyed by label.</p>
+<p>4. The returned dict is sent back to the browser as JSON.</p>
+<p>&gt; <strong>Note</strong>: Input labels become dict keys. Use distinct labels per input.</p>
+<p>---</p>
+<h2>3. Add a custom component type</h2>
+<p><strong>Goal</strong>: Add a new UI widget that doesn't exist in the 48 built-ins.</p>
+<h3>Step 1 — Python side: return a dict with your new type</h3>
+<p><strong>If you stop here</strong>, the component renders as formatted JSON (graceful fallback).</p>
+<h3>Step 2 — Client side: register a renderer</h3>
+<p>Put this in a <code>plugin.js</code> file (or paste into DevTools Console):</p>
+<p><strong>What happens</strong>:</p>
+<p>1. <code>renderComponent(comp)</code> checks <code>COMPONENT_REGISTRY[comp.type]</code> before the built-in switch.</p>
+<p>2. Your renderer takes priority and returns a DOM element.</p>
+<h3>Auto-load `plugin.js` from Python</h3>
+<p>Use <code>aiui.set_custom_js(path)</code> to ship client-side extensions directly from</p>
+<p>your app:</p>
+<p>The script runs <strong>after</strong> the plugin loader, so <code>window.aiui.registerView</code></p>
+<p>and <code>window.aiui.registerComponent</code> are ready when it executes. No DevTools</p>
+<p>workaround needed.</p>
+<p>---</p>
+<h2>4. Add a client-only page</h2>
+<p><strong>Goal</strong>: A page rendered entirely in the browser — no server round-trip on navigation.</p>
+<p>Still register a placeholder page in Python so it appears in the sidebar:</p>
+<p><strong>What happens</strong>:</p>
+<p>1. <code>registerView</code> takes priority over the built-in + server-side rendering.</p>
+<p>2. Navigation calls your <code>render(container)</code> function.</p>
+<p>3. When the user navigates away, your <code>cleanup()</code> function runs.</p>
+<p>---</p>
+<h2>5. Register a custom theme</h2>
+<p>See CSS Architecture for all variables.</p>
+<p>---</p>
+<h2>6. Add a new AI provider</h2>
+<p>See Providers.</p>
+<p>---</p>
+<h2>7. Add a feature module (advanced)</h2>
+<p>Features live in <code>praisonaiui/features/*.py</code> and implement <code>BaseFeatureProtocol</code>:</p>
+<p>See Protocol Architecture.</p>
+<p>---</p>
+<h2>Is This the Best Approach?</h2>
+<h3>Strengths ✅</h3>
+<li><strong>Clean separation</strong> — Python returns dicts, client renders DOM. You can mix and match server/client work per-feature.</li>
+<li><strong>Graceful degradation</strong> — Unknown component types render as JSON (no crashes).</li>
+<li><strong>Zero build step for Python users</strong> — No webpack/TS compile required for server-side pages.</li>
+<li><strong>Single source of truth</strong> — Every feature has a protocol ABC.</li>
+<li><strong>Hot-swap friendly</strong> — <code>window.aiui.registerView/Component</code> updates live without server restart.</li>
+<h3>Previously reported gaps — all closed ✅</h3>
+<p>| Gap | Resolution |</p>
+<p>|-----|------------|</p>
+<p>| No <code>aiui.set_custom_js(path)</code> | <strong>Implemented</strong> — serves the file at <code>/custom.js</code> and injects a <code>&lt;script&gt;</code> tag after the plugin loader. Unit tests: <code>tests/unit/test_custom_js.py</code> (10 tests). |</p>
+<p>| <code>form_action</code> uses input labels as keys | <strong>Implemented</strong> — every form input now accepts an optional <code>name=</code> kwarg that becomes the submit-key. Tests: <code>tests/unit/test_form_input_names.py</code> (18 tests). |</p>
+<p>| No typed Python ⇄ JS contract | <strong>Implemented</strong> — <code>aiui.register_component_schema(type, schema)</code> + <code>GET /api/components/schemas</code>. Built-in schemas are auto-derived from <code>ui.py</code> signatures. Tests: <code>tests/unit/test_component_schemas.py</code> (9 tests). |</p>
+<p>| <code>/api/features</code> cold-start slow | <strong>Mitigated</strong> — <code>info()</code> calls are parallelized via <code>asyncio.gather</code>. Warm calls are now instant; cold starts are dominated by LiteLLM import (out of scope). |</p>
+<p>| <code>pygments 2.20</code> mkdocs build crash on <code>providers.md</code> | <strong>Fixed</strong> — <code>docs_hooks.py</code> patches <code>pymdownx.BlockHtmlFormatter.__init__</code> to coerce <code>filename=None</code> → <code>""</code>. |</p>
+<h3>When NOT to use this approach</h3>
+<li><strong>You need a full SPA with routing</strong>: Use the Next.js adapter or scaffold a React project with <code>aiui init --frontend</code>.</li>
+<li><strong>Your UI needs TypeScript types</strong>: Use the TypeScript SDK (<code>@praisonaiui/runtime</code>).</li>
+<li><strong>You need server-sent events beyond chat</strong>: Extend <code>BaseFeatureProtocol</code> with a WebSocket route.</li>
+<p>---</p>
+<h2>Checklist for a New Feature</h2>
+<li>[ ] Decide: is it a page, a component, or a backend module?</li>
+<li>[ ] Write the Python side first (returns a dict / routes).</li>
+<li>[ ] If you added a new component type: implement the JS renderer.</li>
+<li>[ ] Write a unit test (see <code>tests/unit/test_form_action.py</code> as an example).</li>
+<li>[ ] Add a runnable example under <code>examples/python/</code>.</li>
+<li>[ ] Update the docs under <code>docs/features/</code> or <code>docs/api/</code>.</li>
+<li>[ ] Run <code>mkdocs build --strict</code>.</li>
+<li>[ ] Run <code>pytest tests/unit -v</code>.</li></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

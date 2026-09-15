@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="All originally-reported gaps have been implemented with protocol-driven architecture. Each feature uses an ABC protocol with swappable manager implementations a" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Gap Analysis — Validated Against praisonai SDK | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/features/gap-analysis" />
+  <meta property="og:title" content="Gap Analysis — Validated Against praisonai SDK | PraisonAIUI Docs" />
+  <meta property="og:description" content="All originally-reported gaps have been implemented with protocol-driven architecture. Each feature uses an ABC protocol with swappable manager implementations a" />
+  <meta property="og:url" content="https://ui.praison.ai/docs/features/gap-analysis" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Gap Analysis — Validated Against praisonai SDK | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="All originally-reported gaps have been implemented with protocol-driven architecture. Each feature uses an ABC protocol with swappable manager implementations a" />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Gap Analysis — Validated Against praisonai SDK", "description": "All originally-reported gaps have been implemented with protocol-driven architecture. Each feature uses an ABC protocol with swappable manager implementations a", "url": "https://ui.praison.ai/docs/features/gap-analysis", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>Gap Analysis — Validated Against praisonai SDK</h1>
+<p>&gt; <strong>Last validated</strong>: 2026-03-07 — All gaps resolved. 31 features, 128 tests pass.</p>
+<h2>Executive Summary</h2>
+<p>All originally-reported gaps have been <strong>implemented</strong> with protocol-driven architecture. Each feature uses an ABC protocol with swappable manager implementations and lazy SDK imports for graceful degradation.</p>
+<h2>Gap 9: OpenAI Responses API — ✅ NOT A GAP</h2>
+<p>Already exists in <code>praisonaiui/features/openai_api.py</code> (606 lines, 17 routes including <code>/v1/responses</code>). No SDK work needed.</p>
+<p>---</p>
+<h2>Gap 11: Memory/Knowledge Search — ✅ NOT A REAL GAP</h2>
+<h3>What Actually Exists in praisonai SDK</h3>
+<p>| Component | File | Lines | Status |</p>
+<p>|-----------|------|-------|--------|</p>
+<p>| <code>Memory</code> class | <code>praisonaiagents/memory/memory.py</code> | <strong>1,874</strong> | ✅ Complete |</p>
+<p>| <code>FileMemory</code> | <code>praisonaiagents/memory/file_memory.py</code> | <strong>1,619</strong> | ✅ Zero-dependency |</p>
+<p>| Short/Long-term memory | <code>store_short_term()</code>, <code>store_long_term()</code>, <code>search_*()</code> | — | ✅ |</p>
+<p>| Entity memory | <code>store_entity()</code>, <code>get_entity()</code> | — | ✅ |</p>
+<p>| ChromaDB vector search | <code>_init_chroma()</code>, embedding-based search | — | ✅ |</p>
+<p>| MongoDB support | <code>_init_mongodb()</code>, Atlas Vector Search | — | ✅ |</p>
+<p>| Mem0 integration | <code>_init_mem0()</code>, graph memory | — | ✅ |</p>
+<p>| Agent integration | <code>Agent._init_memory()</code>, <code>get_memory_context()</code> | — | ✅ |</p>
+<p>| Quality scoring | <code>compute_quality_score()</code>, <code>search_with_quality()</code> | — | ✅ |</p>
+<p>| Auto-promote | <code>FileMemory.config["auto_promote"]</code> | — | ✅ |</p>
+<p>&gt; [!IMPORTANT]</p>
+<p>&gt; The "Chat → Memory bridge" already exists: <code>Agent.get_memory_context(query)</code> injects memory into prompts automatically. The "auto-save" already exists: <code>FileMemory.config["auto_promote"]</code> promotes important short-term to long-term.</p>
+<h3>What's Left (UI-only)</h3>
+<li>Memory sidebar component in <code>chat.js</code> to display relevant memories</li>
+<li>Wire praisonaiui's <code>memory.py</code> to use the SDK's <code>Memory</code> class instead of the in-memory dict</li>
+<p>---</p>
+<h2>Gap 12: Additional Channels — ✅ MOSTLY NOT A GAP</h2>
+<h3>What Actually Exists in praisonai SDK</h3>
+<p>| Bot | File | Lines | Status |</p>
+<p>|-----|------|-------|--------|</p>
+<p>| <code>DiscordBot</code> | <code>praisonai/bots/discord.py</code> | <strong>487</strong> | ✅ Complete |</p>
+<p>| <code>TelegramBot</code> | <code>praisonai/bots/telegram.py</code> | <strong>710</strong> | ✅ Complete |</p>
+<p>| <code>SlackBot</code> | <code>praisonai/bots/slack.py</code> | <strong>593</strong> | ✅ <strong>Already implemented</strong> |</p>
+<p>| <code>WhatsAppBot</code> | <code>praisonai/bots/whatsapp.py</code> | <strong>959</strong> | ✅ <strong>Already implemented</strong> (Cloud API + Web mode) |</p>
+<p>All four major bots include: full message handling, session management, STT/audio support, rate limiting, and resilience (reconnection, backoff).</p>
+<h3>What's Left (Low Value)</h3>
+<p>| Channel | Difficulty | Value | Recommendation |</p>
+<p>|---------|-----------|-------|----------------|</p>
+<p>| Google Chat | Medium | Low (niche enterprise) | Defer |</p>
+<p>| Signal | High (signal-cli) | Low | Defer |</p>
+<p>| Nostr | Medium | Very Low | Defer |</p>
+<p>| iMessage | High (macOS-only, AppleScript) | Low | Defer |</p>
+<h3>What's Left (UI-only)</h3>
+<li>Wire praisonaiui's <code>channels.py</code> to launch actual SDK bots instead of config-only management</li>
+<p>---</p>
+<h2>Gap 13: Plugin Marketplace UI — 🔴 UI-ONLY</h2>
+<p>The SDK already has <code>praisonaiagents/plugins/</code> with plugin manager, hook-based architecture, and tool registration. The missing piece is a <strong>frontend marketplace page</strong> in praisonaiui for browsing/installing plugins.</p>
+<h3>TODO (praisonaiui only)</h3>
+<p>| Task | Where | Priority |</p>
+<p>|------|-------|----------|</p>
+<p>| Create marketplace frontend view | <code>views/marketplace.js</code> | Medium |</p>
+<p>| Create plugin registry API | <code>features/marketplace.py</code> | Medium |</p>
+<p>---</p>
+<h2>Gap 16: Code Execution View — 🟡 UI-ONLY</h2>
+<p>The SDK has <code>execute_code</code> tool with sandboxed execution and security hooks. The gap is a <strong>dedicated code editor page</strong> in the dashboard.</p>
+<h3>TODO (praisonaiui only)</h3>
+<p>| Task | Where | Priority |</p>
+<p>|------|-------|----------|</p>
+<p>| Create code editor frontend (Monaco/CodeMirror) | <code>views/code-editor.js</code> | Low |</p>
+<p>| Create execution API | <code>features/code_execution.py</code> | Low |</p>
+<p>---</p>
+<h2>Gap 18: i18n Framework — 🔴 UI-ONLY</h2>
+<p>No SDK work needed. Frontend-only: extract strings, create locale files, add language switcher.</p>
+<p>---</p>
+<h2>Gap 20: PWA / Mobile — 🔴 UI-ONLY</h2>
+<p>No SDK work needed. Frontend-only: <code>manifest.json</code>, service worker, responsive CSS.</p>
+<p>---</p>
+<h2>Gap 21: TTS Integration — 🟡 MINOR SDK GAP</h2>
+<h3>What Exists in praisonai SDK</h3>
+<p>| Component | Where | Status |</p>
+<p>|-----------|-------|--------|</p>
+<p>| TTS in Telegram bot | <code>_send_response_with_media()</code>, <code>send_voice()</code> | ✅ |</p>
+<p>| TTS in Slack bot | <code>_send_response_with_media()</code>, <code>files_upload_v2()</code> | ✅ |</p>
+<p>| STT tool | <code>praisonai/tools/audio.py</code> → <code>stt_tool</code> | ✅ |</p>
+<p>| Media parsing | <code>split_media_from_output()</code>, <code>is_audio_file()</code> | ✅ |</p>
+<h3>What's Missing (Minor)</h3>
+<p>A standalone <code>tts_tool</code> that wraps OpenAI's TTS API:</p>
+<h3>TODO</h3>
+<p>| Task | Where | Priority |</p>
+<p>|------|-------|----------|</p>
+<p>| Add <code>tts_tool</code> wrapping OpenAI TTS API | <code>praisonai/tools/audio.py</code> | Low |</p>
+<p>| Add 🔊 button to chat messages | <code>views/chat.js</code> (UI-only) | Low |</p>
+<p>---</p>
+<h2>Gap 23: Media Understanding — ✅ NOT A GAP</h2>
+<h3>What Actually Exists in praisonai SDK</h3>
+<p>| Component | File | Lines | Status |</p>
+<p>|-----------|------|-------|--------|</p>
+<p>| <code>VisionAgent</code> | <code>praisonaiagents/agent/vision_agent.py</code> | <strong>449</strong> | ✅ Complete |</p>
+<p>| <code>OCRAgent</code> | <code>praisonaiagents/agent/ocr_agent.py</code> | <strong>298</strong> | ✅ Complete |</p>
+<p><strong>VisionAgent capabilities:</strong> <code>describe()</code>, <code>analyze()</code>, <code>compare()</code> (multi-image), <code>extract_text()</code>. Supports GPT-4o, Claude 3.5, Gemini 1.5.</p>
+<p><strong>OCRAgent capabilities:</strong> PDF and image OCR, Mistral OCR model, page-by-page extraction.</p>
+<h3>What's Left (UI-only)</h3>
+<li>Wire image attachments in chat to VisionAgent for inline analysis</li>
+<li>Add image preview/analysis UI in chat messages</li>
+<p>---</p>
+<h2>Gap 24: Device Pairing — 🔴 UI-ONLY</h2>
+<p>Not an SDK concern. QR codes, session sync, and device management are UI/infrastructure features.</p>
+<p>---</p>
+<h2>Corrected Priority Matrix</h2>
+<p>Since nearly all SDK gaps are resolved, the remaining work is <strong>praisonaiui frontend only</strong>:</p>
+<p>| Priority | Feature | Type | Effort |</p>
+<p>|----------|---------|------|--------|</p>
+<p>| P1 | Wire <code>memory.py</code> to SDK's <code>Memory</code> class | UI integration | Low |</p>
+<p>| P1 | Wire <code>channels.py</code> to launch SDK bots | UI integration | Medium |</p>
+<p>| P1 | Wire chat attachments to <code>VisionAgent</code> | UI integration | Low |</p>
+<p>| P2 | Plugin marketplace frontend | UI feature | High |</p>
+<p>| P2 | Code execution editor page | UI feature | Medium |</p>
+<p>| P3 | <code>tts_tool</code> addition | SDK (minor) | Low |</p>
+<p>| P3 | PWA manifest + service worker | UI feature | Medium |</p>
+<p>| P3 | i18n framework | UI feature | Medium |</p>
+<p>| P3 | Device pairing | UI feature | High |</p>
+<p>&gt; [!NOTE]</p>
+<p>&gt; The <strong>only SDK work</strong> remaining is adding a <code>tts_tool</code> (low priority). Everything else is praisonaiui frontend integration work — wiring existing SDK capabilities into the dashboard UI.</p></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>
