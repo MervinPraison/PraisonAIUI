@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Real-time AI agent chat with WebSocket streaming, markdown rendering, tool call display, and session management." />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>Gateway Chat | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/features/gateway-chat" />
+  <meta property="og:title" content="Gateway Chat | PraisonAIUI Docs" />
+  <meta property="og:description" content="Real-time AI agent chat with WebSocket streaming, markdown rendering, tool call display, and session management." />
+  <meta property="og:url" content="https://ui.praison.ai/docs/features/gateway-chat" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Gateway Chat | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="Real-time AI agent chat with WebSocket streaming, markdown rendering, tool call display, and session management." />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Gateway Chat", "description": "Real-time AI agent chat with WebSocket streaming, markdown rendering, tool call display, and session management.", "url": "https://ui.praison.ai/docs/features/gateway-chat", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>Gateway Chat</h1>
+<p>Real-time AI agent chat with <strong>WebSocket streaming</strong>, markdown rendering, tool call display, and session management.</p>
+<p>!Chat Interface</p>
+<h2>Quick Start</h2>
+<h2>How It Works</h2>
+<h3>Full Streaming Data Flow</h3>
+<p>A chat message travels through 5 layers before reaching the browser:</p>
+<h3>Key Files</h3>
+<p>| File | Layer | Responsibility |</p>
+<p>|------|-------|----------------|</p>
+<p>| <code>aiui/plugins/views/chat.js</code> | Frontend | WS connection, DOM rendering, session history |</p>
+<p>| <code>src/praisonaiui/features/chat.py</code> | Backend | ChatManager, <code>_run_and_broadcast</code>, history API |</p>
+<p>| <code>src/praisonaiui/server.py</code> | Backend | SSE streaming path (<code>run_agent</code> endpoint) |</p>
+<p>| <code>src/praisonaiui/providers/__init__.py</code> | Provider | SDK → RunEvent bridge, <code>_run_direct_mode</code> |</p>
+<p>| <code>src/praisonaiui/datastore.py</code> | Storage | <code>MemoryDataStore</code> / <code>JSONFileDataStore</code> |</p>
+<p>| <code>src/praisonaiui/provider.py</code> | Protocol | <code>RunEventType</code> enum definition |</p>
+<h2>Architecture</h2>
+<h2>Agent Tool Resolution</h2>
+<p>Agents created via YAML config, CRUD API, jobs, or channel bots automatically get tools resolved through the <code>ToolResolver</code>. Tool names in config are resolved to callable Python functions from 4 sources:</p>
+<p>1. Local <code>tools.py</code> file (backward compatibility)</p>
+<p>2. <code>praisonaiagents.tools.TOOL_MAPPINGS</code> (built-in tools)</p>
+<p>3. <code>praisonai_tools</code> package (community tools)</p>
+<p>4. Tool registry (programmatically registered tools)</p>
+<h3>YAML Configuration</h3>
+<h3>CRUD API</h3>
+<p>Agents created via <code>POST /api/agents</code> also support tools:</p>
+<h3>Where Tool Resolution Applies</h3>
+<p>| Component | Tool Resolution |</p>
+<p>|-----------|----------------|</p>
+<p>| Gateway <code>_create_agents_from_config()</code> | ✅ <code>ToolResolver</code> |</p>
+<p>| Integration <code>create_gateway_from_yaml()</code> | ✅ <code>ToolResolver</code> |</p>
+<p>| Provider <code>_get_or_create_agent()</code> | ✅ Default tools |</p>
+<p>| Channel bot <code>_start_channel_bot()</code> | ✅ Default tools |</p>
+<p>| Jobs <code>_execute_job()</code> fallback | ✅ <code>ToolResolver</code> |</p>
+<p>| CRUD agents <code>_run()</code> fallback | ✅ <code>ToolResolver</code> |</p>
+<p>| CRUD agents <code>_sync_to_gateway()</code> | ✅ <code>ToolResolver</code> |</p>
+<h2>Features</h2>
+<h3>Markdown Rendering</h3>
+<p>Assistant messages are rendered with full markdown support:</p>
+<li><strong>Bold</strong>, *italic*, ~~strikethrough~~</li>
+<li>Inline <code>code</code> and fenced code blocks with syntax highlighting</li>
+<li>Ordered and unordered lists</li>
+<li>Links (auto-detected and rendered safely)</li>
+<h3>Tool Call Display</h3>
+<p>!Tool Call Streaming</p>
+<p>When agents use tools, each call is displayed as a collapsible card:</p>
+<li>Tool name and status indicator (running/completed/failed)</li>
+<li>Input arguments (JSON)</li>
+<li>Output results (rendered in code blocks)</li>
+<h4>Tool Call Lifecycle</h4>
+<p>Tool calls go through 4 stages: <strong>emit → enrich → dedup → persist</strong>.</p>
+<p><strong>1. Emit</strong> — The SDK fires <code>TOOL_CALL_START</code> / <code>DELTA_TOOL_CALL</code> / <code>TOOL_CALL_END</code> events via <code>StreamEventEmitter</code>. The provider maps these to <code>RunEvent</code> types (<code>TOOL_CALL_STARTED</code>, <code>TOOL_CALL_COMPLETED</code>).</p>
+<p><strong>2. Enrich</strong> — <code>_run_and_broadcast()</code> in <code>chat.py</code> enriches each tool call event with display-friendly fields via <code>_enrich_tool_payload()</code>:</p>
+<p>| Field | Source | Example |</p>
+<p>|-------|--------|---------|</p>
+<p>| <code>icon</code> | Mapped from tool name | 🔍, 📝, 💾 |</p>
+<p>| <code>description</code> | Generated from name + args | "🔍 Searching for 'Django latest version'" |</p>
+<p>| <code>step_number</code> | Auto-incrementing counter per run | 1, 2, 3 |</p>
+<p>| <code>formatted_result</code> | Truncated result string | "✓ Done" |</p>
+<p>| <code>tool_call_id</code> | SDK-assigned or UUID fallback | "call_abc123" |</p>
+<p><strong>3. Dedup</strong> — Both <code>DELTA_TOOL_CALL</code> (stream) and hook callbacks fire for the same tool call. The handler uses <code>_seen_tool_started</code> / <code>_seen_tool_completed</code> sets keyed by <code>tool_call_id</code> and <code>name</code> to suppress duplicates. A re-broadcast with <code>has_complete_args=True</code> is allowed to update the description with keyword-rich text.</p>
+<p><strong>4. Persist</strong> — After the run completes, all enriched tool calls are merged by <code>tool_call_id</code> into <code>collected_tool_calls</code> and saved alongside the assistant message:</p>
+<h4>Tool Call Persistence Schema</h4>
+<p>Tool calls are persisted alongside assistant messages in the datastore. When a session is reloaded from history, tool call steps are reconstructed from the <code>toolCalls</code> array on each assistant message.</p>
+<p>Assistant message schema in the datastore:</p>
+<h4>History Reload Rendering</h4>
+<h3>Session Management</h3>
+<li><strong>New Session</strong>: Click "New Chat" to create a fresh session</li>
+<li><strong>Session History</strong>: Switch between sessions in the sidebar</li>
+<li><strong>Message History</strong>: Full conversation history per session via REST API</li>
+<h3>Message Abort</h3>
+<li>Click the <strong>Stop</strong> button (or send <code>chat_abort</code> via WebSocket) to cancel an in-progress agent run</li>
+<li>The partial response is preserved in history</li>
+<h3>File Attachments</h3>
+<p>Upload files to include with your chat messages — see Attachments for details.</p>
+<h2>Session Persistence</h2>
+<p>Chat history is persisted via the <code>BaseDataStore</code> interface (<code>datastore.py</code>). Two implementations are available:</p>
+<p>| DataStore | Persistence | Default |</p>
+<p>|-----------|-------------|--------|</p>
+<p>| <code>MemoryDataStore</code> | Volatile (in-memory only) | Yes (fallback) |</p>
+<p>| <code>JSONFileDataStore</code> | Disk (<code>~/.praisonaiui/sessions/</code>) | Yes (when <code>data_dir</code> configured) |</p>
+<p>Each session is a JSON file containing:</p>
+<p>Messages are appended via <code>add_message()</code> and retrieved via <code>get_messages()</code>. Both methods are <code>async</code> to support future database backends.</p>
+<h3>Response Content Strategy</h3>
+<p>The <code>content</code> field on assistant messages stores the SDK's final response from <code>agent.chat()</code> — the same text displayed by <code>finalizeDelta()</code> in the live view. This ensures the reloaded view matches what the user saw during streaming.</p>
+<p>&gt; [!IMPORTANT]</p>
+<p>&gt; During streaming, text tokens are accumulated in <code>full_response</code>. However, when <code>RUN_COMPLETED</code> arrives with <code>event.content</code> (the SDK's authoritative return value), it <strong>replaces</strong> the accumulated tokens for storage. This prevents intermediate narrative text from being duplicated on reload.</p>
+<h2>Chat Message Model</h2>
+<h2>WebSocket Protocol</h2>
+<h3>Client → Server</h3>
+<h3>Server → Client</h3>
+<p>All events include <code>session_id</code> and <code>run_id</code>.</p>
+<h2>REST API</h2>
+<p>| Endpoint | Method | Description |</p>
+<p>|----------|--------|-------------|</p>
+<p>| <code>/api/chat/send</code> | POST | Send a message (non-streaming) |</p>
+<p>| <code>/api/chat/history/{session_id}</code> | GET | Get message history for a session |</p>
+<p>| <code>/api/chat/abort</code> | POST | Abort an active run |</p>
+<p>| <code>/api/chat/ws</code> | WebSocket | Real-time chat streaming |</p>
+<h3>Send Message</h3>
+<h3>Get History</h3>
+<p>Response includes <code>toolCalls</code> on assistant messages:</p></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

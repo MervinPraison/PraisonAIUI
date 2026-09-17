@@ -1,0 +1,96 @@
+# PraisonAIUI Docs
+
+> Documentation for PraisonAIUI - YAML-driven website generator
+
+## Documentation
+
+- [Health Endpoints Guide](https://ui.praison.ai/docs/health-endpoints): PraisonAIUI provides multiple health endpoints optimized for different use cases:
+- [PraisonAIUI](https://ui.praison.ai/docs/index): PraisonAIUI is a YAML-driven website generator that transforms a single configuration file and a docs folder into a modern, production-ready website.
+- [Testing](https://ui.praison.ai/docs/testing): PraisonAIUI uses pytest for all testing. Tests are split into unit and integration categories.
+- [Api](https://ui.praison.ai/docs/api): Api
+- [CLI API Reference](https://ui.praison.ai/docs/api/cli): Complete reference for the aiui Python CLI.
+- [Component API Reference](https://ui.praison.ai/docs/api/components): Python functions for building dashboard UIs. Each function returns a dict that the frontend renders as a real UI element — 36 components organized into tiers.
+- [Features REST API Reference](https://ui.praison.ai/docs/api/features-api): Complete API reference for all 36 PraisonAIUI feature protocol endpoints.
+- [Health API Reference](https://ui.praison.ai/docs/api/health): The AIUI health API provides endpoints to monitor server and provider health status.
+- [Python SDK API](https://ui.praison.ai/docs/api/python): Reference for import praisonaiui as aiui.
+- [Sessions API Reference](https://ui.praison.ai/docs/api/sessions): Create a new session.
+- [API Testing Guide](https://ui.praison.ai/docs/api/testing): Test all 16 PraisonAIUI feature APIs using curl. Each example creates real data and verifies backend processing.
+- [TypeScript SDK Reference](https://ui.praison.ai/docs/api/typescript): Complete API reference for the TypeScript/React runtime.
+- [Concepts](https://ui.praison.ai/docs/concepts): Concepts
+- [Architecture: AG-UI Protocol vs Gateway Integration](https://ui.praison.ai/docs/concepts/architecture): PraisonAIUI has two complementary integration layers with the praisonai backend. They solve different problems and run side-by-side.
+- [YAML Configuration](https://ui.praison.ai/docs/concepts/configuration): Complete guide to the aiui.template.yaml configuration schema.
+- [Providers](https://ui.praison.ai/docs/concepts/providers): PraisonAIUI uses a provider protocol — a simple abstraction that lets you plug in any AI backend.
+- [Slots & Components](https://ui.praison.ai/docs/concepts/slots): Understanding the slot system and built-in components.
+- [Templates & Layouts](https://ui.praison.ai/docs/concepts/templates): Learn how templates and layouts work in PraisonAIUI.
+- [Examples](https://ui.praison.ai/docs/examples): Examples
+- [Advanced Examples](https://ui.praison.ai/docs/examples/advanced): Complex configurations and customization patterns.
+- [Basic Examples](https://ui.praison.ai/docs/examples/basic): Simple examples to get started with PraisonAIUI.
+- [Features](https://ui.praison.ai/docs/features): Features
+- [A2UI canvas — agent-driven UI](https://ui.praison.ai/docs/features/a2ui-canvas): PraisonAIUI hosts A2UI v0.9 surfaces: agents push structured UI messages to a live canvas while users chat in the same window or on a full-page workspace.
+- [Agent UI host — modular dashboard shell](https://ui.praison.ai/docs/features/agent-ui-host): PraisonAIUI can host any AI agent backend behind a modular dashboard shell: pages, views, layout components, optional plugins, and branding — without forking th
+- [Chat Attachments](https://ui.praison.ai/docs/features/attachments): Upload files to include with chat messages — PDFs, CSVs, images, and text files up to 50 MB per file. Uploaded files are automatically processed and their conte
+- [Backend Integration Contract](https://ui.praison.ai/docs/features/backend-integration): PraisonAIUI supports a four-layer integration model so standalone mode and SDK-integrated mode can share the same feature APIs.
+- [Browser Automation](https://ui.praison.ai/docs/features/browser-automation): Expose browser agent capabilities (CDP, Playwright) through the dashboard — run browser tasks from the UI.
+- [Channel-to-Chat Bridge](https://ui.praison.ai/docs/features/channel-chat-bridge): Bridge channel bot conversations (Slack, Discord, Telegram) into the Chat UI in real-time.
+- [Code Execution](https://ui.praison.ai/docs/features/code-execution): 1. Code is submitted with a target language
+- [Feature Comparison: PraisonAIUI vs OpenClaw](https://ui.praison.ai/docs/features/comparison-openclaw): Feature Comparison: PraisonAIUI vs OpenClaw
+- [Config Hot-Reload](https://ui.praison.ai/docs/features/config-hot-reload): Live configuration reloading — watch YAML config files for changes and apply updates without restarting the server.
+- [Content Sources](https://ui.praison.ai/docs/features/content-sources): Configure where PraisonAIUI discovers your documentation content.
+- [How the UI Looks Are Built](https://ui.praison.ai/docs/features/css-architecture): A beginner-friendly guide to how PraisonAIUI creates its visual appearance — what controls the colors, fonts, and layout you see on screen.
+- [Dark Mode](https://ui.praison.ai/docs/features/dark-mode): Enable and customize dark mode for your site.
+- [Dashboard](https://ui.praison.ai/docs/features/dashboard): Build rich admin panels with zero HTML/CSS/JS. Register pages from Python, compose UIs with the component API, and the SDK renders everything.
+- [Deployment Guide](https://ui.praison.ai/docs/features/deployment): Production deployment guide for AIUI — covering Docker, environment variables, configuration, and security.
+- [Device Pairing](https://ui.praison.ai/docs/features/device-pairing): Pair devices to sessions using short hex codes — scan and sync across mobile, tablet, and desktop.
+- [What Makes PraisonAIUI Different](https://ui.praison.ai/docs/features/differentiation): PraisonAIUI is a protocol-driven UI framework for building AI applications. This page explains how it differs from other popular tools.
+- [Feature Inventory](https://ui.praison.ai/docs/features/feature-inventory): Complete inventory of every feature in PraisonAIUI: what's implemented, what's partial, and what's missing.
+- [Gap Analysis — Validated Against praisonai SDK](https://ui.praison.ai/docs/features/gap-analysis): All originally-reported gaps have been implemented with protocol-driven architecture. Each feature uses an ABC protocol with swappable manager implementations a
+- [Gateway Chat](https://ui.praison.ai/docs/features/gateway-chat): Real-time AI agent chat with WebSocket streaming, markdown rendering, tool call display, and session management.
+- [Hot Reload](https://ui.praison.ai/docs/features/hot-reload): Instant rebuilds during development.
+- [How to Add a Feature to PraisonAIUI](https://ui.praison.ai/docs/features/how-to-add-a-feature): This guide explains every way a user can extend PraisonAIUI — and which approach fits your use case.
+- [Internationalization (i18n)](https://ui.praison.ai/docs/features/i18n): Multi-language support with locale switching, string lookup, and variable interpolation. Ships with English, Spanish, and French.
+- [Image Preview in Chat](https://ui.praison.ai/docs/features/image-preview-chat): Protocol-driven inline media for agent-generated images (and other element types) during chat streaming. Any backend that implements BaseProvider can emit image
+- [AIUI Integration — Critical Review & Architecture Analysis](https://ui.praison.ai/docs/features/integration-analysis): 1. Acceptance Criteria
+- [Knowledge Embedding Model Configuration](https://ui.praison.ai/docs/features/knowledge-embeddings): Knowledge / RAG search uses vector embeddings. The default embedding model is
+- [Plugin Marketplace](https://ui.praison.ai/docs/features/marketplace): Browse, search, install, and manage plugins from a registry. Supports local plugin discovery with a swappable backend for remote registries.
+- [Media Analysis](https://ui.praison.ai/docs/features/media-analysis): The media analysis feature uses the VisionAgent and OCRAgent from the PraisonAI SDK when available. Without the SDK, it returns simulated responses to allow fro
+- [Message Elements](https://ui.praison.ai/docs/features/message-elements): PraisonAIUI supports rich inline message elements for displaying images, PDFs, videos, audio, files, and code blocks within chat messages.
+- [Model Fallback](https://ui.praison.ai/docs/features/model-fallback): Configure model fallback chains for high availability — if the primary LLM fails, automatically try the next model in the chain.
+- [Navigation](https://ui.praison.ai/docs/features/navigation): Configure automatic and manual navigation generation.
+- [PraisonAI package integration](https://ui.praison.ai/docs/features/praisonai-package-integration): How PraisonAIUI (aiui) connects to praisonai-package — the agent runtime, gateway, and CLI. For generic UI hosting see Agent UI host.
+- [Protocol Architecture Reference](https://ui.praison.ai/docs/features/protocol-architecture): All feature modules in PraisonAIUI implement a Protocol ABC pattern for type-safe, swappable backends.
+- [Protocol Versioning](https://ui.praison.ai/docs/features/protocol-versioning): The protocol uses semantic versioning — clients and servers are compatible if they share the same major version:
+- [Feature Protocols](https://ui.praison.ai/docs/features/protocols): PraisonAIUI uses a protocol-driven architecture to wire features into the server. Every feature module implements the BaseFeatureProtocol ABC, which auto-regist
+- [Progressive Web App (PWA)](https://ui.praison.ai/docs/features/pwa): Install PraisonAIUI as a native-like app on any device — manifest, service worker, and offline support.
+- [SEO](https://ui.praison.ai/docs/features/seo): Built-in SEO for documentation sites — sitemap, robots, llms.txt, per-page meta tags, and crawlable static HTML.
+- [Session Management](https://ui.praison.ai/docs/features/sessions): PraisonAIUI provides full session management for chat conversations — create, switch, view history, and delete sessions.
+- [Standalone vs Integrated](https://ui.praison.ai/docs/features/standalone-vs-integrated): This page summarises the expected install and runtime shape for PraisonAIUI in both modes.
+- [AIUI Standardization — Verification Report](https://ui.praison.ai/docs/features/standardization-verification): All 16 standardization gaps from the AIUI gap analysis have been implemented and verified. AIUI is now protocol-driven and vendor-agnostic, with configurable ti
+- [Steps / Chain-of-Thought](https://ui.praison.ai/docs/features/steps): Visualize agent reasoning and tool calls as collapsible, nested steps in the chat interface.
+- [UI Styles](https://ui.praison.ai/docs/features/styles): PraisonAIUI supports 6 distinct UI styles that control how your application looks and behaves. Styles are auto-detected from your code — you usually don't need
+- [Subagent Tree View](https://ui.praison.ai/docs/features/subagent-tree): Visualize agent hierarchies — see which agents spawn subagents, track their status, and monitor the full execution tree.
+- [Theme System](https://ui.praison.ai/docs/features/theme-system): Switch between dark, light, and custom themes using CSS custom properties — applied across all dashboard pages including chat.
+- [Theming](https://ui.praison.ai/docs/features/theming): Customize the look and feel of your site with YAML configuration.
+- [Text-to-Speech (TTS)](https://ui.praison.ai/docs/features/tts): Synthesize speech from text using swappable backends — browser-native (zero cost) or OpenAI TTS API.
+- [Video Studio](https://ui.praison.ai/docs/features/video-studio): The Video Studio integrates PraisonAI Video as an external Node render engine. PraisonAIUI provides the dashboard shell, project files, YAML editor, job UX, and
+- [Widget Zones](https://ui.praison.ai/docs/features/widget-zones): WordPress-style widget areas for placing UI components in layout zones via YAML configuration.
+- [Getting Started](https://ui.praison.ai/docs/getting-started): Getting Started
+- [CLI Reference](https://ui.praison.ai/docs/getting-started/cli): Complete reference for the aiui command-line interface.
+- [Deploy to GitHub Pages](https://ui.praison.ai/docs/getting-started/github-pages): Ship your AIUI docs site to GitHub Pages with one workflow file.
+- [Installation](https://ui.praison.ai/docs/getting-started/installation): Install PraisonAIUI to start building YAML-driven websites.
+- [Quick Start](https://ui.praison.ai/docs/getting-started/quickstart): Get a working AI dashboard in under 60 seconds.
+- [Protocols](https://ui.praison.ai/docs/protocols): Protocols
+- [Application Design Protocol (ADP) — Research Report](https://ui.praison.ai/docs/protocols/application-design-protocol-report): There is no single existing standard for designing full application UI from a declarative text file. Instead, the problem is addressed in fragments:
+- [Application Design Protocol (ADP)](https://ui.praison.ai/docs/protocols/adp): Declarative UI design standard for describing application layout, navigation, components, and theming from YAML or JSON manifests.
+- [PraisonAIUI → ADP Field Mapping](https://ui.praison.ai/docs/protocols/adp/aiui-mapping): Field-by-field mapping from current aiui.template.yaml (Config model in src/praisonaiui/schema/models.py) to ADP Application spec.
+- [ADP Implementation Status](https://ui.praison.ai/docs/protocols/adp/implementation-status): Honest status of ADP v1alpha1 features against the PraisonAIUI reference implementation.
+- [Application Design Protocol (ADP) — Normative Specification](https://ui.praison.ai/docs/protocols/adp/spec): This document uses RFC 2119 keywords: MUST, MUST NOT, SHOULD, MAY.
+- [ADP Validation Rules](https://ui.praison.ai/docs/protocols/adp/validation-rules): Cross-reference validation rules for Application Design Protocol manifests. These constraints cannot be expressed in JSON Schema alone and MUST be enforced by c
+- [Typescript](https://ui.praison.ai/docs/typescript): Typescript
+- [Components](https://ui.praison.ai/docs/typescript/components): Built-in React components for PraisonAIUI.
+- [TypeScript SDK Overview](https://ui.praison.ai/docs/typescript): The TypeScript SDK provides React components and runtime utilities for rendering PraisonAIUI sites.
+- [Next.js Adapter](https://ui.praison.ai/docs/typescript/nextjs): Integrate PraisonAIUI with Next.js.
+- [Runtime](https://ui.praison.ai/docs/typescript/runtime): Core runtime utilities for the TypeScript SDK.
+
+## Full export
+
+- [Complete documentation](https://ui.praison.ai/llms-full.txt): All pages in one file
