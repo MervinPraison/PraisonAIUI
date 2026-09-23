@@ -1,6 +1,27 @@
-# React + TypeScript + Vite
+# PraisonAIUI Frontend (React + TypeScript + Vite)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The BeautifulUI dashboard source. Built with React 19 + Vite 7 + Tailwind v4.
+
+## Build & CI
+
+- **Node.js:** 22 (matches the `frontend` job in `.github/workflows/ci.yml`)
+- **Lockfile:** `src/frontend/package-lock.json` — install with `npm ci`
+
+```bash
+cd src/frontend
+npm ci
+npm run build       # SPA build → dist/ (dashboard ship path)
+npm run build:lib   # library build for the @praisonaiui/react package
+npm run lint        # eslint
+```
+
+`npm run build` output in `dist/` is synced to `src/praisonaiui/templates/frontend/`
+(the committed bundle served by `aiui build`). The CI `frontend` job runs
+`npm ci && npm run build` on PRs to `main` and fails on TypeScript/Vite errors.
+
+## Vite template notes
+
+This project uses a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
 

@@ -36,6 +36,30 @@ jobs:
       - name: Integration smoke tests
         run: pytest tests/integration/test_agentic_roundtrip.py tests/test_feature_sdk_backends.py -q --no-cov --timeout=120
 
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: src/frontend
+
+      # `npm run build` is the dashboard ship path: dist/ is synced to
+      # src/praisonaiui/templates/frontend/ (see src/frontend/README.md).
+      - name: Build frontend
+        run: npm run build
+        working-directory: src/frontend
+
   docs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
