@@ -121,6 +121,11 @@ export async function render(container) {
     if (opt) body.option = opt.value;
     const custom = card.querySelector('.approv-custom');
     if (custom && custom.value.trim()) body.custom_answer = custom.value.trim();
+    // Also surface the human's choice as `reason` — the only extra field the
+    // approve/deny endpoints persist today — so the answer isn't dropped while
+    // `option`/`custom_answer` stay for a future richer backend.
+    const reason = body.custom_answer || body.option;
+    if (reason != null && reason !== '') body.reason = String(reason);
     return body;
   }
 
