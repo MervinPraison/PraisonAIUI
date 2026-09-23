@@ -139,6 +139,8 @@ nav:
     - How to Add a Feature: features/how-to-add-a-feature.md
     - Message Elements: features/message-elements.md
     - Steps: features/steps.md
+  - Frontend:
+    - BeautifulUI Playbook: frontend/beautifului.md
   - API Reference:
     - Python CLI: api/cli.md
     - Python API: api/python.md

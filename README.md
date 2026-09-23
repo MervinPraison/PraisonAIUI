@@ -366,3 +366,7 @@ pytest tests -v
 ## License
 
 MIT © [Praison Limited](https://praison.ai)
+
+Third-party vendored source is documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+See the [BeautifulUI upgrade playbook](docs/frontend/beautifului.md) for how BeautifulUI
+primitives are vendored and pinned.
