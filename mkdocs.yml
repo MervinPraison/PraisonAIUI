@@ -95,6 +95,9 @@ nav:
     - Templates & Layouts: concepts/templates.md
     - Slots & Components: concepts/slots.md
     - Providers: concepts/providers.md
+  - Frontend:
+    - BeautifulUI Adapter: frontend/beautifului-adapter-architecture.md
+    - BeautifulUI Upstream Pin: frontend/BEAUTIFULUI_UPSTREAM.md
   - Features:
     - Dashboard: features/dashboard.md
     - Gateway Chat: features/gateway-chat.md

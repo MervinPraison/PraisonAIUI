@@ -29,7 +29,8 @@
     "build": "tsc -b && vite build",
     "build:lib": "tsc -b && vite build --mode lib",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --experimental-strip-types --test \"src/agent-ui/**/*.test.ts\""
   },
   "keywords": [
     "react",
