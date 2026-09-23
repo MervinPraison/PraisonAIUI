@@ -19,7 +19,7 @@ Upstream stack (Next.js 15 · React 19 · Tailwind v4 · TypeScript) is closely 
 |---|--------|----------|
 | 1 | **Vendoring model** | Add primitives into `src/frontend` via `npx shadcn add https://www.beautifului.dev/r/<component>.json`, or manual copy from [github.com/slev12397/beautiful-ui](https://github.com/slev12397/beautiful-ui). Pin via lockfile plus a recorded registry URL / git SHA. No `beautiful-ui` npm dependency in production builds. |
 | 2 | **Adapter layer** | Map PraisonAIUI chat / approval / trace **protocol events** to stable internal props. Primitives sit behind `@praisonaiui/react` exports; dashboard plugins consume those exports, not upstream paths. See [#294](https://github.com/MervinPraison/PraisonAIUI/issues/294). |
-| 3 | **Hybrid rollout** | Mount React **islands** (or expand `@praisonaiui/react`) for high-value surfaces first — chat streaming/thinking/tools, then approvals. Vanilla chat (`templates/frontend/plugins/chat.js`) stays as the flag-gated fallback until parity is proven. |
+| 3 | **Hybrid rollout** | Mount React **islands** (or expand `@praisonaiui/react`) for high-value surfaces first — chat streaming/thinking/tools, then approvals. Vanilla chat (`templates/frontend/plugins/views/chat.js`) stays as the flag-gated fallback until parity is proven. |
 | 4 | **Token strategy** | Merge BeautifulUI foundation CSS **selectively** into the existing shadcn theme generation (`praisonaiui/themes.py`). One design system per page — avoid two competing token sets. |
 | 5 | **Icon licence** | Upstream `SidebarNav` uses the paid `@central-icons-react`. Port nav patterns with **lucide-react** (already in PraisonAIUI) instead. |
 
