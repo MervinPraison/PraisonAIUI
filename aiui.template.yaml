@@ -59,6 +59,11 @@ navigation:
             - typescript/runtime
             - typescript/nextjs
             - typescript/components
+        - group: "Frontend"
+          icon: "layout"
+          prefix: "frontend"
+          pages:
+            - frontend/beautifului
         - group: "Examples"
           icon: "folder-open"
           prefix: "examples"
