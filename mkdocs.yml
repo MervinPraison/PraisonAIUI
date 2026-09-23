@@ -129,6 +129,7 @@ nav:
     - Feature Inventory: features/feature-inventory.md
     - Gap Analysis: features/gap-analysis.md
     - Integration Analysis: features/integration-analysis.md
+    - BeautifulUI Integration: features/beautifului-integration.md
     - Standardization: features/standardization-verification.md
     - Comparison (OpenClaw): features/comparison-openclaw.md
     - What Makes It Different: features/differentiation.md
