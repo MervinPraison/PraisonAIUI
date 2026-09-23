@@ -2,8 +2,9 @@
  * Unit tests for the Agent-UI adapter (mock events -> stable contracts).
  *
  * Dependency-free: uses the Node built-in test runner so it needs no extra
- * toolchain. Run with `node --test src/agent-ui/` (Node 22+/24 strips the
- * TypeScript types). The frontend CI gate (see issue #295) wires this in.
+ * toolchain. Run with `npm test` (from src/frontend), which invokes the Node
+ * test runner with `--experimental-strip-types` so the TypeScript types are
+ * stripped on Node 22+. The frontend CI gate (see issue #295) wires this in.
  */
 
 import { test } from 'node:test'
