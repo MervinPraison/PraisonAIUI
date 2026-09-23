@@ -39,6 +39,19 @@ function asNumber(value: unknown): number | undefined {
     return typeof value === 'number' ? value : undefined
 }
 
+/**
+ * Normalize a `created_at` value to an ISO-8601 string. The approvals API
+ * emits epoch seconds (`time.time()`), while some payloads already carry an
+ * ISO string — accept both, drop anything else.
+ */
+function asTimestamp(value: unknown): string | undefined {
+    if (typeof value === 'string') return value
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return new Date(value * 1000).toISOString()
+    }
+    return undefined
+}
+
 /** Map a raw tool-call frame to a stable chip view model. */
 function mapToolCall(
     frame: RawChatFrame,
@@ -159,6 +172,6 @@ export function mapApprovalToCardProps(
         riskIcon: asString(item.risk_icon) ?? '⚠️',
         description: asString(item.description),
         argumentsJson,
-        createdAt: asString(item.created_at),
+        createdAt: asTimestamp(item.created_at),
     }
 }

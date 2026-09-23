@@ -81,7 +81,8 @@ test('mapApprovalToCardProps maps a pending approval item', () => {
         risk_icon: '🔥',
         description: 'Deletes a file',
         arguments: { path: '/tmp/x' },
-        created_at: '2026-09-23T00:00:00Z',
+        // Approvals API emits epoch seconds (time.time()), not an ISO string.
+        created_at: 1758585600,
     })
     assert.equal(card.id, 'a-1')
     assert.equal(card.toolName, 'delete_file')
@@ -89,6 +90,8 @@ test('mapApprovalToCardProps maps a pending approval item', () => {
     assert.equal(card.riskLevel, 'high')
     assert.equal(card.riskIcon, '🔥')
     assert.equal(card.argumentsJson, '{\n  "path": "/tmp/x"\n}')
+    // Epoch seconds are normalized to an ISO-8601 string for display.
+    assert.equal(card.createdAt, '2025-09-23T00:00:00.000Z')
 })
 
 test('mapApprovalToCardProps falls back for missing/invalid fields', () => {
