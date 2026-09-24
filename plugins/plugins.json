@@ -1,0 +1,14 @@
+{
+  "plugins": [
+    "fetch-retry",
+    "nav-intercept",
+    "mermaid",
+    "mkdocs-compat",
+    "content-loader",
+    "homepage",
+    "toc",
+    "topnav",
+    "code-copy",
+    "syntax-highlight"
+  ]
+}

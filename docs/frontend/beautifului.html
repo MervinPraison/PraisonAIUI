@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="How PraisonAIUI vendors BeautifulUI React primitives so" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>BeautifulUI Upgrade Playbook | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index.css">
+  <link rel="canonical" href="https://ui.praison.ai/docs/frontend/beautifului" />
+  <meta property="og:title" content="BeautifulUI Upgrade Playbook | PraisonAIUI Docs" />
+  <meta property="og:description" content="How PraisonAIUI vendors BeautifulUI React primitives so" />
+  <meta property="og:url" content="https://ui.praison.ai/docs/frontend/beautifului" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="BeautifulUI Upgrade Playbook | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="How PraisonAIUI vendors BeautifulUI React primitives so" />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "BeautifulUI Upgrade Playbook", "description": "How PraisonAIUI vendors BeautifulUI React primitives so", "url": "https://ui.praison.ai/docs/frontend/beautifului", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/beautifului-integration">BeautifulUI Integration Strategy</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/frontend">Frontend</a></li><li><a href="https://ui.praison.ai/docs/frontend/BEAUTIFULUI_UPSTREAM">BeautifulUI upstream pin record</a></li><li><a href="https://ui.praison.ai/docs/frontend/beautifului-adapter-architecture">ADR: BeautifulUI adapter layer &amp; upstream pin policy</a></li><li><a href="https://ui.praison.ai/docs/frontend/beautifului">BeautifulUI Upgrade Playbook</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>BeautifulUI Upgrade Playbook</h1>
+<p>How PraisonAIUI vendors <a href="https://www.beautifului.dev/">BeautifulUI</a> React primitives so</p>
+<p>upgrades are <strong>repeatable</strong> and licence obligations are <strong>explicit</strong>.</p>
+<p>!!! info "Related planning"</p>
+<p>Epic <a href="https://github.com/MervinPraison/PraisonAIUI/issues/292">#292</a> (integration</p>
+<p>strategy) and the adapter/pin policy in</p>
+<p><a href="https://github.com/MervinPraison/PraisonAIUI/issues/294">#294</a>.</p>
+<h2>1. What BeautifulUI is</h2>
+<p>BeautifulUI (MIT, © Shane Levine / Turbo) is a library of React primitives aimed at</p>
+<p><strong>AI-native interfaces</strong> — thinking traces, streaming answers with inline sources,</p>
+<p>human-in-the-loop approval cards, tool chips, task rows, context chunks, and a reference</p>
+<p>chat harness.</p>
+<p><strong>It is a shadcn registry + copy-paste library — not an npm package.</strong> There is no</p>
+<p>published <code>beautiful-ui</code> package. You install components by resolving a registry URL, and</p>
+<p>the source is copied into your tree (like any other shadcn/ui primitive).</p>
+<li>Website &amp; registry: &lt;https://www.beautifului.dev/&gt;</li>
+<li>Upstream source: &lt;https://github.com/slev12397/beautiful-ui&gt;</li>
+<p>Upstream stack (Next.js 15 · React 19 · Tailwind CSS v4 · TypeScript) is closely aligned</p>
+<p>with PraisonAIUI's <code>src/frontend</code> (Vite · React 19 · Tailwind v4 · shadcn/Radix), which is</p>
+<p>why copy-paste vendoring works without a framework shim.</p>
+<h2>2. One-time foundation setup</h2>
+<p>PraisonAIUI already carries the shadcn/ui foundation that BeautifulUI primitives depend on:</p>
+<li><strong>shadcn config</strong> — <code>src/frontend/components.json</code> (<code>style: new-york</code>,</li>
+<p><code>baseColor: neutral</code>, <code>iconLibrary: lucide</code>, <code>cssVariables: true</code>). Its <code>registries</code></p>
+<p>map is where pinned BeautifulUI registry URLs are added (see §3).</p>
+<li><strong>Theme tokens</strong> — <code>src/praisonaiui/themes.py</code> generates the shadcn CSS variables</li>
+<p>(<code>--background</code>, <code>--foreground</code>, <code>--primary</code>, <code>--radius</code>, …) at build time for all 22</p>
+<p>official presets, offline. BeautifulUI's foundation CSS (upstream <code>app/globals.css</code>)</p>
+<p>must only contribute <strong>new</strong> tokens/utilities; it must <strong>not</strong> redefine variables that</p>
+<p><code>themes.py</code> already owns, or theme switching and dark mode break.</p>
+<p><strong>Rule:</strong> when merging upstream <code>app/globals.css</code>, diff it against the variables emitted by</p>
+<p><code>themes.py</code> and keep only the additive slices (new keyframes, component-scoped utilities).</p>
+<p>Record what was merged in the pin doc (§3).</p>
+<h2>3. Adding or updating a primitive</h2>
+<p>1. <strong>Install with a pinned registry URL</strong> from <code>src/frontend/</code>:</p>
+<p>The registry resolves dependencies and CSS slices. Commit the resulting</p>
+<p><code>package-lock.json</code> change in the same PR.</p>
+<p>2. <strong>Re-export through the adapter</strong> — add the component to</p>
+<p><code>src/frontend/src/components/index.ts</code> (<code>@praisonaiui/react</code>). Consumers never import</p>
+<p>the raw vendored path (see §4).</p>
+<p>3. <strong>Update the pin record</strong> — create/update <code>docs/frontend/BEAUTIFULUI_UPSTREAM.md</code> with:</p>
+<p>the upstream <strong>git SHA</strong>, the <strong>date</strong>, the <strong>registry base URL</strong>, and the **component</p>
+<p>list** vendored so far. This file is the single source of truth for "what version are</p>
+<p>we on". (It is created the first time a real primitive is vendored — do not add it</p>
+<p>empty.)</p>
+<p>4. <strong>Rebuild &amp; sync the bundle</strong> — the committed frontend bundle must be regenerated:</p>
+<p>(See <code>AGENTS.md</code> → "Frontend Build".)</p>
+<p>5. <strong>Run frontend CI</strong> — <code>.github/workflows/ci.yml</code> (ruff + pytest) must pass, plus the</p>
+<p>frontend build step.</p>
+<h2>4. Adapter boundary</h2>
+<p>Consumers import from <strong><code>@praisonaiui/react</code> only</strong> — never from raw vendored paths such as</p>
+<p><code>@/components/ui/...</code> or any upstream module.</p>
+<p>This keeps the upstream surface behind one file (<code>components/index.ts</code>), so a BeautifulUI</p>
+<p>bump changes vendored source but not consumer imports.</p>
+<h2>5. Rollback</h2>
+<li>BeautifulUI-backed views mount behind a <strong>feature flag</strong>; the <strong>vanilla dashboard views</strong></li>
+<p>(<code>src/praisonaiui/templates/frontend/plugins/*</code>) remain the fallback and are kept working.</p>
+<li>To roll back a bad bump: revert the vendoring PR (source + <code>BEAUTIFULUI_UPSTREAM.md</code> +</li>
+<p>rebuilt bundle move together in one commit), and disable the flag. No consumer import</p>
+<p>changes are needed because everything routes through the adapter (§4).</p>
+<h2>6. Licence</h2>
+<p>BeautifulUI is <strong>MIT, © Shane Levine</strong>. The full licence text is retained in</p>
+<p><a href="https://github.com/MervinPraison/PraisonAIUI/blob/main/THIRD_PARTY_NOTICES.md"><code>THIRD_PARTY_NOTICES.md</code></a></p>
+<p>at the repository root. Any PR that vendors or bumps BeautifulUI source must keep that</p>
+<p>notice present and current.</p>
+<h2>7. Commercial icons — do not vendor</h2>
+<p>Do <strong>not</strong> use <code>@central-icons-react</code> without a licence — it is commercial. PraisonAIUI</p>
+<p>standardises on <strong><code>lucide-react</code></strong> (<code>iconLibrary: lucide</code> in <code>components.json</code>). If an</p>
+<p>upstream BeautifulUI primitive imports commercial icons, swap them for lucide equivalents</p>
+<p>during vendoring.</p></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>
