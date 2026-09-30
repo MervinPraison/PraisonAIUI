@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "theme.schema.json",
+  "title": "ADP Theme",
+  "description": "Theme configuration — preset shorthand or DTCG 2025.10 token reference",
+  "oneOf": [
+    {
+      "title": "Preset theme",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "preset": {
+          "type": "string",
+          "enum": [
+            "zinc", "slate", "stone", "gray", "neutral",
+            "red", "orange", "amber", "yellow", "lime", "green",
+            "emerald", "teal", "cyan", "sky", "blue", "indigo",
+            "violet", "purple", "fuchsia", "pink", "rose"
+          ]
+        },
+        "radius": {
+          "type": "string",
+          "enum": ["none", "sm", "md", "lg", "xl"],
+          "default": "md"
+        },
+        "darkMode": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": ["preset"]
+    },
+    {
+      "title": "DTCG token reference",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tokens": {
+          "type": "string",
+          "description": "Path or URL to DTCG 2025.10 compliant tokens.json"
+        },
+        "darkMode": { "type": "boolean" }
+      },
+      "required": ["tokens"]
+    }
+  ]
+}

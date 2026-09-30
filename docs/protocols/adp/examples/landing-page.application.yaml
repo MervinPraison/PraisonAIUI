@@ -1,0 +1,58 @@
+schemaVersion: 1
+apiVersion: adp.io/v1alpha1
+kind: Application
+
+metadata:
+  name: colorful-landing
+  version: "1.0.0"
+
+spec:
+  site:
+    title: "Colorful Docs"
+    description: "Zone-based landing page with hero and footer widgets"
+    ui: shadcn
+
+  theme:
+    preset: rose
+    radius: xl
+    darkMode: true
+
+  content:
+    docs:
+      dir: "./docs"
+      nav:
+        mode: auto
+        collapsible: true
+
+  templates:
+    docs:
+      layout: FlexibleLayout
+      zones:
+        hero:
+          - type: HeroBanner
+            props:
+              title: "Colorful Documentation"
+              subtitle: "Vibrant, playful, and beautifully designed"
+              ctaLabel: "Get Started"
+              ctaHref: "/docs/getting-started/quickstart"
+        rightSidebar:
+          - type: Toc
+        footer:
+          - type: SocialLinks
+            props:
+              links:
+                - platform: Twitter
+                  href: "https://twitter.com"
+                - platform: GitHub
+                  href: "https://github.com"
+          - type: Copyright
+            props:
+              text: "Made with love by Colorful Team"
+
+  routes:
+    - match: "/docs/**"
+      template: docs
+
+  a11y:
+    skipToContent: true
+    reduceMotion: false
