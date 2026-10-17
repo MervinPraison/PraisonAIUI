@@ -1,0 +1,331 @@
+/* Mintlify-style theme for MkDocs Material */
+
+:root {
+  /* Mintlify-inspired colors - teal/green gradient */
+  --md-primary-fg-color: #0D9373;
+  --md-primary-fg-color--light: #14B8A6;
+  --md-primary-fg-color--dark: #047857;
+  --md-accent-fg-color: #0EA5E9;
+  --md-accent-fg-color--transparent: rgba(14, 165, 233, 0.1);
+
+  /* Custom properties */
+  --mintlify-gradient: linear-gradient(135deg, #0D9373 0%, #0EA5E9 100%);
+}
+
+/* Dark mode colors */
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #14B8A6;
+  --md-primary-fg-color--light: #2DD4BF;
+  --md-primary-fg-color--dark: #0D9373;
+  --md-accent-fg-color: #38BDF8;
+  --md-default-bg-color: #0f172a;
+  --md-default-bg-color--light: #1e293b;
+  --md-default-fg-color: #f1f5f9;
+  --md-default-fg-color--light: #94a3b8;
+  --md-code-bg-color: #1e293b;
+}
+
+/* Header styling - clean and minimal */
+.md-header {
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+[data-md-color-scheme="slate"] .md-header {
+  background: #0f172a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Site name and elements in header - always visible */
+.md-header__title,
+.md-header__title .md-ellipsis {
+  font-weight: 600;
+  color: #1f2937 !important;
+}
+
+[data-md-color-scheme="slate"] .md-header__title,
+[data-md-color-scheme="slate"] .md-header__title .md-ellipsis {
+  color: #f1f5f9 !important;
+}
+
+/* Logo */
+.md-header__button.md-logo {
+  color: var(--md-primary-fg-color) !important;
+}
+
+.md-header__button.md-logo svg {
+  fill: currentColor !important;
+}
+
+/* Header icons - hamburger, toggle, etc */
+.md-header__button {
+  color: #374151 !important;
+}
+
+.md-header__button svg {
+  fill: currentColor !important;
+}
+
+[data-md-color-scheme="slate"] .md-header__button {
+  color: #e2e8f0 !important;
+}
+
+/* Search icon and input */
+.md-search__icon {
+  color: #374151 !important;
+}
+
+.md-search__icon svg {
+  fill: currentColor !important;
+}
+
+[data-md-color-scheme="slate"] .md-search__icon {
+  color: #e2e8f0 !important;
+}
+
+.md-search__input {
+  color: #1f2937 !important;
+}
+
+.md-search__input::placeholder {
+  color: #6b7280 !important;
+}
+
+[data-md-color-scheme="slate"] .md-search__input {
+  color: #f1f5f9 !important;
+}
+
+[data-md-color-scheme="slate"] .md-search__input::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Navigation tabs - Mintlify style */
+.md-tabs {
+  background: #ffffff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-md-color-scheme="slate"] .md-tabs {
+  background: #0f172a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.md-tabs__link {
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: #374151 !important;
+  opacity: 1 !important;
+  transition: all 0.2s ease;
+}
+
+[data-md-color-scheme="slate"] .md-tabs__link {
+  color: #e2e8f0 !important;
+}
+
+.md-tabs__link:hover,
+.md-tabs__link--active {
+  color: var(--md-primary-fg-color) !important;
+}
+
+/* Sidebar - clean and spacious */
+.md-sidebar {
+  padding: 1.5rem 0;
+}
+
+.md-nav__title {
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--md-default-fg-color--light);
+  padding: 0.5rem 0.6rem;
+}
+
+.md-nav__link {
+  font-size: 0.875rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  margin: 2px 0;
+  transition: all 0.15s ease;
+}
+
+.md-nav__link:hover {
+  background: var(--md-accent-fg-color--transparent);
+  color: var(--md-primary-fg-color);
+}
+
+.md-nav__link--active {
+  background: var(--md-accent-fg-color--transparent);
+  color: var(--md-primary-fg-color);
+  font-weight: 500;
+}
+
+/* Content area - more whitespace */
+.md-content {
+  max-width: 850px;
+  margin: 0 auto;
+  padding: 2rem 2.5rem;
+}
+
+/* Typography */
+.md-typeset h1 {
+  font-weight: 700;
+  font-size: 2.25rem;
+  margin-bottom: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.md-typeset h2 {
+  font-weight: 600;
+  font-size: 1.5rem;
+  margin-top: 2.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-md-color-scheme="slate"] .md-typeset h2 {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.md-typeset h3 {
+  font-weight: 600;
+  font-size: 1.125rem;
+}
+
+/* Code blocks - Mintlify style */
+.md-typeset code {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.875em;
+}
+
+[data-md-color-scheme="slate"] .md-typeset code {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.md-typeset pre {
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-md-color-scheme="slate"] .md-typeset pre {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Admonitions - card style */
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Tables - clean style */
+.md-typeset table:not([class]) {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.md-typeset table:not([class]) th {
+  background: rgba(0, 0, 0, 0.03);
+  font-weight: 600;
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) th {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Search - rounded and clean */
+.md-search__form {
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-md-color-scheme="slate"] .md-search__form {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Buttons and links */
+.md-typeset a {
+  color: var(--md-primary-fg-color);
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.md-typeset a:hover {
+  color: var(--md-primary-fg-color--light);
+  text-decoration: underline;
+}
+
+/* Footer - clean and minimal */
+.md-footer {
+  background: #f8fafc;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 1rem 0;
+}
+
+[data-md-color-scheme="slate"] .md-footer {
+  background: #0f172a;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Hide "Made with Material for MkDocs" */
+.md-footer-meta__inner {
+  display: flex;
+  justify-content: center;
+}
+
+.md-footer-meta .md-copyright {
+  display: none;
+}
+
+/* Footer navigation links */
+.md-footer__link {
+  color: #374151;
+}
+
+[data-md-color-scheme="slate"] .md-footer__link {
+  color: #e2e8f0;
+}
+
+.md-footer__link:hover {
+  color: var(--md-primary-fg-color);
+}
+
+/* Mermaid diagrams - better styling */
+.mermaid {
+  background: transparent !important;
+}
+
+/* TOC - right sidebar */
+.md-sidebar--secondary {
+  padding: 1.5rem 0;
+}
+
+.md-nav--secondary .md-nav__link {
+  font-size: 0.8rem;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color;
+  transition-duration: 0.15s;
+  transition-timing-function: ease;
+}
+
+/* Copy button style */
+.md-clipboard {
+  border-radius: 4px;
+}
+
+/* Tab content - cleaner */
+.md-typeset .tabbed-labels>label {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
