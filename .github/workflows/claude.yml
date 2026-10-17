@@ -16,7 +16,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-      actions: read
+      actions: write  # after-claude job (v1.1.16)
       id-token: write
     uses: MervinPraison/github-automation-template/.github/workflows/claude-assistant-callable.yml@v1.1.16
     secrets: inherit

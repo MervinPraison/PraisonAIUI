@@ -87,6 +87,7 @@ jobs:
       issues: write
       actions: read
       id-token: write
+      statuses: write  # security/outsider-review status (v1.1.16)
     uses: MervinPraison/github-automation-template/.github/workflows/claude-merge-gate-callable.yml@v1.1.16
     secrets: inherit
     with:
