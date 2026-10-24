@@ -46,6 +46,20 @@ def _list_backend_approvals() -> List[Dict[str, Any]] | None:
     return items if isinstance(items, list) else None
 
 
+def _authenticated_user(request: Request) -> Optional[str]:
+    """Return the caller identity, or ``None`` when auth is enabled and the caller is
+    unauthenticated. In auth mode ``none`` every caller is accepted (backward compat)."""
+    from .auth import check_auth
+
+    result = check_auth(request)
+    if not result:
+        return None
+    return result.get("user") or "user"
+
+
+_UNAUTHORIZED = {"error": "Authentication required"}
+
+
 # ── Approval Protocol ────────────────────────────────────────────────
 
 
@@ -446,13 +460,16 @@ class ApprovalsFeature(BaseFeatureProtocol):
         return JSONResponse(result, status_code=201)
 
     async def _approve(self, request: Request) -> JSONResponse:
+        approver = _authenticated_user(request)
+        if approver is None:
+            return JSONResponse(_UNAUTHORIZED, status_code=401)
         mgr = get_approval_manager()
         approval_id = request.path_params["approval_id"]
         body = await request.json() if request.headers.get("content-length") else {}
         entry = mgr.approve(
             approval_id,
             reason=body.get("reason", ""),
-            approver=body.get("approver", "user"),
+            approver=approver,
             always=body.get("always", False),
         )
         if entry is None:
@@ -461,13 +478,16 @@ class ApprovalsFeature(BaseFeatureProtocol):
         return JSONResponse(entry)
 
     async def _deny(self, request: Request) -> JSONResponse:
+        approver = _authenticated_user(request)
+        if approver is None:
+            return JSONResponse(_UNAUTHORIZED, status_code=401)
         mgr = get_approval_manager()
         approval_id = request.path_params["approval_id"]
         body = await request.json() if request.headers.get("content-length") else {}
         entry = mgr.deny(
             approval_id,
             reason=body.get("reason", ""),
-            approver=body.get("approver", "user"),
+            approver=approver,
             always=body.get("always", False),
         )
         if entry is None:
@@ -496,6 +516,8 @@ class ApprovalsFeature(BaseFeatureProtocol):
         )
 
     async def _update_policies(self, request: Request) -> JSONResponse:
+        if _authenticated_user(request) is None:
+            return JSONResponse(_UNAUTHORIZED, status_code=401)
         mgr = get_approval_manager()
         body = await request.json()
         policies = mgr.update_policies(body)
