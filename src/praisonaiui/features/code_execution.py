@@ -193,14 +193,21 @@ class CodeExecutionFeature(BaseFeatureProtocol):
             if (
                 not decision
                 or decision.get("status") != "approved"
-                or decision.get("tool_name") != EXECUTE_TOOL_NAME
+                or decision.get("source") != EXECUTE_TOOL_NAME
                 or decision.get("arguments") != args
                 or decision.get("consumed")
             ):
                 return JSONResponse({"error": "Approval not valid for this code"}, status_code=403)
         else:
             decision = approvals.request_approval(
-                {"tool_name": EXECUTE_TOOL_NAME, "arguments": args, "risk_level": "medium"}
+                {
+                    "tool_name": EXECUTE_TOOL_NAME,
+                    "arguments": args,
+                    "risk_level": "medium",
+                    # Only approvals issued here are redeemable; POST /api/approvals
+                    # entries (caller-chosen risk/agent) cannot authorise execution.
+                    "source": EXECUTE_TOOL_NAME,
+                }
             )
             if decision["status"] == "denied":
                 return JSONResponse(

@@ -73,3 +73,15 @@ def test_auth_required_when_enabled(client, monkeypatch):
     r = client.post(f"/api/approvals/{aid}/approve", json={}, headers={"X-API-Key": "pk_test"})
     assert r.status_code == 200
     assert r.json()["approver"] == "alice"
+
+
+def test_externally_created_approval_cannot_authorise_execution(client):
+    # Policy that would auto-approve a caller-chosen low-risk entry
+    client.mgr.update_policies({"risk_threshold": "medium"})
+    r = client.post(
+        "/api/approvals",
+        json={"tool_name": "execute_code", "arguments": CODE, "risk_level": "low"},
+    )
+    assert r.json()["status"] == "approved"
+    aid = r.json()["id"]
+    assert client.post("/api/code/execute", json={**CODE, "approval_id": aid}).status_code == 403
