@@ -84,6 +84,25 @@ class TestCodeExecutionApi:
         )
         assert r.status_code == 403
 
+    def test_execute_rejects_non_gate_approval(self, _fresh_approvals):
+        # A low-risk request filed via /api/approvals is auto-approved by the
+        # default policy; it must not unlock execution.
+        client = TestClient(create_app())
+        r = client.post(
+            "/api/approvals",
+            json={
+                "tool_name": "execute_code",
+                "arguments": {"code": "1", "language": "python"},
+                "risk_level": "low",
+            },
+        )
+        assert r.json()["status"] == "approved"
+        r = client.post(
+            "/api/code/execute",
+            json={"code": "1", "language": "python", "approval_id": r.json()["id"]},
+        )
+        assert r.status_code == 403
+
     def test_execute_auto_approved_by_policy(self, _fresh_approvals):
         _fresh_approvals.update_policies({"auto_approve_tools": ["execute_code"]})
         client = TestClient(create_app())

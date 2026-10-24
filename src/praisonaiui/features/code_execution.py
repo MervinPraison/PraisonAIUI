@@ -164,6 +164,7 @@ async def _approval_gate(
         if (
             entry
             and entry.get("tool_name") == "execute_code"
+            and entry.get("risk_level") == "critical"
             and entry.get("status") == "approved"
             and entry.get("arguments") == arguments
             and not entry.get("consumed")
