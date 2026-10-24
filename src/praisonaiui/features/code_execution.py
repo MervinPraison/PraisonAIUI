@@ -141,6 +141,80 @@ def set_execution_manager(manager: CodeExecutionProtocol) -> None:
     _execution_manager = manager
 
 
+# ── Approval gate ────────────────────────────────────────────────────
+
+
+async def _approval_gate(
+    code: str, language: str, approval_id: Optional[str]
+) -> Optional[JSONResponse]:
+    """Return None if execution is approved, else the response to send.
+
+    Each run is recorded via the approvals feature as a ``critical``
+    ``execute_code`` request. A pending request returns 202 with its id;
+    re-submit with ``approval_id`` once approved (single use, bound to
+    the exact code/language).
+    """
+    from .approvals import _notify_subscribers, get_approval_manager
+
+    approvals = get_approval_manager()
+    arguments = {"code": code, "language": language}
+
+    if approval_id:
+        entry = approvals.get(approval_id)
+        if (
+            entry
+            and entry.get("tool_name") == "execute_code"
+            and entry.get("status") == "approved"
+            and entry.get("arguments") == arguments
+            and not entry.get("consumed")
+        ):
+            entry["consumed"] = True
+            return None
+        return JSONResponse(
+            {
+                "status": "error",
+                "language": language,
+                "error": "Approval not found, not approved, already used, "
+                "or does not match this code",
+            },
+            status_code=403,
+        )
+
+    entry = approvals.request_approval(
+        {
+            "tool_name": "execute_code",
+            "arguments": arguments,
+            "risk_level": "critical",
+            "description": f"Execute {language} code ({len(code)} chars)",
+        }
+    )
+    status = entry.get("status")
+    await _notify_subscribers("new" if status == "pending" else "resolved", entry)
+    if status == "approved":
+        entry["consumed"] = True
+        return None
+    if status == "denied":
+        return JSONResponse(
+            {
+                "status": "error",
+                "language": language,
+                "approval_id": entry["id"],
+                "error": entry.get("reason") or "Code execution denied",
+            },
+            status_code=403,
+        )
+    return JSONResponse(
+        {
+            "status": "pending_approval",
+            "language": language,
+            "approval_id": entry["id"],
+            "output": f"Awaiting approval {entry['id']}. Approve it, then re-run "
+            "with this approval_id.",
+        },
+        status_code=202,
+    )
+
+
 # ── Feature class ────────────────────────────────────────────────────
 
 
@@ -173,9 +247,20 @@ class CodeExecutionFeature(BaseFeatureProtocol):
     async def _execute(self, request: Request) -> JSONResponse:
         mgr = get_execution_manager()
         body = await request.json()
+        code = body.get("code", "")
+        language = body.get("language", "python")
+        allowed = {lang["id"] for lang in mgr.list_languages()}
+        if language not in allowed:
+            return JSONResponse(
+                {"status": "error", "error": f"Language '{language}' not allowed"},
+                status_code=400,
+            )
+        blocked = await _approval_gate(code, language, body.get("approval_id"))
+        if blocked is not None:
+            return blocked
         result = mgr.execute(
-            code=body.get("code", ""),
-            language=body.get("language", "python"),
+            code=code,
+            language=language,
             timeout=body.get("timeout", 30),
         )
         status = 200 if result.get("status") != "error" else 400
