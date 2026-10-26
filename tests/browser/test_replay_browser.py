@@ -87,7 +87,7 @@ def _current_index(page) -> int:
     return int(page.get_attribute('.rp-step[aria-current="step"]', "data-i"))
 
 
-@pytest.mark.parametrize("name", ["team_handoff", "flow_parallel_loop", "legacy_v10"])
+@pytest.mark.parametrize("name", ["team_handoff", "flow_parallel_loop", "legacy_v10", "team_outside"])
 def test_standalone_steps_with_arrow_keys(browser, tmp_path, name):
     page, errors = _page(browser)
     page.goto(_standalone(tmp_path, name))
@@ -154,7 +154,7 @@ def test_standalone_drawer_tabs_map_and_axe(browser, tmp_path):
     violations = _axe(page)
     assert violations == [], json.dumps(violations, indent=2)
 
-    page.click("[data-key='theme']")  # dark
+    page.select_option("[data-key='theme']", "dark")
     assert page.get_attribute(".rp-root", "data-theme") == "dark"
     violations = _axe(page)
     assert violations == [], json.dumps(violations, indent=2)
@@ -172,6 +172,154 @@ def test_reduced_motion_has_no_animation(browser, tmp_path):
         "[...document.querySelectorAll('.rp-root *')].map(e => getComputedStyle(e).animationName).filter(n => n && n !== 'none')"
     )
     assert names == []
+
+
+def _boxes(page, selector: str) -> list[dict]:
+    return page.eval_on_selector_all(
+        selector,
+        "els => els.map(e => { const r = e.getBoundingClientRect(); return {x: r.x, y: r.y, w: r.width, h: r.height, id: e.closest('[data-block]')?.getAttribute('data-block')}; })",
+    )
+
+
+@pytest.mark.parametrize("name", ["team_outside", "team_handoff", "flow_parallel_loop"])
+def test_timeline_blocks_never_overlap(browser, tmp_path, name):
+    """An LLM span encloses its tool calls in real runs; tools go on their own row."""
+    page, errors = _page(browser)
+    page.goto(_standalone(tmp_path, name))
+    page.wait_for_selector(".rp-block")
+    boxes = _boxes(page, ".rp-block .rp-body")
+    for i, a in enumerate(boxes):
+        for b in boxes[i + 1:]:
+            apart = a["x"] + a["w"] <= b["x"] + 0.5 or b["x"] + b["w"] <= a["x"] + 0.5 or a["y"] + a["h"] <= b["y"] + 0.5 or b["y"] + b["h"] <= a["y"] + 0.5
+            assert apart, f"{a['id']} overlaps {b['id']}"
+    # a label that does not fit is ellipsized, and the full text is in the title and name
+    llm = page.locator(".rp-block.rp-k-llm").first
+    name_attr = llm.get_attribute("aria-label")
+    title = llm.locator("title").text_content()
+    assert name_attr.startswith(title)
+    llm.focus()
+    assert page.locator(".rp-tip").get_attribute("visibility") == "visible"
+    assert page.locator(".rp-tip text").text_content() == title
+    assert not errors, errors
+
+
+def test_why_tab_by_role_and_keyboard(browser, tmp_path):
+    page, errors = _page(browser)
+    page.goto(_standalone(tmp_path, "team_outside"))
+    page.wait_for_selector(".rp-step")
+    page.locator(".rp-step", has_text="Triage handed off to Billing").click()
+    page.get_by_role("tab", name="Why").click()
+    assert page.get_by_role("tab", name="Why").get_attribute("aria-selected") == "true"
+    why = page.get_by_role("tabpanel").inner_text()
+    assert "Hand-off reason" in why and "Billing question" in why and "Context passed" in why
+    # the task input
+    page.locator(".rp-step", has_text="Task 'research' went to Researcher").click()
+    assert "Task description" in page.get_by_role("tabpanel").inner_text()
+    assert "Get one fact about electric vehicles" in page.get_by_role("tabpanel").inner_text()
+    # keyboard: focus the selected tab, arrow keys move between tabs
+    page.get_by_role("tab", name="Why").focus()
+    page.keyboard.press("ArrowLeft")
+    assert page.get_by_role("tab", name="What happened").get_attribute("aria-selected") == "true"
+    page.keyboard.press("ArrowRight")
+    assert page.get_by_role("tab", name="Why").get_attribute("aria-selected") == "true"
+    assert page.evaluate("document.activeElement.getAttribute('role')") == "tab"
+    # route chosen and approval decision
+    page.goto(_standalone(tmp_path, "flow_parallel_loop"))
+    page.wait_for_selector(".rp-step")
+    page.locator(".rp-step", has_text="chose route 'publish'").click()
+    page.get_by_role("tab", name="Why").click()
+    assert "Route chosen" in page.get_by_role("tabpanel").inner_text()
+    page.goto(_standalone(tmp_path, "team_handoff"))
+    page.wait_for_selector(".rp-step")
+    page.locator(".rp-step", has_text="You approved write_file").click()
+    page.get_by_role("tab", name="Why").click()
+    panel = page.get_by_role("tabpanel").inner_text()
+    assert "Decision" in panel and "Approved with edited arguments" in panel
+    assert not errors, errors
+
+
+def test_theme_follows_system_with_override(browser, tmp_path):
+    url = _standalone(tmp_path, "team_handoff")
+    bg = "getComputedStyle(document.querySelector('.rp-root')).backgroundColor"
+    page, _ = _page(browser, scheme="dark")
+    page.goto(url)
+    page.wait_for_selector(".rp-step")
+    assert page.get_attribute(".rp-root", "data-theme") == "system"
+    assert page.evaluate(bg) == "rgb(22, 23, 27)"
+    page.select_option("[data-key='theme']", "light")
+    assert page.evaluate(bg) == "rgb(255, 255, 255)"
+    page.close()
+    page, _ = _page(browser, scheme="light")
+    page.goto(url)
+    page.wait_for_selector(".rp-step")
+    assert page.evaluate(bg) == "rgb(255, 255, 255)"
+
+
+def test_map_fits_on_open_and_groups_outside_agents(browser, tmp_path):
+    page, errors = _page(browser)
+    page.goto(_standalone(tmp_path, "team_outside"))
+    page.wait_for_selector(".rp-step")
+    page.get_by_role("button", name="Map").click()
+    page.wait_for_selector(".rp-node")
+    box = page.evaluate("(() => { const c = document.querySelector('.rp-canvas'); const r = c.getBoundingClientRect(); return {l: r.left, r: r.right, sw: c.scrollWidth, cw: c.clientWidth}; })()")
+    assert box["sw"] <= box["cw"] + 1, "map overflows on open"
+    for n in _boxes(page, ".rp-node .rp-card"):
+        assert box["l"] - 1 <= n["x"] and n["x"] + n["w"] <= box["r"] + 1
+    assert "Outside the team" in page.locator(".rp-group text").text_content()
+    outside = page.get_by_role("group", name="Outside the team")
+    assert outside.locator(".rp-node").count() == 3
+    labels = page.eval_on_selector_all(".rp-edge text", "els => els.map(e => e.textContent)")
+    assert "hands off" in labels
+    before = float(page.get_attribute(".rp-canvas svg", "width"))
+    page.get_by_role("button", name="Zoom in").click()
+    assert float(page.get_attribute(".rp-canvas svg", "width")) == pytest.approx(before * 1.5, abs=2)
+    page.get_by_role("button", name="Fit").click()
+    assert float(page.get_attribute(".rp-canvas svg", "width")) == pytest.approx(before, abs=2)
+    assert not errors, errors
+
+
+@pytest.mark.parametrize("name", ["team_outside", "flow_parallel_loop"])
+def test_phone_width_has_no_page_scroll(browser, tmp_path, name):
+    page, errors = _page(browser)
+    page.set_viewport_size({"width": 400, "height": 860})
+    page.goto(_standalone(tmp_path, name))
+    page.wait_for_selector(".rp-step")
+    assert page.evaluate("document.documentElement.scrollWidth") <= 400
+    r = page.evaluate("(() => { const b = document.querySelector('.rp-root').getBoundingClientRect(); return [b.left, b.right]; })()")
+    assert r[0] == pytest.approx(16, abs=1) and r[1] == pytest.approx(384, abs=1)
+    page.get_by_role("button", name="Map").click()
+    assert page.evaluate("document.documentElement.scrollWidth") <= 400
+    assert not errors, errors
+
+
+@pytest.mark.parametrize("order", ["core-first", "view-first"])
+def test_wrapper_style_export_boots(browser, tmp_path, order):
+    """The wrapper inlines both files as module scripts into #replay-root (which holds
+    a fallback table) after window.__REPLAY_DATA__; the view must replace it."""
+    views = ROOT / "src" / "praisonaiui" / "templates" / "frontend" / "plugins" / "views"
+    core = (views / "replay-core.js").read_text(encoding="utf-8").replace("</", "<\\/")
+    view = (views / "replay.js").read_text(encoding="utf-8").replace("</", "<\\/")
+    scripts = [core, view] if order == "core-first" else [view, core]
+    data = json.dumps({"run_id": "team-outside-01", "events": _events("team_outside"), "graph": None}).replace("<", "\\u003c")
+    html = (
+        "<!doctype html><html lang=en><head><meta charset=utf-8><title>PraisonAI Replay: x</title></head><body>"
+        "<div id=replay-root><table><tr><td>fallback</td></tr></table></div>"
+        f"<script id=replay-data>window.__REPLAY_DATA__ = {data};</script>"
+        + "".join(f"<script type=module>\n{js}\n</script>" for js in scripts)
+        + "</body></html>"
+    )
+    out = tmp_path / f"export-{order}.html"
+    out.write_text(html, encoding="utf-8")
+    page, errors = _page(browser)
+    page.goto(out.as_uri())
+    page.wait_for_selector(".rp-step")
+    assert page.locator("#replay-root table").count() == 0
+    assert page.locator(".rp-title").inner_text() == "team-outside-01"
+    # graph:null -> taken from workflow_start.data.graph
+    page.get_by_role("button", name="Map").click()
+    assert page.locator(".rp-node").count() == 10
+    assert page.locator(".rp-ask").count() == 0
+    assert not errors, errors
 
 
 # ── dashboard + live run + approval through the You lane ─────────────

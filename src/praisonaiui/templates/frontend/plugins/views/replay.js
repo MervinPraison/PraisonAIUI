@@ -20,8 +20,6 @@
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const GUTTER = 184;
-const LANE_H = 48;
-const SUB_H = 38;
 const CH_ROW = 24;
 const AXIS_H = 26;
 const PAD_R = 96; // room for arrow and cursor labels at the right edge
@@ -81,11 +79,20 @@ function storageSet(key, value) {
 
 async function getCore() {
   if (globalThis.PraisonReplayCore) return globalThis.PraisonReplayCore;
+  if (globalThis.__REPLAY_DATA__) {
+    // standalone page: the inlined core may simply not have run yet
+    for (let i = 0; i < 50 && !globalThis.PraisonReplayCore; i++) await new Promise((r) => setTimeout(r, 20));
+    if (globalThis.PraisonReplayCore) return globalThis.PraisonReplayCore;
+  }
   const mod = await import(new URL('./replay-core.js', import.meta.url).href);
   return mod.default || mod;
 }
 
 // ── styles ────────────────────────────────────────────────────────────
+
+const DARK = `--rp-bg:#16171B;--rp-surface:#1E2026;--rp-lane:#22252C;--rp-text:#F2F3F5;--rp-dim:#B4B8C2;--rp-border:#3A3E48;--rp-control:#8A909C;
+  --rp-focus:#7FB0FF;--rp-agent-ink:#FF9A9A;--rp-tool-ink:#5FD0E3;--rp-human-ink:#F0BE63;--rp-manager-ink:#B3C0D3;--rp-outline:#E6E8EC;
+  --rp-heat-lo:#B86A2B;--rp-heat-hi:#FF8A4C;--rp-live:#FF8A80;--rp-ok:#7BD88F;--rp-err:#FF8A80;--rp-chapter:#2A2E37;--rp-sel:#24344F;color-scheme:dark`;
 
 const STYLE = `
 .rp-root{--rp-bg:#FFFFFF;--rp-surface:#F6F7F9;--rp-lane:#F1F3F6;--rp-text:#17181C;--rp-dim:#4F535C;--rp-border:#D5D9E0;--rp-control:#767B85;
@@ -94,9 +101,8 @@ const STYLE = `
   --rp-heat-lo:#C0772F;--rp-heat-hi:#8F2D07;--rp-live:#B3261E;--rp-ok:#1E6B34;--rp-err:#B3261E;--rp-chapter:#E9ECF1;--rp-sel:#DCE7FB;
   color:var(--rp-text);background:var(--rp-bg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   border:1px solid var(--rp-border);border-radius:12px;overflow:hidden;color-scheme:light}
-.rp-root[data-theme="dark"]{--rp-bg:#16171B;--rp-surface:#1E2026;--rp-lane:#22252C;--rp-text:#F2F3F5;--rp-dim:#B4B8C2;--rp-border:#3A3E48;--rp-control:#8A909C;
-  --rp-focus:#7FB0FF;--rp-agent-ink:#FF9A9A;--rp-tool-ink:#5FD0E3;--rp-human-ink:#F0BE63;--rp-manager-ink:#B3C0D3;--rp-outline:#E6E8EC;
-  --rp-heat-lo:#B86A2B;--rp-heat-hi:#FF8A4C;--rp-live:#FF8A80;--rp-ok:#7BD88F;--rp-err:#FF8A80;--rp-chapter:#2A2E37;--rp-sel:#24344F;color-scheme:dark}
+.rp-root[data-theme="dark"]{${DARK}}
+@media (prefers-color-scheme:dark){.rp-root[data-theme="system"]{${DARK}}}
 .rp-root *{box-sizing:border-box}
 .rp-root :focus{outline:none}
 .rp-root :focus-visible{outline:3px solid var(--rp-focus);outline-offset:2px}
@@ -139,6 +145,8 @@ const STYLE = `
 .rp-err{color:var(--rp-err);font-size:13px;margin:4px 0 0;min-height:1em}
 .rp-note{color:var(--rp-dim);font-size:13px;margin:4px 0 0}
 .rp-stage{display:grid;grid-template-columns:minmax(0,1fr) 340px;min-height:360px}
+.rp-stage.rp-wide{grid-template-columns:minmax(0,1fr)}
+.rp-stage.rp-wide .rp-narr{border-left:0;border-top:1px solid var(--rp-border);max-height:300px}
 .rp-canvas{overflow:auto;position:relative;max-height:62vh;background:var(--rp-bg)}
 .rp-canvas svg{display:block}
 .rp-narr{position:relative;border-left:1px solid var(--rp-border);overflow:auto;max-height:62vh;background:var(--rp-surface)}
@@ -153,6 +161,7 @@ const STYLE = `
 .rp-g-agent{border-radius:50%;background:var(--rp-agent)}.rp-g-manager{background:var(--rp-manager)}
 .rp-g-tool{border-radius:4px;background:var(--rp-tool);width:14px}.rp-g-human{background:var(--rp-human);transform:rotate(45deg) scale(.8)}
 .rp-root[data-theme="dark"] .rp-g{outline:2px solid var(--rp-outline);outline-offset:-1px}
+@media (prefers-color-scheme:dark){.rp-root[data-theme="system"] .rp-g{outline:2px solid var(--rp-outline);outline-offset:-1px}}
 .rp-scrub{display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid var(--rp-border);flex-wrap:wrap}
 .rp-scrub input[type=range]{flex:1;min-width:160px;accent-color:var(--rp-focus)}
 .rp-scrub output{font-variant-numeric:tabular-nums;color:var(--rp-dim);font-size:13px;min-width:12ch}
@@ -206,6 +215,8 @@ const STYLE = `
 .rp-svg .rp-arrow.rp-hl path{stroke-width:3.5}
 .rp-svg .rp-arrow text{font-size:11px;font-weight:600}
 .rp-svg .rp-labelbg{fill:var(--rp-bg);opacity:.92}
+.rp-svg .rp-labels{pointer-events:none}
+.rp-svg .rp-tip-bg{fill:var(--rp-text)}.rp-svg .rp-tip-text{fill:var(--rp-bg);font-size:12px;font-weight:600}
 .rp-svg .rp-cursor{stroke:var(--rp-focus);stroke-width:2}
 .rp-svg .rp-cursor-label{fill:var(--rp-focus);font-weight:700;font-size:11px}
 .rp-svg .rp-marker{fill:var(--rp-text)}.rp-svg .rp-marker-human{fill:var(--rp-human-ink)}
@@ -223,11 +234,23 @@ const STYLE = `
 .rp-svg .rp-edge.rp-e-uses path,.rp-svg .rp-edge.rp-e-assigned path,.rp-svg .rp-edge.rp-e-depends_on path{stroke-dasharray:3 3}
 .rp-svg .rp-edge.rp-e-reviews path{stroke:var(--rp-human-ink);stroke-dasharray:4 2}
 .rp-svg .rp-edge text{font-size:11px;fill:var(--rp-dim)}
+.rp-svg .rp-group rect{fill:none;stroke:var(--rp-control);stroke-width:1.5;stroke-dasharray:6 4}
+.rp-map{cursor:grab}.rp-map.rp-panning{cursor:grabbing}
 @media (prefers-reduced-motion:no-preference){
   .rp-b-live .rp-dot{animation:rp-pulse 1.6s ease-in-out infinite}
   .rp-step,.rp-svg .rp-block,.rp-svg .rp-arrow{transition:opacity .15s ease}
 }
 @keyframes rp-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (max-width:600px){
+  .rp-root{border-radius:8px}
+  .rp-bar{padding:8px 10px}
+  .rp-title{max-width:100%;flex-basis:100%}
+  .rp-pending,.rp-scrub{padding:8px 10px}
+  .rp-drawer{padding:0 10px 12px}
+  .rp-tabs{margin:0 -10px 10px;padding:6px 10px 0}
+  .rp-hint{display:none}
+  .rp-step{grid-template-columns:50px 14px minmax(0,1fr)}
+}
 @media (max-width:960px){
   .rp-shell{grid-template-columns:minmax(0,1fr)}
   .rp-runs{max-height:220px;border-right:0;border-bottom:1px solid var(--rp-border)}
@@ -246,35 +269,10 @@ function ensureStyle() {
 
 // ── theme ─────────────────────────────────────────────────────────────
 
-function luminance(color) {
-  const c = String(color || '').trim();
-  let rgb = null;
-  const hex = c.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
-  if (hex) {
-    const v = hex[1].length === 3 ? hex[1].split('').map((x) => x + x).join('') : hex[1];
-    rgb = [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16));
-  } else {
-    const m = c.match(/rgba?\(([^)]+)\)/i);
-    if (m) {
-      const parts = m[1].split(/[ ,/]+/).filter(Boolean).map(Number);
-      if (parts.length >= 4 && parts[3] === 0) return null; // transparent
-      rgb = parts.slice(0, 3);
-    }
-  }
-  if (!rgb || rgb.some((x) => Number.isNaN(x))) return null;
-  const lin = rgb.map((v) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; });
-  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
-}
-
+/** Theme mode: "system" (default, follows prefers-color-scheme), "light" or "dark". */
 function detectTheme() {
   const saved = storageGet('rp-theme');
-  if (saved === 'light' || saved === 'dark') return saved;
-  if (!S.solo) {
-    const css = getComputedStyle(document.documentElement).getPropertyValue('--db-bg').trim();
-    const L = luminance(css) ?? luminance(getComputedStyle(document.body).backgroundColor);
-    if (L != null) return L < 0.35 ? 'dark' : 'light';
-  }
-  try { return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; } catch { return 'light'; }
+  return saved === 'light' || saved === 'dark' ? saved : 'system';
 }
 
 // ── URL ───────────────────────────────────────────────────────────────
@@ -379,6 +377,12 @@ export async function render(container, opts = {}) {
     else renderAll();
     S.timers.push(setInterval(() => { refreshRuns(true); }, 10000));
   }
+  try {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onScheme = () => { if (S && S.theme === 'system') queueRender(); };
+    mq.addEventListener('change', onScheme);
+    S.unlisten = () => mq.removeEventListener('change', onScheme);
+  } catch { /* old browsers */ }
   if (typeof ResizeObserver !== 'undefined') {
     S.ro = new ResizeObserver(() => {
       if (!S) return;
@@ -397,6 +401,7 @@ export function cleanup() {
   if (S.es) { try { S.es.close(); } catch { /* ignore */ } }
   for (const t of S.timers) clearInterval(t);
   if (S.ro) { try { S.ro.disconnect(); } catch { /* ignore */ } }
+  if (S.unlisten) { try { S.unlisten(); } catch { /* ignore */ } }
   S = null;
 }
 
@@ -471,6 +476,8 @@ async function loadRun(id) {
   S.runId = id;
   S.nodeSel = null;
   S.asks = new Map();
+  S.zoom = null;
+  S.mapZoom = null;
   writeRunToUrl(id);
   renderRunList();
   let data;
@@ -598,6 +605,8 @@ function renderAll(errorText) {
     return;
   }
   renderPending();
+  // the map needs the width; its step list moves underneath
+  S.els.stage.classList.toggle('rp-wide', S.view === 'map');
   if (S.view === 'map') renderMap(); else renderTimeline();
   renderLegend();
   renderNarration();
@@ -692,27 +701,31 @@ function buildBar(bar) {
       h('option', { value: 'latency', selected: S.heat === 'latency' }, 'Heat: latency'));
     bar.appendChild(sel);
   }
-  if (S.view === 'timeline') {
-    const z = h('div', { class: 'rp-seg', role: 'group', 'aria-label': 'Zoom' });
-    z.append(
-      h('button', { type: 'button', class: 'rp-btn', 'aria-label': 'Zoom out', 'data-key': 'zoom-out', onclick: () => zoomBy(1 / 1.6) }, '−'),
-      h('button', { type: 'button', class: 'rp-btn', 'aria-label': 'Fit to width', 'data-key': 'zoom-fit', onclick: () => { S.zoom = null; renderAll(); } }, 'Fit'),
-      h('button', { type: 'button', class: 'rp-btn', 'aria-label': 'Zoom in', 'data-key': 'zoom-in', onclick: () => zoomBy(1.6) }, '+'),
-    );
-    bar.appendChild(z);
-  }
+  const z = h('div', { class: 'rp-seg', role: 'group', 'aria-label': 'Zoom' });
+  z.append(
+    h('button', { type: 'button', class: 'rp-btn', 'aria-label': 'Zoom out', 'data-key': 'zoom-out', onclick: () => zoomBy(1 / 1.5) }, '−'),
+    h('button', { type: 'button', class: 'rp-btn', 'data-key': 'zoom-fit', onclick: () => { if (S.view === 'map') S.mapZoom = null; else S.zoom = null; renderAll(); } }, 'Fit'),
+    h('button', { type: 'button', class: 'rp-btn', 'aria-label': 'Zoom in', 'data-key': 'zoom-in', onclick: () => zoomBy(1.5) }, '+'),
+  );
+  bar.appendChild(z);
   if (S.run?.live && S.cursor < m.narration.length - 1) {
     bar.appendChild(h('button', { type: 'button', class: 'rp-btn', 'data-key': 'golive', onclick: () => { S.follow = true; setCursor(m.narration.length - 1); } }, 'Jump to live'));
   }
-  bar.appendChild(h('button', {
-    type: 'button', class: 'rp-btn', 'data-key': 'theme', 'aria-label': `Switch to ${S.theme === 'dark' ? 'light' : 'dark'} theme`,
-    onclick: () => { S.theme = S.theme === 'dark' ? 'light' : 'dark'; storageSet('rp-theme', S.theme); renderAll(); },
-  }, S.theme === 'dark' ? 'Light' : 'Dark'));
+  bar.appendChild(h('select', {
+    class: 'rp-select', 'aria-label': 'Theme', 'data-key': 'theme',
+    onchange: (e) => { S.theme = e.target.value; storageSet('rp-theme', S.theme); renderAll(); },
+  },
+  h('option', { value: 'system', selected: S.theme === 'system' }, 'Theme: system'),
+  h('option', { value: 'light', selected: S.theme === 'light' }, 'Theme: light'),
+  h('option', { value: 'dark', selected: S.theme === 'dark' }, 'Theme: dark')));
 }
 
 function zoomBy(f) {
-  const current = S.zoom || S.fitPps || 60;
-  S.zoom = Math.min(4000, Math.max(4, current * f));
+  if (S.view === 'map') {
+    S.mapZoom = Math.min(2.5, Math.max(0.3, (S.mapZoom || S.mapFit || 1) * f));
+  } else {
+    S.zoom = Math.min(4000, Math.max(4, (S.zoom || S.fitPps || 60) * f));
+  }
   renderAll();
 }
 
@@ -929,6 +942,37 @@ function glyph(kind, x, y, size, cls = 'rp-glyph') {
   return s('rect', { class: cls, x, y, width: size, height: size, rx: 1 });
 }
 
+/** Lane rows: approvals/LLM calls on top, a thinner row of tool calls under them. */
+const ROW_H = { approval: 24, llm: 22, tool: 18 };
+const ROW_ORDER = ['approval', 'llm', 'tool'];
+const LANE_PAD = 7;
+
+function gutterWidth(canvasWidth) {
+  return canvasWidth && canvasWidth < 640 ? 116 : GUTTER;
+}
+
+/** Text that fits `px` at roughly `charPx` per character, with an ellipsis. */
+function fitLabel(full, px, charPx = 7) {
+  const text = String(full);
+  if (text.length * charPx <= px) return text;
+  const n = Math.floor((px - charPx) / charPx);
+  return n >= 3 ? `${text.slice(0, n).trimEnd()}…` : '';
+}
+
+/** Greedy interval packing in pixel space, so blocks never overlap. */
+function packTracks(list, x) {
+  const ends = [];
+  const track = new Map();
+  for (const b of list) {
+    const left = x(b.start);
+    const right = Math.max(x(b.end), left + MIN_BLOCK) + 3;
+    let k = ends.findIndex((e) => e <= left);
+    if (k < 0) { ends.push(right); k = ends.length - 1; } else ends[k] = right;
+    track.set(b.id, k);
+  }
+  return { track, count: ends.length };
+}
+
 function renderTimeline() {
   const m = S.model;
   const canvas = S.els.canvas;
@@ -939,24 +983,45 @@ function renderTimeline() {
     S.tl = null;
     return;
   }
-  const avail = Math.max(260, (canvas.clientWidth || 900) - GUTTER - PAD_R);
+  const cw = canvas.clientWidth || 900;
+  const gutter = gutterWidth(cw);
+  const padR = cw < 640 ? 56 : PAD_R;
+  const avail = Math.max(cw < 640 ? 200 : 260, cw - gutter - padR);
   const dur = Math.max(m.duration, 0.05);
   S.fitPps = avail / dur;
   const pps = S.zoom || S.fitPps;
   const plotW = Math.max(dur * pps, 120);
-  const x = (t) => GUTTER + t * pps;
+  const x = (t) => gutter + t * pps;
   const chapterH = m.chapterRows * CH_ROW;
   const lanesTop = AXIS_H + chapterH + (chapterH ? 8 : 4);
   const rows = laneRows();
+  const rowGap = S.overlay ? 12 : 4;
+
+  // geometry: pack each lane's blocks per row kind, then stack the rows
+  const byLane = new Map(rows.map((l) => [l.id, { approval: [], llm: [], tool: [] }]));
+  for (const b of m.blocks) if (byLane.has(b.lane)) byLane.get(b.lane)[b.kind].push(b);
   const laneY = new Map();
+  const geom = new Map();
   let y = lanesTop;
   for (const lane of rows) {
-    const hgt = lane.parent ? SUB_H : LANE_H;
+    const groups = byLane.get(lane.id);
+    let cy = y + LANE_PAD;
+    let used = false;
+    for (const kind of ROW_ORDER) {
+      const list = groups[kind].slice().sort((a, b) => a.start - b.start);
+      if (!list.length) continue;
+      const { track, count } = packTracks(list, x);
+      for (const b of list) geom.set(b.id, { y: cy + track.get(b.id) * (ROW_H[kind] + rowGap), h: ROW_H[kind] });
+      cy += count * (ROW_H[kind] + rowGap);
+      used = true;
+    }
+    const minH = lane.parent ? 32 : 40;
+    const hgt = Math.max(minH, (used ? cy - rowGap : cy) - y + LANE_PAD);
     laneY.set(lane.id, { top: y, h: hgt, mid: y + hgt / 2 });
     y += hgt;
   }
   const height = y + 10;
-  const width = GUTTER + plotW + PAD_R;
+  const width = gutter + plotW + padR;
   S.tl = { x, laneY, width };
 
   const svg = s('svg', {
@@ -975,20 +1040,20 @@ function renderTimeline() {
     lanesG.appendChild(s('rect', { class: i % 2 ? 'rp-lanebg-alt' : 'rp-lanebg', x: 0, y: ly.top, width, height: ly.h }));
     const label = s('g', null);
     if (lane.parent) {
-      label.appendChild(s('text', { x: 30, y: ly.mid + 4, class: 'rp-dimtext', text: `↳ ${C().truncate(lane.label, 18)}` }));
+      label.appendChild(s('text', { x: 24, y: ly.mid + 4, class: 'rp-dimtext', text: `↳ ${fitLabel(lane.label, gutter - 44, 6.6)}` }, s('title', { text: lane.label })));
     } else {
       label.appendChild(glyph(lane.kind, 10, ly.mid - 7, 14, `rp-body rp-f-${laneKindClass(lane)}`));
       const tot = m.totals.agents[lane.id];
       const showTot = S.overlay && tot && (tot.cost_usd || tot.busy_ms);
-      label.appendChild(s('text', { x: 32, y: showTot ? ly.mid - 3 : ly.mid + 4, 'font-weight': '600', text: C().truncate(lane.label, 20) }));
+      label.appendChild(s('text', { x: 32, y: showTot ? ly.mid - 3 : ly.mid + 4, 'font-weight': '600', text: fitLabel(lane.label, gutter - 40, 7.2) }, s('title', { text: lane.label })));
       if (showTot) {
         const bits = [C().formatCost(tot.cost_usd), C().formatDuration(tot.busy_ms) && `${C().formatDuration(tot.busy_ms)} busy`].filter(Boolean).join(' · ');
-        label.appendChild(s('text', { x: 32, y: ly.mid + 12, class: 'rp-dimtext', 'font-size': '11', text: bits }));
+        label.appendChild(s('text', { x: 32, y: ly.mid + 12, class: 'rp-dimtext', 'font-size': '11', text: fitLabel(bits, gutter - 40, 6) }));
       }
     }
     lanesG.appendChild(label);
   });
-  lanesG.appendChild(s('line', { class: 'rp-grid', x1: GUTTER - 0.5, x2: GUTTER - 0.5, y1: 0, y2: height }));
+  lanesG.appendChild(s('line', { class: 'rp-grid', x1: gutter - 0.5, x2: gutter - 0.5, y1: 0, y2: height }));
   svg.appendChild(lanesG);
 
   // axis ticks
@@ -1005,59 +1070,70 @@ function renderTimeline() {
   const chG = s('g', { 'aria-hidden': 'true' });
   for (const c of m.chapters) {
     const cx = x(c.start);
-    const cw = Math.max(x(c.end) - cx, 10);
+    const cwid = Math.max(x(c.end) - cx, 10);
     const cy = AXIS_H + c.row * CH_ROW;
     const prefix = c.kind === 'task' ? 'Task' : ({ parallel: 'Parallel', loop: 'Loop', repeat: 'Repeat', route: 'Route', if: 'If', discussion: 'Discussion' }[c.pattern] || 'Step');
-    let text = `${prefix} ${c.label}${c.count > 1 ? ` ×${c.count}` : ''}${c.route ? ` → ${c.route}` : ''}${c.status === 'failed' ? ' (failed)' : ''}`;
-    const g = s('g', { class: 'rp-chapter', 'data-chapter': c.id, 'data-start': c.start },
-      s('rect', { x: cx, y: cy + 2, width: cw, height: CH_ROW - 4, rx: 4 }),
-      cw > 30 ? clippedText(cx + 5, cy, cw - 8, CH_ROW, { x: 0, y: CH_ROW / 2 + 4, 'font-size': '11' }, text) : null,
-      s('title', { text }));
-    chG.appendChild(g);
+    const text = `${prefix} ${c.label}${c.count > 1 ? ` ×${c.count}` : ''}${c.route ? ` → ${c.route}` : ''}${c.status === 'failed' ? ' (failed)' : ''}`;
+    const shown = fitLabel(text, cwid - 10, 6.4);
+    chG.appendChild(s('g', { class: 'rp-chapter', 'data-chapter': c.id, 'data-start': c.start },
+      s('rect', { x: cx, y: cy + 2, width: cwid, height: CH_ROW - 4, rx: 4 }),
+      shown ? clippedText(cx + 5, cy, cwid - 8, CH_ROW, { x: 0, y: CH_ROW / 2 + 4, 'font-size': '11' }, shown) : null,
+      s('title', { text })));
   }
   svg.appendChild(chG);
 
   // blocks
   const maxHeat = Math.max(1e-12, ...m.blocks.filter((b) => b.kind !== 'approval').map((b) => (S.heat === 'cost' ? b.cost : b.durationMs)));
   const blocksG = s('g', { role: 'group', 'aria-label': 'Work blocks' });
+  // Visible (possibly ellipsized) labels live in their own decorative layer, so
+  // each block's accessible name is its full label, not a cut-off word.
+  const labelsG = s('g', { class: 'rp-labels', 'aria-hidden': 'true' });
   for (const b of m.blocks) {
-    const ly = laneY.get(b.lane);
-    if (!ly) continue;
+    const gm = geom.get(b.id);
+    if (!gm) continue;
     const lane = m.lanes.find((l) => l.id === b.lane);
     const owner = lane && lane.parent ? m.lanes.find((l) => l.id === lane.parent) : lane;
     const bx = x(b.start);
     const bw = Math.max(x(b.end) - bx, MIN_BLOCK);
-    const bh = ly.h - 16;
-    const by = ly.top + 8 - (S.overlay ? 3 : 0);
+    const { y: by, h: bh } = gm;
     const fillKind = b.kind === 'tool' ? 'tool' : (b.kind === 'approval' ? 'human' : (owner && owner.kind === 'manager' ? 'manager' : 'agent'));
     const cls = ['rp-block', `rp-k-${b.kind}`, `rp-o-${fillKind}`];
     if (b.open) cls.push('rp-open');
     const text = blockText(b) + (b.status === 'error' ? ' failed' : '') + (b.kind === 'approval' && b.status === 'pending' ? ' — waiting for you' : '');
     const heatVal = S.heat === 'cost' ? C().formatCost(b.cost) : C().formatDuration(b.durationMs);
     const full = S.overlay && heatVal && b.kind !== 'approval' ? `${text} · ${heatVal}` : text;
-    const showText = bw - 24 >= 20;
+    const glyphW = bw >= 18 ? 18 : 4;
+    const shown = fitLabel(full, bw - glyphW - 4, b.kind === 'tool' ? 6.4 : 7);
     const g = s('g', {
       class: cls.join(' '), 'data-block': b.id, 'data-key': `block:${b.id}`, 'data-start': b.start,
-      role: 'button', tabindex: '-1', 'aria-label': showText ? `${full}. ${blockAria(b, lane)}` : blockAria(b, lane),
+      role: 'button', tabindex: '-1', 'aria-label': `${full}. ${blockAria(b, lane)}`,
       onclick: () => selectBlock(b),
-      ...hoverHandlers({ blockId: b.id, id: b.eventIds[0] }),
+      onmouseenter: () => { highlight({ blockId: b.id, id: b.eventIds[0] }); showTip(full, bx, by, bw); },
+      onmouseleave: () => { highlight(null); hideTip(); },
+      onfocus: () => { highlight({ blockId: b.id, id: b.eventIds[0] }); showTip(full, bx, by, bw); },
+      onblur: () => { highlight(null); hideTip(); },
     });
     g.appendChild(s('rect', { class: 'rp-ring', x: bx - 3, y: by - 3, width: bw + 6, height: bh + 6, rx: 6 }));
-    g.appendChild(s('rect', { class: `rp-body rp-f-${fillKind}`, x: bx, y: by, width: bw, height: bh, rx: b.kind === 'tool' ? 9 : 3 }));
+    g.appendChild(s('rect', { class: `rp-body rp-f-${fillKind}`, x: bx, y: by, width: bw, height: bh, rx: b.kind === 'tool' ? bh / 2 : 3 }));
     const glyphKind = b.kind === 'tool' ? 'tool' : (b.kind === 'approval' ? 'human' : fillKind);
     if (bw >= 18) g.appendChild(glyph(glyphKind, bx + 5, by + bh / 2 - 5, 10));
-    if (showText) g.appendChild(clippedText(bx + 20, by, bw - 24, bh, { class: 'rp-onfill', x: 0, y: bh / 2 + 4 }, full));
-    else if (b.count > 1) g.appendChild(s('text', { x: bx + bw + 3, y: by + bh / 2 + 4, 'font-weight': '700', 'aria-hidden': 'true', text: `×${b.count}` }));
+    if (shown) {
+      labelsG.appendChild(s('g', { class: 'rp-label', 'data-start': b.start, 'data-label-for': b.id },
+        clippedText(bx + glyphW, by, bw - glyphW - 2, bh, { class: 'rp-onfill', x: 0, y: bh / 2 + 4, 'font-size': b.kind === 'tool' ? '11' : '12' }, shown)));
+    } else if (b.count > 1) {
+      labelsG.appendChild(s('text', { x: bx + bw + 3, y: by + bh / 2 + 4, 'font-weight': '700', text: `×${b.count}` }));
+    }
     if (S.overlay && b.kind !== 'approval') {
       const v = S.heat === 'cost' ? b.cost : b.durationMs;
       const r = Math.min(1, v / maxHeat);
-      const hh = 2 + Math.round(6 * r);
+      const hh = 2 + Math.round(7 * r);
       g.appendChild(s('rect', { class: 'rp-heat', x: bx, y: by + bh + 2, width: bw, height: hh, fill: heatColor(r) }));
     }
     g.appendChild(s('title', { text: full }));
     blocksG.appendChild(g);
   }
   svg.appendChild(blocksG);
+  svg.appendChild(labelsG);
 
   // arrows
   const arrowsG = s('g', { 'aria-hidden': 'true' }); // told by the step list
@@ -1082,14 +1158,36 @@ function renderTimeline() {
   }
   svg.appendChild(arrowsG);
 
-  // cursor
+  // cursor, then the hover/focus tip on top of everything
   const t = cursorTime();
   svg.appendChild(s('g', { class: 'rp-cursor-g', transform: `translate(${x(t)},0)`, 'aria-hidden': 'true' },
     s('line', { class: 'rp-cursor', x1: 0, x2: 0, y1: AXIS_H - 4, y2: height }),
     s('text', { class: 'rp-cursor-label', x: 4, y: AXIS_H + chapterH + 2, text: offset(t) })));
+  svg.appendChild(s('g', { class: 'rp-tip', 'aria-hidden': 'true', visibility: 'hidden' },
+    s('rect', { class: 'rp-tip-bg', rx: 4, height: 20 }), s('text', { class: 'rp-tip-text' })));
   canvas.appendChild(svg);
   canvas.scrollLeft = scroll;
   applyCursor();
+}
+
+/** A visible full label for the hovered/focused block (titles only show on hover). */
+function showTip(text, bx, by, bw) {
+  const tip = S.els.canvas.querySelector('.rp-tip');
+  if (!tip || !S.tl) return;
+  const tw = text.length * 6.8 + 12;
+  const x = Math.max(4, Math.min(bx + bw / 2 - tw / 2, S.tl.width - tw - 4));
+  const y = Math.max(2, by - 24);
+  const bg = tip.querySelector('rect');
+  bg.setAttribute('x', x); bg.setAttribute('y', y); bg.setAttribute('width', tw);
+  const label = tip.querySelector('text');
+  label.setAttribute('x', x + 6); label.setAttribute('y', y + 14);
+  label.textContent = text;
+  tip.setAttribute('visibility', 'visible');
+}
+
+function hideTip() {
+  const tip = S && S.els.canvas.querySelector('.rp-tip');
+  if (tip) tip.setAttribute('visibility', 'hidden');
 }
 
 function niceStep(dur, plotW) {
@@ -1116,29 +1214,29 @@ function selectBlock(b) {
 
 const KIND_WORD = { agent: 'agent', tool: 'tool', human: 'you', manager: 'manager', task: 'task', step: 'step', start: 'start', end: 'end', fork: 'fork', join: 'join', decision: 'decision' };
 
+/** The recorded graph completed with what happened (outside agents etc.), laid out. */
+function mapLayout() {
+  if (!S.layout) S.layout = C().layoutRunMap(S.graph, S.events, { nodeWidth: 136, gapX: 52, gapY: 22 });
+  return S.layout;
+}
+
 function mapGraph() {
-  return S.graph && Array.isArray(S.graph.nodes) && S.graph.nodes.length ? S.graph : C().deriveGraph(S.events);
+  return mapLayout().graph;
 }
 
 function nodeVisits() {
   const counts = new Map();
-  const lastAt = new Map();
   const m = S.model;
-  m.events.forEach((ev, i) => {
-    for (const nid of C().nodeIdsForEvent(ev)) {
-      counts.set(nid, (counts.get(nid) || 0) + 1);
-      if (!lastAt.has(nid)) lastAt.set(nid, []);
-      lastAt.get(nid).push(i);
-    }
-  });
+  for (const ev of m.events) {
+    for (const nid of C().nodeIdsForEvent(ev)) counts.set(nid, (counts.get(nid) || 0) + 1);
+  }
   // Brief/Delivered are reached when the run starts/ends, though no event names them.
-  const graph = mapGraph();
   const ended = m.events.some((e) => e.event_type === 'workflow_end' || e.event_type === 'session_end');
-  for (const n of graph.nodes || []) {
+  for (const n of mapGraph().nodes || []) {
     if (n.kind === 'start' && m.events.length && !counts.has(n.id)) counts.set(n.id, 1);
     if (n.kind === 'end' && ended && !counts.has(n.id)) counts.set(n.id, 1);
   }
-  return { counts, at: lastAt };
+  return { counts };
 }
 
 function shapePath(shape, x, y, w, h) {
@@ -1163,31 +1261,42 @@ function nodeGlyph(node, gx, gy) {
   return s('rect', { class: cls, x: gx, y: gy, width: 22, height: 22, rx: 2 });
 }
 
+const MAP_MIN_SCALE = 0.55; // below this, labels stop being readable: scroll instead
+
 function renderMap() {
   const canvas = S.els.canvas;
+  const prev = { left: canvas.scrollLeft, top: canvas.scrollTop };
   clear(canvas);
   S.tl = null;
-  const graph = mapGraph();
-  if (!S.layout) S.layout = C().layoutMap(graph);
-  const lay = S.layout;
+  const lay = mapLayout();
+  const graph = lay.graph;
   if (!lay.nodes.length) {
     canvas.appendChild(h('div', { class: 'rp-empty' }, h('h2', { text: 'Nothing to map yet' }), h('p', { text: 'The map appears once agents start talking.' })));
     return;
   }
   const visits = nodeVisits();
-  const width = lay.width + 20;
-  const height = lay.height + 20;
+  const W = lay.width + 20;
+  const H = lay.height + 20;
+  const cw = Math.max(200, (canvas.clientWidth || 900) - 8);
+  const chMax = Math.max(240, Math.min(window.innerHeight * 0.62, 900) - 8);
+  S.mapFit = Math.max(MAP_MIN_SCALE, Math.min(1, cw / W, chMax / H));
+  const scale = S.mapZoom || S.mapFit;
   const svg = s('svg', {
-    class: 'rp-svg', width, height, viewBox: `0 0 ${width} ${height}`, role: 'group', tabindex: '-1',
-    'aria-label': `${graph.derived ? 'Who talked to whom' : 'Map of the run'}: ${lay.nodes.length} nodes and ${lay.edges.length} connections. Use up and down arrows to move between nodes.`,
+    class: 'rp-svg rp-map', width: Math.round(W * scale), height: Math.round(H * scale), viewBox: `0 0 ${W} ${H}`, role: 'group', tabindex: '-1',
+    'aria-label': `${graph.derived ? 'Who talked to whom' : 'Map of the run'}: ${lay.nodes.length} nodes and ${lay.edges.length} connections. Use up and down arrows to move between nodes; drag to pan.`,
   });
   svg.appendChild(s('defs', null,
     s('marker', { id: 'rp-mhead', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, s('path', { class: 'rp-marker', d: 'M0,0 L10,5 L0,10 z' }))));
+  for (const grp of lay.groups || []) {
+    svg.appendChild(s('g', { class: 'rp-group', 'aria-hidden': 'true' },
+      s('rect', { x: grp.x, y: grp.y, width: grp.w, height: grp.h, rx: 10 }),
+      s('text', { x: grp.x + 10, y: grp.y - 6, 'font-weight': '600', text: grp.label })));
+  }
   const edgesG = s('g', { 'aria-hidden': 'true' });
   for (const e of lay.edges) {
     const p = e.points;
     let d = `M${p[0][0]},${p[0][1]}`;
-    if (e.back) {
+    if (e.back || e.cross) {
       d += p.slice(1).map((q) => ` L${q[0]},${q[1]}`).join('');
     } else {
       for (let j = 1; j < p.length; j++) {
@@ -1205,8 +1314,9 @@ function renderMap() {
       s('text', { x: mid[0], y: mid[1], 'text-anchor': 'middle', text })));
   }
   svg.appendChild(edgesG);
-  const nodesG = s('g', { role: 'group', 'aria-label': 'Nodes' });
-  const ordered = [...lay.nodes].sort((a, b) => a.layer - b.layer || a.order - b.order);
+  const ordered = [...lay.nodes].sort((a, b) => Number(Boolean(a.outside)) - Number(Boolean(b.outside)) || a.layer - b.layer || a.order - b.order);
+  const groups = { main: s('g', { role: 'group', 'aria-label': 'Nodes' }), outside: null };
+  if ((lay.groups || []).length) groups.outside = s('g', { role: 'group', 'aria-label': lay.groups[0].label });
   ordered.forEach((n, i) => {
     const count = visits.counts.get(n.id) || 0;
     const word = KIND_WORD[n.kind] || n.kind;
@@ -1224,14 +1334,37 @@ function renderMap() {
     g.appendChild(path ? s('path', { class: 'rp-card', d: path }) : s('rect', { class: 'rp-card', x: n.x, y: n.y, width: n.w, height: n.h, rx: n.kind === 'tool' ? 14 : (n.kind === 'end' ? 2 : 6) }));
     if (n.kind === 'end') g.appendChild(s('rect', { class: 'rp-card', x: n.x + 3, y: n.y + 3, width: n.w - 6, height: n.h - 6, rx: 2, fill: 'none' }));
     g.appendChild(nodeGlyph(n, n.x + 12, n.y + n.h / 2 - 11));
-    g.appendChild(clippedText(n.x + 44, n.y, n.w - 50, n.h, { x: 0, y: n.h / 2 - 2, 'font-weight': '600' }, n.label));
+    g.appendChild(s('text', { x: n.x + 44, y: n.y + n.h / 2 - 2, 'font-weight': '600', 'aria-hidden': 'true', text: fitLabel(n.label, n.w - 52, 7.2) }));
     g.appendChild(s('text', { class: 'rp-kindword', x: n.x + 44, y: n.y + n.h / 2 + 13, 'aria-hidden': 'true', text: ` ${kindLine}` }));
     g.appendChild(s('title', { text: name }));
-    nodesG.appendChild(g);
+    (n.outside && groups.outside ? groups.outside : groups.main).appendChild(g);
   });
-  svg.appendChild(nodesG);
+  svg.appendChild(groups.main);
+  if (groups.outside) svg.appendChild(groups.outside);
+  enablePan(svg, canvas);
   canvas.appendChild(svg);
+  canvas.scrollLeft = prev.left;
+  canvas.scrollTop = prev.top;
   applyMapCursor();
+}
+
+/** Drag the empty canvas to pan (the canvas box scrolls; nodes stay clickable). */
+function enablePan(svg, box) {
+  let drag = null;
+  svg.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || (e.target.closest && e.target.closest('.rp-node'))) return;
+    drag = { x: e.clientX, y: e.clientY, left: box.scrollLeft, top: box.scrollTop };
+    try { svg.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    svg.classList.add('rp-panning');
+  });
+  svg.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    box.scrollLeft = drag.left - (e.clientX - drag.x);
+    box.scrollTop = drag.top - (e.clientY - drag.y);
+  });
+  const end = () => { drag = null; svg.classList.remove('rp-panning'); };
+  svg.addEventListener('pointerup', end);
+  svg.addEventListener('pointercancel', end);
 }
 
 function applyMapCursor() {
@@ -1710,9 +1843,14 @@ async function decide(b, action, withArgs) {
 }
 
 // ── standalone boot ───────────────────────────────────────────────────
+//
+// Contract (stable): an HTML page sets `window.__REPLAY_DATA__ = {events, graph,
+// run_id?, title?}` and inlines replay-core.js then replay.js as module
+// script elements; the view mounts into #replay-root (or a new main element in
+// the body), replacing whatever fallback markup is there. No network.
 
 function bootStandalone() {
-  if (globalThis.__REPLAY_BOOTED__) return;
+  if (globalThis.__REPLAY_BOOTED__ || !document.body) return;
   globalThis.__REPLAY_BOOTED__ = true;
   const data = globalThis.__REPLAY_DATA__ || {};
   let mount = document.getElementById('replay-root');
@@ -1721,11 +1859,18 @@ function bootStandalone() {
     mount.id = 'replay-root';
     document.body.appendChild(mount);
   }
-  mount.style.padding = '12px';
-  render(mount, { standalone: true, events: data.events || [], graph: data.graph || null, title: data.title || document.title });
+  mount.style.padding = '16px';
+  mount.style.boxSizing = 'border-box';
+  mount.style.maxWidth = '100%';
+  render(mount, { standalone: true, events: data.events || [], graph: data.graph || null, title: data.title || data.run_id || document.title });
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined' && globalThis.__REPLAY_DATA__ && !(window.aiui && window.aiui.selectPage)) {
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootStandalone);
-  else bootStandalone();
+  // Module scripts run after parsing, before DOMContentLoaded; waiting for it
+  // also lets an inlined replay-core.js placed after this file register first.
+  if (document.readyState === 'complete') bootStandalone();
+  else {
+    document.addEventListener('DOMContentLoaded', bootStandalone, { once: true });
+    window.addEventListener('load', bootStandalone, { once: true });
+  }
 }

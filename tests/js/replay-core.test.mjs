@@ -343,3 +343,57 @@ test('deriveGraph counts repeats and includes you for approvals', () => {
 test('module also registers itself on globalThis for the standalone build', () => {
   assert.equal(typeof globalThis.PraisonReplayCore.buildModel, 'function');
 });
+
+// ── observed graph / run map ─────────────────────────────────────────
+
+test('observedGraph: agents seen in events but not in the graph are "outside"', () => {
+  const { events, graph } = load('team_outside');
+  const g = core.observedGraph(graph, events);
+  assert.deepEqual([...g.outside].sort(), ['agent:Billing', 'agent:Triage', 'tool:Triage/transfer_to_billing']);
+  // team members keep their recorded ids; nothing duplicated
+  assert.equal(g.nodes.filter((n) => n.id === 'agent:Researcher').length, 1);
+  assert.ok(g.edges.some((e) => e.id === 'agent:Triage->agent:Billing:handoff' && e.meta.observed));
+  // the recorded uses-edge is not added twice
+  assert.equal(g.edges.filter((e) => e.source === 'agent:Researcher' && e.target === 'tool:Researcher/lookup_fact').length, 1);
+});
+
+test('observedGraph without a recorded graph is the derived map', () => {
+  const { events } = load('legacy_v10');
+  assert.equal(core.observedGraph(null, events).derived, true);
+});
+
+test('layoutRunMap: outside agents form their own framed block under the team', () => {
+  const { events, graph } = load('team_outside');
+  const lay = core.layoutRunMap(graph, events);
+  assert.equal(lay.groups.length, 1);
+  const grp = lay.groups[0];
+  assert.equal(grp.label, 'Outside the team');
+  const inside = lay.nodes.filter((n) => !n.outside);
+  const outside = lay.nodes.filter((n) => n.outside);
+  assert.deepEqual(outside.map((n) => n.id).sort(), ['agent:Billing', 'agent:Triage', 'tool:Triage/transfer_to_billing']);
+  const teamBottom = Math.max(...inside.map((n) => n.y + n.h));
+  for (const n of outside) {
+    assert.ok(n.y > teamBottom, `${n.id} sits below the team`);
+    assert.ok(n.x >= grp.x && n.x + n.w <= grp.x + grp.w && n.y >= grp.y && n.y + n.h <= grp.y + grp.h, `${n.id} inside the frame`);
+  }
+  for (const n of lay.nodes) assert.ok(n.x + n.w <= lay.width && n.y + n.h <= lay.height, `${n.id} within bounds`);
+  assert.ok(lay.edges.some((e) => e.id === 'agent:Triage->agent:Billing:handoff'));
+});
+
+test('layoutRunMap: no outside group when the graph covers everyone', () => {
+  const { events, graph } = load('team_handoff');
+  const lay = core.layoutRunMap(graph, events);
+  assert.equal(lay.groups.length, 0);
+  assert.equal(lay.nodes.length, graph.nodes.length);
+});
+
+test('real-run shape: LLM span encloses the tool call in the same lane', () => {
+  const { events, graph } = load('team_outside');
+  const m = buildModel(events, graph);
+  const llm = m.blocks.find((b) => b.agent === 'Researcher' && b.kind === 'llm');
+  const tool = m.blocks.find((b) => b.agent === 'Researcher' && b.kind === 'tool');
+  assert.equal(llm.lane, tool.lane);
+  assert.ok(llm.start < tool.start && tool.end < llm.end); // the view must put them on separate rows
+  assert.ok(m.lanes.some((l) => l.id === 'agent:Triage') && m.lanes.some((l) => l.id === 'agent:Billing'));
+  assert.deepEqual(m.arrows.map((a) => `${a.kind}:${a.from}->${a.to}`), ['handoff:agent:Triage->agent:Billing']);
+});

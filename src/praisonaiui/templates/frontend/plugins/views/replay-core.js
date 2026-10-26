@@ -921,6 +921,109 @@ export function layoutMap(graph, opts = {}) {
   return { nodes, edges: outEdges, width, height: Math.max(height, backLane) + (backLane > height ? margin : 0), layers: layerCount };
 }
 
+/**
+ * The graph as recorded, completed with what actually happened: agents and
+ * tools seen in the events but missing from the graph, and hand-offs the graph
+ * does not draw. Agents from outside the graph (e.g. a hand-off to an agent
+ * that is not a team member) are marked ``meta.outside`` so the map can group
+ * them as "Outside the team". Without a recorded graph this is deriveGraph().
+ */
+export function observedGraph(graph, events) {
+  const derived = deriveGraph(events);
+  if (!graph || !Array.isArray(graph.nodes) || !graph.nodes.length) return derived;
+  const nodes = graph.nodes.filter((n) => n && n.id).map((n) => ({ ...n, meta: { ...(n.meta || {}) } }));
+  const edges = (Array.isArray(graph.edges) ? graph.edges : []).filter((e) => e && e.source && e.target).map((e) => ({ ...e }));
+  const ids = new Set(nodes.map((n) => n.id));
+  const agentByLabel = new Map();
+  for (const n of nodes) if (n.kind === 'agent' || n.kind === 'manager') agentByLabel.set(n.label || stripPrefix(n.id), n.id);
+  const resolve = (id) => {
+    if (ids.has(id)) return id;
+    const name = stripPrefix(id);
+    if ((id.startsWith('agent:') || id.startsWith('manager:')) && agentByLabel.has(name)) return agentByLabel.get(name);
+    return id;
+  };
+  const outside = new Set();
+  const recorded = new Set(ids);
+  for (const n of derived.nodes) {
+    const id = resolve(n.id);
+    if (ids.has(id)) continue;
+    if (n.kind === 'human' && nodes.some((x) => x.kind === 'human')) continue;
+    const owner = n.kind === 'tool' ? `agent:${n.id.slice(5).split('/')[0]}` : null;
+    const isOutside = n.kind === 'agent' || n.kind === 'manager' || Boolean(owner && !recorded.has(resolve(owner)));
+    nodes.push({ ...n, meta: { ...(n.meta || {}), observed: true, outside: Boolean(isOutside) } });
+    ids.add(id);
+    if (isOutside) outside.add(id);
+  }
+  const has = new Set(edges.map((e) => `${e.source}|${e.target}|${e.kind}`));
+  const linked = new Set(edges.map((e) => `${e.source}|${e.target}`));
+  for (const e of derived.edges) {
+    const source = resolve(e.source);
+    const target = resolve(e.target);
+    if (!ids.has(source) || !ids.has(target)) continue;
+    if (has.has(`${source}|${target}|${e.kind}`)) continue;
+    // a "uses"/"reviews" link the graph already draws in another form is not news
+    if ((e.kind === 'uses' || e.kind === 'reviews') && linked.has(`${source}|${target}`)) continue;
+    edges.push({ ...e, id: `${source}->${target}:${e.kind}`, source, target, meta: { observed: true } });
+    has.add(`${source}|${target}|${e.kind}`);
+  }
+  return { ...graph, nodes, edges, outside: [...outside] };
+}
+
+/**
+ * layoutMap() for a run: the team/flow graph first, then the agents from
+ * outside it as their own block underneath, framed as a group. Edges between
+ * the two blocks are drawn straight. Returns layoutMap()'s shape plus
+ * ``groups: [{id, label, x, y, w, h}]``.
+ */
+export function layoutRunMap(graph, events, opts = {}) {
+  const g = observedGraph(graph, events);
+  const outside = new Set(g.outside || []);
+  if (!outside.size) return { ...layoutMap(g, opts), groups: [], graph: g };
+  const inner = (set, keep) => ({
+    nodes: g.nodes.filter((n) => keep(set.has(n.id))),
+    edges: g.edges.filter((e) => keep(set.has(e.source)) && keep(set.has(e.target))),
+  });
+  const main = layoutMap(inner(outside, (x) => !x), opts);
+  const out = layoutMap(inner(outside, (x) => x), opts);
+  const gap = 40;
+  const pad = 14;
+  const dy = main.height + gap;
+  const dx = 0;
+  for (const n of out.nodes) { n.y += dy; n.x += dx; n.outside = true; }
+  for (const e of out.edges) e.points = e.points.map(([x, y]) => [x + dx, y + dy]);
+  const nodes = [...main.nodes, ...out.nodes];
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const cross = g.edges
+    .filter((e) => outside.has(e.source) !== outside.has(e.target) && byId.has(e.source) && byId.has(e.target))
+    .map((e) => {
+      const s = byId.get(e.source);
+      const t = byId.get(e.target);
+      const down = t.y > s.y;
+      return {
+        id: e.id, source: e.source, target: e.target, kind: e.kind, label: e.label == null ? null : str(e.label), back: false, cross: true,
+        points: [[s.x + s.w / 2, down ? s.y + s.h : s.y], [t.x + t.w / 2, down ? t.y : t.y + t.h]],
+      };
+    });
+  const xs = out.nodes.map((n) => n.x);
+  const group = {
+    id: 'outside',
+    label: `Outside the ${g.kind === 'flow' ? 'flow' : 'team'}`,
+    x: Math.min(...xs) - pad,
+    y: dy - pad + 6,
+    w: Math.max(...out.nodes.map((n) => n.x + n.w)) - Math.min(...xs) + pad * 2,
+    h: out.height - 12 + pad,
+  };
+  return {
+    nodes,
+    edges: [...main.edges, ...out.edges, ...cross],
+    width: Math.max(main.width, out.width, group.x + group.w + 8),
+    height: dy + out.height + 8,
+    layers: Math.max(main.layers, out.layers),
+    groups: [group],
+    graph: g,
+  };
+}
+
 /** Words for edge kinds on the map (labels never rely on colour). */
 export const EDGE_WORDS = Object.freeze({
   handoff: 'hands off',
@@ -942,7 +1045,7 @@ export function edgeText(edge) {
 
 const api = {
   PALETTE, SHAPES, HUMAN_LANE, MANAGER_LANE, EDGE_WORDS,
-  buildModel, narrate, layoutMap, deriveGraph, nodeIdsForEvent, pairEvents, sortEvents,
+  buildModel, narrate, layoutMap, layoutRunMap, observedGraph, deriveGraph, nodeIdsForEvent, pairEvents, sortEvents,
   eventId, formatDuration, formatCost, argPreview, truncate, stripPrefix, edgeText,
 };
 if (typeof globalThis !== 'undefined') globalThis.PraisonReplayCore = api;

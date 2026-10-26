@@ -306,7 +306,83 @@ def legacy_v10() -> None:
     r.write("legacy_v10.jsonl")
 
 
+def team_outside() -> None:
+    """Shape of a real recorded run: each agent's LLM span encloses its tool
+    calls (llm_request -> tool -> llm_response), and after the team finishes a
+    Triage agent hands off to Billing, neither of which is in the team graph.
+    """
+    r = _Run("sess-outside-01", "team-outside-01")
+    graph = {
+        "schema": "praisonai.graph/1", "kind": "team", "name": "EV brief", "process": "sequential",
+        "nodes": [
+            {"id": "start:begin", "kind": "start", "label": "Brief", "parent": None, "meta": {}},
+            {"id": "task:research", "kind": "task", "label": "research", "parent": None, "meta": {}},
+            {"id": "task:write", "kind": "task", "label": "write", "parent": None, "meta": {}},
+            {"id": "agent:Researcher", "kind": "agent", "label": "Researcher", "parent": None, "meta": {}},
+            {"id": "agent:Writer", "kind": "agent", "label": "Writer", "parent": None, "meta": {}},
+            {"id": "tool:Researcher/lookup_fact", "kind": "tool", "label": "lookup_fact", "parent": None, "meta": {}},
+            {"id": "end:done", "kind": "end", "label": "Delivered", "parent": None, "meta": {}},
+        ],
+        "edges": [
+            {"id": "start:begin->task:research:next", "source": "start:begin", "target": "task:research", "kind": "next", "label": None},
+            {"id": "task:research->task:write:next", "source": "task:research", "target": "task:write", "kind": "next", "label": None},
+            {"id": "task:research->agent:Researcher:assigned", "source": "task:research", "target": "agent:Researcher", "kind": "assigned", "label": None},
+            {"id": "task:write->agent:Writer:assigned", "source": "task:write", "target": "agent:Writer", "kind": "assigned", "label": None},
+            {"id": "agent:Researcher->tool:Researcher/lookup_fact:uses", "source": "agent:Researcher", "target": "tool:Researcher/lookup_fact", "kind": "uses", "label": None},
+            {"id": "task:write->end:done:next", "source": "task:write", "target": "end:done", "kind": "next", "label": None},
+        ],
+    }
+    s0 = r.emit("session_start", 0.0, "", {})
+    w = r.emit("workflow_start", 0.01, "", {"kind": "team", "name": "EV brief", "process": "sequential", "graph": graph}, parent_seq=s0)
+    t1 = r.emit("task_start", 0.02, "Researcher", {"name": "research", "agent": "Researcher",
+                                                   "description_preview": "Get one fact about electric vehicles"},
+                parent_seq=w, node_id="task:research")
+    a1 = r.emit("agent_start", 0.03, "Researcher", {}, parent_seq=t1, node_id="agent:Researcher")
+    r.emit("llm_request", 0.05, "Researcher", {"model": "gpt-4o-mini"}, parent_seq=a1, node_id="agent:Researcher")
+    ts = r.emit("tool_call_start", 2.6, "Researcher", {"tool_name": "lookup_fact", "tool_args": {"topic": "electric vehicles"}},
+                parent_seq=a1, node_id="tool:Researcher/lookup_fact")
+    r.emit("tool_call_end", 3.5, "Researcher", {"tool_name": "lookup_fact", "result": "EV sales passed 17 million in 2024",
+                                                 "duration_ms": 880.0, "error": None},
+           parent_seq=ts, node_id="tool:Researcher/lookup_fact")
+    r.emit("llm_response", 5.0, "Researcher", {"response_tokens": 14, "duration_ms": 4950.0, "model": "gpt-4o-mini",
+                                                "response_content": "EV sales passed 17 million in 2024."},
+           parent_seq=a1, node_id="agent:Researcher", prompt_tokens=310, completion_tokens=14, cost_usd=0.000055)
+    r.emit("agent_end", 5.01, "Researcher", {}, parent_seq=a1, node_id="agent:Researcher")
+    r.emit("task_end", 5.02, "Researcher", {"status": "completed", "retries": 0, "duration_ms": 5000.0,
+                                             "output_preview": "EV sales passed 17 million in 2024."}, parent_seq=t1, node_id="task:research")
+    t2 = r.emit("task_start", 5.03, "Writer", {"name": "write", "agent": "Writer",
+                                               "description_preview": "Write one sentence using the fact"},
+                parent_seq=w, node_id="task:write")
+    a2 = r.emit("agent_start", 5.04, "Writer", {}, parent_seq=t2, node_id="agent:Writer")
+    r.llm(5.05, "Writer", 1.05, a2, prompt=200, completion=25, cost=0.000045, node="agent:Writer",
+          content="Global EV sales passed 17 million in 2024.")
+    r.emit("agent_end", 6.11, "Writer", {}, parent_seq=a2, node_id="agent:Writer")
+    r.emit("task_end", 6.12, "Writer", {"status": "completed", "retries": 0, "duration_ms": 1090.0,
+                                         "output_preview": "Global EV sales passed 17 million in 2024."}, parent_seq=t2, node_id="task:write")
+    r.emit("workflow_end", 6.13, "", {"status": "completed", "duration_ms": 6120.0}, parent_seq=w)
+    a3 = r.emit("agent_start", 6.2, "Triage", {}, parent_seq=s0, node_id="agent:Triage")
+    r.emit("llm_request", 6.25, "Triage", {"model": "gpt-4o-mini"}, parent_seq=a3, node_id="agent:Triage")
+    tt = r.emit("tool_call_start", 7.7, "Triage", {"tool_name": "transfer_to_billing", "tool_args": {}},
+                parent_seq=a3, node_id="tool:Triage/transfer_to_billing")
+    r.emit("agent_handoff", 7.71, "Triage", {"from_agent": "Triage", "to_agent": "Billing", "kind": "handoff",
+                                             "reason": "Billing question", "context_passed": {"context_policy": "summary"}},
+           parent_seq=tt, node_id="agent:Billing")
+    a4 = r.emit("agent_start", 7.72, "Billing", {}, parent_seq=tt, node_id="agent:Billing")
+    r.llm(7.75, "Billing", 0.92, a4, prompt=150, completion=19, cost=0.00003, node="agent:Billing",
+          content="Please check your statement for a duplicate charge.")
+    r.emit("agent_end", 8.68, "Billing", {}, parent_seq=a4, node_id="agent:Billing")
+    r.emit("tool_call_end", 8.7, "Triage", {"tool_name": "transfer_to_billing", "result": "Handoff successful",
+                                             "duration_ms": 1000.0, "error": None},
+           parent_seq=tt, node_id="tool:Triage/transfer_to_billing")
+    r.emit("llm_response", 9.6, "Triage", {"response_tokens": 22, "duration_ms": 3350.0, "model": "gpt-4o-mini"},
+           parent_seq=a3, node_id="agent:Triage", prompt_tokens=240, completion_tokens=22, cost_usd=0.00005)
+    r.emit("agent_end", 9.61, "Triage", {}, parent_seq=a3, node_id="agent:Triage")
+    r.emit("session_end", 9.7, "", {}, parent_seq=s0)
+    r.write("team_outside.jsonl")
+
+
 if __name__ == "__main__":
     team_handoff()
     flow_parallel_loop()
     legacy_v10()
+    team_outside()
