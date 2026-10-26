@@ -939,7 +939,7 @@ function renderTimeline() {
     S.tl = null;
     return;
   }
-  const avail = Math.max(480, (canvas.clientWidth || 900) - GUTTER - PAD_R);
+  const avail = Math.max(260, (canvas.clientWidth || 900) - GUTTER - PAD_R);
   const dur = Math.max(m.duration, 0.05);
   S.fitPps = avail / dur;
   const pps = S.zoom || S.fitPps;
@@ -1429,7 +1429,8 @@ function whatHappened(item, ev, block, chapter, raw) {
     ['When', `${offset(item.t)} from the start`],
     ['Who', item.agent || (item.type.startsWith('approval') ? 'You' : 'The run')],
     ['Event', `${item.type} #${ev ? ev.sequence_num : '?'}`],
-    ['Duration', block ? C().formatDuration(block.durationMs) : (chapter ? C().formatDuration((chapter.end - chapter.start) * 1000) : C().formatDuration(d.duration_ms))],
+    ['Duration', block ? (block.open ? (block.kind === 'approval' ? 'still waiting' : 'still running') : C().formatDuration(block.durationMs))
+      : (chapter ? (chapter.open ? 'still running' : C().formatDuration((chapter.end - chapter.start) * 1000)) : C().formatDuration(d.duration_ms))],
     ['Cost', block ? C().formatCost(block.cost) : C().formatCost(ev && ev.cost_usd)],
     ['Tokens', block && block.tokens ? block.tokens : null],
     ['Status', block ? block.status : (chapter ? chapter.status : d.status)],
