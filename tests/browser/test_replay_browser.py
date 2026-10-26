@@ -466,3 +466,59 @@ def test_empty_state_explains_how_to_record(browser, tmp_path, monkeypatch):
         srv.should_exit = True
         th.join(timeout=5)
         server.reset_state()
+
+
+def test_embedded_run_box_draws_each_step_live_then_plays_back(browser, tmp_path, monkeypatch):
+    """create_replay_app(run=...) mounted in a host app: Run, watch the map, then Play."""
+    import uvicorn
+    from starlette.applications import Starlette
+    from starlette.routing import Mount
+
+    from praisonaiui.features.replay import create_replay_app
+
+    traces = tmp_path / "traces"
+    traces.mkdir()
+    monkeypatch.setenv("PRAISONAI_TRACES_DIR", str(traces))
+    lines = (FIXTURES / "flow_parallel_loop.jsonl").read_text(encoding="utf-8").splitlines(keepends=True)
+    seen = []
+
+    def runner(text, run_id):  # writes a recorded flow slowly, like a live run
+        seen.append(text)
+        with open(traces / f"{run_id}.jsonl", "w", encoding="utf-8") as fh:
+            for line in lines:
+                fh.write(line)
+                fh.flush()
+                time.sleep(0.08)
+
+    host = Starlette(routes=[Mount("/replay", app=create_replay_app(runner, input="weekly digest"))])
+    port = _free_port()
+    srv = uvicorn.Server(uvicorn.Config(host, host="127.0.0.1", port=port, log_level="warning"))
+    t = threading.Thread(target=srv.run, daemon=True)
+    t.start()
+    for _ in range(100):
+        if srv.started:
+            break
+        time.sleep(0.05)
+    try:
+        page, errors = _page(browser)
+        page.add_init_script("try{localStorage.setItem('rp-view','map')}catch(e){}")
+        page.goto(f"http://127.0.0.1:{port}/replay/")
+        page.wait_for_selector(".rp-empty h2:has-text('Nothing has run yet')")
+        page.get_by_role("button", name="▶ Run").click()
+        page.wait_for_selector(".rp-node.rp-st-running", timeout=10000)  # a step is drawn as running
+        assert page.locator(".rp-node.rp-unvisited").count() > 0  # later steps not reached yet
+        page.wait_for_selector(".rp-bar .rp-b-completed", timeout=20000)
+        assert seen == ["weekly digest"]
+        assert page.locator(".rp-node.rp-st-running").count() == 0
+        assert page.get_by_role("button", name="▶ Run").is_enabled()
+        page.get_by_role("button", name="▶ Play").click()  # from the end: restarts at step 1
+        page.wait_for_timeout(1300)
+        assert page.locator("[data-key=play]").inner_text() == "❚❚ Pause"
+        assert page.locator(".rp-node.rp-unvisited").count() > 0  # the map rewound with the cursor
+        page.locator("[data-key=play]").click()
+        violations = _axe(page)
+        assert violations == [], json.dumps(violations, indent=2)
+        assert not errors, errors
+    finally:
+        srv.should_exit = True
+        t.join(timeout=5)

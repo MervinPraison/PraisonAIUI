@@ -397,3 +397,62 @@ test('real-run shape: LLM span encloses the tool call in the same lane', () => {
   assert.ok(m.lanes.some((l) => l.id === 'agent:Triage') && m.lanes.some((l) => l.id === 'agent:Billing'));
   assert.deepEqual(m.arrows.map((a) => `${a.kind}:${a.from}->${a.to}`), ['handoff:agent:Triage->agent:Billing']);
 });
+
+// ── nodeStates: the map at the cursor ─────────────────────────────────
+
+const sev = (seq, event_type, extra = {}) => ({ sequence_num: seq, timestamp: 100 + seq, event_type, ...extra });
+
+test('nodeStates: a step is running between its start and end, then done', () => {
+  const events = [
+    sev(0, 'workflow_start'),
+    sev(1, 'step_start', { node_id: 'step:research' }),
+    sev(2, 'step_end', { node_id: 'step:research', data: { status: 'completed' } }),
+    sev(3, 'step_start', { node_id: 'step:draft' }),
+  ];
+  const nodes = [{ id: 'start', kind: 'start' }, { id: 'step:research' }, { id: 'step:draft' }, { id: 'end', kind: 'end' }];
+  const at = (i) => Object.fromEntries([...core.nodeStates(events, i, nodes)].map(([k, v]) => [k, v.state]));
+  assert.deepEqual(at(1), { 'step:research': 'running', start: 'done' });
+  assert.deepEqual(at(2), { 'step:research': 'done', start: 'done' });
+  assert.deepEqual(at(3), { 'step:research': 'done', 'step:draft': 'running', start: 'done' });
+  assert.equal(core.nodeStates(events, -1, nodes).size, 0, 'nothing is reached before the first step');
+});
+
+test('nodeStates: end node is reached when the run ends; failed and skipped come from status', () => {
+  const events = [
+    sev(0, 'step_start', { node_id: 'step:a' }),
+    sev(1, 'step_end', { node_id: 'step:a', data: { status: 'failed' } }),
+    sev(2, 'step_start', { node_id: 'step:b' }),
+    sev(3, 'step_end', { node_id: 'step:b', data: { status: 'skipped' } }),
+    sev(4, 'workflow_end'),
+  ];
+  const st = core.nodeStates(events, Infinity, [{ id: 'end', kind: 'end' }]);
+  assert.equal(st.get('step:a').state, 'failed');
+  assert.equal(st.get('step:b').state, 'skipped');
+  assert.equal(st.get('end').state, 'done');
+});
+
+test('nodeStates: runs count only on the node an end event belongs to', () => {
+  const events = [
+    sev(0, 'task_start', { node_id: 'task:research', agent_name: 'Researcher' }),
+    sev(1, 'agent_start', { agent_name: 'Researcher' }),
+    sev(2, 'agent_end', { agent_name: 'Researcher' }),
+    sev(3, 'task_end', { node_id: 'task:research', agent_name: 'Researcher', data: { status: 'completed' } }),
+    sev(4, 'step_start', { node_id: 'step:loop' }),
+    sev(5, 'step_end', { node_id: 'step:loop' }),
+    sev(6, 'step_start', { node_id: 'step:loop' }),
+    sev(7, 'step_end', { node_id: 'step:loop' }),
+  ];
+  const st = core.nodeStates(events);
+  assert.equal(st.get('agent:Researcher').runs, 1, 'task_end must not count as another agent run');
+  assert.equal(st.get('task:research').runs, 1);
+  assert.equal(st.get('step:loop').runs, 2);
+  assert.equal(st.get('agent:Researcher').state, 'done');
+});
+
+test('nodeStates: a recorded flow fixture ends with every visited node done or failed', () => {
+  const { events, graph } = load('flow_parallel_loop');
+  const m = buildModel(events, graph);
+  const st = core.nodeStates(m.events, Infinity, graph.nodes);
+  assert.ok(st.size > 0);
+  for (const [id, v] of st) assert.notEqual(v.state, 'running', `${id} still running after the run ended`);
+});

@@ -1024,6 +1024,56 @@ export function layoutRunMap(graph, events, opts = {}) {
   };
 }
 
+/** End events that mean "this node finished one run", and which node that is. */
+const RUN_ENDS = {
+  step_end: (nid, ev) => nid === ev.node_id,
+  task_end: (nid, ev) => nid === ev.node_id,
+  agent_end: (nid) => nid.startsWith('agent:') || nid === MANAGER_LANE,
+  tool_call_end: (nid) => nid.startsWith('tool:'),
+};
+
+/**
+ * Each map node's state after the first ``upTo + 1`` events (sorted, as in
+ * buildModel().events): ``{events, runs, state}`` where state is "running"
+ * (started, not ended yet), "done", "failed" or "skipped" (from the last end's
+ * ``data.status``). Nodes without an entry were not reached by then. The flow's
+ * start/end nodes count as reached once the run started/ended.
+ */
+export function nodeStates(events, upTo = Infinity, nodes = []) {
+  const out = new Map();
+  const last = Math.min(events.length - 1, upTo);
+  let ended = false;
+  for (let i = 0; i <= last; i++) {
+    const ev = events[i];
+    const type = ev && ev.event_type;
+    if (type === 'workflow_end' || type === 'session_end') ended = true;
+    for (const nid of nodeIdsForEvent(ev)) {
+      const st = out.get(nid) || { events: 0, runs: 0, open: 0, last: null };
+      st.events += 1;
+      if (PAIRS[type]) st.open += 1;
+      else if (END_OF[type]) {
+        st.open = Math.max(0, st.open - 1);
+        if (RUN_ENDS[type] && RUN_ENDS[type](nid, ev)) {
+          st.runs += 1;
+          const status = str(dataOf(ev).status);
+          st.last = status === 'failed' || dataOf(ev).error ? 'failed' : (status === 'skipped' ? 'skipped' : 'done');
+        }
+      }
+      out.set(nid, st);
+    }
+  }
+  for (const n of nodes || []) {
+    if (out.has(n.id)) continue;
+    if ((n.kind === 'start' && last >= 0) || (n.kind === 'end' && ended)) out.set(n.id, { events: 1, runs: 1, open: 0, last: 'done' });
+  }
+  for (const st of out.values()) {
+    st.state = st.open > 0 ? 'running' : (st.last || 'done');
+    delete st.open;
+    delete st.last;
+  }
+  return out;
+}
+
 /** Words for edge kinds on the map (labels never rely on colour). */
 export const EDGE_WORDS = Object.freeze({
   handoff: 'hands off',
@@ -1045,7 +1095,7 @@ export function edgeText(edge) {
 
 const api = {
   PALETTE, SHAPES, HUMAN_LANE, MANAGER_LANE, EDGE_WORDS,
-  buildModel, narrate, layoutMap, layoutRunMap, observedGraph, deriveGraph, nodeIdsForEvent, pairEvents, sortEvents,
+  buildModel, narrate, layoutMap, layoutRunMap, observedGraph, deriveGraph, nodeIdsForEvent, nodeStates, pairEvents, sortEvents,
   eventId, formatDuration, formatCost, argPreview, truncate, stripPrefix, edgeText,
 };
 if (typeof globalThis !== 'undefined') globalThis.PraisonReplayCore = api;
