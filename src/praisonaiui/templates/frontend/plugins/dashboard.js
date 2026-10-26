@@ -147,6 +147,7 @@ const BUILTIN_VIEWS = {
   agents:         '/plugins/views/agents.js',
   sessions:       '/plugins/views/sessions.js',
   runs:           '/plugins/views/run-recorder.js',
+  replay:         '/plugins/views/replay.js',
   memory:         '/plugins/views/memory.js',
   knowledge:      '/plugins/views/knowledge.js',
   logs:           '/plugins/views/logs.js',
@@ -379,6 +380,7 @@ const DASHBOARD_STYLE = `
   .db-main.db-clean > #db-page-content { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   .db-page-header { margin-bottom: 28px; }
   .db-page-title { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; }
+  .db-page-icon svg, .db-nav-icon svg { display: inline-block; vertical-align: -0.125em; }
   .db-page-desc { color: var(--db-text-dim); font-size: 14px; margin: 0; }
 
   /* Generic data viewer */
@@ -457,10 +459,20 @@ const DASHBOARD_STYLE = `
   .db-mobile-overlay { display: none; position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,0.5); }
   @media (max-width: 1023px) {
     .db-mobile-header { display: flex; }
-    .db-sidebar { position: fixed; z-index: 45; transform: translateX(-100%); transition: transform 0.2s ease; }
+    /* !important: buildSidebar() sets an inline position:relative for its toggle,
+       which otherwise keeps the hidden sidebar's 260px in the flex row. */
+    .db-sidebar { position: fixed !important; top: 0; left: 0; z-index: 45; transform: translateX(-100%); transition: transform 0.2s ease; }
     .db-sidebar.db-sidebar-open { transform: translateX(0); }
     .db-mobile-overlay.db-visible { display: block; }
     .db-main { padding-top: 48px; }
+    /* The shell header slot sits in the same flex row; give it its own line. */
+    #root.db-active { flex-wrap: wrap; }
+    #db-shell-header-slot { flex: 0 0 100%; margin-top: 48px; }
+    #db-shell-header-slot + .db-main { padding-top: 16px; }
+  }
+  @media (max-width: 600px) {
+    .db-main { padding: 64px 16px 16px; }
+    #db-shell-header-slot + .db-main { padding-top: 16px; }
   }
   .db-card {
     background: var(--db-card-bg); border: 1px solid var(--db-border);
@@ -1752,6 +1764,13 @@ async function buildDashboard() {
   renderSlot('shell:header', shellHeader);
   if (shellHeader.children.length) root.insertBefore(shellHeader, main);
 
+  // Hash deep links (e.g. /#/replay?run=<id> from `praisonai replay view`)
+  // become the path form (/replay?run=<id>) before the page is resolved.
+  const hashRoute = location.hash.match(/^#\/([A-Za-z0-9_-]+)(\?[^#]*)?$/);
+  if (hashRoute && pagesData.find(p => p.id === hashRoute[1])) {
+    history.replaceState(null, '', `/${hashRoute[1]}${hashRoute[2] || ''}`);
+  }
+
   // Resolve initial page from URL path or default to first page
   const pathId = location.pathname.replace(/^\//, '') || '';
   const initialPage = pathId && pagesData.find(p => p.id === pathId)
@@ -1766,6 +1785,29 @@ async function buildDashboard() {
       selectPage(id);
     }
   });
+}
+
+// Pages may carry an inline SVG mark (`icon_svg`) next to the text `icon`.
+// It is parsed as SVG and dropped if it holds scripts, foreignObject,
+// event handlers or javascript: URLs; otherwise the text icon is used.
+function safeSvgIcon(markup) {
+  if (typeof markup !== 'string' || !markup.trim().startsWith('<svg')) return null;
+  try {
+    const doc = new DOMParser().parseFromString(markup, 'image/svg+xml');
+    const svg = doc.documentElement;
+    if (!svg || svg.nodeName !== 'svg' || doc.querySelector('parsererror, script, foreignObject')) return null;
+    for (const el of [svg, ...svg.querySelectorAll('*')]) {
+      for (const a of [...el.attributes]) {
+        if (/^on/i.test(a.name) || /javascript:/i.test(a.value)) return null;
+      }
+    }
+    return document.importNode(svg, true);
+  } catch (e) { return null; }
+}
+
+function setPageIcon(span, page, fallback) {
+  const svg = safeSvgIcon(page.icon_svg);
+  if (svg) { span.textContent = ''; span.appendChild(svg); } else span.textContent = page.icon || fallback;
 }
 
 function buildSidebar(pages) {
@@ -1866,7 +1908,7 @@ function buildSidebar(pages) {
       item.dataset.navId = page.id;
       const iconSpan = document.createElement('span');
       iconSpan.className = 'db-nav-icon';
-      iconSpan.textContent = page.icon || '📄';
+      setPageIcon(iconSpan, page, '📄');
       item.appendChild(iconSpan);
       item.appendChild(document.createTextNode(' ' + page.title));
       item.addEventListener('click', () => selectPage(page.id));
@@ -1888,7 +1930,7 @@ function buildSidebar(pages) {
       btn.className = 'db-nav-item';
       const iconSpan = document.createElement('span');
       iconSpan.className = 'db-nav-icon';
-      iconSpan.textContent = page.icon || '⚙';
+      setPageIcon(iconSpan, page, '⚙');
       btn.appendChild(iconSpan);
       btn.appendChild(document.createTextNode(' ' + page.title));
       btn.addEventListener('click', () => {
@@ -1957,7 +1999,7 @@ async function selectPage(pageId) {
     <div class="db-page-header">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div>
-          <h1 class="db-page-title">${page.icon || ''} ${page.title}</h1>
+          <h1 class="db-page-title">${page.icon_svg ? '<span class="db-page-icon"></span>' : (page.icon || '')} ${page.title}</h1>
           ${page.description ? `<p class="db-page-desc">${page.description}</p>` : ''}
         </div>
         <div id="db-page-toolbar-slot" class="db-slot-host" data-slot="${toolbarSlotId}"></div>
@@ -1965,6 +2007,8 @@ async function selectPage(pageId) {
     </div>
   ` : '';
   main.innerHTML = `${headerHtml}<div data-page="${pageId}" id="db-page-content"></div>`;
+  const pageIcon = main.querySelector('.db-page-icon');
+  if (pageIcon) setPageIcon(pageIcon, page, '');
   if (showPageHeader) {
     const toolbarHost = document.getElementById('db-page-toolbar-slot');
     if (toolbarHost && SLOT_REGISTRY[toolbarSlotId]) {

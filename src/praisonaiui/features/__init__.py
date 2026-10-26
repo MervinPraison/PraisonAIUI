@@ -80,6 +80,7 @@ def auto_register_defaults() -> None:
         (".tts", "TTSFeature"),
         (".usage", "UsageFeature"),
         (".realtime", "RealtimeFeature"),
+        (".replay", "ReplayFeature"),
         (".workflows", "WorkflowsFeature"),
         (".guardrails", "GuardrailsFeature"),
         (".eval", "EvalFeature"),
