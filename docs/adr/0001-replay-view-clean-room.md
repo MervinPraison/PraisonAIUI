@@ -61,6 +61,8 @@ Build our own view, in plain DOM and SVG, with our own layout code, palette and 
   arrows differ by dash pattern and carry words ("hands off", "delegates", "routes").
   Heat in the cost/latency overlay is a bar whose height and shade both grow, plus the
   value in text.
+- **Theme.** Follows the system setting (`prefers-color-scheme`) by default, with a
+  Light/Dark override; the light theme is the design baseline.
 - **Light theme first.** Text tokens are at least 6.9:1 on their backgrounds in light mode
   and 7.7:1 in dark mode. In dark mode the palette fills keep white text at AA, and get a
   light 2 px outline so each shape's boundary stays above 3:1 against the dark page.

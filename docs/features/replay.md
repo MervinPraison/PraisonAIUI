@@ -38,13 +38,19 @@ aiui run "$(python -c 'import praisonaiui.replay_app as m; print(m.__file__)')" 
 |---|---|
 | **Runs** | Recorded runs, newest first. A run that is still being written has a **Live** badge. |
 | **Timeline** (default) | One lane per agent, plus **Manager** and **You**. Time runs left to right. LLM calls and tool calls are blocks in their agent's lane. Arrows show hand-offs, delegation, routing and approval requests. Parallel branches get their own sub-lanes. A call or step repeated back to back is one block marked ×N. Tasks and steps run across the top. |
-| **Map** | The team or flow as a graph, drawn from the graph recorded at the start of the run. Older recordings without a graph get a "who talked to whom" map built from the events. Nodes you have not reached yet have a dashed outline; the node the cursor is on has a bold one. |
+| **Map** | The team or flow as a graph, drawn from the graph recorded at the start of the run and fitted to the page (−, Fit and + zoom; drag to pan). Agents that took part but are not in the graph, for example after a hand-off to an agent outside the team, appear in an **Outside the team** group with their hand-offs. Older recordings without a graph get a "who talked to whom" map built from the events. Nodes you have not reached yet have a dashed outline; the node the cursor is on has a bold one. |
 | **What happened** | One plain sentence per step, for example *"Researcher asked web_search for 'solar sail facts' — 1.2 s, $0.002."* Hovering or focusing a sentence highlights its block, and the other way round. |
 | **Details** | Three tabs for the selected step. **What happened**: when, who, how long, cost, tokens, output. **Why**: only what the recording holds, such as the input given to a tool, the context passed in a hand-off and its reason, the manager's task snapshot, the route a step chose, and an approval's decision and where an automatic approval came from. **Raw JSON**: the events themselves. |
 | **Cost & latency** | Adds a bar under each block (taller and darker means more cost, or more time) and per-agent totals in the lane labels. |
 
 Shapes always carry meaning as well as colour: agents are circles, tools are rounded
-rectangles, you are a diamond and the manager is a square.
+rectangles, you are a diamond and the manager is a square. In each lane, LLM calls sit on
+the top row and that agent's tool calls on a thinner row under them, so a long LLM call
+never hides its tools. Labels that do not fit end in "…"; hover or focus a block to see the
+whole label.
+
+The **Theme** menu follows your system's light or dark setting by default; choose Light or
+Dark to override it. On a phone the run list, timeline and steps stack in one column.
 
 ## Moving through a run
 
