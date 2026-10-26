@@ -3280,6 +3280,8 @@ def create_app(
         routes.extend(feature.routes())
 
     # Register built-in dashboard pages via the same protocol
+    from praisonaiui.features.replay import REPLAY_MARK_SVG
+
     _builtin_pages = [
         {
             "id": "overview",
@@ -3349,8 +3351,9 @@ def create_app(
             "id": "replay",
             "title": "Replay",
             "icon": "⏮️",
+            "icon_svg": REPLAY_MARK_SVG,
             "group": "Control",
-            "description": "Replay recorded runs: who did what, when, why and at what cost",
+            "description": "Recorded agent runs, step by step: who did what, when, and at what cost",
             "order": 21,
         },
         {

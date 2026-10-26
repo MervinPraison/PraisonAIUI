@@ -121,3 +121,29 @@ def test_replay_core_node_suite():
     )
     assert proc.returncode == 0, proc.stdout[-4000:] + proc.stderr[-2000:]
     assert re.search(r"# fail 0", proc.stdout)
+
+
+def test_replay_page_uses_own_svg_mark_not_emoji_heading():
+    from praisonaiui.features.replay import REPLAY_MARK_SVG
+
+    assert REPLAY_MARK_SVG.startswith('<svg xmlns="http://www.w3.org/2000/svg"')
+    for banned in ("<script", "foreignObject", "onload", "javascript:"):
+        assert banned not in REPLAY_MARK_SVG
+    server_src = (ROOT / "src" / "praisonaiui" / "server.py").read_text(encoding="utf-8")
+    assert '"icon_svg": REPLAY_MARK_SVG' in server_src
+    dash = (FRONTEND / "dashboard.js").read_text(encoding="utf-8")
+    assert "function safeSvgIcon" in dash and "parsererror, script, foreignObject" in dash
+    assert "setPageIcon(iconSpan, page" in dash
+
+
+def test_dashboard_mobile_shell_gives_content_the_width():
+    dash = (FRONTEND / "dashboard.js").read_text(encoding="utf-8")
+    assert ".db-sidebar { position: fixed !important;" in dash
+    assert "#db-shell-header-slot { flex: 0 0 100%;" in dash
+    assert ".db-main { padding: 64px 16px 16px; }" in dash
+
+
+def test_theme_defaults_to_system():
+    view = VIEW.read_text(encoding="utf-8")
+    assert "@media (prefers-color-scheme:dark){.rp-root[data-theme=\"system\"]" in view
+    assert "'Theme: system'" in view

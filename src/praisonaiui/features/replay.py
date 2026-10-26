@@ -36,6 +36,18 @@ logger = logging.getLogger(__name__)
 #: Page id of the dashboard view; open ``/replay?run=<id>`` (or ``/#/replay?run=<id>``).
 REPLAY_PAGE_ID = "replay"
 
+#: Replay's own mark (three lanes and a cursor), used as the page's ``icon_svg``.
+REPLAY_MARK_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="1em" height="1em" '
+    'aria-hidden="true" focusable="false" '
+    'style="display:inline-block;vertical-align:-0.125em">'
+    '<rect x="1" y="3" width="8" height="2.2" rx="1.1" fill="currentColor"/>'
+    '<rect x="3" y="7" width="10" height="2.2" rx="1.1" fill="currentColor"/>'
+    '<rect x="1" y="11" width="6" height="2.2" rx="1.1" fill="currentColor"/>'
+    '<rect x="11.2" y="1" width="1.6" height="14" rx="0.8" fill="currentColor" opacity="0.55"/>'
+    "</svg>"
+)
+
 #: Pages a replay-only app should whitelist (Replay first, then its companions).
 REPLAY_PAGES = ("replay", "approvals", "traces")
 
