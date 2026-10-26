@@ -147,6 +147,7 @@ const BUILTIN_VIEWS = {
   agents:         '/plugins/views/agents.js',
   sessions:       '/plugins/views/sessions.js',
   runs:           '/plugins/views/run-recorder.js',
+  replay:         '/plugins/views/replay.js',
   memory:         '/plugins/views/memory.js',
   knowledge:      '/plugins/views/knowledge.js',
   logs:           '/plugins/views/logs.js',
@@ -1751,6 +1752,13 @@ async function buildDashboard() {
   shellHeader.id = 'db-shell-header-slot';
   renderSlot('shell:header', shellHeader);
   if (shellHeader.children.length) root.insertBefore(shellHeader, main);
+
+  // Hash deep links (e.g. /#/replay?run=<id> from `praisonai replay view`)
+  // become the path form (/replay?run=<id>) before the page is resolved.
+  const hashRoute = location.hash.match(/^#\/([A-Za-z0-9_-]+)(\?[^#]*)?$/);
+  if (hashRoute && pagesData.find(p => p.id === hashRoute[1])) {
+    history.replaceState(null, '', `/${hashRoute[1]}${hashRoute[2] || ''}`);
+  }
 
   // Resolve initial page from URL path or default to first page
   const pathId = location.pathname.replace(/^\//, '') || '';

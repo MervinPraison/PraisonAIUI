@@ -3346,6 +3346,14 @@ def create_app(
             "order": 22,
         },
         {
+            "id": "replay",
+            "title": "Replay",
+            "icon": "⏮️",
+            "group": "Control",
+            "description": "Replay recorded runs: who did what, when, why and at what cost",
+            "order": 21,
+        },
+        {
             "id": "usage",
             "title": "Usage",
             "icon": "📈",
@@ -3582,6 +3590,7 @@ def create_app(
     _page_api_overrides = {
         "sessions": "/sessions",
         "runs": "/api/sessions",
+        "replay": "/api/replay/runs",
         "cron": "/api/schedules",
         "channels": "/api/channels",
         "mcp": "/api/mcp/servers",
