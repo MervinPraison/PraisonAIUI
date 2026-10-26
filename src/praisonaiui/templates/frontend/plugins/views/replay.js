@@ -15,6 +15,9 @@
  *
  * Standalone: with window.__REPLAY_DATA__ = {events, graph} set and no aiui
  * dashboard present, the module renders itself into #replay-root (or <body>).
+ *
+ * Embedded (any page): render(el, {base, run, runner}) — see render() below and
+ * praisonaiui.features.replay.create_replay_app() for the server side.
  * Pure logic lives in replay-core.js.
  */
 
@@ -131,6 +134,12 @@ const STYLE = `
 .rp-btn[disabled]{opacity:.55;cursor:not-allowed}
 .rp-btn-primary{background:var(--rp-human);border-color:var(--rp-human);color:var(--rp-on-fill)}
 .rp-seg{display:inline-flex;gap:0}.rp-seg .rp-btn{border-radius:0}.rp-seg .rp-btn:first-child{border-radius:8px 0 0 8px}.rp-seg .rp-btn:last-child{border-radius:0 8px 8px 0;margin-left:-1px}
+.rp-runbox{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--rp-border)}
+.rp-runbox[hidden]{display:none}
+.rp-input{flex:1;min-width:180px;font:inherit;font-size:14px;color:var(--rp-text);background:var(--rp-bg);border:1px solid var(--rp-control);border-radius:8px;padding:6px 10px;min-height:34px}
+.rp-primary{background:var(--rp-focus);border-color:var(--rp-focus);color:var(--rp-bg);font-weight:600;min-height:34px;padding:4px 16px}
+.rp-btn:disabled{opacity:.6;cursor:default}
+.rp-primary:disabled{opacity:1;background:var(--rp-lane);border-color:var(--rp-control);color:var(--rp-text)}
 .rp-select{font:inherit;font-size:13px;color:var(--rp-text);background:var(--rp-bg);border:1px solid var(--rp-control);border-radius:8px;padding:3px 6px;min-height:30px}
 .rp-pending{display:flex;flex-direction:column;gap:8px;padding:10px 14px;border-bottom:1px solid var(--rp-border);background:var(--rp-surface)}
 .rp-pending[hidden]{display:none}
@@ -224,6 +233,10 @@ const STYLE = `
 .rp-svg .rp-node .rp-card{fill:var(--rp-bg);stroke:var(--rp-control);stroke-width:1.5}
 .rp-svg .rp-node.rp-unvisited .rp-card{stroke-dasharray:4 3}
 .rp-svg .rp-node.rp-now .rp-card{stroke:var(--rp-text);stroke-width:3}
+.rp-svg .rp-node.rp-st-running .rp-card{stroke:var(--rp-focus);stroke-width:3}
+.rp-svg .rp-node.rp-st-done .rp-card{stroke:var(--rp-ok)}
+.rp-svg .rp-node.rp-st-failed .rp-card{stroke:var(--rp-err);stroke-width:2.5}
+.rp-svg .rp-node.rp-st-skipped .rp-card{opacity:.6}
 .rp-svg .rp-node{cursor:pointer}
 .rp-svg .rp-node .rp-kindword{fill:var(--rp-dim);font-size:11px}
 .rp-svg .rp-edge path{fill:none;stroke:var(--rp-control);stroke-width:1.6}
@@ -237,7 +250,8 @@ const STYLE = `
 .rp-svg .rp-group rect{fill:none;stroke:var(--rp-control);stroke-width:1.5;stroke-dasharray:6 4}
 .rp-map{cursor:grab}.rp-map.rp-panning{cursor:grabbing}
 @media (prefers-reduced-motion:no-preference){
-  .rp-b-live .rp-dot{animation:rp-pulse 1.6s ease-in-out infinite}
+  .rp-b-live .rp-dot,.rp-svg .rp-node.rp-st-running .rp-ring{animation:rp-pulse 1.6s ease-in-out infinite}
+  .rp-svg .rp-node.rp-st-running .rp-ring{stroke:var(--rp-focus);stroke-width:2}
   .rp-step,.rp-svg .rp-block,.rp-svg .rp-arrow{transition:opacity .15s ease}
 }
 @keyframes rp-pulse{0%,100%{opacity:1}50%{opacity:.35}}
@@ -288,7 +302,7 @@ function runFromUrl() {
 }
 
 function writeRunToUrl(id) {
-  if (S.solo) return;
+  if (S.solo || S.pinned) return;
   try {
     const url = new URL(window.location.href);
     url.searchParams.set('run', id);
@@ -326,6 +340,14 @@ function statusBadge(row) {
 /**
  * Mount the view. Dashboard: render(container). Standalone:
  * render(container, {standalone: true, events, graph, title}).
+ *
+ * Embedded in another page (options are all optional):
+ *   base   — URL prefix the replay API is mounted under, e.g. "/replay"
+ *   run    — show only this run id (no run list); waits for it to start
+ *   runner — {input, placeholder, ask}: show a Run box that POSTs {input} to
+ *            <base>/api/replay/run and follows the run it returns
+ *            (ask: false shows just the Run button)
+ *   approve — false to hide the approve/deny buttons (no approvals API here)
  */
 export async function render(container, opts = {}) {
   cleanup();
@@ -335,6 +357,11 @@ export async function render(container, opts = {}) {
   S = {
     core,
     solo,
+    base: String(opts.base || '').replace(/\/+$/, ''),
+    pinned: opts.run ? String(opts.run) : null,
+    runner: opts.runner && typeof opts.runner === 'object' ? { input: '', ...opts.runner } : null,
+    canApprove: !solo && opts.approve !== false,
+    play: null,
     container,
     abort: new AbortController(),
     timers: [],
@@ -369,6 +396,8 @@ export async function render(container, opts = {}) {
     setEvents(opts.events || [], opts.graph || null);
     S.cursor = S.model.narration.length - 1;
     renderAll();
+  } else if (S.pinned) {
+    await loadRun(S.pinned);
   } else {
     await refreshRuns();
     const wanted = runFromUrl();
@@ -400,6 +429,7 @@ export function cleanup() {
   try { S.abort.abort(); } catch { /* ignore */ }
   if (S.es) { try { S.es.close(); } catch { /* ignore */ } }
   for (const t of S.timers) clearInterval(t);
+  if (S.play) clearInterval(S.play);
   if (S.ro) { try { S.ro.disconnect(); } catch { /* ignore */ } }
   if (S.unlisten) { try { S.unlisten(); } catch { /* ignore */ } }
   S = null;
@@ -409,14 +439,20 @@ export function cleanup() {
 
 async function fetchJson(url, init = {}) {
   const res = await fetch(url, { signal: S.abort.signal, ...init });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const body = await res.json(); if (body && body.error) msg = body.error; } catch { /* not JSON */ }
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
+  }
   return res.json();
 }
 
 async function refreshRuns(autoload = false) {
-  if (!S || S.solo) return;
+  if (!S || S.solo || S.pinned) return;
   try {
-    const rows = await fetchJson('/api/replay/runs');
+    const rows = await fetchJson(`${S.base}/api/replay/runs`);
     S.runs = Array.isArray(rows) ? rows : [];
   } catch (e) {
     if (e.name === 'AbortError') return;
@@ -482,15 +518,35 @@ async function loadRun(id) {
   renderRunList();
   let data;
   try {
-    data = await fetchJson(`/api/replay/runs/${encodeURIComponent(id)}/events`);
+    const waiting = S.pinned === id || S.awaiting === id;
+    data = await fetchJson(`${S.base}/api/replay/runs/${encodeURIComponent(id)}/events${waiting ? '?wait=1' : ''}`);
+    if (waiting && !data.run) {
+      const err = new Error('run not found');
+      err.status = 404;
+      throw err;
+    }
   } catch (e) {
     if (e.name === 'AbortError') return;
+    if (e.status === 404 && (S.pinned === id || S.awaiting === id) && (S.waitTries = (S.waitTries || 0) + 1) <= 120) {
+      // the run was asked for but its first event is not written yet (wait up to 60 s)
+      S.run = { run_id: id, name: 'Starting…', status: 'running', live: true };
+      setEvents([], null);
+      renderAll();
+      setTimeout(() => { if (S && S.runId === id) loadRun(id); }, 500);
+      return;
+    }
+    S.waitTries = 0;
     S.run = { run_id: id, name: id, status: 'incomplete', live: false };
     setEvents([], null);
     renderAll(`Could not load run ${id} (${e.message}).`);
     return;
   }
   if (!S || S.runId !== id) return;
+  S.waitTries = 0;
+  if (S.awaiting === id) {
+    S.awaiting = null;
+    refreshRuns(); // replace the "Starting…" row with the real one
+  }
   S.run = data.run || S.runs.find((r) => r.run_id === id) || { run_id: id, name: id };
   S.follow = true;
   setEvents(data.events || [], data.graph || null);
@@ -508,7 +564,7 @@ function maxSeq() {
 function startStream(id) {
   if (typeof EventSource === 'undefined') return;
   const after = maxSeq();
-  const url = `/api/replay/runs/${encodeURIComponent(id)}/stream${after != null ? `?after_seq=${after}` : ''}`;
+  const url = `${S.base}/api/replay/runs/${encodeURIComponent(id)}/stream${after != null ? `?after_seq=${after}` : ''}`;
   const es = new EventSource(url);
   S.es = es;
   es.addEventListener('ctx', (e) => {
@@ -533,8 +589,8 @@ function buildShell() {
   clear(c);
   const els = {};
   els.root = h('section', { class: 'rp-root', 'data-theme': S.theme, 'aria-label': 'PraisonAI Replay' });
-  els.shell = h('div', { class: `rp-shell${S.solo ? ' rp-solo' : ''}` });
-  if (!S.solo) {
+  els.shell = h('div', { class: `rp-shell${S.solo || S.pinned ? ' rp-solo' : ''}` });
+  if (!S.solo && !S.pinned) {
     els.runs = h('nav', { class: 'rp-runs', 'aria-label': 'Recorded runs' });
     els.shell.appendChild(els.runs);
   }
@@ -549,7 +605,8 @@ function buildShell() {
   els.scrub = h('div', { class: 'rp-scrub' });
   els.drawer = h('div', { class: 'rp-drawer', role: 'region', 'aria-label': 'Details' });
   els.live = h('div', { class: 'rp-sr', 'aria-live': 'polite', role: 'status' });
-  els.main.append(els.bar, els.pending, els.stage, els.legend, els.scrub, els.drawer);
+  els.runbox = h('form', { class: 'rp-runbox', hidden: true, onsubmit: (e) => { e.preventDefault(); startRun(); } });
+  els.main.append(els.runbox, els.bar, els.pending, els.stage, els.legend, els.scrub, els.drawer);
   els.shell.appendChild(els.main);
   els.root.append(els.shell, els.live);
   els.root.addEventListener('keydown', onKeyDown);
@@ -600,6 +657,7 @@ function renderAll(errorText) {
   S.els.root.setAttribute('data-theme', S.theme);
   renderRunList();
   renderBar();
+  renderRunBox();
   if (!S.solo && !S.runs.length && !S.runId) {
     renderEmpty();
     return;
@@ -619,6 +677,12 @@ function renderEmpty() {
   for (const k of ['pending', 'narr', 'scrub', 'drawer', 'legend']) clear(S.els[k]);
   S.els.pending.hidden = true;
   clear(S.els.canvas);
+  if (S.runner) {
+    S.els.canvas.appendChild(h('div', { class: 'rp-empty' },
+      h('h2', { text: 'Nothing has run yet' }),
+      h('p', { text: 'Type an input above and press Run. Each step lights up on the map as it happens.' })));
+    return;
+  }
   S.els.canvas.appendChild(h('div', { class: 'rp-empty' },
     h('h2', { text: 'No recorded runs yet' }),
     h('p', { text: 'Replay shows who did what, when, why and at what cost, once a run has been recorded. Record one and it appears here (live runs update as they go):' }),
@@ -627,6 +691,56 @@ function renderEmpty() {
     h('pre', { text: 'from praisonai.replay import record\n\nwith record(live=True):\n    team.start()' }),
     h('p', { text: 'Runs are read from $PRAISONAI_TRACES_DIR, else $PRAISON_HOME/traces, else ~/.praison/traces.' }),
   ));
+}
+
+// ── run box (embedded with a runner) ──────────────────────────────────
+
+/** Input + Run button; built once so typing survives live re-renders. */
+function renderRunBox() {
+  const box = S.els.runbox;
+  if (!S.runner || !box) return;
+  box.hidden = false;
+  if (!box.firstChild) {
+    append(box, [
+      S.runner.ask === false ? null : h('label', { for: 'rp-run-input', class: 'rp-sr', text: 'Input for the run' }),
+      h('input', { id: 'rp-run-input', class: 'rp-input', type: S.runner.ask === false ? 'hidden' : 'text', value: S.runner.input || '', placeholder: S.runner.placeholder || 'What should the agents work on?', 'data-key': 'run-input' }),
+      h('button', { type: 'submit', class: 'rp-btn rp-primary', 'data-key': 'run' }),
+      h('span', { class: 'rp-note rp-runbox-msg', role: 'status' })]);
+  }
+  const busy = Boolean(S.awaiting || S.starting || (S.run && S.run.live));
+  const btn = box.querySelector('button');
+  btn.disabled = busy;
+  btn.textContent = busy ? 'Running…' : '▶ Run';
+}
+
+async function startRun() {
+  if (!S || !S.runner || S.starting) return;
+  const box = S.els.runbox;
+  const msg = box.querySelector('.rp-runbox-msg');
+  msg.textContent = '';
+  S.starting = true;
+  renderRunBox();
+  let res;
+  try {
+    res = await fetchJson(`${S.base}/api/replay/run`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ input: box.querySelector('input').value }),
+    });
+  } catch (e) {
+    if (e.name === 'AbortError' || !S) return;
+    S.starting = false;
+    msg.textContent = `Could not start the run: ${e.message}`;
+    renderRunBox();
+    return;
+  }
+  if (!S) return;
+  S.starting = false;
+  S.awaiting = res.run_id;
+  S.waitTries = 0;
+  stopPlay();
+  if (S.pinned) S.pinned = res.run_id;
+  else S.runs = [{ run_id: res.run_id, name: 'Starting…', status: 'running', live: true, events: 0, agents: [] }, ...S.runs.filter((r) => r.run_id !== res.run_id)];
+  announce('Run started.');
+  await loadRun(res.run_id);
 }
 
 // ── run picker ────────────────────────────────────────────────────────
@@ -1224,19 +1338,30 @@ function mapGraph() {
   return mapLayout().graph;
 }
 
-function nodeVisits() {
-  const counts = new Map();
+/** Event index the cursor is on (-1 before the first step). */
+function cursorEventIndex() {
   const m = S.model;
-  for (const ev of m.events) {
-    for (const nid of C().nodeIdsForEvent(ev)) counts.set(nid, (counts.get(nid) || 0) + 1);
-  }
-  // Brief/Delivered are reached when the run starts/ends, though no event names them.
-  const ended = m.events.some((e) => e.event_type === 'workflow_end' || e.event_type === 'session_end');
-  for (const n of mapGraph().nodes || []) {
-    if (n.kind === 'start' && m.events.length && !counts.has(n.id)) counts.set(n.id, 1);
-    if (n.kind === 'end' && ended && !counts.has(n.id)) counts.set(n.id, 1);
-  }
-  return { counts };
+  const item = m.narration[S.cursor];
+  if (!item) return -1;
+  const i = m.eventIndex.get(item.id);
+  return typeof i === 'number' ? i : m.events.length - 1;
+}
+
+/** Each node's state at the cursor (see replay-core nodeStates). */
+function nodeStatesAtCursor() {
+  return C().nodeStates(S.model.events, cursorEventIndex(), mapGraph().nodes || []);
+}
+
+const STATE_WORD = { running: 'running now', done: 'done', failed: 'failed', skipped: 'skipped' };
+
+/** What a node did up to the cursor: "done ×2" on the card (its shape shows the kind), full words for screen readers. */
+function nodeStateText(n, st) {
+  const word = KIND_WORD[n.kind] || n.kind;
+  if (!st) return { line: word, label: `${n.label} ${word}, not reached yet` };
+  const times = st.runs > 1 ? ` ×${st.runs}` : '';
+  const state = STATE_WORD[st.state] || st.state;
+  // the accessible name starts with the visible text (WCAG 2.5.3 label in name)
+  return { line: `${state}${times}`, label: `${n.label} ${state}${times} (${word}${st.runs > 1 ? `, ran ${st.runs} times` : ''})` };
 }
 
 function shapePath(shape, x, y, w, h) {
@@ -1263,6 +1388,26 @@ function nodeGlyph(node, gx, gy) {
 
 const MAP_MIN_SCALE = 0.55; // below this, labels stop being readable: scroll instead
 
+/**
+ * A node's name, whole (so its accessible name contains the visible text,
+ * WCAG 2.5.3): squeezed a little when slightly too long, clipped at the card's
+ * edge when much longer (the <title> and the drawer show it in full).
+ */
+function nodeLabel(n, i, svg) {
+  const room = n.w - 52;
+  const need = String(n.label).length * 7.2;
+  const attrs = { x: n.x + 44, y: n.y + n.h / 2 - 2, 'font-weight': '600', 'aria-hidden': 'true', text: n.label };
+  if (need > room && need <= room * 1.3) {
+    attrs.textLength = room;
+    attrs.lengthAdjust = 'spacingAndGlyphs';
+  } else if (need > room) {
+    const id = `rp-clip-${i}`;
+    svg.querySelector('defs').appendChild(s('clipPath', { id }, s('rect', { x: n.x + 40, y: n.y, width: room + 4, height: n.h })));
+    attrs['clip-path'] = `url(#${id})`;
+  }
+  return s('text', attrs);
+}
+
 function renderMap() {
   const canvas = S.els.canvas;
   const prev = { left: canvas.scrollLeft, top: canvas.scrollTop };
@@ -1274,7 +1419,6 @@ function renderMap() {
     canvas.appendChild(h('div', { class: 'rp-empty' }, h('h2', { text: 'Nothing to map yet' }), h('p', { text: 'The map appears once agents start talking.' })));
     return;
   }
-  const visits = nodeVisits();
   const W = lay.width + 20;
   const H = lay.height + 20;
   const cw = Math.max(200, (canvas.clientWidth || 900) - 8);
@@ -1318,14 +1462,9 @@ function renderMap() {
   const groups = { main: s('g', { role: 'group', 'aria-label': 'Nodes' }), outside: null };
   if ((lay.groups || []).length) groups.outside = s('g', { role: 'group', 'aria-label': lay.groups[0].label });
   ordered.forEach((n, i) => {
-    const count = visits.counts.get(n.id) || 0;
-    const word = KIND_WORD[n.kind] || n.kind;
-    const kindLine = count ? `${word} · ×${count}` : word;
-    const name = `${n.label} ${kindLine}${count ? `, ${count} events here` : ', not reached yet'}`;
     const g = s('g', {
-      class: `rp-node${count ? '' : ' rp-unvisited'}${S.nodeSel === n.id ? ' rp-sel' : ''}`,
+      class: `rp-node${S.nodeSel === n.id ? ' rp-sel' : ''}`,
       'data-node': n.id, 'data-key': `node:${n.id}`, role: 'button', tabindex: i === 0 ? '0' : '-1',
-      'aria-label': name,
       onclick: () => selectNode(n.id),
       onfocus: () => highlight(null),
     });
@@ -1334,9 +1473,9 @@ function renderMap() {
     g.appendChild(path ? s('path', { class: 'rp-card', d: path }) : s('rect', { class: 'rp-card', x: n.x, y: n.y, width: n.w, height: n.h, rx: n.kind === 'tool' ? 14 : (n.kind === 'end' ? 2 : 6) }));
     if (n.kind === 'end') g.appendChild(s('rect', { class: 'rp-card', x: n.x + 3, y: n.y + 3, width: n.w - 6, height: n.h - 6, rx: 2, fill: 'none' }));
     g.appendChild(nodeGlyph(n, n.x + 12, n.y + n.h / 2 - 11));
-    g.appendChild(s('text', { x: n.x + 44, y: n.y + n.h / 2 - 2, 'font-weight': '600', 'aria-hidden': 'true', text: fitLabel(n.label, n.w - 52, 7.2) }));
-    g.appendChild(s('text', { class: 'rp-kindword', x: n.x + 44, y: n.y + n.h / 2 + 13, 'aria-hidden': 'true', text: ` ${kindLine}` }));
-    g.appendChild(s('title', { text: name }));
+    g.appendChild(nodeLabel(n, i, svg));
+    g.appendChild(s('text', { class: 'rp-kindword', x: n.x + 44, y: n.y + n.h / 2 + 13, 'aria-hidden': 'true' }));
+    g.appendChild(s('title'));
     (n.outside && groups.outside ? groups.outside : groups.main).appendChild(g);
   });
   svg.appendChild(groups.main);
@@ -1367,12 +1506,25 @@ function enablePan(svg, box) {
   svg.addEventListener('pointercancel', end);
 }
 
+/** Node states follow the cursor: not reached (dashed), running, done, failed. */
 function applyMapCursor() {
-  const item = S.model.narration[S.cursor];
-  const ev = item ? S.model.events[S.model.eventIndex.get(item.id)] : null;
+  const ev = S.model.events[cursorEventIndex()];
   const now = new Set(ev ? C().nodeIdsForEvent(ev) : []);
+  const states = nodeStatesAtCursor();
+  const byId = new Map((mapLayout().nodes || []).map((n) => [n.id, n]));
   for (const g of S.els.canvas.querySelectorAll('.rp-node')) {
-    g.classList.toggle('rp-now', now.has(g.getAttribute('data-node')));
+    const id = g.getAttribute('data-node');
+    const st = states.get(id);
+    const n = byId.get(id) || { id, label: id, kind: '' };
+    const { line, label } = nodeStateText(n, st);
+    g.classList.toggle('rp-now', now.has(id));
+    g.classList.toggle('rp-unvisited', !st);
+    for (const k of ['running', 'done', 'failed', 'skipped']) g.classList.toggle(`rp-st-${k}`, Boolean(st && st.state === k));
+    g.setAttribute('aria-label', label);
+    const kw = g.querySelector('.rp-kindword');
+    if (kw) kw.textContent = ` ${fitLabel(line, (n.w || 136) - 52, 6.2)}`;
+    const tip = g.querySelector('title');
+    if (tip) tip.textContent = label;
   }
 }
 
@@ -1403,7 +1555,7 @@ function renderLegend() {
     lg.append(h('span', { text: 'solid arrow: hand-off · dashed: delegate · dotted: route' }), h('span', { text: 'outlined block: not reached yet' }));
     if (S.overlay) lg.append(h('span', { text: `bar under a block: ${S.heat === 'cost' ? 'cost' : 'latency'} (taller and darker = more)` }));
   } else {
-    lg.append(h('span', { text: 'dashed outline: not reached · bold outline: now' }));
+    lg.append(h('span', { text: 'dashed: not reached · blue: running · green: done · red: failed · bold: the step you are on' }));
   }
 }
 
@@ -1447,6 +1599,11 @@ function renderScrubber() {
   const item = S.model.narration[S.cursor];
   const existing = box.querySelector('input[type=range]');
   const valueText = item ? `Step ${S.cursor + 1} of ${n}: ${item.text}` : 'No steps';
+  const playBtn = box.querySelector('[data-key="play"]');
+  if (playBtn) {
+    playBtn.textContent = S.play ? '❚❚ Pause' : '▶ Play';
+    playBtn.setAttribute('aria-pressed', S.play ? 'true' : 'false');
+  }
   if (existing && Number(existing.max) === Math.max(0, n - 1)) {
     existing.value = String(Math.max(0, S.cursor));
     existing.setAttribute('aria-valuetext', valueText);
@@ -1456,6 +1613,7 @@ function renderScrubber() {
   clear(box);
   if (!n) return;
   box.append(
+    h('button', { type: 'button', class: 'rp-btn', 'data-key': 'play', 'aria-pressed': S.play ? 'true' : 'false', title: 'Play the run step by step', onclick: togglePlay }, S.play ? '❚❚ Pause' : '▶ Play'),
     h('button', { type: 'button', class: 'rp-btn', 'data-key': 'prev', onclick: () => setCursor(S.cursor - 1) }, h('span', { 'aria-hidden': 'true' }, '← '), 'Previous'),
     h('label', { for: 'rp-scrub-range', class: 'rp-sr', text: 'Step' }),
     h('input', {
@@ -1467,6 +1625,28 @@ function renderScrubber() {
     h('output', { for: 'rp-scrub-range', text: item ? `${S.cursor + 1} / ${n} · ${offset(item.t)}` : '' }),
     h('span', { class: 'rp-hint', text: '← → step · Home / End' }),
   );
+}
+
+/** Play: move the cursor one step every PLAY_MS, from the start if at the end. */
+const PLAY_MS = 900;
+
+function togglePlay() {
+  if (!S) return;
+  if (S.play) { stopPlay(); return; }
+  if (S.cursor >= S.model.narration.length - 1) setCursor(0);
+  S.play = setInterval(() => {
+    if (!S || !S.model) return;
+    if (S.cursor >= S.model.narration.length - 1) { stopPlay(); return; }
+    setCursor(S.cursor + 1);
+  }, PLAY_MS);
+  renderScrubber();
+}
+
+function stopPlay() {
+  if (!S || !S.play) return;
+  clearInterval(S.play);
+  S.play = null;
+  renderScrubber();
 }
 
 // ── drawer ────────────────────────────────────────────────────────────
@@ -1702,7 +1882,7 @@ function renderPending() {
   const pending = S.model.pending;
   // Rebuild only when something visible changed, so a live update never
   // resets the caret of someone typing arguments or a reason.
-  const sig = `${S.solo}|${Boolean(S.run?.live)}|${pending.map((b) => {
+  const sig = `${S.canApprove}|${Boolean(S.run?.live)}|${pending.map((b) => {
     const st = S.asks.get(b.approvalId) || {};
     return `${b.approvalId}:${Boolean(st.editing)}:${st.sent || ''}:${Boolean(st.loaded)}`;
   }).join(',')}`;
@@ -1724,8 +1904,8 @@ function renderPending() {
       `${req ? req.agent_name || 'An agent' : 'An agent'} asks to ${d.kind === 'task_output_review' ? 'deliver the output of' : 'run'} ${b.label}`,
       d.risk ? h('span', { class: 'rp-badge', text: `${d.risk} risk` }) : null));
     card.appendChild(h('pre', { tabindex: '0', 'aria-label': 'Recorded arguments (redacted)', text: prettyJson(d.args || {}) }));
-    if (S.solo) {
-      card.appendChild(h('p', { class: 'rp-note', text: 'This export cannot answer. Open the run with praisonai replay view to approve or deny.' }));
+    if (!S.canApprove) {
+      card.appendChild(h('p', { class: 'rp-note', text: S.solo ? 'This export cannot answer. Open the run with praisonai replay view to approve or deny.' : 'Answer this request where your app asks for approval.' }));
       box.appendChild(card);
       continue;
     }
@@ -1792,7 +1972,7 @@ async function startEdit(b, recorded) {
   st.text = prettyJson(recorded.args || {});
   st.loaded = false;
   try {
-    const res = await fetch(`/api/approvals/${encodeURIComponent(b.approvalId)}`, { signal: S.abort.signal });
+    const res = await fetch(`${S.base}/api/approvals/${encodeURIComponent(b.approvalId)}`, { signal: S.abort.signal });
     if (res.ok) {
       const entry = await res.json();
       if (entry && entry.arguments && typeof entry.arguments === 'object') {
@@ -1825,7 +2005,7 @@ async function decide(b, action, withArgs) {
   }
   let msg;
   try {
-    const res = await fetch(`/api/approvals/${encodeURIComponent(b.approvalId)}/${action}`, {
+    const res = await fetch(`${S.base}/api/approvals/${encodeURIComponent(b.approvalId)}/${action}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: S.abort.signal,
     });
     if (res.ok) msg = `${action === 'approve' ? 'Approved' : 'Denied'}. Waiting for the run to continue…`;

@@ -3,7 +3,9 @@
 Routes (contract v1, section 5):
 
 * ``GET /api/replay/runs``                       run picker rows, newest first
-* ``GET /api/replay/runs/{run_id}/events``       ``{events, graph, run}``; ``?after_seq=N``
+* ``GET /api/replay/runs/{run_id}/events``       ``{events, graph, run}``; ``?after_seq=N``;
+  ``?wait=1`` answers ``{events: [], graph: null, run: null}`` (not 404) for a run
+  that has not written its first event yet
 * ``GET /api/replay/runs/{run_id}/stream``       SSE tail of the JSONL file
 
 The trace directory is ``$PRAISONAI_TRACES_DIR``, else ``$PRAISON_HOME/traces``,
@@ -12,20 +14,30 @@ else ``~/.praison/traces``.  Run ids must match ``^[A-Za-z0-9._-]+$``.
 The browser side lives in ``templates/frontend/plugins/views/replay-core.js``
 (pure functions) and ``replay.js`` (DOM/SVG).  :func:`standalone_html` inlines
 both into one self-contained page for ``praisonai replay export --format html``.
+
+:func:`create_replay_app` is the same view as a small ASGI app (no dashboard) to
+mount inside your own app, optionally with a Run box that starts runs::
+
+    app.mount("/replay", create_replay_app(run=my_runner))
 """
 
 from __future__ import annotations
 
 import asyncio
+import html
+import inspect
 import json
 import logging
+import threading
 import time
+import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
+from urllib.parse import quote
 
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
-from starlette.responses import JSONResponse, StreamingResponse
+from starlette.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from starlette.routing import Route
 
 from . import _trace_jsonl as tj
@@ -233,6 +245,8 @@ class ReplayFeature(BaseFeatureProtocol):
     async def _events(self, request: Request) -> JSONResponse:
         path, err = _resolve(request)
         if err is not None:
+            if err.status_code == 404 and request.query_params.get("wait") == "1":
+                return JSONResponse({"events": [], "graph": None, "run": None})
             return err
         after_seq, err = _parse_after_seq(request)
         if err is not None:
@@ -297,3 +311,131 @@ class ReplayFeature(BaseFeatureProtocol):
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
         )
+
+
+# ── embeddable app ─────────────────────────────────────────────────────
+
+#: Longest input the Run box accepts (characters).
+MAX_RUN_INPUT = 20_000
+
+
+def _embed_page(base: str, title: str, cfg: Dict[str, Any]) -> str:
+    """The page at the app's root: the view, mounted with *cfg*, and nothing else."""
+    return (
+        "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+        f"<title>{html.escape(title)}</title>\n"
+        f"<link rel=\"icon\" href=\"data:image/svg+xml,{quote(REPLAY_MARK_SVG.replace('currentColor', '#1A56DB'))}\">\n"
+        "<style>body{margin:0;font-family:system-ui,-apple-system,'Segoe UI',sans-serif}"
+        "#replay-root{padding:12px;box-sizing:border-box;max-width:100%}</style>\n"
+        "</head>\n<body>\n<main id=\"replay-root\"></main>\n"
+        "<script type=\"module\">\n"
+        f"import {{ render }} from {_json_for_script(base + '/replay.js')};\n"
+        f"render(document.getElementById('replay-root'), {_json_for_script(cfg)});\n"
+        "</script>\n</body>\n</html>\n"
+    )
+
+
+def create_replay_app(
+    run: Optional[Callable[[str, str], Any]] = None,
+    *,
+    title: str = "PraisonAI Replay",
+    input: Optional[str] = "",
+    placeholder: str = "",
+):
+    """PraisonAI Replay as a small ASGI app to mount in your own app.
+
+    Serves the view at ``/`` (no dashboard around it), its two scripts, and the
+    ``/api/replay/...`` routes, all relative to where it is mounted::
+
+        from fastapi import FastAPI
+        from praisonaiui.features.replay import create_replay_app
+
+        app = FastAPI()
+        app.mount("/replay", create_replay_app())
+        # <iframe src="/replay/?run=RUN_ID"> shows one run live; /replay/ lists runs
+
+    Args:
+        run: Optional ``run(input, run_id)``. When given, the page shows an
+            input box and a **Run** button; each click calls it in a worker
+            thread with a new ``run_id``, and the page follows that run live.
+            It must record the run under ``run_id`` (``praisonai.replay.app()``
+            does this for an agent, team or flow). One run at a time.
+        title: Page title.
+        input: Text the input box starts with; ``None`` for no input box
+            (just a Run button, e.g. for a YAML file that has its own topic).
+        placeholder: Placeholder text for the input box.
+
+    Traces are read from the same folder as the rest of Replay
+    (``$PRAISONAI_TRACES_DIR`` > ``$PRAISON_HOME/traces`` > ``~/.praison/traces``).
+    Anyone who can reach the app can read the runs (and, with ``run``, start
+    them): keep it on localhost or behind your app's auth.
+    """
+    from starlette.applications import Starlette
+
+    feature = ReplayFeature()
+    busy = threading.Lock()
+
+    async def page(request: Request) -> HTMLResponse:
+        base = str(request.scope.get("root_path", "")).rstrip("/")
+        cfg: Dict[str, Any] = {"base": base, "approve": False}
+        wanted = request.query_params.get("run")
+        if wanted and tj.is_valid_run_id(wanted):
+            cfg["run"] = wanted
+        if run is not None:
+            cfg["runner"] = {"input": input or "", "placeholder": placeholder, "ask": input is not None}
+        return HTMLResponse(_embed_page(base, title, cfg), headers={"Cache-Control": "no-store"})
+
+    def script(path: Path):
+        async def serve(request: Request) -> FileResponse:
+            return FileResponse(path, media_type="text/javascript", headers={"Cache-Control": "no-cache"})
+        return serve
+
+    def _call(text: str, run_id: str) -> None:
+        try:
+            result = run(text, run_id)  # type: ignore[misc]
+            if inspect.isawaitable(result):
+                asyncio.run(result)
+        except Exception:
+            logger.exception("replay run %s failed", run_id)
+        finally:
+            busy.release()
+
+    async def start(request: Request) -> JSONResponse:
+        # JSON only: a cross-site form post cannot set this content type without
+        # a CORS preflight, which this app never answers.
+        if not request.headers.get("content-type", "").lower().startswith("application/json"):
+            return JSONResponse({"error": "send JSON: {\"input\": \"...\"}"}, status_code=415)
+        try:
+            body = await request.json()
+        except ValueError:
+            return _bad_request("body must be JSON")
+        text = body.get("input", "") if isinstance(body, dict) else None
+        if not isinstance(text, str) or len(text) > MAX_RUN_INPUT:
+            return _bad_request(f"input must be a string of at most {MAX_RUN_INPUT} characters")
+        if not busy.acquire(blocking=False):
+            return JSONResponse({"error": "a run is already going; wait for it to finish"}, status_code=409)
+        run_id = f"run-{uuid.uuid4().hex[:12]}"
+        try:
+            threading.Thread(target=_call, args=(text, run_id), name=f"replay-{run_id}", daemon=True).start()
+        except Exception:
+            busy.release()
+            raise
+        # Answer once the trace file exists (usually milliseconds), so the page
+        # can open the run straight away; it waits on its own if this times out.
+        path = tj.run_path(run_id)
+        for _ in range(40):
+            if path is not None and path.is_file():
+                break
+            await asyncio.sleep(0.05)
+        return JSONResponse({"run_id": run_id})
+
+    routes = [
+        Route("/", page, methods=["GET"]),
+        Route("/replay.js", script(REPLAY_VIEW_JS), methods=["GET"]),
+        Route("/replay-core.js", script(REPLAY_CORE_JS), methods=["GET"]),
+        *feature.routes(),
+    ]
+    if run is not None:
+        routes.append(Route("/api/replay/run", start, methods=["POST"]))
+    return Starlette(routes=routes)
