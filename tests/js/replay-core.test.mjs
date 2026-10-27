@@ -456,3 +456,54 @@ test('nodeStates: a recorded flow fixture ends with every visited node done or f
   assert.ok(st.size > 0);
   for (const [id, v] of st) assert.notEqual(v.state, 'running', `${id} still running after the run ended`);
 });
+
+// ── unnamed agents (Agent(instructions=...), agent_name null) ────────────
+
+const unnamedRun = (newIds) => [
+  { sequence_num: 0, timestamp: 1, event_type: 'session_start', agent_name: null },
+  { sequence_num: 1, timestamp: 2, event_type: 'agent_start', agent_name: null, node_id: newIds ? 'agent:Agent' : null },
+  { sequence_num: 2, timestamp: 3, event_type: 'llm_request', agent_name: null, node_id: newIds ? 'agent:Agent' : null },
+  { sequence_num: 3, timestamp: 4, event_type: 'llm_response', agent_name: null, node_id: newIds ? 'agent:Agent' : null },
+  { sequence_num: 4, timestamp: 5, event_type: 'tool_call_start', agent_name: null, node_id: newIds ? 'tool:Agent/search' : 'tool:None/search', data: { tool_name: 'search' } },
+  { sequence_num: 5, timestamp: 6, event_type: 'tool_call_end', agent_name: null, node_id: newIds ? 'tool:Agent/search' : 'tool:None/search', data: { tool_name: 'search' } },
+  { sequence_num: 6, timestamp: 7, event_type: 'agent_end', agent_name: null, node_id: newIds ? 'agent:Agent' : null, data: newIds ? { status: 'completed' } : {} },
+  { sequence_num: 7, timestamp: 8, event_type: 'session_end', agent_name: null },
+];
+
+for (const newIds of [true, false]) {
+  test(`unnamed agent is mapped as "Agent" (${newIds ? 'new' : '4.7.19'} trace ids)`, () => {
+    const g = deriveGraph(unnamedRun(newIds));
+    assert.deepEqual(g.nodes.map((n) => [n.id, n.label]), [['agent:Agent', 'Agent'], ['tool:Agent/search', 'search']]);
+    assert.deepEqual(g.edges.map((e) => `${e.source}->${e.target}:${e.kind}`), ['agent:Agent->tool:Agent/search:uses']);
+    const st = core.nodeStates(unnamedRun(newIds), Infinity, g.nodes);
+    assert.equal(st.get('agent:Agent').state, 'done');
+    assert.equal(st.get('tool:Agent/search').state, 'done');
+    assert.ok(![...st.keys()].some((k) => k.includes('None')), 'no tool:None ids leak into the map');
+  });
+}
+
+test('a failed unnamed agent run is red on the map', () => {
+  const evs = unnamedRun(true);
+  evs[6] = { ...evs[6], data: { status: 'failed' } };
+  assert.equal(core.nodeStates(evs, Infinity, deriveGraph(evs).nodes).get('agent:Agent').state, 'failed');
+});
+
+test('unnamed agents do not reappear "outside" a recorded team graph', () => {
+  const graph = { schema: 'praisonai.graph/1', kind: 'team', nodes: [
+    { id: 'start:begin', kind: 'start', label: 'Brief' }, { id: 'task:t', kind: 'task', label: 't' }, { id: 'end:done', kind: 'end', label: 'Delivered' }],
+  edges: [{ source: 'start:begin', target: 'task:t', kind: 'next' }, { source: 'task:t', target: 'end:done', kind: 'next' }] };
+  const og = core.observedGraph(graph, unnamedRun(true));
+  assert.deepEqual(og.nodes.map((n) => n.id), ['start:begin', 'task:t', 'end:done']);
+  assert.deepEqual(og.outside, []);
+});
+
+test('named agents are unchanged', () => {
+  const evs = unnamedRun(true).map((e) => ({ ...e, agent_name: e.agent_name === null && e.event_type !== 'session_start' && e.event_type !== 'session_end' ? 'Writer' : e.agent_name, node_id: e.node_id && e.node_id.replace('Agent', 'Writer') }));
+  assert.deepEqual(deriveGraph(evs).nodes.map((n) => n.id), ['agent:Writer', 'tool:Writer/search']);
+});
+
+test('an unnamed agent is narrated as "Agent", not "The run"', () => {
+  const evs = unnamedRun(true);
+  assert.equal(narrate(evs[1]), 'Agent started.');
+  assert.equal(narrate(evs[7]).startsWith('Recording'), true);
+});

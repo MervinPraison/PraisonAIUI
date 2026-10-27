@@ -51,6 +51,9 @@ const PAIRS = {
 };
 const END_OF = Object.fromEntries(Object.entries(PAIRS).map(([s, e]) => [e, s]));
 
+/** Events an agent run emits for itself (lifecycle, model and tool calls). */
+const AGENT_RUN_EVENTS = new Set(['agent_start', 'agent_end', 'llm_request', 'llm_response', 'tool_call_start', 'tool_call_end']);
+
 /** Approvers that mean "a person decided", anything else is an automatic source. */
 const HUMAN_APPROVERS = new Set(['user', 'human', 'you', 'ui', 'replay', 'console', 'web', 'dashboard']);
 
@@ -172,7 +175,7 @@ export function narrate(ev, related = null) {
   if (!ev || typeof ev !== 'object') return '';
   const d = dataOf(ev);
   const rd = dataOf(related);
-  const who = str(ev.agent_name) || 'The run';
+  const who = str(ev.agent_name) || (AGENT_RUN_EVENTS.has(ev.event_type) ? agentOf(ev) : '') || 'The run';
   switch (ev.event_type) {
     case 'session_start':
       return 'Recording started.';
@@ -699,14 +702,32 @@ export function buildModel(events, graph = null) {
 // ── graph helpers ─────────────────────────────────────────────────────
 
 /** Graph node ids an event touches (node_id, else derived from agent/tool names). */
+/**
+ * The agent an event belongs to. An unnamed agent (``Agent(instructions=...)``)
+ * has no agent_name: newer traces give it the id ``agent:Agent``, older ones
+ * ``tool:None/<tool>`` or nothing, so its own run events fall back to "Agent".
+ */
+export function agentOf(ev) {
+  if (!ev) return null;
+  if (ev.agent_name) return ev.agent_name;
+  const id = str(ev.node_id);
+  if (id.startsWith('agent:')) return id.slice(6) || 'Agent';
+  if (id.startsWith('tool:') && AGENT_RUN_EVENTS.has(ev.event_type)) {
+    const who = id.slice(5).split('/')[0];
+    return who && who !== 'None' ? who : 'Agent';
+  }
+  return AGENT_RUN_EVENTS.has(ev.event_type) ? 'Agent' : null;
+}
+
 export function nodeIdsForEvent(ev) {
   const out = [];
   if (!ev) return out;
-  if (ev.node_id) out.push(ev.node_id);
+  if (ev.node_id && !str(ev.node_id).startsWith('tool:None/')) out.push(ev.node_id);
   const d = dataOf(ev);
-  if (ev.agent_name) {
-    out.push(ev.agent_name === 'Manager' ? MANAGER_LANE : `agent:${ev.agent_name}`);
-    if (d.tool_name) out.push(`tool:${ev.agent_name}/${d.tool_name}`);
+  const who = agentOf(ev);
+  if (who) {
+    out.push(who === 'Manager' ? MANAGER_LANE : `agent:${who}`);
+    if (d.tool_name) out.push(`tool:${who}/${d.tool_name}`);
   }
   if (String(ev.event_type).startsWith('approval_')) out.push(HUMAN_LANE);
   return [...new Set(out)];
@@ -717,8 +738,11 @@ export function nodeIdsForEvent(ev) {
  * sessions): agents, their tools, the manager and you, with hand-off/uses/reviews
  * edges labelled with how often they happened.
  */
-export function deriveGraph(events) {
+export function deriveGraph(events, opts = {}) {
   const evs = sortEvents(events);
+  // Unnamed agents count only when there is no recorded graph: a team graph
+  // leaves them out on purpose, and they must not reappear as "outside".
+  const nameOf = opts.unnamed === false ? (ev) => ev.agent_name || null : agentOf;
   const nodes = new Map();
   const edges = new Map();
   const node = (id, kind, label) => { if (!nodes.has(id)) nodes.set(id, { id, kind, label, parent: null, meta: {} }); return id; };
@@ -732,16 +756,17 @@ export function deriveGraph(events) {
   };
   evs.forEach((ev) => {
     const d = dataOf(ev);
-    if (ev.agent_name) agentNode(ev.agent_name);
-    if (ev.event_type === 'agent_handoff' && (d.from_agent || ev.agent_name) && d.to_agent) {
+    const who = nameOf(ev);
+    if (who) agentNode(who);
+    if (ev.event_type === 'agent_handoff' && (d.from_agent || who) && d.to_agent) {
       const kind = { delegate: 'delegates', route: 'routes', spawn: 'handoff' }[d.kind] || 'handoff';
-      edge(agentNode(d.from_agent || ev.agent_name), agentNode(d.to_agent), kind);
-    } else if (ev.event_type === 'tool_call_start' && ev.agent_name && d.tool_name) {
-      const tool = node(`tool:${ev.agent_name}/${d.tool_name}`, 'tool', d.tool_name);
-      edge(agentNode(ev.agent_name), tool, 'uses');
+      edge(agentNode(d.from_agent || who), agentNode(d.to_agent), kind);
+    } else if (ev.event_type === 'tool_call_start' && who && d.tool_name) {
+      const tool = node(`tool:${who}/${d.tool_name}`, 'tool', d.tool_name);
+      edge(agentNode(who), tool, 'uses');
     } else if (ev.event_type === 'approval_requested') {
       const you = node(HUMAN_LANE, 'human', 'You');
-      const target = d.tool && ev.agent_name ? node(`tool:${ev.agent_name}/${d.tool}`, 'tool', d.tool) : (ev.agent_name ? agentNode(ev.agent_name) : null);
+      const target = d.tool && who ? node(`tool:${who}/${d.tool}`, 'tool', d.tool) : (who ? agentNode(who) : null);
       if (target) edge(you, target, 'reviews');
     }
   });
@@ -929,7 +954,8 @@ export function layoutMap(graph, opts = {}) {
  * them as "Outside the team". Without a recorded graph this is deriveGraph().
  */
 export function observedGraph(graph, events) {
-  const derived = deriveGraph(events);
+  const hasGraph = Boolean(graph && Array.isArray(graph.nodes) && graph.nodes.length);
+  const derived = deriveGraph(events, { unnamed: !hasGraph });
   if (!graph || !Array.isArray(graph.nodes) || !graph.nodes.length) return derived;
   const nodes = graph.nodes.filter((n) => n && n.id).map((n) => ({ ...n, meta: { ...(n.meta || {}) } }));
   const edges = (Array.isArray(graph.edges) ? graph.edges : []).filter((e) => e && e.source && e.target).map((e) => ({ ...e }));
@@ -1095,7 +1121,7 @@ export function edgeText(edge) {
 
 const api = {
   PALETTE, SHAPES, HUMAN_LANE, MANAGER_LANE, EDGE_WORDS,
-  buildModel, narrate, layoutMap, layoutRunMap, observedGraph, deriveGraph, nodeIdsForEvent, nodeStates, pairEvents, sortEvents,
+  buildModel, narrate, layoutMap, layoutRunMap, observedGraph, deriveGraph, nodeIdsForEvent, agentOf, nodeStates, pairEvents, sortEvents,
   eventId, formatDuration, formatCost, argPreview, truncate, stripPrefix, edgeText,
 };
 if (typeof globalThis !== 'undefined') globalThis.PraisonReplayCore = api;
