@@ -701,13 +701,12 @@ export function buildModel(events, graph = null) {
 
 // ── graph helpers ─────────────────────────────────────────────────────
 
-/** Graph node ids an event touches (node_id, else derived from agent/tool names). */
 /**
  * The agent an event belongs to. An unnamed agent (``Agent(instructions=...)``)
  * has no agent_name: newer traces give it the id ``agent:Agent``, older ones
  * ``tool:None/<tool>`` or nothing, so its own run events fall back to "Agent".
  */
-export function agentOf(ev) {
+function agentOf(ev) {
   if (!ev) return null;
   if (ev.agent_name) return ev.agent_name;
   const id = str(ev.node_id);
@@ -719,6 +718,7 @@ export function agentOf(ev) {
   return AGENT_RUN_EVENTS.has(ev.event_type) ? 'Agent' : null;
 }
 
+/** Graph node ids an event touches (node_id, else derived from agent/tool names). */
 export function nodeIdsForEvent(ev) {
   const out = [];
   if (!ev) return out;
@@ -956,7 +956,7 @@ export function layoutMap(graph, opts = {}) {
 export function observedGraph(graph, events) {
   const hasGraph = Boolean(graph && Array.isArray(graph.nodes) && graph.nodes.length);
   const derived = deriveGraph(events, { unnamed: !hasGraph });
-  if (!graph || !Array.isArray(graph.nodes) || !graph.nodes.length) return derived;
+  if (!hasGraph) return derived;
   const nodes = graph.nodes.filter((n) => n && n.id).map((n) => ({ ...n, meta: { ...(n.meta || {}) } }));
   const edges = (Array.isArray(graph.edges) ? graph.edges : []).filter((e) => e && e.source && e.target).map((e) => ({ ...e }));
   const ids = new Set(nodes.map((n) => n.id));
@@ -1121,7 +1121,7 @@ export function edgeText(edge) {
 
 const api = {
   PALETTE, SHAPES, HUMAN_LANE, MANAGER_LANE, EDGE_WORDS,
-  buildModel, narrate, layoutMap, layoutRunMap, observedGraph, deriveGraph, nodeIdsForEvent, agentOf, nodeStates, pairEvents, sortEvents,
+  buildModel, narrate, layoutMap, layoutRunMap, observedGraph, deriveGraph, nodeIdsForEvent, nodeStates, pairEvents, sortEvents,
   eventId, formatDuration, formatCost, argPreview, truncate, stripPrefix, edgeText,
 };
 if (typeof globalThis !== 'undefined') globalThis.PraisonReplayCore = api;
