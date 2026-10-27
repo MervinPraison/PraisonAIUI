@@ -5,8 +5,33 @@
  * incoming messages from parent.
  */
 
-import { useEffect, useCallback, useRef } from 'react';
-import { useSSE } from './useSSE';
+import { useEffect, useCallback, useRef, useState } from 'react';
+
+interface EventSourceOptions {
+  enabled?: boolean;
+  onMessage?: (event: MessageEvent) => void;
+  onOpen?: () => void;
+  onError?: () => void;
+}
+
+/**
+ * Minimal EventSource subscription. (useSSE in this package is the chat
+ * streaming store, not a generic SSE hook, so it cannot open this stream.)
+ */
+function useEventSource(url: string, { enabled = true, onMessage, onOpen, onError }: EventSourceOptions) {
+  const [connected, setConnected] = useState(false);
+  const handlers = useRef({ onMessage, onOpen, onError });
+  handlers.current = { onMessage, onOpen, onError };
+  useEffect(() => {
+    if (!enabled || typeof EventSource === 'undefined') return;
+    const source = new EventSource(url);
+    source.onopen = () => { setConnected(true); handlers.current.onOpen?.(); };
+    source.onmessage = (event) => handlers.current.onMessage?.(event);
+    source.onerror = () => { setConnected(false); handlers.current.onError?.(); };
+    return () => { source.close(); setConnected(false); };
+  }, [url, enabled]);
+  return { connected };
+}
 
 export interface WindowMessageData {
   type: string;
@@ -85,7 +110,7 @@ export function useWindowMessage(options: UseWindowMessageOptions = {}): UseWind
   const isIframe = window !== window.parent;
   
   // SSE connection for outbound messages
-  const { connected } = useSSE('/sse/window-message', {
+  const { connected } = useEventSource('/sse/window-message', {
     enabled: enabled && isIframe,
     onMessage: (event) => {
       try {
