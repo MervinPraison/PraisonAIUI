@@ -4,7 +4,6 @@
  * Shows live-updating task lists with states, progress bars, and click-to-jump functionality.
  */
 
-import React from 'react'
 import { ChevronRight, ChevronDown, CheckCircle, Clock, XCircle, Circle, ExternalLink } from 'lucide-react'
 import { useTaskState, setTasksCollapsed, type Task, type TaskList, type TaskStatus } from '../state/tasks'
 import { cn } from '../lib/utils'

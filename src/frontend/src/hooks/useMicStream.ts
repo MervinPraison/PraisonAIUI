@@ -183,7 +183,7 @@ export function useMicStream(options: UseMicStreamOptions = {}): UseMicStreamRet
       onConnectionChangeRef.current?.(false);
     };
     
-    ws.onerror = (error) => {
+    ws.onerror = () => {
       onErrorRef.current?.(new Error('WebSocket error'));
       setConnected(false);
       onConnectionChangeRef.current?.(false);

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { Eye, AlertCircle } from 'lucide-react';
 import { ChatMessages } from '../chat/ChatMessages';
+import type { ChatMessage } from '../types';
 import { Button } from '../components/ui/button';
 
 interface SharedThreadData {
@@ -11,18 +11,13 @@ interface SharedThreadData {
     title: string;
     created_at: string;
   };
-  messages: Array<{
-    id: string;
-    role: string;
-    content: string;
-    timestamp: string;
-    toolCalls?: any[];
-  }>;
+  messages: ChatMessage[];
   read_only: boolean;
 }
 
 export function SharedThread() {
-  const { token } = useParams<{ token: string }>();
+  // Served at /shared/{token} (server.py); this app has no client-side router.
+  const token = decodeURIComponent(window.location.pathname.split('/shared/')[1]?.split('/')[0] ?? '');
   const [threadData, setThreadData] = useState<SharedThreadData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -128,10 +123,13 @@ export function SharedThread() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {threadData.messages.length > 0 ? (
             <div className="divide-y divide-gray-100">
-              <ChatMessages 
+              <ChatMessages
                 messages={threadData.messages}
                 sessionId={threadData.thread_id}
-                isSharedView={true}
+                currentResponse=""
+                thinkingSteps={[]}
+                toolCalls={[]}
+                isStreaming={false}
               />
             </div>
           ) : (

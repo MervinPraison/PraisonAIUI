@@ -20,43 +20,16 @@ interface CustomElementProps {
   onError?: (error: Error) => void;
 }
 
-interface CustomComponentModule {
-  default: React.ComponentType<any>;
-}
-
 // Registry of loaded components (cache)
 const componentCache = new Map<string, Promise<React.ComponentType<any>>>();
 
-// List of available custom components (in practice, this would be populated from backend)
-const availableComponents = new Set([
-  'ExampleWidget',
-  'UserCard',
-  'DataChart', 
-  'FormBuilder',
-  'CodeEditor',
-  'ImageGallery',
-  'ChatEmbed'
-]);
-
-// Static imports for build-tool compatibility
-const ExampleWidget = React.lazy(() => import('../components/custom/ExampleWidget'));
-const UserCard = React.lazy(() => import('../components/custom/UserCard'));
-const DataChart = React.lazy(() => import('../components/custom/DataChart'));
-const FormBuilder = React.lazy(() => import('../components/custom/FormBuilder'));
-const CodeEditor = React.lazy(() => import('../components/custom/CodeEditor'));
-const ImageGallery = React.lazy(() => import('../components/custom/ImageGallery'));
-const ChatEmbed = React.lazy(() => import('../components/custom/ChatEmbed'));
-
-// Static mapping of component names to imports
-const componentMap: Record<string, React.ComponentType<any>> = {
-  ExampleWidget,
-  UserCard,
-  DataChart,
-  FormBuilder,
-  CodeEditor,
-  ImageGallery,
-  ChatEmbed,
-};
+// Custom components available to <CustomElementHost name="..." />. The example
+// widgets this once listed (ExampleWidget, UserCard, ...) were never added, and
+// importing them broke the build. Register real components here as they land:
+//   const MyWidget = React.lazy(() => import('../components/custom/MyWidget'));
+//   componentMap.MyWidget = MyWidget;
+const componentMap: Record<string, React.ComponentType<any>> = {};
+const availableComponents = new Set(Object.keys(componentMap));
 
 /**
  * Load a custom component with static mapping for build-tool compatibility
