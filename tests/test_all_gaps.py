@@ -141,7 +141,7 @@ check("GET nonexistent plugin", client.get("/api/marketplace/plugins/nonexistent
 print("\n═══ Code Execution API ═══")
 check("GET /api/code/languages", client.get("/api/code/languages"), 200, ["languages", "count"])
 r = client.post("/api/code/execute", json={"code": "print('hello')", "language": "python"})
-check("POST /api/code/execute", r, 200, ["status", "language"])
+check("POST /api/code/execute (pending approval)", r, 202, ["status", "approval_id"])
 r = client.post("/api/code/execute", json={"code": "ls", "language": "ruby"})
 check("POST execute disallowed lang", r, 400, ["error"])
 

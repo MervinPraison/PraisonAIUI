@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import pytest
 from starlette.testclient import TestClient
 
 from praisonaiui.server import create_app
@@ -34,15 +35,86 @@ class TestCodeExecutionApi:
         d = r.json()
         assert "languages" in d and "count" in d
 
-    def test_execute(self):
+    @pytest.fixture(autouse=True)
+    def _fresh_approvals(self, monkeypatch):
+        from praisonaiui.features import approvals
+
+        monkeypatch.setattr(approvals, "_approval_manager", approvals.SimpleApprovalManager())
+        return approvals._approval_manager
+
+    def test_execute_requires_approval(self, _fresh_approvals):
         client = TestClient(create_app())
+        payload = {"code": "print('hi')", "language": "python", "timeout": 30}
+        r = client.post("/api/code/execute", json=payload)
+        assert r.status_code == 202
+        d = r.json()
+        assert d["status"] == "pending_approval"
+        approval_id = d["approval_id"]
+        assert _fresh_approvals.get(approval_id)["tool_name"] == "execute_code"
+
+        # Not yet approved
+        r = client.post("/api/code/execute", json={**payload, "approval_id": approval_id})
+        assert r.status_code == 403
+
+        assert client.post(f"/api/approvals/{approval_id}/approve", json={}).status_code == 200
+        # Approval is bound to the exact code
         r = client.post(
             "/api/code/execute",
-            json={"code": "print('hi')", "language": "python", "timeout": 30},
+            json={**payload, "code": "print('x')", "approval_id": approval_id},
         )
+        assert r.status_code == 403
+
+        r = client.post("/api/code/execute", json={**payload, "approval_id": approval_id})
         assert r.status_code == 200
         d = r.json()
         assert "status" in d and "language" in d
+
+        # Single use
+        r = client.post("/api/code/execute", json={**payload, "approval_id": approval_id})
+        assert r.status_code == 403
+
+    def test_execute_denied(self, _fresh_approvals):
+        client = TestClient(create_app())
+        r = client.post("/api/code/execute", json={"code": "1", "language": "python"})
+        approval_id = r.json()["approval_id"]
+        client.post(f"/api/approvals/{approval_id}/deny", json={})
+        r = client.post(
+            "/api/code/execute",
+            json={"code": "1", "language": "python", "approval_id": approval_id},
+        )
+        assert r.status_code == 403
+
+    def test_execute_rejects_non_gate_approval(self, _fresh_approvals):
+        # A low-risk request filed via /api/approvals is auto-approved by the
+        # default policy; it must not unlock execution.
+        client = TestClient(create_app())
+        r = client.post(
+            "/api/approvals",
+            json={
+                "tool_name": "execute_code",
+                "arguments": {"code": "1", "language": "python"},
+                "risk_level": "low",
+            },
+        )
+        assert r.json()["status"] == "approved"
+        r = client.post(
+            "/api/code/execute",
+            json={"code": "1", "language": "python", "approval_id": r.json()["id"]},
+        )
+        assert r.status_code == 403
+
+    def test_execute_auto_approved_by_policy(self, _fresh_approvals):
+        _fresh_approvals.update_policies({"auto_approve_tools": ["execute_code"]})
+        client = TestClient(create_app())
+        r = client.post("/api/code/execute", json={"code": "1", "language": "python"})
+        assert r.status_code == 200
+        assert _fresh_approvals.list_history()[0]["approver"] == "auto-policy"
+
+    def test_execute_disallowed_language(self, _fresh_approvals):
+        client = TestClient(create_app())
+        r = client.post("/api/code/execute", json={"code": "ls", "language": "ruby"})
+        assert r.status_code == 400
+        assert _fresh_approvals.list_pending() == []
 
 
 class TestCodeStudioFrontend:
