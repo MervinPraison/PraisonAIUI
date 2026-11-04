@@ -26,14 +26,13 @@ def _select_page_body() -> str:
 def test_chat_pages_declare_full_bleed():
     from starlette.testclient import TestClient
 
-    from praisonaiui.server import create_app
+    from praisonaiui.server import create_app, reset_state
 
+    reset_state()  # isolate from page whitelists set by other tests
     pages = {p["id"]: p for p in TestClient(create_app()).get("/api/pages").json()["pages"]}
     for pid in ("chat", "chat-canvas"):
-        if pid in pages:
-            assert pages[pid].get("layout") == "full-bleed"
-    if "overview" in pages:
-        assert pages["overview"].get("layout") is None
+        assert pages[pid].get("layout") == "full-bleed"
+    assert pages["overview"].get("layout") is None
 
 
 def test_select_page_toggles_fill_and_skips_header():
