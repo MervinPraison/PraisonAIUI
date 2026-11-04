@@ -221,6 +221,11 @@ function injectStyles() {
   style.textContent = `
     .chat-root { display:flex; height:calc(100vh - 140px); gap:0; border-radius:12px; overflow:hidden; border:1px solid var(--db-border); background:var(--db-card-bg); }
     .db-clean .chat-root { height:100%; border-radius:0; border:none; }
+    .db-fill .chat-root { flex:1; min-height:0; height:auto; }
+    @media (max-width:900px) {
+      .db-fill .chat-root { flex-direction:column; }
+      .db-fill .chat-sidebar-panel { width:100%; min-width:0; max-height:40vh; border-right:none; border-bottom:1px solid var(--db-border); }
+    }
     .chat-root.focus-mode .chat-sidebar-panel { display:none; }
     .chat-root.focus-mode .chat-main-panel { border-left:none; }
 
