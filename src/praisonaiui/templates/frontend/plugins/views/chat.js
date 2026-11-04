@@ -1047,7 +1047,8 @@ async function loadSessions() {
       resp = await fetch('/sessions');
     }
     const data = await resp.json();
-    allSessions = data.sessions || data || [];
+    const fetched = data.sessions || data || [];
+    allSessions = Array.isArray(fetched) ? fetched : [];
     renderSessionList();
   } catch (e) {
     console.warn('[Chat] Failed to load sessions:', e);

@@ -21,7 +21,7 @@ class TestChatSessionRailSearch:
 
     def test_load_sessions_caches_and_delegates_render(self):
         src = CHAT.read_text()
-        assert "allSessions = data.sessions || data || [];" in src
+        assert "allSessions = Array.isArray(fetched) ? fetched : [];" in src
         body = src.split("async function loadSessions()", 1)[1].split("\n}\n", 1)[0]
         assert "renderSessionList();" in body
 
