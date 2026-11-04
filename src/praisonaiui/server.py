@@ -3298,6 +3298,7 @@ def create_app(
             "group": "Agent",
             "description": "AI agent chat",
             "order": 1,
+            "layout": "full-bleed",
         },
         {
             "id": "chat-canvas",
@@ -3306,6 +3307,7 @@ def create_app(
             "group": "Agent",
             "description": "Chat with live A2UI preview panel",
             "order": 2,
+            "layout": "full-bleed",
         },
         {
             "id": "canvas",

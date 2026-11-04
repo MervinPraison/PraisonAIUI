@@ -378,6 +378,9 @@ const DASHBOARD_STYLE = `
   .db-main { flex: 1; padding: 32px 40px; overflow-y: auto; min-width: 0; }
   .db-main.db-clean { padding: 0; display: flex; flex-direction: column; overflow: hidden; height: 100vh; }
   .db-main.db-clean > #db-page-content { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  /* Per-page full bleed (page.layout === 'full-bleed'): view fills the main column. */
+  .db-main.db-fill { display: flex; flex-direction: column; overflow: hidden; height: 100vh; box-sizing: border-box; }
+  .db-main.db-fill > #db-page-content { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   .db-page-header { margin-bottom: 28px; }
   .db-page-title { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; }
   .db-page-icon svg, .db-nav-icon svg { display: inline-block; vertical-align: -0.125em; }
@@ -1992,8 +1995,12 @@ async function selectPage(pageId) {
     return;
   }
 
+  // Full-bleed pages (e.g. chat) fill the main column and carry their own chrome
+  const fullBleed = page.layout === 'full-bleed';
+  main.classList.toggle('db-fill', fullBleed);
+
   // Set page header (controlled by dashboard config protocol)
-  const showPageHeader = main.dataset.showPageHeader !== 'false';
+  const showPageHeader = main.dataset.showPageHeader !== 'false' && !fullBleed;
   const toolbarSlotId = `page:${pageId}:toolbar`;
   const headerHtml = showPageHeader ? `
     <div class="db-page-header">
