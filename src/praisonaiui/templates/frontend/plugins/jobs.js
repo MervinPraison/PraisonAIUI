@@ -164,6 +164,20 @@ function renderProgressBar(percentage) {
   `;
 }
 
+function escapeAttr(value) {
+  return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Navigate to Chat and load the job's linked session (same event the
+// session-search palette and run recorder use).
+function openJobSession(sessionId) {
+  if (!sessionId) return;
+  const nav = (typeof window.aiui?.selectPage === 'function') ? window.aiui.selectPage('chat') : null;
+  Promise.resolve(nav).finally(() => {
+    window.dispatchEvent(new CustomEvent('aiui:session-select', { detail: { sessionId } }));
+  });
+}
+
 function renderJobRow(job) {
   const status = job.status || 'queued';
   const isTerminal = ['succeeded', 'failed', 'cancelled'].includes(status);
@@ -199,6 +213,7 @@ function renderJobRow(job) {
         ` : `
           ${_jobsCfg.backend !== 'praisonai' ? `<button class="aiui-btn aiui-btn-sm aiui-btn-delete" onclick="window.aiuiDeleteJob('${job.id}')" title="Delete">🗑️</button>` : ''}
         `}
+        ${job.session_id ? `<button class="aiui-btn aiui-btn-sm aiui-btn-open-session" data-session-id="${escapeAttr(job.session_id)}" onclick="window.aiuiOpenJobSession(this.dataset.sessionId)" title="Open session in Chat">💬</button>` : ''}
         <button class="aiui-btn aiui-btn-sm aiui-btn-view" onclick="window.aiuiViewJob('${job.id}')" title="View Details">
           👁️
         </button>
@@ -599,6 +614,7 @@ function checkForJobsPage(root) {
 window.aiuiCancelJob = cancelJob;
 window.aiuiDeleteJob = deleteJob;
 window.aiuiViewJob = viewJob;
+window.aiuiOpenJobSession = openJobSession;
 
 export default {
   name: 'jobs',
