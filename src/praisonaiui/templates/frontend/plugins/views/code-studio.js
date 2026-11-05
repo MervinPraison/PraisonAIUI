@@ -23,6 +23,7 @@ let editor = null;
 let monacoNs = null;
 let running = false;
 let timerId = null;
+let pendingApproval = null; // { id, language, code } awaiting approval
 const history = [];
 
 function escapeHtml(s) {
@@ -178,14 +179,19 @@ async function runCode(container) {
     runBtn.textContent = `Executing… ${((Date.now() - start) / 1000).toFixed(1)}s`;
   }, 100);
 
+  const p = pendingApproval;
+  const approval_id = p && p.language === lang && p.code === code ? p.id : undefined;
   let result;
   try {
     const res = await fetch('/api/code/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ language: lang, code, timeout: 30 }),
+      body: JSON.stringify({ language: lang, code, timeout: 30, approval_id }),
     });
     result = await res.json();
+    pendingApproval = result.status === 'pending_approval'
+      ? { id: result.approval_id, language: lang, code }
+      : null;
   } catch (e) {
     result = { status: 'failed', error: String(e), language: lang };
   } finally {
