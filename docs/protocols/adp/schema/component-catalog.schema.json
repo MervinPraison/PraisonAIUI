@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "component-catalog.schema.json",
+  "title": "ADP Component Catalog",
+  "description": "Allowlisted component types for ADP Application manifests",
+  "type": "object",
+  "required": ["name", "version", "components"],
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x-adp-": {}
+  },
+  "properties": {
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "description": { "type": "string" },
+    "components": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/componentType" }
+    },
+    "layouts": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/layoutType" }
+    }
+  },
+  "$defs": {
+    "componentType": {
+      "type": "object",
+      "required": ["description", "props"],
+      "additionalProperties": false,
+      "properties": {
+        "description": { "type": "string" },
+        "props": { "type": "object" },
+        "aria": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "role": { "type": "string" },
+            "label": { "type": "string" }
+          }
+        },
+        "slots": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "deprecated": { "type": "boolean" },
+        "x-sunset": { "type": "string", "format": "date" }
+      }
+    },
+    "layoutType": {
+      "oneOf": [
+        {
+          "title": "Slot-based layout",
+          "type": "object",
+          "required": ["description", "slots"],
+          "additionalProperties": false,
+          "properties": {
+            "description": { "type": "string" },
+            "slots": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "title": "Zone-based layout",
+          "type": "object",
+          "required": ["description", "zones"],
+          "additionalProperties": false,
+          "properties": {
+            "description": { "type": "string" },
+            "zones": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1
+            }
+          }
+        }
+      ]
+    }
+  }
+}
