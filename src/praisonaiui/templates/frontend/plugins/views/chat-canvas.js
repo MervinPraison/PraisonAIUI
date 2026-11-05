@@ -21,6 +21,7 @@ function injectStyles() {
       overflow: hidden;
     }
     .db-clean .chat-canvas-root { height: 100vh; }
+    .db-fill .chat-canvas-root { flex: 1; min-height: 0; height: auto; }
     .chat-canvas-chat {
       flex: 1 1 60%;
       min-width: 0;

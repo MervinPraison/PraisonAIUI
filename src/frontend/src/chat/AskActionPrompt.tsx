@@ -73,7 +73,7 @@ export function AskActionPrompt({
 
             {/* Action buttons */}
             <div className="space-y-3">
-                {actions.map((action, index) => (
+                {actions.map((action) => (
                     <button
                         key={action.name}
                         type="button"

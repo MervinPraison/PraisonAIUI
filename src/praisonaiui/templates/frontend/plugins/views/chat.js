@@ -19,6 +19,7 @@ let isStreaming = false;
 let streamingSessionId = null;  // tracks which session is actively streaming
 let currentRunId = null;
 let agents = [];
+let allSessions = [];  // last fetched session list, filtered client-side by the rail search
 let messageQueue = [];
 let focusMode = false;
 let sessionSelectHandler = null;
@@ -221,6 +222,11 @@ function injectStyles() {
   style.textContent = `
     .chat-root { display:flex; height:calc(100vh - 140px); gap:0; border-radius:12px; overflow:hidden; border:1px solid var(--db-border); background:var(--db-card-bg); }
     .db-clean .chat-root { height:100%; border-radius:0; border:none; }
+    .db-fill .chat-root { flex:1; min-height:0; height:auto; }
+    @media (max-width:900px) {
+      .db-fill .chat-root { flex-direction:column; }
+      .db-fill .chat-sidebar-panel { width:100%; min-width:0; max-height:40vh; border-right:none; border-bottom:1px solid var(--db-border); }
+    }
     .chat-root.focus-mode .chat-sidebar-panel { display:none; }
     .chat-root.focus-mode .chat-main-panel { border-left:none; }
 
@@ -230,6 +236,8 @@ function injectStyles() {
     .chat-sidebar-agent { padding:10px 16px; border-bottom:1px solid var(--db-border); }
     .chat-sidebar-agent label { font-size:11px; color:var(--db-text-dim); display:block; margin-bottom:4px; text-transform:uppercase; font-weight:600; letter-spacing:.5px; }
     .chat-sidebar-agent select { width:100%; padding:6px 10px; background:var(--db-card-bg); border:1px solid var(--db-border); border-radius:6px; color:var(--db-text); font-size:13px; }
+    .chat-sess-search { padding:8px 16px 0; }
+    .chat-sess-search input { width:100%; box-sizing:border-box; padding:6px 10px; background:var(--db-card-bg); border:1px solid var(--db-border); border-radius:6px; color:var(--db-text); font-size:13px; }
     .chat-sess-list { flex:1; overflow-y:auto; padding:8px; }
     .chat-sess-item { padding:10px 12px; border-radius:8px; cursor:pointer; margin-bottom:4px; font-size:13px; transition:background .15s; display:flex; flex-direction:column; gap:2px; }
     .chat-sess-item:hover { background:rgba(var(--db-accent-rgb,100,100,255),.08); }
@@ -812,6 +820,9 @@ export async function render(container) {
           <label>Agent</label>
           <select id="chat-agent-selector"><option value="">Auto (default)</option></select>
         </div>
+        <div class="chat-sess-search">
+          <input type="search" id="chat-session-search" placeholder="Search sessions…" aria-label="Search sessions" autocomplete="off">
+        </div>
         <div class="chat-sess-list" id="chat-sessions-list"></div>
       </div>
       <div class="chat-main-panel">
@@ -892,6 +903,8 @@ export async function render(container) {
   const agentSelector = document.getElementById('chat-agent-selector');
   const attachBtn = document.getElementById('chat-attach-btn');
   const fileInput = document.getElementById('chat-file-input');
+  const sessionSearch = document.getElementById('chat-session-search');
+  if (sessionSearch) sessionSearch.addEventListener('input', renderSessionList);
   // Guard: if DOM elements aren't present yet (race condition), bail out
   if (!input || !sendBtn) {
     console.warn('[chat] DOM elements not ready — skipping event binding');
@@ -1039,45 +1052,59 @@ async function loadSessions() {
       resp = await fetch('/sessions');
     }
     const data = await resp.json();
-    const sessions = data.sessions || data || [];
-    const list = document.getElementById('chat-sessions-list');
-    if (!list) return;
-    list.innerHTML = '';
-    if (sessions.length === 0) {
-      list.innerHTML = '<div style="padding:16px;text-align:center;color:var(--db-text-dim);font-size:12px">No sessions yet</div>';
-      return;
-    }
-    sessions.slice(0, 30).forEach((s) => {
-      const el = document.createElement('div');
-      const id = s.id || s.session_id || '';
-      el.className = 'chat-sess-item' + (id === currentSessionId ? ' active' : '');
-      // Show platform icon for channel sessions (e.g. Slack with SVG)
-      const platformName = s.platform || '';
-      const platSvg = _getPlatformSVG(platformName);
-      let title;
-      let titlePrefix = '';
-      if (platformName) {
-        const displayName = platformName.charAt(0).toUpperCase() + platformName.slice(1);
-        if (platSvg) {
-          titlePrefix = '<span class="sess-platform-icon ' + _getPlatformClass(platformName) + '">' + platSvg + '</span>';
-        }
-        title = displayName;
-      } else {
-        title = s.name || s.title || s.label || id.substring(0, 12) + '…';
-      }
-      const agent = s.agent_id || s.agent || '';
-      const time = timeAgo(s.created_at || s.updated_at);
-      el.innerHTML = `
-        <div class="sess-title">${titlePrefix}${escapeHtml(title)}</div>
-        <div class="sess-meta">${agent ? '🤖 ' + escapeHtml(agent) + ' · ' : ''}${time}</div>
-      `;
-      el.title = id;
-      el.addEventListener('click', () => loadSession(id));
-      list.appendChild(el);
-    });
+    const fetched = data.sessions || data || [];
+    allSessions = Array.isArray(fetched) ? fetched : [];
+    renderSessionList();
   } catch (e) {
     console.warn('[Chat] Failed to load sessions:', e);
   }
+}
+
+function _sessionMatches(s, q) {
+  const fields = [s.id, s.session_id, s.name, s.title, s.label, s.agent_id, s.agent, s.platform];
+  return fields.some((v) => typeof v === 'string' && v.toLowerCase().includes(q));
+}
+
+function renderSessionList() {
+  const list = document.getElementById('chat-sessions-list');
+  if (!list) return;
+  const input = document.getElementById('chat-session-search');
+  const q = (input && input.value || '').trim().toLowerCase();
+  const sessions = q ? allSessions.filter((s) => _sessionMatches(s, q)) : allSessions;
+  list.innerHTML = '';
+  if (sessions.length === 0) {
+    const msg = q ? 'No matching sessions' : 'No sessions yet';
+    list.innerHTML = '<div style="padding:16px;text-align:center;color:var(--db-text-dim);font-size:12px">' + msg + '</div>';
+    return;
+  }
+  sessions.slice(0, 30).forEach((s) => {
+    const el = document.createElement('div');
+    const id = s.id || s.session_id || '';
+    el.className = 'chat-sess-item' + (id === currentSessionId ? ' active' : '');
+    // Show platform icon for channel sessions (e.g. Slack with SVG)
+    const platformName = s.platform || '';
+    const platSvg = _getPlatformSVG(platformName);
+    let title;
+    let titlePrefix = '';
+    if (platformName) {
+      const displayName = platformName.charAt(0).toUpperCase() + platformName.slice(1);
+      if (platSvg) {
+        titlePrefix = '<span class="sess-platform-icon ' + _getPlatformClass(platformName) + '">' + platSvg + '</span>';
+      }
+      title = displayName;
+    } else {
+      title = s.name || s.title || s.label || id.substring(0, 12) + '…';
+    }
+    const agent = s.agent_id || s.agent || '';
+    const time = timeAgo(s.created_at || s.updated_at);
+    el.innerHTML = `
+      <div class="sess-title">${titlePrefix}${escapeHtml(title)}</div>
+      <div class="sess-meta">${agent ? '🤖 ' + escapeHtml(agent) + ' · ' : ''}${time}</div>
+    `;
+    el.title = id;
+    el.addEventListener('click', () => loadSession(id));
+    list.appendChild(el);
+  });
 }
 
 async function loadSession(sessionId) {

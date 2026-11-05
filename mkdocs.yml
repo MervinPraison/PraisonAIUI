@@ -100,6 +100,7 @@ nav:
     - BeautifulUI Upstream Pin: frontend/BEAUTIFULUI_UPSTREAM.md
   - Features:
     - Dashboard: features/dashboard.md
+    - Replay: features/replay.md
     - Gateway Chat: features/gateway-chat.md
     - Attachments: features/attachments.md
     - Theme System: features/theme-system.md

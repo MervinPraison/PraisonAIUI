@@ -2,8 +2,8 @@
 
 Architecture:
     TracingProtocol (ABC)          <- any backend implements this
-      ├── SimpleTracingManager     <- default in-memory (no deps)
-      └── SDKTracingManager        <- wraps praisonaiagents.obs + trace
+      ├── SimpleTracingManager     <- in-memory (no deps)
+      └── JsonlTracingManager      <- recorded runs (context-trace JSONL) + in-memory
 
     PraisonAITracing (BaseFeatureProtocol)
       └── delegates to active TracingProtocol implementation
@@ -110,56 +110,112 @@ class SimpleTracingManager(TracingProtocol):
         }
 
 
-# ── SDK Tracing Manager ──────────────────────────────────────────────
+# ── JSONL Tracing Manager ────────────────────────────────────────────
 
 
-class SDKTracingManager(TracingProtocol):
-    """Wraps praisonaiagents.obs + trace for production use."""
+class JsonlTracingManager(TracingProtocol):
+    """Reads recorded runs from the context-trace JSONL directory.
+
+    One ``<id>.jsonl`` file is one trace; spans come from start/end event
+    pairs (``parent_seq`` on schema 1.1, sequence order on 1.0).  The
+    directory is ``$PRAISONAI_TRACES_DIR`` > ``$PRAISON_HOME/traces`` >
+    ``~/.praison/traces`` (shared with the ``replay`` feature).  Traces and
+    spans posted to ``/api/traces/record`` stay in memory alongside.
+    """
+
+    #: Upper bound on files scanned for an unfiltered span listing.
+    MAX_FILES_FOR_SPANS = 20
 
     def __init__(self) -> None:
-        self._trace_available = False
-        self._obs_available = False
-        try:
-            from praisonaiagents.trace import ActionEvent  # noqa: F401
-
-            self._trace_available = True
-        except (ImportError, AttributeError):
-            pass
-        try:
-            from praisonaiagents.obs import Span, Trace  # noqa: F401
-
-            self._obs_available = True
-        except ImportError:
-            pass
-        if not (self._trace_available or self._obs_available):
-            raise ImportError("Neither praisonaiagents.trace nor praisonaiagents.obs available")
         self._simple = SimpleTracingManager()
-        logger.info(
-            "SDKTracingManager initialized (trace=%s, obs=%s)",
-            self._trace_available,
-            self._obs_available,
+
+    # -- JSONL side ---------------------------------------------------
+
+    @staticmethod
+    def _trace_from_file(path) -> Optional[Dict[str, Any]]:
+        from . import _trace_jsonl as tj
+
+        row = tj.summarize_run(path)
+        if row is None:
+            return None
+        events = tj.read_events(path)
+        started = row.get("started_at") or 0.0
+        ended = row.get("ended_at")
+        last_ts = max(
+            (e["timestamp"] for e in events if isinstance(e.get("timestamp"), (int, float))),
+            default=started,
         )
+        agents = row.get("agents") or []
+        return {
+            "id": row["run_id"],
+            "agent_id": agents[0] if agents else "",
+            "agents": agents,
+            "name": row.get("name") or row["run_id"],
+            "status": row["status"],
+            "start_time": started,
+            "end_time": ended,
+            "timestamp": started,
+            "duration_ms": round(((ended or last_ts) - started) * 1000, 3),
+            "span_count": len(tj.build_spans(events, row["run_id"])),
+            "source": "jsonl",
+            "metadata": {
+                "path": row["path"],
+                "session_id": row.get("session_id"),
+                "kind": row.get("kind"),
+                "events": row["events"],
+                "cost_usd": row["cost_usd"],
+                "live": row["live"],
+            },
+        }
+
+    @staticmethod
+    def _files():
+        from . import _trace_jsonl as tj
+
+        return tj.list_run_files()
 
     def list_traces(
         self, *, limit: int = 50, agent_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        sdk_traces = self._list_traces_from_sdk(limit=limit, agent_id=agent_id)
-        if sdk_traces is not None:
-            return sdk_traces
-        return self._simple.list_traces(limit=limit, agent_id=agent_id)
+        items: List[Dict[str, Any]] = []
+        for path in self._files():
+            if len(items) >= limit:
+                break
+            trace = self._trace_from_file(path)
+            if trace is None:
+                continue
+            if agent_id and agent_id not in trace["agents"]:
+                continue
+            items.append(trace)
+        remaining = max(0, limit - len(items))
+        if remaining:
+            items.extend(self._simple.list_traces(limit=remaining, agent_id=agent_id))
+        return items
 
     def list_spans(
         self, *, limit: int = 100, trace_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        sdk_spans = self._list_spans_from_sdk(limit=limit, trace_id=trace_id)
-        if sdk_spans is not None:
-            return sdk_spans
-        return self._simple.list_spans(limit=limit, trace_id=trace_id)
+        from . import _trace_jsonl as tj
+
+        if trace_id:
+            path = tj.run_path(trace_id)
+            if path is not None and path.is_file():
+                return tj.build_spans(tj.read_events(path), trace_id)[:limit]
+            return self._simple.list_spans(limit=limit, trace_id=trace_id)
+        spans: List[Dict[str, Any]] = []
+        for path in self._files()[: self.MAX_FILES_FOR_SPANS]:
+            spans.extend(tj.build_spans(tj.read_events(path), path.stem))
+            if len(spans) >= limit:
+                return spans[:limit]
+        spans.extend(self._simple.list_spans(limit=limit - len(spans)))
+        return spans[:limit]
 
     def get_trace(self, trace_id: str) -> Optional[Dict[str, Any]]:
-        sdk_trace = self._get_trace_from_sdk(trace_id)
-        if sdk_trace is not None:
-            return sdk_trace
+        from . import _trace_jsonl as tj
+
+        path = tj.run_path(trace_id)
+        if path is not None and path.is_file():
+            return self._trace_from_file(path)
         return self._simple.get_trace(trace_id)
 
     def record_trace(self, trace: Dict[str, Any]) -> str:
@@ -168,52 +224,22 @@ class SDKTracingManager(TracingProtocol):
     def record_span(self, span: Dict[str, Any]) -> str:
         return self._simple.record_span(span)
 
-    def _list_traces_from_sdk(
-        self, *, limit: int, agent_id: Optional[str]
-    ) -> Optional[List[Dict[str, Any]]]:
-        try:
-            from praisonaiagents import trace as trace_module
-
-            getter = getattr(trace_module, "list_traces", None)
-            if not callable(getter):
-                return None
-            items = getter(limit=limit, agent_id=agent_id)
-            return items if isinstance(items, list) else None
-        except Exception:
-            return None
-
-    def _list_spans_from_sdk(
-        self, *, limit: int, trace_id: Optional[str]
-    ) -> Optional[List[Dict[str, Any]]]:
-        try:
-            from praisonaiagents import trace as trace_module
-
-            getter = getattr(trace_module, "list_spans", None)
-            if not callable(getter):
-                return None
-            items = getter(limit=limit, trace_id=trace_id)
-            return items if isinstance(items, list) else None
-        except Exception:
-            return None
-
-    def _get_trace_from_sdk(self, trace_id: str) -> Optional[Dict[str, Any]]:
-        try:
-            from praisonaiagents import trace as trace_module
-
-            getter = getattr(trace_module, "get_trace", None)
-            if not callable(getter):
-                return None
-            trace = getter(trace_id)
-            return trace if isinstance(trace, dict) else None
-        except Exception:
-            return None
-
     def health(self) -> Dict[str, Any]:
+        from . import _trace_jsonl as tj
+
         h = self._simple.health()
-        h["provider"] = "SDKTracingManager"
-        h["trace_available"] = self._trace_available
-        h["obs_available"] = self._obs_available
+        files = self._files()
+        h["provider"] = self.__class__.__name__
+        h["source"] = "jsonl" if files else "memory"
+        h["traces_dir"] = str(tj.traces_dir())
+        h["jsonl_traces"] = len(files)
         return h
+
+
+#: Deprecated alias. The old class looked up ``praisonaiagents.trace.list_traces``
+#: / ``list_spans`` / ``get_trace``, which never existed, so it always fell back
+#: to the in-memory store.  Recorded runs are JSONL files; read those instead.
+SDKTracingManager = JsonlTracingManager
 
 
 # ── Manager singleton ────────────────────────────────────────────────
@@ -222,15 +248,10 @@ _tracing_manager: Optional[TracingProtocol] = None
 
 
 def get_tracing_manager() -> TracingProtocol:
-    """Get the active tracing manager (SDK-first, fallback to Simple)."""
+    """Get the active tracing manager (recorded JSONL runs + in-memory records)."""
     global _tracing_manager
     if _tracing_manager is None:
-        try:
-            _tracing_manager = SDKTracingManager()
-            logger.info("Using SDKTracingManager")
-        except Exception as e:
-            logger.debug("SDKTracingManager init failed (%s), using SimpleTracingManager", e)
-            _tracing_manager = SimpleTracingManager()
+        _tracing_manager = JsonlTracingManager()
     return _tracing_manager
 
 
@@ -301,12 +322,10 @@ class TracingFeature(BaseFeatureProtocol):
         h = mgr.health()
         lines = ["Tracing Status:"]
         lines.append(f"  Provider: {h.get('provider', 'unknown')}")
+        if "source" in h:
+            lines.append(f"  Source: {h['source']} ({h.get('traces_dir', '')})")
         lines.append(f"  Total traces: {h.get('total_traces', 0)}")
         lines.append(f"  Total spans: {h.get('total_spans', 0)}")
-        if "trace_available" in h:
-            lines.append(f"  SDK trace: {'available' if h['trace_available'] else 'unavailable'}")
-        if "obs_available" in h:
-            lines.append(f"  SDK obs: {'available' if h['obs_available'] else 'unavailable'}")
         return "\n".join(lines)
 
     def _cli_list(self, limit: int = 20) -> str:

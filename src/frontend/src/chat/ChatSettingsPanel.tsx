@@ -15,7 +15,7 @@ import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Slider } from '../components/ui/slider';
 import { Switch } from '../components/ui/switch';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '../components/ui/sheet';
 
 interface SettingsWidget {
@@ -74,7 +74,7 @@ const WidgetRenderer: React.FC<{
               id={name}
               placeholder={placeholder}
               value={value || ''}
-              onChange={(e) => onChange(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value)}
               maxLength={widget.maxLength}
               rows={4}
             />

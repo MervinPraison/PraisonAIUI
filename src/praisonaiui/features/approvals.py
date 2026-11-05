@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 import time
 import uuid
 from abc import ABC, abstractmethod
@@ -66,7 +67,13 @@ class ApprovalProtocol(ABC):
     @abstractmethod
     def approve(
         self, approval_id: str, reason: str = "", approver: str = "user", always: bool = False
-    ) -> Optional[Dict[str, Any]]: ...
+    ) -> Optional[Dict[str, Any]]:
+        """Approve a pending request.
+
+        Implementations may also accept ``modified_args: dict`` (replacement
+        tool arguments); the HTTP handler only passes it when the client sent it.
+        """
+        ...
 
     @abstractmethod
     def deny(
@@ -86,6 +93,66 @@ class ApprovalProtocol(ABC):
         return {"status": "ok", "provider": self.__class__.__name__}
 
 
+# ── Decision waiter ──────────────────────────────────────────────────
+
+
+class _DecisionWaiter:
+    """One pending decision that both threads and coroutines can wait on.
+
+    ``set()`` may be called from any thread (normally the server's event loop
+    handling ``POST /api/approvals/{id}/approve``); sync waiters block on a
+    ``threading.Event`` and async waiters get their future resolved on their
+    own loop via ``call_soon_threadsafe``, so neither blocks the other.
+    """
+
+    def __init__(self) -> None:
+        self._event = threading.Event()
+        self._lock = threading.Lock()
+        self._result: Optional[Dict[str, Any]] = None
+        self._futures: List[tuple] = []
+
+    @property
+    def done(self) -> bool:
+        return self._event.is_set()
+
+    def set(self, entry: Dict[str, Any]) -> None:
+        with self._lock:
+            if self._event.is_set():
+                return
+            self._result = entry
+            self._event.set()
+            futures, self._futures = self._futures, []
+        for loop, fut in futures:
+            try:
+                loop.call_soon_threadsafe(_resolve_future, fut, entry)
+            except RuntimeError:  # loop already closed
+                pass
+
+    def wait(self, timeout: Optional[float]) -> Optional[Dict[str, Any]]:
+        return self._result if self._event.wait(timeout) else None
+
+    async def wait_async(self, timeout: Optional[float]) -> Optional[Dict[str, Any]]:
+        loop = asyncio.get_running_loop()
+        fut = loop.create_future()
+        with self._lock:
+            if self._event.is_set():
+                return self._result
+            self._futures.append((loop, fut))
+        try:
+            return await asyncio.wait_for(fut, timeout)
+        except asyncio.TimeoutError:
+            return None
+        finally:
+            with self._lock:
+                if (loop, fut) in self._futures:
+                    self._futures.remove((loop, fut))
+
+
+def _resolve_future(fut: "asyncio.Future", value: Any) -> None:
+    if not fut.done():
+        fut.set_result(value)
+
+
 # ── Simple Approval Manager ──────────────────────────────────────────
 
 
@@ -95,6 +162,8 @@ class SimpleApprovalManager(ApprovalProtocol):
     def __init__(self) -> None:
         self._pending: Dict[str, Dict[str, Any]] = {}
         self._history: deque = deque(maxlen=500)
+        self._lock = threading.RLock()
+        self._waiters: Dict[str, _DecisionWaiter] = {}
         self._policies: Dict[str, Any] = {
             "auto_approve_tools": [],
             "always_deny_tools": [],
@@ -136,44 +205,67 @@ class SimpleApprovalManager(ApprovalProtocol):
             entry.get("agent_name", ""),
             entry.get("risk_level", "medium"),
         )
-        if auto:
-            entry["status"] = auto
-            entry["resolved_at"] = time.time()
-            entry["approver"] = "auto-policy"
-            entry["reason"] = f"Auto-{auto} by policy"
-            self._history.appendleft(entry)
-        else:
-            self._pending[approval_id] = entry
+        with self._lock:
+            if auto:
+                entry["status"] = auto
+                entry["resolved_at"] = time.time()
+                entry["approver"] = "auto-policy"
+                entry["reason"] = f"Auto-{auto} by policy"
+                self._history.appendleft(entry)
+            else:
+                self._pending[approval_id] = entry
+                self._waiters.setdefault(approval_id, _DecisionWaiter())
         return entry
 
+    def waiter(self, approval_id: str) -> Optional[_DecisionWaiter]:
+        """The waiter for a pending request (``None`` once it is resolved)."""
+        with self._lock:
+            return self._waiters.get(approval_id)
+
+    def _signal(self, approval_id: str, entry: Dict[str, Any]) -> None:
+        waiter = self._waiters.pop(approval_id, None)
+        if waiter is not None:
+            waiter.set(entry)
+
     def approve(
-        self, approval_id: str, reason: str = "", approver: str = "user", always: bool = False
+        self,
+        approval_id: str,
+        reason: str = "",
+        approver: str = "user",
+        always: bool = False,
+        modified_args: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
-        if approval_id not in self._pending:
-            return None
-        entry = self._pending.pop(approval_id)
-        entry["status"] = "approved"
-        entry["reason"] = reason
-        entry["resolved_at"] = time.time()
-        entry["approver"] = approver
-        if always and entry["tool_name"] not in self._policies["auto_approve_tools"]:
-            self._policies["auto_approve_tools"].append(entry["tool_name"])
-        self._history.appendleft(entry)
+        with self._lock:
+            if approval_id not in self._pending:
+                return None
+            entry = self._pending.pop(approval_id)
+            entry["status"] = "approved"
+            entry["reason"] = reason
+            entry["resolved_at"] = time.time()
+            entry["approver"] = approver
+            if modified_args is not None:
+                entry["modified_args"] = dict(modified_args)
+            if always and entry["tool_name"] not in self._policies["auto_approve_tools"]:
+                self._policies["auto_approve_tools"].append(entry["tool_name"])
+            self._history.appendleft(entry)
+            self._signal(approval_id, entry)
         return entry
 
     def deny(
         self, approval_id: str, reason: str = "", approver: str = "user", always: bool = False
     ) -> Optional[Dict[str, Any]]:
-        if approval_id not in self._pending:
-            return None
-        entry = self._pending.pop(approval_id)
-        entry["status"] = "denied"
-        entry["reason"] = reason
-        entry["resolved_at"] = time.time()
-        entry["approver"] = approver
-        if always and entry["tool_name"] not in self._policies["always_deny_tools"]:
-            self._policies["always_deny_tools"].append(entry["tool_name"])
-        self._history.appendleft(entry)
+        with self._lock:
+            if approval_id not in self._pending:
+                return None
+            entry = self._pending.pop(approval_id)
+            entry["status"] = "denied"
+            entry["reason"] = reason
+            entry["resolved_at"] = time.time()
+            entry["approver"] = approver
+            if always and entry["tool_name"] not in self._policies["always_deny_tools"]:
+                self._policies["always_deny_tools"].append(entry["tool_name"])
+            self._history.appendleft(entry)
+            self._signal(approval_id, entry)
         return entry
 
     def get(self, approval_id: str) -> Optional[Dict[str, Any]]:
@@ -237,9 +329,14 @@ class SDKApprovalManager(ApprovalProtocol):
         return result
 
     def approve(
-        self, approval_id: str, reason: str = "", approver: str = "user", always: bool = False
+        self,
+        approval_id: str,
+        reason: str = "",
+        approver: str = "user",
+        always: bool = False,
+        modified_args: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
-        entry = self._simple.approve(approval_id, reason, approver, always)
+        entry = self._simple.approve(approval_id, reason, approver, always, modified_args)
         if entry and always and entry.get("tool_name"):
             self._registry.add_requirement(entry["tool_name"], entry.get("risk_level", "high"))
         return entry
@@ -273,31 +370,121 @@ class SDKApprovalManager(ApprovalProtocol):
 
 
 class _UIStoreBackend:
-    """Routes agent approval requests into the UI SimpleApprovalManager."""
+    """Routes agent approval requests into the UI store and waits for a human.
 
-    def __init__(self, store: SimpleApprovalManager) -> None:
+    Each request becomes a pending entry keyed by ``request.approval_id`` and
+    the caller blocks (sync: on a ``threading.Event``; async: on a future of
+    its own loop) until ``POST /api/approvals/{id}/approve|deny`` resolves it.
+    No answer within the timeout is a denial (fail-closed) and the entry is
+    resolved as ``denied`` with ``approver="timeout"`` so the queue stays honest.
+    """
+
+    def __init__(self, store: SimpleApprovalManager, timeout: Optional[float] = None) -> None:
         self._store = store
+        self._timeout = timeout
 
-    def request_approval_sync(self, request) -> Any:
+    def _effective_timeout(self, timeout: Optional[float]) -> float:
+        if timeout is not None:
+            return float(timeout)
+        if self._timeout is not None:
+            return float(self._timeout)
+        try:
+            from praisonaiagents.approval import get_approval_registry
+
+            return float(getattr(get_approval_registry(), "timeout", 300.0))
+        except Exception:
+            return 300.0
+
+    def _submit(self, request) -> Dict[str, Any]:
+        entry: Dict[str, Any] = {
+            "tool_name": request.tool_name,
+            "agent_name": getattr(request, "agent_name", "") or "",
+            "risk_level": request.risk_level or "medium",
+            "arguments": request.arguments or {},
+        }
+        approval_id = getattr(request, "approval_id", None)
+        if approval_id:
+            entry["id"] = str(approval_id)
+        session_id = getattr(request, "session_id", None)
+        if session_id:
+            entry["session_id"] = session_id
+        return self._store.request_approval(entry)
+
+    @staticmethod
+    def _decision(entry: Optional[Dict[str, Any]]) -> Any:
         from praisonaiagents.approval.protocols import ApprovalDecision
 
-        entry = self._store.request_approval(
-            {
-                "tool_name": request.tool_name,
-                "agent_name": getattr(request, "agent_name", "") or "",
-                "risk_level": request.risk_level or "medium",
-                "arguments": request.arguments or {},
-            }
+        if entry is None:
+            return ApprovalDecision(
+                approved=False, reason="Timed out waiting for UI approval", approver="timeout"
+            )
+        if entry.get("status") == "approved":
+            return ApprovalDecision(
+                approved=True,
+                reason=entry.get("reason", ""),
+                modified_args=dict(entry.get("modified_args") or {}),
+                approver=entry.get("approver"),
+            )
+        return ApprovalDecision(
+            approved=False,
+            reason=entry.get("reason") or "denied",
+            approver=entry.get("approver"),
         )
-        status = entry.get("status", "pending")
-        if status == "approved":
-            return ApprovalDecision(approved=True, reason=entry.get("reason", ""))
-        if status == "denied":
-            return ApprovalDecision(approved=False, reason=entry.get("reason", "denied"))
-        return ApprovalDecision(approved=False, reason="Awaiting UI approval")
+
+    def _expire(
+        self,
+        approval_id: str,
+        reason: str = "Timed out waiting for UI approval",
+        approver: str = "timeout",
+    ) -> Optional[Dict[str, Any]]:
+        """Deny a request nobody answered; return the entry if a human won the race."""
+        denied = self._store.deny(approval_id, reason=reason, approver=approver)
+        if denied is not None:
+            return None
+        return self._store.get(approval_id)
+
+    def request_approval_sync(self, request, timeout: Optional[float] = None) -> Any:
+        from praisonaiagents.approval.protocols import ApprovalDecision
+
+        entry = self._submit(request)
+        if entry.get("status") != "pending":
+            return self._decision(entry)
+        approval_id = entry["id"]
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            # Blocking here would freeze this thread's event loop (and with it,
+            # possibly the very server that has to deliver the answer).
+            reason = "UI approval cannot block an event-loop thread; use the async approval path"
+            self._expire(approval_id, reason=reason, approver="ui")
+            return ApprovalDecision(approved=False, reason=reason, approver="ui")
+        waiter = self._store.waiter(approval_id)
+        result = waiter.wait(self._effective_timeout(timeout)) if waiter else self._store.get(approval_id)
+        if result is None:
+            result = self._expire(approval_id)
+        return self._decision(result)
 
     async def request_approval(self, request) -> Any:
-        return self.request_approval_sync(request)
+        entry = self._submit(request)
+        if entry.get("status") != "pending":
+            return self._decision(entry)
+        approval_id = entry["id"]
+        waiter = self._store.waiter(approval_id)
+        try:
+            result = (
+                await waiter.wait_async(self._effective_timeout(None))
+                if waiter
+                else self._store.get(approval_id)
+            )
+        except asyncio.CancelledError:
+            # The registry's own wait_for timed out (or the turn was cancelled).
+            self._expire(approval_id)
+            raise
+        if result is None:
+            result = self._expire(approval_id)
+        return self._decision(result)
 
 
 # ── Manager singleton ────────────────────────────────────────────────
@@ -449,11 +636,15 @@ class ApprovalsFeature(BaseFeatureProtocol):
         mgr = get_approval_manager()
         approval_id = request.path_params["approval_id"]
         body = await request.json() if request.headers.get("content-length") else {}
+        modified_args = body.get("modified_args")
+        if modified_args is not None and not isinstance(modified_args, dict):
+            return JSONResponse({"error": "modified_args must be an object"}, status_code=400)
         entry = mgr.approve(
             approval_id,
             reason=body.get("reason", ""),
             approver=body.get("approver", "user"),
             always=body.get("always", False),
+            **({"modified_args": modified_args} if modified_args is not None else {}),
         )
         if entry is None:
             return JSONResponse({"error": "Approval not found"}, status_code=404)

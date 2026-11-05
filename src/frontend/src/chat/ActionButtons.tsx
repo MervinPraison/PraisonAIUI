@@ -38,7 +38,7 @@ interface ActionButtonsProps {
  */
 export function ActionButtons({ actions, messageId, sessionId }: ActionButtonsProps) {
     const [pendingActions, setPendingActions] = useState<Set<string>>(new Set())
-    const [hiddenActions, setHiddenActions] = useState<Set<string>>(new Set())
+    const [hiddenActions] = useState<Set<string>>(new Set())
 
     const handleActionClick = useCallback(async (action: ActionButton) => {
         if (pendingActions.has(action.id) || hiddenActions.has(action.id)) {
