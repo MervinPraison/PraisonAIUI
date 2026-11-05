@@ -12,7 +12,9 @@ Architecture:
 from __future__ import annotations
 
 import asyncio
+import hmac
 import logging
+import os
 import threading
 import time
 import uuid
@@ -31,6 +33,67 @@ logger = logging.getLogger(__name__)
 # Risk levels
 RISK_LEVELS = ["low", "medium", "high", "critical"]
 RISK_ICONS = {"low": "✅", "medium": "⚠️", "high": "🟠", "critical": "🔴"}
+
+# Trusted for unauthenticated approve/deny (local dev + TestClient).
+_LOCAL_APPROVAL_CLIENTS = frozenset({"127.0.0.1", "::1", "localhost", "testclient"})
+
+
+def _approval_client_is_trusted_local(request: Request) -> bool:
+    client = request.client
+    if client is None:
+        return True
+    return client.host in _LOCAL_APPROVAL_CLIENTS
+
+
+def _request_has_approval_auth(request: Request) -> bool:
+    """True when the caller presented real credentials (not auth mode 'none')."""
+    from praisonaiui.features.auth import check_auth, verify_api_key, verify_session_token
+
+    auth = check_auth(request)
+    if auth and auth.get("mode") not in (None, "none"):
+        return True
+
+    api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+    if api_key and verify_api_key(api_key):
+        return True
+
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        from praisonaiui.auth import validate_token
+
+        if validate_token(token):
+            return True
+        expected = os.environ.get("AIUI_URL_TOKEN") or os.environ.get("GATEWAY_AUTH_TOKEN")
+        if expected and hmac.compare_digest(token, expected):
+            return True
+
+    for cookie_name in ("aiui_session", "praisonaiui_token"):
+        cookie_val = request.cookies.get(cookie_name, "")
+        if not cookie_val:
+            continue
+        if verify_session_token(cookie_val):
+            return True
+        expected = os.environ.get("AIUI_URL_TOKEN") or os.environ.get("GATEWAY_AUTH_TOKEN")
+        if expected and hmac.compare_digest(cookie_val, expected):
+            return True
+
+    return False
+
+
+async def _require_approval_mutation_auth(request: Request) -> Optional[JSONResponse]:
+    """Block remote callers from approving/denying without credentials (#311)."""
+    if _approval_client_is_trusted_local(request):
+        return None
+    if _request_has_approval_auth(request):
+        return None
+    return JSONResponse(
+        {
+            "error": "Authentication required",
+            "hint": "Approval changes from non-local clients require credentials.",
+        },
+        status_code=401,
+    )
 
 
 def _list_backend_approvals() -> List[Dict[str, Any]] | None:
@@ -633,6 +696,9 @@ class ApprovalsFeature(BaseFeatureProtocol):
         return JSONResponse(result, status_code=201)
 
     async def _approve(self, request: Request) -> JSONResponse:
+        denied = await _require_approval_mutation_auth(request)
+        if denied is not None:
+            return denied
         mgr = get_approval_manager()
         approval_id = request.path_params["approval_id"]
         body = await request.json() if request.headers.get("content-length") else {}
@@ -652,6 +718,9 @@ class ApprovalsFeature(BaseFeatureProtocol):
         return JSONResponse(entry)
 
     async def _deny(self, request: Request) -> JSONResponse:
+        denied = await _require_approval_mutation_auth(request)
+        if denied is not None:
+            return denied
         mgr = get_approval_manager()
         approval_id = request.path_params["approval_id"]
         body = await request.json() if request.headers.get("content-length") else {}
@@ -687,6 +756,9 @@ class ApprovalsFeature(BaseFeatureProtocol):
         )
 
     async def _update_policies(self, request: Request) -> JSONResponse:
+        denied = await _require_approval_mutation_auth(request)
+        if denied is not None:
+            return denied
         mgr = get_approval_manager()
         body = await request.json()
         policies = mgr.update_policies(body)
