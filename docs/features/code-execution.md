@@ -31,6 +31,16 @@ graph TD
 3. If `praisonaiagents` is installed, delegates to `execute_code` for real execution
 4. Otherwise returns a simulation response with the code size
 
+## Approval & Auth
+
+Every `POST /api/code/execute` records an approval decision (`tool_name: "execute_code"`, `risk_level: "medium"`) through the [approvals](../api/features-api.md) manager:
+
+- **Default policy** (`risk_threshold: "high"`) auto-approves and records the decision; the response includes `approval_id`.
+- `always_deny_tools: ["execute_code"]` → `403 {"status": "denied"}`.
+- A stricter policy (e.g. `risk_threshold: "low"`) → `202 {"status": "pending_approval", "approval_id": "..."}`. After approval via `POST /api/approvals/{id}/approve`, resubmit the **same** code with `"approval_id"`. Each approval works once and only for that exact code.
+
+When auth is enabled (`/api/auth/config` mode other than `none`), code execution, approve/deny, and `PUT /api/approvals/policies` return `401` to unauthenticated callers. The recorded `approver` is the authenticated identity, not a value from the request body.
+
 ## Configuration
 
 ```python

@@ -141,6 +141,9 @@ def set_execution_manager(manager: CodeExecutionProtocol) -> None:
     _execution_manager = manager
 
 
+EXECUTE_TOOL_NAME = "execute_code"
+
+
 # ── Feature class ────────────────────────────────────────────────────
 
 
@@ -171,13 +174,61 @@ class CodeExecutionFeature(BaseFeatureProtocol):
         return h
 
     async def _execute(self, request: Request) -> JSONResponse:
-        mgr = get_execution_manager()
+        from .approvals import _authenticated_user, _notify_subscribers, get_approval_manager
+
+        if _authenticated_user(request) is None:
+            return JSONResponse({"error": "Authentication required"}, status_code=401)
         body = await request.json()
+        code = body.get("code", "")
+        language = body.get("language", "python")
+
+        # Every execution goes through the approval manager so a decision is
+        # recorded. Default policy auto-approves (risk below threshold); operators
+        # can require manual approval via policies (e.g. lower ``risk_threshold``).
+        approvals = get_approval_manager()
+        args = {"code": code, "language": language}
+        approval_id = body.get("approval_id")
+        if approval_id:
+            decision = approvals.get(approval_id)
+            if (
+                not decision
+                or decision.get("status") != "approved"
+                or decision.get("source") != EXECUTE_TOOL_NAME
+                or decision.get("arguments") != args
+                or decision.get("consumed")
+            ):
+                return JSONResponse({"error": "Approval not valid for this code"}, status_code=403)
+        else:
+            decision = approvals.request_approval(
+                {
+                    "tool_name": EXECUTE_TOOL_NAME,
+                    "arguments": args,
+                    "risk_level": "medium",
+                    # Only approvals issued here are redeemable; POST /api/approvals
+                    # entries (caller-chosen risk/agent) cannot authorise execution.
+                    "source": EXECUTE_TOOL_NAME,
+                }
+            )
+            if decision["status"] == "denied":
+                return JSONResponse(
+                    {"status": "denied", "approval_id": decision["id"], "error": "Execution denied"},
+                    status_code=403,
+                )
+            if decision["status"] != "approved":
+                await _notify_subscribers("new", decision)
+                return JSONResponse(
+                    {"status": "pending_approval", "approval_id": decision["id"]},
+                    status_code=202,
+                )
+
+        decision["consumed"] = True  # single-use: no replay after policy changes
+        mgr = get_execution_manager()
         result = mgr.execute(
-            code=body.get("code", ""),
-            language=body.get("language", "python"),
+            code=code,
+            language=language,
             timeout=body.get("timeout", 30),
         )
+        result = {**result, "approval_id": decision["id"]}
         status = 200 if result.get("status") != "error" else 400
         return JSONResponse(result, status_code=status)
 
