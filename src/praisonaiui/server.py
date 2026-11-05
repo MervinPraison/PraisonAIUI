@@ -1303,9 +1303,11 @@ async def patch_session(request: Request) -> JSONResponse:
         body = await request.json()
     except Exception:
         return JSONResponse({"error": "Invalid JSON"}, status_code=400)
-    title = body.get("title")
+    title = body.get("title") if isinstance(body, dict) else None
     if title is not None:
-        await _datastore.update_session(session_id, title=title)
+        if not isinstance(title, str) or not title.strip():
+            return JSONResponse({"error": "title must be a non-empty string"}, status_code=400)
+        await _datastore.update_session(session_id, title=title.strip()[:200])
     return JSONResponse({"status": "updated", "session_id": session_id})
 
 
