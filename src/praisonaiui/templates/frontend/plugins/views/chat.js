@@ -244,6 +244,9 @@ function injectStyles() {
     .chat-sess-item.active { background:rgba(var(--db-accent-rgb,100,100,255),.15); }
     .chat-sess-item .sess-title { font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .chat-sess-item .sess-meta { font-size:11px; color:var(--db-text-dim); }
+    .chat-sess-item { position:relative; }
+    .chat-sess-item .sess-rename { position:absolute; top:6px; right:6px; display:none; background:none; border:none; color:var(--db-text-dim); cursor:pointer; font-size:12px; padding:2px 4px; }
+    .chat-sess-item:hover .sess-rename, .chat-sess-item .sess-rename:focus { display:block; }
 
     .chat-main-panel { flex:1; display:flex; flex-direction:column; min-width:0; }
     .chat-top-bar { padding:10px 16px; border-bottom:1px solid var(--db-border); display:flex; align-items:center; justify-content:space-between; gap:10px; }
@@ -1103,8 +1106,39 @@ function renderSessionList() {
     `;
     el.title = id;
     el.addEventListener('click', () => loadSession(id));
+    if (!platformName && id) {
+      const btn = document.createElement('button');
+      btn.className = 'sess-rename';
+      btn.title = 'Rename session';
+      btn.setAttribute('aria-label', 'Rename session');
+      btn.textContent = '✎';
+      btn.addEventListener('click', (e) => { e.stopPropagation(); renameSession(id, title); });
+      el.appendChild(btn);
+    }
     list.appendChild(el);
   });
+}
+
+async function renameSession(sessionId, currentTitle) {
+  const next = (window.prompt('Rename session', currentTitle || '') || '').trim();
+  if (!next || next === currentTitle) return;
+  try {
+    const resp = await fetch('/sessions/' + encodeURIComponent(sessionId), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: next }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const s = allSessions.find((x) => (x.id || x.session_id) === sessionId);
+    if (s) { s.title = next; delete s.name; }
+    renderSessionList();
+    if (sessionId === currentSessionId) {
+      const header = document.getElementById('chat-header-title');
+      if (header) header.textContent = next;
+    }
+  } catch (e) {
+    console.warn('[Chat] Failed to rename session:', e);
+  }
 }
 
 async function loadSession(sessionId) {
@@ -1158,7 +1192,8 @@ async function loadSession(sessionId) {
         title.textContent = (sessionIcon || '📨') + ' ' + displayName;
       }
     } else if (title) {
-      title.textContent = 'Session ' + sessionId.substring(0, 8);
+      const cached = allSessions.find((x) => (x.id || x.session_id) === sessionId);
+      title.textContent = (cached && (cached.name || cached.title)) || ('Session ' + sessionId.substring(0, 8));
     }
   } catch (e) {
     console.warn('[Chat] Failed to load session:', e);
