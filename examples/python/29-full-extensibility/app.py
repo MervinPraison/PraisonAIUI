@@ -203,10 +203,9 @@ async def custom_view_fallback():
         aiui.callout(
             title="Plugin not loaded",
             content=(
-                "This page is meant to be rendered client-side. "
-                "Open DevTools → Console and paste the contents of "
-                "plugin.js (in this example folder) to "
-                "activate the custom view."
+                "This page is meant to be rendered client-side by "
+                "plugin.js, which app.py loads via aiui.set_custom_js(). "
+                "If you see this, check that /custom.js loaded."
             ),
             variant="warning",
         ),
