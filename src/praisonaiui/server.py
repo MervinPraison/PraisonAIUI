@@ -1081,11 +1081,17 @@ async def health_ready(request: Request) -> JSONResponse:
 
     provider = get_provider()
     provider_info = {"name": type(provider).__name__}
-    try:
-        provider_health = await provider.health()
-        provider_info.update(provider_health)
-    except Exception:
-        pass
+
+    async def _safe_provider() -> Dict[str, Any]:
+        # Bounded like feature checks so a slow provider cannot hang readiness
+        # (or the cold /api/health dashboard request that delegates here).
+        try:
+            return await asyncio.wait_for(provider.health(), timeout=0.5)
+        except Exception:
+            return {}
+
+    # Start the provider check now so it runs concurrently with feature checks.
+    provider_task = asyncio.ensure_future(_safe_provider())
 
     features_health = {}
     sdk_gaps: list = []
@@ -1123,6 +1129,8 @@ async def health_ready(request: Request) -> JSONResponse:
                     })
         except Exception:
             pass
+
+    provider_info.update(await provider_task)
 
     payload: Dict[str, Any] = {
         "status": "ok",

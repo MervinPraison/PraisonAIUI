@@ -203,6 +203,37 @@ class TestHealthEndpoint:
         assert second.json().get("cached") is True
         assert duration < 0.1
 
+    def test_slow_provider_does_not_block_readiness(self, client):
+        """Cold /api/health and /health/ready bound a slow provider (#341)."""
+        import asyncio
+        import time
+
+        import praisonaiui.server as _srv
+
+        class _SlowProvider:
+            async def health(self):
+                await asyncio.sleep(5)
+                return {"status": "ok"}
+
+        prev_provider = _srv._provider
+        _srv._provider = _SlowProvider()
+        _srv._health_cache = {}
+        _srv._health_cache_time = 0
+        try:
+            for path in ("/api/health", "/health/ready"):
+                start = time.perf_counter()
+                response = client.get(path)
+                duration = time.perf_counter() - start
+                assert response.status_code == 200
+                data = response.json()
+                assert data["status"] == "ok"
+                assert data["provider"]["name"] == "_SlowProvider"
+                assert duration < 2.0
+        finally:
+            _srv._provider = prev_provider
+            _srv._health_cache = {}
+            _srv._health_cache_time = 0
+
 
 class TestProviderHealthEndpoint:
     """Tests for the provider health JSON route (#151)."""

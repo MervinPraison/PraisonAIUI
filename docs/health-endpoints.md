@@ -36,7 +36,7 @@ curl http://localhost:8082/health/live
 
 ### Readiness Check: `/health/ready`
 
-Verifies the server is ready to handle requests. Performs parallel health checks on all features with timeout protection.
+Verifies the server is ready to handle requests. Performs parallel health checks on all features with timeout protection. The provider check runs concurrently and is bounded by the same 0.5s timeout, so a slow provider cannot hang the response (or a cold `/api/health`).
 
 **Use for:**
 - Kubernetes readiness probes
