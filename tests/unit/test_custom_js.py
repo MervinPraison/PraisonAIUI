@@ -159,3 +159,9 @@ class TestCustomJsRegistrationLifecycle:
         start = src.find("window.aiui.registerView = function")
         body = src[start:src.find("\n};", start)]
         assert "activePageId" in body and "selectPage(pageId)" in body
+
+    def test_superseded_render_runs_its_cleanup(self):
+        """A render replaced by a newer selectPage must still be cleaned up."""
+        src = _DASHBOARD_JS.read_text(encoding="utf-8")
+        assert "_supersededCleanup(view.cleanup)" in src
+        assert "_supersededCleanup(mod.cleanup)" in src

@@ -1971,6 +1971,12 @@ function showDashboardInitError(message) {
   banner.textContent = message;
 }
 
+// A render superseded by a newer selectPage never became active, so run its
+// own cleanup to release intervals/listeners it set up.
+function _supersededCleanup(fn) {
+  if (fn) { try { fn(); } catch (e) {} }
+}
+
 async function selectPage(pageId) {
   // Cleanup previous view if it has a cleanup function
   if (_activeCleanup) { try { _activeCleanup(); } catch(e) {} _activeCleanup = null; }
@@ -2042,7 +2048,7 @@ async function selectPage(pageId) {
     const view = VIEW_REGISTRY[pageId];
     try {
       await view.render(container);
-      if (!container.isConnected) return; // superseded by a newer selectPage
+      if (!container.isConnected) { _supersededCleanup(view.cleanup); return; } // superseded by a newer selectPage
       _activeCleanup = view.cleanup || null;
       rendered = true;
     } catch (e) { console.warn(`View '${pageId}' render error:`, e); }
@@ -2056,7 +2062,7 @@ async function selectPage(pageId) {
       if (mod.render) {
         if (!container.isConnected) return; // superseded by a newer selectPage
         await mod.render(container);
-        if (!container.isConnected) return;
+        if (!container.isConnected) { _supersededCleanup(mod.cleanup); return; }
         _activeCleanup = mod.cleanup || null;
         rendered = true;
         // Cache for future use (never overwrite a view registered meanwhile)
