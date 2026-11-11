@@ -4,8 +4,17 @@ Machine-readable context for AI coding agents.
 
 ## Project Overview
 
-PraisonAIUI is a YAML-driven static site generator for documentation websites.
-It compiles `aiui.template.yaml` into a React SPA with a Starlette+Uvicorn server.
+PraisonAIUI ships three products from one package (`pip install aiui`, import `praisonaiui`):
+
+1. **Python SDK / AI dashboard** (main product) — `app.py` with `import praisonaiui as aiui`,
+   run via `aiui run app.py`. Styles: `dashboard`, `app`, `chat`, `agents`, `playground`, `docs`, `custom`
+   (`aiui.set_style()` / `--style`). Served by Starlette+Uvicorn from `server.py`.
+2. **YAML chat mode** — `aiui run chat.yaml`, same runtime as the SDK.
+3. **Documentation site generator** — `aiui init/build/serve` compiles `aiui.template.yaml`
+   + Markdown into JSON manifests rendered by the React SPA.
+
+Pick the right implementation before editing: a dashboard page or component is NOT
+implemented through the docs compiler or the React source (see "Which code owns what").
 
 ## Quick Commands
 
@@ -16,11 +25,19 @@ pip install -e ".[dev]"
 # Lint
 ruff check src/ tests/
 
+# Test (fast — unit only, what CI runs)
+pytest tests/unit -v --no-cov
+
 # Test (all)
 pytest tests/unit tests/integration -v
 
-# Test (fast — unit only)
-pytest tests/unit -v
+# Targeted tests — discover instead of relying on fixed counts
+pytest --collect-only -q tests/unit | tail -1
+pytest tests/unit -k dashboard --no-cov
+
+# Run an SDK app (dashboard / chat / YAML)
+aiui run app.py --style dashboard
+aiui run chat.yaml
 
 # Test with coverage
 pytest tests/unit tests/integration -v --cov=src/praisonaiui
@@ -47,7 +64,13 @@ aiui serve --output aiui-output/ --ssl-certfile cert.pem --ssl-keyfile key.pem
 PraisonAIUI/
 ├── src/
 │   ├── praisonaiui/             # Python package (PyPI: praisonaiui)
-│   │   ├── cli.py               # Typer CLI: init, validate, build, serve, dev
+│   │   ├── server.py            # SDK runtime: set_style/set_pages/set_custom_js/register_page, create_app(), HTML host
+│   │   ├── ui.py                # Dashboard component builders (layout, card, chart, table, …)
+│   │   ├── features/            # BaseFeatureProtocol feature modules (each contributes /api/* routes)
+│   │   ├── dashboard_plugins.py # Third-party dashboard plugins (manifest.json) → /api/dashboard/plugins
+│   │   ├── provider.py, providers/  # AI provider protocol + implementations
+│   │   ├── datastore.py         # Persistence protocol + backends
+│   │   ├── cli.py               # Typer CLI: run, init, validate, build, serve, dev, …
 │   │   ├── compiler/
 │   │   │   ├── compiler.py      # Config → JSON manifest compiler
 │   │   │   ├── docs_scanner.py  # Markdown scanner with frontmatter
@@ -58,7 +81,13 @@ PraisonAIUI/
 │   │   ├── plugins.py           # Plugin system with hook chaining
 │   │   ├── components.py        # Component registry
 │   │   ├── themes.py            # Theme preset system
-│   │   └── templates/frontend/  # Built React bundle (committed)
+│   │   └── templates/frontend/  # Shipped assets (committed)
+│   │       ├── index.html, assets/   # Built React bundle (synced from src/frontend/dist)
+│   │       ├── plugins/              # Hand-written JS plugins, edited in place (no build)
+│   │       │   ├── plugin-loader.js  # Loads plugins listed by /plugins/plugins.json
+│   │       │   ├── dashboard.js      # Dashboard shell, registerView/registerComponent
+│   │       │   └── views/            # Built-in dashboard page views
+│   │       └── dashboard-plugins/    # Bundled manifest-based dashboard plugins
 │   │
 │   └── frontend/                # React 19 + Vite + TypeScript source
 │       └── src/
@@ -73,30 +102,56 @@ PraisonAIUI/
 │           └── themes.ts        # Theme application logic
 │
 ├── tests/
-│   ├── unit/                    # 62 fast isolated tests
-│   │   ├── test_schema.py       # 9 tests — Pydantic models
-│   │   ├── test_validators.py   # 4 tests — config validation
-│   │   ├── test_compiler.py     # 16 tests — compilation pipeline
-│   │   ├── test_scanner.py      # 7 tests — docs scanner
-│   │   ├── test_serve.py        # 9 tests — serve command
-│   │   ├── test_plugins.py      # 8 tests — plugin system
-│   │   └── test_i18n_a11y.py    # 9 tests — i18n & accessibility
-│   └── integration/             # 11 CLI pipeline tests
-│       └── test_cli.py          # validate → build → serve
+│   ├── unit/                    # Fast isolated tests (CI gate)
+│   ├── integration/             # CLI pipeline, endpoints, gateway round-trips
+│   ├── js/, browser/            # Frontend plugin / browser tests
+│   └── test_feature_*.py        # Per-feature module tests
 │
 ├── docs/                        # Markdown documentation source
-├── examples/                    # Example configurations
+├── examples/                    # python/ (SDK curriculum) and yaml/ examples
 ├── pyproject.toml               # Package config + tool settings
-├── aiui.template.yaml           # Reference configuration
-└── .github/workflows/ci.yml     # CI: ruff + pytest (blocks on failure)
+├── aiui.template.yaml           # Reference docs-site configuration
+└── .github/workflows/ci.yml     # CI: ruff + pytest tests/unit (blocks on failure)
 ```
 
 ## Key Patterns
 
 ### Data Flow
+
+SDK / dashboard runtime:
+```
+app.py (aiui.set_* / @aiui.page / @aiui.reply) → server.py module state
+  → create_app(): core routes + features/*.routes() + dashboard plugin routes
+  → _build_html(style) → #root + plugin-loader.js (+ React bundle unless style == "dashboard")
+  → browser: /plugins/plugins.json (style-aware) → dashboard.js → /api/pages, /api/pages/{id}/data
+```
+
+Docs site:
 ```
 YAML config → Pydantic models → Compiler → JSON manifests → React SPA
 ```
+
+### Which code owns what
+
+| Change | Where |
+|--------|-------|
+| Custom dashboard page (server-rendered) | `@aiui.page()` / `register_page()` in `server.py`, components from `ui.py` |
+| Page whitelist / removal | `aiui.set_pages()` / `aiui.remove_page()` |
+| Client-side view or component | `window.aiui.registerView()` / `registerComponent()` in `plugins/dashboard.js`, shipped from Python via `aiui.set_custom_js(path)` (served at `/custom.js`, loaded after the plugin loader) |
+| Backend routes / feature state | Subclass `features/_base.py:BaseFeatureProtocol`, `register_feature()` |
+| Third-party dashboard plugin | `manifest.json` folder discovered by `dashboard_plugins.py` |
+| Built-in dashboard page UI | `templates/frontend/plugins/views/*.js` (edit in place, no build) |
+| Docs/chat React UI | `src/frontend/src/` → rebuild + sync (see Frontend Build) |
+
+**`#root` ownership differs by style.** With `style == "dashboard"` the React bundle is not
+served; `plugins/dashboard.js` owns `#root` (adds `db-active`, replaces its contents). With
+`style == "app"` the React shell owns `#root` and imports `dashboard.js` itself to host its views.
+In other styles the React SPA owns `#root` and JS plugins only enhance rendered content. Do not mix them.
+
+Custom views: `registerView(pageId, render, cleanup)` — `render(container)` runs on navigation,
+`cleanup()` runs when navigating away. Guides: `docs/features/how-to-add-a-feature.md`
+(extension points), `docs/features/dashboard.md` (client-side API and view lifecycle),
+`docs/api/python.md` (SDK reference).
 
 ### Config Resolution
 - `aiui.template.yaml` → validated via `schema/validators.py`
@@ -108,7 +163,7 @@ YAML config → Pydantic models → Compiler → JSON manifests → React SPA
 - **Integration tests** use `CliRunner` from Typer for CLI testing
 - **Fixtures** in `test_cli.py` create full project directories with config + docs
 
-### Frontend Build
+### Frontend Build (React docs/chat shell only — not dashboard plugins)
 1. Source in `src/frontend/src/` (React 19 + TypeScript + Vite). Node version: `src/frontend/.nvmrc`.
 2. Build: `cd src/frontend && npm ci && npm run build` (postbuild prunes KaTeX woff/ttf and writes `dist/aiui-externals.json`)
 3. Optional A2UI renderer (full agent-driven UI catalog): `npm install @a2ui/react @a2ui/web_core`
@@ -124,7 +179,7 @@ Chat inline media (agent-generated images): `RunEventType.MESSAGE_ELEMENT` — s
 
 ## Gotchas
 
-- **Frontend bundle is committed** — changes to `src/frontend/src/` require `npm run build && npm run sync` and committing `templates/frontend/` (CI's bundle-sync check fails otherwise; after a merge to main a bot PR resyncs it)
+- **Frontend bundle is committed** — changes to `src/frontend/src/` require `npm run build && npm run sync` and committing `templates/frontend/` (CI's bundle-sync check fails otherwise; after a merge to main a bot PR resyncs it); files under `templates/frontend/plugins/` are source and are edited directly
 - **Hashed chunks** — never reference a chunk by name; read `aiui-manifest.json` (see `src/frontend/scripts/lib/build-manifest.mjs`)
 - **Pydantic V2** — uses `model_config = ConfigDict(populate_by_name=True)`, not deprecated `class Config`
 - **SPA fallback** — serve returns `index.html` for any path without a file extension
