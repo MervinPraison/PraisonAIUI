@@ -367,7 +367,9 @@ const DASHBOARD_STYLE = `
     border-left: 3px solid transparent;
     text-decoration: none;
   }
+  button.db-nav-item { width: 100%; background: none; border-top: 0; border-right: 0; border-bottom: 0; font: inherit; text-align: left; }
   .db-nav-item:hover { background: var(--db-hover); color: var(--db-text); }
+  .db-nav-item:focus-visible { outline: 2px solid var(--db-accent); outline-offset: -2px; }
   .db-nav-item.active {
     color: var(--db-accent); background: var(--db-accent-glow);
     border-left-color: var(--db-accent); font-weight: 500;
@@ -464,8 +466,9 @@ const DASHBOARD_STYLE = `
     .db-mobile-header { display: flex; }
     /* !important: buildSidebar() sets an inline position:relative for its toggle,
        which otherwise keeps the hidden sidebar's 260px in the flex row. */
-    .db-sidebar { position: fixed !important; top: 0; left: 0; z-index: 45; transform: translateX(-100%); transition: transform 0.2s ease; }
-    .db-sidebar.db-sidebar-open { transform: translateX(0); }
+    /* visibility keeps links in the closed drawer out of the tab order. */
+    .db-sidebar { position: fixed !important; top: 0; left: 0; z-index: 45; transform: translateX(-100%); visibility: hidden; transition: transform 0.2s ease, visibility 0s linear 0.2s; }
+    .db-sidebar.db-sidebar-open { transform: translateX(0); visibility: visible; transition: transform 0.2s ease; }
     .db-mobile-overlay.db-visible { display: block; }
     .db-main { padding-top: 48px; }
     /* The shell header slot sits in the same flex row; give it its own line. */
@@ -1813,6 +1816,32 @@ function setPageIcon(span, page, fallback) {
   if (svg) { span.textContent = ''; span.appendChild(svg); } else span.textContent = page.icon || fallback;
 }
 
+// Sidebar entry: a real link for page routes (keyboard reachable, open-in-new-tab
+// works) or a button for actions. Plain left clicks stay in the SPA.
+function navEntry(page, fallbackIcon, onAction) {
+  const el = document.createElement(onAction ? 'button' : 'a');
+  el.className = 'db-nav-item';
+  if (onAction) {
+    el.type = 'button';
+    el.addEventListener('click', onAction);
+  } else {
+    el.dataset.navId = page.id;
+    el.href = '/' + encodeURIComponent(page.id);
+    el.addEventListener('click', (e) => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      selectPage(page.id);
+    });
+  }
+  const iconSpan = document.createElement('span');
+  iconSpan.className = 'db-nav-icon';
+  iconSpan.setAttribute('aria-hidden', 'true');
+  setPageIcon(iconSpan, page, fallbackIcon);
+  el.appendChild(iconSpan);
+  el.appendChild(document.createTextNode(' ' + page.title));
+  return el;
+}
+
 function buildSidebar(pages) {
   const sidebar = document.createElement('nav');
   sidebar.className = 'db-sidebar';
@@ -1905,18 +1934,7 @@ function buildSidebar(pages) {
     label.textContent = groupName;
     sidebar.appendChild(label);
 
-    groupPages.forEach(page => {
-      const item = document.createElement('div');
-      item.className = 'db-nav-item';
-      item.dataset.navId = page.id;
-      const iconSpan = document.createElement('span');
-      iconSpan.className = 'db-nav-icon';
-      setPageIcon(iconSpan, page, '📄');
-      item.appendChild(iconSpan);
-      item.appendChild(document.createTextNode(' ' + page.title));
-      item.addEventListener('click', () => selectPage(page.id));
-      sidebar.appendChild(item);
-    });
+    groupPages.forEach(page => sidebar.appendChild(navEntry(page, '📄')));
   }
 
   // Footer pages — render any page with position='footer' at the sidebar bottom
@@ -1929,21 +1947,8 @@ function buildSidebar(pages) {
     sidebar.appendChild(spacer);
 
     for (const page of footerPages) {
-      const btn = document.createElement('div');
-      btn.className = 'db-nav-item';
-      const iconSpan = document.createElement('span');
-      iconSpan.className = 'db-nav-icon';
-      setPageIcon(iconSpan, page, '⚙');
-      btn.appendChild(iconSpan);
-      btn.appendChild(document.createTextNode(' ' + page.title));
-      btn.addEventListener('click', () => {
-        // Use built-in handler if available, otherwise navigate to page
-        if (page.id === 'inspector') {
-          showTestPanel();
-        } else {
-          selectPage(page.id);
-        }
-      });
+      // Inspector opens a built-in panel (an action); others are page links
+      const btn = navEntry(page, '⚙', page.id === 'inspector' ? showTestPanel : null);
       btn.style.borderTop = '1px solid var(--db-border)';
       btn.style.marginTop = '8px';
       sidebar.appendChild(btn);
@@ -1979,9 +1984,11 @@ async function selectPage(pageId) {
   }
 
   // Update nav active state
-  document.querySelectorAll('.db-nav-item').forEach(el => el.classList.remove('active'));
-  const active = document.querySelector(`[data-nav-id="${pageId}"]`);
-  if (active) active.classList.add('active');
+  document.querySelectorAll('.db-nav-item').forEach(el => {
+    const on = el.dataset.navId === pageId;
+    el.classList.toggle('active', on);
+    if (on) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
+  });
 
   const page = pagesData.find(p => p.id === pageId);
   const main = document.getElementById('db-main-content');
@@ -3123,7 +3130,10 @@ async function showTestPanel() {
   if (location.pathname !== '/inspector') {
     history.pushState({ pageId: '__test__' }, '', '/inspector');
   }
-  document.querySelectorAll('.db-nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.db-nav-item').forEach(el => {
+    el.classList.remove('active');
+    el.removeAttribute('aria-current');
+  });
   const main = document.getElementById('db-main-content');
   if (!main) return;
 
