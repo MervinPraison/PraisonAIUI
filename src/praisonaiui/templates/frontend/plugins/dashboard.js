@@ -3540,21 +3540,14 @@ window.aiui.registerSlot('shell:header', () => {
 window.aiui.registerSlot('shell:sidebar:footer', () => {
   const el = document.createElement('div');
   el.innerHTML = '<span class="db-health-dot" style="color:var(--db-text-dim)">●</span> <span class="db-health-label">Checking…</span>';
-  fetch('/api/health').then((r) => r.json()).then((d) => {
+  // Connection indicator uses side-effect-free liveness (#341). Deep
+  // feature/SDK-gap diagnostics remain at /api/health (Debug view).
+  fetch('/api/health/live').then((r) => r.json()).then((d) => {
     const ok = d && (d.status === 'ok' || d.status === 'healthy');
     const dot = el.querySelector('.db-health-dot');
     const label = el.querySelector('.db-health-label');
-    const gaps = (d && d.sdk_gaps) || [];
-    if (dot) dot.style.color = ok && !gaps.length ? '#22c55e' : (gaps.length ? '#f59e0b' : '#ef4444');
-    if (label) {
-      if (gaps.length) {
-        label.textContent = `SDK gaps (${gaps.length})`;
-        label.title = gaps.map((g) => `${g.feature}: ${g.message}`).join('\n');
-      } else {
-        label.textContent = ok ? (d.integrated ? 'Integrated' : 'Connected') : 'Degraded';
-        label.title = '';
-      }
-    }
+    if (dot) dot.style.color = ok ? '#22c55e' : '#ef4444';
+    if (label) label.textContent = ok ? 'Connected' : 'Degraded';
   }).catch(() => { const label = el.querySelector('.db-health-label'); if (label) label.textContent = 'Offline'; });
   return el;
 });
