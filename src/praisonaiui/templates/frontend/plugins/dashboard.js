@@ -241,6 +241,10 @@ const aiuiSdk = {
 window.aiui = window.aiui || {};
 window.aiui.registerView = function(pageId, renderFn, cleanupFn) {
   VIEW_REGISTRY[pageId] = { render: renderFn, cleanup: cleanupFn || null };
+  // Late registration for the page already on screen: re-render it.
+  if (pageId === activePageId && document.getElementById('db-main-content')) {
+    selectPage(pageId);
+  }
 };
 window.aiui.views = VIEW_REGISTRY;
 window.aiui.registerComponent = function(type, renderFn) {
@@ -2035,9 +2039,11 @@ async function selectPage(pageId) {
 
   // Priority 1: Custom registered view
   if (VIEW_REGISTRY[pageId]) {
+    const view = VIEW_REGISTRY[pageId];
     try {
-      await VIEW_REGISTRY[pageId].render(container);
-      _activeCleanup = VIEW_REGISTRY[pageId].cleanup || null;
+      await view.render(container);
+      if (!container.isConnected) return; // superseded by a newer selectPage
+      _activeCleanup = view.cleanup || null;
       rendered = true;
     } catch (e) { console.warn(`View '${pageId}' render error:`, e); }
   }
@@ -2048,17 +2054,21 @@ async function selectPage(pageId) {
       const viewUrl = BUILTIN_VIEWS[pageId] + '?v=' + Date.now();
       const mod = await import(viewUrl);
       if (mod.render) {
+        if (!container.isConnected) return; // superseded by a newer selectPage
         await mod.render(container);
+        if (!container.isConnected) return;
         _activeCleanup = mod.cleanup || null;
         rendered = true;
-        // Cache for future use
-        VIEW_REGISTRY[pageId] = { render: mod.render, cleanup: mod.cleanup || null };
+        // Cache for future use (never overwrite a view registered meanwhile)
+        if (!VIEW_REGISTRY[pageId]) {
+          VIEW_REGISTRY[pageId] = { render: mod.render, cleanup: mod.cleanup || null };
+        }
       }
     } catch (e) { console.warn(`Built-in view '${pageId}' import error:`, e); }
   }
 
   // Priority 3: Generic JSON viewer fallback
-  if (!rendered) {
+  if (!rendered && container.isConnected) {
     loadGenericViewer(page, container);
   }
 
@@ -3461,6 +3471,11 @@ window.aiui.registerSlot('shell:sidebar:footer', () => {
     }
   }).catch(() => { const label = el.querySelector('.db-health-label'); if (label) label.textContent = 'Offline'; });
   return el;
+});
+
+// Replay registrations queued by the /custom.js stubs (see server.py).
+(window.aiui.__queue || []).splice(0).forEach(([name, args]) => {
+  try { window.aiui[name](...args); } catch (e) { console.warn(`[AIUI] queued ${name} failed:`, e); }
 });
 
 export { init, onContentChange };
