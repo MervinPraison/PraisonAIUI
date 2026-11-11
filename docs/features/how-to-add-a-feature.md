@@ -259,18 +259,30 @@ from starlette.responses import JSONResponse
 
 class MyFeature(BaseFeatureProtocol):
     name = "my-feature"
-    feature_name = "my-feature"
+    description = "Example feature with GET and PATCH routes"
 
     def routes(self):
         return [
-            Route("/api/my-feature", self._handler, methods=["GET"]),
+            Route("/api/my-feature", self._get, methods=["GET"]),
+            Route("/api/my-feature/{item_id}", self._patch, methods=["PATCH"]),
         ]
 
-    async def _handler(self, request):
-        return JSONResponse({"data": "hello"})
+    async def _get(self, request):
+        # Query parameters: GET /api/my-feature?q=hello
+        return JSONResponse({"data": request.query_params.get("q", "hello")})
 
+    async def _patch(self, request):
+        # Path parameter + JSON body: PATCH /api/my-feature/42
+        body = await request.json()
+        return JSONResponse({"ok": True, "id": request.path_params["item_id"], **body})
+
+# Register before the app is created — create_app() mounts feature
+# routes ahead of the SPA fallback, so no route reordering is needed.
 register_feature(MyFeature())
 ```
+
+`name` and `description` are abstract on `BaseFeatureProtocol`; omitting
+either raises `TypeError: Can't instantiate abstract class`.
 
 See [Protocol Architecture](protocol-architecture.md).
 
