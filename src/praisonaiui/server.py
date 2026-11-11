@@ -373,6 +373,7 @@ def set_dashboard(
     page_header: bool = True,
     modules: list[str] | None = None,
     plugin_dirs: list[str] | None = None,
+    plugins: list[str] | None = None,
 ) -> None:
     """Configure dashboard layout options.
 
@@ -384,6 +385,11 @@ def set_dashboard(
         page_header: Show the page title/description header (default True).
         modules: Optional JS modules to load (``jobs``, ``auth``, ``api``).
         plugin_dirs: Extra paths to scan for ``dashboard-plugins`` manifests.
+        plugins: Allowlist of dashboard plugin names to enable. ``None``
+            (default) enables every discovered plugin (bundled, home and
+            ``plugin_dirs``); ``[]`` disables all. Applies to both the sidebar
+            pages and the browser plugin manifest. This scopes navigation only;
+            it is not an authorization boundary for API routes.
 
     Example::
 
@@ -399,6 +405,14 @@ def set_dashboard(
         "modules": list(modules) if modules else [],
         "pluginDirs": list(plugin_dirs) if plugin_dirs else [],
     }
+    if plugins is not None:
+        _dashboard_config["plugins"] = list(plugins)
+
+
+def _dashboard_plugin_allowlist() -> list[str] | None:
+    """Plugin-name allowlist from ``set_dashboard(plugins=...)`` (``None`` = all)."""
+    allowed = (_dashboard_config or {}).get("plugins")
+    return list(allowed) if allowed is not None else None
 
 
 _jobs_api_config: dict[str, str] = {"apiBase": "/api/jobs", "backend": "aiui"}
@@ -1725,7 +1739,7 @@ async def api_pages(request: Request) -> JSONResponse:
     pages = list(_pages.values())
     extra_dirs = (_dashboard_config or {}).get("pluginDirs") or []
     known_ids = {p["id"] for p in pages}
-    for manifest in discover_dashboard_plugins(extra_dirs):
+    for manifest in discover_dashboard_plugins(extra_dirs, _dashboard_plugin_allowlist()):
         page = manifest.get("page")
         if page and page["id"] not in known_ids:
             pages.append(page)
@@ -3193,7 +3207,7 @@ def create_app(
         cfg = _dashboard_config or {}
         return list(cfg.get("pluginDirs") or cfg.get("plugin_dirs") or [])
 
-    routes.extend(make_dashboard_plugin_routes(_dashboard_plugin_dirs))
+    routes.extend(make_dashboard_plugin_routes(_dashboard_plugin_dirs, _dashboard_plugin_allowlist))
 
     # ── Gap S1: Auto-initialize gateway in standalone mode ──────────
     # When running standalone (not via AIUIGateway.start()), we need to

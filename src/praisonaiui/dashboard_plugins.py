@@ -32,8 +32,18 @@ def _plugin_search_dirs(extra_dirs: list[str] | None = None) -> list[Path]:
     return dirs
 
 
-def discover_dashboard_plugins(extra_dirs: list[str] | None = None) -> list[dict[str, Any]]:
-    """Scan dashboard-plugins folders for manifest.json files."""
+def discover_dashboard_plugins(
+    extra_dirs: list[str] | None = None,
+    allowed: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Scan dashboard-plugins folders for manifest.json files.
+
+    ``allowed`` restricts results to the given plugin names; ``None`` keeps
+    every discovered plugin and ``[]`` disables all of them.
+    """
+    if allowed is not None and not allowed:
+        return []
+    allow = set(allowed) if allowed is not None else None
     manifests: list[dict[str, Any]] = []
     seen: set[str] = set()
 
@@ -53,6 +63,8 @@ def discover_dashboard_plugins(extra_dirs: list[str] | None = None) -> list[dict
             if name in seen:
                 continue
             seen.add(name)
+            if allow is not None and name not in allow:
+                continue
             tab = data.get("tab") or {}
             path = tab.get("path") or f"/{name}"
             page_id = path.strip("/").split("/")[0] or name
@@ -80,8 +92,13 @@ def discover_dashboard_plugins(extra_dirs: list[str] | None = None) -> list[dict
     return manifests
 
 
-def _resolve_plugin_file(name: str, subpath: str, extra_dirs: list[str] | None) -> Path | None:
-    for manifest in discover_dashboard_plugins(extra_dirs):
+def _resolve_plugin_file(
+    name: str,
+    subpath: str,
+    extra_dirs: list[str] | None,
+    allowed: list[str] | None = None,
+) -> Path | None:
+    for manifest in discover_dashboard_plugins(extra_dirs, allowed):
         if manifest["name"] != name:
             continue
         root = Path(manifest["root"])
@@ -95,18 +112,25 @@ def _resolve_plugin_file(name: str, subpath: str, extra_dirs: list[str] | None) 
 
 def make_dashboard_plugin_routes(
     get_extra_dirs,
+    get_allowed=None,
 ) -> list[Route]:
-    """Factory: ``get_extra_dirs`` returns plugin dir list from server config."""
+    """Factory: ``get_extra_dirs`` returns plugin dir list from server config.
+
+    ``get_allowed`` optionally returns the plugin-name allowlist (``None`` = all).
+    """
+
+    def _allowed() -> list[str] | None:
+        return get_allowed() if get_allowed else None
 
     async def list_plugins(request: Request) -> JSONResponse:
         extra = get_extra_dirs()
-        return JSONResponse({"plugins": discover_dashboard_plugins(extra)})
+        return JSONResponse({"plugins": discover_dashboard_plugins(extra, _allowed())})
 
     async def serve_plugin_asset(request: Request) -> Response:
         name = request.path_params["name"]
         subpath = request.path_params["path"]
         extra = get_extra_dirs()
-        file_path = _resolve_plugin_file(name, subpath, extra)
+        file_path = _resolve_plugin_file(name, subpath, extra, _allowed())
         if not file_path:
             return Response(status_code=404)
         media = "text/javascript"
