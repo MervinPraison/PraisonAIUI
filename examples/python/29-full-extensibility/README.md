@@ -1,4 +1,4 @@
-# Example 28 — Full Extensibility Showcase
+# Example 29 — Full Extensibility Showcase
 
 Demonstrates **every** extension point in PraisonAIUI.
 
@@ -44,6 +44,9 @@ The `timeline` component and the `custom-view` page are client-side extensions.
 
 > **Note:** `aiui.set_custom_js(path)` injects client-side JS from a file path at page load.
 > See `docs/features/how-to-add-a-feature.md` for the extension API contract.
+
+> **Tip:** if a custom view renders its own heading, call
+> `aiui.set_dashboard(page_header=False)` to hide the default page title/description header.
 
 ## Testing the form action
 

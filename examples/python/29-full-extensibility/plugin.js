@@ -5,9 +5,11 @@
  *   1. window.aiui.registerComponent(type, renderFn)  — adds a new component type
  *   2. window.aiui.registerView(pageId, render, cleanup) — adds a custom page view
  *
- * To load this file, paste its contents into the browser DevTools Console
- * after the page loads. (A Python-side API to inject custom JS is a planned
- * enhancement — see 28-full-extensibility/README.md.)
+ * Loaded automatically by app.py, which serves it at /custom.js:
+ *
+ *     aiui.set_custom_js(Path(__file__).with_name("plugin.js"))
+ *
+ * See 29-full-extensibility/README.md.
  */
 
 (function () {
