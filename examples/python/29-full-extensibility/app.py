@@ -1,4 +1,4 @@
-"""Example 28 — Full Extensibility Showcase.
+"""Example 29 — Full Extensibility Showcase.
 
 Demonstrates EVERY extension point in PraisonAIUI:
 
