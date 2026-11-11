@@ -829,15 +829,25 @@ def breadcrumb(items: Sequence[dict]) -> dict:
     return {"type": "breadcrumb", "items": list(items)}
 
 
-def pagination(*, total: int, page: int = 1, per_page: int = 10) -> dict:
+def pagination(
+    *, total: int, page: int = 1, per_page: int = 10, id: str | None = None
+) -> dict:
     """Pagination controls.
+
+    Clicking a page updates the control and dispatches a bubbling
+    ``aiui:pagination`` DOM event with ``{id, page, per_page, total}`` so
+    the host can re-slice or fetch rows.
 
     Args:
         total: Total number of items
         page: Current page number (1-based)
         per_page: Items per page
+        id: Optional identifier echoed in the event to tell controls apart
     """
-    return {"type": "pagination", "total": total, "page": page, "per_page": per_page}
+    comp: dict[str, Any] = {"type": "pagination", "total": total, "page": page, "per_page": per_page}
+    if id is not None:
+        comp["id"] = id
+    return comp
 
 
 def definition_list(items: Sequence[dict], *, title: str | None = None) -> dict:

@@ -705,7 +705,7 @@ aiui.breadcrumb([
 |-----------|------|----------|-------------|
 | `items` | `Sequence[dict]` | ✅ | List of `{"label": str, "href": str\|None}` |
 
-### `aiui.pagination(*, total, page, per_page)`
+### `aiui.pagination(*, total, page, per_page, id)`
 
 Pagination controls.
 
@@ -718,6 +718,18 @@ aiui.pagination(total=250, page=3, per_page=25)
 | `total` | `int` | ✅ | — | Total items |
 | `page` | `int` | ❌ | `1` | Current page (1-based) |
 | `per_page` | `int` | ❌ | `10` | Items per page |
+| `id` | `str` | ❌ | `None` | Identifier echoed in the page-change event |
+
+The control is optimistic: clicking ←, →, or a page number updates the active
+page and dispatches a bubbling `aiui:pagination` DOM event. Buttons that would
+go out of bounds are disabled and emit nothing. `page` is clamped to the valid range.
+
+```javascript
+container.addEventListener('aiui:pagination', (e) => {
+  const { id, page, per_page, total } = e.detail;
+  renderRows(rows.slice((page - 1) * per_page, page * per_page)); // or fetch()
+});
+```
 
 ### `aiui.key_value_list(items, *, title)`
 
