@@ -208,7 +208,7 @@ aiui.set_chat_features(
 
 ---
 
-### `aiui.set_dashboard(*, sidebar, page_header)`
+### `aiui.set_dashboard(*, sidebar, page_header, modules, plugin_dirs, plugins)`
 
 Configure dashboard layout options.
 
@@ -216,6 +216,9 @@ Configure dashboard layout options.
 |-----------|------|---------|-------------|
 | `sidebar` | `bool` | `True` | Show the left sidebar navigation |
 | `page_header` | `bool` | `True` | Show the page title/description header |
+| `modules` | `list[str] \| None` | `None` | Optional dashboard JS modules (`jobs`, `auth`, `api`) |
+| `plugin_dirs` | `list[str] \| None` | `None` | Extra directories to scan for dashboard plugins |
+| `plugins` | `list[str] \| None` | `None` | Allowlist of dashboard plugin names. `None` = all discovered (bundled, `~/.praisonai/dashboard-plugins`, `plugin_dirs`); `[]` = none |
 
 ```python
 import praisonaiui as aiui
@@ -223,7 +226,12 @@ import praisonaiui as aiui
 aiui.set_style("dashboard")
 aiui.set_dashboard(sidebar=False)       # Chat-only dashboard, no sidebar
 aiui.set_dashboard(page_header=False)   # Hide page titles
+aiui.set_dashboard(plugins=[])          # No auto-discovered dashboard plugins
 ```
+
+`plugins` filters both the sidebar pages (`/api/pages`) and the browser plugin
+manifest (`/api/dashboard/plugins`), so disabled plugin scripts are never loaded.
+It scopes navigation only — it is **not** an authorization boundary for API routes.
 
 ---
 
