@@ -291,6 +291,14 @@ const DASHBOARD_STYLE = `
 
   /* Root becomes the flex container */
   #root { display: flex; min-height: 100vh; }
+  /* With a shell:header slot: sidebar | (header row sized to content, page panel below). */
+  #root.db-active:has(> #db-shell-header-slot) {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+    height: 100vh; min-height: 0;
+  }
+  #root.db-active:has(> #db-shell-header-slot) > .db-sidebar { grid-column: 1; grid-row: 1 / -1; }
+  #db-shell-header-slot { grid-column: 2; grid-row: 1; min-width: 0; padding: 8px 40px 0; }
+  #root.db-active:has(> #db-shell-header-slot) > .db-main { grid-column: 2; grid-row: 2; height: auto; min-height: 0; }
 
   /* Sidebar */
   .db-sidebar {
@@ -468,9 +476,8 @@ const DASHBOARD_STYLE = `
     .db-sidebar.db-sidebar-open { transform: translateX(0); }
     .db-mobile-overlay.db-visible { display: block; }
     .db-main { padding-top: 48px; }
-    /* The shell header slot sits in the same flex row; give it its own line. */
-    #root.db-active { flex-wrap: wrap; }
-    #db-shell-header-slot { flex: 0 0 100%; margin-top: 48px; }
+    /* Sidebar is fixed here; the header row sits below the fixed mobile bar. */
+    #db-shell-header-slot { margin-top: 48px; padding: 8px 16px 0; }
     #db-shell-header-slot + .db-main { padding-top: 16px; }
   }
   @media (max-width: 600px) {

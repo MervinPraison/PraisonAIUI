@@ -139,8 +139,17 @@ def test_replay_page_uses_own_svg_mark_not_emoji_heading():
 def test_dashboard_mobile_shell_gives_content_the_width():
     dash = (FRONTEND / "dashboard.js").read_text(encoding="utf-8")
     assert ".db-sidebar { position: fixed !important;" in dash
-    assert "#db-shell-header-slot { flex: 0 0 100%;" in dash
+    assert "#db-shell-header-slot { margin-top: 48px;" in dash
     assert ".db-main { padding: 64px 16px 16px; }" in dash
+
+
+def test_shell_header_is_a_content_sized_row_not_a_column():
+    """#339: the header slot must not take a flex column or stretch on mobile."""
+    dash = (FRONTEND / "dashboard.js").read_text(encoding="utf-8")
+    assert "#root.db-active:has(> #db-shell-header-slot) {" in dash
+    assert "grid-template-rows: auto minmax(0, 1fr);" in dash
+    assert "#db-shell-header-slot { grid-column: 2; grid-row: 1;" in dash
+    assert "#root.db-active { flex-wrap: wrap; }" not in dash
 
 
 def test_theme_defaults_to_system():
