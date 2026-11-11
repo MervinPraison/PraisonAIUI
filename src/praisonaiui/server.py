@@ -1086,9 +1086,10 @@ async def health_ready(request: Request) -> JSONResponse:
         # Bounded like feature checks so a slow provider cannot hang readiness
         # (or the cold /api/health dashboard request that delegates here).
         try:
-            return await asyncio.wait_for(provider.health(), timeout=0.5)
+            result = await asyncio.wait_for(provider.health(), timeout=0.5)
         except Exception:
             return {}
+        return result if isinstance(result, dict) else {}
 
     # Start the provider check now so it runs concurrently with feature checks.
     provider_task = asyncio.ensure_future(_safe_provider())

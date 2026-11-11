@@ -234,6 +234,23 @@ class TestHealthEndpoint:
             _srv._health_cache = {}
             _srv._health_cache_time = 0
 
+    def test_non_dict_provider_health_does_not_500_readiness(self, client):
+        """A provider returning a non-dict from health() must not break /health/ready."""
+        import praisonaiui.server as _srv
+
+        class _NoneProvider:
+            async def health(self):
+                return None
+
+        prev_provider = _srv._provider
+        _srv._provider = _NoneProvider()
+        try:
+            response = client.get("/health/ready")
+            assert response.status_code == 200
+            assert response.json()["provider"] == {"name": "_NoneProvider"}
+        finally:
+            _srv._provider = prev_provider
+
 
 class TestProviderHealthEndpoint:
     """Tests for the provider health JSON route (#151)."""
