@@ -3044,24 +3044,44 @@ function renderBreadcrumb(comp) {
 }
 
 function renderPagination(comp) {
-  const el = document.createElement('div');
+  // Optimistic control: the active page updates locally, then a bubbling
+  // `aiui:pagination` CustomEvent ({id, page, per_page, total}) notifies the
+  // host so it can re-slice local rows or fetch the requested page.
+  const el = document.createElement('nav');
   el.className = 'db-pagination';
-  const total = comp.total || 0;
-  const perPage = comp.per_page || 10;
-  const totalPages = Math.ceil(total / perPage);
-  let currentPage = comp.page || 1;
+  el.setAttribute('aria-label', 'Pagination');
+  if (comp.id) el.dataset.id = comp.id;
+  const total = Math.max(0, comp.total || 0);
+  const perPage = Math.max(1, comp.per_page || 10);
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  let currentPage = Math.min(Math.max(1, comp.page || 1), totalPages);
+  function go(page) {
+    if (page < 1 || page > totalPages || page === currentPage) return;
+    currentPage = page;
+    render();
+    el.dispatchEvent(new CustomEvent('aiui:pagination', {
+      bubbles: true,
+      detail: { id: comp.id || null, page, per_page: perPage, total },
+    }));
+  }
+  function button(label, ariaLabel, page, disabled) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = label;
+    btn.setAttribute('aria-label', ariaLabel);
+    btn.disabled = disabled;
+    btn.addEventListener('click', () => go(page));
+    return btn;
+  }
   function render() {
     el.innerHTML = '';
-    const prev = document.createElement('button');
-    prev.textContent = '←';
-    prev.disabled = currentPage <= 1;
-    prev.addEventListener('click', () => { if (currentPage > 1) { currentPage--; render(); } });
-    el.appendChild(prev);
+    el.appendChild(button('←', 'Previous page', currentPage - 1, currentPage <= 1));
     for (let i = 1; i <= Math.min(totalPages, 7); i++) {
-      const btn = document.createElement('button');
-      btn.textContent = i;
-      if (i === currentPage) btn.classList.add('active');
-      btn.addEventListener('click', () => { currentPage = i; render(); });
+      const btn = button(String(i), `Page ${i}`, i, false);
+      if (i === currentPage) {
+        btn.classList.add('active');
+        btn.setAttribute('aria-current', 'page');
+      }
       el.appendChild(btn);
     }
     if (totalPages > 7) {
@@ -3070,11 +3090,7 @@ function renderPagination(comp) {
       dots.style.cssText = 'padding:0 4px;color:var(--db-text-dim)';
       el.appendChild(dots);
     }
-    const next = document.createElement('button');
-    next.textContent = '→';
-    next.disabled = currentPage >= totalPages;
-    next.addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; render(); } });
-    el.appendChild(next);
+    el.appendChild(button('→', 'Next page', currentPage + 1, currentPage >= totalPages));
   }
   render();
   return el;
