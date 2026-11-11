@@ -276,9 +276,11 @@ def set_custom_js(path: str | Path) -> None:
 
     Reads the file at ``path`` and serves it at ``/custom.js``. A
     ``<script src="/custom.js">`` tag is injected into the host HTML
-    *after* the plugin loader, so ``window.aiui`` and all registry APIs
-    (``registerView``, ``registerComponent``) are ready when your code
-    runs.
+    *after* the plugin loader. ``window.aiui`` registry APIs
+    (``registerView``, ``registerComponent``, ``registerSlot``,
+    ``registerSurfaceRenderer``) can be called directly at load time:
+    calls made before the dashboard module is ready are queued and
+    replayed, and a view registered for the active page re-renders it.
 
     Use this to ship client-side extensions from your Python app without
     modifying the package bundle.
@@ -806,7 +808,18 @@ def _custom_js_tag(cache_bust: int) -> str:
     """Return a <script src="/custom.js"> tag if set_custom_js() was called."""
     if _custom_js is None:
         return ""
-    return f'<script src="/custom.js?v={cache_bust}"></script>'
+    return _CUSTOM_JS_QUEUE + f'<script src="/custom.js?v={cache_bust}"></script>'
+
+
+# Registration stubs for /custom.js: the dashboard module loads
+# asynchronously, so until it defines the real registry APIs these stubs
+# queue calls on ``window.aiui.__queue``; dashboard.js replays them.
+_CUSTOM_JS_QUEUE = (
+    "<script>(function(a){a.__queue=a.__queue||[];"
+    "['registerView','registerComponent','registerSlot','registerSurfaceRenderer']"
+    ".forEach(function(n){if(!a[n])a[n]=function(){a.__queue.push([n,arguments]);};});"
+    "})(window.aiui=window.aiui||{});</script>"
+)
 
 
 async def _serve_custom_js(request: Request) -> Response:

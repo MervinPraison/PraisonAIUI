@@ -122,3 +122,46 @@ class TestCustomJsServing:
             "custom.js must be injected AFTER plugin-loader.js so window.aiui "
             "APIs are available when custom.js runs"
         )
+
+
+# ── Registration lifecycle (issue #338) ───────────────────────────
+
+_DASHBOARD_JS = (
+    Path(srv.__file__).parent / "templates" / "frontend" / "plugins" / "dashboard.js"
+)
+
+
+class TestCustomJsRegistrationLifecycle:
+    def test_queue_stub_injected_before_custom_js(self, tmp_js):
+        """Registry stubs must exist before /custom.js runs (dashboard loads async)."""
+        srv.set_custom_js(tmp_js)
+        srv.set_style("dashboard")
+        html = TestClient(srv.create_app()).get("/").text
+        stub_idx = html.find("__queue")
+        assert stub_idx != -1, "registration queue stub must be injected"
+        assert stub_idx < html.find("/custom.js")
+        for name in ("registerView", "registerComponent", "registerSlot",
+                     "registerSurfaceRenderer"):
+            assert name in html[stub_idx:html.find("/custom.js")]
+
+    def test_no_queue_stub_when_unset(self, client):
+        assert "__queue" not in client.get("/").text
+
+    def test_dashboard_replays_queued_registrations(self):
+        src = _DASHBOARD_JS.read_text(encoding="utf-8")
+        replay_idx = src.find("window.aiui.__queue")
+        assert replay_idx != -1, "dashboard.js must replay queued registrations"
+        # Replay must run after `let activePageId` is initialised (no TDZ error).
+        assert replay_idx > src.find("let activePageId")
+
+    def test_late_register_view_rerenders_active_page(self):
+        src = _DASHBOARD_JS.read_text(encoding="utf-8")
+        start = src.find("window.aiui.registerView = function")
+        body = src[start:src.find("\n};", start)]
+        assert "activePageId" in body and "selectPage(pageId)" in body
+
+    def test_superseded_render_runs_its_cleanup(self):
+        """A render replaced by a newer selectPage must still be cleaned up."""
+        src = _DASHBOARD_JS.read_text(encoding="utf-8")
+        assert "_supersededCleanup(view.cleanup)" in src
+        assert "_supersededCleanup(mod.cleanup)" in src
