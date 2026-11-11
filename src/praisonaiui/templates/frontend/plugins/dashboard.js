@@ -2317,7 +2317,17 @@ function renderTable(comp) {
     table.appendChild(thead);
   }
   
-  rows.forEach(row => {
+  // Opt-in row selection/actions (#336): only when stable row_ids are given.
+  const rowIds = Array.isArray(comp.row_ids) && comp.row_ids.length === rows.length ? comp.row_ids : null;
+  const actions = rowIds && Array.isArray(comp.actions) ? comp.actions : [];
+  const emit = (name, detail) => wrapper.dispatchEvent(new CustomEvent(name, { detail, bubbles: true }));
+  if (actions.length && headers.length) {
+    const th = document.createElement('th');
+    th.style.cssText = 'padding:8px 12px;border-bottom:1px solid var(--db-border);';
+    table.firstChild.appendChild(th);
+  }
+
+  rows.forEach((row, index) => {
     const tr = document.createElement('tr');
     row.forEach(cell => {
       const td = document.createElement('td');
@@ -2325,6 +2335,43 @@ function renderTable(comp) {
       td.textContent = cell !== null && cell !== undefined ? cell : '';
       tr.appendChild(td);
     });
+    if (rowIds) {
+      const rowId = String(rowIds[index]);
+      tr.dataset.rowId = rowId;
+      tr.tabIndex = 0;
+      tr.style.cursor = 'pointer';
+      tr.setAttribute('aria-selected', 'false');
+      const select = () => {
+        table.querySelectorAll('tr[aria-selected="true"]').forEach(r => {
+          r.setAttribute('aria-selected', 'false');
+          r.style.background = '';
+        });
+        tr.setAttribute('aria-selected', 'true');
+        tr.style.background = 'var(--db-hover)';
+        emit('aiui:table-select', { rowId, index });
+      };
+      tr.addEventListener('click', select);
+      tr.addEventListener('keydown', (e) => {
+        if (e.target === tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(); }
+      });
+      if (actions.length) {
+        const td = document.createElement('td');
+        td.style.cssText = 'padding:4px 12px;border-bottom:1px solid var(--db-border);text-align:right;white-space:nowrap;';
+        actions.forEach(action => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'db-btn';
+          btn.textContent = action;
+          btn.setAttribute('aria-label', `${action} ${row[0] ?? rowId}`);
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            emit('aiui:table-action', { action, rowId });
+          });
+          td.appendChild(btn);
+        });
+        tr.appendChild(td);
+      }
+    }
     table.appendChild(tr);
   });
   

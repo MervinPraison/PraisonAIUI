@@ -110,18 +110,38 @@ def table(
     *,
     headers: Sequence[str],
     rows: Sequence[Sequence[Any]],
+    row_ids: Sequence[str] | None = None,
+    actions: Sequence[str] | None = None,
 ) -> dict:
     """A data table.
 
     Args:
         headers: Column header labels
         rows: List of row arrays
+        row_ids: Optional stable ID per row. When given, rows are selectable
+            (click, Enter or Space) and emit a bubbling ``aiui:table-select``
+            DOM event with ``detail = {rowId, index}``.
+        actions: Optional row action labels (requires ``row_ids``). Each row
+            gets one button per action, emitting a bubbling
+            ``aiui:table-action`` DOM event with ``detail = {action, rowId}``.
     """
-    return {
+    comp: dict[str, Any] = {
         "type": "table",
         "headers": list(headers),
         "rows": [list(r) for r in rows],
     }
+    if row_ids is not None:
+        ids = [str(i) for i in row_ids]
+        if len(ids) != len(comp["rows"]):
+            raise ValueError("row_ids must have one entry per row")
+        if len(set(ids)) != len(ids):
+            raise ValueError("row_ids must be unique")
+        comp["row_ids"] = ids
+    if actions:
+        if row_ids is None:
+            raise ValueError("actions require row_ids")
+        comp["actions"] = [str(a) for a in actions]
+    return comp
 
 
 def text(content: str) -> dict:

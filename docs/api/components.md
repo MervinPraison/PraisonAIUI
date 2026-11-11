@@ -73,6 +73,47 @@ aiui.table(
 |-----------|------|----------|-------------|
 | `headers` | `Sequence[str]` | ✅ | Column header labels |
 | `rows` | `Sequence[Sequence[Any]]` | ✅ | Row data arrays |
+| `row_ids` | `Sequence[str]` | — | Stable unique ID per row. Makes rows selectable by click, Enter or Space |
+| `actions` | `Sequence[str]` | — | Row action button labels (requires `row_ids`) |
+
+With `row_ids`, the dashboard renderer emits bubbling DOM events from the table, so
+a custom view can own query state (search, filters, page, sort) and react to rows:
+
+| Event | `detail` |
+|-------|----------|
+| `aiui:table-select` | `{rowId, index}` |
+| `aiui:table-action` | `{action, rowId}` |
+
+Because events carry the stable `rowId`, selection stays correct after the server
+re-sorts or filters rows. Loading, empty and error states compose from existing
+components (`aiui.skeleton()`, `aiui.empty()`, `aiui.alert()`):
+
+```js
+// Custom view: server-paged, searchable table using only documented APIs.
+window.aiui.registerView('companies', (container) => {
+  const state = { q: '', page: 1 };
+  const show = (comps) => { container.replaceChildren(...comps.map(window.aiui.renderComponent)); };
+  async function load() {
+    show([{ type: 'skeleton', variant: 'card' }]);
+    try {
+      const res = await fetch(`/api/companies?q=${encodeURIComponent(state.q)}&page=${state.page}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { rows, total } = await res.json();   // [{id, name, status}], count
+      if (!rows.length) return show([{ type: 'empty', text: 'No results' }]);
+      show([{ type: 'table', headers: ['Name', 'Status'],
+              rows: rows.map(r => [r.name, r.status]),
+              row_ids: rows.map(r => r.id), actions: ['Edit'] },
+            { type: 'caption', text: `${total} companies` }]);
+    } catch (e) {
+      show([{ type: 'alert', variant: 'error', message: 'Could not load companies. Try again.' }]);
+    }
+  }
+  container.addEventListener('aiui:table-select', (e) => openDetail(e.detail.rowId));
+  container.addEventListener('aiui:table-action', (e) => editRow(e.detail.rowId));
+  // On search/filter change: state.q = value; state.page = 1; load();
+  load();
+});
+```
 
 ### `aiui.text(content)`
 
