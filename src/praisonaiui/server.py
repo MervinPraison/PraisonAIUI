@@ -804,6 +804,21 @@ def _build_html(style: str) -> str:
     )
 
 
+def _frontend_templates_dir() -> Path:
+    """Directory holding the built React frontend (``assets/``, ``aiui-manifest.json``,
+    ``aiui-externals.json``).
+
+    Defaults to the packaged ``templates/frontend``. ``AIUI_TEMPLATES_DIR`` points
+    it at another build, e.g. one copied with
+    ``node scripts/sync-templates.mjs --dest <dir>``, without touching the
+    packaged (tracked) files.
+    """
+    override = os.environ.get("AIUI_TEMPLATES_DIR", "").strip()
+    if override:
+        return Path(override).expanduser().resolve()
+    return Path(__file__).parent / "templates" / "frontend"
+
+
 def _custom_js_tag(cache_bust: int) -> str:
     """Return a <script src="/custom.js"> tag if set_custom_js() was called."""
     if _custom_js is None:
@@ -3671,11 +3686,21 @@ def create_app(
         }
 
     # Always mount built-in frontend plugins and assets BEFORE catch-all /
-    _frontend_dir = Path(__file__).parent / "templates" / "frontend"
+    _package_frontend_dir = Path(__file__).parent / "templates" / "frontend"
+    _frontend_dir = _frontend_templates_dir()
+    # Hand-written plugins/ ship with the package; an AIUI_TEMPLATES_DIR build
+    # copy only replaces them if it carries its own plugins/ directory.
     _plugins_dir = _frontend_dir / "plugins"
+    if not _plugins_dir.is_dir():
+        _plugins_dir = _package_frontend_dir / "plugins"
     if static_dir and (Path(static_dir) / "plugins").is_dir():
         _plugins_dir = Path(static_dir) / "plugins"
     _assets_dir = _frontend_dir / "assets"
+    if not _assets_dir.is_dir() and _frontend_dir != _package_frontend_dir:
+        logging.getLogger(__name__).warning(
+            "AIUI_TEMPLATES_DIR=%s has no assets/ directory; /assets will not be served",
+            _frontend_dir,
+        )
 
     # Dynamic plugins.json route — MUST come before static /plugins mount
     # so the dynamic endpoint takes priority over the static file.

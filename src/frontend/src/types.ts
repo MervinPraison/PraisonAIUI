@@ -120,7 +120,7 @@ export interface TemplateConfig {
 export interface UIConfig {
     debug?: boolean
     site?: SiteConfig
-    style?: 'docs' | 'chat' | 'agents' | 'playground' | 'custom' | 'dashboard'
+    style?: 'docs' | 'chat' | 'agents' | 'playground' | 'custom' | 'dashboard' | 'app'
     layout?: LayoutConfig
     chat?: ChatConfig
     auth?: AuthConfig

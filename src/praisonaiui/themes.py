@@ -379,3 +379,17 @@ RADIUS_PRESETS = {
 def get_radius_value(preset: str = "md") -> str:
     """Get radius CSS value from preset name."""
     return RADIUS_PRESETS.get(preset, RADIUS_PRESETS["md"])
+
+
+def get_seed_theme_css(
+    preset: Optional[str] = None,
+    radius: Optional[str] = None,
+    accent: Optional[str] = None,
+    density: Optional[str] = None,
+) -> str:
+    """Return the L0 seed CSS (``--seed-*``, ``--radius``, ``--density``) for a theme.
+
+    Contract stub (WP0a). WP0b replaces it with the real seed emitter
+    (ADR-0001 §7); until then it emits nothing so callers can wire it in.
+    """
+    return ""
