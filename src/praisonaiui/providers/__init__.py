@@ -225,6 +225,10 @@ def _hook_event_to_run_events(hook_event_name: str, event_data) -> List[RunEvent
     if hook_event_name == "before_tool":
         tool_name = getattr(event_data, "tool_name", None)
         args = getattr(event_data, "arguments", None)
+        # Hook inputs do not carry the LLM tool-call id today; use it when a
+        # future SDK adds one. ``_run_direct_mode`` fills it in otherwise
+        # from the streamed tool call (see _fill_approval_tool_call_id).
+        tool_call_id = getattr(event_data, "tool_call_id", None)
 
         # Check if this tool requires approval
         should_check_approval = _should_check_approval(tool_name)
@@ -239,16 +243,19 @@ def _hook_event_to_run_events(hook_event_name: str, event_data) -> List[RunEvent
             if approval_id:
                 # Emit approval required event - using RUN_PAUSED as closest match
                 # The extra_data contains the approval info for frontend handling
+                approval_extra: Dict[str, Any] = {
+                    "type": "approval_required",
+                    "id": approval_id,
+                    "tool_name": tool_name,
+                    "arguments": args,
+                    "risk_level": _get_tool_risk_level(tool_name),
+                }
+                if tool_call_id:
+                    approval_extra["tool_call_id"] = tool_call_id
                 events.append(
                     RunEvent(
                         type=RunEventType.RUN_PAUSED,
-                        extra_data={
-                            "type": "approval_required",
-                            "id": approval_id,
-                            "tool_name": tool_name,
-                            "arguments": args,
-                            "risk_level": _get_tool_risk_level(tool_name),
-                        }
+                        extra_data=approval_extra,
                     )
                 )
 
@@ -257,6 +264,7 @@ def _hook_event_to_run_events(hook_event_name: str, event_data) -> List[RunEvent
                 type=RunEventType.TOOL_CALL_STARTED,
                 name=tool_name,
                 args=args,
+                tool_call_id=tool_call_id,
             )
         )
     elif hook_event_name == "after_tool":
@@ -288,6 +296,30 @@ def _hook_event_to_run_events(hook_event_name: str, event_data) -> List[RunEvent
         )
 
     return events
+
+
+def _fill_approval_tool_call_id(run_evt: RunEvent, pending: Dict[str, RunEvent]) -> None:
+    """Add the gated call's ``tool_call_id`` to an approval ``RUN_PAUSED``.
+
+    The ``before_tool`` hook does not know the LLM tool-call id, but the
+    streamed ``TOOL_CALL_STARTED`` for the same call arrived earlier and is
+    still pending. Use the newest pending call with the same tool name, so
+    the client can attach the approval to the right tool card.
+    """
+    if run_evt.type != RunEventType.RUN_PAUSED:
+        return
+    extra = run_evt.extra_data
+    if not isinstance(extra, dict) or extra.get("type") != "approval_required":
+        return
+    if extra.get("tool_call_id"):
+        return
+    tool_name = extra.get("tool_name")
+    if not tool_name:
+        return
+    for started in reversed(list(pending.values())):
+        if started.name == tool_name and started.tool_call_id:
+            extra["tool_call_id"] = started.tool_call_id
+            return
 
 
 # Map legacy queue event types → RunEventType
@@ -498,6 +530,32 @@ class PraisonAIProvider(BaseProvider):
             self._agent = agent
 
         return agent
+
+    def resolve_agent_name(
+        self,
+        agent_name: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """Return the name of the agent ``run()`` will use for this turn.
+
+        The WS chat route calls this before announcing ``run_started`` so the
+        announcement carries the real agent name (the provider's own
+        ``run_started`` is not forwarded there). It mirrors ``run()``:
+        callback mode answers with the requested name; direct mode resolves
+        the agent exactly as ``_run_direct_mode`` does. The agent is cached
+        per session, so ``run()`` reuses it rather than building it twice.
+        """
+        try:
+            from praisonaiui.server import _callbacks
+
+            if _callbacks.get("reply"):
+                return agent_name
+        except ImportError:
+            pass
+        agent = self._get_or_create_agent(agent_name, session_id)
+        if agent is None:
+            return agent_name
+        return getattr(agent, "name", None) or agent_name
 
     async def run(
         self,
@@ -828,6 +886,7 @@ class PraisonAIProvider(BaseProvider):
                 tok = run_evt.token or run_evt.content or ""
                 if tok and tok != "None":
                     _streamed_text += tok
+            _fill_approval_tool_call_id(run_evt, _pending_tool_calls)
             # Track pending tool calls
             if run_evt.type == RunEventType.TOOL_CALL_STARTED and run_evt.name:
                 key = run_evt.tool_call_id or run_evt.name
@@ -849,6 +908,7 @@ class PraisonAIProvider(BaseProvider):
                         tok = run_evt.token or run_evt.content or ""
                         if tok and tok != "None":
                             _streamed_text += tok
+                    _fill_approval_tool_call_id(run_evt, _pending_tool_calls)
                     # Track pending tool calls in drain phase too
                     if run_evt.type == RunEventType.TOOL_CALL_STARTED and run_evt.name:
                         key = run_evt.tool_call_id or run_evt.name
