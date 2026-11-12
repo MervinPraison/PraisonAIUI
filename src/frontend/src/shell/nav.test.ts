@@ -1,0 +1,148 @@
+// Shell navigation, icon-map and approval-toast helpers (WP6).
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import type { ShellManifest, ShellPage } from '@/sdk/manifest'
+import {
+  defaultPageId,
+  footerPages,
+  groupPages,
+  isFullBleed,
+  orderedPages,
+  showPageHeader,
+  showSidebar,
+  siteLogo,
+  siteTitle,
+} from '@/shell/nav'
+import { emojiForPage, FallbackPageIcon, ICON_BY_PAGE_ID, iconForPage, PAGE_ICON_SET } from '@/shell/icons'
+import { approvalKey, describeApproval } from '@/shell/approvals'
+
+const p = (id: string, group: string | undefined, order: number, extra: Partial<ShellPage> = {}): ShellPage => ({
+  id,
+  title: id[0].toUpperCase() + id.slice(1),
+  kind: 'legacy',
+  group,
+  order,
+  ...extra,
+})
+
+// A slice of the built-in pages, in the server's (order, id) manifest order.
+const PAGES: ShellPage[] = [
+  p('chat', 'Agent', 1),
+  p('chat-canvas', 'Agent', 2),
+  p('work', 'Work', 9),
+  p('agents', 'Agent', 10),
+  p('config', 'Settings', 10),
+  p('overview', 'Control', 10),
+  p('hello', 'Plugins', 50, { kind: 'react', module: '/_plugins/hello/hello.js' }),
+  p('logs', 'Settings', 20),
+  p('inspector', 'Control', 99, { position: 'footer' } as Partial<ShellPage>),
+  p('misc', undefined, 100),
+]
+
+const manifest = (over: Partial<ShellManifest> = {}): ShellManifest => ({
+  sdk: 1,
+  version: '0.0.0',
+  style: 'app',
+  site: { title: 'Acme AI' },
+  layout: {},
+  pages: PAGES,
+  blocks: [],
+  toolRenderers: [],
+  plugins: [],
+  legacy: { customJs: null, viewsBase: '/plugins/views/' },
+  ...over,
+})
+
+test('groups follow Agent, Work, Control, then other groups, with Settings last', () => {
+  const groups = groupPages(PAGES)
+  assert.deepEqual(
+    groups.map((g) => g.name),
+    ['Agent', 'Work', 'Control', 'Plugins', 'Other', 'Settings'],
+  )
+  assert.deepEqual(
+    groups[0].pages.map((x) => x.id),
+    ['chat', 'chat-canvas', 'agents'],
+  )
+  assert.deepEqual(
+    groups.find((g) => g.name === 'Settings')?.pages.map((x) => x.id),
+    ['config', 'logs'],
+  )
+})
+
+test('footer pages are listed separately and last in display order', () => {
+  assert.deepEqual(footerPages(PAGES).map((x) => x.id), ['inspector'])
+  assert.ok(!groupPages(PAGES).some((g) => g.pages.some((x) => x.id === 'inspector')))
+  const ids = orderedPages(PAGES).map((x) => x.id)
+  assert.equal(ids[0], 'chat')
+  assert.equal(ids.at(-1), 'inspector')
+  assert.equal(ids.length, PAGES.length)
+})
+
+test('the root redirect uses a configured default page, else the first page', () => {
+  assert.equal(defaultPageId(manifest()), 'chat')
+  assert.equal(defaultPageId(manifest({ layout: { default: 'overview' } as ShellManifest['layout'] })), 'overview')
+  assert.equal(defaultPageId(manifest({ layout: { defaultPage: 'logs' } as ShellManifest['layout'] })), 'logs')
+  assert.equal(defaultPageId(manifest({ site: { defaultPage: 'work' } })), 'work')
+  assert.equal(
+    defaultPageId(manifest({ layout: { default: 'missing' } as ShellManifest['layout'] })),
+    'chat',
+    'an unknown default falls back to the first page',
+  )
+  assert.equal(defaultPageId(manifest({ pages: [] })), null)
+})
+
+test('layout.sidebar / layout.pageHeader = false hide the chrome; anything else shows it', () => {
+  assert.equal(showSidebar(manifest()), true)
+  assert.equal(showSidebar(manifest({ layout: { sidebar: false } })), false)
+  assert.equal(showSidebar(manifest({ layout: { sidebar: true } })), true)
+  assert.equal(showPageHeader(manifest()), true)
+  assert.equal(showPageHeader(manifest({ layout: { pageHeader: false } })), false)
+  assert.equal(showPageHeader(manifest({ layout: { pageHeader: { title: true } } })), true)
+})
+
+test('full-bleed pages: layout flag, the known chat-like ids, and iframes', () => {
+  assert.equal(isFullBleed(undefined, 'chat'), true)
+  assert.equal(isFullBleed(p('x', 'G', 1, { layout: 'full-bleed' }), 'x'), true)
+  assert.equal(isFullBleed(p('y', 'G', 1, { kind: 'iframe' }), 'y'), true)
+  assert.equal(isFullBleed(p('logs', 'G', 1), 'logs'), false)
+})
+
+test('site title and logo', () => {
+  assert.equal(siteTitle(manifest()), 'Acme AI')
+  assert.equal(siteTitle(manifest({ site: {} })), 'PraisonAI')
+  assert.deepEqual(siteLogo(manifest({ site: { logo: '🦞' } })), { kind: 'text', value: '🦞' })
+  assert.deepEqual(siteLogo(manifest({ site: { logo: '/static/logo.svg' } })), { kind: 'img', value: '/static/logo.svg' })
+  assert.equal(siteLogo(manifest({ site: { logo: 'javascript:alert(1)' } })), null)
+})
+
+test('the static icon map stays within 20 lucide icons', () => {
+  assert.ok(PAGE_ICON_SET.length <= 20, `icon budget exceeded: ${PAGE_ICON_SET.length}`)
+  assert.equal(new Set(PAGE_ICON_SET).size, PAGE_ICON_SET.length)
+  for (const [id, icon] of Object.entries(ICON_BY_PAGE_ID)) {
+    assert.ok(PAGE_ICON_SET.includes(icon), `${id} uses an icon outside PAGE_ICON_SET`)
+  }
+  assert.ok(PAGE_ICON_SET.includes(FallbackPageIcon))
+})
+
+test('icons resolve by page id, then by lucide-style name, then emoji, then nothing', () => {
+  assert.equal(iconForPage({ id: 'logs', icon: '📜' }), ICON_BY_PAGE_ID.logs)
+  assert.equal(iconForPage({ id: 'plugin-x', icon: 'Bot' }), ICON_BY_PAGE_ID.agents)
+  assert.equal(iconForPage({ id: 'plugin-y', icon: '🦄' }), undefined)
+  assert.equal(emojiForPage({ icon: '🦄' }), '🦄')
+  assert.equal(emojiForPage({ icon: '💬🖼️' }), '💬', 'first emoji cluster only')
+  assert.equal(emojiForPage({ icon: '⚙️' }), '⚙️', 'keeps the variation selector')
+  assert.equal(emojiForPage({ icon: 'rocket' }), undefined, 'unknown names never render as text')
+  assert.equal(emojiForPage({}), undefined)
+})
+
+test('approval toasts: stable key and readable text', () => {
+  assert.equal(approvalKey({ id: 'a1', tool_call_id: 't1' }), 'a1')
+  assert.equal(approvalKey({ tool_call_id: 't1' }), 't1')
+  assert.equal(approvalKey({}), '')
+  assert.deepEqual(
+    describeApproval({ tool_name: 'shell', agent_name: 'Coder', risk_level: 'high', description: 'rm -rf build' }),
+    { title: 'Approval needed: shell', description: 'Agent Coder · high risk — rm -rf build' },
+  )
+  assert.deepEqual(describeApproval({}), { title: 'Approval needed', description: '' })
+  assert.ok(describeApproval({ description: 'x'.repeat(500) }).description.length <= 160)
+})
