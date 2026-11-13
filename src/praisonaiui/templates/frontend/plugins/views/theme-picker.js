@@ -76,6 +76,12 @@ const STYLE = `
 `;
 
 let _state = null;
+// The element the picker is mounted in (render's `el`); paint() draws there.
+let _host = null;
+
+const ROOT_HTML = '<div id="theme-picker-root" class="theme-picker"></div>';
+// How often one mount re-creates its picker after another writer replaced it.
+const MAX_REPAINTS = 5;
 
 // Neutral presets are monochrome: in the React shell their accent is the ink.
 const NEUTRAL_PRESETS = ['zinc', 'slate', 'stone', 'gray', 'neutral'];
@@ -208,12 +214,56 @@ async function deleteCustomTheme(name) {
   paint();
 }
 
+// The picker's root inside the mounted element, re-created when something
+// else replaced the element's contents. On a direct load of /theme-picker the
+// legacy dashboard starts its generic data viewer while this module is still
+// importing (the page container is empty then); that viewer's late
+// `{"error": "Not Found"}` overwrites the container, root included. Null
+// when nothing is mounted or the element has left the document.
+function pickerRoot() {
+  const host = _host;
+  if (!host || !host.isConnected) return null;
+  let root = host.querySelector('#theme-picker-root');
+  if (!root) {
+    host.innerHTML = ROOT_HTML;
+    root = host.querySelector('#theme-picker-root');
+  }
+  return root;
+}
+
+// Keeps one mount's picker on screen: if another writer replaces the mounted
+// element's contents while the mount is live (the generic viewer's response
+// can also land after the picker is painted), the picker is painted again.
+// Bounded, so it never ping-pongs with a writer that keeps clearing. Returns
+// this mount's release.
+function guardMount(el) {
+  let released = false;
+  let repaints = 0;
+  let observer = null;
+  if (typeof MutationObserver === 'function') {
+    observer = new MutationObserver(() => {
+      if (released || _host !== el || !el.isConnected) return;
+      if (el.querySelector('#theme-picker-root')) return;
+      if (++repaints > MAX_REPAINTS) { observer.disconnect(); return; }
+      if (_state) paint(); else pickerRoot();
+    });
+    observer.observe(el, { childList: true });
+  }
+  return () => {
+    if (released) return;
+    released = true;
+    if (observer) observer.disconnect();
+    if (_host === el) _host = null;
+  };
+}
+
 // Repaints the picker from _state. Named paint() because the module also
 // exports render(el) below; two `render` declarations are a SyntaxError
 // that stopped the whole module from loading.
 function paint() {
-  const container = document.getElementById('theme-picker-root');
-  if (!container || !_state) return;
+  if (!_state) return;
+  const container = pickerRoot();
+  if (!container) return;
 
   const presets = _state.presets || {};
   const currentPreset = _state.preset || 'indigo';
@@ -344,11 +394,11 @@ function paint() {
     el.addEventListener('click', () => deleteCustomTheme(el.dataset.delete));
   });
 
-  const regBtn = document.getElementById('tp-register-btn');
+  const regBtn = container.querySelector('#tp-register-btn');
   if (regBtn) {
     regBtn.addEventListener('click', () => {
-      const nameInput = document.getElementById('tp-custom-name');
-      const colorInput = document.getElementById('tp-custom-color');
+      const nameInput = container.querySelector('#tp-custom-name');
+      const colorInput = container.querySelector('#tp-custom-color');
       const name = nameInput.value.trim();
       if (name) {
         registerCustomTheme(name, colorInput.value);
@@ -360,6 +410,9 @@ function paint() {
 
 // ── Public init (called by dashboard plugin system) ──────────────
 
+// Resolves to this mount's release (the shell's mountView calls it when the
+// page is left; the legacy dashboard drops the element instead, which ends
+// the guard with it).
 export async function render(el) {
   // Inject styles
   if (!document.getElementById('theme-picker-style')) {
@@ -369,25 +422,33 @@ export async function render(el) {
     document.head.appendChild(style);
   }
 
-  el.innerHTML = '<div id="theme-picker-root" class="theme-picker"></div>';
+  _host = el;
+  el.innerHTML = ROOT_HTML;
+  const release = guardMount(el);
 
   // Restore saved theme from localStorage
   const savedPreset = localStorage.getItem('aiui-theme-preset');
   const savedMode = localStorage.getItem('aiui-theme-mode');
   const savedRadius = localStorage.getItem('aiui-theme-radius');
 
-  await fetchState();
+  try {
+    await fetchState();
 
-  // If saved state differs from server, apply saved state
-  if (_state && savedPreset && savedPreset !== _state.preset) {
-    await applyPreset(savedPreset);
-  }
-  if (_state && savedMode && savedMode !== _state.mode && !inReactShell()) {
-    await applyMode(savedMode);
-  }
-  if (_state && savedRadius && savedRadius !== _state.radius) {
-    await applyRadius(savedRadius);
+    // If saved state differs from server, apply saved state
+    if (_state && savedPreset && savedPreset !== _state.preset) {
+      await applyPreset(savedPreset);
+    }
+    if (_state && savedMode && savedMode !== _state.mode && !inReactShell()) {
+      await applyMode(savedMode);
+    }
+    if (_state && savedRadius && savedRadius !== _state.radius) {
+      await applyRadius(savedRadius);
+    }
+  } catch (err) {
+    release(); // no host cleans up a render that threw
+    throw err;
   }
 
   paint();
+  return release;
 }

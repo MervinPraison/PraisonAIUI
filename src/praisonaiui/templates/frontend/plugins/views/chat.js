@@ -13,10 +13,6 @@ import { showToast } from '../toast.js';
 
 // ── State ────────────────────────────────────────────────────────
 let ws = null;
-let wsReconnectTimer = null;
-// Set by cleanup() so a socket closed on purpose is not reconnected; reset by
-// render() (the module is cached and re-rendered on every visit).
-let wsClosing = false;
 let currentSessionId = null;
 let currentAgentName = null;
 let isStreaming = false;
@@ -981,7 +977,6 @@ export async function render(container) {
   }
 
   await loadSessions();
-  wsClosing = false;
   connectWebSocket();
 
   // Load a session chosen from the dashboard Ctrl+K search palette
@@ -993,11 +988,7 @@ export async function render(container) {
 }
 
 export function cleanup() {
-  // Detach onclose before closing: its handler schedules a reconnect, which
-  // would open a fresh socket after the page is gone.
-  wsClosing = true;
-  if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
-  if (ws) { try { ws.onclose = null; ws.close(); } catch(e) {} ws = null; }
+  if (ws) { try { ws.close(); } catch(e) {} ws = null; }
   stopContextPoll();
   if (contextRefreshDebounce) { clearTimeout(contextRefreshDebounce); contextRefreshDebounce = null; }
   if (sessionSelectHandler) {
@@ -1277,8 +1268,6 @@ function newSession() {
 
 // ── WebSocket ────────────────────────────────────────────────────
 function connectWebSocket() {
-  if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
-  if (wsClosing) return; // the page was left while a reconnect was pending
   // Close any existing connection to prevent duplicate events
   if (ws) {
     try { ws.onclose = null; ws.close(); } catch (e) {}
@@ -1317,7 +1306,7 @@ function connectWebSocket() {
     ws.onclose = () => {
       console.log('[Chat] WebSocket closed, reconnecting in 3s…');
       setStatus('disconnected');
-      if (!wsClosing) wsReconnectTimer = setTimeout(connectWebSocket, 3000);
+      setTimeout(connectWebSocket, 3000);
     };
 
     ws.onerror = (e) => {
@@ -1326,7 +1315,7 @@ function connectWebSocket() {
     };
   } catch (e) {
     console.warn('[Chat] WebSocket connection failed:', e);
-    if (!wsClosing) wsReconnectTimer = setTimeout(connectWebSocket, 5000);
+    setTimeout(connectWebSocket, 5000);
   }
 }
 

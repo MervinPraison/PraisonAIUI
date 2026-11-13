@@ -22,6 +22,7 @@ Three guarantees for the vanilla dashboard's views and feature-plugin modules:
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import re
@@ -105,7 +106,7 @@ CLEANUP_VIEWS = ["logs", "usage", "agents", "schedules", "jobs", "code-studio", 
 # Every file WP5 touches (syntax-checked as ES modules).
 TOUCHED = [PLUGINS / m for m in TOKEN_MODULES] + [
     VIEWS / f"{v}.js"
-    for v in ("logs", "usage", "agents", "schedules", "jobs", "theme-picker", "chat-canvas", "chat")
+    for v in ("logs", "usage", "agents", "schedules", "jobs", "theme-picker", "chat-canvas")
 ]
 
 _COLOR = r"(?:#[0-9a-fA-F]{3,8}|rgba?\([^()]*\)|hsla?\([^()]*\))"
@@ -819,18 +820,50 @@ console.info(JSON.stringify(out));
 """
 
 
-def test_chat_cleanup_does_not_reconnect(tmp_path):
+# views/chat.js is not a WP5 file (BRIEF process rule 2), so its fix is a
+# cross-file request rather than part of this package. Until it lands, the
+# tests that depend on it are strict xfails, decided by running chat.js itself:
+# once its cleanup() stops reconnecting they run as ordinary tests (and a
+# strict xfail that starts passing fails, so the marker cannot go stale).
+CHAT_JS_REQUEST = (
+    "views/chat.js cleanup() closes its socket with onclose still attached, and "
+    "onclose reconnects 3 s later (also from a reconnect timer pending at leave). "
+    "Outside WP5's ownership: requested from the integrator (cross-file request)."
+)
+
+
+@functools.lru_cache(maxsize=1)
+def _chat_harness_result() -> dict:
+    node = _node()
+    with tempfile.TemporaryDirectory(prefix="aiui-wp5-chat-") as tmp:
+        harness = Path(tmp) / "harness.mjs"
+        harness.write_text(_CHAT_HARNESS, encoding="utf-8")
+        proc = subprocess.run(
+            [node, str(harness), str(VIEWS / "chat.js")],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    assert proc.returncode == 0, proc.stderr
+    return json.loads(proc.stdout.strip().splitlines()[-1])
+
+
+def _chat_js_reconnects_after_cleanup() -> bool:
+    out = _chat_harness_result()
+    return out["reconnectsAfterLeave"] > 0 or out["reconnectsAfterLeavingDuringRetry"] > 0
+
+
+def _expect_chat_js_leak(request) -> None:
+    if _chat_js_reconnects_after_cleanup():
+        request.applymarker(pytest.mark.xfail(reason=CHAT_JS_REQUEST, strict=True))
+
+
+def test_chat_cleanup_does_not_reconnect(request):
     """views/chat.js (the /chat page, and embedded by chat-canvas) closed its
     socket in cleanup() with onclose still attached; onclose then reconnected
     3 s after the page was left, and the new socket lived on forever."""
-    node = _node()
-    harness = tmp_path / "harness.mjs"
-    harness.write_text(_CHAT_HARNESS, encoding="utf-8")
-    proc = subprocess.run(
-        [node, str(harness), str(VIEWS / "chat.js")], capture_output=True, text=True, timeout=60
-    )
-    assert proc.returncode == 0, proc.stderr
-    out = json.loads(proc.stdout.strip().splitlines()[-1])
+    _expect_chat_js_leak(request)
+    out = _chat_harness_result()
     assert out["socketsAfterRender"] == 1
     assert out["liveAfterLeave"] == 0
     assert out["reconnectsAfterLeave"] == 0
@@ -919,12 +952,15 @@ globalThis.localStorage = {
 };
 const props = [];
 const listeners = {};
-const fakeEl = () => ({ innerHTML: '', dataset: {}, value: '', addEventListener() {},
+const fakeEl = () => ({ innerHTML: '', dataset: {}, value: '', addEventListener() {}, querySelector: () => null,
   querySelectorAll(sel) {
     if (sel !== '.tp-mode-btn') return [];
     return [{ dataset: { mode: 'dark' }, addEventListener(t, fn) { listeners.mode = fn; } }];
   } });
 const pickerRoot = fakeEl();
+// The element the page is mounted in; the picker draws into its root.
+const host = { ...fakeEl(), isConnected: true,
+  querySelector: (sel) => (sel === '#theme-picker-root' ? pickerRoot : null) };
 globalThis.document = {
   documentElement: {
     getAttribute: (k) => (k === 'data-aiui-shell' && shell === 'app' ? 'react' : null),
@@ -936,7 +972,7 @@ globalThis.document = {
   },
   head: { appendChild() {} },
   createElement: () => ({}),
-  getElementById: (id) => (id === 'theme-picker-root' ? pickerRoot : null),
+  getElementById: () => null,
 };
 const events = [];
 globalThis.StorageEvent = class { constructor(type, init) { Object.assign(this, { type }, init); } };
@@ -953,7 +989,7 @@ globalThis.fetch = async (url, opts = {}) => {
   return { json: async () => snapshot() };
 };
 const picker = await import(pathToFileURL(pickerPath).href);
-await picker.render(fakeEl());
+await picker.render(host);
 const afterRender = { props: props.splice(0), events: events.splice(0), puts: puts.splice(0) };
 await listeners.mode();                 // the user picks "dark"
 await new Promise((r) => setTimeout(r, 0));
@@ -1016,6 +1052,129 @@ def test_theme_picker_in_the_legacy_dashboard_is_unchanged(tmp_path):
     assert not [p for p in render["props"] if p[1].startswith("--seed-")]
     assert render["events"] == [] and out["afterMode"]["events"] == []
     assert out["afterMode"]["preference"] == "system"
+
+
+_PICKER_RACE_HARNESS = r"""
+import { pathToFileURL } from 'node:url';
+const [, , pickerPath] = process.argv;
+globalThis.localStorage = { getItem: () => null, setItem() {} };
+globalThis.document = {
+  documentElement: { getAttribute: () => null, classList: { contains: () => false },
+                     style: { setProperty() {}, removeProperty() {} } },
+  head: { appendChild() {} }, createElement: () => ({}), getElementById: () => null,
+};
+globalThis.window = { dispatchEvent() {} };
+// childList observers, delivered as microtasks; disconnect() drops pending ones.
+const observers = new Set();
+globalThis.MutationObserver = class {
+  constructor(cb) { this.cb = cb; this.target = null; }
+  observe(target) { this.target = target; observers.add(this); }
+  disconnect() { observers.delete(this); this.target = null; }
+};
+const notify = (target) => {
+  for (const o of [...observers]) {
+    if (o.target === target) queueMicrotask(() => { if (o.target === target) o.cb([]); });
+  }
+};
+const makeRoot = () => ({ innerHTML: '', querySelectorAll: () => [], querySelector: () => null });
+// A page container: assigning innerHTML replaces its children, root included.
+const makeHost = () => {
+  const host = { isConnected: true, root: null, html: '' };
+  Object.defineProperty(host, 'innerHTML', {
+    get: () => host.html,
+    set: (v) => { host.html = v; host.root = /id="theme-picker-root"/.test(v) ? makeRoot() : null; notify(host); },
+  });
+  host.querySelector = (sel) => (sel === '#theme-picker-root' ? host.root : null);
+  return host;
+};
+const NOT_FOUND = '<pre>{"error": "Not Found", "path": "/api/theme-picker"}</pre>';
+const STATE = { preset: 'indigo', mode: 'dark', radius: 'md', modes: ['dark', 'light'], radii: ['md'],
+  presets: { indigo: { accent: '#6366f1' }, rose: { accent: '#f43f5e' } },
+  variables: { '--db-accent': '#6366f1' } };
+let gate = null;
+globalThis.fetch = async () => { if (gate) await gate; return { json: async () => STATE }; };
+const flush = async () => { for (let i = 0; i < 10; i++) await new Promise((r) => queueMicrotask(r)); };
+const painted = (h) => Boolean(h.root && h.root.innerHTML.includes('data-preset="rose"'));
+const picker = await import(pathToFileURL(pickerPath).href);
+const out = {};
+
+// Direct load: the generic viewer's 404 lands while /api/theme is in flight.
+let open; gate = new Promise((r) => { open = r; });
+const a = makeHost();
+const pA = picker.render(a);
+await flush();
+a.innerHTML = NOT_FOUND;
+await flush();
+out.rootBackWhileLoading = Boolean(a.root) && !a.html.includes('Not Found');
+gate = null; open();
+const releaseA = await pA;
+out.paintedAfterEarlyOverwrite = painted(a);
+out.releaseIsFunction = typeof releaseA === 'function';
+
+// ...or lands after the picker is painted.
+a.innerHTML = NOT_FOUND;
+await flush();
+out.paintedAfterLateOverwrite = painted(a);
+
+// Released (the page was left): the element is the host's again.
+if (typeof releaseA === 'function') releaseA();
+a.innerHTML = '<p>next page</p>';
+await flush();
+out.untouchedAfterRelease = a.root === null && a.html === '<p>next page</p>';
+
+// Left while loading: nothing is drawn into the detached element.
+gate = new Promise((r) => { open = r; });
+const b = makeHost();
+const pB = picker.render(b);
+await flush();
+b.isConnected = false;
+gate = null; open(); await pB;
+out.detachedNotPainted = Boolean(b.root) && b.root.innerHTML === '';
+
+// A newer mount owns the picker; the older element is left alone.
+const c = makeHost();
+const d = makeHost();
+await picker.render(c);
+await picker.render(d);
+c.innerHTML = '<p>reused</p>';
+await flush();
+out.olderMountLeftAlone = c.root === null && painted(d);
+
+// A writer that keeps clearing the element: bounded, no ping-pong.
+const e = makeHost();
+await picker.render(e);
+let restores = 0;
+for (let i = 0; i < 12; i++) { e.innerHTML = '<p>clobber</p>'; await flush(); if (e.root) restores++; }
+out.restores = restores;
+console.log(JSON.stringify(out));
+"""
+
+
+def test_theme_picker_survives_its_container_being_rewritten(tmp_path):
+    """On a direct load of /theme-picker the legacy dashboard starts its generic
+    data viewer while the view module is importing; that viewer's late
+    ``{"error": "Not Found"}`` replaced the container, the picker's root with
+    it, and paint() (which looked the root up by id) then drew nothing. The
+    picker now draws into the mounted element and re-creates its root."""
+    node = _node()
+    harness = tmp_path / "harness.mjs"
+    harness.write_text(_PICKER_RACE_HARNESS, encoding="utf-8")
+    proc = subprocess.run(
+        [node, str(harness), str(VIEWS / "theme-picker.js")],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr
+    out = json.loads(proc.stdout.strip().splitlines()[-1])
+    assert out["rootBackWhileLoading"], out
+    assert out["paintedAfterEarlyOverwrite"], out
+    assert out["releaseIsFunction"], out
+    assert out["paintedAfterLateOverwrite"], out
+    assert out["untouchedAfterRelease"], out
+    assert out["detachedNotPainted"], out
+    assert out["olderMountLeftAlone"], out
+    assert out["restores"] == 5, out  # MAX_REPAINTS
 
 
 # ── Syntax ───────────────────────────────────────────────────────────
@@ -1189,25 +1348,31 @@ def dashboard_url():
 
 
 @pytest.fixture(scope="module")
-def browser_page(dashboard_url):
+def chromium():
     sync_api = pytest.importorskip("playwright.sync_api")
     with sync_api.sync_playwright() as p:
         try:
             browser = p.chromium.launch()
         except Exception as exc:  # no browser available
             pytest.skip(f"no Chromium available: {exc}")
-        ctx = browser.new_context(viewport={"width": 1280, "height": 800})
-        ctx.add_init_script(INSTRUMENT)
-        page = ctx.new_page()
-        errors: list[str] = []
-        page.on("pageerror", lambda e: errors.append(str(e)[:300]))
-        page.goto(f"{dashboard_url}/{NEUTRAL}", wait_until="load")
-        page.wait_for_function(
-            "window.aiui && typeof window.aiui.selectPage === 'function'", timeout=20000
-        )
-        page.wait_for_timeout(1500)
-        yield page, errors
+        yield browser
         browser.close()
+
+
+@pytest.fixture(scope="module")
+def browser_page(chromium, dashboard_url):
+    ctx = chromium.new_context(viewport={"width": 1280, "height": 800})
+    ctx.add_init_script(INSTRUMENT)
+    page = ctx.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e)[:300]))
+    page.goto(f"{dashboard_url}/{NEUTRAL}", wait_until="load")
+    page.wait_for_function(
+        "window.aiui && typeof window.aiui.selectPage === 'function'", timeout=20000
+    )
+    page.wait_for_timeout(1500)
+    yield page, errors
+    ctx.close()
 
 
 def _own(entries: list[str]) -> list[str]:
@@ -1243,7 +1408,9 @@ def _select(page, page_id: str, wait_ms: int, twice: bool = False) -> None:
 @pytest.mark.timeout(300)
 class TestRuntimeLeakProbe:
     @pytest.mark.parametrize("page_id", PROBE_PAGES)
-    def test_leaving_the_page_releases_everything(self, browser_page, page_id):
+    def test_leaving_the_page_releases_everything(self, browser_page, page_id, request):
+        if page_id in ("chat", "chat-canvas"):
+            _expect_chat_js_leak(request)  # both run views/chat.js's socket
         page, errors = browser_page
         errors.clear()
         _select(page, NEUTRAL, 3500)
@@ -1311,3 +1478,63 @@ class TestRuntimeLeakProbe:
             totals.append({k: len(after[k]) for k in after})
         assert totals[0] == totals[-1], f"{page_id}: live resources grow across visits: {totals}"
         assert not errors, f"{page_id}: page errors: {errors}"
+
+
+# ── theme-picker on a direct load (runtime) ──────────────────────────
+
+# Delays one same-origin fetch by path, so the race between the dashboard's
+# generic data viewer (GET /api/theme-picker) and the picker's own state
+# (GET /api/theme) can be forced either way.
+_DELAY_FETCH = r"""
+([path, ms]) => {
+  const f = window.fetch;
+  window.fetch = function (u, o) {
+    let p = '';
+    try { p = new URL(typeof u === 'string' ? u : u.url, location.href).pathname; } catch (e) {}
+    if (p === path) return new Promise((r) => setTimeout(r, ms)).then(() => f.call(this, u, o));
+    return f.call(this, u, o);
+  };
+}
+"""
+DIRECT_LOADS = 5
+
+
+@pytest.mark.skipif(not RUNTIME, reason="runtime probe is opt-in (RUN_BROWSER_TESTS=1)")
+@pytest.mark.timeout(300)
+class TestThemePickerDirectLoad:
+    """Loading /theme-picker directly (a reload or a shared link) showed the
+    generic viewer's ``{"error": "Not Found"}`` instead of the picker on most
+    loads: the dashboard starts that viewer while the view module imports, and
+    its response replaced the picker's root."""
+
+    @pytest.mark.parametrize(
+        "delayed",
+        [None, "/api/theme", "/api/theme-picker"],
+        ids=["as-is", "viewer-lands-first", "viewer-lands-last"],
+    )
+    def test_direct_load_shows_the_picker(self, chromium, dashboard_url, delayed):
+        loads = DIRECT_LOADS if delayed is None else 2
+        seen = []
+        for i in range(loads):
+            ctx = chromium.new_context(viewport={"width": 1280, "height": 800})
+            if delayed:
+                ctx.add_init_script(
+                    "(" + _DELAY_FETCH.strip() + ")(" + json.dumps([delayed, 1500]) + ")"
+                )
+            page = ctx.new_page()
+            errors: list[str] = []
+            page.on("pageerror", lambda e: errors.append(str(e)[:300]))
+            try:
+                page.goto(f"{dashboard_url}/theme-picker", wait_until="load")
+                # Past the delayed response, so a late overwrite would show.
+                page.wait_for_timeout(4000 if delayed else 2500)
+                got = page.evaluate(
+                    """() => { const c = document.querySelector('#db-page-content');
+                       return { swatches: document.querySelectorAll('#theme-picker-root .tp-swatch').length,
+                                notFound: !!c && c.textContent.includes('Not Found') } }"""
+                )
+            finally:
+                ctx.close()
+            seen.append(got)
+            assert not errors, f"load {i}: page errors: {errors}"
+        assert all(g["swatches"] > 0 and not g["notFound"] for g in seen), seen
