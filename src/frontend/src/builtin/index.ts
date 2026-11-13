@@ -6,30 +6,49 @@
  * shell.
  */
 import { sdkApi } from '@/sdk/install'
+import type { ShellManifest, ShellPage } from '@/sdk/manifest'
 import { chatBuiltin } from './chat'
 import type { BuiltinPlugin, BuiltinSdk } from './types'
 
-export type { BuiltinPlugin, BuiltinSdk } from './types'
+export type { BuiltinContext, BuiltinPlugin, BuiltinSdk } from './types'
 
 export const BUILTIN_PLUGINS: readonly BuiltinPlugin[] = Object.freeze([chatBuiltin])
 
 const activated = new Set<string>()
 
 /**
- * Activate every built-in once. A failing built-in is reported and skipped;
- * the others still activate (the same isolation third-party modules get).
- * Returns the names activated by this call.
+ * True for a manifest page the server lists as its own built-in. When an app
+ * (`aiui.register_page`) or a plugin provides a page under a built-in id, the
+ * manifest says so in `source`, and that page is theirs to render. A manifest
+ * without `source` (older server) counts as built-in.
+ */
+export function isBuiltinPage(page: ShellPage): boolean {
+  const source = page.source
+  return !source || source === 'builtin' || source.startsWith('builtin.') || source.startsWith('builtin:')
+}
+
+/**
+ * Activate, once each, the built-ins this server's manifest has pages for. A
+ * built-in none of whose pages are in the manifest (hidden by set_pages or
+ * pages.disabled) stays inactive, so its URL shows "Page not found" like any
+ * unknown id. A failing built-in is reported and skipped; the others still
+ * activate (the isolation third-party modules get). Returns the names
+ * activated by this call.
  */
 export function activateBuiltins(
+  manifest: ShellManifest,
   sdk: BuiltinSdk = sdkApi,
   plugins: readonly BuiltinPlugin[] = BUILTIN_PLUGINS,
 ): string[] {
+  const listed = new Set(manifest.pages.filter(isBuiltinPage).map((p) => p.id))
   const done: string[] = []
   for (const plugin of plugins) {
     if (activated.has(plugin.name)) continue
+    const pageIds = plugin.pages.filter((id) => listed.has(id))
+    if (pageIds.length === 0) continue
     activated.add(plugin.name)
     try {
-      plugin.activate(sdk)
+      plugin.activate(sdk, { manifest, pageIds })
       done.push(plugin.name)
     } catch (err) {
       console.error(`[aiui builtin] ${plugin.name} failed to activate`, err)

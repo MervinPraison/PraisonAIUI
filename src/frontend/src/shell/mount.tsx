@@ -10,7 +10,6 @@
  */
 import { StrictMode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { activateBuiltins } from '@/builtin'
 import { setLegacyNavigator } from '@/legacy/runtime'
 import { installSdk } from '@/sdk/install'
 import { readBootManifest } from '@/sdk/manifest'
@@ -27,8 +26,6 @@ export function mountShell(el: HTMLElement): void {
   installAuthFetch()
   // 2. window.__AIUI_SDK__ exists before any plugin module is imported.
   installSdk()
-  // First-party pages register through the same SDK as plugins (src/builtin).
-  activateBuiltins()
   // 3. Routing: patched history, legacy hash deep links, legacy selectPage → shell.
   patchHistory()
   rewriteHashDeepLink()

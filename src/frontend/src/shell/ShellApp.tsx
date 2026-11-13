@@ -3,6 +3,7 @@
  */
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { ThemeProvider } from 'next-themes'
+import { activateBuiltins } from '@/builtin'
 import { preloadLegacyRuntime } from '@/legacy/runtime'
 import { fetchManifest, type ShellManifest } from '@/sdk/manifest'
 import { loadManifestPlugins } from '@/sdk/install'
@@ -83,6 +84,16 @@ function ToasterHost() {
   )
 }
 
+/**
+ * The manifest is known: activate the first-party plugins it has pages for
+ * (src/builtin) before anything renders, so a deep link to one of their pages
+ * resolves on the first paint. Idempotent.
+ */
+function ready(manifest: ShellManifest): Boot {
+  activateBuiltins(manifest)
+  return { status: 'ready', manifest }
+}
+
 async function loadManifest(): Promise<Boot> {
   let status = 0
   const trackingFetch: typeof fetch = async (input, init) => {
@@ -91,7 +102,7 @@ async function loadManifest(): Promise<Boot> {
     return res
   }
   try {
-    return { status: 'ready', manifest: await fetchManifest(trackingFetch) }
+    return ready(await fetchManifest(trackingFetch))
   } catch (err) {
     if (status === 401 || status === 403) return { status: 'auth' }
     const detail = err instanceof Error ? err.message : String(err)
@@ -101,7 +112,7 @@ async function loadManifest(): Promise<Boot> {
 
 export function ShellApp({ initialManifest }: { initialManifest: ShellManifest | null }) {
   const [boot, setBoot] = useState<Boot>(() =>
-    initialManifest ? { status: 'ready', manifest: initialManifest } : { status: 'loading' },
+    initialManifest ? ready(initialManifest) : { status: 'loading' },
   )
 
   useEffect(() => {

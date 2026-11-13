@@ -13,7 +13,7 @@ import type { BuiltinPlugin } from './types'
 export const chatBuiltin: BuiltinPlugin = {
   name: 'builtin.chat',
   pages: ['chat'],
-  activate() {
-    for (const id of this.pages) registerChatPage(id)
+  activate(_sdk, { pageIds }) {
+    for (const id of pageIds) registerChatPage(id)
   },
 }
