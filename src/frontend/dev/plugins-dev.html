@@ -1,0 +1,45 @@
+<!doctype html>
+<!--
+  WP7 dev harness: the browser plugin SDK without the shell.
+  installSdk() → GET /api/shell/manifest → loadManifestPlugins() → render
+  react pages through the registry and blocks pages through BlockPage.
+
+  Run a backend with plugins installed, then the Vite dev server:
+    AIUI_SHELL=app aiui run app.py --port 8000          # (or any create_app())
+    AIUI_DEV_BACKEND=http://127.0.0.1:8000 npx vite
+  and open http://localhost:5173/dev/plugins-dev.html#hello
+
+  The import map below is what the server emits for style `app` (minus the
+  ?v= cache-bust and SRI entries): plugin modules import React and the SDK
+  as bare specifiers and get the shell's own instances.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plugins harness</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "/_aiui/externals/react.js",
+          "react/jsx-runtime": "/_aiui/externals/react-jsx-runtime.js",
+          "react-dom": "/_aiui/externals/react-dom.js",
+          "react-dom/client": "/_aiui/externals/react-dom-client.js",
+          "@aiui/sdk": "/_aiui/externals/sdk.js"
+        }
+      }
+    </script>
+    <script>
+      try {
+        var t = localStorage.getItem('aiui-theme-preference')
+        if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark')
+        }
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./plugins-dev.tsx"></script>
+  </body>
+</html>

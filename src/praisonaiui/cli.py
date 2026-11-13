@@ -1,6 +1,7 @@
 """CLI module - Typer-based command line interface."""
 
 import asyncio
+import re
 import sys
 from pathlib import Path
 from typing import Optional
@@ -81,10 +82,89 @@ def _load_env_files() -> int:
     return loaded
 
 
+# UI styles accepted by ``aiui run --style`` (and a YAML ``style:``).
+# ``app`` is the opt-in React shell (ADR-0001); ``dashboard`` stays the default.
+UI_STYLES = ("chat", "docs", "agents", "playground", "dashboard", "custom", "app")
+
+# Entry-point group of UI plugins (see praisonaiui.plugin_registry).
+PLUGIN_ENTRY_POINT_GROUP = "praisonaiui.plugins"
+PLUGIN_AUTOLOAD_ENV = "AIUI_DISABLE_PLUGIN_AUTOLOAD"
+
+
+def _plugin_autoload_disabled() -> bool:
+    import os
+
+    return os.environ.get(PLUGIN_AUTOLOAD_ENV, "").strip().lower() in ("1", "true", "yes")
+
+
+def _plugin_cli_command(name: str):
+    """Return the click command a plugin contributes as ``aiui <name>``.
+
+    Plugin discovery (importing every ``praisonaiui.plugins`` entry point) runs
+    only here, i.e. when a command name is not a built-in one, never for
+    ``aiui --help`` or a built-in command. ``AIUI_DISABLE_PLUGIN_AUTOLOAD=1``
+    disables it.
+    """
+    if _plugin_autoload_disabled():
+        return None
+    try:
+        from praisonaiui.plugin_registry import get_plugin_registry
+    except ImportError:  # pragma: no cover - registry ships with the package
+        return None
+    try:
+        records = get_plugin_registry().discover()
+    except Exception as exc:  # noqa: BLE001 - never break the CLI on a plugin
+        Console(stderr=True).print(f"[yellow]Plugin discovery failed:[/yellow] {exc}")
+        return None
+    for rec in records:
+        if rec.name != name or rec.status != "ok" or rec.plugin is None:
+            continue
+        hook = getattr(rec.plugin, "cli_commands", None)
+        if not callable(hook):
+            return None
+        try:
+            return _as_click_command(hook(), name)
+        except Exception as exc:  # noqa: BLE001
+            Console(stderr=True).print(f"[red]Plugin {name!r} cli_commands() failed:[/red] {exc}")
+            return None
+    return None
+
+
+def _as_click_command(obj, name: str):
+    """A plugin's ``cli_commands()`` result (Typer app or click command) → click command."""
+    import click
+
+    if obj is None:
+        return None
+    if isinstance(obj, typer.Typer):
+        cmd = typer.main.get_command(obj)
+    elif isinstance(obj, click.Command):
+        cmd = obj
+    else:
+        raise TypeError(f"cli_commands() must return a typer.Typer or click.Command, got {type(obj).__name__}")
+    cmd.name = name
+    return cmd
+
+
+class _PluginAwareGroup(typer.core.TyperGroup):
+    """Click group that falls back to plugin CLIs for unknown sub-commands.
+
+    ``list_commands`` (used by ``--help``) is untouched, so listing the CLI
+    never imports a plugin.
+    """
+
+    def get_command(self, ctx, cmd_name):  # type: ignore[override]
+        cmd = super().get_command(ctx, cmd_name)
+        if cmd is None:
+            cmd = _plugin_cli_command(cmd_name)
+        return cmd
+
+
 app = typer.Typer(
     name="aiui",
     help="PraisonAIUI - YAML-driven website generator",
     add_completion=False,
+    cls=_PluginAwareGroup,
 )
 console = Console()
 
@@ -1395,7 +1475,7 @@ def run(
         "chat",
         "--style",
         "-s",
-        help="UI style: 'chat' (default), 'docs', 'agents' (tabbed multi-agent), 'playground' (input/output panels), 'dashboard', 'custom'",
+        help="UI style: 'chat' (default), 'docs', 'agents' (tabbed multi-agent), 'playground' (input/output panels), 'dashboard', 'custom', 'app' (React app shell, opt-in)",
     ),
 ) -> None:
     """Run the AI chat server with your app.py or config.yaml file.
@@ -1411,6 +1491,10 @@ def run(
     import importlib.util
     import socket
     import sys
+
+    if style not in UI_STYLES:
+        console.print(f"[red]Error:[/red] Unknown --style {style!r}. Choose one of: {', '.join(UI_STYLES)}")
+        raise typer.Exit(code=2)
 
     # Validate app file exists
     if not app_file.exists():
@@ -1446,6 +1530,12 @@ def run(
         import praisonaiui as _aiui
 
         if "style" in chat_yaml:
+            if chat_yaml["style"] not in UI_STYLES:
+                console.print(
+                    f"[red]Error:[/red] Unknown style {chat_yaml['style']!r} in {app_file}. "
+                    f"Choose one of: {', '.join(UI_STYLES)}"
+                )
+                raise typer.Exit(code=2)
             _aiui.set_style(chat_yaml["style"])
             style = chat_yaml["style"]
         if "dashboard" in chat_yaml and isinstance(chat_yaml["dashboard"], dict):
@@ -3253,6 +3343,411 @@ def doctor(
     console.print(border)
 
     if failed > 0:
+        raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# UI plugins — ``aiui plugins list|doctor`` (entry-point group praisonaiui.plugins)
+# ---------------------------------------------------------------------------
+
+
+class _PluginsGroup(typer.core.TyperGroup):
+    """``aiui plugins <name> …`` also reaches a plugin's own CLI."""
+
+    def get_command(self, ctx, cmd_name):  # type: ignore[override]
+        cmd = super().get_command(ctx, cmd_name)
+        if cmd is None:
+            cmd = _plugin_cli_command(cmd_name)
+        return cmd
+
+
+plugins_app = typer.Typer(
+    name="plugins",
+    help=(
+        "Inspect UI plugins (Python packages declaring the 'praisonaiui.plugins' entry point). "
+        "A plugin's own commands run as 'aiui <plugin> …' or 'aiui plugins <plugin> …'."
+    ),
+    add_completion=False,
+    cls=_PluginsGroup,
+)
+app.add_typer(plugins_app, name="plugins")
+
+_PLUGIN_NAME_OK = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+
+
+def _load_extensions_policy(config: Optional[Path]) -> None:
+    """Apply ``extensions:`` from a YAML config, as the server would."""
+    if config is None:
+        return
+    import yaml
+
+    from praisonaiui.plugin_registry import get_plugin_registry
+
+    try:
+        data = yaml.safe_load(config.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        console.print(f"[red]Error:[/red] cannot read {config}: {exc}")
+        raise typer.Exit(code=2)
+    section = data.get("extensions") if isinstance(data, dict) else None
+    if section is not None:
+        get_plugin_registry().apply_config(section)
+
+
+def _plugin_record_dict(rec) -> dict:
+    to_dict = getattr(rec, "to_dict", None)
+    if callable(to_dict):
+        return dict(to_dict())
+    return {
+        "name": rec.name,
+        "entryPoint": getattr(rec, "entry_point", None),
+        "dist": getattr(rec, "dist", None),
+        "version": getattr(rec, "version", None),
+        "status": rec.status,
+        **({"error": rec.error} if getattr(rec, "error", None) else {}),
+    }
+
+
+def _installed_plugin_entry_points() -> list[dict]:
+    """Entry-point metadata only (no import), for when autoload is disabled."""
+    from importlib.metadata import entry_points
+
+    out = []
+    for ep in entry_points(group=PLUGIN_ENTRY_POINT_GROUP):
+        dist = getattr(ep, "dist", None)
+        out.append(
+            {
+                "name": ep.name,
+                "entryPoint": ep.value,
+                "dist": getattr(dist, "name", None),
+                "version": getattr(dist, "version", None),
+                "status": "not loaded",
+            }
+        )
+    return out
+
+
+def _discover_plugins(config: Optional[Path]) -> tuple[list, list[dict]]:
+    """(records, rows). Records are empty when autoload is disabled."""
+    if _plugin_autoload_disabled():
+        return [], _installed_plugin_entry_points()
+    from praisonaiui.plugin_registry import get_plugin_registry
+
+    _load_extensions_policy(config)
+    records = get_plugin_registry().discover(refresh=True)
+    return records, [_plugin_record_dict(r) for r in records]
+
+
+_STATUS_STYLE = {
+    "ok": "green",
+    "error": "red",
+    "incompatible": "red",
+    "disabled": "dim",
+    "disabled-by-default": "yellow",
+    "not loaded": "dim",
+}
+
+
+@plugins_app.command("list")
+def plugins_list(
+    json_output: bool = typer.Option(False, "--json", help="Print JSON instead of a table"),
+    config: Optional[Path] = typer.Option(
+        None, "--config", "-c", help="Apply the 'extensions:' policy from this YAML config"
+    ),
+) -> None:
+    """List installed UI plugins with their version, status and load error."""
+    import json as _json
+
+    from rich.table import Table
+
+    _records, rows = _discover_plugins(config)
+    if json_output:
+        print(_json.dumps({"plugins": rows, "autoload": not _plugin_autoload_disabled()}, indent=2))
+        return
+    if _plugin_autoload_disabled():
+        console.print(
+            f"[yellow]Plugin autoload is disabled ({PLUGIN_AUTOLOAD_ENV}=1): "
+            "entry points are listed but not imported.[/yellow]"
+        )
+    if not rows:
+        console.print(
+            "No UI plugins installed. A plugin is a Python package that declares the "
+            f"'{PLUGIN_ENTRY_POINT_GROUP}' entry point (see docs/features/plugins.md)."
+        )
+        return
+    table = Table(title="UI plugins", show_lines=False)
+    table.add_column("Name", style="bold")
+    table.add_column("Version")
+    table.add_column("Status")
+    table.add_column("Package / entry point", overflow="fold")
+    table.add_column("Error", overflow="fold")
+    for row in rows:
+        status = str(row.get("status"))
+        style = _STATUS_STYLE.get(status, "")
+        source = " / ".join(str(x) for x in (row.get("dist"), row.get("entryPoint")) if x)
+        table.add_row(
+            str(row.get("name")),
+            str(row.get("version") or "-"),
+            f"[{style}]{status}[/{style}]" if style else status,
+            source,
+            str(row.get("error") or ""),
+        )
+    console.print(table)
+
+
+def _spec_get(spec, key: str):
+    if isinstance(spec, dict):
+        camel = key.split("_")[0] + "".join(p.title() for p in key.split("_")[1:])
+        return spec.get(key, spec.get(camel))
+    return getattr(spec, key, None)
+
+
+def _sri_sha384(path: Path) -> str:
+    import base64
+    import hashlib
+
+    return "sha384-" + base64.b64encode(hashlib.sha384(path.read_bytes()).digest()).decode()
+
+
+def _builtin_page_ids() -> Optional[set[str]]:
+    """Page ids the server registers on its own (app + built-in), or None."""
+    import contextlib
+    import io
+    import logging as _logging
+
+    try:
+        import praisonaiui.server as _srv
+
+        previous = _logging.root.manager.disable
+        _logging.disable(_logging.WARNING)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                _srv.create_app()
+        finally:
+            _logging.disable(previous)
+        return set(_srv._pages)
+    except Exception:  # noqa: BLE001 - diagnostics only
+        return None
+
+
+def _doctor_plugin(rec, static_files: dict, findings: list) -> dict:
+    """Check one loaded plugin. Appends (level, plugin, check, detail) findings."""
+
+    def add(level: str, check: str, detail: str) -> None:
+        findings.append((level, rec.name, check, detail))
+
+    plugin = rec.plugin
+    contributed: dict = {"pages": [], "blocks": [], "tools": []}
+
+    # sdk gate (incompatible plugins never get here)
+    try:
+        from praisonaiui.plugin_registry import SDK_API_VERSION
+    except ImportError:  # pragma: no cover
+        SDK_API_VERSION = 1
+    add("ok", "sdk", f"targets SDK v{getattr(plugin, 'sdk', SDK_API_VERSION)} (host v{SDK_API_VERSION})")
+
+    # static_dir
+    root: Optional[Path] = None
+    hook = getattr(plugin, "static_dir", None)
+    if callable(hook):
+        try:
+            raw = hook()
+        except Exception as exc:  # noqa: BLE001
+            add("error", "static_dir", f"static_dir() raised {type(exc).__name__}: {exc}")
+            raw = None
+        if raw:
+            root = Path(raw).resolve()
+            if root.is_dir():
+                add("ok", "static_dir", f"{root} → /_plugins/{rec.name}/")
+                static_files[rec.name] = root
+            else:
+                add("error", "static_dir", f"{root} is not a directory")
+                root = None
+
+    def check_asset(kind: str, ident: str, module, integrity) -> None:
+        if not module:
+            return
+        module = str(module)
+        if module.startswith(("http://", "https://")):
+            add("warn", kind, f"{ident}: loads a remote module {module} (no SRI check possible here)")
+            return
+        if module.startswith("/"):
+            add("ok", kind, f"{ident}: absolute module path {module}")
+            return
+        if root is None:
+            add("error", kind, f"{ident}: relative module {module!r} but the plugin has no static_dir()")
+            return
+        target = (root / module).resolve()
+        if root not in target.parents:
+            add("error", kind, f"{ident}: module path {module!r} escapes static_dir")
+            return
+        if not target.is_file():
+            add("error", kind, f"{ident}: {module} not found in {root}")
+            return
+        actual = _sri_sha384(target)
+        if integrity and integrity != actual:
+            add("error", kind, f"{ident}: integrity mismatch for {module} (declared {integrity}, file {actual})")
+        else:
+            add("ok", kind, f"{ident}: /_plugins/{rec.name}/{module} ({actual[:20]}…)")
+
+    for hook_name, kind in (("pages", "pages"), ("blocks", "blocks"), ("tool_renderers", "tools")):
+        hook = getattr(plugin, hook_name, None)
+        if not callable(hook):
+            continue
+        try:
+            specs = list(hook() or ())
+        except Exception as exc:  # noqa: BLE001
+            add("error", hook_name, f"{hook_name}() raised {type(exc).__name__}: {exc}")
+            continue
+        for spec in specs:
+            if kind == "pages":
+                pid = str(_spec_get(spec, "id") or "")
+                page_kind = _spec_get(spec, "kind") or "blocks"
+                contributed["pages"].append(pid)
+                if page_kind == "react" and not _spec_get(spec, "module"):
+                    add("error", "pages", f"page {pid!r}: kind 'react' needs a module")
+                if page_kind == "blocks" and not _spec_get(spec, "api_endpoint") and not callable(
+                    getattr(plugin, "routes", None)
+                ):
+                    add("warn", "pages", f"page {pid!r}: kind 'blocks' but the plugin has no routes() to serve it")
+                check_asset("pages", f"page {pid!r}", _spec_get(spec, "module"), _spec_get(spec, "integrity"))
+                check_asset("pages", f"page {pid!r} css", _spec_get(spec, "css"), None)
+            elif kind == "blocks":
+                btype = str(_spec_get(spec, "type") or "")
+                contributed["blocks"].append(btype)
+                check_asset("blocks", f"block {btype!r}", _spec_get(spec, "module"), _spec_get(spec, "integrity"))
+            else:
+                tname = str(_spec_get(spec, "tool_name") or "")
+                contributed["tools"].append(tname)
+                check_asset("tools", f"tool {tname!r}", _spec_get(spec, "module"), _spec_get(spec, "integrity"))
+
+    hook = getattr(plugin, "routes", None)
+    if callable(hook):
+        try:
+            routes = list(hook() or [])
+            add("ok", "routes", f"{len(routes)} route(s) under /api/plugins/{rec.name}")
+        except Exception as exc:  # noqa: BLE001
+            add("error", "routes", f"routes() raised {type(exc).__name__}: {exc}")
+
+    hook = getattr(plugin, "cli_commands", None)
+    if callable(hook):
+        try:
+            cmd = _as_click_command(hook(), rec.name)
+        except Exception as exc:  # noqa: BLE001
+            add("error", "cli", f"cli_commands() failed: {exc}")
+        else:
+            if cmd is not None:
+                builtin = set(typer.main.get_command(app).commands)  # type: ignore[attr-defined]
+                if rec.name in builtin:
+                    add(
+                        "warn",
+                        "cli",
+                        f"'aiui {rec.name}' is a built-in command; use 'aiui plugins {rec.name} …'",
+                    )
+                else:
+                    add("ok", "cli", f"'aiui {rec.name} …' and 'aiui plugins {rec.name} …'")
+    return contributed
+
+
+@plugins_app.command("doctor")
+def plugins_doctor(
+    config: Optional[Path] = typer.Option(
+        None, "--config", "-c", help="Apply the 'extensions:' policy from this YAML config"
+    ),
+    check_builtin: bool = typer.Option(
+        True,
+        "--builtin/--no-builtin",
+        help="Build the app once to detect plugin page ids shadowed by built-in pages",
+    ),
+) -> None:
+    """Check every UI plugin: entry-point load, SDK gate, static_dir and SRI, shadowed ids.
+
+    Exits with code 1 when any check fails.
+    """
+    from rich.table import Table
+
+    if _plugin_autoload_disabled():
+        console.print(
+            f"[yellow]{PLUGIN_AUTOLOAD_ENV}=1: plugins are not loaded, so there is nothing to check. "
+            "Unset it to run the doctor.[/yellow]"
+        )
+        raise typer.Exit(code=1)
+
+    records, _rows = _discover_plugins(config)
+    if not records:
+        console.print(f"No UI plugins installed (entry-point group '{PLUGIN_ENTRY_POINT_GROUP}').")
+        return
+
+    findings: list = []
+    static_files: dict = {}
+    contributions: dict = {}
+    for rec in records:
+        version = f" {rec.version}" if getattr(rec, "version", None) else ""
+        where = getattr(rec, "entry_point", "") or ""
+        if not _PLUGIN_NAME_OK.match(rec.name):
+            findings.append(
+                (
+                    "error",
+                    rec.name,
+                    "name",
+                    "entry-point name must match [a-z0-9][a-z0-9_-]* (it becomes /api/plugins/<name> "
+                    "and /_plugins/<name>)",
+                )
+            )
+        if rec.status == "ok" and rec.plugin is not None:
+            findings.append(("ok", rec.name, "load", f"loaded {where}{version}"))
+            contributions[rec.name] = _doctor_plugin(rec, static_files, findings)
+        elif rec.status == "disabled":
+            findings.append(("info", rec.name, "load", "disabled by the extensions policy (not imported)"))
+        elif rec.status == "incompatible":
+            findings.append(("error", rec.name, "sdk", rec.error or "incompatible SDK version"))
+        else:
+            level = "warn" if rec.status == "disabled-by-default" else "error"
+            findings.append((level, rec.name, "load", f"{rec.status}: {rec.error or 'unknown error'} ({where})"))
+
+    # Shadowed ids: the server keeps the first page id it sees (app and
+    # built-in pages first, then plugins in entry-point order).
+    builtin_ids = _builtin_page_ids() if check_builtin and contributions else set()
+    if builtin_ids is None:
+        findings.append(("warn", "-", "shadow", "could not build the app to list built-in page ids"))
+        builtin_ids = set()
+    seen_pages: dict = {}
+    seen_tools: dict = {}
+    seen_blocks: dict = {}
+    for name, contributed in contributions.items():
+        for pid in contributed["pages"]:
+            if pid in builtin_ids:
+                findings.append(("warn", name, "shadow", f"page {pid!r} is shadowed by a built-in page"))
+            elif pid in seen_pages:
+                findings.append(("warn", name, "shadow", f"page {pid!r} is shadowed by plugin {seen_pages[pid]!r}"))
+            else:
+                seen_pages[pid] = name
+        for tool in contributed["tools"]:
+            if tool in seen_tools:
+                findings.append(("warn", name, "shadow", f"tool renderer {tool!r} also comes from {seen_tools[tool]!r}"))
+            seen_tools.setdefault(tool, name)
+        for btype in contributed["blocks"]:
+            if btype in seen_blocks:
+                findings.append(("warn", name, "shadow", f"block {btype!r} also comes from {seen_blocks[btype]!r}"))
+            seen_blocks.setdefault(btype, name)
+
+    table = Table(title="aiui plugins doctor")
+    table.add_column("Plugin", style="bold")
+    table.add_column("Check")
+    table.add_column("Result")
+    table.add_column("Detail", overflow="fold")
+    marks = {
+        "ok": "[green]ok[/green]",
+        "info": "[dim]info[/dim]",
+        "warn": "[yellow]warn[/yellow]",
+        "error": "[red]FAIL[/red]",
+    }
+    for level, plugin, check, detail in findings:
+        table.add_row(plugin, check, marks.get(level, level), detail)
+    console.print(table)
+    errors = sum(1 for f in findings if f[0] == "error")
+    warnings = sum(1 for f in findings if f[0] == "warn")
+    console.print(f"{len(records)} plugin(s): {errors} failure(s), {warnings} warning(s)")
+    if errors:
         raise typer.Exit(code=1)
 
 
