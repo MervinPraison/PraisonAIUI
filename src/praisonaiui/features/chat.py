@@ -19,8 +19,9 @@ import logging
 import time
 import uuid
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Dict, Iterable, List, Optional, Set
+from typing import Any, AsyncIterator, Dict, Iterable, List, Optional
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -43,9 +44,15 @@ def _collect_element(collected: List[Dict[str, Any]], element: Dict[str, Any]) -
 
 
 # Per-connection caps for WS session scoping (``subscribe`` and the sessions a
-# client starts turns in). They bound memory if a client misbehaves.
+# client starts turns in). They bound memory if a client misbehaves; past the
+# cap the least recent entry is dropped, never the new one.
 MAX_SUBSCRIPTIONS_PER_CLIENT = 512
 MAX_SESSION_ID_LENGTH = 256
+
+# How long a WS turn waits for the provider's first event, to put the agent
+# name it carries on ``run_started``. Only used when the provider has no
+# ``resolve_agent_name`` (or it did not know); bounds the delay of the run id.
+FIRST_EVENT_GRACE_S = 0.25
 
 
 def _clean_session_ids(session_ids: Any) -> List[str]:
@@ -302,9 +309,11 @@ class ChatManager(ChatProtocol):
         #     events, exactly as before.
         #   * ``_ws_sent_sessions`` records the sessions a client started a
         #     turn in over this connection. Scoped clients always receive
-        #     those, and every client may abort runs in them.
-        self._ws_subscriptions: Dict[str, Set[str]] = {}
-        self._ws_sent_sessions: Dict[str, Set[str]] = {}
+        #     those, and the client may stop or answer runs in them.
+        #   Both are insertion-ordered and capped per client; the oldest entry
+        #   is dropped first (see ``_remember_session``).
+        self._ws_subscriptions: Dict[str, "OrderedDict[str, None]"] = {}
+        self._ws_sent_sessions: Dict[str, "OrderedDict[str, None]"] = {}
 
     async def send_message(
         self,
@@ -379,26 +388,51 @@ class ChatManager(ChatProtocol):
 
     # ── Per-client session scoping ───────────────────────────────────
 
+    def _remember_session(self, store: "OrderedDict[str, None]", session_id: str) -> Optional[str]:
+        """Add *session_id* to *store* as its most recent entry.
+
+        *store* is bounded by ``MAX_SUBSCRIPTIONS_PER_CLIENT``. When it is
+        full the oldest entry is evicted rather than the new one refused, so
+        the session a client is working in now is always recorded. Sessions
+        with a run in progress are evicted last. Returns the evicted id.
+        """
+        if session_id in store:
+            store.move_to_end(session_id)
+            return None
+        store[session_id] = None
+        if len(store) <= MAX_SUBSCRIPTIONS_PER_CLIENT:
+            return None
+        running = set(self._run_sessions.values())
+        victim = next((s for s in store if s != session_id and s not in running), None)
+        if victim is None:
+            victim = next(s for s in store if s != session_id)
+        del store[victim]
+        return victim
+
     def subscribe(self, client_id: str, session_ids: Iterable[Any]) -> List[str]:
         """Scope *client_id* to *session_ids* (added to any earlier set).
 
         The first ``subscribe`` (even with an empty list) turns the client
         into a scoped client: from then on ``broadcast`` only sends it events
-        for sessions it subscribed to or started a turn in. Returns the
-        client's current subscription list (sorted).
+        for sessions it subscribed to or started a turn in. At most
+        ``MAX_SUBSCRIPTIONS_PER_CLIENT`` subscriptions are kept; beyond that
+        the least recently subscribed ones are dropped. Returns the client's
+        current subscription list (sorted).
         """
-        subs = self._ws_subscriptions.setdefault(client_id, set())
-        for sid in _clean_session_ids(session_ids):
-            if sid in subs:
-                continue
-            if len(subs) >= MAX_SUBSCRIPTIONS_PER_CLIENT:
-                logger.warning(
-                    "Chat WS client %s hit the subscription cap (%d); ignoring the rest",
-                    client_id,
-                    MAX_SUBSCRIPTIONS_PER_CLIENT,
-                )
-                break
-            subs.add(sid)
+        subs = self._ws_subscriptions.setdefault(client_id, OrderedDict())
+        evicted = 0
+        # Anything before the last MAX ids would be evicted again at once.
+        for sid in _clean_session_ids(session_ids)[-MAX_SUBSCRIPTIONS_PER_CLIENT:]:
+            if self._remember_session(subs, sid) is not None:
+                evicted += 1
+        if evicted:
+            logger.warning(
+                "Chat WS client %s is over the subscription cap (%d); "
+                "dropped its %d least recent subscription(s)",
+                client_id,
+                MAX_SUBSCRIPTIONS_PER_CLIENT,
+                evicted,
+            )
         return sorted(subs)
 
     def unsubscribe(self, client_id: str, session_ids: Iterable[Any]) -> List[str]:
@@ -406,23 +440,27 @@ class ChatManager(ChatProtocol):
 
         Also makes the client scoped (a legacy client that unsubscribes from
         one session has asked not to receive everything). Removing a session
-        the client started a turn in also drops its right to abort runs there.
+        the client started a turn in also drops its claim on runs there.
         """
-        subs = self._ws_subscriptions.setdefault(client_id, set())
+        subs = self._ws_subscriptions.setdefault(client_id, OrderedDict())
         sent = self._ws_sent_sessions.get(client_id)
         for sid in _clean_session_ids(session_ids):
-            subs.discard(sid)
+            subs.pop(sid, None)
             if sent is not None:
-                sent.discard(sid)
+                sent.pop(sid, None)
         return sorted(subs)
 
     def note_client_session(self, client_id: str, session_id: str) -> None:
-        """Record that *client_id* started a turn in *session_id*."""
+        """Record that *client_id* started a turn in *session_id*.
+
+        Always recorded (the oldest record is dropped when the per-client cap
+        is reached), so a scoped client always receives the events of a turn
+        it just sent and can stop it.
+        """
         if not isinstance(session_id, str) or not session_id:
             return
-        sent = self._ws_sent_sessions.setdefault(client_id, set())
-        if session_id in sent or len(sent) < MAX_SUBSCRIPTIONS_PER_CLIENT:
-            sent.add(session_id)
+        sent = self._ws_sent_sessions.setdefault(client_id, OrderedDict())
+        self._remember_session(sent, session_id)
 
     def is_scoped(self, client_id: str) -> bool:
         """True once the client has sent ``subscribe``/``unsubscribe``."""
@@ -435,6 +473,29 @@ class ChatManager(ChatProtocol):
         return session_id in self._ws_sent_sessions.get(
             client_id, ()
         ) or session_id in self._ws_subscriptions.get(client_id, ())
+
+    def session_has_connected_owner(self, session_id: Optional[str]) -> bool:
+        """True if a connected WS client started a turn in or subscribed to it."""
+        if not session_id:
+            return False
+        return any(self.client_owns_session(cid, session_id) for cid in list(self._ws_clients))
+
+    def may_control_session(self, client_id: str, session_id: Optional[str]) -> bool:
+        """May *client_id* stop or answer runs in *session_id*?
+
+        A connection that owns the session (started a turn in it or
+        subscribed to it) may. So may any connection when no connected
+        client owns the session: the tab that started the run reconnected
+        (a new connection), or the turn came in over ``POST /api/chat/send``.
+        Without that, such a run could no longer be stopped over WS at all.
+
+        This is a guard against one tab stopping or answering another
+        tab's live turn. It is not access control: without WS
+        authentication any client can claim a session by subscribing.
+        """
+        if self.client_owns_session(client_id, session_id):
+            return True
+        return not self.session_has_connected_owner(session_id)
 
     def _delivers_to(self, client_id: str, session_id: str) -> bool:
         if not session_id:
@@ -575,12 +636,15 @@ async def _resolve_agent_name(
     """Ask the provider which agent will answer, before the run starts.
 
     Providers may implement ``resolve_agent_name(agent_name=, session_id=)``
-    (sync or async). Providers without it, or a resolver that fails, keep
-    the requested *agent_name*.
+    (sync or async). It must be cheap: it runs before ``run_started`` is
+    announced, so it delays the run id (and the client's Stop button).
+
+    Returns the provider's answer, or ``None`` when the provider has no
+    resolver, the resolver fails, or it does not know.
     """
     resolver = getattr(provider, "resolve_agent_name", None)
     if not callable(resolver):
-        return agent_name
+        return None
     try:
         resolved = resolver(agent_name=agent_name, session_id=session_id)
         if asyncio.iscoroutine(resolved):
@@ -589,10 +653,15 @@ async def _resolve_agent_name(
         raise
     except Exception as exc:  # never block a turn on naming
         logger.debug("resolve_agent_name failed: %s", exc)
-        return agent_name
+        return None
     if isinstance(resolved, str) and resolved:
         return resolved
-    return agent_name
+    return None
+
+
+def _event_agent_name(event: Any) -> Optional[str]:
+    name = getattr(event, "agent_name", None)
+    return name if isinstance(name, str) and name else None
 
 
 async def _run_and_broadcast(
@@ -686,32 +755,72 @@ async def _run_and_broadcast(
         mgr._active_runs[run_id] = self_task
     mgr._run_sessions[run_id] = session_id
 
+    first_event: Optional["asyncio.Future[Any]"] = None
+
     try:
-        # Resolve the agent that will actually answer, so the single
-        # ``run_started`` below carries its name. The provider's own
-        # ``run_started`` is suppressed in the loop (exactly one per run), so
-        # without this a provider-chosen name (e.g. the default agent when the
-        # client sent none) would never reach the client.
+        # Name the agent on the single ``run_started`` (the provider's own
+        # copy is not forwarded, see below). Sources, best first:
+        #   1. the provider's ``resolve_agent_name`` (cheap, authoritative);
+        #   2. the name on the provider's own first ``run_started``, if it
+        #      arrives within FIRST_EVENT_GRACE_S (any BaseProvider can name
+        #      its agent this way without implementing a resolver);
+        #   3. the name the client asked for.
         resolved_agent_name = await _resolve_agent_name(provider, agent_name, session_id)
-        started_event: Dict[str, Any] = {
-            "type": "run_started",
-            "session_id": session_id,
-            "run_id": run_id,
-        }
-        if resolved_agent_name:
-            started_event["agent_name"] = resolved_agent_name
-        await mgr.broadcast(session_id, started_event)
+        name_confirmed = resolved_agent_name is not None
 
         # Pass image attachments to provider for SDK native multimodal handling
         run_kwargs = {}
         if sdk_attachments:
             run_kwargs["attachments"] = sdk_attachments
-        async for event in provider.run(
+        provider_events = provider.run(
             content,
             session_id=session_id,
             agent_name=agent_name,
             **run_kwargs,
-        ):
+        ).__aiter__()
+
+        if not name_confirmed:
+            # Bounded wait: never delays the run id by more than the grace.
+            # Only the first step runs in its own task; the rest of the
+            # provider runs in this task as before. The task is bound to
+            # ``first_event`` before waiting, so ``finally`` can cancel it if
+            # the run is aborted during the grace.
+            first_event = asyncio.ensure_future(provider_events.__anext__())
+            await asyncio.wait({first_event}, timeout=FIRST_EVENT_GRACE_S)
+            if first_event.done() and not first_event.cancelled():
+                peeked = None if first_event.exception() is not None else first_event.result()
+                if peeked is not None and peeked.type == RunEventType.RUN_STARTED:
+                    peeked_name = _event_agent_name(peeked)
+                    if peeked_name:
+                        resolved_agent_name = peeked_name
+                        name_confirmed = True
+        if resolved_agent_name is None:
+            resolved_agent_name = agent_name
+        announced_name = resolved_agent_name
+
+        started_event: Dict[str, Any] = {
+            "type": "run_started",
+            "session_id": session_id,
+            "run_id": run_id,
+        }
+        if announced_name:
+            started_event["agent_name"] = announced_name
+        await mgr.broadcast(session_id, started_event)
+
+        async def _provider_stream() -> AsyncIterator[Any]:
+            # Replays the peeked first event (if any), then the rest.
+            if first_event is not None:
+                try:
+                    yield await first_event
+                except StopAsyncIteration:
+                    return
+            async for ev in provider_events:
+                yield ev
+
+        # The agent name the provider itself last reported on a run_started.
+        provider_agent: Optional[str] = None
+
+        async for event in _provider_stream():
             # Build broadcast payload
             payload: Dict[str, Any] = {
                 "type": event.type.value,
@@ -720,9 +829,35 @@ async def _run_and_broadcast(
             }
 
             if event.type == RunEventType.RUN_STARTED:
-                # Already announced above with this run_id (and the resolved
-                # agent name). Forwarding the provider's copy made WS clients
-                # see two run_started frames per turn.
+                # The run was announced above with this run_id, so the
+                # provider's run_started frames are not forwarded as such
+                # (that made WS clients see two or more per turn: the
+                # provider's own, one per LLM request, one per agent hook).
+                # Only a new agent name is forwarded, as a run_started with
+                # the same run_id (clients treat repeats as idempotent and
+                # take the latest agent_name):
+                #   * the provider's first name, when the announcement had
+                #     none or only the client's requested name (a slow first
+                #     event past the grace);
+                #   * a change of agent mid-run (sub-agent or handoff).
+                name = _event_agent_name(event)
+                if not name:
+                    continue
+                if provider_agent is None:
+                    provider_agent = name
+                    if name_confirmed:
+                        continue
+                    name_confirmed = True
+                    resolved_agent_name = name
+                elif name == provider_agent:
+                    continue
+                else:
+                    provider_agent = name
+                if name == announced_name:
+                    continue
+                announced_name = name
+                payload["agent_name"] = name
+                await mgr.broadcast(session_id, payload)
                 continue
             if event.type == RunEventType.RUN_CANCELLED:
                 cancelled = True
@@ -912,6 +1047,9 @@ async def _run_and_broadcast(
             },
         )
     finally:
+        if first_event is not None and not first_event.done():
+            # Aborted while waiting for the provider's first event.
+            first_event.cancel()
         # Always deregister the run, on normal completion, error, or abort.
         mgr._active_runs.pop(run_id, None)
         mgr._run_sessions.pop(run_id, None)
@@ -934,6 +1072,9 @@ async def _run_and_broadcast(
                 "role": "assistant",
                 "content": full_response or "",
             }
+            if resolved_agent_name:
+                # Additive: lets a history reload label the reply's agent.
+                msg_data["agent_name"] = resolved_agent_name
             if collected_tool_calls:
                 msg_data["toolCalls"] = list(collected_tool_calls.values())
             if collected_elements:
@@ -1080,9 +1221,11 @@ async def _ws_abort(mgr: ChatManager, client_id: str, run_id: Any) -> Dict[str, 
     """Handle a WS ``chat_abort``: only the session's owner may stop a run.
 
     The owner is a client that started a turn in the run's session over this
-    connection or subscribed to it. Unknown or finished runs answer
-    ``no_active_run`` as before; a live run owned by someone else answers
-    ``forbidden`` and keeps running.
+    connection or subscribed to it. When no connected client owns the
+    session (the starting tab reconnected, or the turn came over HTTP), any
+    client may stop it, as before. Unknown or finished runs answer
+    ``no_active_run`` as before; a live run owned by another connected
+    client answers ``forbidden`` and keeps running.
     """
     reply: Dict[str, Any] = {"type": "chat_abort_result"}
     if not isinstance(run_id, str) or not run_id:
@@ -1093,18 +1236,64 @@ async def _ws_abort(mgr: ChatManager, client_id: str, run_id: Any) -> Dict[str, 
         reply.update(await mgr.abort_run(run_id))
         return reply
     owner_session = mgr.session_for_run(run_id)
-    if owner_session is None or not mgr.client_owns_session(client_id, owner_session):
+    if not mgr.may_control_session(client_id, owner_session):
         logger.warning("Chat WS client %s may not abort run %s", client_id, run_id)
         reply.update(
             {
                 "status": "forbidden",
                 "run_id": run_id,
-                "error": "run belongs to a session this connection did not start or subscribe to",
+                "error": "run belongs to a session another connection started or subscribed to",
             }
         )
         return reply
     reply.update(await mgr.abort_run(run_id))
     return reply
+
+
+def _ws_ask_allowed(mgr: ChatManager, client_id: str, session_id: Any, run_id: Any) -> bool:
+    """May *client_id* answer an ask prompt in *session_id* / *run_id*?
+
+    Same rule as ``chat_abort``. A live ``run_id`` decides the session (so
+    a client cannot answer another session's run by naming its own session).
+    """
+    run_session = mgr.session_for_run(run_id) if isinstance(run_id, str) and run_id else None
+    target = run_session or (session_id if isinstance(session_id, str) else None)
+    if not target:
+        return True  # nothing to attribute it to: unchanged behaviour
+    return mgr.may_control_session(client_id, target)
+
+
+class _BadFrame(Exception):
+    """A WS text frame that is not a JSON object."""
+
+
+async def _receive_ws_object(websocket: WebSocket) -> Dict[str, Any]:
+    """Receive one client frame and decode it as a JSON object.
+
+    Raises ``WebSocketDisconnect`` when the client goes away and
+    ``_BadFrame`` for a frame that is not a JSON object, so the caller can
+    answer it and keep the connection open (``receive_json`` used to close
+    the socket on such input).
+    """
+    message = await websocket.receive()
+    if message.get("type") == "websocket.disconnect":
+        raise WebSocketDisconnect(message.get("code", 1000), message.get("reason"))
+    text = message.get("text")
+    if text is None:
+        raw = message.get("bytes")
+        if raw is None:
+            raise _BadFrame("empty frame")
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            raise _BadFrame("binary frame is not UTF-8 JSON") from None
+    try:
+        data = json.loads(text)
+    except ValueError:
+        raise _BadFrame("frame is not valid JSON") from None
+    if not isinstance(data, dict):
+        raise _BadFrame("frame must be a JSON object")
+    return data
 
 
 async def _chat_ws(websocket: WebSocket) -> None:
@@ -1113,15 +1302,20 @@ async def _chat_ws(websocket: WebSocket) -> None:
     Client → server messages:
 
     * ``{type: "chat", content, session_id?, agent_name?, attachment_ids?}``
-    * ``{type: "chat_abort", run_id}`` — allowed only for runs in a session
-      this connection started a turn in or subscribed to; answered with
-      ``{type: "chat_abort_result", status, run_id}``.
-    * ``{type: "ask_response", session_id, run_id, response}``
+    * ``{type: "chat_abort", run_id}`` — allowed for runs in a session this
+      connection started a turn in or subscribed to, or that no connected
+      client owns; answered with ``{type: "chat_abort_result", status,
+      run_id}`` (status ``forbidden`` otherwise).
+    * ``{type: "ask_response", session_id, run_id, response}`` — same rule;
+      answered with ``{type: "ask_response_ack", status}``.
     * ``{type: "subscribe", session_ids: [...]}`` / ``{type: "unsubscribe",
       session_ids: [...]}`` — opt into per-session delivery; answered with
       ``{type: "subscribed", session_ids}``. Clients that never subscribe
       keep receiving every session's events (legacy behaviour).
     * ``{type: "ping"}`` → ``{type: "pong"}``
+
+    A frame that is not a JSON object is answered with ``{type:
+    "protocol_error", error}`` and the connection stays open.
     """
     await websocket.accept()
     client_id = str(uuid.uuid4())
@@ -1132,13 +1326,29 @@ async def _chat_ws(websocket: WebSocket) -> None:
 
     try:
         while True:
-            data = await websocket.receive_json()
+            try:
+                data = await _receive_ws_object(websocket)
+            except _BadFrame as bad:
+                # Answer and keep the connection: one bad frame from a client
+                # must not drop its live turns. Not ``error``/``run_error``,
+                # which clients treat as the failure of the current turn.
+                await websocket.send_json({"type": "protocol_error", "error": str(bad)})
+                continue
             msg_type = data.get("type", "chat")
 
             if msg_type == "chat":
                 content = data.get("content", "")
-                session_id = data.get("session_id", str(uuid.uuid4()))
+                if not isinstance(content, str):
+                    await websocket.send_json(
+                        {"type": "protocol_error", "error": "chat content must be a string"}
+                    )
+                    continue
+                session_id = data.get("session_id")
+                if not isinstance(session_id, str) or not session_id:
+                    session_id = str(uuid.uuid4())
                 agent_name = data.get("agent_name") or data.get("agent")
+                if not isinstance(agent_name, str):
+                    agent_name = None
 
                 if content:
                     # ── Guardrail pre-check ──────────────────────
@@ -1219,8 +1429,23 @@ async def _chat_ws(websocket: WebSocket) -> None:
 
             elif msg_type == "ask_response":
                 response = data.get("response", "")
+                if not isinstance(response, str):
+                    response = "" if response is None else json.dumps(response)
                 session_id = data.get("session_id", "")
                 run_id = data.get("run_id", "")
+                if not _ws_ask_allowed(mgr, client_id, session_id, run_id):
+                    logger.warning(
+                        "Chat WS client %s may not answer session %s", client_id, session_id
+                    )
+                    await websocket.send_json(
+                        {
+                            "type": "ask_response_ack",
+                            "session_id": session_id,
+                            "status": "forbidden",
+                            "error": "session belongs to another connection",
+                        }
+                    )
+                    continue
                 logger.info(f"Ask response received: {response[:100]} (session={session_id})")
                 # Forward to provider's ask response queue if available
                 from praisonaiui.server import get_provider

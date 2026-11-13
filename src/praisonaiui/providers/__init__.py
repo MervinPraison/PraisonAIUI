@@ -14,7 +14,9 @@ token-by-token streaming and ``HookRegistry`` for tool/agent lifecycle events.
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import logging
+import sys
 import uuid
 from typing import Any, AsyncIterator, Dict, List, Optional
 
@@ -351,6 +353,9 @@ class PraisonAIProvider(BaseProvider):
     2. Direct mode: No handler → uses PraisonAI Agent directly with streaming
     """
 
+    # Name of a lazily created agent with no CRUD definition or ``name=``.
+    DEFAULT_AGENT_NAME = "Assistant"
+
     def __init__(self, agent=None, agents=None, **agent_kwargs):
         """Initialize with optional pre-configured agent(s).
 
@@ -379,6 +384,42 @@ class PraisonAIProvider(BaseProvider):
           3. Per-session cached agent
           4. Lazy-create new agent (with CRUD definition if matched)
         """
+        existing = self._find_existing_agent(agent_name, session_id)
+        if existing is not None:
+            return existing
+        return self._create_session_agent(agent_name, session_id)
+
+    @staticmethod
+    def _crud_agent_def(agent_name: Optional[str]) -> Optional[Dict[str, Any]]:
+        """The CRUD-defined agent (Agents page) named *agent_name*, if any."""
+        if not agent_name:
+            return None
+        try:
+            from praisonaiui.features.agents import get_agent_registry
+
+            for _def in get_agent_registry().list_all():
+                if _def.get("name") == agent_name:
+                    return _def
+        except ImportError:  # SDK registry missing its optional deps
+            pass
+        return None
+
+    def _new_agent_name(self, agent_name: Optional[str]) -> Optional[str]:
+        """The name ``_create_session_agent`` gives a new agent (no build)."""
+        name: Optional[str] = self.DEFAULT_AGENT_NAME
+        _def = self._crud_agent_def(agent_name)
+        if _def is not None:
+            name = _def["name"]
+        if "name" in self._agent_kwargs:
+            name = self._agent_kwargs["name"]
+        return name
+
+    def _find_existing_agent(
+        self,
+        agent_name: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ):
+        """Steps 1-3 of ``_get_or_create_agent``: never builds an agent."""
         # 1. If specific agent requested and we have a pre-configured list
         if agent_name and self._agents:
             for a in self._agents:
@@ -427,15 +468,22 @@ class PraisonAIProvider(BaseProvider):
         cache_key = f"{session_id}:{agent_name or ''}"
         if session_id and cache_key in self._session_agents:
             return self._session_agents[cache_key]
+        return None
 
-        # 4. Lazy-create agent for this session
+    def _create_session_agent(
+        self,
+        agent_name: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ):
+        """Step 4 of ``_get_or_create_agent``: build and cache a new agent."""
+        cache_key = f"{session_id}:{agent_name or ''}"
         try:
             from praisonaiagents import Agent
         except ImportError:
             return None
 
         kwargs = {
-            "name": "Assistant",
+            "name": self.DEFAULT_AGENT_NAME,
             "instructions": (
                 "You are a helpful assistant with access to tools for file operations, "
                 "command execution, and web search. Use markdown formatting. "
@@ -461,34 +509,26 @@ class PraisonAIProvider(BaseProvider):
             pass  # praisonai/praisonaiagents not installed — no tools
 
         # Check CRUD-defined agents for matching name
-        if agent_name:
-            try:
-                from praisonaiui.features.agents import get_agent_registry
+        # (``_new_agent_name`` mirrors this naming without building)
+        _def = self._crud_agent_def(agent_name)
+        if _def is not None:
+            kwargs["name"] = _def["name"]
+            kwargs["instructions"] = (
+                _def.get("instructions") or _def.get("system_prompt") or kwargs["instructions"]
+            )
+            if _def.get("model"):
+                kwargs["llm"] = _def["model"]
+            # Also get tools from CRUD definition if specified
+            if _def.get("tools"):
+                try:
+                    from praisonai.tool_resolver import ToolResolver
 
-                for _def in get_agent_registry().list_all():
-                    if _def.get("name") == agent_name:
-                        kwargs["name"] = _def["name"]
-                        kwargs["instructions"] = (
-                            _def.get("instructions")
-                            or _def.get("system_prompt")
-                            or kwargs["instructions"]
-                        )
-                        if _def.get("model"):
-                            kwargs["llm"] = _def["model"]
-                        # Also get tools from CRUD definition if specified
-                        if _def.get("tools"):
-                            try:
-                                from praisonai.tool_resolver import ToolResolver
-
-                                resolver = ToolResolver()
-                                crud_tools = resolver.resolve_many(_def["tools"])
-                                if crud_tools:
-                                    kwargs["tools"] = crud_tools
-                            except ImportError:
-                                pass
-                        break
-            except ImportError:
-                pass
+                    resolver = ToolResolver()
+                    crud_tools = resolver.resolve_many(_def["tools"])
+                    if crud_tools:
+                        kwargs["tools"] = crud_tools
+                except ImportError:
+                    pass
 
         kwargs.update(self._agent_kwargs)
         agent = Agent(**kwargs)
@@ -541,9 +581,13 @@ class PraisonAIProvider(BaseProvider):
         The WS chat route calls this before announcing ``run_started`` so the
         announcement carries the real agent name (the provider's own
         ``run_started`` is not forwarded there). It mirrors ``run()``:
-        callback mode answers with the requested name; direct mode resolves
-        the agent exactly as ``_run_direct_mode`` does. The agent is cached
-        per session, so ``run()`` reuses it rather than building it twice.
+        callback mode answers with the requested name; direct mode looks the
+        agent up exactly as ``_get_or_create_agent`` does.
+
+        It never builds an agent (that can take seconds on a session's first
+        turn and would hold back the run id and the Stop button): when the
+        agent does not exist yet, it returns the name it will be created
+        with.
         """
         try:
             from praisonaiui.server import _callbacks
@@ -552,10 +596,20 @@ class PraisonAIProvider(BaseProvider):
                 return agent_name
         except ImportError:
             pass
-        agent = self._get_or_create_agent(agent_name, session_id)
-        if agent is None:
-            return agent_name
-        return getattr(agent, "name", None) or agent_name
+        agent = self._find_existing_agent(agent_name, session_id)
+        if agent is not None:
+            return getattr(agent, "name", None) or agent_name
+        # Checked without importing it (the import is slow; run() does it).
+        if sys.modules.get("praisonaiagents") is not None:
+            installed = True
+        else:
+            try:
+                installed = importlib.util.find_spec("praisonaiagents") is not None
+            except (ImportError, ValueError):
+                installed = False
+        if not installed:
+            return agent_name  # run() falls back to an unnamed echo
+        return self._new_agent_name(agent_name) or agent_name
 
     async def run(
         self,

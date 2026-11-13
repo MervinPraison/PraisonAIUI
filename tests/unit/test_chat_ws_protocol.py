@@ -3,14 +3,19 @@
 Covers the WP3 server fixes:
 
 * exactly one ``run_started`` per run, carrying ``run_id`` and the agent name
-  the provider resolved;
+  (from ``resolve_agent_name``, else the provider's own first
+  ``run_started``, else the requested name); a later run_started only when
+  the agent changes mid-run or its name arrives after the grace window;
 * ``references`` frames carry ``query`` and ``references``;
 * approval ``run_paused`` frames forward ``extra_data`` and lift the approval
   fields (id, tool_name, arguments, risk_level, tool_call_id) to the top
   level, keeping ``question``/``options`` for old clients;
 * per-client ``subscribe`` scoping with legacy fan-out for clients that never
   subscribe;
-* ``chat_abort`` only from a client that owns the run's session;
+* ``chat_abort`` / ``ask_response`` only from a client that owns the run's
+  session, or from anyone when no connected client owns it (reconnect, HTTP);
+* the per-client caps drop the oldest entry, never the session in use;
+* malformed frames get ``protocol_error`` and keep the socket open;
 * cancelled replies persist with ``status: "cancelled"``;
 * the SSE ``/run`` stream is unchanged by any of this.
 """
@@ -247,7 +252,10 @@ def test_ws_ask_pause_keeps_question_and_options(monkeypatch):
     assert "tool_name" not in ask and "id" not in ask
 
 
-def test_ws_without_resolver_keeps_requested_agent_and_one_run_started(monkeypatch):
+def test_ws_without_resolver_uses_provider_name_over_requested(monkeypatch, _isolated):
+    # The provider reports who actually answers; the client's pick is only
+    # the fallback. Still exactly one run_started.
+    store = _isolated
     _use_provider(monkeypatch, NoResolverProvider())
     with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
         ws.send_json(
@@ -256,8 +264,89 @@ def test_ws_without_resolver_keeps_requested_agent_and_one_run_started(monkeypat
         frames = _read_until(ws, _turn_done("s-nr"))
 
     started = [f for f in frames if f["type"] == "run_started"]
-    assert len(started) == 1
+    assert len(started) == 1, started
+    assert started[0]["agent_name"] == "Provider Name"
+    assert asyncio.run(store.get_messages("s-nr"))[-1]["agent_name"] == "Provider Name"
+
+
+def test_ws_requested_agent_kept_when_provider_names_none(monkeypatch, _isolated):
+    store = _isolated
+    _use_provider(monkeypatch, EchoProvider())
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        ws.send_json(
+            {"type": "chat", "content": "hi", "session_id": "s-req", "agent_name": "Picked"}
+        )
+        frames = _read_until(ws, _turn_done("s-req"))
+
+    started = [f for f in frames if f["type"] == "run_started"]
+    assert len(started) == 1, started
     assert started[0]["agent_name"] == "Picked"
+    assert asyncio.run(store.get_messages("s-req"))[-1]["agent_name"] == "Picked"
+
+
+def test_provider_named_agent_without_resolver(monkeypatch, _isolated):
+    # Regression: providers without ``resolve_agent_name`` (the public
+    # BaseProvider API, examples/python/07, the spike mock) name their agent
+    # on their own run_started. That name must reach WS clients on the
+    # single run_started and be persisted with the reply.
+    store = _isolated
+    _use_provider(monkeypatch, NoResolverProvider())
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        ws.send_json({"type": "chat", "content": "hi", "session_id": "s-pn"})
+        frames = _read_until(ws, _turn_done("s-pn"))
+
+    started = [f for f in frames if f["type"] == "run_started"]
+    assert len(started) == 1, started
+    assert started[0]["agent_name"] == "Provider Name"
+    assert started[0]["run_id"] == frames[-1]["run_id"]
+    msgs = asyncio.run(store.get_messages("s-pn"))
+    assert msgs[-1]["role"] == "assistant"
+    assert msgs[-1]["agent_name"] == "Provider Name"
+    from praisonaiui.features.chat import get_chat_manager
+
+    assert get_chat_manager()._history["s-pn"][-1].agent_name == "Provider Name"
+
+
+class _NamedStreamProvider(BaseProvider):
+    """Mimics PraisonAIProvider: run_started per LLM request and per agent hook."""
+
+    def __init__(self, resolver_name: Optional[str] = None) -> None:
+        self.resolver_name = resolver_name
+
+    def resolve_agent_name(self, agent_name=None, session_id=None):
+        return self.resolver_name
+
+    async def run(self, message, *, session_id=None, agent_name=None, **kw):
+        yield RunEvent(type=RunEventType.RUN_STARTED, agent_name="Lead")
+        yield RunEvent(type=RunEventType.RUN_STARTED)  # REQUEST_START, unnamed
+        yield RunEvent(type=RunEventType.RUN_STARTED, agent_name="Lead")  # before_agent
+        yield RunEvent(type=RunEventType.RUN_CONTENT, token="a")
+        yield RunEvent(type=RunEventType.RUN_STARTED, agent_name="Researcher")  # handoff
+        yield RunEvent(type=RunEventType.RUN_STARTED, agent_name="Researcher")
+        yield RunEvent(type=RunEventType.RUN_STARTED)
+        yield RunEvent(type=RunEventType.RUN_CONTENT, token="b")
+        yield RunEvent(type=RunEventType.RUN_STARTED, agent_name="Lead")  # back
+        yield RunEvent(type=RunEventType.RUN_COMPLETED, content="ab")
+
+
+@pytest.mark.parametrize("resolver_name", [None, "Lead"])
+def test_mid_run_agent_switch_is_forwarded(monkeypatch, _isolated, resolver_name):
+    # Regression: suppressing the provider's duplicate run_started also hid
+    # sub-agent / handoff switches. Repeats and unnamed starts stay hidden;
+    # a change of agent is forwarded with the same run_id.
+    store = _isolated
+    _use_provider(monkeypatch, _NamedStreamProvider(resolver_name))
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        ws.send_json({"type": "chat", "content": "go", "session_id": "s-sw"})
+        frames = _read_until(ws, _turn_done("s-sw"))
+
+    started = [f for f in frames if f["type"] == "run_started"]
+    assert [f.get("agent_name") for f in started] == ["Lead", "Researcher", "Lead"]
+    assert len({f["run_id"] for f in frames}) == 1
+    order = [f["type"] if f["type"] != "run_started" else f["agent_name"] for f in frames]
+    assert order == ["Lead", "run_content", "Researcher", "run_content", "Lead", "run_completed"]
+    # The reply is persisted under the agent that started the turn.
+    assert asyncio.run(store.get_messages("s-sw"))[-1]["agent_name"] == "Lead"
 
 
 def test_ws_without_agent_omits_agent_name(monkeypatch):
@@ -284,6 +373,137 @@ def test_failing_resolver_falls_back_to_requested_name(monkeypatch):
     started = [f for f in frames if f["type"] == "run_started"]
     assert len(started) == 1 and started[0]["agent_name"] == "X"
     assert frames[-1]["type"] == "run_completed"
+
+
+@pytest.mark.asyncio
+async def test_slow_first_event_does_not_delay_run_started(monkeypatch, _isolated):
+    import praisonaiui.server as server
+    from praisonaiui.features import chat as chat_mod
+
+    gen_closed = asyncio.Event()
+
+    class SlowStart(BaseProvider):
+        async def run(self, message, *, session_id=None, agent_name=None, **kw):
+            try:
+                await asyncio.sleep(30)
+                yield RunEvent(type=RunEventType.RUN_STARTED, agent_name="Late")
+            finally:
+                gen_closed.set()
+
+    monkeypatch.setattr(server, "get_provider", lambda: SlowStart())
+    ws = _FakeWS()
+    mgr = chat_mod.get_chat_manager()
+    mgr.add_ws_client("c", ws)
+    task = asyncio.ensure_future(chat_mod._run_and_broadcast("hi", "s-slowstart", None, None))
+    await asyncio.sleep(chat_mod.FIRST_EVENT_GRACE_S + 0.25)
+    started = [f for f in ws.frames if f["type"] == "run_started"]
+    assert len(started) == 1 and "agent_name" not in started[0]
+    run_id = started[0]["run_id"]
+    assert (await mgr.abort_run(run_id))["status"] == "aborted"
+    await asyncio.wait_for(task, 5)
+    assert ws.frames[-1]["type"] == "run_cancelled"
+    assert ws.frames[-1]["run_id"] == run_id
+    # The provider's pending first step was cancelled, not leaked.
+    await asyncio.wait_for(gen_closed.wait(), 5)
+    assert mgr._active_runs == {} and mgr._run_sessions == {}
+
+
+@pytest.mark.asyncio
+async def test_aborted_during_grace_cancels_first_step(monkeypatch, _isolated):
+    import praisonaiui.server as server
+    from praisonaiui.features import chat as chat_mod
+
+    monkeypatch.setattr(chat_mod, "FIRST_EVENT_GRACE_S", 30)
+    gen_closed = asyncio.Event()
+
+    class Hangs(BaseProvider):
+        async def run(self, message, *, session_id=None, agent_name=None, **kw):
+            try:
+                await asyncio.sleep(60)
+                yield RunEvent(type=RunEventType.RUN_STARTED)
+            finally:
+                gen_closed.set()
+
+    monkeypatch.setattr(server, "get_provider", lambda: Hangs())
+    ws = _FakeWS()
+    mgr = chat_mod.get_chat_manager()
+    mgr.add_ws_client("c", ws)
+    task = asyncio.ensure_future(chat_mod._run_and_broadcast("hi", "s-hang", None, None))
+    await asyncio.sleep(0.1)
+    (run_id,) = list(mgr._active_runs)
+    assert (await mgr.abort_run(run_id))["status"] == "aborted"
+    await asyncio.wait_for(task, 5)
+    await asyncio.wait_for(gen_closed.wait(), 5)
+    assert [f["type"] for f in ws.frames] == ["run_cancelled"]
+    assert mgr._active_runs == {} and mgr._run_sessions == {}
+
+
+@pytest.mark.asyncio
+async def test_late_provider_name_is_forwarded_once(monkeypatch, _isolated):
+    import praisonaiui.server as server
+    from praisonaiui.features import chat as chat_mod
+
+    monkeypatch.setattr(chat_mod, "FIRST_EVENT_GRACE_S", 0.01)
+
+    class LateName(BaseProvider):
+        async def run(self, message, *, session_id=None, agent_name=None, **kw):
+            await asyncio.sleep(0.2)
+            yield RunEvent(type=RunEventType.RUN_STARTED, agent_name="Late")
+            yield RunEvent(type=RunEventType.RUN_STARTED, agent_name="Late")
+            yield RunEvent(type=RunEventType.RUN_CONTENT, token="x")
+            yield RunEvent(type=RunEventType.RUN_COMPLETED, content="x")
+
+    monkeypatch.setattr(server, "get_provider", lambda: LateName())
+    ws = _FakeWS()
+    chat_mod.get_chat_manager().add_ws_client("c", ws)
+    await _isolated.create_session("s-late")
+    await chat_mod._run_and_broadcast("hi", "s-late", None, None)
+
+    started = [f for f in ws.frames if f["type"] == "run_started"]
+    # Announced on time without a name, then the name once it is known.
+    assert [f.get("agent_name") for f in started] == [None, "Late"]
+    assert started[0]["run_id"] == started[1]["run_id"]
+    assert (await _isolated.get_messages("s-late"))[-1]["agent_name"] == "Late"
+
+
+@pytest.mark.asyncio
+async def test_provider_error_on_first_event_reports_run_error(monkeypatch, _isolated):
+    import praisonaiui.server as server
+    from praisonaiui.features import chat as chat_mod
+
+    class FailsAtOnce(BaseProvider):
+        async def run(self, message, *, session_id=None, agent_name=None, **kw):
+            raise RuntimeError("provider down")
+            yield  # pragma: no cover - makes this an async generator
+
+    monkeypatch.setattr(server, "get_provider", lambda: FailsAtOnce())
+    ws = _FakeWS()
+    mgr = chat_mod.get_chat_manager()
+    mgr.add_ws_client("c", ws)
+    await chat_mod._run_and_broadcast("hi", "s-fail", None, None)
+    assert [f["type"] for f in ws.frames] == ["run_started", "run_error"]
+    assert ws.frames[-1]["error"] == "provider down"
+    assert ws.frames[-1]["run_id"] == ws.frames[0]["run_id"]
+    assert mgr._active_runs == {} and mgr._run_sessions == {}
+
+
+@pytest.mark.asyncio
+async def test_empty_provider_run(monkeypatch, _isolated):
+    import praisonaiui.server as server
+    from praisonaiui.features import chat as chat_mod
+
+    class Empty(BaseProvider):
+        async def run(self, message, *, session_id=None, agent_name=None, **kw):
+            return
+            yield  # pragma: no cover
+
+    monkeypatch.setattr(server, "get_provider", lambda: Empty())
+    ws = _FakeWS()
+    mgr = chat_mod.get_chat_manager()
+    mgr.add_ws_client("c", ws)
+    await chat_mod._run_and_broadcast("hi", "s-empty", None, None)
+    assert [f["type"] for f in ws.frames] == ["run_started"]
+    assert mgr._active_runs == {} and mgr._run_sessions == {}
 
 
 # ── Subscriptions ────────────────────────────────────────────────────
@@ -383,11 +603,58 @@ def test_subscription_cap():
 
     mgr = ChatManager()
     ids = [f"s{i}" for i in range(MAX_SUBSCRIPTIONS_PER_CLIENT + 10)]
-    assert len(mgr.subscribe("c", ids)) == MAX_SUBSCRIPTIONS_PER_CLIENT
+    subs = mgr.subscribe("c", ids)
+    assert len(subs) == MAX_SUBSCRIPTIONS_PER_CLIENT
+    # The cap drops the least recent ids, never the newest ones.
+    assert ids[-1] in subs and ids[0] not in subs
+    mgr.subscribe("c", ["fresh"])
+    assert mgr.client_owns_session("c", "fresh")
+    assert not mgr.client_owns_session("c", ids[10])
+    assert len(mgr._ws_subscriptions["c"]) == MAX_SUBSCRIPTIONS_PER_CLIENT
     # A single string is accepted as one id.
     mgr2 = ChatManager()
     assert mgr2.subscribe("c", "solo") == ["solo"]
     assert mgr2.subscribe("c", None) == ["solo"]
+
+
+@pytest.mark.asyncio
+async def test_scoped_sender_past_the_cap_still_gets_its_turn(monkeypatch):
+    # Regression: past MAX sessions a scoped client's new sessions were not
+    # recorded, so its own turn's events never reached it and it could not
+    # stop the run.
+    from praisonaiui.features import chat as chat_mod
+    from praisonaiui.features.chat import MAX_SUBSCRIPTIONS_PER_CLIENT, ChatManager, _ws_abort
+
+    mgr = ChatManager()
+    ws = _FakeWS()
+    mgr.add_ws_client("tab", ws)
+    mgr.add_ws_client("other", _FakeWS())
+    mgr.subscribe("tab", [])
+    # The oldest session still has a run in progress: it is evicted last.
+    mgr.note_client_session("tab", "s0")
+    mgr._run_sessions["run-old"] = "s0"
+    for i in range(1, MAX_SUBSCRIPTIONS_PER_CLIENT + 1):
+        mgr.note_client_session("tab", f"s{i}")
+    newest = f"s{MAX_SUBSCRIPTIONS_PER_CLIENT}"
+
+    await mgr.broadcast(newest, {"type": "run_content", "session_id": newest})
+    assert ws.frames == [{"type": "run_content", "session_id": newest}]
+    assert mgr.client_owns_session("tab", newest)
+    assert mgr.client_owns_session("tab", "s0")  # running: kept
+    assert not mgr.client_owns_session("tab", "s1")  # oldest idle: dropped
+    assert len(mgr._ws_sent_sessions["tab"]) == MAX_SUBSCRIPTIONS_PER_CLIENT
+
+    async def _forever():
+        await asyncio.sleep(30)
+
+    task = asyncio.ensure_future(_forever())
+    mgr._active_runs["run-new"] = task
+    mgr._run_sessions["run-new"] = newest
+    monkeypatch.setattr(chat_mod, "get_chat_manager", lambda: mgr)
+    assert (await _ws_abort(mgr, "other", "run-new"))["status"] == "forbidden"
+    assert (await _ws_abort(mgr, "tab", "run-new"))["status"] == "aborted"
+    await asyncio.sleep(0)
+    assert task.cancelled()
 
 
 # ── chat_abort ownership + cancelled status ──────────────────────────
@@ -440,6 +707,134 @@ def test_chat_abort_requires_session_ownership_and_persists_cancelled(monkeypatc
     assert assistant[0]["content"] == "partial "
     assert assistant[0]["status"] == "cancelled"
     assert asyncio.run(store.get_messages("s-slow"))[-1]["status"] == "cancelled"
+
+
+def test_legacy_observer_cannot_abort_a_connected_owners_run(monkeypatch):
+    _use_provider(monkeypatch, SlowProvider())
+    with TestClient(_app()) as client:
+        with client.websocket_connect("/api/chat/ws") as owner, client.websocket_connect(
+            "/api/chat/ws"
+        ) as observer:
+            owner.send_json({"type": "chat", "content": "long", "session_id": "s-lo"})
+            run_id = _read_until(owner, lambda f: f.get("type") == "run_started")[-1]["run_id"]
+            # The legacy observer sees the run (unscoped fan-out) ...
+            seen = _read_until(observer, lambda f: f.get("type") == "run_started")
+            assert seen[-1]["run_id"] == run_id
+            # ... but may not stop it while its owner is connected.
+            observer.send_json({"type": "chat_abort", "run_id": run_id})
+            reply = _read_until(observer, lambda f: f.get("type") == "chat_abort_result")[-1]
+            assert reply["status"] == "forbidden"
+            owner.send_json({"type": "chat_abort", "run_id": run_id})
+            reply = _read_until(owner, lambda f: f.get("type") == "chat_abort_result")[-1]
+            assert reply["status"] == "aborted"
+
+
+def test_reconnected_tab_can_stop_its_orphaned_run(monkeypatch):
+    # Regression: a dashboard tab whose socket reconnected mid-run (a new
+    # connection, so not the owner) could no longer Stop its own run.
+    _use_provider(monkeypatch, SlowProvider())
+    from praisonaiui.features.chat import get_chat_manager
+
+    with TestClient(_app()) as client:
+        with client.websocket_connect("/api/chat/ws") as first:
+            first.send_json({"type": "chat", "content": "long", "session_id": "s-re"})
+            run_id = _read_until(first, lambda f: f.get("type") == "run_started")[-1]["run_id"]
+        # The first connection is gone; the run keeps going.
+        assert run_id in get_chat_manager()._active_runs
+        with client.websocket_connect("/api/chat/ws") as again:
+            again.send_json({"type": "chat_abort", "run_id": run_id})
+            reply = _read_until(again, lambda f: f.get("type") == "chat_abort_result")[-1]
+            assert reply["status"] == "aborted"
+            assert _read_until(again, _turn_done("s-re"))[-1]["type"] == "run_cancelled"
+
+
+def test_http_started_run_can_be_stopped_over_ws(monkeypatch):
+    # Regression: a turn sent via POST /api/chat/send (the HTTP fallback)
+    # has no WS owner; it must stay stoppable over WS, as before.
+    _use_provider(monkeypatch, SlowProvider())
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        resp = client.post("/api/chat/send", json={"content": "long", "session_id": "s-http"})
+        assert resp.status_code == 200
+        run_id = _read_until(ws, lambda f: f.get("type") == "run_started")[-1]["run_id"]
+        ws.send_json({"type": "chat_abort", "run_id": run_id})
+        reply = _read_until(ws, lambda f: f.get("type") == "chat_abort_result")[-1]
+        assert reply["status"] == "aborted"
+        _read_until(ws, _turn_done("s-http"))
+
+
+class _AskProvider(SlowProvider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.answers: List[tuple] = []
+
+    async def submit_ask_response(self, session_id, run_id, response):
+        self.answers.append((session_id, run_id, response))
+
+
+def test_ask_response_requires_session_ownership(monkeypatch):
+    provider = _AskProvider()
+    _use_provider(monkeypatch, provider)
+    with TestClient(_app()) as client:
+        with client.websocket_connect("/api/chat/ws") as owner, client.websocket_connect(
+            "/api/chat/ws"
+        ) as other:
+            owner.send_json({"type": "chat", "content": "long", "session_id": "s-ask2"})
+            run_id = _read_until(owner, lambda f: f.get("type") == "run_started")[-1]["run_id"]
+
+            # Another connected client cannot answer it, even by naming its
+            # own session alongside the live run id.
+            for sid in ("s-ask2", "s-mine"):
+                other.send_json(
+                    {"type": "ask_response", "session_id": sid, "run_id": run_id, "response": "B"}
+                )
+                ack = _read_until(other, lambda f: f.get("type") == "ask_response_ack")[-1]
+                assert ack["status"] == "forbidden"
+            assert provider.answers == []
+
+            owner.send_json(
+                {"type": "ask_response", "session_id": "s-ask2", "run_id": run_id, "response": "A"}
+            )
+            ack = _read_until(owner, lambda f: f.get("type") == "ask_response_ack")[-1]
+            assert ack["status"] == "received"
+            assert provider.answers == [("s-ask2", run_id, "A")]
+
+            # A session nobody connected owns can be answered (reconnect).
+            other.send_json(
+                {"type": "ask_response", "session_id": "s-free", "run_id": "", "response": 7}
+            )
+            ack = _read_until(other, lambda f: f.get("type") == "ask_response_ack")[-1]
+            assert ack["status"] == "received"
+            assert provider.answers[-1] == ("s-free", "", "7")
+
+            owner.send_json({"type": "chat_abort", "run_id": run_id})
+            _read_until(owner, _turn_done("s-ask2"))
+
+
+def test_malformed_frames_keep_the_socket_open(monkeypatch):
+    # Regression: a non-object or non-JSON frame closed the socket (and with
+    # it every live turn of that client).
+    _use_provider(monkeypatch, EchoProvider())
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        for bad in ("[1, 2]", "not json", "42", '"text"', "null"):
+            ws.send_text(bad)
+            frame = ws.receive_json()
+            assert frame["type"] == "protocol_error", (bad, frame)
+            assert frame["error"]
+        ws.send_bytes(b"\xff\xfe")
+        assert ws.receive_json()["type"] == "protocol_error"
+        ws.send_bytes(b'{"type": "ping"}')
+        assert ws.receive_json() == {"type": "pong"}
+        ws.send_json({"type": "chat", "content": ["not", "a", "string"]})
+        assert ws.receive_json()["type"] == "protocol_error"
+        ws.send_json({"type": "chat_abort", "run_id": {"x": 1}})
+        assert ws.receive_json()["status"] == "no_active_run"
+        # A non-string session id gets a fresh one instead of breaking.
+        ws.send_json({"type": "chat", "content": "hi", "session_id": 123})
+        frames = _read_until(ws, lambda f: f.get("type") == "run_completed")
+        sids = {f["session_id"] for f in frames}
+        assert len(sids) == 1 and isinstance(sids.pop(), str)
+        ws.send_json({"type": "ping"})
+        assert ws.receive_json() == {"type": "pong"}
 
 
 def test_owner_can_abort_its_own_run(monkeypatch):
@@ -606,3 +1001,83 @@ def test_praisonai_provider_resolve_agent_name(monkeypatch):
     monkeypatch.setattr(provider, "_get_or_create_agent", lambda *a, **k: called.append(1))
     assert provider.resolve_agent_name(agent_name="Asked", session_id="s") == "Asked"
     assert called == []
+
+
+def test_praisonai_provider_resolver_never_builds_an_agent(monkeypatch):
+    # Regression: resolve_agent_name built the session's agent (tool
+    # resolution, model client) on the event loop before run_started, which
+    # held back the run id and the Stop button on a session's first turn.
+    from types import SimpleNamespace
+
+    import praisonaiui.server as server
+    from praisonaiui.features import agents as agents_feature
+    from praisonaiui.providers import PraisonAIProvider
+
+    monkeypatch.setattr(server, "_callbacks", {})
+    monkeypatch.setattr(server, "_agents", {})
+    registry = SimpleNamespace(list_all=lambda: [{"name": "Researcher", "instructions": "x"}])
+    monkeypatch.setattr(agents_feature, "get_agent_registry", lambda: registry)
+
+    def _no_build(*_a, **_k):
+        raise AssertionError("resolve_agent_name must not build an agent")
+
+    provider = PraisonAIProvider()
+    monkeypatch.setattr(provider, "_create_session_agent", _no_build)
+    assert provider.resolve_agent_name(agent_name=None, session_id="s") == "Assistant"
+    assert provider.resolve_agent_name(agent_name="Researcher", session_id="s") == "Researcher"
+    assert provider.resolve_agent_name(agent_name="Nobody", session_id="s") == "Assistant"
+
+    named = PraisonAIProvider(name="Bot")
+    monkeypatch.setattr(named, "_create_session_agent", _no_build)
+    assert named.resolve_agent_name(agent_name="Researcher", session_id="s") == "Bot"
+
+    # An agent already cached for the session answers with its own name.
+    provider._session_agents["s2:"] = SimpleNamespace(name="Cached")
+    assert provider.resolve_agent_name(agent_name=None, session_id="s2") == "Cached"
+
+    # Without praisonaiagents, run() echoes unnamed: keep the requested name.
+    import importlib.util
+    import sys
+
+    monkeypatch.setitem(sys.modules, "praisonaiagents", None)
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name, *a: None)
+    assert provider.resolve_agent_name(agent_name=None, session_id="s3") is None
+    assert provider.resolve_agent_name(agent_name="Asked", session_id="s3") == "Asked"
+
+
+def test_praisonai_provider_predicted_name_matches_built_agent(monkeypatch):
+    # The cheap prediction must name the agent exactly as the build does.
+    import sys
+    from types import ModuleType, SimpleNamespace
+
+    import praisonaiui.server as server
+    from praisonaiui.features import agents as agents_feature
+    from praisonaiui.providers import PraisonAIProvider
+
+    class FakeAgent:
+        def __init__(self, **kwargs):
+            self.name = kwargs.get("name")
+            self.stream_emitter = None
+
+    fake = ModuleType("praisonaiagents")
+    fake.Agent = FakeAgent
+    monkeypatch.setitem(sys.modules, "praisonaiagents", fake)
+    monkeypatch.setitem(sys.modules, "praisonaiagents.tools", None)
+    monkeypatch.setitem(sys.modules, "praisonai.tool_resolver", None)
+    monkeypatch.setattr(server, "_callbacks", {})
+    monkeypatch.setattr(server, "_agents", {})
+    registry = SimpleNamespace(list_all=lambda: [{"name": "Researcher", "model": "m"}])
+    monkeypatch.setattr(agents_feature, "get_agent_registry", lambda: registry)
+
+    for kwargs, requested in [
+        ({}, None),
+        ({}, "Researcher"),
+        ({}, "Nobody"),
+        ({"name": "Bot"}, "Researcher"),
+    ]:
+        provider = PraisonAIProvider(**kwargs)
+        predicted = provider.resolve_agent_name(agent_name=requested, session_id="s")
+        built = provider._get_or_create_agent(requested, "s")
+        assert predicted == built.name, (kwargs, requested)
+        # Once built (cached), the resolver reports the cached agent.
+        assert provider.resolve_agent_name(agent_name=requested, session_id="s") == built.name
