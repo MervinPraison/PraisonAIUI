@@ -1,0 +1,92 @@
+<!doctype html>
+<!--
+  WP2 dev harness for the React chat page (chat-engine/ChatPage.tsx).
+  Dev-only: excluded from the build and from Tailwind scanning.
+
+  Run a backend, then the Vite dev server (it proxies /api, /run, /cancel,
+  /sessions, /starters and the chat WebSocket to AIUI_DEV_BACKEND):
+
+    AIUI_DEV_BACKEND=http://127.0.0.1:8765 npm run dev
+    open http://localhost:5173/dev/chat-dev.html
+
+  Query flags (read once at boot):
+    ?transport=auto   WebSocket, falling back to SSE when it cannot open in 3 s (default)
+    ?transport=ws     WebSocket only
+    ?transport=sse    POST /run only (ask prompts cannot be answered)
+    ?theme=dark|light force the colour scheme (default: system)
+    ?session=<id>     open a session (ChatPage mirrors the selection here)
+    ?agent=<name>     preselect an agent
+  window.__chatDev exposes { transport } for probes.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <title>AIUI chat (dev)</title>
+    <script>
+      (function () {
+        var q = new URLSearchParams(location.search);
+        var t = q.get('theme');
+        var dark = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', dark);
+      })();
+    </script>
+    <style id="aiui-dev-fallback-tokens">
+      /* The server normally serves these as /assets/theme.css (HSL triples until
+         WP0b's styles/theme.css lands). Kept in a cascade layer so a real token
+         layer always wins. */
+      @layer aiui-dev-fallback {
+        :root {
+          --radius: 0.5rem;
+          --background: 0 0% 100%; --foreground: 240 10% 3.9%;
+          --card: 0 0% 100%; --card-foreground: 240 10% 3.9%;
+          --popover: 0 0% 100%; --popover-foreground: 240 10% 3.9%;
+          --primary: 240 5.9% 10%; --primary-foreground: 0 0% 98%;
+          --secondary: 240 4.8% 95.9%; --secondary-foreground: 240 5.9% 10%;
+          --muted: 240 4.8% 95.9%; --muted-foreground: 240 3.8% 46.1%;
+          --accent: 240 4.8% 95.9%; --accent-foreground: 240 5.9% 10%;
+          --destructive: 0 72.2% 50.6%; --border: 240 5.9% 90%; --input: 240 5.9% 90%; --ring: 240 5.9% 10%;
+          --sidebar: 0 0% 98%; --sidebar-foreground: 240 5.3% 26.1%;
+          --sidebar-primary: 240 5.9% 10%; --sidebar-primary-foreground: 0 0% 98%;
+          --sidebar-accent: 240 4.8% 95.9%; --sidebar-accent-foreground: 240 5.9% 10%;
+          --sidebar-border: 220 13% 91%; --sidebar-ring: 240 5.9% 10%;
+        }
+        .dark {
+          --background: 240 10% 3.9%; --foreground: 0 0% 98%;
+          --card: 240 10% 3.9%; --card-foreground: 0 0% 98%;
+          --popover: 240 10% 3.9%; --popover-foreground: 0 0% 98%;
+          --primary: 0 0% 98%; --primary-foreground: 240 5.9% 10%;
+          --secondary: 240 3.7% 15.9%; --secondary-foreground: 0 0% 98%;
+          --muted: 240 3.7% 15.9%; --muted-foreground: 240 5% 64.9%;
+          --accent: 240 3.7% 15.9%; --accent-foreground: 0 0% 98%;
+          --destructive: 0 72% 60%; --border: 240 3.7% 15.9%; --input: 240 3.7% 15.9%; --ring: 240 4.9% 83.9%;
+          --sidebar: 240 5.9% 10%; --sidebar-foreground: 240 4.8% 95.9%;
+          --sidebar-primary: 0 0% 98%; --sidebar-primary-foreground: 240 5.9% 10%;
+          --sidebar-accent: 240 3.7% 15.9%; --sidebar-accent-foreground: 240 4.8% 95.9%;
+          --sidebar-border: 240 3.7% 15.9%; --sidebar-ring: 240 4.9% 83.9%;
+        }
+      }
+      html, body, #root { height: 100%; margin: 0; }
+      body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import '/src/index.css'
+      import { createElement as h, StrictMode } from 'react'
+      import { createRoot } from 'react-dom/client'
+      import ChatPage from '/src/chat-engine/ChatPage.tsx'
+      import { createAutoTransport, createSseTransport, createWsTransport } from '/src/chat-engine/transports.ts'
+
+      const mode = new URLSearchParams(location.search).get('transport') || 'auto'
+      const transport = mode === 'sse' ? createSseTransport() : mode === 'ws' ? createWsTransport() : createAutoTransport()
+      window.__chatDev = { transport, mode }
+      const page = { id: 'chat', title: 'Chat', kind: 'react', source: 'builtin' }
+      createRoot(document.getElementById('root')).render(
+        h(StrictMode, null, h('div', { className: 'aiui-app h-full' }, h(ChatPage, { page, transport }))),
+      )
+    </script>
+  </body>
+</html>
