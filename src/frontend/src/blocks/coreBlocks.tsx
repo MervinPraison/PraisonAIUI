@@ -18,11 +18,12 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
-import { ChevronRight, CircleCheck, CircleX, Info, LoaderCircle, TriangleAlert, type LucideIcon } from 'lucide-react'
+import { ChevronRight, CircleCheck, CircleX, Info, TriangleAlert, type LucideIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { Markdown } from '@/markdown/LazyMarkdown'
@@ -627,7 +628,7 @@ function SpinnerBlock({ node }: CoreBlockProps) {
   const text = str(propsOf(node).text)
   return (
     <div role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
-      <LoaderCircle aria-hidden className="size-4 animate-spin motion-reduce:animate-[spin_1.6s_linear_infinite]" />
+      <Spinner aria-hidden role={undefined} />
       <span className={text ? undefined : 'sr-only'}>{text || 'Loading'}</span>
     </div>
   )
@@ -756,7 +757,7 @@ function ActionButton({ spec }: { spec: Record<string, unknown> }) {
       data-action={action || undefined}
       onClick={onClick}
     >
-      {busy && <LoaderCircle aria-hidden className="animate-spin motion-reduce:animate-[spin_1.6s_linear_infinite]" />}
+      {busy && <Spinner aria-hidden role={undefined} />}
       {label}
     </Button>
   )
@@ -825,7 +826,7 @@ function FormBlock({ node, page }: CoreBlockProps) {
       <BlockList nodes={childNodes(node)} page={page} />
       <div>
         <Button type="submit" size="sm" disabled={busy} aria-busy={busy || undefined}>
-          {busy && <LoaderCircle aria-hidden className="animate-spin motion-reduce:animate-[spin_1.6s_linear_infinite]" />}
+          {busy && <Spinner aria-hidden role={undefined} />}
           {submitLabel}
         </Button>
       </div>
