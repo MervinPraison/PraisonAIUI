@@ -8,6 +8,8 @@ import { installSdk, type PluginLoadReport } from '@/sdk/install'
 import { loadPluginModules } from '@/sdk/loadPlugins'
 import { fetchManifest, type ShellManifest, type ShellPage } from '@/sdk/manifest'
 import { getPage, getToolRenderers, useRegistryVersion } from '@/sdk/registry'
+import { activateShell } from '@/sdk/services'
+import { SHELL_SLOTS, Slot } from '@/shell/Slot'
 
 declare global {
   interface Window {
@@ -70,6 +72,8 @@ function Harness() {
       .then(async (m) => {
         if (!live) return
         window.__pluginsHarness!.manifest = m
+        // What the shell does when it has the manifest: useManifest() + onActivate hooks.
+        activateShell(m)
         setManifest(m)
         const report = await loadPluginModules(m)
         window.__pluginsHarness!.report = report
@@ -106,9 +110,17 @@ function Harness() {
         ))}
       </nav>
       <main className="flex min-w-0 flex-1 flex-col gap-8 p-6" data-testid="harness-main">
+        {/* The shell's slot hosts, so registerSlot contributions can be seen here too. */}
+        <Slot
+          name={SHELL_SLOTS.headerActions}
+          pageId={current?.id ?? ''}
+          page={current}
+          className="flex items-center justify-end gap-1"
+        />
         {current && (
           <div key={current.id} data-testid={`page-${current.id}`} className="flex min-w-0 flex-col gap-4">
             <h1 className="text-xl font-semibold tracking-tight">{current.title}</h1>
+            <Slot name={SHELL_SLOTS.pageToolbar(current.id)} pageId={current.id} page={current} className="flex gap-2" />
             <PageView page={current} />
           </div>
         )}

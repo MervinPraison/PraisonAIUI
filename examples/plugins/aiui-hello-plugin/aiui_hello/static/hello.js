@@ -7,7 +7,7 @@
 // 'react/jsx-runtime', 'react-dom', 'react-dom/client' and '@aiui/sdk'.
 import { useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
-import { Markdown, registerBlock, registerToolRenderer } from '@aiui/sdk'
+import { Markdown, navigate, notify, registerBlock, registerSlot, registerToolRenderer } from '@aiui/sdk'
 
 // Style with the theme's CSS variables: the shell's Tailwind build only
 // contains the classes the shell itself uses.
@@ -26,6 +26,17 @@ const S = {
     font: 'inherit',
     fontSize: '14px',
     fontWeight: 500,
+    cursor: 'pointer',
+  },
+  ghost: {
+    height: '32px',
+    padding: '0 10px',
+    borderRadius: '8px',
+    border: '1px solid var(--border)',
+    background: 'transparent',
+    color: 'var(--foreground)',
+    font: 'inherit',
+    fontSize: '14px',
     cursor: 'pointer',
   },
   meta: { fontSize: '13px', color: 'var(--muted-foreground)' },
@@ -66,6 +77,14 @@ export default function HelloPage({ page }) {
             style: S.button,
             onClick: () => setCount((n) => n + 1),
             children: `Clicked ${count} ${count === 1 ? 'time' : 'times'}`,
+          }),
+          // A shell service: notify() shows a toast in the shell's toaster.
+          jsx('button', {
+            type: 'button',
+            'data-testid': 'hello-notify',
+            style: S.ghost,
+            onClick: () => notify('Hello from a plugin', { type: 'success', description: `Clicked ${count} so far.` }),
+            children: 'Show a toast',
           }),
           jsx('span', { style: S.meta, children: `State lives in the shell’s React · page id “${page ? page.id : '?'}”` }),
         ],
@@ -116,3 +135,23 @@ function HelloBadge({ node }) {
 }
 
 registerBlock('hello_badge', HelloBadge)
+
+/**
+ * A slot contribution: a button in the shell header (`header:actions`), on
+ * every page but this plugin's own. Slot components receive
+ * `{ slot, pageId, page }`. The `id` lets other plugins share the slot;
+ * `order` places this one among them. navigate() is the shell's router.
+ */
+function HelloHeaderAction({ pageId }) {
+  if (pageId === 'hello') return null
+  return jsx('button', {
+    type: 'button',
+    'data-testid': 'hello-header-action',
+    title: 'Open the Hello plugin page',
+    style: S.ghost,
+    onClick: () => navigate('hello'),
+    children: 'Hello',
+  })
+}
+
+registerSlot('header:actions', HelloHeaderAction, { id: 'hello', order: 50 })
