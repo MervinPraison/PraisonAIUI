@@ -352,6 +352,48 @@ test('continueSplitLists: explicit start, paragraphs, nesting and indented code'
     assert.equal(continueSplitLists(plain), plain)
 })
 
+test('chat: CRLF text numbers split steps like LF text does', () => {
+    const crlf = SPLIT_STEPS.replace(/\n/g, '\r\n')
+    for (const streaming of [false, true]) {
+        const ols = tags(chat(crlf, streaming), 'ol')
+        assert.equal(ols.length, 3, ols.join('\n'))
+        assert.doesNotMatch(ols[0], /\sstart=/)
+        assert.match(ols[1], /\sstart="2"/)
+        assert.match(ols[2], /\sstart="3"/)
+    }
+    // the verifier's exact case; only the digits change, every \r\n is kept
+    assert.equal(
+        continueSplitLists('1. a\r\n\r\n```bash\r\nx\r\n```\r\n\r\n1. b\r\n\r\n```bash\r\ny\r\n```\r\n\r\n1. c'),
+        '1. a\r\n\r\n```bash\r\nx\r\n```\r\n\r\n2. b\r\n\r\n```bash\r\ny\r\n```\r\n\r\n3. c',
+    )
+    // an item that is only its marker, and a fence with trailing spaces, both before \r
+    assert.equal(continueSplitLists('1.\r\n```\r\nx\r\n```  \r\n1.\r\n'), '1.\r\n```\r\nx\r\n```  \r\n2.\r\n')
+})
+
+test('chat: a wrapped paragraph line that starts with a number does not start a list', () => {
+    const wrapped = 'It was released in\n2023. Since then:\n\n1. foo\n2. bar'
+    assert.equal(continueSplitLists(wrapped), wrapped)
+    const html = chat(wrapped)
+    const ols = tags(html, 'ol')
+    assert.equal(ols.length, 1, html)
+    assert.doesNotMatch(ols[0], /\sstart=/)
+    assert.match(html, /2023\. Since then:/)
+    // lazy numbering after such a paragraph still counts from 1
+    assert.equal(
+        continueSplitLists('Out in\r\n2023. Then:\r\n\r\n1. a\r\n\r\n```\r\nx\r\n```\r\n\r\n1. b'),
+        'Out in\r\n2023. Then:\r\n\r\n1. a\r\n\r\n```\r\nx\r\n```\r\n\r\n2. b',
+    )
+    // only `1.` interrupts a paragraph; after a blank line or a heading any number starts a list
+    assert.equal(continueSplitLists('Intro\n1. a\n1. b'), 'Intro\n1. a\n2. b')
+    assert.equal(continueSplitLists('Intro\n\n7. a\n1. b'), 'Intro\n\n7. a\n8. b')
+    assert.equal(continueSplitLists('## Steps\n7. a\n1. b'), '## Steps\n7. a\n8. b')
+    // text right under an item is that item's lazy continuation: the list stays open
+    assert.equal(
+        continueSplitLists('1. a\nwrapped in\n2023. b\n\n```\nx\n```\n\n1. c'),
+        '1. a\nwrapped in\n2. b\n\n```\nx\n```\n\n3. c',
+    )
+})
+
 // ── legacy plugins: highlight.js must skip Streamdown code blocks ──
 /**
  * highlight.js 11.9 blockLanguage() + shouldNotHighlight(), as used by

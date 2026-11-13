@@ -311,13 +311,27 @@ def chat_server(built_frontend, tmp_path_factory):
         proc.wait(timeout=10)
 
 
+def _get_json(url: str, attempts: int = 3) -> dict:
+    """GET JSON from the chat server, which answers slowly while a run is in flight.
+
+    A turn makes the server do memory and embedding work on the same loop, so a
+    short timeout fails the test for a reason that has nothing to do with markdown.
+    """
+    last: Exception | None = None
+    for _ in range(attempts):
+        try:
+            with urllib.request.urlopen(url, timeout=60) as r:
+                return json.load(r)
+        except (TimeoutError, OSError) as exc:
+            last = exc
+            time.sleep(1)
+    raise AssertionError(f"chat server did not answer {url}: {last!r}")
+
+
 def _runs(base: str) -> list:
-    with urllib.request.urlopen(f"{base}/sessions", timeout=5) as r:
-        sessions = json.load(r).get("sessions", [])
     runs = []
-    for s in sessions:
-        with urllib.request.urlopen(f"{base}/sessions/{s['id']}/runs", timeout=5) as r:
-            runs += json.load(r).get("runs", [])
+    for s in _get_json(f"{base}/sessions").get("sessions", []):
+        runs += _get_json(f"{base}/sessions/{s['id']}/runs").get("runs", [])
     return runs
 
 
