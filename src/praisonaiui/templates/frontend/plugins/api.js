@@ -99,7 +99,7 @@ function injectStyles() {
     .aiui-api-header h2 {
       font-size: 1.5rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0;
     }
 
@@ -110,13 +110,13 @@ function injectStyles() {
     }
 
     .aiui-api-status.available {
-      background: rgba(34, 197, 94, 0.2);
-      color: #22c55e;
+      background: var(--db-p-success-bg, rgba(34, 197, 94, 0.2));
+      color: var(--db-p-success, #22c55e);
     }
 
     .aiui-api-status.unavailable {
-      background: rgba(239, 68, 68, 0.2);
-      color: #ef4444;
+      background: var(--db-p-error-bg, rgba(239, 68, 68, 0.2));
+      color: var(--db-p-error, #ef4444);
     }
 
     .aiui-api-info {
@@ -127,8 +127,8 @@ function injectStyles() {
     }
 
     .aiui-info-card {
-      background: rgba(30, 41, 59, 0.8);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: var(--db-p-card-bg, rgba(30, 41, 59, 0.8));
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.5rem;
       padding: 1rem;
     }
@@ -136,32 +136,32 @@ function injectStyles() {
     .aiui-info-card h4 {
       font-size: 0.75rem;
       text-transform: uppercase;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       margin: 0 0 0.5rem 0;
     }
 
     .aiui-info-card code {
       font-size: 0.875rem;
-      color: #3b82f6;
-      background: rgba(59, 130, 246, 0.1);
+      color: var(--db-p-accent, #3b82f6);
+      background: var(--db-p-accent-glow, rgba(59, 130, 246, 0.1));
       padding: 0.25rem 0.5rem;
       border-radius: 0.25rem;
     }
 
     .aiui-info-card pre {
       font-size: 0.75rem;
-      background: rgba(0, 0, 0, 0.3);
+      background: var(--db-p-canvas, rgba(0, 0, 0, 0.3));
       padding: 0.75rem;
       border-radius: 0.375rem;
       overflow-x: auto;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
       margin: 0;
       line-height: 1.5;
     }
 
     [data-aiui-api] h3 {
       font-size: 1rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       margin: 0 0 1rem 0;
     }
 
@@ -172,8 +172,8 @@ function injectStyles() {
     }
 
     .aiui-endpoint {
-      background: rgba(30, 41, 59, 0.6);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: var(--db-p-card-bg, rgba(30, 41, 59, 0.6));
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.5rem;
       padding: 0.75rem 1rem;
     }
@@ -194,41 +194,41 @@ function injectStyles() {
     }
 
     .aiui-method.post {
-      background: rgba(34, 197, 94, 0.2);
-      color: #22c55e;
+      background: var(--db-p-success-bg, rgba(34, 197, 94, 0.2));
+      color: var(--db-p-success, #22c55e);
     }
 
     .aiui-method.get {
-      background: rgba(59, 130, 246, 0.2);
-      color: #3b82f6;
+      background: var(--db-p-info-bg, rgba(59, 130, 246, 0.2));
+      color: var(--db-p-info, #3b82f6);
     }
 
     .aiui-method.get-post {
-      background: rgba(168, 85, 247, 0.2);
-      color: #a855f7;
+      background: var(--db-p-purple-soft, rgba(168, 85, 247, 0.2));
+      color: var(--db-p-purple, #a855f7);
     }
 
     .aiui-path {
       font-size: 0.875rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       background: transparent;
     }
 
     .aiui-endpoint-desc {
       font-size: 0.8125rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       margin: 0;
     }
 
     .aiui-api-footer {
       margin-top: 2rem;
       padding-top: 1rem;
-      border-top: 1px solid rgba(148, 163, 184, 0.1);
+      border-top: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
     }
 
     .aiui-api-footer p {
       font-size: 0.8125rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       margin: 0;
     }
 

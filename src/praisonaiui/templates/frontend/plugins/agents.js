@@ -127,7 +127,7 @@ function showNotification(message, type = 'info') {
     right: 1rem;
     padding: 0.75rem 1rem;
     border-radius: 0.5rem;
-    background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
+    background: ${type === 'success' ? 'var(--db-p-success-strong, #22c55e)' : type === 'error' ? 'var(--db-p-error-strong, #ef4444)' : 'var(--db-p-info, #3b82f6)'};
     color: white;
     font-size: 0.875rem;
     z-index: 9999;
@@ -340,14 +340,14 @@ function injectStyles() {
     .aiui-agents-title h2 {
       font-size: 1.5rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0;
     }
 
     .aiui-agents-count {
       font-size: 0.875rem;
-      color: #64748b;
-      background: rgba(148, 163, 184, 0.1);
+      color: var(--db-p-text-muted, #64748b);
+      background: var(--db-p-muted, rgba(148, 163, 184, 0.1));
       padding: 0.25rem 0.75rem;
       border-radius: 9999px;
     }
@@ -359,15 +359,15 @@ function injectStyles() {
     }
 
     .aiui-agent-card {
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: linear-gradient(135deg, var(--db-p-card-bg, rgba(30, 41, 59, 0.8)) 0%, var(--db-p-card-bg, rgba(15, 23, 42, 0.9)) 100%);
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.75rem;
       padding: 1.25rem;
       transition: all 0.2s;
     }
 
     .aiui-agent-card:hover {
-      border-color: rgba(59, 130, 246, 0.3);
+      border-color: var(--db-p-accent-glow, rgba(59, 130, 246, 0.3));
       transform: translateY(-2px);
     }
 
@@ -394,14 +394,14 @@ function injectStyles() {
     .aiui-agent-name {
       font-size: 1.125rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0 0 0.25rem 0;
     }
 
     .aiui-agent-model {
       font-size: 0.75rem;
-      color: #64748b;
-      background: rgba(0, 0, 0, 0.2);
+      color: var(--db-p-text-muted, #64748b);
+      background: var(--db-p-muted, rgba(0, 0, 0, 0.2));
       padding: 0.125rem 0.5rem;
       border-radius: 0.25rem;
     }
@@ -413,7 +413,7 @@ function injectStyles() {
 
     .aiui-agent-description {
       font-size: 0.875rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
       margin: 0 0 0.75rem 0;
       line-height: 1.5;
     }
@@ -432,23 +432,23 @@ function injectStyles() {
     }
 
     .aiui-agent-status.active {
-      background: rgba(34, 197, 94, 0.2);
-      color: #22c55e;
+      background: var(--db-p-success-bg, rgba(34, 197, 94, 0.2));
+      color: var(--db-p-success, #22c55e);
     }
 
     .aiui-agent-status.inactive {
-      background: rgba(148, 163, 184, 0.2);
-      color: #94a3b8;
+      background: var(--db-p-muted, rgba(148, 163, 184, 0.2));
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-agent-temp {
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
     }
 
     /* Editor styles */
     .aiui-agent-editor {
-      background: rgba(30, 41, 59, 0.8);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: var(--db-p-card-bg, rgba(30, 41, 59, 0.8));
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.75rem;
       padding: 1.5rem;
       max-width: 700px;
@@ -461,12 +461,12 @@ function injectStyles() {
       align-items: center;
       margin-bottom: 1.5rem;
       padding-bottom: 1rem;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      border-bottom: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
     }
 
     .aiui-editor-header h3 {
       font-size: 1.25rem;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0;
     }
 
@@ -487,7 +487,7 @@ function injectStyles() {
     .aiui-form-group label {
       display: block;
       font-size: 0.8125rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
       margin-bottom: 0.375rem;
     }
 
@@ -495,11 +495,11 @@ function injectStyles() {
     .aiui-form-group select,
     .aiui-form-group textarea {
       width: 100%;
-      background: rgba(15, 23, 42, 0.8);
-      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: var(--db-p-input-bg, rgba(15, 23, 42, 0.8));
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.2));
       border-radius: 0.5rem;
       padding: 0.625rem 0.875rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       font-size: 0.875rem;
     }
 
@@ -519,7 +519,7 @@ function injectStyles() {
     .aiui-form-group select:focus,
     .aiui-form-group textarea:focus {
       outline: none;
-      border-color: #3b82f6;
+      border-color: var(--db-p-accent, #3b82f6);
     }
 
     .aiui-form-actions {
@@ -528,7 +528,7 @@ function injectStyles() {
       gap: 0.75rem;
       margin-top: 1.5rem;
       padding-top: 1rem;
-      border-top: 1px solid rgba(148, 163, 184, 0.1);
+      border-top: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
     }
 
     .aiui-btn {
@@ -546,28 +546,28 @@ function injectStyles() {
     }
 
     .aiui-btn-primary {
-      background: #3b82f6;
+      background: var(--db-p-accent-strong, #3b82f6);
       color: white;
     }
 
     .aiui-btn-primary:hover {
-      background: #2563eb;
+      background: var(--db-p-accent-strong, #2563eb);
     }
 
     .aiui-btn-secondary {
-      background: rgba(148, 163, 184, 0.2);
-      color: #e2e8f0;
+      background: var(--db-p-muted, rgba(148, 163, 184, 0.2));
+      color: var(--db-p-text, #e2e8f0);
     }
 
     .aiui-btn-danger {
-      background: rgba(239, 68, 68, 0.1);
-      color: #ef4444;
+      background: var(--db-p-error-bg, rgba(239, 68, 68, 0.1));
+      color: var(--db-p-error, #ef4444);
     }
 
     .aiui-agents-empty {
       text-align: center;
       padding: 4rem 2rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-empty-icon {
@@ -578,7 +578,7 @@ function injectStyles() {
 
     .aiui-agents-empty h3 {
       font-size: 1.25rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       margin: 0 0 0.5rem 0;
     }
 
@@ -649,5 +649,11 @@ export default {
   },
   onContentChange(root) {
     checkForAgentsPage(root);
+  },
+  // Called by the view's cleanup() when the page is left: stop the refresh
+  // poll so it does not keep running against a detached page. Idempotent.
+  stop() {
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = null;
   },
 };

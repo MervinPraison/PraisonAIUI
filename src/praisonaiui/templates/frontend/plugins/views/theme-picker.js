@@ -77,12 +77,72 @@ const STYLE = `
 
 let _state = null;
 
-function applyThemeToDOM(state) {
+// Neutral presets are monochrome: in the React shell their accent is the ink.
+const NEUTRAL_PRESETS = ['zinc', 'slate', 'stone', 'gray', 'neutral'];
+// How far a colour preset's accent bleeds into fills and strokes.
+const COLOR_ACCENT_MIX = '4%';
+// next-themes' storage key in the React shell (and the server's bootstrap).
+const SHELL_MODE_KEY = 'aiui-theme-preference';
+
+function inReactShell() {
+  return document.documentElement.getAttribute('data-aiui-shell') === 'react';
+}
+
+// The React shell (style `app`) derives every --db-* variable from its theme
+// seeds (legacy/bridge.css). Inline --db-* values on <html> would beat that
+// bridge and the user's own CSS, so the shell and the legacy pages would
+// disagree after a pick. There the choice goes to the seeds and to the
+// shell's mode instead.
+function applyThemeToShell(state, vars, setMode) {
+  const root = document.documentElement;
+  const accent = vars['--db-accent'];
+  if (NEUTRAL_PRESETS.includes(state.preset)) {
+    root.style.setProperty('--seed-accent', 'var(--seed-ink)');
+    root.style.setProperty('--accent-mix', '0%');
+  } else if (accent) {
+    root.style.setProperty('--seed-accent', accent);
+    // themes.py COLOR_PRESET_ACCENT_MIX: set it explicitly, because the
+    // server's seed tag says 0% when it started on a neutral preset.
+    root.style.setProperty('--accent-mix', COLOR_ACCENT_MIX);
+  }
+  if (vars['--db-accent-rgb']) root.style.setProperty('--db-accent-rgb', vars['--db-accent-rgb']);
+  if (vars['--db-radius']) root.style.setProperty('--radius', vars['--db-radius']);
+  // Only an explicit mode pick changes the shell's mode: the server's mode
+  // (reported with every pick) is not the shell's, which may be 'system'.
+  if (setMode && (state.mode === 'dark' || state.mode === 'light')) {
+    let previous = null;
+    try {
+      previous = localStorage.getItem(SHELL_MODE_KEY);
+      localStorage.setItem(SHELL_MODE_KEY, state.mode);
+    } catch (e) { /* storage unavailable */ }
+    // next-themes follows `storage` events for its key (normally sent by
+    // other tabs), so the shell's mode toggle stays in step.
+    if (previous !== state.mode) {
+      try {
+        window.dispatchEvent(new StorageEvent('storage', { key: SHELL_MODE_KEY, oldValue: previous, newValue: state.mode }));
+      } catch (e) { /* StorageEvent unsupported */ }
+    }
+  }
+}
+
+// The shell's explicit mode, else the one on screen ('system' resolves to it).
+function shellMode() {
+  let stored = null;
+  try { stored = localStorage.getItem(SHELL_MODE_KEY); } catch (e) { /* storage unavailable */ }
+  if (stored === 'dark' || stored === 'light') return stored;
+  return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+}
+
+function applyThemeToDOM(state, { setMode = false } = {}) {
   const root = document.documentElement;
   const vars = state.variables;
   if (!vars) return;
-  for (const [key, val] of Object.entries(vars)) {
-    root.style.setProperty(key, val);
+  if (inReactShell()) {
+    applyThemeToShell(state, vars, setMode);
+  } else {
+    for (const [key, val] of Object.entries(vars)) {
+      root.style.setProperty(key, val);
+    }
   }
   // Also save to localStorage
   localStorage.setItem('aiui-theme-preset', state.preset);
@@ -108,7 +168,7 @@ async function applyPreset(preset) {
   });
   _state = await r.json();
   applyThemeToDOM(_state);
-  render();
+  paint();
 }
 
 async function applyMode(mode) {
@@ -117,8 +177,8 @@ async function applyMode(mode) {
     body: JSON.stringify({ mode }),
   });
   _state = await r.json();
-  applyThemeToDOM(_state);
-  render();
+  applyThemeToDOM(_state, { setMode: true });
+  paint();
 }
 
 async function applyRadius(radius) {
@@ -128,7 +188,7 @@ async function applyRadius(radius) {
   });
   _state = await r.json();
   applyThemeToDOM(_state);
-  render();
+  paint();
 }
 
 async function registerCustomTheme(name, accent) {
@@ -137,7 +197,7 @@ async function registerCustomTheme(name, accent) {
     body: JSON.stringify({ name, accent }),
   });
   _state = await r.json();
-  render();
+  paint();
 }
 
 async function deleteCustomTheme(name) {
@@ -145,16 +205,20 @@ async function deleteCustomTheme(name) {
     method: 'DELETE',
   });
   _state = await r.json();
-  render();
+  paint();
 }
 
-function render() {
+// Repaints the picker from _state. Named paint() because the module also
+// exports render(el) below; two `render` declarations are a SyntaxError
+// that stopped the whole module from loading.
+function paint() {
   const container = document.getElementById('theme-picker-root');
   if (!container || !_state) return;
 
   const presets = _state.presets || {};
   const currentPreset = _state.preset || 'indigo';
-  const currentMode = _state.mode || 'dark';
+  // In the React shell the mode is the shell's own (next-themes), not the server's.
+  const currentMode = inReactShell() ? shellMode() : (_state.mode || 'dark');
   const currentRadius = _state.radius || 'md';
   const modes = _state.modes || ['dark', 'light'];
   const radii = _state.radii || ['none', 'sm', 'md', 'lg', 'xl'];
@@ -318,12 +382,12 @@ export async function render(el) {
   if (_state && savedPreset && savedPreset !== _state.preset) {
     await applyPreset(savedPreset);
   }
-  if (_state && savedMode && savedMode !== _state.mode) {
+  if (_state && savedMode && savedMode !== _state.mode && !inReactShell()) {
     await applyMode(savedMode);
   }
   if (_state && savedRadius && savedRadius !== _state.radius) {
     await applyRadius(savedRadius);
   }
 
-  render();
+  paint();
 }

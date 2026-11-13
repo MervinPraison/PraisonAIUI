@@ -81,7 +81,7 @@ function showNotification(message, type = 'info') {
     right: 1rem;
     padding: 0.75rem 1rem;
     border-radius: 0.5rem;
-    background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
+    background: ${type === 'success' ? 'var(--db-p-success-strong, #22c55e)' : type === 'error' ? 'var(--db-p-error-strong, #ef4444)' : 'var(--db-p-info, #3b82f6)'};
     color: white;
     font-size: 0.875rem;
     z-index: 9999;
@@ -233,30 +233,30 @@ function injectStyles() {
     .aiui-skills-title h2 {
       font-size: 1.5rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0;
     }
 
     .aiui-skills-summary {
       font-size: 0.875rem;
-      color: #64748b;
-      background: rgba(148, 163, 184, 0.1);
+      color: var(--db-p-text-muted, #64748b);
+      background: var(--db-p-muted, rgba(148, 163, 184, 0.1));
       padding: 0.25rem 0.75rem;
       border-radius: 9999px;
     }
 
     .aiui-skills-search input {
-      background: rgba(30, 41, 59, 0.8);
-      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: var(--db-p-input-bg, rgba(30, 41, 59, 0.8));
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.2));
       border-radius: 0.5rem;
       padding: 0.5rem 1rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       font-size: 0.875rem;
       width: 200px;
     }
 
     .aiui-skills-search input::placeholder {
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
     }
 
     .aiui-skills-tabs {
@@ -267,11 +267,11 @@ function injectStyles() {
     }
 
     .aiui-skills-tab {
-      background: rgba(30, 41, 59, 0.5);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: var(--db-p-card-bg, rgba(30, 41, 59, 0.5));
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.5rem;
       padding: 0.5rem 1rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
       font-size: 0.8125rem;
       cursor: pointer;
       display: flex;
@@ -281,18 +281,18 @@ function injectStyles() {
     }
 
     .aiui-skills-tab:hover {
-      background: rgba(59, 130, 246, 0.1);
-      border-color: rgba(59, 130, 246, 0.3);
+      background: var(--db-p-accent-glow, rgba(59, 130, 246, 0.1));
+      border-color: var(--db-p-accent-glow, rgba(59, 130, 246, 0.3));
     }
 
     .aiui-skills-tab.active {
-      background: rgba(59, 130, 246, 0.2);
-      border-color: #3b82f6;
-      color: #3b82f6;
+      background: var(--db-p-accent-glow, rgba(59, 130, 246, 0.2));
+      border-color: var(--db-p-accent, #3b82f6);
+      color: var(--db-p-accent, #3b82f6);
     }
 
     .aiui-tab-count {
-      background: rgba(148, 163, 184, 0.2);
+      background: var(--db-p-muted, rgba(148, 163, 184, 0.2));
       padding: 0.125rem 0.375rem;
       border-radius: 0.25rem;
       font-size: 0.6875rem;
@@ -305,15 +305,15 @@ function injectStyles() {
     }
 
     .aiui-tool-card {
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: linear-gradient(135deg, var(--db-p-card-bg, rgba(30, 41, 59, 0.8)) 0%, var(--db-p-card-bg, rgba(15, 23, 42, 0.9)) 100%);
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.75rem;
       padding: 1rem;
       transition: all 0.2s;
     }
 
     .aiui-tool-card:hover {
-      border-color: rgba(59, 130, 246, 0.3);
+      border-color: var(--db-p-accent-glow, rgba(59, 130, 246, 0.3));
       transform: translateY(-2px);
     }
 
@@ -340,20 +340,20 @@ function injectStyles() {
     .aiui-tool-name {
       font-size: 1rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0 0 0.25rem 0;
     }
 
     .aiui-tool-category {
       font-size: 0.6875rem;
       text-transform: uppercase;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       letter-spacing: 0.05em;
     }
 
     .aiui-tool-description {
       font-size: 0.8125rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
       margin: 0 0 0.75rem 0;
       line-height: 1.5;
     }
@@ -372,18 +372,18 @@ function injectStyles() {
     }
 
     .aiui-tool-type.builtin {
-      background: rgba(59, 130, 246, 0.2);
-      color: #60a5fa;
+      background: var(--db-p-info-bg, rgba(59, 130, 246, 0.2));
+      color: var(--db-p-info, #60a5fa);
     }
 
     .aiui-tool-type.custom {
-      background: rgba(168, 85, 247, 0.2);
-      color: #c084fc;
+      background: var(--db-p-purple-soft, rgba(168, 85, 247, 0.2));
+      color: var(--db-p-purple, #c084fc);
     }
 
     .aiui-tool-keys {
       font-size: 0.75rem;
-      color: #f59e0b;
+      color: var(--db-p-warning, #f59e0b);
     }
 
     /* Toggle switch */
@@ -407,7 +407,7 @@ function injectStyles() {
       left: 0;
       right: 0;
       bottom: 0;
-      background-color: rgba(148, 163, 184, 0.3);
+      background-color: var(--db-p-muted, rgba(148, 163, 184, 0.3));
       transition: 0.3s;
       border-radius: 22px;
     }
@@ -425,7 +425,7 @@ function injectStyles() {
     }
 
     .aiui-toggle input:checked + .aiui-toggle-slider {
-      background-color: #22c55e;
+      background-color: var(--db-p-success, #22c55e);
     }
 
     .aiui-toggle input:checked + .aiui-toggle-slider:before {
@@ -435,7 +435,7 @@ function injectStyles() {
     .aiui-skills-empty {
       text-align: center;
       padding: 4rem 2rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-empty-icon {
@@ -446,7 +446,7 @@ function injectStyles() {
 
     .aiui-skills-empty h3 {
       font-size: 1.25rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       margin: 0 0 0.5rem 0;
     }
 

@@ -49,31 +49,35 @@ function renderSummaryCards() {
       icon: '💰',
       label: 'Total Cost',
       value: formatCost(usageData.total_cost_usd || 0),
-      color: '#22c55e',
+      color: 'var(--db-p-chart-2, #22c55e)',
+      soft: 'var(--db-p-chart-2-soft, #22c55e20)',
     },
     {
       icon: '📊',
       label: 'Total Tokens',
       value: formatTokens(usageData.total_tokens || 0),
-      color: '#3b82f6',
+      color: 'var(--db-p-chart-1, #3b82f6)',
+      soft: 'var(--db-p-chart-1-soft, #3b82f620)',
     },
     {
       icon: '📨',
       label: 'Requests',
       value: usageData.total_requests || 0,
-      color: '#8b5cf6',
+      color: 'var(--db-p-chart-3, #8b5cf6)',
+      soft: 'var(--db-p-chart-3-soft, #8b5cf620)',
     },
     {
       icon: '📈',
       label: 'Avg Cost/Request',
       value: formatCost(usageData.avg_cost_per_request || 0),
-      color: '#f59e0b',
+      color: 'var(--db-p-chart-4, #f59e0b)',
+      soft: 'var(--db-p-chart-4-soft, #f59e0b20)',
     },
   ];
   
   return cards.map(card => `
     <div class="aiui-usage-card">
-      <div class="aiui-usage-card-icon" style="background: ${card.color}20; color: ${card.color}">
+      <div class="aiui-usage-card-icon" style="background: ${card.soft}; color: ${card.color}">
         ${card.icon}
       </div>
       <div class="aiui-usage-card-content">
@@ -122,19 +126,19 @@ function renderTimeseriesChart() {
     <div class="aiui-usage-chart-container">
       <h3>Usage Over Time (24h)</h3>
       <div class="aiui-chart-legend">
-        <span class="aiui-legend-item"><span class="aiui-legend-dot" style="background: #3b82f6"></span> Tokens</span>
-        <span class="aiui-legend-item"><span class="aiui-legend-dot" style="background: #22c55e"></span> Cost</span>
+        <span class="aiui-legend-item"><span class="aiui-legend-dot" style="background: var(--db-p-chart-1, #3b82f6)"></span> Tokens</span>
+        <span class="aiui-legend-item"><span class="aiui-legend-dot" style="background: var(--db-p-chart-2, #22c55e)"></span> Cost</span>
       </div>
       <svg class="aiui-usage-chart" viewBox="0 0 ${width} ${height}">
         <!-- Grid lines -->
-        <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" stroke="rgba(148,163,184,0.2)" />
-        <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="rgba(148,163,184,0.2)" />
+        <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" style="stroke: var(--db-p-border, rgba(148,163,184,0.2))" />
+        <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" style="stroke: var(--db-p-border, rgba(148,163,184,0.2))" />
         
         <!-- Token line -->
-        <polyline points="${tokenPoints}" fill="none" stroke="#3b82f6" stroke-width="2" />
+        <polyline points="${tokenPoints}" fill="none" style="stroke: var(--db-p-chart-1, #3b82f6)" stroke-width="2" />
         
         <!-- Cost line -->
-        <polyline points="${costPoints}" fill="none" stroke="#22c55e" stroke-width="2" stroke-dasharray="4,2" />
+        <polyline points="${costPoints}" fill="none" style="stroke: var(--db-p-chart-2, #22c55e)" stroke-width="2" stroke-dasharray="4,2" />
         
         <!-- X-axis labels -->
         ${xLabels}
@@ -267,14 +271,14 @@ function injectStyles() {
     .aiui-usage-header h2 {
       font-size: 1.5rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0;
     }
 
     .aiui-usage-period {
       font-size: 0.875rem;
-      color: #64748b;
-      background: rgba(148, 163, 184, 0.1);
+      color: var(--db-p-text-muted, #64748b);
+      background: var(--db-p-muted, rgba(148, 163, 184, 0.1));
       padding: 0.375rem 0.75rem;
       border-radius: 9999px;
     }
@@ -287,8 +291,8 @@ function injectStyles() {
     }
 
     .aiui-usage-card {
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: linear-gradient(135deg, var(--db-p-card-bg, rgba(30, 41, 59, 0.8)) 0%, var(--db-p-card-bg, rgba(15, 23, 42, 0.9)) 100%);
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.75rem;
       padding: 1.25rem;
       display: flex;
@@ -309,19 +313,19 @@ function injectStyles() {
     .aiui-usage-card-value {
       font-size: 1.5rem;
       font-weight: 700;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
     }
 
     .aiui-usage-card-label {
       font-size: 0.75rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
 
     .aiui-usage-chart-container {
-      background: rgba(30, 41, 59, 0.5);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: var(--db-p-card-bg, rgba(30, 41, 59, 0.5));
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.75rem;
       padding: 1.25rem;
       margin-bottom: 1.5rem;
@@ -330,7 +334,7 @@ function injectStyles() {
     .aiui-usage-chart-container h3 {
       font-size: 1rem;
       font-weight: 600;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       margin: 0 0 0.75rem 0;
     }
 
@@ -345,7 +349,7 @@ function injectStyles() {
       align-items: center;
       gap: 0.375rem;
       font-size: 0.75rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-legend-dot {
@@ -361,7 +365,7 @@ function injectStyles() {
 
     .aiui-chart-label {
       font-size: 10px;
-      fill: #64748b;
+      fill: var(--db-p-text-muted, #64748b);
     }
 
     .aiui-usage-grid {
@@ -371,8 +375,8 @@ function injectStyles() {
     }
 
     .aiui-usage-barchart {
-      background: rgba(30, 41, 59, 0.5);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: var(--db-p-card-bg, rgba(30, 41, 59, 0.5));
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.75rem;
       padding: 1.25rem;
     }
@@ -380,7 +384,7 @@ function injectStyles() {
     .aiui-usage-barchart h3 {
       font-size: 1rem;
       font-weight: 600;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       margin: 0 0 1rem 0;
     }
 
@@ -390,7 +394,7 @@ function injectStyles() {
 
     .aiui-bar-label {
       font-size: 0.75rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
       margin-bottom: 0.25rem;
       white-space: nowrap;
       overflow: hidden;
@@ -405,20 +409,20 @@ function injectStyles() {
 
     .aiui-bar {
       height: 20px;
-      background: linear-gradient(90deg, #3b82f6, #60a5fa);
+      background: linear-gradient(90deg, var(--db-p-chart-1, #3b82f6), var(--db-p-chart-1, #60a5fa));
       border-radius: 4px;
       min-width: 4px;
     }
 
     .aiui-bar-value {
       font-size: 0.75rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       white-space: nowrap;
     }
 
     .aiui-usage-table-container {
-      background: rgba(30, 41, 59, 0.5);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: var(--db-p-card-bg, rgba(30, 41, 59, 0.5));
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.75rem;
       padding: 1.25rem;
       overflow-x: auto;
@@ -427,7 +431,7 @@ function injectStyles() {
     .aiui-usage-table-container h3 {
       font-size: 1rem;
       font-weight: 600;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       margin: 0 0 1rem 0;
     }
 
@@ -440,35 +444,35 @@ function injectStyles() {
     .aiui-usage-table th {
       text-align: left;
       padding: 0.5rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       font-weight: 500;
       font-size: 0.6875rem;
       text-transform: uppercase;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      border-bottom: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
     }
 
     .aiui-usage-table td {
       padding: 0.5rem;
-      color: #e2e8f0;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.05);
+      color: var(--db-p-text, #e2e8f0);
+      border-bottom: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.05));
     }
 
     .aiui-usage-table code {
       font-size: 0.75rem;
-      background: rgba(0, 0, 0, 0.2);
+      background: var(--db-p-muted, rgba(0, 0, 0, 0.2));
       padding: 0.125rem 0.375rem;
       border-radius: 0.25rem;
     }
 
     .aiui-cost-cell {
-      color: #22c55e;
+      color: var(--db-p-chart-2, #22c55e);
       font-weight: 500;
     }
 
     .aiui-usage-empty {
       text-align: center;
       padding: 4rem 2rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-empty-icon {
@@ -479,7 +483,7 @@ function injectStyles() {
 
     .aiui-usage-empty h3 {
       font-size: 1.25rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       margin: 0 0 0.5rem 0;
     }
 
@@ -521,5 +525,11 @@ export default {
   },
   onContentChange(root) {
     checkForUsagePage(root);
+  },
+  // Called by the view's cleanup() when the page is left: stop the refresh
+  // poll so it does not keep running against a detached page. Idempotent.
+  stop() {
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = null;
   },
 };

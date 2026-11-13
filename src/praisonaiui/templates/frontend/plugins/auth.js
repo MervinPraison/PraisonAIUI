@@ -204,13 +204,13 @@ function injectStyles() {
     .aiui-auth-header h2 {
       font-size: 1.5rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0 0 1.5rem 0;
     }
 
     .aiui-auth-section {
-      background: rgba(30, 41, 59, 0.6);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: var(--db-p-card-bg, rgba(30, 41, 59, 0.6));
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.5rem;
       padding: 1.25rem;
       margin-bottom: 1rem;
@@ -218,7 +218,7 @@ function injectStyles() {
 
     .aiui-auth-section h3 {
       font-size: 1rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       margin: 0 0 1rem 0;
     }
 
@@ -230,35 +230,35 @@ function injectStyles() {
 
     .aiui-auth-modes button {
       padding: 0.5rem 1rem;
-      border: 1px solid rgba(148, 163, 184, 0.2);
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.2));
       border-radius: 0.375rem;
-      background: rgba(15, 23, 42, 0.6);
-      color: #94a3b8;
+      background: var(--db-p-surface, rgba(15, 23, 42, 0.6));
+      color: var(--db-p-text-dim, #94a3b8);
       cursor: pointer;
       font-size: 0.875rem;
     }
 
     .aiui-auth-modes button.active {
-      background: rgba(59, 130, 246, 0.2);
-      border-color: #3b82f6;
-      color: #3b82f6;
+      background: var(--db-p-accent-glow, rgba(59, 130, 246, 0.2));
+      border-color: var(--db-p-accent, #3b82f6);
+      color: var(--db-p-accent, #3b82f6);
     }
 
     .aiui-auth-mode-desc {
       font-size: 0.8125rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       margin: 1rem 0 0 0;
     }
 
     .aiui-auth-status {
       font-size: 0.875rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
       margin: 0 0 1rem 0;
     }
 
     .aiui-auth-empty {
       font-size: 0.875rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       margin: 0;
     }
 
@@ -271,7 +271,7 @@ function injectStyles() {
       align-items: center;
       gap: 1rem;
       padding: 0.75rem;
-      background: rgba(15, 23, 42, 0.6);
+      background: var(--db-p-surface, rgba(15, 23, 42, 0.6));
       border-radius: 0.375rem;
       margin-bottom: 0.5rem;
     }
@@ -283,12 +283,12 @@ function injectStyles() {
     .aiui-api-key-name {
       display: block;
       font-size: 0.9375rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
     }
 
     .aiui-api-key-id {
       font-size: 0.75rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       font-family: monospace;
     }
 
@@ -296,12 +296,12 @@ function injectStyles() {
       display: flex;
       flex-direction: column;
       font-size: 0.75rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
     }
 
     .aiui-btn-primary {
       padding: 0.5rem 1rem;
-      background: #3b82f6;
+      background: var(--db-p-accent-strong, #3b82f6);
       color: white;
       border: none;
       border-radius: 0.375rem;
@@ -311,8 +311,8 @@ function injectStyles() {
 
     .aiui-btn-danger {
       padding: 0.375rem 0.75rem;
-      background: rgba(239, 68, 68, 0.2);
-      color: #ef4444;
+      background: var(--db-p-error-bg, rgba(239, 68, 68, 0.2));
+      color: var(--db-p-error, #ef4444);
       border: none;
       border-radius: 0.375rem;
       cursor: pointer;
