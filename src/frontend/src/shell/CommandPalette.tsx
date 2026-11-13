@@ -1,0 +1,121 @@
+/**
+ * Lazy chunk: the command palette (cmdk via components/ui/command). Opened by
+ * Ctrl/Cmd+K, the header search button and window.aiui.openCommandPalette().
+ * Items: every page, "New chat", and the three colour modes.
+ */
+import { useMemo } from 'react'
+import { Check, Monitor, Moon, Plus, Sun } from 'lucide-react'
+import { useTheme } from 'next-themes'
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from '@/components/ui/command'
+import type { ShellPage } from '@/sdk/manifest'
+import { footerPages, groupPages } from './nav'
+import { PageIcon } from './PageIcon'
+import { getPageId, navigate, waitForPageChange } from './router'
+
+/** Open chat on a fresh session: navigate, wait for the chat view to mount, then ask it to reset. */
+function startNewChat() {
+  const fire = () =>
+    window.dispatchEvent(new CustomEvent('aiui:session-select', { detail: { sessionId: null } }))
+  if (getPageId() === 'chat') {
+    fire()
+    return
+  }
+  void waitForPageChange('chat', 5000).then(fire)
+  navigate('chat')
+}
+
+const THEMES = [
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
+] as const
+
+export default function CommandPalette({
+  open,
+  onOpenChange,
+  pages,
+  activeId,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  pages: readonly ShellPage[]
+  activeId: string
+}) {
+  const { theme, setTheme } = useTheme()
+  const groups = useMemo(() => {
+    const g = groupPages(pages)
+    const footer = footerPages(pages)
+    return footer.length ? [...g, { name: 'More', pages: footer }] : g
+  }, [pages])
+  const hasChat = pages.some((p) => p.id === 'chat')
+
+  const run = (action: () => void) => {
+    onOpenChange(false)
+    action()
+  }
+
+  return (
+    <CommandDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Command palette"
+      description="Search pages and commands"
+      showCloseButton={false}
+      className="top-[15%] translate-y-0 sm:max-w-xl"
+    >
+      <CommandInput placeholder="Search pages and commands…" aria-label="Search pages and commands" />
+      <CommandList className="max-h-[min(60vh,420px)]">
+        <CommandEmpty>No matching pages or commands.</CommandEmpty>
+        {hasChat && (
+          <CommandGroup heading="Actions">
+            <CommandItem value="New chat" keywords={['session', 'conversation']} onSelect={() => run(startNewChat)}>
+              <Plus />
+              <span>New chat</span>
+            </CommandItem>
+          </CommandGroup>
+        )}
+        {groups.map((group) => (
+          <CommandGroup key={group.name} heading={group.name}>
+            {group.pages.map((p) => (
+              <CommandItem
+                key={p.id}
+                // cmdk ranks prefix matches highest, so the value starts with the
+                // title; the id keeps it unique. Descriptions stay out: fuzzy
+                // matching over prose ranks unrelated pages first.
+                value={`${p.title} ${p.id}`}
+                keywords={[p.id]}
+                onSelect={() => run(() => navigate(p.id))}
+              >
+                <PageIcon page={p} />
+                <span className="truncate">{p.title}</span>
+                {p.id === activeId && <CommandShortcut>Current</CommandShortcut>}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ))}
+        <CommandGroup heading="Theme">
+          {THEMES.map((t) => (
+            <CommandItem
+              key={t.value}
+              value={`${t.label} mode`}
+              keywords={['theme', 'appearance']}
+              onSelect={() => run(() => setTheme(t.value))}
+            >
+              <t.icon />
+              <span>{t.label} mode</span>
+              {theme === t.value && <Check className="ml-auto" aria-label="Active" />}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      </CommandList>
+    </CommandDialog>
+  )
+}
