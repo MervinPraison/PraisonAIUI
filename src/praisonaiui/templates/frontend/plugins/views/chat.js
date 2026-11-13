@@ -282,7 +282,7 @@ function injectStyles() {
     .tool-media-preview .chat-msg-image { max-height:160px; }
     .chat-msg-user .chat-msg-content { background:var(--db-accent); color:#fff; }
     .chat-msg-streaming .chat-msg-content::after { content:'▌'; animation:blink 1s infinite; }
-    .chat-typing-indicator { display:inline-flex; align-items:center; gap:4px; color:var(--muted-foreground,#94a3b8); font-size:13px; }
+    .chat-typing-indicator { display:inline-flex; align-items:center; gap:4px; color:var(--db-p-text-dim, #94a3b8); font-size:13px; }
     .chat-typing-indicator .dot { width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.5; animation:typing-bounce 1.2s infinite; }
     .chat-typing-indicator .dot:nth-child(2) { animation-delay:.15s; }
     .chat-typing-indicator .dot:nth-child(3) { animation-delay:.3s; }
