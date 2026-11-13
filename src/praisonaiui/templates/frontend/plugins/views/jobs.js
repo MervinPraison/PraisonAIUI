@@ -1,47 +1,57 @@
 /**
  * Jobs view — delegates to the jobs dashboard module.
  */
-// Renders not yet matched by a cleanup(). Hosts (the legacy dashboard's
-// selectPage, the shell's mountView) pair every render() that returns with
-// exactly one cleanup(); a render superseded while it loads is cleaned up
-// late, possibly after a newer render of this page has started. The
-// delegated module is one shared instance, so it is only stopped once no
-// render is outstanding: a late cleanup never stops the page on screen.
-// The count lives on globalThis because the legacy dashboard imports a fresh
+// Mounts of this page whose render() has not been released yet. The
+// delegated module is one shared instance, so it is torn down only once no
+// mount is outstanding: a render superseded while it loads, and cleaned up
+// late, never tears down the page on screen. Both host policies hold:
+// - the legacy dashboard (selectPage) calls the cleanup() export once for
+//   every render() that returned, superseded or not;
+// - the shell (mountView) calls the function render() returns once per
+//   mount, and the cleanup() export only while no other mount is live.
+// The set lives on globalThis because the legacy dashboard imports a fresh
 // copy of this file (?v=<time>) on each first visit, and copies must agree.
-const views = globalThis.__aiuiViewRenders || (globalThis.__aiuiViewRenders = {});
-const state = views['jobs'] || (views['jobs'] = { count: 0, mod: null });
+const views = globalThis.__aiuiViewMounts || (globalThis.__aiuiViewMounts = {});
+const state = views['jobs'] || (views['jobs'] = { live: new Set(), mod: null });
 
 export async function render(container) {
-  state.count++;
+  const mount = {};
+  state.live.add(mount);
+  // This mount's own cleanup; the shell's mountView calls it once per mount.
+  const release = () => { if (state.live.delete(mount)) settle(); };
   try {
     container.setAttribute('data-page', 'jobs');
     container.classList.add('jobs-page');
     const m = await import('../jobs.js');
     state.mod = m;
-    if (!container.isConnected) return; // left while loading
+    if (!container.isConnected) return release; // left while loading
     if (m.default?.init) await m.default.init();
-    if (!container.isConnected) return;
+    if (!container.isConnected) return release;
     const root = container.closest('#root') || document.getElementById('root');
     if (m.default?.onContentChange && root) m.default.onContentChange(root);
+    return release;
   } catch (err) {
-    release(); // hosts do not call cleanup() for a render that threw
+    release(); // no host cleans up a render that threw
     throw err;
   }
 }
 
-function release() {
-  if (state.count > 0) state.count--;
-  if (state.count === 0) state.mod?.default?.stop?.();
+// Tear the delegated module down once no mount is outstanding.
+function settle() {
+  if (state.live.size === 0) state.mod?.default?.stop?.();
 }
 
 /**
  * Stop the module's 5 s refresh poll and close an open job-details modal
  * (it lives on <body>, outside the page).
  * Idempotent and safe when render() never ran; the next render() starts
- * fresh. The legacy dashboard calls it when the page is left, the shell when
- * the page unmounts.
+ * fresh. The legacy dashboard calls it when the page is left, the shell once
+ * the last mount of the page goes.
  */
 export function cleanup() {
-  release();
+  // Releases one render: the legacy dashboard does not say which one, and
+  // only how many remain matters.
+  const oldest = state.live.values().next();
+  if (!oldest.done) state.live.delete(oldest.value);
+  settle();
 }

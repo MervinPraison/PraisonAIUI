@@ -104,7 +104,8 @@ CLEANUP_VIEWS = ["logs", "usage", "agents", "schedules", "jobs", "code-studio", 
 
 # Every file WP5 touches (syntax-checked as ES modules).
 TOUCHED = [PLUGINS / m for m in TOKEN_MODULES] + [
-    VIEWS / f"{v}.js" for v in ("logs", "usage", "agents", "schedules", "jobs", "theme-picker")
+    VIEWS / f"{v}.js"
+    for v in ("logs", "usage", "agents", "schedules", "jobs", "theme-picker", "chat-canvas", "chat")
 ]
 
 _COLOR = r"(?:#[0-9a-fA-F]{3,8}|rgba?\([^()]*\)|hsla?\([^()]*\))"
@@ -368,8 +369,12 @@ console.log(JSON.stringify(out));
 _FAKE_MODULE = """
 const log = [];
 export default {
-  log, failInit: false,
-  async init() { log.push('init'); if (this.failInit) throw new Error('boom'); },
+  log, failInit: false, gate: null,
+  async init() {
+    log.push('init');
+    if (this.gate) await this.gate;  // a slow init fetch
+    if (this.failInit) throw new Error('boom');
+  },
   onContentChange(root) { log.push('content:' + root.id); },
   %s() { log.push('teardown'); },
 };
@@ -409,6 +414,131 @@ def test_view_cleanup_pairs_with_renders(view, tmp_path):
     assert out["visitAfterThrow"] == ["init", "content:root", "teardown"]
     assert sorted(out["crossCopySuperseded"]) == ["content:root", "content:root", "init", "init"]
     assert out["crossCopyLeave"] == ["teardown"]
+
+
+# The shell's host policy, as dashboard.js mountView() implements it (WP4):
+# the function render() returns is that mount's own cleanup and always runs;
+# the view's cleanup() export runs only once no other mount of the page is
+# live; a mount that went stale while loading is cleaned up when it resolves.
+_SHELL_HOST = r"""
+const hostLive = new Set();
+async function mountView(view, container) {
+  const token = {};
+  hostLive.add(token);
+  const returned = await view.render(container);
+  const instance = typeof returned === 'function' ? returned : null;
+  const moduleCleanup = typeof view.cleanup === 'function' && view.cleanup !== returned ? view.cleanup : null;
+  let done = false;
+  const cleanup = () => {
+    if (done) return;
+    done = true;
+    hostLive.delete(token);
+    if (instance) instance();
+    if (hostLive.size === 0 && moduleCleanup) moduleCleanup();
+  };
+  if (container.isConnected) return cleanup;
+  cleanup();
+  return () => {};
+}
+"""
+
+_SHELL_VIEW_HARNESS = (
+    r"""
+import { pathToFileURL } from 'node:url';
+const [, , viewPath, modPath] = process.argv;
+const root = { id: 'root' };
+globalThis.document = { getElementById: (id) => (id === 'root' ? root : null) };
+const container = () => ({
+  isConnected: true, setAttribute() {}, classList: { add() {} }, closest: () => root,
+});
+const fake = (await import(pathToFileURL(modPath).href)).default;
+const view = await import(pathToFileURL(viewPath).href);
+"""
+    + _SHELL_HOST
+    + r"""
+const out = {};
+const tick = () => new Promise((r) => setTimeout(r, 0));
+
+// Plain visit.
+const c0 = container();
+const leave0 = await mountView(view, c0);
+out.shown = fake.log.splice(0);
+leave0();
+out.left = fake.log.splice(0);
+
+// Leave and come back while the first mount's init is still fetching; the
+// first mount resolves after the second is on screen.
+let open; fake.gate = new Promise((r) => { open = r; });
+const a = container();
+const pA = mountView(view, a);
+await tick();
+a.isConnected = false;
+fake.gate = null;
+const b = container();
+const leaveB = await mountView(view, b);
+open(); await pA;
+out.whileSecondShown = fake.log.splice(0);   // the stale mount must not stop it
+leaveB();
+out.leftAfterRemount = fake.log.splice(0);   // ...and leaving must
+
+// The second mount is left before the stale first one resolves.
+fake.gate = new Promise((r) => { open = r; });
+const d = container();
+const pD = mountView(view, d);
+await tick();
+d.isConnected = false;
+fake.gate = null;
+const e = container();
+const leaveE = await mountView(view, e);
+leaveE();
+out.leftBeforeStaleResolved = fake.log.splice(0);
+open(); await pD;
+out.staleResolved = fake.log.splice(0);
+
+// Nothing is pinned: the next visit starts and stops cleanly.
+const leaveF = await mountView(view, container());
+leaveF();
+out.nextVisit = fake.log.splice(0);
+console.log(JSON.stringify(out));
+"""
+)
+
+
+@pytest.mark.parametrize("view", sorted(DELEGATING_VIEWS))
+def test_view_cleanup_under_the_shell_mount_policy(view, tmp_path):
+    """A fast leave-and-return during a page's init fetch must not leave its
+    poll (or log stream) running under the shell's mountView, which skips the
+    module cleanup while another mount of the page is live."""
+    node = _node()
+    module, method = DELEGATING_VIEWS[view]
+    (tmp_path / "views").mkdir()
+    shutil.copy(VIEWS / f"{view}.js", tmp_path / "views" / f"{view}.js")
+    (tmp_path / f"{module}.js").write_text(_FAKE_MODULE % method, encoding="utf-8")
+    (tmp_path / "harness.mjs").write_text(_SHELL_VIEW_HARNESS, encoding="utf-8")
+    proc = subprocess.run(
+        [
+            node,
+            str(tmp_path / "harness.mjs"),
+            str(tmp_path / "views" / f"{view}.js"),
+            str(tmp_path / f"{module}.js"),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr
+    out = json.loads(proc.stdout.strip().splitlines()[-1])
+    assert out["shown"] == ["init", "content:root"]
+    assert out["left"] and set(out["left"]) == {"teardown"}
+    assert "teardown" not in out["whileSecondShown"], out["whileSecondShown"]
+    assert out["whileSecondShown"].count("content:root") == 1  # only the live mount paints
+    assert out["leftAfterRemount"] and set(out["leftAfterRemount"]) == {"teardown"}
+    # The stale mount holds the module only until its init resolves, then
+    # lets go: the teardown is late (bounded by that fetch) but never lost.
+    assert "teardown" not in out["leftBeforeStaleResolved"], out
+    assert out["staleResolved"] and set(out["staleResolved"]) == {"teardown"}, out
+    assert out["nextVisit"][:2] == ["init", "content:root"]
+    assert out["nextVisit"][2:] and set(out["nextVisit"][2:]) == {"teardown"}
 
 
 _LOGS_HARNESS = r"""
@@ -496,6 +626,282 @@ def test_logs_module_closes_its_stream_and_reconnects_on_remount(tmp_path):
     assert out["liveAtEnd"] == 0
     assert "token=" not in out["urlWithoutToken"]
     assert out["urlWithToken"].endswith("&token=a%20b%26c"), out["urlWithToken"]
+
+
+# ── chat-canvas and the embedded chat ───────────────────────────────
+
+_CANVAS_FAKES = {
+    "views/chat.js": """
+export async function render(host) {
+  globalThis.__log.push('chat:render');
+  if (globalThis.__chatGate) await globalThis.__chatGate;  // slow agents/sessions fetch
+}
+export function cleanup() { globalThis.__log.push('chat:cleanup'); }
+""",
+    "canvas-preview.js": """
+export function mountPreview() { globalThis.__log.push('preview:mount'); }
+export function refreshPreview() {}
+export function unmountPreview() { globalThis.__log.push('preview:unmount'); }
+""",
+    "surface-utils.js": "export function registerDefaultSurfaceRenderer() {}\n",
+}
+
+_CANVAS_HARNESS = (
+    r"""
+import { pathToFileURL } from 'node:url';
+const [, , viewPath] = process.argv;
+const log = (globalThis.__log = []);
+globalThis.location = { search: '' };
+globalThis.history = { pushState() {} };
+globalThis.document = { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } };
+let configGate = null;
+globalThis.fetch = async () => { if (configGate) await configGate; return { json: async () => ({}) }; };
+const node = () => ({ addEventListener() {}, classList: { toggle() {} }, textContent: '', title: '' });
+const container = () => ({ isConnected: true, innerHTML: '', querySelector: () => node() });
+const view = await import(pathToFileURL(viewPath).href);
+"""
+    + _SHELL_HOST
+    + r"""
+const out = {};
+const tick = () => new Promise((r) => setTimeout(r, 0));
+
+// Legacy dashboard: plain visit, then leave.
+const c0 = container();
+await view.render(c0);
+out.shown = log.splice(0);
+view.cleanup();
+out.left = log.splice(0);
+
+// Legacy dashboard: the page selected twice while it loads. The first render
+// is superseded and cleaned up late, after the second one is on screen.
+let open; globalThis.__chatGate = new Promise((r) => { open = r; });
+const c1 = container(), c2 = container();
+const p1 = view.render(c1);
+await tick();                            // its chat is loading
+c1.isConnected = false;
+globalThis.__chatGate = null;
+await view.render(c2);
+open(); await p1;
+out.bothRendered = log.splice(0);
+view.cleanup();                          // the superseded render
+out.lateCleanup = log.splice(0);
+view.cleanup();                          // leaving the page
+out.leftAfterSuperseded = log.splice(0);
+
+// Left while the preview config loads: no chat socket, no surface socket.
+configGate = new Promise((r) => { open = r; });
+const c3 = container();
+const p3 = view.render(c3);
+c3.isConnected = false;
+open(); configGate = null; await p3;
+view.cleanup();
+out.leftWhileLoading = log.splice(0);
+
+// The shell: leave and come back while the first mount is loading.
+globalThis.__chatGate = new Promise((r) => { open = r; });
+const a = container();
+const pA = mountView(view, a);
+await tick();
+a.isConnected = false;
+globalThis.__chatGate = null;
+const leaveB = await mountView(view, container());
+open(); await pA;
+out.shellWhileSecondShown = log.splice(0);
+leaveB();
+out.shellLeft = log.splice(0);
+console.log(JSON.stringify(out));
+"""
+)
+
+
+def test_chat_canvas_tears_down_only_its_last_mount(tmp_path):
+    """chat-canvas closes the embedded chat's socket and the preview's surface
+    socket when left, under both hosts, and a late cleanup of a superseded
+    render never closes the sockets of the page on screen."""
+    node = _node()
+    for rel, text in _CANVAS_FAKES.items():
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text(text, encoding="utf-8")
+    shutil.copy(VIEWS / "chat-canvas.js", tmp_path / "views" / "chat-canvas.js")
+    (tmp_path / "harness.mjs").write_text(_CANVAS_HARNESS, encoding="utf-8")
+    proc = subprocess.run(
+        [node, str(tmp_path / "harness.mjs"), str(tmp_path / "views" / "chat-canvas.js")],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr
+    out = json.loads(proc.stdout.strip().splitlines()[-1])
+    teardown = ["chat:cleanup", "preview:unmount"]
+    assert out["shown"] == ["preview:mount", "chat:render"]
+    assert out["left"] == teardown
+    assert sorted(out["bothRendered"]) == sorted(["preview:mount", "chat:render"] * 2)
+    assert out["lateCleanup"] == [], out["lateCleanup"]
+    assert out["leftAfterSuperseded"] == teardown
+    assert out["leftWhileLoading"] == teardown  # nothing was opened, nothing is left open
+    assert "chat:cleanup" not in out["shellWhileSecondShown"], out["shellWhileSecondShown"]
+    assert out["shellLeft"][:2] == teardown, out["shellLeft"]
+
+
+_CHAT_HARNESS = r"""
+import { pathToFileURL } from 'node:url';
+const [, , chatPath] = process.argv;
+console.log = console.warn = console.error = () => {};
+// Fake timers: nothing runs unless the harness fires it.
+const timers = new Map(); let nextTimer = 1;
+globalThis.setTimeout = (fn, ms) => { const id = nextTimer++; timers.set(id, { fn, ms }); return id; };
+globalThis.clearTimeout = (id) => { timers.delete(id); };
+const intervals = new Set();
+globalThis.setInterval = () => { const id = nextTimer++; intervals.add(id); return id; };
+globalThis.clearInterval = (id) => { intervals.delete(id); };
+const pending = (ms) => [...timers.values()].filter((t) => t.ms === ms).length;
+const fire = (ms) => { for (const [id, t] of [...timers]) if (t.ms === ms) { timers.delete(id); t.fn(); } };
+const sockets = [];
+class FakeWS {
+  static CONNECTING = 0; static OPEN = 1; static CLOSING = 2; static CLOSED = 3;
+  constructor(url) { this.url = url; this.readyState = 0; sockets.push(this); }
+  open() { this.readyState = 1; this.onopen && this.onopen(); }
+  // As in a browser, close() lands later and onclose is read only then.
+  close() { if (this.readyState >= 2) return; this.readyState = 2; queueMicrotask(() => this.drop()); }
+  drop() { if (this.readyState === 3) return; this.readyState = 3; this.onclose && this.onclose({}); }
+  send() {}
+}
+globalThis.WebSocket = FakeWS;
+// A permissive DOM: every element accepts any property, call or child.
+const el = () => new Proxy({
+  style: {}, dataset: {}, options: [], children: [], value: '', innerHTML: '', textContent: '',
+  classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+  querySelectorAll: () => [], querySelector: () => el(), closest: () => null,
+  getAttribute: () => null, scrollHeight: 0, isConnected: true,
+}, { get(t, k) { if (k in t) return t[k]; if (k === 'then') return undefined; return () => el(); },
+     set(t, k, v) { t[k] = v; return true; } });
+const winListeners = new Map();
+globalThis.window = globalThis;
+globalThis.location = { protocol: 'http:', host: 'x', search: '', pathname: '/chat' };
+globalThis.history = { replaceState() {}, pushState() {} };
+globalThis.addEventListener = (t, f) => winListeners.set(f, t);
+globalThis.removeEventListener = (t, f) => winListeners.delete(f);
+globalThis.document = { head: el(), body: el(), createElement: () => el(), getElementById: () => el(),
+  querySelector: () => el(), querySelectorAll: () => [], addEventListener() {}, removeEventListener() {} };
+globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
+globalThis.sessionStorage = globalThis.localStorage;
+globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => [], text: async () => '' });
+const flush = async () => { for (let i = 0; i < 20; i++) await new Promise((r) => queueMicrotask(r)); };
+const chat = await import(pathToFileURL(chatPath).href);
+const live = () => sockets.filter((s) => s.readyState < 2).length;
+const out = {};
+
+chat.cleanup(); chat.cleanup();                // safe before any render
+await chat.render(el());
+out.socketsAfterRender = sockets.length;
+sockets[0].open();
+chat.cleanup();                                // leave the page
+await flush();
+out.liveAfterLeave = live();
+out.reconnectsAfterLeave = pending(3000);
+fire(3000); fire(5000);
+out.socketsAfterLeave = sockets.length;        // nothing reopened
+out.windowListenersAfterLeave = winListeners.size;
+out.intervalsAfterLeave = intervals.size;
+
+await chat.render(el());                       // come back: a fresh connection
+out.socketsAfterRemount = sockets.length;
+sockets[1].open();
+sockets[1].drop();                             // the server drops it: it still reconnects
+out.reconnectsAfterDrop = pending(3000);
+chat.cleanup();                                // leave while that reconnect is pending
+out.reconnectsAfterLeavingDuringRetry = pending(3000);
+fire(3000);
+await flush();
+out.socketsAtEnd = sockets.length;
+out.liveAtEnd = live();
+console.info(JSON.stringify(out));
+"""
+
+
+def test_chat_cleanup_does_not_reconnect(tmp_path):
+    """views/chat.js (the /chat page, and embedded by chat-canvas) closed its
+    socket in cleanup() with onclose still attached; onclose then reconnected
+    3 s after the page was left, and the new socket lived on forever."""
+    node = _node()
+    harness = tmp_path / "harness.mjs"
+    harness.write_text(_CHAT_HARNESS, encoding="utf-8")
+    proc = subprocess.run(
+        [node, str(harness), str(VIEWS / "chat.js")], capture_output=True, text=True, timeout=60
+    )
+    assert proc.returncode == 0, proc.stderr
+    out = json.loads(proc.stdout.strip().splitlines()[-1])
+    assert out["socketsAfterRender"] == 1
+    assert out["liveAfterLeave"] == 0
+    assert out["reconnectsAfterLeave"] == 0
+    assert out["socketsAfterLeave"] == 1
+    assert out["windowListenersAfterLeave"] == 0
+    assert out["intervalsAfterLeave"] == 0
+    assert out["socketsAfterRemount"] == 2
+    assert out["reconnectsAfterDrop"] == 1  # a real drop still reconnects
+    assert out["reconnectsAfterLeavingDuringRetry"] == 0
+    assert out["socketsAtEnd"] == 2
+    assert out["liveAtEnd"] == 0
+
+
+# ── Job and schedule rows are escaped ───────────────────────────────
+
+_ROWS_HARNESS = r"""
+import { pathToFileURL } from 'node:url';
+const [, , modPath, kind] = process.argv;
+console.debug = console.warn = () => {};
+const HOSTILE = "x');window.__pwned=1;('<img src=x onerror=alert(1)>\"";
+const job = { id: HOSTILE, name: '<b>n</b>', message: '<img src=x onerror=alert(2)>',
+  prompt: '<script>alert(3)</script>', status: 'running', created_at: 1,
+  schedule: { kind: 'cron', cron_expr: '<i>* * *</i>' }, enabled: true };
+const section = { attrs: {}, innerHTML: '',
+  hasAttribute(k) { return k in this.attrs; }, setAttribute(k, v) { this.attrs[k] = v; } };
+const root = { querySelector: (sel) => (sel === '[data-page="' + kind + '"]' ? section : null) };
+globalThis.window = globalThis;
+globalThis.document = { head: { appendChild() {} }, body: { appendChild() {} }, createElement: () => ({ style: {} }),
+  querySelector: (sel) => (sel.startsWith('[data-aiui-') ? section : null), querySelectorAll: () => [],
+  getElementById: () => null };
+globalThis.setInterval = () => 1; globalThis.clearInterval = () => {};
+const calls = [];
+globalThis.fetch = async (url, opts) => {
+  calls.push(String(url));
+  const body = kind === 'cron' ? { schedules: [job], count: 1 } : { jobs: [job], count: 1, stats: {} };
+  return { ok: true, json: async () => body };
+};
+const mod = (await import(pathToFileURL(modPath).href)).default;
+if (mod.init) await mod.init();
+mod.onContentChange(root);
+for (let i = 0; i < 50; i++) await new Promise((r) => setTimeout(r, 0));
+mod.stop && mod.stop();
+console.info(JSON.stringify({ html: section.innerHTML, calls }));
+"""
+
+
+@pytest.mark.parametrize(("module", "page"), [("jobs.js", "jobs"), ("schedules.js", "cron")])
+def test_job_rows_escape_api_fields(module, page, tmp_path):
+    """Job ids were spliced into onclick="...('${job.id}')" and names, messages
+    and prompts into innerHTML; an id or text from the API could run script."""
+    node = _node()
+    harness = tmp_path / "harness.mjs"
+    harness.write_text(_ROWS_HARNESS, encoding="utf-8")
+    proc = subprocess.run(
+        [node, str(harness), str(PLUGINS / module), page],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr
+    out = json.loads(proc.stdout.strip().splitlines()[-1])
+    html = out["html"]
+    assert "data-job-id=" in html, html[:400]
+    assert "<img" not in html and "<script" not in html and "<b>" not in html and "<i>" not in html
+    assert "__pwned=1;(" not in html.replace("&#39;", "'").split("data-job-id=")[0]
+    # Handlers read the id from the escaped data attribute, never from source.
+    handlers = re.findall(r'onclick="([^"]*)"', html)
+    assert handlers and all("dataset.jobId" in h or "dataset.sessionId" in h for h in handlers), (
+        handlers
+    )
+    assert not [h for h in handlers if "__pwned" in h], handlers
 
 
 # ── Theme picker in the React shell ─────────────────────────────────
@@ -644,16 +1050,6 @@ def test_esm_check_catches_the_theme_picker_bug():
 RUNTIME = os.environ.get("RUN_BROWSER_TESTS") == "1"
 
 
-def _chat_cleanup_reconnects() -> bool:
-    """views/chat.js (embedded by chat-canvas) closes its socket in cleanup()
-    without detaching onclose, whose handler reconnects 3 s later. The fix
-    belongs to chat.js, outside this package; until it lands, chat-canvas is
-    an expected failure (and turns into an XPASS failure once it does)."""
-    src = _read(VIEWS / "chat.js")
-    start = src.find("export function cleanup()")
-    return start < 0 or "ws.onclose = null" not in src[start : start + 800]
-
-
 # Pages that open resources, plus theme-picker (it must load at all).
 PROBE_PAGES = [
     "logs",
@@ -662,25 +1058,38 @@ PROBE_PAGES = [
     "cron",
     "jobs",
     "code-studio",
-    pytest.param(
-        "chat-canvas",
-        marks=pytest.mark.xfail(
-            _chat_cleanup_reconnects(),
-            reason="views/chat.js cleanup() lets ws.onclose reconnect (fix requested from its owner)",
-            strict=True,
-        ),
-    ),
+    "chat-canvas",
+    "chat",
     "theme-picker",
 ]
 # Pages whose module refreshes on an interval while the page is shown.
 POLLING = {"usage", "agents", "cron", "jobs"}
+# Pages that hold sockets open while shown: (URL path, how many). chat-canvas
+# holds the embedded chat's socket and the canvas preview's surface socket.
+STREAMING = {
+    "logs": ("/api/logs/stream", 1),
+    "chat": ("/api/chat/ws", 1),
+    "chat-canvas": ("/api/chat/ws", 2),
+}
 NEUTRAL = "feedback"
 ROUNDS = 3
-# One-time globals created by third-party libraries on first load (Monaco's
-# shared overlays, cursor-blink interval and message listener; highlight.js's
-# DOMContentLoaded hook). They are not per-mount: the probe also asserts that
-# the total never grows across rounds.
+# Resources created by these CDN libraries are vendor-owned, not the page's.
 VENDOR = ("monaco-editor", "highlight.min.js", "highlight.js")
+# The only vendor resources a visit may leave behind, accepted explicitly
+# (owner exemption): module-level singletons that a library creates on its
+# first load and keeps for the life of the document. They are not per mount
+# (removing them would break the next editor), and v0.3.153 has the same.
+# Each may appear at most once in the whole session; anything else a vendor
+# leaves behind, or a second copy of one of these, fails the probe.
+# (axis, library, signature) -> what it is
+VENDOR_SINGLETONS = {
+    ("iv", "monaco-editor", "cancelAndSet"): "Monaco's shared interval timer",
+    ("win", "monaco-editor", "message ::"): "Monaco's setImmediate message listener",
+    ("body", "monaco-editor", "DIV.context-view"): "Monaco's context-menu host",
+    ("body", "monaco-editor", "DIV.monaco-aria-container"): "Monaco's screen-reader live region",
+    ("win", "highlight", "DOMContentLoaded ::"): "highlight.js's auto-highlight hook",
+}
+_vendor_seen: Counter = Counter()
 
 INSTRUMENT = r"""
 (() => {
@@ -719,6 +1128,7 @@ INSTRUMENT = r"""
     const orig = Element.prototype[name];
     Element.prototype[name] = function (...n) { if (this === document.body) n.forEach(tag); return orig.apply(this, n); };
   }
+  window.__leakSockets = () => live.ws.keys();
   window.__leakSnap = () => {
     const desc = (n) => n.tagName + (n.id ? '#' + n.id : '') + (n.className && typeof n.className === 'string' ? '.' + n.className.split(' ')[0] : '');
     const body = [...document.body.children].map((n) => desc(n) + ' @ ' + (live.body.get(n) || 'static'));
@@ -805,6 +1215,18 @@ def _own(entries: list[str]) -> list[str]:
     return [e for e in entries if not any(v in e for v in VENDOR)]
 
 
+def _vendor(entries: list[str]) -> list[str]:
+    return [e for e in entries if any(v in e for v in VENDOR)]
+
+
+def _vendor_singleton(axis: str, entry: str):
+    for key in VENDOR_SINGLETONS:
+        k_axis, lib, signature = key
+        if k_axis == axis and lib in entry and signature in entry:
+            return key
+    return None
+
+
 def _select(page, page_id: str, wait_ms: int, twice: bool = False) -> None:
     if twice:
         # Select the page again while it is still loading: the first render is
@@ -845,6 +1267,17 @@ class TestRuntimeLeakProbe:
                 assert live_iv > len(_own(base["iv"])), (
                     f"{page_id} round {rnd}: the page's refresh poll is not running"
                 )
+            if page_id in STREAMING:
+                # Also after round 2's double select: a superseded render's late
+                # cleanup must not close the socket of the page on screen.
+                path, want = STREAMING[page_id]
+                open_ws = page.evaluate(
+                    "p => [...window.__leakSockets()].filter(s => s.readyState <= 1 && s.url.includes(p)).length",
+                    path,
+                )
+                assert open_ws == want, (
+                    f"{page_id} round {rnd}: {open_ws} open {path} sockets, want {want}"
+                )
             if page_id == "theme-picker":
                 assert shown["picker"], (
                     "theme-picker did not render its picker (module failed to load?)"
@@ -860,6 +1293,21 @@ class TestRuntimeLeakProbe:
             assert not leaked, (
                 f"{page_id} round {rnd} left resources behind:\n{json.dumps(leaked, indent=1)}"
             )
+            vendor_left = {
+                k: list((Counter(_vendor(after[k])) - Counter(_vendor(base[k]))).elements())
+                for k in after
+            }
+            if rnd == 1:
+                for axis, entries in vendor_left.items():
+                    for entry in entries:
+                        key = _vendor_singleton(axis, entry)
+                        assert key, (
+                            f"{page_id}: vendor resource left behind, not an accepted singleton: {entry}"
+                        )
+                        _vendor_seen[key] += 1
+                        assert _vendor_seen[key] == 1, (
+                            f"{page_id}: second copy of {VENDOR_SINGLETONS[key]}"
+                        )
             totals.append({k: len(after[k]) for k in after})
         assert totals[0] == totals[-1], f"{page_id}: live resources grow across visits: {totals}"
         assert not errors, f"{page_id}: page errors: {errors}"

@@ -64,7 +64,7 @@ async function fetchJobs() {
 
 async function cancelJob(jobId) {
   try {
-    const resp = await fetch(jobsUrl(`${jobId}/cancel`), { method: 'POST' });
+    const resp = await fetch(jobsUrl(`${encodeURIComponent(jobId)}/cancel`), { method: 'POST' });
     const data = await resp.json();
     if (resp.ok) {
       showNotification(`Job "${jobId}" cancelled`, 'success');
@@ -85,7 +85,7 @@ async function deleteJob(jobId) {
     return;
   }
   try {
-    const resp = await fetch(jobsUrl(jobId), { method: 'DELETE' });
+    const resp = await fetch(jobsUrl(encodeURIComponent(jobId)), { method: 'DELETE' });
     if (resp.ok) {
       showNotification(`Job "${jobId}" deleted`, 'success');
       await fetchJobs();
@@ -164,9 +164,13 @@ function renderProgressBar(percentage) {
   `;
 }
 
+// Job fields come from the API (prompts, results and errors are user or model
+// text) and are written with innerHTML, so they are escaped as HTML text.
 function escapeAttr(value) {
-  return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+const escapeHtml = escapeAttr;
 
 // Navigate to Chat and load the job's linked session (same event the
 // session-search palette and run recorder use).
@@ -186,12 +190,12 @@ function renderJobRow(job) {
     : (job.started_at ? (Date.now() / 1000) - job.started_at : null);
 
   return `
-    <tr class="aiui-job-row" data-job-id="${job.id}">
+    <tr class="aiui-job-row" data-job-id="${escapeAttr(job.id)}">
       <td class="aiui-job-id">
-        <code>${job.id}</code>
+        <code>${escapeHtml(job.id)}</code>
       </td>
       <td class="aiui-job-prompt">
-        <div class="aiui-job-prompt-text">${(job.prompt || '').substring(0, 50)}${job.prompt?.length > 50 ? '...' : ''}</div>
+        <div class="aiui-job-prompt-text">${escapeHtml((job.prompt || '').substring(0, 50))}${job.prompt?.length > 50 ? '...' : ''}</div>
       </td>
       <td class="aiui-job-status">
         ${getStatusBadge(status)}
@@ -207,14 +211,14 @@ function renderJobRow(job) {
       </td>
       <td class="aiui-job-actions">
         ${!isTerminal ? `
-          <button class="aiui-btn aiui-btn-sm aiui-btn-cancel" onclick="window.aiuiCancelJob('${job.id}')" title="Cancel">
+          <button class="aiui-btn aiui-btn-sm aiui-btn-cancel" onclick="window.aiuiCancelJob(this.closest('[data-job-id]').dataset.jobId)" title="Cancel">
             ⏹️
           </button>
         ` : `
-          ${_jobsCfg.backend !== 'praisonai' ? `<button class="aiui-btn aiui-btn-sm aiui-btn-delete" onclick="window.aiuiDeleteJob('${job.id}')" title="Delete">🗑️</button>` : ''}
+          ${_jobsCfg.backend !== 'praisonai' ? `<button class="aiui-btn aiui-btn-sm aiui-btn-delete" onclick="window.aiuiDeleteJob(this.closest('[data-job-id]').dataset.jobId)" title="Delete">🗑️</button>` : ''}
         `}
         ${job.session_id ? `<button class="aiui-btn aiui-btn-sm aiui-btn-open-session" data-session-id="${escapeAttr(job.session_id)}" onclick="window.aiuiOpenJobSession(this.dataset.sessionId)" title="Open session in Chat">💬</button>` : ''}
-        <button class="aiui-btn aiui-btn-sm aiui-btn-view" onclick="window.aiuiViewJob('${job.id}')" title="View Details">
+        <button class="aiui-btn aiui-btn-sm aiui-btn-view" onclick="window.aiuiViewJob(this.closest('[data-job-id]').dataset.jobId)" title="View Details">
           👁️
         </button>
       </td>
@@ -224,7 +228,7 @@ function renderJobRow(job) {
 
 async function viewJob(jobId) {
   try {
-    const resp = await fetch(jobsUrl(jobId));
+    const resp = await fetch(jobsUrl(encodeURIComponent(jobId)));
     const job = await resp.json();
     
     const modal = document.createElement('div');
@@ -239,7 +243,7 @@ async function viewJob(jobId) {
         <div class="aiui-job-modal-body">
           <div class="aiui-job-detail">
             <label>ID</label>
-            <code>${job.id}</code>
+            <code>${escapeHtml(job.id)}</code>
           </div>
           <div class="aiui-job-detail">
             <label>Status</label>
@@ -247,24 +251,24 @@ async function viewJob(jobId) {
           </div>
           <div class="aiui-job-detail">
             <label>Prompt</label>
-            <p>${job.prompt || '-'}</p>
+            <p>${job.prompt ? escapeHtml(job.prompt) : '-'}</p>
           </div>
           ${job.result ? `
             <div class="aiui-job-detail">
               <label>Result</label>
-              <pre>${typeof job.result === 'string' ? job.result : JSON.stringify(job.result, null, 2)}</pre>
+              <pre>${escapeHtml(typeof job.result === 'string' ? job.result : JSON.stringify(job.result, null, 2))}</pre>
             </div>
           ` : ''}
           ${job.error ? `
             <div class="aiui-job-detail aiui-job-error">
               <label>Error</label>
-              <pre>${job.error}</pre>
+              <pre>${escapeHtml(job.error)}</pre>
             </div>
           ` : ''}
           ${job.metrics ? `
             <div class="aiui-job-detail">
               <label>Metrics</label>
-              <pre>${JSON.stringify(job.metrics, null, 2)}</pre>
+              <pre>${escapeHtml(JSON.stringify(job.metrics, null, 2))}</pre>
             </div>
           ` : ''}
         </div>

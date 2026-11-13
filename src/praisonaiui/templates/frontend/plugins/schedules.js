@@ -40,7 +40,7 @@ async function fetchSchedules() {
 
 async function runJob(jobId) {
   try {
-    const resp = await fetch(`/api/schedules/${jobId}/run`, { method: 'POST' });
+    const resp = await fetch(`/api/schedules/${encodeURIComponent(jobId)}/run`, { method: 'POST' });
     const data = await resp.json();
     if (resp.ok) {
       showNotification(`Job "${jobId}" triggered`, 'success');
@@ -56,7 +56,7 @@ async function runJob(jobId) {
 
 async function stopJob(jobId) {
   try {
-    const resp = await fetch(`/api/schedules/${jobId}/stop`, { method: 'POST' });
+    const resp = await fetch(`/api/schedules/${encodeURIComponent(jobId)}/stop`, { method: 'POST' });
     const data = await resp.json();
     if (resp.ok) {
       showNotification(`Job "${jobId}" stopped`, 'success');
@@ -72,7 +72,7 @@ async function stopJob(jobId) {
 
 async function toggleJob(jobId) {
   try {
-    const resp = await fetch(`/api/schedules/${jobId}/toggle`, { method: 'POST' });
+    const resp = await fetch(`/api/schedules/${encodeURIComponent(jobId)}/toggle`, { method: 'POST' });
     const data = await resp.json();
     if (resp.ok) {
       const status = data.enabled ? 'enabled' : 'disabled';
@@ -90,7 +90,7 @@ async function toggleJob(jobId) {
 async function deleteJob(jobId) {
   if (!await showConfirm('Delete Job', `Delete job "${jobId}"?`)) return;
   try {
-    const resp = await fetch(`/api/schedules/${jobId}`, { method: 'DELETE' });
+    const resp = await fetch(`/api/schedules/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
     if (resp.ok) {
       showNotification(`Job "${jobId}" deleted`, 'success');
       await fetchSchedules();
@@ -144,11 +144,18 @@ function getScheduleIcon(kind) {
   return SCHEDULE_ICONS[kind] || SCHEDULE_ICONS.default;
 }
 
+// Job fields come from the API (names, messages and cron expressions are user
+// input) and are written with innerHTML, so they are escaped as HTML text.
+function escapeHtml(value) {
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function formatInterval(schedule) {
   if (!schedule) return 'Unknown';
   const kind = schedule.kind;
   if (kind === 'cron' && schedule.cron_expr) {
-    return `Cron: ${schedule.cron_expr}`;
+    return `Cron: ${escapeHtml(schedule.cron_expr)}`;
   }
   if (kind === 'every' && schedule.every_seconds) {
     const secs = schedule.every_seconds;
@@ -160,7 +167,7 @@ function formatInterval(schedule) {
   if (kind === 'once' && schedule.at) {
     return `Once at ${new Date(schedule.at * 1000).toLocaleString()}`;
   }
-  return kind || 'Unknown';
+  return kind ? escapeHtml(kind) : 'Unknown';
 }
 
 function formatTimestamp(ts) {
@@ -190,11 +197,11 @@ function renderJobCard(job) {
   const statusText = enabled ? 'Active' : 'Paused';
   
   return `
-    <div class="aiui-schedule-card" data-job-id="${job.id}">
+    <div class="aiui-schedule-card" data-job-id="${escapeHtml(job.id)}">
       <div class="aiui-schedule-header">
         <span class="aiui-schedule-icon">${getScheduleIcon(schedule.kind)}</span>
         <div class="aiui-schedule-info">
-          <h3 class="aiui-schedule-name">${job.name || job.id}</h3>
+          <h3 class="aiui-schedule-name">${escapeHtml(job.name || job.id)}</h3>
           <span class="aiui-schedule-interval">${formatInterval(schedule)}</span>
         </div>
         <div class="aiui-schedule-status">
@@ -203,7 +210,7 @@ function renderJobCard(job) {
         </div>
       </div>
       <div class="aiui-schedule-message">
-        ${job.message || '<em>No message</em>'}
+        ${job.message ? escapeHtml(job.message) : '<em>No message</em>'}
       </div>
       <div class="aiui-schedule-details">
         <div class="aiui-schedule-stat">
@@ -216,13 +223,13 @@ function renderJobCard(job) {
         </div>
       </div>
       <div class="aiui-schedule-actions">
-        <button class="aiui-btn aiui-btn-run" onclick="window.aiuiRunJob('${job.id}')" title="Run Now">
+        <button class="aiui-btn aiui-btn-run" onclick="window.aiuiRunJob(this.closest('[data-job-id]').dataset.jobId)" title="Run Now">
           ▶️ Run
         </button>
-        <button class="aiui-btn aiui-btn-toggle" onclick="window.aiuiToggleJob('${job.id}')" title="${enabled ? 'Pause' : 'Resume'}">
+        <button class="aiui-btn aiui-btn-toggle" onclick="window.aiuiToggleJob(this.closest('[data-job-id]').dataset.jobId)" title="${enabled ? 'Pause' : 'Resume'}">
           ${enabled ? '⏸️ Pause' : '▶️ Resume'}
         </button>
-        <button class="aiui-btn aiui-btn-delete" onclick="window.aiuiDeleteSchedule('${job.id}')" title="Delete">
+        <button class="aiui-btn aiui-btn-delete" onclick="window.aiuiDeleteSchedule(this.closest('[data-job-id]').dataset.jobId)" title="Delete">
           🗑️
         </button>
       </div>
