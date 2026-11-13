@@ -1,0 +1,467 @@
+/* PraisonAIUI token layer: seeds -> tiers -> shadcn vars. See src/frontend/DESIGN.md.
+ *
+ * L0 SEEDS   the only inputs. Python (themes.get_seed_theme_css), YAML presets,
+ *            themes.ts (named presets, legacy HSL custom CSS) and user CSS set these.
+ * L1 TIERS   color-mix ladders: surfaces, fill / stroke / text alpha tiers, row and
+ *            control states, shadows.
+ * L2 SHADCN  --background, --primary, --sidebar-*, --chart-* ... as FULL colours
+ *            (consume with var(--x); never wrap them in hsl()).
+ * (L3, the --db-* bridge for legacy dashboard views, lives in legacy/bridge.css.)
+ *
+ * Every default sits in @layer base, so unlayered CSS (the server's
+ * <style id="aiui-server-theme">, the build-time assets/theme.css, set_custom_css)
+ * always wins without !important.
+ *
+ * LEGACY DASHBOARD ISOLATION. The default `dashboard` style also links
+ * /assets/index.css but never runs React. Custom properties are inert until
+ * something reads them, so declaring them on :root is harmless there. Rules that
+ * paint elements (html/body colours, color-scheme, the `*` border colour,
+ * ::selection, reduced motion) are scoped to documents that run the React UI:
+ *   html[data-aiui-shell]                          the app shell (style: app)
+ *   html:has(script[src*="/assets/index.js"])      server-rendered React styles and `aiui build`
+ *   html:has(script[src*="/src/main.tsx"])         the Vite dev server
+ * The dashboard has none of these, so it keeps exactly today's rendering.
+ *
+ * Requires color-mix() (Chrome 111, Safari 16.2, Firefox 113). Automatic
+ * on-colour contrast needs relative colour syntax and is @supports-gated. */
+
+@layer base {
+  /* ── L0 seeds ─────────────────────────────────────────────────────────── */
+  :root {
+    /* brand. A colour preset sets --seed-accent-light (Tailwind 600, AA on
+       white) and --seed-accent-dark (500). Neutral presets set neither, so the
+       accent follows the ink (monochrome). Setting --seed-accent directly
+       (custom CSS, register_theme, theme.accent) pins one accent for both modes. */
+    --seed-accent: var(--seed-accent-light, var(--seed-ink));
+    --seed-tint: #71717a; /* neutral hue family: zinc / slate / stone / gray / neutral */
+    --tint-mix: 2%; /* how much the tint colours neutral surfaces */
+    --accent-mix: 0%; /* how much the accent bleeds into fills and strokes */
+    /* mode */
+    --seed-ink: #18181b;
+    --seed-paper: #ffffff;
+    --seed-sunken: #f4f4f5;
+    --seed-raised: #ffffff;
+    /* semantic */
+    --seed-danger: #dc2626;
+    --seed-success: #15803d;
+    --seed-warning: #b45309;
+    --seed-info: #2563eb;
+    /* knobs */
+    --radius: 0.5rem; /* YAML radius none|sm|md|lg|xl -> 0|.3|.5|.75|1rem */
+    --density: 1; /* [data-density] compact .875 | comfortable 1 | spacious 1.125 */
+    --font-size-base: 0.9375rem; /* 15px body */
+    --aiui-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+      sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    --aiui-font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  .dark {
+    --seed-accent: var(--seed-accent-dark, var(--seed-accent-light, var(--seed-ink)));
+    --tint-mix: 4%;
+    --seed-ink: #ededef;
+    --seed-paper: #0e0e10;
+    --seed-sunken: #09090b;
+    --seed-raised: #19191c;
+    --seed-danger: #f05252;
+    --seed-success: #34b27b;
+    --seed-warning: #e3a008;
+    --seed-info: #4f8cf7;
+  }
+  [data-density="compact"] {
+    --density: 0.875;
+    --font-size-base: 0.875rem;
+  }
+  [data-density="spacious"] {
+    --density: 1.125;
+    --font-size-base: 1rem;
+  }
+
+  /* ── L1 tiers + L2 shadcn vars ────────────────────────────────────────────
+     Declared on :root, .dark and [data-aiui-scope] so a nested .dark (or
+     re-seeded) subtree recomputes instead of inheriting the root's values. */
+  :root,
+  .dark,
+  [data-aiui-scope] {
+    --ui-base: var(--seed-ink);
+    --ui-accent: var(--seed-accent);
+    --ui-neutral: color-mix(in oklab, var(--seed-tint) var(--tint-mix), var(--seed-paper));
+
+    /* surfaces */
+    --ui-bg-app: var(--ui-neutral);
+    --ui-bg-sidebar: color-mix(in oklab, var(--seed-sunken) 70%, var(--ui-neutral));
+    --ui-bg-card: color-mix(in oklab, var(--seed-raised) 70%, var(--ui-neutral));
+    --ui-bg-elevated: var(--seed-raised);
+    --ui-bg-input: transparent;
+
+    /* fills: accent-tinted alpha of ink, 1 strongest .. 4 faintest */
+    --ui-fill-1: color-mix(in oklab, var(--ui-accent) var(--accent-mix), color-mix(in oklab, var(--ui-base) 11%, transparent));
+    --ui-fill-2: color-mix(in oklab, var(--ui-accent) var(--accent-mix), color-mix(in oklab, var(--ui-base) 8%, transparent));
+    --ui-fill-3: color-mix(in oklab, var(--ui-accent) var(--accent-mix), color-mix(in oklab, var(--ui-base) 5.5%, transparent));
+    --ui-fill-4: color-mix(in oklab, var(--ui-accent) var(--accent-mix), color-mix(in oklab, var(--ui-base) 3.5%, transparent));
+
+    /* strokes: 1 = input outline .. 4 = faintest hairline */
+    --ui-stroke-1: color-mix(in oklab, var(--ui-accent) var(--accent-mix), color-mix(in oklab, var(--ui-base) 16%, transparent));
+    --ui-stroke-2: color-mix(in oklab, var(--ui-accent) var(--accent-mix), color-mix(in oklab, var(--ui-base) 10%, transparent));
+    --ui-stroke-3: color-mix(in oklab, var(--ui-base) 6%, transparent);
+    --ui-stroke-4: color-mix(in oklab, var(--ui-base) 4%, transparent);
+
+    /* text hierarchy: alpha tiers of one ink. 1-3 pass WCAG AA (4.5:1) on
+       every surface; 4 is for disabled text and decoration only. */
+    --ui-text-1: color-mix(in oklab, var(--ui-base) 95%, transparent);
+    --ui-text-2: color-mix(in oklab, var(--ui-base) 78%, transparent);
+    --ui-text-3: color-mix(in oklab, var(--ui-base) 64%, transparent);
+    --ui-text-4: color-mix(in oklab, var(--ui-base) 40%, transparent);
+
+    /* interaction states */
+    --ui-row-hover: var(--ui-fill-4);
+    --ui-row-active: color-mix(in oklab, var(--ui-accent) 7%, transparent);
+    --ui-control-hover: var(--ui-fill-3);
+    --ui-control-active: var(--ui-fill-2);
+    --ui-accent-soft: color-mix(in oklab, var(--ui-accent) 12%, transparent);
+    --ui-accent-strong: color-mix(in oklab, var(--ui-accent) 85%, var(--ui-base));
+    --ui-selection: color-mix(in oklab, var(--ui-accent) 24%, transparent);
+    --ui-focus: color-mix(in oklab, var(--ui-accent) 70%, var(--ui-base));
+    --ui-link: var(--ui-accent); /* accent as text; darkened/lightened to AA below */
+    --ui-code-bg: var(--ui-fill-4);
+    --ui-bubble-user: color-mix(in oklab, var(--ui-accent) 6%, transparent);
+
+    --ui-danger-soft: color-mix(in oklab, var(--seed-danger) 12%, transparent);
+    --ui-success-soft: color-mix(in oklab, var(--seed-success) 12%, transparent);
+    --ui-warning-soft: color-mix(in oklab, var(--seed-warning) 14%, transparent);
+    --ui-info-soft: color-mix(in oklab, var(--seed-info) 12%, transparent);
+
+    /* floating panels: soft layered downward shadow + 3-6% hairline */
+    --ui-hairline: color-mix(in oklab, var(--ui-base) 6%, transparent);
+    --ui-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.05);
+    --ui-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05),
+      0 2px 6px rgb(0 0 0 / 0.04);
+    --ui-shadow-float: 0 1px 2px rgb(0 0 0 / 0.05),
+      0 4px 12px rgb(0 0 0 / 0.07),
+      0 12px 28px rgb(0 0 0 / 0.08);
+    --ui-shadow-overlay: 0 2px 4px rgb(0 0 0 / 0.06),
+      0 12px 24px rgb(0 0 0 / 0.1),
+      0 32px 64px rgb(0 0 0 / 0.14);
+
+    /* L2: shadcn v4 variables (full colours) */
+    --background: var(--ui-bg-app);
+    --foreground: var(--ui-text-1);
+    --card: var(--ui-bg-card);
+    --card-foreground: var(--ui-text-1);
+    --popover: var(--ui-bg-elevated);
+    --popover-foreground: var(--ui-text-1);
+    --primary: var(--ui-accent);
+    --primary-foreground: var(--seed-accent-fg, var(--seed-paper));
+    --secondary: var(--ui-fill-3);
+    --secondary-foreground: var(--ui-text-1);
+    --muted: var(--ui-fill-4);
+    --muted-foreground: var(--ui-text-3);
+    --accent: var(--ui-control-hover);
+    --accent-foreground: var(--ui-text-1);
+    --destructive: var(--seed-danger);
+    --destructive-foreground: #fff;
+    --success: var(--seed-success);
+    --success-foreground: #fff;
+    --warning: var(--seed-warning);
+    --warning-foreground: #fff;
+    --info: var(--seed-info);
+    --info-foreground: #fff;
+    --border: var(--ui-stroke-2);
+    --input: var(--ui-stroke-1);
+    --ring: var(--ui-focus);
+    --sidebar: var(--ui-bg-sidebar);
+    --sidebar-foreground: var(--ui-text-2);
+    --sidebar-primary: var(--ui-accent);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--ui-row-active);
+    --sidebar-accent-foreground: var(--ui-text-1);
+    --sidebar-border: var(--ui-stroke-3);
+    --sidebar-ring: var(--ui-focus);
+    /* charts: fixed fallbacks, accent-rotated below when relative colour exists */
+    --chart-1: var(--ui-accent);
+    --chart-2: #0ea5a4;
+    --chart-3: #8b5cf6;
+    --chart-4: #f59e0b;
+    --chart-5: #ec4899;
+  }
+  /* Dark mode: heavier shadows (they must read on dark surfaces), a slightly
+     stronger hairline, and on-colour fallbacks for browsers without relative
+     colour syntax (the @supports block below computes them otherwise). */
+  .dark,
+  .dark [data-aiui-scope] {
+    --ui-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.3);
+    --ui-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3), 0 2px 6px rgb(0 0 0 / 0.2);
+    --ui-shadow-float: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px rgb(0 0 0 / 0.25), 0 12px 28px rgb(0 0 0 / 0.3);
+    --ui-shadow-overlay: 0 2px 4px rgb(0 0 0 / 0.3), 0 12px 24px rgb(0 0 0 / 0.35), 0 32px 64px rgb(0 0 0 / 0.45);
+    --ui-hairline: color-mix(in oklab, var(--ui-base) 8%, transparent);
+    --destructive-foreground: #1a0505;
+    --success-foreground: #04170e;
+    --warning-foreground: #1c1300;
+    --info-foreground: #020b1d;
+  }
+
+  /* Automatic on-colour text: white or black, whichever contrasts more. The
+     switch point is relative luminance 0.1791, where both reach ~4.58:1, so the
+     chosen colour always clears WCAG AA. Luminance is computed in srgb-linear. */
+  @supports (color: color(from red srgb-linear r g b)) {
+    :root,
+    .dark,
+    [data-aiui-scope] {
+      --primary-foreground: var(
+        --seed-accent-fg,
+        color(
+          from var(--seed-accent) srgb-linear
+            clamp(0, (0.1791 - (0.2126 * r + 0.7152 * g + 0.0722 * b)) * 1000, 1)
+            clamp(0, (0.1791 - (0.2126 * r + 0.7152 * g + 0.0722 * b)) * 1000, 1)
+            clamp(0, (0.1791 - (0.2126 * r + 0.7152 * g + 0.0722 * b)) * 1000, 1)
+        )
+      );
+      --destructive-foreground: color(
+        from var(--seed-danger) srgb-linear
+          clamp(0, (0.1791 - (0.2126 * r + 0.7152 * g + 0.0722 * b)) * 1000, 1)
+          clamp(0, (0.1791 - (0.2126 * r + 0.7152 * g + 0.0722 * b)) * 1000, 1)
+          clamp(0, (0.1791 - (0.2126 * r + 0.7152 * g + 0.0722 * b)) * 1000, 1)
+      );
+      --success-foreground: color(
+        from var(--seed-success) srgb-linear
+          clamp(0, (0.1791 - (0.2126 * r + 0.7152 * g + 0.0722 * b)) * 1000, 1)
+          clamp(0, (0.1791 - (0.2126 * r + 0.7152 * g + 0.0722 * b)) * 1000, 1)
+          clamp(0, (0.1791 - (0.2126 * r + 0.7152 * g + 0.0722 * b)) * 1000, 1)
+      );
+      --warning-foreground: color(
+        from var(--seed-warning) srgb-linear
+          clamp(0, (0.1791 - (0.2126 * r + 0.7152 * g + 0.0722 * b)) * 1000, 1)
+          clamp(0, (0.1791 - (0.2126 * r + 0.7152 * g + 0.0722 * b)) * 1000, 1)
+          clamp(0, (0.1791 - (0.2126 * r + 0.7152 * g + 0.0722 * b)) * 1000, 1)
+      );
+      --info-foreground: color(
+        from var(--seed-info) srgb-linear
+          clamp(0, (0.1791 - (0.2126 * r + 0.7152 * g + 0.0722 * b)) * 1000, 1)
+          clamp(0, (0.1791 - (0.2126 * r + 0.7152 * g + 0.0722 * b)) * 1000, 1)
+          clamp(0, (0.1791 - (0.2126 * r + 0.7152 * g + 0.0722 * b)) * 1000, 1)
+      );
+    }
+  }
+  @supports (color: oklch(from red l c h)) {
+    :root,
+    .dark,
+    [data-aiui-scope] {
+      --ui-link: oklch(from var(--seed-accent) min(l, 0.5) c h);
+      --chart-2: oklch(from var(--seed-accent) clamp(0.55, l, 0.72) max(c, 0.12) calc(h + 72));
+      --chart-3: oklch(from var(--seed-accent) clamp(0.55, l, 0.72) max(c, 0.12) calc(h + 144));
+      --chart-4: oklch(from var(--seed-accent) clamp(0.55, l, 0.72) max(c, 0.12) calc(h + 216));
+      --chart-5: oklch(from var(--seed-accent) clamp(0.55, l, 0.72) max(c, 0.12) calc(h + 288));
+    }
+    .dark,
+    .dark [data-aiui-scope] {
+      --ui-link: oklch(from var(--seed-accent) max(l, 0.74) c h);
+    }
+  }
+
+  /* Z ladder: app-wide floating surfaces pick a rung; local stacking stays z-10/z-20. */
+  :root {
+    --z-sticky: 20;
+    --z-header: 30;
+    --z-sidebar: 40;
+    --z-overlay: 50;
+    --z-modal: 60;
+    --z-popover: 70; /* menus and selects opened from inside a modal */
+    --z-toast: 80;
+    --z-tooltip: 90;
+    --z-command: 100;
+    --z-blocking: 1000; /* connecting / crash / auth gates */
+
+    /* layout and motion constants */
+    --ui-header-h: 3rem; /* 48px */
+    --ui-sidebar-w: 15rem; /* 240px */
+    --ui-reading-w: 47.5rem; /* 760px: chat and docs column */
+    --ui-duration: 120ms;
+    --ui-ease: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  /* ── Element rules: React documents only (see LEGACY DASHBOARD ISOLATION) ──
+     The :where() wrapper keeps every rule at zero specificity, like preflight. */
+  :where(html[data-aiui-shell], html:has(script[src*="/assets/index.js"]), html:has(script[src*="/src/main.tsx"])) {
+    color-scheme: light;
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+  :where(html[data-aiui-shell], html:has(script[src*="/assets/index.js"]), html:has(script[src*="/src/main.tsx"])).dark {
+    color-scheme: dark;
+  }
+  :where(html[data-aiui-shell], html:has(script[src*="/assets/index.js"]), html:has(script[src*="/src/main.tsx"])) body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+  :where(html[data-aiui-shell], html:has(script[src*="/assets/index.js"]), html:has(script[src*="/src/main.tsx"])) *,
+  :where(html[data-aiui-shell], html:has(script[src*="/assets/index.js"]), html:has(script[src*="/src/main.tsx"])) ::before,
+  :where(html[data-aiui-shell], html:has(script[src*="/assets/index.js"]), html:has(script[src*="/src/main.tsx"])) ::after {
+    border-color: var(--border);
+    outline-color: var(--ring);
+  }
+  :where(html[data-aiui-shell], html:has(script[src*="/assets/index.js"]), html:has(script[src*="/src/main.tsx"])) ::selection {
+    background-color: var(--ui-selection);
+  }
+
+  /* Shell typography lives on .aiui-app, never on html/body. */
+  .aiui-app {
+    font-family: var(--aiui-font-sans);
+    font-size: var(--font-size-base);
+    line-height: 1.55;
+    color: var(--foreground);
+    background-color: var(--background);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .aiui-app :where(code, kbd, samp, pre) {
+    font-family: var(--aiui-font-mono);
+  }
+  .aiui-app :where(table, [data-numeric]) {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Reduced motion: state changes never wait on animation. Spinner opts out
+     (motion-reduce: slows it down) because it is the loading signal. */
+  @media (prefers-reduced-motion: reduce) {
+    :where(html[data-aiui-shell], html:has(script[src*="/assets/index.js"]), html:has(script[src*="/src/main.tsx"])) *:not(.animate-spin),
+    :where(html[data-aiui-shell], html:has(script[src*="/assets/index.js"]), html:has(script[src*="/src/main.tsx"])) ::before,
+    :where(html[data-aiui-shell], html:has(script[src*="/assets/index.js"]), html:has(script[src*="/src/main.tsx"])) ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@keyframes aiui-shimmer {
+  from {
+    background-position: 100% center;
+  }
+  to {
+    background-position: 0% center;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  /* tier utilities: bg-fill-2, border-stroke-3, text-tier-2, bg-row-hover ... */
+  --color-fill-1: var(--ui-fill-1);
+  --color-fill-2: var(--ui-fill-2);
+  --color-fill-3: var(--ui-fill-3);
+  --color-fill-4: var(--ui-fill-4);
+  --color-stroke-1: var(--ui-stroke-1);
+  --color-stroke-2: var(--ui-stroke-2);
+  --color-stroke-3: var(--ui-stroke-3);
+  --color-stroke-4: var(--ui-stroke-4);
+  --color-hairline: var(--ui-hairline);
+  --color-tier-1: var(--ui-text-1);
+  --color-tier-2: var(--ui-text-2);
+  --color-tier-3: var(--ui-text-3);
+  --color-tier-4: var(--ui-text-4);
+  --color-row-hover: var(--ui-row-hover);
+  --color-row-active: var(--ui-row-active);
+  --color-accent-soft: var(--ui-accent-soft);
+  --color-link: var(--ui-link);
+  --color-bubble-user: var(--ui-bubble-user);
+  --color-code: var(--ui-code-bg);
+  --color-danger-soft: var(--ui-danger-soft);
+  --color-success-soft: var(--ui-success-soft);
+  --color-warning-soft: var(--ui-warning-soft);
+  --color-info-soft: var(--ui-info-soft);
+
+  /* font-sans / font-mono utilities use our stacks. Preflight's html font stays
+     Tailwind's default so the legacy dashboard (which loads this CSS) is unchanged. */
+  --font-sans: var(--aiui-font-sans);
+  --font-mono: var(--aiui-font-mono);
+  --default-font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+    "Noto Color Emoji";
+  --default-mono-font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+
+  /* density: every spacing utility (p, gap, h, w ...) scales with --density, so
+     h-8 is 32px comfortable, 28px compact */
+  --spacing: calc(0.25rem * var(--density));
+
+  /* radius ladder, proportional to --radius so `radius: none` is square
+     everywhere. Default --radius .5rem: sm 6, md 8 (controls), lg 10, xl 12 (panels). */
+  --radius-xs: calc(var(--radius) * 0.5);
+  --radius-sm: calc(var(--radius) * 0.75);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) * 1.25);
+  --radius-xl: calc(var(--radius) * 1.5);
+  --radius-2xl: calc(var(--radius) * 2);
+  --radius-3xl: calc(var(--radius) * 2.5);
+  --radius-4xl: calc(var(--radius) * 3);
+
+  /* type scale: 15px body, 14px UI chrome, 13px meta, 12px micro */
+  --text-2xs: 0.75rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: var(--font-size-base);
+  --text-base--line-height: 1.55;
+  --text-lg: 1.0625rem;
+  --text-lg--line-height: 1.55;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 2.25rem;
+
+  /* soft layered shadows (shadow-xs .. shadow-lg used by the shadcn primitives) */
+  --shadow-xs: var(--ui-shadow-xs);
+  --shadow-sm: var(--ui-shadow-sm);
+  --shadow-md: var(--ui-shadow-float);
+  --shadow-lg: var(--ui-shadow-overlay);
+  --shadow-float: var(--ui-shadow-float);
+  --shadow-overlay: var(--ui-shadow-overlay);
+
+  /* layout: max-w-reading is the 760px chat and docs column */
+  --container-reading: var(--ui-reading-w);
+
+  /* motion */
+  --default-transition-duration: var(--ui-duration);
+  --default-transition-timing-function: var(--ui-ease);
+  --animate-shimmer: aiui-shimmer 1.6s linear infinite;
+}

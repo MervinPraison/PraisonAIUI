@@ -35,9 +35,9 @@ function applyPreStyles() {
       padding: 0 !important;
     }
     pre {
-      background: ${dark ? 'rgba(15, 23, 42, 0.6)' : 'hsl(var(--muted))'} !important;
-      color: ${dark ? 'inherit' : 'hsl(var(--foreground))'} !important;
-      border: 1px solid ${dark ? 'rgba(148, 163, 184, 0.1)' : 'hsl(var(--border))'};
+      background: ${dark ? 'rgba(15, 23, 42, 0.6)' : 'var(--muted)'} !important;
+      color: ${dark ? 'inherit' : 'var(--foreground)'} !important;
+      border: 1px solid ${dark ? 'rgba(148, 163, 184, 0.1)' : 'var(--border)'};
       border-radius: 0.5rem;
       padding: 1rem !important;
       overflow-x: auto;
