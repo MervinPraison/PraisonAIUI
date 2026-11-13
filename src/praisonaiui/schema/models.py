@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ThemeConfig(BaseModel):
@@ -528,12 +528,42 @@ MessageElementUnion = (
 )
 
 
+class ExtensionsConfig(BaseModel):
+    """Entry-point plugin policy (group ``praisonaiui.plugins``), YAML ``extensions:``.
+
+    - ``enabled`` omitted: every installed plugin is imported (``pip install``
+      means trust). A list makes it a strict allowlist.
+    - ``disabled`` always wins, and a disabled plugin is never imported.
+    - A bare list (``extensions: [a, b]``) is shorthand for ``enabled``.
+
+    Plugin *browser* surfaces (pages, blocks, tool renderers and the static
+    ``/_plugins/<name>/`` dir) are default-deny when the server requires auth or
+    is reached from a non-loopback address: they are only served for plugins
+    named in ``enabled``.
+
+    Distinct from ``site.plugins`` (docs JS plugins) and ``dashboard.plugins``
+    (legacy dashboard-plugin allowlist).
+    """
+
+    enabled: Optional[list[str]] = None
+    disabled: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _bare_list_means_enabled(cls, data: Any) -> Any:
+        if isinstance(data, (list, tuple)):
+            return {"enabled": list(data)}
+        return data
+
+
 class Config(BaseModel):
     """Root configuration model for aiui.template.yaml."""
 
     schema_version: int = Field(default=1, alias="schemaVersion")
     site: SiteConfig
-    style: Literal["docs", "chat", "agents", "playground", "dashboard", "custom"] = "docs"
+    style: Literal["docs", "chat", "agents", "playground", "dashboard", "custom", "app"] = "docs"
     layout: Optional[LayoutConfig] = None
     content: Optional[ContentConfig] = None
     components: dict[str, ComponentConfig] = Field(default_factory=dict)
@@ -543,6 +573,7 @@ class Config(BaseModel):
     auth: Optional[AuthConfig] = None
     widgets: list[InputWidgetConfig] = Field(default_factory=list)
     dashboard: Optional[DashboardConfig] = None
+    extensions: Optional[ExtensionsConfig] = None
     seo: Optional[SEOConfig] = None
     i18n: Optional[I18nConfig] = None
     a11y: Optional[A11yConfig] = None
