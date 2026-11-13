@@ -870,6 +870,11 @@ const DASHBOARD_STYLE = `
 let activePageId = null;
 let pagesData = [];
 
+// Host mode (style `app`): set only by initHostRuntime(), see the end of this
+// file. While they keep these defaults the legacy dashboard is unchanged.
+let _hostMode = false;
+let _hostNavigate = null;
+
 // ── Theme preset → --db-* CSS variable mapping ───────────────────────
 // When site.theme.preset is set (via YAML or aiui.set_theme()), we map
 // the preset name to appropriate --db-* values so the dashboard adopts
@@ -900,6 +905,9 @@ const PRESET_COLORS = {
 };
 
 async function applyThemeFromConfig(cfg) {
+  // Host mode: theme tokens come from the shell (legacy/bridge.css). Inline
+  // !important vars on <html> would override them and user CSS alike.
+  if (_hostMode) return;
   const theme = cfg?.site?.theme;
   if (!theme) return;
 
@@ -1137,6 +1145,14 @@ function initCommandPalette() {
 }
 
 window.aiui = window.aiui || {};
+// Host mode: the React shell loads before this module and may already own
+// these hooks. Remember them so initHostRuntime({ palette: false }) can hand
+// them back (_restoreShellPaletteHooks).
+const _shellPaletteHooks = {
+  open: window.aiui.openCommandPalette,
+  close: window.aiui.closeCommandPalette,
+  global: window.openCommandPalette,
+};
 window.aiui.openCommandPalette = openCommandPalette;
 window.aiui.closeCommandPalette = closeCommandPalette;
 window.openCommandPalette = openCommandPalette;
@@ -1350,7 +1366,11 @@ function installAuthFetch() {
     const token = getStoredToken();
     if (!token) return nativeFetch(input, init);
 
-    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    // A URL object has no .url; without .href it would read as '' (same
+    // origin) and the token would go to any host.
+    const url = typeof input === 'string' ? input
+      : (typeof URL !== 'undefined' && input instanceof URL) ? input.href
+      : (input && input.url) || '';
     if (!isSameOrigin(url)) return nativeFetch(input, init);
 
     const opts = { ...(init || {}) };
@@ -1990,6 +2010,7 @@ function _supersededCleanup(fn) {
 }
 
 async function selectPage(pageId) {
+  if (_hostNavigate) return _hostNavigate(pageId); // host mode: the shell router owns navigation
   // Cleanup previous view if it has a cleanup function
   if (_activeCleanup) { try { _activeCleanup(); } catch(e) {} _activeCleanup = null; }
 
@@ -3557,4 +3578,315 @@ window.aiui.registerSlot('shell:sidebar:footer', () => {
   try { window.aiui[name](...args); } catch (e) { console.warn(`[AIUI] queued ${name} failed:`, e); }
 });
 
-export { init, onContentChange };
+// ── Host mode (React shell strangler, ADR-0001) ──────────────────────
+// Style `app` imports this module as a runtime only (src/frontend/src/legacy/
+// runtime.ts). The React shell owns #root, the chrome and routing, and mounts
+// one page at a time through mountView(). init() and buildDashboard() never
+// run in this mode, and nothing below touches #root. Everything here is inert
+// until initHostRuntime() is called, so the dashboard style is unchanged.
+
+// Non-colour layout defaults kept from DASHBOARD_STYLE's :root block.
+const _HOST_LAYOUT_VARS = ['--db-sidebar-w', '--db-sidebar-collapsed-w', '--db-transition'];
+
+// DASHBOARD_STYLE minus the rules that assume this module owns the page:
+// - the :root block of dark --db-* colours. The shell's legacy/bridge.css maps
+//   --db-* onto its tokens at zero specificity, so user CSS (set_custom_css,
+//   `:root { --db-accent: … }`) still wins. Only the layout vars survive, also
+//   at zero specificity.
+// - body { … } and #root { display: flex } (the shell owns both).
+// - `#root select option` is re-scoped to the legacy host.
+// White alpha tints (rgba(255,255,255,a)), which assume a dark page, become
+// the same alpha of the text colour so they also read on a light page.
+function hostScopedStyle() {
+  return DASHBOARD_STYLE
+    .replace(/:root \{([^}]*)\}/, (_block, body) => {
+      const keep = body.split('\n')
+        .map((line) => line.trim())
+        .filter((line) => _HOST_LAYOUT_VARS.some((name) => line.startsWith(name + ':')));
+      return `:where(html) { ${keep.join(' ')} }`;
+    })
+    .replace(/\n\s*body \{[^}]*\}/, '\n  .aiui-legacy-host { color: var(--db-text); }')
+    .replace(/\n\s*#root \{ display: flex; min-height: 100vh; \}/, '')
+    .replace(/#root select option/g, '.aiui-legacy-host select option')
+    .replace(/rgba\(255,\s*255,\s*255,\s*(0?\.\d+)\)/g, (_m, alpha) =>
+      `color-mix(in oklab, var(--db-text) ${Math.round(parseFloat(alpha) * 1000) / 10}%, transparent)`);
+}
+
+// initHostRuntime({ palette: false }): give the Ctrl+K hooks back to the shell
+// (or drop the legacy ones) unless something else has replaced them already.
+function _restoreShellPaletteHooks() {
+  const hand = (obj, key, legacyFn, previous) => {
+    if (obj[key] !== legacyFn) return;
+    if (typeof previous === 'function') obj[key] = previous;
+    else delete obj[key];
+  };
+  hand(window.aiui, 'openCommandPalette', openCommandPalette, _shellPaletteHooks.open);
+  hand(window.aiui, 'closeCommandPalette', closeCommandPalette, _shellPaletteHooks.close);
+  hand(window, 'openCommandPalette', openCommandPalette, _shellPaletteHooks.global);
+}
+
+// approvalUi 'event-only': the approval stream only announces approvals on
+// window (aiui:approval-required, plus aiui:approval-resolved) and never opens
+// the legacy modal. The shell shows a toast and the React chat shows the gate
+// in its thread, so one approval never gets two competing dialogs.
+const _hostAnnouncedApprovals = new Set();
+function _announceApproval(entry) {
+  if (entry.id != null) {
+    if (_hostAnnouncedApprovals.has(entry.id)) return; // already announced (reconnect, or an earlier lookup)
+    _hostAnnouncedApprovals.add(entry.id);
+    if (_hostAnnouncedApprovals.size > 500) _hostAnnouncedApprovals.delete(_hostAnnouncedApprovals.values().next().value);
+  }
+  window.dispatchEvent(new CustomEvent('aiui:approval-required', { detail: entry }));
+}
+// The stream's 'new' message may carry no entry (it only signals), so the
+// pending list is looked up and each approval not yet announced is announced.
+async function _announceNewApprovals(entry) {
+  if (entry && entry.id != null) { _announceApproval(entry); return; }
+  let pending = null;
+  try {
+    const res = await fetch('/api/approvals/pending');
+    if (res.ok) pending = (await res.json()).approvals;
+  } catch (e) { console.warn('[AIUI] pending approvals:', e); }
+  if (!Array.isArray(pending)) { _announceApproval(entry || {}); return; }
+  pending.forEach((item) => { if (item && item.id != null) _announceApproval(item); });
+}
+function _initHostApprovalEvents() {
+  if (approvalSSESource) return;
+  try {
+    approvalSSESource = new EventSource('/api/approvals/stream');
+    approvalSSESource.onmessage = (event) => {
+      let msg;
+      try { msg = JSON.parse(event.data); } catch (e) { console.error('Failed to parse approval SSE:', e); return; }
+      if (!msg) return;
+      if (msg.event === 'new') {
+        _announceNewApprovals(msg.data);
+      } else if (msg.event === 'resolved') {
+        window.dispatchEvent(new CustomEvent('aiui:approval-resolved', { detail: msg.data || {} }));
+      }
+    };
+    approvalSSESource.onerror = () => {
+      console.warn('Approval SSE connection error, retrying...');
+      if (approvalSSESource) { approvalSSESource.close(); approvalSSESource = null; }
+      setTimeout(_initHostApprovalEvents, 5000);
+    };
+  } catch (e) {
+    console.error('Failed to init approval stream:', e);
+  }
+}
+
+let _hostRuntimeReady = null;
+let _hostKeyBindingsInstalled = false;
+
+/**
+ * Boot the legacy runtime for a host that owns the page (the React shell).
+ * Runs once; later calls only update `navigate` and return the same promise.
+ * If the boot rejects, the next call boots again (key bindings stay single).
+ *
+ * opts.navigate(pageId)  every legacy selectPage() call goes here instead.
+ * opts.palette           false: do not install the legacy Ctrl+K palette and
+ *                        leave window.aiui.openCommandPalette to the host.
+ * opts.approvalUi        'event-only': announce approvals on window, never
+ *                        open the legacy approval modal. Default 'modal'.
+ *                        (`approvals: false` is accepted as an alias.)
+ * Resolves to { pages } (the /api/pages list plus dashboard-plugin pages).
+ */
+function initHostRuntime(opts = {}) {
+  if (typeof opts.navigate === 'function') _hostNavigate = opts.navigate;
+  if (_hostRuntimeReady) return _hostRuntimeReady;
+  _hostMode = true;
+  const approvalUi = (opts.approvalUi === 'event-only' || opts.approvals === false) ? 'event-only' : 'modal';
+  if (!_hostKeyBindingsInstalled) {
+    _hostKeyBindingsInstalled = true;
+    if (opts.palette === false) _restoreShellPaletteHooks();
+    else initCommandPalette();
+    initSessionSearch(); // Escape for the session search overlay (window.aiui.openSessionSearch)
+  }
+
+  const ready = (async () => {
+    installAuthFetch();
+    if (!document.getElementById('aiui-legacy-style')) {
+      const style = document.createElement('style');
+      style.id = 'aiui-legacy-style';
+      style.textContent = hostScopedStyle();
+      // First in <head>: the shell's stylesheets follow it, and the
+      // aiui-css-guard keeps user CSS (#aiui-custom-css) last.
+      document.head.insertBefore(style, document.head.firstChild);
+    }
+    try { await maybeShowOnboarding(); } catch (e) { console.warn('[AIUI] Onboarding gate error:', e); }
+    try {
+      const res = await fetch('/api/pages');
+      if (!res.ok) throw new Error(`GET /api/pages: HTTP ${res.status}`);
+      pagesData = (await res.json()).pages || [];
+    } catch (e) { console.warn('[AIUI] host runtime pages:', e); }
+    try { await loadDashboardPlugins(); } catch (e) { console.warn('[AIUI] host runtime plugins:', e); }
+    if (approvalUi === 'event-only') {
+      _initHostApprovalEvents();
+    } else {
+      initApprovalStream();
+      window.addEventListener('aiui:approval-required', (e) => { if (e.detail) showApprovalModal(e.detail); });
+    }
+    return { pages: pagesData.slice() };
+  })();
+  _hostRuntimeReady = ready;
+  ready.catch(() => { if (_hostRuntimeReady === ready) _hostRuntimeReady = null; });
+  return ready;
+}
+
+// The legacy record for a page (it carries api_endpoint and other legacy
+// fields), else the host's page (manifest shape: apiEndpoint), else a stub.
+function _hostPageRecord(pageId, hostPage) {
+  const known = pagesData.find((p) => p.id === pageId);
+  if (known) return known;
+  if (hostPage && typeof hostPage === 'object') {
+    const page = { ...hostPage, id: pageId, title: hostPage.title || pageId };
+    if (page.api_endpoint == null && typeof hostPage.apiEndpoint === 'string') page.api_endpoint = hostPage.apiEndpoint;
+    return page;
+  }
+  return { id: pageId, title: pageId };
+}
+
+// The documented `page:<id>:toolbar` slot. selectPage() renders it in the
+// page header, which the shell owns in host mode, so it goes in a row just
+// above the view instead (not for full-bleed pages, as in selectPage()).
+// Returns the row, or null.
+function _mountHostToolbar(pageId, page, container) {
+  const render = SLOT_REGISTRY[`page:${pageId}:toolbar`];
+  const parent = container.parentNode;
+  if (typeof render !== 'function' || !parent || page.layout === 'full-bleed') return null;
+  let node = null;
+  try { node = render(); } catch (e) { console.warn(`[AIUI] Slot 'page:${pageId}:toolbar':`, e); }
+  if (!node) return null;
+  const row = document.createElement('div');
+  row.className = 'db-slot-host aiui-legacy-toolbar';
+  row.dataset.slot = `page:${pageId}:toolbar`;
+  row.appendChild(node);
+  parent.insertBefore(row, container);
+  return row;
+}
+
+// Failed imports per built-in view in host mode. A browser keeps a failed
+// module fetch in its module map for the life of the document, so importing
+// the same URL again rejects without a request; after a failure the next
+// mount adds `&r=<n>` to fetch again. A successful import is cached in
+// VIEW_REGISTRY, so a view module is never loaded twice.
+const _hostViewImportFailures = Object.create(null);
+
+function _hostViewUrl(pageId) {
+  const build = window.__AIUI_BUILD__ == null ? '' : String(window.__AIUI_BUILD__);
+  const failures = _hostViewImportFailures[pageId] || 0;
+  return BUILTIN_VIEWS[pageId] + '?v=' + encodeURIComponent(build) + (failures ? '&r=' + failures : '');
+}
+
+async function _importHostView(pageId) {
+  try {
+    return await import(_hostViewUrl(pageId));
+  } catch (e) {
+    _hostViewImportFailures[pageId] = (_hostViewImportFailures[pageId] || 0) + 1;
+    throw e;
+  }
+}
+
+// Mounts per page id that have started and not yet been cleaned up. A view's
+// module-level cleanup export is shared by every mount of that page, so it
+// only runs when the last live mount of the page goes.
+const _hostLiveMounts = Object.create(null);
+
+// One resolution pass for mountView(). Resolves to the view's two cleanups,
+// kept apart: `instance` is what render() returned (it belongs to this mount),
+// `module` is the view's module-level cleanup export (it tears down state the
+// module shares across every mount of the page). Either may be null.
+async function _mountViewBody(pageId, container, page, stale) {
+  const combine = (returned, moduleCleanup) => ({
+    instance: typeof returned === 'function' ? returned : null,
+    module: typeof moduleCleanup === 'function' && moduleCleanup !== returned ? moduleCleanup : null,
+  });
+  const noop = { instance: null, module: null };
+
+  // Priority 1: registered view (plugins, custom.js, cached built-ins)
+  const view = VIEW_REGISTRY[pageId];
+  if (view && typeof view.render === 'function') {
+    try {
+      return combine(await view.render(container), view.cleanup);
+    } catch (e) { console.warn(`View '${pageId}' render error:`, e); }
+    if (stale()) return noop;
+  }
+
+  // Priority 2: built-in view module. The build id (not Date.now(), as in
+  // selectPage) keeps one module instance per build across mounts.
+  if (Object.prototype.hasOwnProperty.call(BUILTIN_VIEWS, pageId)) {
+    try {
+      const mod = await _importHostView(pageId);
+      if (typeof mod.render === 'function') {
+        if (stale()) return noop;
+        const returned = await mod.render(container);
+        // Cache for later mounts (never overwrite a view registered meanwhile)
+        if (!VIEW_REGISTRY[pageId]) VIEW_REGISTRY[pageId] = { render: mod.render, cleanup: mod.cleanup || null };
+        return combine(returned, mod.cleanup);
+      }
+    } catch (e) { console.warn(`Built-in view '${pageId}' import error:`, e); }
+    if (stale()) return noop;
+  }
+
+  // Priority 3: generic data viewer
+  await loadGenericViewer(page, container);
+  return noop;
+}
+
+/**
+ * Mount one page's view into `container`; resolves to its cleanup function.
+ * Same resolution order as selectPage(): registered view, built-in view
+ * module, then the generic data viewer. Unlike selectPage():
+ * - a cleanup that render() returns is honoured as well as the module's
+ *   cleanup export, and the combined cleanup runs at most once. The module's
+ *   cleanup is skipped while another mount of the same page is live, so a
+ *   stale mount that finishes late never tears down the newer mount's state;
+ * - if the container is detached or opts.signal aborts while the view loads,
+ *   the view is cleaned up at once and a no-op is returned.
+ * opts.page is the host's page record (manifest shape), used when /api/pages
+ * does not know the id.
+ */
+async function mountView(pageId, container, opts = {}) {
+  const signal = opts.signal;
+  const stale = () => !container.isConnected || Boolean(signal && signal.aborted);
+  if (stale()) return () => {};
+  const page = _hostPageRecord(pageId, opts.page);
+  activePageId = pageId;
+  container.setAttribute('data-page', pageId);
+
+  // This mount counts as live until its cleanup runs (see _hostLiveMounts).
+  const live = _hostLiveMounts[pageId] || (_hostLiveMounts[pageId] = new Set());
+  const token = {};
+  live.add(token);
+  const run = (fn) => { if (fn) { try { fn(); } catch (e) { console.warn(`[AIUI] cleanup '${pageId}':`, e); } } };
+
+  const toolbar = _mountHostToolbar(pageId, page, container);
+  let parts = { instance: null, module: null };
+  try {
+    parts = await _mountViewBody(pageId, container, page, stale);
+  } catch (e) {
+    live.delete(token);
+    throw e;
+  } finally {
+    if (toolbar && stale()) toolbar.remove();
+  }
+  let done = false;
+  const cleanup = () => {
+    if (done) return;
+    done = true;
+    live.delete(token);
+    run(parts.instance);
+    // Another mount of this page started meanwhile and is still live (a
+    // re-mount while this render was in flight): the module's shared state is
+    // now that mount's, so leave it to that mount's cleanup.
+    if (live.size === 0) run(parts.module);
+    if (toolbar) toolbar.remove();
+  };
+  if (!stale()) return cleanup;
+  cleanup();
+  return () => {};
+}
+
+window.aiui.mountView = mountView;
+window.aiui.initHostRuntime = initHostRuntime;
+
+export { init, onContentChange, initHostRuntime, mountView };
