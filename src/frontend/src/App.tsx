@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { applyTheme, applyStoredThemePreference } from './themes'
-import './index.css'
 import type { UIConfig, DocsNav, RouteManifest, NavItem } from './types'
 import { Header } from './Header'
 import { Sidebar, MobileNavSheet } from './Sidebar'
