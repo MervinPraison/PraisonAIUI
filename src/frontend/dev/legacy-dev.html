@@ -1,0 +1,42 @@
+<!doctype html>
+<!--
+  Dev-only harness for the legacy host (WP4). Not built, not shipped.
+
+  Mounts <LegacyViewHost> for any /api/pages id the way the React shell does
+  under style `app` (html[data-aiui-shell=react]), so legacy pages can be
+  swept before the shell lands.
+
+    1. Run a backend:  aiui run examples/python/06-dashboard/app.py  (port 8000),
+       or set AIUI_DEV_BACKEND=http://127.0.0.1:<port>.
+    2. cd src/frontend && npm run dev
+    3. Open http://localhost:5173/dev/legacy-dev.html?page=overview
+
+  Query options: page=<id>, theme=light|dark, customCss=<css> (injected the
+  way server.py injects set_custom_css, css-guard included), tokens=off (do not
+  add the stand-in theme tokens when styles/theme.css is absent).
+-->
+<html lang="en" data-aiui-shell="react">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Legacy host harness</title>
+    <script>
+      // Same bootstrap as server.py: apply the stored mode before paint.
+      (function () {
+        try {
+          var q = new URLSearchParams(location.search).get('theme');
+          if (q) localStorage.setItem('aiui-theme-preference', q);
+          var t = localStorage.getItem('aiui-theme-preference');
+          if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+            document.documentElement.classList.add('dark');
+          else document.documentElement.classList.remove('dark');
+        } catch (e) {}
+        window.__AIUI_BUILD__ = 'dev-harness';
+      })();
+    </script>
+  </head>
+  <body style="margin: 0">
+    <div id="root"></div>
+    <script type="module" src="./legacy-dev.tsx"></script>
+  </body>
+</html>
