@@ -23,6 +23,8 @@ export type AnyComponent = ComponentType<any>
 
 const pages = new Map<string, PageComponent>()
 const blocks = new Map<string, BlockComponent>()
+/** Block types whose current entry is a fallback (see BlockOptions). */
+const fallbackBlocks = new Set<string>()
 const toolRenderers = new Map<string, AnyComponent>()
 /** Options of registerSlot(). */
 export interface SlotOptions {
@@ -144,10 +146,49 @@ export function registerPage(id: string, c: PageComponent | PageLoader): void {
   setEntry(pages, 'registerPage', name, component)
 }
 
-export function registerBlock(type: string, c: BlockComponent): void {
+/** Options of registerBlock(). */
+export interface BlockOptions {
+  /**
+   * Register a default renderer: it is used only while nothing else renders
+   * the type. A fallback never replaces an existing entry, a later plain
+   * `registerBlock(type, C)` replaces it without a warning, and a custom.js
+   * `registerComponent(type, fn)` renderer wins over it. The first-party
+   * blocks (blocks/coreBlocks.tsx) are registered this way.
+   */
+  fallback?: boolean
+}
+
+/**
+ * Render a block type of server-driven blocks pages. Resolution order
+ * (blocks/BlockRenderer.tsx): a plain registration, a custom.js renderer, a
+ * fallback registration, the legacy dashboard renderer.
+ */
+export function registerBlock(type: string, c: BlockComponent, opts: BlockOptions = {}): void {
   const name = requireName('registerBlock', type)
   requireComponent('registerBlock', name, c)
+  if (typeof opts !== 'object' || opts === null) {
+    throw new TypeError(`[aiui sdk] registerBlock('${name}'): options must be an object`)
+  }
+  if (opts.fallback) {
+    // Whatever is registered already (a plugin, or an earlier fallback) stays.
+    if (blocks.has(name)) return
+    blocks.set(name, c)
+    fallbackBlocks.add(name)
+    emit()
+    return
+  }
+  if (fallbackBlocks.delete(name)) {
+    // Overriding a default is the intended use: no "replaces" warning.
+    blocks.set(name, c)
+    emit()
+    return
+  }
   setEntry(blocks, 'registerBlock', name, c)
+}
+
+/** True when the entry getBlock(type) returns was registered with `{ fallback: true }`. */
+export function isFallbackBlock(type: string): boolean {
+  return fallbackBlocks.has(type)
 }
 
 /** Feeds the chat Thread's `tools.by_name` renderers. */

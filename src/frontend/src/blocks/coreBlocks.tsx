@@ -4,6 +4,12 @@
  * Types not listed here (chart, board, gallery, pagination, dialog, popover,
  * html_embed, a2ui_surface, ...) render through LegacyBlockFallback.
  *
+ * These are first-party contributions to the SDK block registry, not a
+ * private table: the module registers every type with
+ * `registerBlock(type, C, { fallback: true })` when the blocks chunk loads,
+ * the call a plugin can make too. A plugin's plain `registerBlock` overrides
+ * a core type, whichever loads first.
+ *
  * Prop names follow the legacy dicts exactly, so existing page handlers work
  * unchanged. Text is always rendered as text (never as HTML).
  */
@@ -28,7 +34,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { Markdown } from '@/markdown/LazyMarkdown'
 import type { ShellPage } from '@/sdk/manifest'
-import type { BlockNode } from '@/sdk/registry'
+import { registerBlock, type BlockNode } from '@/sdk/registry'
 import { BlockList } from './BlockRenderer'
 import { InFrameContext, useBlockContext, useInFrame } from './context'
 import { notify, type NotifyType } from '@/sdk/notify'
@@ -1057,3 +1063,16 @@ export function getCoreBlock(type: string): CoreBlock | undefined {
 }
 
 export const CORE_BLOCK_TYPES: readonly string[] = Object.freeze(Object.keys(CORE).sort())
+
+/**
+ * Put the core blocks into the SDK registry as fallbacks. A type something
+ * else already registered is left alone. Idempotent.
+ */
+// eslint-disable-next-line react-refresh/only-export-components -- registration helper
+export function registerCoreBlocks(): void {
+  for (const type of CORE_BLOCK_TYPES) registerBlock(type, CORE[type], { fallback: true })
+}
+
+// Runs when the (lazy) blocks chunk is evaluated, so the boot bundle never
+// carries these components.
+registerCoreBlocks()

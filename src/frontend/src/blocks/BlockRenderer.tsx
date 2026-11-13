@@ -1,9 +1,11 @@
 /**
- * Renders a BlockNode. Resolution order for `node.type`:
- *   1. a block registered through the SDK (`registerBlock`, plugins)
+ * Renders a BlockNode. Every React renderer, first-party included, comes from
+ * the SDK block registry. Resolution order for `node.type`:
+ *   1. a block registered with `registerBlock(type, C)` (plugins)
  *   2. a custom.js renderer (`window.aiui.registerComponent`), which also
  *      overrides core types on the legacy dashboard
- *   3. a core block (coreBlocks.tsx)
+ *   3. a block registered with `{ fallback: true }`: the core blocks
+ *      (coreBlocks.tsx registers itself when this chunk loads)
  *   4. the legacy dashboard renderer (LegacyBlockFallback)
  * Each block is isolated by an error boundary: one broken block never takes
  * the page down.
@@ -12,8 +14,9 @@ import { Component, createElement, Suspense, type ErrorInfo, type JSX, type Reac
 import { CircleX } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ShellPage } from '@/sdk/manifest'
-import { getBlock, useRegistryVersion, type BlockNode } from '@/sdk/registry'
-import { getCoreBlock } from './coreBlocks'
+import { getBlock, isFallbackBlock, useRegistryVersion, type BlockNode } from '@/sdk/registry'
+// Side effect: registers the core blocks as fallbacks in the SDK registry.
+import './coreBlocks'
 import { hasLegacyCustomComponent, LegacyBlockFallback } from './LegacyBlockFallback'
 
 export interface BlockRendererProps {
@@ -63,20 +66,18 @@ class BlockBoundary extends Component<BoundaryProps, { error: Error | null }> {
 export function BlockRenderer({ node, page }: BlockRendererProps): JSX.Element {
   // Re-render when a plugin registers a block after this page painted.
   useRegistryVersion()
-  const Plugin = getBlock(node.type)
+  const Registered = getBlock(node.type)
   let content: JSX.Element
-  if (Plugin) {
+  if (Registered && !(isFallbackBlock(node.type) && hasLegacyCustomComponent(node.type))) {
+    // createElement: the component comes from a lookup table, not from render.
     content = (
       <Suspense fallback={<Skeleton className="h-16 w-full" />}>
-        {createElement(Plugin, { node, page })}
+        {createElement(Registered, { node, page })}
       </Suspense>
     )
-  } else if (hasLegacyCustomComponent(node.type)) {
-    content = <LegacyBlockFallback node={node} />
   } else {
-    const Core = getCoreBlock(node.type)
-    // createElement: the component comes from a lookup table, not from render.
-    content = Core ? createElement(Core, { node, page }) : <LegacyBlockFallback node={node} />
+    // A custom.js renderer for a core type, or a type nothing is registered for.
+    content = <LegacyBlockFallback node={node} />
   }
   return (
     <BlockBoundary type={node.type} resetKey={node}>

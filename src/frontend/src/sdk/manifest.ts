@@ -84,6 +84,8 @@ export const SDK_FEATURES = [
   'activate',
   // registerSlot(slot, C, { id, order }) and the shell's slot hosts
   'slots.multi',
+  // registerBlock(type, C, { fallback: true })
+  'blocks.fallback',
 ] as const
 export type SdkFeature = (typeof SDK_FEATURES)[number]
 

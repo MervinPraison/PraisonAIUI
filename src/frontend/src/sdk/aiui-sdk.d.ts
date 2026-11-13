@@ -82,8 +82,20 @@ declare module '@aiui/sdk' {
 
   /** Render a page id with a component, or with a loader returning `import()`. */
   export function registerPage(id: string, component: PageComponent | PageLoader): void
-  /** Render a block type on server-driven blocks pages. */
-  export function registerBlock(type: string, component: BlockComponent): void
+  export interface BlockOptions {
+    /**
+     * Register a default renderer, used only while nothing else renders the
+     * type: it never replaces an existing entry, and a later plain
+     * registerBlock (or a custom.js registerComponent) wins over it. Needs
+     * the `blocks.fallback` feature.
+     */
+    fallback?: boolean
+  }
+  /**
+   * Render a block type on server-driven blocks pages. A plain registration
+   * also overrides a built-in block type of the same name.
+   */
+  export function registerBlock(type: string, component: BlockComponent, options?: BlockOptions): void
   /** Render the calls of a tool in the chat thread. */
   export function registerToolRenderer(toolName: string, component: AnyComponent): void
   export interface SlotOptions {
