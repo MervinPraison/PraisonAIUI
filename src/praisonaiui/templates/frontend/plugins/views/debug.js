@@ -23,7 +23,10 @@ export async function render(container) {
 
   // Test WebSocket
   try {
-    const wsUrl = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/api/chat/ws';
+    let wsToken = '';
+    try { wsToken = window.sessionStorage.getItem('aiui_gateway_token') || ''; } catch (e) {}
+    // AUTH_ENFORCE gates WebSocket handshakes too; pass the stored key as ?token=.
+    const wsUrl = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/api/chat/ws' + (wsToken ? '?token=' + encodeURIComponent(wsToken) : '');
     const startTime = Date.now();
     const testWs = new WebSocket(wsUrl);
     await new Promise((resolve, reject) => {

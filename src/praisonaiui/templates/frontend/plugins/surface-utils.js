@@ -89,11 +89,22 @@ function renderEmptySurface(host) {
     '</div>';
 }
 
+// Under AUTH_ENFORCE the server also gates WebSocket handshakes, and browsers
+// cannot set an Authorization header on them: pass the stored key as ?token=.
+function wsAuthQuery() {
+  try {
+    const token = window.sessionStorage.getItem('aiui_gateway_token') || '';
+    return token ? '?token=' + encodeURIComponent(token) : '';
+  } catch (e) {
+    return '';
+  }
+}
+
 export function connectSurfaceWs(host, surfaceId, onMessage) {
   disconnectSurfaceWs();
   const sid = surfaceId || 'main';
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  _previewWs = new WebSocket(proto + '//' + location.host + '/api/chat/ws');
+  _previewWs = new WebSocket(proto + '//' + location.host + '/api/chat/ws' + wsAuthQuery());
   _previewWs.onmessage = (ev) => {
     try {
       const data = JSON.parse(ev.data);

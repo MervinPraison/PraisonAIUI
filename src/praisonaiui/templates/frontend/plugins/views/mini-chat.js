@@ -16,9 +16,20 @@
  *   chat.disconnect();  // on card change / teardown
  */
 
+// Under AUTH_ENFORCE the server also gates WebSocket handshakes, and browsers
+// cannot set an Authorization header on them: pass the stored key as ?token=.
+function wsAuthQuery() {
+  try {
+    const token = window.sessionStorage.getItem('aiui_gateway_token') || '';
+    return token ? '?token=' + encodeURIComponent(token) : '';
+  } catch (e) {
+    return '';
+  }
+}
+
 function wsUrl() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return protocol + '//' + location.host + '/api/chat/ws';
+  return protocol + '//' + location.host + '/api/chat/ws' + wsAuthQuery();
 }
 
 function genSessionId() {
