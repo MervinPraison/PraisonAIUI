@@ -2,7 +2,7 @@ import { Menu, Monitor, Moon, Search, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { isMacPlatform, openCommandPalette, paletteShortcutLabel, preloadCommandPalette } from './palette'
-import { Kbd } from './primitives'
+import { Kbd } from '@/components/ui/kbd'
 
 const MODES = ['system', 'light', 'dark'] as const
 type Mode = (typeof MODES)[number]

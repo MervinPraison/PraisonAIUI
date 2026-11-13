@@ -1,28 +1,13 @@
 /**
- * Shell-local presentational primitives: Kbd, EmptyState, PageSkeleton.
+ * Shell-local presentational primitives: EmptyState and PageSkeleton.
  *
- * WP0b adds the shared shadcn `kbd`, `empty` and `spinner` components in
- * parallel with this package, so the shell cannot import them yet. These are
- * deliberately tiny and API-compatible in spirit; once WP0b is merged they
- * should be swapped for @/components/ui/kbd and @/components/ui/empty (see the
- * WP6 cross-file request) so there is one primitive per concern.
+ * Kbd comes from @/components/ui/kbd. EmptyState is still local: the shared
+ * @/components/ui/empty has a different layout and a non-heading title, so
+ * moving to it needs a visual pass (left to WP8).
  */
-import type { ComponentProps, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-
-export function Kbd({ className, ...props }: ComponentProps<'kbd'>) {
-  return (
-    <kbd
-      data-slot="kbd"
-      className={cn(
-        'pointer-events-none inline-flex h-5 min-w-5 select-none items-center justify-center gap-0.5 rounded-md border border-border bg-muted px-1 font-sans text-xs font-medium text-muted-foreground',
-        className,
-      )}
-      {...props}
-    />
-  )
-}
 
 export function EmptyState({
   icon,
