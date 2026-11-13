@@ -31,7 +31,7 @@ import type { ShellPage } from '@/sdk/manifest'
 import type { BlockNode } from '@/sdk/registry'
 import { BlockList } from './BlockRenderer'
 import { InFrameContext, useBlockContext, useInFrame } from './context'
-import { notify, type NotifyType } from '@/shell/notify'
+import { notify, type NotifyType } from '@/sdk/notify'
 import { arr, display, isRecord, num, safeUrl, str, toBlockNodes } from './normalize'
 
 export type CoreBlockProps = { node: BlockNode; page?: ShellPage }

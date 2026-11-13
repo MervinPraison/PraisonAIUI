@@ -3,15 +3,15 @@
  */
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { ThemeProvider } from 'next-themes'
-import { activateBuiltins } from '@/builtin'
 import { preloadLegacyRuntime } from '@/legacy/runtime'
 import { fetchManifest, type ShellManifest } from '@/sdk/manifest'
+import { useToasterRequested } from '@/sdk/notify'
 import { getPage } from '@/sdk/registry'
+import { activateShell } from '@/sdk/services'
 import { loadManifestPlugins } from '@/sdk/install'
 import { BootError, BootSkeleton, TokenGate } from './BootScreen'
 import { ShellContext, type ShellState } from './context'
 import { needsLegacyRuntime } from './nav'
-import { useToasterRequested } from './notify'
 import { preloadCommandPalette } from './palette'
 import ReactShell from './ReactShell'
 
@@ -89,12 +89,13 @@ function ToasterHost() {
 }
 
 /**
- * The manifest is known: activate the first-party plugins it has pages for
- * (src/builtin) before anything renders, so a deep link to one of their pages
- * resolves on the first paint. Idempotent.
+ * The manifest is known: publish it to the SDK (useManifest) and run the
+ * onActivate hooks, which is how first-party plugins (src/builtin) register
+ * the pages this manifest lists. It happens before anything renders, so a deep
+ * link to one of those pages resolves on the first paint. Idempotent.
  */
 function ready(manifest: ShellManifest): Boot {
-  activateBuiltins(manifest)
+  activateShell(manifest)
   return { status: 'ready', manifest }
 }
 

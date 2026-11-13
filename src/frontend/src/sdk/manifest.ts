@@ -46,8 +46,44 @@ export const SDK_EXPORTS = [
   'subscribe',
   'useRegistryVersion',
   'Markdown',
+  // Shell services (additive, SDK_VERSION stays 1; see SDK_FEATURES).
+  'SDK_FEATURES',
+  'navigate',
+  'notify',
+  'fetchJson',
+  'useManifest',
+  'registerCommand',
+  'onActivate',
 ] as const
 export type SdkExportName = (typeof SDK_EXPORTS)[number]
+
+/**
+ * Capabilities of this SDK build, exported as `SDK_FEATURES`. The SDK grows
+ * additively under one major version, so a plugin that must also run on an
+ * older shell asks before it uses a newer export:
+ *
+ *   import sdk from '@aiui/sdk'
+ *   if (sdk.SDK_FEATURES?.includes('commands')) sdk.registerCommand({...})
+ *
+ * (`SDK_FEATURES` itself is missing on shells older than the services, hence
+ * the `?.`; a named import of an export the shell lacks fails at link time.)
+ * Only ever append to this list.
+ */
+export const SDK_FEATURES = [
+  'pages',
+  'blocks',
+  'tool-renderers',
+  'slots',
+  'views',
+  'markdown',
+  'navigate',
+  'notify',
+  'fetch-json',
+  'manifest',
+  'commands',
+  'activate',
+] as const
+export type SdkFeature = (typeof SDK_FEATURES)[number]
 
 export type ShellPageKind = 'native' | 'react' | 'blocks' | 'legacy' | 'iframe'
 

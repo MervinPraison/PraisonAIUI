@@ -116,6 +116,19 @@ test('shell/ and sdk/ never import a feature module (@/chat-engine, …)', () =>
   assert.deepEqual(bad, [], 'register first-party pages in src/builtin instead')
 })
 
+test('sdk/ never imports the shell (the shell provides its services to the SDK, not the reverse)', () => {
+  const bad: string[] = []
+  for (const f of files) {
+    if (!f.rel.startsWith('sdk/')) continue
+    for (const spec of specifiers(f.code)) {
+      if (targetDir(spec, f.full) === 'shell') bad.push(`${f.rel} imports '${spec}'`)
+    }
+  }
+  assert.deepEqual(bad, [], 'use provideShellHost()/activateShell() in sdk/services.ts')
+  assert.ok(files.some((f) => f.rel === 'sdk/notify.ts'), 'notify lives under sdk/')
+  assert.ok(!files.some((f) => f.rel === 'shell/notify.ts'), 'shell/notify.ts moved to sdk/notify.ts')
+})
+
 test('only the shell may import src/builtin, and only its index', () => {
   const bad: string[] = []
   for (const f of files) {

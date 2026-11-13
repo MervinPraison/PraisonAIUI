@@ -1,12 +1,15 @@
 /**
- * Shell notifications. sonner (and its Toaster) is NOT on the boot path: the
- * first notify() loads it and asks the shell to mount <ShellToaster>.
- * sonner replays active toasts to a Toaster that subscribes later, so a toast
- * raised before the Toaster has mounted is still shown.
+ * Notifications (`notify` in `@aiui/sdk`). sonner (and its Toaster) is NOT on
+ * the boot path: the first notify() loads it and asks the host to mount its
+ * Toaster (the shell renders <ShellToaster> once useToasterRequested() is
+ * true). sonner replays active toasts to a Toaster that subscribes later, so a
+ * toast raised before the Toaster has mounted is still shown.
  *
- * Other modules (plugin loader, chat, legacy bridges) should call notify()
- * rather than importing `sonner` statically, which would pull it into their
- * static closure and leave no Toaster mounted to show the toast.
+ * Everything (plugin loader, blocks, built-ins, plugins) calls notify() rather
+ * than importing `sonner` statically, which would pull it into their static
+ * closure and leave no Toaster mounted to show the toast.
+ *
+ * This module lives in sdk/ so the SDK never imports the shell.
  */
 import { useSyncExternalStore } from 'react'
 import type { ExternalToast } from 'sonner'
@@ -28,14 +31,14 @@ function subscribe(fn: () => void) {
 
 const getRequested = () => toasterRequested
 
-/** Ask the shell to mount the (lazy) Toaster. */
+/** Ask the host to mount the (lazy) Toaster. */
 export function requestToaster(): void {
   if (toasterRequested) return
   toasterRequested = true
   for (const fn of [...listeners]) fn()
 }
 
-/** True once anything asked for a toast; the shell then renders <ShellToaster>. */
+/** True once anything asked for a toast; the host then renders its Toaster. */
 export function useToasterRequested(): boolean {
   return useSyncExternalStore(subscribe, getRequested, getRequested)
 }
@@ -47,7 +50,7 @@ export function notify(message: string, opts: NotifyOptions = {}): Promise<strin
   return import('sonner').then(
     ({ toast }) => (type === 'default' ? toast(message, rest) : toast[type](message, rest)),
     (err: unknown) => {
-      console.warn('[aiui shell] could not load notifications', err, message)
+      console.warn('[aiui sdk] could not load notifications', err, message)
       return undefined
     },
   )

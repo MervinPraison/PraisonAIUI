@@ -4,10 +4,18 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { activateBuiltins, BUILTIN_PLUGINS, isBuiltinPage, resetBuiltinsForTests, type BuiltinPlugin } from '@/builtin'
+import {
+  activateBuiltins,
+  BUILTIN_PLUGINS,
+  installBuiltins,
+  isBuiltinPage,
+  resetBuiltinsForTests,
+  type BuiltinPlugin,
+} from '@/builtin'
 import { sdkApi } from '@/sdk/install'
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
 import { getPage } from '@/sdk/registry'
+import { activateShell, resetServicesForTests } from '@/sdk/services'
 import { PageView } from '@/shell/PageView'
 
 const g = globalThis as unknown as Record<string, unknown>
@@ -131,10 +139,15 @@ test('an app page that reuses the id keeps its own renderer', () => {
   assert.equal(getPage('chat'), undefined, 'the React chat does not shadow the app page')
 })
 
-test('with chat in the manifest, builtin.chat registers it through the SDK registry', () => {
+test('installBuiltins queues on onActivate: nothing registers until the shell has the manifest', () => {
   resetBuiltinsForTests()
+  resetServicesForTests()
+  installBuiltins()
+  installBuiltins() // idempotent
+  assert.equal(getPage('chat'), undefined, 'not registered at install time')
   const m = manifest([page('overview'), page('chat')])
-  assert.deepEqual(activateBuiltins(m), ['builtin.chat'])
-  assert.ok(getPage('chat'), 'chat resolves through the registry')
+  activateShell(m)
+  assert.ok(getPage('chat'), 'builtin.chat registered the page when the shell activated')
   assert.doesNotMatch(renderPage('chat', m), /Page not found/)
+  assert.deepEqual(activateBuiltins(m), [], 'already active')
 })

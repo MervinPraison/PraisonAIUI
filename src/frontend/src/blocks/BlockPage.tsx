@@ -17,7 +17,7 @@ import type { ShellPage } from '../sdk/manifest'
 import type { BlockNode } from '../sdk/registry'
 import { BlockList } from './BlockRenderer'
 import { BlockContext, type BlockActionRequest, type BlockContextValue } from './context'
-import { notify } from '@/shell/notify'
+import { notify } from '@/sdk/notify'
 import { hasBlockTree, isRecord, str, toBlockTree } from './normalize'
 
 type PageState =

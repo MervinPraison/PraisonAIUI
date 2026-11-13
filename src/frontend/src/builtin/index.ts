@@ -57,7 +57,23 @@ export function activateBuiltins(
   return done
 }
 
-/** Test hook: forget which built-ins were activated. */
+let installed = false
+
+/**
+ * Queue the built-ins on the SDK's `onActivate` hook, the same hook a plugin
+ * module uses. The shell runs the hooks when it has the manifest
+ * (activateShell), before the first render. Idempotent.
+ */
+export function installBuiltins(sdk: BuiltinSdk = sdkApi): void {
+  if (installed) return
+  installed = true
+  sdk.onActivate(({ manifest }) => {
+    activateBuiltins(manifest, sdk)
+  })
+}
+
+/** Test hook: forget which built-ins were installed and activated. */
 export function resetBuiltinsForTests(): void {
   activated.clear()
+  installed = false
 }

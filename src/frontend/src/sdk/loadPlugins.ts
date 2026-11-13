@@ -17,7 +17,7 @@
  *
  * installSdk() must have run first (modules import `@aiui/sdk`).
  */
-import { notify } from '@/shell/notify'
+import { notify } from './notify'
 import {
   getBlock,
   getPage,
