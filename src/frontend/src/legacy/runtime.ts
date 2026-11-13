@@ -156,19 +156,56 @@ function installCompatShims() {
   }
 }
 
+/**
+ * Number of failed `import()` calls of dashboard.js so far. Browsers cache a
+ * failed module fetch under its URL for the life of the document (Chromium's
+ * module map does), so importing the same URL again rejects at once without a
+ * request. Each retry therefore adds `r=<n>` to get a fresh fetch.
+ */
+let failedImports = 0
+/** The settled import of dashboard.js. Kept after success so the module is only evaluated once. */
+let modulePromise: Promise<LegacyModule> | null = null
+
 function legacyModuleUrl(): string {
   // The build id busts the browser's heuristic cache after an upgrade. Nothing
   // else imports dashboard.js in this mode, so it is still one module instance.
   const build = window.__AIUI_BUILD__
-  return build ? `/plugins/dashboard.js?v=${encodeURIComponent(String(build))}` : '/plugins/dashboard.js'
+  const params: string[] = []
+  if (build) params.push(`v=${encodeURIComponent(String(build))}`)
+  // Only after a failed import: a new URL after a successful one would load a
+  // second dashboard.js instance (two runtimes, two sets of window hooks).
+  if (failedImports > 0) params.push(`r=${failedImports}`)
+  return params.length ? `/plugins/dashboard.js?${params.join('&')}` : '/plugins/dashboard.js'
 }
 
-/** Import and boot the legacy runtime once. A failed attempt is retried on the next call. */
+/**
+ * Import dashboard.js once. A rejected import (network error, 5xx, a module
+ * that throws while evaluating) is forgotten and the next call fetches a new
+ * URL; a successful one is reused for the rest of the page's life.
+ */
+function importLegacyModule(): Promise<LegacyModule> {
+  if (!modulePromise) {
+    const attempt = import(/* @vite-ignore */ legacyModuleUrl()) as Promise<LegacyModule>
+    modulePromise = attempt
+    attempt.catch(() => {
+      if (modulePromise !== attempt) return
+      failedImports += 1
+      modulePromise = null
+    })
+  }
+  return modulePromise
+}
+
+/**
+ * Import and boot the legacy runtime once. A failed attempt is retried on the
+ * next call (LegacyViewHost's Retry, the next legacy page): a failed import
+ * with a fresh URL, a failed boot on the module already loaded.
+ */
 export function ensureLegacyRuntime(): Promise<LegacyRuntime> {
   if (!runtimePromise) {
     const attempt = (async (): Promise<LegacyRuntime> => {
       trackPageChanges()
-      const mod = (await import(/* @vite-ignore */ legacyModuleUrl())) as LegacyModule
+      const mod = await importLegacyModule()
       if (typeof mod.initHostRuntime !== 'function' || typeof mod.mountView !== 'function') {
         throw new Error('/plugins/dashboard.js has no host runtime (initHostRuntime/mountView)')
       }

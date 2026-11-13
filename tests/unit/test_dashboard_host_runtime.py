@@ -33,6 +33,24 @@ RUNTIME_TS = ROOT / "src" / "frontend" / "src" / "legacy" / "runtime.ts"
 NODE = shutil.which("node")
 
 
+def _node_has_register_hooks() -> bool:
+    if NODE is None:
+        return False
+    proc = subprocess.run(
+        [
+            NODE,
+            "-e",
+            "process.exit(typeof require('node:module').registerHooks === 'function' ? 0 : 1)",
+        ],
+        capture_output=True,
+        timeout=30,
+    )
+    return proc.returncode == 0
+
+
+_HAS_REGISTER_HOOKS = _node_has_register_hooks()
+
+
 def _src() -> str:
     return DASHBOARD_JS.read_text(encoding="utf-8")
 
@@ -157,7 +175,13 @@ class TestLegacyPathUnchanged:
         assert "BUILTIN_VIEWS[pageId] + '?v=' + Date.now()" in _function_body("selectPage")
         body = _code_only(_function_body("_mountViewBody"))
         assert "Date.now()" not in body
-        assert "window.__AIUI_BUILD__" in body
+        assert "_importHostView(pageId)" in body
+        url = _code_only(_function_body("_hostViewUrl"))
+        assert "Date.now()" not in url
+        assert "window.__AIUI_BUILD__" in url
+        # A failed import is retried under a new URL (browsers cache the failure).
+        assert "'&r=' + failures" in _function_body("_hostViewUrl")
+        assert "_hostViewImportFailures[pageId]" in _function_body("_importHostView")
 
 
 class TestHostModeTheming:
@@ -209,7 +233,10 @@ class TestApprovalUi:
 class TestRuntimeLoader:
     def test_runtime_imports_dashboard_with_build_id_and_host_options(self):
         ts = RUNTIME_TS.read_text(encoding="utf-8")
-        assert "/plugins/dashboard.js?v=${encodeURIComponent(String(build))}" in ts
+        assert "v=${encodeURIComponent(String(build))}" in ts
+        assert "`/plugins/dashboard.js?${params.join('&')}`" in ts
+        # Retry suffix only after a failed import (never a 2nd module instance).
+        assert "if (failedImports > 0) params.push(`r=${failedImports}`)" in ts
         assert "window.__AIUI_BUILD__" in ts
         assert re.search(r"palette:\s*false", ts)
         assert re.search(r"approvalUi:\s*'event-only'", ts)
@@ -400,8 +427,11 @@ const routes = {
   '/api/dashboard/plugins': { plugins: [] },
   '/api/approvals/pending': { approvals: [{ id: 'a1', tool_name: 'shell' }, { id: 'a2', tool_name: 'write' }] },
 };
-globalThis.fetch = async (url) => {
-  const path = new URL(String(url), 'http://aiui.test/').pathname;
+const fetchCalls = [];
+globalThis.fetch = async (url, init) => {
+  const auth = init && init.headers && typeof init.headers.get === 'function' ? init.headers.get('Authorization') : null;
+  fetchCalls.push({ url: url instanceof URL ? url.href : String(url && url.url ? url.url : url), auth });
+  const path = new URL(url instanceof URL ? url.href : String(url && url.url ? url.url : url), 'http://aiui.test/').pathname;
   const data = routes[path];
   return { ok: Boolean(data), status: data ? 200 : 404, json: async () => data ?? {} };
 };
@@ -493,6 +523,129 @@ if (scenario === 'host') {
   const navCount = navs.length;
   window.aiui.registerView('v1', () => {});
   out.lateRegisterNavigated = navs.length !== navCount;
+} else if (scenario === 'viewretry') {
+  // Browsers keep a failed module fetch in the module map for the document:
+  // the same URL rejects again without a request. These in-thread hooks do
+  // the same for /plugins/views/*, so a retry only works under a new URL.
+  const { registerHooks } = await import('node:module');
+  const PREFIX = 'file:///aiui-test';
+  const failed = new Set();
+  let failNext = true;
+  out.viewRequests = [];
+  globalThis.__viewEvals = 0;
+  registerHooks({
+    resolve(specifier, context, next) {
+      if (specifier.startsWith('/plugins/views/')) return { url: PREFIX + specifier, shortCircuit: true };
+      return next(specifier, context);
+    },
+    load(url, context, next) {
+      if (!url.startsWith(PREFIX)) return next(url, context);
+      const path = url.slice(PREFIX.length);
+      out.viewRequests.push(path);
+      if (failed.has(path)) throw new Error('cached failure ' + path);
+      if (failNext) { failNext = false; failed.add(path); throw new Error('HTTP 500 ' + path); }
+      return {
+        format: 'module',
+        shortCircuit: true,
+        source: 'globalThis.__viewEvals += 1; export function render(el) { el.textContent = "overview view"; }',
+      };
+    },
+  });
+  window.__AIUI_BUILD__ = 'b1';
+  const mod = await import(pathToFileURL(dashPath).href);
+  await mod.initHostRuntime({ navigate: () => Promise.resolve(), palette: false, approvalUi: 'event-only' });
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const mountOnce = async () => {
+    const el = document.createElement('div'); host.appendChild(el);
+    const cleanup = await mod.mountView('overview', el, {});
+    const text = el.textContent || '';
+    cleanup(); el.remove();
+    return text;
+  };
+  out.first = await mountOnce();   // import fails: the generic viewer stands in
+  out.second = await mountOnce();  // a new URL: the view loads
+  out.third = await mountOnce();   // cached in VIEW_REGISTRY: no import at all
+  out.viewEvals = globalThis.__viewEvals;
+  // Ids that are Object.prototype keys are not built-in views.
+  const el = document.createElement('div'); host.appendChild(el);
+  await mod.mountView('constructor', el, {});
+  out.requestsAfterProtoId = out.viewRequests.length;
+} else if (scenario === 'staleremount') {
+  // The same page re-mounts while the first mount's render() is still in
+  // flight (a late registerView, or leaving and coming back quickly). The
+  // view keeps module-level state, as legacy views do (intervals, sockets).
+  const mod = await import(pathToFileURL(dashPath).href);
+  await mod.initHostRuntime({ navigate: () => Promise.resolve(), palette: false, approvalUi: 'event-only' });
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const calls = [];
+  let moduleState = null;
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  let renders = 0;
+  window.aiui.registerView('v5', async (el) => {
+    const name = renders++ === 0 ? 'A' : 'B';
+    moduleState = name; // set up shared state, then wait for data
+    if (name === 'A') await gate;
+    return () => calls.push('returned:' + name);
+  }, () => { calls.push('module'); moduleState = null; });
+  const a = document.createElement('div'); host.appendChild(a);
+  const acA = new AbortController();
+  const pendingA = mod.mountView('v5', a, { signal: acA.signal });
+  await tick();
+  acA.abort(); a.remove();
+  const b = document.createElement('div'); host.appendChild(b);
+  const cleanupB = await mod.mountView('v5', b, {});
+  release();
+  await pendingA;
+  out.callsAfterStale = calls.slice();
+  out.stateAfterStale = moduleState;
+  cleanupB();
+  out.callsAfterLive = calls.slice();
+  out.stateAfterLive = moduleState;
+  // A stale mount that finishes after the newer one is gone still cleans up.
+  let release2;
+  const gate2 = new Promise((r) => { release2 = r; });
+  const calls2 = [];
+  window.aiui.registerView('v6', async () => { await gate2; return () => calls2.push('returned'); }, () => calls2.push('module'));
+  const c = document.createElement('div'); host.appendChild(c);
+  const acC = new AbortController();
+  const pendingC = mod.mountView('v6', c, { signal: acC.signal });
+  await tick();
+  acC.abort();
+  release2();
+  await pendingC;
+  out.lateStaleCalls = calls2.slice();
+} else if (scenario === 'bootretry') {
+  // The first boot rejects (the style tag cannot be inserted); the next call boots again.
+  const realInsert = document.head.insertBefore.bind(document.head);
+  let failInsert = true;
+  document.head.insertBefore = (c, ref) => {
+    if (failInsert) { failInsert = false; throw new Error('insert failed (simulated)'); }
+    return realInsert(c, ref);
+  };
+  const mod = await import(pathToFileURL(dashPath).href);
+  const opts = { navigate: () => Promise.resolve(), palette: false, approvalUi: 'event-only' };
+  const first = mod.initHostRuntime(opts);
+  out.firstRejected = await first.then(() => false, () => true);
+  const second = mod.initHostRuntime(opts);
+  out.newPromise = second !== first;
+  out.pages = (await second).pages.map((p) => p.id);
+  out.samePromiseAfterSuccess = mod.initHostRuntime(opts) === second;
+  out.docKeydown = counts.docKeydown;
+  out.styleTags = document.head.children.filter((c) => c.id === 'aiui-legacy-style').length;
+} else if (scenario === 'authfetch') {
+  sessionStorage.setItem('aiui_gateway_token', 'secret-token');
+  const mod = await import(pathToFileURL(dashPath).href);
+  await mod.initHostRuntime({ navigate: () => Promise.resolve(), palette: false, approvalUi: 'event-only' });
+  fetchCalls.length = 0;
+  await window.fetch(new URL('https://evil.test/collect'));
+  await window.fetch('https://evil.test/collect');
+  await window.fetch({ url: 'https://evil.test/collect', headers: undefined });
+  await window.fetch(new URL('/api/pages', location.href));
+  await window.fetch('/api/pages');
+  out.fetchCalls = fetchCalls.slice();
 } else if (scenario === 'defaults') {
   // showApprovalModal looks its buttons up by id in markup this fake DOM does
   // not parse; hand it detached stand-ins.
@@ -592,6 +745,55 @@ class TestHostRuntimeBehaviour:
     def test_late_register_view_does_not_navigate(self, host_run):
         assert host_run["lateRegisterNavigated"] is False
 
+    def test_stale_mount_leaves_module_state_to_the_live_mount(self, tmp_path):
+        # Regression: a mount aborted while render() was in flight ran the
+        # view's module-level cleanup when it finished, tearing down the state
+        # of the newer mount of the same page that was already on screen.
+        out = _run_node(tmp_path, "staleremount")
+        assert out["callsAfterStale"] == ["returned:A"]
+        assert out["stateAfterStale"] == "B"
+        assert out["callsAfterLive"] == ["returned:A", "returned:B", "module"]
+        assert out["stateAfterLive"] is None
+        # With no other live mount, a stale mount still runs both cleanups.
+        assert out["lateStaleCalls"] == ["returned", "module"]
+
+    def test_failed_view_import_retries_under_a_new_url(self, tmp_path):
+        # Regression: a browser caches a failed module fetch per URL, so
+        # importing the same ?v=<build> URL again never recovered.
+        if not _HAS_REGISTER_HOOKS:
+            pytest.skip("node:module registerHooks() needs Node >= 22.15")
+        out = _run_node(tmp_path, "viewretry")
+        assert out["first"] != "overview view"  # generic viewer fallback
+        assert out["second"] == "overview view"
+        assert out["third"] == "overview view"
+        assert out["viewRequests"] == [
+            "/plugins/views/overview.js?v=b1",
+            "/plugins/views/overview.js?v=b1&r=1",
+        ]
+        assert out["viewEvals"] == 1  # never a second module instance
+        assert out["requestsAfterProtoId"] == 2
+
+    def test_rejected_boot_is_retried(self, tmp_path):
+        out = _run_node(tmp_path, "bootretry")
+        assert out["firstRejected"] is True
+        assert out["newPromise"] is True
+        assert out["pages"] == ["v1", "metrics"]
+        assert out["samePromiseAfterSuccess"] is True
+        assert out["docKeydown"] == 1  # session-search Escape bound once, not per boot
+        assert out["styleTags"] == 1
+
+    def test_auth_fetch_keeps_the_token_same_origin(self, tmp_path):
+        # Regression: fetch(new URL(cross-origin)) read input.url ('' for a
+        # URL object), counted as same-origin and sent the Bearer token.
+        calls = _run_node(tmp_path, "authfetch")["fetchCalls"]
+        assert [c["auth"] for c in calls] == [
+            None,
+            None,
+            None,
+            "Bearer secret-token",
+            "Bearer secret-token",
+        ]
+
     def test_defaults_keep_legacy_palette_and_modal(self, tmp_path):
         out = _run_node(tmp_path, "defaults")
         assert out["docKeydown"] == 2  # palette Ctrl+K + session-search Escape
@@ -632,33 +834,182 @@ def test_user_css_beats_the_bridge_in_chromium(host_run):
       const v = (n) => s.getPropertyValue(n).trim();
       return { accent: v('--db-accent'), bg: v('--db-bg'), text: v('--db-text'), fg: v('--foreground'),
                sidebarW: v('--db-sidebar-w'), pFill: v('--db-p-fill') }; }"""
-    try:
-        with sync_api.sync_playwright() as p:
-            try:
-                browser = p.chromium.launch()
-            except Exception as exc:  # browser binaries not installed
-                pytest.skip(f"chromium unavailable: {exc}")
-            try:
-                page = browser.new_page()
-                for user_first in (True, False):
-                    page.set_content(page_html(user_first, dark=False))
-                    got = page.evaluate(probe)
-                    assert got["accent"] == "#10b981", (user_first, got)
-                    assert got["bg"] == "#000001", (user_first, got)
-                    assert got["sidebarW"] == "260px"
-                # Without user CSS the bridge maps onto the tokens, in both modes.
-                for dark in (False, True):
-                    cls = ' class="dark"' if dark else ""
-                    page.set_content(
-                        f'<!doctype html><html data-aiui-shell="react"{cls}><head>'
-                        f'<style id="aiui-legacy-style">{host_style}</style>'
-                        f"<style>{_TOKENS}</style><style>{bridge}</style></head><body></body></html>"
-                    )
-                    got = page.evaluate(probe)
-                    assert got["bg"] == ("#0c0c0e" if dark else "#fafafa"), got
-                    assert got["text"] == got["fg"], got
-                    assert got["accent"] and "#71717a" not in got["accent"], got
-            finally:
-                browser.close()
-    except sync_api.Error as exc:  # pragma: no cover - environment specific
-        pytest.skip(f"playwright unavailable: {exc}")
+    with sync_api.sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:  # browser binaries not installed
+            pytest.skip(f"chromium unavailable: {exc}")
+        try:
+            page = browser.new_page()
+            for user_first in (True, False):
+                page.set_content(page_html(user_first, dark=False))
+                got = page.evaluate(probe)
+                assert got["accent"] == "#10b981", (user_first, got)
+                assert got["bg"] == "#000001", (user_first, got)
+                assert got["sidebarW"] == "260px"
+            # Without user CSS the bridge maps onto the tokens, in both modes.
+            for dark in (False, True):
+                cls = ' class="dark"' if dark else ""
+                page.set_content(
+                    f'<!doctype html><html data-aiui-shell="react"{cls}><head>'
+                    f'<style id="aiui-legacy-style">{host_style}</style>'
+                    f"<style>{_TOKENS}</style><style>{bridge}</style></head><body></body></html>"
+                )
+                got = page.evaluate(probe)
+                assert got["bg"] == ("#0c0c0e" if dark else "#fafafa"), got
+                assert got["text"] == got["fg"], got
+                assert got["accent"] and "#71717a" not in got["accent"], got
+        finally:
+            browser.close()
+
+
+# ── LegacyViewHost Retry in a real browser ────────────────────────────
+
+FRONTEND = ROOT / "src" / "frontend"
+
+_BUNDLE_SCRIPT = r"""
+const { createRequire } = require('node:module');
+const path = require('node:path');
+const [, , frontend, outfile] = process.argv;
+const esbuild = createRequire(path.join(frontend, 'package.json'))('esbuild');
+esbuild.build({
+  stdin: {
+    contents: `
+      import { createElement } from 'react'
+      import { createRoot } from 'react-dom/client'
+      import { LegacyViewHost } from '@/legacy/LegacyViewHost'
+      createRoot(document.getElementById('app')).render(
+        createElement(LegacyViewHost, { pageId: 'overview', page: { id: 'overview', title: 'Overview', kind: 'legacy' } }),
+      )
+    `,
+    resolveDir: frontend,
+    loader: 'tsx',
+    sourcefile: 'retry-entry.tsx',
+  },
+  outfile,
+  bundle: true,
+  format: 'esm',
+  platform: 'browser',
+  target: 'es2022',
+  tsconfig: path.join(frontend, 'tsconfig.app.json'),
+  alias: { '@': path.join(frontend, 'src') },
+  loader: { '.css': 'empty' },
+  jsx: 'automatic',
+  define: {
+    'process.env.NODE_ENV': '"production"',
+    'import.meta.env': JSON.stringify({ MODE: 'production', DEV: false, PROD: true, SSR: false, BASE_URL: '/' }),
+  },
+  logLevel: 'error',
+}).catch(() => process.exit(1));
+"""
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_retry_recovers_after_a_failed_dashboard_load_in_chromium(tmp_path):
+    """500 then 200 for dashboard.js (and for a view module), then Retry.
+
+    Chromium caches a failed module fetch per URL, so a retry must import a
+    new URL. Regression for the Retry button that never left data-status=error.
+    """
+    if not (FRONTEND / "node_modules" / "esbuild").is_dir():
+        pytest.skip("frontend node_modules not installed (cd src/frontend && npm ci)")
+    sync_api = pytest.importorskip("playwright.sync_api")
+    script = tmp_path / "bundle.cjs"
+    script.write_text(_BUNDLE_SCRIPT, encoding="utf-8")
+    bundle = tmp_path / "app.js"
+    proc = subprocess.run(
+        [NODE, str(script), str(FRONTEND), str(bundle)], capture_output=True, text=True, timeout=120
+    )
+    assert proc.returncode == 0, proc.stderr
+    app_js = bundle.read_text(encoding="utf-8")
+    dashboard_js = DASHBOARD_JS.read_text(encoding="utf-8")
+    html = (
+        '<!doctype html><html data-aiui-shell="react"><head><meta charset="utf-8"></head>'
+        '<body><div id="app"></div><script>window.__AIUI_BUILD__ = "e2e";</script>'
+        '<script type="module" src="/app.js"></script></body></html>'
+    )
+    api = {
+        "/api/auth/status": {"authenticated": True, "mode": "standalone"},
+        "/api/pages": {"pages": [{"id": "overview", "title": "Overview"}]},
+        "/api/dashboard/plugins": {"plugins": []},
+    }
+    requests: dict[str, list[str]] = {"dashboard": [], "view": []}
+    fail_next = {"dashboard": True, "view": True}
+
+    def handle(route):
+        from urllib.parse import urlsplit
+
+        parts = urlsplit(route.request.url)
+        path, full = parts.path, parts.path + (f"?{parts.query}" if parts.query else "")
+        if path == "/":
+            return route.fulfill(status=200, content_type="text/html", body=html)
+        if path == "/app.js":
+            return route.fulfill(status=200, content_type="text/javascript", body=app_js)
+        for key, file_path, body in (
+            ("dashboard", "/plugins/dashboard.js", dashboard_js),
+            (
+                "view",
+                "/plugins/views/overview.js",
+                "export function render(el) { el.innerHTML = '<p id=\"ov\">overview view</p>'; }",
+            ),
+        ):
+            if path == file_path:
+                requests[key].append(full)
+                if fail_next[key]:
+                    fail_next[key] = False
+                    return route.fulfill(status=500, body="boom")
+                return route.fulfill(status=200, content_type="text/javascript", body=body)
+        if path in api:
+            return route.fulfill(
+                status=200, content_type="application/json", body=json.dumps(api[path])
+            )
+        return route.fulfill(status=404, content_type="application/json", body="{}")
+
+    host = ".aiui-legacy-host"
+    with sync_api.sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:  # browser binaries not installed
+            pytest.skip(f"chromium unavailable: {exc}")
+        try:
+            page = browser.new_page()
+            errors: list[str] = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.route("http://aiui.test/**", handle)
+            page.goto("http://aiui.test/")
+            page.wait_for_selector(f'{host}[data-status="error"]', state="attached", timeout=15000)
+            assert requests["dashboard"] == ["/plugins/dashboard.js?v=e2e"]
+
+            # The server is back: Retry loads the runtime under a new URL.
+            page.get_by_role("button", name="Retry").click()
+            page.wait_for_selector(f'{host}[data-status="ready"]', state="attached", timeout=15000)
+            assert requests["dashboard"] == [
+                "/plugins/dashboard.js?v=e2e",
+                "/plugins/dashboard.js?v=e2e&r=1",
+            ]
+            # The view module's own first fetch failed: the generic viewer stood in.
+            assert requests["view"] == ["/plugins/views/overview.js?v=e2e"]
+            assert page.locator("#ov").count() == 0
+
+            # The next mount of the page fetches the view again and renders it.
+            page.evaluate(
+                "() => window.dispatchEvent(new CustomEvent('aiui:view-registered', { detail: { pageId: 'overview' } }))"
+            )
+            page.wait_for_selector("#ov", timeout=15000)
+            page.wait_for_selector(f'{host}[data-status="ready"]', state="attached", timeout=15000)
+            assert requests["view"] == [
+                "/plugins/views/overview.js?v=e2e",
+                "/plugins/views/overview.js?v=e2e&r=1",
+            ]
+
+            # Loaded once: later mounts never import dashboard.js or the view again.
+            page.evaluate(
+                "() => window.dispatchEvent(new CustomEvent('aiui:view-registered', { detail: { pageId: 'overview' } }))"
+            )
+            page.wait_for_selector("#ov", timeout=15000)
+            assert len(requests["dashboard"]) == 2
+            assert len(requests["view"]) == 2
+            assert page.locator(".aiui-legacy-mount").count() == 1
+            assert errors == []
+        finally:
+            browser.close()

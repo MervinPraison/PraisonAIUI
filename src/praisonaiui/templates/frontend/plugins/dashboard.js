@@ -1366,7 +1366,11 @@ function installAuthFetch() {
     const token = getStoredToken();
     if (!token) return nativeFetch(input, init);
 
-    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    // A URL object has no .url; without .href it would read as '' (same
+    // origin) and the token would go to any host.
+    const url = typeof input === 'string' ? input
+      : (typeof URL !== 'undefined' && input instanceof URL) ? input.href
+      : (input && input.url) || '';
     if (!isSameOrigin(url)) return nativeFetch(input, init);
 
     const opts = { ...(init || {}) };
@@ -3671,10 +3675,12 @@ function _initHostApprovalEvents() {
 }
 
 let _hostRuntimeReady = null;
+let _hostKeyBindingsInstalled = false;
 
 /**
  * Boot the legacy runtime for a host that owns the page (the React shell).
  * Runs once; later calls only update `navigate` and return the same promise.
+ * If the boot rejects, the next call boots again (key bindings stay single).
  *
  * opts.navigate(pageId)  every legacy selectPage() call goes here instead.
  * opts.palette           false: do not install the legacy Ctrl+K palette and
@@ -3689,11 +3695,14 @@ function initHostRuntime(opts = {}) {
   if (_hostRuntimeReady) return _hostRuntimeReady;
   _hostMode = true;
   const approvalUi = (opts.approvalUi === 'event-only' || opts.approvals === false) ? 'event-only' : 'modal';
-  if (opts.palette === false) _restoreShellPaletteHooks();
-  else initCommandPalette();
-  initSessionSearch(); // Escape for the session search overlay (window.aiui.openSessionSearch)
+  if (!_hostKeyBindingsInstalled) {
+    _hostKeyBindingsInstalled = true;
+    if (opts.palette === false) _restoreShellPaletteHooks();
+    else initCommandPalette();
+    initSessionSearch(); // Escape for the session search overlay (window.aiui.openSessionSearch)
+  }
 
-  _hostRuntimeReady = (async () => {
+  const ready = (async () => {
     installAuthFetch();
     if (!document.getElementById('aiui-legacy-style')) {
       const style = document.createElement('style');
@@ -3718,7 +3727,9 @@ function initHostRuntime(opts = {}) {
     }
     return { pages: pagesData.slice() };
   })();
-  return _hostRuntimeReady;
+  _hostRuntimeReady = ready;
+  ready.catch(() => { if (_hostRuntimeReady === ready) _hostRuntimeReady = null; });
+  return ready;
 }
 
 // The legacy record for a page (it carries api_endpoint and other legacy
@@ -3753,16 +3764,43 @@ function _mountHostToolbar(pageId, page, container) {
   return row;
 }
 
-// One resolution pass for mountView(); resolves to the view's cleanup (a
-// no-op when nothing is left to clean up).
+// Failed imports per built-in view in host mode. A browser keeps a failed
+// module fetch in its module map for the life of the document, so importing
+// the same URL again rejects without a request; after a failure the next
+// mount adds `&r=<n>` to fetch again. A successful import is cached in
+// VIEW_REGISTRY, so a view module is never loaded twice.
+const _hostViewImportFailures = Object.create(null);
+
+function _hostViewUrl(pageId) {
+  const build = window.__AIUI_BUILD__ == null ? '' : String(window.__AIUI_BUILD__);
+  const failures = _hostViewImportFailures[pageId] || 0;
+  return BUILTIN_VIEWS[pageId] + '?v=' + encodeURIComponent(build) + (failures ? '&r=' + failures : '');
+}
+
+async function _importHostView(pageId) {
+  try {
+    return await import(_hostViewUrl(pageId));
+  } catch (e) {
+    _hostViewImportFailures[pageId] = (_hostViewImportFailures[pageId] || 0) + 1;
+    throw e;
+  }
+}
+
+// Mounts per page id that have started and not yet been cleaned up. A view's
+// module-level cleanup export is shared by every mount of that page, so it
+// only runs when the last live mount of the page goes.
+const _hostLiveMounts = Object.create(null);
+
+// One resolution pass for mountView(). Resolves to the view's two cleanups,
+// kept apart: `instance` is what render() returned (it belongs to this mount),
+// `module` is the view's module-level cleanup export (it tears down state the
+// module shares across every mount of the page). Either may be null.
 async function _mountViewBody(pageId, container, page, stale) {
-  const combine = (returned, moduleCleanup) => {
-    const fns = [];
-    if (typeof returned === 'function') fns.push(returned);
-    if (typeof moduleCleanup === 'function' && moduleCleanup !== returned) fns.push(moduleCleanup);
-    return () => fns.forEach((fn) => { try { fn(); } catch (e) { console.warn(`[AIUI] cleanup '${pageId}':`, e); } });
-  };
-  const noop = () => {};
+  const combine = (returned, moduleCleanup) => ({
+    instance: typeof returned === 'function' ? returned : null,
+    module: typeof moduleCleanup === 'function' && moduleCleanup !== returned ? moduleCleanup : null,
+  });
+  const noop = { instance: null, module: null };
 
   // Priority 1: registered view (plugins, custom.js, cached built-ins)
   const view = VIEW_REGISTRY[pageId];
@@ -3775,10 +3813,9 @@ async function _mountViewBody(pageId, container, page, stale) {
 
   // Priority 2: built-in view module. The build id (not Date.now(), as in
   // selectPage) keeps one module instance per build across mounts.
-  if (BUILTIN_VIEWS[pageId]) {
+  if (Object.prototype.hasOwnProperty.call(BUILTIN_VIEWS, pageId)) {
     try {
-      const build = window.__AIUI_BUILD__ == null ? '' : String(window.__AIUI_BUILD__);
-      const mod = await import(BUILTIN_VIEWS[pageId] + '?v=' + encodeURIComponent(build));
+      const mod = await _importHostView(pageId);
       if (typeof mod.render === 'function') {
         if (stale()) return noop;
         const returned = await mod.render(container);
@@ -3800,7 +3837,9 @@ async function _mountViewBody(pageId, container, page, stale) {
  * Same resolution order as selectPage(): registered view, built-in view
  * module, then the generic data viewer. Unlike selectPage():
  * - a cleanup that render() returns is honoured as well as the module's
- *   cleanup export, and the combined cleanup runs at most once;
+ *   cleanup export, and the combined cleanup runs at most once. The module's
+ *   cleanup is skipped while another mount of the same page is live, so a
+ *   stale mount that finishes late never tears down the newer mount's state;
  * - if the container is detached or opts.signal aborts while the view loads,
  *   the view is cleaned up at once and a no-op is returned.
  * opts.page is the host's page record (manifest shape), used when /api/pages
@@ -3814,10 +3853,19 @@ async function mountView(pageId, container, opts = {}) {
   activePageId = pageId;
   container.setAttribute('data-page', pageId);
 
+  // This mount counts as live until its cleanup runs (see _hostLiveMounts).
+  const live = _hostLiveMounts[pageId] || (_hostLiveMounts[pageId] = new Set());
+  const token = {};
+  live.add(token);
+  const run = (fn) => { if (fn) { try { fn(); } catch (e) { console.warn(`[AIUI] cleanup '${pageId}':`, e); } } };
+
   const toolbar = _mountHostToolbar(pageId, page, container);
-  let viewCleanup = () => {};
+  let parts = { instance: null, module: null };
   try {
-    viewCleanup = await _mountViewBody(pageId, container, page, stale);
+    parts = await _mountViewBody(pageId, container, page, stale);
+  } catch (e) {
+    live.delete(token);
+    throw e;
   } finally {
     if (toolbar && stale()) toolbar.remove();
   }
@@ -3825,7 +3873,12 @@ async function mountView(pageId, container, opts = {}) {
   const cleanup = () => {
     if (done) return;
     done = true;
-    viewCleanup();
+    live.delete(token);
+    run(parts.instance);
+    // Another mount of this page started meanwhile and is still live (a
+    // re-mount while this render was in flight): the module's shared state is
+    // now that mount's, so leave it to that mount's cleanup.
+    if (live.size === 0) run(parts.module);
     if (toolbar) toolbar.remove();
   };
   if (!stale()) return cleanup;
