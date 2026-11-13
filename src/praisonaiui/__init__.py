@@ -161,6 +161,13 @@ def __getattr__(name: str):
         "on_shared_view",
     }
     _usage_attrs = {"get_token_usage"}
+    _plugin_registry_attrs = {
+        "register_plugin",
+        "set_extensions",
+        "PageSpec",
+        "BlockSpec",
+        "ToolRendererSpec",
+    }
     _instrumentation_attrs = {
         "instrument_openai",
         "instrument_anthropic",
@@ -343,6 +350,10 @@ def __getattr__(name: str):
         from praisonaiui.features import usage
 
         return getattr(usage, name)
+    if name in _plugin_registry_attrs:
+        from praisonaiui import plugin_registry
+
+        return getattr(plugin_registry, name)
     if name in _instrumentation_attrs:
         from praisonaiui import instrumentation
 
@@ -596,6 +607,12 @@ __all__ = [
     "no_instrument",
     # Usage tracking
     "get_token_usage",
+    # Entry-point plugins for the React app shell (style "app")
+    "register_plugin",
+    "set_extensions",
+    "PageSpec",
+    "BlockSpec",
+    "ToolRendererSpec",
     # ── PraisonAIUI-native, non-developer-friendly names ────────────
     # Shorter, plain-English aliases for the symbols above.  Use these
     # in new code; the original names remain importable for backward
