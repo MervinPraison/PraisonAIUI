@@ -147,6 +147,12 @@ def test_help_never_discovers_plugins(site, ep_calls, argv):
     assert "fakecli_mod" not in sys.modules
 
 
+def test_plugins_help_is_ascii():
+    """`aiui --help` lists this text; a non-ASCII char (e.g. an ellipsis)
+    makes rich import its unicode width table on every --help (~5 ms)."""
+    assert cli_mod.plugins_app.info.help.isascii()
+
+
 def test_builtin_command_does_not_discover_plugins(site, ep_calls, tmp_path):
     result = _invoke("validate", "--config", str(tmp_path / "missing.yaml"))
     assert result.exit_code != 0
