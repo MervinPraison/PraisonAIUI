@@ -8,12 +8,14 @@ import { ImageIcon } from 'lucide-react'
 import { defaultComponents, type ExtraProps } from 'streamdown'
 import { cn } from '@/lib/utils'
 import { EXTERNAL_LINK_REL, imageHost, isExternalHref, isStreamdownPlaceholder } from './urlPolicy'
+import { legacySafeCodeClass } from './legacyPlugins'
 
 type Props<K extends keyof JSX.IntrinsicElements> = JSX.IntrinsicElements[K] & ExtraProps
 
 const DefaultA = defaultComponents.a
 const DefaultUl = defaultComponents.ul
 const DefaultOl = defaultComponents.ol
+const DefaultCode = defaultComponents.code
 
 const LINK_CLASS = 'text-link underline-offset-2 decoration-current/40 hover:decoration-current'
 
@@ -44,6 +46,15 @@ export function PolicyLink({ href, children, className, rewrite, ...rest }: Prop
             {children}
         </DefaultA>
     )
+}
+
+/**
+ * Streamdown's own code renderer; a fenced block's language class is handed
+ * over in a form the legacy highlight.js plugin skips (see legacyPlugins.ts).
+ */
+export function LegacySafeCode(props: Props<'code'>) {
+    if (!('data-block' in props)) return <DefaultCode {...props} />
+    return <DefaultCode {...props} className={legacySafeCodeClass(props.className)} />
 }
 
 /** Lists hang their markers outside the text block (Streamdown defaults to list-inside). */

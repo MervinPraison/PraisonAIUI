@@ -78,8 +78,11 @@ export function stripMkdocsGridWrappers(text: string): string {
     return outsideFences(text, (prose) => prose.replace(/<div[^>]*markdown[^>]*>\s*/gi, '').replace(/<\/div>\s*/gi, ''))
 }
 
-const ADMONITION_RE = /^(!!!|\?\?\?\+?)\s+([\w-]+)(?:\s+"([^"]*)")?\s*$/
-const TAB_RE = /^===\+?\s+"([^"]+)"\s*$/
+// Titles run to the last quote on the line, as in Python-Markdown, so `\"` inside works.
+const ADMONITION_RE = /^(!!!|\?\?\?\+?)\s+([\w-]+)(?:\s+"(.*)")?\s*$/
+const TAB_RE = /^===\+?\s+"(.+)"\s*$/
+/** Markdown backslash escapes in a title (`\"` → `"`), as Python-Markdown's inline pass does. */
+const unescapeTitle = (t: string) => t.replace(/\\([\\`*_{}[\]()#+\-.!"'])/g, '$1')
 
 const isIndented = (line: string) => line.startsWith('    ') || line.startsWith('\t')
 const attr = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -141,7 +144,7 @@ export function convertMkdocsBlocks(md: string): string {
             const collapsible = marker.startsWith('???') ? (marker.endsWith('+') ? ' collapsible="open"' : ' collapsible="closed"') : ''
             out.push(
                 '',
-                `<aiui-admonition type="${attr(kind.toLowerCase())}" title="${attr(title ?? '')}"${collapsible}>`,
+                `<aiui-admonition type="${attr(kind.toLowerCase())}" title="${attr(unescapeTitle(title ?? ''))}"${collapsible}>`,
                 '',
                 convertMkdocsBlocks(body.join('\n')),
                 '',
@@ -158,7 +161,7 @@ export function convertMkdocsBlocks(md: string): string {
                 const t = lines[i].match(TAB_RE)
                 if (!t) break
                 const [body, next] = collectIndented(lines, i + 1)
-                out.push(`<aiui-tab title="${attr(t[1])}">`, '', convertMkdocsBlocks(body.join('\n')), '', '</aiui-tab>', '')
+                out.push(`<aiui-tab title="${attr(unescapeTitle(t[1]))}">`, '', convertMkdocsBlocks(body.join('\n')), '', '</aiui-tab>', '')
                 i = next
                 while (i < lines.length && lines[i].trim() === '' && i + 1 < lines.length && TAB_RE.test(lines[i + 1])) i++
             }

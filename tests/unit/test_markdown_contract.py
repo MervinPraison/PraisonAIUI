@@ -2,8 +2,9 @@
 
 Source-level guardrails for things a refactor can silently break: the lazy
 boundary that keeps Streamdown out of the entry, the sanitize pipeline, the
-chat link/image policy (owner decision 1), and light-mode contrast of docs
-body text and table cells (moved here from test_light_mode_contrast.py).
+chat link/image policy (owner decision 1), light-mode contrast of docs
+body text and table cells (moved here from test_light_mode_contrast.py), and
+the guards that keep the vanilla DOM plugins off rendered markdown.
 Rendering behaviour is tested in src/frontend/src/markdown/markdown.test.tsx.
 """
 
@@ -11,8 +12,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-
-import pytest
 
 SRC = Path("src/frontend/src")
 MD = SRC / "markdown"
@@ -67,8 +66,8 @@ class TestDocsContent:
         source = _read(SRC / "Content.tsx")
         assert "from './markdown/LazyMarkdown'" in source
         assert '<Markdown variant="docs">' in source
-        assert 'className="aiui-doc max-w-none min-w-0"' in source
-        assert "prose-neutral" not in source
+        assert 'className="aiui-doc prose max-w-none min-w-0"' in source
+        assert "prose-neutral" not in source  # prose is a marker only, no typography modifiers
 
     def test_content_awaits_preloads_and_honours_abort(self):
         source = _read(SRC / "Content.tsx")
@@ -147,32 +146,59 @@ class TestSecurity:
 
 
 class TestVanillaPluginsLeaveStreamdownAlone:
-    """The docs and chat styles still load the vanilla plugins (plugin-loader,
-    syntax-highlight, code-copy, mermaid). They skip React-rendered markdown by
-    looking for ``#main-content article.prose``, which the Streamdown docs
-    article no longer has. Measured with ``aiui build`` + the new bundle:
-    highlight.js re-highlights every Streamdown code block (Shiki spans gone,
-    React-owned DOM replaced) and its global ``pre`` rule boxes the code a
-    second time; a theme toggle re-runs it on chat messages too.
-
-    The plugin files are outside WP1's ownership (cross-file request to WP8).
-    Strict xfail: once the guards also skip ``.aiui-markdown`` this XPASSes
-    and fails, and the marker must be removed.
+    """The docs, chat, agents and playground styles still load the vanilla
+    plugins (plugin-loader, syntax-highlight, code-copy, mermaid, toc). They
+    rewrite code blocks they find: highlight.js rebuilds <code> from its text
+    (Shiki's line spans collapse into one line) and code-copy wraps the <pre>.
+    Rendered behaviour is covered by markdown.test.tsx and
+    tests/browser/test_markdown_legacy_plugins_browser.py; these pin the
+    source-level contract that keeps them off React-rendered markdown.
     """
 
-    @pytest.mark.xfail(strict=True, reason="WP8 cross-file request: plugin guards must skip .aiui-markdown / article.aiui-doc")
-    def test_plugins_skip_streamdown_output(self):
-        loader = _read(PLUGINS / "plugin-loader.js")
-        assert "article.aiui-doc" in loader or ".aiui-markdown" in loader
-        for name in ("syntax-highlight.js", "code-copy.js", "mermaid.js"):
-            assert ".aiui-markdown" in _read(PLUGINS / name), name
-        # highlight.js's override sheet must not restyle every <pre> on the page
-        highlight = _read(PLUGINS / "syntax-highlight.js")
-        assert not re.search(r"^\s*pre\s*\{", highlight, re.M)
+    GUARD = "#main-content article.prose"
 
-    def test_streamdown_root_carries_the_skip_marker(self):
-        # The class the plugins are asked to skip is on every rendered root.
+    def test_docs_article_matches_every_plugin_guard(self):
+        # Each plugin skips React docs by this selector; the docs article must keep matching it.
+        for name in ("plugin-loader.js", "syntax-highlight.js", "code-copy.js", "mermaid.js"):
+            assert self.GUARD in _read(PLUGINS / name), f"{name} no longer guards with {self.GUARD}"
+        content = _read(SRC / "Content.tsx")
+        main = content.split('<main id="main-content"')[1].split("</main>")[0]
+        article = re.search(r'<article\b[^>]*className="([^"]+)"', main)
+        assert article, "the docs <article> must sit inside <main id=\"main-content\">"
+        assert "prose" in article.group(1).split()
+
+    def test_prose_marker_does_not_style_streamdown(self):
+        # @tailwindcss/typography skips everything under not-prose.
         source = _read(MD / "Markdown.tsx")
         root = re.search(r"const ROOT_CLASS = '([^']+)'", source)
-        assert root and "aiui-markdown" in root.group(1).split()
-        assert 'className="aiui-doc max-w-none min-w-0"' in _read(SRC / "Content.tsx")
+        assert root and {"aiui-markdown", "not-prose"} <= set(root.group(1).split())
+
+    def test_code_blocks_are_hidden_from_highlight_js(self):
+        # Chat messages have no guarded ancestor: every fenced block carries
+        # `nohighlight` and no word-boundary `language-` class.
+        source = _read(MD / "Markdown.tsx")
+        assert source.count("code: LegacySafeCode") == 2  # chat and docs maps
+        guard = _read(MD / "legacyPlugins.ts")
+        assert "'$1aiuilanguage-$2'" in guard
+        assert "export const NO_HIGHLIGHT = 'nohighlight'" in guard
+
+    def test_code_blocks_are_marked_done_for_code_copy(self):
+        source = _read(MD / "Markdown.tsx")
+        assert "useLegacyCopyGuard(guardId)" in source
+        assert "data-aiui-markdown={guardId}" in source
+        guard = _read(MD / "legacyPlugins.ts")
+        assert "new MutationObserver" in guard
+        assert "attributeFilter: ['data-copy-processed']" in guard
+        assert "copyProcessed" in guard  # dataset key of data-copy-processed
+
+    def test_legacy_pre_box_styles_are_reset_in_the_base_layer(self):
+        # syntax-highlight.js injects `pre {… !important}`; index.css has
+        # `.prose pre {… !important}` in the components layer. Only an
+        # !important rule in an earlier layer (base) beats both.
+        assert re.search(r"^\s*pre\s*\{", _read(PLUGINS / "syntax-highlight.js"), re.M)
+        assert "import './markdown.css'" in _read(MD / "Markdown.tsx")
+        css = _read(MD / "markdown.css")
+        rule = css.split("@layer base {")[1]
+        assert ".aiui-markdown [data-streamdown='code-block-body'] > pre" in rule
+        for decl in ("padding: 0 !important", "border: 0 !important", "background-color: transparent !important"):
+            assert decl in rule, decl

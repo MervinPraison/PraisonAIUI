@@ -4,8 +4,9 @@
  *
  * Covers: streaming repair (remend), XSS in both variants, the chat link and
  * image policy (no auto-loaded off-origin images), MkDocs blocks, heading ids,
- * the incremental Shiki tokenizer for streamed fences and the streaming
- * render pacer.
+ * the incremental Shiki tokenizer for streamed fences, the streaming
+ * render pacer, chat list numbering across code fences and the guard that
+ * keeps the legacy highlight.js plugin off Streamdown code blocks.
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -17,6 +18,8 @@ import { createCuratedCodePlugin, resetShikiCaches, shikiStats } from './shikiPl
 import { MATH_RE, SHIKI_THEMES } from './pluginLoaders'
 import { MAX_STREAM_INTERVAL_MS, StreamPacer } from './streamThrottle'
 import { gateMermaidSource, isAutoLoadImage, isExternalHref } from './urlPolicy'
+import { continueSplitLists } from './listNumbering'
+import { NO_HIGHLIGHT, legacySafeCodeClass } from './legacyPlugins'
 
 const chat = (md: string, streaming = false) => renderToStaticMarkup(<Markdown variant="chat" streaming={streaming}>{md}</Markdown>)
 const docs = (md: string) => renderToStaticMarkup(<Markdown variant="docs">{preprocessMkdocsMarkdown(md)}</Markdown>)
@@ -291,9 +294,106 @@ test('preprocess is fence-aware: wrappers and icons inside code are kept', () =>
     assert.doesNotMatch(out.split('```').at(-1) ?? '', /<\/?div/)
 })
 
+test('mkdocs titles may contain escaped quotes (admonitions and tabs)', () => {
+    const out = convertMkdocsBlocks('!!! note "He said \\"hi\\""\n    body\n\n=== "Say \\"x\\""\n\n    tab')
+    assert.match(out, /<aiui-admonition type="note" title="He said &quot;hi&quot;">/)
+    assert.match(out, /<aiui-tab title="Say &quot;x&quot;">/)
+    const html = docs('!!! note "He said \\"hi\\""\n    body text')
+    assert.match(html, /role="note" aria-label="He said &quot;hi&quot;"/)
+    assert.doesNotMatch(html, /!!!/)
+})
+
 test('convertMkdocsBlocks nests an admonition inside a tab', () => {
     const out = convertMkdocsBlocks('=== "A"\n\n    !!! tip\n        inner\n\n=== "B"\n\n    b')
     assert.match(out, /<aiui-tabs>[\s\S]*<aiui-tab title="A">[\s\S]*<aiui-admonition type="tip"[\s\S]*inner[\s\S]*<\/aiui-tab>[\s\S]*<aiui-tab title="B">/)
+})
+
+// ── chat: ordered steps split by code fences keep counting ──
+const SPLIT_STEPS = 'Steps:\n\n1. Install\n\n```bash\npip install x\n```\n\n1. Run\n\n```bash\nx run\n```\n\n1. Done'
+
+test('chat: lazily numbered steps split by code fences render 1., 2., 3. (<ol start>)', () => {
+    const ols = tags(chat(SPLIT_STEPS), 'ol')
+    assert.equal(ols.length, 3, ols.join('\n'))
+    assert.doesNotMatch(ols[0], /\sstart=/)
+    assert.match(ols[1], /\sstart="2"/)
+    assert.match(ols[2], /\sstart="3"/)
+    // also while the answer is still streaming
+    assert.match(tags(chat(SPLIT_STEPS, true), 'ol')[2] ?? '', /\sstart="3"/)
+})
+
+test('docs keep the author\'s list numbers (no renumbering pre-pass)', () => {
+    const ols = tags(docs(SPLIT_STEPS), 'ol')
+    assert.equal(ols.length, 3)
+    assert.ok(ols.every((o) => !/\sstart=/.test(o)), ols.join('\n'))
+})
+
+test('continueSplitLists: fences are opaque, numbers count on across them', () => {
+    assert.equal(
+        continueSplitLists('1. a\n\n```py\n1. not a list\n```\n\n1. b\n\n~~~\n````\n1. x\n~~~\n\n1. c'),
+        '1. a\n\n```py\n1. not a list\n```\n\n2. b\n\n~~~\n````\n1. x\n~~~\n\n3. c',
+    )
+    // a longer fence is only closed by an equally long one
+    assert.equal(continueSplitLists('1. a\n\n````md\n```\n1. y\n```\n````\n\n1. b'), '1. a\n\n````md\n```\n1. y\n```\n````\n\n2. b')
+})
+
+test('continueSplitLists: explicit start, paragraphs, nesting and indented code', () => {
+    assert.equal(continueSplitLists('5. five\n\n```\nx\n```\n\n1. six'), '5. five\n\n```\nx\n```\n\n6. six')
+    // a paragraph (or heading, quote, bullet) at the margin starts a fresh list
+    assert.equal(continueSplitLists('1. a\n\nThen:\n\n1. b'), '1. a\n\nThen:\n\n1. b')
+    assert.equal(continueSplitLists('1. a\n\n## Next\n\n1. b'), '1. a\n\n## Next\n\n1. b')
+    // nested lists count on their own; continuation lines keep the list open
+    assert.equal(
+        continueSplitLists('1. a\n   more text\n   1. x\n   1. y\n1. b\n2) p\n1) q'),
+        '1. a\n   more text\n   1. x\n   2. y\n2. b\n3) p\n4) q',
+    )
+    // outside a list, 4+ columns is an indented code block: untouched
+    assert.equal(continueSplitLists('code:\n\n    1. one\n    1. two'), 'code:\n\n    1. one\n    1. two')
+    const plain = 'No lists here, 2024 was a year.'
+    assert.equal(continueSplitLists(plain), plain)
+})
+
+// ── legacy plugins: highlight.js must skip Streamdown code blocks ──
+/**
+ * highlight.js 11.9 blockLanguage() + shouldNotHighlight(), as used by
+ * plugins/syntax-highlight.js: the language comes from the <code> class plus
+ * its parent's class; a block whose result matches /^(no-?highlight)$/i is skipped.
+ */
+function hljsWouldHighlight(codeClass: string, preClass: string): boolean {
+    const classes = `${codeClass} ${preClass}`
+    const m = /\blang(?:uage)?-([\w-]+)\b/i.exec(classes)
+    const known = new Set(['python', 'yaml', 'bash', 'javascript', 'typescript', 'json', 'css', 'html', 'xml', 'ts', 'py', 'sh'])
+    const language = m ? (known.has(m[1]) ? m[1] : 'no-highlight') : classes.split(/\s+/).find((c) => /^(no-?highlight)$/i.test(c) || known.has(c))
+    return !/^(no-?highlight)$/i.test(language ?? '')
+}
+
+test('legacySafeCodeClass hides the fence language from highlight.js, not from Streamdown', () => {
+    assert.equal(legacySafeCodeClass('language-ts'), `aiuilanguage-ts ${NO_HIGHLIGHT}`)
+    assert.equal(legacySafeCodeClass('x language-c++ y'), `x aiuilanguage-c++ y ${NO_HIGHLIGHT}`)
+    assert.equal(legacySafeCodeClass(undefined), NO_HIGHLIGHT)
+    assert.equal(/language-([^\s]+)/.exec(legacySafeCodeClass('language-python'))?.[1], 'python') // Streamdown's own match
+    assert.ok(hljsWouldHighlight('', 'language-python')) // the replica does highlight a plain fence
+})
+
+for (const [name, render] of [['chat', (m: string) => chat(m)], ['docs', docs]] as const) {
+    test(`${name}: fenced code keeps its language but highlight.js skips it`, () => {
+        const html = render('```python\nimport os\n\nprint(os.getcwd())\n```\n\n```\nplain\n```')
+        const bodies = [...html.matchAll(/<div class="([^"]*)" data-language="([^"]*)" data-streamdown="code-block-body"[^>]*><pre class="([^"]*)"[^>]*><code(?: class="([^"]*)")?/g)]
+        assert.equal(bodies.length, 2, html)
+        assert.equal(bodies[0][2], 'python')
+        assert.match(html, /data-streamdown="code-block-header"[^>]*><span[^>]*>python<\/span>/)
+        for (const [, , , preClass, codeClass] of bodies) {
+            assert.equal(hljsWouldHighlight(codeClass ?? '', preClass), false, preClass)
+        }
+    })
+}
+
+test('the markdown root opts out of @tailwindcss/typography (not-prose)', () => {
+    for (const html of [chat('para'), docs('para')]) {
+        const root = html.match(/^<div[^>]*class="([^"]*)"/)
+        assert.ok(root)
+        assert.match(root[1], /\bnot-prose\b/)
+        assert.match(html.slice(0, 400), /data-aiui-markdown="/)
+    }
 })
 
 // ── Shiki: streamed fences are tokenized incrementally ──

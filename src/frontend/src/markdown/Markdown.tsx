@@ -12,21 +12,25 @@
  * Streamdown's `allowedTags`: it rewrites blank lines inside the tag to
  * `<!---->` and corrupts fenced code. Extend the sanitize schema instead.
  */
-import { memo, useMemo, useState, useEffect, type ComponentType } from 'react'
+import { memo, useId, useMemo, useState, useEffect, type ComponentType } from 'react'
 import { Streamdown, defaultRehypePlugins, type ControlsConfig, type PluginConfig, type StreamdownProps } from 'streamdown'
 import { cn } from '@/lib/utils'
 import { MATH_RE, SHIKI_THEMES, chatMermaidPlugin, ensureMathPlugin, getMathPlugin, lazyCodePlugin, lazyMermaidPlugin } from './streamdownPlugins'
-import { ChatH1, ChatH2, ChatH3, ChatH4, ImageGate, ListOl, ListUl, MarkdownImage, PolicyLink } from './chatComponents'
+import { ChatH1, ChatH2, ChatH3, ChatH4, ImageGate, LegacySafeCode, ListOl, ListUl, MarkdownImage, PolicyLink } from './chatComponents'
 import { DocsH1, DocsH2, DocsH3, DocsH4, DocsLink, DocsUl } from './docsComponents'
 import { Admonition, MkdocsTab, MkdocsTabs } from './MkdocsBlocks'
 import { IMAGE_GATE_TAG, rehypeImageGate } from './urlPolicy'
 import { mermaidConfigFor, useThemeKey } from './themeStore'
 import { useStreamingText } from './streamThrottle'
+import { continueSplitLists } from './listNumbering'
+import { useLegacyCopyGuard } from './legacyPlugins'
+import './markdown.css'
 
 type Components = NonNullable<StreamdownProps['components']>
 
 const CHAT_COMPONENTS = {
     a: PolicyLink,
+    code: LegacySafeCode,
     img: MarkdownImage,
     ul: ListUl,
     ol: ListOl,
@@ -39,6 +43,7 @@ const CHAT_COMPONENTS = {
 
 const DOCS_COMPONENTS = {
     a: DocsLink,
+    code: LegacySafeCode,
     img: MarkdownImage,
     ul: DocsUl,
     ol: ListOl,
@@ -111,7 +116,10 @@ const DOCS_CONTROLS: ControlsConfig = {
 const LINKS_AS_ANCHORS = { enabled: false } // real <a>; policy lives in the `a` component
 
 // ── typography (tokens only; text-base is the 15px body token) ──
-const ROOT_CLASS = 'aiui-markdown min-w-0 break-words text-base leading-[1.55] text-foreground'
+// not-prose: Streamdown owns this subtree's typography. The docs article keeps
+// the `prose` class only as the legacy plugins' "React owns this" marker
+// (Content.tsx), and @tailwindcss/typography skips everything under not-prose.
+const ROOT_CLASS = 'aiui-markdown not-prose min-w-0 break-words text-base leading-[1.55] text-foreground'
 /**
  * Flat, not boxed (DESIGN.md): Streamdown frames code, diagrams and tables as
  * a bordered panel holding a second bordered box. Keep one surface: the outer
@@ -121,6 +129,9 @@ const ROOT_CLASS = 'aiui-markdown min-w-0 break-words text-base leading-[1.55] t
 const BLOCK_CLASS = [
     '[&_[data-streamdown=code-block]]:gap-0 [&_[data-streamdown=code-block]]:p-0',
     '[&_[data-streamdown=code-block-header]]:px-3',
+    // The copy/download bar floats at the top right: keep it inside the 32px
+    // header row so it never covers the end of the first code line.
+    '[&_[data-streamdown=code-block]>.absolute]:top-[3px] [&_[data-streamdown=code-block-actions]]:py-0',
     '[&_[data-streamdown=code-block-body]]:rounded-none [&_[data-streamdown=code-block-body]]:border-0',
     '[&_[data-streamdown=code-block-body]]:bg-transparent [&_[data-streamdown=code-block-body]]:px-4 [&_[data-streamdown=code-block-body]]:pt-0 [&_[data-streamdown=code-block-body]]:pb-3',
     '[&_[data-streamdown=mermaid-block]>.overflow-hidden]:border-0 [&_[data-streamdown=mermaid-block]>.overflow-hidden]:bg-transparent',
@@ -134,7 +145,8 @@ const BLOCK_CLASS = [
     '[&_[data-streamdown=table-wrapper]]:border-0 [&_[data-streamdown=table-wrapper]]:bg-transparent [&_[data-streamdown=table-wrapper]]:p-0 [&_[data-streamdown=table-wrapper]]:gap-1',
     '[&_[data-streamdown=table-wrapper]>.border-collapse]:rounded-lg [&_[data-streamdown=table-wrapper]>.border-collapse]:bg-transparent',
     '[&_table]:tabular-nums',
-    '[&_[data-streamdown=inline-code]]:bg-code',
+    // index.css tints `.prose :not(pre) > code` (the docs marker); inline code keeps the text colour.
+    '[&_[data-streamdown=inline-code]]:bg-code [&_[data-streamdown=inline-code]]:text-inherit',
 ].join(' ')
 const VARIANT_CLASS = {
     chat: 'aiui-markdown-chat space-y-3',
@@ -183,7 +195,11 @@ export const Markdown = memo(function Markdown({
     const source = typeof children === 'string' ? children : String(children ?? '')
     // While streaming, updates are paced by their measured cost (a long fence
     // must not saturate the main thread) and deferred (streamThrottle.ts).
-    const text = useStreamingText(source, !isDocs && streaming)
+    const paced = useStreamingText(source, !isDocs && streaming)
+    // Chat: steps split by code fences keep counting (1., 2., 3.), see listNumbering.ts.
+    const text = useMemo(() => (isDocs ? paced : continueSplitLists(paced)), [paced, isDocs])
+    const guardId = useId()
+    useLegacyCopyGuard(guardId)
 
     const math = useMathPlugin(text)
     // Chat diagrams are untrusted: their SVG is stripped of off-origin resources.
@@ -210,6 +226,7 @@ export const Markdown = memo(function Markdown({
         <Streamdown
             className={cn(ROOT_CLASS, BLOCK_CLASS, VARIANT_CLASS[variant], className)}
             data-aiui-theme={hasMermaid ? hashKey(themeKey) : undefined}
+            data-aiui-markdown={guardId} /* root handle for useLegacyCopyGuard */
             mode={isDocs ? 'static' : 'streaming'}
             isAnimating={!isDocs && streaming}
             parseIncompleteMarkdown={!isDocs}

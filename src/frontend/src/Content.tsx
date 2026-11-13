@@ -111,10 +111,14 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
                         </div>
                     )}
                     {contentReady && (
+                        // `prose` is not styling here (the Markdown root is not-prose): the
+                        // legacy plugins (plugin-loader, syntax-highlight, code-copy, mermaid,
+                        // toc) leave `#main-content article.prose` alone. Without it they
+                        // re-highlight and wrap the React-rendered code blocks.
                         <article
                             key={currentPath}
                             ref={articleRef}
-                            className="aiui-doc max-w-none min-w-0"
+                            className="aiui-doc prose max-w-none min-w-0"
                         >
                             <Markdown variant="docs">{markdown}</Markdown>
                         </article>
