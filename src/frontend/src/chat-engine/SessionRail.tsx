@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { ChatSession } from './api'
-import { Spinner } from './ui'
+import { Spinner } from '@/components/ui/spinner'
 
 export interface SessionRailProps {
   sessions: ChatSession[]

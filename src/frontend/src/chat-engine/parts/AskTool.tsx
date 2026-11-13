@@ -9,7 +9,7 @@ import { useAuiState, type ToolCallMessagePartProps } from '@assistant-ui/react'
 import { MessageCircleQuestion, WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { APPROVAL_ERROR, APPROVAL_PENDING } from '../protocol'
-import { Spinner } from '../ui'
+import { Spinner } from '@/components/ui/spinner'
 
 const AskTool: FC<ToolCallMessagePartProps> = ({ approval, respondToApproval, result, artifact }) => {
   const via = useAuiState((s) => (s.message.metadata.custom as { via?: string }).via)

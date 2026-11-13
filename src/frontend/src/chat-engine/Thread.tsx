@@ -33,13 +33,14 @@ import {
   ThumbsDown, ThumbsUp, Wrench, X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Spinner } from '@/components/ui/spinner'
 import { Markdown } from '@/markdown/LazyMarkdown'
 import { getToolRenderers, useRegistryVersion, type AnyComponent } from '@/sdk/registry'
 import { cn } from '@/lib/utils'
 import { LazyBoundary } from './parts/LazyBoundary'
 import { APPROVAL_ERROR, APPROVAL_PENDING, PENDING_APPROVAL } from './protocol'
-import { Kbd, Spinner } from './ui'
 import { formatDuration, safeUrl } from './util'
 
 const AskToolLazy = lazy(() => import('./parts/AskTool'))
