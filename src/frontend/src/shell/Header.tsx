@@ -3,6 +3,8 @@ import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { isMacPlatform, openCommandPalette, paletteShortcutLabel, preloadCommandPalette } from './palette'
 import { Kbd } from '@/components/ui/kbd'
+import type { ShellPage } from '@/sdk/manifest'
+import { SHELL_SLOTS, Slot } from './Slot'
 
 const MODES = ['system', 'light', 'dark'] as const
 type Mode = (typeof MODES)[number]
@@ -66,12 +68,17 @@ function SearchButton() {
 export function ShellHeader({
   title,
   description,
+  pageId = '',
+  page,
   showMenuButton,
   onOpenMenu,
   onPreloadMenu,
 }: {
   title: string
   description?: string
+  /** The page on screen, handed to `header:actions` slot contributions. */
+  pageId?: string
+  page?: ShellPage
   showMenuButton: boolean
   onOpenMenu: () => void
   onPreloadMenu: () => void
@@ -101,6 +108,7 @@ export function ShellHeader({
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        <Slot name={SHELL_SLOTS.headerActions} pageId={pageId} page={page} className="flex items-center gap-1" />
         <SearchButton />
         <ModeToggle />
       </div>

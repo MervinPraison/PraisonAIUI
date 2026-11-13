@@ -86,8 +86,23 @@ declare module '@aiui/sdk' {
   export function registerBlock(type: string, component: BlockComponent): void
   /** Render the calls of a tool in the chat thread. */
   export function registerToolRenderer(toolName: string, component: AnyComponent): void
-  /** Contribute a component to a named slot of the shell. */
-  export function registerSlot(slot: string, component: AnyComponent): void
+  export interface SlotOptions {
+    /**
+     * Identity of this contribution within the slot (by convention the plugin
+     * name), so several plugins can share a slot. Without it the call sets the
+     * slot's single default contribution, replacing an earlier default.
+     */
+    id?: string
+    /** Position within the slot: lower comes first. Default 100. */
+    order?: number
+  }
+  /**
+   * Contribute a component to a named slot of the shell: `header:actions`,
+   * `sidebar:footer` or `page:<id>:toolbar`. The component receives
+   * `{ slot, pageId, page? }` (`sidebar:footer` also gets `collapsed`).
+   * Passing `options` needs the `slots.multi` feature.
+   */
+  export function registerSlot(slot: string, component: AnyComponent, options?: SlotOptions): void
   /** Register a vanilla view (`render(container)`), like custom.js `window.aiui.registerView`. */
   export function registerView(
     pageId: string,

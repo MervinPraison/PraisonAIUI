@@ -8,7 +8,9 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import {
   getBlock,
   getPage,
+  DEFAULT_SLOT_ID,
   getSlot,
+  getSlotContributions,
   getToolRenderers,
   registerBlock,
   registerPage,
@@ -76,6 +78,89 @@ test('blocks, tool renderers and slots round-trip; tool renderer snapshot is sta
   registerSlot('header.right', Weather)
   assert.notEqual(getToolRenderers(), a, 'snapshot is rebuilt after any registry change')
   assert.equal(getSlot('header.right'), Weather)
+})
+
+test('a slot takes several contributions, ordered by `order` then by registration', () => {
+  const A = () => null
+  const B = () => null
+  const C = () => null
+  const slot = 'test:multi'
+  assert.deepEqual(getSlotContributions(slot), [])
+  assert.equal(getSlotContributions(slot), getSlotContributions('test:other'), 'one shared empty list')
+
+  registerSlot(slot, B, { id: 'plugin-b', order: 20 })
+  registerSlot(slot, A, { id: 'plugin-a', order: 10 })
+  registerSlot(slot, C, { id: 'plugin-c', order: 20 })
+  assert.deepEqual(
+    getSlotContributions(slot).map((c) => [c.id, c.order, c.component]),
+    [
+      ['plugin-a', 10, A],
+      ['plugin-b', 20, B],
+      ['plugin-c', 20, C],
+    ],
+  )
+  assert.equal(getSlot(slot), A, 'getSlot returns the first contribution')
+
+  const snapshot = getSlotContributions(slot)
+  assert.equal(getSlotContributions(slot), snapshot, 'stable identity without changes')
+  assert.ok(Object.isFrozen(snapshot) && Object.isFrozen(snapshot[0]))
+
+  let changes = 0
+  const off = subscribe(() => (changes += 1))
+  registerSlot(slot, B, { id: 'plugin-b', order: 20 })
+  assert.equal(changes, 0, 'an identical registration is a no-op')
+  registerSlot(slot, B, { id: 'plugin-b', order: 5 })
+  assert.equal(changes, 1)
+  off()
+  assert.notEqual(getSlotContributions(slot), snapshot)
+  assert.deepEqual(getSlotContributions(slot).map((c) => c.id), ['plugin-b', 'plugin-a', 'plugin-c'])
+})
+
+test('registerSlot without options keeps the one-per-slot replace behaviour', () => {
+  const First = () => null
+  const Second = () => null
+  const Other = () => null
+  const slot = 'test:default'
+  const warnings: unknown[][] = []
+  const original = console.warn
+  console.warn = (...args: unknown[]) => void warnings.push(args)
+  try {
+    registerSlot(slot, First)
+    assert.equal(getSlot(slot), First)
+    registerSlot(slot, Second)
+    assert.equal(getSlot(slot), Second, 'the second default replaces the first')
+    assert.deepEqual(getSlotContributions(slot).map((c) => [c.id, c.order]), [[DEFAULT_SLOT_ID, 100]])
+    assert.equal(warnings.length, 1)
+    assert.match(String(warnings[0][0]), /registerSlot\('test:default'\) replaces an earlier registration/)
+
+    // A named contribution sits next to the default one; it does not replace it.
+    registerSlot(slot, Other, { id: 'other', order: 50 })
+    assert.deepEqual(getSlotContributions(slot).map((c) => c.id), ['other', DEFAULT_SLOT_ID])
+    assert.equal(warnings.length, 1)
+
+    // Replacing a named contribution keeps its place among equal orders.
+    registerSlot(slot, First, { id: 'x' })
+    registerSlot(slot, Other, { id: 'y' })
+    registerSlot(slot, Second, { id: 'x' })
+    assert.deepEqual(
+      getSlotContributions(slot).map((c) => c.id),
+      ['other', DEFAULT_SLOT_ID, 'x', 'y'],
+    )
+    assert.equal(warnings.length, 2)
+    assert.match(String(warnings[1][0]), /\{ id: 'x' \}/)
+  } finally {
+    console.warn = original
+  }
+})
+
+test('registerSlot validates its options', () => {
+  const C = () => null
+  assert.throws(() => registerSlot('test:bad', C, { id: '' }), TypeError)
+  assert.throws(() => registerSlot('test:bad', C, { id: 5 as unknown as string }), TypeError)
+  assert.throws(() => registerSlot('test:bad', C, { order: Number.NaN }), TypeError)
+  assert.throws(() => registerSlot('test:bad', C, { order: '1' as unknown as number }), TypeError)
+  assert.throws(() => registerSlot('test:bad', C, null as unknown as object), TypeError)
+  assert.deepEqual(getSlotContributions('test:bad'), [])
 })
 
 test('registration rejects bad ids and non-components', () => {

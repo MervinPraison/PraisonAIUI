@@ -12,6 +12,7 @@ import type { ShellManifest, ShellPage } from '@/sdk/manifest'
 import { footerPages, groupPages, revealInScroller, siteLogo, siteTitle } from './nav'
 import { PageIcon } from './PageIcon'
 import { isPlainLeftClick, navigate, pathForPage } from './router'
+import { SHELL_SLOTS, Slot } from './Slot'
 
 function NavItem({
   page,
@@ -59,7 +60,10 @@ function NavItem({
   )
 }
 
-/** Grouped page links plus footer pages. Shared by the desktop sidebar and the mobile sheet. */
+/**
+ * Grouped page links, footer pages and the `sidebar:footer` slot. Shared by
+ * the desktop sidebar and the mobile sheet.
+ */
 export function SidebarNav({
   pages,
   activeId,
@@ -107,6 +111,16 @@ export function SidebarNav({
           ))}
         </ul>
       )}
+      <Slot
+        name={SHELL_SLOTS.sidebarFooter}
+        pageId={activeId}
+        page={pages.find((p) => p.id === activeId)}
+        extra={{ collapsed }}
+        className={cn(
+          'flex shrink-0 flex-col gap-1 border-t border-sidebar-border px-2 py-2',
+          collapsed && 'items-center',
+        )}
+      />
     </div>
   )
 }

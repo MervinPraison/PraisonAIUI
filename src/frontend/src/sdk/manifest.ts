@@ -82,6 +82,8 @@ export const SDK_FEATURES = [
   'manifest',
   'commands',
   'activate',
+  // registerSlot(slot, C, { id, order }) and the shell's slot hosts
+  'slots.multi',
 ] as const
 export type SdkFeature = (typeof SDK_FEATURES)[number]
 

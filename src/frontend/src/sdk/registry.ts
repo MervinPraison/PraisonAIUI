@@ -24,7 +24,34 @@ export type AnyComponent = ComponentType<any>
 const pages = new Map<string, PageComponent>()
 const blocks = new Map<string, BlockComponent>()
 const toolRenderers = new Map<string, AnyComponent>()
-const slots = new Map<string, AnyComponent>()
+/** Options of registerSlot(). */
+export interface SlotOptions {
+  /**
+   * Identity of this contribution within the slot, by convention the plugin
+   * name. Several plugins can then share one slot; registering the same id
+   * again replaces that contribution only. Without an id the call sets the
+   * slot's single default contribution (the original one-per-slot behaviour).
+   */
+  id?: string
+  /** Position within the slot: lower comes first. Default 100. */
+  order?: number
+}
+
+export interface SlotContribution {
+  id: string
+  order: number
+  component: AnyComponent
+}
+
+/** Id of the contribution registered without options. */
+export const DEFAULT_SLOT_ID = 'default'
+const DEFAULT_SLOT_ORDER = 100
+const NO_CONTRIBUTIONS: readonly SlotContribution[] = Object.freeze([])
+
+type SlotEntry = SlotContribution & { seq: number }
+const slots = new Map<string, Map<string, SlotEntry>>()
+const slotSnapshots = new Map<string, readonly SlotContribution[]>()
+let slotSeq = 0
 const listeners = new Set<() => void>()
 
 let version = 0
@@ -33,6 +60,7 @@ let toolRenderersSnapshot: Record<string, AnyComponent> | null = null
 function emit() {
   version += 1
   toolRenderersSnapshot = null
+  slotSnapshots.clear()
   for (const fn of [...listeners]) {
     try {
       fn()
@@ -129,10 +157,40 @@ export function registerToolRenderer(toolName: string, c: AnyComponent): void {
   setEntry(toolRenderers, 'registerToolRenderer', name, c)
 }
 
-export function registerSlot(slot: string, c: AnyComponent): void {
+/**
+ * Contribute a component to a named slot. The shell renders every
+ * contribution of `header:actions`, `sidebar:footer` and
+ * `page:<id>:toolbar`, each inside its own error boundary.
+ *
+ * `registerSlot(slot, C)` sets the slot's default contribution and replaces
+ * an earlier default. `registerSlot(slot, C, { id, order })` adds a separate
+ * contribution, so several plugins can share a slot.
+ */
+export function registerSlot(slot: string, c: AnyComponent, opts: SlotOptions = {}): void {
   const name = requireName('registerSlot', slot)
   requireComponent('registerSlot', name, c)
-  setEntry(slots, 'registerSlot', name, c)
+  if (typeof opts !== 'object' || opts === null) {
+    throw new TypeError(`[aiui sdk] registerSlot('${name}'): options must be an object`)
+  }
+  if (opts.id !== undefined && (typeof opts.id !== 'string' || !opts.id)) {
+    throw new TypeError(`[aiui sdk] registerSlot('${name}'): options.id must be a non-empty string`)
+  }
+  if (opts.order !== undefined && (typeof opts.order !== 'number' || !Number.isFinite(opts.order))) {
+    throw new TypeError(`[aiui sdk] registerSlot('${name}'): options.order must be a finite number`)
+  }
+  const id = opts.id ?? DEFAULT_SLOT_ID
+  const order = opts.order ?? DEFAULT_SLOT_ORDER
+  let entries = slots.get(name)
+  if (!entries) slots.set(name, (entries = new Map()))
+  const prev = entries.get(id)
+  if (prev && prev.component === c && prev.order === order) return
+  if (prev && prev.component !== c) {
+    const which = id === DEFAULT_SLOT_ID ? '' : `, { id: '${id}' }`
+    console.warn(`[aiui sdk] registerSlot('${name}'${which}) replaces an earlier registration`)
+  }
+  // A replacement keeps its place among contributions of the same order.
+  entries.set(id, { id, order, component: c, seq: prev ? prev.seq : (slotSeq += 1) })
+  emit()
 }
 
 export function getPage(id: string): PageComponent | undefined {
@@ -149,8 +207,31 @@ export function getToolRenderers(): Record<string, AnyComponent> {
   return toolRenderersSnapshot
 }
 
+/**
+ * Every contribution to a slot, sorted by `order`, then by first
+ * registration. The array is frozen and keeps its identity until the registry
+ * changes, so it is safe as a useSyncExternalStore snapshot.
+ */
+export function getSlotContributions(name: string): readonly SlotContribution[] {
+  const cached = slotSnapshots.get(name)
+  if (cached) return cached
+  const entries = slots.get(name)
+  if (!entries || entries.size === 0) return NO_CONTRIBUTIONS
+  const list = Object.freeze(
+    [...entries.values()]
+      .sort((a, b) => a.order - b.order || a.seq - b.seq)
+      .map(({ id, order, component }) => Object.freeze({ id, order, component })),
+  )
+  slotSnapshots.set(name, list)
+  return list
+}
+
+/**
+ * The slot's first contribution (lowest order). With only a default
+ * registration, that is the component passed to `registerSlot(slot, C)`.
+ */
 export function getSlot(name: string): AnyComponent | undefined {
-  return slots.get(name)
+  return getSlotContributions(name)[0]?.component
 }
 
 /** Called after every registration change. Returns an unsubscribe function. */
