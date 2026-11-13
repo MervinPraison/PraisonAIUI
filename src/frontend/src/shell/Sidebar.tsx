@@ -9,7 +9,7 @@ import { PanelLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
-import { footerPages, groupPages, siteLogo, siteTitle } from './nav'
+import { footerPages, groupPages, revealInScroller, siteLogo, siteTitle } from './nav'
 import { PageIcon } from './PageIcon'
 import { isPlainLeftClick, navigate, pathForPage } from './router'
 
@@ -78,8 +78,9 @@ export function SidebarNav({
   const navRef = useRef<HTMLElement>(null)
   // Keep the current page visible in a long list (deep links, back/forward).
   useEffect(() => {
-    const el = navRef.current?.querySelector<HTMLElement>('a[aria-current="page"]')
-    el?.scrollIntoView?.({ block: 'nearest' })
+    const nav = navRef.current
+    const el = nav?.querySelector<HTMLElement>('a[aria-current="page"]')
+    if (nav && el) revealInScroller(nav, el)
   }, [activeId])
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col', className)}>

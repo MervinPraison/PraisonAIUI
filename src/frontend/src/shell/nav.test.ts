@@ -8,6 +8,7 @@ import {
   groupPages,
   isFullBleed,
   orderedPages,
+  revealInScroller,
   showPageHeader,
   showSidebar,
   siteLogo,
@@ -171,4 +172,21 @@ test('Ctrl+K inside the open palette still toggles it, although cmdk preventDefa
 test('Ctrl/Cmd+B toggles the sidebar, but not while typing', () => {
   assert.equal(isSidebarShortcut(key('b', { ctrlKey: true })), true)
   assert.equal(isSidebarShortcut(key('b', { ctrlKey: true }, target('input'))), false)
+})
+
+test('revealInScroller scrolls the sidebar only as far as needed, without scrollIntoView', () => {
+  const scroller = (scrollTop: number) => ({ scrollTop, getBoundingClientRect: () => ({ top: 100, bottom: 500 }) })
+  const item = (top: number) => ({
+    getBoundingClientRect: () => ({ top, bottom: top + 32 }),
+    scrollIntoView: () => assert.fail('scrollIntoView moves the focus navigation starting point'),
+  })
+  const visible = scroller(40)
+  revealInScroller(visible, item(200))
+  assert.equal(visible.scrollTop, 40)
+  const below = scroller(0)
+  revealInScroller(below, item(600))
+  assert.equal(below.scrollTop, 600 + 32 - 500 + 8)
+  const above = scroller(300)
+  revealInScroller(above, item(60))
+  assert.equal(above.scrollTop, 300 - (100 - 60 + 8))
 })

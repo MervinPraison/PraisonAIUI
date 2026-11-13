@@ -111,3 +111,25 @@ export function siteLogo(manifest: Pick<ShellManifest, 'site'>): { kind: 'img' |
   if (/^(https?:|data:image\/|\/)/.test(logo)) return { kind: 'img', value: logo }
   return logo.length <= 8 ? { kind: 'text', value: logo } : null
 }
+
+interface Box {
+  top: number
+  bottom: number
+}
+
+/**
+ * Scroll `scroller` just enough to show `el` (the active sidebar link).
+ * Deliberately not el.scrollIntoView(): Chromium moves the sequential focus
+ * navigation starting point to the scrolled element, so after a deep link the
+ * first Tab would skip "Skip to content" and land after the active link.
+ */
+export function revealInScroller(
+  scroller: { scrollTop: number; getBoundingClientRect(): Box },
+  el: { getBoundingClientRect(): Box },
+  pad = 8,
+): void {
+  const box = scroller.getBoundingClientRect()
+  const r = el.getBoundingClientRect()
+  if (r.top < box.top) scroller.scrollTop -= box.top - r.top + pad
+  else if (r.bottom > box.bottom) scroller.scrollTop += r.bottom - box.bottom + pad
+}
