@@ -32,6 +32,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.parse
 import urllib.request
 from collections import Counter
 from pathlib import Path
@@ -1177,6 +1178,134 @@ def test_theme_picker_survives_its_container_being_rewritten(tmp_path):
     assert out["restores"] == 5, out  # MAX_REPAINTS
 
 
+# ── Theme picker escapes what the theme API returns ─────────────────
+
+# POST /api/theme/register stores any name and accent (it also takes a
+# text/plain body, so any web page can send it), and the picker painted them
+# raw into its markup: a stored XSS for everyone who opens /theme-picker.
+XSS_NAME = "<img src=x onerror=window.__x=1>"
+XSS_ACCENT = 'red" onmouseover="x"><img src=y onerror=window.__y=1>'
+XSS_NAME_2 = "q\" onclick='window.__z=1' x=`"
+XSS_MODE = 'dark"><img src=m onerror=window.__m=1>'
+XSS_RADIUS = "md'><svg onload=window.__r=1>"
+# Every element and attribute the picker itself draws.
+PICKER_TAGS = frozenset("h2 p div strong br span h3 button label input".split())
+PICKER_ATTRS = frozenset(
+    "class style data-preset data-mode data-radius data-delete title type id placeholder value".split()
+)
+
+_PICKER_XSS_HARNESS = r"""
+import { pathToFileURL } from 'node:url';
+const [, , pickerPath, shell, payload] = process.argv;
+const P = JSON.parse(payload);
+// A saved preset that differs from the server's makes render() apply the
+// server's answer, which carries the hostile accent.
+globalThis.localStorage = { getItem: (k) => (k === 'aiui-theme-preset' ? 'indigo' : null), setItem() {} };
+const props = [];
+globalThis.document = {
+  documentElement: {
+    getAttribute: (k) => (k === 'data-aiui-shell' && shell === 'app' ? 'react' : null),
+    classList: { contains: () => false },
+    style: { setProperty: (k, v) => props.push([k, v]), removeProperty() {} },
+  },
+  head: { appendChild() {} }, createElement: () => ({}), getElementById: () => null,
+};
+globalThis.window = { dispatchEvent() {} };
+const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null };
+const host = { isConnected: true, innerHTML: '',
+  querySelector: (sel) => (sel === '#theme-picker-root' ? root : null) };
+const STATE = {
+  preset: P.name, mode: P.mode, radius: P.radius, modes: ['dark', 'light', P.mode], radii: ['md', P.radius],
+  presets: { indigo: { accent: '#6366f1', accentRgb: '99,102,241' },
+             [P.name]: { accent: P.accent, accentRgb: P.accent },
+             [P.name2]: { accent: 'url(https://evil.example/x)', accentRgb: '' },
+             ocean: { accent: '#0077b6', accentRgb: '0,119,182' } },
+  variables: { '--db-accent': P.accent, '--db-accent-rgb': P.accent, '--db-radius': '10px' },
+};
+globalThis.fetch = async () => ({ json: async () => STATE });
+const picker = await import(pathToFileURL(pickerPath).href);
+await picker.render(host);
+console.log(JSON.stringify({ html: root.innerHTML, props }));
+"""
+
+
+class _Markup(__import__("html.parser").parser.HTMLParser):
+    """Collects the elements and attributes a browser would build."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.tags: list[str] = []
+        self.attrs: list[tuple[str, str, str | None]] = []
+        self.elements: list[dict[str, str | None]] = []
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.append(tag)
+        self.attrs.extend((tag, k, v) for k, v in attrs)
+        self.elements.append(dict(attrs))
+
+
+def _paint_hostile_theme(tmp_path, shell: str) -> tuple[_Markup, list]:
+    node = _node()
+    harness = tmp_path / "harness.mjs"
+    harness.write_text(_PICKER_XSS_HARNESS, encoding="utf-8")
+    payload = json.dumps(
+        {
+            "name": XSS_NAME,
+            "name2": XSS_NAME_2,
+            "accent": XSS_ACCENT,
+            "mode": XSS_MODE,
+            "radius": XSS_RADIUS,
+        }
+    )
+    proc = subprocess.run(
+        [node, str(harness), str(VIEWS / "theme-picker.js"), shell, payload],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr
+    out = json.loads(proc.stdout.strip().splitlines()[-1])
+    markup = _Markup()
+    markup.feed(out["html"])
+    markup.close()
+    return markup, out["props"]
+
+
+@pytest.mark.parametrize("shell", ["dashboard", "app"])
+def test_theme_picker_escapes_hostile_names_and_accents(shell, tmp_path):
+    markup, _ = _paint_hostile_theme(tmp_path, shell)
+    # Only the picker's own elements: nothing injected.
+    assert set(markup.tags) <= PICKER_TAGS, markup.tags
+    handlers = [(t, k, v) for t, k, v in markup.attrs if k.startswith("on")]
+    assert not handlers, handlers
+    names = {k for _, k, _ in markup.attrs}
+    assert names <= PICKER_ATTRS, names
+    # Colours in style attributes are plain colours; a bad accent falls back.
+    hex_bg = re.compile(r"^background:#[0-9a-fA-F]{3,8}$")
+    backgrounds = [
+        v.strip()
+        for _, k, v in markup.attrs
+        if k == "style" and v and v.strip().startswith("background:")
+    ]
+    assert backgrounds and all(hex_bg.match(b) for b in backgrounds), backgrounds
+    swatch_bg = {e["data-preset"]: e.get("style") for e in markup.elements if "data-preset" in e}
+    assert swatch_bg[XSS_NAME] == "background:#6366f1"  # fallback, not the payload
+    assert swatch_bg[XSS_NAME_2] == "background:#6366f1"  # url() is not a colour
+    assert swatch_bg["ocean"] == "background:#0077b6"  # a real accent is kept
+    # The real names still round-trip through the data attributes (apply/delete).
+    values = {(k, v) for _, k, v in markup.attrs}
+    for name in (XSS_NAME, XSS_NAME_2):
+        assert ("data-preset", name) in values and ("data-delete", name) in values
+        assert ("title", name) in values
+    assert ("data-mode", XSS_MODE) in values and ("data-radius", XSS_RADIUS) in values
+
+
+def test_theme_picker_does_not_seed_the_shell_with_a_hostile_accent(tmp_path):
+    _, props = _paint_hostile_theme(tmp_path, "app")
+    assert ["--radius", "10px"] in props, props  # the server's answer was applied
+    assert not [p for p in props if p[0] in ("--seed-accent", "--db-accent-rgb")], props
+
+
 # ── Syntax ───────────────────────────────────────────────────────────
 
 
@@ -1538,3 +1667,80 @@ class TestThemePickerDirectLoad:
             seen.append(got)
             assert not errors, f"load {i}: page errors: {errors}"
         assert all(g["swatches"] > 0 and not g["notFound"] for g in seen), seen
+
+
+def _post_json(url: str, body: dict, content_type: str = "application/json") -> int:
+    req = urllib.request.Request(
+        url, data=json.dumps(body).encode(), headers={"Content-Type": content_type}, method="POST"
+    )
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return r.status
+
+
+@pytest.mark.skipif(not RUNTIME, reason="runtime probe is opt-in (RUN_BROWSER_TESTS=1)")
+@pytest.mark.timeout(300)
+def test_theme_picker_runs_no_script_from_registered_themes(chromium, dashboard_url):
+    """Reproduces the stored XSS: hostile custom themes are registered through
+    the API (once as a cross-site-style text/plain POST), then /theme-picker
+    is opened. Nothing may run, and the themes still work (delete by name)."""
+    hostile = [
+        {"name": XSS_NAME, "accent": "#ff0000"},
+        {"name": "evil-accent", "accent": XSS_ACCENT, "accentRgb": XSS_ACCENT},
+    ]
+    try:
+        assert _post_json(f"{dashboard_url}/api/theme/register", hostile[0]) == 200
+        assert _post_json(f"{dashboard_url}/api/theme/register", hostile[1], "text/plain") == 200
+        ctx = chromium.new_context(viewport={"width": 1280, "height": 800})
+        page = ctx.new_page()
+        errors: list[str] = []
+        page.on("pageerror", lambda e: errors.append(str(e)[:300]))
+        try:
+            page.goto(f"{dashboard_url}/theme-picker", wait_until="load")
+            page.wait_for_selector("#theme-picker-root .tp-swatch", timeout=20000)
+            page.wait_for_timeout(1500)
+            for sel in ("#theme-picker-root .tp-swatch", ".tp-custom-tag"):
+                for el in page.query_selector_all(sel):
+                    el.hover()
+            got = page.evaluate(
+                """([a, b]) => {
+                  const q = (s) => [...document.querySelectorAll(s)];
+                  const sw = (n) => q('#theme-picker-root .tp-swatch').find((e) => e.dataset.preset === n);
+                  const handlers = q('#theme-picker-root *').flatMap(
+                    (e) => [...e.attributes].filter((x) => x.name.startsWith('on')).map((x) => x.name));
+                  return { x: window.__x ?? null, y: window.__y ?? null,
+                           injected: q('#theme-picker-root img, #theme-picker-root script, #theme-picker-root svg').length,
+                           handlers,
+                           titleA: sw(a) ? sw(a).title : null,
+                           bgB: sw(b) ? getComputedStyle(sw(b)).backgroundColor : null,
+                           labels: q('.tp-custom-tag').map((e) => e.textContent.replace('×', '').trim()) };
+                }""",
+                [XSS_NAME, "evil-accent"],
+            )
+            assert got["x"] is None and got["y"] is None, got
+            assert got["injected"] == 0 and not got["handlers"], got
+            assert got["titleA"] == XSS_NAME, got  # shown as text, not markup
+            assert got["bgB"] == "rgb(99, 102, 241)", got  # fallback accent
+            assert XSS_NAME in got["labels"] and "evil-accent" in got["labels"], got
+            # Delete reads the real name back from the escaped attribute.
+            page.click(f'.tp-delete-btn[data-delete="{XSS_NAME}"]')
+            page.wait_for_function(
+                "n => ![...document.querySelectorAll('.tp-delete-btn')].some((e) => e.dataset.delete === n)",
+                arg=XSS_NAME,
+                timeout=10000,
+            )
+            state = json.loads(urllib.request.urlopen(f"{dashboard_url}/api/theme").read())
+            assert XSS_NAME not in state["presets"]
+            assert page.evaluate("window.__x ?? window.__y ?? null") is None
+            assert not errors, errors
+        finally:
+            ctx.close()
+    finally:
+        for theme in hostile:
+            req = urllib.request.Request(
+                f"{dashboard_url}/api/theme/" + urllib.parse.quote(theme["name"], safe=""),
+                method="DELETE",
+            )
+            try:
+                urllib.request.urlopen(req, timeout=10).read()
+            except Exception:
+                pass  # already deleted

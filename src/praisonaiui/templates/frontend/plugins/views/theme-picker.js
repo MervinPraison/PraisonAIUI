@@ -90,6 +90,37 @@ const COLOR_ACCENT_MIX = '4%';
 // next-themes' storage key in the React shell (and the server's bootstrap).
 const SHELL_MODE_KEY = 'aiui-theme-preference';
 
+// Accent shown when a preset's colour is missing or not a plain colour.
+const DEFAULT_ACCENT = '#6366f1';
+
+// Everything painted below comes from GET /api/theme, and preset names and
+// accents are whatever POST /api/theme/register was sent (any page can send
+// it). Every value spliced into the markup goes through escapeHtml().
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"'`]/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c]
+  ));
+}
+
+// A colour safe to put in a style attribute or a theme seed: a hex colour,
+// or (where the browser can tell) a plain CSS colour such as rgb(...) or a
+// name. Anything else (quotes, url(), var(), `;` …) yields `fallback`.
+const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+const PLAIN_COLOR = /^[a-z]+$|^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\([0-9a-z.,%\s/+-]*\)$/i;
+function safeColor(value, fallback = DEFAULT_ACCENT) {
+  if (typeof value !== 'string') return fallback;
+  const v = value.trim();
+  if (HEX_COLOR.test(v)) return v;
+  if (!PLAIN_COLOR.test(v)) return fallback;
+  try {
+    if (typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('color', v)) return v;
+  } catch (e) { /* no CSS.supports */ }
+  return fallback;
+}
+
+// --db-accent-rgb is an "r,g,b" triple used inside rgba(...).
+const RGB_TRIPLE = /^\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*$/;
+
 function inReactShell() {
   return document.documentElement.getAttribute('data-aiui-shell') === 'react';
 }
@@ -101,7 +132,8 @@ function inReactShell() {
 // shell's mode instead.
 function applyThemeToShell(state, vars, setMode) {
   const root = document.documentElement;
-  const accent = vars['--db-accent'];
+  // A hostile or broken custom accent must not become the shell's seed.
+  const accent = safeColor(vars['--db-accent'], null);
   if (NEUTRAL_PRESETS.includes(state.preset)) {
     root.style.setProperty('--seed-accent', 'var(--seed-ink)');
     root.style.setProperty('--accent-mix', '0%');
@@ -111,7 +143,7 @@ function applyThemeToShell(state, vars, setMode) {
     // server's seed tag says 0% when it started on a neutral preset.
     root.style.setProperty('--accent-mix', COLOR_ACCENT_MIX);
   }
-  if (vars['--db-accent-rgb']) root.style.setProperty('--db-accent-rgb', vars['--db-accent-rgb']);
+  if (RGB_TRIPLE.test(vars['--db-accent-rgb'] || '')) root.style.setProperty('--db-accent-rgb', vars['--db-accent-rgb']);
   if (vars['--db-radius']) root.style.setProperty('--radius', vars['--db-radius']);
   // Only an explicit mode pick changes the shell's mode: the server's mode
   // (reported with every pick) is not the shell's, which may be 'system'.
@@ -273,6 +305,8 @@ function paint() {
   const modes = _state.modes || ['dark', 'light'];
   const radii = _state.radii || ['none', 'sm', 'md', 'lg', 'xl'];
   const vars = _state.variables || {};
+  const accent = safeColor(vars['--db-accent']);
+  const esc = escapeHtml;
 
   // Identify custom themes (not built-in)
   const builtinPresets = [
@@ -288,10 +322,10 @@ function paint() {
 
     <!-- Preview -->
     <div class="tp-preview">
-      <div class="tp-preview-chip" style="background:${vars['--db-accent'] || '#6366f1'}"></div>
+      <div class="tp-preview-chip" style="background:${esc(accent)}"></div>
       <div class="tp-preview-info">
-        <strong>${currentPreset}</strong> · ${currentMode} mode · ${currentRadius} radius<br>
-        <span style="font-family:monospace; font-size:11px">${vars['--db-accent'] || ''}</span>
+        <strong>${esc(currentPreset)}</strong> · ${esc(currentMode)} mode · ${esc(currentRadius)} radius<br>
+        <span style="font-family:monospace; font-size:11px">${esc(vars['--db-accent'] || '')}</span>
       </div>
     </div>
 
@@ -302,10 +336,10 @@ function paint() {
         ${Object.entries(presets).map(([name, p]) => `
           <div style="text-align:center">
             <div class="tp-swatch ${name === currentPreset ? 'active' : ''}"
-                 style="background:${p.accent}" data-preset="${name}" title="${name}">
+                 style="background:${esc(safeColor(p && p.accent))}" data-preset="${esc(name)}" title="${esc(name)}">
               <span class="tp-check">✓</span>
             </div>
-            <div class="tp-swatch-label">${name}</div>
+            <div class="tp-swatch-label">${esc(name)}</div>
           </div>
         `).join('')}
       </div>
@@ -316,8 +350,8 @@ function paint() {
       <h3>Mode</h3>
       <div class="tp-mode-group">
         ${modes.map(m => `
-          <button class="tp-mode-btn ${m === currentMode ? 'active' : ''}" data-mode="${m}">
-            ${m === 'dark' ? '🌙' : '☀️'} ${m.charAt(0).toUpperCase() + m.slice(1)}
+          <button class="tp-mode-btn ${m === currentMode ? 'active' : ''}" data-mode="${esc(m)}">
+            ${m === 'dark' ? '🌙' : '☀️'} ${esc(String(m).charAt(0).toUpperCase() + String(m).slice(1))}
           </button>
         `).join('')}
       </div>
@@ -328,8 +362,8 @@ function paint() {
       <h3>Border Radius</h3>
       <div class="tp-radius-group">
         ${radii.map(r => `
-          <button class="tp-radius-btn ${r === currentRadius ? 'active' : ''}" data-radius="${r}">
-            ${r}
+          <button class="tp-radius-btn ${r === currentRadius ? 'active' : ''}" data-radius="${esc(r)}">
+            ${esc(r)}
           </button>
         `).join('')}
       </div>
@@ -353,9 +387,9 @@ function paint() {
         <div class="tp-custom-list">
           ${customPresets.map(name => `
             <span class="tp-custom-tag">
-              <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${presets[name].accent}"></span>
-              ${name}
-              <button class="tp-delete-btn" data-delete="${name}" title="Delete">×</button>
+              <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${esc(safeColor(presets[name] && presets[name].accent))}"></span>
+              ${esc(name)}
+              <button class="tp-delete-btn" data-delete="${esc(name)}" title="Delete">×</button>
             </span>
           `).join('')}
         </div>
