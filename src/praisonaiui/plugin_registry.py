@@ -107,6 +107,7 @@ class PageSpec:
     layout: Optional[str] = None
     position: Optional[str] = None
     integrity: Optional[str] = None
+    css_integrity: Optional[str] = None
     source: str = "builtin"
 
     def to_dict(self) -> dict[str, Any]:
@@ -578,7 +579,7 @@ def _resolve_page(rec: PluginRecord, spec: Any) -> PageSpec:
         # Accept wire-style camelCase keys too (apiEndpoint -> api_endpoint).
         spec = PageSpec(**{_snake(str(k)): v for k, v in spec.items()})
     module, sri = _asset_url(rec, spec.module)
-    css, _ = _asset_url(rec, spec.css)
+    css, css_sri = _asset_url(rec, spec.css)
     api = spec.api_endpoint
     if spec.kind == "blocks" and not api:
         api = f"/api/plugins/{rec.name}/pages/{spec.id}"
@@ -589,6 +590,7 @@ def _resolve_page(rec: PluginRecord, spec: Any) -> PageSpec:
             "css": css,
             "api_endpoint": api,
             "integrity": spec.integrity or sri,
+            "css_integrity": spec.css_integrity or css_sri,
             "source": f"plugin:{rec.name}",
         }
     )

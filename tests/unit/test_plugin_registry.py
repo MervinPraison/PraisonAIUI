@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import sys
 import textwrap
@@ -346,6 +348,9 @@ def test_shell_manifest_merges_all_page_sources(site):
     assert k["kind"] == "react" and k["module"] == "/_plugins/fakeplug/pages/kanban.js"
     assert k["css"] == "/_plugins/fakeplug/pages/kanban.css"
     assert k["integrity"].startswith("sha384-") and k["source"] == "plugin:fakeplug"
+    # The page stylesheet gets its own SRI hash (the shell sets <link integrity>).
+    css_sri = "sha384-" + base64.b64encode(hashlib.sha384(b".k{}").digest()).decode()
+    assert k["cssIntegrity"] == css_sri and k["cssIntegrity"] != k["integrity"]
     assert pages["fake-report"]["apiEndpoint"] == "/api/plugins/fakeplug/pages/fake-report"
     lb = pages["legacy-board"]
     assert lb["kind"] == "legacy" and lb["module"] == "/dashboard-plugins/legacy-board/index.js"
