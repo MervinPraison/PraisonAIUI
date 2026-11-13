@@ -18,7 +18,7 @@ import {
 } from '@assistant-ui/react'
 import { convertMessage } from './convert'
 import { threadStore, type SessionThread } from './store'
-import { AskUnavailableError, createSseTransport, type AiuiTransport } from './transports'
+import { createSseTransport, type AiuiTransport } from './transports'
 import type { AiuiMessage } from './protocol'
 
 export interface AiuiStarter { title?: string; label?: string; prompt: string }
@@ -38,6 +38,8 @@ export interface UseAiuiRuntimeOptions {
   onDeleteSession?: (id: string) => Promise<void> | void
   /** User-facing problems the runtime would otherwise swallow (e.g. an attachment over 10 MB). */
   onError?: (message: string) => void
+  /** A message is being sent: an earlier onError notice no longer applies. */
+  onSend?: () => void
 }
 
 export { convertMessage }
@@ -96,6 +98,7 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
   }, [transport])
 
   const sendText = useCallback(async (text: string, attachments?: AiuiMessage['attachments']) => {
+    optsRef.current.onSend?.()
     const p = threadStore.send(transport, sid, text, {
       agentName: optsRef.current.agentName,
       attachmentIds: attachments?.map((a) => a.id),
@@ -140,10 +143,9 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
       return {
         ...a,
         status: { type: 'complete' },
-        content: [
-          { type: 'data', name: 'aiui-attachment', data: { id: serverId } },
-          ...(a.contentType?.startsWith('image/') ? [{ type: 'image' as const, image: URL.createObjectURL(a.file) }] : []),
-        ],
+        // No object-URL preview: the thread shows attachments by name, and an
+        // unrevoked blob URL would pin the file in memory for the page's lifetime.
+        content: [{ type: 'data', name: 'aiui-attachment', data: { id: serverId } }],
       }
     },
   }), [sid])
@@ -170,12 +172,10 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
       const text = msg.content.map((c) => (c.type === 'text' ? c.text : '')).join('')
       const atts = msg.attachments?.map((a) => {
         const d = a.content?.find((c) => c.type === 'data' && c.name === 'aiui-attachment')
-        const img = a.content?.find((c) => c.type === 'image')
         return {
           id: d && d.type === 'data' ? (d.data as { id: string }).id : a.id,
           name: a.name,
           contentType: a.contentType ?? '',
-          previewUrl: img && img.type === 'image' ? img.image : undefined,
         }
       })
       await sendText(text, atts?.length ? atts : undefined)
@@ -186,34 +186,9 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
       const turn = threadStore.popLastTurn(sid)
       if (turn) await sendText(turn.text, turn.attachments)
     },
-    onRespondToToolApproval: async ({ approvalId, approved, optionId, text }) => {
-      const part = threadStore.findApproval(sid, approvalId)
-      if (!part) return
-      if (part.toolName === 'aiui_ask') {
-        if (transport.canAnswerAsk && !transport.canAnswerAsk(sid)) throw new AskUnavailableError()
-        const answer = text ?? part.approval?.options?.find((o) => o.id === optionId)?.label ?? ''
-        threadStore.resolveApproval(sid, approvalId, true, answer, optionId)
-        try {
-          await transport.respondAsk(sid, part.artifact.run_id as string | undefined, answer)
-        } catch (err) {
-          threadStore.revertApproval(sid, approvalId)
-          throw err
-        }
-        return
-      }
-      threadStore.resolveApproval(sid, approvalId, approved, text, optionId)
-      let res: Response
-      try {
-        res = await postJson(`/api/approvals/${encodeURIComponent(approvalId)}/${approved ? 'approve' : 'deny'}`, { reason: text ?? '' })
-      } catch {
-        threadStore.revertApproval(sid, approvalId)
-        throw new Error('Could not reach the server; try again')
-      }
-      if (!res.ok) {
-        threadStore.revertApproval(sid, approvalId)
-        throw new Error(res.status === 404 ? 'This approval is no longer pending' : `The server answered HTTP ${res.status}`)
-      }
-    },
+    // The gate stays open until the server accepts; a rejection is kept on the part (see the store).
+    onRespondToToolApproval: ({ approvalId, approved, optionId, text }) =>
+      threadStore.respondApproval(transport, sid, approvalId, { approved, optionId, text }),
     adapters: {
       attachments,
       feedback,

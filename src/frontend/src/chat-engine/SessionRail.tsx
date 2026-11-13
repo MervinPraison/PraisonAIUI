@@ -132,8 +132,11 @@ const SessionItem: FC<{
               setError(null)
               try {
                 await onDelete()
+                // The row normally unmounts here; if the list still shows it, never leave it stuck.
+                setMode('view')
               } catch (err) {
                 setError(err instanceof Error ? err.message : 'Delete failed')
+              } finally {
                 setBusy(false)
               }
             }}
@@ -201,7 +204,7 @@ export const SessionRail: FC<SessionRailProps> = ({
         )}
       </div>
       <div className="px-3 pb-2">
-        <label className="flex h-8 items-center gap-2 rounded-lg border border-border bg-background px-2 text-sm focus-within:border-ring/60 focus-within:ring-[3px] focus-within:ring-ring/15">
+        <label className="flex h-8 items-center gap-2 rounded-lg border border-border bg-background px-2 text-sm focus-within:border-ring/60 focus-within:ring-2 focus-within:ring-ring/15">
           <Search className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
           <input
             type="search"

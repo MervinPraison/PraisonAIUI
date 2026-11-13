@@ -38,7 +38,7 @@ import { Markdown } from '@/markdown/LazyMarkdown'
 import { getToolRenderers, useRegistryVersion, type AnyComponent } from '@/sdk/registry'
 import { cn } from '@/lib/utils'
 import { LazyBoundary } from './parts/LazyBoundary'
-import { PENDING_APPROVAL } from './protocol'
+import { APPROVAL_ERROR, APPROVAL_PENDING, PENDING_APPROVAL } from './protocol'
 import { Kbd, Spinner } from './ui'
 import { formatDuration, safeUrl } from './util'
 
@@ -86,7 +86,7 @@ const Reasoning: FC<ReasoningMessagePartProps> = ({ text, status, timing }) => {
         )}
       </button>
       {open && body && (
-        <div className="mt-1 ml-[7px] border-l border-border pl-4 text-sm leading-relaxed whitespace-pre-wrap break-words text-muted-foreground">
+        <div className="mt-1 ml-2 border-l border-border pl-4 text-sm leading-relaxed whitespace-pre-wrap break-words text-muted-foreground">
           {body}
         </div>
       )}
@@ -127,18 +127,31 @@ function toolState(p: ToolCallMessagePartProps): ToolState {
   return 'running'
 }
 
-function ApprovalGate({ prompt, risk, respond }: { prompt: string; risk?: string; respond: (approved: boolean) => Promise<void> }) {
-  const [busy, setBusy] = useState<null | 'approve' | 'deny'>(null)
-  const [error, setError] = useState<string | null>(null)
+/**
+ * Approve/Deny. The decision in flight (`pending`) and a rejected one (`error`)
+ * come from the tool part, so they survive the gate remounting; the local
+ * state only covers the moment between the click and the store update.
+ */
+function ApprovalGate({ prompt, risk, pending, error: partError, respond }: {
+  prompt: string
+  risk?: string
+  pending?: string
+  error?: string
+  respond: (approved: boolean) => Promise<void>
+}) {
+  const [clicked, setClicked] = useState<null | 'approve' | 'deny'>(null)
+  const [localError, setLocalError] = useState<string | null>(null)
+  const busy = pending === 'approve' || pending === 'deny' ? pending : clicked
+  const error = partError ?? localError
   const act = async (approved: boolean) => {
-    setBusy(approved ? 'approve' : 'deny')
-    setError(null)
+    setClicked(approved ? 'approve' : 'deny')
+    setLocalError(null)
     try {
       await respond(approved)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'The decision could not be sent')
+      setLocalError(err instanceof Error ? err.message : 'The decision could not be sent')
     } finally {
-      setBusy(null)
+      setClicked(null)
     }
   }
   const high = risk === 'high' || risk === 'critical'
@@ -219,6 +232,8 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
         <ApprovalGate
           prompt={approval.prompt ?? `Allow ${toolName}?`}
           risk={typeof a.risk_level === 'string' ? a.risk_level : undefined}
+          pending={typeof a[APPROVAL_PENDING] === 'string' ? a[APPROVAL_PENDING] : undefined}
+          error={typeof a[APPROVAL_ERROR] === 'string' ? a[APPROVAL_ERROR] : undefined}
           respond={(approved) => respondToApproval({ approved })}
         />
       )}
@@ -485,7 +500,7 @@ const Composer: FC<{ placeholder?: string; notice?: ComposerNotice | null }> = (
         )}
       </div>
     )}
-    <ComposerPrimitive.Root className="flex w-full min-w-0 flex-col rounded-xl border border-border bg-background shadow-sm focus-within:border-ring/60 focus-within:ring-[3px] focus-within:ring-ring/15">
+    <ComposerPrimitive.Root className="flex w-full min-w-0 flex-col rounded-xl border border-border bg-background shadow-sm focus-within:border-ring/60 focus-within:ring-2 focus-within:ring-ring/15">
       <div className="flex flex-wrap gap-1.5 px-3 pt-2.5 empty:hidden">
         <ComposerPrimitive.Attachments>{() => <ComposerAttachment />}</ComposerPrimitive.Attachments>
       </div>

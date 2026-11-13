@@ -8,27 +8,33 @@ import { useState, type FC, type FormEvent } from 'react'
 import { useAuiState, type ToolCallMessagePartProps } from '@assistant-ui/react'
 import { MessageCircleQuestion, WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { APPROVAL_ERROR, APPROVAL_PENDING } from '../protocol'
 import { Spinner } from '../ui'
 
-const AskTool: FC<ToolCallMessagePartProps> = ({ approval, respondToApproval, result }) => {
+const AskTool: FC<ToolCallMessagePartProps> = ({ approval, respondToApproval, result, artifact }) => {
   const via = useAuiState((s) => (s.message.metadata.custom as { via?: string }).via)
   const [value, setValue] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [clicked, setClicked] = useState(false)
+  const [localError, setLocalError] = useState<string | null>(null)
   if (!approval) return null
+  // In-flight and rejected answers are kept on the part by the store, so they survive a remount.
+  const a = (artifact ?? {}) as Record<string, unknown>
+  const partError = typeof a[APPROVAL_ERROR] === 'string' ? (a[APPROVAL_ERROR] as string) : null
+  const busy = clicked || Boolean(a[APPROVAL_PENDING])
+  const error = partError ?? localError
   const answered = approval.approved !== undefined
   const offline = via === 'sse'
   const disabled = offline || busy
 
   const respond = async (response: Parameters<typeof respondToApproval>[0]) => {
-    setBusy(true)
-    setError(null)
+    setClicked(true)
+    setLocalError(null)
     try {
       await respondToApproval(response)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'The answer could not be sent')
+      setLocalError(err instanceof Error ? err.message : 'The answer could not be sent')
     } finally {
-      setBusy(false)
+      setClicked(false)
     }
   }
 

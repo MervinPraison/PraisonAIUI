@@ -28,7 +28,10 @@ export type AiuiToolPart = {
   args: JSONObject
   result?: unknown
   isError?: boolean
-  /** UI-only: icon, description, step_number, a2ui, surface_id, formatted_result, risk_level, run_id */
+  /**
+   * UI-only: icon, description, step_number, a2ui, surface_id, formatted_result, risk_level, run_id,
+   * and the client's own APPROVAL_PENDING / APPROVAL_ERROR for a decision in flight or one that failed.
+   */
   artifact: JSONObject
   timing?: AiuiTiming
   approval?: {
@@ -202,6 +205,15 @@ function upsertTool(m: AiuiMessage, ev: WireEvent, completed: boolean, now = Dat
 
 /** Data part shown while an approval is pending that this stream could not describe (older WS servers). */
 export const PENDING_APPROVAL = 'approval-pending'
+
+/**
+ * Artifact keys the store sets on a gated tool part (approval or ask) while the
+ * user's decision is on its way to the server ('approve' | 'deny' | 'answer'),
+ * and after the server rejected it (the message to show). They live on the part,
+ * not in a component, so a gate that unmounts and mounts again still shows them.
+ */
+export const APPROVAL_PENDING = 'aiui_decision_pending'
+export const APPROVAL_ERROR = 'aiui_decision_error'
 
 /** The question older WS servers put on a run_paused whose extra_data they dropped. */
 const LEGACY_DEFAULT_QUESTION = 'The agent needs your input'

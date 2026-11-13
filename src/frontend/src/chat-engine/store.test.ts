@@ -4,7 +4,7 @@ import { afterEach, beforeEach, mock, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { threadStore } from './store'
 import { TransportDisconnectedError, type AiuiTransport, type SendArgs } from './transports'
-import type { AiuiMessage, ConnectionStatus, WireEvent } from './protocol'
+import { APPROVAL_ERROR, APPROVAL_PENDING, type AiuiMessage, type ConnectionStatus, type WireEvent } from './protocol'
 
 /** A transport whose turns the test drives by hand. */
 function fakeTransport(kind: 'ws' | 'sse' = 'ws') {
@@ -199,6 +199,135 @@ test('approval: resolving the gate records the decision and returns the message 
   f.end('S')
   await tick()
   assert.equal(assistant('S').status?.type, 'complete')
+})
+
+/** A session paused on approval gate ap1 (tool call tc9). */
+async function gated() {
+  const f = fakeTransport()
+  void threadStore.send(f.t, 'S', 'please approve')
+  await tick()
+  f.emit('S', { type: 'tool_call_started', name: 'shell', tool_call_id: 'tc9', args: { cmd: 'ls' } })
+  f.emit('S', { type: 'run_paused', extra_data: { type: 'approval_required', id: 'ap1', tool_name: 'shell', tool_call_id: 'tc9' } })
+  return f
+}
+
+/** fetch stub: answers each call with the next status (or throws for 'offline'), recording the URLs. */
+function stubFetch(...answers: (number | 'offline')[]) {
+  const calls: { url: string; body: unknown }[] = []
+  globalThis.fetch = (async (url: string, init?: RequestInit) => {
+    calls.push({ url: String(url), body: init?.body ? JSON.parse(String(init.body)) : undefined })
+    const next = answers.shift() ?? 200
+    if (next === 'offline') throw new TypeError('Failed to fetch')
+    return new Response(JSON.stringify(next === 404 ? { error: 'Approval not found' } : { ok: true }), { status: next })
+  }) as typeof fetch
+  return calls
+}
+
+test('regression: a rejected approve (404) keeps the gate open and leaves the error on the part', async () => {
+  const f = await gated()
+  let release!: () => void
+  const calls: string[] = []
+  globalThis.fetch = (async (url: string) => {
+    calls.push(String(url))
+    await new Promise<void>((r) => (release = r))
+    return new Response('{"error":"Approval not found"}', { status: 404 })
+  }) as typeof fetch
+
+  const p = threadStore.respondApproval(f.t, 'S', 'ap1', { approved: true })
+  // In flight: the gate is still open (it does not unmount), marked pending.
+  let part = threadStore.findApproval('S', 'ap1')
+  assert.equal(part?.approval?.approved, undefined)
+  assert.equal(part?.artifact[APPROVAL_PENDING], 'approve')
+  assert.equal(assistant('S').status?.type, 'requires-action')
+  // a second click while one decision is in flight sends nothing
+  await threadStore.respondApproval(f.t, 'S', 'ap1', { approved: false })
+  assert.deepEqual(calls, ['/api/approvals/ap1/approve'])
+
+  release()
+  await assert.rejects(p, /This approval is no longer pending/)
+  part = threadStore.findApproval('S', 'ap1')
+  assert.equal(part?.approval?.approved, undefined, 'the gate is open again')
+  assert.equal(part?.artifact[APPROVAL_PENDING], undefined)
+  assert.equal(part?.artifact[APPROVAL_ERROR], 'This approval is no longer pending', 'a remounted gate can show it')
+  assert.deepEqual(assistant('S').status, { type: 'requires-action', reason: 'tool-calls' })
+})
+
+test('approval: no network and other HTTP errors are reported on the part; a later success clears them', async () => {
+  const f = await gated()
+  const calls = stubFetch('offline', 500, 200)
+  await assert.rejects(threadStore.respondApproval(f.t, 'S', 'ap1', { approved: true }), /Could not reach the server/)
+  assert.equal(threadStore.findApproval('S', 'ap1')?.artifact[APPROVAL_ERROR], 'Could not reach the server; try again')
+
+  await assert.rejects(threadStore.respondApproval(f.t, 'S', 'ap1', { approved: false, text: 'no' }), /HTTP 500/)
+  assert.equal(threadStore.findApproval('S', 'ap1')?.artifact[APPROVAL_ERROR], 'The server answered HTTP 500')
+
+  await threadStore.respondApproval(f.t, 'S', 'ap1', { approved: false, text: 'no' })
+  const part = threadStore.findApproval('S', 'ap1')
+  assert.equal(part?.approval?.approved, false)
+  assert.equal(part?.artifact[APPROVAL_ERROR], undefined)
+  assert.equal(part?.artifact[APPROVAL_PENDING], undefined)
+  assert.equal(assistant('S').status?.type, 'running')
+  assert.deepEqual(calls.map((c) => c.url), ['/api/approvals/ap1/approve', '/api/approvals/ap1/deny', '/api/approvals/ap1/deny'])
+  assert.deepEqual(calls[2].body, { reason: 'no' })
+})
+
+test('approval: a gate the stream resolved while the POST was in flight is not reopened by a late failure', async () => {
+  const f = await gated()
+  let release!: () => void
+  globalThis.fetch = (async () => {
+    await new Promise<void>((r) => (release = r))
+    return new Response('{}', { status: 502 })
+  }) as typeof fetch
+  const p = threadStore.respondApproval(f.t, 'S', 'ap1', { approved: true })
+  f.emit('S', { type: 'tool_call_completed', name: 'shell', tool_call_id: 'tc9', result: 'ok' })
+  release()
+  await assert.rejects(p, /HTTP 502/)
+  const part = threadStore.findApproval('S', 'ap1')
+  assert.equal(part?.approval?.approved, true, 'the tool ran, so the gate stays passed')
+  assert.equal(part?.artifact[APPROVAL_ERROR], undefined)
+})
+
+test('regression: a failed ask_response keeps the ask open with the error on the part', async () => {
+  const f = fakeTransport()
+  void threadStore.send(f.t, 'S', 'hi')
+  await tick()
+  f.emit('S', { type: 'run_started', run_id: 'R1' })
+  f.emit('S', { type: 'run_paused', session_id: 'S', run_id: 'R1', question: 'Which file?', options: ['a.txt', 'b.txt'] })
+  const ask = assistant('S').parts.find((p) => p.type === 'tool-call' && p.toolName === 'aiui_ask')
+  assert.ok(ask?.type === 'tool-call' && ask.approval)
+  const askId = ask.approval.id
+
+  let fail = true
+  const sent: [string, string | undefined, string][] = []
+  f.t.respondAsk = async (sid, runId, text) => {
+    sent.push([sid, runId, text])
+    if (fail) throw new Error('The server did not confirm the answer')
+  }
+  await assert.rejects(threadStore.respondApproval(f.t, 'S', askId, { approved: true, optionId: 'opt_1' }), /did not confirm/)
+  let part = threadStore.findApproval('S', askId)
+  assert.equal(part?.approval?.approved, undefined)
+  assert.equal(part?.result, undefined)
+  assert.equal(part?.artifact[APPROVAL_ERROR], 'The server did not confirm the answer')
+
+  fail = false
+  await threadStore.respondApproval(f.t, 'S', askId, { approved: true, optionId: 'opt_1' })
+  part = threadStore.findApproval('S', askId)
+  assert.equal(part?.approval?.approved, true)
+  assert.equal(part?.result, 'b.txt')
+  assert.equal(part?.artifact[APPROVAL_ERROR], undefined)
+  assert.deepEqual(sent, [['S', 'R1', 'b.txt'], ['S', 'R1', 'b.txt']], 'ask_response carries the run id')
+})
+
+test('an ask on a turn with no answer channel (SSE) reports that on the part instead of sending', async () => {
+  const f = fakeTransport('sse')
+  void threadStore.send(f.t, 'S', 'hi')
+  await tick()
+  f.emit('S', { type: 'run_paused', session_id: 'S', run_id: 'R1', question: 'Which file?', options: [] })
+  const ask = assistant('S').parts.find((p) => p.type === 'tool-call' && p.toolName === 'aiui_ask')
+  assert.ok(ask?.type === 'tool-call' && ask.approval)
+  await assert.rejects(threadStore.respondApproval(f.t, 'S', ask.approval.id, { approved: true, text: 'x' }), /live connection/)
+  assert.equal(f.asks.length, 0)
+  assert.match(String(threadStore.findApproval('S', ask.approval.id)?.artifact[APPROVAL_ERROR]), /live connection/)
 })
 
 test('older WS servers: an undescribed approval shows a placeholder that an aiui:approval-required record fills in', async () => {

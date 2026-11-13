@@ -16,10 +16,10 @@
  * watchdog that is re-armed by every event.
  */
 import {
-  applyEvent, fromHistory, genId, hasPendingApprovalNotice, newAssistant, reconcileFromHistory, TERMINAL,
+  APPROVAL_ERROR, APPROVAL_PENDING, applyEvent, fromHistory, genId, hasPendingApprovalNotice, newAssistant, reconcileFromHistory, TERMINAL,
   type AiuiMessage, type AiuiSessionSignals, type AiuiToolPart, type ConnectionStatus, type JSONObject, type WireEvent,
 } from './protocol'
-import { isAbortError, isDisconnectError, type AiuiTransport } from './transports'
+import { AskUnavailableError, isAbortError, isDisconnectError, type AiuiTransport } from './transports'
 
 export interface SessionThread {
   sessionId: string
@@ -257,6 +257,62 @@ async function reconcile(sid: string, turn: Turn) {
   armWatchdog(sid, turn)
 }
 
+/** The decision UI-only keys on a gated part, removed. */
+function withoutDecisionState(artifact: JSONObject): JSONObject {
+  if (!(APPROVAL_PENDING in artifact) && !(APPROVAL_ERROR in artifact)) return artifact
+  const next = { ...artifact }
+  delete next[APPROVAL_PENDING]
+  delete next[APPROVAL_ERROR]
+  return next
+}
+
+/** Patch the tool part that carries this approval, wherever it is in the session. */
+function patchApprovalPart(sid: string, approvalId: string, fn: (p: AiuiToolPart) => AiuiToolPart) {
+  set(sid, (s) => {
+    let changed = false
+    const messages = s.messages.map((m) => {
+      if (m.role !== 'assistant') return m
+      let touched = false
+      const parts = m.parts.map((p) => {
+        if (p.type !== 'tool-call' || p.approval?.id !== approvalId) return p
+        const next = fn(p)
+        if (next !== p) touched = true
+        return next
+      })
+      if (!touched) return m
+      changed = true
+      return { ...m, parts }
+    })
+    return changed ? { messages } : {}
+  }, true)
+}
+
+function approvalUrl(approvalId: string, approved: boolean): string {
+  return `/api/approvals/${encodeURIComponent(approvalId)}/${approved ? 'approve' : 'deny'}`
+}
+
+/** Send an approve/deny decision. Resolves when the server accepted it; rejects with the message to show. */
+async function postDecision(approvalId: string, approved: boolean, reason: string): Promise<void> {
+  let res: Response
+  try {
+    res = await fetch(approvalUrl(approvalId, approved), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ reason }),
+    })
+  } catch {
+    throw new Error('Could not reach the server; try again')
+  }
+  if (!res.ok) throw new Error(res.status === 404 ? 'This approval is no longer pending' : `The server answered HTTP ${res.status}`)
+}
+
+export interface ApprovalDecision {
+  approved: boolean
+  text?: string
+  optionId?: string
+}
+
 export interface SendOptions {
   agentName?: string
   attachmentIds?: string[]
@@ -402,7 +458,44 @@ export const threadStore = {
     await (turn?.transport ?? transport).cancel(sid, runId)
   },
 
-  /** Record an approval/ask decision on its tool part (optimistic). */
+  /**
+   * Decide an approval gate (POST /api/approvals/{id}/approve|deny) or answer an
+   * ask (WS ask_response). The gate stays open, marked APPROVAL_PENDING, until
+   * the server accepts; then the decision is recorded. When the server rejects
+   * it (404 once the approval is gone, another HTTP error, no network, no ask
+   * channel) the gate stays open with APPROVAL_ERROR set on the part, and the
+   * promise rejects with the same message.
+   */
+  async respondApproval(transport: AiuiTransport, sid: string, approvalId: string, d: ApprovalDecision): Promise<void> {
+    const part = threadStore.findApproval(sid, approvalId)
+    if (!part?.approval || part.approval.approved !== undefined || part.artifact[APPROVAL_PENDING]) return
+    const ask = part.toolName === 'aiui_ask'
+    const answer = ask ? d.text ?? part.approval.options?.find((o) => o.id === d.optionId)?.label ?? '' : d.text
+    const fail = (message: string) => {
+      patchApprovalPart(sid, approvalId, (p) => {
+        const artifact = withoutDecisionState(p.artifact)
+        // The stream may have decided the gate meanwhile (the tool ran): nothing to report then.
+        return { ...p, artifact: p.approval?.approved === undefined ? { ...artifact, [APPROVAL_ERROR]: message } : artifact }
+      })
+      return new Error(message)
+    }
+    if (ask && transport.canAnswerAsk && !transport.canAnswerAsk(sid)) {
+      const err = new AskUnavailableError()
+      fail(err.message)
+      throw err
+    }
+    const pending = ask ? 'answer' : d.approved ? 'approve' : 'deny'
+    patchApprovalPart(sid, approvalId, (p) => ({ ...p, artifact: { ...withoutDecisionState(p.artifact), [APPROVAL_PENDING]: pending } }))
+    try {
+      if (ask) await transport.respondAsk(sid, str(part.artifact.run_id), answer ?? '')
+      else await postDecision(approvalId, d.approved, d.text ?? '')
+    } catch (err) {
+      throw fail(errorText(err))
+    }
+    threadStore.resolveApproval(sid, approvalId, ask ? true : d.approved, answer, d.optionId)
+  },
+
+  /** Record an approval/ask decision on its tool part. */
   resolveApproval(sid: string, approvalId: string, approved: boolean, text?: string, optionId?: string) {
     set(sid, (s) => ({
       messages: s.messages.map((m) => {
@@ -411,7 +504,7 @@ export const threadStore = {
         const parts = m.parts.map((p) => {
           if (p.type !== 'tool-call' || p.approval?.id !== approvalId) return p
           touched = true
-          const tp: AiuiToolPart = { ...p, approval: { ...p.approval, approved, text, optionId } }
+          const tp: AiuiToolPart = { ...p, artifact: withoutDecisionState(p.artifact), approval: { ...p.approval, approved, text, optionId } }
           if (p.toolName === 'aiui_ask') tp.result = text ?? null
           return tp
         })
@@ -425,8 +518,8 @@ export const threadStore = {
     }), true)
   },
 
-  /** Undo an optimistic decision that the server rejected, so the controls are usable again. */
-  revertApproval(sid: string, approvalId: string) {
+  /** Reopen a recorded decision (the server rejected it), optionally with the message to show on the gate. */
+  revertApproval(sid: string, approvalId: string, error?: string) {
     set(sid, (s) => ({
       messages: s.messages.map((m) => {
         if (m.role !== 'assistant') return m
@@ -434,7 +527,12 @@ export const threadStore = {
         const parts = m.parts.map((p) => {
           if (p.type !== 'tool-call' || p.approval?.id !== approvalId) return p
           reason = p.toolName === 'aiui_ask' ? 'interrupt' : 'tool-calls'
-          const tp: AiuiToolPart = { ...p, approval: { ...p.approval, approved: undefined, text: undefined, optionId: undefined } }
+          const artifact = withoutDecisionState(p.artifact)
+          const tp: AiuiToolPart = {
+            ...p,
+            artifact: error ? { ...artifact, [APPROVAL_ERROR]: error } : artifact,
+            approval: { ...p.approval, approved: undefined, text: undefined, optionId: undefined },
+          }
           if (p.toolName === 'aiui_ask') delete tp.result
           return tp
         })

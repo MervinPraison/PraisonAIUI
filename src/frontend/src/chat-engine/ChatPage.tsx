@@ -10,7 +10,7 @@
  * The page does not register itself; the shell calls registerChatPage()
  * from ./register.
  */
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type JSX } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type JSX } from 'react'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import { PanelLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,7 @@ import { deleteSession, fetchAgents, fetchSessions, fetchStarters, renameSession
 import type { ConnectionStatus } from './protocol'
 import { takePendingPrefill, takePendingSessionSelect } from './register'
 import { SessionRail } from './SessionRail'
+import { addLocalSession, markListed, mergeSessions, removeLocalSession, renameLocalSession, type LocalSessions } from './sessionList'
 import { threadStore } from './store'
 import { Thread } from './Thread'
 import { createAutoTransport, type AiuiTransport } from './transports'
@@ -117,22 +118,30 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [sessionsLoading, setSessionsLoading] = useState(true)
   const [sessionsError, setSessionsError] = useState<string | null>(null)
-  const [localTitles, setLocalTitles] = useState<Record<string, string>>({})
+  const [localSessions, setLocalSessions] = useState<LocalSessions>({})
   const [query, setQuery] = useState('')
   const [railOpen, setRailOpen] = useState(false)
   const [railHidden, setRailHidden] = useState(readRailHidden)
   const [notice, setNotice] = useState<string | null>(null)
   const running = useSyncExternalStore(threadStore.subscribeRunning, threadStore.runningSessions)
 
+  // Chats deleted during this visit. A list request that was already in flight
+  // when the delete finished must not bring them back.
+  const deletedIds = useRef(new Set<string>())
+  const refreshSeq = useRef(0)
+
   const refreshSessions = useCallback(async () => {
+    const seq = ++refreshSeq.current
     try {
-      const list = await fetchSessions()
+      const list = (await fetchSessions()).filter((s) => !deletedIds.current.has(s.id))
+      if (seq !== refreshSeq.current) return // a newer refresh owns the list
       setSessions(list)
+      setLocalSessions((local) => markListed(local, list))
       setSessionsError(null)
     } catch {
-      setSessionsError('Chats could not be loaded')
+      if (seq === refreshSeq.current) setSessionsError('Chats could not be loaded')
     } finally {
-      setSessionsLoading(false)
+      if (seq === refreshSeq.current) setSessionsLoading(false)
     }
   }, [])
 
@@ -189,10 +198,12 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
     setNotice(null)
   }, [])
 
+  const clearNotice = useCallback(() => setNotice(null), [])
+
   const onSessionCreated = useCallback((id: string) => {
     const first = threadStore.get(id).messages.find((m) => m.role === 'user')
     const text = first?.parts.map((p) => (p.type === 'text' ? p.text : '')).join(' ').replace(/\s+/g, ' ').trim()
-    if (text) setLocalTitles((t) => ({ ...t, [id]: text.length > 60 ? `${text.slice(0, 57)}…` : text }))
+    if (text) setLocalSessions((local) => addLocalSession(local, id, text.length > 60 ? `${text.slice(0, 57)}…` : text))
     setSessionId(id)
   }, [])
 
@@ -203,6 +214,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
     starters,
     onSessionCreated,
     onError: setNotice,
+    onSend: clearNotice,
   })
 
   // Window events from the shell and other pages.
@@ -243,24 +255,23 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   const rename = useCallback(async (id: string, title: string) => {
     await renameSession(id, title)
     setSessions((list) => list.map((s) => (s.id === id ? { ...s, title, untitled: false } : s)))
+    // A chat started here may not be listed by the server yet; its row comes from the local entry.
+    setLocalSessions((local) => renameLocalSession(local, id, title))
   }, [])
 
   const remove = useCallback(async (id: string) => {
     if (threadStore.get(id).isRunning) await threadStore.cancel(transport, id)
     await deleteSession(id)
+    deletedIds.current.add(id) // a list fetched before the delete still has it
     threadStore.drop(id)
     setSessions((list) => list.filter((s) => s.id !== id))
+    // A chat started here is also listed from its local entry; drop that too.
+    setLocalSessions((local) => removeLocalSession(local, id))
     setSessionId((cur) => (cur === id ? null : cur))
   }, [transport])
 
   // Server list + sessions created here that the server has not listed yet.
-  const shownSessions = useMemo(() => {
-    const byId = new Set(sessions.map((s) => s.id))
-    const local: ChatSession[] = Object.entries(localTitles)
-      .filter(([id]) => !byId.has(id))
-      .map(([id, title]) => ({ id, title, untitled: false, updatedAt: Date.now() }))
-    return [...local, ...sessions.map((s) => (s.untitled && localTitles[s.id] ? { ...s, title: localTitles[s.id] } : s))]
-  }, [sessions, localTitles])
+  const shownSessions = useMemo(() => mergeSessions(sessions, localSessions), [sessions, localSessions])
 
   const current = sessionId ? shownSessions.find((s) => s.id === sessionId) : undefined
   const heading = current?.title ?? (sessionId ? 'Chat' : 'New chat')
