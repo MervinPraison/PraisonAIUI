@@ -91,6 +91,13 @@ export default defineConfig({
       // The chat WebSocket must be listed before the /api prefix rule.
       '/api/chat/ws': { target: DEV_BACKEND, ws: true, changeOrigin: true },
       ...Object.fromEntries(PROXIED_PATHS.map((p) => [p, { target: DEV_BACKEND, changeOrigin: true }])),
+      // GET /agents is the agent list the chat picker reads; /agents is also a
+      // page route, so document navigations stay with the dev server.
+      '/agents': {
+        target: DEV_BACKEND,
+        changeOrigin: true,
+        bypass: (req) => (req.headers.accept?.includes('text/html') ? req.url : undefined),
+      },
     },
   },
   build: {
