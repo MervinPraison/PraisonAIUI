@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.metadata as importlib_metadata
 import json
+import logging
 import sys
 import textwrap
 
@@ -109,6 +110,14 @@ def site(tmp_path, monkeypatch):
     for m in _MODULES:
         sys.modules.pop(m, None)
     registry_mod.get_plugin_registry().reset()
+    # Another test in the same worker may leave a root log handler that writes to
+    # stdout (a RichHandler); the registry's "failed to load" warning would then
+    # land in CliRunner's output ahead of the --json document.
+    # The NullHandler keeps logging.lastResort (stderr, which CliRunner folds
+    # into result.output) quiet once propagation is off.
+    registry_log = logging.getLogger(registry_mod.__name__)
+    monkeypatch.setattr(registry_log, "propagate", False)
+    monkeypatch.setattr(registry_log, "handlers", [logging.NullHandler()])
     # Wide, colourless console so assertions see whole table cells.
     monkeypatch.setattr(cli_mod, "console", Console(width=400, no_color=True, highlight=False))
     yield sp
