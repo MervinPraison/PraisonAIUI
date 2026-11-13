@@ -1,0 +1,85 @@
+<!doctype html>
+<!--
+  WP6 dev harness for the React shell (style `app`) against the WP0a contract
+  stubs. Dev-only: excluded from the build and from Tailwind scanning.
+
+  npm run dev, then open http://localhost:5173/dev/shell-dev.html
+  Query flags (read once at boot):
+    ?page=<id>      start on a page (the URL becomes /<id>)
+    ?sidebar=0      manifest layout.sidebar = false
+    ?header=0       manifest layout.pageHeader = false
+    ?default=<id>   manifest layout.default = <id> (root redirect target)
+    ?partial=1      inline only {sdk, version, style}, as auth-enforcing servers do;
+                    the shell then GETs /api/shell/manifest
+  The inline manifest mirrors the server's built-in pages, plus one
+  kind=blocks page (hello-blocks).
+-->
+<html lang="en" data-aiui-shell="react">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <title>AIUI shell (dev)</title>
+    <script id="aiui-theme-bootstrap">
+      (function(){try{var t=localStorage.getItem('aiui-theme-preference');if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+    </script>
+    <style id="aiui-dev-fallback-tokens">
+      /* Before WP0b's styles/theme.css lands, colours come from the server's
+         generated theme.css (HSL triples). Stand in for it here, in a cascade
+         layer declared before Tailwind's, so the real token layer wins as soon
+         as it exists. */
+      @layer aiui-dev-fallback {
+        :root {
+          --radius: 0.5rem;
+          --background: 0 0% 100%; --foreground: 240 10% 3.9%;
+          --card: 0 0% 100%; --card-foreground: 240 10% 3.9%;
+          --popover: 0 0% 100%; --popover-foreground: 240 10% 3.9%;
+          --primary: 240 5.9% 10%; --primary-foreground: 0 0% 98%;
+          --secondary: 240 4.8% 95.9%; --secondary-foreground: 240 5.9% 10%;
+          --muted: 240 4.8% 95.9%; --muted-foreground: 240 3.8% 46.1%;
+          --accent: 240 4.8% 95.9%; --accent-foreground: 240 5.9% 10%;
+          --destructive: 0 84.2% 60.2%; --border: 240 5.9% 90%; --input: 240 5.9% 90%; --ring: 240 5.9% 10%;
+          --sidebar: 0 0% 98%; --sidebar-foreground: 240 5.3% 26.1%;
+          --sidebar-primary: 240 5.9% 10%; --sidebar-primary-foreground: 0 0% 98%;
+          --sidebar-accent: 240 4.8% 95.9%; --sidebar-accent-foreground: 240 5.9% 10%;
+          --sidebar-border: 220 13% 91%; --sidebar-ring: 240 5.9% 10%;
+        }
+        .dark {
+          --background: 240 10% 3.9%; --foreground: 0 0% 98%;
+          --card: 240 10% 3.9%; --card-foreground: 0 0% 98%;
+          --popover: 240 10% 3.9%; --popover-foreground: 0 0% 98%;
+          --primary: 0 0% 98%; --primary-foreground: 240 5.9% 10%;
+          --secondary: 240 3.7% 15.9%; --secondary-foreground: 0 0% 98%;
+          --muted: 240 3.7% 15.9%; --muted-foreground: 240 5% 64.9%;
+          --accent: 240 3.7% 15.9%; --accent-foreground: 0 0% 98%;
+          --destructive: 0 62.8% 30.6%; --border: 240 3.7% 15.9%; --input: 240 3.7% 15.9%; --ring: 240 4.9% 83.9%;
+          --sidebar: 240 5.9% 10%; --sidebar-foreground: 240 4.8% 95.9%;
+          --sidebar-primary: 0 0% 98%; --sidebar-primary-foreground: 240 5.9% 10%;
+          --sidebar-accent: 240 3.7% 15.9%; --sidebar-accent-foreground: 240 4.8% 95.9%;
+          --sidebar-border: 240 3.7% 15.9%; --sidebar-ring: 240 4.9% 83.9%;
+        }
+      }
+    </style>
+    <script id="aiui-boot" type="application/json">{"sdk":1,"version":"0.3.153","style":"app","site":{"title":"PraisonAI","logo":"🦞"},"layout":{"sidebar":true,"pageHeader":true},"pages":[{"id":"chat","title":"Chat","kind":"legacy","icon":"💬","group":"Agent","order":1,"description":"AI agent chat","apiEndpoint":"/api/chat","source":"builtin","layout":"full-bleed"},{"id":"chat-canvas","title":"Chat + Canvas","kind":"legacy","icon":"💬🖼️","group":"Agent","order":2,"description":"Chat with live A2UI preview panel","apiEndpoint":"/api/chat-canvas","source":"builtin","layout":"full-bleed"},{"id":"channels","title":"Channels","kind":"legacy","icon":"📡","group":"Agent","order":5,"description":"Messaging platform connections","apiEndpoint":"/api/channels","source":"builtin"},{"id":"canvas","title":"Canvas","kind":"legacy","icon":"🖼️","group":"Agent","order":6,"description":"Live A2UI surface workspace","apiEndpoint":"/api/canvas","source":"builtin"},{"id":"inbox","title":"Channel Inbox","kind":"legacy","icon":"📥","group":"Agent","order":6,"description":"Unified multi-channel conversation triage","apiEndpoint":"/api/inbox","source":"builtin"},{"id":"work","title":"Work Hub","kind":"legacy","icon":"🗂️","group":"Work","order":9,"description":"Unified kanban, card detail, chat and job log","apiEndpoint":"/api/work","source":"builtin"},{"id":"agents","title":"Agents","kind":"legacy","icon":"🤖","group":"Agent","order":10,"description":"Configured AI agents","apiEndpoint":"/api/agents","source":"builtin"},{"id":"config","title":"Config","kind":"legacy","icon":"⚙️","group":"Settings","order":10,"description":"Server configuration","apiEndpoint":"/api/config","source":"builtin"},{"id":"kanban","title":"Kanban","kind":"legacy","icon":"📌","group":"Work","order":10,"description":"Multi-agent task board","apiEndpoint":"/api/kanban","source":"builtin"},{"id":"overview","title":"Overview","kind":"legacy","icon":"📊","group":"Control","order":10,"description":"System health and statistics","apiEndpoint":"/api/overview","source":"builtin"},{"id":"jobs-board","title":"Jobs Board","kind":"legacy","icon":"📊","group":"Work","order":11,"description":"Jobs kanban by status","apiEndpoint":"/api/jobs-board","source":"builtin"},{"id":"security","title":"Security","kind":"legacy","icon":"🔒","group":"Settings","order":12,"description":"Security monitoring & audit log","apiEndpoint":"/api/security","source":"builtin"},{"id":"auth","title":"Auth","kind":"legacy","icon":"🔐","group":"Settings","order":15,"description":"Authentication settings","apiEndpoint":"/api/auth","source":"builtin"},{"id":"nodes","title":"Nodes","kind":"legacy","icon":"🖥️","group":"Control","order":15,"description":"Execution nodes & presence","apiEndpoint":"/api/nodes","source":"builtin"},{"id":"logs","title":"Logs","kind":"legacy","icon":"📜","group":"Settings","order":20,"description":"Server logs and events","apiEndpoint":"/api/logs","source":"builtin"},{"id":"sessions","title":"Sessions","kind":"legacy","icon":"📋","group":"Control","order":20,"description":"Manage conversation sessions","apiEndpoint":"/api/sessions","source":"builtin"},{"id":"skills","title":"Skills","kind":"legacy","icon":"⚡","group":"Agent","order":20,"description":"Agent skills & plugins","apiEndpoint":"/api/skills","source":"builtin"},{"id":"marketplace","title":"Marketplace","kind":"legacy","icon":"🧩","group":"Agent","order":22,"description":"Browse, install & manage plugins","apiEndpoint":"/api/marketplace","source":"builtin"},{"id":"runs","title":"Runs","kind":"legacy","icon":"⏱️","group":"Control","order":22,"description":"Run flight recorder — timeline debugger","apiEndpoint":"/api/runs","source":"builtin"},{"id":"replay","title":"Replay","kind":"legacy","icon":"replay","group":"Control","order":23,"description":"Replay recorded runs","apiEndpoint":"/api/replay/runs","source":"builtin"},{"id":"feedback","title":"Feedback","kind":"legacy","icon":"👍","group":"Control","order":25,"description":"Message feedback analytics","apiEndpoint":"/api/feedback","source":"builtin"},{"id":"memory","title":"Memory","kind":"legacy","icon":"🧠","group":"Agent","order":25,"description":"Agent memory & knowledge store","apiEndpoint":"/api/memory","source":"builtin"},{"id":"telemetry","title":"Telemetry","kind":"legacy","icon":"📈","group":"Settings","order":25,"description":"Performance monitoring & profiling","apiEndpoint":"/api/telemetry","source":"builtin"},{"id":"knowledge","title":"Knowledge","kind":"legacy","icon":"📚","group":"Agent","order":27,"description":"Knowledge base & RAG","apiEndpoint":"/api/knowledge","source":"builtin"},{"id":"traces","title":"Traces","kind":"legacy","icon":"🔍","group":"Settings","order":27,"description":"Distributed tracing & observability","apiEndpoint":"/api/traces","source":"builtin"},{"id":"debug","title":"Debug","kind":"legacy","icon":"🐛","group":"Settings","order":30,"description":"Debug information","apiEndpoint":"/api/debug","source":"builtin"},{"id":"mcp","title":"MCP","kind":"legacy","icon":"🔌","group":"Agent","order":30,"description":"Model Context Protocol servers","apiEndpoint":"/api/mcp","source":"builtin"},{"id":"usage","title":"Usage","kind":"legacy","icon":"📈","group":"Control","order":30,"description":"Token usage and metrics","apiEndpoint":"/api/usage","source":"builtin"},{"id":"cron","title":"Cron","kind":"legacy","icon":"⏰","group":"Agent","order":35,"description":"Scheduled jobs","apiEndpoint":"/api/cron","source":"builtin"},{"id":"guardrails","title":"Guardrails","kind":"legacy","icon":"🛡️","group":"Agent","order":35,"description":"Input/output safety guardrails","apiEndpoint":"/api/guardrails","source":"builtin"},{"id":"theme-picker","title":"Theme","kind":"legacy","icon":"🎨","group":"Settings","order":35,"description":"Live color scheme picker","apiEndpoint":"/api/theme-picker","source":"builtin"},{"id":"eval","title":"Eval","kind":"legacy","icon":"📊","group":"Control","order":40,"description":"Agent evaluation & accuracy","apiEndpoint":"/api/eval","source":"builtin"},{"id":"jobs","title":"Jobs","kind":"legacy","icon":"📋","group":"Control","order":40,"description":"Async agent jobs","apiEndpoint":"/api/jobs","source":"builtin"},{"id":"training","title":"Training","kind":"legacy","icon":"🧪","group":"Control","order":42,"description":"Inspect praisonai-train sessions & apply profiles","apiEndpoint":"/api/training","source":"builtin"},{"id":"approvals","title":"Approvals","kind":"legacy","icon":"✅","group":"Control","order":45,"description":"Execution approval queue","apiEndpoint":"/api/approvals","source":"builtin"},{"id":"code-studio","title":"Code Studio","kind":"legacy","icon":"💻","group":"Control","order":45,"description":"Write, run, and share code in a sandbox","apiEndpoint":"/api/code-studio","source":"builtin"},{"id":"api","title":"API","kind":"legacy","icon":"🔌","group":"Control","order":50,"description":"OpenAI-compatible API endpoints","apiEndpoint":"/api/api","source":"builtin"},{"id":"hello-blocks","title":"Hello Blocks","kind":"blocks","icon":"🧱","group":"Plugins","order":60,"description":"A kind=blocks plugin page","apiEndpoint":"/api/plugins/hello/pages/hello-blocks","source":"plugin:hello"},{"id":"inspector","title":"Inspector","kind":"legacy","icon":"🔍","group":"Control","order":99,"description":"Interactive API inspector","apiEndpoint":"/api/inspector","source":"builtin","position":"footer"}],"blocks":[],"toolRenderers":[],"plugins":[],"legacy":{"customJs":null,"viewsBase":"/plugins/views/"}}</script>
+    <script>
+      window.__AIUI_BUILD__ = 'dev';
+      (function () {
+        var q = new URLSearchParams(location.search);
+        var el = document.getElementById('aiui-boot');
+        var m = JSON.parse(el.textContent);
+        if (q.get('sidebar') === '0') m.layout.sidebar = false;
+        if (q.get('header') === '0') m.layout.pageHeader = false;
+        if (q.get('default')) m.layout['default'] = q.get('default');
+        if (q.get('partial') === '1') m = { sdk: m.sdk, version: m.version, style: m.style };
+        el.textContent = JSON.stringify(m).replace(/<\//g, '<\\/');
+        var page = q.get('page');
+        if (page) history.replaceState(null, '', '/' + encodeURIComponent(page));
+        else if (/\/dev\/shell-dev\.html$/.test(location.pathname)) history.replaceState(null, '', '/' + location.hash);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
