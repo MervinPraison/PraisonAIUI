@@ -5,7 +5,15 @@ from pathlib import Path
 import yaml
 
 from praisonaiui.compiler import Compiler
-from praisonaiui.schema.models import Config, ContentConfig, ContentSourceConfig, RouteConfig, SEOConfig, SiteConfig, TemplateConfig
+from praisonaiui.schema.models import (
+    Config,
+    ContentConfig,
+    ContentSourceConfig,
+    RouteConfig,
+    SEOConfig,
+    SiteConfig,
+    TemplateConfig,
+)
 
 
 class TestSeoBuild:
@@ -69,10 +77,16 @@ class TestSeoBuild:
         assert "event.preventDefault()" in source
 
     def test_content_normalises_internal_doc_links(self):
-        source = Path("src/frontend/src/Content.tsx").read_text(encoding="utf-8")
-        assert "normalizeDocHref" in source
-        assert "isInternalDocHref" in source
-        assert 'key={currentPath}' in source
+        # Docs links are rendered by the Streamdown docs variant; the internal
+        # link rewrite lives in its `a` component (markdown/docsComponents.tsx).
+        content = Path("src/frontend/src/Content.tsx").read_text(encoding="utf-8")
+        assert 'key={currentPath}' in content
+        assert '<Markdown variant="docs">' in content
+        links = Path("src/frontend/src/markdown/docsComponents.tsx").read_text(encoding="utf-8")
+        assert "normalizeDocHref" in links
+        assert "isInternalDocHref" in links
+        markdown = Path("src/frontend/src/markdown/Markdown.tsx").read_text(encoding="utf-8")
+        assert "a: DocsLink" in markdown
 
     def test_nav_intercept_handles_main_doc_links(self):
         source = Path("src/praisonaiui/templates/frontend/plugins/nav-intercept.js").read_text(encoding="utf-8")

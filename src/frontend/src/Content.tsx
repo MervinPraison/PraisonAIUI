@@ -1,15 +1,13 @@
 // Content component — markdown rendering and landing page
-import { Children, isValidElement, useEffect, useRef, useState } from 'react'
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { useEffect, useRef, useState } from 'react'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 import { SHADCN_THEMES } from './themes'
 import { enhanceMkdocsDom } from './markdown/mkdocsEnhance'
 import { preprocessMkdocsMarkdown } from './markdown/mkdocsPreprocess'
-import { MermaidDiagram } from './markdown/MermaidDiagram'
-import { slugify } from './markdown/slug'
+import { Markdown, preloadMarkdown, preloadMarkdownPlugins } from './markdown/LazyMarkdown'
 import { MobileToc } from './Toc'
-import { docPathToMarkdown, isInternalDocHref, normalizeDocHref, normalizeDocPath } from './pathUtils'
+import { docPathToMarkdown, normalizeDocPath } from './pathUtils'
 import type { UIConfig, NavItem, RouteManifest } from './types'
 
 interface ContentProps {
@@ -24,6 +22,7 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
     const [loadedPath, setLoadedPath] = useState('')
     const [loadingContent, setLoadingContent] = useState(false)
     const articleRef = useRef<HTMLElement>(null)
+    const loadedEventPath = useRef<string | null>(null)
     const theme = config.site?.theme
 
     // Load markdown from URL path (source of truth) to avoid stale selectedItem races
@@ -45,23 +44,26 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
         setMarkdown('')
         setLoadedPath('')
         setLoadingContent(true)
+        loadedEventPath.current = null
 
         const loadContent = async () => {
             try {
                 const response = await fetch(mdUrl, { signal: controller.signal })
                 if (controller.signal.aborted) return
                 if (response.ok) {
-                    const content = await response.text()
-                    setMarkdown(preprocessMkdocsMarkdown(content))
+                    const content = preprocessMkdocsMarkdown(await response.text())
+                    // Renderer + Shiki core + KaTeX before first paint (no raw-$$ or
+                    // unstyled-code flash); grammars and mermaid stay lazy.
+                    await Promise.all([preloadMarkdown(), preloadMarkdownPlugins(content)])
+                    if (controller.signal.aborted) return
+                    loadedEventPath.current = urlPath // announced once the article has committed
+                    setMarkdown(content)
                     setLoadedPath(urlPath)
-                    window.dispatchEvent(new CustomEvent('aiui:content-loaded', {
-                        detail: { path: urlPath },
-                    }))
                 } else {
                     setMarkdown(`*Content for **${pageTitle}** not found.*`)
                     setLoadedPath(urlPath)
                 }
-            } catch (err) {
+            } catch {
                 if (controller.signal.aborted) return
                 setMarkdown(`*Failed to load content for **${pageTitle}**.*`)
                 setLoadedPath(urlPath)
@@ -84,71 +86,14 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
         const article = articleRef.current
         const frame = window.requestAnimationFrame(() => {
             enhanceMkdocsDom(article)
+            const path = loadedEventPath.current
+            if (path) {
+                loadedEventPath.current = null
+                window.dispatchEvent(new CustomEvent('aiui:content-loaded', { detail: { path } }))
+            }
         })
         return () => window.cancelAnimationFrame(frame)
     }, [markdown])
-
-    const headingId = (children?: React.ReactNode) => slugify(String(children ?? ''))
-
-    const mermaidChartFromPre = (children?: React.ReactNode): string | null => {
-        try {
-            const child = Children.only(children)
-            if (!isValidElement<{ className?: string; children?: React.ReactNode }>(child)) return null
-            const className = child.props.className ?? ''
-            if (!className.includes('language-mermaid')) return null
-            return String(child.props.children ?? '').replace(/\n$/, '').trim()
-        } catch {
-            return null
-        }
-    }
-
-    const markdownComponents = {
-        h1: ({ children }: { children?: React.ReactNode }) => <h1 id={headingId(children)} className="text-3xl font-bold mt-8 mb-4 scroll-mt-20">{children}</h1>,
-        h2: ({ children }: { children?: React.ReactNode }) => <h2 id={headingId(children)} className="text-2xl font-semibold mt-8 mb-4 text-primary scroll-mt-20">{children}</h2>,
-        h3: ({ children }: { children?: React.ReactNode }) => <h3 id={headingId(children)} className="text-xl font-semibold mt-6 mb-3 scroll-mt-20">{children}</h3>,
-        h4: ({ children }: { children?: React.ReactNode }) => <h4 id={headingId(children)} className="text-lg font-semibold mt-4 mb-2 scroll-mt-20">{children}</h4>,
-        p: ({ children }: { children?: React.ReactNode }) => <p className="my-3 text-foreground leading-relaxed">{children}</p>,
-        a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
-            const seoHref = href && isInternalDocHref(href) ? normalizeDocHref(href) : href
-            return (
-                <a href={seoHref} className="text-primary hover:underline">
-                    {children}
-                </a>
-            )
-        },
-        ul: ({ children }: { children?: React.ReactNode }) => <ul className="list-disc pl-6 my-4 space-y-1">{children}</ul>,
-        ol: ({ children }: { children?: React.ReactNode }) => <ol className="list-decimal pl-6 my-4 space-y-1">{children}</ol>,
-        li: ({ children }: { children?: React.ReactNode }) => <li className="text-foreground">{children}</li>,
-        blockquote: ({ children }: { children?: React.ReactNode }) => <blockquote className="border-l-4 border-primary pl-4 my-4 italic text-foreground/80">{children}</blockquote>,
-        code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
-            if (className?.includes('language-mermaid')) {
-                return <MermaidDiagram chart={String(children ?? '').replace(/\n$/, '').trim()} />
-            }
-            const isInline = !className && String(children).indexOf('\n') === -1
-            if (isInline) {
-                return <code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-sm font-mono">{children}</code>
-            }
-            return <code className={`block font-mono text-foreground ${className ?? ''}`}>{children}</code>
-        },
-        pre: ({ children }: { children?: React.ReactNode }) => {
-            if (isValidElement(children) && children.type === MermaidDiagram) {
-                return children
-            }
-            const chart = mermaidChartFromPre(children)
-            if (chart) return <MermaidDiagram chart={chart} />
-            return (
-                <pre className="bg-muted text-foreground border border-border p-4 rounded-lg text-sm overflow-auto my-4 font-mono whitespace-pre">{children}</pre>
-            )
-        },
-        table: ({ children }: { children?: React.ReactNode }) => <div className="overflow-auto my-4"><table className="w-full border-collapse text-sm">{children}</table></div>,
-        thead: ({ children }: { children?: React.ReactNode }) => <thead className="bg-muted/50">{children}</thead>,
-        tr: ({ children }: { children?: React.ReactNode }) => <tr className="border-b">{children}</tr>,
-        th: ({ children }: { children?: React.ReactNode }) => <th className="px-4 py-2 text-left font-medium">{children}</th>,
-        td: ({ children }: { children?: React.ReactNode }) => <td className="px-4 py-2 text-foreground">{children}</td>,
-        hr: () => <hr className="my-6 border-border" />,
-        strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-semibold text-foreground">{children}</strong>,
-        em: ({ children }: { children?: React.ReactNode }) => <em>{children}</em>,
-    }
 
     const contentReady = loadedPath === normalizeDocPath(currentPath) && markdown.length > 0
 
@@ -158,17 +103,24 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
                 <div className="docs-main-inner mx-auto w-full max-w-[720px] px-6 py-8 lg:px-8">
                     <MobileToc selectedItem={selectedItem} />
                     {loadingContent && (
-                        <div className="text-muted-foreground animate-pulse">Loading content...</div>
+                        <div className="space-y-3" role="status" aria-label="Loading content">
+                            <Skeleton className="h-8 w-2/3" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-11/12" />
+                            <Skeleton className="h-4 w-4/5" />
+                        </div>
                     )}
                     {contentReady && (
+                        // `prose` is not styling here (the Markdown root is not-prose): the
+                        // legacy plugins (plugin-loader, syntax-highlight, code-copy, mermaid,
+                        // toc) leave `#main-content article.prose` alone. Without it they
+                        // re-highlight and wrap the React-rendered code blocks.
                         <article
                             key={currentPath}
                             ref={articleRef}
-                            className="prose prose-neutral dark:prose-invert max-w-none prose-pre:bg-muted prose-pre:text-foreground prose-code:text-foreground"
+                            className="aiui-doc prose max-w-none min-w-0"
                         >
-                            <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                                {markdown}
-                            </Markdown>
+                            <Markdown variant="docs">{markdown}</Markdown>
                         </article>
                     )}
                     {!loadingContent && !contentReady && loadedPath === normalizeDocPath(currentPath) && (
