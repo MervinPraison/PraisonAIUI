@@ -1531,11 +1531,11 @@ def run(
 
         if "style" in chat_yaml:
             if chat_yaml["style"] not in UI_STYLES:
+                # A warning, not an error: configs that ran before keep running.
                 console.print(
-                    f"[red]Error:[/red] Unknown style {chat_yaml['style']!r} in {app_file}. "
-                    f"Choose one of: {', '.join(UI_STYLES)}"
+                    f"[yellow]Warning:[/yellow] Unknown style {chat_yaml['style']!r} in {app_file}. "
+                    f"Known styles: {', '.join(UI_STYLES)}"
                 )
-                raise typer.Exit(code=2)
             _aiui.set_style(chat_yaml["style"])
             style = chat_yaml["style"]
         if "dashboard" in chat_yaml and isinstance(chat_yaml["dashboard"], dict):

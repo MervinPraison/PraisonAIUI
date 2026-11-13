@@ -30,3 +30,15 @@ export const BlockContext = createContext<BlockContextValue>(noPage)
 export function useBlockContext(): BlockContextValue {
   return useContext(BlockContext)
 }
+
+/**
+ * True inside a framed block (card, table, expander, accordion). A framed
+ * block nested in another frame renders flat (no border, no extra padding):
+ * the design system groups with whitespace and one hairline, never
+ * card-in-card.
+ */
+export const InFrameContext = createContext(false)
+
+export function useInFrame(): boolean {
+  return useContext(InFrameContext)
+}

@@ -203,6 +203,28 @@ test('BlockRenderer renders a core tree', () => {
   assert.ok(!html.includes('data-aiui-block-fallback'), 'every type above is a core block')
 })
 
+test('framed blocks nested in a card render flat (no card-in-card)', () => {
+  const html = render(
+    tree([
+      {
+        type: 'card',
+        title: 'Outer',
+        children: [
+          { type: 'card', title: 'Inner', value: 1 },
+          { type: 'metric', label: 'M', value: 2 },
+          { type: 'table', headers: ['a'], rows: [['b']] },
+          { type: 'stat_group', stats: [{ label: 'S', value: 3 }] },
+        ],
+      },
+      { type: 'metric', label: 'Top', value: 4 },
+    ]),
+  )
+  // Exactly two frames: the outer card and the top-level metric.
+  assert.equal(html.match(/rounded-xl border border-border/g)?.length, 2, html)
+  assert.equal(html.match(/data-nested="true"/g)?.length, 4)
+  assert.ok(html.includes('>Inner<') && html.includes('>S<') && html.includes('>Top<'))
+})
+
 test('an unknown block type renders the legacy fallback container', () => {
   const html = render(tree({ _components: [{ type: 'mystery_widget', foo: 1 }, { type: 'chart', title: 'C' }] }))
   assert.match(html, /data-aiui-block-fallback="mystery_widget"/)

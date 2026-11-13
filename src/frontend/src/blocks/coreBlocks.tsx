@@ -7,7 +7,17 @@
  * Prop names follow the legacy dicts exactly, so existing page handlers work
  * unchanged. Text is always rendered as text (never as HTML).
  */
-import { useEffect, useId, useState, type ComponentType, type CSSProperties, type FormEvent, type JSX, type KeyboardEvent } from 'react'
+import {
+  useEffect,
+  useId,
+  useState,
+  type ComponentType,
+  type CSSProperties,
+  type FormEvent,
+  type JSX,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react'
 import { ChevronRight, CircleCheck, CircleX, Info, LoaderCircle, TriangleAlert, type LucideIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,7 +29,7 @@ import { Markdown } from '@/markdown/LazyMarkdown'
 import type { ShellPage } from '@/sdk/manifest'
 import type { BlockNode } from '@/sdk/registry'
 import { BlockList } from './BlockRenderer'
-import { useBlockContext } from './context'
+import { InFrameContext, useBlockContext, useInFrame } from './context'
 import { notify, type NotifyType } from '@/shell/notify'
 import { arr, display, isRecord, num, safeUrl, str, toBlockNodes } from './normalize'
 
@@ -40,6 +50,14 @@ const FIELD_LABEL = 'text-sm font-medium text-foreground'
 const META = 'text-[13px] text-muted-foreground'
 // Auto-fitting tracks: as many equal columns as fit, stacking on narrow screens.
 const AUTO_GRID = 'grid min-w-0 gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))]'
+// The frame of a top-level panel. Inside another panel it is dropped (see
+// InFrameContext): one hairline per group, never card-in-card.
+const FRAME = 'rounded-xl border border-border'
+
+/** Children of a framed block render flat. */
+function InFrame({ children }: { children: ReactNode }) {
+  return <InFrameContext.Provider value={true}>{children}</InFrameContext.Provider>
+}
 
 // ── text ─────────────────────────────────────────────────────────────
 
@@ -120,8 +138,12 @@ function CardBlock({ node, page }: CoreBlockProps) {
   const title = str(p.title)
   const footer = str(p.footer)
   const kids = childNodes(node)
+  const nested = useInFrame()
   return (
-    <section className="flex min-w-0 flex-col gap-1 rounded-xl border border-border bg-card p-4 text-card-foreground">
+    <section
+      data-nested={nested || undefined}
+      className={cn('flex min-w-0 flex-col gap-1 text-card-foreground', !nested && FRAME, !nested && 'bg-card p-4')}
+    >
       {title && <div className={cn(META, 'font-medium')}>{title}</div>}
       {p.value !== undefined && p.value !== null && (
         <div className="text-2xl font-semibold tabular-nums tracking-tight">{display(p.value)}</div>
@@ -129,7 +151,9 @@ function CardBlock({ node, page }: CoreBlockProps) {
       {footer && <div className={META}>{footer}</div>}
       {kids.length > 0 && (
         <div className="mt-2 flex min-w-0 flex-col gap-3">
-          <BlockList nodes={kids} page={page} />
+          <InFrame>
+            <BlockList nodes={kids} page={page} />
+          </InFrame>
         </div>
       )}
     </section>
@@ -158,8 +182,9 @@ function MetricBody({ p }: { p: Record<string, unknown> }) {
 }
 
 function MetricBlock({ node }: CoreBlockProps) {
+  const nested = useInFrame()
   return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-border p-4">
+    <div data-nested={nested || undefined} className={cn('flex min-w-0 flex-col gap-1', !nested && FRAME, !nested && 'p-4')}>
       <MetricBody p={propsOf(node)} />
     </div>
   )
@@ -168,7 +193,19 @@ function MetricBlock({ node }: CoreBlockProps) {
 /** One panel, cells separated by hairlines (gap-px over the border colour). */
 function StatGroupBlock({ node }: CoreBlockProps) {
   const stats = arr(propsOf(node).stats).filter(isRecord)
+  const nested = useInFrame()
   if (stats.length === 0) return null
+  if (nested) {
+    return (
+      <div data-nested className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-4">
+        {stats.map((s, i) => (
+          <div key={i} className="flex min-w-0 flex-col gap-1">
+            <MetricBody p={s} />
+          </div>
+        ))}
+      </div>
+    )
+  }
   return (
     <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-px overflow-hidden rounded-xl border border-border bg-border">
       {stats.map((s, i) => (
@@ -333,24 +370,30 @@ function Disclosure({
 
 function ExpanderBlock({ node, page }: CoreBlockProps) {
   const p = propsOf(node)
+  const nested = useInFrame()
   return (
-    <Disclosure title={str(p.title)} open={p.expanded === true} className="rounded-xl border border-border">
-      <BlockList nodes={childNodes(node)} page={page} />
+    <Disclosure title={str(p.title)} open={p.expanded === true} className={nested ? undefined : FRAME}>
+      <InFrame>
+        <BlockList nodes={childNodes(node)} page={page} />
+      </InFrame>
     </Disclosure>
   )
 }
 
 function AccordionBlock({ node, page }: CoreBlockProps) {
   const items = arr(propsOf(node).items).filter(isRecord)
+  const nested = useInFrame()
   if (items.length === 0) return null
   return (
-    <div className="min-w-0 divide-y divide-border rounded-xl border border-border">
+    <div data-nested={nested || undefined} className={cn('min-w-0 divide-y divide-border', !nested && FRAME)}>
       {items.map((item, i) => (
         <Disclosure key={i} title={str(item.title)}>
           {typeof item.content === 'string' || typeof item.content === 'number' ? (
             <p className="whitespace-pre-wrap text-[15px] leading-[1.55] text-foreground">{str(item.content)}</p>
           ) : (
-            <BlockList nodes={toBlockNodes(arr(item.children ?? item.content))} page={page} />
+            <InFrame>
+              <BlockList nodes={toBlockNodes(arr(item.children ?? item.content))} page={page} />
+            </InFrame>
           )}
         </Disclosure>
       ))}
@@ -367,6 +410,7 @@ function TableBlock({ node }: CoreBlockProps) {
   const rowIds = Array.isArray(p.row_ids) && p.row_ids.length === rows.length ? p.row_ids.map((x) => str(x)) : null
   const actions = rowIds ? arr(p.actions).map((a) => str(a)).filter(Boolean) : []
   const [selected, setSelected] = useState<string | null>(null)
+  const nested = useInFrame()
 
   // Same bubbling DOM events as the legacy table (#336).
   const emit = (el: HTMLElement, name: string, detail: Record<string, unknown>) =>
@@ -374,7 +418,7 @@ function TableBlock({ node }: CoreBlockProps) {
 
   if (rows.length === 0 && headers.length === 0) return null
   return (
-    <div className="min-w-0 overflow-x-auto rounded-xl border border-border">
+    <div data-nested={nested || undefined} className={cn('min-w-0 overflow-x-auto', !nested && FRAME)}>
       <table className="w-full border-collapse text-sm tabular-nums">
         {headers.length > 0 && (
           <thead>
@@ -857,7 +901,9 @@ function SelectInputBlock({ node }: CoreBlockProps) {
       <select
         id={id}
         defaultValue={str(p.value)}
-        className="h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [&>option]:bg-popover [&>option]:text-popover-foreground"
+        // Matches the Input primitive (design system: 32px controls; 16px text
+        // on small screens so iOS does not zoom on focus).
+        className="h-8 w-full min-w-0 rounded-md border border-input bg-transparent px-2.5 text-[1rem] text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30 [&>option]:bg-popover [&>option]:text-popover-foreground"
         {...inputAttrs(p)}
       >
         {optionList(p.options).map((o, i) => (
