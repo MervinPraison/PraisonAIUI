@@ -1,8 +1,5 @@
 import { useState, useCallback, type FormEvent } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { Markdown } from '../markdown/LazyMarkdown'
 import type { ChatMessage, ToolCall } from '../types'
 import { ToolCallDisplay } from './ToolCallDisplay'
 import { ElementRenderer } from './MultimediaElements'
@@ -51,12 +48,7 @@ export function ChatMessages({
                         <div className="flex gap-3">
                             <Avatar role="assistant" />
                             <div className="flex-1 min-w-0">
-                                {currentResponse && (
-                                    <>
-                                        <MarkdownContent content={currentResponse} />
-                                        <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-0.5 rounded-sm" />
-                                    </>
-                                )}
+                                {currentResponse && <MarkdownContent content={currentResponse} streaming />}
                                 {pendingElements.length > 0 && (
                                     <div className={`space-y-3 ${currentResponse ? 'mt-3' : ''}`}>
                                         {pendingElements.map((element, i) => (
@@ -260,184 +252,11 @@ function FeedbackButtons({ messageId }: { messageId: string }) {
     )
 }
 
-// -- Code block with copy --
-// -- Dedent: strips leading/trailing blank lines and common indentation --
-// Needed because code blocks inside list items carry list-indent whitespace,
-// and react-markdown adds a leading \n before the code content.
-function dedent(code: string): string {
-    const lines = code.split('\n')
-    // Remove leading blank lines
-    while (lines.length && !lines[0].trim()) lines.shift()
-    // Remove trailing blank lines
-    while (lines.length && !lines[lines.length - 1].trim()) lines.pop()
-    if (!lines.length) return ''
-    // Find minimum indentation across non-empty lines
-    const minIndent = Math.min(
-        ...lines
-            .filter((l) => l.trim().length > 0)
-            .map((l) => l.match(/^ */)?.[0].length ?? 0),
-    )
-    if (minIndent === 0) return lines.join('\n')
-    return lines.map((l) => l.slice(minIndent)).join('\n')
-}
-
-function CodeBlock({ language, children }: { language?: string; children: string }) {
-    const [copied, setCopied] = useState(false)
-
-    const handleCopy = useCallback(async () => {
-        await navigator.clipboard.writeText(children)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-    }, [children])
-
-    return (
-        <div className="relative group/code my-3 rounded-lg overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-1.5 bg-[#1e1e2e] text-xs text-gray-400">
-                <span>{language || 'code'}</span>
-                <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-1 hover:text-white transition-colors"
-                >
-                    {copied ? '✓ Copied' : 'Copy'}
-                </button>
-            </div>
-            <SyntaxHighlighter
-                style={oneDark}
-                language={language || 'text'}
-                PreTag="div"
-                customStyle={{ margin: 0, borderRadius: 0, fontSize: '13px' }}
-            >
-                {children}
-            </SyntaxHighlighter>
-        </div>
-    )
-}
-
 // -- Markdown renderer --
-
-/**
- * LLMs often use lazy numbering (every item is "1.").
- * This renumbers ordered list items sequentially before react-markdown
- * parses them, so remark always sees distinct numbers and renders them
- * as one <ol> with correct counters.
- * Code blocks are skipped to avoid mangling numbered examples inside them.
- */
-function fixListNumbering(md: string): string {
-    const lines = md.split('\n')
-    let inCodeBlock = false
-    let inList = false
-    let listIndent = ''
-    let counter = 0
-
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]
-        // Track fenced code blocks
-        if (/^[ \t]*```/.test(line)) {
-            inCodeBlock = !inCodeBlock
-            continue
-        }
-        if (inCodeBlock) continue
-
-        const m = line.match(/^([ \t]*)(\d+)\.[ \t]/)
-        if (m) {
-            const indent = m[1]
-            if (!inList || indent !== listIndent) {
-                // New list (or different indent level)
-                inList = true
-                listIndent = indent
-                counter = 1
-            } else {
-                counter++
-            }
-            lines[i] = line.replace(/^([ \t]*)\d+\./, `${indent}${counter}.`)
-        } else if (line.trim() === '' && inList) {
-            // Blank line within a loose list — keep list state, don't reset
-        } else if (inList && /^[ \t]+\S/.test(line)) {
-            // Continuation indent (list item body) — don't reset
-        } else if (inList) {
-            // Non-blank, non-indented, non-list → end of list
-            inList = false
-            counter = 0
-        }
-    }
-    return lines.join('\n')
-}
-
-function MarkdownContent({ content }: { content: string }) {
-    const normalized = fixListNumbering(content)
-    return (
-        <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent">
-            <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                    // react-markdown routes ALL lists through `ul` with an `ordered` prop.
-                    // The `ol` component is only for literal HTML <ol> tags.
-                    // Using `ordered` + `start` here fixes the 1.1.1.1. problem:
-                    // when a loose list (with code blocks between items) is split into
-                    // multiple fragments, each fragment carries the correct `start` number.
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    ul({ children, ordered, start }: any) {
-                        if (ordered) {
-                            const startNum = start != null ? Number(start) : 1
-                            return (
-                                <ol
-                                    start={startNum}
-                                    style={{ listStyleType: 'decimal', paddingLeft: '1.5rem', margin: '0.5rem 0' }}
-                                >
-                                    {children}
-                                </ol>
-                            )
-                        }
-                        return (
-                            <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', margin: '0.5rem 0' }}>
-                                {children}
-                            </ul>
-                        )
-                    },
-                    // List item: display:list-item so the browser uses the parent counter
-                    li({ children }) {
-                        return (
-                            <li style={{ display: 'list-item', marginBottom: '0.25rem' }}>
-                                {children}
-                            </li>
-                        )
-                    },
-                    code({ className, children, ...props }) {
-                        const match = /language-(\w+)/.exec(className || '')
-                        const codeString = dedent(String(children))
-
-                        // Inline code
-                        if (!match && !codeString.includes('\n')) {
-                            return (
-                                <code className="px-1.5 py-0.5 rounded bg-muted text-sm font-mono" {...props}>
-                                    {children}
-                                </code>
-                            )
-                        }
-
-                        // Code block
-                        return <CodeBlock language={match?.[1]}>{codeString}</CodeBlock>
-                    },
-                    a({ href, children }) {
-                        return (
-                            <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                                {children}
-                            </a>
-                        )
-                    },
-                    table({ children }) {
-                        return (
-                            <div className="overflow-x-auto my-3">
-                                <table className="min-w-full text-sm">{children}</table>
-                            </div>
-                        )
-                    },
-                }}
-            >
-                {normalized}
-            </ReactMarkdown>
-        </div>
-    )
+// Streamdown handles code (Shiki), lists, tables, mermaid, math and the
+// incomplete-markdown repair and caret while streaming (markdown/Markdown.tsx).
+function MarkdownContent({ content, streaming = false }: { content: string; streaming?: boolean }) {
+    return <Markdown variant="chat" streaming={streaming}>{content}</Markdown>
 }
 
 // -- Message bubble --

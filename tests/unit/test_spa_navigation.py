@@ -108,17 +108,23 @@ class TestSpaNavigation:
         assert "normalizeDocPath(path)" in source or "canonicalPath = normalizeDocPath" in source
 
     def test_content_renders_mermaid_in_react_not_plugin(self):
+        # Mermaid in React docs/chat is Streamdown's diagram block fed by the
+        # lazy plugin; the colours come from the live theme tokens.
         content = Path("src/frontend/src/Content.tsx").read_text(encoding="utf-8")
-        assert "MermaidDiagram" in content
-        assert "language-mermaid" in content
-        assert "children.type === MermaidDiagram" in content
+        assert "MermaidDiagram" not in content
+        assert '<Markdown variant="docs">' in content
         assert "docs-main flex-1 min-w-0" in content
         assert "max-w-[720px]" in content
-        css = Path("src/frontend/src/index.css").read_text(encoding="utf-8")
-        assert "width: 100% !important" in css
-        themes = Path("src/frontend/src/markdown/mermaidThemes.ts").read_text(encoding="utf-8")
-        assert "useMaxWidth: true" in themes
-        assert "fitMermaidSvg" in themes
+        assert not Path("src/frontend/src/markdown/mermaidThemes.ts").exists()
+        assert not Path("src/frontend/src/markdown/MermaidDiagram.tsx").exists()
+        plugins = Path("src/frontend/src/markdown/streamdownPlugins.ts").read_text(encoding="utf-8")
+        assert "import('mermaid')" in plugins
+        assert "securityLevel: 'strict'" in plugins
+        markdown = Path("src/frontend/src/markdown/Markdown.tsx").read_text(encoding="utf-8")
+        assert "mermaid: isDocs ? lazyMermaidPlugin : chatMermaidPlugin" in markdown
+        tokens = Path("src/frontend/src/markdown/mermaidTokens.ts").read_text(encoding="utf-8")
+        assert "`var(--${name})`" in tokens
+        # The vanilla docs plugin still themes non-React (dashboard) articles.
         plugin = Path("src/praisonaiui/templates/frontend/plugins/mermaid.js").read_text(encoding="utf-8")
         assert "article.prose" in plugin
 

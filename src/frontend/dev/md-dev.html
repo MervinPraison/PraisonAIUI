@@ -1,0 +1,19 @@
+<!doctype html>
+<!-- Dev-only markdown harness (WP1). Not built; Tailwind never scans dev/ for
+     the shipped CSS. `npx vite` then open /dev/md-dev.html
+     Query params: ?dark=1  ?stream=0 (render the chat message complete)
+     window.__mdDev.done turns true once the chat stream has finished. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AIUI markdown</title>
+    <script>
+      if (new URLSearchParams(location.search).get('dark') === '1') document.documentElement.classList.add('dark')
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./md-dev.tsx"></script>
+  </body>
+</html>
