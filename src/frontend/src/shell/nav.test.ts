@@ -15,6 +15,7 @@ import {
 } from '@/shell/nav'
 import { emojiForPage, FallbackPageIcon, ICON_BY_PAGE_ID, iconForPage, PAGE_ICON_SET } from '@/shell/icons'
 import { approvalKey, describeApproval } from '@/shell/approvals'
+import { isPaletteShortcut, isSidebarShortcut } from '@/shell/palette'
 
 const p = (id: string, group: string | undefined, order: number, extra: Partial<ShellPage> = {}): ShellPage => ({
   id,
@@ -145,4 +146,29 @@ test('approval toasts: stable key and readable text', () => {
   )
   assert.deepEqual(describeApproval({}), { title: 'Approval needed', description: '' })
   assert.ok(describeApproval({ description: 'x'.repeat(500) }).description.length <= 160)
+})
+
+// A target whose closest() matches the given selectors (enough for the shortcut helpers).
+const target = (...matches: string[]) =>
+  ({ closest: (sel: string) => (matches.some((m) => sel.includes(m)) ? {} : null) }) as unknown as EventTarget
+const key = (k: string, init: Partial<KeyboardEvent> = {}, t: EventTarget | null = target()) =>
+  ({ key: k, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, isComposing: false, defaultPrevented: false, target: t, ...init }) as KeyboardEvent
+
+test('Ctrl/Cmd+K is the palette shortcut unless an editor owns it or the event was handled', () => {
+  assert.equal(isPaletteShortcut(key('k', { ctrlKey: true })), true)
+  assert.equal(isPaletteShortcut(key('K', { metaKey: true })), true)
+  assert.equal(isPaletteShortcut(key('k')), false)
+  assert.equal(isPaletteShortcut(key('k', { ctrlKey: true, shiftKey: true })), false)
+  assert.equal(isPaletteShortcut(key('k', { ctrlKey: true, isComposing: true })), false)
+  assert.equal(isPaletteShortcut(key('k', { ctrlKey: true }, target('.monaco-editor'))), false)
+  assert.equal(isPaletteShortcut(key('k', { ctrlKey: true, defaultPrevented: true })), false)
+})
+
+test('Ctrl+K inside the open palette still toggles it, although cmdk preventDefaults it', () => {
+  assert.equal(isPaletteShortcut(key('k', { ctrlKey: true, defaultPrevented: true }, target('[cmdk-root]'))), true)
+})
+
+test('Ctrl/Cmd+B toggles the sidebar, but not while typing', () => {
+  assert.equal(isSidebarShortcut(key('b', { ctrlKey: true })), true)
+  assert.equal(isSidebarShortcut(key('b', { ctrlKey: true }, target('input'))), false)
 })

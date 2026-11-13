@@ -88,12 +88,21 @@ export function isEditableTarget(e: KeyboardEvent): boolean {
   return el.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]') !== null
 }
 
-/** Ctrl/Cmd+K (without Shift/Alt), unless an editor/terminal owns the key. */
+/**
+ * Ctrl/Cmd+K (without Shift/Alt), unless an editor/terminal owns the key.
+ *
+ * Inside the open palette the shortcut always counts (it closes the palette):
+ * cmdk's vim bindings call preventDefault() on Ctrl+K to move the selection up,
+ * which would otherwise make Ctrl+K a one-way switch on Windows and Linux.
+ */
 export function isPaletteShortcut(e: KeyboardEvent): boolean {
-  if (e.defaultPrevented || e.isComposing) return false
+  if (e.isComposing) return false
   if (e.key !== 'k' && e.key !== 'K') return false
   if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return false
-  return targetElement(e)?.closest(OWN_KEYS_SELECTOR) == null
+  const el = targetElement(e)
+  if (el?.closest('[cmdk-root]')) return true
+  if (e.defaultPrevented) return false
+  return el?.closest(OWN_KEYS_SELECTOR) == null
 }
 
 /** Ctrl/Cmd+B toggles the sidebar, except while typing. */
