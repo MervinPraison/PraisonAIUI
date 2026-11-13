@@ -76,13 +76,111 @@ const STYLE = `
 `;
 
 let _state = null;
+// The element the picker is mounted in (render's `el`); paint() draws there.
+let _host = null;
 
-function applyThemeToDOM(state) {
+const ROOT_HTML = '<div id="theme-picker-root" class="theme-picker"></div>';
+// How often one mount re-creates its picker after another writer replaced it.
+const MAX_REPAINTS = 5;
+
+// Neutral presets are monochrome: in the React shell their accent is the ink.
+const NEUTRAL_PRESETS = ['zinc', 'slate', 'stone', 'gray', 'neutral'];
+// How far a colour preset's accent bleeds into fills and strokes.
+const COLOR_ACCENT_MIX = '4%';
+// next-themes' storage key in the React shell (and the server's bootstrap).
+const SHELL_MODE_KEY = 'aiui-theme-preference';
+
+// Accent shown when a preset's colour is missing or not a plain colour.
+const DEFAULT_ACCENT = '#6366f1';
+
+// Everything painted below comes from GET /api/theme, and preset names and
+// accents are whatever POST /api/theme/register was sent (any page can send
+// it). Every value spliced into the markup goes through escapeHtml().
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"'`]/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c]
+  ));
+}
+
+// A colour safe to put in a style attribute or a theme seed: a hex colour,
+// or (where the browser can tell) a plain CSS colour such as rgb(...) or a
+// name. Anything else (quotes, url(), var(), `;` …) yields `fallback`.
+const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+const PLAIN_COLOR = /^[a-z]+$|^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\([0-9a-z.,%\s/+-]*\)$/i;
+function safeColor(value, fallback = DEFAULT_ACCENT) {
+  if (typeof value !== 'string') return fallback;
+  const v = value.trim();
+  if (HEX_COLOR.test(v)) return v;
+  if (!PLAIN_COLOR.test(v)) return fallback;
+  try {
+    if (typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('color', v)) return v;
+  } catch (e) { /* no CSS.supports */ }
+  return fallback;
+}
+
+// --db-accent-rgb is an "r,g,b" triple used inside rgba(...).
+const RGB_TRIPLE = /^\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*$/;
+
+function inReactShell() {
+  return document.documentElement.getAttribute('data-aiui-shell') === 'react';
+}
+
+// The React shell (style `app`) derives every --db-* variable from its theme
+// seeds (legacy/bridge.css). Inline --db-* values on <html> would beat that
+// bridge and the user's own CSS, so the shell and the legacy pages would
+// disagree after a pick. There the choice goes to the seeds and to the
+// shell's mode instead.
+function applyThemeToShell(state, vars, setMode) {
+  const root = document.documentElement;
+  // A hostile or broken custom accent must not become the shell's seed.
+  const accent = safeColor(vars['--db-accent'], null);
+  if (NEUTRAL_PRESETS.includes(state.preset)) {
+    root.style.setProperty('--seed-accent', 'var(--seed-ink)');
+    root.style.setProperty('--accent-mix', '0%');
+  } else if (accent) {
+    root.style.setProperty('--seed-accent', accent);
+    // themes.py COLOR_PRESET_ACCENT_MIX: set it explicitly, because the
+    // server's seed tag says 0% when it started on a neutral preset.
+    root.style.setProperty('--accent-mix', COLOR_ACCENT_MIX);
+  }
+  if (RGB_TRIPLE.test(vars['--db-accent-rgb'] || '')) root.style.setProperty('--db-accent-rgb', vars['--db-accent-rgb']);
+  if (vars['--db-radius']) root.style.setProperty('--radius', vars['--db-radius']);
+  // Only an explicit mode pick changes the shell's mode: the server's mode
+  // (reported with every pick) is not the shell's, which may be 'system'.
+  if (setMode && (state.mode === 'dark' || state.mode === 'light')) {
+    let previous = null;
+    try {
+      previous = localStorage.getItem(SHELL_MODE_KEY);
+      localStorage.setItem(SHELL_MODE_KEY, state.mode);
+    } catch (e) { /* storage unavailable */ }
+    // next-themes follows `storage` events for its key (normally sent by
+    // other tabs), so the shell's mode toggle stays in step.
+    if (previous !== state.mode) {
+      try {
+        window.dispatchEvent(new StorageEvent('storage', { key: SHELL_MODE_KEY, oldValue: previous, newValue: state.mode }));
+      } catch (e) { /* StorageEvent unsupported */ }
+    }
+  }
+}
+
+// The shell's explicit mode, else the one on screen ('system' resolves to it).
+function shellMode() {
+  let stored = null;
+  try { stored = localStorage.getItem(SHELL_MODE_KEY); } catch (e) { /* storage unavailable */ }
+  if (stored === 'dark' || stored === 'light') return stored;
+  return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+}
+
+function applyThemeToDOM(state, { setMode = false } = {}) {
   const root = document.documentElement;
   const vars = state.variables;
   if (!vars) return;
-  for (const [key, val] of Object.entries(vars)) {
-    root.style.setProperty(key, val);
+  if (inReactShell()) {
+    applyThemeToShell(state, vars, setMode);
+  } else {
+    for (const [key, val] of Object.entries(vars)) {
+      root.style.setProperty(key, val);
+    }
   }
   // Also save to localStorage
   localStorage.setItem('aiui-theme-preset', state.preset);
@@ -108,7 +206,7 @@ async function applyPreset(preset) {
   });
   _state = await r.json();
   applyThemeToDOM(_state);
-  render();
+  paint();
 }
 
 async function applyMode(mode) {
@@ -117,8 +215,8 @@ async function applyMode(mode) {
     body: JSON.stringify({ mode }),
   });
   _state = await r.json();
-  applyThemeToDOM(_state);
-  render();
+  applyThemeToDOM(_state, { setMode: true });
+  paint();
 }
 
 async function applyRadius(radius) {
@@ -128,7 +226,7 @@ async function applyRadius(radius) {
   });
   _state = await r.json();
   applyThemeToDOM(_state);
-  render();
+  paint();
 }
 
 async function registerCustomTheme(name, accent) {
@@ -137,7 +235,7 @@ async function registerCustomTheme(name, accent) {
     body: JSON.stringify({ name, accent }),
   });
   _state = await r.json();
-  render();
+  paint();
 }
 
 async function deleteCustomTheme(name) {
@@ -145,20 +243,70 @@ async function deleteCustomTheme(name) {
     method: 'DELETE',
   });
   _state = await r.json();
-  render();
+  paint();
 }
 
-function render() {
-  const container = document.getElementById('theme-picker-root');
-  if (!container || !_state) return;
+// The picker's root inside the mounted element, re-created when something
+// else replaced the element's contents. On a direct load of /theme-picker the
+// legacy dashboard starts its generic data viewer while this module is still
+// importing (the page container is empty then); that viewer's late
+// `{"error": "Not Found"}` overwrites the container, root included. Null
+// when nothing is mounted or the element has left the document.
+function pickerRoot() {
+  const host = _host;
+  if (!host || !host.isConnected) return null;
+  let root = host.querySelector('#theme-picker-root');
+  if (!root) {
+    host.innerHTML = ROOT_HTML;
+    root = host.querySelector('#theme-picker-root');
+  }
+  return root;
+}
+
+// Keeps one mount's picker on screen: if another writer replaces the mounted
+// element's contents while the mount is live (the generic viewer's response
+// can also land after the picker is painted), the picker is painted again.
+// Bounded, so it never ping-pongs with a writer that keeps clearing. Returns
+// this mount's release.
+function guardMount(el) {
+  let released = false;
+  let repaints = 0;
+  let observer = null;
+  if (typeof MutationObserver === 'function') {
+    observer = new MutationObserver(() => {
+      if (released || _host !== el || !el.isConnected) return;
+      if (el.querySelector('#theme-picker-root')) return;
+      if (++repaints > MAX_REPAINTS) { observer.disconnect(); return; }
+      if (_state) paint(); else pickerRoot();
+    });
+    observer.observe(el, { childList: true });
+  }
+  return () => {
+    if (released) return;
+    released = true;
+    if (observer) observer.disconnect();
+    if (_host === el) _host = null;
+  };
+}
+
+// Repaints the picker from _state. Named paint() because the module also
+// exports render(el) below; two `render` declarations are a SyntaxError
+// that stopped the whole module from loading.
+function paint() {
+  if (!_state) return;
+  const container = pickerRoot();
+  if (!container) return;
 
   const presets = _state.presets || {};
   const currentPreset = _state.preset || 'indigo';
-  const currentMode = _state.mode || 'dark';
+  // In the React shell the mode is the shell's own (next-themes), not the server's.
+  const currentMode = inReactShell() ? shellMode() : (_state.mode || 'dark');
   const currentRadius = _state.radius || 'md';
   const modes = _state.modes || ['dark', 'light'];
   const radii = _state.radii || ['none', 'sm', 'md', 'lg', 'xl'];
   const vars = _state.variables || {};
+  const accent = safeColor(vars['--db-accent']);
+  const esc = escapeHtml;
 
   // Identify custom themes (not built-in)
   const builtinPresets = [
@@ -174,10 +322,10 @@ function render() {
 
     <!-- Preview -->
     <div class="tp-preview">
-      <div class="tp-preview-chip" style="background:${vars['--db-accent'] || '#6366f1'}"></div>
+      <div class="tp-preview-chip" style="background:${esc(accent)}"></div>
       <div class="tp-preview-info">
-        <strong>${currentPreset}</strong> · ${currentMode} mode · ${currentRadius} radius<br>
-        <span style="font-family:monospace; font-size:11px">${vars['--db-accent'] || ''}</span>
+        <strong>${esc(currentPreset)}</strong> · ${esc(currentMode)} mode · ${esc(currentRadius)} radius<br>
+        <span style="font-family:monospace; font-size:11px">${esc(vars['--db-accent'] || '')}</span>
       </div>
     </div>
 
@@ -188,10 +336,10 @@ function render() {
         ${Object.entries(presets).map(([name, p]) => `
           <div style="text-align:center">
             <div class="tp-swatch ${name === currentPreset ? 'active' : ''}"
-                 style="background:${p.accent}" data-preset="${name}" title="${name}">
+                 style="background:${esc(safeColor(p && p.accent))}" data-preset="${esc(name)}" title="${esc(name)}">
               <span class="tp-check">✓</span>
             </div>
-            <div class="tp-swatch-label">${name}</div>
+            <div class="tp-swatch-label">${esc(name)}</div>
           </div>
         `).join('')}
       </div>
@@ -202,8 +350,8 @@ function render() {
       <h3>Mode</h3>
       <div class="tp-mode-group">
         ${modes.map(m => `
-          <button class="tp-mode-btn ${m === currentMode ? 'active' : ''}" data-mode="${m}">
-            ${m === 'dark' ? '🌙' : '☀️'} ${m.charAt(0).toUpperCase() + m.slice(1)}
+          <button class="tp-mode-btn ${m === currentMode ? 'active' : ''}" data-mode="${esc(m)}">
+            ${m === 'dark' ? '🌙' : '☀️'} ${esc(String(m).charAt(0).toUpperCase() + String(m).slice(1))}
           </button>
         `).join('')}
       </div>
@@ -214,8 +362,8 @@ function render() {
       <h3>Border Radius</h3>
       <div class="tp-radius-group">
         ${radii.map(r => `
-          <button class="tp-radius-btn ${r === currentRadius ? 'active' : ''}" data-radius="${r}">
-            ${r}
+          <button class="tp-radius-btn ${r === currentRadius ? 'active' : ''}" data-radius="${esc(r)}">
+            ${esc(r)}
           </button>
         `).join('')}
       </div>
@@ -239,9 +387,9 @@ function render() {
         <div class="tp-custom-list">
           ${customPresets.map(name => `
             <span class="tp-custom-tag">
-              <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${presets[name].accent}"></span>
-              ${name}
-              <button class="tp-delete-btn" data-delete="${name}" title="Delete">×</button>
+              <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${esc(safeColor(presets[name] && presets[name].accent))}"></span>
+              ${esc(name)}
+              <button class="tp-delete-btn" data-delete="${esc(name)}" title="Delete">×</button>
             </span>
           `).join('')}
         </div>
@@ -280,11 +428,11 @@ function render() {
     el.addEventListener('click', () => deleteCustomTheme(el.dataset.delete));
   });
 
-  const regBtn = document.getElementById('tp-register-btn');
+  const regBtn = container.querySelector('#tp-register-btn');
   if (regBtn) {
     regBtn.addEventListener('click', () => {
-      const nameInput = document.getElementById('tp-custom-name');
-      const colorInput = document.getElementById('tp-custom-color');
+      const nameInput = container.querySelector('#tp-custom-name');
+      const colorInput = container.querySelector('#tp-custom-color');
       const name = nameInput.value.trim();
       if (name) {
         registerCustomTheme(name, colorInput.value);
@@ -296,6 +444,9 @@ function render() {
 
 // ── Public init (called by dashboard plugin system) ──────────────
 
+// Resolves to this mount's release (the shell's mountView calls it when the
+// page is left; the legacy dashboard drops the element instead, which ends
+// the guard with it).
 export async function render(el) {
   // Inject styles
   if (!document.getElementById('theme-picker-style')) {
@@ -305,25 +456,33 @@ export async function render(el) {
     document.head.appendChild(style);
   }
 
-  el.innerHTML = '<div id="theme-picker-root" class="theme-picker"></div>';
+  _host = el;
+  el.innerHTML = ROOT_HTML;
+  const release = guardMount(el);
 
   // Restore saved theme from localStorage
   const savedPreset = localStorage.getItem('aiui-theme-preset');
   const savedMode = localStorage.getItem('aiui-theme-mode');
   const savedRadius = localStorage.getItem('aiui-theme-radius');
 
-  await fetchState();
+  try {
+    await fetchState();
 
-  // If saved state differs from server, apply saved state
-  if (_state && savedPreset && savedPreset !== _state.preset) {
-    await applyPreset(savedPreset);
-  }
-  if (_state && savedMode && savedMode !== _state.mode) {
-    await applyMode(savedMode);
-  }
-  if (_state && savedRadius && savedRadius !== _state.radius) {
-    await applyRadius(savedRadius);
+    // If saved state differs from server, apply saved state
+    if (_state && savedPreset && savedPreset !== _state.preset) {
+      await applyPreset(savedPreset);
+    }
+    if (_state && savedMode && savedMode !== _state.mode && !inReactShell()) {
+      await applyMode(savedMode);
+    }
+    if (_state && savedRadius && savedRadius !== _state.radius) {
+      await applyRadius(savedRadius);
+    }
+  } catch (err) {
+    release(); // no host cleans up a render that threw
+    throw err;
   }
 
-  render();
+  paint();
+  return release;
 }

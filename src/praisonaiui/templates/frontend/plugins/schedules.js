@@ -18,11 +18,11 @@ const SCHEDULE_ICONS = {
 };
 
 const STATUS_COLORS = {
-  running: '#22c55e',    // green
-  enabled: '#22c55e',    // green
-  stopped: '#6b7280',    // gray
-  disabled: '#6b7280',   // gray
-  error: '#ef4444',      // red
+  running: 'var(--db-p-success, #22c55e)',
+  enabled: 'var(--db-p-success, #22c55e)',
+  stopped: 'var(--db-p-text-muted, #6b7280)',
+  disabled: 'var(--db-p-text-muted, #6b7280)',
+  error: 'var(--db-p-error, #ef4444)',
 };
 
 async function fetchSchedules() {
@@ -40,7 +40,7 @@ async function fetchSchedules() {
 
 async function runJob(jobId) {
   try {
-    const resp = await fetch(`/api/schedules/${jobId}/run`, { method: 'POST' });
+    const resp = await fetch(`/api/schedules/${encodeURIComponent(jobId)}/run`, { method: 'POST' });
     const data = await resp.json();
     if (resp.ok) {
       showNotification(`Job "${jobId}" triggered`, 'success');
@@ -56,7 +56,7 @@ async function runJob(jobId) {
 
 async function stopJob(jobId) {
   try {
-    const resp = await fetch(`/api/schedules/${jobId}/stop`, { method: 'POST' });
+    const resp = await fetch(`/api/schedules/${encodeURIComponent(jobId)}/stop`, { method: 'POST' });
     const data = await resp.json();
     if (resp.ok) {
       showNotification(`Job "${jobId}" stopped`, 'success');
@@ -72,7 +72,7 @@ async function stopJob(jobId) {
 
 async function toggleJob(jobId) {
   try {
-    const resp = await fetch(`/api/schedules/${jobId}/toggle`, { method: 'POST' });
+    const resp = await fetch(`/api/schedules/${encodeURIComponent(jobId)}/toggle`, { method: 'POST' });
     const data = await resp.json();
     if (resp.ok) {
       const status = data.enabled ? 'enabled' : 'disabled';
@@ -90,7 +90,7 @@ async function toggleJob(jobId) {
 async function deleteJob(jobId) {
   if (!await showConfirm('Delete Job', `Delete job "${jobId}"?`)) return;
   try {
-    const resp = await fetch(`/api/schedules/${jobId}`, { method: 'DELETE' });
+    const resp = await fetch(`/api/schedules/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
     if (resp.ok) {
       showNotification(`Job "${jobId}" deleted`, 'success');
       await fetchSchedules();
@@ -116,7 +116,7 @@ function showNotification(message, type = 'info') {
     right: 1rem;
     padding: 0.75rem 1rem;
     border-radius: 0.5rem;
-    background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
+    background: ${type === 'success' ? 'var(--db-p-success-strong, #22c55e)' : type === 'error' ? 'var(--db-p-error-strong, #ef4444)' : 'var(--db-p-info, #3b82f6)'};
     color: white;
     font-size: 0.875rem;
     z-index: 9999;
@@ -144,11 +144,18 @@ function getScheduleIcon(kind) {
   return SCHEDULE_ICONS[kind] || SCHEDULE_ICONS.default;
 }
 
+// Job fields come from the API (names, messages and cron expressions are user
+// input) and are written with innerHTML, so they are escaped as HTML text.
+function escapeHtml(value) {
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function formatInterval(schedule) {
   if (!schedule) return 'Unknown';
   const kind = schedule.kind;
   if (kind === 'cron' && schedule.cron_expr) {
-    return `Cron: ${schedule.cron_expr}`;
+    return `Cron: ${escapeHtml(schedule.cron_expr)}`;
   }
   if (kind === 'every' && schedule.every_seconds) {
     const secs = schedule.every_seconds;
@@ -160,7 +167,7 @@ function formatInterval(schedule) {
   if (kind === 'once' && schedule.at) {
     return `Once at ${new Date(schedule.at * 1000).toLocaleString()}`;
   }
-  return kind || 'Unknown';
+  return kind ? escapeHtml(kind) : 'Unknown';
 }
 
 function formatTimestamp(ts) {
@@ -190,11 +197,11 @@ function renderJobCard(job) {
   const statusText = enabled ? 'Active' : 'Paused';
   
   return `
-    <div class="aiui-schedule-card" data-job-id="${job.id}">
+    <div class="aiui-schedule-card" data-job-id="${escapeHtml(job.id)}">
       <div class="aiui-schedule-header">
         <span class="aiui-schedule-icon">${getScheduleIcon(schedule.kind)}</span>
         <div class="aiui-schedule-info">
-          <h3 class="aiui-schedule-name">${job.name || job.id}</h3>
+          <h3 class="aiui-schedule-name">${escapeHtml(job.name || job.id)}</h3>
           <span class="aiui-schedule-interval">${formatInterval(schedule)}</span>
         </div>
         <div class="aiui-schedule-status">
@@ -203,7 +210,7 @@ function renderJobCard(job) {
         </div>
       </div>
       <div class="aiui-schedule-message">
-        ${job.message || '<em>No message</em>'}
+        ${job.message ? escapeHtml(job.message) : '<em>No message</em>'}
       </div>
       <div class="aiui-schedule-details">
         <div class="aiui-schedule-stat">
@@ -216,13 +223,13 @@ function renderJobCard(job) {
         </div>
       </div>
       <div class="aiui-schedule-actions">
-        <button class="aiui-btn aiui-btn-run" onclick="window.aiuiRunJob('${job.id}')" title="Run Now">
+        <button class="aiui-btn aiui-btn-run" onclick="window.aiuiRunJob(this.closest('[data-job-id]').dataset.jobId)" title="Run Now">
           ▶️ Run
         </button>
-        <button class="aiui-btn aiui-btn-toggle" onclick="window.aiuiToggleJob('${job.id}')" title="${enabled ? 'Pause' : 'Resume'}">
+        <button class="aiui-btn aiui-btn-toggle" onclick="window.aiuiToggleJob(this.closest('[data-job-id]').dataset.jobId)" title="${enabled ? 'Pause' : 'Resume'}">
           ${enabled ? '⏸️ Pause' : '▶️ Resume'}
         </button>
-        <button class="aiui-btn aiui-btn-delete" onclick="window.aiuiDeleteJob('${job.id}')" title="Delete">
+        <button class="aiui-btn aiui-btn-delete" onclick="window.aiuiDeleteSchedule(this.closest('[data-job-id]').dataset.jobId)" title="Delete">
           🗑️
         </button>
       </div>
@@ -279,13 +286,13 @@ function injectStyles() {
       align-items: center;
       margin-bottom: 1.5rem;
       padding-bottom: 1rem;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      border-bottom: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
     }
 
     .aiui-schedules-header h2 {
       font-size: 1.5rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0;
     }
 
@@ -298,7 +305,7 @@ function injectStyles() {
       display: flex;
       align-items: center;
       font-size: 0.875rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-schedules-grid {
@@ -308,8 +315,8 @@ function injectStyles() {
     }
 
     .aiui-schedule-card {
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: linear-gradient(135deg, var(--db-p-card-bg, rgba(30, 41, 59, 0.8)) 0%, var(--db-p-card-bg, rgba(15, 23, 42, 0.9)) 100%);
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.75rem;
       padding: 1.25rem;
       transition: transform 0.2s, box-shadow 0.2s;
@@ -334,7 +341,7 @@ function injectStyles() {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(234, 179, 8, 0.1);
+      background: var(--db-p-warning-bg, rgba(234, 179, 8, 0.1));
       border-radius: 0.5rem;
     }
 
@@ -345,27 +352,27 @@ function injectStyles() {
     .aiui-schedule-name {
       font-size: 1rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0 0 0.25rem 0;
     }
 
     .aiui-schedule-interval {
       font-size: 0.75rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
     }
 
     .aiui-schedule-status {
       display: flex;
       align-items: center;
       font-size: 0.8125rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-schedule-message {
       font-size: 0.875rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
       padding: 0.75rem;
-      background: rgba(0, 0, 0, 0.2);
+      background: var(--db-p-canvas, rgba(0, 0, 0, 0.2));
       border-radius: 0.375rem;
       margin-bottom: 0.75rem;
       white-space: nowrap;
@@ -387,14 +394,14 @@ function injectStyles() {
 
     .aiui-stat-label {
       font-size: 0.6875rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
 
     .aiui-stat-value {
       font-size: 0.875rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
     }
 
     .aiui-schedule-actions {
@@ -417,40 +424,40 @@ function injectStyles() {
     }
 
     .aiui-btn-run {
-      background: rgba(34, 197, 94, 0.15);
-      color: #22c55e;
-      border: 1px solid rgba(34, 197, 94, 0.3);
+      background: var(--db-p-success-bg, rgba(34, 197, 94, 0.15));
+      color: var(--db-p-success, #22c55e);
+      border: 1px solid var(--db-p-success-bg, rgba(34, 197, 94, 0.3));
     }
 
     .aiui-btn-run:hover {
-      background: rgba(34, 197, 94, 0.25);
+      background: var(--db-p-success-bg, rgba(34, 197, 94, 0.25));
     }
 
     .aiui-btn-toggle {
-      background: rgba(234, 179, 8, 0.15);
-      color: #eab308;
-      border: 1px solid rgba(234, 179, 8, 0.3);
+      background: var(--db-p-warning-bg, rgba(234, 179, 8, 0.15));
+      color: var(--db-p-warning, #eab308);
+      border: 1px solid var(--db-p-warning-bg, rgba(234, 179, 8, 0.3));
     }
 
     .aiui-btn-toggle:hover {
-      background: rgba(234, 179, 8, 0.25);
+      background: var(--db-p-warning-bg, rgba(234, 179, 8, 0.25));
     }
 
     .aiui-btn-delete {
-      background: rgba(239, 68, 68, 0.1);
-      color: #ef4444;
-      border: 1px solid rgba(239, 68, 68, 0.2);
+      background: var(--db-p-error-bg, rgba(239, 68, 68, 0.1));
+      color: var(--db-p-error, #ef4444);
+      border: 1px solid var(--db-p-error-bg, rgba(239, 68, 68, 0.2));
       padding: 0.5rem;
     }
 
     .aiui-btn-delete:hover {
-      background: rgba(239, 68, 68, 0.2);
+      background: var(--db-p-error-bg, rgba(239, 68, 68, 0.2));
     }
 
     .aiui-schedules-empty {
       text-align: center;
       padding: 4rem 2rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-empty-icon {
@@ -461,7 +468,7 @@ function injectStyles() {
 
     .aiui-schedules-empty h3 {
       font-size: 1.25rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       margin: 0 0 0.5rem 0;
     }
 
@@ -474,7 +481,7 @@ function injectStyles() {
 
     .aiui-empty-hint {
       font-size: 0.8125rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
     }
 
     @media (max-width: 768px) {
@@ -517,7 +524,7 @@ function checkForSchedulesPage(root) {
 window.aiuiRunJob = runJob;
 window.aiuiStopJob = stopJob;
 window.aiuiToggleJob = toggleJob;
-window.aiuiDeleteJob = deleteJob;
+window.aiuiDeleteSchedule = deleteJob;
 
 export default {
   name: 'schedules',
@@ -527,5 +534,11 @@ export default {
   },
   onContentChange(root) {
     checkForSchedulesPage(root);
+  },
+  // Called by the view's cleanup() when the page is left: stop the refresh
+  // poll so it does not keep running against a detached page. Idempotent.
+  stop() {
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = null;
   },
 };

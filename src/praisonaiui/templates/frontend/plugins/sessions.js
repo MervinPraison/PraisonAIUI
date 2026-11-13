@@ -182,13 +182,13 @@ function injectStyles() {
     .aiui-sessions-header h2 {
       font-size: 1.5rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0;
     }
 
     .aiui-sessions-count {
       font-size: 0.875rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
     }
 
     .aiui-sessions-list {
@@ -201,8 +201,8 @@ function injectStyles() {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: rgba(30, 41, 59, 0.6);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: var(--db-p-card-bg, rgba(30, 41, 59, 0.6));
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.5rem;
       padding: 1rem;
     }
@@ -210,12 +210,12 @@ function injectStyles() {
     .aiui-session-id {
       font-size: 0.9375rem;
       font-weight: 500;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
     }
 
     .aiui-session-meta {
       font-size: 0.75rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       margin-top: 0.25rem;
     }
 
@@ -229,8 +229,8 @@ function injectStyles() {
       height: 32px;
       border: none;
       border-radius: 0.375rem;
-      background: rgba(148, 163, 184, 0.1);
-      color: #94a3b8;
+      background: var(--db-p-muted, rgba(148, 163, 184, 0.1));
+      color: var(--db-p-text-dim, #94a3b8);
       cursor: pointer;
       font-size: 0.875rem;
       display: flex;
@@ -239,18 +239,18 @@ function injectStyles() {
     }
 
     .aiui-btn-icon:hover {
-      background: rgba(148, 163, 184, 0.2);
+      background: var(--db-p-fill, rgba(148, 163, 184, 0.2));
     }
 
     .aiui-btn-icon.danger:hover {
-      background: rgba(239, 68, 68, 0.2);
-      color: #ef4444;
+      background: var(--db-p-error-bg, rgba(239, 68, 68, 0.2));
+      color: var(--db-p-error, #ef4444);
     }
 
     .aiui-sessions-empty {
       text-align: center;
       padding: 2rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
     }
 
     .aiui-session-modal {
@@ -267,8 +267,8 @@ function injectStyles() {
     }
 
     .aiui-session-modal-content {
-      background: #1e293b;
-      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: var(--db-p-popover, #1e293b);
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.2));
       border-radius: 0.75rem;
       width: 90%;
       max-width: 500px;
@@ -281,19 +281,19 @@ function injectStyles() {
       justify-content: space-between;
       align-items: center;
       padding: 1rem 1.25rem;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      border-bottom: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
     }
 
     .aiui-modal-header h3 {
       margin: 0;
       font-size: 1rem;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
     }
 
     .aiui-modal-header button {
       background: none;
       border: none;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       cursor: pointer;
       font-size: 1.25rem;
     }
@@ -306,16 +306,16 @@ function injectStyles() {
       display: flex;
       justify-content: space-between;
       padding: 0.5rem 0;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      border-bottom: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
     }
 
     .aiui-preview-stat .label {
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       font-size: 0.875rem;
     }
 
     .aiui-preview-stat .value {
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       font-size: 0.875rem;
       font-weight: 500;
     }
@@ -323,20 +323,20 @@ function injectStyles() {
     .aiui-preview-message {
       margin-top: 1rem;
       padding: 0.75rem;
-      background: rgba(15, 23, 42, 0.6);
+      background: var(--db-p-surface, rgba(15, 23, 42, 0.6));
       border-radius: 0.375rem;
     }
 
     .aiui-message-role {
       font-size: 0.6875rem;
       text-transform: uppercase;
-      color: #3b82f6;
+      color: var(--db-p-accent, #3b82f6);
       margin-bottom: 0.25rem;
     }
 
     .aiui-message-preview {
       font-size: 0.8125rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
       line-height: 1.5;
     }
   `;

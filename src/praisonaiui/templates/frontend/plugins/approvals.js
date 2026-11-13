@@ -13,10 +13,10 @@ let eventSource = null;
 let activeTab = 'pending';
 
 const RISK_COLORS = {
-  low: '#22c55e',
-  medium: '#f59e0b',
-  high: '#f97316',
-  critical: '#ef4444',
+  low: { fg: 'var(--db-p-success, #22c55e)', soft: 'var(--db-p-success-bg, #22c55e20)' },
+  medium: { fg: 'var(--db-p-warning, #f59e0b)', soft: 'var(--db-p-warning-bg, #f59e0b20)' },
+  high: { fg: 'var(--db-p-warning-strong, #f97316)', soft: 'var(--db-p-warning-strong-soft, #f9731620)' },
+  critical: { fg: 'var(--db-p-error, #ef4444)', soft: 'var(--db-p-error-bg, #ef444420)' },
 };
 
 async function fetchPending() {
@@ -124,7 +124,7 @@ function showNotification(message, type = 'info') {
     right: 1rem;
     padding: 0.75rem 1rem;
     border-radius: 0.5rem;
-    background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
+    background: ${type === 'success' ? 'var(--db-p-success-strong, #22c55e)' : type === 'error' ? 'var(--db-p-error-strong, #ef4444)' : 'var(--db-p-info, #3b82f6)'};
     color: white;
     font-size: 0.875rem;
     z-index: 9999;
@@ -154,7 +154,7 @@ function renderPendingCard(approval) {
   return `
     <div class="aiui-approval-card" data-id="${approval.id}">
       <div class="aiui-approval-header">
-        <div class="aiui-approval-risk" style="background: ${riskColor}20; color: ${riskColor}">
+        <div class="aiui-approval-risk" style="background: ${riskColor.soft}; color: ${riskColor.fg}">
           ${approval.risk_icon || '⚠️'} ${approval.risk_level}
         </div>
         <span class="aiui-approval-time">${formatTime(approval.created_at)}</span>
@@ -373,12 +373,12 @@ function injectStyles() {
     .aiui-approvals-title h2 {
       font-size: 1.5rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0;
     }
 
     .aiui-pending-badge {
-      background: #ef4444;
+      background: var(--db-p-error-strong, #ef4444);
       color: white;
       font-size: 0.75rem;
       font-weight: 600;
@@ -396,14 +396,14 @@ function injectStyles() {
       display: flex;
       gap: 0.5rem;
       margin-bottom: 1.5rem;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      border-bottom: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       padding-bottom: 0.5rem;
     }
 
     .aiui-tab {
       background: transparent;
       border: none;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
       padding: 0.5rem 1rem;
       cursor: pointer;
       font-size: 0.875rem;
@@ -412,12 +412,12 @@ function injectStyles() {
     }
 
     .aiui-tab:hover {
-      background: rgba(148, 163, 184, 0.1);
+      background: var(--db-p-muted, rgba(148, 163, 184, 0.1));
     }
 
     .aiui-tab.active {
-      background: rgba(59, 130, 246, 0.2);
-      color: #3b82f6;
+      background: var(--db-p-accent-glow, rgba(59, 130, 246, 0.2));
+      color: var(--db-p-accent, #3b82f6);
     }
 
     .aiui-approvals-grid {
@@ -427,15 +427,15 @@ function injectStyles() {
     }
 
     .aiui-approval-card {
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: linear-gradient(135deg, var(--db-p-card-bg, rgba(30, 41, 59, 0.8)) 0%, var(--db-p-card-bg, rgba(15, 23, 42, 0.9)) 100%);
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.75rem;
       padding: 1rem;
       transition: all 0.2s;
     }
 
     .aiui-approval-card:hover {
-      border-color: rgba(59, 130, 246, 0.3);
+      border-color: var(--db-p-accent-glow, rgba(59, 130, 246, 0.3));
     }
 
     .aiui-approval-header {
@@ -455,25 +455,25 @@ function injectStyles() {
 
     .aiui-approval-time {
       font-size: 0.75rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
     }
 
     .aiui-approval-tool {
       font-size: 1.125rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0 0 0.25rem 0;
     }
 
     .aiui-approval-agent {
       font-size: 0.8125rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
       margin: 0 0 0.5rem 0;
     }
 
     .aiui-approval-desc {
       font-size: 0.8125rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       margin: 0 0 0.5rem 0;
     }
 
@@ -483,17 +483,17 @@ function injectStyles() {
 
     .aiui-approval-args summary {
       font-size: 0.75rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       cursor: pointer;
     }
 
     .aiui-approval-args pre {
       font-size: 0.6875rem;
-      background: rgba(0, 0, 0, 0.3);
+      background: var(--db-p-canvas, rgba(0, 0, 0, 0.3));
       padding: 0.5rem;
       border-radius: 0.25rem;
       overflow-x: auto;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
       margin: 0.5rem 0 0 0;
     }
 
@@ -502,13 +502,13 @@ function injectStyles() {
       align-items: center;
       gap: 0.5rem;
       padding-top: 0.75rem;
-      border-top: 1px solid rgba(148, 163, 184, 0.1);
+      border-top: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
     }
 
     .aiui-approval-always {
       flex: 1;
       font-size: 0.75rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
     }
 
     .aiui-approval-always label {
@@ -529,27 +529,27 @@ function injectStyles() {
     }
 
     .aiui-btn-approve {
-      background: #22c55e;
+      background: var(--db-p-success-strong, #22c55e);
       color: white;
     }
 
     .aiui-btn-approve:hover {
-      background: #16a34a;
+      background: var(--db-p-success-strong, #16a34a);
     }
 
     .aiui-btn-deny {
-      background: rgba(239, 68, 68, 0.1);
-      color: #ef4444;
+      background: var(--db-p-error-bg, rgba(239, 68, 68, 0.1));
+      color: var(--db-p-error, #ef4444);
     }
 
     .aiui-btn-deny:hover {
-      background: rgba(239, 68, 68, 0.2);
+      background: var(--db-p-error-bg, rgba(239, 68, 68, 0.2));
     }
 
     .aiui-approvals-empty {
       text-align: center;
       padding: 4rem 2rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-empty-icon {
@@ -559,7 +559,7 @@ function injectStyles() {
 
     .aiui-approvals-empty h3 {
       font-size: 1.25rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       margin: 0 0 0.5rem 0;
     }
 
@@ -573,15 +573,15 @@ function injectStyles() {
     .aiui-history-table th {
       text-align: left;
       padding: 0.75rem;
-      color: #64748b;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      color: var(--db-p-text-muted, #64748b);
+      border-bottom: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       font-weight: 500;
     }
 
     .aiui-history-table td {
       padding: 0.75rem;
-      color: #e2e8f0;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.05);
+      color: var(--db-p-text, #e2e8f0);
+      border-bottom: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.05));
     }
 
     .aiui-status-badge {
@@ -593,13 +593,13 @@ function injectStyles() {
     }
 
     .aiui-status-badge.approved {
-      background: rgba(34, 197, 94, 0.2);
-      color: #22c55e;
+      background: var(--db-p-success-bg, rgba(34, 197, 94, 0.2));
+      color: var(--db-p-success, #22c55e);
     }
 
     .aiui-status-badge.denied {
-      background: rgba(239, 68, 68, 0.2);
-      color: #ef4444;
+      background: var(--db-p-error-bg, rgba(239, 68, 68, 0.2));
+      color: var(--db-p-error, #ef4444);
     }
 
     /* Policies */
@@ -608,7 +608,7 @@ function injectStyles() {
     }
 
     .aiui-policies-section h3 {
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0 0 1.5rem 0;
     }
 
@@ -619,22 +619,22 @@ function injectStyles() {
     .aiui-policy-group label {
       display: block;
       font-weight: 500;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       margin-bottom: 0.25rem;
     }
 
     .aiui-policy-help {
       font-size: 0.8125rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       margin: 0 0 0.5rem 0;
     }
 
     .aiui-policy-group select {
-      background: rgba(15, 23, 42, 0.8);
-      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: var(--db-p-input-bg, rgba(15, 23, 42, 0.8));
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.2));
       border-radius: 0.375rem;
       padding: 0.5rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       font-size: 0.875rem;
     }
 
@@ -654,13 +654,13 @@ function injectStyles() {
     }
 
     .aiui-policy-tag.approve {
-      background: rgba(34, 197, 94, 0.2);
-      color: #22c55e;
+      background: var(--db-p-success-bg, rgba(34, 197, 94, 0.2));
+      color: var(--db-p-success, #22c55e);
     }
 
     .aiui-policy-tag.deny {
-      background: rgba(239, 68, 68, 0.2);
-      color: #ef4444;
+      background: var(--db-p-error-bg, rgba(239, 68, 68, 0.2));
+      color: var(--db-p-error, #ef4444);
     }
 
     .aiui-policy-tag button {
