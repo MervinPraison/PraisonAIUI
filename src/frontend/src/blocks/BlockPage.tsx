@@ -179,7 +179,7 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
         data-status={view.status}
         aria-busy={view.status === 'loading' || refreshing || undefined}
       >
-        <div className="-mb-2 flex min-h-8 items-center justify-end gap-2 text-[13px] text-muted-foreground">
+        <div className="-mb-2 flex min-h-8 items-center justify-end gap-2 text-xs text-muted-foreground">
           {view.status === 'ready' && (
             <span className="tabular-nums" title={new Date(view.updatedAt).toISOString()}>
               Updated {formatTime(view.updatedAt)}
@@ -194,7 +194,7 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
             disabled={refreshing || view.status === 'loading'}
             onClick={() => void load('refresh')}
           >
-            <RefreshCw aria-hidden className={cn(refreshing && 'animate-spin motion-reduce:animate-none')} />
+            <RefreshCw aria-hidden className={cn(refreshing && 'animate-spin motion-reduce:animate-[spin_1.6s_linear_infinite]')} />
           </Button>
         </div>
 
@@ -206,7 +206,7 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
               <CircleX aria-hidden className="size-4 text-destructive" />
               Couldn't load {page.title}
             </div>
-            <p className="break-words text-[13px] text-muted-foreground">{view.error}</p>
+            <p className="break-words text-xs text-muted-foreground">{view.error}</p>
             <Button
               type="button"
               size="sm"

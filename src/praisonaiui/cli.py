@@ -3365,7 +3365,7 @@ plugins_app = typer.Typer(
     name="plugins",
     help=(
         "Inspect UI plugins (Python packages declaring the 'praisonaiui.plugins' entry point). "
-        "A plugin's own commands run as 'aiui <plugin> …' or 'aiui plugins <plugin> …'."
+        "A plugin's own commands run as 'aiui <plugin> ...' or 'aiui plugins <plugin> ...'."
     ),
     add_completion=False,
     cls=_PluginsGroup,

@@ -96,7 +96,7 @@ export function LegacyBlockFallback({ node }: { node: BlockNode }): JSX.Element 
       {/* Imperative mount point: React never renders children into it. */}
       <div ref={mountRef} className="aiui-legacy-host min-w-0" />
       {status === 'unavailable' && (
-        <pre className="max-h-80 overflow-auto rounded-lg bg-muted px-4 py-3 font-mono text-[13px] leading-relaxed text-muted-foreground">
+        <pre className="max-h-80 overflow-auto rounded-lg bg-muted px-4 py-3 font-mono text-xs leading-relaxed text-muted-foreground">
           {JSON.stringify(toLegacyComponent(node), null, 2)}
         </pre>
       )}

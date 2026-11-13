@@ -49,7 +49,7 @@ class BlockBoundary extends Component<BoundaryProps, { error: Error | null }> {
       <div
         role="alert"
         data-aiui-block-error={this.props.type}
-        className="flex min-w-0 items-start gap-2 rounded-lg border border-destructive/30 px-3 py-2 text-[13px] text-muted-foreground"
+        className="flex min-w-0 items-start gap-2 rounded-lg border border-destructive/30 px-3 py-2 text-xs text-muted-foreground"
       >
         <CircleX aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive" />
         <span className="min-w-0 break-words">

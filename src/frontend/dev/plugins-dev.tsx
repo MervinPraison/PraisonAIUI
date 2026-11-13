@@ -90,7 +90,7 @@ function Harness() {
   return (
     <div className="aiui-app flex min-h-screen bg-background text-foreground">
       <nav className="flex w-60 shrink-0 flex-col gap-1 border-r border-border p-3 text-sm" aria-label="Plugin pages">
-        <div className="px-2 pb-2 text-[13px] text-muted-foreground" data-testid="harness-status">
+        <div className="px-2 pb-2 text-xs text-muted-foreground" data-testid="harness-status">
           {error ? `error: ${error}` : ready ? 'plugins loaded' : 'loading plugins'}
         </div>
         {pages.map((p) => (
@@ -101,7 +101,7 @@ function Harness() {
             aria-current={p === current ? 'page' : undefined}
             className="rounded-md px-2 py-1.5 hover:bg-muted aria-[current=page]:bg-accent aria-[current=page]:font-medium"
           >
-            {p.title} <span className="text-[13px] text-muted-foreground">· {p.kind}</span>
+            {p.title} <span className="text-xs text-muted-foreground">· {p.kind}</span>
           </a>
         ))}
       </nav>

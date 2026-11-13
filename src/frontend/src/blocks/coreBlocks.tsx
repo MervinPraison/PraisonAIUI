@@ -47,7 +47,7 @@ function childNodes(node: BlockNode, key?: string): BlockNode[] {
 }
 
 const FIELD_LABEL = 'text-sm font-medium text-foreground'
-const META = 'text-[13px] text-muted-foreground'
+const META = 'text-xs text-muted-foreground'
 // Auto-fitting tracks: as many equal columns as fit, stacking on narrow screens.
 const AUTO_GRID = 'grid min-w-0 gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))]'
 // The frame of a top-level panel. Inside another panel it is dropped (see
@@ -64,7 +64,7 @@ function InFrame({ children }: { children: ReactNode }) {
 function TextBlock({ node }: CoreBlockProps) {
   const p = propsOf(node)
   const text = str(p.content ?? p.text, typeof node.children === 'string' ? node.children : '')
-  return <p className="min-w-0 whitespace-pre-wrap break-words text-[15px] leading-[1.55] text-foreground">{text}</p>
+  return <p className="min-w-0 whitespace-pre-wrap break-words text-base text-foreground">{text}</p>
 }
 
 function CaptionBlock({ node }: CoreBlockProps) {
@@ -125,7 +125,7 @@ function JsonBlock({ node }: CoreBlockProps) {
     text = String(p.data)
   }
   return (
-    <pre className="max-h-[28rem] min-w-0 overflow-auto rounded-lg bg-muted px-4 py-3 font-mono text-[13px] leading-relaxed text-foreground">
+    <pre className="max-h-[28rem] min-w-0 overflow-auto rounded-lg bg-muted px-4 py-3 font-mono text-xs leading-relaxed text-foreground">
       {text}
     </pre>
   )
@@ -176,7 +176,7 @@ function MetricBody({ p }: { p: Record<string, unknown> }) {
     <>
       <div className={cn(META, 'truncate')}>{str(p.label ?? p.title)}</div>
       <div className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{display(p.value)}</div>
-      {hasDelta && <div className={cn('text-[13px] font-medium tabular-nums', deltaTone(delta, p.delta_color))}>{display(delta)}</div>}
+      {hasDelta && <div className={cn('text-xs font-medium tabular-nums', deltaTone(delta, p.delta_color))}>{display(delta)}</div>}
     </>
   )
 }
@@ -224,7 +224,7 @@ function ProgressBlock({ node }: CoreBlockProps) {
   const label = str(p.label)
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <div className="flex items-baseline justify-between gap-3 text-[13px]">
+      <div className="flex items-baseline justify-between gap-3 text-xs">
         <span className="truncate text-foreground">{label}</span>
         <span className="tabular-nums text-muted-foreground">{pct}%</span>
       </div>
@@ -389,7 +389,7 @@ function AccordionBlock({ node, page }: CoreBlockProps) {
       {items.map((item, i) => (
         <Disclosure key={i} title={str(item.title)}>
           {typeof item.content === 'string' || typeof item.content === 'number' ? (
-            <p className="whitespace-pre-wrap text-[15px] leading-[1.55] text-foreground">{str(item.content)}</p>
+            <p className="whitespace-pre-wrap text-base text-foreground">{str(item.content)}</p>
           ) : (
             <InFrame>
               <BlockList nodes={toBlockNodes(arr(item.children ?? item.content))} page={page} />
@@ -424,7 +424,7 @@ function TableBlock({ node }: CoreBlockProps) {
           <thead>
             <tr>
               {headers.map((h, i) => (
-                <th key={i} scope="col" className="h-9 whitespace-nowrap px-3 text-left text-[13px] font-medium text-muted-foreground">
+                <th key={i} scope="col" className="h-9 whitespace-nowrap px-3 text-left text-xs font-medium text-muted-foreground">
                   {display(h)}
                 </th>
               ))}
@@ -541,7 +541,7 @@ function ListBlock({ node, page }: CoreBlockProps) {
   return (
     <Tag
       className={cn(
-        'min-w-0 space-y-1 pl-5 text-[15px] leading-[1.55] text-foreground marker:text-muted-foreground',
+        'min-w-0 space-y-1 pl-5 text-base text-foreground marker:text-muted-foreground',
         ordered ? 'list-decimal' : 'list-disc',
       )}
     >
@@ -627,7 +627,7 @@ function SpinnerBlock({ node }: CoreBlockProps) {
   const text = str(propsOf(node).text)
   return (
     <div role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
-      <LoaderCircle aria-hidden className="size-4 animate-spin motion-reduce:animate-none" />
+      <LoaderCircle aria-hidden className="size-4 animate-spin motion-reduce:animate-[spin_1.6s_linear_infinite]" />
       <span className={text ? undefined : 'sr-only'}>{text || 'Loading'}</span>
     </div>
   )
@@ -756,7 +756,7 @@ function ActionButton({ spec }: { spec: Record<string, unknown> }) {
       data-action={action || undefined}
       onClick={onClick}
     >
-      {busy && <LoaderCircle aria-hidden className="animate-spin motion-reduce:animate-none" />}
+      {busy && <LoaderCircle aria-hidden className="animate-spin motion-reduce:animate-[spin_1.6s_linear_infinite]" />}
       {label}
     </Button>
   )
@@ -825,7 +825,7 @@ function FormBlock({ node, page }: CoreBlockProps) {
       <BlockList nodes={childNodes(node)} page={page} />
       <div>
         <Button type="submit" size="sm" disabled={busy} aria-busy={busy || undefined}>
-          {busy && <LoaderCircle aria-hidden className="animate-spin motion-reduce:animate-none" />}
+          {busy && <LoaderCircle aria-hidden className="animate-spin motion-reduce:animate-[spin_1.6s_linear_infinite]" />}
           {submitLabel}
         </Button>
       </div>
