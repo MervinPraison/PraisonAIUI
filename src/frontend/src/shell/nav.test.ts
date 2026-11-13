@@ -7,12 +7,14 @@ import {
   footerPages,
   groupPages,
   isFullBleed,
+  needsLegacyRuntime,
   orderedPages,
   revealInScroller,
   showPageHeader,
   showSidebar,
   siteLogo,
   siteTitle,
+  usesLegacyHost,
 } from '@/shell/nav'
 import { emojiForPage, FallbackPageIcon, ICON_BY_PAGE_ID, iconForPage, PAGE_ICON_SET } from '@/shell/icons'
 import { approvalKey, describeApproval } from '@/shell/approvals'
@@ -107,6 +109,32 @@ test('full-bleed pages: layout flag, the known chat-like ids, and iframes', () =
   assert.equal(isFullBleed(p('x', 'G', 1, { layout: 'full-bleed' }), 'x'), true)
   assert.equal(isFullBleed(p('y', 'G', 1, { kind: 'iframe' }), 'y'), true)
   assert.equal(isFullBleed(p('logs', 'G', 1), 'logs'), false)
+})
+
+test('the legacy runtime is preloaded only when a page (or custom.js) needs it', () => {
+  const legacy = { customJs: null, viewsBase: '/plugins/views/' }
+  const react = p('hello', 'Plugins', 1, { kind: 'react', module: '/_plugins/hello/hello.js' })
+  const blocks = p('board', 'Plugins', 2, { kind: 'blocks' })
+  const frame = p('docs', 'Plugins', 3, { kind: 'iframe', module: '/docs/' })
+  const chat = p('chat', 'Agent', 1)
+  const native = p('threads', 'Agent', 2, { kind: 'native' })
+
+  assert.equal(needsLegacyRuntime({ pages: [], legacy }), false)
+  assert.equal(needsLegacyRuntime({ pages: [react, blocks, frame], legacy }), false, 'no legacy page: no dashboard.js')
+  assert.equal(needsLegacyRuntime({ pages: [react, chat], legacy }), true)
+  // A page a React component is registered for never reaches the legacy host.
+  const registered = (id: string) => id === 'chat' || id === 'threads'
+  assert.equal(needsLegacyRuntime({ pages: [react, chat, native], legacy }, registered), false)
+  assert.equal(needsLegacyRuntime({ pages: [chat, native, p('logs', 'Settings', 9)], legacy }, registered), true)
+  // An unregistered native page falls back to the legacy host, like PageView does.
+  assert.equal(needsLegacyRuntime({ pages: [native], legacy }), true)
+  // custom.js is evaluated by the legacy runtime only.
+  assert.equal(needsLegacyRuntime({ pages: [react], legacy: { ...legacy, customJs: '/custom.js' } }, registered), true)
+
+  assert.deepEqual(
+    [react, blocks, frame, chat, native].map(usesLegacyHost),
+    [false, false, false, true, true],
+  )
 })
 
 test('site title and logo', () => {

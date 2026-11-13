@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { getPage, useRegistryVersion } from '@/sdk/registry'
 import type { ShellPage } from '@/sdk/manifest'
 import { cn } from '@/lib/utils'
+import { usesLegacyHost } from './nav'
 import { EmptyState, PageSkeleton } from './primitives'
 import { isPlainLeftClick, navigate, PAGE_CHANGE_EVENT, pathForPage } from './router'
 
@@ -119,7 +120,7 @@ export function PageView({
   const Registered = pageId ? getPage(pageId) : undefined
   const title = page?.title ?? pageId
 
-  let body: ReactNode
+  let body: ReactNode = null
   let announce = true
   if (!pageId) {
     // `/` before the redirect to the default page.
@@ -167,7 +168,7 @@ export function PageView({
     ) : (
       <PageSkeleton fill={fullBleed} />
     )
-  } else {
+  } else if (usesLegacyHost(page)) {
     // LegacyViewHost announces aiui:page-change itself once the view is mounted.
     announce = false
     body = <LegacyViewHost key={pageId} pageId={pageId} page={page} />

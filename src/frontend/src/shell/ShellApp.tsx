@@ -6,9 +6,11 @@ import { ThemeProvider } from 'next-themes'
 import { activateBuiltins } from '@/builtin'
 import { preloadLegacyRuntime } from '@/legacy/runtime'
 import { fetchManifest, type ShellManifest } from '@/sdk/manifest'
+import { getPage } from '@/sdk/registry'
 import { loadManifestPlugins } from '@/sdk/install'
 import { BootError, BootSkeleton, TokenGate } from './BootScreen'
 import { ShellContext, type ShellState } from './context'
+import { needsLegacyRuntime } from './nav'
 import { useToasterRequested } from './notify'
 import { preloadCommandPalette } from './palette'
 import ReactShell from './ReactShell'
@@ -57,7 +59,9 @@ function ShellReady({ manifest }: { manifest: ShellManifest }) {
       if (alive) setPluginsSettled(true)
     })
     const cancelIdle = onIdle(() => {
-      preloadLegacyRuntime()
+      // Only when a page will actually use it: an app whose pages are all
+      // React, blocks or iframes never downloads dashboard.js.
+      if (needsLegacyRuntime(manifest, (id) => getPage(id) !== undefined)) preloadLegacyRuntime()
       preloadCommandPalette()
     })
     return () => {
