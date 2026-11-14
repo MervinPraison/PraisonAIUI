@@ -11,11 +11,13 @@
  * Above the body sits the `page:<id>:toolbar` slot (empty unless a plugin
  * contributes to it).
  */
-import { Component, createElement, lazy, Suspense, useEffect, type ErrorInfo, type ReactNode } from 'react'
+import { Component, createElement, Fragment, Suspense, useEffect, type ErrorInfo, type ReactNode } from 'react'
 import { CircleAlert, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getPage, useRegistryVersion } from '@/sdk/registry'
+import type { LegacyViewHostProps } from '@/legacy/LegacyViewHost'
 import type { ShellPage } from '@/sdk/manifest'
+import { retryableLazy, retryFailedLazies } from '@/lib/retryableLazy'
 import { cn } from '@/lib/utils'
 import { useLegacyViewRegistered } from './legacyViews'
 import { usesLegacyHost } from './nav'
@@ -23,8 +25,12 @@ import { EmptyState, PageSkeleton } from './primitives'
 import { isPlainLeftClick, navigate, PAGE_CHANGE_EVENT, pathForPage } from './router'
 import { SHELL_SLOTS, Slot } from './Slot'
 
-const LegacyViewHost = lazy(() => import('@/legacy/LegacyViewHost').then((m) => ({ default: m.LegacyViewHost })))
-const BlockPage = lazy(() => import('@/blocks/BlockPage'))
+// Retryable: one failed chunk load (offline, a deploy) must not break every
+// later page of that kind; Try again, or the next page, imports again.
+const LegacyViewHost = retryableLazy<LegacyViewHostProps>(() =>
+  import('@/legacy/LegacyViewHost').then((m) => ({ default: m.LegacyViewHost })),
+)
+const BlockPage = retryableLazy<{ page: ShellPage }>(() => import('@/blocks/BlockPage'))
 
 /** Tell legacy listeners (approvals, prefill-composer callers) a React page is on screen. */
 function PageMounted({ pageId, page }: { pageId: string; page?: ShellPage }) {
@@ -41,8 +47,19 @@ interface BoundaryProps {
   children: ReactNode
 }
 
-class PageErrorBoundary extends Component<BoundaryProps, { error: Error | null }> {
-  state: { error: Error | null } = { error: null }
+class PageErrorBoundary extends Component<BoundaryProps, { error: Error | null; attempt: number }> {
+  state: { error: Error | null; attempt: number } = { error: null, attempt: 0 }
+
+  constructor(props: BoundaryProps) {
+    super(props)
+    // A new page: chunks that failed on an earlier page (offline) load again.
+    retryFailedLazies()
+  }
+
+  private retry = () => {
+    retryFailedLazies()
+    this.setState((s) => ({ error: null, attempt: s.attempt + 1 }))
+  }
 
   static getDerivedStateFromError(error: unknown) {
     return { error: error instanceof Error ? error : new Error(String(error)) }
@@ -53,8 +70,9 @@ class PageErrorBoundary extends Component<BoundaryProps, { error: Error | null }
   }
 
   render() {
-    const { error } = this.state
-    if (!error) return this.props.children
+    const { error, attempt } = this.state
+    // Try again remounts the page (a fresh lazy import after a failed load).
+    if (!error) return <Fragment key={attempt}>{this.props.children}</Fragment>
     return (
       <EmptyState
         role="alert"
@@ -62,7 +80,7 @@ class PageErrorBoundary extends Component<BoundaryProps, { error: Error | null }
         title={`“${this.props.pageTitle}” failed to load`}
         description={error.message || 'An unexpected error occurred while rendering this page.'}
       >
-        <Button variant="outline" size="sm" onClick={() => this.setState({ error: null })}>
+        <Button variant="outline" size="sm" onClick={this.retry}>
           Try again
         </Button>
         <Button variant="ghost" size="sm" onClick={() => window.location.reload()}>

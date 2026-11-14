@@ -579,6 +579,54 @@ test('a new approval raises a toast that opens the approvals page, except on cha
   }
 })
 
+test('a page chunk that fails to load offline never reloads the tab, and Try again works once back online', async ({ page, context }) => {
+  const navigations: string[] = []
+  page.on('framenavigated', (f) => {
+    if (f === page.mainFrame()) navigations.push(f.url())
+  })
+  await page.goto('/hello')
+  await expect(page.locator('[data-aiui-page="hello"]')).toContainText(/hello/i)
+  const loads = navigations.length
+  // The legacy host chunk is not loaded yet on a React page: it is fetched on the first legacy page.
+  await context.setOffline(true)
+  await (await sidebarLink(page, 'sessions')).click()
+  // The page's error boundary renders in place of the page area.
+  const area = page.locator('#aiui-main')
+  await expect(area.getByRole('alert')).toContainText('failed to load')
+  await page.waitForTimeout(1500)
+  expect(navigations.filter((u) => u.startsWith('chrome-error')), 'never the browser offline page').toEqual([])
+  expect(navigations.slice(loads).every((u) => new URL(u).pathname === '/sessions'), JSON.stringify(navigations)).toBe(true)
+  await expect(page.locator('[data-aiui-shell-root]')).toBeVisible()
+
+  await context.setOffline(false)
+  await area.getByRole('button', { name: 'Try again' }).click()
+  expect((await waitForPage(page, 'sessions')).state).toBe('ready')
+  // The failed load did not poison the chunk for other legacy pages.
+  await (await sidebarLink(page, 'usage')).click()
+  expect((await waitForPage(page, 'usage')).state).toBe('ready')
+  expect(navigations.filter((u) => !u.startsWith('http')), 'no reload, no error page').toEqual([])
+})
+
+test('after a page chunk 404s, the next page of that kind loads once the chunk is back', async ({ page }) => {
+  // The chunk 404s until it is "redeployed" (React's own render retry fails too).
+  let broken = true
+  await page.route(/\/assets\/LegacyViewHost-[^/]+\.js$/, (route) =>
+    broken ? route.fulfill({ status: 404, body: 'gone' }) : route.continue(),
+  )
+  await page.goto('/hello')
+  await expect(page.locator('[data-aiui-page="hello"]')).toContainText(/hello/i)
+  await (await sidebarLink(page, 'sessions')).click()
+  // The page's error boundary renders in place of the page area.
+  const area = page.locator('#aiui-main')
+  await expect(area.getByRole('alert')).toContainText('failed to load')
+  broken = false
+  // No Try again: simply opening another legacy page imports the chunk again.
+  await (await sidebarLink(page, 'usage')).click()
+  expect((await waitForPage(page, 'usage')).state).toBe('ready')
+  await (await sidebarLink(page, 'sessions')).click()
+  expect((await waitForPage(page, 'sessions')).state).toBe('ready')
+})
+
 test('a 5xx from /api/auth/status never covers the shell with the legacy onboarding wizard', async ({ page }) => {
   await page.route('**/api/auth/status', (route) => route.fulfill({ status: 502, body: 'Bad Gateway' }))
   await page.goto('/overview')
@@ -604,3 +652,4 @@ test('overview says when its data failed to load, with a retry', async ({ page }
   await expect(area.locator('[data-ov-error="agents"]')).toContainText('Agents could not be loaded')
   await expect(area).not.toContainText('No agents registered yet')
 })
+
