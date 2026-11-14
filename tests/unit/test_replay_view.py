@@ -129,8 +129,13 @@ def test_replay_page_uses_own_svg_mark_not_emoji_heading():
     assert REPLAY_MARK_SVG.startswith('<svg xmlns="http://www.w3.org/2000/svg"')
     for banned in ("<script", "foreignObject", "onload", "javascript:"):
         assert banned not in REPLAY_MARK_SVG
-    server_src = (ROOT / "src" / "praisonaiui" / "server.py").read_text(encoding="utf-8")
-    assert '"icon_svg": REPLAY_MARK_SVG' in server_src
+    # The page is a first-party plugin record (praisonaiui.builtin). That
+    # GET /api/pages still serves icon_svg is pinned by the snapshot test in
+    # test_builtin_plugins.py.
+    from praisonaiui.builtin import BUILTIN_PLUGINS
+
+    replay = next(s for p in BUILTIN_PLUGINS for s in p.pages() if s.id == "replay")
+    assert replay.icon_svg == REPLAY_MARK_SVG
     dash = (FRONTEND / "dashboard.js").read_text(encoding="utf-8")
     assert "function safeSvgIcon" in dash and "parsererror, script, foreignObject" in dash
     assert "setPageIcon(iconSpan, page" in dash

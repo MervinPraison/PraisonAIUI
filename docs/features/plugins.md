@@ -98,6 +98,38 @@ app (`aiui.register_page`), then built-in pages, then entry-point plugins (in
 discovery order), then dashboard-plugin folders. `aiui plugins doctor` warns
 about shadowed ids.
 
+### Built-in plugins
+
+The pages that ship with PraisonAIUI use the same mechanism. Each domain is a
+first-party plugin record in `praisonaiui.builtin` (for example `builtin.chat`
+holds the Chat and Chat + Canvas pages, `builtin.work` holds Work Hub, Kanban
+and Jobs Board). The server reads their pages through the plugin registry, so
+the extension policy can switch a whole domain off:
+
+```yaml
+extensions:
+  disabled: [builtin.training, builtin.logs]
+```
+
+or `aiui.set_extensions(disabled=["builtin.training"])`. A disabled built-in
+contributes no pages: they leave `GET /api/pages`, the shell manifest and the
+sidebar, and a bundled dashboard-plugin folder that belongs to it (the
+`kanban` folder belongs to `builtin.work`) is not served either. With the
+built-in off, an entry-point plugin may use its page ids.
+
+- Built-ins are trusted and on by default. `extensions.enabled` is an
+  allowlist for third-party plugins only, so it never hides a built-in page.
+- Only the `builtin.` name disables a built-in: `disabled: [logs]` means a
+  third-party plugin called `logs`. A `builtin.` name that matches no record
+  logs a warning.
+- The page-level controls still apply on top: `aiui.set_pages([...])`,
+  `pages.enabled` / `pages.disabled` in `config.yaml` and `aiui.remove_page()`
+  hide single pages, and `aiui.register_page()` with a built-in id replaces
+  that page.
+- `GET /api/plugins?origin=builtin` (or `origin=all`) lists the built-in
+  records with their status. Without the parameter the endpoint lists
+  third-party plugins only, as before.
+
 ## The browser side
 
 A plugin module is plain ESM. Write it by hand (the example uses

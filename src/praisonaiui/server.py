@@ -49,6 +49,8 @@ _page_actions: dict[str, Callable] = {}
 _enabled_pages: Optional[set[str]] = None
 # Track which page IDs were added by @aiui.page() (always shown)
 _custom_page_ids: set[str] = set()
+# Built-in page ids the last create_app() put into _pages (from plugin records)
+_builtin_page_ids: set[str] = set()
 
 
 # Pluggable datastore (default: SDK-backed store if available, else JSON file store)
@@ -131,6 +133,7 @@ def reset_state() -> None:
     _enabled_pages_ref = globals()
     _enabled_pages_ref["_enabled_pages"] = None
     _custom_page_ids.clear()
+    _builtin_page_ids.clear()
     _active_tasks.clear()
     _log_buffer.clear()
     _usage_stats.update(
@@ -428,7 +431,52 @@ def set_dashboard(
 def _dashboard_plugin_allowlist() -> list[str] | None:
     """Plugin-name allowlist from ``set_dashboard(plugins=...)`` (``None`` = all)."""
     allowed = (_dashboard_config or {}).get("plugins")
-    return list(allowed) if allowed is not None else None
+    allowed = list(allowed) if allowed is not None else None
+    return _without_disabled_builtin_folders(allowed)
+
+
+def _without_disabled_builtin_folders(allowed: list[str] | None) -> list[str] | None:
+    """Drop bundled dashboard-plugin folders owned by a disabled built-in.
+
+    A built-in may ship one of its pages as a bundled ``dashboard-plugins``
+    folder (kanban does). Without this, switching the built-in off would let
+    the folder put the same page straight back. A folder of the same name
+    that the user installed (home dir, ``plugin_dirs``) is not affected.
+    """
+    try:
+        from praisonaiui.plugin_registry import get_plugin_registry
+
+        reg = get_plugin_registry()
+        if not reg.policy.disabled:  # default: nothing to do, nothing scanned
+            return allowed
+        owned = {
+            str(name)
+            for rec in reg.builtin_records()
+            if rec.status == "disabled"
+            for name in getattr(rec.plugin, "dashboard_plugins", ()) or ()
+        }
+        if not owned:
+            return allowed
+        from praisonaiui import dashboard_plugins as _dp
+
+        # Callers scan different extra dirs (set_dashboard() or the YAML
+        # dashboard section), so list names over all of them. Extra dirs only
+        # add names: a name's first folder (home, then bundled) is the same
+        # whichever extras are scanned.
+        extra: list[str] = []
+        for cfg in (_dashboard_config or {}, _resolved_dashboard_config() or {}):
+            for d in cfg.get("pluginDirs") or cfg.get("plugin_dirs") or []:
+                if d not in extra:
+                    extra.append(d)
+        bundled = _dp._BUILTIN_PLUGIN_ROOT.resolve()
+        return [
+            m["name"]
+            for m in _dp.discover_dashboard_plugins(extra, allowed)
+            if not (m["name"] in owned and Path(m["root"]).parent == bundled)
+        ]
+    except Exception:  # noqa: BLE001 - never break page listing over this
+        logging.getLogger(__name__).debug("dashboard-plugin ownership check failed", exc_info=True)
+        return allowed
 
 
 _jobs_api_config: dict[str, str] = {"apiBase": "/api/jobs", "backend": "aiui"}
@@ -1444,10 +1492,17 @@ async def api_shell_manifest(request: Request) -> JSONResponse:
 async def api_plugins_list(request: Request) -> JSONResponse:
     from praisonaiui.plugin_registry import get_plugin_registry
 
+    reg = get_plugin_registry()
     restricted = _plugin_js_restricted(request.scope)
-    return JSONResponse(
-        {"plugins": get_plugin_registry().records_for_manifest(restricted=restricted)}
-    )
+    plugins: list[dict[str, Any]] = []
+    # ``?origin=builtin`` or ``?origin=all`` also lists the first-party
+    # plugins. The default stays third-party only.
+    origin = request.query_params.get("origin", "")
+    if origin in ("builtin", "all"):
+        plugins.extend(rec.to_dict() for rec in reg.builtin_records())
+    if origin != "builtin":
+        plugins.extend(reg.records_for_manifest(restricted=restricted))
+    return JSONResponse({"plugins": plugins})
 
 
 _HASHED_ASSET_RE = re.compile(r"-([A-Za-z0-9_-]{8})\.[A-Za-z0-9]+$")
@@ -2373,6 +2428,25 @@ async def api_action_click(request: Request) -> JSONResponse:
         # Internal error in callback execution
         logging.exception(f"Error executing action callback '{action_name}'")
         return JSONResponse({"error": f"Internal error: {str(e)}"}, status_code=500)
+
+
+def _builtin_page_entry(spec: Any) -> dict[str, Any]:
+    """Page-table row for a first-party ``PageSpec``.
+
+    The key order is part of the ``GET /api/pages`` wire format (the response
+    is serialized in insertion order), so it is fixed here.
+    """
+    entry: dict[str, Any] = {"id": spec.id, "title": spec.title, "icon": spec.icon}
+    if spec.icon_svg:
+        entry["icon_svg"] = spec.icon_svg
+    entry["group"] = spec.group
+    entry["description"] = spec.description
+    entry["order"] = spec.order
+    for opt in ("layout", "position"):
+        if getattr(spec, opt):
+            entry[opt] = getattr(spec, opt)
+    entry["api_endpoint"] = spec.api_endpoint or f"/api/{spec.id}"
+    return entry
 
 
 async def api_pages(request: Request) -> JSONResponse:
@@ -4014,6 +4088,11 @@ def create_app(
     # Always applied (None → load everything) so a policy from an earlier
     # create_app() in the same process does not linger.
     _plugin_registry.apply_config(_ext_section)
+    # First-party pages are plugin records too. Registered here (idempotent)
+    # so the same policy governs them.
+    from praisonaiui.builtin import register_builtin_plugins
+
+    register_builtin_plugins(_plugin_registry)
 
     # Style "app": YAML site.theme reaches the ThemeManager (dashboard: unchanged).
     if effective_style == "app":
@@ -4065,329 +4144,20 @@ def create_app(
             except Exception as exc:  # noqa: BLE001
                 logging.getLogger(__name__).warning("plugin %s.setup failed: %s", _rec.name, exc)
 
-    # Register built-in dashboard pages via the same protocol
-    from praisonaiui.features.replay import REPLAY_MARK_SVG
-
-    _builtin_pages = [
-        {
-            "id": "overview",
-            "title": "Overview",
-            "icon": "📊",
-            "group": "Control",
-            "description": "System health and statistics",
-            "order": 10,
-        },
-        {
-            "id": "chat",
-            "title": "Chat",
-            "icon": "💬",
-            "group": "Agent",
-            "description": "AI agent chat",
-            "order": 1,
-            "layout": "full-bleed",
-        },
-        {
-            "id": "chat-canvas",
-            "title": "Chat + Canvas",
-            "icon": "💬🖼️",
-            "group": "Agent",
-            "description": "Chat with live A2UI preview panel",
-            "order": 2,
-            "layout": "full-bleed",
-        },
-        {
-            "id": "canvas",
-            "title": "Canvas",
-            "icon": "🖼️",
-            "group": "Agent",
-            "description": "Live A2UI surface workspace",
-            "order": 6,
-        },
-        {
-            "id": "channels",
-            "title": "Channels",
-            "icon": "📡",
-            "group": "Agent",
-            "description": "Messaging platform connections",
-            "order": 5,
-        },
-        {
-            "id": "inbox",
-            "title": "Channel Inbox",
-            "icon": "📥",
-            "group": "Agent",
-            "description": "Unified multi-channel conversation triage",
-            "order": 6,
-        },
-        {
-            "id": "sessions",
-            "title": "Sessions",
-            "icon": "📋",
-            "group": "Control",
-            "description": "Manage conversation sessions",
-            "order": 20,
-        },
-        {
-            "id": "runs",
-            "title": "Runs",
-            "icon": "⏱️",
-            "group": "Control",
-            "description": "Run flight recorder — timeline debugger",
-            "order": 22,
-        },
-        {
-            "id": "replay",
-            "title": "Replay",
-            "icon": "⏮️",
-            "icon_svg": REPLAY_MARK_SVG,
-            "group": "Control",
-            "description": "Recorded agent runs, step by step: who did what, when, and at what cost",
-            "order": 21,
-        },
-        {
-            "id": "usage",
-            "title": "Usage",
-            "icon": "📈",
-            "group": "Control",
-            "description": "Token usage and metrics",
-            "order": 30,
-        },
-        {
-            "id": "feedback",
-            "title": "Feedback",
-            "icon": "👍",
-            "group": "Control",
-            "description": "Message feedback analytics",
-            "order": 25,
-        },
-        {
-            "id": "cron",
-            "title": "Cron",
-            "icon": "⏰",
-            "group": "Agent",
-            "description": "Scheduled jobs",
-            "order": 35,
-        },
-        {
-            "id": "jobs",
-            "title": "Jobs",
-            "icon": "📋",
-            "group": "Control",
-            "description": "Async agent jobs",
-            "order": 40,
-        },
-        {
-            "id": "work",
-            "title": "Work Hub",
-            "icon": "🗂️",
-            "group": "Work",
-            "description": "Unified kanban, card detail, chat and job log",
-            "order": 9,
-        },
-        {
-            "id": "jobs-board",
-            "title": "Jobs Board",
-            "icon": "📊",
-            "group": "Work",
-            "description": "Jobs kanban by status",
-            "order": 11,
-        },
-        {
-            "id": "kanban",
-            "title": "Kanban",
-            "icon": "📌",
-            "group": "Work",
-            "description": "Multi-agent task board",
-            "order": 10,
-        },
-        {
-            "id": "approvals",
-            "title": "Approvals",
-            "icon": "✅",
-            "group": "Control",
-            "description": "Execution approval queue",
-            "order": 45,
-        },
-        {
-            "id": "api",
-            "title": "API",
-            "icon": "🔌",
-            "group": "Control",
-            "description": "OpenAI-compatible API endpoints",
-            "order": 50,
-        },
-        {
-            "id": "agents",
-            "title": "Agents",
-            "icon": "🤖",
-            "group": "Agent",
-            "description": "Configured AI agents",
-            "order": 10,
-        },
-        {
-            "id": "skills",
-            "title": "Skills",
-            "icon": "⚡",
-            "group": "Agent",
-            "description": "Agent skills & plugins",
-            "order": 20,
-        },
-        {
-            "id": "marketplace",
-            "title": "Marketplace",
-            "icon": "🧩",
-            "group": "Agent",
-            "description": "Browse, install & manage plugins",
-            "order": 22,
-        },
-        {
-            "id": "memory",
-            "title": "Memory",
-            "icon": "🧠",
-            "group": "Agent",
-            "description": "Agent memory & knowledge store",
-            "order": 25,
-        },
-        {
-            "id": "knowledge",
-            "title": "Knowledge",
-            "icon": "📚",
-            "group": "Agent",
-            "description": "Knowledge base & RAG",
-            "order": 27,
-        },
-        {
-            "id": "nodes",
-            "title": "Nodes",
-            "icon": "🖥️",
-            "group": "Control",
-            "description": "Execution nodes & presence",
-            "order": 15,
-        },
-        {
-            "id": "mcp",
-            "title": "MCP",
-            "icon": "🔌",
-            "group": "Agent",
-            "description": "Model Context Protocol servers",
-            "order": 30,
-        },
-        {
-            "id": "config",
-            "title": "Config",
-            "icon": "⚙️",
-            "group": "Settings",
-            "description": "Server configuration",
-            "order": 10,
-        },
-        {
-            "id": "auth",
-            "title": "Auth",
-            "icon": "🔐",
-            "group": "Settings",
-            "description": "Authentication settings",
-            "order": 15,
-        },
-        {
-            "id": "logs",
-            "title": "Logs",
-            "icon": "📜",
-            "group": "Settings",
-            "description": "Server logs and events",
-            "order": 20,
-        },
-        {
-            "id": "debug",
-            "title": "Debug",
-            "icon": "🐛",
-            "group": "Settings",
-            "description": "Debug information",
-            "order": 30,
-        },
-        {
-            "id": "guardrails",
-            "title": "Guardrails",
-            "icon": "🛡️",
-            "group": "Agent",
-            "description": "Input/output safety guardrails",
-            "order": 35,
-        },
-        {
-            "id": "eval",
-            "title": "Eval",
-            "icon": "📊",
-            "group": "Control",
-            "description": "Agent evaluation & accuracy",
-            "order": 40,
-        },
-        {
-            "id": "training",
-            "title": "Training",
-            "icon": "🧪",
-            "group": "Control",
-            "description": "Inspect praisonai-train sessions & apply profiles",
-            "order": 42,
-        },
-        {
-            "id": "code-studio",
-            "title": "Code Studio",
-            "icon": "💻",
-            "group": "Control",
-            "description": "Write, run, and share code in a sandbox",
-            "order": 45,
-        },
-        {
-            "id": "telemetry",
-            "title": "Telemetry",
-            "icon": "📈",
-            "group": "Settings",
-            "description": "Performance monitoring & profiling",
-            "order": 25,
-        },
-        {
-            "id": "traces",
-            "title": "Traces",
-            "icon": "🔍",
-            "group": "Settings",
-            "description": "Distributed tracing & observability",
-            "order": 27,
-        },
-        {
-            "id": "security",
-            "title": "Security",
-            "icon": "🔒",
-            "group": "Settings",
-            "description": "Security monitoring & audit log",
-            "order": 12,
-        },
-        {
-            "id": "inspector",
-            "title": "Inspector",
-            "icon": "🔍",
-            "group": "Control",
-            "description": "Interactive API inspector",
-            "order": 99,
-            "position": "footer",
-        },
-        {
-            "id": "theme-picker",
-            "title": "Theme",
-            "icon": "🎨",
-            "group": "Settings",
-            "description": "Live color scheme picker",
-            "order": 35,
-        },
-    ]
-    _page_api_overrides = {
-        "sessions": "/sessions",
-        "runs": "/api/sessions",
-        "replay": "/api/replay/runs",
-        "cron": "/api/schedules",
-        "channels": "/api/channels",
-        "mcp": "/api/mcp/servers",
-        "marketplace": "/api/marketplace/plugins",
-        "code-studio": "/api/code/languages",
-    }
+    # Built-in pages are first-party plugin records (praisonaiui.builtin), read
+    # through the plugin registry like any other plugin's pages. A built-in
+    # named in ``extensions.disabled`` contributes none.
+    _builtin_pages = [_builtin_page_entry(s) for s in _plugin_registry.pages(origin="builtin")]
+    for _unknown in _plugin_registry.unknown_builtin_names():
+        logging.getLogger(__name__).warning(
+            "extensions.disabled names %r, but no such built-in exists", _unknown
+        )
+    # A built-in page added by an earlier create_app() in this process must
+    # not outlive the policy that now disables it. App pages are kept.
+    _contributed = {p["id"] for p in _builtin_pages}
+    for _pid in _builtin_page_ids - _contributed:
+        if _pid not in _custom_page_ids:
+            _pages.pop(_pid, None)
 
     # Read page whitelist from config.yaml if set_pages() was not called
     if _enabled_pages is None:
@@ -4413,10 +4183,11 @@ def create_app(
         # If whitelist is set, skip pages not in the whitelist
         if _enabled_pages is not None and p["id"] not in _enabled_pages:
             continue
-        _pages[p["id"]] = {
-            **p,
-            "api_endpoint": _page_api_overrides.get(p["id"], f"/api/{p['id']}"),
-        }
+        _pages[p["id"]] = p
+    _builtin_page_ids.clear()
+    _builtin_page_ids.update(
+        pid for pid in _contributed if pid in _pages and pid not in _custom_page_ids
+    )
 
     # Always mount built-in frontend plugins and assets BEFORE catch-all /
     _package_frontend_dir = Path(__file__).parent / "templates" / "frontend"

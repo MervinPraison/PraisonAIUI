@@ -28,6 +28,16 @@ plugins named explicitly in ``extensions.enabled`` / ``set_extensions(enabled=â€
 Plugins registered in-process with :func:`register_plugin` were chosen by the
 app author and are always trusted.
 
+First-party plugins
+-------------------
+The pages and features that ship with PraisonAIUI are plugin records too
+(:mod:`praisonaiui.builtin`), added with :meth:`PluginRegistry.register_builtin`.
+Their record names are ``builtin.<name>`` and their origin is ``"builtin"``.
+They are trusted and enabled unless named in ``extensions.disabled`` (an
+``enabled`` allowlist only restricts third-party plugins). Third-party-facing
+methods (``discover``, ``active``, ``pages()`` â€¦) skip them unless asked with
+``origin="builtin"`` / ``origin="all"``.
+
 This module is distinct from :mod:`praisonaiui.plugins` (docs compiler hooks).
 """
 
@@ -39,7 +49,7 @@ import logging
 import os
 import re
 import threading
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from importlib.metadata import EntryPoint, entry_points
 from pathlib import Path
 from typing import Any, Callable, Iterable, Literal, Optional, Protocol, runtime_checkable
@@ -53,6 +63,14 @@ SHELL_ENV = "AIUI_SHELL"
 
 PageKind = Literal["native", "react", "blocks", "legacy", "iframe"]
 PluginStatus = Literal["ok", "error", "disabled", "incompatible", "disabled-by-default"]
+#: Where a plugin record came from. ``builtin`` = shipped with PraisonAIUI,
+#: ``entry-point`` = pip-installed package, ``manual`` = register_plugin().
+PluginOrigin = Literal["builtin", "entry-point", "manual"]
+#: Filter for registry queries: one origin, ``third-party`` (entry-point and
+#: manual, the default everywhere) or ``all``.
+OriginFilter = Literal["builtin", "entry-point", "manual", "third-party", "all"]
+
+BUILTIN_PREFIX = "builtin."
 
 # Plugin names become URL path segments (/api/plugins/<name>, /_plugins/<name>).
 _NAME_OK = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
@@ -109,6 +127,9 @@ class PageSpec:
     integrity: Optional[str] = None
     css_integrity: Optional[str] = None
     source: str = "builtin"
+    #: Inline SVG markup for the nav icon (the legacy dashboard prefers it over
+    #: ``icon``). Trusted markup: only set it from code you control.
+    icon_svg: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         return _to_wire(self)
@@ -171,8 +192,13 @@ class PluginRecord:
     status: PluginStatus = "ok"
     error: Optional[str] = None
     plugin: Any = field(default=None, repr=False)
-    #: True for entry-point plugins (autoloaded), False for register_plugin().
+    #: True for entry-point plugins (autoloaded), False for register_plugin()
+    #: and for built-ins (both are trusted).
     autoloaded: bool = True
+    origin: PluginOrigin = "entry-point"
+    #: Built-ins only: the host itself depends on part of this plugin, so
+    #: disabling it keeps the required part (see ``praisonaiui.builtin``).
+    required: bool = False
 
     def to_dict(self, *, status: Optional[str] = None, include_error: bool = True) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -181,7 +207,10 @@ class PluginRecord:
             "dist": self.dist,
             "version": self.version,
             "status": status or self.status,
+            "origin": self.origin,
         }
+        if self.required:
+            d["required"] = True
         if self.error and include_error:
             d["error"] = self.error
         return d
@@ -217,6 +246,15 @@ class ExtensionPolicy:
             return False
         return self.enabled is None or self.explicitly_enabled(*names)
 
+    def allows_builtin(self, *names: str) -> bool:
+        """First-party plugins are on unless named in ``disabled``.
+
+        ``enabled`` is an allowlist for third-party plugins only, so
+        ``extensions: [my-plugin]`` never switches the built-in pages off.
+        """
+        disabled = self._norm(self.disabled)
+        return not any(n in disabled for n in self._norm(names))
+
     def explicitly_enabled(self, *names: str) -> bool:
         """True when one of ``names`` is listed in ``enabled`` (not just allowed)."""
         if self.enabled is None:
@@ -245,8 +283,74 @@ class PluginRegistry:
         self._lock = threading.RLock()
         self._records: Optional[list[PluginRecord]] = None
         self._manual: list[Any] = []
+        self._builtins: list[Any] = []
         self.policy = ExtensionPolicy()
         self._explicit = False
+
+    # first-party plugins ----------------------------------------------
+    def register_builtin(self, plugin: Any) -> None:
+        """Add a first-party plugin (trusted, origin ``builtin``).
+
+        Same duck-typed contract as any plugin. Registering a name again
+        replaces the earlier object in place, so the call is idempotent.
+        Only ``extensions.disabled`` switches a built-in off.
+        """
+        name = _builtin_name(plugin)
+        with self._lock:
+            for i, existing in enumerate(self._builtins):
+                if _builtin_name(existing) == name:
+                    self._builtins[i] = plugin
+                    return
+            self._builtins.append(plugin)
+
+    def builtin_records(self) -> list[PluginRecord]:
+        """One record per first-party plugin, in registration order.
+
+        ``status`` is ``ok`` or ``disabled`` (per the current policy). The
+        plugin object stays attached to a disabled record so the host can
+        keep the parts it marked required.
+        """
+        with self._lock:
+            builtins = list(self._builtins)
+            policy = self.policy
+        out: list[PluginRecord] = []
+        for obj in builtins:
+            name = _builtin_name(obj)
+            out.append(
+                PluginRecord(
+                    name=name,
+                    entry_point=f"praisonaiui.builtin:{name[len(BUILTIN_PREFIX):]}",
+                    dist="praisonaiui",
+                    version=getattr(obj, "version", None) or _host_version(),
+                    status="ok" if policy.allows_builtin(name) else "disabled",
+                    plugin=obj,
+                    autoloaded=False,
+                    origin="builtin",
+                    required=bool(getattr(obj, "required", False)),
+                )
+            )
+        return out
+
+    def records(self, origin: OriginFilter = "all") -> list[PluginRecord]:
+        """Plugin records filtered by origin (built-ins first)."""
+        out: list[PluginRecord] = []
+        if origin in ("builtin", "all"):
+            out.extend(self.builtin_records())
+        if origin != "builtin":
+            out.extend(
+                r for r in self.discover() if origin in ("all", "third-party") or r.origin == origin
+            )
+        return out
+
+    def unknown_builtin_names(self) -> list[str]:
+        """``disabled`` entries that look like a built-in but match no record."""
+        known = {sanitize_plugin_name(r.name) for r in self.records("all")}
+        out = []
+        for raw in self.policy.disabled:
+            norm = sanitize_plugin_name(raw)
+            if norm and norm.startswith("builtin-") and norm not in known:
+                out.append(str(raw))
+        return out
 
     # discovery ---------------------------------------------------------
     def _entry_points(self) -> Iterable[EntryPoint]:
@@ -299,6 +403,7 @@ class PluginRegistry:
                     plugin=obj,
                     version=getattr(obj, "version", None),
                     autoloaded=False,
+                    origin="manual",
                 )
                 if name is None:
                     rec.status, rec.error, rec.plugin = (
@@ -353,6 +458,7 @@ class PluginRegistry:
         with self._lock:
             self._records = None
             self._manual.clear()
+            self._builtins.clear()
             self.policy = ExtensionPolicy()
             self._explicit = False
 
@@ -389,8 +495,28 @@ class PluginRegistry:
         return out
 
     # contributions -----------------------------------------------------
-    def pages(self, *, restricted: bool = False) -> list[PageSpec]:
-        return self._collect("pages", _resolve_page, restricted)
+    def pages(
+        self, *, restricted: bool = False, origin: OriginFilter = "third-party"
+    ) -> list[PageSpec]:
+        """Pages contributed by plugins.
+
+        The default (``third-party``) is what entry-point and in-process
+        plugins add. ``origin="builtin"`` returns the first-party pages of
+        every enabled built-in, in registration order; ``"all"`` returns
+        built-ins first. ``restricted`` only applies to third-party plugins.
+        """
+        out: list[PageSpec] = []
+        if origin in ("builtin", "all"):
+            out.extend(self._collect_from(self._enabled_builtins(), "pages", _resolve_builtin_page))
+        if origin != "builtin":
+            recs = self.js_active(restricted=restricted)
+            if origin in ("entry-point", "manual"):
+                recs = [r for r in recs if r.origin == origin]
+            out.extend(self._collect_from(recs, "pages", _resolve_page))
+        return out
+
+    def _enabled_builtins(self) -> list[PluginRecord]:
+        return [r for r in self.builtin_records() if r.status == "ok"]
 
     def blocks(self, *, restricted: bool = False) -> list[BlockSpec]:
         return self._collect("blocks", _resolve_asset, restricted)
@@ -403,8 +529,14 @@ class PluginRegistry:
         )
 
     def _collect(self, hook: str, resolve: Callable[[PluginRecord, Any], Any], restricted: bool) -> list:
+        return self._collect_from(self.js_active(restricted=restricted), hook, resolve)
+
+    @staticmethod
+    def _collect_from(
+        records: Iterable[PluginRecord], hook: str, resolve: Callable[[PluginRecord, Any], Any]
+    ) -> list:
         out: list = []
-        for rec in self.js_active(restricted=restricted):
+        for rec in records:
             fn = getattr(rec.plugin, hook, None)
             if not callable(fn):
                 continue
@@ -524,6 +656,26 @@ class _GatedStatic:
         await self.app(scope, receive, send)
 
 
+def _builtin_name(plugin: Any) -> str:
+    """Record name of a first-party plugin: ``builtin.<name>``."""
+    raw = str(getattr(plugin, "name", None) or type(plugin).__name__).strip().lower()
+    if raw.startswith(BUILTIN_PREFIX):
+        raw = raw[len(BUILTIN_PREFIX):]
+    name = sanitize_plugin_name(raw)
+    if name is None:
+        raise ValueError(f"invalid built-in plugin name {raw!r} (allowed: a-z 0-9 _ -)")
+    return BUILTIN_PREFIX + name
+
+
+def _host_version() -> Optional[str]:
+    try:
+        from praisonaiui.__version__ import __version__
+
+        return __version__
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _instantiate(obj: Any) -> Any:
     if isinstance(obj, type):
         return obj()
@@ -592,8 +744,19 @@ def _resolve_page(rec: PluginRecord, spec: Any) -> PageSpec:
             "integrity": spec.integrity or sri,
             "css_integrity": spec.css_integrity or css_sri,
             "source": f"plugin:{rec.name}",
+            # Inline SVG is first-party only: it is injected as markup.
+            "icon_svg": None,
         }
     )
+
+
+def _resolve_builtin_page(rec: PluginRecord, spec: Any) -> PageSpec:
+    """First-party pages are used as declared (source stays ``builtin``)."""
+    if isinstance(spec, dict):
+        spec = PageSpec(**{_snake(str(k)): v for k, v in spec.items()})
+    if not isinstance(spec, PageSpec):
+        raise TypeError(f"expected PageSpec, got {type(spec).__name__}")
+    return spec if spec.source == "builtin" else replace(spec, source="builtin")
 
 
 def _resolve_asset(rec: PluginRecord, spec: Any, spec_type: type = BlockSpec):
@@ -681,6 +844,7 @@ def set_extensions(
 
 
 __all__ = [
+    "BUILTIN_PREFIX",
     "ENTRY_POINT_GROUP",
     "SDK_API_VERSION",
     "AiuiPlugin",
