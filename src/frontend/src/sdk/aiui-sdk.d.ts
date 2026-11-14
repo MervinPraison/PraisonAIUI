@@ -186,6 +186,8 @@ declare module '@aiui/sdk' {
   }
   /** Show a toast. Resolves to the toast id once the toaster has loaded. */
   export function notify(message: string, options?: NotifyOptions): Promise<string | number | undefined>
+  /** Close the toast with this id (all toasts without one). Feature `'notify.dismiss'`. */
+  export function dismiss(id?: string | number): Promise<void>
 
   export interface FetchJsonOptions extends Omit<RequestInit, 'body'> {
     /** A plain object or array is sent as JSON (method defaults to POST). */

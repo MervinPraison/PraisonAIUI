@@ -58,6 +58,8 @@ export const SDK_EXPORTS = [
   'getPageId',
   'usePageId',
   'useThemeMode',
+  // Close a toast raised with notify() (feature notify.dismiss).
+  'dismiss',
 ] as const
 export type SdkExportName = (typeof SDK_EXPORTS)[number]
 
@@ -94,6 +96,8 @@ export const SDK_FEATURES = [
   'page-id',
   // useThemeMode(): 'light' | 'dark'
   'theme-mode',
+  // dismiss(id): close a toast raised with notify({ id })
+  'notify.dismiss',
 ] as const
 export type SdkFeature = (typeof SDK_FEATURES)[number]
 
