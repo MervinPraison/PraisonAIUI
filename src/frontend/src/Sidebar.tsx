@@ -73,11 +73,16 @@ interface SidebarProps extends NavTreeProps {
 export function Sidebar({ nav, activeItem, onItemClick }: SidebarProps) {
     return (
         <aside className="docs-sidebar w-[17rem] min-w-[17rem] shrink-0 hidden md:block border-r border-border/40">
-            <ScrollArea className="h-[calc(100vh-3.5rem)] sticky top-14">
-                <div className="py-5 px-2">
-                    <NavTree nav={nav} activeItem={activeItem} onItemClick={onItemClick} />
-                </div>
-            </ScrollArea>
+            {/* The sticky wrapper is a plain div: ScrollArea's own `relative` would
+                win the class merge and turn top-14 into a 56px downward shift. */}
+            <div className="sticky top-14 h-[calc(100vh-3.5rem)]">
+                <ScrollArea className="h-full">
+                    {/* Same top padding as the article (docs-main-inner py-8), so the nav lines up with the H1. */}
+                    <div className="pt-8 pb-5 px-2">
+                        <NavTree nav={nav} activeItem={activeItem} onItemClick={onItemClick} />
+                    </div>
+                </ScrollArea>
+            </div>
         </aside>
     )
 }

@@ -1,5 +1,6 @@
 // Table of Contents & right sidebar component
 import { useCallback, useEffect, useState } from 'react'
+import { ChevronRight } from 'lucide-react'
 import type { NavItem, ZonesConfig } from './types'
 import { ZoneWidgets } from './Widgets'
 
@@ -100,9 +101,12 @@ export function MobileToc({ selectedItem }: { selectedItem: NavItem | null }) {
     if (!selectedItem || headings.length === 0) return null
 
     return (
-        <details className="lg:hidden border border-border/60 rounded-lg mb-6 px-4 py-3 bg-muted/20">
-            <summary className="text-sm font-medium cursor-pointer">On this page</summary>
-            <nav className="mt-3">
+        <details className="group/toc lg:hidden border border-border/60 rounded-lg mb-6 px-4 py-3 bg-muted/20">
+            <summary className="flex list-none items-center gap-1.5 text-sm font-medium cursor-pointer [&::-webkit-details-marker]:hidden">
+                <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground motion-safe:transition-transform motion-safe:duration-[120ms] group-open/toc:rotate-90" />
+                On this page
+            </summary>
+            <nav className="mt-3" data-aiui-toc="react">
                 <TocLinks headings={headings} activeId={activeId} />
             </nav>
         </details>
@@ -133,7 +137,8 @@ export function Toc({
                         <h4 className="text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider mb-4">
                             On this page
                         </h4>
-                        <nav>
+                        {/* data-aiui-toc: the legacy toc.js plugin leaves a React-managed TOC alone. */}
+                        <nav data-aiui-toc="react">
                             <TocLinks headings={headings} activeId={activeId} />
                         </nav>
                     </div>
