@@ -13,7 +13,7 @@
  * `<!---->` and corrupts fenced code. Extend the sanitize schema instead.
  */
 import { memo, useId, useMemo, useState, useEffect, type ComponentType } from 'react'
-import { Streamdown, defaultRehypePlugins, type ControlsConfig, type PluginConfig, type StreamdownProps } from 'streamdown'
+import { Streamdown, defaultRehypePlugins, type PluginConfig, type StreamdownProps } from 'streamdown'
 import { cn } from '@/lib/utils'
 import { SHIKI_THEMES, chatMermaidPlugin, ensureMathPlugin, getMathPlugin, lazyCodePlugin, lazyMermaidPlugin, needsMath } from './streamdownPlugins'
 import { normalizeTexDelimiters } from './texDelimiters'
@@ -26,6 +26,7 @@ import { useStreamingText } from './streamThrottle'
 import { continueSplitLists } from './listNumbering'
 import { useLegacyCopyGuard } from './legacyPlugins'
 import { rehypeFootnoteLabel } from './hast'
+import { CHAT_CONTROLS, DOCS_CONTROLS } from './controls' // owner decision 9
 import './markdown.css'
 
 type Components = NonNullable<StreamdownProps['components']>
@@ -101,19 +102,6 @@ const CHAT_REHYPE = [
     defaultRehypePlugins.harden,
 ] as StreamdownProps['rehypePlugins']
 
-// ── controls (owner decision 9) ──
-const CHAT_CONTROLS: ControlsConfig = {
-    code: { copy: true, download: true },
-    table: { copy: true, download: false, fullscreen: false },
-    mermaid: { panZoom: true, fullscreen: true, download: false, copy: false },
-    image: false,
-}
-const DOCS_CONTROLS: ControlsConfig = {
-    code: { copy: true, download: false },
-    table: false,
-    mermaid: { panZoom: true, fullscreen: false, download: false, copy: false },
-    image: false,
-}
 
 const LINKS_AS_ANCHORS = { enabled: false } // real <a>; policy lives in the `a` component
 

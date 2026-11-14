@@ -389,7 +389,8 @@ test('a code element is highlighted like reply code, and copying without a clipb
   await expect(block.locator('[style*="--shiki-dark"]').first()).toBeVisible()
   await block.hover()
   await block.getByRole('button', { name: /copy/i }).first().click()
-  await page.waitForTimeout(300)
+  // The failure is reported, not swallowed.
+  await expect(page.getByText('Could not copy: the clipboard needs HTTPS or localhost')).toBeVisible()
   expect(errors.pageErrors).toEqual([])
 })
 

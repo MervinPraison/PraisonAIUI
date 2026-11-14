@@ -21,6 +21,7 @@ import { MAX_STREAM_INTERVAL_MS, StreamPacer } from './streamThrottle'
 import { gateMermaidSource, isAutoLoadImage, isExternalHref } from './urlPolicy'
 import { continueSplitLists } from './listNumbering'
 import { fenced } from './fence'
+import { CHAT_CONTROLS, COPY_FAILED, DOCS_CONTROLS, reportCopyError } from './controls'
 import { NO_HIGHLIGHT, legacySafeCodeClass } from './legacyPlugins'
 
 const chat = (md: string, streaming = false) => renderToStaticMarkup(<Markdown variant="chat" streaming={streaming}>{md}</Markdown>)
@@ -705,6 +706,16 @@ test('two messages with footnotes: every id is unique and each footnote link tar
         const described = [...part.matchAll(/aria-describedby="([^"]+)"/g)].map((m) => m[1])
         for (const d of described) assert.ok(own.has(d), `aria-describedby ${d} is in its own message`)
     }
+})
+
+// ── failed copy is reported (LIBMD-6) ──
+test('code copy in both variants reports a failure (no clipboard on plain-http origins)', () => {
+    for (const controls of [CHAT_CONTROLS, DOCS_CONTROLS]) {
+        assert.ok(typeof controls === 'object' && typeof controls.code === 'object')
+        const copy = controls.code.copy
+        assert.ok(typeof copy === 'object' && copy.onError === reportCopyError)
+    }
+    assert.match(COPY_FAILED, /HTTPS or localhost/)
 })
 
 // ── bidi: direction per block (LIBMD-5) ──
