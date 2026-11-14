@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 import praisonaiui.config_store as config_store
+import praisonaiui.features as features
 import praisonaiui.server as srv
 
 SNAPSHOT = Path(__file__).parent / "fixtures" / "route_table_snapshot.json"
@@ -33,6 +34,10 @@ def _isolated(tmp_path, monkeypatch):
     monkeypatch.delenv("AIUI_TEMPLATES_DIR", raising=False)
     monkeypatch.setattr(config_store, "_config_store", None)
     config_store.init_config_store(data / "config.yaml")
+    # Only what create_app() registers itself: features another test left in
+    # the process-wide registry are not part of the default table.
+    monkeypatch.setattr(features, "_features", {})
+    monkeypatch.setattr(features, "_builtin_registered", {})
     srv.reset_state()
     yield
     srv.reset_state()
