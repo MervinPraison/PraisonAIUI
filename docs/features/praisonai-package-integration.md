@@ -166,7 +166,7 @@ Do not mix folders. Agent plugins extend runtime; dashboard plugins extend UI ta
 aiui.set_dashboard(modules=["jobs", "auth", "api"])
 ```
 
-Loads `jobs.js`, `auth.js`, `api.js` into the plugin chain and maps them in `BUILTIN_VIEWS`. Enable only what your deployment exposes.
+Loads `jobs.js`, `auth.js`, `api.js` into the plugin chain; their pages resolve to `views/<page id>.js` for built-in pages, from `/api/shell/manifest`. Enable only what your deployment exposes.
 
 ## Board / work tracking
 

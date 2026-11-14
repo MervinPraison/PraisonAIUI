@@ -30,6 +30,7 @@ let prefillHandler = null;
 let containerRef = null;
 let currentDeltaEl = null;
 let currentDeltaBodyEl = null;
+let currentDeltaMsgEl = null;  // the .chat-msg of the answer being streamed
 let currentDeltaText = '';
 let pendingMediaElements = [];
 let pendingAttachments = [];  // { id, filename, content_type, preview_url }
@@ -93,53 +94,150 @@ let isResizing = false;
 let floatingChatEl = null;
 
 // ── Helpers ──────────────────────────────────────────────────────
+// Escapes the five HTML-significant characters, so the result is safe both
+// as element text and inside a quoted attribute (R9).
 function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+  return String(str == null ? '' : str).replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
 }
 
+// Link targets the chat renders as links: web, mail, and same-origin paths
+// or fragments. Anything else (javascript:, data:, vbscript:, …) stays text.
+const SAFE_HREF = /^(?:https?:\/\/|mailto:|\/|#|\.{1,2}\/)/i;
+
+// Inline markdown for already-escaped text: bold, italic, strikethrough, links.
+// A link target may hold balanced parentheses one level deep, as in
+// CommonMark (`.../Foo_(bar)`), so `[x](javascript:f(1))` is one target.
+function renderInline(html) {
+  return html
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/~~(.+?)~~/g, '<del>$1</del>')
+    .replace(/\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/g, (m, label, href) => (
+      SAFE_HREF.test(href)
+        ? '<a href="' + href + '" target="_blank" rel="noopener noreferrer nofollow">' + label + '</a>'
+        : label
+    ));
+}
+
+// ── GFM tables ──────────────────────────────────────────────────
+// A table is a header row, a delimiter row (`| --- | :-: |`) with the same
+// number of cells, then body rows up to the first line without a pipe.
+const TABLE_DELIM = /^\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?\s*$/;
+
+function splitTableRow(line) {
+  let row = line.trim();
+  if (row.startsWith('|')) row = row.slice(1);
+  if (row.endsWith('|') && !row.endsWith('\\|')) row = row.slice(0, -1);
+  return row.split(/(?<!\\)\|/).map((cell) => cell.trim().replace(/\\\|/g, '|'));
+}
+
+function tableAlign(spec) {
+  const left = spec.startsWith(':');
+  const right = spec.endsWith(':');
+  if (left && right) return 'center';
+  if (right) return 'right';
+  if (left) return 'left';
+  return '';
+}
+
+function renderTable(header, aligns, rows) {
+  const cell = (tag, text, i) => {
+    const align = aligns[i] ? ' style="text-align:' + aligns[i] + '"' : '';
+    return '<' + tag + align + '>' + renderInline(text) + '</' + tag + '>';
+  };
+  const bodyRows = rows.map((cells) => (
+    '<tr>' + header.map((_, i) => cell('td', cells[i] || '', i)).join('') + '</tr>'
+  ));
+  return '<div class="chat-table-wrap"><table class="chat-table">' +
+    '<thead><tr>' + header.map((h, i) => cell('th', h, i)).join('') + '</tr></thead>' +
+    (bodyRows.length ? '<tbody>' + bodyRows.join('') + '</tbody>' : '') +
+    '</table></div>';
+}
+
+// Replaces every GFM table in `html` (escaped markdown) with a placeholder
+// into `stash`, so the line-based passes below never touch table markup.
+function extractTables(html, stash) {
+  const lines = html.split('\n');
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const head = lines[i];
+    const delim = lines[i + 1];
+    if (head.includes('|') && delim !== undefined && TABLE_DELIM.test(delim)) {
+      const header = splitTableRow(head);
+      if (header.length === splitTableRow(delim).length) {
+        const aligns = splitTableRow(delim).map(tableAlign);
+        const rows = [];
+        let j = i + 2;
+        while (j < lines.length && lines[j].includes('|') && lines[j].trim() !== '') {
+          rows.push(splitTableRow(lines[j]));
+          j++;
+        }
+        out.push('\x00TB' + stash.length + '\x00');
+        stash.push(renderTable(header, aligns, rows));
+        i = j - 1;
+        continue;
+      }
+    }
+    out.push(head);
+  }
+  return out.join('\n');
+}
+
+// `lang` is limited to [\w+#.-] by the caller and `code` is escaped text.
+function codeBlockHtml(lang, code) {
+  const langLabel = lang || 'code';
+  const codeId = 'code-' + Math.random().toString(36).substr(2, 8);
+  return '<div class="chat-code-wrapper">' +
+    '<div class="chat-code-header">' +
+      '<span class="chat-code-lang">' + langLabel + '</span>' +
+      '<button class="chat-code-copy" data-code-id="' + codeId + '" onclick="(function(btn){var c=document.getElementById(\'' + codeId + '\');if(c){navigator.clipboard.writeText(c.textContent).then(function(){btn.textContent=\'Copied!\';setTimeout(function(){btn.textContent=\'Copy\'},1500)})}})( this)">Copy</button>' +
+    '</div>' +
+    '<pre class="chat-code-block"><code id="' + codeId + '" class="language-' + (lang || 'plaintext') + '">' + code + '</code></pre>' +
+  '</div>';
+}
+
+// Markdown → HTML for chat messages. The text is escaped first, so only the
+// markup produced here reaches the DOM (R9).
 function renderMarkdown(text) {
   if (!text) return '';
-  let html = escapeHtml(text);
+  // NUL is the placeholder delimiter below, so it never comes from the text.
+  let html = escapeHtml(String(text).replace(/\r\n?/g, '\n').replace(/\x00/g, ''));
 
-  // ── 1. Extract code blocks into placeholders ─────────────────
+  // ── 1. Extract code and tables into placeholders ─────────────
   // This prevents the global \n→<br> conversion from corrupting
-  // newlines inside <pre><code> (which highlight.js needs intact).
+  // newlines inside <pre><code> (which highlight.js needs intact), and keeps
+  // the line-based passes below away from code and table markup.
   const codeBlocks = [];
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
-    const langLabel = lang || 'code';
-    const codeId = 'code-' + Math.random().toString(36).substr(2, 8);
-    const block = '<div class="chat-code-wrapper">' +
-      '<div class="chat-code-header">' +
-        '<span class="chat-code-lang">' + escapeHtml(langLabel) + '</span>' +
-        '<button class="chat-code-copy" data-code-id="' + codeId + '" onclick="(function(btn){var c=document.getElementById(\'' + codeId + '\');if(c){navigator.clipboard.writeText(c.textContent).then(function(){btn.textContent=\'Copied!\';setTimeout(function(){btn.textContent=\'Copy\'},1500)})}})( this)">Copy</button>' +
-      '</div>' +
-      '<pre class="chat-code-block"><code id="' + codeId + '" class="language-' + escapeHtml(lang || 'plaintext') + '">' + code + '</code></pre>' +
-    '</div>';
-    const placeholder = '\x00CB' + codeBlocks.length + '\x00';
-    codeBlocks.push(block);
-    return placeholder;
+  const stashCode = (lang, code) => {
+    codeBlocks.push(codeBlockHtml(lang, code));
+    return '\x00CB' + (codeBlocks.length - 1) + '\x00';
+  };
+  html = html.replace(/```([\w+#.-]*)[^\S\n]*\n([\s\S]*?)```/g, (_, lang, code) => stashCode(lang, code));
+  // A fence still open (the reply is streaming): code up to the end.
+  html = html.replace(/```([\w+#.-]*)[^\S\n]*\n([\s\S]*)$/, (_, lang, code) => stashCode(lang, code));
+  const inlineCode = [];
+  html = html.replace(/`([^`\n]+)`/g, (_, code) => {
+    inlineCode.push('<code class="chat-inline-code">' + code + '</code>');
+    return '\x00IC' + (inlineCode.length - 1) + '\x00';
   });
+  const tables = [];
+  html = extractTables(html, tables);
 
   // ── 2. Process all other markdown (operates on non-code text) ─
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code class="chat-inline-code">$1</code>');
+  // `*` and `+` bullets are `-` bullets (before italics can claim the `*`).
+  html = html.replace(/^[*+] (?=\S)/gm, '- ');
+  // Horizontal rules (before bold/italic, which would eat `***`)
+  html = html.replace(/^(?:-{3,}|\*{3,}|_{3,})[^\S\n]*$/gm, '<hr style="border:none;border-top:1px solid var(--db-border,#333);margin:12px 0">');
   // Headers (must be before bold/italic — process line by line)
+  html = html.replace(/^#{5,6} (.+)$/gm, '<h6 style="font-size:13px;font-weight:600;margin:10px 0 4px">$1</h6>');
   html = html.replace(/^#### (.+)$/gm, '<h4 style="font-size:14px;font-weight:600;margin:12px 0 4px">$1</h4>');
   html = html.replace(/^### (.+)$/gm, '<h3 style="font-size:15px;font-weight:600;margin:14px 0 6px">$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2 style="font-size:17px;font-weight:600;margin:16px 0 6px">$1</h2>');
   html = html.replace(/^# (.+)$/gm, '<h1 style="font-size:20px;font-weight:700;margin:18px 0 8px">$1</h1>');
-  // Horizontal rules
-  html = html.replace(/^---$/gm, '<hr style="border:none;border-top:1px solid var(--db-border,#333);margin:12px 0">');
-  // Bold
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // Italic
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  // Strikethrough
-  html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
-  // Links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  // Bold, italic, strikethrough, links
+  html = renderInline(html);
   // Unordered list items (- item)
   html = html.replace(/^- (.+)$/gm, '<li style="margin-left:16px;list-style:disc">$1</li>');
   // Ordered list items: use a counter so "1. X\n1. Y" gets rendered as 1, 2, 3...
@@ -161,15 +259,17 @@ function renderMarkdown(text) {
   // Line breaks (only affects non-code text now)
   html = html.replace(/\n/g, '<br>');
   // Clean up <br> right after block elements
-  html = html.replace(/(<\/h[1-4]>)<br>/g, '$1');
+  html = html.replace(/(<\/h[1-6]>)<br>/g, '$1');
   html = html.replace(/(<\/li>)<br>/g, '$1');
-  html = html.replace(/(<\/ul>)<br>/g, '$1');
+  html = html.replace(/(<\/[uo]l>)<br>/g, '$1');
   html = html.replace(/(<hr[^>]*>)<br>/g, '$1');
+  html = html.replace(/<br>(\x00TB\d+\x00)/g, '$1');
+  html = html.replace(/(\x00TB\d+\x00)<br>/g, '$1');
 
-  // ── 3. Restore code blocks ───────────────────────────────────
-  for (var i = 0; i < codeBlocks.length; i++) {
-    html = html.replace('\x00CB' + i + '\x00', codeBlocks[i]);
-  }
+  // ── 3. Restore tables and code ───────────────────────────────
+  html = html.replace(/\x00TB(\d+)\x00/g, (_, i) => tables[Number(i)]);
+  html = html.replace(/\x00IC(\d+)\x00/g, (_, i) => inlineCode[Number(i)]);
+  html = html.replace(/\x00CB(\d+)\x00/g, (_, i) => codeBlocks[Number(i)]);
   // Clean up any <br> adjacent to restored code block wrappers
   html = html.replace(/<br>(\s*<div class="chat-code-wrapper">)/g, '$1');
   html = html.replace(/(<\/div>)\s*<br>/g, '$1');
@@ -301,6 +401,10 @@ function injectStyles() {
     .chat-msg-content pre.chat-code-block code { font-family:'SF Mono',Monaco,Consolas,monospace; font-size:13px; background:transparent !important; padding:0 !important; }
     .chat-msg-content code.chat-inline-code { background:rgba(171,178,191,.12); padding:2px 6px; border-radius:4px; font-size:12px; font-family:'SF Mono',Monaco,Consolas,monospace; color:#e5c07b; }
     .chat-msg-content a { color:var(--db-accent); text-decoration:underline; }
+    .chat-table-wrap { margin:8px 0; overflow-x:auto; max-width:100%; }
+    .chat-table { border-collapse:collapse; font-size:13px; }
+    .chat-table th, .chat-table td { border:1px solid var(--db-border); padding:6px 10px; text-align:left; vertical-align:top; }
+    .chat-table th { background:var(--db-hover); font-weight:600; }
 
     .chat-tool-call { margin:6px 0; padding:10px 16px; border-left:3px solid rgba(var(--db-accent-rgb,100,100,255),.4); background:rgba(var(--db-accent-rgb,100,100,255),.04); border-radius:0 10px 10px 0; font-size:13px; transition:all .3s ease; cursor:pointer; }
     .chat-tool-call:hover { background:rgba(var(--db-accent-rgb,100,100,255),.08); }
@@ -1013,6 +1117,7 @@ export function cleanup() {
   messageQueue = [];
   currentDeltaEl = null;
   currentDeltaBodyEl = null;
+  currentDeltaMsgEl = null;
   currentDeltaText = '';
   pendingMediaElements = [];
 }
@@ -1751,6 +1856,7 @@ function beginAssistantStream(agentName) {
     '<span class="chat-typing-indicator"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Generating response…</span>';
   bodyEl.appendChild(currentDeltaEl);
   currentDeltaBodyEl = bodyEl;
+  currentDeltaMsgEl = msgEl;
 
   msgEl.appendChild(avatarEl);
   msgEl.appendChild(bodyEl);
@@ -1775,6 +1881,7 @@ function finalizeDelta(content, agentName) {
     }
     currentDeltaEl = null;
     currentDeltaBodyEl = null;
+    currentDeltaMsgEl = null;
     currentDeltaText = '';
   } else if (!isBlankAssistantContent(content)) {
     appendMessage('assistant', content, agentName, pendingMediaElements.length ? pendingMediaElements.slice() : null);
@@ -1794,7 +1901,7 @@ function appendToolCall(data, status) {
   if (existing) {
     // Update description in-place with richer keyword text
     const icon = data.icon || '🔧';
-    const description = data.description || (icon + ' ' + escapeHtml(data.name || 'tool'));
+    const description = escapeHtml(data.description || (icon + ' ' + (data.name || 'tool')));
     const descEl = existing.querySelector('.chat-tool-desc');
     if (descEl) descEl.innerHTML = description;
     // Update detail panel with richer data
@@ -1808,7 +1915,7 @@ function appendToolCall(data, status) {
 
   // Enriched display fields from backend
   const icon = data.icon || '🔧';
-  const description = data.description || (icon + ' ' + escapeHtml(data.name || 'tool'));
+  const description = escapeHtml(data.description || (icon + ' ' + (data.name || 'tool')));
   const stepNum = data.step_number;
 
   // Build status badge with spinner for running
@@ -1831,7 +1938,16 @@ function appendToolCall(data, status) {
   // Populate detail panel
   _updateToolDetails(el, data);
 
-  messagesEl.appendChild(el);
+  appendTurnRow(messagesEl, el);
+}
+
+// A reasoning or tool row of the turn being streamed goes above that turn's
+// answer, where the saved transcript (and so a reload) puts it. Outside a
+// stream (history, or before the answer started) it is appended.
+function appendTurnRow(messagesEl, el) {
+  const answer = currentDeltaMsgEl;
+  if (answer && answer.parentNode === messagesEl) messagesEl.insertBefore(el, answer);
+  else messagesEl.appendChild(el);
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
@@ -1933,8 +2049,7 @@ function appendReasoning(step) {
   const el = document.createElement('div');
   el.className = 'chat-reasoning';
   el.innerHTML = '💭 ' + escapeHtml(step || '');
-  messagesEl.appendChild(el);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+  appendTurnRow(messagesEl, el);
 }
 
 function appendAskWidget(question, options, sessionId, runId) {
@@ -2644,6 +2759,7 @@ function setStreaming(val) {
   if (!val) {
     currentRunId = null;
     currentDeltaEl = null;
+    currentDeltaMsgEl = null;
     currentDeltaText = '';
   }
 }

@@ -88,8 +88,8 @@ def test_cockpit_escapes_case_content():
 
 
 def test_eval_still_registered_in_dashboard():
-    src = (FRONTEND / "dashboard.js").read_text(encoding="utf-8")
-    assert "/plugins/views/eval.js" in src
+    # dashboard.js loads a built-in page's view as views/<page id>.js (viewModuleUrl).
+    assert (VIEWS / "eval.js").is_file()
 
 
 def test_eval_api_shapes_still_present():

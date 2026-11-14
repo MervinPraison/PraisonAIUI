@@ -14,9 +14,10 @@ def test_run_recorder_view_file_exists():
 
 
 def test_runs_registered_in_builtin_views():
-    source = (FRONTEND / "dashboard.js").read_text(encoding="utf-8")
-    assert "runs:" in source
-    assert "/plugins/views/run-recorder.js" in source
+    # dashboard.js loads a built-in page's view as views/<page id>.js (viewModuleUrl).
+    assert (VIEWS / "runs.js").read_text(encoding="utf-8").strip().endswith(
+        "export * from './run-recorder.js';"
+    )
 
 
 def test_merge_functions_present_in_view():
