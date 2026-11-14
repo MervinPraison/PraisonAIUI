@@ -394,6 +394,28 @@ test('a code element is highlighted like reply code, and copying without a clipb
   expect(errors.pageErrors).toEqual([])
 })
 
+test('mermaid fullscreen behaves as a modal: focus moves in, the page behind is inert, focus returns', async ({ page }) => {
+  await openChat(page, 'ws')
+  await send(page, 'markdown plain')
+  await waitForRunEnd(page)
+  const reply = assistant(page).last()
+  await expect(reply.locator('svg[aria-roledescription^="flowchart"]')).toBeVisible({ timeout: 30_000 })
+  const trigger = reply.getByRole('button', { name: 'View fullscreen' })
+  await trigger.click()
+  const dialog = page.locator('[data-streamdown="mermaid-fullscreen"]')
+  await expect(dialog).toBeVisible()
+  const focusInside = () => dialog.evaluate((el) => el.contains(document.activeElement))
+  await expect.poll(focusInside).toBe(true)
+  for (let i = 0; i < 5; i++) {
+    await page.keyboard.press('Tab')
+    expect(await focusInside(), `Tab ${i + 1} stays in the dialog`).toBe(true)
+  }
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(trigger).toBeFocused()
+  expect(await page.evaluate(() => document.querySelector('#root')?.hasAttribute('inert'))).toBe(false)
+})
+
 test.describe('phone session rail', () => {
   test.use({ viewport: { width: 390, height: 800 } })
 
