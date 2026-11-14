@@ -451,6 +451,24 @@ function historyStatus(raw: JSONObject): AiuiStatus {
   return { type: 'complete' }
 }
 
+/**
+ * A saved user message's files, `[{id, name, content_type}]` (the server keeps
+ * an unknown id with the id alone). A reloaded thread shows them, and
+ * Regenerate (popLastTurn) resends their ids.
+ */
+function historyAttachments(raw: unknown): NonNullable<AiuiMessage['attachments']> {
+  if (!Array.isArray(raw)) return []
+  const out: NonNullable<AiuiMessage['attachments']> = []
+  for (const a of raw) {
+    if (!a || typeof a !== 'object') continue
+    const att = a as JSONObject
+    const id = s(att.id)
+    if (!id) continue
+    out.push({ id, name: s(att.name) ?? id, contentType: s(att.content_type) ?? s(att.contentType) ?? 'application/octet-stream' })
+  }
+  return out
+}
+
 /** Rehydrate a persisted message from /api/chat/history or /sessions/{id}/runs. */
 export function fromHistory(raw: JSONObject, i: number): AiuiMessage {
   const role = (s(raw.role) as AiuiMessage['role']) ?? 'user'
@@ -470,6 +488,9 @@ export function fromHistory(raw: JSONObject, i: number): AiuiMessage {
       m = { ...m, parts: m.parts.map((p) => (p.type === 'tool-call' ? { ...p, timing: undefined } : p)) }
     }
     for (const el of (raw.elements as unknown[] | undefined) ?? []) m = addElement(m, el)
+  } else if (role === 'user') {
+    const attachments = historyAttachments(raw.attachments)
+    if (attachments.length) m.attachments = attachments
   }
   const content = s(raw.content) ?? s(raw.message) ?? ''
   if (content) m = { ...m, parts: [...m.parts, { type: 'text', id: `${m.id}_t`, text: content }] }

@@ -106,6 +106,19 @@ test('history rehydration keeps tool calls + elements before text', () => {
   assert.deepEqual(m.parts.map((p) => p.type), ['tool-call', 'data', 'text'])
 })
 
+test('history rehydration keeps a user message\'s attachments (R4)', () => {
+  const m = fromHistory({
+    role: 'user', content: 'see file',
+    attachments: [{ id: 'a1', name: 'report.pdf', content_type: 'application/pdf' }, { id: 'a2' }, { name: 'no id' }, 'junk'],
+  }, 0)
+  assert.deepEqual(m.attachments, [
+    { id: 'a1', name: 'report.pdf', contentType: 'application/pdf' },
+    { id: 'a2', name: 'a2', contentType: 'application/octet-stream' },
+  ])
+  assert.equal(fromHistory({ role: 'user', content: 'plain' }, 1).attachments, undefined)
+  assert.equal(fromHistory({ role: 'assistant', content: 'x', attachments: [{ id: 'a1' }] }, 2).attachments, undefined)
+})
+
 // ── WP3 protocol additions (used when present, harmless when absent) ─────
 
 test('WP3 approval frame: top-level fields + extra_data with tool_call_id attach the gate to its tool card', () => {

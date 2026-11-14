@@ -599,6 +599,14 @@ test('popLastTurn returns the question and the answer it replaces', async () => 
   assert.equal(threadStore.get('S').messages.length, 0)
 })
 
+test('popLastTurn after a reload resends the saved attachments (R4)', async () => {
+  const user = { role: 'user', content: 'q', attachments: [{ id: 'att_1', name: 'a.csv', content_type: 'text/csv' }] }
+  globalThis.fetch = (async () => new Response(JSON.stringify({ messages: [user, { role: 'assistant', content: 'a1' }] }), { status: 200 })) as typeof fetch
+  await threadStore.load('S')
+  const turn = threadStore.popLastTurn('S')
+  assert.deepEqual(turn?.attachments, [{ id: 'att_1', name: 'a.csv', contentType: 'text/csv' }])
+})
+
 test('observe: another tab\'s run shows as a read-only live message and history reloads when it ends', async () => {
   const f = fakeTransport()
   let historyCalls = 0
