@@ -1122,3 +1122,228 @@ def test_praisonai_provider_predicted_name_matches_built_agent(monkeypatch):
         assert predicted == built.name, (kwargs, requested)
         # Once built (cached), the resolver reports the cached agent.
         assert provider.resolve_agent_name(agent_name=requested, session_id="s") == built.name
+
+
+# ── Round-1 robustness: turn correlation, run_status, error status, ─────
+# ── regenerate, history paging ─────────────────────────────────────────
+
+
+class _ErrorProvider(BaseProvider):
+    """Streams part of a reply, then fails."""
+
+    async def run(self, message, *, session_id=None, agent_name=None, **kw):
+        yield RunEvent(type=RunEventType.RUN_STARTED)
+        for i in range(3):
+            yield RunEvent(type=RunEventType.RUN_CONTENT, token=f"part{i} ")
+        raise RuntimeError("provider exploded")
+
+
+class _CountingEcho(BaseProvider):
+    """Answers each message with a numbered echo; supports rewind_last_turn."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+        self.rewinds: List[tuple] = []
+
+    def rewind_last_turn(self, agent_name=None, session_id=None):
+        self.rewinds.append((session_id, agent_name))
+        return True
+
+    async def run(self, message, *, session_id=None, agent_name=None, **kw):
+        self.calls += 1
+        yield RunEvent(type=RunEventType.RUN_STARTED)
+        yield RunEvent(type=RunEventType.RUN_CONTENT, token=f"answer {self.calls}")
+        yield RunEvent(type=RunEventType.RUN_COMPLETED, content=f"answer {self.calls}")
+
+
+def test_two_clients_on_one_session_each_get_their_own_run_started(monkeypatch):
+    """Tab B's chat while tab A's run streams: run_started echoes each
+    sender's client_turn_id, so B can tell its run from A's."""
+    _use_provider(monkeypatch, SlowProvider())
+    with TestClient(_app()) as client:
+        with client.websocket_connect("/api/chat/ws") as a, client.websocket_connect(
+            "/api/chat/ws"
+        ) as b:
+            for ws in (a, b):
+                ws.send_json({"type": "subscribe", "session_ids": ["s-two"]})
+                _read_until(ws, lambda f: f.get("type") == "subscribed")
+            a.send_json({"type": "chat", "content": "one", "session_id": "s-two", "client_turn_id": "ta"})
+            run_a = _read_until(a, lambda f: f.get("type") == "run_started")[-1]
+            assert run_a["client_turn_id"] == "ta"
+            # B sees A's run (it watches the session) ...
+            seen = _read_until(b, lambda f: f.get("type") == "run_started")[-1]
+            assert seen["run_id"] == run_a["run_id"] and seen["client_turn_id"] == "ta"
+            b.send_json({"type": "chat", "content": "two", "session_id": "s-two", "client_turn_id": "tb"})
+            run_b = _read_until(
+                b, lambda f: f.get("type") == "run_started" and f.get("client_turn_id") == "tb"
+            )[-1]
+            assert run_b["run_id"] != run_a["run_id"]
+            # ... and B's Stop names its own run, which it may stop; A's it may not.
+            b.send_json({"type": "chat_abort", "run_id": run_b["run_id"]})
+            assert _read_until(b, lambda f: f.get("type") == "chat_abort_result")[-1]["status"] == "aborted"
+            a.send_json({"type": "chat_abort", "run_id": run_a["run_id"]})
+            assert _read_until(a, lambda f: f.get("type") == "chat_abort_result")[-1]["status"] == "aborted"
+
+
+def test_client_turn_id_is_optional_and_bounded(monkeypatch):
+    _use_provider(monkeypatch, EchoProvider())
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        ws.send_json({"type": "chat", "content": "x", "session_id": "s-ct"})
+        started = _read_until(ws, lambda f: f.get("type") == "run_started")[-1]
+        assert "client_turn_id" not in started
+        _read_until(ws, _turn_done("s-ct"))
+        ws.send_json({"type": "chat", "content": "y", "session_id": "s-ct", "client_turn_id": "z" * 500})
+        started = _read_until(ws, lambda f: f.get("type") == "run_started")[-1]
+        assert "client_turn_id" not in started
+
+
+def test_run_status_reports_live_and_unknown_runs(monkeypatch):
+    _use_provider(monkeypatch, SlowProvider())
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        ws.send_json({"type": "chat", "content": "long", "session_id": "s-rs"})
+        run_id = _read_until(ws, lambda f: f.get("type") == "run_started")[-1]["run_id"]
+        ws.send_json({"type": "run_status", "run_id": run_id})
+        reply = _read_until(ws, lambda f: f.get("type") == "run_status")[-1]
+        assert reply == {"type": "run_status", "run_id": run_id, "session_id": "s-rs", "active": True}
+        ws.send_json({"type": "run_status", "run_id": "gone-with-old-process"})
+        reply = _read_until(ws, lambda f: f.get("type") == "run_status")[-1]
+        assert reply["active"] is False and reply["session_id"] is None
+        ws.send_json({"type": "chat_abort", "run_id": run_id})
+        _read_until(ws, _turn_done("s-rs"))
+
+
+def test_ws_reply_cut_by_provider_error_is_saved_with_error_status(monkeypatch, _isolated):
+    store = _isolated
+    _use_provider(monkeypatch, _ErrorProvider())
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        ws.send_json({"type": "chat", "content": "error please", "session_id": "s-err"})
+        assert _read_until(ws, _turn_done("s-err"))[-1]["type"] == "run_error"
+        history = client.get("/api/chat/history/s-err").json()["messages"]
+    reply = [m for m in history if m["role"] == "assistant"][-1]
+    assert reply["content"] == "part0 part1 part2 "
+    assert reply["status"] == "error" and reply["error"] == "provider exploded"
+    assert asyncio.run(store.get_messages("s-err"))[-1]["status"] == "error"
+
+
+def test_sse_reply_cut_by_provider_error_is_saved_with_error_status(monkeypatch, _isolated):
+    store = _isolated
+    _use_provider(monkeypatch, _ErrorProvider())
+    with TestClient(_app()) as client:
+        r = client.post("/run", json={"message": "error please", "session_id": "s-sse-err"})
+        assert '"type": "error"' in r.text and '"type": "end"' in r.text
+    saved = asyncio.run(store.get_messages("s-sse-err"))[-1]
+    assert saved["role"] == "assistant" and saved["status"] == "error"
+    assert saved["error"] == "provider exploded"
+
+
+class _CancelledMidStream(BaseProvider):
+    async def run(self, message, *, session_id=None, agent_name=None, **kw):
+        yield RunEvent(type=RunEventType.RUN_STARTED)
+        yield RunEvent(type=RunEventType.RUN_CONTENT, token="tok0 ")
+        raise asyncio.CancelledError()
+
+
+def test_sse_cancelled_reply_is_saved_with_cancelled_status(monkeypatch, _isolated):
+    store = _isolated
+    _use_provider(monkeypatch, _CancelledMidStream())
+    with TestClient(_app()) as client:
+        r = client.post("/run", json={"message": "stop me", "session_id": "s-sse-cx"})
+        assert '"type": "run_cancelled"' in r.text
+        for _ in range(50):
+            msgs = asyncio.run(store.get_messages("s-sse-cx"))
+            if msgs and msgs[-1]["role"] == "assistant":
+                break
+            client.get("/api/chat/history/s-sse-cx")  # let the persist task run
+    saved = asyncio.run(store.get_messages("s-sse-cx"))[-1]
+    assert saved["role"] == "assistant" and saved["status"] == "cancelled"
+    assert saved["content"] == "tok0 "
+
+
+def test_regenerate_replaces_the_answer_in_history(monkeypatch, _isolated):
+    provider = _CountingEcho()
+    _use_provider(monkeypatch, provider)
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        ws.send_json({"type": "chat", "content": "hello regen", "session_id": "s-rg"})
+        _read_until(ws, _turn_done("s-rg"))
+        ws.send_json({"type": "chat", "content": "hello regen", "session_id": "s-rg", "regenerate": True})
+        _read_until(ws, _turn_done("s-rg"))
+        history = client.get("/api/chat/history/s-rg").json()
+    assert [(m["role"], m["content"]) for m in history["messages"]] == [
+        ("user", "hello regen"),
+        ("assistant", "answer 2"),
+    ]
+    assert history["total"] == 2 and history["has_more"] is False
+    assert provider.rewinds == [("s-rg", None)]
+
+
+def test_regenerate_of_a_question_that_is_not_the_last_is_a_normal_send(monkeypatch, _isolated):
+    provider = _CountingEcho()
+    _use_provider(monkeypatch, provider)
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        ws.send_json({"type": "chat", "content": "first", "session_id": "s-rg2"})
+        _read_until(ws, _turn_done("s-rg2"))
+        ws.send_json({"type": "chat", "content": "other", "session_id": "s-rg2", "regenerate": True})
+        _read_until(ws, _turn_done("s-rg2"))
+        history = client.get("/api/chat/history/s-rg2").json()["messages"]
+    assert [m["content"] for m in history] == ["first", "answer 1", "other", "answer 2"]
+    assert provider.rewinds == []
+
+
+def test_history_pages_back_with_before(monkeypatch, _isolated):
+    store = _isolated
+
+    async def seed():
+        await store.create_session("s-long")
+        for i in range(61):
+            await store.add_message("s-long", {"role": "user", "content": f"turn {i}"})
+            await store.add_message("s-long", {"role": "assistant", "content": f"reply {i}"})
+
+    asyncio.run(seed())
+    with TestClient(_app()) as client:
+        last = client.get("/api/chat/history/s-long").json()
+        assert last["total"] == 122 and last["start"] == 72 and last["has_more"] is True
+        assert last["messages"][0]["content"] == "turn 36"
+        older = client.get(f"/api/chat/history/s-long?limit=50&before={last['start']}").json()
+        assert older["start"] == 22 and older["messages"][-1]["content"] == "reply 35"
+        first = client.get(f"/api/chat/history/s-long?limit=50&before={older['start']}").json()
+        assert first["start"] == 0 and first["has_more"] is False
+        assert first["messages"][0]["content"] == "turn 0"
+        assert client.get("/api/chat/history/s-long?limit=bad").json()["start"] == 72
+
+
+def test_visible_history_drops_replaced_answers():
+    from praisonaiui.features.chat import visible_history
+
+    msgs = [
+        {"role": "user", "content": "q"},
+        {"role": "assistant", "content": "a1"},
+        {"role": "assistant", "content": "a2", "regenerates": True},
+        {"role": "assistant", "content": "a3", "regenerates": True},
+        {"role": "user", "content": "q2"},
+        {"role": "assistant", "content": "b1"},
+    ]
+    assert [m["content"] for m in visible_history(msgs)] == ["q", "a3", "q2", "b1"]
+
+
+def test_praisonai_provider_rewind_last_turn_only_touches_session_agents():
+    from praisonaiui.providers import PraisonAIProvider
+
+    class _Agent:
+        def __init__(self):
+            self.chat_history = [
+                {"role": "user", "content": "q1"},
+                {"role": "assistant", "content": "a1"},
+                {"role": "user", "content": "q2"},
+                {"role": "assistant", "content": "a2"},
+            ]
+
+    p = PraisonAIProvider()
+    agent = _Agent()
+    p._session_agents["s1:"] = agent
+    assert p.rewind_last_turn(session_id="s1") is True
+    assert [m["content"] for m in agent.chat_history] == ["q1", "a1"]
+    assert p.rewind_last_turn(session_id="unknown") is False
+    shared = _Agent()
+    p._agent = shared  # a pre-configured agent is never rewound
+    assert p.rewind_last_turn(session_id="other") is False
+    assert len(shared.chat_history) == 4

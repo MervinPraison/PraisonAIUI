@@ -208,6 +208,11 @@ class ChatMessage:
     # ``"cancelled"`` marks a reply that was cut short by Stop/abort so a
     # history reload does not present a partial answer as complete.
     status: Optional[str] = None
+    # Why an ``"error"`` reply stopped.
+    error: Optional[str] = None
+    # This reply replaces the previous answer to the same question
+    # (Regenerate); ``visible_history`` hides the replaced one.
+    regenerates: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {
@@ -225,7 +230,27 @@ class ChatMessage:
             d["elements"] = self.elements
         if self.status:
             d["status"] = self.status
+        if self.error:
+            d["error"] = self.error
+        if self.regenerates:
+            d["regenerates"] = True
         return d
+
+
+def visible_history(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """The thread as the user sees it: replaced answers left out.
+
+    History is append-only, so Regenerate appends the new answer (marked
+    ``regenerates``) after the old one. Every assistant message between that
+    answer and the user message before it was replaced and is dropped.
+    """
+    out: List[Dict[str, Any]] = []
+    for m in messages:
+        if isinstance(m, dict) and m.get("role") == "assistant" and m.get("regenerates"):
+            while out and out[-1].get("role") == "assistant":
+                out.pop()
+        out.append(m)
+    return out
 
 
 # ── Protocol ─────────────────────────────────────────────────────────
@@ -680,8 +705,18 @@ async def _run_and_broadcast(
     session_id: str,
     agent_name: Optional[str],
     attachment_ids: Optional[List[str]] = None,
+    *,
+    client_turn_id: Optional[str] = None,
+    regenerate: bool = False,
 ) -> None:
-    """Run the provider and broadcast streaming events to WS clients."""
+    """Run the provider and broadcast streaming events to WS clients.
+
+    *client_turn_id* (from the sender's ``chat`` frame) is echoed on
+    ``run_started``, so a client with several tabs on one session binds its
+    turn to its own run, not to another tab's run in flight. *regenerate*
+    marks the saved reply as replacing the previous one (see
+    ``visible_history``).
+    """
     from praisonaiui.provider import RunEventType
     from praisonaiui.server import _datastore, get_provider
 
@@ -753,6 +788,7 @@ async def _run_and_broadcast(
     collected_tool_calls: Dict[str, Dict] = {}  # Merge STARTED+COMPLETED per tool_call_id
     collected_elements: List[Dict[str, Any]] = []
     cancelled = False
+    run_error: Optional[str] = None
     resolved_agent_name = agent_name
 
     # Register this run so ``abort_run(run_id)`` can cancel it, and announce the
@@ -816,6 +852,8 @@ async def _run_and_broadcast(
         }
         if announced_name:
             started_event["agent_name"] = announced_name
+        if client_turn_id:
+            started_event["client_turn_id"] = client_turn_id
         await mgr.broadcast(session_id, started_event)
 
         async def _provider_stream() -> AsyncIterator[Any]:
@@ -1048,6 +1086,7 @@ async def _run_and_broadcast(
         )
     except Exception as e:
         logger.error(f"Chat run error: {e}")
+        run_error = str(e) or type(e).__name__
         await mgr.broadcast(
             session_id,
             {
@@ -1073,9 +1112,15 @@ async def _run_and_broadcast(
             session_id=session_id,
             agent_name=resolved_agent_name,
             elements=collected_elements or None,
-            status="cancelled" if cancelled else None,
+            status="cancelled" if cancelled else ("error" if run_error is not None else None),
+            error=run_error,
+            regenerates=regenerate,
         )
-        mgr._history.setdefault(session_id, []).append(assistant_msg)
+        live = mgr._history.setdefault(session_id, [])
+        if regenerate:
+            while live and live[-1].role == "assistant":
+                live.pop()  # the in-memory history holds only what is visible
+        live.append(assistant_msg)
 
         # Also persist in datastore (include tool calls for history)
         try:
@@ -1094,6 +1139,12 @@ async def _run_and_broadcast(
                 # A reply cut short by Stop/abort. Without this flag a reload
                 # shows the partial text as a complete answer.
                 msg_data["status"] = "cancelled"
+            elif run_error is not None:
+                # Cut short by a provider error: same reason.
+                msg_data["status"] = "error"
+                msg_data["error"] = run_error
+            if regenerate:
+                msg_data["regenerates"] = True
             await _datastore.add_message(session_id, msg_data)
         except Exception:
             pass
@@ -1187,9 +1238,20 @@ async def _chat_context_stats(request: Request) -> JSONResponse:
 
 
 async def _chat_history(request: Request) -> JSONResponse:
-    """GET /api/chat/history/{session_id} — get message history."""
+    """``GET /api/chat/history/{session_id}?limit=50&before=<n>`` — message history.
+
+    Returns the last *limit* visible messages (answers replaced by Regenerate
+    are left out) that come before position *before* (default: the end).
+    ``total`` is the number of visible messages and ``start`` the position of
+    the first one returned, so a client pages back with ``before=start``
+    while ``has_more`` is true.
+    """
     session_id = request.path_params["session_id"]
-    limit = int(request.query_params.get("limit", "50"))
+    try:
+        limit = max(1, min(int(request.query_params.get("limit", "50")), 5000))
+    except ValueError:
+        limit = 50
+    before_raw = request.query_params.get("before")
 
     # Read from persistent datastore first
     from praisonaiui.server import _datastore
@@ -1199,12 +1261,24 @@ async def _chat_history(request: Request) -> JSONResponse:
     if not messages:
         # Fall back to in-memory ChatManager for backward compat
         mgr = get_chat_manager()
-        messages = await mgr.get_history(session_id, limit=limit)
-    else:
-        messages = messages[-limit:]
+        messages = await mgr.get_history(session_id, limit=10**9)
+    messages = visible_history(list(messages))
+    total = len(messages)
+    try:
+        end = total if before_raw is None else max(0, min(int(before_raw), total))
+    except ValueError:
+        end = total
+    start = max(0, end - limit)
+    messages = messages[start:end]
 
     # Include session-level metadata (platform, icon) for channel sessions
-    result: dict = {"messages": messages, "session_id": session_id}
+    result: dict = {
+        "messages": messages,
+        "session_id": session_id,
+        "total": total,
+        "start": start,
+        "has_more": start > 0,
+    }
     session = await _datastore.get_session(session_id)
     if session:
         if session.get("platform"):
@@ -1291,6 +1365,36 @@ def _ws_ask_allowed(mgr: ChatManager, client_id: str, session_id: Any, run_id: A
     return mgr.may_control_session(client_id, target)
 
 
+async def _can_regenerate(mgr: ChatManager, session_id: str, content: str) -> bool:
+    """Is *content* the last question asked in *session_id* (and answered)?"""
+    from praisonaiui.server import _datastore
+
+    try:
+        messages = await _datastore.get_messages(session_id)
+    except Exception:
+        messages = []
+    if not messages:
+        messages = [m.to_dict() for m in mgr._history.get(session_id, [])]
+    messages = visible_history(list(messages))
+    users = [m for m in messages if isinstance(m, dict) and m.get("role") == "user"]
+    return bool(users) and str(users[-1].get("content", "")).strip() == content.strip()
+
+
+async def _rewind_provider(session_id: str, agent_name: Optional[str]) -> None:
+    """Let the provider forget the exchange being regenerated (optional hook)."""
+    from praisonaiui.server import get_provider
+
+    rewind = getattr(get_provider(), "rewind_last_turn", None)
+    if not callable(rewind):
+        return
+    try:
+        result = rewind(agent_name=agent_name, session_id=session_id)
+        if asyncio.iscoroutine(result):
+            await result
+    except Exception as exc:  # never block a regenerate on it
+        logger.debug("rewind_last_turn failed: %s", exc)
+
+
 class _BadFrame(Exception):
     """A WS text frame that is not a JSON object."""
 
@@ -1329,7 +1433,13 @@ async def _chat_ws(websocket: WebSocket) -> None:
 
     Client → server messages:
 
-    * ``{type: "chat", content, session_id?, agent_name?, attachment_ids?}``
+    * ``{type: "chat", content, session_id?, agent_name?, attachment_ids?,
+      client_turn_id?, regenerate?}`` — ``client_turn_id`` is echoed on the
+      run's ``run_started``; ``regenerate: true`` answers the session's last
+      question again (no second user message; the new reply replaces the old
+      one in history)
+    * ``{type: "run_status", run_id}`` → ``{type: "run_status", run_id,
+      session_id, active}``
     * ``{type: "chat_abort", run_id}`` — allowed for runs in a session this
       connection started a turn in or subscribed to, or that no connected
       client owns; answered with ``{type: "chat_abort_result", status,
@@ -1377,6 +1487,10 @@ async def _chat_ws(websocket: WebSocket) -> None:
                 agent_name = data.get("agent_name") or data.get("agent")
                 if not isinstance(agent_name, str):
                     agent_name = None
+                client_turn_id = data.get("client_turn_id")
+                if not isinstance(client_turn_id, str) or not 0 < len(client_turn_id) <= 128:
+                    client_turn_id = None
+                regenerate = data.get("regenerate") is True
 
                 if content:
                     # ── Guardrail pre-check ──────────────────────
@@ -1398,6 +1512,7 @@ async def _chat_ws(websocket: WebSocket) -> None:
                                     "guardrail_blocked": True,
                                     "error": f"🛡️ Guardrail violation: {violation.get('reason', violation.get('description', 'Blocked by guardrail'))}",
                                     "guardrail_id": violation.get("guardrail_id", ""),
+                                    **({"client_turn_id": client_turn_id} if client_turn_id else {}),
                                 }
                             )
                     except ImportError:
@@ -1411,33 +1526,47 @@ async def _chat_ws(websocket: WebSocket) -> None:
                     # This client now owns the session: it may abort runs
                     # in it, and (if scoped) receives its events.
                     mgr.note_client_session(client_id, session_id)
-                    # Store user message in ChatManager
-                    await mgr.send_message(
-                        content,
-                        session_id=session_id,
-                        agent_name=agent_name,
-                    )
-                    # Also persist user message to datastore
                     from praisonaiui.server import _datastore
 
-                    try:
-                        existing = await _datastore.get_session(session_id)
-                        if existing is None:
-                            await _datastore.create_session(session_id)
-                        await _datastore.add_message(
-                            session_id,
-                            {
-                                "role": "user",
-                                "content": content,
-                            },
+                    if regenerate:
+                        # Answer the last question again instead of asking it
+                        # twice: only when it really is the last question.
+                        regenerate = await _can_regenerate(mgr, session_id, content)
+                    if regenerate:
+                        await _rewind_provider(session_id, agent_name)
+                    else:
+                        # Store user message in ChatManager
+                        await mgr.send_message(
+                            content,
+                            session_id=session_id,
+                            agent_name=agent_name,
                         )
-                    except Exception:
-                        pass
+                        # Also persist user message to datastore
+                        try:
+                            existing = await _datastore.get_session(session_id)
+                            if existing is None:
+                                await _datastore.create_session(session_id)
+                            await _datastore.add_message(
+                                session_id,
+                                {
+                                    "role": "user",
+                                    "content": content,
+                                },
+                            )
+                        except Exception:
+                            pass
                     # Extract attachment_ids
                     att_ids = data.get("attachment_ids") or []
                     # Run agent and broadcast
                     asyncio.create_task(
-                        _run_and_broadcast(content, session_id, agent_name, att_ids)
+                        _run_and_broadcast(
+                            content,
+                            session_id,
+                            agent_name,
+                            att_ids,
+                            client_turn_id=client_turn_id,
+                            regenerate=regenerate,
+                        )
                     )
 
             elif msg_type == "chat_abort":
@@ -1487,6 +1616,21 @@ async def _chat_ws(websocket: WebSocket) -> None:
                         "type": "ask_response_ack",
                         "session_id": session_id,
                         "status": "received",
+                    }
+                )
+
+            elif msg_type == "run_status":
+                # Is a run still going? A client that reconnected asks this
+                # for the turn it was following: a run that died with an old
+                # server process is unknown here and can be ended at once.
+                run_id = data.get("run_id")
+                task = mgr._active_runs.get(run_id) if isinstance(run_id, str) else None
+                await websocket.send_json(
+                    {
+                        "type": "run_status",
+                        "run_id": run_id if isinstance(run_id, str) else "",
+                        "session_id": mgr.session_for_run(run_id) if task else None,
+                        "active": bool(task is not None and not task.done()),
                     }
                 )
 

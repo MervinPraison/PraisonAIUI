@@ -571,6 +571,33 @@ class PraisonAIProvider(BaseProvider):
 
         return agent
 
+    def rewind_last_turn(
+        self,
+        agent_name: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> bool:
+        """Forget the session's last exchange before a regenerate.
+
+        Drops the last user message and everything after it from the agent's
+        ``chat_history``, so the regenerated answer is not produced with the
+        question (and the old answer) in context twice. Only a per-session
+        agent is touched: pre-configured, registered and gateway agents may
+        be shared across sessions, so their history is left alone. Returns
+        True when something was dropped.
+        """
+        cache_key = f"{session_id}:{agent_name or ''}"
+        agent = self._session_agents.get(cache_key) if session_id else None
+        history = getattr(agent, "chat_history", None)
+        if not isinstance(history, list):
+            return False
+        for i in range(len(history) - 1, -1, -1):
+            entry = history[i]
+            role = entry.get("role") if isinstance(entry, dict) else getattr(entry, "role", None)
+            if role == "user":
+                del history[i:]
+                return True
+        return False
+
     def resolve_agent_name(
         self,
         agent_name: Optional[str] = None,

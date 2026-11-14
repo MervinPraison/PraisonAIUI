@@ -3207,6 +3207,8 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
         seen_tool_ids: set = set()
         collected_tool_calls: list = []  # Collect for persistence
         collected_elements: list = []
+        reply_status: Optional[str] = None
+        reply_error: Optional[str] = None
 
         # Inject knowledge context if available (non-blocking)
         augmented_message = message
@@ -3317,7 +3319,14 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
                     yield f"data: {json.dumps(run_event.to_dict())}\n\n"
 
         except asyncio.CancelledError:
-            # Client disconnected
+            # Client disconnected (the SSE Stop aborts the fetch). Persist the
+            # partial reply in its own task: this one is being cancelled, so
+            # anything it awaits from here on may be cancelled too.
+            asyncio.ensure_future(
+                _persist_reply(
+                    full_response, collected_tool_calls, collected_elements, "cancelled", None
+                )
+            )
             cancel_cb = _callbacks.get("cancel")
             if cancel_cb:
                 try:
@@ -3327,46 +3336,68 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
                 except Exception:
                     pass
             yield f"data: {json.dumps({'type': 'run_cancelled'})}\n\n"
+            return
 
         except Exception as e:
+            reply_status, reply_error = "error", str(e)
             yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
 
-        # Save assistant response to session (include tool calls for persistence)
-        if full_response or collected_elements:
-            msg_data: dict = {
-                "role": "assistant",
-                "content": full_response or "",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-            if collected_tool_calls:
-                msg_data["toolCalls"] = collected_tool_calls
-            if collected_elements:
-                msg_data["elements"] = collected_elements
-            await _datastore.add_message(session_id, msg_data)
-
-            # Auto-store conversation turn in memory (non-blocking)
-            try:
-                from praisonaiui.features.memory import get_memory_manager
-
-                mgr = get_memory_manager()
-                mgr.store(
-                    message,
-                    memory_type="short",
-                    session_id=session_id,
-                    agent_id=agent_name,
-                    metadata={"role": "user"},
-                )
-                mgr.store(
-                    full_response,
-                    memory_type="short",
-                    session_id=session_id,
-                    agent_id=agent_name,
-                    metadata={"role": "assistant"},
-                )
-            except Exception:
-                pass  # Memory failures must never break chat
-
+        await _persist_reply(
+            full_response, collected_tool_calls, collected_elements, reply_status, reply_error
+        )
         yield f"data: {json.dumps({'type': 'end'})}\n\n"
+
+    async def _persist_reply(
+        full_response: str,
+        collected_tool_calls: list,
+        collected_elements: list,
+        status: Optional[str],
+        error: Optional[str],
+    ) -> None:
+        """Save the assistant reply (with tool calls) to the session.
+
+        A reply cut short by Stop (``cancelled``) or by a provider error
+        (``error``) says so; without the flag a reload shows the partial text
+        as a complete answer.
+        """
+        if not (full_response or collected_elements):
+            return
+        msg_data: dict = {
+            "role": "assistant",
+            "content": full_response or "",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if collected_tool_calls:
+            msg_data["toolCalls"] = collected_tool_calls
+        if collected_elements:
+            msg_data["elements"] = collected_elements
+        if status:
+            msg_data["status"] = status
+        if error:
+            msg_data["error"] = error
+        await _datastore.add_message(session_id, msg_data)
+
+        # Auto-store conversation turn in memory (non-blocking)
+        try:
+            from praisonaiui.features.memory import get_memory_manager
+
+            mgr = get_memory_manager()
+            mgr.store(
+                message,
+                memory_type="short",
+                session_id=session_id,
+                agent_id=agent_name,
+                metadata={"role": "user"},
+            )
+            mgr.store(
+                full_response,
+                memory_type="short",
+                session_id=session_id,
+                agent_id=agent_name,
+                metadata={"role": "assistant"},
+            )
+        except Exception:
+            pass  # Memory failures must never break chat
 
     return StreamingResponse(
         event_stream(),
