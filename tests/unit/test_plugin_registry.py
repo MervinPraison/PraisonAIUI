@@ -448,8 +448,10 @@ def test_remote_viewer_gets_no_plugin_js_by_default(site):
     assert s["pages"] == set() and s["blocks"] == [] and s["tools"] == []
     assert s["status"]["fakeplug"] == "disabled-by-default"
     assert s["static"] == 404
-    # Python surfaces of an installed plugin stay mounted (pip install == trust)
-    assert _remote().get("/api/plugins/fakeplug/pages/fake-report").status_code == 200
+    # "disabled-by-default" covers the plugin's HTTP routes too (review r1:
+    # the label said off while /api/plugins/<name>/* answered remotely)
+    assert _remote().get("/api/plugins/fakeplug/pages/fake-report").status_code == 404
+    assert _local().get("/api/plugins/fakeplug/pages/fake-report").status_code == 200
 
 
 def test_remote_viewer_gets_explicitly_enabled_plugin(site):
@@ -460,6 +462,7 @@ def test_remote_viewer_gets_explicitly_enabled_plugin(site):
     assert s["blocks"] == ["gantt"] and s["tools"] == ["web_search"]
     assert s["status"]["fakeplug"] == "ok"
     assert s["static"] == 200
+    assert _remote().get("/api/plugins/fakeplug/pages/fake-report").status_code == 200
 
 
 def test_yaml_enabled_list_opts_in_remote(site):

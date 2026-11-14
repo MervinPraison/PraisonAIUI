@@ -21,10 +21,14 @@ Trust model
 same-origin with no sandbox (``kind="iframe"`` is the sandboxed option).
 Because any package in the environment (including a transitive dependency)
 can declare the entry point, the *browser* surfaces of entry-point plugins
-(pages, blocks, tool renderers and the static dir) are **default-deny** when
-the server requires auth or is reached from a non-loopback address. In that
-case they are listed with status ``disabled-by-default`` and only served for
-plugins named explicitly in ``extensions.enabled`` / ``set_extensions(enabled=…)``.
+(pages, blocks, tool renderers and the static dir) and its HTTP routes
+(``/api/plugins/<name>/*``) are **default-deny** when the server requires
+auth or is reached from a non-loopback address. In that case they are listed
+with status ``disabled-by-default`` and only served for plugins named
+explicitly in ``extensions.enabled`` / ``set_extensions(enabled=…)``. The
+plugin's Python code (``setup()``, ``features()``) still runs once it is
+installed: to keep a package's code from running at all, list it in
+``extensions.disabled``.
 Plugins registered in-process with :func:`register_plugin` were chosen by the
 app author and are always trusted.
 
@@ -580,7 +584,7 @@ class PluginRegistry:
         are default-deny (see the module docstring). Static files of a plugin
         that is not allowed for that request answer 404.
         """
-        from starlette.routing import Mount
+        from starlette.routing import Mount, Router
         from starlette.staticfiles import StaticFiles
 
         mounts: list = []
@@ -590,7 +594,15 @@ class PluginRegistry:
                 try:
                     sub = list(fn() or [])
                     if sub:
-                        mounts.append(Mount(f"/api/plugins/{rec.name}", routes=sub))
+                        # Gated like the browser surfaces: a plugin listed as
+                        # "disabled-by-default" for this viewer answers 404
+                        # here too (enable it with extensions.enabled).
+                        mounts.append(
+                            Mount(
+                                f"/api/plugins/{rec.name}",
+                                app=_GatedStatic(self, rec, Router(routes=sub), is_restricted),
+                            )
+                        )
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("aiui plugin %s.routes() failed: %s", rec.name, exc)
         for rec in self.active():
@@ -629,7 +641,8 @@ class PluginRegistry:
 
 
 class _GatedStatic:
-    """ASGI wrapper: serve a plugin's static dir only when its JS is allowed."""
+    """ASGI wrapper: serve a plugin's static dir or HTTP routes only when the
+    plugin is allowed for this request (see ``js_allowed``)."""
 
     def __init__(self, registry: PluginRegistry, rec: PluginRecord, app: Any,
                  is_restricted: Optional[Callable[[dict], bool]]) -> None:
@@ -639,7 +652,10 @@ class _GatedStatic:
         self.is_restricted = is_restricted
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
+        if scope["type"] not in ("http", "websocket") or (
+            scope["type"] == "websocket" and not hasattr(self.app, "routes")
+        ):
+            # static files have no sockets
             if scope["type"] == "websocket" and (await receive()).get("type") == "websocket.connect":
                 await send({"type": "websocket.close", "code": 1008})
             return
@@ -649,6 +665,10 @@ class _GatedStatic:
         except Exception:  # noqa: BLE001 - fail closed
             restricted = True
         if not self.registry.js_allowed(self.rec, restricted=restricted):
+            if scope["type"] == "websocket":
+                if (await receive()).get("type") == "websocket.connect":
+                    await send({"type": "websocket.close", "code": 1008})
+                return
             from starlette.responses import PlainTextResponse
 
             await PlainTextResponse("Not Found", status_code=404)(scope, receive, send)
@@ -692,6 +712,10 @@ def _sri(path: Path) -> Optional[str]:
 
     The manifest is rebuilt for every shell page load, so plugin bundles must
     not be re-read and re-hashed on each request.
+
+    This is cache consistency, not tamper protection: a changed file gets a
+    new matching hash (so a rebuilt bundle keeps loading). A plugin that
+    wants a pinned hash declares ``integrity=`` on its spec.
     """
     try:
         st = path.stat()
