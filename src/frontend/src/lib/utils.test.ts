@@ -17,6 +17,6 @@ test('max-w-reading merges with other max-widths', () => {
 
 test('stock behaviour is unchanged', () => {
   assert.equal(cn('px-2', 'px-4'), 'px-4')
-  assert.equal(cn('text-sm', false && 'hidden', 'font-medium'), 'text-sm font-medium')
+  assert.equal(cn('text-sm', null, undefined, 'font-medium'), 'text-sm font-medium')
   assert.equal(cn('text-2xs', 'text-xs'), 'text-xs')
 })
