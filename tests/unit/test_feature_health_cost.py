@@ -169,3 +169,80 @@ def test_video_feature_health_does_not_call_the_engine(monkeypatch):
 
     monkeypatch.setattr(video, "health", _boom)
     assert asyncio.run(video.VideoFeature().health())["status"] == "ok"
+
+
+# ── knowledge and memory routes keep the event loop free ─────────────
+
+
+class _SlowManager:
+    """Every call blocks its thread, like a cold SDK start or an embedding call."""
+
+    def __init__(self, seconds: float) -> None:
+        self.seconds = seconds
+
+    def _block(self, *a, **k):
+        import time
+
+        time.sleep(self.seconds)
+        return []
+
+    list_all = search = _block
+
+    def get_stats(self):
+        self._block()
+        return {"total": 0}
+
+    def health(self):
+        return {"status": "ok"}
+
+    def last_search_meta(self):
+        return {"mode": "local", "error": None}
+
+
+def _ping_time_while_blocked(routes, slow_path: str) -> float:
+    """Seconds a trivial request took while *slow_path* was blocking."""
+    import asyncio
+    import time
+
+    import httpx
+    from starlette.applications import Starlette
+    from starlette.responses import PlainTextResponse
+    from starlette.routing import Route
+
+    async def ping(request):
+        return PlainTextResponse("pong")
+
+    app = Starlette(routes=[*routes, Route("/ping", ping)])
+
+    async def main():
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
+            t = time.perf_counter()
+            # The slow request starts first; ping is issued right behind it.
+            slow = asyncio.create_task(client.get(slow_path))
+            ping_task = asyncio.create_task(client.get("/ping"))
+            assert (await ping_task).text == "pong"
+            took = time.perf_counter() - t
+            assert (await slow).status_code == 200
+            assert time.perf_counter() - t >= 0.9  # the slow call really ran
+            return took
+
+    return asyncio.run(main())
+
+
+def test_knowledge_routes_do_not_block_the_event_loop(monkeypatch):
+    from praisonaiui.features import knowledge
+
+    monkeypatch.setattr(knowledge, "_knowledge_manager", _SlowManager(1.0))
+    routes = knowledge.KnowledgeFeature().routes()
+    assert _ping_time_while_blocked(routes, "/api/knowledge/status") < 0.5
+    assert _ping_time_while_blocked(routes, "/api/knowledge") < 0.5
+
+
+def test_memory_routes_do_not_block_the_event_loop(monkeypatch):
+    from praisonaiui.features import memory
+
+    monkeypatch.setattr(memory, "_memory_manager", _SlowManager(1.0))
+    routes = memory.MemoryFeature().routes()
+    assert _ping_time_while_blocked(routes, "/api/memory") < 0.5
+    assert _ping_time_while_blocked(routes, "/api/memory/status") < 0.5

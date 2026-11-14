@@ -13,12 +13,14 @@ Architecture:
 from __future__ import annotations
 
 import logging
+import threading
 import time
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
@@ -231,6 +233,7 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         self._embedding_unavailable = False
         self._embedding_error: Optional[str] = None
         self._last_search_meta: Dict[str, Any] = {"mode": "vector", "error": None}
+        self._init_lock = threading.Lock()
 
     def _get_sdk_knowledge(self) -> Any:
         """Lazy-init SDK Knowledge with health probe.
@@ -241,6 +244,12 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         """
         if self._sdk_probed:
             return self._sdk_knowledge  # already verified (may be None)
+        with self._init_lock:  # route handlers call this from worker threads
+            return self._init_sdk_knowledge()
+
+    def _init_sdk_knowledge(self) -> Any:
+        if self._sdk_probed:
+            return self._sdk_knowledge
 
         if self._sdk_knowledge is None:
             try:
@@ -569,6 +578,20 @@ def get_knowledge_manager() -> KnowledgeProtocol:
     return _knowledge_manager
 
 
+# Knowledge calls block (chromadb, embedding calls over the network). Route
+# handlers run them in a worker thread so the event loop keeps serving other
+# pages, and one at a time, as they ran before on the loop.
+_handler_lock = threading.Lock()
+
+
+async def _off_loop(fn: Any, *args: Any, **kwargs: Any) -> Any:
+    def _call() -> Any:
+        with _handler_lock:
+            return fn(*args, **kwargs)
+
+    return await run_in_threadpool(_call)
+
+
 # ── Feature Class (wires routes + health) ────────────────────────────
 
 
@@ -686,7 +709,7 @@ class KnowledgeFeature(BaseFeatureProtocol):
     async def _list(self, request: Request) -> JSONResponse:
         """GET /api/knowledge — list all knowledge entries."""
         mgr = get_knowledge_manager()
-        items = mgr.list_all()
+        items = await _off_loop(mgr.list_all)
         return JSONResponse({"entries": items, "count": len(items)})
 
     async def _add(self, request: Request) -> JSONResponse:
@@ -697,7 +720,8 @@ class KnowledgeFeature(BaseFeatureProtocol):
         if not text:
             return JSONResponse({"error": "text required"}, status_code=400)
 
-        entry = mgr.store(
+        entry = await _off_loop(
+            mgr.store,
             text=text,
             user_id=body.get("user_id"),
             agent_id=body.get("agent_id"),
@@ -712,11 +736,11 @@ class KnowledgeFeature(BaseFeatureProtocol):
         query = body.get("query", "")
         if not query:
             return JSONResponse({"error": "query required"}, status_code=400)
-        results = mgr.search(
-            query=query,
-            limit=body.get("limit", 10),
-        )
-        meta = mgr.last_search_meta()
+        def _search_with_meta() -> Any:
+            hits = mgr.search(query=query, limit=body.get("limit", 10))
+            return hits, mgr.last_search_meta()
+
+        results, meta = await _off_loop(_search_with_meta)
         return JSONResponse(
             {
                 "results": results,
@@ -733,7 +757,8 @@ class KnowledgeFeature(BaseFeatureProtocol):
         file_path = body.get("file_path")
         if not file_path:
             return JSONResponse({"error": "file_path required"}, status_code=400)
-        result = mgr.add_file(
+        result = await _off_loop(
+            mgr.add_file,
             file_path=file_path,
             user_id=body.get("user_id"),
             metadata=body.get("metadata"),
@@ -744,7 +769,7 @@ class KnowledgeFeature(BaseFeatureProtocol):
         """GET /api/knowledge/{entry_id} — get single entry."""
         mgr = get_knowledge_manager()
         entry_id = request.path_params["entry_id"]
-        entry = mgr.get(entry_id)
+        entry = await _off_loop(mgr.get, entry_id)
         if entry is None:
             return JSONResponse({"error": "not found"}, status_code=404)
         return JSONResponse(entry)
@@ -753,20 +778,23 @@ class KnowledgeFeature(BaseFeatureProtocol):
         """DELETE /api/knowledge/{entry_id} — delete entry."""
         mgr = get_knowledge_manager()
         entry_id = request.path_params["entry_id"]
-        deleted = mgr.delete(entry_id)
+        deleted = await _off_loop(mgr.delete, entry_id)
         return JSONResponse({"deleted": deleted, "id": entry_id})
 
     async def _clear(self, request: Request) -> JSONResponse:
         """DELETE /api/knowledge — clear all entries."""
         mgr = get_knowledge_manager()
-        count = mgr.clear()
+        count = await _off_loop(mgr.clear)
         return JSONResponse({"cleared": count})
 
     async def _status(self, request: Request) -> JSONResponse:
         """GET /api/knowledge/status — stats and health."""
         mgr = get_knowledge_manager()
-        stats = mgr.get_stats()
-        h = mgr.health()
+
+        def _stats_and_health() -> Any:
+            return mgr.get_stats(), mgr.health()
+
+        stats, h = await _off_loop(_stats_and_health)
         return JSONResponse(
             {
                 "total": stats.get("total", 0),
