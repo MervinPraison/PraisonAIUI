@@ -485,8 +485,14 @@ def test_forwarded_request_counts_as_remote(site):
 
 
 def test_require_auth_restricts_even_local_viewers(site):
+    from praisonaiui.auth import create_token, register_user
+
     srv.set_style("app")
     client = TestClient(_Loopback(srv.create_app(require_auth=True)))
+    # require_auth gates the manifest itself; a signed-in viewer reads it
+    assert client.get("/api/shell/manifest").status_code == 401
+    token = create_token(register_user("plugin-viewer", "pw-plugin-1")["id"])
+    client.headers["Authorization"] = f"Bearer {token}"
     s = _js_surfaces(client)
     assert s["pages"] == set() and s["static"] == 404
     assert s["status"]["fakeplug"] == "disabled-by-default"

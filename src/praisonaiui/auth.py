@@ -7,9 +7,8 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Any, Callable, Iterable, Optional, Protocol
 
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 # User storage (in-memory for now, can be replaced with database)
 _users: dict[str, dict[str, Any]] = {}
@@ -127,38 +126,66 @@ async def handle_login(username: str, password: str) -> Optional[dict[str, Any]]
     return None
 
 
-class AuthMiddleware(BaseHTTPMiddleware):
-    """Authentication middleware for Starlette."""
+class AuthMiddleware:
+    """Session-token authentication (``create_app(require_auth=True)`` or YAML
+    ``auth.requireAuth``).
+
+    Pure ASGI, so WebSocket handshakes are gated too (``BaseHTTPMiddleware``
+    never sees them). A request passes when its path is in *exclude_paths*,
+    is part of the public surface (the HTML shell, static code, health; see
+    :func:`praisonaiui.http_guard.is_public_http`), or carries a valid token
+    (:func:`validate_token`) as ``Authorization: Bearer``. A WebSocket may
+    instead carry a ``?ticket=`` from ``POST /api/auth/ws-ticket`` (or the
+    token as ``?token=``).
+
+    *exclude_paths* entries match exactly; an entry ending in ``/`` matches
+    that prefix. (Prefix matching of ``"/"`` used to exclude every path.)
+    """
 
     def __init__(self, app, require_auth: bool = False, exclude_paths: list[str] = None):
-        super().__init__(app)
+        self.app = app
         self.require_auth = require_auth
-        self.exclude_paths = exclude_paths or ["/health", "/login", "/register"]
+        self.exclude_paths = list(exclude_paths or ["/health", "/login", "/register"])
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        path = request.url.path
+    def _excluded(self, path: str) -> bool:
+        for p in self.exclude_paths:
+            if path == p or (p.endswith("/") and p != "/" and path.startswith(p)):
+                return True
+        return False
 
-        # Skip auth for excluded paths
-        if any(path.startswith(p) for p in self.exclude_paths):
-            return await call_next(request)
-
-        # Skip auth if not required
-        if not self.require_auth:
-            return await call_next(request)
-
-        # Check for token in header
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:]
-            user_id = validate_token(token)
-            if user_id:
-                request.state.user_id = user_id
-                return await call_next(request)
-
-        return JSONResponse(
-            {"error": "Unauthorized"},
-            status_code=401,
+    async def __call__(self, scope, receive, send):
+        kind = scope["type"]
+        if kind not in ("http", "websocket") or not self.require_auth:
+            await self.app(scope, receive, send)
+            return
+        from praisonaiui.http_guard import (
+            bearer_token,
+            is_public_http,
+            reject_websocket,
+            websocket_has_ticket,
+            websocket_token,
         )
+
+        path = scope.get("path", "")
+        if self._excluded(path):
+            await self.app(scope, receive, send)
+            return
+        if kind == "websocket":
+            if websocket_has_ticket(scope) or validate_token(websocket_token(scope)):
+                await self.app(scope, receive, send)
+                return
+            await reject_websocket(receive, send)
+            return
+        if is_public_http(scope):
+            await self.app(scope, receive, send)
+            return
+        user_id = validate_token(bearer_token(scope))
+        if user_id:
+            scope.setdefault("state", {})["user_id"] = user_id
+            await self.app(scope, receive, send)
+            return
+        response = JSONResponse({"error": "Unauthorized"}, status_code=401)
+        await response(scope, receive, send)
 
 
 # Auth route handlers
@@ -563,6 +590,11 @@ class TokenQueryMiddleware:
     """Authenticates requests that carry ?token=<SECRET> in the URL or
     Authorization: Bearer <SECRET> in the header.
 
+    WebSocket handshakes are gated too: the session cookie (sent by the
+    browser on a same-site handshake), a Bearer header, ``?token=`` or a
+    single-use ``?ticket=`` from ``POST /api/auth/ws-ticket``; anything else
+    is closed before it is accepted (HTTP 403, close code 1008).
+
     On first hit, the query-param token is validated; the middleware sets a
     session cookie (httpOnly, SameSite=Lax, Secure when https) so the token
     doesn't need to be re-sent on every asset request, and emits a redirect
@@ -583,14 +615,44 @@ class TokenQueryMiddleware:
         self.expected_token = expected_token
         self.exempt = set(self.EXEMPT_PATHS) | set(exempt_paths or ())
 
+    def _websocket_allowed(self, scope) -> bool:
+        from praisonaiui.http_guard import (
+            bearer_token,
+            cookie,
+            query_param,
+            websocket_has_ticket,
+        )
+
+        if websocket_has_ticket(scope):
+            return True
+        # A browser sends the session cookie on a same-site handshake.
+        for candidate in (
+            cookie(scope, self.COOKIE_NAME),
+            bearer_token(scope),
+            query_param(scope, "token"),
+        ):
+            if candidate and _constant_time_eq(candidate, self.expected_token):
+                return True
+        return False
+
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or not self.expected_token:
+        kind = scope["type"]
+        if kind not in ("http", "websocket") or not self.expected_token:
             await self.app(scope, receive, send)
             return
 
         path = scope.get("path", "")
         if any(path.startswith(p) for p in self.exempt):
             await self.app(scope, receive, send)
+            return
+
+        if kind == "websocket":
+            if self._websocket_allowed(scope):
+                await self.app(scope, receive, send)
+                return
+            from praisonaiui.http_guard import reject_websocket
+
+            await reject_websocket(receive, send)
             return
 
         request = Request(scope, receive)

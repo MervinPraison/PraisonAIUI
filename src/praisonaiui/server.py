@@ -31,6 +31,7 @@ from starlette.staticfiles import StaticFiles
 
 from praisonaiui.datastore import BaseDataStore, JSONFileDataStore
 from praisonaiui.features import auto_register_defaults, get_features
+from praisonaiui.http_guard import ws_ticket_handler
 from praisonaiui.provider import BaseProvider, RunEventType
 from praisonaiui.schemas import (  # noqa: F401  (re-exported via praisonaiui.__getattr__)
     get_component_schemas,
@@ -3568,32 +3569,37 @@ def _init_gateway_standalone(config: Optional[dict] = None) -> None:
 
 
 class AuthEnforcementMiddleware:
-    """Optional middleware that enforces auth on /api/* routes when AUTH_ENFORCE=true.
+    """Optional middleware that enforces API-key auth when AUTH_ENFORCE=true.
 
-    Covers both HTTP requests and WebSocket handshakes with the same token
-    rule: a valid API key
-    (:func:`praisonaiui.features.auth.verify_api_key`) sent as
-    ``Authorization: Bearer <key>``. HTTP gates non-exempt ``/api/*`` paths
-    (pages and static files must load before login). Every non-exempt
-    WebSocket is gated (``/api/chat/ws``, ``/api/logs/stream``, ``/ws/audio``,
-    the ``/ws`` gateway, …), since there is no socket a logged-out browser
-    needs. Browsers cannot set headers on a WebSocket, so a handshake may
-    instead carry the same key as ``?token=<key>``. A rejected handshake is
-    closed before it is accepted (HTTP 403, close code 1008).
+    Deny by default: every HTTP request and every WebSocket handshake needs
+    a valid API key (:func:`praisonaiui.features.auth.verify_api_key`), except
+    the public surface in :func:`praisonaiui.http_guard.is_public_http`: the
+    HTML shell for page navigations, static code (``/assets``, ``/plugins``,
+    ``/_aiui/externals``, ``/_plugins``), health checks and the login
+    endpoints. So ``/sessions``, ``/run``, ``/agents/{id}/runs``, ``/v1/*``,
+    ``/agui`` … are gated like ``/api/*``, and so is any route added later.
+
+    HTTP sends the key as ``Authorization: Bearer <key>``. Browsers cannot set
+    headers on a WebSocket, so a handshake carries a single-use ticket from
+    ``POST /api/auth/ws-ticket`` as ``?ticket=`` (older clients: the key as
+    ``?token=``, redacted from the logs). A rejected handshake is closed
+    before it is accepted (HTTP 403, close code 1008).
     """
 
-    EXEMPT_PATHS = {
-        "/health",
-        "/api/health",
-        "/health/live",
-        "/health/ready",
-        "/api/health/live",
-        "/api/health/ready",
-        "/api/auth/login",
-        "/login",
-        "/api/protocol",
-        "/api/protocol/negotiate",
-    }
+    EXEMPT_PATHS = frozenset(
+        {
+            "/health",
+            "/api/health",
+            "/health/live",
+            "/health/ready",
+            "/api/health/live",
+            "/api/health/ready",
+            "/api/auth/login",
+            "/login",
+            "/api/protocol",
+            "/api/protocol/negotiate",
+        }
+    )
 
     def __init__(self, app):
         self.app = app
@@ -3601,19 +3607,17 @@ class AuthEnforcementMiddleware:
 
     @staticmethod
     def _websocket_token(scope) -> str:
-        headers = dict(scope.get("headers", []))
-        auth_header = headers.get(b"authorization", b"").decode("latin-1")
-        if auth_header.startswith("Bearer "):
-            return auth_header[7:]
-        from urllib.parse import parse_qs
+        from praisonaiui.http_guard import websocket_token
 
-        qs = parse_qs(scope.get("query_string", b"").decode("latin-1"))
-        return (qs.get("token") or [""])[0]
+        return websocket_token(scope)
 
     async def _check_websocket(self, scope, receive, send) -> bool:
         """Return True when the handshake may proceed; otherwise reject it."""
-        path = scope.get("path", "")
-        if path in self.EXEMPT_PATHS:
+        from praisonaiui.http_guard import reject_websocket, websocket_has_ticket
+
+        if scope.get("path", "") in self.EXEMPT_PATHS:
+            return True
+        if websocket_has_ticket(scope):
             return True
         token = self._websocket_token(scope)
         if token:
@@ -3621,48 +3625,39 @@ class AuthEnforcementMiddleware:
 
             if verify_api_key(token):
                 return True
-        # Consume the websocket.connect event, then close before
-        # websocket.accept: the server answers the handshake with HTTP 403
-        # and the app never sees the connection.
-        message = await receive()
-        if message.get("type") == "websocket.connect":
-            await send(
-                {"type": "websocket.close", "code": 1008, "reason": "Authorization required"}
-            )
+        await reject_websocket(receive, send)
         return False
+
+    async def _check_http(self, scope, receive, send) -> bool:
+        from praisonaiui.http_guard import bearer_token, header, is_public_http
+
+        if scope.get("path", "") in self.EXEMPT_PATHS or is_public_http(scope):
+            return True
+        if not header(scope, b"authorization").startswith("Bearer "):
+            response = JSONResponse(
+                {
+                    "error": "Authorization required",
+                    "hint": "Set Authorization: Bearer <token>",
+                },
+                status_code=401,
+            )
+            await response(scope, receive, send)
+            return False
+        from praisonaiui.features.auth import verify_api_key
+
+        if not verify_api_key(bearer_token(scope)):
+            response = JSONResponse({"error": "Invalid or expired token"}, status_code=401)
+            await response(scope, receive, send)
+            return False
+        return True
 
     async def __call__(self, scope, receive, send):
         if self.enforce and scope["type"] == "websocket":
             if not await self._check_websocket(scope, receive, send):
                 return
         elif self.enforce and scope["type"] == "http":
-            path = scope.get("path", "")
-            if path.startswith("/api/") and path not in self.EXEMPT_PATHS:
-                # Check for Bearer token in Authorization header
-                headers = dict(scope.get("headers", []))
-                auth_header = headers.get(b"authorization", b"").decode()
-                if not auth_header.startswith("Bearer "):
-                    # Return 401 Unauthorized
-                    response = JSONResponse(
-                        {
-                            "error": "Authorization required",
-                            "hint": "Set Authorization: Bearer <token>",
-                        },
-                        status_code=401,
-                    )
-                    await response(scope, receive, send)
-                    return
-                else:
-                    token = auth_header[7:]
-                    from praisonaiui.features.auth import verify_api_key
-
-                    if not verify_api_key(token):
-                        response = JSONResponse(
-                            {"error": "Invalid or expired token"},
-                            status_code=401,
-                        )
-                        await response(scope, receive, send)
-                        return
+            if not await self._check_http(scope, receive, send):
+                return
         await self.app(scope, receive, send)
 
 
@@ -3727,14 +3722,29 @@ def create_app(
         if auth_config.get("requireToken") or auth_config.get("require_token"):
             _config_requires_token = True
 
+    from praisonaiui.http_guard import (
+        OriginGuardMiddleware,
+        configured_origins,
+        install_secret_redaction,
+    )
+
+    # Cross-origin access is opt-in: AIUI_ALLOWED_ORIGINS lists the origins
+    # (``*`` restores the old allow-everything behaviour). By default a page
+    # on another site can neither read responses (no CORS headers) nor
+    # drive the server (OriginGuardMiddleware refuses cross-site WebSocket
+    # handshakes and state-changing requests, text/plain CSRF included).
+    _allowed_origins = configured_origins()
     middleware = [
         Middleware(
             CORSMiddleware,
-            allow_origins=["*"],
+            allow_origins=_allowed_origins,
             allow_methods=["*"],
             allow_headers=["*"],
         ),
+        Middleware(OriginGuardMiddleware, allowed_origins=_allowed_origins),
     ]
+    # Older clients pass credentials as ?token=; keep them out of the logs.
+    install_secret_redaction()
 
     # Add optional AUTH_ENFORCE middleware (env var driven)
     middleware.append(Middleware(AuthEnforcementMiddleware))
@@ -3759,11 +3769,13 @@ def create_app(
         )
 
     if require_auth:
+        # Exclusions are exact paths; the rest of the public surface (the
+        # HTML shell, static code) comes from http_guard.is_public_http.
         middleware.append(
             Middleware(
                 AuthMiddleware,
                 require_auth=True,
-                exclude_paths=["/health", "/login", "/register", "/"],
+                exclude_paths=["/health", "/login", "/register"],
             )
         )
 
@@ -3935,6 +3947,7 @@ def create_app(
         Route("/api/health/live", health_live, methods=["GET"]),
         Route("/api/health/ready", health_ready, methods=["GET"]),
         Route("/login", login_handler, methods=["POST"]),
+        Route("/api/auth/ws-ticket", ws_ticket_handler, methods=["POST"]),
         Route("/register", register_handler, methods=["POST"]),
         Route("/logout", logout_handler, methods=["POST"]),
         Route("/me", me_handler, methods=["GET"]),
@@ -4357,6 +4370,18 @@ def create_app(
         routes.append(Route("/", _serve_index, methods=["GET"]))
         # Catch-all for SPA path-based routing (e.g. /chat, /memory, /knowledge)
         routes.append(Route("/{path:path}", _serve_index, methods=["GET"]))
+
+    # The surface a logged-out browser needs (see http_guard.is_public_http):
+    # the HTML shell for page navigations and the share-link viewer. Data
+    # routes that double as page URLs are public only for a navigation.
+    from praisonaiui.http_guard import mark_public
+
+    mark_public(_serve_index)
+    mark_public(view_shared_thread_handler)
+    mark_public(list_agents, when=_is_app_page_navigation)
+    mark_public(list_sessions, when=_is_app_page_navigation)
+    if static_dir and static_dir.exists():
+        mark_public(_http_only_static)
 
     app = Starlette(
         routes=routes,
