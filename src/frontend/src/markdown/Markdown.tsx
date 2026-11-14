@@ -25,6 +25,7 @@ import { mermaidConfigFor, useThemeKey } from './themeStore'
 import { useStreamingText } from './streamThrottle'
 import { continueSplitLists } from './listNumbering'
 import { useLegacyCopyGuard } from './legacyPlugins'
+import { rehypeFootnoteLabel } from './hast'
 import './markdown.css'
 
 type Components = NonNullable<StreamdownProps['components']>
@@ -177,6 +178,16 @@ export const Markdown = memo(function Markdown({
     const guardId = useId()
     useLegacyCopyGuard(guardId)
 
+    // Footnote ids are per renderer instance: with remark-rehype's default
+    // prefix every message emitted user-content-fn-1, so a footnote link in
+    // one message jumped to another message's note.
+    const idPrefix = `user-content-${guardId.replace(/[^\w-]/g, '')}-`
+    const remarkRehypeOptions = useMemo(() => ({ clobberPrefix: idPrefix }), [idPrefix])
+    const rehypePlugins = useMemo(
+        () => [...(isDocs ? DOCS_REHYPE : CHAT_REHYPE)!, [rehypeFootnoteLabel, idPrefix]] as StreamdownProps['rehypePlugins'],
+        [isDocs, idPrefix],
+    )
+
     const math = useMathPlugin(text, variant)
     // Chat diagrams are untrusted: their SVG is stripped of off-origin resources.
     const plugins = useMemo<PluginConfig>(
@@ -213,7 +224,8 @@ export const Markdown = memo(function Markdown({
             plugins={plugins}
             shikiTheme={SHIKI_THEMES}
             mermaid={mermaid}
-            rehypePlugins={isDocs ? DOCS_REHYPE : CHAT_REHYPE}
+            remarkRehypeOptions={remarkRehypeOptions}
+            rehypePlugins={rehypePlugins}
             components={merged}
             linkSafety={LINKS_AS_ANCHORS}
             lineNumbers={false}

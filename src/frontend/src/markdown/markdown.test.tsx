@@ -685,3 +685,24 @@ test('a chat code element renders as a Streamdown code block (language label, co
     assert.match(html, /data-streamdown="code-block-header"[^>]*><span[^>]*>python<\/span>/)
     assert.match(html, /return/)
 })
+
+// ── footnotes: ids are unique per message (LIBMD-4) ──
+test('two messages with footnotes: every id is unique and each footnote link targets its own message', () => {
+    const html = renderToStaticMarkup(
+        <div>
+            <Markdown variant="chat">{'First[^1]\n\n[^1]: one'}</Markdown>
+            <Markdown variant="chat">{'Second[^1]\n\n[^1]: two'}</Markdown>
+        </div>,
+    )
+    const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1])
+    assert.ok(ids.length >= 6, `footnote ids rendered: ${ids.join(', ')}`)
+    assert.equal(new Set(ids).size, ids.length, `duplicate ids: ${ids.join(', ')}`)
+    for (const part of html.split('data-aiui-markdown=').slice(1)) {
+        const own = new Set([...part.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]))
+        const hrefs = [...part.matchAll(/href="\\?#([^"]+)"/g)].map((m) => m[1])
+        assert.ok(hrefs.length >= 2)
+        for (const h of hrefs) assert.ok(own.has(h), `#${h} points inside its own message`)
+        const described = [...part.matchAll(/aria-describedby="([^"]+)"/g)].map((m) => m[1])
+        for (const d of described) assert.ok(own.has(d), `aria-describedby ${d} is in its own message`)
+    }
+})
