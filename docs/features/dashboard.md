@@ -351,7 +351,13 @@ window.aiui.registerView('my-analytics', async (container) => {
 When a page is selected, the dashboard resolves views in this order:
 
 1. **Custom registered views** — `window.aiui.registerView()` (highest priority)
-2. **Built-in view modules** — Dynamic import from `/plugins/views/*.js`
+2. **Built-in view modules** — `views/<page id>.js` for built-in pages, from
+   `/api/shell/manifest`: a page whose `source` is `builtin` (kind `legacy` or
+   `native`) loads `<legacy.viewsBase><page id>.js`. A page an app
+   (`register_page` / `@aiui.page`), a plugin or a dashboard-plugin folder
+   provides never gets a built-in view, even under a built-in id: it renders its
+   own content, in the dashboard style too. When the manifest cannot be read,
+   every page `/api/pages` lists is tried by the same file name.
 3. **Generic JSON viewer** — Falls back to rendering `_components` or raw JSON
 
 ### `window.aiui.views`
@@ -370,7 +376,8 @@ console.log(Object.keys(window.aiui.views));
 
 ### Built-in Views
 
-The dashboard includes 22 built-in view modules:
+A built-in page's view is the file named after its page id
+(`views/<page id>.js`); there is no list in `dashboard.js`. Some of them:
 
 | Page ID | View Module | Description |
 |---------|-------------|-------------|
@@ -381,7 +388,7 @@ The dashboard includes 22 built-in view modules:
 | `memory` | `memory.js` | Memory viewer |
 | `knowledge` | `knowledge.js` | Knowledge base |
 | `logs` | `logs.js` | Real-time logs |
-| `schedules` | `schedules.js` | Scheduled jobs |
+| `cron` | `cron.js` (re-exports `schedules.js`) | Scheduled jobs |
 | `config` | `config.js` | Runtime config |
 | `approvals` | `approvals.js` | Tool approvals |
 | `usage` | `usage.js` | Token usage |
@@ -393,3 +400,20 @@ The dashboard includes 22 built-in view modules:
 | `telemetry` | `telemetry.js` | Performance metrics |
 | `traces` | `traces.js` | Distributed tracing |
 | `security` | `security.js` | Security monitoring |
+
+`runs`, `cron`, `work` and `training` are one-line modules that re-export
+`run-recorder.js`, `schedules.js`, `work-hub.js` and `training-lab.js` under the
+page id.
+
+### Light and dark mode
+
+The dashboard picks its colour mode in this order:
+
+1. the viewer's choice, stored under `aiui-theme-preference` (`light`, `dark` or
+   `system`; the Theme page and the app shell write the same key);
+2. the app's default: `aiui.set_theme(dark_mode=True|False)`, else YAML
+   `site.theme.mode` (`light`, `dark`, `system`) or `site.theme.darkMode`;
+3. the OS (`prefers-color-scheme`), when neither chose a mode
+   (`/ui-config.json` then sends `site.themeDefault: "system"`).
+
+A change of the OS scheme or of the stored choice in another tab applies at once.

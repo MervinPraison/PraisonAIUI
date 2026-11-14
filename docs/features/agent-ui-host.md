@@ -7,7 +7,7 @@ PraisonAIUI can host any AI agent backend behind a **modular dashboard shell**: 
 ```text
 YAML / Python config → server (pages API, plugins.json) → dashboard.js shell
                               ↓
-         registerView / BUILTIN_VIEWS / layout JSON / registerComponent
+  registerView / views/<page id>.js (built-in pages) / layout JSON / registerComponent
                               ↓
                     renderComponent() + theme (--db-*)
 ```
@@ -16,7 +16,7 @@ YAML / Python config → server (pages API, plugins.json) → dashboard.js shell
 
 1. `window.aiui.registerView(pageId, …)`
 2. Dashboard manifest plugins (`dashboard-plugins/*/manifest.json`)
-3. Built-in view modules (`plugins/views/*.js` via `BUILTIN_VIEWS`)
+3. Built-in view modules: `views/<page id>.js` for built-in pages, from `/api/shell/manifest` (a page's `source` and `kind` there decide; an app page under a built-in id renders its own content, also in the dashboard style)
 4. Server `aiui.layout()` JSON from `@aiui.page()`
 5. `window.aiui.registerComponent(type, …)` inside `renderComponent`
 6. Generic JSON fallback viewer
@@ -115,7 +115,7 @@ dashboard:
   modules: [jobs]
 ```
 
-This adds `jobs.js`, `auth.js`, or `api.js` to the plugin chain and maps them in `BUILTIN_VIEWS`. `feedback` is always available as a built-in view when the page is enabled.
+This adds `jobs.js`, `auth.js`, or `api.js` to the plugin chain; their pages resolve to `views/<page id>.js` for built-in pages, from `/api/shell/manifest`. `feedback` is always available as a built-in view when the page is enabled.
 
 ## Third-party dashboard plugins
 
