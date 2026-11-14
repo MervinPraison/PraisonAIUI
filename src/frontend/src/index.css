@@ -12,6 +12,15 @@
 @source not "../spike.html";
 @source not "../scripts";
 @source not "../e2e";
+/* Sources no build includes (no chunk imports them; layouts/index.ts re-exports
+   the two layouts, but nothing uses them). Scanning them only added CSS every
+   style downloads. Remove a line here when its file is used again. */
+@source not "./views";
+@source not "./layouts/DashboardLayout.tsx";
+@source not "./layouts/FlexibleLayout.tsx";
+@source not "./layouts/widgets.tsx";
+@source not "./modals/AddMCPServerModal.tsx";
+@source not "./agent-ui";
 
 @custom-variant dark (&:is(.dark *));
 
