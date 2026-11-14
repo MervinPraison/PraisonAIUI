@@ -815,9 +815,13 @@ def test_bad_config_yaml_pages_section_is_ignored_with_a_warning(_isolated, monk
     assert "config.yaml pages: could not be read" in caplog.text
 
 
-# ── host-owned built-in routes (builtin.mcp / debug / logs) ──────────
+# ── host-owned built-in routes (overview, feedback, jobs, mcp, debug, logs)
 
-HOST_ROUTES = {
+PAGE_API_ROUTES = {
+    ("/api/overview", frozenset({"GET", "HEAD"})),
+    ("/api/feedback", frozenset({"GET", "HEAD"})),
+}
+HOST_ROUTES = PAGE_API_ROUTES | {
     ("/api/mcp/servers", frozenset({"GET", "HEAD"})),
     ("/api/mcp/connect", frozenset({"POST"})),
     ("/api/mcp/disconnect/{server_id}", frozenset({"POST"})),
@@ -850,7 +854,8 @@ def test_disabled_builtins_unmount_their_host_routes():
     set_extensions(disabled=["builtin.mcp", "builtin.debug", "builtin.logs"])
     app = srv.create_app()
     rows = set(_route_rows(app))
-    assert not (rows & HOST_ROUTES)
+    assert not (rows & (HOST_ROUTES - PAGE_API_ROUTES))
+    assert PAGE_API_ROUTES <= rows  # other built-ins keep theirs
     client = TestClient(app)
     assert client.get("/api/mcp/servers").status_code == 404
     # POSTs reach only the GET-only SPA catch-all now: never the handler.
@@ -869,4 +874,60 @@ def test_host_routes_come_back_when_the_policy_changes():
 
 
 def test_host_route_handlers_still_import_from_the_server():
-    from praisonaiui.server import api_debug, api_logs, api_mcp_connect  # noqa: F401
+    from praisonaiui.server import (  # noqa: F401
+        api_debug,
+        api_feedback_list,
+        api_logs,
+        api_mcp_connect,
+        api_overview,
+    )
+
+
+def test_disabling_overview_and_feedback_unmounts_their_page_apis():
+    """G6: GET /api/overview and GET /api/feedback were written in create_app,
+    so disabling builtin.overview / builtin.feedback left them mounted."""
+    set_extensions(disabled=["builtin.overview", "builtin.feedback"])
+    app = srv.create_app()
+    assert not (set(_route_rows(app)) & PAGE_API_ROUTES)
+    client = TestClient(app)
+    assert client.get("/api/overview").status_code == 404
+    # only the chat's POST is left on that path
+    assert client.get("/api/feedback").status_code == 404
+    ok = client.post("/api/feedback", json={"session_id": "s", "message_id": "m", "value": 1})
+    assert ok.status_code == 200
+    # host-owned: the CLI's /api/status alias of the overview handler
+    assert client.get("/api/status").json()["status"] == "ok"
+    _assert_gone(client, "overview", "feedback")
+
+
+def test_overview_and_feedback_apis_answer_by_default():
+    client = _client()
+    assert client.get("/api/overview").json()["status"] == "ok"
+    assert "summary" in client.get("/api/feedback").json()
+
+
+@pytest.fixture
+def _jobs_proxy():
+    srv.set_jobs_proxy("http://127.0.0.1:9")
+    yield
+    srv.set_jobs_proxy(None)
+
+
+def _proxy_index(app) -> int | None:
+    from praisonaiui.jobs_proxy import _proxy_jobs
+
+    return next(
+        (i for i, r in enumerate(app.routes) if getattr(r, "endpoint", None) is _proxy_jobs),
+        None,
+    )
+
+
+def test_jobs_proxy_belongs_to_builtin_jobs(_jobs_proxy):
+    app = srv.create_app()
+    at = _proxy_index(app)
+    assert at is not None
+    # still mounted ahead of JobsFeature's own /api/jobs routes
+    later = [getattr(r, "path", "") for r in app.routes[at + 2 :]]
+    assert "/api/jobs" in later
+    set_extensions(disabled=["builtin.jobs"])
+    assert _proxy_index(srv.create_app()) is None

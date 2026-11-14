@@ -4217,14 +4217,12 @@ def create_app(
             delete_team_session,
             methods=["DELETE"],
         ),
-        # Dashboard API
-        Route("/api/feedback", api_feedback, methods=["POST"]),
-        Route("/api/feedback", api_feedback_list, methods=["GET"]),
-        Route("/api/overview", api_overview, methods=["GET"]),
-        Route("/api/status", api_overview, methods=["GET"]),  # alias for CLI parity
+        # Dashboard API. Page-owned routes (GET /api/overview, GET
+        # /api/feedback, /api/logs, /api/debug, /api/mcp/*, the jobs proxy)
+        # are their built-in's host_routes, mounted below while it is on.
+        Route("/api/feedback", api_feedback, methods=["POST"]),  # chat thumbs
+        Route("/api/status", api_overview, methods=["GET"]),  # CLI parity
         Route("/api/config", api_config_handler, methods=["GET", "PUT"]),
-        # /api/logs and /api/debug belong to builtin.logs / builtin.debug
-        # (their host_routes, mounted below while those built-ins are on).
         # Note: /api/usage is now provided by PraisonAIUsage feature
         Route("/api/provider", api_provider, methods=["GET"]),
         Route("/api/provider/health", api_provider_health, methods=["GET"]),
@@ -4238,8 +4236,6 @@ def create_app(
         Route("/api/features", api_features, methods=["GET"]),
         # Component schema registry (built-in + user-registered)
         Route("/api/components/schemas", api_component_schemas, methods=["GET"]),
-        # Gateway status
-        # MCP (Model Context Protocol) API: builtin.mcp's host_routes.
         # OAuth + thread-sharing (issue #22)
         Route("/api/auth/oauth/{provider}", oauth_authorize_handler, methods=["GET"]),
         Route(
@@ -4379,11 +4375,8 @@ def create_app(
         pass
 
     # ── Auto-register and mount feature protocol routes ──────────────
-    from praisonaiui.jobs_proxy import jobs_proxy_routes
-
-    routes.extend(jobs_proxy_routes())
-    # Host-owned routes of the first-party plugins (MCP, debug, GET
-    # /api/logs): mounted only while their built-in is on.
+    # Host-owned routes of the first-party plugins (overview, feedback,
+    # jobs proxy, MCP, logs, debug): mounted only while their built-in is on.
     for _brec in _plugin_registry.builtin_records():
         _host_routes = getattr(_brec.plugin, "host_routes", None)
         if _brec.status == "ok" and callable(_host_routes):

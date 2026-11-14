@@ -80,6 +80,32 @@ def _logs_routes() -> list:
     return [Route("/api/logs", api_logs, methods=["GET"])]
 
 
+def _overview_routes() -> list:
+    # GET /api/status (same handler) stays in the host: the CLI reads it.
+    from starlette.routing import Route
+
+    from praisonaiui.server import api_overview
+
+    return [Route("/api/overview", api_overview, methods=["GET"])]
+
+
+def _feedback_routes() -> list:
+    # POST /api/feedback stays in the host: the chat's thumbs post to it.
+    from starlette.routing import Route
+
+    from praisonaiui.server import api_feedback_list
+
+    return [Route("/api/feedback", api_feedback_list, methods=["GET"])]
+
+
+def _jobs_routes() -> list:
+    # The optional /api/jobs proxy (set_jobs_proxy); empty unless configured.
+    # Host routes mount before feature routes, so it still wins over JobsFeature.
+    from praisonaiui.jobs_proxy import jobs_proxy_routes
+
+    return jobs_proxy_routes()
+
+
 BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
     BuiltinPlugin(
         "overview",
@@ -95,6 +121,7 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
                 nav_icon="gauge",
             ),
         ),
+        host_routes=_overview_routes,
     ),
     BuiltinPlugin(
         "chat",
@@ -232,6 +259,7 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
                 nav_icon="message-square",
             ),
         ),
+        host_routes=_feedback_routes,
     ),
     BuiltinPlugin(
         "cron",
@@ -255,6 +283,7 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
         "Async agent jobs",
         (page("jobs", "Jobs", "📋", "Control", "Async agent jobs", 40, nav_icon="list-checks"),),
         feature_refs=(feature(".jobs", "JobsFeature"),),
+        host_routes=_jobs_routes,
     ),
     BuiltinPlugin(
         "work",
