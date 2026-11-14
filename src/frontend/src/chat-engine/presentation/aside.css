@@ -1,0 +1,12 @@
+/*
+ * Phone: with the aside's Chat | <label> switch on the page, the page stacks
+ * (switch on top), and the thread is hidden while the aside side is chosen.
+ * Lazy: loaded with the aside. The chat page itself stays unaware of it.
+ */
+[data-aiui-chat]:has(> [data-chat-aside-switch]) {
+  flex-direction: column;
+}
+
+[data-aiui-chat]:has(> [data-chat-aside-switch][data-tab='aside']) > section {
+  display: none;
+}

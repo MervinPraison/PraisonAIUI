@@ -1,0 +1,22 @@
+/*
+ * The explained approval card and the keyboard strip (lazy, loaded with
+ * either). They carry their own surface, so the tool row around them drops
+ * its frame (one hairline, no shadow). Tokens only.
+ */
+[data-tool]:has(> [data-approval-card], > [data-approval-keys]) {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+[data-tool] > [data-approval-card],
+[data-tool] > [data-approval-keys] {
+  margin-top: 0.375rem;
+}
+
+/* Phone: every decision control is a 44 px touch target. */
+@media (max-width: 767.98px) {
+  [data-approval-card] button,
+  [data-approval-keys] button {
+    min-height: 44px;
+  }
+}

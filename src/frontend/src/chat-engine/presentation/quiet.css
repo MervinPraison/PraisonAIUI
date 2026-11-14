@@ -1,0 +1,15 @@
+/*
+ * Thread variant `quiet` (Workbench): the question is a full-width quiet box,
+ * the answer has no header, tool and reasoning rows stay ghost rows.
+ * Lazy: loaded only when a layout picks this variant. Tokens only.
+ */
+[data-variant='quiet'] [data-role='user'] {
+  align-items: stretch;
+}
+
+[data-variant='quiet'] [data-user-bubble] {
+  max-width: none;
+  border: 1px solid var(--ui-hairline);
+  border-radius: 0.625rem;
+  background: var(--muted);
+}
