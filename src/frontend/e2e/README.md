@@ -23,6 +23,7 @@ never read or written.
 | `app-shell` | `AIUI_SHELL=app` + the example plugin | `shell-sweep`, `chat`, `plugins` |
 | `chat-style` | `style: chat`, presets `zinc` and `rose` (two servers) | `theme-presets` |
 | `docs` | `aiui build` of `fixtures/docs-site`, served by `aiui serve` | `markdown` |
+| `page-reload-dashboard`, `page-reload-app` | the `dashboard-legacy` and `app-shell` servers | `page-reload` |
 | `legacy-baseline` | the v0.3.153 tree (only with `AIUI_E2E_BASELINE_SRC`) | `legacy-parity` |
 
 ## What each suite checks
@@ -51,6 +52,9 @@ never read or written.
   and primary, body and muted text reach 4.5:1 in light and dark.
 - **plugins**: the example plugin's React page, blocks page, block type, tool
   renderer and the error toast when its module fails to load.
+- **page-reload**: in the default dashboard and in the app shell, opening and
+  reloading `/sessions` and `/agents` (JSON APIs as well as page URLs) shows
+  the page, not the API body, while the view's own `fetch` still gets JSON.
 
 Known product defects are listed in the specs (`KNOWN_LEAKS`,
 `KNOWN_BROKEN_DEEP_LINKS` in `shell-sweep.spec.ts`). Each entry is strict: the
