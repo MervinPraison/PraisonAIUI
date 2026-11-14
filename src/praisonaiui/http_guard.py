@@ -196,8 +196,24 @@ def consume_ws_ticket(ticket: str) -> bool:
     return expires is not None and expires > time.monotonic()
 
 
+_TICKET_OK_KEY = "aiui_ws_ticket_ok"
+
+
 def websocket_has_ticket(scope: dict) -> bool:
-    return consume_ws_ticket(query_param(scope, "ticket"))
+    """Does this handshake carry a live ``?ticket=``?
+
+    The ticket is spent by the first gate that checks it, and the result is
+    recorded on the scope, so every stacked auth middleware (AUTH_ENFORCE,
+    URL token, require_auth) honours the same handshake. A ticket is only
+    issued to a request that already passed all of the HTTP gates.
+    """
+    state = scope.setdefault("state", {})
+    if state.get(_TICKET_OK_KEY):
+        return True
+    ok = consume_ws_ticket(query_param(scope, "ticket"))
+    if ok:
+        state[_TICKET_OK_KEY] = True
+    return ok
 
 
 async def ws_ticket_handler(request: Request) -> JSONResponse:
