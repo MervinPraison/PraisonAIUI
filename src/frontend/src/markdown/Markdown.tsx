@@ -180,7 +180,7 @@ function hashKey(s: string): string {
 export interface MarkdownProps {
     children: string
     variant?: 'chat' | 'docs'
-    /** chat: true while tokens are arriving (incomplete-markdown repair, caret). */
+    /** chat: true while tokens are arriving (incomplete-markdown repair, caret); false renders the text as written. */
     streaming?: boolean
     className?: string
     /** Element overrides. Keep the object stable (module scope or useMemo). */
@@ -229,7 +229,10 @@ export const Markdown = memo(function Markdown({
             data-aiui-markdown={guardId} /* root handle for useLegacyCopyGuard */
             mode={isDocs ? 'static' : 'streaming'}
             isAnimating={!isDocs && streaming}
-            parseIncompleteMarkdown={!isDocs}
+            // Repair only while tokens arrive: a finished message is shown as
+            // written. (remend corrupts some complete text, e.g. it appends
+            // '***' after the closing fence of a reply with '****' in it.)
+            parseIncompleteMarkdown={!isDocs && streaming}
             caret={!isDocs && streaming ? 'block' : undefined}
             plugins={plugins}
             shikiTheme={SHIKI_THEMES}

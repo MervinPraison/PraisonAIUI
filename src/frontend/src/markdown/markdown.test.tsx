@@ -55,6 +55,17 @@ test('streaming render: unclosed fence renders a code block (not paragraph text)
     assert.match(html, /data-streamdown="code-block"/)
 })
 
+test('a finished chat message is rendered as written, not "repaired"', () => {
+    // Adjacent bold markers ('****') make remend append '***' after the closing
+    // fence, which turns the fence into code text. Repair is for streaming only.
+    const md = 'You said: **Summarize the **release notes****\n\n```py\nprint(1)\n```'
+    assert.match(remend(md), /```\*\*\*$/, 'the upstream repair still corrupts this text')
+    const html = chat(md)
+    assert.match(html, /data-streamdown="code-block"/)
+    assert.doesNotMatch(html, /```/, 'the closing fence closes the block')
+    assert.doesNotMatch(html, /\*\*\*/)
+})
+
 test('streaming render: half table header still renders table', () => {
     const html = chat('| a | b |\n| - | - |\n| 1 |', true)
     assert.match(html, /<table/)
