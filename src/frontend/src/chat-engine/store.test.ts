@@ -636,6 +636,44 @@ test('observe: another tab\'s run shows as a read-only live message and history 
   stop()
 })
 
+test('another tab\'s question asked during this tab\'s own turn shows once the own turn ends (R7)', async () => {
+  threadStore.configure({ settleReloadMs: 0 })
+  const f = fakeTransport()
+  let remote: ((ev: WireEvent) => void) | undefined
+  const watch = f.t.watch!.bind(f.t)
+  f.t.watch = (sid, fn) => {
+    remote ??= fn // the first watcher is observe()
+    return watch(sid, fn)
+  }
+  const persisted: Record<string, unknown>[] = []
+  globalThis.fetch = (async () => new Response(JSON.stringify({ messages: persisted, start: 0, has_more: false }), { status: 200 })) as typeof fetch
+  await threadStore.load('S')
+  const stop = threadStore.observe(f.t, 'S')
+  const sent = threadStore.send(f.t, 'S', 'dense from tab one')
+  await tick()
+  f.emit('S', { type: 'run_started', session_id: 'S', run_id: 'RA' })
+  f.emit('S', { type: 'run_content', session_id: 'S', run_id: 'RA', token: 'd0 ' })
+  // Tab two asks and gets its answer while tab one is still streaming.
+  remote!({ type: 'run_started', session_id: 'S', run_id: 'RB', client_turn_id: 'tab-two' })
+  remote!({ type: 'run_content', session_id: 'S', run_id: 'RB', token: 'You said: hello', client_turn_id: 'tab-two' })
+  remote!({ type: 'run_completed', session_id: 'S', run_id: 'RB', content: 'You said: hello', client_turn_id: 'tab-two' })
+  persisted.push(
+    { role: 'user', content: 'dense from tab one' },
+    { role: 'user', content: 'hello from tab two' },
+    { role: 'assistant', content: 'You said: hello' },
+    { role: 'assistant', content: 'd0 d1' },
+  )
+  f.emit('S', { type: 'run_completed', session_id: 'S', run_id: 'RA', content: 'd0 d1' })
+  f.end('S')
+  await sent
+  for (let i = 0; i < 6; i++) await tick()
+  const shown = threadStore.get('S').messages.map((m) => `${m.role}:${textOf(m)}`)
+  assert.deepEqual(shown, [
+    'user:dense from tab one', 'user:hello from tab two', 'assistant:You said: hello', 'assistant:d0 d1',
+  ])
+  stop()
+})
+
 test('loadEarlier pages back through history', async () => {
   const pages: Record<string, unknown> = {
     'http://test/api/chat/history/S': { messages: [{ role: 'user', content: 'turn 36' }], start: 72, has_more: true },

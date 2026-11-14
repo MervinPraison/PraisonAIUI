@@ -74,9 +74,17 @@ interface Entry {
   abort: AbortController | null
   turn: Turn | null
   remote: RemoteRun | null
+  /**
+   * Another tab asked a question in this session while this tab's own turn
+   * owned the thread tail: its question was never shown here, so the thread
+   * is reloaded (in saved order) once the own turn ends.
+   */
+  remoteDuringTurn?: boolean
 }
 
 export const RECONNECT_WATCHDOG_MS = 60_000
+/** The terminal event goes out just before the server saves the reply: give the save a moment. */
+export const SETTLE_RELOAD_MS = 300
 
 function lastIndex<T>(a: readonly T[], f: (x: T) => boolean): number {
   for (let i = a.length - 1; i >= 0; i--) if (f(a[i])) return i
@@ -139,6 +147,7 @@ const entries = new Map<string, Entry>()
 let connection: ConnectionStatus | undefined
 let historyUrlFor = (sid: string) => `/api/chat/history/${encodeURIComponent(sid)}`
 let watchdogMs = RECONNECT_WATCHDOG_MS
+let settleReloadMs = SETTLE_RELOAD_MS
 const settledFns = new Set<(sid: string) => void>()
 const reconnectBindings = new WeakMap<AiuiTransport, () => void>()
 
@@ -250,6 +259,19 @@ function interrupt(sid: string, turn: Turn) {
   endTurn(sid, turn)
 }
 
+/** After the own turn: reload the thread if another tab's run went by meanwhile (R7). */
+function reloadIfRemoteSeen(sid: string) {
+  const e = entries.get(sid)
+  if (!e?.remoteDuringTurn) return
+  e.remoteDuringTurn = false
+  setTimeout(() => {
+    const cur = entries.get(sid)
+    if (cur !== e || cur.turn) return // dropped, or a new turn owns the tail again
+    threadStore.invalidate(sid)
+    void threadStore.load(sid)
+  }, settleReloadMs)
+}
+
 function endTurn(sid: string, turn: Turn) {
   const e = entries.get(sid)
   if (!e || e.turn !== turn) return
@@ -265,6 +287,7 @@ function endTurn(sid: string, turn: Turn) {
   })
   set(sid, { isRunning: false, reconnecting: false }, true)
   for (const fn of [...settledFns]) fn(sid)
+  reloadIfRemoteSeen(sid)
 }
 
 function handleEvent(sid: string, turn: Turn, ev: WireEvent) {
@@ -469,6 +492,7 @@ function handleRemoteEvent(sid: string, ev: WireEvent) {
   const runId = str(ev.run_id)
   const ctid = str(ev.client_turn_id)
   if (!runId || isLocalRun(e, runId, ctid)) return
+  if (e.turn) e.remoteDuringTurn = true
   if (!e.remote || e.remote.runId !== runId) {
     if (TERMINAL.has(ev.type)) {
       threadStore.invalidate(sid)
@@ -505,9 +529,10 @@ export const threadStore = {
   /** Deliver any batched notifications now (tests, and before reading the DOM). */
   flush,
 
-  configure(opts: { historyUrl?: (sid: string) => string; watchdogMs?: number }) {
+  configure(opts: { historyUrl?: (sid: string) => string; watchdogMs?: number; settleReloadMs?: number }) {
     if (opts.historyUrl) historyUrlFor = opts.historyUrl
     if (opts.watchdogMs !== undefined) watchdogMs = opts.watchdogMs
+    if (opts.settleReloadMs !== undefined) settleReloadMs = opts.settleReloadMs
   },
 
   /** Publish the live transport's state into every thread's signals.connection. */
@@ -668,6 +693,7 @@ export const threadStore = {
     )
     set(sid, { isRunning: false, reconnecting: false }, true)
     for (const fn of [...settledFns]) fn(sid)
+    reloadIfRemoteSeen(sid)
     await (turn?.transport ?? transport).cancel(sid, runId)
   },
 
