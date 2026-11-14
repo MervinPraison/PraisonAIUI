@@ -703,6 +703,37 @@ def set_pages(page_ids: list[str]) -> None:
     _enabled_pages = set(page_ids)
 
 
+def _config_page_whitelist(builtin_pages: list[dict]) -> Optional[set[str]]:
+    """The built-in page whitelist from config.yaml ``pages:``, or None.
+
+    ``pages.enabled: [chat, logs]`` shows only those built-ins;
+    ``pages.disabled: [usage]`` shows every built-in except those.
+    """
+    try:
+        from praisonaiui.config_store import get_config_store
+    except ImportError:
+        return None
+    try:
+        cfg = get_config_store()
+        pages_cfg = (cfg.get_section("pages") if cfg else None) or {}
+    except Exception as exc:  # noqa: BLE001 - a bad config must not stop the server
+        logging.getLogger(__name__).warning("config.yaml pages: could not be read: %s", exc)
+        return None
+    if not isinstance(pages_cfg, dict):
+        logging.getLogger(__name__).warning(
+            "config.yaml pages: must be a mapping with enabled/disabled lists; ignored"
+        )
+        return None
+    enabled = pages_cfg.get("enabled")
+    disabled = pages_cfg.get("disabled")
+    if enabled and isinstance(enabled, list):
+        return {str(p) for p in enabled}
+    if disabled and isinstance(disabled, list):
+        hidden = {str(p) for p in disabled}
+        return {p["id"] for p in builtin_pages if p["id"] not in hidden}
+    return None
+
+
 def remove_page(page_id: str) -> None:
     """Remove a page from the sidebar by its ID.
 
@@ -4280,36 +4311,31 @@ def create_app(
         logging.getLogger(__name__).warning(
             "extensions.disabled names %r, but no such built-in exists", _unknown
         )
-    # A built-in page added by an earlier create_app() in this process must
-    # not outlive the policy that now disables it. App pages are kept.
     _contributed = {p["id"] for p in _builtin_pages}
-    for _pid in _builtin_page_ids - _contributed:
-        if _pid not in _custom_page_ids:
+
+    # Page whitelist: set_pages() wins; otherwise config.yaml ``pages:``
+    # (``enabled`` lists the built-ins to show, ``disabled`` hides some).
+    # Re-read on every create_app() so it never outlives its config. This
+    # only hides pages; the feature's API routes stay mounted.
+    _page_whitelist = _enabled_pages
+    if _page_whitelist is None:
+        _page_whitelist = _config_page_whitelist(_builtin_pages)
+
+    # A built-in page added by an earlier create_app() in this process must
+    # not outlive the policy that now disables or hides it. App pages are kept.
+    for _pid in list(_builtin_page_ids):
+        if _pid in _custom_page_ids:
+            continue
+        if _pid not in _contributed or (
+            _page_whitelist is not None and _pid not in _page_whitelist
+        ):
             _pages.pop(_pid, None)
-
-    # Read page whitelist from config.yaml if set_pages() was not called
-    if _enabled_pages is None:
-        try:
-            from praisonaiui.config_store import get_config_store
-
-            _cfg = get_config_store()
-            _pages_cfg = _cfg.get("pages", {}) if _cfg else {}
-            if isinstance(_pages_cfg, dict):
-                _enabled_list = _pages_cfg.get("enabled")
-                _disabled_list = _pages_cfg.get("disabled")
-                if _enabled_list and isinstance(_enabled_list, list):
-                    set_pages(_enabled_list)
-                elif _disabled_list and isinstance(_disabled_list, list):
-                    # Blacklist: all pages except disabled ones
-                    set_pages([p["id"] for p in _builtin_pages if p["id"] not in _disabled_list])
-        except (ImportError, Exception):
-            pass
 
     for p in _builtin_pages:
         if p["id"] in _pages:  # user already overrode this page
             continue
         # If whitelist is set, skip pages not in the whitelist
-        if _enabled_pages is not None and p["id"] not in _enabled_pages:
+        if _page_whitelist is not None and p["id"] not in _page_whitelist:
             continue
         _pages[p["id"]] = p
     _builtin_page_ids.clear()

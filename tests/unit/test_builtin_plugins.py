@@ -652,3 +652,40 @@ def test_no_builtin_feature_route_is_shadowed():
             ):
                 clashes.append((n1, r1.path, n2, r2.path))
     assert clashes == []
+
+
+# ── config.yaml pages.enabled / pages.disabled (page-level hide) ─────
+
+
+def _write_data_config(data_dir, text: str) -> None:
+    (data_dir / "config.yaml").write_text(text, encoding="utf-8")
+    config_store._config_store = None
+
+
+def test_config_yaml_pages_disabled_hides_the_page_but_keeps_its_api(_isolated):
+    _write_data_config(_isolated, "pages:\n  disabled: [usage]\n")
+    client = _client()
+    assert "usage" not in {p["id"] for p in _api_pages(client)}
+    assert "usage" not in {p["id"] for p in _manifest_pages(client)}
+    assert "chat" in {p["id"] for p in _api_pages(client)}
+    assert client.get("/api/usage").status_code == 200  # page-level hide only
+
+
+def test_config_yaml_pages_enabled_lists_only_those_builtins(_isolated):
+    _write_data_config(_isolated, "pages:\n  enabled: [chat, logs]\n")
+    client = _client()
+    assert sorted(p["id"] for p in _builtin_only(_api_pages(client))) == ["chat", "logs"]
+
+
+def test_set_pages_wins_over_config_yaml_pages(_isolated):
+    _write_data_config(_isolated, "pages:\n  enabled: [chat, logs]\n")
+    aiui.set_pages(["chat", "usage"])
+    client = _client()
+    assert sorted(p["id"] for p in _builtin_only(_api_pages(client))) == ["chat", "usage"]
+
+
+def test_config_yaml_pages_does_not_outlive_its_config(_isolated):
+    _write_data_config(_isolated, "pages:\n  disabled: [usage]\n")
+    assert "usage" not in {p["id"] for p in _api_pages(_client())}
+    _write_data_config(_isolated, "server:\n  port: 8000\n")
+    assert "usage" in {p["id"] for p in _api_pages(_client())}
