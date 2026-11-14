@@ -668,3 +668,186 @@ def test_feature_observes_chat_once_however_often_it_is_built():
     RunLedgerFeature()
     RunLedgerFeature()
     assert chat_mod._event_observers == [_ledger().observe]
+
+
+# ── the catalog records and their layout gating ──────────────────────
+
+
+def _records() -> Dict[str, Any]:
+    from praisonaiui.builtin import BUILTIN_PLUGINS
+
+    return {p.name: p for p in BUILTIN_PLUGINS if p.name in ("artifacts", "run-ledger")}
+
+
+def test_layout_data_records_name_their_layouts_and_features():
+    from praisonaiui.builtin import BUILTIN_PLUGINS
+    from praisonaiui.features.artifacts import ArtifactsFeature
+    from praisonaiui.features.run_ledger import RunLedgerFeature
+
+    recs = _records()
+    assert list(recs) == ["artifacts", "run-ledger"]
+    assert [p.name for p in BUILTIN_PLUGINS[-2:]] == ["artifacts", "run-ledger"]  # appended last
+    art, ledger = recs["artifacts"], recs["run-ledger"]
+    assert art.for_layouts == ("chat-canvas",)
+    assert ledger.for_layouts == ("command", "mission")
+    assert [r.load() for r in art.feature_refs] == [ArtifactsFeature]
+    assert [r.load() for r in ledger.feature_refs] == [RunLedgerFeature]
+    assert not art.required and not ledger.required
+    # No page yet: the shell-only artifacts page comes with the React page
+    # that renders it (track A); until then /artifacts would show raw JSON.
+    assert art.pages() == [] and art.shell_pages() == []
+    assert ledger.pages() == [] and ledger.shell_pages() == []
+
+
+def test_the_records_add_no_page_to_the_shell_manifest_or_the_page_table():
+    import praisonaiui.server as srv
+
+    srv.reset_state()
+    try:
+        client = _app_client()
+        assert client.get("/api/artifacts").status_code == 200  # mounted under style app
+        sources = {p["source"] for p in client.get("/api/shell/manifest").json()["pages"]}
+        assert not sources & {"builtin.artifacts", "builtin.run-ledger"}
+        assert "artifacts" not in {p["id"] for p in client.get("/api/pages").json()["pages"]}
+    finally:
+        srv.reset_state()
+
+
+def test_layout_data_routes_never_shadow_another_feature():
+    """Same rule as test_builtin_plugins: no route of these features can match
+    a path another built-in feature serves, either way round."""
+    import re
+
+    from praisonaiui.features import auto_register_defaults, get_features
+    from praisonaiui.features.artifacts import ArtifactsFeature
+    from praisonaiui.features.run_ledger import RunLedgerFeature
+
+    auto_register_defaults()
+    others = [
+        r for name, f in get_features().items()
+        if name not in ("artifacts", "run_ledger") for r in f.routes() if hasattr(r, "path_regex")
+    ]  # fmt: skip
+    mine = [*ArtifactsFeature().routes(), *RunLedgerFeature().routes()]
+
+    def concrete(path: str) -> str:
+        return re.sub(r"\{[^}]+\}", "x", path)
+
+    clashes = [
+        (a.path, b.path)
+        for a in mine
+        for b in others
+        if (getattr(a, "methods", None) or set()) & (getattr(b, "methods", None) or set())
+        and (a.path_regex.match(concrete(b.path)) or b.path_regex.match(concrete(a.path)))
+    ]
+    assert len(others) > 200 and clashes == []
+
+
+def _probe(code: str) -> str:
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    import praisonaiui
+
+    env = {**os.environ, "AIUI_DISABLE_PLUGIN_AUTOLOAD": "1",
+           "PYTHONPATH": str(Path(praisonaiui.__file__).parents[1])}  # fmt: skip
+    env.pop("AIUI_SHELL", None)
+    env.pop("AIUI_LAYOUT", None)
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env, timeout=120)
+    assert out.returncode == 0, out.stderr[-2000:]
+    return out.stdout.strip().splitlines()[-1]
+
+
+_LOADED = (
+    "import sys; print(sorted(m for m in ('praisonaiui.features.artifacts',"
+    " 'praisonaiui.features.run_ledger') if m in sys.modules))"
+)
+
+
+def test_import_and_the_default_app_never_import_the_layout_data_modules(tmp_path):
+    assert _probe("import praisonaiui; " + _LOADED) == "[]"
+    code = (
+        "import os; os.environ['AIUI_DATA_DIR'] = %r\n"
+        "import praisonaiui.server as s; s.create_app(); " % str(tmp_path)
+    ) + _LOADED
+    assert _probe(code) == "[]"  # style dashboard: no layout needs them
+
+
+def test_gated_off_by_default_and_mounted_when_enabled_explicitly(monkeypatch, tmp_path):
+    from starlette.testclient import TestClient
+
+    import praisonaiui.server as srv
+    from praisonaiui.plugin_registry import set_extensions
+
+    srv.reset_state()
+    try:
+        client = TestClient(srv.create_app())
+        assert client.get("/api/runs").status_code == 404
+        assert client.get("/api/artifacts").status_code == 404
+        set_extensions(enabled=["builtin.run-ledger", "builtin.artifacts"])
+        client = TestClient(srv.create_app())
+        assert client.get("/api/runs").status_code == 200
+        assert client.get("/api/artifacts").status_code == 200
+        pages = {p["id"] for p in client.get("/api/pages").json()["pages"]}
+        assert "artifacts" not in pages  # shell-only: never on the dashboard
+    finally:
+        srv.reset_state()
+
+
+def _app_client(**cfg):
+    from starlette.testclient import TestClient
+
+    import praisonaiui.server as srv
+
+    srv.set_style("app")
+    return TestClient(srv.create_app(config=cfg or None))
+
+
+def _mounted(client) -> Dict[str, Any]:
+    rows = {r["name"]: r for r in client.get("/api/plugins?origin=builtin").json()["plugins"]}
+    return {
+        "artifacts": client.get("/api/artifacts").status_code,
+        "runs": client.get("/api/runs").status_code,
+        "artifacts_status": (rows["builtin.artifacts"]["status"], rows["builtin.artifacts"].get("reason")),
+        "ledger_status": (rows["builtin.run-ledger"]["status"], rows["builtin.run-ledger"].get("reason")),
+    }
+
+
+@pytest.mark.parametrize(
+    "available, artifacts, runs",
+    [
+        (None, 200, 200),  # style app: every layout is on offer
+        (["chat-canvas"], 200, 404),
+        (["mission"], 404, 200),
+        (["workbench", "guided"], 404, 404),
+    ],
+)
+def test_each_record_mounts_only_while_a_layout_it_serves_is_on_offer(monkeypatch, available, artifacts, runs):
+    import praisonaiui as aiui
+    import praisonaiui.server as srv
+
+    monkeypatch.delenv("AIUI_LAYOUT", raising=False)
+    srv.reset_state()
+    try:
+        if available is not None:
+            aiui.set_layout(available=available)
+        m = _mounted(_app_client())
+        assert (m["artifacts"], m["runs"]) == (artifacts, runs)
+        off = ("disabled", "no layout needs it")
+        assert m["artifacts_status"] == (("ok", None) if artifacts == 200 else off)
+        assert m["ledger_status"] == (("ok", None) if runs == 200 else off)
+    finally:
+        srv.reset_state()
+
+
+def test_extensions_disabled_wins_over_a_layout_that_needs_them():
+    import praisonaiui.server as srv
+
+    srv.reset_state()
+    try:
+        m = _mounted(_app_client(extensions={"disabled": ["builtin.artifacts", "builtin.run-ledger"]}))
+        assert (m["artifacts"], m["runs"]) == (404, 404)
+        assert m["artifacts_status"] == m["ledger_status"] == ("disabled", None)
+    finally:
+        srv.reset_state()

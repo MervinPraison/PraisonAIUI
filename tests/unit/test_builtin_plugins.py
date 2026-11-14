@@ -105,7 +105,13 @@ def test_records_are_trusted_first_party_and_separate_from_third_party():
     recs = reg.builtin_records()
     assert [r.name for r in recs] == [f"builtin.{p.name}" for p in BUILTIN_PLUGINS]
     assert {r.origin for r in recs} == {"builtin"}
-    assert {r.status for r in recs} == {"ok"}
+    # A record that only serves layouts (``for_layouts``) is off until one of
+    # them is on offer; outside style app none is. Every other record is on.
+    assert {r.name: (r.status, r.reason) for r in recs} == {
+        f"builtin.{p.name}": ("disabled", "no layout needs it") if p.for_layouts else ("ok", None)
+        for p in BUILTIN_PLUGINS
+    }
+    assert any(p.for_layouts for p in BUILTIN_PLUGINS)
     assert not any(r.autoloaded for r in recs)  # trusted, like register_plugin()
     assert all(r.version == aiui.__version__ and r.dist == "praisonaiui" for r in recs)
     # Third-party-facing queries are unchanged: no built-in leaks into them.
@@ -232,7 +238,11 @@ def test_api_plugins_can_list_builtins_on_request():
     client = _client()
     listed = client.get("/api/plugins?origin=builtin").json()["plugins"]
     assert [p["name"] for p in listed] == [f"builtin.{p.name}" for p in BUILTIN_PLUGINS]
-    assert {p["origin"] for p in listed} == {"builtin"} and {p["status"] for p in listed} == {"ok"}
+    assert {p["origin"] for p in listed} == {"builtin"}
+    gated = {f"builtin.{p.name}" for p in BUILTIN_PLUGINS if p.for_layouts}
+    assert {p["name"]: (p["status"], p.get("reason")) for p in listed} == {
+        p["name"]: ("disabled", "no layout needs it") if p["name"] in gated else ("ok", None) for p in listed
+    }
     assert client.get("/api/plugins?origin=all").json()["plugins"] == listed
 
 
@@ -540,6 +550,10 @@ def test_every_feature_class_belongs_to_exactly_one_builtin():
         (r.module, r.cls) for p in BUILTIN_PLUGINS for r in p.feature_refs if r.cls not in LAYOUT_GATED
     ]
     assert len(declared) == len(set(declared)) == len(DEFAULT_FEATURES)
+    # Each layout-gated class belongs to exactly one record, and it gates.
+    gated = [(r.cls, p) for p in BUILTIN_PLUGINS for r in p.feature_refs if r.cls in LAYOUT_GATED]
+    assert sorted(c for c, _ in gated) == sorted(LAYOUT_GATED)
+    assert all(p.for_layouts for _, p in gated)
     in_package = set()
     for path in FEATURES_DIR.glob("*.py"):
         for cls in re.findall(r"^class (\w+)\(BaseFeatureProtocol\)", path.read_text("utf-8"), re.M):

@@ -1,0 +1,9 @@
+[
+ ["Route", "/api/artifacts", ["GET", "HEAD"]],
+ ["Route", "/api/artifacts/{session_id}", ["DELETE", "GET", "HEAD"]],
+ ["Route", "/api/artifacts/{session_id}/{key:path}", ["DELETE", "PUT"]],
+ ["Route", "/api/runs", ["GET", "HEAD"]],
+ ["Route", "/api/runs/agents", ["GET", "HEAD"]],
+ ["Route", "/api/runs/kpis", ["GET", "HEAD"]],
+ ["Route", "/api/runs/{run_id}", ["GET", "HEAD"]]
+]
