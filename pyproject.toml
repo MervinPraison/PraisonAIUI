@@ -199,3 +199,10 @@ warn_unused_ignores = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --cov=praisonaiui --cov-report=term-missing"
+# Safety net: a test that stalls (e.g. on a socket) fails instead of hanging
+# the whole run. Needs pytest-timeout (a dev dependency).
+timeout = 300
+markers = [
+    "live: calls a real LLM provider over the network; skipped unless PRAISONAI_LIVE_TESTS=1 (or AIUI_LIVE_LLM=1)",
+    "slow: long-running test (multi-step agent runs)",
+]
