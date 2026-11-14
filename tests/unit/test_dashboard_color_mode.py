@@ -172,6 +172,9 @@ LIVE = {
     "live-set-theme-os-light": ({}, False),
     "live-set-theme-dark-os-light": ({"dark_mode": True}, False),
     "live-set-theme-light-os-dark": ({"dark_mode": False}, True),
+    # set_theme(dark_mode=None): a preset and radius, the mode left open.
+    "live-set-theme-no-mode-os-light": ({"preset": "blue", "dark_mode": None}, False),
+    "live-set-theme-no-mode-os-dark": ({"preset": "blue", "dark_mode": None}, True),
 }
 
 
@@ -267,6 +270,8 @@ DARK = {"attr": "dark", "dark": True}
         ("live-set-theme-os-light", DARK),
         ("live-set-theme-dark-os-light", DARK),
         ("live-set-theme-light-os-dark", LIGHT),
+        ("live-set-theme-no-mode-os-light", LIGHT),
+        ("live-set-theme-no-mode-os-dark", DARK),
     ],
 )
 def test_resolution_order(run, case, expected):
@@ -298,6 +303,10 @@ def test_ui_config_reports_the_app_default_mode(tmp_path):
     light = _live_site(tmp_path, {"dark_mode": False})
     assert light["themeDefault"] == "light"
     assert light["theme"] == {"preset": "zinc", "darkMode": False, "radius": "md", "mode": "light"}
+    # set_theme(dark_mode=None) sets the preset and radius only.
+    open_mode = _live_site(tmp_path, {"preset": "blue", "radius": "lg", "dark_mode": None})
+    assert open_mode["themeDefault"] == "system"
+    assert open_mode["theme"] == {"preset": "blue", "radius": "lg", "mode": "system"}
 
 
 def test_no_value_guessing():

@@ -39,7 +39,15 @@ import praisonaiui as aiui
 
 # Set the color palette, dark mode, and corner roundness
 aiui.set_theme(preset="blue", dark_mode=True, radius="lg")
+
+# A palette and radius only: the viewer's choice (or the OS) picks light or dark
+aiui.set_theme(preset="blue", dark_mode=None, radius="lg")
 ```
+
+`dark_mode=True` or `False` fixes the app's default mode. With `dark_mode=None`, or
+without `set_theme()`, YAML `site.theme` (`mode: light|dark|system` or `darkMode`)
+decides, and without that the UI follows the viewer's stored choice
+(`aiui-theme-preference`), then the OS.
 
 ### Branding (title and logo)
 
