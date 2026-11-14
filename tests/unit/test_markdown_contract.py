@@ -96,7 +96,9 @@ class TestSecurity:
             assert "defaultRehypePlugins.raw" in block
             assert "sanitizePlugin" in block
             assert "defaultRehypePlugins.harden" in block
-        assert "rehypePlugins={isDocs ? DOCS_REHYPE : CHAT_REHYPE}" in source
+        # Each variant's list, plus the per-instance footnote-label prefix step.
+        assert "[...(isDocs ? DOCS_REHYPE : CHAT_REHYPE)!, [rehypeFootnoteLabel, idPrefix]]" in source
+        assert "rehypePlugins={rehypePlugins}" in source
         assert "allowedTags" not in source.split("*/", 1)[1]  # only mentioned in the header comment
 
     def test_chat_image_gate_runs_after_sanitize(self):
