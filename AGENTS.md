@@ -129,6 +129,7 @@ The rules for each are in `ARCHITECTURE.md`. Pick the row first, then read that 
 |---|---|---|---|
 | Add a page from Python | `@aiui.page(...)` (`callbacks.py`) or `aiui.register_page(...)` (`server.py`) | app code | No |
 | Add a React page as a plugin | `registerPage` from `@aiui/sdk`, shipped by a `praisonaiui.plugins` entry-point package | `docs/features/plugins.md`, `examples/plugins/aiui-hello-plugin` | No (the plugin ships its own built JS) |
+| Add a plugin settings section, nav group or theme preset | plugin hooks `settings()` / `nav_groups()` / `themes()`, or `registerSettingsSection` / `registerNavGroup` / `registerThemePreset` from `@aiui/sdk` | `docs/features/plugins.md` | No |
 | Add a first-party page or feature | a record in `src/praisonaiui/builtin/catalog.py` (+ `src/frontend/src/builtin` for React code) | ARCHITECTURE R2 | Only for React code |
 | Add backend routes | a feature module in `src/praisonaiui/features/` or a plugin's `routes`/`features` hook; never new `create_app` params (R11) | `features/__init__.py` | No |
 | Inject custom JS/CSS | `aiui.set_custom_js(path)`, `aiui.set_custom_css(css)` | app code | No |

@@ -32,7 +32,7 @@ Markdown. Pages and features extend through one plugin model: Python records
 
 | Layer | Paths | Owns |
 |---|---|---|
-| **Core, browser** | `src/frontend/src/shell/`, `src/frontend/src/sdk/`, `main.tsx` | Boot split, router, sidebar, header, command palette, slot hosts, registries (`sdk/registry.ts`), manifest contract (`sdk/manifest.ts`), plugin loader (`sdk/loadPlugins.ts`), shell services (`sdk/services.ts`, `sdk/notify.ts`) |
+| **Core, browser** | `src/frontend/src/shell/`, `src/frontend/src/sdk/`, `main.tsx` | Boot split, router, sidebar, header, command palette, slot hosts, registries (`sdk/registry.ts`), plugin contributions: settings sections, nav groups, theme presets (`sdk/contributions.ts`), manifest contract (`sdk/manifest.ts`), plugin loader (`sdk/loadPlugins.ts`), shell services (`sdk/services.ts`, `sdk/notify.ts`) |
 | **Core, Python** | `server.py` (`create_app`, `_build_html`, `_build_shell_manifest`, externals shims), `plugin_registry.py` (`PluginRegistry`, `ExtensionPolicy`, `SDK_API_VERSION = 1`), `features/__init__.py` (feature registry), `http_guard.py`, `auth.py` | HTTP host, auth, manifest, plugin discovery and policy |
 | **First-party plugins** | `src/frontend/src/builtin/` (`BUILTIN_PLUGINS`: `builtin.chat`, `builtin.approvals`); `src/praisonaiui/builtin/catalog.py` (46 `BuiltinPlugin` records, 38 pages, 44 feature refs) | Every page and feature that ships with aiui |
 | **Engines** (libraries the plugins use) | `chat-engine/` (protocol reducer, store, transports, `useAiuiRuntime`, Thread), `markdown/` (`<Markdown>` on Streamdown), `blocks/` (BlockPage, core blocks), `legacy/` (`LegacyViewHost`, `runtime.ts`, `bridge.css`) | Reusable rendering and protocol code; never imported by the core |
@@ -110,10 +110,10 @@ APIs below. Legacy adapters keep working (R7) but get no new capabilities.
 
 | Kind | Supported (new code) | Legacy adapters (keep, do not extend) |
 |---|---|---|
-| Python page, feature, route, static, CLI | plugin object: entry point `praisonaiui.plugins` or `aiui.register_plugin(obj)`; hooks `pages() blocks() tool_renderers() routes() static_dir() features() cli_commands() setup(ctx)`; first-party: `builtin/catalog.py` | `aiui.register_page()` / `@aiui.page`, `register_page_action`, `register_feature()`, dashboard-plugin folders (`manifest.json`) |
-| Browser page, block, tool renderer, slot, command | `@aiui/sdk`: `registerPage`, `registerBlock`, `registerToolRenderer`, `registerSlot(slot, C, {id, order})`, `registerCommand`, `onActivate`; first-party: `src/builtin` | `registerView` / `custom.js` (`set_custom_js`), legacy `plugins/views/*.js` |
+| Python page, feature, route, static, CLI | plugin object: entry point `praisonaiui.plugins` or `aiui.register_plugin(obj)`; hooks `pages() blocks() tool_renderers() routes() static_dir() features() cli_commands() settings() nav_groups() themes() setup(ctx)`; first-party: `builtin/catalog.py` | `aiui.register_page()` / `@aiui.page`, `register_page_action`, `register_feature()`, dashboard-plugin folders (`manifest.json`) |
+| Browser page, block, tool renderer, slot, command, settings section, nav group, theme preset | `@aiui/sdk`: `registerPage`, `registerBlock`, `registerToolRenderer`, `registerSlot(slot, C, {id, order})`, `registerCommand`, `registerSettingsSection`, `registerNavGroup`, `registerThemePreset`, `onActivate`; first-party: `src/builtin` | `registerView` / `custom.js` (`set_custom_js`), legacy `plugins/views/*.js` |
 | Visibility | `extensions.enabled/disabled` (`ExtensionPolicy`) | `set_pages`, `remove_page`, `pages.enabled/disabled` |
-| Theme | seeds: `get_seed_theme_css`, tokens in `styles/theme.css` | `set_theme`, `set_brand_color`, `register_theme`, `set_custom_css` HSL triples |
+| Theme | seeds: `get_seed_theme_css`, tokens in `styles/theme.css`; plugin presets of seed tokens (`themes()` / `registerThemePreset`) | `set_theme`, `set_brand_color`, `register_theme`, `set_custom_css` HSL triples |
 
 Note: there are three unrelated things called "plugins": UI plugins
 (`plugin_registry.py`), dashboard plugins (`dashboard_plugins.py`) and docs
@@ -136,7 +136,7 @@ built-in commands never import plugins.
 `test_disabled_builtin_does_not_import_its_feature_module`), `e2e/specs/plugins.spec.ts`.
 
 **R5. The SDK surface is `SDK_EXPORTS`.** The `@aiui/sdk` module exports exactly
-the names in `SDK_EXPORTS` (`src/frontend/src/sdk/manifest.ts`, 24 names today).
+the names in `SDK_EXPORTS` (`src/frontend/src/sdk/manifest.ts`, 27 names today).
 Changes are additive under `SDK_VERSION = 1` / `SDK_API_VERSION = 1`: append a
 name and a capability string to `SDK_FEATURES` (append-only). Removing or
 changing a name, a signature or the manifest shape (`ShellManifest`, "FROZEN
@@ -332,7 +332,7 @@ gap; if you touch one, leave it smaller.**
 | G9 | About 15 registration paths; `register_page` and dashboard-plugin folders are not plugin records | R3: new code uses the supported column only |
 | G10 | A plugin can take a built-in id or feature name once that built-in is disabled (tested); while both are enabled the built-in wins, and app/dashboard-plugin adapters follow their own precedence | Replace a built-in by disabling it, not by a new override flag |
 | G11 | The legacy view list is hardcoded in `dashboard.js`; manifest `module` for legacy pages is **(planned)** | Do not add views to the map for app-shell-only needs |
-| G13 | `AiuiPlugin` has no hooks for settings, theme, nav groups, middleware or icons | Add a hook only with a live consumer, in the PR that needs it |
+| G13 | Narrowed: settings sections, nav groups and theme presets are closed (`settings()`, `nav_groups()`, `themes()` and `registerSettingsSection`, `registerNavGroup`, `registerThemePreset`; the example plugin uses all three). Open: `AiuiPlugin` has no hooks for middleware or icons | Add a hook only with a live consumer, in the PR that needs it |
 
 Other known issues on `main` (not regressions to block on, but do not copy):
 
