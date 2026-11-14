@@ -44,6 +44,15 @@ function getSharedTransport(): AiuiTransport {
   return (sharedTransport ??= createAutoTransport())
 }
 
+/**
+ * The shell unmounts the page on every navigation. The open conversation and
+ * an unsent draft survive leaving and coming back to /chat (an explicit
+ * ?session= still wins); "New chat" clears them.
+ */
+let lastSessionId: string | null = null
+const drafts = new Map<string, string>()
+const draftKey = (sid: string | null) => sid ?? ''
+
 const RAIL_PREF_KEY = 'aiui-chat-rail-hidden'
 
 function readRailHidden(): boolean {
@@ -125,7 +134,7 @@ export interface ChatPageProps {
 export default function ChatPage({ page, transport: transportProp }: ChatPageProps): JSX.Element {
   const [transport] = useState(() => transportProp ?? getSharedTransport())
   const [initial] = useState(readUrlState)
-  const [sessionId, setSessionId] = useState<string | null>(initial.session)
+  const [sessionId, setSessionId] = useState<string | null>(() => initial.session ?? lastSessionId)
   const [agents, setAgents] = useState<ChatAgent[]>([])
   const [agent, setAgent] = useState('')
   const [starters, setStarters] = useState<AiuiStarter[] | undefined>(undefined)
@@ -201,6 +210,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
 
   // Mirror the selection into ?session= (and drop a consumed ?agent=).
   useEffect(() => {
+    lastSessionId = sessionId
     try {
       const url = new URL(window.location.href)
       if (sessionId) url.searchParams.set('session', sessionId)
@@ -238,6 +248,28 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
     // Servers that report it (site.feedbackEnabled); older ones are found out on the first 403.
     feedback: manifest?.site.feedbackEnabled !== false,
   })
+
+  // An unsent draft is kept when the page unmounts and put back when it
+  // returns (a prefill event, handled below, still wins).
+  const draftSession = useRef(sessionId)
+  useEffect(() => {
+    draftSession.current = sessionId
+  }, [sessionId])
+  useEffect(() => {
+    const key = draftKey(draftSession.current)
+    const saved = drafts.get(key)
+    drafts.delete(key)
+    if (saved) setComposerText(saved)
+    return () => {
+      let text = ''
+      try {
+        text = runtime.thread.composer.getState().text
+      } catch {
+        /* runtime already disposed */
+      }
+      if (text.trim()) drafts.set(draftKey(draftSession.current), text)
+    }
+  }, [runtime, setComposerText])
 
   // Window events from the shell and other pages.
   useEffect(() => {

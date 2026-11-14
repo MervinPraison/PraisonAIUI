@@ -536,6 +536,22 @@ test('with the socket blocked the badge says "Using HTTP", and a second message 
   expect(Date.now() - t0, 'no 3 s socket probe before the second turn').toBeLessThan(2_500)
 })
 
+test('leaving /chat and coming back keeps the conversation and the unsent draft', async ({ page }) => {
+  await openChat(page, 'ws')
+  await send(page, 'plain come back')
+  await waitForRunEnd(page)
+  await expect(page).toHaveURL(/[?&]session=/)
+  await composer(page).fill('half-written follow-up')
+  const pages = page.getByRole('navigation', { name: 'Pages' })
+  await pages.getByRole('link').filter({ hasNotText: /^Chat$/ }).first().click()
+  await expect(composer(page)).toHaveCount(0)
+  await pages.getByRole('link', { name: 'Chat', exact: true }).click()
+  await expect(page.locator('[data-chat-title]')).toHaveText(/plain come back/i)
+  await expect(assistant(page).last()).toContainText('You said: plain come back')
+  await expect(composer(page)).toHaveValue('half-written follow-up')
+  await expect(page).toHaveURL(/[?&]session=/)
+})
+
 test.describe('phone session rail', () => {
   test.use({ viewport: { width: 390, height: 800 } })
 
