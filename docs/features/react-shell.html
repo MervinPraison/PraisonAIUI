@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="The app shell is a React interface for the PraisonAIUI dashboard: a sidebar," />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>React App Shell (`style: app`) | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js?v=c42c334eb5"></script>
+  <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
+  <link rel="stylesheet" crossorigin href="/assets/index.css?v=a4fe8b9223">
+  <link rel="canonical" href="https://ui.praison.ai/docs/features/react-shell" />
+  <meta property="og:title" content="React App Shell (`style: app`) | PraisonAIUI Docs" />
+  <meta property="og:description" content="The app shell is a React interface for the PraisonAIUI dashboard: a sidebar," />
+  <meta property="og:url" content="https://ui.praison.ai/docs/features/react-shell" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="React App Shell (`style: app`) | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="The app shell is a React interface for the PraisonAIUI dashboard: a sidebar," />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "React App Shell (`style: app`)", "description": "The app shell is a React interface for the PraisonAIUI dashboard: a sidebar,", "url": "https://ui.praison.ai/docs/features/react-shell", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/adr">Adr</a></li><li><a href="https://ui.praison.ai/docs/adr/replay-view-clean-room">ADR 0001: PraisonAI Replay view, a clean-room design</a></li><li><a href="https://ui.praison.ai/docs/adr/react-app-shell-and-plugin-sdk">ADR 0002: One React app shell and a plugin SDK, migrated from the vanilla dashboard by strangler</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/bootstrap">Bootstrap Architecture</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/beautifului-integration">BeautifulUI Integration Strategy</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/plugins">UI Plugins</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/react-shell">React App Shell (`style: app`)</a></li><li><a href="https://ui.praison.ai/docs/features/replay">Replay</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/frontend">Frontend</a></li><li><a href="https://ui.praison.ai/docs/frontend/BEAUTIFULUI_UPSTREAM">BeautifulUI upstream pin record</a></li><li><a href="https://ui.praison.ai/docs/frontend/beautifului-adapter-architecture">ADR: BeautifulUI adapter layer &amp; upstream pin policy</a></li><li><a href="https://ui.praison.ai/docs/frontend/beautifului">BeautifulUI Upgrade Playbook</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/reports">Reports</a></li><li><a href="https://ui.praison.ai/docs/reports/ui-reset-">Ui Reset </a></li><li><a href="https://ui.praison.ai/docs/reports/ui-reset-/11">UI reset: project record (November 2026)</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>React App Shell (`style: app`)</h1>
+<p>The app shell is a React interface for the PraisonAIUI dashboard: a sidebar,</p>
+<p>a header with a command palette (⌘K / Ctrl+K), a React chat and a host that</p>
+<p>runs every existing dashboard page inside it. It is <strong>opt-in</strong> in this</p>
+<p>release. The default style is still <code>dashboard</code> (the vanilla-JS dashboard),</p>
+<p>and it renders exactly as it did in v0.3.153.</p>
+<h2>Turn it on</h2>
+<p>Any one of these:</p>
+<p>| Where | How |</p>
+<p>|---|---|</p>
+<p>| YAML config | <code>style: app</code> |</p>
+<p>| Python | <code>aiui.set_style("app")</code> before the server starts |</p>
+<p>| CLI | <code>aiui run app.py --style app</code> |</p>
+<p>| Environment | <code>AIUI_SHELL=app aiui run app.py</code> (alias: <code>AIUI_SHELL=react</code>) |</p>
+<p><code>AIUI_SHELL=app</code> only changes the <code>dashboard</code> style (explicit or default) into</p>
+<p><code>app</code>. Other styles (<code>chat</code>, <code>docs</code>, <code>agents</code>, <code>playground</code>, <code>custom</code>) are</p>
+<p>never rewritten.</p>
+<h3>Kill switch</h3>
+<p><code>AIUI_SHELL=legacy</code> turns <code>app</code> back into <code>dashboard</code>, whatever the config</p>
+<p>says. It is the documented way back once the default flips (see</p>
+<p>flip criteria).</p>
+<h2>What you get</h2>
+<li><strong>Every page you have today.</strong> A page is resolved in this order:</li>
+<p>1. a React page registered through the SDK (built-in ports such as chat, or</p>
+<p>a UI plugin page);</p>
+<p>2. a server-driven page (<code>register_page</code> with a handler, <code>@aiui.page</code>),</p>
+<p>rendered from its <code>_components</code> tree as blocks;</p>
+<p>3. otherwise the original dashboard view, mounted inside the shell.</p>
+<p>Nothing disappears: dashboard plugins (<code>kanban</code>, <code>sample-board</code>,</p>
+<p><code>video-studio</code>), <code>set_custom_js</code> and <code>custom.js</code> <code>registerView</code> pages keep</p>
+<p>working as hosted pages.</p>
+<li><strong>React chat</strong> over the WebSocket <code>/api/chat/ws</code> (streaming, tool calls,</li>
+<p>reasoning, inline approvals and questions, attachments, Stop, history).</p>
+<p>When the socket cannot open it falls back to Server-Sent Events (<code>POST /run</code>);</p>
+<p>on SSE an agent's question says that answering needs a live connection.</p>
+<li><strong>One markdown renderer</strong> (Streamdown) for chat and docs, with lazy code</li>
+<p>highlighting (28 languages), Mermaid and KaTeX. In chat, external links open</p>
+<p>in a new tab with <code>rel="noopener noreferrer nofollow"</code>, and remote images</p>
+<p>are shown as a click-to-load placeholder naming their host (same-origin,</p>
+<p><code>data:image/</code> and <code>blob:</code> images load directly).</p>
+<li><strong>Approval toasts.</strong> A new approval anywhere raises a toast with a</li>
+<p>"Review" button that opens the Approvals page. On the chat page the</p>
+<p>approval is shown in the thread instead.</p>
+<h2>Compatibility</h2>
+<p>| Existing API | <code>dashboard</code> (default) | <code>app</code> (opt-in) |</p>
+<p>|---|---|---|</p>
+<p>| <code>register_page</code> with a handler / <code>@aiui.page</code> | unchanged | server-driven blocks page |</p>
+<p>| <code>register_page</code> without a handler | unchanged | hosted <code>custom.js</code> <code>registerView</code> page |</p>
+<p>| <code>register_page_action</code> | unchanged | the page's action endpoint |</p>
+<p>| <code>set_pages</code>, <code>pages.enabled/disabled</code> | unchanged | applied |</p>
+<p>| <code>set_custom_js</code> | unchanged | injected; runs when the hosted runtime loads |</p>
+<p>| <code>set_custom_css</code> | unchanged | unchanged; HSL triples warn (see below) |</p>
+<p>| <code>set_theme</code>, <code>set_brand_color</code>, <code>register_theme</code> | unchanged | converted to theme seeds |</p>
+<p>| dashboard plugins | unchanged | hosted pages; <code>dashboard.plugins</code> allowlist honoured |</p>
+<p>| <code>chat</code>, <code>docs</code>, <code>agents</code>, <code>playground</code>, <code>custom</code> styles | same app, now lazy-loaded with the new markdown renderer and tokens | n/a |</p>
+<p>| <code>aiui build</code> static docs | same app; <code>index.js</code>/<code>index.css</code> get a <code>?v=</code> content hash | n/a |</p>
+<h2>Theme seeds (migration)</h2>
+<p>Colours now come from a small set of <strong>seeds</strong> (<code>--seed-accent</code>,</p>
+<p><code>--seed-ink</code>, <code>--seed-paper</code>, …). Everything else (<code>--background</code>,</p>
+<p><code>--primary</code>, sidebar and chart colours) is derived from them in CSS with</p>
+<p><code>color-mix()</code>, separately for light and dark. Python emits seeds only</p>
+<p>(<code>praisonaiui.themes.get_seed_theme_css(preset, radius, accent, density)</code>):</p>
+<li>neutral presets (<code>zinc</code>, <code>slate</code>, <code>stone</code>, <code>gray</code>, <code>neutral</code>) are</li>
+<p>monochrome: the accent follows the ink;</p>
+<li>colour presets (<code>rose</code>, <code>blue</code>, …) seed the accent from the 600 shade in</li>
+<p>light mode, and the button text colour is picked automatically for</p>
+<p>at least 4.5:1 contrast;</p>
+<li>radius presets are unchanged.</li>
+<p><code>get_theme_css()</code> is kept for API compatibility but the compiler no longer</p>
+<p>uses it. Runtime themes (<code>register_theme</code>, named presets) are converted to</p>
+<p>seeds in the browser.</p>
+<h3>Breaking change: bare HSL triples</h3>
+<p>Listed in the changelog for the release that ships the</p>
+<p>app shell.</p>
+<p>shadcn variables used to hold bare HSL triples that the stylesheet wrapped in</p>
+<p><code>hsl()</code>. They are now complete colours:</p>
+<p><code>aiui validate</code> warns (code 5001) when <code>site.custom_css</code> sets one of these</p>
+<p>variables to a bare triple. Custom CSS and runtime themes that still use</p>
+<p>triples are converted in the browser where possible, but update the CSS.</p>
+<h2>Caching and deploys</h2>
+<li>Code chunks are content-hashed (<code>assets/&lt;name&gt;-&lt;hash&gt;.js</code>) and served with</li>
+<p><code>Cache-Control: immutable</code>. <code>assets/index.js</code> and <code>assets/index.css</code> keep</p>
+<p>fixed names and are referenced as <code>?v=&lt;hash&gt;</code>, so a release never mixes an</p>
+<p>old entry with new chunks.</p>
+<li><code>aiui build</code> writes <code>index.html</code> (and every route page) with</li>
+<p><code>/assets/index.js?v=&lt;sha256[:10]&gt;</code> and the same for <code>index.css</code>, and copies</p>
+<p><code>aiui-manifest.json</code> next to it.</p>
+<li>The docs deploy keeps the previous build's chunks for one release</li>
+<p>(<code>src/frontend/scripts/carry-forward-assets.mjs</code>), so a reader with an</p>
+<p>old page open can still load its lazy parts.</p>
+<li>A stale chunk that does fail to load triggers one automatic reload.</li>
+<h2>Quality gates</h2>
+<p>| Gate | Command (in <code>src/frontend</code>) | Limit |</p>
+<p>|---|---|---|</p>
+<p>| Types | <code>npx tsc -b</code> | 0 errors |</p>
+<p>| Unit tests | <code>npm test</code>, <code>npm run test:scripts</code> | all pass |</p>
+<p>| Size (gzip) | <code>npm run size</code> | shell boot ≤ 150 kB, chat route ≤ 140 kB, /chat first-screen JS ≤ 250 kB, <code>index.css</code> ≤ 32 kB, Streamdown ≤ 147 kB (145 kB with <code>gzip -9</code>), shikiPlugin ≤ 55 kB, legacy App path ≤ 250 kB, all assets ≤ 9 MB uncompressed |</p>
+<p>| First screen stays light | <code>npm run check:closure</code> | no Streamdown, Shiki, Mermaid, KaTeX or assistant-ui in the static closure of the entry, the shell or the legacy App |</p>
+<p>| Committed bundle | <code>npm run check:bundle</code> | <code>templates/frontend</code> equals a fresh build (pull requests that touch the frontend only) |</p>
+<p>| Browser suites | <code>npm run test:e2e</code> | see <code>src/frontend/e2e/README.md</code> |</p>
+<p>The docs style preloads Streamdown before first paint (about 355 kB on that</p>
+<p>path). This is an accepted exception until docs pages are pre-rendered at</p>
+<p>build time.</p>
+<h2>When the default flips</h2>
+<p>The default stays <code>dashboard</code> until <strong>all</strong> of these hold. Status as of this</p>
+<p>release:</p>
+<p>| # | Criterion | Status |</p>
+<p>|---|---|---|</p>
+<p>| 1 | Every page renders in the shell with status ready, 0 page errors and 0 leak delta in the Playwright sweep | <strong>Not met.</strong> Every manifest page is ready (a page that prints a JSON error body, or whose own data endpoint fails, now counts as an error; the Inspector was one and is fixed), 0 page errors, no page grows per visit, and every page opens by URL. Three pages keep a one-time residue after their first visit that does not grow, each listed with its reason in the sweep's <code>FIRST_VISIT_ALLOWANCE</code> (any other or larger residue fails): <code>chat</code> (13 window listeners and the composer's hidden measuring textarea), <code>chat-canvas</code> (one window listener) and <code>code-studio</code> (Monaco's interval, listener and two body nodes) |</p>
+<p>| 2 | Chat parity complete | <strong>Not met.</strong> Done: streaming, tools, reasoning, approvals, ask, attachments, Stop, history, feedback, session rail, reconnect. Missing: message queue, channel messages with unread dots, context ring and compaction banner, cost chip, memory panel, floating and focus modes |</p>
+<p>| 3 | Light mode correct on every page; owner signs off the light and dark screenshots | <strong>Not met.</strong> Awaiting owner review |</p>
+<p>| 4 | Gates green: size, bundle-sync, entry closure, screenshots, pytest, tsc | <strong>Partly.</strong> All run green locally; screenshot comparison is not enforced in CI until Linux baselines exist |</p>
+<p>| 5 | <code>set_custom_js</code>, <code>custom.js</code> <code>registerView</code> and the three bundled dashboard plugins work under <code>app</code> | <strong>Met in this build.</strong> The three dashboard plugins pass the sweep; the e2e app-shell server sets <code>set_custom_js</code> with a <code>registerView</code> for a page that also has a server handler, and the client view wins (as in the legacy dashboard) |</p>
+<p>| 6 | One minor release with <code>app</code> opt-in, then two weeks with no open P1 from opt-in users | <strong>Not met</strong> |</p>
+<h2>Plugins and trust</h2>
+<p>See UI Plugins. Installing a plugin package means trusting it:</p>
+<p>its Python runs in the server process and its JavaScript runs in the page</p>
+<p>with no sandbox. An <code>iframe</code> page is the sandboxed option.</p></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

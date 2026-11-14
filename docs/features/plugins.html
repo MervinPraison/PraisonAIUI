@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <script id="aiui-canonical-url">(function(){var p=location.pathname.replace(/\/+$/, '')||'/';if(p!==location.pathname){history.replaceState(null,'',p+location.search+location.hash);}})();</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="A UI plugin is a Python package that adds pages, blocks, chat tool renderers," />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <title>UI Plugins | PraisonAIUI Docs</title>
+  <script>
+    (function(){try{var t=localStorage.getItem('aiui-theme-preference');var d=true;if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)||(!t&&d))document.documentElement.classList.add('dark');else if(t==='light')document.documentElement.classList.remove('dark');}catch(e){}})();
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <script type="module" crossorigin src="/assets/index.js?v=c42c334eb5"></script>
+  <link rel="modulepreload" crossorigin href="/assets/preload-helper-BXl3LOEh.js">
+  <link rel="stylesheet" crossorigin href="/assets/index.css?v=a4fe8b9223">
+  <link rel="canonical" href="https://ui.praison.ai/docs/features/plugins" />
+  <meta property="og:title" content="UI Plugins | PraisonAIUI Docs" />
+  <meta property="og:description" content="A UI plugin is a Python package that adds pages, blocks, chat tool renderers," />
+  <meta property="og:url" content="https://ui.praison.ai/docs/features/plugins" />
+  <meta property="og:type" content="article" />
+  <meta property="og:image" content="https://ui.praison.ai/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="UI Plugins | PraisonAIUI Docs" />
+  <meta name="twitter:description" content="A UI plugin is a Python package that adds pages, blocks, chat tool renderers," />
+  <meta name="robots" content="index, follow" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "UI Plugins", "description": "A UI plugin is a Python package that adds pages, blocks, chat tool renderers,", "url": "https://ui.praison.ai/docs/features/plugins", "isPartOf": {"@type": "WebSite", "name": "PraisonAIUI Docs", "url": "https://ui.praison.ai/"}}</script>
+</head>
+
+<body>
+  <div id="root"><noscript><nav aria-label="Documentation"><ul><li><a href="https://ui.praison.ai/docs/health-endpoints">Health Endpoints Guide</a></li><li><a href="https://ui.praison.ai/docs/index">PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/testing">Testing</a></li><li><a href="https://ui.praison.ai/docs/adr">Adr</a></li><li><a href="https://ui.praison.ai/docs/adr/replay-view-clean-room">ADR 0001: PraisonAI Replay view, a clean-room design</a></li><li><a href="https://ui.praison.ai/docs/adr/react-app-shell-and-plugin-sdk">ADR 0002: One React app shell and a plugin SDK, migrated from the vanilla dashboard by strangler</a></li><li><a href="https://ui.praison.ai/docs/api">Api</a></li><li><a href="https://ui.praison.ai/docs/api/cli">CLI API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/components">Component API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/features-api">Features REST API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/health">Health API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/python">Python SDK API</a></li><li><a href="https://ui.praison.ai/docs/api/sessions">Sessions API Reference</a></li><li><a href="https://ui.praison.ai/docs/api/testing">API Testing Guide</a></li><li><a href="https://ui.praison.ai/docs/api/typescript">TypeScript SDK Reference</a></li><li><a href="https://ui.praison.ai/docs/concepts">Concepts</a></li><li><a href="https://ui.praison.ai/docs/concepts/architecture">Architecture: AG-UI Protocol vs Gateway Integration</a></li><li><a href="https://ui.praison.ai/docs/concepts/bootstrap">Bootstrap Architecture</a></li><li><a href="https://ui.praison.ai/docs/concepts/configuration">YAML Configuration</a></li><li><a href="https://ui.praison.ai/docs/concepts/providers">Providers</a></li><li><a href="https://ui.praison.ai/docs/concepts/slots">Slots &amp; Components</a></li><li><a href="https://ui.praison.ai/docs/concepts/templates">Templates &amp; Layouts</a></li><li><a href="https://ui.praison.ai/docs/examples">Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/advanced">Advanced Examples</a></li><li><a href="https://ui.praison.ai/docs/examples/basic">Basic Examples</a></li><li><a href="https://ui.praison.ai/docs/features">Features</a></li><li><a href="https://ui.praison.ai/docs/features/a2ui-canvas">A2UI canvas — agent-driven UI</a></li><li><a href="https://ui.praison.ai/docs/features/agent-ui-host">Agent UI host — modular dashboard shell</a></li><li><a href="https://ui.praison.ai/docs/features/attachments">Chat Attachments</a></li><li><a href="https://ui.praison.ai/docs/features/backend-integration">Backend Integration Contract</a></li><li><a href="https://ui.praison.ai/docs/features/beautifului-integration">BeautifulUI Integration Strategy</a></li><li><a href="https://ui.praison.ai/docs/features/browser-automation">Browser Automation</a></li><li><a href="https://ui.praison.ai/docs/features/channel-chat-bridge">Channel-to-Chat Bridge</a></li><li><a href="https://ui.praison.ai/docs/features/code-execution">Code Execution</a></li><li><a href="https://ui.praison.ai/docs/features/comparison-openclaw">Feature Comparison: PraisonAIUI vs OpenClaw</a></li><li><a href="https://ui.praison.ai/docs/features/config-hot-reload">Config Hot-Reload</a></li><li><a href="https://ui.praison.ai/docs/features/content-sources">Content Sources</a></li><li><a href="https://ui.praison.ai/docs/features/css-architecture">How the UI Looks Are Built</a></li><li><a href="https://ui.praison.ai/docs/features/dark-mode">Dark Mode</a></li><li><a href="https://ui.praison.ai/docs/features/dashboard">Dashboard</a></li><li><a href="https://ui.praison.ai/docs/features/deployment">Deployment Guide</a></li><li><a href="https://ui.praison.ai/docs/features/device-pairing">Device Pairing</a></li><li><a href="https://ui.praison.ai/docs/features/differentiation">What Makes PraisonAIUI Different</a></li><li><a href="https://ui.praison.ai/docs/features/feature-inventory">Feature Inventory</a></li><li><a href="https://ui.praison.ai/docs/features/gap-analysis">Gap Analysis — Validated Against praisonai SDK</a></li><li><a href="https://ui.praison.ai/docs/features/gateway-chat">Gateway Chat</a></li><li><a href="https://ui.praison.ai/docs/features/hot-reload">Hot Reload</a></li><li><a href="https://ui.praison.ai/docs/features/how-to-add-a-feature">How to Add a Feature to PraisonAIUI</a></li><li><a href="https://ui.praison.ai/docs/features/i18n">Internationalization (i18n)</a></li><li><a href="https://ui.praison.ai/docs/features/image-preview-chat">Image Preview in Chat</a></li><li><a href="https://ui.praison.ai/docs/features/integration-analysis">AIUI Integration — Critical Review &amp; Architecture Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/knowledge-embeddings">Knowledge Embedding Model Configuration</a></li><li><a href="https://ui.praison.ai/docs/features/marketplace">Plugin Marketplace</a></li><li><a href="https://ui.praison.ai/docs/features/media-analysis">Media Analysis</a></li><li><a href="https://ui.praison.ai/docs/features/message-elements">Message Elements</a></li><li><a href="https://ui.praison.ai/docs/features/model-fallback">Model Fallback</a></li><li><a href="https://ui.praison.ai/docs/features/navigation">Navigation</a></li><li><a href="https://ui.praison.ai/docs/features/plugins">UI Plugins</a></li><li><a href="https://ui.praison.ai/docs/features/praisonai-package-integration">PraisonAI package integration</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-architecture">Protocol Architecture Reference</a></li><li><a href="https://ui.praison.ai/docs/features/protocol-versioning">Protocol Versioning</a></li><li><a href="https://ui.praison.ai/docs/features/protocols">Feature Protocols</a></li><li><a href="https://ui.praison.ai/docs/features/pwa">Progressive Web App (PWA)</a></li><li><a href="https://ui.praison.ai/docs/features/react-shell">React App Shell (`style: app`)</a></li><li><a href="https://ui.praison.ai/docs/features/replay">Replay</a></li><li><a href="https://ui.praison.ai/docs/features/seo">SEO</a></li><li><a href="https://ui.praison.ai/docs/features/sessions">Session Management</a></li><li><a href="https://ui.praison.ai/docs/features/standalone-vs-integrated">Standalone vs Integrated</a></li><li><a href="https://ui.praison.ai/docs/features/standardization-verification">AIUI Standardization — Verification Report</a></li><li><a href="https://ui.praison.ai/docs/features/steps">Steps / Chain-of-Thought</a></li><li><a href="https://ui.praison.ai/docs/features/styles">UI Styles</a></li><li><a href="https://ui.praison.ai/docs/features/subagent-tree">Subagent Tree View</a></li><li><a href="https://ui.praison.ai/docs/features/theme-system">Theme System</a></li><li><a href="https://ui.praison.ai/docs/features/theming">Theming</a></li><li><a href="https://ui.praison.ai/docs/features/tts">Text-to-Speech (TTS)</a></li><li><a href="https://ui.praison.ai/docs/features/video-studio">Video Studio</a></li><li><a href="https://ui.praison.ai/docs/features/widget-zones">Widget Zones</a></li><li><a href="https://ui.praison.ai/docs/frontend">Frontend</a></li><li><a href="https://ui.praison.ai/docs/frontend/BEAUTIFULUI_UPSTREAM">BeautifulUI upstream pin record</a></li><li><a href="https://ui.praison.ai/docs/frontend/beautifului-adapter-architecture">ADR: BeautifulUI adapter layer &amp; upstream pin policy</a></li><li><a href="https://ui.praison.ai/docs/frontend/beautifului">BeautifulUI Upgrade Playbook</a></li><li><a href="https://ui.praison.ai/docs/getting-started">Getting Started</a></li><li><a href="https://ui.praison.ai/docs/getting-started/cli">CLI Reference</a></li><li><a href="https://ui.praison.ai/docs/getting-started/github-pages">Deploy to GitHub Pages</a></li><li><a href="https://ui.praison.ai/docs/getting-started/installation">Installation</a></li><li><a href="https://ui.praison.ai/docs/getting-started/quickstart">Quick Start</a></li><li><a href="https://ui.praison.ai/docs/protocols">Protocols</a></li><li><a href="https://ui.praison.ai/docs/protocols/application-design-protocol-report">Application Design Protocol (ADP) — Research Report</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp">Application Design Protocol (ADP)</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/aiui-mapping">PraisonAIUI → ADP Field Mapping</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/implementation-status">ADP Implementation Status</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/spec">Application Design Protocol (ADP) — Normative Specification</a></li><li><a href="https://ui.praison.ai/docs/protocols/adp/validation-rules">ADP Validation Rules</a></li><li><a href="https://ui.praison.ai/docs/reports">Reports</a></li><li><a href="https://ui.praison.ai/docs/reports/ui-reset-">Ui Reset </a></li><li><a href="https://ui.praison.ai/docs/reports/ui-reset-/11">UI reset: project record (November 2026)</a></li><li><a href="https://ui.praison.ai/docs/typescript">Typescript</a></li><li><a href="https://ui.praison.ai/docs/typescript/components">Components</a></li><li><a href="https://ui.praison.ai/docs/typescript">TypeScript SDK Overview</a></li><li><a href="https://ui.praison.ai/docs/typescript/nextjs">Next.js Adapter</a></li><li><a href="https://ui.praison.ai/docs/typescript/runtime">Runtime</a></li></ul></nav><h1>UI Plugins</h1>
+<p>A UI plugin is a Python package that adds pages, blocks, chat tool renderers,</p>
+<p>HTTP routes and CLI commands to the React app shell (<code>style: app</code>, or</p>
+<p><code>AIUI_SHELL=app</code>). Installing the package is the whole setup: the server finds</p>
+<p>it through the <code>praisonaiui.plugins</code> entry point.</p>
+<p>The smallest complete plugin lives in</p>
+<p><code>examples/plugins/aiui-hello-plugin</code>.</p>
+<p><code>AIUI_SHELL=app</code> switches only the <code>dashboard</code> style to the app shell. An</p>
+<p><code>app.py</code> with <code>@aiui.reply</code> runs in the <code>chat</code> style, which <code>AIUI_SHELL</code></p>
+<p>leaves alone (the server logs <code>AIUI_SHELL=app ignored: style is 'chat'</code>), so</p>
+<p>pass <code>--style app</code> (or call <code>aiui.set_style("app")</code>).</p>
+<p>Then open <code>/hello</code> (a React page) and <code>/hello-blocks</code> (a server-driven page).</p>
+<p>!!! note "Three different things are called plugins"</p>
+<li><strong>UI plugins</strong> (this page): Python packages, entry point <code>praisonaiui.plugins</code>,</li>
+<p>React app shell only. Policy in YAML <code>extensions:</code>.</p>
+<li><strong>Dashboard plugins</strong>: folders with a <code>manifest.json</code> under</li>
+<p><code>dashboard-plugins/</code>, vanilla JS views (see Agent UI host).</p>
+<p>The app shell still hosts them as legacy pages.</p>
+<li><strong>Docs plugins</strong>: <code>site.plugins</code> in <code>aiui.template.yaml</code> (static site compiler hooks).</li>
+<h2>How it fits together</h2>
+<p>1. The server imports each entry point once, isolates failures, and lists what</p>
+<p>the plugin contributes in the shell manifest.</p>
+<p>2. The shell installs <code>window.__AIUI_SDK__</code> and then <code>import()</code>s every plugin</p>
+<p>module named in the manifest. An import map points the bare specifiers</p>
+<p><code>react</code>, <code>react/jsx-runtime</code>, <code>react-dom</code>, <code>react-dom/client</code> and</p>
+<p><code>@aiui/sdk</code> at small shims that re-export the shell's own modules, so a</p>
+<p>plugin shares the shell's single React (hooks work, nothing is bundled twice).</p>
+<p>3. A module registers what it provides through <code>@aiui/sdk</code>, or default-exports</p>
+<p>a component that the shell registers under the page id / block type / tool name.</p>
+<p>The app's own React pages and blocks use the same mechanism. The shell and the</p>
+<p>SDK are a small core that names no page: the chat page and its "New chat"</p>
+<p>command are the first-party plugin <code>builtin.chat</code> in</p>
+<p><code>src/frontend/src/builtin</code>, registered with <code>registerPage</code> and</p>
+<p><code>registerCommand</code> when the manifest lists the page; the approval toasts are</p>
+<p><code>builtin.approvals</code> (on <code>notify</code> and <code>navigate</code>); and the core block types are</p>
+<p>registered with <code>registerBlock</code>. A test in the frontend</p>
+<p>(<code>shell/core-purity.test.ts</code>) fails if the core imports a feature module or</p>
+<p>names a built-in page.</p>
+<h2>The Python side</h2>
+<p>The value names a plugin object, a class (instantiated with no arguments) or a</p>
+<p>zero-argument factory. The entry-point name becomes a URL segment, so it must</p>
+<p>match <code>[a-z0-9][a-z0-9_-]*</code>.</p>
+<p>Every member except <code>name</code> is optional:</p>
+<p>| Member | Returns | Effect |</p>
+<p>|---|---|---|</p>
+<p>| <code>name</code> | <code>str</code> | Plugin id (<code>/api/plugins/&lt;name&gt;</code>, <code>/_plugins/&lt;name&gt;/</code>, <code>aiui &lt;name&gt;</code>) |</p>
+<p>| <code>version</code> | <code>str</code> | Shown by <code>aiui plugins list</code> |</p>
+<p>| <code>sdk</code> | <code>int</code> | Browser SDK major the plugin targets (default <code>1</code>); a mismatch marks it <code>incompatible</code> |</p>
+<p>| <code>pages()</code> | <code>PageSpec</code> or dicts | Sidebar pages |</p>
+<p>| <code>blocks()</code> | <code>BlockSpec</code> | Renderers for block types |</p>
+<p>| <code>tool_renderers()</code> | <code>ToolRendererSpec</code> | Chat renderers for tool calls |</p>
+<p>| <code>routes()</code> | Starlette routes | Mounted under <code>/api/plugins/&lt;name&gt;</code> |</p>
+<p>| <code>static_dir()</code> | <code>Path</code> | Served at <code>/_plugins/&lt;name&gt;/</code> |</p>
+<p>| <code>features()</code> | feature protocols | Registered like built-in features (an enabled built-in's names win) |</p>
+<p>| <code>cli_commands()</code> | <code>typer.Typer</code> or click command | <code>aiui &lt;name&gt; …</code> and <code>aiui plugins &lt;name&gt; …</code> |</p>
+<p>| <code>setup(ctx)</code> | <code>None</code> | Called once per <code>create_app()</code> with <code>{"style", "config"}</code> |</p>
+<p><code>PageSpec</code>, <code>BlockSpec</code> and <code>ToolRendererSpec</code> are importable from</p>
+<p><code>praisonaiui</code> (or <code>praisonaiui.plugin_registry</code>). Dicts with the same field</p>
+<p>names work too.</p>
+<h3>Page kinds</h3>
+<p>| <code>kind</code> | Renders | Needs |</p>
+<p>|---|---|---|</p>
+<p>| <code>react</code> | The component from <code>module</code> (default export, or <code>export</code>) | <code>module</code> |</p>
+<p>| <code>blocks</code> | A server-driven block tree (see below) | <code>api_endpoint</code>, default <code>/api/plugins/&lt;name&gt;/pages/&lt;id&gt;</code> |</p>
+<p>| <code>iframe</code> | <code>module</code> in a sandboxed iframe (no same-origin access) | <code>module</code> |</p>
+<p>A relative <code>module</code> (<code>"hello.js"</code>) resolves into <code>static_dir()</code>; the server</p>
+<p>then serves <code>/_plugins/&lt;name&gt;/hello.js</code> and adds its <code>sha384</code> integrity to the</p>
+<p>manifest and the import map.</p>
+<p>The integrity is a <strong>cache-consistency</strong> check, not tamper protection: the</p>
+<p>server hashes the file it is about to serve (re-hashed when the file changes,</p>
+<p>so a rebuilt bundle keeps loading), which guards against a stale or partly</p>
+<p>written file between the page render and the module fetch. Someone who can</p>
+<p>change files in the plugin's <code>static_dir</code> can also change what is hashed.</p>
+<p>Declare <code>integrity=</code> on the <code>PageSpec</code> to pin a hash you computed at build</p>
+<p>time. When auth is enforced the page carries no manifest (and so no import-map</p>
+<p>integrity) before login; the shell loads plugin modules afterwards.</p>
+<p>When two sources use the same page id, the first wins: pages registered by the</p>
+<p>app (<code>aiui.register_page</code>), then built-in pages, then entry-point plugins (in</p>
+<p>discovery order), then dashboard-plugin folders. <code>aiui plugins doctor</code> warns</p>
+<p>about shadowed ids.</p>
+<h3>Built-in plugins</h3>
+<p>The pages and features that ship with PraisonAIUI use the same mechanism.</p>
+<p>Each domain is a first-party plugin record in <code>praisonaiui.builtin</code>: for</p>
+<p>example <code>builtin.chat</code> holds the Chat and Chat + Canvas pages with the <code>chat</code></p>
+<p>and <code>attachments</code> features, and <code>builtin.work</code> holds Work Hub, Kanban and</p>
+<p>Jobs Board with the <code>kanban</code> feature. Features with no page of their own have</p>
+<p>a record each (<code>builtin.tts</code>, <code>builtin.pwa</code>, <code>builtin.video</code> …). The server</p>
+<p>reads pages and features through the plugin registry, so the extension policy</p>
+<p>can switch a whole domain off:</p>
+<p>or <code>aiui.set_extensions(disabled=["builtin.training"])</code>. A disabled built-in</p>
+<p>contributes no pages: they leave <code>GET /api/pages</code>, the shell manifest and the</p>
+<p>sidebar. Its feature routes are not mounted (<code>/api/training/...</code> returns 404),</p>
+<p>the server does not load its feature modules, and a bundled dashboard-plugin</p>
+<p>folder that belongs to it (<code>kanban</code> belongs to <code>builtin.work</code>, <code>video-studio</code></p>
+<p>to <code>builtin.video</code>) is not served either. The same holds for the routes the</p>
+<p>host itself serves for a built-in: <code>builtin.mcp</code> owns <code>/api/mcp/*</code>,</p>
+<p><code>builtin.debug</code> owns <code>/api/debug</code> and <code>builtin.logs</code> owns <code>GET /api/logs</code> as</p>
+<p>well as its <code>/api/logs/*</code> feature routes, so disabling them returns 404 there.</p>
+<p>With the built-in off, an entry-point plugin may use its page ids and feature</p>
+<p>names.</p>
+<p>A few host routes stay mounted whichever built-ins are off, because the host</p>
+<p>or the CLI uses them: <code>/api/overview</code> and <code>/api/status</code> (<code>aiui status</code>),</p>
+<p><code>/api/feedback</code> (its <code>POST</code> backs the chat thumbs) and <code>/api/config</code>.</p>
+<p>Disabling <code>builtin.overview</code>, <code>builtin.feedback</code> or <code>builtin.config</code> removes</p>
+<p>their pages only.</p>
+<p>Some features are <strong>required</strong>: the server itself depends on <code>auth</code>, <code>theme</code>,</p>
+<p><code>chat</code>, <code>usage</code>, <code>config_runtime</code> and <code>sessions_ext</code>. Disabling their record</p>
+<p>(<code>builtin.auth</code>, <code>builtin.theme-picker</code>, <code>builtin.chat</code>, <code>builtin.usage</code>,</p>
+<p><code>builtin.config</code>, <code>builtin.sessions</code>) removes its pages and its other</p>
+<p>features, keeps the required feature mounted and logs a warning. Disabling</p>
+<p><code>builtin.auth</code> therefore never turns authentication off.</p>
+<li>Built-ins are trusted and on by default. <code>extensions.enabled</code> is an</li>
+<p>allowlist for third-party plugins only, so it never hides a built-in page.</p>
+<li>Only the <code>builtin.</code> name disables a built-in: <code>disabled: [logs]</code> means a</li>
+<p>third-party plugin called <code>logs</code>. A <code>builtin.</code> name that matches no record</p>
+<p>logs a warning.</p>
+<li>The page-level controls still apply on top: <code>aiui.set_pages([...])</code>,</li>
+<p><code>pages.enabled</code> / <code>pages.disabled</code> in <code>config.yaml</code> and <code>aiui.remove_page()</code></p>
+<p>hide single pages (their APIs stay mounted), and <code>aiui.register_page()</code></p>
+<p>with a built-in id replaces that page.</p>
+<li><code>register_feature()</code> before the server starts replaces a built-in feature of</li>
+<p>the same name, as before.</p>
+<li><code>GET /api/plugins?origin=builtin</code> (or <code>origin=all</code>) lists the built-in</li>
+<p>records with their status (and <code>required: true</code> where the host needs one</p>
+<p>of their features). Without the parameter the endpoint lists</p>
+<p>third-party plugins only, as before.</p>
+<h2>The browser side</h2>
+<p>A plugin module is plain ESM. Write it by hand (the example uses</p>
+<p><code>react/jsx-runtime</code> directly) or build it with React and the SDK as externals:</p>
+<p>Only those five bare specifiers are mapped. Anything else must be bundled into</p>
+<p>the plugin file or imported by full URL.</p>
+<h3>`@aiui/sdk`</h3>
+<p>Registration:</p>
+<p>| Export | Use |</p>
+<p>|---|---|</p>
+<p>| <code>SDK_VERSION</code> | <code>1</code> |</p>
+<p>| <code>SDK_FEATURES</code> | List of capability names, for feature detection |</p>
+<p>| <code>registerPage(id, Component)</code> | Component receives <code>{ page }</code> (its manifest entry). A zero-argument arrow function is treated as a lazy loader: <code>registerPage('x', () =&gt; import('./X.js'))</code> |</p>
+<p>| <code>registerBlock(type, Component, options?)</code> | Component receives <code>{ node, page }</code>; <code>node</code> is <code>{ type, props, children }</code>. It also overrides a core block type of the same name. <code>{ fallback: true }</code> registers a default that anything else overrides |</p>
+<p>| <code>registerToolRenderer(toolName, Component)</code> | Chat tool call UI; receives assistant-ui tool part props (<code>toolName</code>, <code>args</code>, <code>argsText</code>, <code>result</code>, <code>status</code>, …) |</p>
+<p>| <code>registerSlot(name, Component, options?)</code> | Add a component to a slot of the shell |</p>
+<p>| <code>registerCommand(command)</code> | Add an entry to the command palette. Returns a function that removes it |</p>
+<p>| <code>registerView(pageId, render, cleanup?)</code> | A vanilla view for a legacy page (same as <code>window.aiui.registerView</code> in custom.js) |</p>
+<p>| <code>onActivate(fn)</code> | Run <code>fn({ manifest })</code> once the app is ready |</p>
+<p>| <code>getPage</code>, <code>getBlock</code>, <code>getSlot</code>, <code>getToolRenderers</code> | Registry lookups |</p>
+<p>| <code>subscribe(fn)</code>, <code>useRegistryVersion()</code> | React to later registrations |</p>
+<p>Shell services and components:</p>
+<p>| Export | Use |</p>
+<p>|---|---|</p>
+<p>| <code>navigate(pageId, { replace }?)</code> | Go to a page of the app: <code>navigate('logs')</code> |</p>
+<p>| <code>notify(message, options?)</code> | Show a toast. Options: <code>type</code> (<code>info</code>, <code>success</code>, <code>warning</code>, <code>error</code>), <code>description</code>, <code>duration</code>, <code>id</code>, <code>action: { label, onClick }</code> |</p>
+<p>| <code>fetchJson(url, options?)</code> | <code>fetch</code> for JSON APIs. It sends the session's gateway token to same-origin URLs only, JSON-encodes a plain-object <code>body</code> (the method then defaults to <code>POST</code>), decodes the response, and rejects with an error carrying <code>status</code>, <code>url</code> and <code>body</code> on a non-2xx status |</p>
+<p>| <code>useManifest()</code> | React hook returning the shell manifest (<code>pages</code>, <code>plugins</code>, <code>site</code>, <code>layout</code>) |</p>
+<p>| <code>Markdown</code> | The shell's Markdown renderer: <code>&lt;Markdown variant="docs"&gt;{text}&lt;/Markdown&gt;</code> |</p>
+<p>Style with the theme's CSS variables (<code>var(--foreground)</code>, <code>var(--border)</code>,</p>
+<p><code>var(--primary)</code>, …). The shell's Tailwind build only contains the classes the</p>
+<p>shell itself uses, so Tailwind classes in a plugin may not exist.</p>
+<h3>Shell services</h3>
+<p>Use the services instead of globals such as <code>window.fetch</code> or the history API.</p>
+<p>They work the same in every page kind and they are part of the SDK contract.</p>
+<p>A command that throws, or whose promise rejects, is reported as a toast. An</p>
+<p><code>onActivate</code> hook that throws is logged and does not stop the other hooks.</p>
+<h3>Slots</h3>
+<p>A slot is a place in the shell that renders components from plugins.</p>
+<p>| Slot | Where | Extra props |</p>
+<p>|---|---|---|</p>
+<p>| <code>header:actions</code> | The header bar, before search and the theme toggle. Not shown when the app hides the page header | |</p>
+<p>| <code>sidebar:footer</code> | The bottom of the sidebar, on desktop and in the phone menu | <code>collapsed</code> |</p>
+<p>| <code>page:&lt;id&gt;:toolbar</code> | Above the body of page <code>&lt;id&gt;</code>, for example <code>page:logs:toolbar</code> | |</p>
+<p>Every slot component receives <code>{ slot, pageId, page }</code>: the slot name, the id</p>
+<p>of the page on screen and its manifest entry.</p>
+<li>Pass <code>{ id, order }</code> so that several plugins can share a slot. <code>id</code> is the</li>
+<p>identity of your contribution (use the plugin name), and a lower <code>order</code></p>
+<p>comes first (default <code>100</code>). Registering the same <code>id</code> again replaces only</p>
+<p>that contribution.</p>
+<li>Without options, the call sets the slot's single default contribution and</li>
+<p>replaces an earlier one. This is the original behaviour.</p>
+<li>Each contribution renders inside its own error boundary. One that throws is</li>
+<p>removed and logged; the others and the shell stay.</p>
+<li>A slot nobody contributes to renders nothing.</li>
+<h3>Feature detection</h3>
+<p>The SDK grows without a new major version, so <code>SDK_VERSION</code> stays <code>1</code>. A named</p>
+<p>import of an export that an older shell lacks fails when the module loads.</p>
+<p>When a plugin must also run on older shells, use the default export and ask</p>
+<p>before you call a newer function:</p>
+<p>Feature names: <code>pages</code>, <code>blocks</code>, <code>tool-renderers</code>, <code>slots</code>, <code>views</code>,</p>
+<p><code>markdown</code>, <code>navigate</code>, <code>notify</code>, <code>fetch-json</code>, <code>manifest</code>, <code>commands</code>,</p>
+<p><code>activate</code>, <code>slots.multi</code> (the <code>{ id, order }</code> options and the slot hosts) and</p>
+<p><code>blocks.fallback</code>. A shell older than the services has no <code>SDK_FEATURES</code>.</p>
+<h3>Types</h3>
+<p><code>@aiui/sdk</code> is not an npm package: the shell provides it at runtime. Its types</p>
+<p>are in <code>src/frontend/src/sdk/aiui-sdk.d.ts</code>, the frontend build also writes</p>
+<p><code>dist/aiui-sdk.d.ts</code>, and the installed package ships the same file at</p>
+<p><code>praisonaiui/templates/frontend/aiui-sdk.d.ts</code> (find it with</p>
+<p><code>python -c "import praisonaiui, pathlib; print(pathlib.Path(praisonaiui.__file__).parent / 'templates/frontend/aiui-sdk.d.ts')"</code>).</p>
+<p>Copy the file into a plugin project and include</p>
+<p>it in <code>tsconfig.json</code> (or <code>jsconfig.json</code> with <code>checkJs</code>) to type-check the</p>
+<p>plugin. It depends on <code>@types/react</code> only.</p>
+<h3>Failure isolation</h3>
+<p>Each module is imported once. If one fails to load (network error, syntax</p>
+<p>error, no component to register), the shell logs it, shows a toast, fires an</p>
+<p><code>aiui:plugin-error</code> window event, and loads everything else. The page shows</p>
+<p>"unavailable" instead of crashing. A block that throws while rendering is</p>
+<p>replaced by an inline error; the rest of the page still renders.</p>
+<h2>Block pages</h2>
+<p>A <code>blocks</code> page is data, not code: its endpoint returns a component tree and</p>
+<p>the shell renders it with built-in React blocks. Page handlers already written</p>
+<p>for the dashboard (<code>aiui.register_page(handler=…)</code> with <code>aiui.ui.*</code> helpers)</p>
+<p>render unchanged.</p>
+<li>The payload may be <code>{"_components": [...]}</code> (also <code>components</code>, <code>blocks</code>, or</li>
+<p>a bare list), and each item is a flat dict (<code>{"type": "card", "title": …}</code>)</p>
+<p>or <code>{"type", "props", "children"}</code>.</p>
+<li>A button with <code>action</code> and every form POST JSON to the action endpoint:</li>
+<p><code>page.actionEndpoint</code> (set for <code>aiui.register_page_action</code>), else</p>
+<p><code>&lt;apiEndpoint&gt;/action</code> for plugin pages, else <code>/api/pages/&lt;id&gt;/action</code>.</p>
+<p>A response with a component list replaces the page; <code>message</code> is shown as a</p>
+<p>toast; <code>error</code> (or a non-2xx status) as an error toast.</p>
+<li>Resolution order for a block <code>type</code>: a block registered with</li>
+<p><code>registerBlock(type, C)</code>, a <code>window.aiui.registerComponent</code> renderer from</p>
+<p>custom.js, a block registered with <code>{ fallback: true }</code> (the core blocks are</p>
+<p>registered this way), then the legacy dashboard renderer, so every existing</p>
+<p><code>_components</code> type keeps working.</p>
+<li>Text is always rendered as text, never as HTML. Links and images only accept</li>
+<p>relative, <code>http(s)</code>, <code>mailto:</code> and <code>tel:</code> URLs (images also <code>data:image/*</code>).</p>
+<p>Core block types: <code>text</code>, <code>caption</code>, <code>header</code>/<code>heading</code>, <code>markdown_text</code>/<code>markdown</code>,</p>
+<p><code>code_block</code>/<code>code</code>, <code>json_view</code>/<code>json</code>, <code>card</code>, <code>metric</code>/<code>stat</code>, <code>stat_group</code>,</p>
+<p><code>progress_bar</code>/<code>progress</code>, <code>columns</code>/<code>grid</code>, <code>row</code>, <code>container</code>,</p>
+<p><code>separator</code>/<code>divider</code>, <code>tabs</code>, <code>expander</code>, <code>accordion</code>, <code>table</code>,</p>
+<p><code>key_value_list</code>, <code>list</code>, <code>badge</code>, <code>alert</code>, <code>callout</code>, <code>empty</code>, <code>spinner</code>,</p>
+<p><code>skeleton</code>, <code>toast</code>, <code>image_display</code>/<code>image</code>, <code>link</code>, <code>button</code>/<code>action</code>,</p>
+<p><code>button_group</code>, <code>form_action</code>/<code>form</code>, <code>text_input</code>, <code>number_input</code>,</p>
+<p><code>date_input</code>, <code>time_input</code>, <code>textarea_input</code>, <code>select_input</code>,</p>
+<p><code>checkbox_input</code>, <code>switch_input</code>, <code>radio_input</code>, <code>slider_input</code>.</p>
+<h2>Trust and policy</h2>
+<p>Installing a plugin means trusting it: its Python runs in the server process and</p>
+<p>its JavaScript runs in the page with no sandbox (use <code>kind: iframe</code> for</p>
+<p>untrusted content). Because any installed package, including a transitive</p>
+<p>dependency, can declare the entry point, the browser parts of entry-point</p>
+<p>plugins (pages, blocks, tool renderers and <code>/_plugins/&lt;name&gt;/</code>) and their HTTP</p>
+<p>routes (<code>/api/plugins/&lt;name&gt;/*</code>) are <strong>default-deny</strong> when the server requires</p>
+<p>auth or is reached from a non-loopback address. They are listed as</p>
+<p><code>disabled-by-default</code> (and answer 404) until you enable the plugin by name.</p>
+<p>The plugin's Python code still runs (<code>setup()</code>, <code>features()</code>): to keep an</p>
+<p>installed package from being imported at all, put it in <code>extensions.disabled</code>.</p>
+<p><code>extensions: [hello]</code> is shorthand for <code>enabled</code>. From Python:</p>
+<p><code>aiui.set_extensions(enabled=["hello"])</code> (it beats YAML). A plugin object</p>
+<p>registered with <code>aiui.register_plugin(obj)</code> was chosen by the app author and is</p>
+<p>always trusted.</p>
+<p><code>AIUI_DISABLE_PLUGIN_AUTOLOAD=1</code> skips the entry-point group entirely (the test</p>
+<p>suite sets it).</p>
+<h2>CLI</h2>
+<p>| Command | Does |</p>
+<p>|---|---|</p>
+<p>| <code>aiui plugins list [--json] [--config aiui.yaml]</code> | The built-in records (<code>builtin.&lt;name&gt;</code>: status <code>ok</code> or <code>disabled</code>, whether the host requires part of it, its pages), then installed plugins with version, status (<code>ok</code>, <code>error</code>, <code>disabled</code>, <code>incompatible</code>, <code>disabled-by-default</code>) and load error. <code>--json</code> puts the built-ins under <code>builtins</code> |</p>
+<p>| <code>aiui plugins doctor [--config aiui.yaml] [--no-builtin]</code> | Loads each plugin and checks SDK version, <code>static_dir()</code>, every module file and its <code>sha384</code>, routes, CLI name clashes and page ids shadowed by built-in pages or other plugins. A page shadowed by a built-in names the <code>builtin.&lt;name&gt;</code> to add to <code>extensions.disabled</code>; a <code>builtin.</code> name that matches no record is a warning. Exits 1 on any failure |</p>
+<p>| <code>aiui &lt;plugin&gt; …</code>, <code>aiui plugins &lt;plugin&gt; …</code> | The plugin's own commands |</p>
+<p><code>aiui --help</code> and built-in commands never import plugins; discovery runs only</p>
+<p>when a command name is not a built-in one.</p>
+<h2>Troubleshooting</h2>
+<p>| Symptom | Check |</p>
+<p>|---|---|</p>
+<p>| Page says "unavailable" | <code>aiui plugins doctor</code>; the browser console shows the import error |</p>
+<p>| Plugin listed as <code>disabled-by-default</code> | Remote or auth-enforced server: add it to <code>extensions.enabled</code> |</p>
+<p>| <code>Invalid hook call</code> | The module bundled its own React: mark <code>react</code> and <code>react/jsx-runtime</code> external |</p>
+<p>| <code>does not provide an export named …</code> | The shell is older than the SDK export the module imports: see feature detection |</p>
+<p>| A slot component does not appear | Check the slot name, and that the page header or sidebar is not hidden by the app |</p>
+<p>| <code>aiui shell not booted</code> | The module was loaded outside the app shell (style must be <code>app</code>) |</p>
+<p>| Integrity error after editing a file | The manifest hashes the file on every request; hard-reload the page so the browser drops its cached copy |</p></noscript></div>
+  <script src="/plugins/plugin-loader.js"></script>
+</body>
+
+</html>

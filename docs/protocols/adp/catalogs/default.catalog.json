@@ -1,0 +1,128 @@
+{
+  "name": "adp-default-catalog",
+  "version": "1.0.0",
+  "description": "Default ADP component and layout catalog for PraisonAIUI",
+  "components": {
+    "Header": {
+      "description": "Site header with logo and navigation",
+      "props": {
+        "type": "object",
+        "properties": {
+          "logoText": { "type": "string" },
+          "logoHref": { "type": "string", "default": "/" }
+        },
+        "required": ["logoText"],
+        "additionalProperties": false
+      },
+      "aria": { "role": "banner" },
+      "slots": ["header"]
+    },
+    "Footer": {
+      "description": "Site footer",
+      "props": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "aria": { "role": "contentinfo" },
+      "slots": ["footer"]
+    },
+    "DocsSidebar": {
+      "description": "Documentation sidebar navigation",
+      "props": {
+        "type": "object",
+        "properties": {
+          "source": { "type": "string", "enum": ["docs-nav", "manual"], "default": "docs-nav" }
+        },
+        "additionalProperties": false
+      },
+      "aria": { "role": "navigation" },
+      "slots": ["left", "leftSidebar"]
+    },
+    "DocContent": {
+      "description": "Main documentation content area",
+      "props": { "type": "object", "additionalProperties": false },
+      "aria": { "role": "main" },
+      "slots": ["main"]
+    },
+    "Toc": {
+      "description": "Table of contents for current page",
+      "props": { "type": "object", "additionalProperties": false },
+      "aria": { "role": "navigation" },
+      "slots": ["right", "rightSidebar"]
+    },
+    "HeroBanner": {
+      "description": "Hero banner with title and CTA",
+      "props": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "subtitle": { "type": "string" },
+          "ctaLabel": { "type": "string" },
+          "ctaHref": { "type": "string" }
+        },
+        "required": ["title"],
+        "additionalProperties": false
+      },
+      "slots": ["hero"]
+    },
+    "SocialLinks": {
+      "description": "Social media link row",
+      "props": {
+        "type": "object",
+        "properties": {
+          "links": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "platform": { "type": "string" },
+                "href": { "type": "string" }
+              },
+              "required": ["platform", "href"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "slots": ["footer"]
+    },
+    "Copyright": {
+      "description": "Copyright notice",
+      "props": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" }
+        },
+        "required": ["text"],
+        "additionalProperties": false
+      },
+      "slots": ["footer"]
+    }
+  },
+  "layouts": {
+    "ThreeColumnLayout": {
+      "description": "Header + left sidebar + main + right TOC + footer",
+      "slots": ["header", "left", "main", "right", "footer"]
+    },
+    "TwoColumnLayout": {
+      "description": "Sidebar + main content",
+      "slots": ["left", "main"]
+    },
+    "CenteredLayout": {
+      "description": "Centred single column",
+      "slots": ["main"]
+    },
+    "FullWidthLayout": {
+      "description": "Full-width content",
+      "slots": ["header", "main", "footer"]
+    },
+    "FlexibleLayout": {
+      "description": "WordPress-style zone grid",
+      "zones": ["header", "topNav", "hero", "leftSidebar", "main", "rightSidebar", "bottomNav", "footer"]
+    }
+  }
+}

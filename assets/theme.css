@@ -1,0 +1,7 @@
+:root {
+  --radius: 0.5rem;
+  --seed-tint: #71717a;
+  --seed-accent: var(--seed-ink);
+  --accent-mix: 0%;
+  --db-accent-rgb: 113,113,122;
+}
