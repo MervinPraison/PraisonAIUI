@@ -698,6 +698,11 @@ def dev(
         "-p",
         help="Port for dev server",
     ),
+    host: str = typer.Option(
+        "127.0.0.1",
+        "--host",
+        help="Host to bind to (default: this machine only)",
+    ),
 ) -> None:
     """Development dashboard - switch between examples live."""
     import http.server
@@ -1090,7 +1095,7 @@ def dev(
             for i in range(10):
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     try:
-                        s.bind(("", start + i))
+                        s.bind((host, start + i))
                         return start + i
                     except OSError:
                         continue
@@ -1106,7 +1111,27 @@ def dev(
                 site_dir.mkdir(parents=True, exist_ok=True)
                 super().__init__(*args, directory=str(site_dir), **kwargs)
 
+            def _refuse(self) -> bool:
+                """Send an error and return True unless the request may proceed."""
+                refusal = _dev_request_refusal(
+                    self.command,
+                    self.path.split("?")[0],
+                    self.headers.items(),
+                    # The address this connection reached (as ASGI "server").
+                    self.connection.getsockname()[:2],
+                )
+                if refusal is None:
+                    return False
+                status, message = refusal
+                self.send_response(status)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": message}).encode())
+                return True
+
             def do_GET(self):
+                if self._refuse():
+                    return
                 path = self.path.split("?")[0]
                 query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
 
@@ -1182,6 +1207,8 @@ def dev(
                     self.end_headers()
 
             def do_POST(self):
+                if self._refuse():
+                    return
                 path = self.path.split("?")[0]
 
                 # API: save YAML and rebuild
@@ -1233,11 +1260,52 @@ def dev(
         console.print("[dim]Switch examples with the dropdown. Press Ctrl+C to stop.[/dim]\n")
         webbrowser.open(f"http://localhost:{actual_port}")
 
-        with socketserver.TCPServer(("", actual_port), DevHandler) as httpd:
+        with socketserver.TCPServer((host, actual_port), DevHandler) as httpd:
             try:
                 httpd.serve_forever()
             except KeyboardInterrupt:
                 console.print("\n[green]Dev server stopped.[/green]")
+
+
+def _dev_request_refusal(
+    method: str, path: str, headers, server_address
+) -> Optional[tuple[int, str]]:
+    """Why the ``aiui dev`` server must refuse this request, or None.
+
+    The dev server writes example YAML files, so it applies the same guards
+    as the app server (:mod:`praisonaiui.http_guard`): an unknown ``Host``
+    (DNS rebinding) is refused; ``/api/*`` calls must come from the
+    dashboard's own origin (a cross-site page, including a ``text/plain``
+    POST that skips the CORS preflight, is refused); and a POST must be
+    ``application/json``.
+    """
+    from praisonaiui.http_guard import (
+        configured_hosts,
+        configured_origins,
+        host_allowed,
+        origin_allowed,
+    )
+
+    scope = {
+        "type": "http",
+        "scheme": "http",
+        "method": method,
+        "path": path,
+        "server": (str(server_address[0]), int(server_address[1])) if server_address else None,
+        "headers": [(str(k).lower().encode("latin-1"), str(v).encode("latin-1")) for k, v in headers],
+    }
+    if not host_allowed(scope, configured_hosts()):
+        return 400, "Host not allowed"
+    if path.startswith("/api/") and not origin_allowed(scope, configured_origins()):
+        return 403, "Cross-site request refused"
+    if method == "POST":
+        content_type = ""
+        for k, v in headers:
+            if str(k).lower() == "content-type":
+                content_type = str(v).split(";", 1)[0].strip().lower()
+        if content_type != "application/json":
+            return 415, "Content-Type must be application/json"
+    return None
 
 
 def _apply_chat_yaml(chat_yaml: dict) -> Optional[str]:
