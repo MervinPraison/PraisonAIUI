@@ -110,6 +110,20 @@ export interface ShellPage {
 
 export type ShellPluginStatus = 'ok' | 'error' | 'disabled' | 'incompatible' | 'disabled-by-default'
 
+/** Where a plugin record comes from (server PluginRecord.origin). */
+export type ShellPluginOrigin = 'entry-point' | 'manual' | 'builtin'
+
+export interface ShellPluginRecord {
+  name: string
+  version?: string
+  status: ShellPluginStatus
+  error?: string
+  /** Older servers omit it. */
+  origin?: ShellPluginOrigin
+  /** Built-ins only: the host needs part of this plugin even when disabled. */
+  required?: boolean
+}
+
 export interface ShellManifest {
   sdk: number
   version: string
@@ -119,7 +133,7 @@ export interface ShellManifest {
   pages: ShellPage[]
   blocks: { type: string; module: string; integrity?: string; source: string }[]
   toolRenderers: { toolName: string; module: string; integrity?: string; source: string }[]
-  plugins: { name: string; version?: string; status: ShellPluginStatus; error?: string }[]
+  plugins: ShellPluginRecord[]
   legacy: { customJs: string | null; viewsBase: string }
 }
 
