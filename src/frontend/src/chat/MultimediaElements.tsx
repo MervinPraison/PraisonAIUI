@@ -261,10 +261,21 @@ interface CodeBlockProps {
 export function CodeBlock({ code, language, className = '' }: CodeBlockProps) {
     const [copied, setCopied] = useState(false)
 
+    const [copyFailed, setCopyFailed] = useState(false)
+
+    // navigator.clipboard is undefined outside a secure context (plain http
+    // to a LAN address): say so instead of throwing.
     const handleCopy = async () => {
-        await navigator.clipboard.writeText(code)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+        try {
+            if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable')
+            await navigator.clipboard.writeText(code)
+            setCopyFailed(false)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+        } catch {
+            setCopyFailed(true)
+            setTimeout(() => setCopyFailed(false), 3000)
+        }
     }
 
     return (
@@ -272,10 +283,12 @@ export function CodeBlock({ code, language, className = '' }: CodeBlockProps) {
             <div className="flex items-center justify-between px-3 py-1 border-b bg-muted/50">
                 <span className="text-xs text-muted-foreground">{language || 'code'}</span>
                 <button
+                    type="button"
                     onClick={handleCopy}
                     className="text-xs text-muted-foreground hover:text-foreground"
+                    title={copyFailed ? 'Copying needs HTTPS or localhost' : undefined}
                 >
-                    {copied ? 'Copied!' : 'Copy'}
+                    {copied ? 'Copied!' : copyFailed ? 'Copy failed' : 'Copy'}
                 </button>
             </div>
             <pre className="p-3 overflow-x-auto text-sm">

@@ -376,6 +376,23 @@ test('a default starter fills the composer instead of sending a fragment', async
   await expect(page.locator('[data-role="user"]')).toHaveCount(0)
 })
 
+test('a code element is highlighted like reply code, and copying without a clipboard does not throw', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  // Plain http to a LAN address has no navigator.clipboard.
+  await page.addInitScript(() => Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }))
+  await openChat(page, 'ws')
+  await send(page, 'plain codeel')
+  await waitForRunEnd(page)
+  const block = assistant(page).last().locator('[data-element="code"] [data-streamdown="code-block"]')
+  await expect(block).toBeVisible()
+  await expect(block).toContainText('python')
+  await expect(block.locator('[style*="--shiki-dark"]').first()).toBeVisible()
+  await block.hover()
+  await block.getByRole('button', { name: /copy/i }).first().click()
+  await page.waitForTimeout(300)
+  expect(errors.pageErrors).toEqual([])
+})
+
 test.describe('phone session rail', () => {
   test.use({ viewport: { width: 390, height: 800 } })
 

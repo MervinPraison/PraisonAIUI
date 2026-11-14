@@ -20,6 +20,7 @@ import { normalizeTexDelimiters } from './texDelimiters'
 import { MAX_STREAM_INTERVAL_MS, StreamPacer } from './streamThrottle'
 import { gateMermaidSource, isAutoLoadImage, isExternalHref } from './urlPolicy'
 import { continueSplitLists } from './listNumbering'
+import { fenced } from './fence'
 import { NO_HIGHLIGHT, legacySafeCodeClass } from './legacyPlugins'
 
 const chat = (md: string, streaming = false) => renderToStaticMarkup(<Markdown variant="chat" streaming={streaming}>{md}</Markdown>)
@@ -669,4 +670,18 @@ test('streaming chat message renders its whole text on first render (no paced bl
     const md = 'Partial **answer** so far'
     assert.match(chat(md, true), /Partial <[^>]*data-streamdown="strong">answer</)
     assert.match(chat(md, true), /so far/)
+})
+
+// ── code as data (chat `code` elements, the `code` block): one renderer ──
+test('fenced(): the fence outgrows any backtick run in the code; unsafe language names are dropped', () => {
+    assert.equal(fenced('print(1)', 'python'), '```python\nprint(1)\n```')
+    assert.equal(fenced('a ```` b', 'md'), '`````md\na ```` b\n`````')
+    assert.equal(fenced('x', 'py\n```html'), '```\nx\n```')
+})
+
+test('a chat code element renders as a Streamdown code block (language label, controls), not a bare <pre>', () => {
+    const html = chat(fenced('def f():\n    return "```"', 'python'))
+    assert.match(html, /data-streamdown="code-block"/)
+    assert.match(html, /data-streamdown="code-block-header"[^>]*><span[^>]*>python<\/span>/)
+    assert.match(html, /return/)
 })
