@@ -134,7 +134,7 @@ built-in commands never import plugins.
 `test_disabled_builtin_does_not_import_its_feature_module`), `e2e/specs/plugins.spec.ts`.
 
 **R5. The SDK surface is `SDK_EXPORTS`.** The `@aiui/sdk` module exports exactly
-the names in `SDK_EXPORTS` (`src/frontend/src/sdk/manifest.ts`, 20 names today).
+the names in `SDK_EXPORTS` (`src/frontend/src/sdk/manifest.ts`, 21 names today).
 Changes are additive under `SDK_VERSION = 1` / `SDK_API_VERSION = 1`: append a
 name and a capability string to `SDK_FEATURES` (append-only). Removing or
 changing a name, a signature or the manifest shape (`ShellManifest`, "FROZEN
