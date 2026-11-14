@@ -5,7 +5,7 @@
  * first-party ones included (builtin.chat's "New chat"), every page, and the
  * three colour modes.
  */
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Check, Monitor, Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import {
@@ -21,7 +21,7 @@ import type { ShellPage } from '@/sdk/manifest'
 import { notify } from '@/sdk/notify'
 import { useCommands, type ShellCommand } from '@/sdk/services'
 import { footerPages, groupPages } from './nav'
-import { paletteFilter } from './paletteFilter'
+import { paletteFilter, rankSections } from './paletteFilter'
 import { PageIcon } from './PageIcon'
 import { navigate } from './router'
 
@@ -81,6 +81,7 @@ export default function CommandPalette({
   }, [pages])
   const registered = useCommands()
   const commandGroups = useMemo(() => groupCommands(registered), [registered])
+  const [search, setSearch] = useState('')
 
   const run = (action: () => void) => {
     onOpenChange(false)
@@ -97,58 +98,88 @@ export default function CommandPalette({
       filter={paletteFilter}
       className="top-[15%] translate-y-0 sm:max-w-xl"
     >
-      <CommandInput placeholder="Search pages and commands…" aria-label="Search pages and commands" />
+      <CommandInput
+        placeholder="Search pages and commands…"
+        aria-label="Search pages and commands"
+        value={search}
+        onValueChange={setSearch}
+      />
       <CommandList className="max-h-[min(60vh,420px)]">
         <CommandEmpty>No matching pages or commands.</CommandEmpty>
-        {commandGroups.map((group) => (
-          <CommandGroup key={`commands:${group.name}`} heading={group.name}>
-            {group.commands.map((c) => (
-              <CommandItem
-                key={c.id}
-                value={`${c.title} ${c.id}`}
-                keywords={c.keywords ? [...c.keywords] : undefined}
-                data-command-id={c.id}
-                onSelect={() => run(() => runCommand(c))}
-              >
-                {c.icon ? <c.icon /> : <span aria-hidden="true" className="size-4 shrink-0" />}
-                <span className="truncate">{c.title}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        ))}
-        {groups.map((group) => (
-          <CommandGroup key={group.name} heading={group.name}>
-            {group.pages.map((p) => (
-              <CommandItem
-                key={p.id}
+        {rankSections(
+          [
+            ...commandGroups.map((group) => ({
+              key: `commands:${group.name}`,
+              heading: group.name,
+              items: group.commands.map((c) => ({
+                key: c.id,
+                value: `${c.title} ${c.id}`,
+                keywords: c.keywords ? [...c.keywords] : undefined,
+                node: (
+                  <CommandItem
+                    key={c.id}
+                    value={`${c.title} ${c.id}`}
+                    keywords={c.keywords ? [...c.keywords] : undefined}
+                    data-command-id={c.id}
+                    onSelect={() => run(() => runCommand(c))}
+                  >
+                    {c.icon ? <c.icon /> : <span aria-hidden="true" className="size-4 shrink-0" />}
+                    <span className="truncate">{c.title}</span>
+                  </CommandItem>
+                ),
+              })),
+            })),
+            ...groups.map((group) => ({
+              key: group.name,
+              heading: group.name,
+              items: group.pages.map((p) => {
                 // The value starts with the title (paletteFilter ranks a title
                 // prefix first); the id keeps it unique. Group and description
                 // are keywords: they match only by word prefix, never fuzzily.
-                value={`${p.title} ${p.id}`}
-                keywords={[p.id, group.name, ...(p.description ? [p.description] : [])]}
-                onSelect={() => run(() => navigate(p.id))}
-              >
-                <PageIcon page={p} />
-                <span className="truncate">{p.title}</span>
-                {p.id === activeId && <CommandShortcut>Current</CommandShortcut>}
-              </CommandItem>
-            ))}
+                const value = `${p.title} ${p.id}`
+                const keywords = [p.id, group.name, ...(p.description ? [p.description] : [])]
+                return {
+                  key: p.id,
+                  value,
+                  keywords,
+                  node: (
+                    <CommandItem key={p.id} value={value} keywords={keywords} onSelect={() => run(() => navigate(p.id))}>
+                      <PageIcon page={p} />
+                      <span className="truncate">{p.title}</span>
+                      {p.id === activeId && <CommandShortcut>Current</CommandShortcut>}
+                    </CommandItem>
+                  ),
+                }
+              }),
+            })),
+            {
+              key: 'theme',
+              heading: 'Theme',
+              items: THEMES.map((t) => ({
+                key: t.value,
+                value: `${t.label} mode`,
+                keywords: ['theme', 'appearance'],
+                node: (
+                  <CommandItem
+                    key={t.value}
+                    value={`${t.label} mode`}
+                    keywords={['theme', 'appearance']}
+                    onSelect={() => run(() => setTheme(t.value))}
+                  >
+                    <t.icon />
+                    <span>{t.label} mode</span>
+                    {theme === t.value && <Check className="ml-auto" aria-label="Active" />}
+                  </CommandItem>
+                ),
+              })),
+            },
+          ],
+          search,
+        ).map((section) => (
+          <CommandGroup key={section.key} heading={section.heading}>
+            {section.items.map((item) => item.node)}
           </CommandGroup>
         ))}
-        <CommandGroup heading="Theme">
-          {THEMES.map((t) => (
-            <CommandItem
-              key={t.value}
-              value={`${t.label} mode`}
-              keywords={['theme', 'appearance']}
-              onSelect={() => run(() => setTheme(t.value))}
-            >
-              <t.icon />
-              <span>{t.label} mode</span>
-              {theme === t.value && <Check className="ml-auto" aria-label="Active" />}
-            </CommandItem>
-          ))}
-        </CommandGroup>
       </CommandList>
     </CommandDialog>
   )

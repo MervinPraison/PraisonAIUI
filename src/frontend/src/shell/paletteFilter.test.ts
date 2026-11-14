@@ -1,7 +1,7 @@
 // ⌘K ranking (review r1: typing "log" + Enter opened Knowledge, not Logs).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { paletteFilter } from './paletteFilter'
+import { paletteFilter, rankSections } from './paletteFilter'
 
 const pages = [
   ['Chat', 'chat'], ['Knowledge', 'knowledge'], ['Memory', 'memory'], ['Channel Inbox', 'inbox'],
@@ -34,4 +34,15 @@ test('an empty query keeps everything; nonsense matches nothing', () => {
 test('keywords count only as word prefixes, below title matches', () => {
   assert.equal(paletteFilter('Usage usage', 'settings', ['usage', 'Settings']), 0.5)
   assert.ok(paletteFilter('Usage usage', 'us', ['usage']) > 0.5)
+})
+
+test('groups are ordered by their best match, so Enter picks Logs (cmdk does not order groups)', () => {
+  const section = (key: string, titles: string[]) => ({
+    key,
+    heading: key,
+    items: titles.map((t) => ({ key: t, value: `${t} ${t.toLowerCase()}`, keywords: [key], node: null })),
+  })
+  const sections = [section('Agent', ['Chat', 'Knowledge']), section('Work', ['Work Hub']), section('Settings', ['Config', 'Logs'])]
+  assert.deepEqual(rankSections(sections, 'log').map((s) => s.key), ['Settings', 'Agent', 'Work'])
+  assert.deepEqual(rankSections(sections, '').map((s) => s.key), ['Agent', 'Work', 'Settings'], 'no query: sidebar order')
 })

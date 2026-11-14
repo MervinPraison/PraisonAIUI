@@ -19,3 +19,25 @@ export function paletteFilter(value: string, search: string, keywords?: string[]
   if ((keywords ?? []).some((k) => k.toLowerCase().split(WORDS).some((w) => w.startsWith(s)))) return 0.5
   return defaultFilter(v, s) * 0.4
 }
+
+export interface PaletteSection<N = unknown> {
+  key: string
+  heading: string
+  items: { key: string; value: string; keywords?: string[]; node: N }[]
+}
+
+/**
+ * Order the groups by their best match while a query is typed. cmdk ranks
+ * the items inside a group, but its own group ordering never applies (it
+ * looks groups up by an internal id), so "log" kept the Agent group (a fuzzy
+ * Knowledge) above Settings (an exact Logs). Ties keep the sidebar order.
+ */
+export function rankSections<S extends PaletteSection>(sections: S[], search: string): S[] {
+  if (!search.trim()) return sections
+  const best = (s: S) => Math.max(0, ...s.items.map((i) => paletteFilter(i.value, search, i.keywords)))
+  return sections
+    .map((section, index) => ({ section, index, score: best(section) }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((x) => x.section)
+}
+
