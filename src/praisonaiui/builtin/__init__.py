@@ -1,26 +1,30 @@
-"""First-party plugins: the pages that ship with PraisonAIUI.
+"""First-party plugins: the pages and features that ship with PraisonAIUI.
 
-The host has no page list of its own. Everything in the nav by default comes
-from the records in :mod:`praisonaiui.builtin.catalog`, registered with
+The host has no page or feature list of its own. Everything in the nav and
+every built-in API by default comes from the records in
+:mod:`praisonaiui.builtin.catalog`, registered with
 :meth:`PluginRegistry.register_builtin` and read back through the registry,
-the same way a third-party plugin's pages are. That makes them addressable by
-the extension policy::
+the same way a third-party plugin's pages and features are. That makes them
+addressable by the extension policy::
 
     extensions:
       disabled: [builtin.training, builtin.logs]
 
     aiui.set_extensions(disabled=["builtin.training"])
 
-A disabled built-in contributes no pages: they leave ``GET /api/pages`` and
-the shell manifest. ``set_pages`` / ``pages.enabled`` / ``pages.disabled`` /
-``remove_page`` keep working on top (they filter single pages by id).
+A disabled built-in contributes no pages (they leave ``GET /api/pages`` and
+the shell manifest) and mounts none of its feature routes, except features
+marked ``required``: the host itself depends on those (auth, theme, chat,
+usage, runtime config, sessions), so they stay on and a warning is logged.
+``set_pages`` / ``pages.enabled`` / ``pages.disabled`` / ``remove_page`` keep
+working on top (they filter single pages by id and leave routes mounted).
 """
 
 from __future__ import annotations
 
 from typing import Any, Optional
 
-from ._plugin import BuiltinPlugin, page
+from ._plugin import BuiltinPlugin, FeatureRef, feature, page
 from .catalog import BUILTIN_PLUGINS
 
 
@@ -40,4 +44,11 @@ def register_builtin_plugins(registry: Optional[Any] = None) -> None:
             registry.register_builtin(plugin)
 
 
-__all__ = ["BUILTIN_PLUGINS", "BuiltinPlugin", "page", "register_builtin_plugins"]
+__all__ = [
+    "BUILTIN_PLUGINS",
+    "BuiltinPlugin",
+    "FeatureRef",
+    "feature",
+    "page",
+    "register_builtin_plugins",
+]

@@ -73,7 +73,7 @@ Every member except `name` is optional:
 | `tool_renderers()` | `ToolRendererSpec` | Chat renderers for tool calls |
 | `routes()` | Starlette routes | Mounted under `/api/plugins/<name>` |
 | `static_dir()` | `Path` | Served at `/_plugins/<name>/` |
-| `features()` | feature protocols | Registered like built-in features (built-in names win) |
+| `features()` | feature protocols | Registered like built-in features (an enabled built-in's names win) |
 | `cli_commands()` | `typer.Typer` or click command | `aiui <name> …` and `aiui plugins <name> …` |
 | `setup(ctx)` | `None` | Called once per `create_app()` with `{"style", "config"}` |
 
@@ -100,11 +100,14 @@ about shadowed ids.
 
 ### Built-in plugins
 
-The pages that ship with PraisonAIUI use the same mechanism. Each domain is a
-first-party plugin record in `praisonaiui.builtin` (for example `builtin.chat`
-holds the Chat and Chat + Canvas pages, `builtin.work` holds Work Hub, Kanban
-and Jobs Board). The server reads their pages through the plugin registry, so
-the extension policy can switch a whole domain off:
+The pages and features that ship with PraisonAIUI use the same mechanism.
+Each domain is a first-party plugin record in `praisonaiui.builtin`: for
+example `builtin.chat` holds the Chat and Chat + Canvas pages with the `chat`
+and `attachments` features, and `builtin.work` holds Work Hub, Kanban and
+Jobs Board with the `kanban` feature. Features with no page of their own have
+a record each (`builtin.tts`, `builtin.pwa`, `builtin.video` …). The server
+reads pages and features through the plugin registry, so the extension policy
+can switch a whole domain off:
 
 ```yaml
 extensions:
@@ -113,9 +116,18 @@ extensions:
 
 or `aiui.set_extensions(disabled=["builtin.training"])`. A disabled built-in
 contributes no pages: they leave `GET /api/pages`, the shell manifest and the
-sidebar, and a bundled dashboard-plugin folder that belongs to it (the
-`kanban` folder belongs to `builtin.work`) is not served either. With the
-built-in off, an entry-point plugin may use its page ids.
+sidebar. Its feature routes are not mounted (`/api/training/...` returns 404),
+the server does not load its feature modules, and a bundled dashboard-plugin
+folder that belongs to it (`kanban` belongs to `builtin.work`, `video-studio`
+to `builtin.video`) is not served either. With the built-in off, an
+entry-point plugin may use its page ids and feature names.
+
+Some features are **required**: the server itself depends on `auth`, `theme`,
+`chat`, `usage`, `config_runtime` and `sessions_ext`. Disabling their record
+(`builtin.auth`, `builtin.theme-picker`, `builtin.chat`, `builtin.usage`,
+`builtin.config`, `builtin.sessions`) removes its pages and its other
+features, keeps the required feature mounted and logs a warning. Disabling
+`builtin.auth` therefore never turns authentication off.
 
 - Built-ins are trusted and on by default. `extensions.enabled` is an
   allowlist for third-party plugins only, so it never hides a built-in page.
@@ -124,10 +136,13 @@ built-in off, an entry-point plugin may use its page ids.
   logs a warning.
 - The page-level controls still apply on top: `aiui.set_pages([...])`,
   `pages.enabled` / `pages.disabled` in `config.yaml` and `aiui.remove_page()`
-  hide single pages, and `aiui.register_page()` with a built-in id replaces
-  that page.
+  hide single pages (their APIs stay mounted), and `aiui.register_page()`
+  with a built-in id replaces that page.
+- `register_feature()` before the server starts replaces a built-in feature of
+  the same name, as before.
 - `GET /api/plugins?origin=builtin` (or `origin=all`) lists the built-in
-  records with their status. Without the parameter the endpoint lists
+  records with their status (and `required: true` where the host needs one
+  of their features). Without the parameter the endpoint lists
   third-party plugins only, as before.
 
 ## The browser side

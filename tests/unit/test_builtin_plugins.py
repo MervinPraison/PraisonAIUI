@@ -397,3 +397,256 @@ def test_third_party_pages_cannot_carry_inline_svg():
     reg.register(Mine())
     (spec,) = reg.pages()
     assert spec.icon_svg is None and "iconSvg" not in spec.to_dict()
+
+
+# ── G2: built-in features come from the same records ─────────────────
+
+# The feature names create_app() registered before features moved into the
+# plugin records (captured from feat/ui-reset).
+DEFAULT_FEATURES = [
+    "agents_crud", "agui", "approvals", "attachments", "auth", "browser_automation",
+    "channels", "chat", "code_execution", "config_hot_reload", "config_runtime",
+    "device_pairing", "eval", "guardrails", "hooks", "i18n", "jobs", "kanban",
+    "knowledge", "logs", "marketplace", "media_analysis", "memory", "model_fallback",
+    "nodes", "openai_api", "protocol", "pwa", "realtime", "replay", "schedules",
+    "security", "sessions_ext", "skills", "subagents", "surfaces", "telemetry", "theme",
+    "tracing", "training", "tts", "usage", "video", "workflows",
+]  # fmt: skip
+REQUIRED_FEATURES = {"auth", "theme", "chat", "usage", "config_runtime", "sessions_ext"}
+# Feature classes that exist but were never registered by default.
+NOT_DEFAULT = {"AudioFeature", "LifecycleFeature", "WindowMessageFeature"}
+FEATURES_DIR = Path(srv.__file__).parent / "features"
+
+
+def _feature_names() -> list[str]:
+    from praisonaiui.features import get_features
+
+    return sorted(get_features())
+
+
+def test_default_feature_set_is_unchanged():
+    _client()
+    assert _feature_names() == DEFAULT_FEATURES
+
+
+def test_every_feature_class_belongs_to_exactly_one_builtin():
+    import re
+
+    declared = [(r.module, r.cls) for p in BUILTIN_PLUGINS for r in p.feature_refs]
+    assert len(declared) == len(set(declared)) == len(DEFAULT_FEATURES)
+    in_package = set()
+    for path in FEATURES_DIR.glob("*.py"):
+        for cls in re.findall(r"^class (\w+)\(BaseFeatureProtocol\)", path.read_text("utf-8"), re.M):
+            in_package.add((f".{path.stem}", cls))
+    # A new feature module must be given to a built-in record (or listed here).
+    assert set(declared) == {(m, c) for m, c in in_package if c not in NOT_DEFAULT}
+
+
+def test_required_features_are_the_ones_the_host_needs():
+    required = {
+        r.load().feature_name for p in BUILTIN_PLUGINS for r in p.feature_refs if r.required
+    }
+    assert required == REQUIRED_FEATURES
+    reg = get_plugin_registry()
+    register_builtin_plugins(reg)
+    flagged = {r.name for r in reg.builtin_records() if r.required}
+    assert flagged == {
+        "builtin.auth", "builtin.chat", "builtin.config",
+        "builtin.sessions", "builtin.theme-picker", "builtin.usage",
+    }  # fmt: skip
+    listed = {p["name"]: p for p in _client().get("/api/plugins?origin=builtin").json()["plugins"]}
+    assert listed["builtin.auth"]["required"] is True and "required" not in listed["builtin.logs"]
+
+
+def test_disabling_a_builtin_unmounts_its_feature_routes():
+    client = _client()
+    assert client.get("/api/training/status").status_code == 200
+    srv.reset_state()
+    set_extensions(disabled=["builtin.training"])
+    client = _client()
+    assert "training" not in _feature_names()
+    assert set(_feature_names()) == set(DEFAULT_FEATURES) - {"training"}
+    for path in ("/api/training/status", "/api/training/sessions"):
+        assert client.get(path).status_code == 404
+    _assert_gone(client, "training")
+    assert "training" not in {f["name"] for f in client.get("/api/features").json()["features"]}
+
+
+def test_feature_only_builtin_can_be_disabled():
+    def _paths(app) -> set[str]:
+        return {getattr(r, "path", "") for r in app.routes}
+
+    app = srv.create_app()
+    assert "/api/video/projects" in _paths(app)
+    assert "video-studio" in {p["id"] for p in _manifest_pages(TestClient(app))}
+    srv.reset_state()
+    set_extensions(disabled=["builtin.video"])
+    app = srv.create_app()
+    client = TestClient(app)
+    assert "video" not in _feature_names()
+    assert not any(p.startswith("/api/video") for p in _paths(app))
+    assert client.get("/api/video/projects").status_code == 404
+    # The bundled Video Studio folder only talks to /api/video: it goes too.
+    assert "video-studio" not in {p["id"] for p in _manifest_pages(client)}
+    assert client.get("/dashboard-plugins/video-studio/index.js").status_code == 404
+    _assert_gone(client)  # no built-in page belongs to builtin.video
+
+
+def test_required_feature_stays_on_with_a_warning(caplog):
+    set_extensions(disabled=["builtin.auth", "builtin.chat"])
+    with caplog.at_level(logging.WARNING, logger="praisonaiui.features"):
+        client = _client()
+    assert {"auth", "chat"} <= set(_feature_names())
+    # chat's optional feature goes, its required one stays
+    assert "attachments" not in _feature_names()
+    assert client.get("/api/auth/status").status_code != 404
+    _assert_gone(client, "auth", "chat", "chat-canvas")
+    messages = " ".join(r.getMessage() for r in caplog.records)
+    assert "builtin.auth is disabled, but the server needs its auth feature" in messages
+    assert "builtin.chat is disabled, but the server needs its chat feature" in messages
+
+
+def test_policy_change_between_apps_unmounts_and_restores_features():
+    _client()
+    assert "training" in _feature_names()
+    get_plugin_registry().set_policy(ExtensionPolicy(disabled=["builtin.training"]))
+    client = _client()
+    assert "training" not in _feature_names()
+    assert client.get("/api/training/status").status_code == 404
+    get_plugin_registry().set_policy(ExtensionPolicy())
+    client = _client()
+    assert _feature_names() == DEFAULT_FEATURES
+    assert client.get("/api/training/status").status_code == 200
+
+
+def test_disabled_builtin_does_not_import_its_feature_module():
+    import importlib
+    from unittest import mock
+
+    from praisonaiui.features import auto_register_defaults
+
+    seen: list[str] = []
+    real = importlib.import_module
+
+    def _spy(name, package=None):
+        seen.append(name)
+        return real(name, package=package)
+
+    set_extensions(disabled=["builtin.training"])
+    with mock.patch("importlib.import_module", side_effect=_spy):
+        auto_register_defaults()
+    assert ".training" not in seen and ".chat" in seen
+
+
+def test_register_feature_still_replaces_a_builtin_and_survives_a_disable():
+    from praisonaiui.features import auto_register_defaults, get_feature, register_feature
+    from praisonaiui.features.training import TrainingFeature
+
+    class MyTraining(TrainingFeature):
+        pass
+
+    mine = MyTraining()
+    register_feature(mine)
+    try:
+        auto_register_defaults()
+        assert get_feature("training") is mine
+        set_extensions(disabled=["builtin.training"])
+        auto_register_defaults()
+        assert get_feature("training") is mine  # the app's own feature is not unregistered
+    finally:
+        from praisonaiui.features import _features
+
+        _features.pop("training", None)
+        srv.reset_state()
+        auto_register_defaults()
+
+
+def test_auto_register_defaults_works_without_create_app():
+    from praisonaiui.features import _features, auto_register_defaults
+
+    get_plugin_registry().reset()
+    _features.clear()
+    auto_register_defaults()
+    assert _feature_names() == DEFAULT_FEATURES
+    assert len(get_plugin_registry().builtin_records()) == len(BUILTIN_PLUGINS)
+
+
+def test_a_broken_builtin_features_hook_does_not_block_the_rest(caplog):
+    from praisonaiui.features import auto_register_defaults
+
+    class Broken:
+        name = "broken"
+
+        def features(self):
+            raise RuntimeError("boom")
+
+    get_plugin_registry().register_builtin(Broken())
+    with caplog.at_level(logging.WARNING, logger="praisonaiui.features"):
+        auto_register_defaults()
+    assert _feature_names() == DEFAULT_FEATURES
+    assert any("builtin.broken" in r.getMessage() for r in caplog.records)
+
+
+def test_plugin_feature_takes_the_name_of_a_disabled_builtin():
+    from praisonaiui.features import get_feature
+    from praisonaiui.features.training import TrainingFeature
+
+    class PluginTraining(TrainingFeature):
+        pass
+
+    class Mine:
+        name = "mine"
+
+        def features(self):
+            return [PluginTraining()]
+
+    get_plugin_registry().register(Mine())
+    _client()
+    assert type(get_feature("training")) is TrainingFeature  # built-in wins while enabled
+
+    from praisonaiui.features import _features
+
+    _features.pop("training", None)
+    srv.reset_state()
+    get_plugin_registry().register(Mine())
+    set_extensions(disabled=["builtin.training"])
+    _client()
+    assert type(get_feature("training")) is PluginTraining
+    _features.pop("training", None)
+
+
+def test_no_builtin_feature_route_is_shadowed():
+    """Built-in features register in record order, which is not the order of
+    the old hardcoded list. That is only safe while no route of one feature
+    can match a path that another feature serves (either way round)."""
+    import re
+
+    from starlette.routing import WebSocketRoute
+
+    from praisonaiui.features import auto_register_defaults, get_features
+
+    auto_register_defaults()
+    routes = [
+        (name, r)
+        for name, feat in get_features().items()
+        for r in feat.routes()
+        if hasattr(r, "path_regex")
+    ]
+    assert len(routes) > 200  # sanity: the scan really sees the feature routes
+
+    def concrete(path: str) -> str:
+        return re.sub(r"\{[^}]+\}", "x", path)
+
+    clashes = []
+    for i, (n1, r1) in enumerate(routes):
+        for n2, r2 in routes[i + 1 :]:
+            if n1 == n2 or isinstance(r1, WebSocketRoute) != isinstance(r2, WebSocketRoute):
+                continue
+            methods = (getattr(r1, "methods", None) or {"WS"}) & (
+                getattr(r2, "methods", None) or {"WS"}
+            )
+            if methods and (
+                r1.path_regex.match(concrete(r2.path)) or r2.path_regex.match(concrete(r1.path))
+            ):
+                clashes.append((n1, r1.path, n2, r2.path))
+    assert clashes == []

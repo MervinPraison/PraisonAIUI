@@ -4110,10 +4110,13 @@ def create_app(
     from praisonaiui.jobs_proxy import jobs_proxy_routes
 
     routes.extend(jobs_proxy_routes())
+    # Built-in features come from the first-party plugin records too: a
+    # built-in named in ``extensions.disabled`` mounts none of its routes
+    # (features the host needs are kept; see praisonaiui.builtin).
     auto_register_defaults()
     # Entry-point plugins may contribute whole feature protocols (same
     # contract as built-ins); registered before routes are collected.
-    # Built-in feature names always win.
+    # An enabled built-in's feature names win.
     from praisonaiui.features import register_feature as _register_feature
 
     for _pf in _plugin_registry.features():
