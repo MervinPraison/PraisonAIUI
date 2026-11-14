@@ -47,8 +47,10 @@ flowchart TB
   subgraph PY["Python host (src/praisonaiui)"]
     CAT["builtin/catalog.py<br/>first-party records"] --> REG["plugin_registry.PluginRegistry<br/>+ ExtensionPolicy"]
     EP["entry points praisonaiui.plugins<br/>register_plugin()"] --> REG
-    APPAPI["register_page / set_pages / YAML"] --> PAGES["_pages"]
-    REG --> PAGES
+    APPAPI["register_page / @aiui.page / YAML pages"] --> SRC["builtin/page_sources.py<br/>PageSpec per source + merge_pages"]
+    DPF["dashboard-plugin folders"] --> SRC
+    REG --> SRC
+    SRC --> PAGES["one page list<br/>(app > built-in > plugin > folder)"]
     REG --> FEAT["features registry<br/>(auto_register_defaults)"]
     PAGES --> MAN["GET /api/shell/manifest<br/>+ #aiui-boot"]
     GUARD["http_guard + auth middlewares"] -.-> ROUTES["every HTTP route / WS"]
@@ -229,8 +231,9 @@ module top in a module `create_app` loads.
 page-specific routes or handlers in `create_app`, no new module-level state for
 a feature. Put new APIs in a `features/*.py` class owned by a catalog record, or
 in a plugin's `routes()`; put config in YAML (`schema/models.py`). `server.py` is
-4,471 lines with 119 top-level functions and about 70 `Route`/`Mount` entries in
-`create_app` today (gap G6); a PR may move code out, never in.
+about 4,600 lines with about 120 top-level functions today (gap G6), and the
+routes left in `create_app` are core (pinned by `test_route_table_snapshot.py`);
+a PR may move code out, never in.
 *Check:* the diff of `server.py` adds no `Route(` and no `create_app` parameter;
 line count does not rise without a stated reason.
 
