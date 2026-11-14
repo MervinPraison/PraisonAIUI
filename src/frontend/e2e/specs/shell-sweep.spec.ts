@@ -175,7 +175,7 @@ test('every manifest page renders with no errors and no leaks', async ({ page },
   })
 
   let before = await leakSnapshot(page)
-  for (const { id, kind, apiEndpoint } of pages) {
+  for (const { id, title, kind, apiEndpoint } of pages) {
     const errorsBefore = errors.pageErrors.length
     const link = await sidebarLink(page, id)
     if ((await link.count()) !== 1) {
@@ -193,13 +193,57 @@ test('every manifest page renders with no errors and no leaks', async ({ page },
     await page.waitForTimeout(150)
     watchedEndpoint = ''
     if (state.state === 'ready' && apiErrors.length) state = { state: 'error', detail: `its data endpoint answered ${apiErrors[0]}` }
-    // Legacy pages share the shell's gutter: their first content box starts where every other page's does.
-    const gutter = await page.evaluate((pageId) => {
-      const host = document.querySelector(`[data-aiui-page="${CSS.escape(pageId)}"] .aiui-legacy-host:not(.db-fill)`)
-      const mount = host?.querySelector('.aiui-legacy-mount')
-      return mount ? Math.round(mount.getBoundingClientRect().left) : null
-    }, id)
-    if (gutter !== null) gutters.push({ id, left: gutter })
+    // Legacy pages share the shell's gutter and title: their first visible
+    // content box starts at the mount's left edge (no inner padding wrapper),
+    // and no visible h1/h2 repeats the title the shell header already shows.
+    const layout = await page.evaluate(
+      ({ pageId, title }) => {
+        const host = document.querySelector(`[data-aiui-page="${CSS.escape(pageId)}"] .aiui-legacy-host:not(.db-fill)`)
+        const mount = host?.querySelector('.aiui-legacy-mount')
+        if (!mount) return null
+        const visible = (el: Element) => {
+          const r = el.getBoundingClientRect()
+          if (r.width <= 2 || r.height <= 2) return false
+          const s = getComputedStyle(el)
+          return s.visibility !== 'hidden' && s.display !== 'none' && s.position !== 'fixed' && s.clip !== 'rect(0px, 0px, 0px, 0px)'
+        }
+        let left = Infinity
+        let first = ''
+        for (const el of mount.querySelectorAll('*')) {
+          if (!visible(el)) continue
+          const s = getComputedStyle(el)
+          const boxed = parseFloat(s.borderLeftWidth) > 0 || !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(s.backgroundColor)
+          const text = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())
+          const x = el.getBoundingClientRect().left
+          if ((boxed || text) && x < left) {
+            left = x
+            first = `${el.tagName.toLowerCase()}${el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : ''}`
+          }
+        }
+        const norm = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+        const want = norm(title)
+        const repeats = [...mount.querySelectorAll('h1, h2')]
+          .filter((h) => visible(h) && want && norm(h.textContent || '').includes(want))
+          .map((h) => (h.textContent || '').trim())
+        return {
+          mountLeft: Math.round(mount.getBoundingClientRect().left),
+          contentLeft: Number.isFinite(left) ? Math.round(left) : null,
+          first,
+          repeats,
+          headerShown: !!document.querySelector('[data-aiui-page-header="shown"]'),
+        }
+      },
+      { pageId: id, title },
+    )
+    if (layout) {
+      gutters.push({ id, left: layout.mountLeft })
+      if (layout.contentLeft !== null && Math.abs(layout.contentLeft - layout.mountLeft) > 1) {
+        failures.push(`${id}: content starts at x=${layout.contentLeft} (${layout.first}), not at the shell gutter x=${layout.mountLeft}`)
+      }
+      if (layout.headerShown && layout.repeats.length) {
+        failures.push(`${id}: a visible heading repeats the header title "${title}": ${JSON.stringify(layout.repeats)}`)
+      }
+    }
     await leaveAndSettle(page)
     const afterFirst = await leakSnapshot(page)
     const firstVisit = leakDelta(before, afterFirst)
@@ -333,6 +377,77 @@ test('the command palette opens with the keyboard and navigates', async ({ page 
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/\/logs$/)
   expect((await waitForPage(page, 'logs')).state).toBe('ready')
+})
+
+test('legacy pages share the gutter and width of a React page', async ({ page }) => {
+  /** Left edge and width of the page's first content box, and of its page area. */
+  const measure = (id: string) =>
+    page.evaluate((pageId) => {
+      const area = document.querySelector(`[data-aiui-page="${CSS.escape(pageId)}"]`)
+      if (!area) return null
+      // The React page's body or the legacy view's mount: the box the page's content lives in.
+      const body =
+        area.querySelector('.aiui-legacy-mount') ??
+        [...area.children].find((el) => !el.hasAttribute('data-aiui-slot') && el.getBoundingClientRect().height > 0)
+      if (!body) return null
+      const a = area.getBoundingClientRect()
+      const b = body.getBoundingClientRect()
+      const s = getComputedStyle(area)
+      // Where the first visible text or box inside it starts (an inner
+      // padding wrapper moves this off the gutter, not the body itself).
+      let content = Infinity
+      for (const el of body.querySelectorAll('*')) {
+        const r = el.getBoundingClientRect()
+        const cs = getComputedStyle(el)
+        if (r.width <= 2 || r.height <= 2 || cs.visibility === 'hidden' || cs.position === 'fixed' || cs.position === 'absolute') continue
+        const boxed = parseFloat(cs.borderLeftWidth) > 0 || !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(cs.backgroundColor)
+        const text = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())
+        if (boxed || text) content = Math.min(content, r.left)
+      }
+      return {
+        left: Math.round(b.left),
+        width: Math.round(b.width),
+        content: Number.isFinite(content) ? Math.round(content) : null,
+        gutter: Math.round(a.left + parseFloat(s.paddingLeft)),
+        measure: Math.round(a.width - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight)),
+      }
+    }, id)
+
+  await page.goto('/hello')
+  await expect(page.locator('[data-aiui-page="hello"]')).toContainText(/hello/i)
+  const react = await measure('hello')
+  expect(react, 'the React page area').not.toBeNull()
+  expect(react!.left, 'a React page starts at the shell gutter').toBe(react!.gutter)
+  // Data pages use the full page width; forms (config, theme-picker) keep a reading measure.
+  for (const id of ['logs', 'usage', 'channels', 'security', 'jobs']) {
+    await page.goto(`/${id}`)
+    expect((await waitForPage(page, id)).state, id).toBe('ready')
+    const legacy = await measure(id)
+    expect(legacy, `${id}: the legacy mount`).not.toBeNull()
+    // Same page area as the React page, and the view's mount fills it: no
+    // second gutter, no narrower max-width of its own.
+    expect(legacy!.gutter, `${id}: page area`).toBe(react!.gutter)
+    expect(legacy!.left, `${id}: gutter`).toBe(react!.gutter)
+    expect(legacy!.width, `${id}: width`).toBe(react!.measure)
+    expect(legacy!.content, `${id}: first content box`).toBe(react!.gutter)
+  }
+})
+
+test('the collapsed rail shows a tooltip that never survives a collapse toggle', async ({ page }) => {
+  await page.goto('/overview')
+  expect((await waitForPage(page, 'overview')).state).toBe('ready')
+  const tip = page.locator('[data-aiui-nav-tip]')
+  await page.getByRole('button', { name: 'Collapse sidebar' }).click()
+  const link = page.locator('[data-aiui-shell-sidebar] a[data-page-id="logs"]')
+  await link.focus()
+  await expect(tip).toHaveText('Logs')
+  // Toggle with the keyboard: focus stays on the link, so no blur clears the tip.
+  await page.keyboard.press('ControlOrMeta+b')
+  await expect(page.getByRole('button', { name: 'Collapse sidebar' })).toBeVisible()
+  await expect(tip).toHaveCount(0)
+  await page.keyboard.press('ControlOrMeta+b')
+  await expect(page.getByRole('button', { name: 'Expand sidebar' })).toBeVisible()
+  await expect(tip, 'a stale tooltip from before the toggle').toHaveCount(0)
 })
 
 test('a new approval raises a toast that opens the approvals page, except on chat', async ({ page }) => {
