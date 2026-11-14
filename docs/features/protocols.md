@@ -269,6 +269,8 @@ Multi-step workflow orchestration (Pipeline, Route, Parallel, Loop).
 
 **CLI:** `aiui workflows list`, `aiui workflows run <id>`, `aiui workflows status`, `aiui workflows runs`
 
+**Python:** `from praisonaiui.features.workflows import list_runs` returns every run (copies, oldest first), the same list `GET /api/workflows/runs` serves.
+
 ### 10. Config Runtime
 
 Live runtime configuration without server restart.

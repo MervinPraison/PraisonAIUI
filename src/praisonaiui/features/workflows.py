@@ -22,6 +22,15 @@ _workflows: Dict[str, Dict[str, Any]] = {}
 _runs: Dict[str, Dict[str, Any]] = {}
 
 
+def list_runs() -> List[Dict[str, Any]]:
+    """Every recorded workflow run, oldest first (copies; safe to change).
+
+    The public read of the run log, for hosts and pages that list runs
+    (``GET /api/workflows/runs`` serves the same list).
+    """
+    return [dict(run) for run in _runs.values()]
+
+
 def _execute_workflow(wf_id: str, wf: Dict[str, Any], input_data: Dict[str, Any]) -> Dict[str, Any]:
     """Run via injected backend or built-in AgentFlow runner."""
     from praisonaiui.backends import get_workflow_runner
@@ -143,7 +152,8 @@ class WorkflowsFeature(BaseFeatureProtocol):
         )
 
     async def _list_runs(self, request: Request) -> JSONResponse:
-        return JSONResponse({"runs": list(_runs.values()), "count": len(_runs)})
+        runs = list_runs()
+        return JSONResponse({"runs": runs, "count": len(runs)})
 
     async def _get_run(self, request: Request) -> JSONResponse:
         run_id = request.path_params["run_id"]
@@ -170,11 +180,12 @@ class WorkflowsFeature(BaseFeatureProtocol):
         return f"Workflows: {len(_workflows)}, Runs: {len(_runs)}"
 
     def _cli_runs(self) -> str:
-        if not _runs:
+        runs = list_runs()
+        if not runs:
             return "No workflow runs"
         lines = [
             f"  {r['id']} — {r.get('workflow_name', r['workflow_id'])} ({r['status']})"
-            for r in _runs.values()
+            for r in runs
         ]
         return "\n".join(lines)
 
