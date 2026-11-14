@@ -155,6 +155,17 @@ jobs:
         env:
           AIUI_E2E_PYTHON: python
 
+      # Python checks the python job has to skip: the runtime leak probe of the
+      # legacy views (WP5's gate; needs a browser) and the React-export coverage
+      # of the import-map shims (needs src/frontend/node_modules).
+      - name: Runtime leak probe and React-export coverage (pytest)
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium-headless-shell
+          pytest tests/unit/test_legacy_view_hygiene.py tests/unit/test_app_shell.py -q --no-cov --timeout=300 -rs
+        env:
+          RUN_BROWSER_TESTS: "1"
+
       - name: Upload the Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
