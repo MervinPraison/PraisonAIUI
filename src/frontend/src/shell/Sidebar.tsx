@@ -13,7 +13,6 @@ import {
   footerPages,
   groupPages,
   isGroupOpen,
-  navGroups,
   readGroupState,
   revealInScroller,
   siteLogo,
@@ -24,6 +23,7 @@ import {
 import { PageIcon } from './PageIcon'
 import { isPlainLeftClick, navigate, pathForPage } from './router'
 import { SHELL_SLOTS, Slot } from './Slot'
+import { useNavGroupsConfig } from './useNavGroups'
 
 type TipHandler = (page: ShellPage | null, anchor?: HTMLElement) => void
 
@@ -264,7 +264,7 @@ export function AppSidebar({
   onToggleCollapsed: () => void
   className?: string
 }) {
-  const groupConfig = useMemo(() => navGroups(manifest), [manifest])
+  const groupConfig = useNavGroupsConfig(manifest)
   return (
     <aside
       aria-label="Sidebar"

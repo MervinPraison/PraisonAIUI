@@ -3,11 +3,11 @@
  * Loaded on the first tap (or hover/focus) of the header menu button, so the
  * Sheet never sits on the boot path.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import type { ShellManifest } from '@/sdk/manifest'
 import { createFocusReturn } from './focusReturn'
-import { navGroups } from './nav'
+import { useNavGroupsConfig } from './useNavGroups'
 import { SidebarBrand, SidebarNav } from './Sidebar'
 
 const DESKTOP_QUERY = '(min-width: 768px)'
@@ -23,7 +23,7 @@ export default function MobileNav({
   manifest: ShellManifest
   activeId: string
 }) {
-  const groupConfig = useMemo(() => navGroups(manifest), [manifest])
+  const groupConfig = useNavGroupsConfig(manifest)
   // No Dialog.Trigger: closing returns focus to the menu button (or wherever
   // it was), or to the new page's main region after choosing a page.
   const [focus] = useState(createFocusReturn)

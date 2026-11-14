@@ -17,6 +17,37 @@ export interface NavGroupsConfig {
   order?: readonly string[]
   last?: string
   folded?: readonly string[]
+  /**
+   * Positions plugins declared for their own groups (registerNavGroup, a
+   * plugin's nav_groups()), on the scale where `order[i]` sits at
+   * (i + 1) * 100. See withDeclaredGroups().
+   */
+  ranks?: Readonly<Record<string, number>>
+}
+
+/** Rank step between the groups listed in `order`. */
+export const GROUP_RANK_STEP = 100
+
+/**
+ * Add plugin-declared groups to the manifest's `layout.groups`. The app's
+ * own config wins: a group it names in `order` or `last` keeps that place.
+ * A declared `order` ranks the group on the `order` scale (100, 200, …), so
+ * 150 sits between the first two; a group without one follows the ordered
+ * groups as before. A declared `folded` adds the group to `folded`.
+ */
+export function withDeclaredGroups(
+  config: NavGroupsConfig,
+  declared: readonly { name: string; order?: number; folded?: boolean }[],
+): NavGroupsConfig {
+  if (declared.length === 0) return config
+  const owned = new Set([...(config.order ?? []), ...(config.last ? [config.last] : [])])
+  const ranks: Record<string, number> = { ...config.ranks }
+  const folded = [...(config.folded ?? [])]
+  for (const g of declared) {
+    if (typeof g.order === 'number' && Number.isFinite(g.order) && !owned.has(g.name)) ranks[g.name] = g.order
+    if (g.folded && !folded.includes(g.name)) folded.push(g.name)
+  }
+  return { ...config, ranks, folded }
 }
 
 function stringList(v: unknown): string[] | undefined {
@@ -80,9 +111,12 @@ function byOrder(a: ShellPage, b: ShellPage): number {
 
 function groupRank(group: string, groups: NavGroupsConfig): number {
   const order = groups.order ?? []
-  if (groups.last && group === groups.last) return order.length + 1
+  if (groups.last && group === groups.last) return Number.MAX_SAFE_INTEGER
   const i = order.indexOf(group)
-  return i >= 0 ? i : order.length // other groups: after the ordered ones, before `last`
+  if (i >= 0) return (i + 1) * GROUP_RANK_STEP
+  const declared = groups.ranks?.[group]
+  if (declared !== undefined) return declared
+  return (order.length + 1) * GROUP_RANK_STEP // other groups: after the ordered ones, before `last`
 }
 
 export interface NavGroup {
@@ -133,13 +167,16 @@ function stringField(obj: Record<string, unknown>, ...keys: string[]): string | 
  * `layout.defaultPage` or `site.defaultPage`) when it names a known page,
  * else the first page in sidebar order.
  */
-export function defaultPageId(manifest: Pick<ShellManifest, 'pages' | 'layout' | 'site'>): string | null {
+export function defaultPageId(
+  manifest: Pick<ShellManifest, 'pages' | 'layout' | 'site'>,
+  groups: NavGroupsConfig = navGroups(manifest),
+): string | null {
   const ids = new Set(manifest.pages.map((p) => p.id))
   const layout = manifest.layout as Record<string, unknown>
   const configured =
     stringField(layout, 'default', 'defaultPage') ?? stringField(manifest.site, 'defaultPage', 'default_page')
   if (configured && ids.has(configured)) return configured
-  return orderedPages(manifest.pages, navGroups(manifest))[0]?.id ?? null
+  return orderedPages(manifest.pages, groups)[0]?.id ?? null
 }
 
 /** `layout.sidebar: false` (set_dashboard(sidebar=False)) hides the sidebar. */

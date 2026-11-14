@@ -10,6 +10,9 @@ The smallest complete PraisonAIUI plugin. It adds, to the React app shell:
 | Tool renderer | `get_weather` tool calls in chat | `hello.js` calls `registerToolRenderer` |
 | Slot | A "Hello" button in the header (`header:actions`) | `hello.js` calls `registerSlot(..., { id, order })` |
 | Shell services | A toast and in-app navigation | `hello.js` calls `notify()` and `navigate()` |
+| Nav group | Both pages under a "Hello" sidebar group, placed between the app's second and third groups | `HelloPlugin.nav_groups()` |
+| Settings | A "Hello plugin" section in the shell's settings dialog (header button or the palette's "Plugin settings"); the blocks page greets with the saved word | `HelloPlugin.settings()`, `get_plugin_settings("hello", "greeting")` |
+| Theme preset | "Sunrise theme" in the command palette | `HelloPlugin.themes()` (seed tokens) |
 | CLI | `aiui hello greet NAME` | `HelloPlugin.cli_commands()` |
 
 ## Try it
@@ -25,6 +28,9 @@ aiui run app.py --style app
 ```
 
 Open `http://127.0.0.1:8000/hello` and `http://127.0.0.1:8000/hello-blocks`.
+Open the settings dialog from the header (sliders icon), change the
+greeting, and press "Say hello" on `/hello-blocks`. The values are saved in
+`$AIUI_DATA_DIR/plugin-settings/hello.json` (default `~/.praisonaiui`).
 
 When the server requires auth or is reached from another machine, plugin
 browser code is off unless you enable the plugin by name:

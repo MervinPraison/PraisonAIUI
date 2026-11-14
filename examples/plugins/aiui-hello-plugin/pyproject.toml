@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "aiui-hello-plugin"
 version = "0.1.0"
-description = "Example PraisonAIUI plugin: a React page, a blocks page, a tool renderer and a CLI command"
+description = "Example PraisonAIUI plugin: a React page, a blocks page, a tool renderer, a nav group, a settings section, a theme preset and a CLI command"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

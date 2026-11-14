@@ -18,6 +18,7 @@ import {
   siteLogo,
   siteTitle,
   usesLegacyHost,
+  withDeclaredGroups,
   writeGroupState,
 } from '@/shell/nav'
 import {
@@ -113,6 +114,44 @@ test('groups follow the manifest order (Agent, Work, Control), then other groups
     groups.find((g) => g.name === 'Settings')?.pages.map((x) => x.id),
     ['config', 'logs'],
   )
+})
+
+test('a plugin-declared nav group takes its order among the app groups; the app config wins', () => {
+  const base = navGroups(manifest({ layout: { groups: NAV_GROUPS } }))
+  const names = (cfg: typeof base) => groupPages(PAGES, cfg).map((g) => g.name)
+  // 150: between Agent (100) and Work (200).
+  assert.deepEqual(names(withDeclaredGroups(base, [{ name: 'Plugins', order: 150 }])), [
+    'Agent',
+    'Plugins',
+    'Work',
+    'Control',
+    'Other',
+    'Settings',
+  ])
+  // A rank past the unordered groups (400) puts it after them, still before `last`.
+  assert.deepEqual(names(withDeclaredGroups(base, [{ name: 'Plugins', order: 900 }])), [
+    'Agent',
+    'Work',
+    'Control',
+    'Other',
+    'Plugins',
+    'Settings',
+  ])
+  // The app names Control and Settings itself: a plugin cannot move them.
+  const owned = withDeclaredGroups(base, [
+    { name: 'Control', order: 1 },
+    { name: 'Settings', order: 1 },
+  ])
+  assert.deepEqual(names(owned), names(base))
+  // No order: unchanged position; folded adds to the folded list once.
+  const folded = withDeclaredGroups(base, [{ name: 'Plugins', folded: true }, { name: 'Work', folded: true }])
+  assert.deepEqual(names(folded), names(base))
+  assert.deepEqual(folded.folded, ['Work', 'Examples', 'Create', 'Plugins'])
+  assert.equal(isGroupOpen('Plugins', false, {}, folded.folded), false)
+  // Nothing declared: the very same config object (memo-friendly).
+  assert.equal(withDeclaredGroups(base, []), base)
+  // Without layout.groups, a declared rank still orders the plugin group.
+  assert.deepEqual(groupPages(PAGES, withDeclaredGroups({}, [{ name: 'Plugins', order: 50 }]))[0].name, 'Plugins')
 })
 
 test('without layout.groups the shell keeps first-appearance order and folds nothing', () => {

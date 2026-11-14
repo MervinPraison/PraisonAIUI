@@ -1,7 +1,8 @@
 # UI Plugins
 
 A UI plugin is a Python package that adds pages, blocks, chat tool renderers,
-HTTP routes and CLI commands to the React app shell (`style: app`, or
+settings sections, sidebar groups, theme presets, HTTP routes and CLI commands
+to the React app shell (`style: app`, or
 `AIUI_SHELL=app`). Installing the package is the whole setup: the server finds
 it through the `praisonaiui.plugins` entry point.
 
@@ -91,10 +92,14 @@ Every member except `name` is optional:
 | `features()` | feature protocols | Registered like built-in features (an enabled built-in's names win) |
 | `cli_commands()` | `typer.Typer` or click command | `aiui <name> …` and `aiui plugins <name> …` |
 | `setup(ctx)` | `None` | Called once per `create_app()` with `{"style", "config"}` |
+| `settings()` | `SettingsSectionSpec` or dicts | Sections of the shell's settings dialog ([below](#settings-nav-groups-and-theme-presets)) |
+| `nav_groups()` | `NavGroupSpec` or dicts | The sidebar groups your pages use, with their position |
+| `themes()` | `ThemeSpec` or dicts | Theme presets made of seed tokens |
 
-`PageSpec`, `BlockSpec` and `ToolRendererSpec` are importable from
-`praisonaiui` (or `praisonaiui.plugin_registry`). Dicts with the same field
-names work too.
+`PageSpec`, `BlockSpec`, `ToolRendererSpec`, `SettingsSectionSpec`,
+`SettingsField`, `NavGroupSpec`, `ThemeSpec` and `get_plugin_settings` are
+importable from `praisonaiui` (or `praisonaiui.plugin_registry`). Dicts with
+the same field names work too.
 
 ### Page kinds
 
@@ -121,6 +126,102 @@ When two sources use the same page id, the first wins: pages registered by the
 app (`aiui.register_page`), then built-in pages, then entry-point plugins (in
 discovery order), then dashboard-plugin folders. `aiui plugins doctor` warns
 about shadowed ids.
+
+### Settings, nav groups and theme presets
+
+Three hooks contribute to the shell itself rather than to a page. They were
+added under SDK 1; a shell that has them lists the features `settings`,
+`nav-groups` and `theme-presets` in `SDK_FEATURES`, and an older host simply
+never calls them.
+
+```python
+from praisonaiui.plugin_registry import (
+    NavGroupSpec, SettingsField, SettingsSectionSpec, ThemeSpec, get_plugin_settings,
+)
+
+class HelloPlugin:
+    name = "hello"
+
+    def pages(self):
+        return [{"id": "hello", "title": "Hello", "kind": "react", "module": "hello.js", "group": "Hello"}]
+
+    def nav_groups(self):
+        return [NavGroupSpec(name="Hello", order=250)]
+
+    def settings(self):
+        return [SettingsSectionSpec(
+            id="greeting",
+            title="Hello plugin",
+            description="How the Hello blocks page greets you.",
+            fields=(
+                SettingsField(key="greeting", label="Greeting", default="Hello"),
+                SettingsField(key="tone", type="select", options=("plain", "excited")),
+            ),
+        )]
+
+    def themes(self):
+        return [ThemeSpec(id="sunrise", label="Sunrise",
+                          light={"--seed-accent": "#c2410c"},
+                          dark={"--seed-accent": "#fb923c"})]
+
+# anywhere in the plugin's Python code (a route, a feature):
+get_plugin_settings("hello", "greeting")   # {"greeting": "Hello", "tone": "plain"}
+```
+
+**Nav groups.** `NavGroupSpec(name, order=None, folded=False)` names a group
+that your pages use in `PageSpec.group`. `order` places it among the groups:
+the groups the app lists in `layout.groups.order` (`Agent`, `Work`, `Control`
+by default) sit at 100, 200 and 300, groups without an order follow them, and
+`layout.groups.last` (`Settings`) stays last. So `order=250` puts the group
+between Work and Control, and `order=50` puts it first. `folded=True` starts
+the group collapsed until the viewer opens it. The app's own configuration
+wins: a plugin cannot move a group that `layout.groups` (or
+`set_dashboard(groups=...)`) names.
+
+**Settings.** A
+`SettingsSectionSpec(id, title, fields, description="", order=100)` becomes a section of the shell's settings dialog, which opens from
+the sliders button in the header (shown only while some plugin has a section)
+or from "Plugin settings" in the command palette. Each
+`SettingsField(key, label="", type="string", default=None, description="", options=None)`
+is drawn from its type:
+
+| `type` | Control | Default value |
+|---|---|---|
+| `string` | One-line text input | `""` |
+| `text` | Multi-line text area | `""` |
+| `number` | Number input | `0` |
+| `boolean` | Switch | `False` |
+| `select` | Select from `options` (strings or `{"value", "label"}` dicts) | the first option |
+
+The values are stored per plugin in
+`$AIUI_DATA_DIR/plugin-settings/<name>.json` (default `~/.praisonaiui`). The
+server serves each section at `/api/plugins/<name>/settings/<id>`: `GET`
+returns `{"values": {...}}` with the defaults filled in, and `PUT
+{"values": {...}}` validates every key against its field (unknown keys, wrong
+types and options not in the list answer 400 with `{"error", "fields":
+{key: reason}}`, and nothing is written). That path is reserved for a plugin
+that declares `settings()`: it is matched before the plugin's own routes. It
+sits under the same mount as `routes()`, so it is authenticated like every
+route and default-deny for entry-point plugins on remote or auth-enforced
+servers unless they are named in `extensions.enabled`.
+`get_plugin_settings(name, section)` returns the same values to Python; a
+stored value that no longer fits its field (an option you removed) falls back
+to the default.
+
+**Theme presets.** A `ThemeSpec(id, label, light={}, dark={})` sets L0 seed
+tokens per colour mode: `--seed-*` (`--seed-accent`, `--seed-tint`,
+`--seed-paper`, `--seed-ink` …), `--radius`, `--tint-mix` and `--accent-mix`.
+Every surface, text and accent colour is derived from the seeds (see
+[DESIGN.md](../../src/frontend/DESIGN.md)), so a preset never names a shadcn
+variable. Values are plain CSS values; anything else (another property, `;`,
+braces, `url(...)`) is rejected. The viewer picks a preset in the command
+palette ("Sunrise theme", "Default theme"); the choice is kept per browser.
+
+Invalid entries of all three hooks are dropped one by one with a logged
+warning, and one hook that raises does not drop the others. The
+contributions travel on the plugin's record in the shell manifest
+(`plugins[].settings`, `plugins[].navGroups`, `plugins[].themes`), only for
+plugins whose browser surfaces the viewer may load.
 
 ### Built-in plugins
 
@@ -223,6 +324,9 @@ Registration:
 | `registerSlot(name, Component, options?)` | Add a component to a [slot](#slots) of the shell |
 | `registerCommand(command)` | Add an entry to the command palette. Returns a function that removes it |
 | `registerView(pageId, render, cleanup?)` | A vanilla view for a legacy page (same as `window.aiui.registerView` in custom.js) |
+| `registerSettingsSection(section)` | Add a section to the shell's settings dialog: `{ id, title, description?, order?, fields, load(), save(values) }`, fields as in [`settings()`](#settings-nav-groups-and-theme-presets). A `save` rejection whose error has `body.fields` shows those messages next to the fields. Returns a remover |
+| `registerNavGroup(name, { order, folded }?)` | Declare the sidebar group your pages use, like [`nav_groups()`](#settings-nav-groups-and-theme-presets). Returns a remover |
+| `registerThemePreset({ id, label, light?, dark? })` | Offer a seed-token theme preset, like [`themes()`](#settings-nav-groups-and-theme-presets). Returns a remover |
 | `onActivate(fn)` | Run `fn({ manifest })` once the app is ready |
 | `getPage`, `getBlock`, `getSlot`, `getToolRenderers` | Registry lookups |
 | `subscribe(fn)`, `useRegistryVersion()` | React to later registrations |
@@ -235,6 +339,9 @@ Shell services and components:
 | `notify(message, options?)` | Show a toast. Options: `type` (`info`, `success`, `warning`, `error`), `description`, `duration`, `id`, `action: { label, onClick }` |
 | `fetchJson(url, options?)` | `fetch` for JSON APIs. It sends the session's gateway token to same-origin URLs only, JSON-encodes a plain-object `body` (the method then defaults to `POST`), decodes the response, and rejects with an error carrying `status`, `url` and `body` on a non-2xx status |
 | `useManifest()` | React hook returning the shell manifest (`pages`, `plugins`, `site`, `layout`) |
+| `getPageId()`, `usePageId()` | The id of the page on screen (`''` at `/`), read the way the shell's router reads the URL; the hook re-renders on navigation. Never parse `location` yourself |
+| `useThemeMode()` | React hook returning `'light'` or `'dark'`, updated when the viewer or the OS switches |
+| `dismiss(id?)` | Close a toast raised with `notify(message, { id })` (all toasts without an id) |
 | `Markdown` | The shell's Markdown renderer: `<Markdown variant="docs">{text}</Markdown>` |
 
 ```js
@@ -339,8 +446,12 @@ if (sdk.SDK_FEATURES?.includes('commands')) {
 
 Feature names: `pages`, `blocks`, `tool-renderers`, `slots`, `views`,
 `markdown`, `navigate`, `notify`, `fetch-json`, `manifest`, `commands`,
-`activate`, `slots.multi` (the `{ id, order }` options and the slot hosts) and
-`blocks.fallback`. A shell older than the services has no `SDK_FEATURES`.
+`activate`, `slots.multi` (the `{ id, order }` options and the slot hosts),
+`blocks.fallback`, `page-id` (`getPageId`, `usePageId`), `theme-mode`
+(`useThemeMode`), `notify.dismiss`, `settings` (`registerSettingsSection` and
+the `settings()` hook), `nav-groups` (`registerNavGroup`, `nav_groups()`) and
+`theme-presets` (`registerThemePreset`, `themes()`). A shell older than the
+services has no `SDK_FEATURES`.
 
 ### Types
 

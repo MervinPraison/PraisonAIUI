@@ -102,3 +102,83 @@ test('a custom.js registerView takes priority over the page\'s server handler (s
   await expect(page.getByTestId('client-view')).toBeVisible()
   expect(errors.pageErrors).toEqual([])
 })
+
+// ── shell contributions: nav_groups(), settings(), themes() (G13) ──────
+
+test('the plugin record carries its nav group, settings section and theme preset', async ({ request }) => {
+  const manifest = await (await request.get('/api/shell/manifest')).json()
+  const hello = manifest.plugins.find((p: { name: string }) => p.name === 'hello')
+  expect(hello.navGroups).toEqual([{ name: 'Hello', order: 250, folded: false }])
+  expect(hello.settings).toEqual([
+    expect.objectContaining({ id: 'greeting', title: 'Hello plugin', endpoint: '/api/plugins/hello/settings/greeting' }),
+  ])
+  expect(hello.themes).toEqual([expect.objectContaining({ id: 'sunrise', label: 'Sunrise' })])
+})
+
+test("the plugin's nav group holds its pages at the declared position", async ({ page }) => {
+  await page.goto('/overview')
+  const sidebar = page.locator('[data-aiui-shell-sidebar]')
+  const group = sidebar.locator('section[aria-label="Hello"]')
+  await expect(group.locator('a[data-page-id="hello"]')).toBeVisible()
+  await expect(group.locator('a[data-page-id="hello-blocks"]')).toBeVisible()
+  // order 250: after the app's second group (Work, 200), before its third (Control, 300).
+  const names = await sidebar
+    .locator('nav[aria-label="Pages"] > section')
+    .evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))
+  expect(names.indexOf('Hello')).toBe(names.indexOf('Work') + 1)
+  expect(names.indexOf('Control')).toBe(names.indexOf('Hello') + 1)
+})
+
+test("the plugin's settings section renders in the settings dialog and its value reaches Python", async ({ page, request }) => {
+  const errors = collectPageErrors(page)
+  const endpoint = '/api/plugins/hello/settings/greeting'
+  try {
+    await page.goto('/hello-blocks')
+    await page.getByRole('button', { name: 'Plugin settings' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Plugin settings' })
+    await expect(dialog.getByRole('heading', { name: 'Hello plugin' })).toBeVisible()
+    await expect(
+      dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Hello plugin' }),
+    ).toHaveAttribute('aria-current', 'true')
+    const greeting = dialog.getByLabel('Greeting')
+    await expect(greeting).toHaveValue('Hello')
+    await expect(dialog.getByRole('combobox', { name: 'Tone' })).toContainText('Plain')
+    const save = dialog.getByRole('button', { name: 'Save' })
+    await expect(save).toBeDisabled()
+    await greeting.fill('Howdy')
+    await save.click()
+    await expect(page.locator('[data-sonner-toast]', { hasText: 'Hello plugin saved' })).toBeVisible()
+    expect((await (await request.get(endpoint)).json()).values).toMatchObject({ greeting: 'Howdy', tone: 'plain' })
+
+    // The saved value is read back when the dialog opens again (after a reload).
+    await page.reload()
+    await page.getByRole('button', { name: 'Plugin settings' }).click()
+    await expect(page.getByRole('dialog', { name: 'Plugin settings' }).getByLabel('Greeting')).toHaveValue('Howdy')
+    await page.keyboard.press('Escape')
+
+    // The plugin's Python code uses it.
+    const area = page.locator('[data-aiui-page="hello-blocks"]')
+    await area.getByRole('button', { name: 'Say hello' }).click()
+    await expect(area).toContainText(/Howdy #\d+ from Python\./)
+    expect(errors.pageErrors).toEqual([])
+  } finally {
+    await request.put(endpoint, { data: { values: { greeting: 'Hello', tone: 'plain' } } })
+  }
+})
+
+test("the plugin's theme preset is offered in the palette and re-seeds the tokens", async ({ page }) => {
+  await page.goto('/overview')
+  const accent = () =>
+    page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--seed-accent').trim())
+  const before = await accent()
+  const search = page.getByRole('button', { name: 'Search pages and commands' }).first()
+  await search.click()
+  await page.getByRole('option', { name: 'Sunrise theme' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-aiui-preset', 'hello.sunrise')
+  expect(await accent()).toBe('#c2410c')
+  // Back to the app's own theme.
+  await search.click()
+  await page.getByRole('option', { name: 'Default theme' }).click()
+  await expect(page.locator('html')).not.toHaveAttribute('data-aiui-preset', /.+/)
+  expect(await accent()).toBe(before)
+})
