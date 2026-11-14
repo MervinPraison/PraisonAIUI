@@ -635,6 +635,16 @@ def test_no_builtin_feature_route_is_shadowed():
         if hasattr(r, "path_regex")
     ]
     assert len(routes) > 200  # sanity: the scan really sees the feature routes
+    # Host-owned built-in routes (builtin.mcp, builtin.debug, builtin.logs)
+    # are mounted from the same records, so they must not clash either.
+    host = [
+        (f"host:{p.name}", r)
+        for p in BUILTIN_PLUGINS
+        if p.host_routes
+        for r in p.host_routes()
+    ]
+    assert len(host) >= 5
+    routes += host
 
     def concrete(path: str) -> str:
         return re.sub(r"\{[^}]+\}", "x", path)
@@ -652,3 +662,97 @@ def test_no_builtin_feature_route_is_shadowed():
             ):
                 clashes.append((n1, r1.path, n2, r2.path))
     assert clashes == []
+
+
+# ── config.yaml pages.enabled / pages.disabled (page-level hide) ─────
+
+
+def _write_data_config(data_dir, text: str) -> None:
+    (data_dir / "config.yaml").write_text(text, encoding="utf-8")
+    config_store._config_store = None
+
+
+def test_config_yaml_pages_disabled_hides_the_page_but_keeps_its_api(_isolated):
+    _write_data_config(_isolated, "pages:\n  disabled: [usage]\n")
+    client = _client()
+    assert "usage" not in {p["id"] for p in _api_pages(client)}
+    assert "usage" not in {p["id"] for p in _manifest_pages(client)}
+    assert "chat" in {p["id"] for p in _api_pages(client)}
+    assert client.get("/api/usage").status_code == 200  # page-level hide only
+
+
+def test_config_yaml_pages_enabled_lists_only_those_builtins(_isolated):
+    _write_data_config(_isolated, "pages:\n  enabled: [chat, logs]\n")
+    client = _client()
+    assert sorted(p["id"] for p in _builtin_only(_api_pages(client))) == ["chat", "logs"]
+
+
+def test_set_pages_wins_over_config_yaml_pages(_isolated):
+    _write_data_config(_isolated, "pages:\n  enabled: [chat, logs]\n")
+    aiui.set_pages(["chat", "usage"])
+    client = _client()
+    assert sorted(p["id"] for p in _builtin_only(_api_pages(client))) == ["chat", "usage"]
+
+
+def test_config_yaml_pages_does_not_outlive_its_config(_isolated):
+    _write_data_config(_isolated, "pages:\n  disabled: [usage]\n")
+    assert "usage" not in {p["id"] for p in _api_pages(_client())}
+    _write_data_config(_isolated, "server:\n  port: 8000\n")
+    assert "usage" in {p["id"] for p in _api_pages(_client())}
+
+
+# ── host-owned built-in routes (builtin.mcp / debug / logs) ──────────
+
+HOST_ROUTES = {
+    ("/api/mcp/servers", frozenset({"GET", "HEAD"})),
+    ("/api/mcp/connect", frozenset({"POST"})),
+    ("/api/mcp/disconnect/{server_id}", frozenset({"POST"})),
+    ("/api/debug", frozenset({"GET", "HEAD"})),
+    ("/api/logs", frozenset({"GET", "HEAD"})),
+}
+
+
+def _route_rows(app) -> list[tuple[str, frozenset]]:
+    return [
+        (r.path, frozenset(r.methods or ()))
+        for r in app.routes
+        if type(r).__name__ == "Route"
+    ]
+
+
+def test_host_routes_are_mounted_once_by_default():
+    rows = _route_rows(srv.create_app())
+    for row in HOST_ROUTES:
+        assert rows.count(row) == 1, row
+    client = _client()
+    assert client.get("/api/mcp/servers").status_code == 200
+    assert client.get("/api/debug").status_code == 200
+    assert client.get("/api/logs").status_code == 200
+    # They are host routes, not features: /api/features is unchanged.
+    assert _feature_names() == DEFAULT_FEATURES
+
+
+def test_disabled_builtins_unmount_their_host_routes():
+    set_extensions(disabled=["builtin.mcp", "builtin.debug", "builtin.logs"])
+    app = srv.create_app()
+    rows = set(_route_rows(app))
+    assert not (rows & HOST_ROUTES)
+    client = TestClient(app)
+    assert client.get("/api/mcp/servers").status_code == 404
+    # POSTs reach only the GET-only SPA catch-all now: never the handler.
+    assert client.post("/api/mcp/connect", json={"command": "true"}).status_code in (404, 405)
+    assert client.post("/api/mcp/disconnect/x").status_code in (404, 405)
+    assert client.get("/api/debug").status_code == 404
+    assert client.get("/api/logs").status_code == 404
+    _assert_gone(client, "mcp", "debug", "logs")
+
+
+def test_host_routes_come_back_when_the_policy_changes():
+    set_extensions(disabled=["builtin.mcp"])
+    assert TestClient(srv.create_app()).get("/api/mcp/servers").status_code == 404
+    get_plugin_registry().set_policy(ExtensionPolicy())
+    assert TestClient(srv.create_app()).get("/api/mcp/servers").status_code == 200
+
+
+def test_host_route_handlers_still_import_from_the_server():
+    from praisonaiui.server import api_debug, api_logs, api_mcp_connect  # noqa: F401

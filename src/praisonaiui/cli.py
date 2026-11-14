@@ -393,14 +393,20 @@ def validate(
     strict: bool = typer.Option(
         False,
         "--strict",
-        help="Enable strict validation",
+        help="Enable strict validation (unknown keys become errors)",
     ),
 ) -> None:
     """Validate configuration file."""
+    import warnings
+
     import yaml
 
     from praisonaiui.schema.models import Config
-    from praisonaiui.schema.validators import validate_config
+    from praisonaiui.schema.validators import (
+        ValidationError,
+        find_unknown_keys,
+        validate_config,
+    )
 
     if not config.exists():
         console.print(f"[red]Error:[/red] Configuration file not found: {config}")
@@ -414,17 +420,53 @@ def validate(
         console.print(f"[red]Error:[/red] Failed to parse configuration: {e}")
         raise typer.Exit(code=1)
 
-    result = validate_config(cfg, config.parent, strict=strict)
+    # The library also emits these as UserWarning; here they are printed.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        result = validate_config(cfg, config.parent, strict=strict)
+
+    # Loading ignores keys no field takes, so a misspelling (stlye:, themee:)
+    # silently does nothing. Report them; --strict makes them errors.
+    for loc in find_unknown_keys(Config, data):
+        issue = ValidationError(
+            code=1003,
+            category="config",
+            message=f"Unknown key '{_format_loc(loc)}' (ignored)",
+            suggestion="Check the spelling; see aiui.template.yaml for the supported keys.",
+        )
+        if strict:
+            result.errors.append(issue)
+            result.valid = False
+        else:
+            result.warnings.append(issue)
+
+    for warning in result.warnings:
+        console.print(
+            f"  [yellow]\\[{warning.category}] {warning.code} {warning.message}[/yellow]"
+        )
+        if warning.suggestion:
+            console.print(f"    💡 {warning.suggestion}")
 
     if result.valid:
         console.print("[green]✓[/green] Configuration is valid")
     else:
         console.print("[red]✗[/red] Configuration has errors:")
         for error in result.errors:
-            console.print(f"  [{error.category}] {error.message}")
+            console.print(f"  \\[{error.category}] {error.message}")
             if error.suggestion:
                 console.print(f"    💡 {error.suggestion}")
         raise typer.Exit(code=1)
+
+
+def _format_loc(loc: tuple) -> str:
+    """('site', 'theme', 0, 'x') -> 'site.theme[0].x'."""
+    out = ""
+    for part in loc:
+        if isinstance(part, int):
+            out += f"[{part}]"
+        else:
+            out += ("." if out else "") + str(part)
+    return out
 
 
 @app.command()
@@ -476,6 +518,92 @@ def build(
     else:
         console.print(f"[red]Error:[/red] Build failed: {result.error}")
         raise typer.Exit(code=3)
+
+
+def _is_safe_path(requested: Path, root: Path) -> bool:
+    """Guard against path traversal: is *requested* inside *root*?"""
+    try:
+        requested.resolve().relative_to(root.resolve())
+        return True
+    except (ValueError, OSError, RuntimeError):
+        return False
+
+
+def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
+    """The ASGI app ``aiui serve`` runs for a built site.
+
+    * Files come from Starlette's ``StaticFiles`` (contained lookup, ETag and
+      Last-Modified, 304s), gzip-compressed.
+    * ``/assets``: content-hashed chunks are ``immutable``; ``index.js`` /
+      ``index.css`` and unknown names are ``no-cache`` (same rules as the
+      ``aiui run`` server). A missing asset is a 404, never the HTML page.
+    * A path whose last segment has no extension falls back to
+      ``<path>.html`` and then ``index.html`` (client-side routes); any other
+      missing file is a 404.
+    """
+    from starlette.applications import Starlette
+    from starlette.exceptions import HTTPException
+    from starlette.middleware import Middleware
+    from starlette.middleware.cors import CORSMiddleware
+    from starlette.responses import FileResponse, PlainTextResponse
+    from starlette.routing import Mount
+    from starlette.staticfiles import StaticFiles
+
+    from praisonaiui.server import _AssetStaticFiles, gzip_static
+
+    root = output.resolve()
+
+    class _SiteFiles(StaticFiles):
+        # Fixed names (index.html, ui-config.json …) change on every build.
+        def file_response(self, full_path, stat_result, scope, status_code: int = 200):
+            response = super().file_response(full_path, stat_result, scope, status_code)
+            response.headers.setdefault("Cache-Control", "no-cache")
+            return response
+
+    site = _SiteFiles(directory=str(root), html=True)
+
+    async def site_app(scope, receive, send):
+        if scope["type"] != "http":
+            return
+        try:
+            await site(scope, receive, send)
+            return
+        except HTTPException as exc:
+            if exc.status_code != 404:
+                raise
+        path = scope.get("path", "/")
+        last = path.rstrip("/").rsplit("/", 1)[-1]
+        response = PlainTextResponse("Not Found", status_code=404)
+        if "." not in last:
+            rel = path.strip("/")
+            candidates = [root / f"{rel}.html"] if rel else []
+            candidates.append(root / "index.html")
+            for candidate in candidates:
+                if _is_safe_path(candidate, root) and candidate.is_file():
+                    response = FileResponse(
+                        str(candidate),
+                        media_type="text/html",
+                        headers={"Cache-Control": "no-cache"},
+                    )
+                    break
+        await response(scope, receive, send)
+
+    routes = []
+    if (root / "assets").is_dir():
+        routes.append(
+            Mount(
+                "/assets",
+                app=gzip_static(_AssetStaticFiles(directory=str(root / "assets"), frontend_dir=root)),
+            )
+        )
+    routes.append(Mount("/", app=gzip_static(site_app)))
+
+    middleware = []
+    if cors_origins:
+        middleware.append(
+            Middleware(CORSMiddleware, allow_origins=list(cors_origins), allow_methods=["GET"])
+        )
+    return Starlette(routes=routes, middleware=middleware)
 
 
 @app.command()
@@ -552,68 +680,8 @@ def serve(
     if actual_port != port:
         console.print(_port_moved_message(host, port, actual_port))
 
-    # Build Starlette app with security
-    from starlette.applications import Starlette
-    from starlette.middleware import Middleware
-    from starlette.middleware.cors import CORSMiddleware
-    from starlette.requests import Request
-    from starlette.responses import FileResponse, Response
-    from starlette.routing import Route
-
-    output_resolved = output.resolve()
-
-    def _is_safe_path(requested: Path) -> bool:
-        """Guard against path traversal — ensure file is inside output dir."""
-        try:
-            requested.resolve().relative_to(output_resolved)
-            return True
-        except ValueError:
-            return False
-
-    async def spa_handler(request: Request) -> Response:
-        """SPA handler: serve static files with path-traversal guard and index.html fallback."""
-
-        url_path = request.url.path.lstrip("/")
-        file_path = output_resolved / url_path
-
-        # Path traversal guard
-        if not _is_safe_path(file_path):
-            return Response("Forbidden", status_code=403)
-
-        # Serve exact file if it exists
-        if file_path.is_file():
-            import mimetypes
-
-            mime, _ = mimetypes.guess_type(str(file_path))
-            return FileResponse(str(file_path), media_type=mime)
-
-        # Try adding index.html for directories
-        if file_path.is_dir():
-            index = file_path / "index.html"
-            if index.is_file():
-                return FileResponse(str(index))
-
-        # Try with .html extension
-        html_path = file_path.with_suffix(".html")
-        if html_path.is_file() and _is_safe_path(html_path):
-            return FileResponse(str(html_path))
-
-        # SPA fallback — serve index.html for client-side routes
-        index_html = output_resolved / "index.html"
-        if index_html.is_file():
-            return FileResponse(str(index_html))
-
-        return Response("Not Found", status_code=404)
-
-    middleware = []
-    if cors_origins:
-        origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
-        middleware.append(Middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET"]))
-
-    starlette_app = Starlette(
-        routes=[Route("/{path:path}", endpoint=spa_handler)],
-        middleware=middleware,
-    )
+    origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
+    starlette_app = _static_site_app(output, origins)
 
     protocol = "https" if ssl_certfile else "http"
     console.print(f"\n[green]🚀[/green] Serving at [link]{protocol}://{host}:{actual_port}[/link]")
@@ -671,6 +739,11 @@ def dev(
         "--port",
         "-p",
         help="Port for dev server",
+    ),
+    host: str = typer.Option(
+        "127.0.0.1",
+        "--host",
+        help="Host to bind to (default: this machine only)",
     ),
 ) -> None:
     """Development dashboard - switch between examples live."""
@@ -1064,7 +1137,7 @@ def dev(
             for i in range(10):
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     try:
-                        s.bind(("", start + i))
+                        s.bind((host, start + i))
                         return start + i
                     except OSError:
                         continue
@@ -1080,7 +1153,27 @@ def dev(
                 site_dir.mkdir(parents=True, exist_ok=True)
                 super().__init__(*args, directory=str(site_dir), **kwargs)
 
+            def _refuse(self) -> bool:
+                """Send an error and return True unless the request may proceed."""
+                refusal = _dev_request_refusal(
+                    self.command,
+                    self.path.split("?")[0],
+                    self.headers.items(),
+                    # The address this connection reached (as ASGI "server").
+                    self.connection.getsockname()[:2],
+                )
+                if refusal is None:
+                    return False
+                status, message = refusal
+                self.send_response(status)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": message}).encode())
+                return True
+
             def do_GET(self):
+                if self._refuse():
+                    return
                 path = self.path.split("?")[0]
                 query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
 
@@ -1156,6 +1249,8 @@ def dev(
                     self.end_headers()
 
             def do_POST(self):
+                if self._refuse():
+                    return
                 path = self.path.split("?")[0]
 
                 # API: save YAML and rebuild
@@ -1207,11 +1302,132 @@ def dev(
         console.print("[dim]Switch examples with the dropdown. Press Ctrl+C to stop.[/dim]\n")
         webbrowser.open(f"http://localhost:{actual_port}")
 
-        with socketserver.TCPServer(("", actual_port), DevHandler) as httpd:
+        with socketserver.TCPServer((host, actual_port), DevHandler) as httpd:
             try:
                 httpd.serve_forever()
             except KeyboardInterrupt:
                 console.print("\n[green]Dev server stopped.[/green]")
+
+
+def _dev_request_refusal(
+    method: str, path: str, headers, server_address
+) -> Optional[tuple[int, str]]:
+    """Why the ``aiui dev`` server must refuse this request, or None.
+
+    The dev server writes example YAML files, so it applies the same guards
+    as the app server (:mod:`praisonaiui.http_guard`): an unknown ``Host``
+    (DNS rebinding) is refused; ``/api/*`` calls must come from the
+    dashboard's own origin (a cross-site page, including a ``text/plain``
+    POST that skips the CORS preflight, is refused); and a POST must be
+    ``application/json``.
+    """
+    from praisonaiui.http_guard import (
+        configured_hosts,
+        configured_origins,
+        host_allowed,
+        origin_allowed,
+    )
+
+    scope = {
+        "type": "http",
+        "scheme": "http",
+        "method": method,
+        "path": path,
+        "server": (str(server_address[0]), int(server_address[1])) if server_address else None,
+        "headers": [(str(k).lower().encode("latin-1"), str(v).encode("latin-1")) for k, v in headers],
+    }
+    if not host_allowed(scope, configured_hosts()):
+        return 400, "Host not allowed"
+    if path.startswith("/api/") and not origin_allowed(scope, configured_origins()):
+        return 403, "Cross-site request refused"
+    if method == "POST":
+        content_type = ""
+        for k, v in headers:
+            if str(k).lower() == "content-type":
+                content_type = str(v).split(";", 1)[0].strip().lower()
+        if content_type != "application/json":
+            return 415, "Content-Type must be application/json"
+    return None
+
+
+def _apply_chat_yaml(chat_yaml: dict) -> Optional[str]:
+    """Apply a YAML chat config (style, dashboard, theme, branding, pages)
+    through the public APIs and register its callbacks.
+
+    Returns the YAML's style, if it names one.
+    """
+    import praisonaiui as _aiui
+
+    style = None
+    if "style" in chat_yaml:
+        _aiui.set_style(chat_yaml["style"])
+        style = chat_yaml["style"]
+    if "dashboard" in chat_yaml and isinstance(chat_yaml["dashboard"], dict):
+        _aiui.set_dashboard(
+            **{
+                k.replace("pageHeader", "page_header"): v
+                for k, v in chat_yaml["dashboard"].items()
+                if k.replace("pageHeader", "page_header") in ("sidebar", "page_header")
+            }
+        )
+    if "theme" in chat_yaml and isinstance(chat_yaml["theme"], dict):
+        _aiui.set_theme(
+            **{k.replace("darkMode", "dark_mode"): v for k, v in chat_yaml["theme"].items()}
+        )
+    if "branding" in chat_yaml and isinstance(chat_yaml["branding"], dict):
+        _aiui.set_branding(**chat_yaml["branding"])
+    if "pages" in chat_yaml and isinstance(chat_yaml["pages"], list):
+        _aiui.set_pages(chat_yaml["pages"])
+
+    # Auto-register callbacks from YAML
+    _register_yaml_chat(chat_yaml)
+    return style
+
+
+def _load_user_module(app_file: Path):
+    """Execute *app_file* as module ``user_app`` (registers its callbacks)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("user_app", app_file)
+    if spec is None or spec.loader is None:
+        return None
+    user_module = importlib.util.module_from_spec(spec)
+    sys.modules["user_app"] = user_module
+    spec.loader.exec_module(user_module)
+    return user_module
+
+
+def _make_datastore(name: str):
+    """``(store, label)`` for an ``aiui run --datastore`` value.
+
+    Raises ``ValueError`` for an unknown name.
+    """
+    if name == "memory":
+        from praisonaiui.datastore import MemoryDataStore
+
+        return MemoryDataStore(), name
+    if name == "sdk":
+        try:
+            from praisonaiui.datastore_sdk import SDKFileDataStore
+
+            return SDKFileDataStore(), name
+        except (ImportError, Exception):
+            from praisonaiui.datastore import JSONFileDataStore
+
+            return JSONFileDataStore(), "json (sdk fallback)"
+    if name.startswith("sdk:"):
+        from praisonaiui.datastore_sdk import SDKFileDataStore
+
+        return SDKFileDataStore(session_dir=name[4:]), name
+    if name == "json":
+        from praisonaiui.datastore import JSONFileDataStore
+
+        return JSONFileDataStore(), name
+    if name.startswith("json:"):
+        from praisonaiui.datastore import JSONFileDataStore
+
+        return JSONFileDataStore(data_dir=name[5:]), name
+    raise ValueError(f"Unknown datastore: {name}")
 
 
 def _register_yaml_chat(chat_yaml: dict) -> None:
@@ -1516,8 +1732,7 @@ def run(
         aiui run app.py --datastore json:/tmp/my-sessions  # Custom persistence path
         aiui run config.yaml                 # YAML-defined chat agent
     """
-    import importlib.util
-    import sys
+    import os
 
     if style not in UI_STYLES:
         console.print(f"[red]Error:[/red] Unknown --style {style!r}. Choose one of: {', '.join(UI_STYLES)}")
@@ -1553,49 +1768,21 @@ def run(
         if "datastore" in chat_yaml and datastore == "memory":
             datastore = chat_yaml["datastore"]
 
-        # Apply style/dashboard/theme/branding from YAML via protocol APIs
-        import praisonaiui as _aiui
-
-        if "style" in chat_yaml:
-            if chat_yaml["style"] not in UI_STYLES:
-                # A warning, not an error: configs that ran before keep running.
-                console.print(
-                    f"[yellow]Warning:[/yellow] Unknown style {chat_yaml['style']!r} in {app_file}. "
-                    f"Known styles: {', '.join(UI_STYLES)}"
-                )
-            _aiui.set_style(chat_yaml["style"])
-            style = chat_yaml["style"]
-        if "dashboard" in chat_yaml and isinstance(chat_yaml["dashboard"], dict):
-            _aiui.set_dashboard(
-                **{
-                    k.replace("pageHeader", "page_header"): v
-                    for k, v in chat_yaml["dashboard"].items()
-                    if k.replace("pageHeader", "page_header") in ("sidebar", "page_header")
-                }
+        if "style" in chat_yaml and chat_yaml["style"] not in UI_STYLES:
+            # A warning, not an error: configs that ran before keep running.
+            console.print(
+                f"[yellow]Warning:[/yellow] Unknown style {chat_yaml['style']!r} in {app_file}. "
+                f"Known styles: {', '.join(UI_STYLES)}"
             )
-        if "theme" in chat_yaml and isinstance(chat_yaml["theme"], dict):
-            _aiui.set_theme(
-                **{k.replace("darkMode", "dark_mode"): v for k, v in chat_yaml["theme"].items()}
-            )
-        if "branding" in chat_yaml and isinstance(chat_yaml["branding"], dict):
-            _aiui.set_branding(**chat_yaml["branding"])
-        if "pages" in chat_yaml and isinstance(chat_yaml["pages"], list):
-            _aiui.set_pages(chat_yaml["pages"])
-
-        # Auto-register callbacks from YAML
-        _register_yaml_chat(chat_yaml)
+        style = _apply_chat_yaml(chat_yaml) or style
         is_chat_mode = True
     else:
         # Load the user's app module FIRST to register callbacks
         console.print(f"[yellow]{_icon('⏳', '...')}[/yellow] Loading {app_file}...")
-        spec = importlib.util.spec_from_file_location("user_app", app_file)
-        if spec is None or spec.loader is None:
+        user_module = _load_user_module(app_file)
+        if user_module is None:
             console.print(f"[red]Error:[/red] Could not load {app_file}")
             raise typer.Exit(code=1)
-
-        user_module = importlib.util.module_from_spec(spec)
-        sys.modules["user_app"] = user_module
-        spec.loader.exec_module(user_module)
 
         # Check if app.py registered a @reply callback (chat mode)
         from praisonaiui.server import _callbacks
@@ -1640,6 +1827,15 @@ def run(
             if detected != "chat":
                 console.print(f"[cyan]ℹ️[/cyan] Auto-detected style: [bold]{detected}[/bold]")
             style = detected
+
+    if os.environ.get("AIUI_SHELL", "").strip().lower() in ("app", "react") and style not in (
+        "app",
+        "dashboard",
+    ):
+        console.print(
+            f"[yellow]Note:[/yellow] AIUI_SHELL=app is ignored for the {style!r} style "
+            "(it only switches 'dashboard'); use --style app for the app shell."
+        )
 
     # ── Resolve output directory relative to app file ──────────────
     # When using the default output ("aiui"), resolve it relative to the
@@ -1772,35 +1968,13 @@ def run(
         # Set up datastore
         from praisonaiui.server import set_datastore
 
-        if datastore == "memory":
-            from praisonaiui.datastore import MemoryDataStore
-
-            store = MemoryDataStore()
-        elif datastore == "sdk":
-            try:
-                from praisonaiui.datastore_sdk import SDKFileDataStore
-
-                store = SDKFileDataStore()
-            except (ImportError, Exception):
-                from praisonaiui.datastore import JSONFileDataStore
-
-                store = JSONFileDataStore()
-                datastore = "json (sdk fallback)"
-        elif datastore.startswith("sdk:"):
-            from praisonaiui.datastore_sdk import SDKFileDataStore
-
-            store = SDKFileDataStore(session_dir=datastore[4:])
-        elif datastore == "json":
-            from praisonaiui.datastore import JSONFileDataStore
-
-            store = JSONFileDataStore()
-        elif datastore.startswith("json:"):
-            from praisonaiui.datastore import JSONFileDataStore
-
-            store = JSONFileDataStore(data_dir=datastore[5:])
-        else:
+        try:
+            store, datastore_label = _make_datastore(datastore)
+        except ValueError:
             console.print(f"[red]Error:[/red] Unknown datastore: {datastore}")
             raise typer.Exit(code=1)
+        datastore_requested = datastore
+        datastore = datastore_label
 
         set_datastore(store)
 
@@ -1840,14 +2014,36 @@ def run(
 
         import uvicorn
 
-        uvicorn.run(
-            server_app,
-            host=host,
-            port=actual_port,
-            log_level="info",
-            reload=reload,
-            reload_dirs=[str(app_file.parent)] if reload else None,
-        )
+        if reload:
+            # uvicorn can only reload an app it imports itself: hand it the
+            # factory, which rebuilds this app (module, style, datastore,
+            # static dir) in each worker from AIUI_RUN_SPEC.
+            from praisonaiui._run_factory import SPEC_ENV, encode_spec
+
+            os.environ[SPEC_ENV] = encode_spec(
+                app_file=app_file,
+                is_yaml=is_yaml,
+                style=style,
+                datastore=datastore_requested,
+                static_dir=static_dir,
+                config_path=config_path,
+            )
+            uvicorn.run(
+                "praisonaiui._run_factory:create",
+                factory=True,
+                host=host,
+                port=actual_port,
+                log_level="info",
+                reload=True,
+                reload_dirs=[str(app_file.resolve().parent)],
+            )
+        else:
+            uvicorn.run(
+                server_app,
+                host=host,
+                port=actual_port,
+                log_level="info",
+            )
 
 
 # ---------------------------------------------------------------------------

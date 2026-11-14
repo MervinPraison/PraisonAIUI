@@ -1359,3 +1359,152 @@ def test_praisonai_provider_rewind_last_turn_only_touches_session_agents():
     p._agent = shared  # a pre-configured agent is never rewound
     assert p.rewind_last_turn(session_id="other") is False
     assert len(shared.chat_history) == 4
+
+
+# ── attachments survive a reload for Regenerate (R4) ──────────────────
+
+
+class _RecordingEcho(_CountingEcho):
+    def __init__(self) -> None:
+        super().__init__()
+        self.messages: List[str] = []
+
+    async def run(self, message, *, session_id=None, agent_name=None, **kw):
+        self.messages.append(message)
+        async for ev in super().run(message, session_id=session_id, agent_name=agent_name, **kw):
+            yield ev
+
+
+def _upload_text(tmp_path, text: str) -> str:
+    from praisonaiui.features import attachments as att_mod
+
+    mgr = att_mod.AttachmentManager(storage_dir=str(tmp_path / "att"))
+    att_mod._attachment_manager = mgr
+    return mgr.upload(text.encode(), "att.txt", "text/plain", session_id="s-att")["id"]
+
+
+def test_regenerate_after_reload_resends_the_saved_attachment(monkeypatch, _isolated, tmp_path):
+    from praisonaiui.features import attachments as att_mod
+
+    prev = att_mod._attachment_manager
+    try:
+        att_id = _upload_text(tmp_path, "SECRET-FILE-CONTENT-42")
+        provider = _RecordingEcho()
+        _use_provider(monkeypatch, provider)
+        with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+            ws.send_json(
+                {
+                    "type": "chat",
+                    "content": "plain read file",
+                    "session_id": "s-att",
+                    "attachment_ids": [att_id],
+                }
+            )
+            _read_until(ws, _turn_done("s-att"))
+            history = client.get("/api/chat/history/s-att").json()["messages"]
+            user = history[0]
+            assert user["role"] == "user"
+            assert user["attachments"] == [
+                {"id": att_id, "name": "att.txt", "content_type": "text/plain"}
+            ]
+            # After a reload the client knows the text only: no attachment_ids.
+            ws.send_json(
+                {
+                    "type": "chat",
+                    "content": "plain read file",
+                    "session_id": "s-att",
+                    "regenerate": True,
+                }
+            )
+            _read_until(ws, _turn_done("s-att"))
+        assert len(provider.messages) == 2
+        assert "SECRET-FILE-CONTENT-42" in provider.messages[0]
+        assert "SECRET-FILE-CONTENT-42" in provider.messages[1]
+    finally:
+        att_mod._attachment_manager = prev
+
+
+def test_regenerate_with_explicit_attachments_uses_those(monkeypatch, _isolated, tmp_path):
+    from praisonaiui.features import attachments as att_mod
+
+    prev = att_mod._attachment_manager
+    try:
+        first = _upload_text(tmp_path, "FIRST-FILE")
+        second = att_mod._attachment_manager.upload(b"SECOND-FILE", "b.txt", "text/plain")["id"]
+        provider = _RecordingEcho()
+        _use_provider(monkeypatch, provider)
+        with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+            ws.send_json({"type": "chat", "content": "q", "session_id": "s-att2", "attachment_ids": [first]})
+            _read_until(ws, _turn_done("s-att2"))
+            ws.send_json(
+                {"type": "chat", "content": "q", "session_id": "s-att2", "regenerate": True, "attachment_ids": [second]}
+            )
+            _read_until(ws, _turn_done("s-att2"))
+        assert "SECOND-FILE" in provider.messages[1] and "FIRST-FILE" not in provider.messages[1]
+    finally:
+        att_mod._attachment_manager = prev
+
+
+# ── control is per run, not per session (round 2, m1) ─────────────────
+
+
+def test_posting_into_a_session_does_not_grant_control_of_its_run(monkeypatch):
+    """The attacker sends one chat message into the victim's session, then
+    tries to stop and answer the victim's run: both stay forbidden."""
+    provider = _AskProvider()
+    _use_provider(monkeypatch, provider)
+    with TestClient(_app()) as client:
+        with client.websocket_connect("/api/chat/ws") as victim, client.websocket_connect(
+            "/api/chat/ws"
+        ) as attacker:
+            victim.send_json({"type": "subscribe", "session_ids": ["s-own"]})
+            _read_until(victim, lambda f: f.get("type") == "subscribed")
+            victim.send_json({"type": "chat", "content": "slow", "session_id": "s-own"})
+            victim_run = _read_until(victim, lambda f: f.get("type") == "run_started")[-1]["run_id"]
+
+            attacker.send_json({"type": "subscribe", "session_ids": []})
+            _read_until(attacker, lambda f: f.get("type") == "subscribed")
+            attacker.send_json({"type": "chat", "content": "hi", "session_id": "s-own"})
+            frames = _read_until(
+                attacker,
+                lambda f: f.get("type") == "run_started" and f.get("run_id") != victim_run,
+            )
+            attacker_run = frames[-1]["run_id"]
+
+            attacker.send_json({"type": "chat_abort", "run_id": victim_run})
+            reply = _read_until(attacker, lambda f: f.get("type") == "chat_abort_result")[-1]
+            assert reply["status"] == "forbidden"
+            for run in (victim_run, ""):
+                attacker.send_json(
+                    {"type": "ask_response", "session_id": "s-own", "run_id": run, "response": "X"}
+                )
+                ack = _read_until(attacker, lambda f: f.get("type") == "ask_response_ack")[-1]
+                assert ack["status"] == "forbidden", run
+            assert provider.answers == []
+            from praisonaiui.features.chat import get_chat_manager
+
+            assert victim_run in get_chat_manager()._active_runs
+
+            # Each connection still controls its own run.
+            attacker.send_json({"type": "chat_abort", "run_id": attacker_run})
+            reply = _read_until(attacker, lambda f: f.get("type") == "chat_abort_result")[-1]
+            assert reply["status"] == "aborted"
+            victim.send_json(
+                {"type": "ask_response", "session_id": "s-own", "run_id": victim_run, "response": "V"}
+            )
+            ack = _read_until(victim, lambda f: f.get("type") == "ask_response_ack")[-1]
+            assert ack["status"] == "received"
+            victim.send_json({"type": "chat_abort", "run_id": victim_run})
+            reply = _read_until(victim, lambda f: f.get("type") == "chat_abort_result")[-1]
+            assert reply["status"] == "aborted"
+            # HTTP cannot go around it either (owner still connected): checked
+            # on a fresh run below.
+            victim.send_json({"type": "chat", "content": "slow again", "session_id": "s-own"})
+            run2 = _read_until(
+                victim,
+                lambda f: f.get("type") == "run_started" and f.get("run_id") not in (victim_run,),
+            )[-1]["run_id"]
+            rest = client.post("/api/chat/abort", json={"run_id": run2})
+            assert rest.status_code == 403
+            victim.send_json({"type": "chat_abort", "run_id": run2})
+            _read_until(victim, lambda f: f.get("type") == "chat_abort_result")

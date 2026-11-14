@@ -91,5 +91,6 @@ def test_markdown_js_suite_passes():
         timeout=300,
         env={**os.environ, "NODE_NO_WARNINGS": "1"},
     )
+    # The exit code is the verdict: Node prints TAP or its spec report
+    # depending on whether stdout is a TTY, so text checks are flaky.
     assert result.returncode == 0, result.stdout[-4000:] + result.stderr[-4000:]
-    assert "# fail 0" in result.stdout

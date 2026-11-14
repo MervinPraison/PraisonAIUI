@@ -37,6 +37,39 @@ def _replay_pages() -> tuple[PageSpec, ...]:
     )
 
 
+# Routes whose handlers live in praisonaiui.server. Imported at call time
+# (inside create_app), so no handler moves and ``from praisonaiui.server
+# import api_mcp_connect`` keeps working.
+
+
+def _mcp_routes() -> list:
+    from starlette.routing import Route
+
+    from praisonaiui.server import api_mcp_connect, api_mcp_disconnect, api_mcp_servers
+
+    return [
+        Route("/api/mcp/servers", api_mcp_servers, methods=["GET"]),
+        Route("/api/mcp/connect", api_mcp_connect, methods=["POST"]),
+        Route("/api/mcp/disconnect/{server_id}", api_mcp_disconnect, methods=["POST"]),
+    ]
+
+
+def _debug_routes() -> list:
+    from starlette.routing import Route
+
+    from praisonaiui.server import api_debug
+
+    return [Route("/api/debug", api_debug, methods=["GET"])]
+
+
+def _logs_routes() -> list:
+    from starlette.routing import Route
+
+    from praisonaiui.server import api_logs
+
+    return [Route("/api/logs", api_logs, methods=["GET"])]
+
+
 BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
     BuiltinPlugin(
         "overview",
@@ -241,6 +274,7 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
                 api_endpoint="/api/mcp/servers",
             ),
         ),
+        host_routes=_mcp_routes,
     ),
     BuiltinPlugin(
         "config",
@@ -262,11 +296,13 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
         "Server logs and events",
         (page("logs", "Logs", "📜", "Settings", "Server logs and events", 20),),
         feature_refs=(feature(".logs", "LogsFeature"),),
+        host_routes=_logs_routes,
     ),
     BuiltinPlugin(
         "debug",
         "Debug information",
         (page("debug", "Debug", "🐛", "Settings", "Debug information", 30),),
+        host_routes=_debug_routes,
     ),
     BuiltinPlugin(
         "guardrails",

@@ -213,6 +213,9 @@ class ChatMessage:
     # This reply replaces the previous answer to the same question
     # (Regenerate); ``visible_history`` hides the replaced one.
     regenerates: bool = False
+    # Files sent with a user message: ``[{id, name, content_type}]``. Kept so
+    # a reloaded thread shows them and Regenerate can resend them.
+    attachments: Optional[List[Dict[str, Any]]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {
@@ -234,6 +237,8 @@ class ChatMessage:
             d["error"] = self.error
         if self.regenerates:
             d["regenerates"] = True
+        if self.attachments:
+            d["attachments"] = self.attachments
         return d
 
 
@@ -319,10 +324,12 @@ class ChatManager(ChatProtocol):
 
     def __init__(self) -> None:
         self._active_runs: Dict[str, asyncio.Task] = {}
-        # run_id → session_id for every run started by ``_run_and_broadcast``.
-        # Used to check that a WS ``chat_abort`` comes from a client that
-        # owns the run's session.
+        # run_id → session_id for every run started by ``_run_and_broadcast``
+        # (routing, delivery, and run_status).
         self._run_sessions: Dict[str, str] = {}
+        # run_id → the WS client_id that started the run (None: started over
+        # HTTP). Only that connection may stop or answer it while connected.
+        self._run_owner: Dict[str, Optional[str]] = {}
         self._history: Dict[str, List[ChatMessage]] = {}
         self._ws_clients: Dict[str, WebSocket] = {}
         # Per-client session scoping (see ``broadcast``).
@@ -355,6 +362,7 @@ class ChatManager(ChatProtocol):
             content=content,
             session_id=session_id,
             agent_name=agent_name,
+            attachments=attachment_refs(attachments) or None,
         )
 
         # Store in history
@@ -533,6 +541,35 @@ class ChatManager(ChatProtocol):
             return True
         return not self.session_has_connected_owner(session_id)
 
+    def may_control_run(self, client_id: Optional[str], run_id: Any) -> bool:
+        """May *client_id* stop or answer the live run *run_id*?
+
+        Only the connection that started the run may, while it is connected.
+        A run started over HTTP, or whose starting connection has gone (the
+        tab reconnected), may be controlled by any caller, so it can always
+        be stopped. Posting a message into the run's session confers nothing:
+        that starts a different run. A run this manager did not start (no
+        owner record) falls back to the session rule.
+        """
+        if not isinstance(run_id, str) or run_id not in self._run_owner:
+            return self.may_control_session(client_id, self.session_for_run(run_id))
+        owner = self._run_owner.get(run_id)
+        if owner is None or owner not in self._ws_clients:
+            return True
+        return owner == client_id
+
+    def live_runs_in_session(self, session_id: Optional[str]) -> List[str]:
+        """Run ids currently registered for *session_id*."""
+        if not session_id:
+            return []
+        return [
+            rid
+            for rid, sid in list(self._run_sessions.items())
+            if sid == session_id
+            and rid in self._active_runs
+            and not self._active_runs[rid].done()
+        ]
+
     def _delivers_to(self, client_id: str, session_id: str) -> bool:
         if not session_id:
             # Session-less events (e.g. a global a2ui surface) cannot be
@@ -648,13 +685,11 @@ async def _chat_send(request: Request) -> JSONResponse:
         existing = await _datastore.get_session(session_id)
         if existing is None:
             await _datastore.create_session(session_id)
-        await _datastore.add_message(
-            session_id,
-            {
-                "role": "user",
-                "content": content,
-            },
-        )
+        user_msg: Dict[str, Any] = {"role": "user", "content": content}
+        refs = attachment_refs(attachment_ids)
+        if refs:
+            user_msg["attachments"] = refs
+        await _datastore.add_message(session_id, user_msg)
     except Exception:
         pass
 
@@ -708,8 +743,12 @@ async def _run_and_broadcast(
     *,
     client_turn_id: Optional[str] = None,
     regenerate: bool = False,
+    owner_client_id: Optional[str] = None,
 ) -> None:
     """Run the provider and broadcast streaming events to WS clients.
+
+    *owner_client_id* is the WS connection that started the run (None for
+    HTTP): only it may stop or answer the run while it is connected.
 
     *client_turn_id* (from the sender's ``chat`` frame) is echoed on
     ``run_started``, so a client with several tabs on one session binds its
@@ -801,6 +840,7 @@ async def _run_and_broadcast(
     if self_task is not None:
         mgr._active_runs[run_id] = self_task
     mgr._run_sessions[run_id] = session_id
+    mgr._run_owner[run_id] = owner_client_id
 
     first_event: Optional["asyncio.Future[Any]"] = None
 
@@ -1106,6 +1146,7 @@ async def _run_and_broadcast(
         # Always deregister the run, on normal completion, error, or abort.
         mgr._active_runs.pop(run_id, None)
         mgr._run_sessions.pop(run_id, None)
+        mgr._run_owner.pop(run_id, None)
 
     # Save assistant response
     if full_response or collected_elements:
@@ -1304,17 +1345,15 @@ async def _chat_abort(request: Request) -> JSONResponse:
     run_id = body.get("run_id", "")
     mgr = get_chat_manager()
     task = mgr._active_runs.get(run_id) if isinstance(run_id, str) else None
-    if task is not None and not task.done() and not mgr.may_control_session(
-        None, mgr.session_for_run(run_id)
-    ):
-        # Same rule as the WS chat_abort: a run whose session a connected
-        # client started a turn in is that connection's to stop.
-        logger.warning("HTTP abort of run %s refused: its session has a live owner", run_id)
+    if task is not None and not task.done() and not mgr.may_control_run(None, run_id):
+        # Same rule as the WS chat_abort: a run a connected client started
+        # is that connection's to stop.
+        logger.warning("HTTP abort of run %s refused: a live connection started it", run_id)
         return JSONResponse(
             {
                 "status": "forbidden",
                 "run_id": run_id,
-                "error": "run belongs to a session a live connection started",
+                "error": "run belongs to a live connection",
             },
             status_code=403,
         )
@@ -1323,12 +1362,12 @@ async def _chat_abort(request: Request) -> JSONResponse:
 
 
 async def _ws_abort(mgr: ChatManager, client_id: str, run_id: Any) -> Dict[str, Any]:
-    """Handle a WS ``chat_abort``: only the session's owner may stop a run.
+    """Handle a WS ``chat_abort``: only the run's own connection may stop it.
 
-    The owner is a client that started a turn in the run's session over this
-    connection or subscribed to it. When no connected client owns the
-    session (the starting tab reconnected, or the turn came over HTTP), any
-    client may stop it, as before. Unknown or finished runs answer
+    The owner is the connection that started the run. Subscribing to the
+    session, or posting another message into it, grants nothing. When the
+    owner is gone (the starting tab reconnected) or the run came over HTTP,
+    any client may stop it, as before. Unknown or finished runs answer
     ``no_active_run`` as before; a live run owned by another connected
     client answers ``forbidden`` and keeps running.
     """
@@ -1340,14 +1379,13 @@ async def _ws_abort(mgr: ChatManager, client_id: str, run_id: Any) -> Dict[str, 
     if task is None or task.done():
         reply.update(await mgr.abort_run(run_id))
         return reply
-    owner_session = mgr.session_for_run(run_id)
-    if not mgr.may_control_session(client_id, owner_session):
+    if not mgr.may_control_run(client_id, run_id):
         logger.warning("Chat WS client %s may not abort run %s", client_id, run_id)
         reply.update(
             {
                 "status": "forbidden",
                 "run_id": run_id,
-                "error": "run belongs to a session another connection started or subscribed to",
+                "error": "run belongs to another connection",
             }
         )
         return reply
@@ -1358,18 +1396,23 @@ async def _ws_abort(mgr: ChatManager, client_id: str, run_id: Any) -> Dict[str, 
 def _ws_ask_allowed(mgr: ChatManager, client_id: str, session_id: Any, run_id: Any) -> bool:
     """May *client_id* answer an ask prompt in *session_id* / *run_id*?
 
-    Same rule as ``chat_abort``. A live ``run_id`` decides the session (so
-    a client cannot answer another session's run by naming its own session).
+    Same rule as ``chat_abort``: a live ``run_id`` must be this connection's
+    run. Without one, the answer would reach whatever run is waiting in the
+    session, so every live run there must be this connection's to control.
     """
-    run_session = mgr.session_for_run(run_id) if isinstance(run_id, str) and run_id else None
-    target = run_session or (session_id if isinstance(session_id, str) else None)
+    if isinstance(run_id, str) and run_id and mgr.session_for_run(run_id):
+        return mgr.may_control_run(client_id, run_id)
+    target = session_id if isinstance(session_id, str) else None
     if not target:
         return True  # nothing to attribute it to: unchanged behaviour
+    live = mgr.live_runs_in_session(target)
+    if live:
+        return all(mgr.may_control_run(client_id, rid) for rid in live)
     return mgr.may_control_session(client_id, target)
 
 
-async def _can_regenerate(mgr: ChatManager, session_id: str, content: str) -> bool:
-    """Is *content* the last question asked in *session_id* (and answered)?"""
+async def _last_user_message(mgr: ChatManager, session_id: str) -> Optional[Dict[str, Any]]:
+    """The last question asked in *session_id* (datastore first, then memory)."""
     from praisonaiui.server import _datastore
 
     try:
@@ -1380,7 +1423,34 @@ async def _can_regenerate(mgr: ChatManager, session_id: str, content: str) -> bo
         messages = [m.to_dict() for m in mgr._history.get(session_id, [])]
     messages = visible_history(list(messages))
     users = [m for m in messages if isinstance(m, dict) and m.get("role") == "user"]
-    return bool(users) and str(users[-1].get("content", "")).strip() == content.strip()
+    return users[-1] if users else None
+
+
+def _regenerate_target(last_user: Optional[Dict[str, Any]], content: str) -> bool:
+    return last_user is not None and str(last_user.get("content", "")).strip() == content.strip()
+
+
+async def _can_regenerate(mgr: ChatManager, session_id: str, content: str) -> bool:
+    """Is *content* the last question asked in *session_id* (and answered)?"""
+    return _regenerate_target(await _last_user_message(mgr, session_id), content)
+
+
+def saved_attachment_ids(message: Optional[Dict[str, Any]]) -> List[str]:
+    """Attachment ids stored on a history message (see :func:`attachment_refs`)."""
+    if not isinstance(message, dict):
+        return []
+    raw = message.get("attachments")
+    if not isinstance(raw, list):
+        meta = message.get("metadata")
+        raw = meta.get("attachments") if isinstance(meta, dict) else None
+    if not isinstance(raw, list):
+        return []
+    ids: List[str] = []
+    for ref in raw:
+        att_id = ref.get("id") if isinstance(ref, dict) else ref
+        if isinstance(att_id, str) and att_id:
+            ids.append(att_id)
+    return ids
 
 
 async def _rewind_provider(session_id: str, agent_name: Optional[str]) -> None:
@@ -1396,6 +1466,38 @@ async def _rewind_provider(session_id: str, agent_name: Optional[str]) -> None:
             await result
     except Exception as exc:  # never block a regenerate on it
         logger.debug("rewind_last_turn failed: %s", exc)
+
+
+def attachment_refs(attachment_ids: Any) -> List[Dict[str, Any]]:
+    """``[{id, name, content_type}]`` for the attachment ids of a user message.
+
+    Saved on the message so a reloaded thread can show the files and a
+    Regenerate after a reload sends them to the provider again. Unknown ids
+    are kept with the id alone.
+    """
+    if not isinstance(attachment_ids, list):
+        return []
+    try:
+        from praisonaiui.features.attachments import get_attachment_manager
+
+        att_mgr = get_attachment_manager()
+    except Exception:
+        att_mgr = None
+    refs: List[Dict[str, Any]] = []
+    for att_id in attachment_ids:
+        if isinstance(att_id, dict):
+            att_id = att_id.get("id")
+        if not isinstance(att_id, str) or not att_id:
+            continue
+        ref: Dict[str, Any] = {"id": att_id}
+        meta = att_mgr.get(att_id) if att_mgr is not None else None
+        if isinstance(meta, dict):
+            if meta.get("filename"):
+                ref["name"] = meta["filename"]
+            if meta.get("content_type"):
+                ref["content_type"] = meta["content_type"]
+        refs.append(ref)
+    return refs
 
 
 class _BadFrame(Exception):
@@ -1443,10 +1545,10 @@ async def _chat_ws(websocket: WebSocket) -> None:
       one in history)
     * ``{type: "run_status", run_id}`` → ``{type: "run_status", run_id,
       session_id, active}``
-    * ``{type: "chat_abort", run_id}`` — allowed for runs in a session this
-      connection started a turn in or subscribed to, or that no connected
-      client owns; answered with ``{type: "chat_abort_result", status,
-      run_id}`` (status ``forbidden`` otherwise).
+    * ``{type: "chat_abort", run_id}`` — allowed for a run this connection
+      started, or one whose starting connection is gone (or that came over
+      HTTP); answered with ``{type: "chat_abort_result", status, run_id}``
+      (status ``forbidden`` otherwise).
     * ``{type: "ask_response", session_id, run_id, response}`` — same rule;
       answered with ``{type: "ask_response_ack", status}``.
     * ``{type: "subscribe", session_ids: [...]}`` / ``{type: "unsubscribe",
@@ -1526,15 +1628,24 @@ async def _chat_ws(websocket: WebSocket) -> None:
                     if guardrail_blocked:
                         continue  # skip agent run, wait for next message
 
-                    # This client now owns the session: it may abort runs
-                    # in it, and (if scoped) receives its events.
+                    # This client started a turn here: it (if scoped)
+                    # receives the session's events, and controls its run.
                     mgr.note_client_session(client_id, session_id)
                     from praisonaiui.server import _datastore
 
+                    # Extract attachment_ids
+                    att_ids = data.get("attachment_ids") or []
+                    if not isinstance(att_ids, list):
+                        att_ids = []
                     if regenerate:
                         # Answer the last question again instead of asking it
                         # twice: only when it really is the last question.
-                        regenerate = await _can_regenerate(mgr, session_id, content)
+                        last_user = await _last_user_message(mgr, session_id)
+                        regenerate = _regenerate_target(last_user, content)
+                        if regenerate and not att_ids:
+                            # A client that reloaded the thread may not know
+                            # the files the question carried: reuse them.
+                            att_ids = saved_attachment_ids(last_user)
                     if regenerate:
                         await _rewind_provider(session_id, agent_name)
                     else:
@@ -1543,23 +1654,20 @@ async def _chat_ws(websocket: WebSocket) -> None:
                             content,
                             session_id=session_id,
                             agent_name=agent_name,
+                            attachments=att_ids,
                         )
                         # Also persist user message to datastore
                         try:
                             existing = await _datastore.get_session(session_id)
                             if existing is None:
                                 await _datastore.create_session(session_id)
-                            await _datastore.add_message(
-                                session_id,
-                                {
-                                    "role": "user",
-                                    "content": content,
-                                },
-                            )
+                            user_msg: Dict[str, Any] = {"role": "user", "content": content}
+                            refs = attachment_refs(att_ids)
+                            if refs:
+                                user_msg["attachments"] = refs
+                            await _datastore.add_message(session_id, user_msg)
                         except Exception:
                             pass
-                    # Extract attachment_ids
-                    att_ids = data.get("attachment_ids") or []
                     # Run agent and broadcast
                     asyncio.create_task(
                         _run_and_broadcast(
@@ -1569,6 +1677,7 @@ async def _chat_ws(websocket: WebSocket) -> None:
                             att_ids,
                             client_turn_id=client_turn_id,
                             regenerate=regenerate,
+                            owner_client_id=client_id,
                         )
                     )
 

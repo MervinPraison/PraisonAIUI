@@ -10,16 +10,22 @@
 * ``OriginGuardMiddleware`` — refuses cross-site WebSocket handshakes and
   cross-site state-changing requests (CSRF, including ``text/plain`` "simple"
   requests that skip the CORS preflight).
+* ``HostGuardMiddleware`` — refuses a request to a loopback or private-network
+  server whose ``Host`` is a DNS name it does not know (DNS rebinding).
+* ``JSONObjectBodyMiddleware`` — answers 400 to a JSON request body that is
+  an array or a scalar, which every built-in handler would index as a dict.
 * ``install_secret_redaction`` — strips ``token=``/``ticket=`` values from
   uvicorn's access and error logs (and so from the Logs page buffer).
 """
 
 from __future__ import annotations
 
+import ipaddress
 import logging
 import os
 import re
 import secrets
+import socket
 import threading
 import time
 from typing import Any, Callable, Iterable, Optional
@@ -192,8 +198,24 @@ def consume_ws_ticket(ticket: str) -> bool:
     return expires is not None and expires > time.monotonic()
 
 
+_TICKET_OK_KEY = "aiui_ws_ticket_ok"
+
+
 def websocket_has_ticket(scope: dict) -> bool:
-    return consume_ws_ticket(query_param(scope, "ticket"))
+    """Does this handshake carry a live ``?ticket=``?
+
+    The ticket is spent by the first gate that checks it, and the result is
+    recorded on the scope, so every stacked auth middleware (AUTH_ENFORCE,
+    URL token, require_auth) honours the same handshake. A ticket is only
+    issued to a request that already passed all of the HTTP gates.
+    """
+    state = scope.setdefault("state", {})
+    if state.get(_TICKET_OK_KEY):
+        return True
+    ok = consume_ws_ticket(query_param(scope, "ticket"))
+    if ok:
+        state[_TICKET_OK_KEY] = True
+    return ok
 
 
 async def ws_ticket_handler(request: Request) -> JSONResponse:
@@ -314,6 +336,221 @@ class OriginGuardMiddleware:
             await response(scope, receive, send)
             return
         await self.app(scope, receive, send)
+
+
+# ── Host guard (DNS rebinding) ───────────────────────────────────────
+
+
+def configured_hosts(env: Optional[dict] = None) -> list[str]:
+    """``AIUI_ALLOWED_HOSTS`` (comma separated; ``*`` turns the check off).
+
+    An entry starting with ``.`` also matches its subdomains
+    (``.example.com`` matches ``example.com`` and ``a.example.com``).
+    """
+    raw = (env if env is not None else os.environ).get("AIUI_ALLOWED_HOSTS", "")
+    return [h.strip().lower().rstrip(".") for h in raw.split(",") if h.strip()]
+
+
+def _host_header_name(value: str) -> str:
+    value = value.strip().lower()
+    if value.startswith("["):
+        return value[1 : value.find("]")] if "]" in value else value[1:]
+    return value.rsplit(":", 1)[0] if value.count(":") == 1 else value
+
+
+def _ip(value: str):
+    try:
+        return ipaddress.ip_address(value)
+    except ValueError:
+        return None
+
+
+def _rebindable_server(scope: dict) -> bool:
+    """Does this connection reach the server on a non-public address?
+
+    Loopback, private, link-local, unspecified and other non-global ranges.
+    That is the address DNS rebinding points a victim's browser at. A server
+    reached on a public address can be called directly, so rebinding gains
+    an attacker nothing there and the check is skipped.
+    """
+    server = scope.get("server")
+    if not server:
+        return False
+    ip = _ip(str(server[0]).strip("[]"))
+    if ip is None:
+        return False
+    mapped = getattr(ip, "ipv4_mapped", None)
+    if mapped is not None:
+        ip = mapped
+    return not ip.is_global
+
+
+def _machine_names() -> set[str]:
+    try:
+        name = socket.gethostname().strip().lower().rstrip(".")
+    except OSError:
+        return set()
+    return {name, f"{name}.local"} if name else set()
+
+
+def host_allowed(scope: dict, allowed: Iterable[str] = ()) -> bool:
+    """Is the ``Host`` header one this server answers to?
+
+    Always allowed: IP literals, ``localhost`` / ``*.localhost``, mDNS
+    ``*.local`` names, this machine's hostname, a missing Host (not a
+    browser), and anything in ``AIUI_ALLOWED_HOSTS``. Only checked when the
+    connection reaches the server on a loopback or private address.
+    """
+    allowed = list(allowed)
+    if "*" in allowed or not _rebindable_server(scope):
+        return True
+    name = _host_header_name(header(scope, b"host")).rstrip(".")
+    if not name or _ip(name) is not None:
+        return True
+    if name == "localhost" or name.endswith((".localhost", ".local")):
+        return True
+    if name in _machine_names():
+        return True
+    for entry in allowed:
+        if entry.startswith("."):
+            if name == entry[1:] or name.endswith(entry):
+                return True
+        elif name == entry:
+            return True
+    return False
+
+
+class HostGuardMiddleware:
+    """Refuse requests whose ``Host`` names an unknown site (DNS rebinding).
+
+    After a DNS rebind an attacker's page is "same-origin" with a local
+    server, so the Origin check passes; the ``Host`` header still carries
+    the attacker's name. Install it outermost. HTTP gets 400, a WebSocket
+    handshake is closed with 1008. ``AIUI_ALLOWED_HOSTS`` lists the public
+    names of a server behind a reverse proxy on the same machine.
+    """
+
+    def __init__(self, app, allowed_hosts: Optional[Iterable[str]] = None):
+        self.app = app
+        self.allowed = list(allowed_hosts) if allowed_hosts is not None else configured_hosts()
+        self._warned: set[str] = set()
+
+    async def __call__(self, scope, receive, send):
+        kind = scope["type"]
+        if kind not in ("http", "websocket") or host_allowed(scope, self.allowed):
+            await self.app(scope, receive, send)
+            return
+        host = header(scope, b"host")
+        if host not in self._warned and len(self._warned) < 100:
+            self._warned.add(host)
+            logging.getLogger(__name__).warning(
+                "Refused request for Host %r (possible DNS rebinding). If this is "
+                "the server's own name, add it to AIUI_ALLOWED_HOSTS.",
+                host,
+            )
+        if kind == "websocket":
+            await reject_websocket(receive, send, "Host not allowed")
+            return
+        response = JSONResponse(
+            {
+                "error": "Host not allowed",
+                "hint": "Add this host name to AIUI_ALLOWED_HOSTS to allow it.",
+            },
+            status_code=400,
+        )
+        await response(scope, receive, send)
+
+
+# ── JSON request bodies ──────────────────────────────────────────────
+
+_BODY_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+#: Content types whose body the handlers read with ``request.json()``.
+_JSON_LIKE = ("application/json", "text/plain", "")
+_MAX_INSPECT_BYTES = 4 * 1024 * 1024
+
+
+def _json_like(content_type: str) -> bool:
+    ct = content_type.split(";", 1)[0].strip().lower()
+    return ct in _JSON_LIKE or ct.endswith("+json")
+
+
+class JSONObjectBodyMiddleware:
+    """Refuse a JSON request body that is not an object (or ``null``).
+
+    Every built-in handler reads its body with ``await request.json()`` and
+    then calls ``body.get(...)`` / ``body[...]``, so ``[1, 2]`` or ``"x"``
+    raised inside the handler and came back as a 500. This answers 400
+    before the handler runs, for every route at once. Malformed JSON, an
+    empty body and ``null`` pass through unchanged (handlers already deal
+    with them), as do multipart uploads and other non-JSON bodies, bodies
+    over 4 MiB, and third-party plugin routes under *skip_prefixes*.
+    """
+
+    def __init__(self, app, skip_prefixes: Iterable[str] = ("/api/plugins/",)):
+        self.app = app
+        self.skip_prefixes = tuple(skip_prefixes)
+
+    async def __call__(self, scope, receive, send):
+        if (
+            scope["type"] != "http"
+            or scope.get("method", "GET") not in _BODY_METHODS
+            or scope.get("path", "").startswith(self.skip_prefixes)
+            or not _json_like(header(scope, b"content-type"))
+        ):
+            await self.app(scope, receive, send)
+            return
+
+        chunks: list[bytes] = []
+        size = 0
+        more = True
+        pending: Optional[dict] = None
+        while more:
+            message = await receive()
+            if message["type"] != "http.request":
+                pending = message  # disconnect: let the app see it
+                break
+            body = message.get("body", b"")
+            chunks.append(body)
+            size += len(body)
+            more = message.get("more_body", False)
+            if size > _MAX_INSPECT_BYTES:
+                break
+        buffered = b"".join(chunks)
+
+        if not more and pending is None and _is_non_object_json(buffered):
+            response = JSONResponse(
+                {"error": "Request body must be a JSON object"}, status_code=400
+            )
+            await response(scope, receive, send)
+            return
+
+        replayed = False
+
+        async def replay():
+            nonlocal replayed
+            if not replayed:
+                replayed = True
+                if pending is not None and not buffered:
+                    return pending
+                return {"type": "http.request", "body": buffered, "more_body": more}
+            if pending is not None:
+                return pending
+            return await receive()
+
+        await self.app(scope, replay, send)
+
+
+def _is_non_object_json(body: bytes) -> bool:
+    import json
+
+    text = body.strip()
+    if not text or text[:1] in (b"{", b"n"):
+        return False  # empty, an object or null (or malformed: the handler decides)
+    try:
+        value = json.loads(text)
+    except (ValueError, UnicodeDecodeError):
+        return False
+    return not isinstance(value, dict) and value is not None
 
 
 # ── Log redaction ────────────────────────────────────────────────────

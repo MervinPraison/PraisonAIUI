@@ -14,6 +14,7 @@ Extension points:
 from __future__ import annotations
 
 import logging
+import re
 import threading
 from typing import Any, Dict, List, Optional
 
@@ -25,6 +26,25 @@ from ..themes import PRESET_NAMES
 from ._base import BaseFeatureProtocol
 
 logger = logging.getLogger(__name__)
+
+_RGB_TRIPLE = re.compile(r"^\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*$")
+
+
+def is_valid_accent(value: Any) -> bool:
+    """A CSS colour the theme tag can embed (hex, rgb()/hsl()/oklch()…, a name)."""
+    from ..themes import _is_css_color
+
+    return isinstance(value, str) and _is_css_color(value)
+
+
+def normalize_rgb_triple(value: Any) -> Optional[str]:
+    """``"59, 130, 246"`` -> ``"59,130,246"``; None unless three 0-255 ints."""
+    if not isinstance(value, str):
+        return None
+    m = _RGB_TRIPLE.match(value)
+    if not m or any(int(g) > 255 for g in m.groups()):
+        return None
+    return ",".join(m.groups())
 
 
 # ── Protocol ─────────────────────────────────────────────────────
@@ -211,14 +231,30 @@ class ThemeManager(ThemeProtocol):
     # ── User extension (protocol-driven) ─────────────────────────
 
     def register_theme(self, name: str, variables: Dict[str, str]) -> None:
-        """Register a custom theme. Must have 'accent' and 'accentRgb' keys."""
+        """Register a custom theme.
+
+        ``accent`` must be a CSS colour (hex, ``rgb()``/``hsl()``/``oklch()``…
+        or a colour name); ``accentRgb`` is ``"r,g,b"`` and is derived from a
+        hex accent when omitted. Anything else raises ``ValueError``: these
+        values are written into a ``<style>`` tag every visitor receives.
+        """
         if "accent" not in variables:
             raise ValueError("Custom theme must have 'accent' key")
-        if "accentRgb" not in variables:
-            # Auto-derive RGB from hex
-            hex_color = variables["accent"].lstrip("#")
-            r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
-            variables["accentRgb"] = f"{r},{g},{b}"
+        accent = variables["accent"]
+        if not is_valid_accent(accent):
+            raise ValueError("'accent' must be a CSS colour such as #3b82f6")
+        rgb_raw = variables.get("accentRgb")
+        if rgb_raw:
+            rgb = normalize_rgb_triple(rgb_raw)
+            if rgb is None:
+                raise ValueError("'accentRgb' must be three 0-255 numbers, e.g. 59,130,246")
+        else:
+            from ..themes import _hex_to_rgb_triple
+
+            rgb = _hex_to_rgb_triple(accent) if accent.strip().startswith("#") else None
+            if rgb is None:
+                raise ValueError("'accentRgb' is required when 'accent' is not a hex colour")
+        variables = {**variables, "accent": accent.strip(), "accentRgb": rgb}
         self._custom_themes[name] = variables
         logger.info("Registered custom theme: %s", name)
 
@@ -349,13 +385,16 @@ async def _register_theme(request: Request) -> JSONResponse:
         return JSONResponse({"error": "'accent' hex color is required"}, status_code=400)
 
     mgr = get_theme_manager()
-    mgr.register_theme(
-        name,
-        {
-            "accent": accent,
-            "accentRgb": body.get("accentRgb", ""),
-        },
-    )
+    try:
+        mgr.register_theme(
+            name,
+            {
+                "accent": accent,
+                "accentRgb": body.get("accentRgb", ""),
+            },
+        )
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
     return JSONResponse({"registered": name, **mgr.get_full_state()})
 
 
