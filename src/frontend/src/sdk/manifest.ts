@@ -64,6 +64,13 @@ export const SDK_EXPORTS = [
   'registerSettingsSection',
   'registerNavGroup',
   'registerThemePreset',
+  // Selectable layouts (features layouts and layout-data; ADR 0003).
+  'registerLayout',
+  'getLayouts',
+  'useLayout',
+  'setLayout',
+  'provideLayoutData',
+  'useLayoutData',
 ] as const
 export type SdkExportName = (typeof SDK_EXPORTS)[number]
 
@@ -108,6 +115,12 @@ export const SDK_FEATURES = [
   'nav-groups',
   // registerThemePreset() and a plugin record's `themes` (Python themes())
   'theme-presets',
+  // registerLayout / getLayouts / useLayout / setLayout and manifest.layouts (ADR 0003)
+  'layouts',
+  // provideLayoutData() / useLayoutData(): the feeds a layout frame reads
+  'layout-data',
+  // registerSlot() returns a disposer
+  'slots.dispose',
 ] as const
 export type SdkFeature = (typeof SDK_FEATURES)[number]
 
@@ -130,6 +143,56 @@ export interface ShellPage {
   integrity?: string
   layout?: string
   source?: string
+  /**
+   * Layout-owned page (ADR 0003): the nav lists it only while one of these
+   * layouts is active. Its URL renders under any layout.
+   */
+  layouts?: string[]
+  /** While a layout listing this page is active, this page stands in for the page with that id. */
+  replaces?: string
+  /** Presentation family of the page (list-detail, board, log, editor, gallery…); styling only. */
+  pageType?: string
+}
+
+/**
+ * Layout ids: lower-case, digits and dashes, starting with a letter, at most
+ * 40 characters. Same rule as the server (`schema/models.py` LayoutConfig).
+ */
+export const LAYOUT_ID_PATTERN = /^[a-z][a-z0-9-]{0,39}$/
+
+/** Reserved id meaning the core's own frame (no layout). Never registered. */
+export const CLASSIC_LAYOUT_ID = 'classic'
+
+/** One selectable layout the server offers (manifest `layouts.available`). */
+export interface ShellLayoutSpec {
+  id: string
+  title: string
+  description?: string
+  order?: number
+  /** Who provides it: `builtin`, `plugin:<name>`. */
+  source: string
+  /** ESM URL of a plugin layout, imported only when the layout is active. */
+  module?: string
+  css?: string
+  integrity?: string
+  /** The page `/` opens while this layout is active (`layout.defaultPage` still wins). */
+  home?: string
+  /** Page ids for the layout's primary nav, in order (YAML `layout.primary` wins). */
+  primary?: string[]
+  /** Per-layout options from YAML `layout.options.<id>`. */
+  options?: Record<string, unknown>
+}
+
+/**
+ * Manifest `layouts`. Absent (an older server) or with no `available`
+ * entries means the classic frame.
+ */
+export interface ShellLayouts {
+  /** The server default: a layout id, or '' for the classic frame. */
+  default: string
+  /** Whether a viewer's own choice (stored in the browser) may override `default`. */
+  userChoice: boolean
+  available: ShellLayoutSpec[]
 }
 
 export type ShellPluginStatus = 'ok' | 'error' | 'disabled' | 'incompatible' | 'disabled-by-default'
@@ -189,6 +252,8 @@ export interface ShellManifest {
   toolRenderers: { toolName: string; module: string; integrity?: string; source: string }[]
   plugins: ShellPluginRecord[]
   legacy: { customJs: string | null; viewsBase: string }
+  /** Selectable layouts (ADR 0003). Not to be confused with `layout`, the sidebar and page settings. */
+  layouts?: ShellLayouts
 }
 
 export const BOOT_ELEMENT_ID = 'aiui-boot'
@@ -202,6 +267,67 @@ function arrayOf<T>(v: unknown): T[] {
   return Array.isArray(v) ? (v as T[]) : []
 }
 
+function isStringList(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every((x) => typeof x === 'string')
+}
+
+/** Is `id` a layout id a layout can be registered under ('classic' is reserved)? */
+export function isLayoutId(id: unknown): id is string {
+  return typeof id === 'string' && LAYOUT_ID_PATTERN.test(id) && id !== CLASSIC_LAYOUT_ID
+}
+
+/** Drop the layout fields of a page when they have the wrong type; the page is otherwise untouched. */
+function normalizePage(p: ShellPage): ShellPage {
+  const bad = {
+    layouts: p.layouts !== undefined && !isStringList(p.layouts),
+    replaces: p.replaces !== undefined && typeof p.replaces !== 'string',
+    pageType: p.pageType !== undefined && typeof p.pageType !== 'string',
+  }
+  if (!bad.layouts && !bad.replaces && !bad.pageType) return p
+  const out = { ...p }
+  for (const key of Object.keys(bad) as (keyof typeof bad)[]) if (bad[key]) delete out[key]
+  return out
+}
+
+function normalizeLayoutSpec(v: unknown): ShellLayoutSpec | null {
+  if (!isRecord(v) || !isLayoutId(v.id)) return null
+  const spec: ShellLayoutSpec = {
+    id: v.id,
+    title: typeof v.title === 'string' && v.title ? v.title : v.id,
+    source: typeof v.source === 'string' && v.source ? v.source : 'builtin',
+  }
+  for (const key of ['description', 'module', 'css', 'integrity', 'home'] as const) {
+    const value = v[key]
+    if (typeof value === 'string') spec[key] = value
+  }
+  if (typeof v.order === 'number' && Number.isFinite(v.order)) spec.order = v.order
+  if (isStringList(v.primary)) spec.primary = v.primary
+  if (isRecord(v.options)) spec.options = v.options
+  return spec
+}
+
+/**
+ * Manifest `layouts`, or undefined when the server sent none (classic).
+ * Entries without a valid id are dropped, a repeated id keeps its first
+ * entry, and a `default` that is not a layout id (or is `classic`) becomes ''.
+ */
+function normalizeLayouts(raw: unknown): ShellLayouts | undefined {
+  if (!isRecord(raw)) return undefined
+  const seen = new Set<string>()
+  const available: ShellLayoutSpec[] = []
+  for (const item of arrayOf(raw.available)) {
+    const spec = normalizeLayoutSpec(item)
+    if (!spec || seen.has(spec.id)) continue
+    seen.add(spec.id)
+    available.push(spec)
+  }
+  return {
+    default: isLayoutId(raw.default) ? raw.default : '',
+    userChoice: raw.userChoice !== false,
+    available,
+  }
+}
+
 /**
  * Fill every optional collection with a safe default so consumers can iterate
  * without guards. Returns null when `raw` is not a full manifest (no `pages`
@@ -211,13 +337,15 @@ function arrayOf<T>(v: unknown): T[] {
 export function normalizeManifest(raw: unknown): ShellManifest | null {
   if (!isRecord(raw) || !Array.isArray(raw.pages)) return null
   const legacy = isRecord(raw.legacy) ? raw.legacy : {}
-  return {
+  const manifest: ShellManifest = {
     sdk: typeof raw.sdk === 'number' ? raw.sdk : SDK_VERSION,
     version: typeof raw.version === 'string' ? raw.version : '',
     style: typeof raw.style === 'string' ? raw.style : 'app',
     site: isRecord(raw.site) ? raw.site : {},
     layout: isRecord(raw.layout) ? raw.layout : {},
-    pages: arrayOf<ShellPage>(raw.pages).filter((p) => isRecord(p) && typeof p.id === 'string'),
+    pages: arrayOf<ShellPage>(raw.pages)
+      .filter((p) => isRecord(p) && typeof p.id === 'string')
+      .map(normalizePage),
     blocks: arrayOf(raw.blocks),
     toolRenderers: arrayOf(raw.toolRenderers),
     plugins: arrayOf(raw.plugins),
@@ -226,6 +354,9 @@ export function normalizeManifest(raw: unknown): ShellManifest | null {
       viewsBase: typeof legacy.viewsBase === 'string' ? legacy.viewsBase : '/plugins/views/',
     },
   }
+  const layouts = normalizeLayouts(raw.layouts)
+  if (layouts) manifest.layouts = layouts
+  return manifest
 }
 
 /**

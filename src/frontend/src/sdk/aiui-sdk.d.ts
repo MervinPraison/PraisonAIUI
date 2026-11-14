@@ -41,6 +41,32 @@ declare module '@aiui/sdk' {
     layout?: string
     /** Who provides the page: `builtin`, `app`, `plugin:<name>`, … */
     source?: string
+    /** Layout-owned page: listed in the nav only while one of these layouts is active. */
+    layouts?: string[]
+    /** While such a layout is active, this page stands in for the page with this id. */
+    replaces?: string
+    /** Presentation family (list-detail, board, log, editor, gallery…). */
+    pageType?: string
+  }
+
+  /** One selectable layout the server offers (manifest `layouts.available`). */
+  export interface ShellLayoutSpec {
+    id: string
+    title: string
+    description?: string
+    order?: number
+    /** `builtin`, `plugin:<name>`. */
+    source: string
+    /** ESM URL of a plugin layout, imported only when it is active. */
+    module?: string
+    css?: string
+    integrity?: string
+    /** The page `/` opens while this layout is active. */
+    home?: string
+    /** Page ids of the primary nav, in order. */
+    primary?: string[]
+    /** YAML `layout.options.<id>`. */
+    options?: Record<string, unknown>
   }
 
   export type ShellPluginStatus = 'ok' | 'error' | 'disabled' | 'incompatible' | 'disabled-by-default'
@@ -90,6 +116,14 @@ declare module '@aiui/sdk' {
     toolRenderers: { toolName: string; module: string; integrity?: string; source: string }[]
     plugins: ShellPluginRecord[]
     legacy: { customJs: string | null; viewsBase: string }
+    /** Selectable layouts; absent on older servers (classic frame). Feature `'layouts'`. */
+    layouts?: {
+      /** A layout id, or '' for the classic frame. */
+      default: string
+      /** Whether the viewer's own choice may override `default`. */
+      userChoice: boolean
+      available: ShellLayoutSpec[]
+    }
   }
 
   // ── registry ───────────────────────────────────────────────────────
@@ -313,6 +347,306 @@ declare module '@aiui/sdk' {
   }
   /** Offer a theme preset the viewer can pick in the command palette. Feature `'theme-presets'`. */
   export function registerThemePreset(preset: ThemePresetInput): () => void
+
+  // ── layouts (features 'layouts', 'layout-data'; ADR 0003) ───────────
+
+  /** Width < 768 px, < 1024 px, else desktop. */
+  export type LayoutViewport = 'phone' | 'tablet' | 'desktop'
+  export interface ChatRegionProps {
+    sessionId: string | null
+    viewport: LayoutViewport
+    /** Show a count on the region's phone tab (0 hides it). */
+    reportBadge(n: number): void
+  }
+  export interface TurnRegionProps extends ChatRegionProps {
+    messageId: string
+  }
+  export type RegionLoader<P = ChatRegionProps> = () => Promise<{ default: ComponentType<P> }>
+  /** How the chat page presents itself inside the layout. */
+  export interface ChatPresentation {
+    /** Who draws the session list. Default `'page'`. */
+    sessions?: 'page' | 'frame' | 'tabs' | 'none'
+    thread?: 'bubbles' | 'quiet' | 'steps' | 'dense'
+    approvals?: 'inline' | 'card' | 'keyboard'
+    /** Desktop right panel; on a phone, a second tab labelled `asideLabel`. */
+    aside?: RegionLoader
+    asideLabel?: string
+    turnHeader?: RegionLoader<TurnRegionProps>
+    turnFooter?: RegionLoader<TurnRegionProps>
+    /** Shown in an empty thread. */
+    empty?: RegionLoader
+  }
+  export interface LayoutMeta {
+    title: string
+    description?: string
+    /** Picker thumbnail URL. */
+    preview?: string
+    chat?: ChatPresentation
+    /** `'frame'`: approval toasts stop and the layout shows them. Default `'toast'`. */
+    approvals?: 'toast' | 'frame'
+  }
+  export interface LayoutNavItem {
+    id: string
+    title: string
+    navIcon?: string
+    icon?: string
+    group: string
+    href: string
+    active: boolean
+    badge?: number
+  }
+  export interface LayoutNav {
+    /** At most 7 items. */
+    primary: readonly LayoutNavItem[]
+    /** Every other page, by sidebar group. */
+    groups: readonly { name: string; folded: boolean; items: readonly LayoutNavItem[] }[]
+    footer: readonly LayoutNavItem[]
+    activeId: string
+    go(pageId: string): void
+  }
+  export interface LayoutChrome {
+    siteTitle: string
+    siteLogo: { kind: 'img' | 'text'; value: string } | null
+    /** Open the command palette, optionally with a query typed in. */
+    openPalette(options?: { query?: string }): void
+    toggleColorMode(): void
+    /** The shell's slot host. */
+    Slot: ComponentType<{ name: string; className?: string }>
+    /** Id of the main landmark (skip-link target). */
+    mainId: string
+  }
+  /** Props of a layout frame. */
+  export interface LayoutProps {
+    /** The routed page, with its error boundary, toolbar slot and Suspense. */
+    Outlet: ComponentType<{ className?: string }>
+    pageId: string
+    page?: ShellPage
+    fullBleed: boolean
+    nav: LayoutNav
+    chrome: LayoutChrome
+    viewport: LayoutViewport
+    layout: { id: string; available: readonly ShellLayoutSpec[]; switchTo(id: string): void }
+  }
+  export type LayoutComponent = ComponentType<LayoutProps>
+  export type LayoutLoader = () => Promise<{ default: LayoutComponent }>
+  export interface LayoutInfo {
+    readonly id: string
+    readonly meta: LayoutMeta
+  }
+  /**
+   * Register a layout frame: a component, or a loader returning `import()`
+   * that runs only when the layout is first shown. Ids are `[a-z][a-z0-9-]*`
+   * (`classic` is reserved). The server's manifest decides which registered
+   * layouts are offered. Returns a remover.
+   */
+  export function registerLayout(id: string, meta: LayoutMeta, component: LayoutComponent | LayoutLoader): () => void
+  /** Registered layouts, in registration order. */
+  export function getLayouts(): readonly LayoutInfo[]
+  /** React hook: the active layout, or null for the classic frame. */
+  export function useLayout(): LayoutInfo | null
+  /**
+   * Switch layouts live (`''` or `'classic'`: the classic frame). Remembered in
+   * this browser unless `{ persist: false }` (this tab only).
+   */
+  export function setLayout(id: string, options?: { persist?: boolean }): void
+
+  /** A changing value, ready for `useSyncExternalStore(feed.subscribe, feed.get)`. */
+  export interface Feed<S> {
+    get(): S
+    subscribe(listener: () => void): () => void
+  }
+  export interface SessionSummary {
+    id: string
+    title: string
+    untitled?: boolean
+    agent?: string
+    platform?: string
+    /** Epoch ms. */
+    updatedAt?: number
+  }
+  export interface SessionsState {
+    sessions: readonly SessionSummary[]
+    activeId: string | null
+    runningIds: ReadonlySet<string>
+    loading: boolean
+    error?: string
+  }
+  export interface SessionsFeed extends Feed<SessionsState> {
+    select(id: string | null): void
+    create(): void
+    rename(id: string, title: string): Promise<void>
+    remove(id: string): Promise<void>
+    refresh(): Promise<void>
+  }
+  export interface ChatTiming {
+    startedAt: number
+    completedAt?: number
+  }
+  export type ChatPartView =
+    | { type: 'text'; id: string; text: string }
+    | { type: 'reasoning'; id: string; text: string; done: boolean; timing?: ChatTiming }
+    | {
+        type: 'tool-call'
+        id: string
+        toolName: string
+        args: Readonly<Record<string, unknown>>
+        result?: unknown
+        isError?: boolean
+        artifact: Readonly<Record<string, unknown>>
+        timing?: ChatTiming
+        approval?: {
+          id: string
+          prompt?: string
+          display?: 'decision' | 'select' | 'text'
+          allowFreeform?: boolean
+          options?: readonly { id: string; kind: string; label?: string }[]
+          approved?: boolean
+          optionId?: string
+          text?: string
+        }
+      }
+    | { type: 'data'; id: string; name: string; data: unknown }
+  export type ChatMessageStatus =
+    | { type: 'running' }
+    | { type: 'requires-action'; reason: 'interrupt' | 'tool-calls' }
+    | { type: 'complete' }
+    | { type: 'incomplete'; reason: 'cancelled' | 'error'; error?: string }
+  export interface ChatMessageView {
+    id: string
+    role: 'user' | 'assistant' | 'system'
+    parts: readonly ChatPartView[]
+    createdAt: number
+    completedAt?: number
+    status?: ChatMessageStatus
+    runId?: string
+    agentName?: string
+    custom?: Readonly<Record<string, unknown>>
+  }
+  export interface ChatState {
+    sessionId: string | null
+    messages: readonly ChatMessageView[]
+    isRunning: boolean
+    activeRunId?: string
+  }
+  export interface ChatFeed extends Feed<ChatState> {
+    prefill(text: string): void
+    cancel(): Promise<void>
+    resolveApproval(approvalId: string, approved: boolean, options?: { text?: string; optionId?: string }): Promise<void>
+  }
+  export interface ApprovalItem {
+    id: string
+    toolName?: string
+    agentName?: string
+    sessionId?: string
+    riskLevel?: string
+    description?: string
+    args?: Readonly<Record<string, unknown>>
+    createdAt?: number
+  }
+  export interface ApprovalsFeed extends Feed<{ pending: readonly ApprovalItem[] }> {
+    approve(id: string, options?: { always?: boolean }): Promise<void>
+    deny(id: string, reason?: string): Promise<void>
+  }
+  export type RunStatus = 'running' | 'waiting' | 'completed' | 'failed' | 'cancelled'
+  export interface RunSummary {
+    id: string
+    sessionId?: string
+    agent?: string
+    startedAt: number
+    endedAt?: number
+    status: RunStatus
+    stepCount?: number
+    tokens?: number
+    /** US dollars. */
+    cost?: number
+    /** Tokens and cost joined by time window rather than run id. */
+    approximate?: boolean
+  }
+  export interface RunStep {
+    id: string
+    kind: 'reasoning' | 'tool' | 'text' | 'approval' | 'handoff'
+    label: string
+    startedAt?: number
+    endedAt?: number
+    status?: 'running' | 'done' | 'error' | 'waiting'
+    toolName?: string
+  }
+  export interface RunDetail extends RunSummary {
+    steps: readonly RunStep[]
+    model?: string
+    tokensIn?: number
+    tokensOut?: number
+  }
+  export interface RunQuery {
+    after?: string
+    agent?: string
+    limit?: number
+  }
+  export interface RunKpis {
+    window: 'today' | '24h' | '7d'
+    runs: number
+    runsDelta?: number
+    successRate?: number
+    cost?: number
+    budget?: number
+    p50Ms?: number
+    p95Ms?: number
+  }
+  export interface AgentStatus {
+    name: string
+    state: 'running' | 'waiting' | 'idle'
+    elapsedMs?: number
+    lastRunAt?: number
+    model?: string
+    tokensToday?: number
+    costToday?: number
+  }
+  export interface RunsFeed {
+    run(runId: string): Feed<RunDetail | null>
+    recent(query?: RunQuery): Feed<readonly RunSummary[]>
+    kpis(window: 'today' | '24h' | '7d'): Feed<RunKpis | null>
+    agents(): Feed<readonly AgentStatus[]>
+  }
+  export type ArtifactKind = 'code' | 'table' | 'markdown' | 'file' | 'image' | 'pdf' | 'video' | 'a2ui'
+  export interface Artifact {
+    key: string
+    kind: ArtifactKind
+    title: string
+    version: number
+    sessionId: string | null
+    messageId: string
+    language?: string
+    content?: string
+    url?: string
+    mimeType?: string
+    updatedAt?: number
+    edited?: boolean
+  }
+  export interface ArtifactsFeed {
+    forSession(sessionId: string | null): Feed<readonly Artifact[]>
+    open(sessionId: string, key: string, version?: number): void
+  }
+  /**
+   * Data kinds and their feeds. Add your own by declaration merging:
+   * `declare module '@aiui/sdk' { interface LayoutDataMap { weather: WeatherFeed } }`.
+   */
+  export interface LayoutDataMap {
+    sessions: SessionsFeed
+    chat: ChatFeed
+    approvals: ApprovalsFeed
+    runs: RunsFeed
+    artifacts: ArtifactsFeed
+  }
+  /**
+   * Provide the feed of a data kind, or a loader of it (a function is always
+   * a loader) that runs the first time a frame reads the kind. Returns a remover.
+   */
+  export function provideLayoutData<K extends keyof LayoutDataMap>(
+    kind: K,
+    provider: LayoutDataMap[K] | (() => Promise<LayoutDataMap[K]>),
+  ): () => void
+  /** React hook: the feed, or null while nothing provides it or it is loading. */
+  export function useLayoutData<K extends keyof LayoutDataMap>(kind: K): LayoutDataMap[K] | null
 
   // ── default export ─────────────────────────────────────────────────
 
