@@ -197,6 +197,8 @@ jobs:
           name: blob-report-${{ matrix.shard }}
           path: src/frontend/e2e/.blob
           retention-days: 3
+          # dot-folder: upload-artifact v4 skips hidden paths unless told otherwise
+          include-hidden-files: true
 
       - name: Upload traces and screenshots
         if: failure()
@@ -205,6 +207,8 @@ jobs:
           name: playwright-results-${{ matrix.shard }}
           path: src/frontend/e2e/.results
           retention-days: 7
+          # dot-folder: upload-artifact v4 skips hidden paths unless told otherwise
+          include-hidden-files: true
 
   e2e-report:
     name: e2e report
@@ -247,6 +251,8 @@ jobs:
           name: playwright-report
           path: src/frontend/e2e/.report
           retention-days: 7
+          # dot-folder: upload-artifact v4 skips hidden paths unless told otherwise
+          include-hidden-files: true
 
   # Safety net after a merge: rebuild the bundle on the CI image and, when the
   # committed copy differs, open a pull request with the synced files. Pull
