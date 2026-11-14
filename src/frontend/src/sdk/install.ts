@@ -9,7 +9,12 @@
  * share the shell's single React instance (hooks work, no duplicate React).
  *
  * The `@aiui/sdk` module object has exactly the keys of SDK_EXPORTS
- * (sdk/manifest.ts), the frozen list the server shim re-exports.
+ * (sdk/manifest.ts), the frozen list the server shim re-exports. Its types
+ * for plugin authors are in sdk/aiui-sdk.d.ts.
+ *
+ * The SDK is the core's public face: it must not import the shell
+ * (shell/core-purity.test.ts). The shell provides its services through
+ * sdk/services.ts instead.
  */
 import * as React from 'react'
 import * as ReactJsxRuntime from 'react/jsx-runtime'
@@ -28,7 +33,9 @@ import {
   subscribe,
   useRegistryVersion,
 } from './registry'
-import { SDK_VERSION, type SdkExportName, type ShellExternal } from './manifest'
+import { SDK_FEATURES, SDK_VERSION, type SdkExportName, type ShellExternal } from './manifest'
+import { notify } from './notify'
+import { fetchJson, navigate, onActivate, registerCommand, useManifest } from './services'
 
 export { getLastPluginLoadReport, loadManifestPlugins } from './loadPlugins'
 export type { PluginLoadFailure, PluginLoadReport, LoadPluginsOptions } from './loadPlugins'
@@ -85,7 +92,18 @@ export const sdkApi = Object.freeze({
   subscribe,
   useRegistryVersion,
   Markdown,
+  SDK_FEATURES,
+  navigate,
+  notify,
+  fetchJson,
+  useManifest,
+  registerCommand,
+  onActivate,
 } satisfies { [K in SdkExportName]: unknown })
+
+// Compile-time check that the published typings (./aiui-sdk.d.ts, the types a
+// plugin author gets for `@aiui/sdk`) describe this object.
+sdkApi satisfies Omit<typeof import('@aiui/sdk'), 'default'>
 
 type ModuleObject = Readonly<Record<string, unknown>>
 

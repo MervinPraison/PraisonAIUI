@@ -13,9 +13,10 @@ import { createRoot, type Root } from 'react-dom/client'
 import { setLegacyNavigator } from '@/legacy/runtime'
 import { installSdk } from '@/sdk/install'
 import { readBootManifest } from '@/sdk/manifest'
-import { installAuthFetch } from './auth'
+import { provideShellHost } from '@/sdk/services'
+import { installBuiltins } from '@/builtin'
+import { getStoredToken, installAuthFetch } from './auth'
 import { installPaletteHooks } from './palette'
-import { registerPortedPages } from './ported'
 import { navigate, patchHistory, rewriteHashDeepLink } from './router'
 import { ShellApp } from './ShellApp'
 
@@ -27,7 +28,10 @@ export function mountShell(el: HTMLElement): void {
   installAuthFetch()
   // 2. window.__AIUI_SDK__ exists before any plugin module is imported.
   installSdk()
-  registerPortedPages()
+  // The SDK's shell services (navigate, fetchJson) run on the shell's router and token.
+  provideShellHost({ navigate, getToken: getStoredToken })
+  // First-party plugins queue on the same onActivate hook plugin modules use.
+  installBuiltins()
   // 3. Routing: patched history, legacy hash deep links, legacy selectPage → shell.
   patchHistory()
   rewriteHashDeepLink()

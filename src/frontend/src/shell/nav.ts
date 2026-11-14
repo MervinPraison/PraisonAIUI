@@ -23,6 +23,28 @@ export function isFullBleed(page: ShellPage | undefined, pageId: string): boolea
   return page?.layout === 'full-bleed' || FULL_BLEED_IDS.has(pageId)
 }
 
+/** Kinds the shell renders itself; every other kind goes to the legacy view host. */
+const HOSTED_KINDS: ReadonlySet<string> = new Set(['blocks', 'iframe', 'react'])
+
+/** True when an unregistered page of this kind is rendered by LegacyViewHost. */
+export function usesLegacyHost(page: Pick<ShellPage, 'kind'>): boolean {
+  return !HOSTED_KINDS.has(page.kind)
+}
+
+/**
+ * Whether warming the legacy runtime (dashboard.js) is worth it: some page
+ * would be rendered by the legacy host, or the app ships a custom.js (which
+ * only the legacy runtime evaluates). `isRegistered` reports pages a React
+ * component is registered for; those never reach the legacy host.
+ */
+export function needsLegacyRuntime(
+  manifest: Pick<ShellManifest, 'pages' | 'legacy'>,
+  isRegistered: (pageId: string) => boolean = () => false,
+): boolean {
+  if (manifest.legacy.customJs) return true
+  return manifest.pages.some((p) => usesLegacyHost(p) && !isRegistered(p.id))
+}
+
 function byOrder(a: ShellPage, b: ShellPage): number {
   return (a.order ?? 100) - (b.order ?? 100)
 }

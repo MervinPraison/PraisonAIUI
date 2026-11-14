@@ -1,7 +1,8 @@
 /**
  * Lazy chunk: the command palette (cmdk via components/ui/command). Opened by
  * Ctrl/Cmd+K, the header search button and window.aiui.openCommandPalette().
- * Items: every page, "New chat", and the three colour modes.
+ * Items: every page, "New chat", the commands plugins registered through
+ * `registerCommand` (@aiui/sdk), and the three colour modes.
  */
 import { useMemo } from 'react'
 import { Check, Monitor, Moon, Plus, Sun } from 'lucide-react'
@@ -16,6 +17,8 @@ import {
   CommandShortcut,
 } from '@/components/ui/command'
 import type { ShellPage } from '@/sdk/manifest'
+import { notify } from '@/sdk/notify'
+import { useCommands, type ShellCommand } from '@/sdk/services'
 import { footerPages, groupPages } from './nav'
 import { PageIcon } from './PageIcon'
 import { getPageId, navigate, waitForPageChange } from './router'
@@ -30,6 +33,37 @@ function startNewChat() {
   }
   void waitForPageChange('chat', 5000).then(fire)
   navigate('chat')
+}
+
+const DEFAULT_COMMAND_GROUP = 'Commands'
+
+/** Registered commands by palette heading, in registration order. */
+function groupCommands(commands: readonly ShellCommand[]): { name: string; commands: ShellCommand[] }[] {
+  const groups = new Map<string, ShellCommand[]>()
+  for (const c of commands) {
+    const name = c.group || DEFAULT_COMMAND_GROUP
+    let list = groups.get(name)
+    if (!list) groups.set(name, (list = []))
+    list.push(c)
+  }
+  return [...groups.entries()].map(([name, list]) => ({ name, commands: list }))
+}
+
+/** Run a plugin command; a throw or rejection becomes a toast, never a broken palette. */
+function runCommand(command: ShellCommand) {
+  const failed = (err: unknown) => {
+    console.error(`[aiui shell] command '${command.id}' failed`, err)
+    void notify(`“${command.title}” failed`, {
+      type: 'error',
+      description: err instanceof Error ? err.message : String(err),
+    })
+  }
+  try {
+    const result = command.run()
+    if (result && typeof result.then === 'function') result.then(undefined, failed)
+  } catch (err) {
+    failed(err)
+  }
 }
 
 const THEMES = [
@@ -56,6 +90,8 @@ export default function CommandPalette({
     return footer.length ? [...g, { name: 'More', pages: footer }] : g
   }, [pages])
   const hasChat = pages.some((p) => p.id === 'chat')
+  const registered = useCommands()
+  const commandGroups = useMemo(() => groupCommands(registered), [registered])
 
   const run = (action: () => void) => {
     onOpenChange(false)
@@ -82,6 +118,22 @@ export default function CommandPalette({
             </CommandItem>
           </CommandGroup>
         )}
+        {commandGroups.map((group) => (
+          <CommandGroup key={`commands:${group.name}`} heading={group.name}>
+            {group.commands.map((c) => (
+              <CommandItem
+                key={c.id}
+                value={`${c.title} ${c.id}`}
+                keywords={c.keywords ? [...c.keywords] : undefined}
+                data-command-id={c.id}
+                onSelect={() => run(() => runCommand(c))}
+              >
+                {c.icon ? <c.icon /> : <span aria-hidden="true" className="size-4 shrink-0" />}
+                <span className="truncate">{c.title}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ))}
         {groups.map((group) => (
           <CommandGroup key={group.name} heading={group.name}>
             {group.pages.map((p) => (

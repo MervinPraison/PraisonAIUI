@@ -7,7 +7,7 @@
  * the gate in the thread.
  */
 import { useEffect } from 'react'
-import { notify } from './notify'
+import { notify } from '@/sdk/notify'
 import { getPageId, navigate } from './router'
 
 export const APPROVAL_EVENT = 'aiui:approval-required'

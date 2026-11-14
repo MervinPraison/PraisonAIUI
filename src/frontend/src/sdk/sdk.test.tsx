@@ -9,7 +9,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { BlockList, BlockRenderer } from '@/blocks/BlockRenderer'
 import { actionEndpoint, dataEndpoint } from '@/blocks/BlockPage'
-import { CORE_BLOCK_TYPES, getCoreBlock } from '@/blocks/coreBlocks'
+import { CORE_BLOCK_TYPES, getCoreBlock, registerCoreBlocks } from '@/blocks/coreBlocks'
 import { hasBlockTree, safeUrl, toBlockNode, toBlockTree, toLegacyComponent } from '@/blocks/normalize'
 import { getInstalledSdk, installSdk, registerView, sdkApi, toModuleObject } from '@/sdk/install'
 import {
@@ -26,6 +26,7 @@ import {
   getBlock,
   getPage,
   getToolRenderers,
+  isFallbackBlock,
   registerBlock,
   registerToolRenderer,
   subscribe,
@@ -247,6 +248,57 @@ test('a registered block wins over the core set; custom.js registerComponent rou
   assert.match(render(tree([{ type: 'card', title: 'x' }])), /data-aiui-block-fallback="card"/)
   win.aiui = { components: { badge: () => null } }
   assert.match(render(tree([{ type: 'badge', text: 'x' }])), /data-aiui-block-fallback="badge"/)
+})
+
+test('core blocks are contributions to the SDK block registry, registered as fallbacks', () => {
+  assert.ok(CORE_BLOCK_TYPES.length >= 50)
+  for (const type of CORE_BLOCK_TYPES) {
+    assert.equal(getBlock(type), getCoreBlock(type), `${type} resolves through getBlock()`)
+    assert.equal(isFallbackBlock(type), true, `${type} is a fallback`)
+  }
+  assert.equal(sdkApi.getBlock('metric'), getCoreBlock('metric'), 'plugins see the same registry')
+  assert.equal(getBlock('mystery_widget'), undefined)
+  assert.equal(isFallbackBlock('mystery_widget'), false)
+})
+
+test('a plugin overrides a core block silently, whichever registers first', () => {
+  const warnings: unknown[][] = []
+  const original = console.warn
+  console.warn = (...args: unknown[]) => void warnings.push(args)
+  try {
+    // After the core set (the blocks chunk was already loaded).
+    const Mine = () => createElement('em', { 'data-mine-skeleton': '' })
+    registerBlock('skeleton', Mine)
+    assert.equal(getBlock('skeleton'), Mine)
+    assert.equal(isFallbackBlock('skeleton'), false)
+    assert.match(render(tree([{ type: 'skeleton' }])), /data-mine-skeleton/)
+    registerCoreBlocks() // e.g. the chunk is evaluated again: must not take the type back
+    assert.equal(getBlock('skeleton'), Mine)
+
+    // Before the core set: a fallback never replaces what is there.
+    const Early = () => createElement('em', { 'data-early': '' })
+    registerBlock('sdk-test-early', Early)
+    registerBlock('sdk-test-early', () => null, { fallback: true })
+    assert.equal(getBlock('sdk-test-early'), Early)
+    assert.equal(isFallbackBlock('sdk-test-early'), false)
+    assert.deepEqual(warnings, [], 'no "replaces an earlier registration" warning in either order')
+  } finally {
+    console.warn = original
+  }
+})
+
+test('a plugin can register its own fallback block; custom.js wins over a fallback only', () => {
+  const Default = () => createElement('i', { 'data-default': '' })
+  registerBlock('sdk-test-fallback', Default, { fallback: true })
+  assert.equal(isFallbackBlock('sdk-test-fallback'), true)
+  assert.match(render(tree([{ type: 'sdk-test-fallback' }])), /data-default/)
+
+  // custom.js registerComponent takes a fallback type (as it takes core types)…
+  win.aiui = { components: { 'sdk-test-fallback': () => null, 'sdk-test-override': () => null } }
+  assert.match(render(tree([{ type: 'sdk-test-fallback' }])), /data-aiui-block-fallback="sdk-test-fallback"/)
+  // …but not a type a plugin registered outright.
+  assert.match(render(tree([{ type: 'sdk-test-override', title: 'hey' }])), /<em data-mine="">hey<\/em>/)
+  assert.throws(() => registerBlock('sdk-test-x', Default, null as unknown as object), TypeError)
 })
 
 test('CORE_BLOCK_TYPES covers the spec list', () => {

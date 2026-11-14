@@ -5,10 +5,13 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { ThemeProvider } from 'next-themes'
 import { preloadLegacyRuntime } from '@/legacy/runtime'
 import { fetchManifest, type ShellManifest } from '@/sdk/manifest'
+import { useToasterRequested } from '@/sdk/notify'
+import { getPage } from '@/sdk/registry'
+import { activateShell } from '@/sdk/services'
 import { loadManifestPlugins } from '@/sdk/install'
 import { BootError, BootSkeleton, TokenGate } from './BootScreen'
 import { ShellContext, type ShellState } from './context'
-import { useToasterRequested } from './notify'
+import { needsLegacyRuntime } from './nav'
 import { preloadCommandPalette } from './palette'
 import ReactShell from './ReactShell'
 
@@ -56,7 +59,9 @@ function ShellReady({ manifest }: { manifest: ShellManifest }) {
       if (alive) setPluginsSettled(true)
     })
     const cancelIdle = onIdle(() => {
-      preloadLegacyRuntime()
+      // Only when a page will actually use it: an app whose pages are all
+      // React, blocks or iframes never downloads dashboard.js.
+      if (needsLegacyRuntime(manifest, (id) => getPage(id) !== undefined)) preloadLegacyRuntime()
       preloadCommandPalette()
     })
     return () => {
@@ -83,6 +88,17 @@ function ToasterHost() {
   )
 }
 
+/**
+ * The manifest is known: publish it to the SDK (useManifest) and run the
+ * onActivate hooks, which is how first-party plugins (src/builtin) register
+ * the pages this manifest lists. It happens before anything renders, so a deep
+ * link to one of those pages resolves on the first paint. Idempotent.
+ */
+function ready(manifest: ShellManifest): Boot {
+  activateShell(manifest)
+  return { status: 'ready', manifest }
+}
+
 async function loadManifest(): Promise<Boot> {
   let status = 0
   const trackingFetch: typeof fetch = async (input, init) => {
@@ -91,7 +107,7 @@ async function loadManifest(): Promise<Boot> {
     return res
   }
   try {
-    return { status: 'ready', manifest: await fetchManifest(trackingFetch) }
+    return ready(await fetchManifest(trackingFetch))
   } catch (err) {
     if (status === 401 || status === 403) return { status: 'auth' }
     const detail = err instanceof Error ? err.message : String(err)
@@ -101,7 +117,7 @@ async function loadManifest(): Promise<Boot> {
 
 export function ShellApp({ initialManifest }: { initialManifest: ShellManifest | null }) {
   const [boot, setBoot] = useState<Boot>(() =>
-    initialManifest ? { status: 'ready', manifest: initialManifest } : { status: 'loading' },
+    initialManifest ? ready(initialManifest) : { status: 'loading' },
   )
 
   useEffect(() => {

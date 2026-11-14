@@ -49,6 +49,14 @@ flowchart LR
 3. A module registers what it provides through `@aiui/sdk`, or default-exports
    a component that the shell registers under the page id / block type / tool name.
 
+The app's own React pages and blocks use the same mechanism. The shell and the
+SDK are a small core that names no page: the chat page is the first-party
+plugin `builtin.chat` in `src/frontend/src/builtin`, registered with
+`registerPage` when the manifest lists it, and the core block types are
+registered with `registerBlock`. A test in the frontend
+(`shell/core-purity.test.ts`) fails if the core imports a feature module or
+names a built-in page.
+
 ## The Python side
 
 ```toml
@@ -168,16 +176,30 @@ the plugin file or imported by full URL.
 
 ### `@aiui/sdk`
 
+Registration:
+
 | Export | Use |
 |---|---|
 | `SDK_VERSION` | `1` |
+| `SDK_FEATURES` | List of capability names, for [feature detection](#feature-detection) |
 | `registerPage(id, Component)` | Component receives `{ page }` (its manifest entry). A zero-argument arrow function is treated as a lazy loader: `registerPage('x', () => import('./X.js'))` |
-| `registerBlock(type, Component)` | Component receives `{ node, page }`; `node` is `{ type, props, children }` |
+| `registerBlock(type, Component, options?)` | Component receives `{ node, page }`; `node` is `{ type, props, children }`. It also overrides a core block type of the same name. `{ fallback: true }` registers a default that anything else overrides |
 | `registerToolRenderer(toolName, Component)` | Chat tool call UI; receives assistant-ui tool part props (`toolName`, `args`, `argsText`, `result`, `status`, …) |
-| `registerSlot(name, Component)` | Named extension point |
+| `registerSlot(name, Component, options?)` | Add a component to a [slot](#slots) of the shell |
+| `registerCommand(command)` | Add an entry to the command palette. Returns a function that removes it |
 | `registerView(pageId, render, cleanup?)` | A vanilla view for a legacy page (same as `window.aiui.registerView` in custom.js) |
+| `onActivate(fn)` | Run `fn({ manifest })` once the app is ready |
 | `getPage`, `getBlock`, `getSlot`, `getToolRenderers` | Registry lookups |
 | `subscribe(fn)`, `useRegistryVersion()` | React to later registrations |
+
+Shell services and components:
+
+| Export | Use |
+|---|---|
+| `navigate(pageId, { replace }?)` | Go to a page of the app: `navigate('logs')` |
+| `notify(message, options?)` | Show a toast. Options: `type` (`info`, `success`, `warning`, `error`), `description`, `duration`, `id`, `action: { label, onClick }` |
+| `fetchJson(url, options?)` | `fetch` for JSON APIs. It sends the session's gateway token to same-origin URLs only, JSON-encodes a plain-object `body` (the method then defaults to `POST`), decodes the response, and rejects with an error carrying `status`, `url` and `body` on a non-2xx status |
+| `useManifest()` | React hook returning the shell manifest (`pages`, `plugins`, `site`, `layout`) |
 | `Markdown` | The shell's Markdown renderer: `<Markdown variant="docs">{text}</Markdown>` |
 
 ```js
@@ -198,6 +220,100 @@ registerToolRenderer('get_weather', ({ args, result }) =>
 Style with the theme's CSS variables (`var(--foreground)`, `var(--border)`,
 `var(--primary)`, …). The shell's Tailwind build only contains the classes the
 shell itself uses, so Tailwind classes in a plugin may not exist.
+
+### Shell services
+
+Use the services instead of globals such as `window.fetch` or the history API.
+They work the same in every page kind and they are part of the SDK contract.
+
+```js
+import { fetchJson, navigate, notify, onActivate, registerCommand } from '@aiui/sdk'
+
+async function refresh() {
+  try {
+    const data = await fetchJson('/api/plugins/reports/refresh', { body: { scope: 'week' } })
+    notify(`Refreshed ${data.count} rows`, { type: 'success' })
+  } catch (err) {
+    notify('Refresh failed', { type: 'error', description: err.message })   // err.status, err.body
+  }
+}
+
+registerCommand({ id: 'reports.refresh', title: 'Refresh reports', group: 'Reports', run: refresh })
+registerCommand({ id: 'reports.open', title: 'Open reports', keywords: ['weekly'], run: () => navigate('report') })
+
+// Runs once the manifest is known (immediately, when the app is already running).
+onActivate(({ manifest }) => {
+  if (manifest.pages.some((p) => p.id === 'approvals')) {
+    window.addEventListener('aiui:approval-required', () => notify('An approval is waiting'))
+  }
+})
+```
+
+A command that throws, or whose promise rejects, is reported as a toast. An
+`onActivate` hook that throws is logged and does not stop the other hooks.
+
+### Slots
+
+A slot is a place in the shell that renders components from plugins.
+
+| Slot | Where | Extra props |
+|---|---|---|
+| `header:actions` | The header bar, before search and the theme toggle. Not shown when the app hides the page header | |
+| `sidebar:footer` | The bottom of the sidebar, on desktop and in the phone menu | `collapsed` |
+| `page:<id>:toolbar` | Above the body of page `<id>`, for example `page:logs:toolbar` | |
+
+Every slot component receives `{ slot, pageId, page }`: the slot name, the id
+of the page on screen and its manifest entry.
+
+```js
+import { jsx } from 'react/jsx-runtime'
+import { navigate, registerSlot } from '@aiui/sdk'
+
+function HelloAction({ pageId }) {
+  if (pageId === 'hello') return null
+  return jsx('button', { type: 'button', onClick: () => navigate('hello'), children: 'Hello' })
+}
+
+registerSlot('header:actions', HelloAction, { id: 'hello', order: 50 })
+```
+
+- Pass `{ id, order }` so that several plugins can share a slot. `id` is the
+  identity of your contribution (use the plugin name), and a lower `order`
+  comes first (default `100`). Registering the same `id` again replaces only
+  that contribution.
+- Without options, the call sets the slot's single default contribution and
+  replaces an earlier one. This is the original behaviour.
+- Each contribution renders inside its own error boundary. One that throws is
+  removed and logged; the others and the shell stay.
+- A slot nobody contributes to renders nothing.
+
+### Feature detection
+
+The SDK grows without a new major version, so `SDK_VERSION` stays `1`. A named
+import of an export that an older shell lacks fails when the module loads.
+When a plugin must also run on older shells, use the default export and ask
+before you call a newer function:
+
+```js
+import sdk from '@aiui/sdk'
+
+if (sdk.SDK_FEATURES?.includes('commands')) {
+  sdk.registerCommand({ id: 'hello.greet', title: 'Say hello', run: () => sdk.notify('Hello') })
+}
+```
+
+Feature names: `pages`, `blocks`, `tool-renderers`, `slots`, `views`,
+`markdown`, `navigate`, `notify`, `fetch-json`, `manifest`, `commands`,
+`activate`, `slots.multi` (the `{ id, order }` options and the slot hosts) and
+`blocks.fallback`. A shell older than the services has no `SDK_FEATURES`.
+
+### Types
+
+`@aiui/sdk` is not an npm package: the shell provides it at runtime. Its types
+are in `src/frontend/src/sdk/aiui-sdk.d.ts`, and the frontend build also
+writes `dist/aiui-sdk.d.ts`. Copy the file into a plugin project and include
+it in `tsconfig.json` (or `jsconfig.json` with `checkJs`) to type-check the
+plugin. It depends on `@types/react` only.
 
 ### Failure isolation
 
@@ -248,10 +364,11 @@ class Plugin:
   `<apiEndpoint>/action` for plugin pages, else `/api/pages/<id>/action`.
   A response with a component list replaces the page; `message` is shown as a
   toast; `error` (or a non-2xx status) as an error toast.
-- Resolution order for a block `type`: a block registered through the SDK, a
-  `window.aiui.registerComponent` renderer from custom.js, a core block, then
-  the legacy dashboard renderer, so every existing `_components` type keeps
-  working.
+- Resolution order for a block `type`: a block registered with
+  `registerBlock(type, C)`, a `window.aiui.registerComponent` renderer from
+  custom.js, a block registered with `{ fallback: true }` (the core blocks are
+  registered this way), then the legacy dashboard renderer, so every existing
+  `_components` type keeps working.
 - Text is always rendered as text, never as HTML. Links and images only accept
   relative, `http(s)`, `mailto:` and `tel:` URLs (images also `data:image/*`).
 
@@ -308,5 +425,7 @@ when a command name is not a built-in one.
 | Page says "unavailable" | `aiui plugins doctor`; the browser console shows the import error |
 | Plugin listed as `disabled-by-default` | Remote or auth-enforced server: add it to `extensions.enabled` |
 | `Invalid hook call` | The module bundled its own React: mark `react` and `react/jsx-runtime` external |
+| `does not provide an export named …` | The shell is older than the SDK export the module imports: see [feature detection](#feature-detection) |
+| A slot component does not appear | Check the slot name, and that the page header or sidebar is not hidden by the app |
 | `aiui shell not booted` | The module was loaded outside the app shell (style must be `app`) |
 | Integrity error after editing a file | The manifest hashes the file on every request; hard-reload the page so the browser drops its cached copy |

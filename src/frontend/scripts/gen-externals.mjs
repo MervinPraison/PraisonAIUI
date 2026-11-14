@@ -10,6 +10,7 @@
  *   {
  *     "schema": 1,
  *     "sdkVersion": 1,
+ *     "sdkFeatures": ["pages", ...],  // SDK_FEATURES from src/sdk/manifest.ts
  *     "react": "19.2.4",
  *     "modules": {
  *       "react": ["Children", ...],
@@ -23,9 +24,13 @@
  * Export lists are the union of React's production and development builds,
  * restricted to valid JS identifiers, sorted, without `default`.
  *
+ * It also writes the plugin author's types for `@aiui/sdk` next to the JSON:
+ * dist/aiui-sdk.d.ts, a copy of src/sdk/aiui-sdk.d.ts, after checking that
+ * the names it declares equal SDK_EXPORTS.
+ *
  * Usage: node scripts/gen-externals.mjs [--out <file>]
  */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -81,7 +86,7 @@ function exportNames(specifier) {
 }
 
 const manifest = await loadManifestModule()
-const { SHELL_EXTERNALS, SDK_EXPORTS, SDK_VERSION } = manifest
+const { SHELL_EXTERNALS, SDK_EXPORTS, SDK_FEATURES, SDK_VERSION } = manifest
 
 if (!Array.isArray(SHELL_EXTERNALS) || !Array.isArray(SDK_EXPORTS)) {
   throw new Error('src/sdk/manifest.ts must export SHELL_EXTERNALS and SDK_EXPORTS arrays')
@@ -89,6 +94,29 @@ if (!Array.isArray(SHELL_EXTERNALS) || !Array.isArray(SDK_EXPORTS)) {
 const badSdk = SDK_EXPORTS.filter((n) => typeof n !== 'string' || !IDENT.test(n))
 if (badSdk.length) throw new Error(`SDK_EXPORTS has invalid identifiers: ${badSdk.join(', ')}`)
 if (new Set(SDK_EXPORTS).size !== SDK_EXPORTS.length) throw new Error('SDK_EXPORTS has duplicates')
+if (!Array.isArray(SDK_FEATURES) || SDK_FEATURES.some((f) => typeof f !== 'string' || !f)) {
+  throw new Error('src/sdk/manifest.ts must export SDK_FEATURES as an array of strings')
+}
+if (new Set(SDK_FEATURES).size !== SDK_FEATURES.length) throw new Error('SDK_FEATURES has duplicates')
+
+/** Names declared with `export function|const` in the ambient `@aiui/sdk` typings. */
+function declaredSdkNames(dts) {
+  return [...dts.matchAll(/^\s*export\s+(?:declare\s+)?(?:function|const)\s+([A-Za-z_$][\w$]*)/gm)].map((m) => m[1])
+}
+
+const typingsFile = path.join(ROOT, 'src', 'sdk', 'aiui-sdk.d.ts')
+const typings = readFileSync(typingsFile, 'utf8')
+{
+  const declared = new Set(declaredSdkNames(typings))
+  const missing = SDK_EXPORTS.filter((n) => !declared.has(n))
+  const extra = [...declared].filter((n) => !SDK_EXPORTS.includes(n))
+  if (missing.length || extra.length) {
+    throw new Error(
+      `src/sdk/aiui-sdk.d.ts is out of step with SDK_EXPORTS (missing: ${missing.join(', ') || 'none'}; ` +
+        `not exported by the SDK: ${extra.join(', ') || 'none'})`,
+    )
+  }
+}
 
 const modules = {}
 for (const spec of SHELL_EXTERNALS) {
@@ -108,13 +136,17 @@ for (const required of ['react', 'react/jsx-runtime', 'react-dom', 'react-dom/cl
 const out = {
   schema: 1,
   sdkVersion: SDK_VERSION,
+  sdkFeatures: [...SDK_FEATURES],
   react: require('react/package.json').version,
   modules,
 }
 
 mkdirSync(path.dirname(outFile), { recursive: true })
 writeFileSync(outFile, `${JSON.stringify(out, null, 2)}\n`)
+const typingsOut = path.join(path.dirname(outFile), 'aiui-sdk.d.ts')
+copyFileSync(typingsFile, typingsOut)
 const counts = Object.entries(modules)
   .map(([k, v]) => `${k}=${v.length}`)
   .join(' ')
 console.log(`gen-externals: wrote ${path.relative(ROOT, outFile)} (React ${out.react}; ${counts})`)
+console.log(`gen-externals: wrote ${path.relative(ROOT, typingsOut)} (${SDK_EXPORTS.length} exports, ${SDK_FEATURES.length} features)`)

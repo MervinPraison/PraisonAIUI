@@ -145,6 +145,8 @@ export default function ReactShell() {
           <ShellHeader
             title={pageTitle}
             description={page?.description}
+            pageId={pageId}
+            page={page}
             showMenuButton={sidebar}
             onOpenMenu={openMobileNav}
             onPreloadMenu={preloadMobileNav}

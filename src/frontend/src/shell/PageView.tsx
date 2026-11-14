@@ -6,6 +6,8 @@
  *   4. everything else    → LegacyViewHost (WP4)
  * LegacyViewHost and BlockPage are lazy chunks: neither enters the shell's
  * boot closure. Each page renders inside its own error boundary + Suspense.
+ * Above the body sits the `page:<id>:toolbar` slot (empty unless a plugin
+ * contributes to it).
  */
 import { Component, createElement, lazy, Suspense, useEffect, type ErrorInfo, type ReactNode } from 'react'
 import { CircleAlert, FileText } from 'lucide-react'
@@ -13,8 +15,10 @@ import { Button } from '@/components/ui/button'
 import { getPage, useRegistryVersion } from '@/sdk/registry'
 import type { ShellPage } from '@/sdk/manifest'
 import { cn } from '@/lib/utils'
+import { usesLegacyHost } from './nav'
 import { EmptyState, PageSkeleton } from './primitives'
 import { isPlainLeftClick, navigate, PAGE_CHANGE_EVENT, pathForPage } from './router'
+import { SHELL_SLOTS, Slot } from './Slot'
 
 const LegacyViewHost = lazy(() => import('@/legacy/LegacyViewHost').then((m) => ({ default: m.LegacyViewHost })))
 const BlockPage = lazy(() => import('@/blocks/BlockPage'))
@@ -119,7 +123,7 @@ export function PageView({
   const Registered = pageId ? getPage(pageId) : undefined
   const title = page?.title ?? pageId
 
-  let body: ReactNode
+  let body: ReactNode = null
   let announce = true
   if (!pageId) {
     // `/` before the redirect to the default page.
@@ -167,7 +171,7 @@ export function PageView({
     ) : (
       <PageSkeleton fill={fullBleed} />
     )
-  } else {
+  } else if (usesLegacyHost(page)) {
     // LegacyViewHost announces aiui:page-change itself once the view is mounted.
     announce = false
     body = <LegacyViewHost key={pageId} pageId={pageId} page={page} />
@@ -182,6 +186,17 @@ export function PageView({
           fullBleed ? 'flex min-h-0 flex-1 flex-col' : 'px-4 py-4 md:px-8 md:py-6 lg:px-10 lg:py-8',
         )}
       >
+        {page && (
+          <Slot
+            name={SHELL_SLOTS.pageToolbar(pageId)}
+            pageId={pageId}
+            page={page}
+            className={cn(
+              'flex shrink-0 flex-wrap items-center justify-end gap-2',
+              fullBleed ? 'border-b border-border px-4 py-2' : 'pb-4',
+            )}
+          />
+        )}
         <Suspense fallback={<PageSkeleton fill={fullBleed} />}>
           {body}
           {announce && <PageMounted pageId={pageId} page={page} />}
