@@ -383,8 +383,13 @@ class JobsFeature(BaseFeatureProtocol):
     async def health(self) -> Dict[str, Any]:
         from ._gateway_helpers import gateway_health
 
-        store = get_job_store()
-        store_health = await _store_stats(store)
+        # Do not create the store just to report on it: the default store
+        # imports praisonai.jobs (FastAPI and friends, ~1 s) on the event loop.
+        # Until a jobs route starts it there are no jobs to count.
+        if _job_store is None:
+            store_health: Dict[str, Any] = {"store": "not started"}
+        else:
+            store_health = await _store_stats(_job_store)
         return {
             "status": "ok",
             "feature": self.name,

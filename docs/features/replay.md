@@ -19,7 +19,18 @@ with record(live=True):
 ```
 
 Every recorded run is a file `<id>.jsonl` in the traces folder. Replay reads it from
-`$PRAISONAI_TRACES_DIR`, else `$PRAISON_HOME/traces`, else `~/.praison/traces`.
+the first of these that applies:
+
+1. `$PRAISONAI_TRACES_DIR`
+2. `$PRAISON_HOME/traces`
+3. `<data dir>/traces`, when a data directory is configured with `$PRAISONAI_HOME`
+   (checked first) or `$AIUI_DATA_DIR`
+4. `~/.praison/traces`, where the PraisonAI CLI writes runs
+
+The PraisonAI CLI always records to `~/.praison/traces`. A server started with
+`AIUI_DATA_DIR` or `PRAISONAI_HOME` (Docker with `AIUI_DATA_DIR=/data`, for example)
+reads its own `<data dir>/traces` instead and does not show those CLI runs. To show
+them, set `PRAISONAI_TRACES_DIR=~/.praison/traces`.
 
 To open aiui on Replay yourself:
 

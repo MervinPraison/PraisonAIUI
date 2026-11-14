@@ -550,7 +550,9 @@ async def get_mcp_server(name: str) -> Optional[MCPServer]:
 async def auto_discover_mcp_servers() -> None:
     """Auto-discover and connect MCP servers from configuration."""
     try:
-        config_path = Path.home() / ".praisonai" / "mcp.json"
+        from ._paths import feature_data_path
+
+        config_path = feature_data_path("mcp.json", Path.home() / ".praisonai" / "mcp.json")
         if not config_path.exists():
             return
 

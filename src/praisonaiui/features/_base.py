@@ -7,10 +7,26 @@ changing server.py or cli.py.
 
 from __future__ import annotations
 
+import sys
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
 from starlette.routing import Route
+
+
+def sdk_installed(package: str = "praisonaiagents") -> bool:
+    """True when *package* can be imported, checked without importing it.
+
+    For ``health()``: reports SDK availability without paying for the import.
+    """
+    try:
+        import importlib.util
+
+        return importlib.util.find_spec(package) is not None
+    except ValueError:  # loaded without a __spec__ (a stub module): present
+        return sys.modules.get(package) is not None
+    except ImportError:
+        return False
 
 
 class BaseFeatureProtocol(ABC):
@@ -76,7 +92,13 @@ class BaseFeatureProtocol(ABC):
         return []
 
     async def health(self) -> Dict[str, Any]:
-        """Health check for this feature. Default: ok."""
+        """Health check for this feature. Default: ok.
+
+        Runs on the event loop for every ``/api/features`` and ``/api/health``
+        request, so it must be cheap: report state already known, and never
+        start an SDK backend, import a heavy library, make a network call or
+        scan a large directory here. Those block every other request.
+        """
         return {"status": "ok", "feature": self.name}
 
     async def info(self) -> Dict[str, Any]:

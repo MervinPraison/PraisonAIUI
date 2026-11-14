@@ -118,8 +118,8 @@ class JsonlTracingManager(TracingProtocol):
 
     One ``<id>.jsonl`` file is one trace; spans come from start/end event
     pairs (``parent_seq`` on schema 1.1, sequence order on 1.0).  The
-    directory is ``$PRAISONAI_TRACES_DIR`` > ``$PRAISON_HOME/traces`` >
-    ``~/.praison/traces`` (shared with the ``replay`` feature).  Traces and
+    directory is ``_trace_jsonl.traces_dir()`` (the configured data
+    directory's ``traces`` folder; shared with the ``replay`` feature).  Traces and
     spans posted to ``/api/traces/record`` stay in memory alongside.
     """
 
