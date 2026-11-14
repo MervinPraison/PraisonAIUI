@@ -1,4 +1,4 @@
-"""On-disk video project layout under ~/.praisonai/projects."""
+"""On-disk video project layout under ``video_config.get_projects_dir()``."""
 
 from __future__ import annotations
 

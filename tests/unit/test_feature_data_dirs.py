@@ -34,6 +34,7 @@ def dirs(tmp_path, monkeypatch):
         "PRAISON_HOME",
         "PRAISONAI_TRACES_DIR",
         "PRAISON_TRAIN_DIR",
+        "PRAISONAI_PROJECTS_DIR",
     ):
         monkeypatch.delenv(var, raising=False)
     a = tmp_path / "data-a"
@@ -258,3 +259,43 @@ def test_mcp_auto_discovery_reads_the_data_dir_config(dirs, monkeypatch):
     _unconfigure(monkeypatch)
     asyncio.run(mcp.auto_discover_mcp_servers())
     assert connected == ["server-a", "server-b", "global"]
+
+
+# ── video projects ───────────────────────────────────────────────────
+
+
+def _video_project(root: Path, project_id: str) -> None:
+    (root / project_id / ".praisonai").mkdir(parents=True, exist_ok=True)
+
+
+def test_video_projects_follow_the_data_dir(dirs, monkeypatch):
+    from praisonaiui import video_config
+    from praisonaiui.features.video import VideoFeature
+
+    monkeypatch.setattr(video_config, "_projects_dir", None)
+    client = TestClient(Starlette(routes=VideoFeature().routes()))
+
+    def listed() -> set[str]:
+        return {p["id"] for p in client.get("/api/video/projects").json()["projects"]}
+
+    _video_project(dirs["home"] / ".praisonai" / "projects", "proj-global")
+    _video_project(dirs["a"] / "projects", "proj-a")
+    _video_project(dirs["b"] / "projects", "proj-b")
+
+    _use(monkeypatch, dirs["a"])
+    assert listed() == {"proj-a"}
+    created = client.post("/api/video/projects", json={"name": "new one"}).json()
+    assert Path(created["path"]).parent == dirs["a"] / "projects"
+    _use(monkeypatch, dirs["b"])
+    assert listed() == {"proj-b"}
+
+    monkeypatch.setenv("PRAISONAI_PROJECTS_DIR", str(dirs["home"] / "explicit"))
+    _video_project(dirs["home"] / "explicit", "proj-explicit")
+    assert listed() == {"proj-explicit"}
+    monkeypatch.setattr(video_config, "_projects_dir", dirs["a"] / "projects")
+    assert "proj-a" in listed()  # set_video_engine(projects_dir=) wins over all
+    monkeypatch.setattr(video_config, "_projects_dir", None)
+    monkeypatch.delenv("PRAISONAI_PROJECTS_DIR")
+
+    _unconfigure(monkeypatch)  # no data dir: the historical folder, unchanged
+    assert listed() == {"proj-global"}
