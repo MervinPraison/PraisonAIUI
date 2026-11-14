@@ -169,13 +169,23 @@ class NavigationRoute(BaseRoute):
         self.endpoint = endpoint
         self.app = app
 
+    #: Per-request memo in the scope: auth middlewares match the route table
+    #: (:func:`_matched_endpoint`) before the router does, and the predicate
+    #: may scan plugin folders, so it runs once per request and path.
+    _MEMO_KEY = "aiui.navigation_match"
+
     def matches(self, scope: dict) -> tuple[Match, dict]:
-        try:
-            if self.predicate(scope):
-                return Match.FULL, {}
-        except Exception:  # noqa: BLE001 - a failing check never diverts a request
-            pass
-        return Match.NONE, {}
+        key = (id(self), scope.get("path", ""), scope.get("method", ""))
+        memo = scope.get(self._MEMO_KEY)
+        if memo is not None and memo[0] == key:
+            hit = memo[1]
+        else:
+            try:
+                hit = bool(self.predicate(scope))
+            except Exception:  # noqa: BLE001 - a failing check never diverts a request
+                hit = False
+            scope[self._MEMO_KEY] = (key, hit)
+        return (Match.FULL, {}) if hit else (Match.NONE, {})
 
     async def handle(self, scope, receive, send) -> None:
         await self.app(scope, receive, send)

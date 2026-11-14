@@ -182,6 +182,27 @@ def test_auth_enforce_page_navigation_public_but_data_gated(monkeypatch, api_key
     assert sid in client.get("/sessions", headers=bearer).text
 
 
+def test_page_navigation_check_runs_once_per_request(monkeypatch, api_key):
+    """The auth middleware and the router both match the route table; the
+    navigation check (it can scan plugin folders) runs once per request."""
+    monkeypatch.setenv("AUTH_ENFORCE", "true")
+    srv.set_style("dashboard")
+    calls = []
+    real = srv._page_records
+    monkeypatch.setattr(srv, "_page_records", lambda *a, **k: calls.append(a) or real(*a, **k))
+    client = TestClient(create_app(), raise_server_exceptions=False)
+    calls.clear()
+    res = client.get("/no-such-page", headers={"Accept": "text/html"})
+    assert res.status_code in (200, 401)
+    assert len(calls) == 1
+    # a second request evaluates afresh
+    client.get("/no-such-page", headers={"Accept": "text/html"})
+    assert len(calls) == 2
+    # the memo is keyed by path: a page id still opens the page
+    nav = client.get("/sessions", headers={"Accept": "text/html"})
+    assert nav.headers["content-type"].startswith("text/html")
+
+
 @pytest.mark.parametrize("mode", ["token", "require_auth"])
 def test_page_navigation_gets_no_data_in_other_auth_modes(monkeypatch, mode):
     srv.set_style("dashboard")
