@@ -1411,7 +1411,10 @@ async function fetchAuthStatus() {
     const token = getStoredToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch('/api/auth/status', { headers, credentials: 'same-origin' });
-    if (!res.ok) return { authenticated: false, mode: 'gateway', auth_required: true };
+    // Only a refusal means "needs a key". A 5xx (server restarting, a proxy
+    // error) says nothing about auth: no wizard for it.
+    if (res.status === 401 || res.status === 403) return { authenticated: false, mode: 'gateway', auth_required: true };
+    if (!res.ok) return null;
     return await res.json();
   } catch (e) {
     return null;
@@ -1477,7 +1480,7 @@ async function probeGatewayReachable(urlString) {
   }
 }
 
-async function maybeShowOnboarding() {
+async function maybeShowOnboarding(opts = {}) {
   let params;
   try {
     params = new URLSearchParams(window.location.search);
@@ -1497,6 +1500,9 @@ async function maybeShowOnboarding() {
     } catch (e) { /* ignore */ }
     if (ok) return;
   }
+  // Under the React app shell its own token gate (BootScreen) asks for the
+  // key; the legacy wizard would cover the whole shell.
+  if (opts.wizard === false) return;
 
   const status = await fetchAuthStatus();
   if (!status) return;
@@ -3733,7 +3739,9 @@ function initHostRuntime(opts = {}) {
       // aiui-css-guard keeps user CSS (#aiui-custom-css) last.
       document.head.insertBefore(style, document.head.firstChild);
     }
-    try { await maybeShowOnboarding(); } catch (e) { console.warn('[AIUI] Onboarding gate error:', e); }
+    // Magic links (?token=) still work; the wizard is the shell's TokenGate's job.
+    const reactShell = document.documentElement.dataset.aiuiShell === 'react';
+    try { await maybeShowOnboarding({ wizard: !reactShell }); } catch (e) { console.warn('[AIUI] Onboarding gate error:', e); }
     try {
       const res = await fetch('/api/pages');
       if (!res.ok) throw new Error(`GET /api/pages: HTTP ${res.status}`);
