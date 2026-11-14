@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from ._plugin import BuiltinPlugin, FeatureRef, feature, page
+from ._plugin import BuiltinPlugin, FeatureRef, feature, layout_spec, page
 from .catalog import BUILTIN_PLUGINS
 
 
@@ -49,6 +49,7 @@ __all__ = [
     "BuiltinPlugin",
     "FeatureRef",
     "feature",
+    "layout_spec",
     "page",
     "register_builtin_plugins",
 ]

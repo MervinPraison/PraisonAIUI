@@ -140,9 +140,58 @@ class PageSpec:
     #: App shell only: the shell's ``layout`` for a built-in page whose
     #: ``layout`` must stay unset for the legacy dashboard (``"full-bleed"``).
     shell_layout: Optional[str] = None
+    #: The page exists only in the app shell manifest: never in the page
+    #: table, ``GET /api/pages`` or the legacy dashboard (ADR 0003).
+    shell_only: bool = False
+    #: Layout-owned page (ADR 0003): the shell lists it in the nav only while
+    #: one of these layouts is active (its URL renders under any layout).
+    layouts: Optional[tuple[str, ...]] = None
+    #: While a layout listing this page is active, it stands in for the page
+    #: with this id (nav item and URL).
+    replaces: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
-        return _to_wire(self)
+        d = _to_wire(self)
+        d.pop("shellOnly", None)  # server-side routing only, never on the wire
+        if self.layouts is not None:
+            d["layouts"] = list(self.layouts)
+        return d
+
+
+#: Layout ids (ADR 0003). Same rule as the browser (``LAYOUT_ID_PATTERN``).
+LAYOUT_ID = re.compile(r"^[a-z][a-z0-9-]{0,39}$")
+#: Reserved: the core's own frame. Never a registered layout.
+CLASSIC_LAYOUT = "classic"
+
+
+@dataclass(frozen=True)
+class LayoutSpec:
+    """A selectable app shell frame (ADR 0003), from a plugin's ``layouts()`` hook.
+
+    A layout owns the frame around the routed page (navigation, session
+    list, side panels). ``module`` is the ESM file whose code calls
+    ``registerLayout(id, …)``; the shell imports it only while the layout is
+    active. First-party layouts have no module (their browser descriptor is
+    part of the bundle). ``home`` is the page ``/`` opens and ``primary``
+    the page ids of the primary nav, in order (YAML ``layout.primary`` wins).
+    """
+
+    id: str
+    title: str
+    description: str = ""
+    order: float = 100
+    module: Optional[str] = None
+    css: Optional[str] = None
+    integrity: Optional[str] = None
+    home: Optional[str] = None
+    primary: Optional[tuple[str, ...]] = None
+    source: str = "builtin"
+
+    def to_dict(self) -> dict[str, Any]:
+        d = _to_wire(self)
+        if self.primary is not None:
+            d["primary"] = list(self.primary)
+        return d
 
 
 @dataclass(frozen=True)
@@ -271,6 +320,8 @@ class AiuiPlugin(Protocol):
     #   def settings(self) -> Iterable[SettingsSectionSpec | dict]
     #   def nav_groups(self) -> Iterable[NavGroupSpec | dict]
     #   def themes(self) -> Iterable[ThemeSpec | dict]
+    # Added under SDK 1 (feature name "layouts", ADR 0003):
+    #   def layouts(self) -> Iterable[LayoutSpec | dict]
 
 
 @dataclass
@@ -675,7 +726,11 @@ class PluginRegistry:
         """
         out: list[PageSpec] = []
         if origin in ("builtin", "all"):
-            out.extend(self._collect_from(self._enabled_builtins(), "pages", _resolve_builtin_page))
+            out.extend(
+                s
+                for s in self._collect_from(self._enabled_builtins(), "pages", _resolve_builtin_page)
+                if not s.shell_only  # the page table never holds a shell-only page
+            )
         if origin != "builtin":
             recs = self.js_active(restricted=restricted)
             if origin in ("entry-point", "manual"):
@@ -685,6 +740,38 @@ class PluginRegistry:
 
     def _enabled_builtins(self) -> list[PluginRecord]:
         return [r for r in self.builtin_records() if r.status == "ok"]
+
+    # layouts (ADR 0003) ------------------------------------------------
+    def layout_specs(self, *, restricted: bool = False) -> list[LayoutSpec]:
+        """Every layout the enabled plugins declare with ``layouts()``:
+        built-ins first, then third-party plugins whose browser surfaces are
+        allowed (``restricted`` as in :meth:`js_allowed`). A repeated id
+        keeps its first declaration and logs a warning.
+        """
+        recs = self._enabled_builtins() + self.js_active(restricted=restricted)
+        out: list[LayoutSpec] = []
+        owner: dict[str, str] = {}
+        for rec, spec in self._collect_pairs(recs, "layouts", _resolve_layout):
+            if spec.id in owner:
+                logger.warning(
+                    "aiui plugin %s: layout %r ignored, %s already provides it",
+                    rec.name, spec.id, owner[spec.id],
+                )
+                continue
+            owner[spec.id] = rec.name
+            out.append(spec)
+        return out
+
+    def shell_pages(self, layout_ids: Iterable[str]) -> list[PageSpec]:
+        """The ``shell_only`` pages of the enabled built-ins (app shell
+        manifest only). A page that names ``layouts`` is included only while
+        one of them is in ``layout_ids``. Its ``source`` is the owning
+        record (``builtin.layout-guided``), which the browser treats as
+        built-in, so page-table built-ins stay the only ``"builtin"`` rows.
+        """
+        ids = set(layout_ids)
+        specs = self._collect_from(self._enabled_builtins(), "shell_pages", _resolve_shell_page)
+        return [s for s in specs if not s.layouts or ids.intersection(s.layouts)]
 
     def blocks(self, *, restricted: bool = False) -> list[BlockSpec]:
         return self._collect("blocks", _resolve_asset, restricted)
@@ -699,11 +786,18 @@ class PluginRegistry:
     def _collect(self, hook: str, resolve: Callable[[PluginRecord, Any], Any], restricted: bool) -> list:
         return self._collect_from(self.js_active(restricted=restricted), hook, resolve)
 
-    @staticmethod
+    @classmethod
     def _collect_from(
-        records: Iterable[PluginRecord], hook: str, resolve: Callable[[PluginRecord, Any], Any]
+        cls, records: Iterable[PluginRecord], hook: str, resolve: Callable[[PluginRecord, Any], Any]
     ) -> list:
-        out: list = []
+        return [spec for _rec, spec in cls._collect_pairs(records, hook, resolve)]
+
+    @staticmethod
+    def _collect_pairs(
+        records: Iterable[PluginRecord], hook: str, resolve: Callable[[PluginRecord, Any], Any]
+    ) -> list[tuple[PluginRecord, Any]]:
+        """``(record, resolved spec)`` for every valid entry of ``hook``."""
+        out: list[tuple[PluginRecord, Any]] = []
         for rec in records:
             fn = getattr(rec.plugin, hook, None)
             if not callable(fn):
@@ -717,7 +811,7 @@ class PluginRegistry:
             # not drop the plugin's other contributions.
             for spec in specs:
                 try:
-                    out.append(resolve(rec, spec))
+                    out.append((rec, resolve(rec, spec)))
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("aiui plugin %s: invalid %s entry %r: %s", rec.name, hook, spec, exc)
         return out
@@ -918,10 +1012,22 @@ def _snake(name: str) -> str:
     return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
 
+def _page_layout_fields(spec: PageSpec) -> dict[str, Any]:
+    """Validated ``layouts`` (layout ids), ``replaces`` (a page id), ``shell_only``."""
+    layouts = spec.layouts
+    if layouts is not None:
+        if isinstance(layouts, str) or not isinstance(layouts, (list, tuple)):
+            raise ValueError("layouts must be a list of layout ids")
+        layouts = tuple(_layout_id(v) for v in layouts)
+    replaces = None if spec.replaces is None else _spec_id(spec.replaces, "replaces page id")
+    return {"layouts": layouts, "replaces": replaces, "shell_only": bool(spec.shell_only)}
+
+
 def _resolve_page(rec: PluginRecord, spec: Any) -> PageSpec:
     if isinstance(spec, dict):
         # Accept wire-style camelCase keys too (apiEndpoint -> api_endpoint).
         spec = PageSpec(**{_snake(str(k)): v for k, v in spec.items()})
+    layout_fields = _page_layout_fields(spec)
     module, sri = _asset_url(rec, spec.module)
     css, css_sri = _asset_url(rec, spec.css)
     api = spec.api_endpoint
@@ -938,6 +1044,7 @@ def _resolve_page(rec: PluginRecord, spec: Any) -> PageSpec:
             "source": f"plugin:{rec.name}",
             # Inline SVG is first-party only: it is injected as markup.
             "icon_svg": None,
+            **layout_fields,
         }
     )
 
@@ -949,6 +1056,54 @@ def _resolve_builtin_page(rec: PluginRecord, spec: Any) -> PageSpec:
     if not isinstance(spec, PageSpec):
         raise TypeError(f"expected PageSpec, got {type(spec).__name__}")
     return spec if spec.source == "builtin" else replace(spec, source="builtin")
+
+
+def _resolve_shell_page(rec: PluginRecord, spec: Any) -> PageSpec:
+    """A first-party shell-only page; ``source`` names its record."""
+    spec = _resolve_builtin_page(rec, spec)
+    return replace(spec, **{**_page_layout_fields(spec), "shell_only": True}, source=rec.name)
+
+
+def _layout_id(value: Any) -> str:
+    if not isinstance(value, str) or not LAYOUT_ID.match(value) or value == CLASSIC_LAYOUT:
+        raise ValueError(
+            f"invalid layout id {value!r} (a-z, 0-9 and -, starting with a letter, "
+            f"at most 40 characters; {CLASSIC_LAYOUT!r} is reserved)"
+        )
+    return value
+
+
+def _resolve_layout(rec: PluginRecord, spec: Any) -> LayoutSpec:
+    s = _from_dict(LayoutSpec, spec)
+    lid = _layout_id(s.id)
+    order = s.order
+    if isinstance(order, bool) or not isinstance(order, (int, float)) or order != order:
+        raise ValueError(f"layout {lid!r}: order must be a number")
+    primary = s.primary
+    if primary is not None:
+        if isinstance(primary, str) or not isinstance(primary, (list, tuple)):
+            raise ValueError(f"layout {lid!r}: primary must be a list of page ids")
+        primary = tuple(_spec_id(p, "primary page id") for p in primary)
+    home = None if s.home is None else _spec_id(s.home, "home page id")
+    builtin = rec.origin == "builtin"
+    # First-party layouts ship in the bundle; a plugin's module and css
+    # resolve into its static dir like its pages do.
+    module, sri = (s.module, None) if builtin else _asset_url(rec, s.module)
+    css = s.css if builtin else _asset_url(rec, s.css)[0]
+    if not builtin and not module:
+        raise ValueError(f"layout {lid!r}: a plugin layout needs a module (its ESM file)")
+    return LayoutSpec(
+        id=lid,
+        title=_short_text(s.title or lid, "title", 64),
+        description=_short_text(s.description or "", "description", 500),
+        order=order,
+        module=module,
+        css=css,
+        integrity=s.integrity or sri,
+        home=home,
+        primary=primary,
+        source="builtin" if builtin else f"plugin:{rec.name}",
+    )
 
 
 def _resolve_asset(rec: PluginRecord, spec: Any, spec_type: type = BlockSpec):
@@ -1313,6 +1468,7 @@ __all__ = [
     "AiuiPlugin",
     "BlockSpec",
     "ExtensionPolicy",
+    "LayoutSpec",
     "NavGroupSpec",
     "PageSpec",
     "PluginRecord",

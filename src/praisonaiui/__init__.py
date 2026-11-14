@@ -165,6 +165,7 @@ def __getattr__(name: str):
         "register_plugin",
         "set_extensions",
         "PageSpec",
+        "LayoutSpec",
         "BlockSpec",
         "ToolRendererSpec",
         "SettingsSectionSpec",
@@ -623,6 +624,8 @@ __all__ = [
     "NavGroupSpec",
     "ThemeSpec",
     "get_plugin_settings",
+    # Selectable app shell layouts (ADR 0003)
+    "LayoutSpec",
     # ── PraisonAIUI-native, non-developer-friendly names ────────────
     # Shorter, plain-English aliases for the symbols above.  Use these
     # in new code; the original names remain importable for backward

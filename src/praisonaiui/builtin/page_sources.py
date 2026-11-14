@@ -106,10 +106,11 @@ def table_page(
 def plugin_page(spec: PageSpec) -> PageRecord:
     """A page an entry-point or ``register_plugin`` plugin contributes.
 
-    The legacy dashboard renders only server-driven ``blocks`` pages.
+    The legacy dashboard renders only server-driven ``blocks`` pages, and
+    never a ``shell_only`` one.
     """
     api_row = None
-    if spec.kind == "blocks":
+    if spec.kind == "blocks" and not spec.shell_only:
         api_row = {
             "id": spec.id,
             "title": spec.title,
