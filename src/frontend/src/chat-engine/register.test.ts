@@ -8,13 +8,37 @@ const g = globalThis as { window?: unknown }
 g.window ??= new EventTarget()
 const win = g.window as EventTarget
 
-const { getPage } = await import('@/sdk/registry')
+const { getPage, registerPage } = await import('@/sdk/registry')
 const { registerChatPage, takePendingPrefill, takePendingSessionSelect } = await import('./register')
 
 test('registers a lazy chat page (the engine is not imported eagerly)', () => {
-  registerChatPage()
-  registerChatPage() // idempotent
-  assert.ok(getPage('chat'), 'chat page is registered')
+  const warn = mock.method(console, 'warn', () => {})
+  try {
+    registerChatPage()
+    const first = getPage('chat')
+    registerChatPage() // idempotent
+    assert.ok(first, 'chat page is registered')
+    assert.equal(getPage('chat'), first, 'the second call keeps the registration')
+    assert.equal(warn.mock.callCount(), 0, 'no "replaces an earlier registration" warning')
+  } finally {
+    warn.mock.restore()
+  }
+})
+
+test('takes the id back when something else registered it since', () => {
+  const warn = mock.method(console, 'warn', () => {})
+  try {
+    registerChatPage('chat-reclaim')
+    const ours = getPage('chat-reclaim')
+    registerPage('chat-reclaim', () => null)
+    assert.notEqual(getPage('chat-reclaim'), ours)
+    registerChatPage('chat-reclaim')
+    assert.notEqual(getPage('chat-reclaim'), undefined)
+    registerChatPage('chat-reclaim')
+    assert.equal(warn.mock.callCount(), 2, 'one warning per real replacement, none for the repeat')
+  } finally {
+    warn.mock.restore()
+  }
 })
 
 test('buffers the last prefill / session-select until the chat page takes it', () => {

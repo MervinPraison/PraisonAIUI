@@ -11,7 +11,7 @@
  * to chat (code-studio "Send to agent", the session search palette, jobs),
  * which is before the lazy chat chunk has loaded and started listening.
  */
-import { registerPage } from '@/sdk/registry'
+import { getPage, registerPage } from '@/sdk/registry'
 
 /** A buffered event older than this is not replayed (the user went elsewhere). */
 const BUFFER_TTL_MS = 30_000
@@ -20,6 +20,8 @@ type Buffered = { value: string; at: number }
 let pendingPrefill: Buffered | null = null
 let pendingSession: Buffered | null = null
 let installed = false
+/** The component this module registered per page id (registerPage wraps each loader anew). */
+const registeredHere = new Map<string, unknown>()
 
 function detailString(e: Event, key: 'text' | 'sessionId'): string | null {
   const v = ((e as CustomEvent<Record<string, unknown> | undefined>).detail ?? {})[key]
@@ -40,9 +42,18 @@ function take(b: Buffered | null): string | null {
   return b && Date.now() - b.at <= BUFFER_TTL_MS ? b.value : null
 }
 
-/** Register the React chat page under `id` (default 'chat'). Idempotent. */
+/**
+ * Register the React chat page under `id` (default 'chat'). Idempotent: a
+ * second call for an id whose registration is still ours does nothing (and
+ * logs no "replaces an earlier registration" warning). If something else has
+ * registered the id since, the chat page takes it back.
+ */
 export function registerChatPage(id = 'chat'): void {
-  registerPage(id, () => import('./ChatPage'))
+  const current = getPage(id)
+  if (current === undefined || current !== registeredHere.get(id)) {
+    registerPage(id, () => import('./ChatPage'))
+    registeredHere.set(id, getPage(id))
+  }
   if (!installed && typeof window !== 'undefined') {
     installed = true
     window.addEventListener('aiui:prefill-composer', onPrefill)
