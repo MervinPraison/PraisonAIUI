@@ -515,6 +515,10 @@ DEFAULT_FEATURES = [
 REQUIRED_FEATURES = {"auth", "theme", "chat", "usage", "config_runtime", "sessions_ext"}
 # Feature classes that exist but were never registered by default.
 NOT_DEFAULT = {"AudioFeature", "LifecycleFeature", "WindowMessageFeature"}
+# Feature classes whose records gate on a layout (ADR 0003 ``for_layouts``):
+# off unless a layout that needs them is available, so not in the default
+# set (their records: tests/unit/test_run_ledger.py).
+LAYOUT_GATED = {"RunLedgerFeature"}
 FEATURES_DIR = Path(srv.__file__).parent / "features"
 
 
@@ -532,14 +536,16 @@ def test_default_feature_set_is_unchanged():
 def test_every_feature_class_belongs_to_exactly_one_builtin():
     import re
 
-    declared = [(r.module, r.cls) for p in BUILTIN_PLUGINS for r in p.feature_refs]
+    declared = [
+        (r.module, r.cls) for p in BUILTIN_PLUGINS for r in p.feature_refs if r.cls not in LAYOUT_GATED
+    ]
     assert len(declared) == len(set(declared)) == len(DEFAULT_FEATURES)
     in_package = set()
     for path in FEATURES_DIR.glob("*.py"):
         for cls in re.findall(r"^class (\w+)\(BaseFeatureProtocol\)", path.read_text("utf-8"), re.M):
             in_package.add((f".{path.stem}", cls))
     # A new feature module must be given to a built-in record (or listed here).
-    assert set(declared) == {(m, c) for m, c in in_package if c not in NOT_DEFAULT}
+    assert set(declared) == {(m, c) for m, c in in_package if c not in NOT_DEFAULT | LAYOUT_GATED}
 
 
 def test_required_features_are_the_ones_the_host_needs():

@@ -272,3 +272,241 @@ async def test_run_closed_status_on_error_and_cancel(monkeypatch, _isolated, fai
         task.cancel()
     await asyncio.gather(task, return_exceptions=True)
     assert [c["status"] for c in closed] == [status]
+
+
+# ── the ledger ───────────────────────────────────────────────────────
+
+
+def _ledger():
+    from praisonaiui.features.run_ledger import get_run_ledger
+
+    return get_run_ledger()
+
+
+async def _one_run(monkeypatch, provider: BaseProvider, session: str = "s1") -> str:
+    from praisonaiui.features import chat as chat_mod
+
+    _use_provider(monkeypatch, provider)
+    ws = _FakeWS()
+    chat_mod.get_chat_manager().add_ws_client(f"c-{session}", ws)
+    await chat_mod._run_and_broadcast("hi", session, None, None)
+    chat_mod.get_chat_manager().remove_ws_client(f"c-{session}")
+    return ws.frames[0]["run_id"]
+
+
+@pytest.mark.asyncio
+async def test_a_run_has_its_steps_and_the_tokens_and_cost_of_its_usage_records(monkeypatch):
+    from praisonaiui.features.usage import get_usage_records, track_usage
+
+    ledger = _ledger()
+    run_id = await _one_run(monkeypatch, _Tracking(tokens=(1200, 300)))
+    # another run's usage in the same session must not be counted
+    track_usage(model="gpt-4o", input_tokens=9, output_tokens=9, session_id="s1", run_id="other")
+
+    run = ledger.run(run_id)
+    mine = [r for r in get_usage_records() if r.get("run_id") == run_id]
+    assert len(mine) == 1
+    assert run["tokensIn"] == 1200 and run["tokensOut"] == 300 and run["tokens"] == 1500
+    assert run["cost"] == round(sum(r["cost"] for r in mine), 6) > 0
+    assert run["model"] == "gpt-4o-mini" and run["approximate"] is False
+    assert run["status"] == "completed" and run["agent"] == "Researcher"
+    assert run["sessionId"] == "s1" and run["endedAt"] >= run["startedAt"]
+    assert [(s["kind"], s["status"]) for s in run["steps"]] == [
+        ("reasoning", "done"),
+        ("tool", "done"),
+        ("text", "done"),
+    ]
+    tool = run["steps"][1]
+    assert tool["id"] == "tc1" and tool["toolName"] == "web_search"
+    assert tool["label"]  # the server's description/label for the call
+    assert run["stepCount"] == 3
+    assert all(s["endedAt"] >= s["startedAt"] for s in run["steps"])
+
+
+@pytest.mark.asyncio
+async def test_untagged_usage_is_joined_by_session_and_time_window(monkeypatch):
+    from praisonaiui.features.usage import track_usage
+
+    ledger = _ledger()
+    rec = track_usage(model="m", input_tokens=7, output_tokens=7, session_id="s1", run_id="")
+    rec["timestamp"] -= 60  # well before the run
+    run_id = await _one_run(monkeypatch, _Tracking(tokens=(40, 2), tag=False))
+    track_usage(model="m", input_tokens=5, output_tokens=5, session_id="s2", run_id="")  # other session
+    run = ledger.run(run_id)
+    assert run["approximate"] is True
+    assert (run["tokensIn"], run["tokensOut"]) == (40, 2)
+
+
+@pytest.mark.asyncio
+async def test_run_without_usage_has_no_tokens(monkeypatch):
+    class Quiet(BaseProvider):
+        async def run(self, message, *, session_id=None, agent_name=None, **kw):
+            yield RunEvent(type=R.RUN_COMPLETED, content="x")
+
+    ledger = _ledger()
+    run_id = await _one_run(monkeypatch, Quiet())
+    run = ledger.run(run_id)
+    assert "tokens" not in run and "cost" not in run and run["steps"] == []
+
+
+def _feed(ledger, run_id: str, *events: Dict[str, Any], session: str = "s1") -> None:
+    for ev in events:
+        ledger.observe(session, {"run_id": run_id, "session_id": session, **ev})
+
+
+def test_approval_gate_puts_the_run_in_waiting():
+    ledger = _ledger()
+    _feed(
+        ledger,
+        "r1",
+        {"type": "run_started", "agent_name": "Ops"},
+        {"type": "tool_call_started", "name": "shell", "tool_call_id": "t1", "label": "Running a command"},
+        {"type": "run_paused", "pause_type": "approval_required", "tool_name": "shell", "id": "ap1"},
+    )
+    run = ledger.run("r1")
+    assert run["status"] == "waiting"
+    assert run["steps"][-1]["kind"] == "approval" and run["steps"][-1]["status"] == "waiting"
+    assert "shell" in run["steps"][-1]["label"]
+    assert run["agent"] == "Ops"
+    _feed(ledger, "r1", {"type": "tool_call_completed", "name": "shell", "tool_call_id": "t1"})
+    run = ledger.run("r1")
+    assert run["status"] == "running"
+    assert [s["status"] for s in run["steps"]] == ["done", "done"]
+
+
+def test_ask_prompt_is_a_waiting_step_too():
+    ledger = _ledger()
+    _feed(ledger, "r1", {"type": "run_paused", "question": "Pick one"})
+    assert ledger.run("r1")["steps"][0]["label"] == "Waiting for your answer"
+
+
+def test_a_new_agent_mid_run_is_a_handoff_step():
+    ledger = _ledger()
+    _feed(
+        ledger,
+        "r1",
+        {"type": "run_started", "agent_name": "Planner"},
+        {"type": "run_content", "token": "a"},
+        {"type": "run_started", "agent_name": "Coder"},
+        {"type": "run_completed", "content": "a"},
+    )
+    run = ledger.run("r1")
+    assert run["agent"] == "Coder"
+    assert [(s["kind"], s["label"]) for s in run["steps"]] == [
+        ("text", "Writing the answer"),
+        ("handoff", "Handed off to Coder"),
+    ]
+
+
+def test_repeated_tool_start_updates_the_label_and_counts_once():
+    ledger = _ledger()
+    _feed(
+        ledger,
+        "r1",
+        {"type": "tool_call_started", "name": "search", "tool_call_id": "t1", "label": "Searching"},
+        {"type": "tool_call_started", "name": "search", "tool_call_id": "t1", "description": "Searching for 'x'"},
+        {"type": "tool_call_completed", "name": "search"},  # no id: matched by name
+    )
+    run = ledger.run("r1")
+    assert run["stepCount"] == 1
+    assert run["steps"][0]["label"] == "Searching for 'x'" and run["steps"][0]["status"] == "done"
+
+
+def test_run_error_marks_open_tool_steps_failed_and_events_without_run_id_are_ignored():
+    ledger = _ledger()
+    ledger.observe("s1", {"type": "run_started"})  # no run id: not a run event
+    _feed(
+        ledger,
+        "r1",
+        {"type": "tool_call_started", "name": "x", "tool_call_id": "t1"},
+        {"type": "run_error", "error": "boom"},
+        {"type": "run_closed", "status": "completed"},  # the event status already won
+        {"type": "run_content", "token": "late"},  # a late frame does not reopen it
+    )
+    run = ledger.run("r1")
+    assert run["status"] == "failed" and run["error"] == "boom"
+    assert run["steps"][0]["status"] == "error"
+    assert len(ledger.recent()) == 1
+
+
+def test_steps_are_capped_but_counted(monkeypatch):
+    from praisonaiui.features import run_ledger
+
+    monkeypatch.setattr(run_ledger, "MAX_STEPS", 3)
+    ledger = _ledger()
+    for i in range(5):
+        _feed(ledger, "r1", {"type": "tool_call_started", "name": "t", "tool_call_id": f"t{i}"})
+    run = ledger.run("r1")
+    assert len(run["steps"]) == 3 and run["stepCount"] == 5
+
+
+# ── stored runs ──────────────────────────────────────────────────────
+
+_H = 3_600_000
+
+
+def _put(ledger, rid, *, start, dur=None, status="completed", agent="A", tokens=None, cost=None):
+    run = {"id": rid, "sessionId": None, "agent": agent, "startedAt": start, "status": status,
+           "steps": [], "stepCount": 0}  # fmt: skip
+    if dur is not None:
+        run["endedAt"] = start + dur
+    if tokens is not None:
+        run.update(tokens=tokens, cost=cost)
+    ledger._remember(run)
+
+
+# ── routes ───────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def client():
+    from starlette.applications import Starlette
+    from starlette.testclient import TestClient
+
+    from praisonaiui.features.run_ledger import RunLedgerFeature
+
+    return TestClient(Starlette(routes=RunLedgerFeature().routes()))
+
+
+def test_routes_list_filter_and_get(client):
+    ledger = _ledger()
+    _put(ledger, "r1", start=1000, dur=5, agent="A")
+    _put(ledger, "r2", start=2000, dur=5, agent="B")
+    _put(ledger, "r3", start=3000, dur=5, agent="A")
+    body = client.get("/api/runs").json()
+    assert [r["id"] for r in body["runs"]] == ["r3", "r2", "r1"] and body["count"] == 3
+    assert set(body["runs"][0]) <= {"id", "sessionId", "agent", "startedAt", "endedAt", "status",
+                                    "stepCount", "tokens", "cost", "approximate"}  # fmt: skip
+    assert [r["id"] for r in client.get("/api/runs?agent=A").json()["runs"]] == ["r3", "r1"]
+    assert [r["id"] for r in client.get("/api/runs?after=r1").json()["runs"]] == ["r3", "r2"]
+    assert [r["id"] for r in client.get("/api/runs?limit=1").json()["runs"]] == ["r3"]
+    assert client.get("/api/runs?limit=nope").status_code == 200
+    detail = client.get("/api/runs/r2").json()
+    assert detail["id"] == "r2" and detail["steps"] == []
+    assert client.get("/api/runs/missing").status_code == 404
+
+
+def test_session_filter(client):
+    ledger = _ledger()
+    _feed(ledger, "x", {"type": "run_started"}, session="s-a")
+    _feed(ledger, "y", {"type": "run_started"}, session="s-b")
+    assert [r["id"] for r in client.get("/api/runs?session_id=s-b").json()["runs"]] == ["y"]
+
+
+@pytest.mark.asyncio
+async def test_health_is_cheap_and_reports_counts():
+    from praisonaiui.features.run_ledger import RunLedgerFeature
+
+    feat = RunLedgerFeature()
+    _feed(_ledger(), "r1", {"type": "run_started"})
+    h = await feat.health()
+    assert h["status"] == "ok" and h["live_runs"] == 1
+
+
+def test_feature_observes_chat_once_however_often_it_is_built():
+    from praisonaiui.features import chat as chat_mod
+    from praisonaiui.features.run_ledger import RunLedgerFeature
+
+    RunLedgerFeature()
+    RunLedgerFeature()
+    assert chat_mod._event_observers == [_ledger().observe]
