@@ -92,6 +92,9 @@ seeds in the browser.
 
 ### Breaking change: bare HSL triples
 
+Listed in the [changelog](../../CHANGELOG.md) for the release that ships the
+app shell.
+
 shadcn variables used to hold bare HSL triples that the stylesheet wrapped in
 `hsl()`. They are now complete colours:
 
@@ -146,11 +149,11 @@ release:
 
 | # | Criterion | Status |
 |---|---|---|
-| 1 | Every page renders in the shell with status ready, 0 page errors and 0 leak delta in the Playwright sweep | **Not met.** 42/42 pages ready, 0 page errors, no page grows per visit, and every page opens by URL. Three pages keep a one-time residue after their first visit that does not grow: `chat` (window listeners and one body child), `chat-canvas` (one window listener) and `code-studio` (one interval, one window listener, two body children) |
+| 1 | Every page renders in the shell with status ready, 0 page errors and 0 leak delta in the Playwright sweep | **Not met.** Every manifest page is ready (a page that prints a JSON error body, or whose own data endpoint fails, now counts as an error; the Inspector was one and is fixed), 0 page errors, no page grows per visit, and every page opens by URL. Three pages keep a one-time residue after their first visit that does not grow, each listed with its reason in the sweep's `FIRST_VISIT_ALLOWANCE` (any other or larger residue fails): `chat` (13 window listeners and the composer's hidden measuring textarea), `chat-canvas` (one window listener) and `code-studio` (Monaco's interval, listener and two body nodes) |
 | 2 | Chat parity complete | **Not met.** Done: streaming, tools, reasoning, approvals, ask, attachments, Stop, history, feedback, session rail, reconnect. Missing: message queue, channel messages with unread dots, context ring and compaction banner, cost chip, memory panel, floating and focus modes |
 | 3 | Light mode correct on every page; owner signs off the light and dark screenshots | **Not met.** Awaiting owner review |
 | 4 | Gates green: size, bundle-sync, entry closure, screenshots, pytest, tsc | **Partly.** All run green locally; screenshot comparison is not enforced in CI until Linux baselines exist |
-| 5 | `set_custom_js`, `custom.js` `registerView` and the three bundled dashboard plugins work under `app` | **Partly.** The three dashboard plugins pass the sweep; `set_custom_js` and `registerView` have no browser test yet |
+| 5 | `set_custom_js`, `custom.js` `registerView` and the three bundled dashboard plugins work under `app` | **Met in this build.** The three dashboard plugins pass the sweep; the e2e app-shell server sets `set_custom_js` with a `registerView` for a page that also has a server handler, and the client view wins (as in the legacy dashboard) |
 | 6 | One minor release with `app` opt-in, then two weeks with no open P1 from opt-in users | **Not met** |
 
 ## Plugins and trust
