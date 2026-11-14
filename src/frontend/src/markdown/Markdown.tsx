@@ -215,6 +215,9 @@ export const Markdown = memo(function Markdown({
             data-aiui-theme={hasMermaid ? hashKey(themeKey) : undefined}
             data-aiui-markdown={guardId} /* root handle for useLegacyCopyGuard */
             mode={isDocs ? 'static' : 'streaming'}
+            // Per-block direction: Arabic / Hebrew paragraphs render right to
+            // left with their punctuation in place; code stays left to right.
+            dir="auto"
             isAnimating={!isDocs && streaming}
             // Repair only while tokens arrive: a finished message is shown as
             // written. (remend corrupts some complete text, e.g. it appends

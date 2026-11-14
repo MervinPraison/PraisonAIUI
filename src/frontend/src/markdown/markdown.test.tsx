@@ -706,3 +706,14 @@ test('two messages with footnotes: every id is unique and each footnote link tar
         for (const d of described) assert.ok(own.has(d), `aria-describedby ${d} is in its own message`)
     }
 })
+
+// ── bidi: direction per block (LIBMD-5) ──
+test('an Arabic paragraph renders right to left; English stays left to right', () => {
+    const arabic = 'مرحبا بالعالم.'
+    for (const html of [chat(`${arabic}\n\nHello world.\n\n\`\`\`py\nprint(1)\n\`\`\``), docs(`${arabic}\n\nHello world.`)]) {
+        const rtl = [...html.matchAll(/dir="rtl"/g)].length
+        assert.ok(rtl >= 1, 'the Arabic block is marked rtl')
+        assert.match(html, new RegExp(`dir="rtl"[^>]*>(?:<[^>]+>)*${arabic}`))
+        assert.doesNotMatch(html, /dir="rtl"[^>]*>(?:<[^>]+>)*Hello/)
+    }
+})
