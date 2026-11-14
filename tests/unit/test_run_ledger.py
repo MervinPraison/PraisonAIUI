@@ -354,7 +354,7 @@ def _feed(ledger, run_id: str, *events: Dict[str, Any], session: str = "s1") -> 
         ledger.observe(session, {"run_id": run_id, "session_id": session, **ev})
 
 
-def test_approval_gate_puts_the_run_in_waiting():
+def test_approval_gate_puts_the_run_and_its_agent_in_waiting():
     ledger = _ledger()
     _feed(
         ledger,
@@ -367,11 +367,13 @@ def test_approval_gate_puts_the_run_in_waiting():
     assert run["status"] == "waiting"
     assert run["steps"][-1]["kind"] == "approval" and run["steps"][-1]["status"] == "waiting"
     assert "shell" in run["steps"][-1]["label"]
-    assert run["agent"] == "Ops"
+    [ops] = ledger.agents()
+    assert ops["name"] == "Ops" and ops["state"] == "waiting" and ops["elapsedMs"] >= 0
     _feed(ledger, "r1", {"type": "tool_call_completed", "name": "shell", "tool_call_id": "t1"})
     run = ledger.run("r1")
     assert run["status"] == "running"
     assert [s["status"] for s in run["steps"]] == ["done", "done"]
+    assert ledger.agents()[0]["state"] == "running"
 
 
 def test_ask_prompt_is_a_waiting_step_too():
@@ -535,6 +537,78 @@ def _put(ledger, rid, *, start, dur=None, status="completed", agent="A", tokens=
     ledger._remember(run)
 
 
+def test_kpis_count_success_cost_and_latency_in_the_window(monkeypatch):
+    from praisonaiui.features import config_runtime
+
+    monkeypatch.delitem(config_runtime._runtime_config, "finops", raising=False)
+    ledger = _ledger()
+    now = 1_800_000_000_000
+    for i, d in enumerate([100, 200, 300, 400, 1000]):
+        _put(ledger, f"ok{i}", start=now - _H - i, dur=d, tokens=10, cost=0.5)
+    _put(ledger, "bad", start=now - _H, dur=50, status="failed", tokens=1, cost=0.25)
+    _put(ledger, "stop", start=now - _H, dur=50, status="cancelled")
+    _put(ledger, "prev", start=now - 30 * _H, dur=10)  # the window before
+    _put(ledger, "older", start=now - 100 * _H, dur=10)
+    k = ledger.kpis("24h", now=now)
+    assert k["window"] == "24h" and k["runs"] == 7 and k["runsDelta"] == 6
+    assert k["successRate"] == round(5 / 6, 4)  # cancelled is excluded
+    assert k["cost"] == 2.75 and "budget" not in k  # no FinOps budget set
+    assert (k["p50Ms"], k["p95Ms"]) == (300, 1000)
+    week = ledger.kpis("7d", now=now)
+    assert week["runs"] == 9
+    empty = _ledger().kpis("today", now=now - 1000 * _H)
+    assert empty["runs"] == 0 and "successRate" not in empty and "p50Ms" not in empty
+
+
+def test_kpis_today_starts_at_local_midnight():
+    from datetime import datetime
+
+    ledger = _ledger()
+    noon = int(datetime(2026, 11, 14, 12, 0).timestamp() * 1000)
+    _put(ledger, "morning", start=noon - 6 * _H, dur=1)
+    _put(ledger, "yesterday", start=noon - 13 * _H, dur=1)
+    k = ledger.kpis("today", now=noon)
+    assert k["runs"] == 1 and k["runsDelta"] == 0
+
+
+def test_agents_report_state_last_run_model_and_todays_spend():
+    import time
+
+    ledger = _ledger()
+    now = int(time.time() * 1000)
+    _put(ledger, "a1", start=now - 2000, dur=1000, agent="Writer", tokens=100, cost=0.01)
+    _put(ledger, "a0", start=now - 40 * _H, dur=1000, agent="Writer", tokens=999, cost=9.0)
+    ledger._done["a1"]["model"] = "gpt-4o"
+    _feed(ledger, "live", {"type": "run_started", "agent_name": "Coder"})
+    agents = {a["name"]: a for a in ledger.agents(["Writer", "Idle", ""])}
+    assert list(agents) == ["Coder", "Writer", "Idle"]  # active first, then most recent
+    assert agents["Coder"]["state"] == "running" and agents["Coder"]["elapsedMs"] >= 0
+    w = agents["Writer"]
+    assert w["state"] == "idle" and w["lastRunAt"] == now - 2000 and w["model"] == "gpt-4o"
+    assert (w["tokensToday"], w["costToday"]) == (100, 0.01)
+    assert agents["Idle"] == {"name": "Idle", "state": "idle", "tokensToday": 0, "costToday": 0.0}
+
+
+@pytest.mark.parametrize(
+    "finops, today, week",
+    [
+        ({"daily_cost_budget_usd": 2.5}, 2.5, 17.5),
+        ({"daily_cost_budget_usd": 0}, None, None),
+        ({"daily_cost_budget_usd": 3, "enabled": False}, None, None),
+        ({"daily_cost_budget_usd": True}, None, None),
+        ({"daily_token_budget": 1000}, None, None),
+    ],
+)
+def test_kpis_report_the_finops_cost_budget_for_the_window(monkeypatch, finops, today, week):
+    from praisonaiui.features import config_runtime
+
+    monkeypatch.setitem(config_runtime._runtime_config, "finops", finops)
+    ledger = _ledger()
+    assert ledger.kpis("today").get("budget") == today
+    assert ledger.kpis("24h").get("budget") == today
+    assert ledger.kpis("7d").get("budget") == week
+
+
 # ── routes ───────────────────────────────────────────────────────────
 
 
@@ -548,7 +622,7 @@ def client():
     return TestClient(Starlette(routes=RunLedgerFeature().routes()))
 
 
-def test_routes_list_filter_and_get(client):
+def test_routes_list_filter_get_kpis_and_agents(client):
     ledger = _ledger()
     _put(ledger, "r1", start=1000, dur=5, agent="A")
     _put(ledger, "r2", start=2000, dur=5, agent="B")
@@ -564,6 +638,10 @@ def test_routes_list_filter_and_get(client):
     detail = client.get("/api/runs/r2").json()
     assert detail["id"] == "r2" and detail["steps"] == []
     assert client.get("/api/runs/missing").status_code == 404
+    assert client.get("/api/runs/kpis?window=7d").json()["window"] == "7d"
+    assert client.get("/api/runs/kpis?window=year").status_code == 400
+    names = [a["name"] for a in client.get("/api/runs/agents").json()["agents"]]
+    assert set(names) >= {"A", "B"}
 
 
 def test_session_filter(client):

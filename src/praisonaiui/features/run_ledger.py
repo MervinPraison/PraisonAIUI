@@ -10,9 +10,11 @@ that needs it (command, mission) is available or the record is listed in
 ``extensions.enabled`` (ADR 0003). Routes::
 
     GET /api/runs?after=&agent=&session_id=&limit=   recent runs, newest first
+    GET /api/runs/kpis?window=today|24h|7d            run count, success, cost, budget, latency
+    GET /api/runs/agents                              per-agent state and today's spend
     GET /api/runs/{run_id}                            one run with its steps
 
-Shapes follow ``RunSummary`` and ``RunDetail``
+Shapes follow ``RunSummary``, ``RunDetail``, ``RunKpis`` and ``AgentStatus``
 in ``src/frontend/src/sdk/layoutTypes.ts`` (camelCase, epoch milliseconds).
 
 Tokens and cost come from ``usage.track_usage(..., run_id=...)``. A usage
@@ -33,6 +35,7 @@ import threading
 import time
 from collections import OrderedDict
 from concurrent.futures import Future, ThreadPoolExecutor
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -52,7 +55,9 @@ MAX_STEPS = 200
 #: time-window join for records without a run id).
 WINDOW_GRACE_S = 5.0
 LEDGER_FILE = "ledger.jsonl"
+WINDOWS = {"today", "24h", "7d"}
 _TERMINAL = {"completed", "failed", "cancelled"}
+_DAY_MS = 86_400_000
 
 
 def ledger_dir() -> Path:
@@ -401,6 +406,64 @@ class RunLedger:
             runs = [r for r in runs if r.get("sessionId") == session_id]
         return [_summary(r) for r in runs[:limit]]
 
+    def kpis(self, window: str, *, now: Optional[int] = None) -> Dict[str, Any]:
+        now = _now_ms() if now is None else now
+        start = _window_start(window, now)
+        span = now - start
+        runs = self.runs()
+        cur = [r for r in runs if start <= r["startedAt"] <= now]
+        prev = [r for r in runs if start - span <= r["startedAt"] < start]
+        out: Dict[str, Any] = {"window": window, "runs": len(cur), "runsDelta": len(cur) - len(prev)}
+        ok = sum(1 for r in cur if r["status"] == "completed")
+        bad = sum(1 for r in cur if r["status"] == "failed")
+        if ok + bad:
+            out["successRate"] = round(ok / (ok + bad), 4)
+        out["cost"] = round(sum(r.get("cost") or 0.0 for r in cur), 6)
+        budget = _cost_budget(window)
+        if budget is not None:
+            out["budget"] = budget
+        durations = sorted(
+            r["endedAt"] - r["startedAt"]
+            for r in cur
+            if r["status"] == "completed" and isinstance(r.get("endedAt"), int)
+        )
+        if durations:
+            out["p50Ms"] = _percentile(durations, 50)
+            out["p95Ms"] = _percentile(durations, 95)
+        return out
+
+    def agents(self, known: Iterable[str] = (), *, now: Optional[int] = None) -> List[Dict[str, Any]]:
+        now = _now_ms() if now is None else now
+        today = _window_start("today", now)
+        runs = self.runs()
+        names: Dict[str, None] = {}
+        for r in runs:
+            if r.get("agent"):
+                names[r["agent"]] = None
+        for name in known:
+            if name:
+                names.setdefault(str(name), None)
+        out = []
+        for name in names:
+            mine = [r for r in runs if r.get("agent") == name]
+            active = [r for r in mine if r["status"] in ("running", "waiting")]
+            status: Dict[str, Any] = {"name": name, "state": "idle"}
+            if active:
+                status["state"] = "waiting" if any(r["status"] == "waiting" for r in active) else "running"
+                status["elapsedMs"] = now - min(r["startedAt"] for r in active)
+            if mine:
+                status["lastRunAt"] = mine[0]["startedAt"]  # runs are newest first
+                model = next((r["model"] for r in mine if r.get("model")), None)
+                if model:
+                    status["model"] = model
+            todays = [r for r in mine if r["startedAt"] >= today]
+            status["tokensToday"] = sum(r.get("tokens") or 0 for r in todays)
+            status["costToday"] = round(sum(r.get("cost") or 0.0 for r in todays), 6)
+            out.append(status)
+        order = {"running": 0, "waiting": 0, "idle": 1}
+        out.sort(key=lambda a: (order[a["state"]], -(a.get("lastRunAt") or 0), a["name"]))
+        return out
+
     def stats(self) -> Dict[str, int]:
         with self._lock:
             return {"live_runs": len(self._live), "runs_cached": len(self._done)}
@@ -436,7 +499,7 @@ def _usage_totals(
 
     By run id first; else untagged records of the run's session inside its
     time window (``approximate``); else what *fallback* already holds (a run
-    run read back from disk whose records left the usage ring).
+    read back from disk whose records left the usage ring).
     """
     records = index.by_run.get(run["id"], [])
     approximate = False
@@ -471,6 +534,39 @@ def _summary(run: Dict[str, Any]) -> Dict[str, Any]:
         "stepCount", "tokens", "cost", "approximate",
     )  # fmt: skip
     return {k: run[k] for k in keys if run.get(k) is not None}
+
+
+def _window_start(window: str, now: int) -> int:
+    if window == "today":
+        midnight = datetime.fromtimestamp(now / 1000).replace(hour=0, minute=0, second=0, microsecond=0)
+        return int(midnight.timestamp() * 1000)
+    return now - (_DAY_MS if window == "24h" else 7 * _DAY_MS)
+
+
+def _percentile(sorted_values: List[int], pct: int) -> int:
+    """Nearest-rank percentile of an ascending list."""
+    rank = max(1, -(-len(sorted_values) * pct // 100))
+    return int(sorted_values[rank - 1])
+
+
+def _cost_budget(window: str) -> Optional[float]:
+    """The FinOps daily cost budget for *window* (7 days for ``7d``), or None.
+
+    It is ``finops.daily_cost_budget_usd`` of the runtime config (Settings,
+    FinOps & Budgets, the section the dashboard's budget banner reads).
+    Unset, zero, or ``finops.enabled: false`` means no budget.
+    """
+    try:
+        from .config_runtime import _runtime_config
+    except Exception:  # noqa: BLE001 - the budget is optional
+        return None
+    finops = _runtime_config.get("finops")
+    if not isinstance(finops, dict) or finops.get("enabled") is False:
+        return None
+    daily = finops.get("daily_cost_budget_usd")
+    if isinstance(daily, bool) or not isinstance(daily, (int, float)) or daily <= 0:
+        return None
+    return round(float(daily) * (7 if window == "7d" else 1), 6)
 
 
 # ── singleton ────────────────────────────────────────────────────────
@@ -515,11 +611,27 @@ def _int_param(request: Request, name: str, default: int, lo: int, hi: int) -> i
     return max(lo, min(hi, value))
 
 
+async def _known_agents() -> List[str]:
+    """Agent names the provider knows (best effort, bounded)."""
+    try:
+        from praisonaiui.server import get_provider
+
+        agents = await asyncio.wait_for(get_provider().list_agents(), timeout=1.0)
+    except Exception:  # noqa: BLE001 - the list is a convenience
+        return []
+    out = []
+    for a in agents or ():
+        name = a.get("name") if isinstance(a, dict) else getattr(a, "name", None)
+        if isinstance(name, str) and name:
+            out.append(name)
+    return out
+
+
 class RunLedgerFeature(BaseFeatureProtocol):
-    """Per-run steps, tokens and cost."""
+    """Per-run steps, tokens and cost; run KPIs and agent status."""
 
     feature_name = "run_ledger"
-    feature_description = "Per-run steps, tokens and cost"
+    feature_description = "Per-run steps, tokens and cost; run KPIs and agent status"
 
     def __init__(self) -> None:
         self._ledger = get_run_ledger()
@@ -535,6 +647,8 @@ class RunLedgerFeature(BaseFeatureProtocol):
     def routes(self) -> List[Route]:
         return [
             Route("/api/runs", self._list, methods=["GET"]),
+            Route("/api/runs/kpis", self._kpis, methods=["GET"]),
+            Route("/api/runs/agents", self._agents, methods=["GET"]),
             Route("/api/runs/{run_id}", self._get, methods=["GET"]),
         ]
 
@@ -564,3 +678,14 @@ class RunLedgerFeature(BaseFeatureProtocol):
         if run is None:
             return JSONResponse({"error": "run not found"}, status_code=404)
         return JSONResponse(run)
+
+    async def _kpis(self, request: Request) -> JSONResponse:
+        window = request.query_params.get("window", "today")
+        if window not in WINDOWS:
+            return JSONResponse({"error": "window must be today, 24h or 7d"}, status_code=400)
+        ledger = await self._ready()
+        return JSONResponse(ledger.kpis(window))
+
+    async def _agents(self, request: Request) -> JSONResponse:
+        ledger = await self._ready()
+        return JSONResponse({"agents": ledger.agents(await _known_agents())})
