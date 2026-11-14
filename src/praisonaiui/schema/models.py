@@ -378,7 +378,19 @@ class DashboardConfig(BaseModel):
 
 
 class LayoutConfig(BaseModel):
-    """Layout configuration for chat positioning."""
+    """Layout configuration: chat positioning (``mode``, ``width``, ``height``)
+    and, for ``style: app``, the selectable shell layouts (ADR 0003).
+
+    - ``default``: the layout a viewer starts with; ``classic`` is the
+      shell's own frame. ``AIUI_LAYOUT`` and ``aiui.set_layout()`` win.
+    - ``available``: the layouts offered, in picker order (default: every
+      layout the enabled plugins declare).
+    - ``user_choice``: a viewer's own pick may override ``default``.
+    - ``primary``: page ids of the primary nav, for every layout.
+    - ``options``: per-layout settings, keyed by layout id.
+
+    A bare string is shorthand: ``layout: command`` is ``{default: command}``.
+    """
 
     mode: Literal[
         "fullscreen",
@@ -392,8 +404,32 @@ class LayoutConfig(BaseModel):
     ] = "fullscreen"
     width: Optional[str] = None
     height: Optional[str] = None
+    default: Optional[str] = None
+    available: Optional[list[str]] = None
+    user_choice: bool = Field(default=True, alias="userChoice")
+    primary: Optional[list[str]] = None
+    options: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
     model_config = ConfigDict(populate_by_name=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _string_means_default(cls, data: Any) -> Any:
+        if isinstance(data, str):
+            return {"default": data}
+        return data
+
+    @model_validator(mode="after")
+    def _layout_ids(self) -> "LayoutConfig":
+        from praisonaiui.layouts import check_layout_id
+
+        if self.default is not None:
+            check_layout_id(self.default, allow_classic=True, what="layout.default")
+        for lid in self.available or ():
+            check_layout_id(lid, what="layout.available entry")
+        for lid in self.options:
+            check_layout_id(lid, what="layout.options key")
+        return self
 
 
 class AuthProviderConfig(BaseModel):

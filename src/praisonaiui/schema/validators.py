@@ -197,6 +197,8 @@ def validate_config(config: Config, base_path: Path | None = None, strict: bool 
         )
         warnings.warn(css_warning, UserWarning, stacklevel=2)
 
+    found_warnings.extend(layout_warnings(config))
+
     # Track component usage
     used_components = set()
 
@@ -316,6 +318,52 @@ def validate_config(config: Config, base_path: Path | None = None, strict: bool 
         result = ValidationResult.success()
     result.warnings = found_warnings
     return result
+
+
+def builtin_layout_ids() -> list[str]:
+    """Ids of the layouts that ship with PraisonAIUI (catalog records)."""
+    from praisonaiui.builtin.catalog import BUILTIN_PLUGINS
+
+    return [spec.id for plugin in BUILTIN_PLUGINS for spec in plugin.layouts()]
+
+
+def layout_warnings(config: Any) -> list[ValidationError]:
+    """Warnings for YAML ``layout:`` selection (ADR 0003).
+
+    5101: an id that is not a built-in layout (a plugin may still provide
+    it; plugin layouts are only known once the server runs).
+    5102: a layout chosen while the style is not ``app`` (it is ignored).
+    """
+    layout = getattr(config, "layout", None)
+    if layout is None:
+        return []
+    chosen = [layout.default] if layout.default else []
+    chosen += list(layout.available or [])
+    if not chosen:
+        return []
+    out: list[ValidationError] = []
+    known = builtin_layout_ids()
+    for lid in dict.fromkeys(chosen):
+        if lid != "classic" and lid not in known:
+            out.append(
+                ValidationError(
+                    code=5101,
+                    category="layout",
+                    message=f"Layout '{lid}' is not a built-in layout; it must come from an installed plugin",
+                    suggestion=_find_similar(lid, known) or f"Built-in layouts: {', '.join(known)}",
+                )
+            )
+    style = getattr(config, "style", None)
+    if style != "app":
+        out.append(
+            ValidationError(
+                code=5102,
+                category="layout",
+                message=f"layout ignored: style is '{style}'; layouts need style: app",
+                suggestion="Set 'style: app', or remove layout.default and layout.available",
+            )
+        )
+    return out
 
 
 def _find_similar(target: str, candidates: list[str]) -> str | None:
