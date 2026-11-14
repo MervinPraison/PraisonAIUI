@@ -247,6 +247,27 @@ window.aiui.registerView = function(pageId, renderFn, cleanupFn) {
   }
 };
 window.aiui.views = VIEW_REGISTRY;
+// WebSocket handshake credential (browsers cannot set headers on one): a
+// single-use ticket bought with the stored key, so the key never appears in a
+// URL or an access log; `token=` for servers without the ticket endpoint; ''
+// when no key is stored (cookie or open servers). Resolves to "name=value".
+window.aiui.wsAuthParam = async function () {
+  let token = '';
+  try { token = window.sessionStorage.getItem('aiui_gateway_token') || ''; } catch (e) { /* storage blocked */ }
+  if (!token) return '';
+  try {
+    const res = await fetch('/api/auth/ws-ticket', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token }, credentials: 'same-origin',
+    });
+    if (res.ok) {
+      const d = await res.json();
+      if (d && typeof d.ticket === 'string' && d.ticket) return 'ticket=' + encodeURIComponent(d.ticket);
+    } else if (res.status !== 404 && res.status !== 405) {
+      return '';
+    }
+  } catch (e) { /* network trouble: the handshake fails and retries */ }
+  return 'token=' + encodeURIComponent(token);
+};
 window.aiui.registerComponent = function(type, renderFn) {
   COMPONENT_REGISTRY[type] = renderFn;
 };

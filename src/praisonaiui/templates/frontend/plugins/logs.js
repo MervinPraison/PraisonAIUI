@@ -30,14 +30,22 @@ const LEVEL_PRIORITY = {
   CRITICAL: 50,
 };
 
-// Same key and storage as dashboard.js getStoredToken().
-function gatewayToken() {
+// WebSocket handshake credential: a single-use ticket from dashboard.js
+// (window.aiui.wsAuthParam), so the stored key never goes in the URL; the key
+// as token= without it (same storage as dashboard.js getStoredToken()).
+function wsAuthParam() {
+  const shared = window.aiui && window.aiui.wsAuthParam;
+  if (typeof shared === 'function') return shared().catch(() => '');
   try {
-    return window.sessionStorage.getItem('aiui_gateway_token') || '';
+    const token = window.sessionStorage.getItem('aiui_gateway_token') || '';
+    return Promise.resolve(token ? 'token=' + encodeURIComponent(token) : '');
   } catch (e) {
-    return '';
+    return Promise.resolve('');
   }
 }
+
+let connectGen = 0;
+let connecting = false;
 
 function connectWebSocket() {
   if (closing) return;
@@ -47,15 +55,22 @@ function connectWebSocket() {
     return;
   }
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-  
+  if (connecting) return;
+
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   let url = `${protocol}//${window.location.host}/api/logs/stream?level=${levelFilter}&search=${encodeURIComponent(searchFilter)}`;
-  // Browsers cannot set an Authorization header on a WebSocket handshake, so
-  // the gateway token (stored by the dashboard's onboarding) goes in the
-  // query string. Without it the stream is refused when auth is enforced.
-  const token = gatewayToken();
-  if (token) url += `&token=${encodeURIComponent(token)}`;
+  // Browsers cannot set an Authorization header on a WebSocket handshake; the
+  // stream is refused without a credential when auth is enforced.
+  const gen = ++connectGen;
+  connecting = true;
+  wsAuthParam().then((param) => {
+    connecting = false;
+    if (gen !== connectGen || closing) return;
+    openLogSocket(param ? `${url}&${param}` : url);
+  });
+}
 
+function openLogSocket(url) {
   const sock = new WebSocket(url);
   ws = sock;
   
@@ -461,6 +476,8 @@ export default {
   // safe before any render; the next render reconnects with fresh state.
   destroy() {
     closing = true;
+    connectGen += 1; // a ticket fetch in flight must not open a socket now
+    connecting = false;
     if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     if (ws) {
       const sock = ws;

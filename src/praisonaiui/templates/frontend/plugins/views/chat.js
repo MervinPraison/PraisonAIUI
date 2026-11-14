@@ -15,6 +15,7 @@ import { showToast } from '../toast.js';
 let ws = null;
 // Pending WebSocket reconnect (setTimeout id); cleanup() cancels it.
 let wsReconnectTimer = null;
+let wsConnectGen = 0; // bumped by every connect and by cleanup: a stale ticket fetch never opens a socket
 let currentSessionId = null;
 let currentAgentName = null;
 let isStreaming = false;
@@ -993,6 +994,7 @@ export function cleanup() {
   // Detach onclose first: otherwise closing schedules a reconnect that opens a
   // socket nobody ever closes once the view is gone.
   if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+  wsConnectGen += 1; // a ticket fetch still in flight must not open a socket now
   if (ws) { try { ws.onclose = null; ws.close(); } catch(e) {} ws = null; }
   stopContextPoll();
   if (contextRefreshDebounce) { clearTimeout(contextRefreshDebounce); contextRefreshDebounce = null; }
@@ -1273,13 +1275,17 @@ function newSession() {
 
 // ── WebSocket ────────────────────────────────────────────────────
 // Under AUTH_ENFORCE the server also gates WebSocket handshakes, and browsers
-// cannot set an Authorization header on them: pass the stored key as ?token=.
-function wsAuthQuery() {
+// cannot set an Authorization header on them. dashboard.js trades the stored
+// key for a single-use ticket (window.aiui.wsAuthParam); without it, fall back
+// to ?token= as before. Resolves to "name=value" or ''.
+function wsAuthParam() {
+  const shared = window.aiui && window.aiui.wsAuthParam;
+  if (typeof shared === 'function') return shared().catch(() => '');
   try {
     const token = window.sessionStorage.getItem('aiui_gateway_token') || '';
-    return token ? '?token=' + encodeURIComponent(token) : '';
+    return Promise.resolve(token ? 'token=' + encodeURIComponent(token) : '');
   } catch (e) {
-    return '';
+    return Promise.resolve('');
   }
 }
 
@@ -1299,9 +1305,15 @@ function connectWebSocket() {
     ws = null;
   }
 
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = protocol + '//' + location.host + '/api/chat/ws' + wsAuthQuery();
+  const gen = ++wsConnectGen;
+  wsAuthParam().then((param) => {
+    if (gen !== wsConnectGen) return; // a newer connect (or teardown) won
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    openChatSocket(protocol + '//' + location.host + '/api/chat/ws' + (param ? '?' + param : ''));
+  });
+}
 
+function openChatSocket(wsUrl) {
   try {
     ws = new WebSocket(wsUrl);
 

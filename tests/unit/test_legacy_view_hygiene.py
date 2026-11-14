@@ -575,19 +575,21 @@ globalThis.document = {
 };
 const root = { querySelector: (sel) => (sel === '[data-page="logs"]' ? section : null) };
 const mod = (await import(pathToFileURL(logsPath).href)).default;
-const mount = () => { section = el('section'); status = el('status'); mod.onContentChange(root); };
+// The socket opens after the handshake credential resolves (a ticket fetch).
+const flush = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
+const mount = async () => { section = el('section'); status = el('status'); mod.onContentChange(root); await flush(); };
 const live = () => sockets.filter((s) => s.readyState < 2).length;
 const out = {};
 
 mod.destroy(); mod.destroy();          // safe before any render
-mount();
+await mount();
 sockets[0].open();
 out.firstBadge = status.textContent;
 mod.destroy();                         // leave the page
 out.liveAfterLeave = live();
 out.timersAfterLeave = timers.size;    // no 3 s reconnect scheduled
 
-mount();                               // come back: a fresh connection
+await mount();                         // come back: a fresh connection
 out.socketsAfterRemount = sockets.length;
 sockets[1].open();
 out.badgeAfterOpen = status.textContent;
@@ -602,9 +604,23 @@ out.liveAtEnd = live();
 // query string: a WebSocket handshake cannot carry an Authorization header.
 out.urlWithoutToken = sockets[0].url;
 globalThis.window.sessionStorage = { getItem: (k) => (k === 'aiui_gateway_token' ? 'a b&c' : null) };
-mount();
+await mount();
 out.urlWithToken = sockets[sockets.length - 1].url;
 mod.destroy();
+// With dashboard.js loaded the key is traded for a single-use ticket.
+globalThis.window.aiui = { wsAuthParam: async () => 'ticket=tk1' };
+await mount();
+out.urlWithTicket = sockets[sockets.length - 1].url;
+mod.destroy();
+// Leaving the page while the ticket is being fetched opens no socket.
+let release;
+globalThis.window.aiui = { wsAuthParam: () => new Promise((r) => { release = r; }) };
+const before = sockets.length;
+section = el('section'); status = el('status'); mod.onContentChange(root);
+mod.destroy();
+release('ticket=late');
+await flush();
+out.socketsOpenedAfterLeave = sockets.length - before;
 console.log(JSON.stringify(out));
 """
 
@@ -628,6 +644,8 @@ def test_logs_module_closes_its_stream_and_reconnects_on_remount(tmp_path):
     assert out["liveAtEnd"] == 0
     assert "token=" not in out["urlWithoutToken"]
     assert out["urlWithToken"].endswith("&token=a%20b%26c"), out["urlWithToken"]
+    assert out["urlWithTicket"].endswith("&ticket=tk1") and "token=" not in out["urlWithTicket"]
+    assert out["socketsOpenedAfterLeave"] == 0
 
 
 # ── chat-canvas and the embedded chat ───────────────────────────────
