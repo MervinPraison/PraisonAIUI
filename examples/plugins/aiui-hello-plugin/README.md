@@ -21,7 +21,7 @@ aiui plugins doctor
 aiui hello greet Ada
 
 # Plugin pages appear in the app shell (opt-in style)
-AIUI_SHELL=app aiui run app.py
+aiui run app.py --style app
 ```
 
 Open `http://127.0.0.1:8000/hello` and `http://127.0.0.1:8000/hello-blocks`.
