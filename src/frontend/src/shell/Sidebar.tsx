@@ -4,26 +4,30 @@
  * and Popper on the boot path. Here the mobile Sheet is a lazy chunk
  * (MobileNav.tsx) that reuses SidebarNav.
  */
-import { useEffect, useMemo, useRef, type MouseEvent } from 'react'
-import { PanelLeft } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FocusEvent, type MouseEvent } from 'react'
+import { ChevronRight, PanelLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
-import { footerPages, groupPages, revealInScroller, siteLogo, siteTitle } from './nav'
+import { footerPages, groupPages, isGroupOpen, readGroupState, revealInScroller, siteLogo, siteTitle, writeGroupState } from './nav'
 import { PageIcon } from './PageIcon'
 import { isPlainLeftClick, navigate, pathForPage } from './router'
 import { SHELL_SLOTS, Slot } from './Slot'
+
+type TipHandler = (page: ShellPage | null, anchor?: HTMLElement) => void
 
 function NavItem({
   page,
   active,
   collapsed,
   onNavigate,
+  onTip,
 }: {
   page: ShellPage
   active: boolean
   collapsed: boolean
   onNavigate?: () => void
+  onTip?: TipHandler
 }) {
   const onClick = (e: MouseEvent<HTMLAnchorElement>) => {
     if (!isPlainLeftClick(e)) return
@@ -38,7 +42,10 @@ function NavItem({
         onClick={onClick}
         aria-current={active ? 'page' : undefined}
         aria-label={collapsed ? page.title : undefined}
-        title={collapsed ? page.title : undefined}
+        onPointerEnter={collapsed && onTip ? (e) => onTip(page, e.currentTarget) : undefined}
+        onPointerLeave={collapsed && onTip ? () => onTip(null) : undefined}
+        onFocus={collapsed && onTip ? (e: FocusEvent<HTMLAnchorElement>) => onTip(page, e.currentTarget) : undefined}
+        onBlur={collapsed && onTip ? () => onTip(null) : undefined}
         data-page-id={page.id}
         className={cn(
           'group/nav flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-sm outline-none',
@@ -80,34 +87,95 @@ export function SidebarNav({
   const groups = useMemo(() => groupPages(pages), [pages])
   const footer = useMemo(() => footerPages(pages), [pages])
   const navRef = useRef<HTMLElement>(null)
-  // Keep the current page visible in a long list (deep links, back/forward).
+  const [folds, setFolds] = useState<Record<string, boolean>>(readGroupState)
+  const [tip, setTip] = useState<{ title: string; top: number; left: number } | null>(null)
+  const onTip = useCallback<TipHandler>((page, anchor) => {
+    if (!page || !anchor) return setTip(null)
+    const r = anchor.getBoundingClientRect()
+    setTip({ title: page.title, top: r.top + r.height / 2, left: r.right + 8 })
+  }, [])
+  const toggleGroup = (name: string, open: boolean) => {
+    setFolds((cur) => {
+      const next = { ...cur, [name]: !open }
+      writeGroupState(next)
+      return next
+    })
+  }
+  // Keep the current page visible in a long list (deep links, back/forward,
+  // collapsing the rail): its group's heading too, so the context shows.
   useEffect(() => {
     const nav = navRef.current
     const el = nav?.querySelector<HTMLElement>('a[aria-current="page"]')
-    if (nav && el) revealInScroller(nav, el)
-  }, [activeId])
+    if (!nav || !el) return
+    const heading = collapsed ? null : el.closest('section')?.querySelector<HTMLElement>('[data-group-toggle]')
+    revealInScroller(nav, el)
+    if (heading) revealInScroller(nav, heading)
+  }, [activeId, collapsed])
+  useEffect(() => {
+    if (!collapsed) setTip(null)
+  }, [collapsed])
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col', className)}>
-      <nav ref={navRef} aria-label="Pages" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-3">
-        {groups.map((group, i) => (
-          <section key={group.name} aria-label={group.name}>
-            {collapsed ? (
-              i > 0 && <div aria-hidden="true" className="mx-2 my-2 h-px bg-sidebar-border" />
-            ) : (
-              <h2 className="px-2.5 pt-4 pb-1 text-xs font-medium text-muted-foreground">{group.name}</h2>
-            )}
-            <ul className="flex flex-col gap-px">
-              {group.pages.map((p) => (
-                <NavItem key={p.id} page={p} active={p.id === activeId} collapsed={collapsed} onNavigate={onNavigate} />
-              ))}
-            </ul>
-          </section>
-        ))}
+      <nav
+        ref={navRef}
+        aria-label="Pages"
+        onScroll={tip ? () => setTip(null) : undefined}
+        // A fade under the brand row: scrolled items never butt against it.
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-3 [mask-image:linear-gradient(to_bottom,transparent,#000_12px)]"
+      >
+        {groups.map((group, i) => {
+          const hasActive = group.pages.some((p) => p.id === activeId)
+          const open = collapsed || isGroupOpen(group.name, hasActive, folds)
+          const listId = `aiui-nav-group-${i}`
+          return (
+            <section key={group.name} aria-label={group.name}>
+              {collapsed ? (
+                i > 0 && <div aria-hidden="true" className="mx-2 my-2 h-px bg-sidebar-border" />
+              ) : (
+                <h2 className="pt-3">
+                  <button
+                    type="button"
+                    data-group-toggle={group.name}
+                    aria-expanded={open}
+                    aria-controls={listId}
+                    disabled={hasActive}
+                    onClick={() => toggleGroup(group.name, open)}
+                    className="group/grp flex h-7 w-full items-center gap-1 rounded-md px-2.5 text-left text-xs font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring disabled:hover:text-muted-foreground"
+                  >
+                    <span className="min-w-0 flex-1 truncate">{group.name}</span>
+                    <ChevronRight
+                      aria-hidden="true"
+                      className={cn('size-3.5 opacity-0 group-hover/grp:opacity-100 group-focus-visible/grp:opacity-100 motion-safe:transition-transform motion-safe:duration-[120ms]', open && 'rotate-90', !open && 'opacity-100')}
+                    />
+                  </button>
+                </h2>
+              )}
+              {open && (
+                <ul id={listId} className="flex flex-col gap-px">
+                  {group.pages.map((p) => (
+                    <NavItem key={p.id} page={p} active={p.id === activeId} collapsed={collapsed} onNavigate={onNavigate} onTip={onTip} />
+                  ))}
+                </ul>
+              )}
+            </section>
+          )
+        })}
       </nav>
+      {collapsed && tip && (
+        <div
+          role="tooltip"
+          aria-hidden="true"
+          data-aiui-nav-tip=""
+          style={{ top: tip.top, left: tip.left }}
+          className="pointer-events-none fixed z-[var(--z-tooltip)] -translate-y-1/2 rounded-md bg-foreground px-2 py-1 text-xs font-medium whitespace-nowrap text-background shadow-md"
+        >
+          {tip.title}
+        </div>
+      )}
       {footer.length > 0 && (
         <ul className="flex shrink-0 flex-col gap-px border-t border-sidebar-border px-2 py-2">
           {footer.map((p) => (
-            <NavItem key={p.id} page={p} active={p.id === activeId} collapsed={collapsed} onNavigate={onNavigate} />
+            <NavItem key={p.id} page={p} active={p.id === activeId} collapsed={collapsed} onNavigate={onNavigate} onTip={onTip} />
           ))}
         </ul>
       )}

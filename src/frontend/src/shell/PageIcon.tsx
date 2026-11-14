@@ -13,7 +13,8 @@ export function PageIcon({ page, className }: { page: Pick<ShellPage, 'id' | 'ic
     return (
       <span
         aria-hidden="true"
-        className={cn('inline-flex size-4 shrink-0 items-center justify-center text-xs leading-none', className)}
+        // Muted so a plugin's colour emoji does not shout next to line icons.
+        className={cn('inline-flex size-4 shrink-0 items-center justify-center text-[13px] leading-none opacity-70 grayscale', className)}
       >
         {emoji}
       </span>

@@ -7,14 +7,17 @@ import {
   footerPages,
   groupPages,
   isFullBleed,
+  isGroupOpen,
   needsLegacyRuntime,
   orderedPages,
+  readGroupState,
   revealInScroller,
   showPageHeader,
   showSidebar,
   siteLogo,
   siteTitle,
   usesLegacyHost,
+  writeGroupState,
 } from '@/shell/nav'
 import { emojiForPage, FallbackPageIcon, ICON_BY_PAGE_ID, iconForPage, PAGE_ICON_SET } from '@/shell/icons'
 import { approvalKey, describeApproval } from '@/builtin/approvals'
@@ -145,13 +148,27 @@ test('site title and logo', () => {
   assert.equal(siteLogo(manifest({ site: { logo: 'javascript:alert(1)' } })), null)
 })
 
-test('the static icon map stays within 20 lucide icons', () => {
-  assert.ok(PAGE_ICON_SET.length <= 20, `icon budget exceeded: ${PAGE_ICON_SET.length}`)
+test('the static icon map stays within 34 lucide icons', () => {
+  assert.ok(PAGE_ICON_SET.length <= 34, `icon budget exceeded: ${PAGE_ICON_SET.length}`)
   assert.equal(new Set(PAGE_ICON_SET).size, PAGE_ICON_SET.length)
   for (const [id, icon] of Object.entries(ICON_BY_PAGE_ID)) {
     assert.ok(PAGE_ICON_SET.includes(icon), `${id} uses an icon outside PAGE_ICON_SET`)
   }
   assert.ok(PAGE_ICON_SET.includes(FallbackPageIcon))
+})
+
+test('pages that sit together in the sidebar get distinct icons (usable collapsed rail)', () => {
+  const groups = [
+    ['chat', 'chat-canvas', 'channels', 'inbox', 'canvas', 'agents', 'skills', 'marketplace', 'mcp', 'memory', 'knowledge', 'cron', 'guardrails'],
+    ['work', 'kanban', 'jobs-board'],
+    ['overview', 'nodes', 'sessions', 'replay', 'runs', 'feedback', 'usage', 'eval', 'jobs', 'training', 'approvals', 'code-studio', 'api'],
+    ['config', 'auth', 'security', 'logs', 'debug'],
+  ]
+  for (const ids of groups) {
+    const icons = ids.map((id) => ICON_BY_PAGE_ID[id])
+    const dupes = ids.filter((_, i) => icons.indexOf(icons[i]) !== i)
+    assert.deepEqual(dupes, [], `repeated icons in ${ids.join(', ')}`)
+  }
 })
 
 test('icons resolve by page id, then by lucide-style name, then emoji, then nothing', () => {
@@ -217,4 +234,21 @@ test('revealInScroller scrolls the sidebar only as far as needed, without scroll
   const above = scroller(300)
   revealInScroller(above, item(60))
   assert.equal(above.scrollTop, 300 - (100 - 60 + 8))
+})
+
+test('sidebar groups: rarely used ones start folded, the current page\'s group is always open, the viewer\'s choice sticks', () => {
+  assert.equal(isGroupOpen('Agent', false, {}), true)
+  assert.equal(isGroupOpen('Examples', false, {}), false)
+  assert.equal(isGroupOpen('Work', false, {}), false)
+  assert.equal(isGroupOpen('Work', true, { Work: false }), true, 'the active page\'s group cannot be hidden')
+  assert.equal(isGroupOpen('Agent', false, { Agent: false }), false)
+  assert.equal(isGroupOpen('Examples', false, { Examples: true }), true)
+  const store = new Map<string, string>()
+  const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) }
+  writeGroupState({ Work: true, Agent: false }, storage)
+  assert.deepEqual(readGroupState(storage), { Work: true, Agent: false })
+  store.set('aiui-sidebar-groups', '{"x": "yes", "y": true}')
+  assert.deepEqual(readGroupState(storage), { y: true }, 'non-boolean values are ignored')
+  store.set('aiui-sidebar-groups', 'not json')
+  assert.deepEqual(readGroupState(storage), {})
 })

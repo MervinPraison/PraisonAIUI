@@ -155,3 +155,35 @@ export function revealInScroller(
   if (r.top < box.top) scroller.scrollTop -= box.top - r.top + pad
   else if (r.bottom > box.bottom) scroller.scrollTop += r.bottom - box.bottom + pad
 }
+
+// ── collapsible sidebar groups ─────────────────────────────────────────
+
+/** Groups that start folded (rarely used); the group of the current page is always open. */
+export const DEFAULT_FOLDED_GROUPS: readonly string[] = ['Examples', 'Create', 'Work']
+export const GROUP_STATE_KEY = 'aiui-sidebar-groups'
+
+/** Is a sidebar group expanded? `stored` maps group name → open, as the viewer left it. */
+export function isGroupOpen(name: string, hasActivePage: boolean, stored: Readonly<Record<string, boolean>>): boolean {
+  if (hasActivePage) return true
+  if (Object.prototype.hasOwnProperty.call(stored, name)) return stored[name] === true
+  return !DEFAULT_FOLDED_GROUPS.includes(name)
+}
+
+export function readGroupState(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Record<string, boolean> {
+  try {
+    const raw = storage?.getItem(GROUP_STATE_KEY)
+    const parsed: unknown = raw ? JSON.parse(raw) : {}
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return Object.fromEntries(Object.entries(parsed).filter(([, v]) => typeof v === 'boolean')) as Record<string, boolean>
+  } catch {
+    return {}
+  }
+}
+
+export function writeGroupState(state: Record<string, boolean>, storage: Pick<Storage, 'setItem'> | undefined = globalThis.localStorage): void {
+  try {
+    storage?.setItem(GROUP_STATE_KEY, JSON.stringify(state))
+  } catch {
+    /* per-viewer convenience only */
+  }
+}
