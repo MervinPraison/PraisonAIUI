@@ -1,7 +1,9 @@
 /**
  * Page resolution (ADR-0001 §2.3), in order:
  *   1. the SDK registry (ported pages, plugin pages; lazy-aware)
- *   2. kind === 'blocks'  → BlockPage (WP7)
+ *   2. kind === 'blocks'  → BlockPage (WP7), unless custom.js / a dashboard-plugin
+ *      registered a client view for the id (`window.aiui.registerView`): that
+ *      takes priority over the server handler, as in the legacy dashboard
  *   3. kind === 'iframe'  → sandboxed iframe of page.module
  *   4. everything else    → LegacyViewHost (WP4)
  * LegacyViewHost and BlockPage are lazy chunks: neither enters the shell's
@@ -15,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { getPage, useRegistryVersion } from '@/sdk/registry'
 import type { ShellPage } from '@/sdk/manifest'
 import { cn } from '@/lib/utils'
+import { useLegacyViewRegistered } from './legacyViews'
 import { usesLegacyHost } from './nav'
 import { EmptyState, PageSkeleton } from './primitives'
 import { isPlainLeftClick, navigate, PAGE_CHANGE_EVENT, pathForPage } from './router'
@@ -122,6 +125,7 @@ export function PageView({
   useRegistryVersion()
   const Registered = pageId ? getPage(pageId) : undefined
   const title = page?.title ?? pageId
+  const clientView = useLegacyViewRegistered(pageId, !Registered && page?.kind === 'blocks')
 
   let body: ReactNode = null
   let announce = true
@@ -152,6 +156,10 @@ export function PageView({
     ) : (
       <PageSkeleton fill={fullBleed} />
     )
+  } else if (page.kind === 'blocks' && clientView) {
+    // LegacyViewHost announces aiui:page-change itself once the view is mounted.
+    announce = false
+    body = <LegacyViewHost key={pageId} pageId={pageId} page={page} />
   } else if (page.kind === 'blocks') {
     body = <BlockPage page={page} />
   } else if (page.kind === 'iframe') {
