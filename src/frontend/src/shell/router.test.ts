@@ -4,7 +4,6 @@ import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   LOCATION_CHANGE_EVENT,
-  PAGE_CHANGE_EVENT,
   getPageId,
   navigate,
   pageIdFromPath,
@@ -12,7 +11,6 @@ import {
   pathForPage,
   rewriteHashDeepLink,
   subscribeLocation,
-  waitForPageChange,
 } from '@/shell/router'
 
 interface FakeWindow extends EventTarget {
@@ -187,23 +185,4 @@ test('subscribeLocation fires on push, replace and back/forward until unsubscrib
   off()
   navigate('usage')
   assert.equal(calls, 4)
-})
-
-test('waitForPageChange resolves on the matching aiui:page-change only', async () => {
-  let done = false
-  const p = waitForPageChange('chat', 1000).then(() => {
-    done = true
-  })
-  win.dispatchEvent(new CustomEvent(PAGE_CHANGE_EVENT, { detail: { pageId: 'logs' } }))
-  await Promise.resolve()
-  assert.equal(done, false)
-  win.dispatchEvent(new CustomEvent(PAGE_CHANGE_EVENT, { detail: { pageId: 'chat' } }))
-  await p
-  assert.equal(done, true)
-})
-
-test('waitForPageChange gives up after its timeout', async () => {
-  const started = Date.now()
-  await waitForPageChange('never', 20)
-  assert.ok(Date.now() - started >= 15)
 })

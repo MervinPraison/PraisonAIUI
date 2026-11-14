@@ -46,9 +46,6 @@ const NOT_A_PAGE_ID: Record<string, readonly string[]> = {
 const KNOWN_DEBT: Record<string, readonly string[]> = {
   'shell/icons.ts': ['*'], // ICON_BY_PAGE_ID → manifest icon names
   'shell/nav.ts': ['chat', 'chat-canvas', 'code-studio', 'explorer'], // FULL_BLEED_IDS → page.layout
-  'shell/approvals.ts': ['chat', 'approvals'], // → builtin.approvals on notify/navigate
-  'shell/ReactShell.tsx': ['approvals'], // useApprovalToasts(...) call
-  'shell/CommandPalette.tsx': ['chat'], // "New chat" → builtin.chat via registerCommand
 }
 
 function sourceFiles(dir: string): string[] {

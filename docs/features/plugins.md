@@ -50,9 +50,11 @@ flowchart LR
    a component that the shell registers under the page id / block type / tool name.
 
 The app's own React pages and blocks use the same mechanism. The shell and the
-SDK are a small core that names no page: the chat page is the first-party
-plugin `builtin.chat` in `src/frontend/src/builtin`, registered with
-`registerPage` when the manifest lists it, and the core block types are
+SDK are a small core that names no page: the chat page and its "New chat"
+command are the first-party plugin `builtin.chat` in
+`src/frontend/src/builtin`, registered with `registerPage` and
+`registerCommand` when the manifest lists the page; the approval toasts are
+`builtin.approvals` (on `notify` and `navigate`); and the core block types are
 registered with `registerBlock`. A test in the frontend
 (`shell/core-purity.test.ts`) fails if the core imports a feature module or
 names a built-in page.

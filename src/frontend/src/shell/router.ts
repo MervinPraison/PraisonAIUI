@@ -113,26 +113,6 @@ export function usePageId(): string {
   return useSyncExternalStore(subscribeLocation, getPageId, serverPageId)
 }
 
-/**
- * Resolve once `aiui:page-change` reports `pageId` as mounted (dispatched by
- * LegacyViewHost and, for React pages, by the shell), or after `timeoutMs`.
- */
-export function waitForPageChange(pageId: string, timeoutMs = 5000): Promise<void> {
-  return new Promise((resolve) => {
-    const finish = () => {
-      window.clearTimeout(timer)
-      window.removeEventListener(PAGE_CHANGE_EVENT, onChange)
-      resolve()
-    }
-    const onChange = (e: Event) => {
-      const detail = (e as CustomEvent<{ pageId?: string } | null>).detail
-      if (detail?.pageId === pageId) finish()
-    }
-    window.addEventListener(PAGE_CHANGE_EVENT, onChange)
-    const timer = window.setTimeout(finish, timeoutMs)
-  })
-}
-
 /** True for a primary-button click without modifiers (let the browser handle the rest). */
 export function isPlainLeftClick(e: {
   button: number

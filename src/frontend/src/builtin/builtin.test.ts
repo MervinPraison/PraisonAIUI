@@ -15,7 +15,7 @@ import {
 import { sdkApi } from '@/sdk/install'
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
 import { getPage } from '@/sdk/registry'
-import { activateShell, resetServicesForTests } from '@/sdk/services'
+import { activateShell, getCommands, resetServicesForTests } from '@/sdk/services'
 import { PageView } from '@/shell/PageView'
 
 const g = globalThis as unknown as Record<string, unknown>
@@ -25,12 +25,12 @@ if (typeof g.addEventListener !== 'function') {
   g.removeEventListener = () => {}
 }
 
-test('built-in names are unique, namespaced and each one owns at least one page', () => {
+test('built-in names are unique, namespaced and each one owns a page or is a service', () => {
   const names = BUILTIN_PLUGINS.map((b) => b.name)
   assert.equal(new Set(names).size, names.length)
   for (const b of BUILTIN_PLUGINS) {
     assert.match(b.name, /^builtin\.[a-z][a-z0-9-]*$/)
-    assert.ok(b.pages.length > 0, `${b.name} lists its pages`)
+    assert.ok(b.pages.length > 0 || b.always, `${b.name} lists its pages or is marked always`)
   }
   const ids = BUILTIN_PLUGINS.flatMap((b) => b.pages)
   assert.equal(new Set(ids).size, ids.length, 'no page id is claimed twice')
@@ -98,15 +98,27 @@ test('activation hands each built-in the public sdk and its listed pages, once, 
         calls.push(['absent'])
       },
     },
+    {
+      name: 'builtin.service',
+      pages: [],
+      always: true,
+      activate(_sdk, ctx) {
+        calls.push(['service', ...ctx.pageIds])
+      },
+    },
   ]
   const m = manifest([page('broken'), page('ok')])
   try {
-    assert.deepEqual(activateBuiltins(m, sdkApi, plugins), ['builtin.ok'])
+    assert.deepEqual(activateBuiltins(m, sdkApi, plugins), ['builtin.ok', 'builtin.service'])
     assert.deepEqual(activateBuiltins(m, sdkApi, plugins), [], 'a second call activates nothing')
   } finally {
     console.error = original
   }
-  assert.deepEqual(calls, [['ok']], 'only pages the manifest lists; an absent plugin is not activated')
+  assert.deepEqual(
+    calls,
+    [['ok'], ['service']],
+    'only pages the manifest lists; an absent plugin is not activated, an `always` one is',
+  )
   assert.equal(errors.length, 1)
   assert.match(String(errors[0][0]), /builtin\.broken failed to activate/)
 })
@@ -124,9 +136,11 @@ test('a page id taken over by the app or a plugin is not a built-in page', () =>
 
 test('a built-in page hidden by set_pages is not registered and renders "Page not found"', () => {
   resetBuiltinsForTests()
+  resetServicesForTests()
   const hidden = manifest([page('overview'), page('logs')])
-  assert.deepEqual(activateBuiltins(hidden), [])
+  assert.deepEqual(activateBuiltins(hidden), ['builtin.approvals'], 'only the always-on service')
   assert.equal(getPage('chat'), undefined)
+  assert.equal(getCommands().find((c) => c.id === 'chat.new'), undefined, 'no "New chat" without the chat page')
   const html = renderPage('chat', hidden)
   assert.match(html, /Page not found/)
   assert.match(html, /Go to overview/)
@@ -135,7 +149,7 @@ test('a built-in page hidden by set_pages is not registered and renders "Page no
 test('an app page that reuses the id keeps its own renderer', () => {
   resetBuiltinsForTests()
   const own = manifest([page('chat', { source: 'app', kind: 'blocks' })])
-  assert.deepEqual(activateBuiltins(own), [])
+  assert.deepEqual(activateBuiltins(own), ['builtin.approvals'])
   assert.equal(getPage('chat'), undefined, 'the React chat does not shadow the app page')
 })
 
@@ -148,6 +162,10 @@ test('installBuiltins queues on onActivate: nothing registers until the shell ha
   const m = manifest([page('overview'), page('chat')])
   activateShell(m)
   assert.ok(getPage('chat'), 'builtin.chat registered the page when the shell activated')
+  const newChat = getCommands().find((c) => c.id === 'chat.new')
+  assert.ok(newChat, 'builtin.chat contributes "New chat" to the command palette')
+  assert.equal(newChat.title, 'New chat')
+  assert.equal(newChat.group, 'Actions')
   assert.doesNotMatch(renderPage('chat', m), /Page not found/)
   assert.deepEqual(activateBuiltins(m), [], 'already active')
 })

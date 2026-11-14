@@ -1,11 +1,12 @@
 /**
  * Lazy chunk: the command palette (cmdk via components/ui/command). Opened by
  * Ctrl/Cmd+K, the header search button and window.aiui.openCommandPalette().
- * Items: every page, "New chat", the commands plugins registered through
- * `registerCommand` (@aiui/sdk), and the three colour modes.
+ * Items: the commands registered through `registerCommand` (@aiui/sdk),
+ * first-party ones included (builtin.chat's "New chat"), every page, and the
+ * three colour modes.
  */
 import { useMemo } from 'react'
-import { Check, Monitor, Moon, Plus, Sun } from 'lucide-react'
+import { Check, Monitor, Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import {
   CommandDialog,
@@ -21,19 +22,7 @@ import { notify } from '@/sdk/notify'
 import { useCommands, type ShellCommand } from '@/sdk/services'
 import { footerPages, groupPages } from './nav'
 import { PageIcon } from './PageIcon'
-import { getPageId, navigate, waitForPageChange } from './router'
-
-/** Open chat on a fresh session: navigate, wait for the chat view to mount, then ask it to reset. */
-function startNewChat() {
-  const fire = () =>
-    window.dispatchEvent(new CustomEvent('aiui:session-select', { detail: { sessionId: null } }))
-  if (getPageId() === 'chat') {
-    fire()
-    return
-  }
-  void waitForPageChange('chat', 5000).then(fire)
-  navigate('chat')
-}
+import { navigate } from './router'
 
 const DEFAULT_COMMAND_GROUP = 'Commands'
 
@@ -89,7 +78,6 @@ export default function CommandPalette({
     const footer = footerPages(pages)
     return footer.length ? [...g, { name: 'More', pages: footer }] : g
   }, [pages])
-  const hasChat = pages.some((p) => p.id === 'chat')
   const registered = useCommands()
   const commandGroups = useMemo(() => groupCommands(registered), [registered])
 
@@ -110,14 +98,6 @@ export default function CommandPalette({
       <CommandInput placeholder="Search pages and commands…" aria-label="Search pages and commands" />
       <CommandList className="max-h-[min(60vh,420px)]">
         <CommandEmpty>No matching pages or commands.</CommandEmpty>
-        {hasChat && (
-          <CommandGroup heading="Actions">
-            <CommandItem value="New chat" keywords={['session', 'conversation']} onSelect={() => run(startNewChat)}>
-              <Plus />
-              <span>New chat</span>
-            </CommandItem>
-          </CommandGroup>
-        )}
         {commandGroups.map((group) => (
           <CommandGroup key={`commands:${group.name}`} heading={group.name}>
             {group.commands.map((c) => (

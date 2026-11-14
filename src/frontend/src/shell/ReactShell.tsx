@@ -7,7 +7,6 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react
 import { getPage, useRegistryVersion } from '@/sdk/registry'
 import type { ShellPage } from '@/sdk/manifest'
 import { cn } from '@/lib/utils'
-import { useApprovalToasts } from './approvals'
 import { useShell } from './context'
 import { FloatingMenuButton, ShellHeader } from './Header'
 import { defaultPageId, isFullBleed, orderedPages, showPageHeader, showSidebar, siteTitle } from './nav'
@@ -120,8 +119,6 @@ export default function ReactShell() {
     window.addEventListener(PAGE_CHANGE_EVENT, installPaletteHooks)
     return () => window.removeEventListener(PAGE_CHANGE_EVENT, installPaletteHooks)
   }, [])
-
-  useApprovalToasts(pageById.has('approvals'))
 
   return (
     <div className="aiui-app flex h-dvh w-full overflow-hidden bg-background text-foreground" data-aiui-shell-root="">

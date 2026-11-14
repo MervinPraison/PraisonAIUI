@@ -17,7 +17,7 @@ import {
   usesLegacyHost,
 } from '@/shell/nav'
 import { emojiForPage, FallbackPageIcon, ICON_BY_PAGE_ID, iconForPage, PAGE_ICON_SET } from '@/shell/icons'
-import { approvalKey, describeApproval } from '@/shell/approvals'
+import { approvalKey, describeApproval } from '@/builtin/approvals'
 import { isPaletteShortcut, isSidebarShortcut } from '@/shell/palette'
 
 const p = (id: string, group: string | undefined, order: number, extra: Partial<ShellPage> = {}): ShellPage => ({

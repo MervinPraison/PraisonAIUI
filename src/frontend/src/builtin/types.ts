@@ -15,7 +15,10 @@ export type BuiltinSdk = typeof sdkApi
 
 export interface BuiltinContext {
   readonly manifest: ShellManifest
-  /** The plugin's page ids this server's manifest lists (never empty). */
+  /**
+   * The plugin's page ids this server's manifest lists. Never empty, except
+   * for an `always` plugin.
+   */
   readonly pageIds: readonly string[]
 }
 
@@ -25,10 +28,15 @@ export interface BuiltinPlugin {
   /** Page ids this plugin renders. */
   readonly pages: readonly string[]
   /**
-   * Register pages, blocks, tool renderers and slots. Runs at most once, and
-   * only when the manifest lists at least one of `pages`: a page the server
-   * hides (set_pages, pages.disabled) must not be registered, or its URL would
-   * still render.
+   * A service rather than a page (notifications, commands): activate even
+   * when the manifest lists none of `pages`, which may then be empty.
+   */
+  readonly always?: boolean
+  /**
+   * Register pages, blocks, tool renderers, slots and commands. Runs at most
+   * once, and only when the manifest lists at least one of `pages` (or the
+   * plugin is `always`): a page the server hides (set_pages, pages.disabled)
+   * must not be registered, or its URL would still render.
    */
   activate(sdk: BuiltinSdk, ctx: BuiltinContext): void
 }

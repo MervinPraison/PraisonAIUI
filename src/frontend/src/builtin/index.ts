@@ -7,12 +7,13 @@
  */
 import { sdkApi } from '@/sdk/install'
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
+import { approvalsBuiltin } from './approvals'
 import { chatBuiltin } from './chat'
 import type { BuiltinPlugin, BuiltinSdk } from './types'
 
 export type { BuiltinContext, BuiltinPlugin, BuiltinSdk } from './types'
 
-export const BUILTIN_PLUGINS: readonly BuiltinPlugin[] = Object.freeze([chatBuiltin])
+export const BUILTIN_PLUGINS: readonly BuiltinPlugin[] = Object.freeze([chatBuiltin, approvalsBuiltin])
 
 const activated = new Set<string>()
 
@@ -28,10 +29,10 @@ export function isBuiltinPage(page: ShellPage): boolean {
 }
 
 /**
- * Activate, once each, the built-ins this server's manifest has pages for. A
- * built-in none of whose pages are in the manifest (hidden by set_pages or
- * pages.disabled) stays inactive, so its URL shows "Page not found" like any
- * unknown id. A failing built-in is reported and skipped; the others still
+ * Activate, once each, the built-ins this server's manifest has pages for,
+ * and the `always` ones (services). A built-in none of whose pages are in the
+ * manifest (hidden by set_pages or pages.disabled) stays inactive, so its URL
+ * shows "Page not found" like any unknown id. A failing built-in is reported and skipped; the others still
  * activate (the isolation third-party modules get). Returns the names
  * activated by this call.
  */
@@ -45,7 +46,7 @@ export function activateBuiltins(
   for (const plugin of plugins) {
     if (activated.has(plugin.name)) continue
     const pageIds = plugin.pages.filter((id) => listed.has(id))
-    if (pageIds.length === 0) continue
+    if (pageIds.length === 0 && !plugin.always) continue
     activated.add(plugin.name)
     try {
       plugin.activate(sdk, { manifest, pageIds })
