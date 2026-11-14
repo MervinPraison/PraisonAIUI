@@ -2368,6 +2368,13 @@ function renderComponents(data, container) {
   }
 }
 
+// Component text comes from page handlers that may echo user or agent text
+// (R9): it goes into markup only through this.
+const _HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (c) => _HTML_ESCAPES[c]);
+}
+
 function renderComponent(comp) {
   // Extensible: check COMPONENT_REGISTRY first (custom renderers take priority)
   if (COMPONENT_REGISTRY[comp.type]) {
@@ -2643,9 +2650,9 @@ function renderMetric(comp) {
     deltaClass = deltaVal > 0 ? 'positive' : deltaVal < 0 ? 'negative' : 'neutral';
   }
   let html = '';
-  if (comp.label) html += `<div class="db-metric-label">${comp.label}</div>`;
-  if (comp.value !== undefined) html += `<div class="db-metric-value">${comp.value}</div>`;
-  if (deltaVal !== '' && deltaVal !== undefined) html += `<div class="db-metric-delta ${deltaClass}">${deltaVal}</div>`;
+  if (comp.label) html += `<div class="db-metric-label">${escapeHtml(comp.label)}</div>`;
+  if (comp.value !== undefined) html += `<div class="db-metric-value">${escapeHtml(comp.value)}</div>`;
+  if (deltaVal !== '' && deltaVal !== undefined) html += `<div class="db-metric-delta ${deltaClass}">${escapeHtml(deltaVal)}</div>`;
   el.innerHTML = html;
   return el;
 }
@@ -2673,8 +2680,8 @@ function renderAlert(comp) {
   const el = document.createElement('div');
   el.className = `db-alert db-alert-${variant}`;
   const icons = { info: 'ℹ️', success: '✓', warning: '⚠️', error: '✗' };
-  const titleHtml = comp.title ? `<strong style="display:block;margin-bottom:2px">${comp.title}</strong>` : '';
-  el.innerHTML = `<span>${icons[variant] || 'ℹ️'}</span><span>${titleHtml}${comp.message || comp.content || ''}</span>`;
+  const titleHtml = comp.title ? `<strong style="display:block;margin-bottom:2px">${escapeHtml(comp.title)}</strong>` : '';
+  el.innerHTML = `<span>${icons[variant] || 'ℹ️'}</span><span>${titleHtml}${escapeHtml(comp.message || comp.content || '')}</span>`;
   return el;
 }
 
@@ -3034,7 +3041,7 @@ function renderEmpty(comp) {
 function renderSpinnerComponent(comp) {
   const el = document.createElement('div');
   el.className = 'db-spinner-container';
-  el.innerHTML = `<div class="db-spinner"></div><span>${comp.text || 'Loading…'}</span>`;
+  el.innerHTML = `<div class="db-spinner"></div><span>${escapeHtml(comp.text || 'Loading…')}</span>`;
   return el;
 }
 
@@ -3042,7 +3049,7 @@ function renderAvatar(comp) {
   const el = document.createElement('div');
   el.className = 'db-avatar';
   if (comp.src) {
-    el.innerHTML = `<img src="${comp.src}" alt="${comp.name || ''}">`;
+    el.innerHTML = `<img src="${escapeHtml(comp.src)}" alt="${escapeHtml(comp.name || '')}">`;
   } else {
     const name = comp.name || comp.fallback || '?';
     const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
@@ -3056,8 +3063,8 @@ function renderCallout(comp) {
   const el = document.createElement('div');
   el.className = `db-callout db-callout-${variant}`;
   let html = '';
-  if (comp.title) html += `<div class="db-callout-title">${comp.title}</div>`;
-  html += `<div class="db-callout-content">${comp.content || ''}</div>`;
+  if (comp.title) html += `<div class="db-callout-title">${escapeHtml(comp.title)}</div>`;
+  html += `<div class="db-callout-content">${escapeHtml(comp.content || '')}</div>`;
   el.innerHTML = html;
   return el;
 }
