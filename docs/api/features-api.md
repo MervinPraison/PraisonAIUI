@@ -924,16 +924,21 @@ List supported languages.
 ```
 
 ### POST /api/code/execute
-Execute code in sandbox.
+Execute Python code in the SDK sandbox after a human approves it. The request waits while a pending `execute_code` approval (risk `critical`) sits in `/api/approvals/pending`; see [Code Execution](../features/code-execution.md) for the opt-outs.
 
 ```json
 // Request
 {"code": "print('hello')", "language": "python", "timeout": 30}
 
-// Response (simulated)
-{"language": "python", "status": "simulated",
- "output": "[Sandbox] Code received (15 chars, python)",
- "sandbox": true, "note": "Install praisonaiagents for real execution"}
+// Response (approved → 200)
+{"language": "python", "status": "success", "output": "hello\n", "error": "",
+ "result": null, "sandbox": true}
+
+// Response (denied or approval timed out → 403)
+{"status": "denied", "language": "python", "error": "Not run: ..."}
+
+// Response (praisonaiagents not installed → 503, nothing runs)
+{"language": "python", "status": "degraded", "error": "Code execution needs the praisonaiagents package ...", "sandbox": true}
 
 // Response (disallowed language → 400)
 {"status": "error", "error": "Language 'ruby' not allowed",

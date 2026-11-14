@@ -3,10 +3,16 @@
 Architecture:
     CodeExecutionProtocol (ABC)
       └── SandboxExecutionManager  ← wraps SDK execute_code with approval hooks
+
+POST /api/code/execute runs through the SDK's own approval gate on
+``execute_code`` (``@require_approval(risk_level="critical")``), wired to the
+UI approvals queue: the request waits for a human, and deny or timeout is 403.
 """
 
 from __future__ import annotations
 
+import asyncio
+import contextvars
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
@@ -70,43 +76,41 @@ class SandboxExecutionManager(CodeExecutionProtocol):
                 "allowed": list(self._allowed),
             }
 
-        # Try SDK execute_code first
         try:
-            from praisonaiagents.tools.code import execute_code
-
-            result = execute_code(code)
-            entry = {
-                "language": language,
-                "status": "success",
-                "output": str(result),
-                "sandbox": self._sandbox,
-            }
-            self._history.append(entry)
-            return entry
+            from praisonaiagents.tools.python_tools import execute_code
         except ImportError:
-            pass
-        except Exception as e:
-            logger.warning("SDK execute_code failed: %s", e)
-
-        from praisonaiui.backends import is_integrated_mode
-
-        if is_integrated_mode():
             entry = {
                 "language": language,
                 "status": "degraded",
-                "error": "Code execution unavailable (praisonaiagents.tools.code missing or failed)",
+                "error": "Code execution needs the praisonaiagents package "
+                "(pip install praisonaiagents). Nothing was run.",
                 "sandbox": self._sandbox,
             }
             self._history.append(entry)
             return entry
 
-        # Standalone fallback: simulate execution for safety
+        if language != "python":
+            return {
+                "status": "error",
+                "error": f"Language '{language}' cannot run here: the sandbox runs Python only",
+                "language": language,
+            }
+
+        # execute_code carries the SDK's @require_approval(risk_level="critical"):
+        # this call blocks until a human approves it and raises PermissionError
+        # on deny or timeout. Call it from a worker thread, never the event loop.
+        result = execute_code(
+            code,
+            timeout=timeout,
+            sandbox_mode="sandbox" if self._sandbox else "direct",
+        )
         entry = {
             "language": language,
-            "status": "simulated",
-            "output": f"[Sandbox] Code received ({len(code)} chars, {language})",
+            "status": "success" if result.get("success") else "failed",
+            "output": result.get("stdout", ""),
+            "error": result.get("stderr", ""),
+            "result": result.get("result"),
             "sandbox": self._sandbox,
-            "note": "Install praisonaiagents for real execution",
         }
         self._history.append(entry)
         return entry
@@ -173,12 +177,27 @@ class CodeExecutionFeature(BaseFeatureProtocol):
     async def _execute(self, request: Request) -> JSONResponse:
         mgr = get_execution_manager()
         body = await request.json()
-        result = mgr.execute(
-            code=body.get("code", ""),
-            language=body.get("language", "python"),
-            timeout=body.get("timeout", 30),
-        )
-        status = 200 if result.get("status") != "error" else 400
+        code = body.get("code", "")
+        language = body.get("language", "python")
+        try:
+            timeout = max(1, min(int(body.get("timeout", 30)), 300))
+        except (TypeError, ValueError):
+            return JSONResponse({"status": "error", "error": "timeout must be a number"}, 400)
+        # Wire the SDK approval registry to the UI approvals queue before the
+        # run, so a human decides in the Approvals page: one run, one approval.
+        from .approvals import get_approval_manager
+
+        get_approval_manager()
+        try:
+            # A fresh context: no approval cached by an earlier run is reused.
+            result = await asyncio.to_thread(
+                contextvars.Context().run, mgr.execute, code, language=language, timeout=timeout
+            )
+        except PermissionError as e:
+            return JSONResponse(
+                {"status": "denied", "language": language, "error": f"Not run: {e}"}, 403
+            )
+        status = {"error": 400, "degraded": 503}.get(result.get("status"), 200)
         return JSONResponse(result, status_code=status)
 
     async def _languages(self, request: Request) -> JSONResponse:
