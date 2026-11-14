@@ -1039,18 +1039,17 @@ async def _plugins_config(request: Request) -> JSONResponse:
             if mod in ("jobs", "auth", "api") and mod not in plugins:
                 plugins.append(mod)
     elif style == "docs":
+        # Code highlighting, copy buttons and mermaid come from the React
+        # markdown renderer (Streamdown + Shiki + the bundled mermaid), so the
+        # legacy highlight.js / code-copy / CDN mermaid plugins are not loaded.
         plugins += [
             "topnav",
-            "syntax-highlight",
-            "code-copy",
             "content-loader",
-            "mermaid",
             "nav-intercept",
             "homepage",
         ]
-    else:
-        # chat / agents / playground — minimal plugins
-        plugins += ["syntax-highlight", "code-copy"]
+    # chat / agents / playground: Streamdown renders every markdown surface,
+    # so only the base plugins load.
     return JSONResponse({"plugins": plugins})
 
 

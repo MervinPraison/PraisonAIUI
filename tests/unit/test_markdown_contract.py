@@ -13,6 +13,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 SRC = Path("src/frontend/src")
 MD = SRC / "markdown"
 PLUGINS = Path("src/praisonaiui/templates/frontend/plugins")
@@ -145,14 +147,53 @@ class TestSecurity:
         assert body.index("...config") < body.index("securityLevel: 'strict'")
 
 
+class TestReactStylesDoNotLoadLegacyMarkdownPlugins:
+    """Streamdown (Shiki + bundled mermaid) renders every markdown surface of
+    the chat, agents, playground and docs styles. The legacy highlight.js,
+    code-copy and CDN mermaid plugins only duplicated it (about 30 third-party
+    requests per page, a floating mermaid@11 with securityLevel 'loose'), so
+    plugins.json no longer lists them for those styles."""
+
+    LEGACY = ("syntax-highlight", "code-copy", "mermaid")
+
+    @staticmethod
+    def _plugins(style: str) -> list[str]:
+        from starlette.testclient import TestClient
+
+        import praisonaiui.server as srv
+
+        prev = srv._style
+        try:
+            srv.set_style(style)
+            client = TestClient(srv.create_app())
+            return client.get("/plugins/plugins.json").json()["plugins"]
+        finally:
+            srv._style = prev
+
+    def test_chat_agents_playground_load_only_base_plugins(self):
+        for style in ("chat", "agents", "playground"):
+            plugins = self._plugins(style)
+            assert plugins == ["fetch-retry"], (style, plugins)
+
+    def test_docs_keeps_its_navigation_plugins_only(self):
+        plugins = self._plugins("docs")
+        assert not set(plugins) & set(self.LEGACY), plugins
+        assert plugins == ["fetch-retry", "topnav", "content-loader", "nav-intercept", "homepage"]
+
+    def test_dashboard_is_unchanged(self):
+        assert self._plugins("dashboard") == ["fetch-retry", "dashboard"]
+
+
+_LEGACY_GUARD = MD / "legacyPlugins.ts"
+
+
 class TestVanillaPluginsLeaveStreamdownAlone:
-    """The docs, chat, agents and playground styles still load the vanilla
-    plugins (plugin-loader, syntax-highlight, code-copy, mermaid, toc). They
-    rewrite code blocks they find: highlight.js rebuilds <code> from its text
-    (Shiki's line spans collapse into one line) and code-copy wraps the <pre>.
-    Rendered behaviour is covered by markdown.test.tsx and
-    tests/browser/test_markdown_legacy_plugins_browser.py; these pin the
-    source-level contract that keeps them off React-rendered markdown.
+    """Source-level guards that kept the vanilla plugins (plugin-loader,
+    syntax-highlight, code-copy, mermaid, toc) off React-rendered markdown.
+    highlight.js rebuilt <code> from its text (Shiki's line spans collapse
+    into one line) and code-copy wrapped the <pre>. The React styles no
+    longer load those plugins (see the class above); the guards are checked
+    while markdown/legacyPlugins.ts still exists (LIBMD-3 removes it).
     """
 
     GUARD = "#main-content article.prose"
@@ -173,6 +214,7 @@ class TestVanillaPluginsLeaveStreamdownAlone:
         root = re.search(r"const ROOT_CLASS = '([^']+)'", source)
         assert root and {"aiui-markdown", "not-prose"} <= set(root.group(1).split())
 
+    @pytest.mark.skipif(not _LEGACY_GUARD.exists(), reason="legacy plugin guards removed (LIBMD-3)")
     def test_code_blocks_are_hidden_from_highlight_js(self):
         # Chat messages have no guarded ancestor: every fenced block carries
         # `nohighlight` and no word-boundary `language-` class.
@@ -182,6 +224,7 @@ class TestVanillaPluginsLeaveStreamdownAlone:
         assert "'$1aiuilanguage-$2'" in guard
         assert "export const NO_HIGHLIGHT = 'nohighlight'" in guard
 
+    @pytest.mark.skipif(not _LEGACY_GUARD.exists(), reason="legacy plugin guards removed (LIBMD-3)")
     def test_code_blocks_are_marked_done_for_code_copy(self):
         source = _read(MD / "Markdown.tsx")
         assert "useLegacyCopyGuard(guardId)" in source
@@ -191,6 +234,7 @@ class TestVanillaPluginsLeaveStreamdownAlone:
         assert "attributeFilter: ['data-copy-processed']" in guard
         assert "copyProcessed" in guard  # dataset key of data-copy-processed
 
+    @pytest.mark.skipif(not _LEGACY_GUARD.exists(), reason="legacy plugin guards removed (LIBMD-3)")
     def test_legacy_pre_box_styles_are_reset_in_the_base_layer(self):
         # syntax-highlight.js injects `pre {… !important}`; index.css has
         # `.prose pre {… !important}` in the components layer. Only an
