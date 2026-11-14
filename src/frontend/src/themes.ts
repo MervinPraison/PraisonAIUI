@@ -520,3 +520,153 @@ export function applyTheme(
     upgradeLegacyCustomCss()
     document.documentElement.dataset.theme = preset
 }
+
+// ── PraisonAI Pro token system (selectable layouts, ADR 0003 F4) ─────────
+// The palette of the Pro design files. styles/pro.css holds it as `--pro-*`
+// defaults under html[data-aiui-shell="react"][data-aiui-tokens="pro"];
+// Python themes.PRO_NEUTRALS / PRO_ACCENTS hold the same tables
+// (tests/unit/test_seed_theme.py keeps all three equal).
+
+/** The design's neutral and semantic palette, per mode (P0 `--pro-<name>`). */
+export const PRO_NEUTRALS: Record<'light' | 'dark', Readonly<Record<string, string>>> = {
+    light: {
+        'background': '#ffffff',
+        'foreground': '#18181b',
+        'sidebar': '#f7f7f8',
+        'sidebar-fg': '#3f3f46',
+        'sidebar-accent': '#ebebee',
+        'card': '#ffffff',
+        'muted': '#f4f4f5',
+        'muted-fg': '#52525b',
+        'subtle': '#66666e',
+        'border': '#e4e4e7',
+        'input': '#d4d4d8',
+        'code-bg': '#fafafa',
+        'success': '#15803d',
+        'success-fg': '#ffffff',
+        'success-soft': '#ecfdf3',
+        'warning': '#b45309',
+        'warning-fg': '#ffffff',
+        'warning-soft': '#fffbeb',
+        'warning-line': '#f3d9a8',
+        'danger': '#dc2626',
+        'danger-fg': '#ffffff',
+        'danger-soft': '#fff5f5', // design #fef2f2: danger text on it is 4.41:1
+        'danger-line': '#f7c9c9',
+        'info': '#2563eb',
+        'info-soft': '#eff6ff',
+        'shadow-sm': '0 1px 2px rgba(24,24,27,0.05)',
+        'shadow-float': '0 1px 2px rgba(24,24,27,0.06), 0 8px 24px -6px rgba(24,24,27,0.14)',
+        'shadow-overlay': '0 2px 4px rgba(24,24,27,0.06), 0 24px 48px -12px rgba(24,24,27,0.24)',
+        'scrim': 'rgba(24,24,27,0.36)',
+    },
+    dark: {
+        'background': '#0e0e11',
+        'foreground': '#ededf0',
+        'sidebar': '#09090b',
+        'sidebar-fg': '#c4c4cc',
+        'sidebar-accent': '#1f1f25',
+        'card': '#16161a',
+        'muted': '#1d1d22',
+        'muted-fg': '#b4b4bd',
+        'subtle': '#8e8e98',
+        'border': '#27272d',
+        'input': '#3a3a42',
+        'code-bg': '#121216',
+        'success': '#34b27b',
+        'success-fg': '#04210f',
+        'success-soft': '#0f2a1e',
+        'warning': '#e3a008',
+        'warning-fg': '#1f1300',
+        'warning-soft': '#2b2110',
+        'warning-line': '#5a4419',
+        'danger': '#f05252',
+        'danger-fg': '#1f0505',
+        'danger-soft': '#2e1416',
+        'danger-line': '#5c2328',
+        'info': '#4f8cf7',
+        'info-soft': '#13213a',
+        'shadow-sm': '0 1px 2px rgba(0,0,0,0.5)',
+        'shadow-float': '0 1px 2px rgba(0,0,0,0.5), 0 12px 32px -8px rgba(0,0,0,0.6)',
+        'shadow-overlay': '0 2px 4px rgba(0,0,0,0.5), 0 32px 64px -16px rgba(0,0,0,0.7)',
+        'scrim': 'rgba(0,0,0,0.6)',
+    },
+}
+
+/** Accent roles; each is a `--seed-pro-<role>` seed. */
+export const PRO_ACCENT_ROLES = ['accent', 'accent-fg', 'soft', 'link', 'ring'] as const
+export type ProAccentRole = typeof PRO_ACCENT_ROLES[number]
+export type ProAccentName = 'indigo' | 'blue' | 'teal' | 'graphite'
+type ProAccentModes = Record<'light' | 'dark', Readonly<Record<ProAccentRole, string>>>
+
+/** The design's four accent swatches. */
+export const PRO_ACCENTS: Record<ProAccentName, ProAccentModes> = {
+    indigo: {
+        light: { 'accent': '#4f46e5', 'accent-fg': '#ffffff', 'soft': '#eef2ff', 'link': '#4338ca', 'ring': '#4f46e5' },
+        dark: { 'accent': '#818cf8', 'accent-fg': '#0e0e11', 'soft': '#1e1e3f', 'link': '#a5b4fc', 'ring': '#818cf8' },
+    },
+    blue: {
+        light: { 'accent': '#2563eb', 'accent-fg': '#ffffff', 'soft': '#eff6ff', 'link': '#1d4ed8', 'ring': '#2563eb' },
+        dark: { 'accent': '#60a5fa', 'accent-fg': '#0e0e11', 'soft': '#14233b', 'link': '#93c5fd', 'ring': '#60a5fa' },
+    },
+    teal: {
+        light: { 'accent': '#0f766e', 'accent-fg': '#ffffff', 'soft': '#e6f4f1', 'link': '#115e59', 'ring': '#0f766e' },
+        dark: { 'accent': '#2dd4bf', 'accent-fg': '#0e0e11', 'soft': '#0f2a27', 'link': '#5eead4', 'ring': '#2dd4bf' },
+    },
+    graphite: {
+        light: { 'accent': '#18181b', 'accent-fg': '#ffffff', 'soft': '#f1f1f3', 'link': '#18181b', 'ring': '#52525b' },
+        dark: { 'accent': '#ededf0', 'accent-fg': '#0e0e11', 'soft': '#26262c', 'link': '#ededf0', 'ring': '#a1a1aa' },
+    },
+}
+
+export const PRO_DEFAULT_ACCENT: ProAccentName = 'indigo'
+
+/** `<html>` attribute that switches styles/pro.css on. */
+export const TOKEN_SYSTEM_ATTR = 'data-aiui-tokens'
+export type TokenSystem = 'pro'
+
+/**
+ * Switch the Pro token system on (`'pro'`) or back to the classic tokens
+ * (`null`). The shell calls this when it mounts a layout frame or the
+ * classic frame; nothing else paints differently.
+ */
+export function setTokenSystem(system: TokenSystem | null, root?: HTMLElement): void {
+    const el = root ?? (typeof document === 'undefined' ? null : document.documentElement)
+    if (!el) return
+    if (system) el.setAttribute(TOKEN_SYSTEM_ATTR, system)
+    else el.removeAttribute(TOKEN_SYSTEM_ATTR)
+}
+
+/** The active token system, or null for the classic tokens. */
+export function getTokenSystem(root?: HTMLElement): TokenSystem | null {
+    const el = root ?? (typeof document === 'undefined' ? null : document.documentElement)
+    return el?.getAttribute(TOKEN_SYSTEM_ATTR) === 'pro' ? 'pro' : null
+}
+
+/** Per-mode `--seed-pro-<role>` seeds for one swatch (registerThemePreset light/dark). */
+export function proAccentSeeds(name: ProAccentName): Record<'light' | 'dark', Record<string, string>> {
+    const swatch = PRO_ACCENTS[name]
+    const seeds = (mode: 'light' | 'dark') =>
+        Object.fromEntries(PRO_ACCENT_ROLES.map((role) => [`--seed-pro-${role}`, swatch[mode][role]]))
+    return { light: seeds('light'), dark: seeds('dark') }
+}
+
+const PRO_ACCENT_LABELS: Record<ProAccentName, string> = {
+    indigo: 'Indigo',
+    blue: 'Blue',
+    teal: 'Teal',
+    graphite: 'Graphite',
+}
+
+/**
+ * The four Pro accents as theme presets, ready for `registerThemePreset`
+ * (ids `pro.<name>`). They set only `--seed-pro-*` seeds, so they recolour
+ * layouts and leave the classic frame alone.
+ */
+export function proThemePresets(): { id: string; label: string; light: Record<string, string>; dark: Record<string, string> }[] {
+    return (Object.keys(PRO_ACCENTS) as ProAccentName[]).map((name) => ({
+        id: `pro.${name}`,
+        label: `Pro ${PRO_ACCENT_LABELS[name]}`,
+        ...proAccentSeeds(name),
+    }))
+}

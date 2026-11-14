@@ -327,6 +327,85 @@ class TestAccentContrast:
             assert ratio >= 3.0, f"ring for {accent}: {ratio:.2f}"
 
 
+# ── PraisonAI Pro tokens (styles/pro.css, ADR 0003 F4) ───────────────────
+# The Pro palette is explicit hex (themes.PRO_NEUTRALS / PRO_ACCENTS, kept equal
+# to pro.css by test_seed_theme.py), so the ratios are computed directly.
+
+
+def _pro_rgb(value: str, bg: str):
+    """An opaque or #rrggbbaa colour as opaque RGB over ``bg``."""
+    if len(value) == 9:
+        return _over(_hex(value[:7]), int(value[7:9], 16) / 255, _hex(bg))
+    return _hex(value)
+
+
+def _pro_accent_cases():
+    from praisonaiui.themes import PRESET_NAMES, PRO_ACCENTS, pro_accent
+
+    cases = [(f"swatch:{name}", sw) for name, sw in PRO_ACCENTS.items()]
+    cases += [(f"preset:{p}", pro_accent(p)) for p in PRESET_NAMES]
+    # custom accents the server derives: very light, very dark, mid grey, saturated
+    for custom in ("#ffff00", "#00ff00", "#000080", "#777777", "#ff00ff", "#ffffff", "#000000"):
+        cases.append((f"custom:{custom}", pro_accent("zinc", custom)))
+    return cases
+
+
+@pytest.mark.parametrize("dark", [False, True], ids=["light", "dark"])
+class TestProContrast:
+    def _n(self, dark):
+        from praisonaiui.themes import PRO_NEUTRALS
+
+        return PRO_NEUTRALS["dark" if dark else "light"]
+
+    SURFACES = ("background", "card", "sidebar", "muted", "sidebar-accent")
+
+    def test_text_roles_pass_aa_on_every_surface(self, dark):
+        n = self._n(dark)
+        for role in ("foreground", "muted-fg", "subtle", "sidebar-fg"):
+            for surface in self.SURFACES:
+                ratio = _contrast(_hex(n[role]), _hex(n[surface]))
+                assert ratio >= 4.5, f"{role} on {surface}: {ratio:.2f}"
+
+    def test_semantic_text_passes_aa_on_surfaces_and_its_soft_fill(self, dark):
+        # Not on --muted: the design's danger is 4.39:1 there (DESIGN.md says so).
+        n = self._n(dark)
+        for k in ("success", "warning", "danger", "info"):
+            for surface in ("background", "card", f"{k}-soft"):
+                ratio = _contrast(_hex(n[k]), _hex(n[surface]))
+                assert ratio >= 4.5, f"{k} on {surface}: {ratio:.2f}"
+
+    def test_semantic_fills_have_aa_foregrounds(self, dark):
+        n = self._n(dark)
+        pairs = [("success", "success-fg"), ("warning", "warning-fg"), ("danger", "danger-fg"),
+                 ("info", "background")]  # pro.css: --info-foreground is the page colour
+        for fill, fg in pairs:
+            ratio = _contrast(_hex(n[fg]), _hex(n[fill]))
+            assert ratio >= 4.5, f"{fg} on {fill}: {ratio:.2f}"
+
+    def test_code_background_keeps_text_readable(self, dark):
+        n = self._n(dark)
+        for role in ("foreground", "muted-fg", "subtle"):
+            assert _contrast(_hex(n[role]), _hex(n["code-bg"])) >= 4.5, role
+
+    @pytest.mark.parametrize("case", _pro_accent_cases(), ids=lambda c: c[0])
+    def test_accent_roles_pass_aa(self, dark, case):
+        _, resolved = case
+        n = self._n(dark)
+        a = resolved["dark" if dark else "light"]
+        if not a["accent"].startswith("#"):
+            pytest.skip("CSS-expression accent")
+        fill = _hex(a["accent"])
+        assert _contrast(_hex(a["accent-fg"]), fill) >= 4.5, "on-accent text"
+        soft = _pro_rgb(a["soft"], n["background"])
+        link = _hex(a["link"])
+        for name in ("background", "card", "muted", "sidebar"):
+            ratio = _contrast(link, _hex(n[name]))
+            assert ratio >= 4.5, f"link on {name}: {ratio:.2f}"
+        assert _contrast(link, soft) >= 4.5, "link on accent-soft"
+        ring = _contrast(_hex(a["ring"]), _hex(n["background"]))
+        assert ring >= 3.0, f"focus ring: {ring:.2f}"
+
+
 # ── legacy docs plugins (unchanged guardrails) ───────────────────────────
 
 

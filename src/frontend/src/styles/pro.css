@@ -1,0 +1,220 @@
+/* PraisonAI Pro token system: the visual system of the selectable layouts
+ * (ADR 0003, track F4). See src/frontend/DESIGN.md "PraisonAI Pro tokens".
+ *
+ * SCOPE. Every rule is scoped to html[data-aiui-shell="react"][data-aiui-tokens="pro"].
+ * The shell sets data-aiui-tokens="pro" while a layout frame is mounted and
+ * removes it for the classic frame (themes.ts setTokenSystem). Without the
+ * attribute this file matches nothing, so the classic frame, the dashboard
+ * and every other style render exactly as before. This file is imported by
+ * the shell chunk, never by index.css.
+ *
+ * LAYERS. Everything sits in @layer base, after styles/theme.css, with a more
+ * specific selector, so it beats the classic defaults while unlayered CSS
+ * (the server's <style id="aiui-server-theme">, plugin theme presets,
+ * set_custom_css) still wins without !important.
+ *
+ *   P0  --pro-*                 the design's palette (renderVals in Pro*.dc.html).
+ *                               Mirrored by themes.py PRO_NEUTRALS / PRO_ACCENTS
+ *                               and themes.ts; tests/unit/test_seed_theme.py
+ *                               keeps the three equal.
+ *   P1  --seed-pro-<role>       accent seeds. -light/-dark (server, from the
+ *                               YAML preset, theme.accent or set_brand_color) or
+ *                               unsuffixed per mode (registerThemePreset).
+ *   L2  shadcn + --ui-* tiers   mapped from P0/P1, so primitives and the classic
+ *                               utilities (bg-muted, text-tier-3, shadow-md ...)
+ *                               draw in Pro inside a layout. */
+
+@layer base {
+  /* ── P0 light palette + P1 default accent seeds (indigo) ──────────────── */
+  html[data-aiui-shell="react"][data-aiui-tokens="pro"],
+  html[data-aiui-shell="react"][data-aiui-tokens="pro"] [data-aiui-scope] {
+    --pro-background: #ffffff;
+    --pro-foreground: #18181b;
+    --pro-sidebar: #f7f7f8;
+    --pro-sidebar-fg: #3f3f46;
+    --pro-sidebar-accent: #ebebee;
+    --pro-card: #ffffff;
+    --pro-muted: #f4f4f5;
+    --pro-muted-fg: #52525b;
+    --pro-subtle: #66666e;
+    --pro-border: #e4e4e7;
+    --pro-input: #d4d4d8;
+    --pro-code-bg: #fafafa;
+    --pro-success: #15803d;
+    --pro-success-fg: #ffffff;
+    --pro-success-soft: #ecfdf3;
+    --pro-warning: #b45309;
+    --pro-warning-fg: #ffffff;
+    --pro-warning-soft: #fffbeb;
+    --pro-warning-line: #f3d9a8;
+    --pro-danger: #dc2626;
+    --pro-danger-fg: #ffffff;
+    --pro-danger-soft: #fff5f5; /* design #fef2f2: danger text on it is 4.41:1 */
+    --pro-danger-line: #f7c9c9;
+    --pro-info: #2563eb;
+    --pro-info-soft: #eff6ff;
+    --pro-shadow-sm: 0 1px 2px rgba(24,24,27,0.05);
+    --pro-shadow-float: 0 1px 2px rgba(24,24,27,0.06), 0 8px 24px -6px rgba(24,24,27,0.14);
+    --pro-shadow-overlay: 0 2px 4px rgba(24,24,27,0.06), 0 24px 48px -12px rgba(24,24,27,0.24);
+    --pro-scrim: rgba(24,24,27,0.36);
+
+    --seed-pro-accent-light: #4f46e5;
+    --seed-pro-accent-fg-light: #ffffff;
+    --seed-pro-soft-light: #eef2ff;
+    --seed-pro-link-light: #4338ca;
+    --seed-pro-ring-light: #4f46e5;
+    --seed-pro-accent-dark: #818cf8;
+    --seed-pro-accent-fg-dark: #0e0e11;
+    --seed-pro-soft-dark: #1e1e3f;
+    --seed-pro-link-dark: #a5b4fc;
+    --seed-pro-ring-dark: #818cf8;
+
+    --pro-accent: var(--seed-pro-accent-light);
+    --pro-accent-fg: var(--seed-pro-accent-fg-light);
+    --pro-soft: var(--seed-pro-soft-light);
+    --pro-link: var(--seed-pro-link-light);
+    --pro-ring: var(--seed-pro-ring-light);
+  }
+
+  /* ── P0 dark palette ──────────────────────────────────────────────────── */
+  html[data-aiui-shell="react"][data-aiui-tokens="pro"].dark,
+  html[data-aiui-shell="react"][data-aiui-tokens="pro"].dark [data-aiui-scope],
+  html[data-aiui-shell="react"][data-aiui-tokens="pro"] .dark,
+  html[data-aiui-shell="react"][data-aiui-tokens="pro"] .dark [data-aiui-scope] {
+    --pro-background: #0e0e11;
+    --pro-foreground: #ededf0;
+    --pro-sidebar: #09090b;
+    --pro-sidebar-fg: #c4c4cc;
+    --pro-sidebar-accent: #1f1f25;
+    --pro-card: #16161a;
+    --pro-muted: #1d1d22;
+    --pro-muted-fg: #b4b4bd;
+    --pro-subtle: #8e8e98;
+    --pro-border: #27272d;
+    --pro-input: #3a3a42;
+    --pro-code-bg: #121216;
+    --pro-success: #34b27b;
+    --pro-success-fg: #04210f;
+    --pro-success-soft: #0f2a1e;
+    --pro-warning: #e3a008;
+    --pro-warning-fg: #1f1300;
+    --pro-warning-soft: #2b2110;
+    --pro-warning-line: #5a4419;
+    --pro-danger: #f05252;
+    --pro-danger-fg: #1f0505;
+    --pro-danger-soft: #2e1416;
+    --pro-danger-line: #5c2328;
+    --pro-info: #4f8cf7;
+    --pro-info-soft: #13213a;
+    --pro-shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
+    --pro-shadow-float: 0 1px 2px rgba(0,0,0,0.5), 0 12px 32px -8px rgba(0,0,0,0.6);
+    --pro-shadow-overlay: 0 2px 4px rgba(0,0,0,0.5), 0 32px 64px -16px rgba(0,0,0,0.7);
+    --pro-scrim: rgba(0,0,0,0.6);
+
+    --pro-accent: var(--seed-pro-accent-dark);
+    --pro-accent-fg: var(--seed-pro-accent-fg-dark);
+    --pro-soft: var(--seed-pro-soft-dark);
+    --pro-link: var(--seed-pro-link-dark);
+    --pro-ring: var(--seed-pro-ring-dark);
+  }
+
+  /* ── Mapping onto the classic seeds, tiers and shadcn variables ───────────
+     Mode-independent: each name reads the P0/P1 value of the current mode. */
+  html[data-aiui-shell="react"][data-aiui-tokens="pro"],
+  html[data-aiui-shell="react"][data-aiui-tokens="pro"] [data-aiui-scope],
+  html[data-aiui-shell="react"][data-aiui-tokens="pro"] .dark {
+    /* classic seeds, so the derived alpha tiers (fills, strokes, text-tier-4,
+       row hover) are computed from the Pro neutrals */
+    --seed-ink: var(--pro-foreground);
+    --seed-paper: var(--pro-background);
+    --seed-sunken: var(--pro-sidebar);
+    --seed-raised: var(--pro-card);
+    --seed-danger: var(--pro-danger);
+    --seed-success: var(--pro-success);
+    --seed-warning: var(--pro-warning);
+    --seed-info: var(--pro-info);
+    --tint-mix: 0%;
+
+    /* L1 tiers the Pro designs name */
+    --ui-accent: var(--primary);
+    --ui-bg-app: var(--pro-background);
+    --ui-bg-sidebar: var(--pro-sidebar);
+    --ui-bg-card: var(--pro-card);
+    --ui-bg-elevated: var(--pro-card);
+    --ui-text-1: var(--pro-foreground);
+    --ui-text-2: var(--pro-muted-fg);
+    --ui-text-3: var(--pro-subtle);
+    --ui-stroke-1: var(--pro-input);
+    --ui-stroke-2: var(--pro-border);
+    --ui-hairline: var(--pro-border);
+    --ui-row-active: var(--pro-sidebar-accent);
+    --ui-accent-soft: var(--seed-pro-soft, var(--pro-soft));
+    --ui-link: var(--seed-pro-link, var(--pro-link));
+    --ui-focus: var(--ring);
+    --ui-ring-soft: color-mix(in srgb, var(--ring) 25%, transparent);
+    --ui-bubble-user: var(--pro-muted);
+    --ui-code-bg: var(--pro-code-bg);
+    --ui-success-soft: var(--pro-success-soft);
+    --ui-warning-soft: var(--pro-warning-soft);
+    --ui-warning-line: var(--pro-warning-line);
+    --ui-danger-soft: var(--pro-danger-soft);
+    --ui-danger-line: var(--pro-danger-line);
+    --ui-info-soft: var(--pro-info-soft);
+    --ui-syntax-fn: var(--ui-link);
+    --ui-syntax-number: var(--pro-info);
+    --ui-scrim: var(--pro-scrim);
+    --ui-shadow-xs: var(--pro-shadow-sm);
+    --ui-shadow-sm: var(--pro-shadow-sm);
+    --ui-shadow-float: var(--pro-shadow-float);
+    --ui-shadow-overlay: var(--pro-shadow-overlay);
+
+    /* L2 shadcn variables */
+    --background: var(--pro-background);
+    --foreground: var(--pro-foreground);
+    --card: var(--pro-card);
+    --card-foreground: var(--pro-foreground);
+    --popover: var(--pro-card);
+    --popover-foreground: var(--pro-foreground);
+    --primary: var(--seed-pro-accent, var(--pro-accent));
+    --primary-foreground: var(--seed-pro-accent-fg, var(--pro-accent-fg));
+    --secondary: var(--pro-muted);
+    --secondary-foreground: var(--pro-foreground);
+    --muted: var(--pro-muted);
+    --muted-foreground: var(--pro-muted-fg);
+    --accent: var(--pro-muted);
+    --accent-foreground: var(--pro-foreground);
+    --destructive: var(--pro-danger);
+    --destructive-foreground: var(--pro-danger-fg);
+    --success: var(--pro-success);
+    --success-foreground: var(--pro-success-fg);
+    --warning: var(--pro-warning);
+    --warning-foreground: var(--pro-warning-fg);
+    --info: var(--pro-info);
+    --info-foreground: var(--pro-background); /* white on #2563eb, near-black on #4f8cf7 */
+    --border: var(--pro-border);
+    --input: var(--pro-input);
+    --ring: var(--seed-pro-ring, var(--pro-ring));
+    --sidebar: var(--pro-sidebar);
+    --sidebar-foreground: var(--pro-sidebar-fg);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--pro-sidebar-accent);
+    --sidebar-accent-foreground: var(--pro-foreground);
+    --sidebar-border: var(--pro-border);
+    --sidebar-ring: var(--ring);
+    --chart-1: var(--primary);
+
+    /* type: Geist + Geist Mono, with the system stacks behind them */
+    --aiui-font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --aiui-font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+    /* layout: 256px sidebar (header 48px and the 760px reading column are
+       the classic values already) */
+    --ui-sidebar-w: 16rem;
+  }
+
+  /* Body copy: 15px on a 1.6 line height (classic: 1.55). */
+  html[data-aiui-shell="react"][data-aiui-tokens="pro"] .aiui-app {
+    line-height: 1.6;
+  }
+}
