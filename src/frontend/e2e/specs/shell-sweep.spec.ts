@@ -503,6 +503,24 @@ test('legacy pages share the gutter and width of a React page', async ({ page })
   }
 })
 
+test('Escape dismisses the collapsed rail tooltip, for keyboard focus and for hover', async ({ page }) => {
+  await page.goto('/overview')
+  expect((await waitForPage(page, 'overview')).state).toBe('ready')
+  const tip = page.locator('[data-aiui-nav-tip]')
+  await page.getByRole('button', { name: 'Collapse sidebar' }).click()
+  const link = page.locator('[data-aiui-shell-sidebar] a[data-page-id="logs"]')
+  await link.focus()
+  await expect(tip).toHaveText('Logs')
+  await page.keyboard.press('Escape')
+  await expect(tip).toHaveCount(0)
+  await expect(link, 'focus stays on the link').toBeFocused()
+  await page.locator('[data-aiui-shell-sidebar] a[data-page-id="usage"]').hover()
+  await expect(tip).toHaveText('Usage')
+  await page.keyboard.press('Escape')
+  await expect(tip).toHaveCount(0)
+  await page.getByRole('button', { name: 'Expand sidebar' }).click()
+})
+
 test('the collapsed rail shows a tooltip that never survives a collapse toggle', async ({ page }) => {
   await page.goto('/overview')
   expect((await waitForPage(page, 'overview')).state).toBe('ready')

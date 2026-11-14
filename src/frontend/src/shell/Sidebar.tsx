@@ -108,6 +108,17 @@ export function SidebarNav({
     const r = anchor.getBoundingClientRect()
     setTip({ title: page.title, top: r.top + r.height / 2, left: r.right + 8 })
   }, [])
+  // WCAG 1.4.13: Escape dismisses the tooltip without moving the pointer or
+  // focus (shown by hover or by keyboard focus on a rail link).
+  const tipShown = tip !== null
+  useEffect(() => {
+    if (!tipShown) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setTip(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [tipShown])
   const toggleGroup = (name: string, open: boolean) => {
     setFolds((cur) => {
       const next = { ...cur, [name]: !open }
