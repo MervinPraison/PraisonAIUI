@@ -18,19 +18,34 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import time
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from ._base import BaseFeatureProtocol
+from ._base import BaseFeatureProtocol, sdk_installed
+from ._paths import configured_data_dir
 
 logger = logging.getLogger(__name__)
+
+
+def _file_memory_dirs() -> List[Path]:
+    """Folders holding FileMemory JSON files.
+
+    ``<data dir>/memory`` when a data dir is configured; otherwise the
+    historical ``./.praisonai/memory`` and ``~/.praisonai/memory``.
+    """
+    base = configured_data_dir()
+    if base is not None:
+        return [base / "memory"]
+    return [Path.cwd() / ".praisonai" / "memory", Path.home() / ".praisonai" / "memory"]
 
 
 # ── Memory Protocol ──────────────────────────────────────────────────
@@ -214,21 +229,47 @@ class SDKMemoryManager(MemoryProtocol):
     def __init__(self, **config: Any) -> None:
         self._config = config
         self._sdk_memory = None
+        self._sdk_error: Optional[str] = None  # last init failure, for health()
         self._local_index: Dict[str, Dict[str, Any]] = {}
+        self._init_lock = threading.Lock()
+
+    def _sdk_config(self) -> Dict[str, Any]:
+        """SDK Memory config with its stores in the configured data dir.
+
+        The SDK defaults to ``./.praisonai`` (the working directory), which two
+        servers with different data dirs would share. Explicit config wins.
+        """
+        config = dict(self._config or {})
+        base = configured_data_dir()
+        if base is not None:
+            store = base / "memory"
+            config.setdefault("short_db", str(store / "short_term.db"))
+            config.setdefault("long_db", str(store / "long_term.db"))
+            config.setdefault("rag_db_path", str(store / "chroma_db"))
+        return config
 
     def _get_sdk_memory(self) -> Any:
         """Lazy-init SDK Memory."""
+        if self._sdk_memory is not None:
+            return self._sdk_memory
+        with self._init_lock:  # route handlers call this from worker threads
+            return self._init_sdk_memory()
+
+    def _init_sdk_memory(self) -> Any:
         if self._sdk_memory is None:
             try:
                 from praisonaiagents.memory import Memory
 
                 # SDK Memory requires config dict (can be empty for defaults)
-                self._sdk_memory = Memory(config=self._config or {})
+                self._sdk_memory = Memory(config=self._sdk_config())
+                self._sdk_error = None
                 logger.info("SDK Memory initialized: %s", type(self._sdk_memory).__name__)
             except ImportError:
+                self._sdk_error = "praisonaiagents not installed"
                 logger.warning("praisonaiagents not installed; falling back to local index")
                 return None
             except BaseException as e:
+                self._sdk_error = str(e) or type(e).__name__
                 logger.warning("SDK Memory init failed: %s; using local index", e)
                 return None
         return self._sdk_memory
@@ -413,14 +454,9 @@ class SDKMemoryManager(MemoryProtocol):
         return [m for m in self._local_index.values() if m.get("memory_type") == memory_type]
 
     def _read_file_memory_entries(self, memory_type: str = "all") -> List[Dict[str, Any]]:
-        """Read memory entries from FileMemory JSON files (.praisonai/memory/)."""
+        """Read memory entries from FileMemory JSON files (see :func:`_file_memory_dirs`)."""
         entries = []
-        # Look for memory JSON files in .praisonai/memory/
-        memory_dirs = [
-            Path.cwd() / ".praisonai" / "memory",
-            Path.home() / ".praisonai" / "memory",
-        ]
-        for mem_dir in memory_dirs:
+        for mem_dir in _file_memory_dirs():
             if not mem_dir.exists():
                 continue
             for json_file in mem_dir.rglob("*.json"):
@@ -544,17 +580,36 @@ class SDKMemoryManager(MemoryProtocol):
         return super().get_context(query, limit=limit)
 
     def health(self) -> Dict[str, Any]:
-        sdk = None
-        try:
-            sdk = self._get_sdk_memory()
-        except BaseException:
-            sdk = None
+        # Report what is known; never start the SDK here. health() backs
+        # /api/features and /api/health, and starting SDK Memory opens its
+        # stores and vector DB on the event loop (seconds on first use).
+        if self._sdk_memory is not None:
+            sdk_ok = True
+        elif self._sdk_error is not None:
+            sdk_ok = False
+        else:
+            sdk_ok = sdk_installed()
         return {
-            "status": "ok" if sdk is not None else "degraded",
+            "status": "ok" if sdk_ok else "degraded",
             "provider": "SDKMemoryManager",
-            "sdk_available": sdk is not None,
+            "sdk_available": sdk_ok,
+            "sdk_initialized": self._sdk_memory is not None,
             "total_indexed": len(self._local_index),
         }
+
+
+# Memory calls block (SQLite, vector store, embedding calls). Route handlers
+# run them in a worker thread so the event loop keeps serving other pages,
+# and one at a time, as they ran before on the loop.
+_handler_lock = threading.Lock()
+
+
+async def _off_loop(fn: Any, *args: Any, **kwargs: Any) -> Any:
+    def _call() -> Any:
+        with _handler_lock:
+            return fn(*args, **kwargs)
+
+    return await run_in_threadpool(_call)
 
 
 # ── Manager singleton ────────────────────────────────────────────────
@@ -648,13 +703,14 @@ class MemoryFeature(BaseFeatureProtocol):
     async def _list(self, request: Request) -> JSONResponse:
         mgr = get_memory_manager()
         memory_type = request.query_params.get("type", "all")
-        items = mgr.list_all(memory_type=memory_type)
+        items = await _off_loop(mgr.list_all, memory_type=memory_type)
         return JSONResponse({"memories": items, "count": len(items)})
 
     async def _add(self, request: Request) -> JSONResponse:
         mgr = get_memory_manager()
         body = await request.json()
-        entry = mgr.store(
+        entry = await _off_loop(
+            mgr.store,
             text=body.get("text", ""),
             memory_type=body.get("memory_type", "long"),
             session_id=body.get("session_id"),
@@ -666,7 +722,8 @@ class MemoryFeature(BaseFeatureProtocol):
     async def _search(self, request: Request) -> JSONResponse:
         mgr = get_memory_manager()
         body = await request.json()
-        results = mgr.search(
+        results = await _off_loop(
+            mgr.search,
             query=body.get("query", ""),
             memory_type=body.get("memory_type", "all"),
             limit=body.get("limit", 10),
@@ -676,7 +733,8 @@ class MemoryFeature(BaseFeatureProtocol):
     async def _get_context(self, request: Request) -> JSONResponse:
         mgr = get_memory_manager()
         body = await request.json()
-        context = mgr.get_context(
+        context = await _off_loop(
+            mgr.get_context,
             query=body.get("query", ""),
             limit=body.get("limit", 5),
         )
@@ -685,13 +743,13 @@ class MemoryFeature(BaseFeatureProtocol):
     async def _clear(self, request: Request) -> JSONResponse:
         mgr = get_memory_manager()
         memory_type = request.query_params.get("type", "all")
-        count = mgr.clear(memory_type=memory_type)
+        count = await _off_loop(mgr.clear, memory_type=memory_type)
         return JSONResponse({"cleared": count})
 
     async def _get(self, request: Request) -> JSONResponse:
         mgr = get_memory_manager()
         mem_id = request.path_params["memory_id"]
-        entry = mgr.get(mem_id)
+        entry = await _off_loop(mgr.get, mem_id)
         if not entry:
             return JSONResponse({"error": "Memory not found"}, status_code=404)
         return JSONResponse(entry)
@@ -699,7 +757,7 @@ class MemoryFeature(BaseFeatureProtocol):
     async def _delete(self, request: Request) -> JSONResponse:
         mgr = get_memory_manager()
         mem_id = request.path_params["memory_id"]
-        if not mgr.delete(mem_id):
+        if not await _off_loop(mgr.delete, mem_id):
             return JSONResponse({"error": "Memory not found"}, status_code=404)
         return JSONResponse({"deleted": mem_id})
 
@@ -707,7 +765,7 @@ class MemoryFeature(BaseFeatureProtocol):
         """GET /api/memory/session/{session_id} — list memories for a session."""
         mgr = get_memory_manager()
         session_id = request.path_params["session_id"]
-        all_items = mgr.list_all()
+        all_items = await _off_loop(mgr.list_all)
         # Filter by session_id
         items = [m for m in all_items if m.get("session_id") == session_id]
         return JSONResponse({"memories": items, "count": len(items), "session_id": session_id})
@@ -715,7 +773,7 @@ class MemoryFeature(BaseFeatureProtocol):
     async def _status(self, request: Request) -> JSONResponse:
         """GET /api/memory/status — memory stats and health."""
         mgr = get_memory_manager()
-        items = mgr.list_all()
+        items = await _off_loop(mgr.list_all)
         by_type: Dict[str, int] = {}
         for m in items:
             t = m.get("memory_type", "unknown")

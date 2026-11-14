@@ -36,7 +36,19 @@ def get_engine_token() -> Optional[str]:
 
 
 def get_projects_dir() -> Path:
+    """Where video projects live.
+
+    Precedence: ``set_video_engine(projects_dir=)`` > ``$PRAISONAI_PROJECTS_DIR``
+    > the configured data directory (``$PRAISONAI_HOME`` / ``$AIUI_DATA_DIR``) +
+    ``/projects`` > ``~/.praisonai/projects`` (used only when no data directory
+    is configured; see ``features._paths``). The engine sidecar is always given
+    absolute project paths, so it does not need to share this folder.
+    """
     if _projects_dir is not None:
         return _projects_dir
-    raw = os.environ.get("PRAISONAI_PROJECTS_DIR", "~/.praisonai/projects")
-    return Path(raw).expanduser()
+    raw = os.environ.get("PRAISONAI_PROJECTS_DIR", "").strip()
+    if raw:
+        return Path(raw).expanduser()
+    from praisonaiui.features._paths import feature_data_path
+
+    return feature_data_path("projects", Path.home() / ".praisonai" / "projects")

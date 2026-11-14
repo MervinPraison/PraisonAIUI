@@ -27,7 +27,7 @@ For **Chat** to edit scenes, install `praisonaiagents` and set `OPENAI_API_KEY`.
 |----------|---------|---------|
 | `VIDEO_ENGINE_URL` | `http://127.0.0.1:3921` | HTTP API base URL |
 | `VIDEO_ENGINE_TOKEN` | (none) | Optional Bearer token forwarded to the engine |
-| `PRAISONAI_PROJECTS_DIR` | `~/.praisonai/projects` | On-disk project roots |
+| `PRAISONAI_PROJECTS_DIR` | `<data dir>/projects` when `PRAISONAI_HOME` or `AIUI_DATA_DIR` is set, else `~/.praisonai/projects` | On-disk project roots |
 | `PRAISONAI_VIDEO_CLI` | (auto-detect) | Path to `praisonai-video` or `dist/cli.js` for subprocess fallback |
 | `VIDEO_STUDIO_PROJECT_ID` | (auto) | Active project for agent tools when not passed explicitly |
 | `PRAISONAI_MODEL` | `gpt-4o-mini` | LLM for Video Editor agent in the example app |
