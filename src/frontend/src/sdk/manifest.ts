@@ -96,6 +96,8 @@ export interface ShellPage {
   title: string
   kind: ShellPageKind
   icon?: string
+  /** A lucide icon name for the shell's sidebar, preferred over `icon` (built-in pages set it). */
+  navIcon?: string
   group?: string
   order?: number
   description?: string

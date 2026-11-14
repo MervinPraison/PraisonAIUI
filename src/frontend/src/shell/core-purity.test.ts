@@ -44,7 +44,6 @@ const NOT_A_PAGE_ID: Record<string, readonly string[]> = {
  * added to it.
  */
 const KNOWN_DEBT: Record<string, readonly string[]> = {
-  'shell/icons.ts': ['*'], // ICON_BY_PAGE_ID → manifest icon names
   'shell/nav.ts': ['chat', 'chat-canvas', 'code-studio', 'explorer'], // FULL_BLEED_IDS → page.layout
 }
 
