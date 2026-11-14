@@ -65,15 +65,16 @@ function findPython() {
   fail(`no Python >= 3.10 found (tried ${candidates.join(', ')}); set AIUI_E2E_PYTHON`)
 }
 
-/** Block until Python can bind `port` (as `aiui serve` does), or fail after 90 s. */
+/** Block until `aiui serve` would keep `port` (its _can_bind probe), or fail after 90 s. */
 function waitUntilBindable(python, port, env) {
   const probe = [
     'import socket, sys, time',
     'deadline = time.time() + 90',
     'while True:',
     '    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)',
+    '    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)',
     '    try:',
-    `        s.bind(("", ${port}))`,
+    `        s.bind(("127.0.0.1", ${port}))`,
     '        sys.exit(0)',
     '    except OSError:',
     '        if time.time() > deadline: sys.exit(1)',
@@ -128,10 +129,10 @@ if (opts.docs) {
     stdio: ['ignore', 'ignore', 'inherit'],
   })
   if (build.status !== 0) fail('`aiui build` failed for e2e/fixtures/docs-site')
-  // `aiui serve` moves to the next free port when its port cannot be bound,
-  // and Playwright would then wait for the wrong port until it times out. A
-  // port is also unbindable for a while after a previous run's connections
-  // closed (TIME_WAIT), so wait for it the way `aiui serve` checks it.
+  // `aiui serve` moves to the next free port (with a warning) when another
+  // server still listens on its port, and Playwright would then wait for the
+  // wrong port until it times out. Wait until the port is free the way
+  // `aiui serve` checks it (TIME_WAIT leftovers do not count).
   waitUntilBindable(python, opts.port, env)
   command = ['-m', 'praisonaiui.cli', 'serve', '--no-build', '--output', site, '--port', String(opts.port), ...opts.rest]
 } else {

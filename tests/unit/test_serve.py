@@ -126,3 +126,60 @@ class TestPortHandling:
 
         runner = CliRunner()
         # Just verify the option is accepted (would need mock server to test fully)
+
+
+class TestServePortProbe:
+    """`aiui serve` / `aiui run` pick the port the way uvicorn binds it."""
+
+    def test_listening_port_is_skipped(self):
+        import socket
+
+        from praisonaiui.cli import _can_bind, _find_available_port
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", 0))
+            s.listen()
+            taken = s.getsockname()[1]
+            assert not _can_bind("127.0.0.1", taken)
+            moved = _find_available_port("127.0.0.1", taken)
+            assert moved != taken and moved > taken
+
+    def test_free_port_is_kept(self):
+        import socket
+
+        from praisonaiui.cli import _find_available_port
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", 0))
+            free = s.getsockname()[1]
+        assert _find_available_port("127.0.0.1", free) == free
+
+    def test_time_wait_does_not_move_the_port(self):
+        """Closed connections from a previous run (TIME_WAIT) used to make
+        `aiui serve` silently move to the next port."""
+        import os
+        import socket
+
+        import pytest
+
+        from praisonaiui.cli import _can_bind
+
+        if os.name == "nt":
+            pytest.skip("TIME_WAIT probing is POSIX behaviour")
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(("127.0.0.1", 0))
+        server.listen()
+        port = server.getsockname()[1]
+        client = socket.create_connection(("127.0.0.1", port))
+        conn, _ = server.accept()
+        conn.close()  # the server side closes first, so it holds TIME_WAIT
+        client.close()
+        server.close()
+        assert _can_bind("127.0.0.1", port)
+
+    def test_moved_port_message_names_both_ports(self):
+        from praisonaiui.cli import _port_moved_message
+
+        msg = _port_moved_message("127.0.0.1", 8000, 8001)
+        assert "8000" in msg and "8001" in msg and "in use" in msg

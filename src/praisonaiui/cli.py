@@ -45,6 +45,49 @@ def _icon(symbol: str, fallback: str) -> str:
     return symbol if _supports_unicode() else fallback
 
 
+def _can_bind(host: str, port: int) -> bool:
+    """True when uvicorn could listen on ``host:port``.
+
+    Probes the way uvicorn binds (the requested host, and SO_REUSEADDR on
+    POSIX, which asyncio sets by default), so connections a previous run left
+    in TIME_WAIT do not make a free port look taken. Windows keeps the plain
+    bind: there SO_REUSEADDR would let a second listener steal the port.
+    """
+    import os
+    import socket
+
+    try:
+        infos = socket.getaddrinfo(
+            host or None, port, type=socket.SOCK_STREAM, flags=socket.AI_PASSIVE
+        )
+    except socket.gaierror:
+        return False
+    family, socktype, proto, _canon, addr = infos[0]
+    try:
+        with socket.socket(family, socktype, proto) as sock:
+            if os.name != "nt":
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind(addr)
+    except OSError:
+        return False
+    return True
+
+
+def _find_available_port(host: str, start_port: int, max_attempts: int = 10) -> int:
+    """The first port from ``start_port`` that :func:`_can_bind` accepts."""
+    for port in range(start_port, start_port + max_attempts):
+        if _can_bind(host, port):
+            return port
+    raise OSError(f"No available port found in range {start_port}-{start_port + max_attempts - 1}")
+
+
+def _port_moved_message(host: str, port: int, actual_port: int) -> str:
+    return (
+        f"[yellow]{_icon('⚠️', '[WARNING]')}[/yellow] Port {port} is already in use on "
+        f"{host}; serving on port {actual_port} instead"
+    )
+
+
 def _load_env_files() -> int:
     """Load environment variables from the standard PraisonAI ``.env`` files.
 
@@ -488,8 +531,6 @@ def serve(
     ),
 ) -> None:
     """Serve the site locally with a production-ready HTTP server."""
-    import socket
-
     # Build first unless --no-build
     if not no_build:
         console.print(f"[yellow]{_icon('⏳', '...')}[/yellow] Building manifests...")
@@ -502,27 +543,14 @@ def serve(
         raise typer.Exit(code=2)
 
     # Find available port
-    def find_available_port(start_port: int, max_attempts: int = 10) -> int:
-        for i in range(max_attempts):
-            test_port = start_port + i
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                try:
-                    s.bind(("", test_port))
-                    return test_port
-                except OSError:
-                    continue
-        raise OSError(f"No available port found in range {start_port}-{start_port + max_attempts}")
-
     try:
-        actual_port = find_available_port(port)
+        actual_port = _find_available_port(host, port)
     except OSError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=4)
 
     if actual_port != port:
-        console.print(
-            f"[yellow]{_icon('⚠️', '[WARNING]')}[/yellow] Port {port} in use, using {actual_port}"
-        )
+        console.print(_port_moved_message(host, port, actual_port))
 
     # Build Starlette app with security
     from starlette.applications import Starlette
@@ -1489,7 +1517,6 @@ def run(
         aiui run config.yaml                 # YAML-defined chat agent
     """
     import importlib.util
-    import socket
     import sys
 
     if style not in UI_STYLES:
@@ -1668,27 +1695,14 @@ def run(
         (output / "docs-nav.json").write_text('{"items": []}', encoding="utf-8")
 
     # Find available port
-    def find_available_port(start_port: int, max_attempts: int = 10) -> int:
-        for i in range(max_attempts):
-            test_port = start_port + i
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                try:
-                    s.bind(("", test_port))
-                    return test_port
-                except OSError:
-                    continue
-        raise OSError(f"No available port found in range {start_port}-{start_port + max_attempts}")
-
     try:
-        actual_port = find_available_port(port)
+        actual_port = _find_available_port(host, port)
     except OSError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=4)
 
     if actual_port != port:
-        console.print(
-            f"[yellow]{_icon('⚠️', '[WARNING]')}[/yellow] Port {port} in use, using {actual_port}"
-        )
+        console.print(_port_moved_message(host, port, actual_port))
 
     static_dir = output if output.exists() else None
 
