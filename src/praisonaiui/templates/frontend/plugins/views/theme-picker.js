@@ -145,25 +145,36 @@ function applyThemeToShell(state, vars, setMode) {
   }
   if (RGB_TRIPLE.test(vars['--db-accent-rgb'] || '')) root.style.setProperty('--db-accent-rgb', vars['--db-accent-rgb']);
   if (vars['--db-radius']) root.style.setProperty('--radius', vars['--db-radius']);
-  // Only an explicit mode pick changes the shell's mode: the server's mode
-  // (reported with every pick) is not the shell's, which may be 'system'.
-  if (setMode && (state.mode === 'dark' || state.mode === 'light')) {
-    let previous = null;
+  if (setMode) persistMode(state.mode);
+}
+
+// An explicit mode pick is the viewer's choice: stored under the key the
+// shell (next-themes), the dashboard (dashboard.js applyColorMode) and the
+// server's bootstrap script read, so it survives a reload. The server's mode
+// (reported with every pick) is not the viewer's, which may be 'system', so
+// only a pick calls this.
+function persistMode(mode) {
+  if (mode !== 'dark' && mode !== 'light') return;
+  let previous = null;
+  try {
+    previous = localStorage.getItem(SHELL_MODE_KEY);
+    localStorage.setItem(SHELL_MODE_KEY, mode);
+  } catch (e) { /* storage unavailable */ }
+  // next-themes and dashboard.js follow `storage` events for the key
+  // (normally sent by other tabs), so the page switches at once.
+  if (previous !== mode) {
     try {
-      previous = localStorage.getItem(SHELL_MODE_KEY);
-      localStorage.setItem(SHELL_MODE_KEY, state.mode);
-    } catch (e) { /* storage unavailable */ }
-    // next-themes follows `storage` events for its key (normally sent by
-    // other tabs), so the shell's mode toggle stays in step.
-    if (previous !== state.mode) {
-      try {
-        window.dispatchEvent(new StorageEvent('storage', { key: SHELL_MODE_KEY, oldValue: previous, newValue: state.mode }));
-      } catch (e) { /* StorageEvent unsupported */ }
-    }
+      window.dispatchEvent(new StorageEvent('storage', { key: SHELL_MODE_KEY, oldValue: previous, newValue: mode }));
+    } catch (e) { /* StorageEvent unsupported */ }
   }
 }
 
-// The shell's explicit mode, else the one on screen ('system' resolves to it).
+// The dashboard's own variables a pick sets inline: accent and radius. Light
+// and dark come from the stylesheets (data-db-mode on <html>), so the
+// server's mode variables are never inlined over the viewer's mode.
+const DASHBOARD_PICK_VARS = ['--db-accent', '--db-accent-glow', '--db-accent-rgb', '--db-radius'];
+
+// The viewer's explicit mode, else the one on screen ('system' resolves to it).
 function shellMode() {
   let stored = null;
   try { stored = localStorage.getItem(SHELL_MODE_KEY); } catch (e) { /* storage unavailable */ }
@@ -178,14 +189,17 @@ function applyThemeToDOM(state, { setMode = false } = {}) {
   if (inReactShell()) {
     applyThemeToShell(state, vars, setMode);
   } else {
-    for (const [key, val] of Object.entries(vars)) {
-      root.style.setProperty(key, val);
+    for (const key of DASHBOARD_PICK_VARS) {
+      if (vars[key]) root.style.setProperty(key, vars[key]);
     }
+    if (setMode) persistMode(state.mode);
   }
   // Also save to localStorage
-  localStorage.setItem('aiui-theme-preset', state.preset);
-  localStorage.setItem('aiui-theme-mode', state.mode);
-  localStorage.setItem('aiui-theme-radius', state.radius);
+  try {
+    localStorage.setItem('aiui-theme-preset', state.preset);
+    localStorage.setItem('aiui-theme-mode', state.mode);
+    localStorage.setItem('aiui-theme-radius', state.radius);
+  } catch (e) { /* storage unavailable */ }
 }
 
 async function fetchState() {
@@ -299,8 +313,9 @@ function paint() {
 
   const presets = _state.presets || {};
   const currentPreset = _state.preset || 'indigo';
-  // In the React shell the mode is the shell's own (next-themes), not the server's.
-  const currentMode = inReactShell() ? shellMode() : (_state.mode || 'dark');
+  // The mode on screen is the viewer's (stored choice, else the app default or
+  // the OS), not the server's.
+  const currentMode = shellMode();
   const currentRadius = _state.radius || 'md';
   const modes = _state.modes || ['dark', 'light'];
   const radii = _state.radii || ['none', 'sm', 'md', 'lg', 'xl'];
@@ -460,10 +475,14 @@ export async function render(el) {
   el.innerHTML = ROOT_HTML;
   const release = guardMount(el);
 
-  // Restore saved theme from localStorage
-  const savedPreset = localStorage.getItem('aiui-theme-preset');
-  const savedMode = localStorage.getItem('aiui-theme-mode');
-  const savedRadius = localStorage.getItem('aiui-theme-radius');
+  // Restore saved theme from localStorage. Not the mode: the viewer's mode is
+  // applied on load by the page itself (persistMode / applyColorMode).
+  let savedPreset = null;
+  let savedRadius = null;
+  try {
+    savedPreset = localStorage.getItem('aiui-theme-preset');
+    savedRadius = localStorage.getItem('aiui-theme-radius');
+  } catch (e) { /* storage unavailable */ }
 
   try {
     await fetchState();
@@ -471,9 +490,6 @@ export async function render(el) {
     // If saved state differs from server, apply saved state
     if (_state && savedPreset && savedPreset !== _state.preset) {
       await applyPreset(savedPreset);
-    }
-    if (_state && savedMode && savedMode !== _state.mode && !inReactShell()) {
-      await applyMode(savedMode);
     }
     if (_state && savedRadius && savedRadius !== _state.radius) {
       await applyRadius(savedRadius);

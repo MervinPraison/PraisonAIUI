@@ -17,7 +17,7 @@ Architecture:
     │  register_page()  →  GET /api/pages  →  sidebar menu    │
     │  @aiui.page()     →  GET /api/pages  →  sidebar menu    │
     │                                                          │
-    │  dashboard.js     →  BUILTIN_VIEWS   →  view module     │
+    │  dashboard.js     →  manifest page   →  views/<id>.js   │
     │  window.aiui.registerView()          →  custom view      │
     └──────────────────────────────────────────────────────────┘
 
@@ -80,7 +80,8 @@ async def metrics_page():
 #   approvals, api, agents, skills, nodes, config, auth, logs, debug
 #
 # The sidebar is built from GET /api/pages response.
-# View modules auto-bind via the BUILTIN_VIEWS registry in dashboard.js.
+# View modules bind by file name: views/<page id>.js for built-in pages, from
+# /api/shell/manifest (an app page under a built-in id renders its own content).
 
 app = create_app()
 

@@ -172,10 +172,10 @@ class TestLegacyPathUnchanged:
 
     def test_bundle_uses_the_unchanged_selectpage_cache_bust(self):
         # Legacy selectPage keeps ?v=Date.now(); host mounts use the build id.
-        assert "BUILTIN_VIEWS[pageId] + '?v=' + Date.now()" in _function_body("selectPage")
+        assert "viewModule + '?v=' + Date.now()" in _function_body("selectPage")
         body = _code_only(_function_body("_mountViewBody"))
         assert "Date.now()" not in body
-        assert "_importHostView(pageId)" in body
+        assert "_importHostView(pageId, viewModule)" in body
         url = _code_only(_function_body("_hostViewUrl"))
         assert "Date.now()" not in url
         assert "window.__AIUI_BUILD__" in url
@@ -552,6 +552,9 @@ if (scenario === 'host') {
     },
   });
   window.__AIUI_BUILD__ = 'b1';
+  // The view of a built-in page comes from the server's manifest.
+  routes['/api/shell/manifest'] = { legacy: { viewsBase: '/plugins/views/' },
+    pages: [{ id: 'overview', kind: 'legacy', source: 'builtin' }] };
   const mod = await import(pathToFileURL(dashPath).href);
   await mod.initHostRuntime({ navigate: () => Promise.resolve(), palette: false, approvalUi: 'event-only' });
   const host = document.createElement('div');
@@ -567,7 +570,7 @@ if (scenario === 'host') {
   out.second = await mountOnce();  // a new URL: the view loads
   out.third = await mountOnce();   // cached in VIEW_REGISTRY: no import at all
   out.viewEvals = globalThis.__viewEvals;
-  // Ids that are Object.prototype keys are not built-in views.
+  // Ids that are Object.prototype keys are not pages.
   const el = document.createElement('div'); host.appendChild(el);
   await mod.mountView('constructor', el, {});
   out.requestsAfterProtoId = out.viewRequests.length;
