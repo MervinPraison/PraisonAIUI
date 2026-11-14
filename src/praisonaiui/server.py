@@ -1216,6 +1216,8 @@ _FALLBACK_EXTERNALS: dict[str, list[str]] = {
         "SDK_FEATURES", "navigate", "notify", "fetchJson", "useManifest",
         "registerCommand", "onActivate", "getPageId", "usePageId", "useThemeMode",
         "dismiss", "registerSettingsSection", "registerNavGroup", "registerThemePreset",
+        "registerLayout", "getLayouts", "useLayout", "setLayout", "provideLayoutData",
+        "useLayoutData",
     ],
 }
 
