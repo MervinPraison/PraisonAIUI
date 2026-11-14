@@ -826,7 +826,29 @@ def resolve_shell_style(style: str) -> str:
         return "app"
     if mode == "legacy" and style == "app":
         return "dashboard"
+    if mode in ("app", "react") and style != "app":
+        _warn_shell_ignored(style)
     return style
+
+
+_shell_ignored_warned: set[str] = set()
+
+
+def _warn_shell_ignored(style: str) -> None:
+    """Say once per style that ``AIUI_SHELL=app`` did nothing.
+
+    ``aiui run`` picks ``chat`` for an app with ``@aiui.reply``, and only the
+    ``dashboard`` style is rewritten, so the shell (and plugin pages) never
+    appeared and nothing said why.
+    """
+    if style in _shell_ignored_warned:
+        return
+    _shell_ignored_warned.add(style)
+    logger.warning(
+        "%s=app ignored: style is %r (only 'dashboard' is switched); use --style app",
+        SHELL_ENV,
+        style,
+    )
 
 
 _registry: Optional[PluginRegistry] = None

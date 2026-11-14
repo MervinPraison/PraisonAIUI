@@ -1828,6 +1828,15 @@ def run(
                 console.print(f"[cyan]ℹ️[/cyan] Auto-detected style: [bold]{detected}[/bold]")
             style = detected
 
+    if os.environ.get("AIUI_SHELL", "").strip().lower() in ("app", "react") and style not in (
+        "app",
+        "dashboard",
+    ):
+        console.print(
+            f"[yellow]Note:[/yellow] AIUI_SHELL=app is ignored for the {style!r} style "
+            "(it only switches 'dashboard'); use --style app for the app shell."
+        )
+
     # ── Resolve output directory relative to app file ──────────────
     # When using the default output ("aiui"), resolve it relative to the
     # app file's directory so `aiui run examples/foo/app.py` won't pick

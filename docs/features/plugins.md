@@ -13,8 +13,13 @@ pip install -e examples/plugins/aiui-hello-plugin
 aiui plugins list          # name, version, status, load error
 aiui plugins doctor        # load, SDK version, static files + SRI, shadowed ids
 aiui hello greet Ada       # a command contributed by the plugin
-AIUI_SHELL=app aiui run app.py
+aiui run app.py --style app
 ```
+
+`AIUI_SHELL=app` switches only the `dashboard` style to the app shell. An
+`app.py` with `@aiui.reply` runs in the `chat` style, which `AIUI_SHELL`
+leaves alone (the server logs `AIUI_SHELL=app ignored: style is 'chat'`), so
+pass `--style app` (or call `aiui.set_style("app")`).
 
 Then open `/hello` (a React page) and `/hello-blocks` (a server-driven page).
 
