@@ -328,19 +328,14 @@ gap; if you touch one, leave it smaller.**
 | Gap | Status on `main` | Rule for new code |
 |---|---|---|
 | G5 | Closed: icons, full-bleed layout and group order come from the manifest (`navIcon`, `page.layout`, `layout.groups`); `KNOWN_DEBT` is empty | New icons and layouts go in manifest data (catalog fields) |
-| G6 | `server.py` is host and features at once (4,471 lines, page APIs such as `/api/overview`, `/api/config`, `/api/logs` in `create_app`) | R11; extract one domain per PR with a route-table snapshot, re-exporting moved names |
-| G9 | About 15 registration paths; `register_page` and dashboard-plugin folders are not plugin records | R3: new code uses the supported column only |
-| G10 | A plugin can take a built-in id or feature name once that built-in is disabled (tested); while both are enabled the built-in wins, and app/dashboard-plugin adapters follow their own precedence | Replace a built-in by disabling it, not by a new override flag |
+| G6 | Narrowed: every page-owned route left `create_app` and is a built-in's `host_routes` (`builtin.overview` `GET /api/overview`, `builtin.feedback` `GET /api/feedback`, `builtin.jobs` the `/api/jobs` proxy, `builtin.mcp`, `builtin.debug`, `builtin.logs`), so disabling the built-in unmounts it; `tests/unit/test_route_table_snapshot.py` pins the default route table. Open: `server.py` is still host and handlers at once (4,610 lines); the routes left in `create_app` are core (health, auth, chat protocol, `/api/status`, `POST /api/feedback`, `/api/config`, `/api/gateway/status`, manifest, page registry; listed in `docs/features/plugins.md`) | R11; a new page API goes in a feature or `host_routes`, never in `create_app`; a route change updates the snapshot on purpose |
+| G9 | Narrowed: `register_page` / `@aiui.page` rows, built-ins, plugin pages and dashboard-plugin folders each become a `PageSpec` record (`builtin/page_sources.py`) and one merge (app > built-in > plugin > folder) feeds `/api/pages`, the shell manifest and page navigations. Open: those app and folder records are built by the host, not held by `PluginRegistry` (it has no origin for them yet), and `set_pages` / `pages.*` still filter the page table rather than act as `ExtensionPolicy` | R3: new code uses the supported column only |
+| G10 | A plugin can take a built-in id or feature name once that built-in is disabled (tested); while both are enabled the built-in wins; every page source follows one precedence (app > built-in > plugin > folder) in `/api/pages` and the manifest alike | Replace a built-in by disabling it, not by a new override flag |
 | G11 | The legacy view list is hardcoded in `dashboard.js`; manifest `module` for legacy pages is **(planned)** | Do not add views to the map for app-shell-only needs |
 | G13 | `AiuiPlugin` has no hooks for settings, theme, nav groups, middleware or icons | Add a hook only with a live consumer, in the PR that needs it |
 
 Other known issues on `main` (not regressions to block on, but do not copy):
 
-- `pages.enabled` / `pages.disabled` in `config.yaml` is ignored: `create_app`
-  calls `.get("pages")` on `YAMLConfigStore`, which only has `get_section`, and
-  the error is swallowed. `extensions.disabled: [builtin.<name>]` works.
-- `create_app` imports `jobs_proxy`, which imports `httpx` at module top, while
-  `httpx` is only in the `dev` extra (R10).
 - The browser `builtin.approvals` activates whatever the record's status (R2).
 - The legacy-parity screenshot comparison is not enforced in CI until Linux
   baselines exist (the DOM checks are).
