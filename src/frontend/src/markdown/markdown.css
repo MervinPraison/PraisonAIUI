@@ -20,3 +20,107 @@
     color: inherit !important;
   }
 }
+
+/*
+ * Flat, not boxed (DESIGN.md). Streamdown frames code, diagrams and tables as a
+ * bordered panel holding a second bordered box: keep one surface (the outer
+ * panel stays, the inner box loses its frame). Plain CSS rather than Tailwind
+ * arbitrary-variant classes on the root, which cost bytes in the size-capped
+ * renderer chunk. Unlayered, so they beat Streamdown's own utility classes.
+ */
+.aiui-markdown [data-streamdown='code-block'] {
+  gap: 0;
+  padding: 0;
+}
+.aiui-markdown [data-streamdown='code-block-header'] {
+  padding-inline: calc(var(--spacing) * 3);
+}
+/* The copy/download bar floats at the top right: keep it inside the 32px header
+   row so it never covers the end of the first code line. */
+.aiui-markdown [data-streamdown='code-block'] > .absolute {
+  top: 3px;
+}
+.aiui-markdown [data-streamdown='code-block-actions'] {
+  padding-block: 0;
+}
+.aiui-markdown [data-streamdown='code-block-body'] {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 calc(var(--spacing) * 4) calc(var(--spacing) * 3);
+}
+.aiui-markdown [data-streamdown='mermaid-block'] > .overflow-hidden {
+  border: 0;
+  background: transparent;
+}
+
+/* Overlay controls (diagram zoom, table copy) would hide a wide chart's first
+   node or a table's last header: with a pointer they show on hover; keyboard
+   focus and touch screens always see them. */
+.aiui-markdown [data-streamdown='mermaid'] > div > .absolute,
+.aiui-markdown [data-streamdown='table-wrapper'] > div:not(.border-collapse) {
+  transition: opacity 100ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .aiui-markdown [data-streamdown='mermaid'] > div > .absolute,
+  .aiui-markdown [data-streamdown='table-wrapper'] > div:not(.border-collapse) {
+    transition: none;
+  }
+}
+@media (hover: hover) {
+  .aiui-markdown [data-streamdown='mermaid'] > div > .absolute,
+  .aiui-markdown [data-streamdown='table-wrapper'] > div:not(.border-collapse) {
+    opacity: 0;
+  }
+  .aiui-markdown [data-streamdown='mermaid-block']:hover [data-streamdown='mermaid'] > div > .absolute,
+  .aiui-markdown [data-streamdown='table-wrapper']:hover > div:not(.border-collapse) {
+    opacity: 1;
+  }
+}
+.aiui-markdown [data-streamdown='mermaid'] > div > .absolute:focus-within,
+.aiui-markdown [data-streamdown='table-wrapper'] > div:not(.border-collapse):focus-within {
+  opacity: 1;
+}
+
+/* Tables: one hairline frame, tabular numerals; the actions sit over the
+   top-right corner (as code blocks keep theirs in the header row) instead of
+   a line of their own above the table. */
+.aiui-markdown [data-streamdown='table-wrapper'] {
+  position: relative;
+  gap: var(--spacing);
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.aiui-markdown [data-streamdown='table-wrapper'] > .border-collapse {
+  border-radius: var(--radius-lg);
+  background: transparent;
+}
+.aiui-markdown [data-streamdown='table-wrapper'] > div:not(.border-collapse) {
+  position: absolute;
+  top: calc(var(--spacing) * 1.5);
+  right: calc(var(--spacing) * 1.5);
+  z-index: 10;
+  border-radius: var(--radius-md, 6px);
+  background: color-mix(in oklab, var(--background) 90%, transparent);
+}
+.aiui-markdown table {
+  font-variant-numeric: tabular-nums;
+}
+/* Docs tables scroll sideways instead of wrapping cells word by word; only
+   the last column (usually prose) wraps. */
+.aiui-markdown-docs td,
+.aiui-markdown-docs th {
+  white-space: nowrap;
+}
+.aiui-markdown-docs td:last-child {
+  white-space: normal;
+  min-width: 12rem;
+}
+
+/* index.css tints `.prose :not(pre) > code` (the docs marker); inline code
+   keeps the text colour. */
+.aiui-markdown [data-streamdown='inline-code'] {
+  background-color: var(--color-code);
+  color: inherit;
+}

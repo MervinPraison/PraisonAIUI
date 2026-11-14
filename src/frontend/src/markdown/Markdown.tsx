@@ -121,42 +121,8 @@ const LINKS_AS_ANCHORS = { enabled: false } // real <a>; policy lives in the `a`
 // the `prose` class only as the legacy plugins' "React owns this" marker
 // (Content.tsx), and @tailwindcss/typography skips everything under not-prose.
 const ROOT_CLASS = 'aiui-markdown not-prose min-w-0 break-words text-base leading-[1.55] text-foreground'
-/**
- * Flat, not boxed (DESIGN.md): Streamdown frames code, diagrams and tables as
- * a bordered panel holding a second bordered box. Keep one surface: the outer
- * panel stays, the inner box loses its frame. Tables get tabular numerals and
- * a single hairline frame. Inline code uses the inline-code token.
- */
-const BLOCK_CLASS = [
-    '[&_[data-streamdown=code-block]]:gap-0 [&_[data-streamdown=code-block]]:p-0',
-    '[&_[data-streamdown=code-block-header]]:px-3',
-    // The copy/download bar floats at the top right: keep it inside the 32px
-    // header row so it never covers the end of the first code line.
-    '[&_[data-streamdown=code-block]>.absolute]:top-[3px] [&_[data-streamdown=code-block-actions]]:py-0',
-    '[&_[data-streamdown=code-block-body]]:rounded-none [&_[data-streamdown=code-block-body]]:border-0',
-    '[&_[data-streamdown=code-block-body]]:bg-transparent [&_[data-streamdown=code-block-body]]:px-4 [&_[data-streamdown=code-block-body]]:pt-0 [&_[data-streamdown=code-block-body]]:pb-3',
-    '[&_[data-streamdown=mermaid-block]>.overflow-hidden]:border-0 [&_[data-streamdown=mermaid-block]>.overflow-hidden]:bg-transparent',
-    // The zoom controls float over the diagram's left edge and hide a wide
-    // chart's first node: with a pointer they show on hover; keyboard focus
-    // and touch screens always see them.
-    '[&_[data-streamdown=mermaid]>div>.absolute]:transition-opacity [&_[data-streamdown=mermaid]>div>.absolute]:duration-100 motion-reduce:[&_[data-streamdown=mermaid]>div>.absolute]:transition-none',
-    '[@media(hover:hover)]:[&_[data-streamdown=mermaid]>div>.absolute]:opacity-0',
-    '[@media(hover:hover)]:[&_[data-streamdown=mermaid-block]:hover_[data-streamdown=mermaid]>div>.absolute]:opacity-100',
-    '[&_[data-streamdown=mermaid]>div>.absolute:focus-within]:opacity-100',
-    '[&_[data-streamdown=table-wrapper]]:border-0 [&_[data-streamdown=table-wrapper]]:bg-transparent [&_[data-streamdown=table-wrapper]]:p-0 [&_[data-streamdown=table-wrapper]]:gap-1',
-    '[&_[data-streamdown=table-wrapper]>.border-collapse]:rounded-lg [&_[data-streamdown=table-wrapper]>.border-collapse]:bg-transparent',
-    // Table actions float over the table's top-right corner (as code blocks keep
-    // theirs in the header) instead of a line of their own above it.
-    '[&_[data-streamdown=table-wrapper]]:relative',
-    '[&_[data-streamdown=table-wrapper]>div:not(.border-collapse)]:absolute [&_[data-streamdown=table-wrapper]>div:not(.border-collapse)]:top-1.5 [&_[data-streamdown=table-wrapper]>div:not(.border-collapse)]:right-1.5 [&_[data-streamdown=table-wrapper]>div:not(.border-collapse)]:z-10',
-    '[&_[data-streamdown=table-wrapper]>div:not(.border-collapse)]:rounded-md [&_[data-streamdown=table-wrapper]>div:not(.border-collapse)]:bg-background/90',
-    '[@media(hover:hover)]:[&_[data-streamdown=table-wrapper]>div:not(.border-collapse)]:opacity-0',
-    '[@media(hover:hover)]:[&_[data-streamdown=table-wrapper]:hover>div:not(.border-collapse)]:opacity-100',
-    '[&_[data-streamdown=table-wrapper]>div:not(.border-collapse):focus-within]:opacity-100',
-    '[&_table]:tabular-nums',
-    // index.css tints `.prose :not(pre) > code` (the docs marker); inline code keeps the text colour.
-    '[&_[data-streamdown=inline-code]]:bg-code [&_[data-streamdown=inline-code]]:text-inherit',
-].join(' ')
+// Block framing (flat, not boxed), table and diagram controls: markdown.css.
+
 const VARIANT_CLASS = {
     chat: 'aiui-markdown-chat space-y-3',
     docs: 'aiui-markdown-docs space-y-4',
@@ -234,7 +200,7 @@ export const Markdown = memo(function Markdown({
 
     return (
         <Streamdown
-            className={cn(ROOT_CLASS, BLOCK_CLASS, VARIANT_CLASS[variant], className)}
+            className={cn(ROOT_CLASS, VARIANT_CLASS[variant], className)}
             data-aiui-theme={hasMermaid ? hashKey(themeKey) : undefined}
             data-aiui-markdown={guardId} /* root handle for useLegacyCopyGuard */
             mode={isDocs ? 'static' : 'streaming'}
