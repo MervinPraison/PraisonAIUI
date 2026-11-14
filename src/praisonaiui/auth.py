@@ -140,12 +140,14 @@ class AuthMiddleware:
 
     *exclude_paths* entries match exactly; an entry ending in ``/`` matches
     that prefix. (Prefix matching of ``"/"`` used to exclude every path.)
+    ``/register`` is not excluded by default: it returns a session token, so
+    leaving it open would let anyone sign themselves in.
     """
 
     def __init__(self, app, require_auth: bool = False, exclude_paths: list[str] = None):
         self.app = app
         self.require_auth = require_auth
-        self.exclude_paths = list(exclude_paths or ["/health", "/login", "/register"])
+        self.exclude_paths = list(exclude_paths or ["/health", "/login"])
 
     def _excluded(self, path: str) -> bool:
         for p in self.exclude_paths:

@@ -101,6 +101,12 @@ The other auth modes gate WebSockets as well: URL-token mode
 or a ticket; `create_app(require_auth=True)` / YAML `auth.requireAuth` checks
 session tokens on every route and socket except the public surface above.
 
+Under `require_auth`, `POST /register` is not public: creating an account needs
+an existing session, because registering returns a session token. Seed the
+first users from your app with `praisonaiui.auth.register_user(name, password)`,
+or opt in to open self-signup with `create_app(require_auth=True,
+allow_signup=True)` / YAML `auth.allowSignup: true`.
+
 ## Configuration
 
 ### Config File Location
