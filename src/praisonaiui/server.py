@@ -1613,7 +1613,7 @@ def _shell_theme_tag() -> str:
     """
     try:
         from praisonaiui.features.theme import PRESET_COLORS, get_theme_manager
-        from praisonaiui.themes import get_radius_value, get_seed_theme_css
+        from praisonaiui.themes import get_pro_seed_css, get_radius_value, get_seed_theme_css
 
         mgr = get_theme_manager()
         preset = mgr.get_theme()
@@ -1631,13 +1631,16 @@ def _shell_theme_tag() -> str:
             accent=accent,
             density=_shell_theme_extra.get("density"),
         )
+        # Pro accent seeds (layouts, styles/pro.css); "" for the Pro default.
+        pro = get_pro_seed_css(preset, accent).replace("</", "<\\/")
     except Exception as exc:  # noqa: BLE001
         logging.getLogger(__name__).debug("seed theme css unavailable: %s", exc)
         return ""
+    pro_tag = f'<style id="aiui-server-pro-theme">{pro}</style>' if pro else ""
     if not css:
-        return ""
+        return pro_tag
     css = css.replace("</", "<\\/")  # never close the <style> early
-    return f'<style id="aiui-server-theme">{css}</style>'
+    return f'<style id="aiui-server-theme">{css}</style>{pro_tag}'
 
 
 async def api_shell_manifest(request: Request) -> JSONResponse:

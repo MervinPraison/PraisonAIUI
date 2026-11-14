@@ -372,3 +372,45 @@ class TestProSeedCss:
             f"--seed-pro-{role}-{mode}" for mode in ("light", "dark") for role in PRO_ACCENT_ROLES
         }
         assert "</" not in css and ".dark" not in css and "--primary" not in css
+
+
+class TestProServerTag:
+    """style app: the configured accent reaches Pro through its own seed tag."""
+
+    PRO_TAG = re.compile(r'<style id="aiui-server-pro-theme">(.*?)</style>', re.S)
+
+    @pytest.fixture(autouse=True)
+    def _server(self, tmp_path, monkeypatch):
+        import praisonaiui.config_store as config_store
+        import praisonaiui.server as srv
+
+        monkeypatch.setenv("AIUI_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr(config_store, "_config_store", None)
+        config_store.init_config_store(tmp_path / "config.yaml")
+        srv.reset_state()
+        yield srv
+        srv.reset_state()
+
+    def test_default_app_has_no_pro_tag(self, _server):
+        _server.set_style("app")
+        assert "aiui-server-pro-theme" not in _server._build_html("app")
+
+    def test_preset_with_a_swatch(self, _server):
+        _server.set_style("app")
+        _server.set_theme(preset="blue")
+        tag = self.PRO_TAG.search(_server._build_html("app")).group(1)
+        assert tag == get_pro_seed_css("blue")
+        assert _decls(tag)["--seed-pro-link-light"] == PRO_ACCENTS["blue"]["light"]["link"]
+
+    def test_brand_colour_key_selects_teal(self, _server):
+        _server.set_style("app")
+        _server.set_brand_color("#0f766e")
+        tag = self.PRO_TAG.search(_server._build_html("app")).group(1)
+        assert _decls(tag)["--seed-pro-accent-dark"] == PRO_ACCENTS["teal"]["dark"]["accent"]
+        # the classic seed tag still carries the brand colour for the classic frame
+        assert "--seed-accent: #0f766e;" in _server._build_html("app")
+
+    def test_dashboard_style_never_gets_pro_seeds(self, _server):
+        _server.set_theme(preset="blue")
+        _server.set_brand_color("#ff0000")
+        assert "--seed-pro-" not in _server._build_html("dashboard")
