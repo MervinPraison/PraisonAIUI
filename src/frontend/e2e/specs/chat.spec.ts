@@ -512,6 +512,18 @@ test('a file dropped on the composer is attached', async ({ page }) => {
   await expect(page.locator('[data-aiui-dropzone][data-dragging]')).toHaveCount(0)
 })
 
+test('feedback switched off on the server: the thumbs disappear instead of flipping back', async ({ page }) => {
+  await page.route('**/api/feedback', (route) => route.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"Feedback is disabled"}' }))
+  await openChat(page, 'ws')
+  await send(page, 'plain feedback off')
+  await waitForRunEnd(page)
+  const reply = assistant(page).last()
+  await reply.getByRole('button', { name: 'Good response' }).click()
+  await expect(page.getByRole('button', { name: 'Good response' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Bad response' })).toHaveCount(0)
+  await expect(reply.getByRole('button', { name: 'Copy', exact: true })).toBeVisible()
+})
+
 test.describe('phone session rail', () => {
   test.use({ viewport: { width: 390, height: 800 } })
 

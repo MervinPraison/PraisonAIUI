@@ -141,7 +141,8 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   const [notice, setNotice] = useState<string | null>(null)
   const running = useSyncExternalStore(threadStore.subscribeRunning, threadStore.runningSessions)
   // The shell header owns the page <h1>; with it hidden (layout.pageHeader: false) the chat title is the h1.
-  const Heading = useManifest()?.layout.pageHeader === false ? 'h1' : 'h2'
+  const manifest = useManifest()
+  const Heading = manifest?.layout.pageHeader === false ? 'h1' : 'h2'
 
   // Chats deleted during this visit. A list request that was already in flight
   // when the delete finished must not bring them back.
@@ -233,6 +234,8 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
     onSessionCreated,
     onError: setNotice,
     onSend: clearNotice,
+    // Servers that report it (site.feedbackEnabled); older ones are found out on the first 403.
+    feedback: manifest?.site.feedbackEnabled !== false,
   })
 
   // Window events from the shell and other pages.

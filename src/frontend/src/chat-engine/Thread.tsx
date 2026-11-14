@@ -480,16 +480,18 @@ const AssistantMessage: FC = () => {
             </Button>
           </ActionBarPrimitive.Reload>
         </AuiIf>
-        <ActionBarPrimitive.FeedbackPositive asChild>
-          <Button variant="ghost" size="icon-xs" className={cn(iconButton, 'data-[submitted]:text-foreground')} aria-label="Good response">
-            <ThumbsUp />
-          </Button>
-        </ActionBarPrimitive.FeedbackPositive>
-        <ActionBarPrimitive.FeedbackNegative asChild>
-          <Button variant="ghost" size="icon-xs" className={cn(iconButton, 'data-[submitted]:text-foreground')} aria-label="Bad response">
-            <ThumbsDown />
-          </Button>
-        </ActionBarPrimitive.FeedbackNegative>
+        <AuiIf condition={(st) => st.thread.capabilities.feedback}>
+          <ActionBarPrimitive.FeedbackPositive asChild>
+            <Button variant="ghost" size="icon-xs" className={cn(iconButton, 'data-[submitted]:text-foreground')} aria-label="Good response">
+              <ThumbsUp />
+            </Button>
+          </ActionBarPrimitive.FeedbackPositive>
+          <ActionBarPrimitive.FeedbackNegative asChild>
+            <Button variant="ghost" size="icon-xs" className={cn(iconButton, 'data-[submitted]:text-foreground')} aria-label="Bad response">
+              <ThumbsDown />
+            </Button>
+          </ActionBarPrimitive.FeedbackNegative>
+        </AuiIf>
       </ActionBarPrimitive.Root>
     </MessagePrimitive.Root>
   )
