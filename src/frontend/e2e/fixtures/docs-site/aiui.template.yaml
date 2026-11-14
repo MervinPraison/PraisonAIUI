@@ -1,0 +1,25 @@
+# Minimal docs project for e2e/specs/markdown.spec.ts (built with `aiui build`).
+schemaVersion: 1
+site:
+  title: "AIUI e2e docs"
+content:
+  docs:
+    dir: "./docs"
+    include:
+      - "**/*.md"
+components:
+  sidebar_docs:
+    type: DocsSidebar
+    props:
+      source: docs-nav
+templates:
+  docs:
+    layout: ThreeColumnLayout
+    slots:
+      left:
+        ref: sidebar_docs
+      main:
+        type: DocContent
+routes:
+  - match: "/docs/**"
+    template: docs

@@ -1,0 +1,208 @@
+/**
+ * React chat in the app shell against the scripted provider
+ * (fixtures/mock_server.py), on both transports:
+ *
+ *   WebSocket  the default (/api/chat/ws)
+ *   SSE        POST /run, used when the socket cannot open. The tests get it
+ *              the way a user does: the WebSocket is blocked.
+ */
+import { expect, test, type Locator, type Page } from '@playwright/test'
+import { collectPageErrors, hasHorizontalOverflow } from './support'
+
+const composer = (page: Page) => page.getByRole('textbox', { name: 'Message' })
+const assistant = (page: Page) => page.locator('[data-role="assistant"]')
+const stopButton = (page: Page) => page.getByRole('button', { name: 'Stop' })
+
+async function openChat(page: Page, transport: 'ws' | 'sse') {
+  if (transport === 'sse') {
+    // A proxy that refuses WebSocket upgrades: the chat falls back to POST /run.
+    await page.routeWebSocket(/\/api\/chat\/ws/, (ws) => ws.close({ code: 1011, reason: 'blocked by test' }))
+  }
+  await page.goto('/chat')
+  await expect(composer(page)).toBeVisible()
+  if (transport === 'ws') await expect(page.locator('[data-connection="open"]')).toBeVisible()
+}
+
+async function send(page: Page, text: string) {
+  await composer(page).fill(text)
+  await composer(page).press('Enter')
+}
+
+/** The run is over when the composer offers Send again. */
+async function waitForRunEnd(page: Page) {
+  await expect(stopButton(page)).toHaveCount(0, { timeout: 30_000 })
+}
+
+/** Frames the page sent on the chat socket, parsed. */
+function recordSentFrames(page: Page): Record<string, unknown>[] {
+  const frames: Record<string, unknown>[] = []
+  page.on('websocket', (ws) => {
+    if (!ws.url().includes('/api/chat/ws')) return
+    ws.on('framesent', (frame) => {
+      try {
+        frames.push(JSON.parse(String(frame.payload)))
+      } catch {
+        /* not JSON */
+      }
+    })
+  })
+  return frames
+}
+
+function recordPosts(page: Page): string[] {
+  const posts: string[] = []
+  page.on('request', (r) => {
+    if (r.method() === 'POST') posts.push(new URL(r.url()).pathname)
+  })
+  return posts
+}
+
+async function expectFullTurn(page: Page, reply: Locator, text: string) {
+  await expect(page.locator('[data-role="user"]')).toHaveText(text)
+  await expect(reply).toContainText(`You said: ${text}`)
+  await waitForRunEnd(page)
+  // text: markdown, not raw asterisks
+  await expect(reply.locator('strong, [data-streamdown="strong"]', { hasText: text })).toBeVisible()
+  await expect(reply).not.toContainText('**')
+  // reasoning: collapsed row
+  await expect(reply.locator('[data-part="reasoning"]')).toContainText(/Thought/)
+  // tool call: one card, finished
+  await expect(reply.locator('[data-tool="web_search"]')).toHaveCount(1)
+  await expect(reply.locator('[data-tool="web_search"]')).not.toHaveAttribute('data-state', 'running')
+  // element from the tool result
+  const image = reply.locator('[data-element="image"] img')
+  await expect(image).toBeVisible()
+  expect(await image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0), 'image loaded').toBe(true)
+  // references
+  await expect(reply.locator('[data-part="references"]')).toContainText('doc.md')
+  // code block rendered by the markdown renderer
+  await expect(reply.locator('[data-streamdown="code-block"]')).toContainText('print(1)')
+}
+
+for (const transport of ['ws', 'sse'] as const) {
+  test.describe(`chat over ${transport.toUpperCase()}`, () => {
+    test('streams a full turn and restores it after a reload', async ({ page }) => {
+      const errors = collectPageErrors(page)
+      const posts = recordPosts(page)
+      const frames = recordSentFrames(page)
+      await openChat(page, transport)
+
+      await send(page, 'hello there')
+      const reply = assistant(page).last()
+      await expectFullTurn(page, reply, 'hello there')
+      expect(await hasHorizontalOverflow(page)).toBe(false)
+
+      if (transport === 'sse') expect(posts).toContain('/run')
+      else expect(frames.some((f) => f.type === 'chat')).toBe(true)
+
+      // The session is in the URL, so a reload restores the conversation.
+      await expect(page).toHaveURL(/[?&]session=/)
+      await page.reload()
+      await expect(page.locator('[data-role="user"]')).toHaveText('hello there')
+      await expect(assistant(page).last()).toContainText('You said: hello there')
+      await expect(assistant(page).last().locator('[data-tool="web_search"]')).toHaveCount(1)
+      expect(errors.pageErrors).toEqual([])
+    })
+
+    test('Stop ends a streaming run', async ({ page }) => {
+      const posts = recordPosts(page)
+      const frames = recordSentFrames(page)
+      await openChat(page, transport)
+
+      await send(page, 'slow one')
+      const reply = assistant(page).last()
+      await expect(reply).toContainText('w3 ')
+      await stopButton(page).click()
+      await waitForRunEnd(page)
+
+      const stoppedAt = await reply.innerText()
+      await page.waitForTimeout(1_000)
+      expect(await reply.innerText(), 'no tokens after Stop').toBe(stoppedAt)
+      expect(stoppedAt).not.toContain('w299')
+      if (transport === 'sse') expect(posts).toContain('/cancel')
+      else expect(frames.some((f) => f.type === 'chat_abort')).toBe(true)
+
+      // The chat is usable again.
+      await send(page, 'plain after stop')
+      await expect(assistant(page).last()).toContainText('You said: plain after stop')
+    })
+
+    test('an approval can be decided in the thread', async ({ page }) => {
+      await openChat(page, transport)
+      await send(page, 'apok now')
+      const reply = assistant(page).last()
+      const approve = reply.getByRole('button', { name: 'Approve' })
+      await expect(approve).toBeVisible()
+      await expect(reply.getByRole('button', { name: 'Deny' })).toBeVisible()
+      await approve.click()
+      await expect(approve).toHaveCount(0)
+      const seen = await (await page.request.get('/__e2e/approval-posts')).json()
+      expect(seen.posts).toContain('POST /api/approvals/ap_ok/approve')
+    })
+
+    test('a failed approval keeps the gate and says why', async ({ page }) => {
+      await openChat(page, transport)
+      await send(page, 'ap500 now')
+      const reply = assistant(page).last()
+      await reply.getByRole('button', { name: 'Approve' }).click()
+      await expect(reply.getByRole('alert')).toBeVisible()
+      await expect(reply.getByRole('button', { name: 'Approve' })).toBeEnabled()
+    })
+  })
+}
+
+test('WebSocket: a question from the agent can be answered', async ({ page }) => {
+  const frames = recordSentFrames(page)
+  await openChat(page, 'ws')
+  await send(page, 'ask me')
+  const ask = page.locator('[data-tool="aiui_ask"]')
+  await expect(ask).toContainText('Pick one')
+  await ask.getByRole('group', { name: 'Answers' }).getByRole('button', { name: 'A', exact: true }).click()
+  await expect(ask).toHaveAttribute('data-ask-state', 'answered')
+  const answer = frames.find((f) => f.type === 'ask_response')
+  expect(answer, 'ask_response frame').toBeTruthy()
+  expect(JSON.stringify(answer)).toContain('A')
+})
+
+test('SSE: a question explains that answering needs a live connection', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  await openChat(page, 'sse')
+  await send(page, 'ask me')
+  const ask = page.locator('[data-tool="aiui_ask"]')
+  await expect(ask).toContainText('Pick one')
+  await expect(ask).toContainText('Answering needs a live connection')
+  for (const option of await ask.getByRole('group', { name: 'Answers' }).getByRole('button').all()) {
+    await expect(option).toBeDisabled()
+  }
+  expect(errors.pageErrors).toEqual([])
+})
+
+test('chat markdown: highlighted code, table, math, diagram, safe links and images', async ({ page }) => {
+  const remoteImageRequests: string[] = []
+  page.on('request', (r) => {
+    if (r.url().includes('images.example.invalid')) remoteImageRequests.push(r.url())
+  })
+  await openChat(page, 'ws')
+  await send(page, 'markdown plain')
+  const reply = assistant(page).last()
+  await waitForRunEnd(page)
+  await expect(reply.getByRole('heading', { name: 'Markdown sample' })).toBeVisible()
+  // Shiki tokens carry both themes; the dark colour is a CSS variable.
+  await expect(reply.locator('[data-streamdown="code-block"] [style*="--shiki-dark"]').first()).toBeVisible()
+  await expect(reply.locator('table')).toContainText('alpha')
+  await expect(reply.locator('.katex').first()).toBeVisible()
+  await expect(reply.locator('svg[aria-roledescription^="flowchart"]')).toBeVisible({ timeout: 30_000 })
+  // External links open in a new tab and do not leak the opener or referrer rank.
+  const link = reply.getByRole('link', { name: 'link' })
+  await expect(link).toHaveAttribute('href', 'https://example.com/docs')
+  await expect(link).toHaveAttribute('target', '_blank')
+  const rel = (await link.getAttribute('rel')) || ''
+  for (const token of ['noopener', 'noreferrer', 'nofollow']) expect(rel.split(/\s+/)).toContain(token)
+  // A remote image is not fetched until the reader asks for it (a model can
+  // be talked into embedding a URL that leaks the conversation); the
+  // placeholder names the host.
+  await expect(reply).toContainText('images.example.invalid')
+  await expect(reply.locator('img[src*="images.example.invalid"]')).toHaveCount(0)
+  expect(remoteImageRequests).toEqual([])
+  expect(await hasHorizontalOverflow(page)).toBe(false)
+})

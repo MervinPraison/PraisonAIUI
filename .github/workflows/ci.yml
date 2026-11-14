@@ -42,11 +42,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # A pull_request run checks out the merge commit; its first parent is
+          # the base branch, which is what "did this PR touch the frontend" needs.
+          fetch-depth: 2
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          # Pinned: chunk file names are content hashes, and the bundle-sync
+          # check compares them with the committed bundle.
+          node-version-file: src/frontend/.nvmrc
           cache: npm
           cache-dependency-path: src/frontend/package-lock.json
 
@@ -54,11 +60,162 @@ jobs:
         run: npm ci
         working-directory: src/frontend
 
-      # `npm run build` is the dashboard ship path: dist/ is synced to
+      - name: Type-check (app, then the Playwright specs)
+        run: |
+          npx tsc -b
+          npm run typecheck:e2e
+        working-directory: src/frontend
+
+      - name: Unit tests
+        run: |
+          npm test
+          npm run test:scripts
+        working-directory: src/frontend
+
+      - name: Lint the React shell
+        run: npx eslint src/shell src/chat-engine src/markdown src/legacy src/sdk src/blocks e2e
+        working-directory: src/frontend
+
+      # `npm run build` is the ship path: dist/ is synced to
       # src/praisonaiui/templates/frontend/ (see src/frontend/README.md).
       - name: Build frontend
         run: npm run build
         working-directory: src/frontend
+
+      - name: Size budgets
+        run: npm run size
+        working-directory: src/frontend
+
+      - name: Heavy libraries stay out of the first screen
+        run: npm run check:closure
+        working-directory: src/frontend
+
+      # Only for pull requests that change the frontend source or the committed
+      # bundle. Other PRs cannot make the two disagree, and must not fail
+      # because an earlier merge did (the bundle-sync job below repairs that).
+      - name: Does this pull request touch the frontend?
+        id: touched
+        if: github.event_name == 'pull_request'
+        run: |
+          if git diff --name-only HEAD^1 HEAD | grep -qE '^src/(frontend/|praisonaiui/templates/frontend/(assets/|index\.html$|icon\.svg$|aiui-(manifest|externals)\.json$))'; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Committed bundle matches the build
+        if: steps.touched.outputs.frontend == 'true'
+        run: npm run check:bundle
+        working-directory: src/frontend
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: src/frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install the package
+        run: pip install -e .[dev]
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: src/frontend
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: src/frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: src/frontend
+
+      # The suites serve dist/ (never the committed bundle) from real servers
+      # with a scripted provider. Legacy-parity screenshots compare against
+      # e2e/__baseline__/<platform>/ and skip on a platform with no baseline:
+      # only macOS baselines are committed so far, so on this runner the
+      # screenshot comparison is not enforced yet (the DOM checks are). See
+      # src/frontend/e2e/README.md for how to add the Linux baselines.
+      - name: Playwright suites
+        run: npm run test:e2e
+        working-directory: src/frontend
+        env:
+          AIUI_E2E_PYTHON: python
+
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            src/frontend/e2e/.report
+            src/frontend/e2e/.results
+          retention-days: 7
+
+  # Safety net after a merge: rebuild the bundle on the CI image and, when the
+  # committed copy differs, open a pull request with the synced files. Pull
+  # requests that do not touch the frontend never have to carry a bundle.
+  bundle-sync:
+    name: bundle-sync
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    concurrency:
+      group: bundle-sync
+      cancel-in-progress: true
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: src/frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Build and sync
+        run: |
+          npm ci
+          npm run build
+          npm run sync
+        working-directory: src/frontend
+
+      - name: Open a pull request when the committed bundle is stale
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -z "$(git status --porcelain -- src/praisonaiui/templates/frontend)" ]; then
+            echo "The committed bundle matches the build."
+            exit 0
+          fi
+          branch="bot/frontend-bundle-sync"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add -A -- src/praisonaiui/templates/frontend
+          git commit -m "chore: sync the frontend bundle with src/frontend"
+          git push --force origin "$branch"
+          if [ -z "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
+            gh pr create --base main --head "$branch" \
+              --title "chore: sync the frontend bundle" \
+              --body "Rebuilt from src/frontend at ${GITHUB_SHA} with \`npm run build && npm run sync\`. No source changes."
+          fi
 
   docs:
     runs-on: ubuntu-latest
@@ -84,6 +241,29 @@ jobs:
         run: |
           aiui build --output site --minify
           cp CNAME site/CNAME
+
+      # A deploy replaces every file. Readers with the previous page still open
+      # would then ask for chunks that are gone, so the previous build's
+      # assets are kept next to the new ones for one release.
+      - name: Keep the previous deploy's chunks
+        run: |
+          mkdir -p previous-site
+          if git fetch --no-tags --depth=1 origin gh-pages; then
+            # Only paths the previous deploy has: older sites have no manifest.
+            paths=()
+            for p in assets aiui-manifest.json; do
+              if git cat-file -e "FETCH_HEAD:$p" 2>/dev/null; then paths+=("$p"); fi
+            done
+            if [ "${#paths[@]}" -gt 0 ]; then
+              git archive --format=tar -o previous.tar FETCH_HEAD "${paths[@]}"
+              tar -xf previous.tar -C previous-site
+              rm previous.tar
+            fi
+          else
+            echo "No previous deploy (gh-pages) to keep chunks from."
+          fi
+          node src/frontend/scripts/carry-forward-assets.mjs previous-site site
+          rm -rf previous-site
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
