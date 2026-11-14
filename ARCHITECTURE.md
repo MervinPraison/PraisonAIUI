@@ -39,7 +39,7 @@ Markdown. Pages and features extend through one plugin model: Python records
 | **Design system** | `components/ui/` (shadcn on `radix-ui`), `styles/theme.css`, `index.css`, `themes.ts`, `lib/utils.ts`; Python `themes.py` `get_seed_theme_css()` | Tokens and primitives ([DESIGN.md](src/frontend/DESIGN.md)) |
 | **Features (Python)** | `src/praisonaiui/features/*.py` (`BaseFeatureProtocol` subclasses) | Domain APIs, mounted only when their built-in record is enabled |
 | **Legacy React App** | `App.tsx`, `legacy-app-entry.tsx`, `chat/`, `agent-ui/`, `views/`, `pages/`, `surfaces/`, `components/*` (non-ui), `Header.tsx`, `Sidebar.tsx`, `Content.tsx` | The chat/docs/agents/playground/custom styles; maintained, not grown |
-| **Legacy vanilla views** | `templates/frontend/plugins/dashboard.js` + `plugins/views/*.js` (41 files), `templates/frontend/dashboard-plugins/` (kanban, sample-board, video-studio) | The `dashboard` style; hosted in the app shell by `LegacyViewHost` |
+| **Legacy vanilla views** | `templates/frontend/plugins/dashboard.js` + `plugins/views/*.js` (45 files, including 4 one-line page-id alias modules: `runs`, `cron`, `work`, `training`), `templates/frontend/dashboard-plugins/` (kanban, sample-board, video-studio) | The `dashboard` style; hosted in the app shell by `LegacyViewHost` |
 | **Committed bundle** | `src/praisonaiui/templates/frontend/{index.html,icon.svg,aiui-manifest.json,aiui-externals.json,aiui-sdk.d.ts,assets/}` | Build output of `src/frontend`, shipped in the wheel |
 
 ```mermaid
@@ -149,7 +149,9 @@ and `aiui-sdk.d.ts`; `test_app_shell.py` checks the shims cover every React expo
 and renders byte-for-byte as before unless an owner decision says otherwise (the
 flip criteria are in `prd.md` and ADR §9). `index.css` is also loaded by the
 dashboard: no bare `html`, `body` or `*` rule (DESIGN.md "Legacy dashboard
-isolation"). Legacy view colours go through `var(--db-p-<role>, <original hex>)`.
+isolation"). Legacy view colours go through `var(--db-p-<role>, <original hex>)`. Dashboard light
+mode defines the neutral `--db-p-*` roles under `html[data-db-mode=light]`; dark mode
+leaves them undefined, so it is unchanged.
 *Check:* `tests/unit/test_app_shell.py` against
 `tests/unit/fixtures/golden_dashboard_html.txt` (dashboard and chat HTML),
 `builtin_pages_snapshot.json`, `tests/unit/test_light_mode_contrast.py`,
@@ -331,7 +333,7 @@ gap; if you touch one, leave it smaller.**
 | G6 | `server.py` is host and features at once (4,471 lines, page APIs such as `/api/overview`, `/api/config`, `/api/logs` in `create_app`) | R11; extract one domain per PR with a route-table snapshot, re-exporting moved names |
 | G9 | About 15 registration paths; `register_page` and dashboard-plugin folders are not plugin records | R3: new code uses the supported column only |
 | G10 | A plugin can take a built-in id or feature name once that built-in is disabled (tested); while both are enabled the built-in wins, and app/dashboard-plugin adapters follow their own precedence | Replace a built-in by disabling it, not by a new override flag |
-| G11 | The legacy view list is hardcoded in `dashboard.js`; manifest `module` for legacy pages is **(planned)** | Do not add views to the map for app-shell-only needs |
+| G11 | Closed: `dashboard.js` has no view list; a page's view resolves from the manifest's `source`, `kind` and `legacy.viewsBase` (a built-in page is `<viewsBase><page id>.js`; an app, plugin or folder page under a built-in id gets no built-in view) | A new built-in legacy page needs only its catalog record and `views/<page id>.js` |
 | G13 | Narrowed: settings sections, nav groups and theme presets are closed (`settings()`, `nav_groups()`, `themes()` and `registerSettingsSection`, `registerNavGroup`, `registerThemePreset`; the example plugin uses all three). Open: `AiuiPlugin` has no hooks for middleware or icons | Add a hook only with a live consumer, in the PR that needs it |
 
 Other known issues on `main` (not regressions to block on, but do not copy):

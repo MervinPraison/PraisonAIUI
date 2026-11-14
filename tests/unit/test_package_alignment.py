@@ -33,11 +33,16 @@ def jobs_source():
     return path.read_text(encoding="utf-8")
 
 
-def test_builtin_views_include_auth_and_api(dashboard_source):
-    assert "auth:" in dashboard_source
-    assert "api:" in dashboard_source
-    assert "/plugins/views/auth.js" in dashboard_source
-    assert "/plugins/views/api.js" in dashboard_source
+VIEWS = (
+    __import__("pathlib").Path(__file__).resolve().parents[2]
+    / "src" / "praisonaiui" / "templates" / "frontend" / "plugins" / "views"
+)
+
+
+def test_builtin_views_include_auth_and_api():
+    # A built-in page's view is views/<page id>.js (dashboard.js viewModuleUrl).
+    assert (VIEWS / "auth.js").is_file()
+    assert (VIEWS / "api.js").is_file()
 
 
 def test_jobs_js_reads_ui_config(jobs_source):
@@ -47,10 +52,10 @@ def test_jobs_js_reads_ui_config(jobs_source):
     assert "normalizeJob" in jobs_source
 
 
-def test_view_wrappers_delegate(dashboard_source):
-    """Views should exist in BUILTIN_VIEWS for modular pages."""
+def test_view_wrappers_delegate():
+    """Modular pages have their view module under their page id."""
     for page_id in ("agents", "sessions", "schedules", "config", "channels", "logs", "usage", "jobs"):
-        assert page_id in dashboard_source or f"'{page_id}'" in dashboard_source
+        assert (VIEWS / f"{page_id}.js").is_file(), page_id
 
 
 def test_plugins_config_includes_auth_api_modules():

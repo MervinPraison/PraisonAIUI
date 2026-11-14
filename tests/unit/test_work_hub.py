@@ -14,9 +14,10 @@ def test_work_hub_view_file_exists():
 
 
 def test_work_registered_in_builtin_views():
-    source = (FRONTEND / "dashboard.js").read_text(encoding="utf-8")
-    assert "work:" in source
-    assert "/plugins/views/work-hub.js" in source
+    # dashboard.js loads a built-in page's view as views/<page id>.js (viewModuleUrl).
+    assert (VIEWS / "work.js").read_text(encoding="utf-8").strip().endswith(
+        "export * from './work-hub.js';"
+    )
 
 
 def test_kanban_banner_links_to_work_hub():

@@ -109,9 +109,9 @@ class TestEmptyState:
 
 class TestRegistration:
     def test_route_registered_in_dashboard(self):
-        src = DASHBOARD.read_text(encoding="utf-8")
-        assert "inbox:" in src
-        assert "/plugins/views/inbox.js" in src
+        # dashboard.js loads a built-in page's view as views/<page id>.js.
+        assert INBOX_VIEW.name == "inbox.js" and INBOX_VIEW.is_file()
+        assert "export async function render" in INBOX_VIEW.read_text(encoding="utf-8")
 
     def test_page_registered_in_server(self):
         # Built-in pages are first-party plugin records (praisonaiui.builtin),

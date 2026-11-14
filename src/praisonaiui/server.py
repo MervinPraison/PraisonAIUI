@@ -222,7 +222,7 @@ def set_branding(title: str = "PraisonAI", logo: str = "🦞") -> None:
 
 def set_theme(
     preset: str = "zinc",
-    dark_mode: bool = True,
+    dark_mode: Optional[bool] = True,
     radius: str = "md",
 ) -> None:
     """Set the UI theme from Python code.
@@ -236,7 +236,9 @@ def set_theme(
                 neutral, red, orange, amber, yellow, lime, green,
                 emerald, teal, cyan, sky, blue, indigo, violet,
                 purple, fuchsia, pink, rose (or any custom theme name).
-        dark_mode: True for dark background, False for light.
+        dark_mode: True for dark background, False for light, None to
+                leave the colour mode to YAML ``site.theme`` or, without
+                one, to the viewer's choice and the OS.
         radius: Corner roundness. Options: none, sm, md, lg, xl.
 
     Example::
@@ -245,11 +247,9 @@ def set_theme(
         aiui.set_theme(preset="blue", dark_mode=True, radius="lg")
     """
     global _theme
-    _theme = {
-        "preset": preset,
-        "darkMode": dark_mode,
-        "radius": radius,
-    }
+    _theme = {"preset": preset, "radius": radius}
+    if dark_mode is not None:
+        _theme["darkMode"] = dark_mode
     # Sync with ThemeManager so /api/theme returns correct state
     try:
         from praisonaiui.features.theme import get_theme_manager
@@ -257,7 +257,8 @@ def set_theme(
         mgr = get_theme_manager()
         if preset in mgr.list_themes():
             mgr.set_theme(preset)
-        mgr.set_mode("dark" if dark_mode else "light")
+        if dark_mode is not None:
+            mgr.set_mode("dark" if dark_mode else "light")
         mgr.set_radius(radius)
     except Exception:
         pass  # Graceful fallback if theme feature not loaded
@@ -4063,6 +4064,12 @@ def create_app(
                 pass
         if not _theme_cfg:
             _theme_cfg = {"preset": "zinc", "darkMode": True, "radius": "md"}
+        # The app's default colour mode, the one style app gets as
+        # <html data-aiui-theme-default>: set_theme() > YAML > "system" when
+        # the app chose nothing (the dashboard then follows the OS). The
+        # filled-in darkMode above stays for older readers.
+        _theme_default = _shell_default_theme()
+        _theme_cfg = {**_theme_cfg, "mode": _theme_default}
 
         # Custom CSS: set_custom_css() > YAML site.custom_css
         _css = _custom_css
@@ -4113,6 +4120,7 @@ def create_app(
                     "title": _title,
                     "logo": _logo,
                     "theme": _theme_cfg,
+                    "themeDefault": _theme_default,
                     "customCss": _css,
                     **(
                         {
