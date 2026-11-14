@@ -8,6 +8,7 @@ import { fetchManifest, type ShellManifest } from '@/sdk/manifest'
 import { useToasterRequested } from '@/sdk/notify'
 import { getPage } from '@/sdk/registry'
 import { activateShell } from '@/sdk/services'
+import { seedManifestContributions } from '@/sdk/contributions'
 import { loadManifestPlugins } from '@/sdk/install'
 import { BootError, BootSkeleton, TokenGate } from './BootScreen'
 import { ShellContext, type ShellState } from './context'
@@ -100,6 +101,9 @@ function ToasterHost() {
  * link to one of those pages resolves on the first paint. Idempotent.
  */
 function ready(manifest: ShellManifest): Boot {
+  // Plugins' declared settings sections, nav groups and theme presets
+  // (Python settings() / nav_groups() / themes()), before the first render.
+  seedManifestContributions(manifest)
   activateShell(manifest)
   return { status: 'ready', manifest }
 }
