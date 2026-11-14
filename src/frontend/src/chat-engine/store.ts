@@ -101,11 +101,32 @@ async function fetchHistory(url: string): Promise<HistoryPage> {
   const res = await fetch(url, { credentials: 'same-origin' })
   const data = res.ok ? ((await res.json()) as JSONObject) : {}
   const raw = ((data.messages ?? data.runs ?? []) as JSONObject[]).filter((m) => m && typeof m === 'object')
+  const start = typeof data.start === 'number' ? data.start : undefined
   return {
-    messages: raw.map(fromHistory),
-    start: typeof data.start === 'number' ? data.start : undefined,
+    // Persisted messages carry no id: number them by their position on the
+    // server, so every page gets distinct, stable ids (h_<position>). With the
+    // index inside the page, each page reused h_0..h_49 and assistant-ui
+    // dropped the older page as duplicates.
+    messages: raw.map((m, i) => fromHistory(m, (start ?? 0) + i)),
+    start,
     hasMore: data.has_more === true,
   }
+}
+
+/**
+ * The earlier pages the reader already loaded (Load earlier messages) that
+ * come before a freshly fetched latest page: a reload of the latest page
+ * keeps them instead of throwing them away. They are the first
+ * `page.start - historyStart` messages of the thread, which start at the
+ * server position `historyStart`.
+ */
+function earlierPages(s: SessionThread, page: HistoryPage): { messages: AiuiMessage[]; paging: Partial<SessionThread> } | null {
+  if (s.historyStart === undefined || page.start === undefined || s.historyStart >= page.start) return null
+  const count = page.start - s.historyStart
+  const ids = new Set(page.messages.map((m) => m.id))
+  const messages = s.messages.slice(0, count).filter((m) => !ids.has(m.id))
+  if (!messages.length) return null
+  return { messages, paging: { hasMore: s.hasMore, historyStart: s.historyStart } }
 }
 
 const entries = new Map<string, Entry>()
@@ -409,11 +430,14 @@ async function refreshWithRemote(sid: string) {
   if (!cur || cur.turn) return
   set(sid, (s) => {
     const remote = cur.remote ? s.messages.find((m) => m.id === cur.remote!.messageId) : undefined
+    const earlier = earlierPages(s, page)
+    const history = earlier ? [...earlier.messages, ...page.messages] : page.messages
     return {
-      messages: remote ? [...page.messages, remote] : page.messages,
+      messages: remote ? [...history, remote] : history,
       loaded: true,
       hasMore: page.hasMore,
       historyStart: page.start,
+      ...earlier?.paging,
     }
   }, true)
 }
@@ -509,8 +533,10 @@ export const threadStore = {
     } catch {
       page = { messages: [], hasMore: false }
     }
-    const history = page.messages
-    const paging = { hasMore: page.hasMore, historyStart: page.start }
+    // A reload (after invalidate) keeps the earlier pages the reader loaded.
+    const earlier = earlierPages(s, page)
+    const history = earlier ? [...earlier.messages, ...page.messages] : page.messages
+    const paging = { hasMore: page.hasMore, historyStart: page.start, ...earlier?.paging }
     const remote = entries.get(sid)?.remote
     set(sid, (cur) => {
       // A remote (other tab) live message survives the reload at the end.
@@ -542,9 +568,12 @@ export const threadStore = {
     } catch {
       page = null
     }
-    set(sid, (cur) => (page
-      ? { messages: [...page.messages, ...cur.messages], hasMore: page.hasMore, historyStart: page.start, isLoadingEarlier: false }
-      : { isLoadingEarlier: false }), true)
+    set(sid, (cur) => {
+      if (!page) return { isLoadingEarlier: false }
+      const shown = new Set(cur.messages.map((m) => m.id))
+      const older = page.messages.filter((m) => !shown.has(m.id))
+      return { messages: [...older, ...cur.messages], hasMore: page.hasMore, historyStart: page.start, isLoadingEarlier: false }
+    }, true)
   },
 
   /**

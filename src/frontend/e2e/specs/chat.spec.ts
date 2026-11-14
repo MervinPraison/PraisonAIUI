@@ -337,6 +337,32 @@ test('Copy and feedback on an earlier answer are reachable by keyboard', async (
   expect([...reached].sort()).toEqual(['Bad response', 'Copy', 'Good response'])
 })
 
+test('Load earlier messages shows the older page', async ({ page }) => {
+  test.setTimeout(120_000)
+  const errors = collectPageErrors(page)
+  // 30 turns = 60 messages: the first page holds the last 50.
+  const sid = `e2e-earlier-${Date.now()}`
+  for (let i = 1; i <= 30; i++) {
+    const res = await page.request.post('/run', { data: { message: `plain turn ${i}`, session_id: sid } })
+    expect(res.ok()).toBe(true)
+    await res.body()
+  }
+  const warnings: string[] = []
+  page.on('console', (m) => {
+    if (/duplicate message id/i.test(m.text())) warnings.push(m.text())
+  })
+  await page.goto(`/chat?session=${encodeURIComponent(sid)}`)
+  const messages = page.locator('[data-role="user"], [data-role="assistant"]')
+  await expect(messages).toHaveCount(50)
+  await expect(page.locator('[data-role="user"]').first()).toHaveText('plain turn 6')
+  await page.locator('[data-load-earlier]').click()
+  await expect(messages).toHaveCount(60)
+  await expect(page.locator('[data-role="user"]').first()).toHaveText('plain turn 1')
+  await expect(page.locator('[data-load-earlier]')).toHaveCount(0)
+  expect(warnings).toEqual([])
+  expect(errors.pageErrors).toEqual([])
+})
+
 test.describe('phone session rail', () => {
   test.use({ viewport: { width: 390, height: 800 } })
 
