@@ -408,6 +408,28 @@ test('closing the palette gives focus back: typing in the composer continues, na
   await expect(page.locator('#aiui-main')).toBeFocused()
 })
 
+test('the palette reopens with an empty query, and arrow keys wrap around the list', async ({ page }) => {
+  await page.goto('/overview')
+  expect((await waitForPage(page, 'overview')).state).toBe('ready')
+  const search = page.getByRole('combobox', { name: 'Search pages and commands' })
+  await page.keyboard.press('ControlOrMeta+k')
+  await search.fill('log')
+  await page.keyboard.press('Escape')
+  await expect(search).toBeHidden()
+  await page.keyboard.press('ControlOrMeta+k')
+  await expect(search).toHaveValue('')
+
+  const items = page.locator('[cmdk-item]')
+  const selected = page.locator('[cmdk-item][data-selected="true"]')
+  const first = await items.first().textContent()
+  const last = await items.last().textContent()
+  await expect(selected).toHaveText(first ?? '')
+  await page.keyboard.press('ArrowUp')
+  await expect(selected, 'ArrowUp on the first item wraps to the last').toHaveText(last ?? '')
+  await page.keyboard.press('ArrowDown')
+  await expect(selected, 'ArrowDown on the last item wraps to the first').toHaveText(first ?? '')
+})
+
 test('closing the mobile nav returns focus to the menu button', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/overview')

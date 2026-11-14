@@ -86,6 +86,14 @@ export default function CommandPalette({
   const registered = useCommands()
   const commandGroups = useMemo(() => groupCommands(registered), [registered])
   const [search, setSearch] = useState('')
+  // The palette stays mounted after its first open: every open starts with an
+  // empty query (reset while rendering the reopen, so closing never flashes
+  // the unfiltered list), however it was closed (Esc, a choice, Ctrl+K).
+  const [wasOpen, setWasOpen] = useState(open)
+  if (wasOpen !== open) {
+    setWasOpen(open)
+    if (open) setSearch('')
+  }
   // No Dialog.Trigger: put focus back where it was (the composer, a button),
   // or on the new page's main region after navigating, never on <body>.
   const [focus] = useState(createFocusReturn)
@@ -107,6 +115,7 @@ export default function CommandPalette({
       description="Search pages and commands"
       showCloseButton={false}
       filter={paletteFilter}
+      loop
       onOpenAutoFocus={focus.capture}
       onCloseAutoFocus={focus.restore}
       className="top-[15%] translate-y-0 sm:max-w-xl"
