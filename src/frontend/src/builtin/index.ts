@@ -9,11 +9,16 @@ import { sdkApi } from '@/sdk/install'
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
 import { approvalsBuiltin } from './approvals'
 import { chatBuiltin } from './chat'
+import { layoutsBuiltin } from './layouts'
 import type { BuiltinPlugin, BuiltinSdk } from './types'
 
 export type { BuiltinContext, BuiltinPlugin, BuiltinSdk } from './types'
 
-export const BUILTIN_PLUGINS: readonly BuiltinPlugin[] = Object.freeze([chatBuiltin, approvalsBuiltin])
+export const BUILTIN_PLUGINS: readonly BuiltinPlugin[] = Object.freeze([
+  chatBuiltin,
+  approvalsBuiltin,
+  layoutsBuiltin,
+])
 
 const activated = new Set<string>()
 
