@@ -1052,6 +1052,28 @@ def test_theme_picker_in_the_shell_sets_seeds_not_db_vars(tmp_path):
     assert not [p for p in mode["props"] if p[1].startswith("--db-") and p[1] != "--db-accent-rgb"]
 
 
+def test_theme_picker_in_the_dashboard_stores_the_mode_and_inlines_no_mode_vars(tmp_path):
+    """Regression: in the default dashboard a light pick was lost on reload.
+    The picker set the server's mode variables inline and never stored the
+    viewer's choice; on render it also pushed an old saved mode to the server.
+    Now a pick is stored under aiui-theme-preference (announced with a
+    storage event, which dashboard.js follows) and only accent/radius are
+    inlined, so the stylesheet's light/dark palette is never overridden."""
+    out = _run_picker(tmp_path, "dashboard")
+    render = out["afterRender"]
+    assert render["puts"] == [{"preset": "rose"}]  # the saved mode is not forced
+    set_keys = {p[1] for p in render["props"] if p[0] == "set"}
+    assert set_keys <= {"--db-accent", "--db-accent-glow", "--db-accent-rgb", "--db-radius"}, set_keys
+    assert "--db-accent" in set_keys
+    assert render["events"] == []
+    mode = out["afterMode"]
+    assert mode["puts"] == [{"mode": "dark"}]
+    assert mode["preference"] == "dark"
+    assert {"type": "storage", "key": "aiui-theme-preference", "newValue": "dark"} in mode["events"]
+    assert not [p for p in mode["props"] if p[1] == "--db-bg"], mode["props"]
+    assert not [p for p in render["props"] + mode["props"] if p[1].startswith("--seed-")]
+
+
 def test_theme_picker_accent_mix_matches_the_seed_themes():
     """The picker repeats themes.COLOR_PRESET_ACCENT_MIX (it runs in the browser)."""
     from praisonaiui import themes
@@ -1061,17 +1083,6 @@ def test_theme_picker_accent_mix_matches_the_seed_themes():
         pytest.skip("themes.py has no seed themes yet (WP0b)")
     m = re.search(r"const COLOR_ACCENT_MIX = '([^']+)'", _read(VIEWS / "theme-picker.js"))
     assert m and m.group(1) == mix
-
-
-def test_theme_picker_in_the_legacy_dashboard_is_unchanged(tmp_path):
-    out = _run_picker(tmp_path, "dashboard")
-    render = out["afterRender"]
-    assert render["puts"] == [{"preset": "rose"}, {"mode": "light"}]
-    assert ["set", "--db-bg", "#fafafa"] in render["props"]
-    assert ["set", "--db-accent", "#f43f5e"] in render["props"]
-    assert not [p for p in render["props"] if p[1].startswith("--seed-")]
-    assert render["events"] == [] and out["afterMode"]["events"] == []
-    assert out["afterMode"]["preference"] == "system"
 
 
 _PICKER_RACE_HARNESS = r"""

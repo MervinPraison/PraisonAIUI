@@ -888,6 +888,44 @@ const DASHBOARD_STYLE = `
   .db-cmdk-empty { padding: 24px; text-align: center; font-size: 13px; color: var(--db-text-dim); }
 `;
 
+// ── Light mode (dashboard style only) ────────────────────────────────
+// DASHBOARD_STYLE's :root block is the dark palette. Light mode is
+// html[data-db-mode="light"] (set by applyColorMode). The block has the
+// same specificity as :root (0,1,0), so user CSS (set_custom_css, kept last
+// in <head>) still wins. Host mode (style `app`) never loads this: the
+// shell's legacy/bridge.css owns the colours there.
+const DASHBOARD_LIGHT_STYLE = `
+  :root:where([data-db-mode="light"]) {
+    --db-bg: #fafafa;
+    --db-canvas: #f4f4f5;
+    --db-sidebar-bg: #f4f4f5;
+    --db-card-bg: rgba(0,0,0,0.02);
+    --db-surface: #ffffff;
+    --db-popover: #ffffff;
+    --db-input-bg: #ffffff;
+    --db-muted: #f4f4f5;
+    --db-muted-fg: #71717a;
+    --db-hover: rgba(0,0,0,0.04);
+    --db-text: #18181b;
+    --db-text-dim: #52525b;
+    --db-text-muted: #71717a;
+    --db-border: rgba(0,0,0,0.1);
+    --db-border-light: rgba(0,0,0,0.06);
+    --db-sidebar-accent: rgba(0,0,0,0.04);
+    --db-sidebar-accent-fg: #18181b;
+    --db-sidebar-border: rgba(0,0,0,0.08);
+    --db-success: #16a34a;
+    --db-success-bg: rgba(22,163,74,0.12);
+    --db-warning: #a16207;
+    --db-warning-bg: rgba(202,138,4,0.14);
+    --db-error: #dc2626;
+    --db-error-bg: rgba(220,38,38,0.1);
+    --db-info: #2563eb;
+    --db-info-bg: rgba(37,99,235,0.1);
+    --db-scrollbar-thumb: rgba(0,0,0,0.12);
+  }
+`;
+
 let activePageId = null;
 let pagesData = [];
 
@@ -925,6 +963,69 @@ const PRESET_COLORS = {
   rose:    { accent: '#f43f5e', accentRgb: '244,63,94' },
 };
 
+// ── Colour mode (light / dark) ───────────────────────────────────────
+// The viewer's choice lives under the key the app shell (next-themes) and
+// the server's theme bootstrap script read: 'light' | 'dark' | 'system'.
+// Without one, the app's default applies (site.theme from /ui-config.json),
+// and without that the OS scheme. Dashboard style only: host mode leaves
+// <html> to the shell.
+const COLOR_MODE_KEY = 'aiui-theme-preference';
+// The app's default mode, from applyThemeFromConfig(); 'system' until then.
+let _appColorMode = 'system';
+
+function _storedColorMode() {
+  try {
+    const v = localStorage.getItem(COLOR_MODE_KEY);
+    return v === 'light' || v === 'dark' || v === 'system' ? v : null;
+  } catch (e) { return null; } // storage blocked
+}
+
+function _systemColorMode() {
+  try { return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; } catch (e) { return 'dark'; }
+}
+
+// server.py fills site.theme with exactly this when the app set no theme
+// (no set_theme(), no YAML site.theme): that is not an app choice of dark.
+function _isServerDefaultTheme(theme) {
+  return Object.keys(theme).sort().join(',') === 'darkMode,preset,radius'
+    && theme.preset === 'zinc' && theme.darkMode === true && theme.radius === 'md';
+}
+
+// The app's default colour mode from site.theme: YAML `mode: light|dark|system`,
+// else `darkMode` (set_theme(dark_mode=…)), else the OS.
+function appDefaultColorMode(theme) {
+  if (!theme || typeof theme !== 'object') return 'system';
+  if (theme.mode === 'light' || theme.mode === 'dark' || theme.mode === 'system') return theme.mode;
+  if (typeof theme.darkMode === 'boolean' && !_isServerDefaultTheme(theme)) return theme.darkMode ? 'dark' : 'light';
+  return 'system';
+}
+
+function resolveColorMode() {
+  const pref = _storedColorMode() || _appColorMode;
+  return pref === 'light' || pref === 'dark' ? pref : _systemColorMode();
+}
+
+// Puts the resolved mode on <html>: data-db-mode drives DASHBOARD_LIGHT_STYLE,
+// the `dark` class is what the theme bootstrap and index.css use.
+function applyColorMode() {
+  const mode = resolveColorMode();
+  const root = document.documentElement;
+  root.setAttribute('data-db-mode', mode);
+  root.classList.toggle('dark', mode === 'dark');
+  return mode;
+}
+
+// Applies the mode now (before the dashboard paints) and follows a change of
+// the stored choice (the Theme page, another tab) or of the OS scheme.
+function initColorMode() {
+  applyColorMode();
+  window.addEventListener('storage', (e) => { if (e.key === COLOR_MODE_KEY || e.key === null) applyColorMode(); });
+  try {
+    const query = matchMedia('(prefers-color-scheme: dark)');
+    if (typeof query.addEventListener === 'function') query.addEventListener('change', applyColorMode);
+  } catch (e) { /* no matchMedia */ }
+}
+
 async function applyThemeFromConfig(cfg) {
   // Host mode: theme tokens come from the shell (legacy/bridge.css). Inline
   // !important vars on <html> would override them and user CSS alike.
@@ -956,17 +1057,11 @@ async function applyThemeFromConfig(cfg) {
     customVars['--db-accent-rgb'] = colors.accentRgb;
   }
 
-  // Dark/light mode
-  if (theme.darkMode === false) {
-    customVars['--db-bg'] = '#fafafa';
-    customVars['--db-sidebar-bg'] = '#f4f4f5';
-    customVars['--db-text'] = '#18181b';
-    customVars['--db-text-dim'] = '#71717a';
-    customVars['--db-border'] = 'rgba(0,0,0,0.08)';
-    customVars['--db-card-bg'] = 'rgba(0,0,0,0.02)';
-    customVars['--db-hover'] = 'rgba(0,0,0,0.04)';
-    document.body.style.background = 'var(--db-bg)';
-  }
+  // Dark/light mode: the app's default, used while the viewer has not chosen
+  // one (DASHBOARD_LIGHT_STYLE paints light, not inline variables, so a
+  // viewer's choice and user CSS still apply).
+  _appColorMode = appDefaultColorMode(theme);
+  applyColorMode();
 
   // Radius
   const radiusMap = { none: '0', sm: '6px', md: '10px', lg: '14px', xl: '20px' };
@@ -1729,10 +1824,18 @@ async function init() {
   // Attach stored gateway token to same-origin requests (no-op without a token).
   installAuthFetch();
 
+  // Colour mode before the styles go in, so the dashboard's first frame is
+  // already light or dark as the viewer chose (or the OS, by default).
+  initColorMode();
+
   // Inject styles
   const style = document.createElement('style');
   style.textContent = DASHBOARD_STYLE;
   document.head.appendChild(style);
+  const lightStyle = document.createElement('style');
+  lightStyle.id = 'aiui-dashboard-light';
+  lightStyle.textContent = DASHBOARD_LIGHT_STYLE;
+  document.head.appendChild(lightStyle);
 
   // Apply theme from config BEFORE building dashboard
   try {
