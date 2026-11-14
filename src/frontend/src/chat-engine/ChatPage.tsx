@@ -16,6 +16,7 @@ import { PanelLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ShellPage } from '@/sdk/manifest'
+import { useManifest } from '@/sdk/services'
 import { deleteSession, fetchAgents, fetchSessions, fetchStarters, renameSession, type ChatAgent, type ChatSession } from './api'
 import type { ConnectionStatus } from './protocol'
 import { takePendingPrefill, takePendingSessionSelect } from './register'
@@ -139,6 +140,8 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   const [railHidden, setRailHidden] = useState(readRailHidden)
   const [notice, setNotice] = useState<string | null>(null)
   const running = useSyncExternalStore(threadStore.subscribeRunning, threadStore.runningSessions)
+  // The shell header owns the page <h1>; with it hidden (layout.pageHeader: false) the chat title is the h1.
+  const Heading = useManifest()?.layout.pageHeader === false ? 'h1' : 'h2'
 
   // Chats deleted during this visit. A list request that was already in flight
   // when the delete finished must not bring them back.
@@ -355,7 +358,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
             </Button>
           </div>
           <div className="mx-auto flex w-full max-w-[760px] min-w-0 items-center gap-1.5 pl-7 @[54rem]:pl-0" data-chat-header-column>
-            <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{heading}</h1>
+            <Heading className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" data-chat-title>{heading}</Heading>
             <AgentPicker agents={agents} value={agent} onChange={setAgent} />
             <ConnectionBadge status={thread.signals.connection} kind={transport.kind} />
           </div>

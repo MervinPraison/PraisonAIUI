@@ -416,6 +416,12 @@ test('mermaid fullscreen behaves as a modal: focus moves in, the page behind is 
   expect(await page.evaluate(() => document.querySelector('#root')?.hasAttribute('inert'))).toBe(false)
 })
 
+test('the chat page has one h1 (the shell header); the chat title is an h2', async ({ page }) => {
+  await openChat(page, 'ws')
+  await expect(page.locator('h1')).toHaveCount(1)
+  await expect(page.locator('h2[data-chat-title]')).toHaveText('New chat')
+})
+
 test.describe('phone session rail', () => {
   test.use({ viewport: { width: 390, height: 800 } })
 
