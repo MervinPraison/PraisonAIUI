@@ -13,6 +13,8 @@ import { showToast } from '../toast.js';
 
 // ── State ────────────────────────────────────────────────────────
 let ws = null;
+// Pending WebSocket reconnect (setTimeout id); cleanup() cancels it.
+let wsReconnectTimer = null;
 let currentSessionId = null;
 let currentAgentName = null;
 let isStreaming = false;
@@ -988,7 +990,10 @@ export async function render(container) {
 }
 
 export function cleanup() {
-  if (ws) { try { ws.close(); } catch(e) {} ws = null; }
+  // Detach onclose first: otherwise closing schedules a reconnect that opens a
+  // socket nobody ever closes once the view is gone.
+  if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+  if (ws) { try { ws.onclose = null; ws.close(); } catch(e) {} ws = null; }
   stopContextPoll();
   if (contextRefreshDebounce) { clearTimeout(contextRefreshDebounce); contextRefreshDebounce = null; }
   if (sessionSelectHandler) {
@@ -1278,7 +1283,16 @@ function wsAuthQuery() {
   }
 }
 
+function scheduleReconnect(delayMs) {
+  if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
+  wsReconnectTimer = setTimeout(() => {
+    wsReconnectTimer = null;
+    connectWebSocket();
+  }, delayMs);
+}
+
 function connectWebSocket() {
+  if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
   // Close any existing connection to prevent duplicate events
   if (ws) {
     try { ws.onclose = null; ws.close(); } catch (e) {}
@@ -1317,7 +1331,7 @@ function connectWebSocket() {
     ws.onclose = () => {
       console.log('[Chat] WebSocket closed, reconnecting in 3s…');
       setStatus('disconnected');
-      setTimeout(connectWebSocket, 3000);
+      scheduleReconnect(3000);
     };
 
     ws.onerror = (e) => {
@@ -1326,7 +1340,7 @@ function connectWebSocket() {
     };
   } catch (e) {
     console.warn('[Chat] WebSocket connection failed:', e);
-    setTimeout(connectWebSocket, 5000);
+    scheduleReconnect(5000);
   }
 }
 

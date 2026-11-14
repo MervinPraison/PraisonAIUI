@@ -28,12 +28,9 @@ const ONLY = (process.env.AIUI_E2E_SWEEP_PAGES || '').split(',').filter(Boolean)
  * a strict expectation: the test fails if a defect is still listed after it
  * has been fixed, so the lists cannot go stale.
  */
-const KNOWN_LEAKS: Record<string, string> = {
-  // plugins/views/chat.js cleanup() closes its socket with onclose still
-  // attached; onclose reconnects 3 s later and that socket is never closed.
-  // chat-canvas embeds that view (the /chat page itself is the React chat).
-  'chat-canvas': 'views/chat.js reconnects its WebSocket after cleanup()',
-}
+// Pages that leak on leaving, each with the reason. Empty: an entry that stops
+// leaking fails the sweep until it is removed here.
+const KNOWN_LEAKS: Record<string, string> = {}
 const KNOWN_BROKEN_DEEP_LINKS: Record<string, string> = {
   // GET /agents and GET /sessions are JSON APIs that the server answers
   // before the page fallback, so reloading these pages shows raw JSON.
