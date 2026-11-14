@@ -2,7 +2,7 @@
 
 Architecture:
     TrainingFeature (BaseFeatureProtocol)
-      ├── reads JSON session files from ~/.praison/train/*.json
+      ├── reads JSON session files from <data dir>/train/*.json (see _storage_dir)
       └── optionally delegates apply to praisonai_train.train.agents.apply_training
 
 The praisonai-train package is an optional dependency. When it is not installed
@@ -30,11 +30,18 @@ _EARLY_STOP_THRESHOLD = 9.5
 
 
 def _storage_dir() -> Path:
-    """Resolve the praisonai-train JSON storage directory."""
+    """Resolve the praisonai-train JSON storage directory.
+
+    ``$PRAISON_TRAIN_DIR`` > ``<configured data dir>/train`` >
+    ``~/.praison/train`` (praisonai-train's default, used only when no data
+    dir is configured; see ``_paths``).
+    """
+    from ._paths import feature_data_path
+
     override = os.environ.get("PRAISON_TRAIN_DIR")
     if override:
         return Path(override).expanduser()
-    return Path.home() / ".praison" / "train"
+    return feature_data_path("train", Path.home() / ".praison" / "train")
 
 
 def _train_available() -> bool:

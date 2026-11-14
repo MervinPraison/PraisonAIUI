@@ -213,3 +213,48 @@ def test_knowledge_store_lives_in_the_data_dir(dirs, monkeypatch):
     _unconfigure(monkeypatch)
     SDKKnowledgeManager()._get_sdk_knowledge()
     assert seen == [str(dirs["a"] / "knowledge"), str(dirs["b"] / "knowledge"), ".praisonai"]
+
+
+# ── training and MCP config ──────────────────────────────────────────
+
+
+def test_training_sessions_follow_the_data_dir(dirs, monkeypatch):
+    from praisonaiui.features.training import _storage_dir
+
+    _use(monkeypatch, dirs["a"])
+    assert _storage_dir() == dirs["a"] / "train"
+    _use(monkeypatch, dirs["b"])
+    assert _storage_dir() == dirs["b"] / "train"
+    monkeypatch.setenv("PRAISON_TRAIN_DIR", str(dirs["home"] / "explicit"))
+    assert _storage_dir() == dirs["home"] / "explicit"
+    monkeypatch.delenv("PRAISON_TRAIN_DIR")
+    _unconfigure(monkeypatch)
+    assert _storage_dir() == dirs["home"] / ".praison" / "train"
+
+
+def test_mcp_auto_discovery_reads_the_data_dir_config(dirs, monkeypatch):
+    import asyncio
+
+    from praisonaiui.features import mcp
+
+    connected = []
+
+    async def _connect(config, session_context=None):
+        connected.append(config["name"])
+
+    monkeypatch.setattr(mcp, "connect_mcp_server", _connect)
+    for where, name in (
+        (dirs["home"] / ".praisonai", "global"),
+        (dirs["a"], "server-a"),
+        (dirs["b"], "server-b"),
+    ):
+        where.mkdir(parents=True, exist_ok=True)
+        (where / "mcp.json").write_text(json.dumps({"servers": [{"name": name}]}))
+
+    _use(monkeypatch, dirs["a"])
+    asyncio.run(mcp.auto_discover_mcp_servers())
+    _use(monkeypatch, dirs["b"])
+    asyncio.run(mcp.auto_discover_mcp_servers())
+    _unconfigure(monkeypatch)
+    asyncio.run(mcp.auto_discover_mcp_servers())
+    assert connected == ["server-a", "server-b", "global"]
