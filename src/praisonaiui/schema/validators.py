@@ -6,7 +6,7 @@ import re
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from praisonaiui.schema.models import Config
@@ -57,8 +57,73 @@ def legacy_hsl_warning(css: str | None, source: str = "custom_css") -> str | Non
     return (
         f"{source} sets {', '.join(names)} to a bare HSL triple (e.g. '221 83% 53%'). "
         "Theme variables are full colours now: wrap the value as hsl(221 83% 53%), "
-        "or set a seed such as --seed-accent instead. See src/frontend/DESIGN.md."
+        "or set a seed such as --seed-accent instead. "
+        "See docs/features/react-shell.md#breaking-change-bare-hsl-triples."
     )
+
+
+def find_unknown_keys(model: type, data: Any, loc: tuple = ()) -> list[tuple]:
+    """Key paths in *data* that no field of *model* (or its nested models) takes.
+
+    Loading stays lenient (unknown keys are ignored, so a misspelling such
+    as ``stlye:`` silently does nothing); this reports them. A model that
+    declares ``extra="allow"`` accepts any key at its level. Works on every
+    pydantic 2 release (``model_validate(extra=...)`` is 2.12+ and would
+    also override ``extra="allow"``).
+    """
+    from pydantic import BaseModel
+
+    if not (isinstance(model, type) and issubclass(model, BaseModel)) or not isinstance(data, dict):
+        return []
+    fields = model.model_fields
+    by_key: dict[str, Any] = {}
+    for name, info in fields.items():
+        by_key[name] = info.annotation
+        if info.alias:
+            by_key[info.alias] = info.annotation
+    allows_extra = model.model_config.get("extra") == "allow"
+    found: list[tuple] = []
+    for key, value in data.items():
+        if key not in by_key:
+            if not allows_extra:
+                found.append((*loc, key))
+            continue
+        found.extend(_unknown_in_annotation(by_key[key], value, (*loc, key)))
+    return found
+
+
+def _unknown_in_annotation(annotation: Any, value: Any, loc: tuple) -> list[tuple]:
+    import typing
+
+    from pydantic import BaseModel
+
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return find_unknown_keys(annotation, value, loc)
+    origin = typing.get_origin(annotation)
+    args = typing.get_args(annotation)
+    if origin in (list, tuple, set, frozenset) and args and isinstance(value, (list, tuple)):
+        out: list[tuple] = []
+        for i, item in enumerate(value):
+            out.extend(_unknown_in_annotation(args[0], item, (*loc, i)))
+        return out
+    if origin is dict and len(args) == 2 and isinstance(value, dict):
+        out = []
+        for k, item in value.items():
+            out.extend(_unknown_in_annotation(args[1], item, (*loc, k)))
+        return out
+    if args and origin not in (dict, list, tuple, set, frozenset):
+        # Optional[X] / Union[A, B]: the model member that fits the value best.
+        candidates = [
+            a for a in args if isinstance(a, type) and issubclass(a, BaseModel)
+        ]
+        if candidates and isinstance(value, dict):
+            return min(
+                (find_unknown_keys(c, value, loc) for c in candidates), key=len
+            )
+        for a in args:
+            if typing.get_origin(a) in (list, dict, tuple, set, frozenset):
+                return _unknown_in_annotation(a, value, loc)
+    return []
 
 
 @dataclass

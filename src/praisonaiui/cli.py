@@ -393,14 +393,20 @@ def validate(
     strict: bool = typer.Option(
         False,
         "--strict",
-        help="Enable strict validation",
+        help="Enable strict validation (unknown keys become errors)",
     ),
 ) -> None:
     """Validate configuration file."""
+    import warnings
+
     import yaml
 
     from praisonaiui.schema.models import Config
-    from praisonaiui.schema.validators import validate_config
+    from praisonaiui.schema.validators import (
+        ValidationError,
+        find_unknown_keys,
+        validate_config,
+    )
 
     if not config.exists():
         console.print(f"[red]Error:[/red] Configuration file not found: {config}")
@@ -414,17 +420,53 @@ def validate(
         console.print(f"[red]Error:[/red] Failed to parse configuration: {e}")
         raise typer.Exit(code=1)
 
-    result = validate_config(cfg, config.parent, strict=strict)
+    # The library also emits these as UserWarning; here they are printed.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        result = validate_config(cfg, config.parent, strict=strict)
+
+    # Loading ignores keys no field takes, so a misspelling (stlye:, themee:)
+    # silently does nothing. Report them; --strict makes them errors.
+    for loc in find_unknown_keys(Config, data):
+        issue = ValidationError(
+            code=1003,
+            category="config",
+            message=f"Unknown key '{_format_loc(loc)}' (ignored)",
+            suggestion="Check the spelling; see aiui.template.yaml for the supported keys.",
+        )
+        if strict:
+            result.errors.append(issue)
+            result.valid = False
+        else:
+            result.warnings.append(issue)
+
+    for warning in result.warnings:
+        console.print(
+            f"  [yellow]\\[{warning.category}] {warning.code} {warning.message}[/yellow]"
+        )
+        if warning.suggestion:
+            console.print(f"    💡 {warning.suggestion}")
 
     if result.valid:
         console.print("[green]✓[/green] Configuration is valid")
     else:
         console.print("[red]✗[/red] Configuration has errors:")
         for error in result.errors:
-            console.print(f"  [{error.category}] {error.message}")
+            console.print(f"  \\[{error.category}] {error.message}")
             if error.suggestion:
                 console.print(f"    💡 {error.suggestion}")
         raise typer.Exit(code=1)
+
+
+def _format_loc(loc: tuple) -> str:
+    """('site', 'theme', 0, 'x') -> 'site.theme[0].x'."""
+    out = ""
+    for part in loc:
+        if isinstance(part, int):
+            out += f"[{part}]"
+        else:
+            out += ("." if out else "") + str(part)
+    return out
 
 
 @app.command()
