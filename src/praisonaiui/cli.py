@@ -4,7 +4,7 @@ import asyncio
 import re
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import typer
 from rich.console import Console
@@ -3389,10 +3389,14 @@ app.add_typer(plugins_app, name="plugins")
 _PLUGIN_NAME_OK = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
 
-def _load_extensions_policy(config: Optional[Path]) -> None:
-    """Apply ``extensions:`` from a YAML config, as the server would."""
+def _load_extensions_policy(config: Optional[Path]) -> Any:
+    """Apply ``extensions:`` from a YAML config, as the server would.
+
+    Returns the section (None without one) so a later ``create_app`` in the
+    same command can be given the same policy.
+    """
     if config is None:
-        return
+        return None
     import yaml
 
     from praisonaiui.plugin_registry import get_plugin_registry
@@ -3405,6 +3409,46 @@ def _load_extensions_policy(config: Optional[Path]) -> None:
     section = data.get("extensions") if isinstance(data, dict) else None
     if section is not None:
         get_plugin_registry().apply_config(section)
+    return section
+
+
+def _builtin_records(config: Optional[Path]) -> list:
+    """The first-party plugin records (``builtin.<name>``) under the policy.
+
+    Built-ins are part of the package, never entry points, so they are listed
+    even with plugin autoload disabled.
+    """
+    from praisonaiui.builtin import register_builtin_plugins
+    from praisonaiui.plugin_registry import get_plugin_registry
+
+    registry = get_plugin_registry()
+    register_builtin_plugins(registry)
+    _load_extensions_policy(config)
+    return registry.builtin_records()
+
+
+def _builtin_pages_by_id(records: list) -> dict[str, str]:
+    """Page id -> the ``builtin.<name>`` record that contributes it."""
+    out: dict[str, str] = {}
+    for rec in records:
+        hook = getattr(rec.plugin, "pages", None)
+        try:
+            specs = list(hook() or ()) if callable(hook) else []
+        except Exception:  # noqa: BLE001 - diagnostics only
+            specs = []
+        for spec in specs:
+            pid = _spec_get(spec, "id")
+            if pid:
+                out.setdefault(str(pid), rec.name)
+    return out
+
+
+def _builtin_row(rec) -> dict:
+    row = _plugin_record_dict(rec)
+    row["required"] = bool(getattr(rec, "required", False))
+    row["description"] = getattr(rec.plugin, "description", "") or ""
+    row["pages"] = sorted(_builtin_pages_by_id([rec]))
+    return row
 
 
 def _plugin_record_dict(rec) -> dict:
@@ -3474,9 +3518,40 @@ def plugins_list(
     from rich.table import Table
 
     _records, rows = _discover_plugins(config)
+    builtin_rows = [_builtin_row(rec) for rec in _builtin_records(config)]
     if json_output:
-        print(_json.dumps({"plugins": rows, "autoload": not _plugin_autoload_disabled()}, indent=2))
+        print(
+            _json.dumps(
+                {
+                    "plugins": rows,
+                    "builtins": builtin_rows,
+                    "autoload": not _plugin_autoload_disabled(),
+                },
+                indent=2,
+            )
+        )
         return
+    if builtin_rows:
+        btable = Table(title="Built-in plugins (extensions.disabled: builtin.<name>)", show_lines=False)
+        btable.add_column("Name", style="bold")
+        btable.add_column("Status")
+        btable.add_column("Required")
+        btable.add_column("Pages", overflow="fold")
+        for row in builtin_rows:
+            status = str(row.get("status"))
+            style = _STATUS_STYLE.get(status, "")
+            btable.add_row(
+                str(row.get("name")),
+                f"[{style}]{status}[/{style}]" if style else status,
+                "yes" if row.get("required") else "",
+                ", ".join(row.get("pages") or []) or "-",
+            )
+        console.print(btable)
+        if any(r.get("required") and r.get("status") == "disabled" for r in builtin_rows):
+            console.print(
+                "[dim]A disabled built-in marked required keeps the features the host "
+                "needs; only its pages and optional features are off.[/dim]"
+            )
     if _plugin_autoload_disabled():
         console.print(
             f"[yellow]Plugin autoload is disabled ({PLUGIN_AUTOLOAD_ENV}=1): "
@@ -3522,8 +3597,12 @@ def _sri_sha384(path: Path) -> str:
     return "sha384-" + base64.b64encode(hashlib.sha384(path.read_bytes()).digest()).decode()
 
 
-def _builtin_page_ids() -> Optional[set[str]]:
-    """Page ids the server registers on its own (app + built-in), or None."""
+def _builtin_page_ids(extensions: Any = None) -> Optional[set[str]]:
+    """Page ids the server registers on its own (app + built-in), or None.
+
+    ``extensions`` is the YAML policy, so a ``builtin.<name>`` it disables
+    contributes no ids.
+    """
     import contextlib
     import io
     import logging as _logging
@@ -3535,7 +3614,7 @@ def _builtin_page_ids() -> Optional[set[str]]:
         _logging.disable(_logging.WARNING)
         try:
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                _srv.create_app()
+                _srv.create_app(config={"extensions": extensions} if extensions is not None else None)
         finally:
             _logging.disable(previous)
         return set(_srv._pages)
@@ -3687,11 +3766,29 @@ def plugins_doctor(
         raise typer.Exit(code=1)
 
     records, _rows = _discover_plugins(config)
+    builtins = _builtin_records(config)
+    _ext_section = _load_extensions_policy(config)
+    builtin_owner = _builtin_pages_by_id(builtins)
+    from praisonaiui.plugin_registry import get_plugin_registry
+
+    unknown_builtins = get_plugin_registry().unknown_builtin_names()
     if not records:
-        console.print(f"No UI plugins installed (entry-point group '{PLUGIN_ENTRY_POINT_GROUP}').")
+        for raw in unknown_builtins:
+            console.print(f"[yellow]warn[/yellow] extensions.disabled: {raw!r} matches no built-in plugin")
+        console.print(
+            f"{len(builtins)} built-in plugin(s), "
+            f"{sum(1 for r in builtins if r.status == 'disabled')} disabled. "
+            f"No UI plugins installed (entry-point group '{PLUGIN_ENTRY_POINT_GROUP}')."
+        )
         return
 
     findings: list = []
+    for raw in unknown_builtins:
+        findings.append(("warn", "-", "extensions", f"disabled entry {raw!r} matches no built-in plugin"))
+    for rec in builtins:
+        if rec.status == "disabled":
+            note = "required features stay on" if rec.required else "pages and features off"
+            findings.append(("info", rec.name, "builtin", f"disabled by extensions.disabled ({note})"))
     static_files: dict = {}
     contributions: dict = {}
     for rec in records:
@@ -3720,7 +3817,7 @@ def plugins_doctor(
 
     # Shadowed ids: the server keeps the first page id it sees (app and
     # built-in pages first, then plugins in entry-point order).
-    builtin_ids = _builtin_page_ids() if check_builtin and contributions else set()
+    builtin_ids = _builtin_page_ids(_ext_section) if check_builtin and contributions else set()
     if builtin_ids is None:
         findings.append(("warn", "-", "shadow", "could not build the app to list built-in page ids"))
         builtin_ids = set()
@@ -3730,7 +3827,13 @@ def plugins_doctor(
     for name, contributed in contributions.items():
         for pid in contributed["pages"]:
             if pid in builtin_ids:
-                findings.append(("warn", name, "shadow", f"page {pid!r} is shadowed by a built-in page"))
+                owner = builtin_owner.get(pid)
+                hint = (
+                    f" ({owner}); add {owner} to extensions.disabled to use this plugin's page"
+                    if owner
+                    else " (registered by the app)"
+                )
+                findings.append(("warn", name, "shadow", f"page {pid!r} is shadowed by a built-in page{hint}"))
             elif pid in seen_pages:
                 findings.append(("warn", name, "shadow", f"page {pid!r} is shadowed by plugin {seen_pages[pid]!r}"))
             else:
@@ -3760,7 +3863,9 @@ def plugins_doctor(
     console.print(table)
     errors = sum(1 for f in findings if f[0] == "error")
     warnings = sum(1 for f in findings if f[0] == "warn")
-    console.print(f"{len(records)} plugin(s): {errors} failure(s), {warnings} warning(s)")
+    console.print(
+        f"{len(records)} plugin(s), {len(builtins)} built-in: {errors} failure(s), {warnings} warning(s)"
+    )
     if errors:
         raise typer.Exit(code=1)
 

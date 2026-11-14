@@ -242,6 +242,38 @@ def test_plugins_list_with_autoload_disabled_lists_without_importing(site, monke
     assert "autoload is disabled" in table.output
 
 
+def test_plugins_list_shows_builtin_records(site, tmp_path):
+    cfg = tmp_path / "aiui.yaml"
+    cfg.write_text("extensions:\n  disabled: [builtin.training, builtin.chat]\n")
+    result = _invoke("plugins", "list", "--json", "--config", str(cfg))
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    builtins = {b["name"]: b for b in data["builtins"]}
+    assert all(b["origin"] == "builtin" for b in builtins.values())
+    assert builtins["builtin.training"]["status"] == "disabled"
+    assert builtins["builtin.logs"]["status"] == "ok"
+    assert builtins["builtin.logs"]["pages"] == ["logs"]
+    assert builtins["builtin.chat"]["required"] is True
+    assert builtins["builtin.chat"]["status"] == "disabled"
+    assert builtins["builtin.logs"]["required"] is False
+    # third-party rows are unchanged and never include built-ins
+    assert not any(p["name"].startswith("builtin.") for p in data["plugins"])
+
+    table = _invoke("plugins", "list", "--config", str(cfg), env={"COLUMNS": "300"})
+    assert table.exit_code == 0, table.output
+    line = next(ln for ln in table.output.splitlines() if "builtin.training" in ln)
+    assert "disabled" in line
+    assert "keeps the features the host needs" in " ".join(table.output.split())
+
+
+def test_plugins_list_shows_builtins_with_autoload_disabled(site, monkeypatch):
+    monkeypatch.setenv("AIUI_DISABLE_PLUGIN_AUTOLOAD", "1")
+    result = _invoke("plugins", "list", "--json")
+    assert result.exit_code == 0, result.output
+    names = {b["name"] for b in json.loads(result.output)["builtins"]}
+    assert {"builtin.chat", "builtin.logs", "builtin.overview"} <= names
+
+
 # ── plugins doctor ───────────────────────────────────────────────────
 
 
@@ -261,7 +293,18 @@ def test_plugins_doctor_passes_and_reports_shadowed_ids(site, tmp_path):
     result = _invoke("plugins", "doctor", "--config", str(cfg))
     assert result.exit_code == 0, result.output
     assert "page 'logs' is shadowed by a built-in page" in result.output
+    assert "builtin.logs" in result.output and "extensions.disabled" in result.output
     assert "0 failure(s)" in result.output
+
+
+def test_plugins_doctor_no_shadow_once_the_builtin_is_disabled(site, tmp_path):
+    cfg = tmp_path / "aiui.yaml"
+    cfg.write_text("extensions:\n  disabled: [brokencli, badassets, builtin.logs, builtin.nope]\n")
+    result = _invoke("plugins", "doctor", "--config", str(cfg), env={"COLUMNS": "300"})
+    assert result.exit_code == 0, result.output
+    assert "shadowed" not in result.output
+    assert "builtin.logs" in result.output and "disabled by extensions.disabled" in result.output
+    assert "'builtin.nope' matches no built-in plugin" in result.output
 
 
 def test_plugins_doctor_detects_integrity_mismatch(site, monkeypatch):

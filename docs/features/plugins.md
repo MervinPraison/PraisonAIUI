@@ -411,8 +411,8 @@ suite sets it).
 
 | Command | Does |
 |---|---|
-| `aiui plugins list [--json] [--config aiui.yaml]` | Installed plugins with version, status (`ok`, `error`, `disabled`, `incompatible`, `disabled-by-default`) and load error |
-| `aiui plugins doctor [--config aiui.yaml] [--no-builtin]` | Loads each plugin and checks SDK version, `static_dir()`, every module file and its `sha384`, routes, CLI name clashes and page ids shadowed by built-in pages or other plugins. Exits 1 on any failure |
+| `aiui plugins list [--json] [--config aiui.yaml]` | The built-in records (`builtin.<name>`: status `ok` or `disabled`, whether the host requires part of it, its pages), then installed plugins with version, status (`ok`, `error`, `disabled`, `incompatible`, `disabled-by-default`) and load error. `--json` puts the built-ins under `builtins` |
+| `aiui plugins doctor [--config aiui.yaml] [--no-builtin]` | Loads each plugin and checks SDK version, `static_dir()`, every module file and its `sha384`, routes, CLI name clashes and page ids shadowed by built-in pages or other plugins. A page shadowed by a built-in names the `builtin.<name>` to add to `extensions.disabled`; a `builtin.` name that matches no record is a warning. Exits 1 on any failure |
 | `aiui <plugin> …`, `aiui plugins <plugin> …` | The plugin's own commands |
 
 `aiui --help` and built-in commands never import plugins; discovery runs only
