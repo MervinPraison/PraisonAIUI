@@ -26,6 +26,7 @@ import { threadStore } from './store'
 import { Thread } from './Thread'
 import { createAutoTransport, type AiuiTransport } from './transports'
 import { DEFAULT_STARTERS, fillPrompts } from './starters'
+import { connectionLabel } from './util'
 import { useAiuiRuntime, type AiuiStarter } from './useAiuiRuntime'
 
 /** Phone rail (radix Dialog sheet): loaded on the first tap of "Show chats". */
@@ -70,10 +71,9 @@ function readUrlState(): { session: string | null; agent: string | null } {
   }
 }
 
-function ConnectionBadge({ status, kind }: { status?: ConnectionStatus; kind: 'ws' | 'sse' }) {
+function ConnectionBadge({ status, transport }: { status?: ConnectionStatus; transport: AiuiTransport }) {
   if (!status) return null
-  const label = status === 'open' ? 'Connected' : status === 'connecting' ? 'Connecting' : kind === 'sse' ? 'Offline, using HTTP' : 'Offline'
-  const short = status === 'open' ? 'Live' : status === 'connecting' ? '…' : 'Offline'
+  const { label, short, tone } = connectionLabel(status, transport)
   return (
     <span
       className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-xs text-muted-foreground"
@@ -85,7 +85,8 @@ function ConnectionBadge({ status, kind }: { status?: ConnectionStatus; kind: 'w
       <span
         className={cn(
           'size-2 rounded-full',
-          status === 'open' ? 'bg-success' : status === 'connecting' ? 'bg-warning motion-safe:animate-pulse' : 'bg-destructive',
+          tone === 'ok' ? 'bg-success' : tone === 'down' ? 'bg-destructive' : 'bg-warning',
+          status === 'connecting' && 'motion-safe:animate-pulse',
         )}
         aria-hidden
       />
@@ -363,7 +364,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
           <div className="mx-auto flex w-full max-w-[760px] min-w-0 items-center gap-1.5 pl-7 @[54rem]:pl-0" data-chat-header-column>
             <Heading className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" data-chat-title>{heading}</Heading>
             <AgentPicker agents={agents} value={agent} onChange={setAgent} />
-            <ConnectionBadge status={thread.signals.connection} kind={transport.kind} />
+            <ConnectionBadge status={thread.signals.connection} transport={transport} />
           </div>
         </header>
         <div className="min-h-0 min-w-0 flex-1">

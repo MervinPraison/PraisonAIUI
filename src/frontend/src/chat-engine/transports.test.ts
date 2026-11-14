@@ -438,6 +438,38 @@ test('auto transport: falls back to SSE when the socket cannot open in time; ask
   ws.close()
 })
 
+test('auto transport: after the socket failed to open, sends skip the open timeout for a while (G7)', async () => {
+  FakeWebSocket.autoOpen = false
+  const ws = makeWs()
+  let connects = 0
+  const realConnect = ws.connect.bind(ws)
+  ws.connect = (t?: number) => {
+    connects++
+    return realConnect(t)
+  }
+  const sse: AiuiTransport = {
+    kind: 'sse',
+    async send({ onEvent }) {
+      onEvent({ type: 'run_completed', content: 'via sse' })
+    },
+    async cancel() {},
+    async respondAsk() {},
+  }
+  let clock = 1_000
+  const auto = createAutoTransport({ ws, sse, openTimeoutMs: 30, fallbackBackoffMs: 10_000, now: () => clock })
+  assert.equal(auto.httpFallback, true)
+  const send = (sid: string) => auto.send({ sessionId: sid, text: 'x', signal: new AbortController().signal, onEvent: () => {} })
+  await send('A')
+  assert.equal(connects, 1)
+  clock += 5_000
+  await send('B') // inside the back-off: straight to SSE
+  assert.equal(connects, 1, 'no second open attempt (and no 3 s wait) inside the back-off')
+  clock += 6_000
+  await send('C') // back-off over: probe the socket again
+  assert.equal(connects, 2)
+  ws.close()
+})
+
 // ── two tabs on one session (review r1) ───────────────────────────────
 
 function startNamedTurn(t: AiuiTransport, sessionId: string, clientTurnId: string) {

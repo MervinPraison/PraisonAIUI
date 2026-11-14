@@ -2,7 +2,7 @@
 // Exfiltration and link guards for agent-provided element / reference URLs.
 import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { formatDuration, hostOf, isLastReply, isTrustedImageUrl, safeUrl } from './util'
+import { connectionLabel, formatDuration, hostOf, isLastReply, isTrustedImageUrl, safeUrl } from './util'
 
 const g = globalThis as { location?: unknown }
 let prev: unknown
@@ -58,4 +58,11 @@ test('regenerate targets only the last answer (an earlier answer is never turned
   assert.equal(isLastReply(thread, null), false)
   assert.equal(isLastReply([], 'u1'), false)
   assert.equal(isLastReply([{ id: 'u1', role: 'user' }, { id: 'u2', role: 'user' }], 'u1'), false, 'no answer to regenerate')
+})
+
+test('a closed socket with the HTTP fallback reads "Using HTTP", not a red "Offline" (G7)', () => {
+  assert.deepEqual(connectionLabel('closed', { kind: 'ws', httpFallback: true }), { label: 'Using HTTP', short: 'HTTP', tone: 'pending' })
+  assert.equal(connectionLabel('closed', { kind: 'sse' }).label, 'Using HTTP')
+  assert.deepEqual(connectionLabel('closed', { kind: 'ws' }), { label: 'Offline', short: 'Offline', tone: 'down' })
+  assert.equal(connectionLabel('open', { kind: 'ws', httpFallback: true }).tone, 'ok')
 })

@@ -524,6 +524,18 @@ test('feedback switched off on the server: the thumbs disappear instead of flipp
   await expect(reply.getByRole('button', { name: 'Copy', exact: true })).toBeVisible()
 })
 
+test('with the socket blocked the badge says "Using HTTP", and a second message does not wait for the socket', async ({ page }) => {
+  await openChat(page, 'sse')
+  await send(page, 'plain over http one')
+  await waitForRunEnd(page)
+  const badge = page.locator('[data-connection]')
+  await expect(badge).toHaveAttribute('title', 'Using HTTP')
+  const t0 = Date.now()
+  await send(page, 'plain over http two')
+  await expect(assistant(page).last()).toContainText('You said: plain over http two')
+  expect(Date.now() - t0, 'no 3 s socket probe before the second turn').toBeLessThan(2_500)
+})
+
 test.describe('phone session rail', () => {
   test.use({ viewport: { width: 390, height: 800 } })
 

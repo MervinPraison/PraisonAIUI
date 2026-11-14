@@ -81,6 +81,8 @@ export interface AiuiTransport {
   runStatus?(runId: string): Promise<boolean | undefined>
   /** Whether `regenerate` replaces the last answer server-side (WS); otherwise it is a plain resend. */
   canRegenerate?(sessionId: string): boolean
+  /** Turns still work over HTTP (SSE) when the live socket is closed (the auto transport). */
+  readonly httpFallback?: boolean
 }
 
 export class TransportDisconnectedError extends Error {
@@ -836,6 +838,13 @@ export interface AutoTransportOptions {
   base?: string
   /** How long a send waits for the socket before falling back to SSE. */
   openTimeoutMs?: number
+  /**
+   * After the socket failed to open, later sends go straight to SSE for this
+   * long (30 s) instead of waiting `openTimeoutMs` on every message. The
+   * socket keeps reconnecting meanwhile; once it is open, sends use it again.
+   */
+  fallbackBackoffMs?: number
+  now?: () => number
   ws?: WsTransport
   sse?: AiuiTransport
 }
@@ -849,21 +858,28 @@ export function createAutoTransport(options: AutoTransportOptions = {}): AiuiTra
   const ws = options.ws ?? createWsTransport({ url: options.wsUrl })
   const sse = options.sse ?? createSseTransport(options.base)
   const openTimeout = options.openTimeoutMs ?? 3_000
+  const backoff = options.fallbackBackoffMs ?? 30_000
+  const now = options.now ?? Date.now
   const routes = new Map<string, 'ws' | 'sse'>()
   let mode: 'ws' | 'sse' = 'ws'
+  let sseUntil = 0
 
   const pick = async (): Promise<'ws' | 'sse'> => {
     if (ws.status === 'open') return 'ws'
+    // A proxy that drops the upgrade silently would add the open timeout to every message.
+    if (now() < sseUntil) return 'sse'
     try {
       await ws.connect(openTimeout)
       return 'ws'
     } catch {
+      sseUntil = now() + backoff
       return 'sse'
     }
   }
 
   return {
     ws,
+    httpFallback: true,
     get kind() {
       return mode
     },
