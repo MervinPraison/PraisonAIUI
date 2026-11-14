@@ -765,15 +765,18 @@ class PluginRegistry:
             out.append(spec)
         return out
 
-    def shell_pages(self, layout_ids: Iterable[str]) -> list[PageSpec]:
+    def shell_pages(self, layout_ids: Optional[Iterable[str]]) -> list[PageSpec]:
         """The ``shell_only`` pages of the enabled built-ins (app shell
         manifest only). A page that names ``layouts`` is included only while
         one of them is in ``layout_ids``. Its ``source`` is the owning
         record (``builtin.layout-guided``), which the browser treats as
         built-in, so page-table built-ins stay the only ``"builtin"`` rows.
+        ``layout_ids=None`` lists them all, unfiltered.
         """
-        ids = set(layout_ids)
         specs = self._collect_from(self._enabled_builtins(), "shell_pages", _resolve_shell_page)
+        if layout_ids is None:
+            return specs
+        ids = set(layout_ids)
         return [s for s in specs if not s.layouts or ids.intersection(s.layouts)]
 
     def blocks(self, *, restricted: bool = False) -> list[BlockSpec]:

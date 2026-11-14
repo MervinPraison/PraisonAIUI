@@ -1432,7 +1432,8 @@ def _page_records(
         )
         for p in _pages.values()
     ]
-    plugins = [ps.plugin_page(s) for s in reg.pages(restricted=restricted)]
+    plugins = [*ps.shell_pages(reg, _effective_style, restricted=restricted),  # ADR 0003
+               *(ps.plugin_page(s) for s in reg.pages(restricted=restricted))]
     folders = ps.folder_pages(
         discover_dashboard_plugins(extra_dirs, _dashboard_plugin_allowlist())
     )
