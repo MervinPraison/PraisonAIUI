@@ -1,12 +1,12 @@
 {
-  "_ChatPage-D1IrdJRu.js": {
-    "file": "assets/ChatPage-D1IrdJRu.js",
+  "_ChatPage-CF-YK1xg.js": {
+    "file": "assets/ChatPage-CF-YK1xg.js",
     "name": "ChatPage",
     "isDynamicEntry": true,
     "imports": [
       "_vendor-react-SCdx8Lck.js",
       "_skeleton-D8zNCKia.js",
-      "_mount-D0Ft_oJW.js",
+      "_mount-Bo0YfHT_.js",
       "_spinner-k1M8beQV.js",
       "_index-CXXZuBin.js",
       "_preload-helper-BXl3LOEh.js",
@@ -330,8 +330,8 @@
     "file": "assets/mount-BVxLvPPR.css",
     "src": "_mount-BVxLvPPR.css"
   },
-  "_mount-D0Ft_oJW.js": {
-    "file": "assets/mount-D0Ft_oJW.js",
+  "_mount-Bo0YfHT_.js": {
+    "file": "assets/mount-Bo0YfHT_.js",
     "name": "mount",
     "isDynamicEntry": true,
     "imports": [
@@ -341,7 +341,7 @@
     ],
     "dynamicImports": [
       "node_modules/sonner/dist/index.mjs",
-      "_ChatPage-D1IrdJRu.js",
+      "_ChatPage-CF-YK1xg.js",
       "src/shell/CommandPalette.tsx",
       "src/legacy/LegacyViewHost.tsx",
       "src/blocks/BlockPage.tsx",
@@ -417,7 +417,7 @@
       "_preload-helper-BXl3LOEh.js"
     ],
     "dynamicImports": [
-      "_mount-D0Ft_oJW.js",
+      "_mount-Bo0YfHT_.js",
       "src/legacy-app-entry.tsx"
     ],
     "css": [
@@ -1315,14 +1315,14 @@
     ]
   },
   "src/blocks/BlockPage.tsx": {
-    "file": "assets/BlockPage-DsMMPZ6n.js",
+    "file": "assets/BlockPage-ktReWvsi.js",
     "name": "BlockPage",
     "src": "src/blocks/BlockPage.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_vendor-react-SCdx8Lck.js",
       "_skeleton-D8zNCKia.js",
-      "_mount-D0Ft_oJW.js",
+      "_mount-Bo0YfHT_.js",
       "_badge-DJr2-9mU.js",
       "_spinner-k1M8beQV.js",
       "_circle-x-BAIT97LH.js",
@@ -1347,23 +1347,23 @@
     ]
   },
   "src/chat-engine/parts/AskTool.tsx": {
-    "file": "assets/AskTool-CXt8zR_f.js",
+    "file": "assets/AskTool-CkcIoTKC.js",
     "name": "AskTool",
     "src": "src/chat-engine/parts/AskTool.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_vendor-react-SCdx8Lck.js",
-      "_ChatPage-D1IrdJRu.js",
+      "_ChatPage-CF-YK1xg.js",
       "_skeleton-D8zNCKia.js",
       "_spinner-k1M8beQV.js",
-      "_mount-D0Ft_oJW.js",
+      "_mount-Bo0YfHT_.js",
       "_preload-helper-BXl3LOEh.js",
       "_index-CXXZuBin.js",
       "_check-BYsJ9LPr.js"
     ]
   },
   "src/chat-engine/parts/ElementPart.tsx": {
-    "file": "assets/ElementPart-CgVyB25q.js",
+    "file": "assets/ElementPart-BnaXWhzy.js",
     "name": "ElementPart",
     "src": "src/chat-engine/parts/ElementPart.tsx",
     "isDynamicEntry": true,
@@ -1371,8 +1371,8 @@
       "_preload-helper-BXl3LOEh.js",
       "_vendor-react-SCdx8Lck.js",
       "_skeleton-D8zNCKia.js",
-      "_ChatPage-D1IrdJRu.js",
-      "_mount-D0Ft_oJW.js",
+      "_ChatPage-CF-YK1xg.js",
+      "_mount-Bo0YfHT_.js",
       "_spinner-k1M8beQV.js",
       "_index-CXXZuBin.js",
       "_check-BYsJ9LPr.js"
@@ -1421,14 +1421,14 @@
     ]
   },
   "src/legacy/LegacyViewHost.tsx": {
-    "file": "assets/LegacyViewHost-DQdnanlp.js",
+    "file": "assets/LegacyViewHost-BvhRf8NC.js",
     "name": "LegacyViewHost",
     "src": "src/legacy/LegacyViewHost.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_vendor-react-SCdx8Lck.js",
       "_skeleton-D8zNCKia.js",
-      "_mount-D0Ft_oJW.js",
+      "_mount-Bo0YfHT_.js",
       "_preload-helper-BXl3LOEh.js"
     ]
   },
@@ -1476,13 +1476,13 @@
     ]
   },
   "src/shell/CommandPalette.tsx": {
-    "file": "assets/CommandPalette-8MYn8Nbd.js",
+    "file": "assets/CommandPalette-BbkwO1uW.js",
     "name": "CommandPalette",
     "src": "src/shell/CommandPalette.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_vendor-react-SCdx8Lck.js",
-      "_mount-D0Ft_oJW.js",
+      "_mount-Bo0YfHT_.js",
       "_command-zHv1drqG.js",
       "_skeleton-D8zNCKia.js",
       "_check-BYsJ9LPr.js",
@@ -1493,14 +1493,14 @@
     ]
   },
   "src/shell/MobileNav.tsx": {
-    "file": "assets/MobileNav-B5vYcfUA.js",
+    "file": "assets/MobileNav-CN_wmyKZ.js",
     "name": "MobileNav",
     "src": "src/shell/MobileNav.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_vendor-react-SCdx8Lck.js",
       "_sheet-BoWze2nO.js",
-      "_mount-D0Ft_oJW.js",
+      "_mount-Bo0YfHT_.js",
       "_skeleton-D8zNCKia.js",
       "_preload-helper-BXl3LOEh.js",
       "_index-CXXZuBin.js",
@@ -1508,13 +1508,13 @@
     ]
   },
   "src/shell/ShellToaster.tsx": {
-    "file": "assets/ShellToaster-DgXK6Q10.js",
+    "file": "assets/ShellToaster-Bl1XJQeQ.js",
     "name": "ShellToaster",
     "src": "src/shell/ShellToaster.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_vendor-react-SCdx8Lck.js",
-      "_mount-D0Ft_oJW.js",
+      "_mount-Bo0YfHT_.js",
       "node_modules/sonner/dist/index.mjs",
       "_skeleton-D8zNCKia.js",
       "_preload-helper-BXl3LOEh.js"
