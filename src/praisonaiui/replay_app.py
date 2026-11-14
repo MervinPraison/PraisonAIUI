@@ -7,7 +7,9 @@ Usage (what ``praisonai replay view`` runs)::
 
 then open ``http://127.0.0.1:8090/replay?run=<run_id>`` (``/#/replay?run=<run_id>``
 is accepted too).  The trace directory follows ``PRAISONAI_TRACES_DIR`` >
-``PRAISON_HOME/traces`` > ``~/.praison/traces``.
+``PRAISON_HOME/traces`` > ``<data dir>/traces`` when ``PRAISONAI_HOME`` or
+``AIUI_DATA_DIR`` is configured > ``~/.praison/traces``
+(``praisonaiui.features._trace_jsonl.traces_dir``).
 """
 
 from praisonaiui.features.replay import configure_replay_app
