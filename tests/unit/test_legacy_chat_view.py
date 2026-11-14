@@ -188,7 +188,8 @@ SAMPLES = {
     "open_fence": "Here:\n```js\nconst a = 1;",
     "xss_text": "<img src=x onerror=alert(1)> **<script>x</script>**",
     "xss_cell": "| h |\n|---|\n| <img src=x onerror=alert(1)> |",
-    "js_link": "[click](javascript:alert(1))",
+    "js_link": "[click](javascript:alert(1)) after",
+    "paren_link": "[Foo](https://en.wikipedia.org/wiki/Foo_(bar)) and [b](https://b.test/) (note)",
     "quote_link": '[x](https://a.test/"onmouseover="alert(1))',
     "ok_link": "[docs](https://example.com/docs?a=1&b=2)",
     "nul": "a\x00CB0\x00b",
@@ -281,6 +282,14 @@ class TestEscaping:
     def test_javascript_link_is_text(self, md):
         html = md["js_link"]
         assert "<a" not in html and "javascript:" not in html.split(">")[0]
+        # The whole target goes, not just up to its first ')'.
+        assert "click after" in html and "alert" not in html and ")" not in html
+
+    def test_link_target_with_parentheses(self, md):
+        html = md["paren_link"]
+        hrefs = [a["href"] for t, a in _tree(html).tags if t == "a"]
+        assert hrefs == ["https://en.wikipedia.org/wiki/Foo_(bar)", "https://b.test/"]
+        assert "</a> (note)" in html
 
     def test_quote_cannot_leave_the_href(self, md):
         tags = [a for t, a in _tree(md["quote_link"]).tags if t == "a"]

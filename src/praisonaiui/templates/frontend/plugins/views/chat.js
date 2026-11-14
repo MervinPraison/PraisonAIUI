@@ -107,12 +107,14 @@ function escapeHtml(str) {
 const SAFE_HREF = /^(?:https?:\/\/|mailto:|\/|#|\.{1,2}\/)/i;
 
 // Inline markdown for already-escaped text: bold, italic, strikethrough, links.
+// A link target may hold balanced parentheses one level deep, as in
+// CommonMark (`.../Foo_(bar)`), so `[x](javascript:f(1))` is one target.
 function renderInline(html) {
   return html
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/~~(.+?)~~/g, '<del>$1</del>')
-    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, label, href) => (
+    .replace(/\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/g, (m, label, href) => (
       SAFE_HREF.test(href)
         ? '<a href="' + href + '" target="_blank" rel="noopener noreferrer nofollow">' + label + '</a>'
         : label
