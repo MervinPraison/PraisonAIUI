@@ -103,6 +103,15 @@ A relative `module` (`"hello.js"`) resolves into `static_dir()`; the server
 then serves `/_plugins/<name>/hello.js` and adds its `sha384` integrity to the
 manifest and the import map.
 
+The integrity is a **cache-consistency** check, not tamper protection: the
+server hashes the file it is about to serve (re-hashed when the file changes,
+so a rebuilt bundle keeps loading), which guards against a stale or partly
+written file between the page render and the module fetch. Someone who can
+change files in the plugin's `static_dir` can also change what is hashed.
+Declare `integrity=` on the `PageSpec` to pin a hash you computed at build
+time. When auth is enforced the page carries no manifest (and so no import-map
+integrity) before login; the shell loads plugin modules afterwards.
+
 When two sources use the same page id, the first wins: pages registered by the
 app (`aiui.register_page`), then built-in pages, then entry-point plugins (in
 discovery order), then dashboard-plugin folders. `aiui plugins doctor` warns
@@ -392,11 +401,13 @@ Core block types: `text`, `caption`, `header`/`heading`, `markdown_text`/`markdo
 Installing a plugin means trusting it: its Python runs in the server process and
 its JavaScript runs in the page with no sandbox (use `kind: iframe` for
 untrusted content). Because any installed package, including a transitive
-dependency, can declare the entry point, the **browser** parts of entry-point
-plugins (pages, blocks, tool renderers and `/_plugins/<name>/`) are
-**default-deny** when the server requires auth or is reached from a
-non-loopback address. They are listed as `disabled-by-default` until you
-enable the plugin by name:
+dependency, can declare the entry point, the browser parts of entry-point
+plugins (pages, blocks, tool renderers and `/_plugins/<name>/`) and their HTTP
+routes (`/api/plugins/<name>/*`) are **default-deny** when the server requires
+auth or is reached from a non-loopback address. They are listed as
+`disabled-by-default` (and answer 404) until you enable the plugin by name.
+The plugin's Python code still runs (`setup()`, `features()`): to keep an
+installed package from being imported at all, put it in `extensions.disabled`.
 
 ```yaml
 extensions:
