@@ -939,3 +939,71 @@ def test_shell_routes_gated_by_auth_enforce(monkeypatch, api_key):
 def test_env_isolation_from_conftest():
     assert os.environ.get("AIUI_DISABLE_PLUGIN_AUTOLOAD") == "1"
     assert "AIUI_SHELL" not in os.environ
+
+
+def _preload_build(root: Path) -> Path:
+    """A templates dir whose aiui-manifest.json mirrors the real chunk graph."""
+    (root / "assets").mkdir(parents=True)
+    manifest = {
+        "index.html": {
+            "file": "assets/index.js", "isEntry": True, "src": "index.html",
+            "imports": ["_preload-helper-AAAAAAAA.js"],
+            "dynamicImports": ["_mount-BBBBBBBB.js", "src/legacy-app-entry.tsx"],
+        },
+        "_preload-helper-AAAAAAAA.js": {"file": "assets/preload-helper-AAAAAAAA.js"},
+        "_mount-BBBBBBBB.js": {
+            "file": "assets/mount-BBBBBBBB.js", "name": "mount", "isDynamicEntry": True,
+            "imports": ["_vendor-react-CCCCCCCC.js", "_preload-helper-AAAAAAAA.js"],
+            "dynamicImports": ["_ChatPage-DDDDDDDD.js"],
+            "css": ["assets/mount-BBBBBBBB.css"],
+        },
+        "_vendor-react-CCCCCCCC.js": {"file": "assets/vendor-react-CCCCCCCC.js"},
+        "src/legacy-app-entry.tsx": {
+            "file": "assets/legacy-app-entry-EEEEEEEE.js", "isDynamicEntry": True,
+            "imports": ["_vendor-react-CCCCCCCC.js"],
+        },
+        "_ChatPage-DDDDDDDD.js": {
+            "file": "assets/ChatPage-DDDDDDDD.js", "name": "ChatPage", "isDynamicEntry": True,
+            "imports": ["_mount-BBBBBBBB.js", "_thread-FFFFFFFF.js"],
+        },
+        "_thread-FFFFFFFF.js": {"file": "assets/thread-FFFFFFFF.js"},
+    }
+    (root / "aiui-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    return root
+
+
+def _preloads(html_text: str) -> list[str]:
+    return re.findall(r'<link rel="modulepreload" crossorigin href="([^"]+)">', html_text)
+
+
+def test_app_html_modulepreloads_the_shell_boot_chunks(tmp_path, monkeypatch):
+    monkeypatch.setenv("AIUI_TEMPLATES_DIR", str(_preload_build(tmp_path / "fe")))
+    srv.set_style("app")
+    head = _client().get("/").text.split("</head>", 1)[0]
+    assert _preloads(head) == [
+        "/assets/mount-BBBBBBBB.js",
+        "/assets/preload-helper-AAAAAAAA.js",
+        "/assets/vendor-react-CCCCCCCC.js",
+    ]
+
+
+def test_app_html_on_chat_also_preloads_the_chat_page(tmp_path, monkeypatch):
+    monkeypatch.setenv("AIUI_TEMPLATES_DIR", str(_preload_build(tmp_path / "fe")))
+    srv.set_style("app")
+    links = _preloads(_client().get("/chat").text)
+    assert "/assets/ChatPage-DDDDDDDD.js" in links and "/assets/thread-FFFFFFFF.js" in links
+    assert "/assets/index.js" not in links  # its script tag loads it with ?v=
+    assert not any("legacy-app-entry" in link for link in links)
+    assert "/assets/ChatPage-DDDDDDDD.js" not in _preloads(_client().get("/sessions").text)
+
+
+def test_modulepreload_only_for_the_app_style_and_a_manifest(tmp_path, monkeypatch):
+    monkeypatch.setenv("AIUI_TEMPLATES_DIR", str(_preload_build(tmp_path / "fe")))
+    for style in ("dashboard", "chat"):
+        srv.set_style(style)
+        assert _preloads(srv._build_html(style)) == []
+    empty = tmp_path / "nomanifest"
+    empty.mkdir()
+    monkeypatch.setenv("AIUI_TEMPLATES_DIR", str(empty))
+    srv.set_style("app")
+    assert _preloads(srv._build_html("app")) == []

@@ -946,7 +946,7 @@ def _build_html(style: str, request: Optional[Request] = None) -> str:
             f'data-aiui-theme-default="{_shell_default_theme()}">'
         )
         theme_vars_tag = _shell_theme_tag()
-        shell_head = _shell_head(cache_bust, request)
+        shell_head = _shell_head(cache_bust, request) + _shell_modulepreload_tags(request)
 
     canonical_script = (
         '<script id="aiui-canonical-url">'
@@ -975,6 +975,60 @@ def _build_html(style: str, request: Optional[Request] = None) -> str:
         f"{_custom_js_tag(cache_bust)}"
         "</body></html>"
     )
+
+
+def _shell_modulepreload_tags(request: Optional[Request]) -> str:
+    """``<link rel=modulepreload>`` for the chunks the app shell loads at boot.
+
+    Without them the browser finds the shell mount chunk (and, on /chat, the
+    chat page chunk) only after index.js has run: one more round trip before
+    first paint. The list is the static closure of the index.html entry plus
+    the shell mount chunk, and on the chat page also the ChatPage chunk, read
+    from the build's aiui-manifest.json (the same walk as
+    src/frontend/scripts/lib/build-manifest.mjs ``staticClosure``). index.js
+    itself is left out: its script tag loads it with ``?v=``. Returns "" when
+    the build has no manifest.
+    """
+    data = _cached_json_file(_frontend_templates_dir() / "aiui-manifest.json")
+    if not isinstance(data, dict):
+        return ""
+    entry = data.get("index.html")
+    if not isinstance(entry, dict):
+        return ""
+
+    def chunk(key: Any) -> dict[str, Any]:
+        c = data.get(key) if isinstance(key, str) else None
+        return c if isinstance(c, dict) else {}
+
+    # The shell mount chunk has no src key (Rollup merges shell/mount.tsx with
+    # modules it shares): it is the entry's lazy import named "mount".
+    roots = ["index.html"] + [k for k in entry.get("dynamicImports") or [] if chunk(k).get("name") == "mount"]
+    path = request.url.path if request is not None else "/"
+    if path.strip("/").split("/", 1)[0] == "chat":
+        roots += [
+            k for k, c in data.items()
+            if isinstance(c, dict) and c.get("name") == "ChatPage" and c.get("isDynamicEntry")
+        ]
+
+    seen: set[str] = set()
+    stack = list(roots)
+    while stack:
+        key = stack.pop()
+        if key in seen:
+            continue
+        seen.add(key)
+        stack.extend(k for k in chunk(key).get("imports") or [] if isinstance(k, str))
+
+    entry_file = entry.get("file")
+    files = sorted(
+        f for f in (chunk(k).get("file") for k in seen)
+        if isinstance(f, str) and f.endswith(".js") and f != entry_file and _SAFE_ASSET_FILE.match(f)
+    )
+    return "".join(f'<link rel="modulepreload" crossorigin href="/{f}">' for f in files)
+
+
+# A Vite output path (assets/<name>-<hash>.js): never markup-significant.
+_SAFE_ASSET_FILE = re.compile(r"^assets/[A-Za-z0-9._-]+\.js$")
 
 
 def _frontend_templates_dir() -> Path:
