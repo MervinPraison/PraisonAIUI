@@ -9,7 +9,10 @@ only its own data.
 
 from __future__ import annotations
 
+import json
 import shutil
+import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -132,3 +135,81 @@ def test_explicit_trace_overrides_still_win(dirs, monkeypatch):
     assert tj.traces_dir() == dirs["b"] / "traces"
     monkeypatch.setenv("PRAISONAI_TRACES_DIR", str(dirs["home"] / "explicit"))
     assert tj.traces_dir() == dirs["home"] / "explicit"
+
+
+def _unconfigure(monkeypatch) -> None:
+    monkeypatch.delenv("AIUI_DATA_DIR", raising=False)
+    monkeypatch.delenv("PRAISONAI_HOME", raising=False)
+
+
+# ── memory ───────────────────────────────────────────────────────────
+
+
+def _file_memory(directory: Path, text: str) -> None:
+    user = directory / "default"
+    user.mkdir(parents=True, exist_ok=True)
+    (user / "short_term.json").write_text(json.dumps([{"id": text, "content": text}]))
+
+
+def test_file_memories_come_from_the_data_dir_only(dirs, monkeypatch, tmp_path):
+    from praisonaiui.features.memory import SDKMemoryManager
+
+    cwd = tmp_path / "project"
+    cwd.mkdir()
+    monkeypatch.chdir(cwd)
+    _file_memory(dirs["home"] / ".praisonai" / "memory", "global-home")
+    _file_memory(cwd / ".praisonai" / "memory", "global-cwd")
+    _file_memory(dirs["a"] / "memory", "mem-a")
+    _file_memory(dirs["b"] / "memory", "mem-b")
+    mgr = SDKMemoryManager()
+
+    _use(monkeypatch, dirs["a"])
+    assert {e["text"] for e in mgr._read_file_memory_entries()} == {"mem-a"}
+    _use(monkeypatch, dirs["b"])
+    assert {e["text"] for e in mgr._read_file_memory_entries()} == {"mem-b"}
+
+    _unconfigure(monkeypatch)  # no data dir: the historical folders, unchanged
+    assert {e["text"] for e in mgr._read_file_memory_entries()} == {"global-home", "global-cwd"}
+
+
+def test_sdk_memory_stores_live_in_the_data_dir(dirs, monkeypatch):
+    from praisonaiui.features.memory import SDKMemoryManager
+
+    _use(monkeypatch, dirs["a"])
+    cfg = SDKMemoryManager()._sdk_config()
+    for key in ("short_db", "long_db", "rag_db_path"):
+        assert Path(cfg[key]).parent == dirs["a"] / "memory"
+
+    explicit = SDKMemoryManager(short_db="/elsewhere/short.db")._sdk_config()
+    assert explicit["short_db"] == "/elsewhere/short.db"
+
+    _unconfigure(monkeypatch)
+    assert SDKMemoryManager()._sdk_config() == {}  # SDK defaults, as before
+
+
+# ── knowledge ────────────────────────────────────────────────────────
+
+
+def test_knowledge_store_lives_in_the_data_dir(dirs, monkeypatch):
+    from praisonaiui.features.knowledge import SDKKnowledgeManager
+
+    seen = []
+
+    class _Knowledge:
+        def __init__(self, config=None, **_):
+            seen.append(config["vector_store"]["config"]["path"])
+
+        def search(self, *a, **k):
+            return []
+
+    mod = types.ModuleType("praisonaiagents.knowledge")
+    mod.Knowledge = _Knowledge
+    monkeypatch.setitem(sys.modules, "praisonaiagents.knowledge", mod)
+
+    _use(monkeypatch, dirs["a"])
+    SDKKnowledgeManager()._get_sdk_knowledge()
+    _use(monkeypatch, dirs["b"])
+    SDKKnowledgeManager()._get_sdk_knowledge()
+    _unconfigure(monkeypatch)
+    SDKKnowledgeManager()._get_sdk_knowledge()
+    assert seen == [str(dirs["a"] / "knowledge"), str(dirs["b"] / "knowledge"), ".praisonai"]

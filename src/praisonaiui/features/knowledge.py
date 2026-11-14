@@ -16,6 +16,7 @@ import logging
 import time
 import uuid
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from starlette.requests import Request
@@ -23,6 +24,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
+from ._paths import feature_data_path
 
 logger = logging.getLogger(__name__)
 
@@ -203,6 +205,15 @@ class SimpleKnowledgeManager(KnowledgeProtocol):
 # ── SDK Knowledge Manager (wraps praisonaiagents.knowledge) ──────────
 
 
+def _knowledge_store_path() -> Path:
+    """Chroma persist folder: ``<data dir>/knowledge``, else ``./.praisonai``.
+
+    The working-directory default is kept only when no data dir is
+    configured, so two servers with different data dirs never share a store.
+    """
+    return feature_data_path("knowledge", Path(".praisonai"))
+
+
 class SDKKnowledgeManager(KnowledgeProtocol):
     """Wraps praisonaiagents.knowledge.Knowledge for production use.
 
@@ -242,7 +253,7 @@ class SDKKnowledgeManager(KnowledgeProtocol):
                         "provider": "chroma",
                         "config": {
                             "collection_name": "praisonaiui_knowledge",
-                            "path": ".praisonai",
+                            "path": str(_knowledge_store_path()),
                         },
                     },
                 }

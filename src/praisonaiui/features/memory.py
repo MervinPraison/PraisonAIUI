@@ -29,8 +29,21 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from ._base import BaseFeatureProtocol
+from ._paths import configured_data_dir
 
 logger = logging.getLogger(__name__)
+
+
+def _file_memory_dirs() -> List[Path]:
+    """Folders holding FileMemory JSON files.
+
+    ``<data dir>/memory`` when a data dir is configured; otherwise the
+    historical ``./.praisonai/memory`` and ``~/.praisonai/memory``.
+    """
+    base = configured_data_dir()
+    if base is not None:
+        return [base / "memory"]
+    return [Path.cwd() / ".praisonai" / "memory", Path.home() / ".praisonai" / "memory"]
 
 
 # ── Memory Protocol ──────────────────────────────────────────────────
@@ -216,6 +229,21 @@ class SDKMemoryManager(MemoryProtocol):
         self._sdk_memory = None
         self._local_index: Dict[str, Dict[str, Any]] = {}
 
+    def _sdk_config(self) -> Dict[str, Any]:
+        """SDK Memory config with its stores in the configured data dir.
+
+        The SDK defaults to ``./.praisonai`` (the working directory), which two
+        servers with different data dirs would share. Explicit config wins.
+        """
+        config = dict(self._config or {})
+        base = configured_data_dir()
+        if base is not None:
+            store = base / "memory"
+            config.setdefault("short_db", str(store / "short_term.db"))
+            config.setdefault("long_db", str(store / "long_term.db"))
+            config.setdefault("rag_db_path", str(store / "chroma_db"))
+        return config
+
     def _get_sdk_memory(self) -> Any:
         """Lazy-init SDK Memory."""
         if self._sdk_memory is None:
@@ -223,7 +251,7 @@ class SDKMemoryManager(MemoryProtocol):
                 from praisonaiagents.memory import Memory
 
                 # SDK Memory requires config dict (can be empty for defaults)
-                self._sdk_memory = Memory(config=self._config or {})
+                self._sdk_memory = Memory(config=self._sdk_config())
                 logger.info("SDK Memory initialized: %s", type(self._sdk_memory).__name__)
             except ImportError:
                 logger.warning("praisonaiagents not installed; falling back to local index")
@@ -413,14 +441,9 @@ class SDKMemoryManager(MemoryProtocol):
         return [m for m in self._local_index.values() if m.get("memory_type") == memory_type]
 
     def _read_file_memory_entries(self, memory_type: str = "all") -> List[Dict[str, Any]]:
-        """Read memory entries from FileMemory JSON files (.praisonai/memory/)."""
+        """Read memory entries from FileMemory JSON files (see :func:`_file_memory_dirs`)."""
         entries = []
-        # Look for memory JSON files in .praisonai/memory/
-        memory_dirs = [
-            Path.cwd() / ".praisonai" / "memory",
-            Path.home() / ".praisonai" / "memory",
-        ]
-        for mem_dir in memory_dirs:
+        for mem_dir in _file_memory_dirs():
             if not mem_dir.exists():
                 continue
             for json_file in mem_dir.rglob("*.json"):
