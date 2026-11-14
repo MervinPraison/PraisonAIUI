@@ -1,6 +1,6 @@
 """Tests for serve command and SPA handler."""
 
-
+import pytest
 
 
 class TestServeCommand:
@@ -183,3 +183,67 @@ class TestServePortProbe:
 
         msg = _port_moved_message("127.0.0.1", 8000, 8001)
         assert "8000" in msg and "8001" in msg and "in use" in msg
+
+
+class TestStaticSiteApp:
+    """`aiui serve` serves files through StaticFiles with cache rules."""
+
+    @pytest.fixture
+    def site(self, tmp_path):
+        out = tmp_path / "aiui"
+        (out / "assets").mkdir(parents=True)
+        (out / "index.html").write_text("<html>spa</html>")
+        (out / "about.html").write_text("<html>about</html>")
+        (out / "ui-config.json").write_text('{"site": {}}')
+        (out / "assets" / "index.js").write_text("console.log('entry');\n" * 200)
+        (out / "assets" / "app-AbCd1234.js").write_text("console.log('chunk');\n" * 200)
+        (out / "aiui-manifest.json").write_text(
+            '{"src/main.tsx": {"file": "assets/index.js"},'
+            ' "src/app.tsx": {"file": "assets/app-AbCd1234.js"}}'
+        )
+        (tmp_path / "secret.txt").write_text("TOP-SECRET")
+        return out
+
+    @staticmethod
+    def _client(out):
+        from starlette.testclient import TestClient
+
+        from praisonaiui.cli import _static_site_app
+
+        return TestClient(_static_site_app(out), raise_server_exceptions=False)
+
+    def test_missing_asset_is_404_not_html(self, site):
+        r = self._client(site).get("/assets/missing-ZZZZ9999.js")
+        assert r.status_code == 404
+        assert "text/html" not in r.headers.get("content-type", "")
+
+    def test_hashed_chunk_is_immutable_and_entry_revalidates(self, site):
+        c = self._client(site)
+        chunk = c.get("/assets/app-AbCd1234.js")
+        assert chunk.status_code == 200
+        assert "immutable" in chunk.headers["cache-control"]
+        assert c.get("/assets/index.js").headers["cache-control"] == "no-cache"
+
+    def test_spa_fallback_only_for_extensionless_paths(self, site):
+        c = self._client(site)
+        r = c.get("/docs/getting-started")
+        assert r.status_code == 200 and "spa" in r.text
+        assert r.headers["cache-control"] == "no-cache"
+        assert "about" in c.get("/about").text
+        assert c.get("/nope.png").status_code == 404
+
+    def test_files_have_etag_and_304(self, site):
+        c = self._client(site)
+        r = c.get("/ui-config.json")
+        assert r.status_code == 200 and r.headers.get("etag")
+        again = c.get("/ui-config.json", headers={"If-None-Match": r.headers["etag"]})
+        assert again.status_code == 304
+
+    def test_traversal_never_leaks(self, site):
+        c = self._client(site)
+        for path in ("/..%2fsecret.txt", "/%2e%2e/secret.txt", "/assets/..%2f..%2fsecret.txt"):
+            assert "TOP-SECRET" not in c.get(path).text
+
+    def test_assets_are_gzipped(self, site):
+        r = self._client(site).get("/assets/index.js", headers={"Accept-Encoding": "gzip"})
+        assert r.headers.get("content-encoding") == "gzip"

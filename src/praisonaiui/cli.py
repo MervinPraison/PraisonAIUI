@@ -478,6 +478,92 @@ def build(
         raise typer.Exit(code=3)
 
 
+def _is_safe_path(requested: Path, root: Path) -> bool:
+    """Guard against path traversal: is *requested* inside *root*?"""
+    try:
+        requested.resolve().relative_to(root.resolve())
+        return True
+    except (ValueError, OSError, RuntimeError):
+        return False
+
+
+def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
+    """The ASGI app ``aiui serve`` runs for a built site.
+
+    * Files come from Starlette's ``StaticFiles`` (contained lookup, ETag and
+      Last-Modified, 304s), gzip-compressed.
+    * ``/assets``: content-hashed chunks are ``immutable``; ``index.js`` /
+      ``index.css`` and unknown names are ``no-cache`` (same rules as the
+      ``aiui run`` server). A missing asset is a 404, never the HTML page.
+    * A path whose last segment has no extension falls back to
+      ``<path>.html`` and then ``index.html`` (client-side routes); any other
+      missing file is a 404.
+    """
+    from starlette.applications import Starlette
+    from starlette.exceptions import HTTPException
+    from starlette.middleware import Middleware
+    from starlette.middleware.cors import CORSMiddleware
+    from starlette.responses import FileResponse, PlainTextResponse
+    from starlette.routing import Mount
+    from starlette.staticfiles import StaticFiles
+
+    from praisonaiui.server import _AssetStaticFiles, gzip_static
+
+    root = output.resolve()
+
+    class _SiteFiles(StaticFiles):
+        # Fixed names (index.html, ui-config.json …) change on every build.
+        def file_response(self, full_path, stat_result, scope, status_code: int = 200):
+            response = super().file_response(full_path, stat_result, scope, status_code)
+            response.headers.setdefault("Cache-Control", "no-cache")
+            return response
+
+    site = _SiteFiles(directory=str(root), html=True)
+
+    async def site_app(scope, receive, send):
+        if scope["type"] != "http":
+            return
+        try:
+            await site(scope, receive, send)
+            return
+        except HTTPException as exc:
+            if exc.status_code != 404:
+                raise
+        path = scope.get("path", "/")
+        last = path.rstrip("/").rsplit("/", 1)[-1]
+        response = PlainTextResponse("Not Found", status_code=404)
+        if "." not in last:
+            rel = path.strip("/")
+            candidates = [root / f"{rel}.html"] if rel else []
+            candidates.append(root / "index.html")
+            for candidate in candidates:
+                if _is_safe_path(candidate, root) and candidate.is_file():
+                    response = FileResponse(
+                        str(candidate),
+                        media_type="text/html",
+                        headers={"Cache-Control": "no-cache"},
+                    )
+                    break
+        await response(scope, receive, send)
+
+    routes = []
+    if (root / "assets").is_dir():
+        routes.append(
+            Mount(
+                "/assets",
+                app=gzip_static(_AssetStaticFiles(directory=str(root / "assets"), frontend_dir=root)),
+            )
+        )
+    routes.append(Mount("/", app=gzip_static(site_app)))
+
+    middleware = []
+    if cors_origins:
+        middleware.append(
+            Middleware(CORSMiddleware, allow_origins=list(cors_origins), allow_methods=["GET"])
+        )
+    return Starlette(routes=routes, middleware=middleware)
+
+
 @app.command()
 def serve(
     config: Path = typer.Option(
@@ -552,68 +638,8 @@ def serve(
     if actual_port != port:
         console.print(_port_moved_message(host, port, actual_port))
 
-    # Build Starlette app with security
-    from starlette.applications import Starlette
-    from starlette.middleware import Middleware
-    from starlette.middleware.cors import CORSMiddleware
-    from starlette.requests import Request
-    from starlette.responses import FileResponse, Response
-    from starlette.routing import Route
-
-    output_resolved = output.resolve()
-
-    def _is_safe_path(requested: Path) -> bool:
-        """Guard against path traversal — ensure file is inside output dir."""
-        try:
-            requested.resolve().relative_to(output_resolved)
-            return True
-        except ValueError:
-            return False
-
-    async def spa_handler(request: Request) -> Response:
-        """SPA handler: serve static files with path-traversal guard and index.html fallback."""
-
-        url_path = request.url.path.lstrip("/")
-        file_path = output_resolved / url_path
-
-        # Path traversal guard
-        if not _is_safe_path(file_path):
-            return Response("Forbidden", status_code=403)
-
-        # Serve exact file if it exists
-        if file_path.is_file():
-            import mimetypes
-
-            mime, _ = mimetypes.guess_type(str(file_path))
-            return FileResponse(str(file_path), media_type=mime)
-
-        # Try adding index.html for directories
-        if file_path.is_dir():
-            index = file_path / "index.html"
-            if index.is_file():
-                return FileResponse(str(index))
-
-        # Try with .html extension
-        html_path = file_path.with_suffix(".html")
-        if html_path.is_file() and _is_safe_path(html_path):
-            return FileResponse(str(html_path))
-
-        # SPA fallback — serve index.html for client-side routes
-        index_html = output_resolved / "index.html"
-        if index_html.is_file():
-            return FileResponse(str(index_html))
-
-        return Response("Not Found", status_code=404)
-
-    middleware = []
-    if cors_origins:
-        origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
-        middleware.append(Middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET"]))
-
-    starlette_app = Starlette(
-        routes=[Route("/{path:path}", endpoint=spa_handler)],
-        middleware=middleware,
-    )
+    origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
+    starlette_app = _static_site_app(output, origins)
 
     protocol = "https" if ssl_certfile else "http"
     console.print(f"\n[green]🚀[/green] Serving at [link]{protocol}://{host}:{actual_port}[/link]")
