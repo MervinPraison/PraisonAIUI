@@ -270,9 +270,10 @@ html[data-aiui-shell='react'] .aiui-legacy-mount > .theme-picker {
   margin: 0;
   max-width: 760px;
 }
-/* Full-page empty states centre their content; their side padding only
-   moved the box off the gutter. */
-html[data-aiui-shell='react'] .aiui-legacy-mount :is(.aiui-jobs-empty, .aiui-schedules-empty) {
+/* Empty states (agents, approvals, channels, jobs, cron, skills, usage: a
+   wrapper holding .aiui-empty-icon) centre their content; their side padding
+   only moved the box off the gutter. */
+html[data-aiui-shell='react'] .aiui-legacy-mount :has(> .aiui-empty-icon) {
   padding-inline: 0;
 }
 
