@@ -328,17 +328,14 @@ function pause(m: AiuiMessage, ev: WireEvent): AiuiMessage {
 }
 
 /** Stamp the moment a reply became final (kept when it is final already). */
-const stampDone = (m: AiuiMessage, now = Date.now()): AiuiMessage => (m.completedAt ? m : { ...m, completedAt: now })
+const stampDone = (m: AiuiMessage): AiuiMessage => (m.completedAt ? m : { ...m, completedAt: Date.now() })
 
 /**
  * `run_completed.suggestions`: follow-up prompts a layout may offer as chips.
- * Strings only, trimmed, deduplicated, at most 8 of 200 chars each; none
- * leaves `custom` as it was.
+ * Non-empty strings only, trimmed, at most 8; none leaves `custom` as it was.
  */
 function withSuggestions(m: AiuiMessage, raw: unknown): AiuiMessage {
-  const suggestions = Array.isArray(raw)
-    ? [...new Set(raw.filter((x): x is string => typeof x === 'string').map((x) => x.trim().slice(0, 200)).filter(Boolean))].slice(0, 8)
-    : []
+  const suggestions = Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string' && !!x.trim()).map((x) => x.trim()).slice(0, 8) : []
   return suggestions.length ? { ...m, custom: { ...m.custom, suggestions } } : m
 }
 

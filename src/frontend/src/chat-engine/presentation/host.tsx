@@ -5,16 +5,18 @@
  * is its own lazy chunk again, fetched only when the layout asks for it:
  *
  *   Gate          approvals 'card' (./ApprovalCard) or 'keyboard' (./KeyboardGate)
- *   TurnMeta      the turn header of a thread variant (./TurnMeta), and the
- *                 variant's stylesheet (./quiet.css, ./bubbles.css…)
+ *   Turn          one assistant turn: the variant's turn header (./TurnMeta)
+ *                 and stylesheet (./quiet.css, ./bubbles.css…), and the
+ *                 layout's turnHeader / turnFooter regions around it
  *   Region        a layout region (turnHeader, turnFooter, empty) via ../LazyRegion
  *   Aside         the side panel / phone switch for `aside` (./Aside)
  *
- * The state behind them (viewport, the aside badge) lives here too, so the
- * chat route itself carries only the hooks to this module (R10 budget).
+ * The state behind them (viewport, the aside badge) is in ./regionState.
+ * Keeping all of it out of the chat route leaves that route's budget
+ * (R10) to the chat itself: it carries only the calls into this module.
  */
 import { lazy, useEffect, useMemo, type JSX, type ReactNode } from 'react'
-import type { ToolCallMessagePartProps } from '@assistant-ui/react'
+import { useAuiState, type ToolCallMessagePartProps } from '@assistant-ui/react'
 import type { ChatPresentation, RegionLoader, TurnRegionProps } from '@/sdk/layouts'
 import { APPROVAL_ERROR, APPROVAL_PENDING } from '../protocol'
 import LazyRegion from '../LazyRegion'
@@ -45,7 +47,7 @@ const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined)
  * stripped).
  */
 export function Gate({ mode, part, description, fallback }: {
-  mode: NonNullable<ChatPresentation['approvals']>
+  mode?: ChatPresentation['approvals']
   part: ToolCallMessagePartProps
   description?: string
   fallback: ReactNode
@@ -73,19 +75,36 @@ export function Gate({ mode, part, description, fallback }: {
 }
 
 /**
- * The turn header of a thread variant; `fallback` (the plain agent line)
- * while it loads. The first one fetches the variant's stylesheet (scoped to
- * `[data-variant]`, so it is harmless after a layout switch).
+ * One assistant turn (`children`) in a layout: the variant's turn header,
+ * with `agentLine` (the plain agent name) while it loads or without a
+ * variant, and the layout's turnHeader and turnFooter regions. The first
+ * turn fetches the variant's stylesheet (scoped to `[data-variant]`, so it
+ * is harmless after a layout switch).
  */
-export function TurnMeta({ variant, fallback }: { variant?: ThreadVariant; fallback: ReactNode }): JSX.Element {
+export function Turn({ presentation, agentLine, children }: {
+  presentation: { chat: ChatPresentation; sessionId: string | null }
+  agentLine: ReactNode
+  children: ReactNode
+}): JSX.Element {
+  const { chat, sessionId } = presentation
+  const variant = chat.thread
+  const messageId = useAuiState((s) => s.message.id)
   useEffect(() => {
     if (variant) void VARIANT_CSS[variant]?.().catch(() => undefined)
   }, [variant])
-  if (!variant) return <>{fallback}</>
   return (
-    <LazyBoundary fallback={fallback} failed={fallback}>
-      <TurnMetaLazy variant={variant} />
-    </LazyBoundary>
+    <>
+      {variant ? (
+        <LazyBoundary fallback={agentLine} failed={agentLine}>
+          <TurnMetaLazy variant={variant} />
+        </LazyBoundary>
+      ) : (
+        agentLine
+      )}
+      {chat.turnHeader && <Region loader={chat.turnHeader} name="turnHeader" sessionId={sessionId} messageId={messageId} />}
+      {children}
+      {chat.turnFooter && <Region loader={chat.turnFooter} name="turnFooter" sessionId={sessionId} messageId={messageId} />}
+    </>
   )
 }
 
@@ -102,16 +121,6 @@ export function Region({ loader, name, sessionId, messageId }: {
   const base = useRegionProps(sessionId)
   const props = useMemo(() => (messageId === undefined ? base : { ...base, messageId }), [base, messageId])
   return <LazyRegion loader={loader as RegionLoader} props={props} name={name} />
-}
-
-/** The layout's turnHeader or turnFooter around one assistant turn (nothing when the layout has none). */
-export function TurnRegion({ at, presentation, messageId }: {
-  at: 'turnHeader' | 'turnFooter'
-  presentation: { chat: ChatPresentation; sessionId: string | null }
-  messageId: string
-}): JSX.Element | null {
-  const loader = presentation.chat[at]
-  return loader ? <Region loader={loader} name={at} sessionId={presentation.sessionId} messageId={messageId} /> : null
 }
 
 /** The side panel for `aside`; nothing while its chunk loads or if it fails. */

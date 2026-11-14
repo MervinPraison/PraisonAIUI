@@ -336,7 +336,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   return (
     <div className="relative flex h-full min-h-0 w-full min-w-0 overflow-hidden bg-background text-foreground" data-aiui-chat data-page-id={page.id}>
       {ownRail && !railHidden && <SessionRail {...railProps} className="hidden shrink-0 border-r border-border/70 lg:flex" />}
-      {ownRail && railRequested && (
+      {railRequested && (
         <Suspense fallback={null}>
           <RailSheet open={railOpen} onOpenChange={setRailOpen} rail={railProps} returnFocus={railButton} />
         </Suspense>

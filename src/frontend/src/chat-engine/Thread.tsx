@@ -221,7 +221,6 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
   const panelId = useId()
   const sessionId = useContext(SessionIdContext)
   const pres = useContext(PresentationContext)
-  const approvals = pres?.chat.approvals
   const host = pres?.host
   const a = (artifact ?? {}) as Record<string, unknown>
   const state = toolState(props)
@@ -272,7 +271,7 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
           <ChevronRight className={cn('size-3.5 text-muted-foreground motion-safe:transition-transform motion-safe:duration-[120ms]', open && 'rotate-90')} aria-hidden />
         </span>
       </button>
-      {gate && (host && approvals ? <host.Gate mode={approvals} part={props} description={description} fallback={gate} /> : gate)}
+      {gate && (host ? <host.Gate mode={pres.chat.approvals} part={props} description={description} fallback={gate} /> : gate)}
       {open && (
         <div id={panelId} className="space-y-3 px-3 pt-1 pb-3">
           {description && <p className="text-xs break-words text-muted-foreground sm:hidden">{description}</p>}
@@ -451,16 +450,11 @@ const REVEAL_ON_HOVER =
 const AssistantMessage: FC = () => {
   const components = useContext(PartsContext)
   const pres = useContext(PresentationContext)
-  const host = pres?.host
-  const variant = pres?.chat.thread
   const agent = useAuiState((s) => (s.message.metadata.custom as { agentName?: string }).agentName)
   const isLast = useAuiState((s) => s.message.isLast)
-  const messageId = useAuiState((s) => s.message.id)
   const agentLine = agent ? <div className="mb-1 text-xs font-medium text-muted-foreground">{agent}</div> : null
-  return (
-    <MessagePrimitive.Root className={cn(COLUMN, 'group/msg min-w-0 py-3')} data-role="assistant">
-      {host ? <host.TurnMeta variant={variant} fallback={agentLine} /> : agentLine}
-      {host && <host.TurnRegion at="turnHeader" presentation={pres} messageId={messageId} />}
+  const turn = (
+    <>
       <div className="min-w-0 text-base leading-[1.55] break-words text-foreground">
         <MessagePrimitive.Parts components={components} />
       </div>
@@ -498,7 +492,12 @@ const AssistantMessage: FC = () => {
           </ActionBarPrimitive.FeedbackNegative>
         </AuiIf>
       </ActionBarPrimitive.Root>
-      {host && <host.TurnRegion at="turnFooter" presentation={pres} messageId={messageId} />}
+    </>
+  )
+  return (
+    <MessagePrimitive.Root className={cn(COLUMN, 'group/msg min-w-0 py-3')} data-role="assistant">
+      {/* A layout's turn header, regions and variant styles wrap the turn (lazy host). */}
+      {pres?.host ? <pres.host.Turn presentation={pres} agentLine={agentLine}>{turn}</pres.host.Turn> : <>{agentLine}{turn}</>}
     </MessagePrimitive.Root>
   )
 }
@@ -674,7 +673,6 @@ function focusComposerEnd(from: HTMLElement) {
 export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loading, notice, sessionId, fillPrompts, presentation }) => {
   const parts = usePartComponents()
   const chat = presentation?.chat
-  const variant = chat?.thread
   const host = presentation?.host
   return (
     <SessionIdContext.Provider value={sessionId}>
@@ -685,7 +683,7 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
     <ThreadPrimitive.Root
       className="group/drop flex h-full min-h-0 min-w-0 flex-col bg-background text-foreground"
       data-aiui-dropzone
-      data-variant={variant}
+      data-variant={chat?.thread}
     >
       <ThreadPrimitive.Viewport autoScroll className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-4 sm:px-6" data-aiui-thread>
         {loading ? (
