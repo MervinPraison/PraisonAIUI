@@ -23,6 +23,77 @@ const PROXIED_PATHS = [
 // the legacy App path and every lazy route (size budgets glob for it).
 const VENDOR_REACT = /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/
 
+// Selectable layouts (ADR 0003 R17). Every layout is its own chunk group
+// `layout-<id>` (src/app-layouts/<id>/), the shared kit is `layout-kit`
+// (src/app-layouts/kit/), and every layout-specific feature is `lf-<name>`
+// (src/layout-features/<name>/). Rollup splits them naturally (each frame is
+// a dynamic import); this only NAMES the chunks it made, in the file name and
+// in aiui-manifest.json, which scripts/check-layout-isolation.mjs and the size
+// budgets read. (manualChunks would pull shared dependencies into a layout
+// chunk and make the shell import it.) A chunk that mixes two groups fails
+// the build: some module imported another layout or feature statically.
+const APP_LAYOUTS_DIR = path.resolve(__dirname, 'src/app-layouts') + path.sep
+const LAYOUT_FEATURES_DIR = path.resolve(__dirname, 'src/layout-features') + path.sep
+const GROUP_ID = /^[a-z][a-z0-9-]*$/
+
+/** `layout-<id>`, `layout-kit` or `lf-<name>` for a module under those folders, else undefined. */
+function layoutGroupOf(id: string): string | undefined {
+  const file = path.normalize(id.split('?')[0])
+  for (const [dir, prefix] of [
+    [APP_LAYOUTS_DIR, 'layout-'],
+    [LAYOUT_FEATURES_DIR, 'lf-'],
+  ] as const) {
+    if (!file.startsWith(dir)) continue
+    const parts = file.slice(dir.length).split(path.sep)
+    // Only modules inside a layout's (or feature's) folder; loose files there are tests.
+    return parts.length > 1 && GROUP_ID.test(parts[0]) ? `${prefix}${parts[0]}` : undefined
+  }
+  return undefined
+}
+
+const KIT_GROUP = 'layout-kit'
+
+/**
+ * A chunk's group: its facade module's, else the one group its modules
+ * belong to; `mixed` when it holds two layouts or features. Kit modules may
+ * share a chunk with one group (with a single layout, Rollup merges the kit
+ * into it).
+ */
+function layoutChunkName(chunk: { facadeModuleId: string | null; moduleIds: readonly string[] }): {
+  name?: string
+  mixed?: string[]
+} {
+  const groups = new Set(chunk.moduleIds.map(layoutGroupOf).filter((g): g is string => !!g))
+  const owners = [...groups].filter((g) => g !== KIT_GROUP)
+  if (owners.length > 1) return { mixed: owners.sort() }
+  const facade = chunk.facadeModuleId ? layoutGroupOf(chunk.facadeModuleId) : undefined
+  return { name: facade ?? owners[0] ?? (groups.size ? KIT_GROUP : undefined) }
+}
+
+function layoutChunkNames(): Plugin {
+  return {
+    name: 'aiui-layout-chunk-names',
+    apply: 'build',
+    generateBundle: {
+      // Before vite:manifest writes the names into aiui-manifest.json.
+      order: 'pre',
+      handler(_options, bundle) {
+        for (const chunk of Object.values(bundle)) {
+          if (chunk.type !== 'chunk') continue
+          const { name, mixed } = layoutChunkName(chunk)
+          if (mixed) {
+            this.error(
+              `${chunk.fileName} mixes ${mixed.join(' and ')}: a layout or layout feature is imported statically ` +
+                'from outside its folder. Layouts never import each other; features load with import() (R17).',
+            )
+          }
+          if (name) chunk.name = name
+        }
+      },
+    },
+  }
+}
+
 // No chunk may import the entry. The server loads it as
 // /assets/index.js?v=<build>, and a chunk's `import "./index.js"` is a
 // different module URL, so the entry (and main.tsx's mount) would run twice.
@@ -80,7 +151,7 @@ function noEntryImports(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [globalCssOnlyFromEntry(), react(), tailwindcss(), noEntryImports()],
+  plugins: [globalCssOnlyFromEntry(), react(), tailwindcss(), noEntryImports(), layoutChunkNames()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -119,7 +190,7 @@ export default defineConfig({
         // is content-hashed (immutable caching, and no case-insensitive name
         // collisions such as shiki's markdown.js vs our Markdown.js on macOS).
         entryFileNames: 'assets/index.js',
-        chunkFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: (chunk) => `assets/${layoutChunkName(chunk).name ?? '[name]'}-[hash].js`,
         assetFileNames: (assetInfo) => {
           const names = assetInfo.names ?? []
           const origins = assetInfo.originalFileNames ?? []

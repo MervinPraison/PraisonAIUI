@@ -30,6 +30,59 @@ const chatRouteJs = filesOf(manifest, chatClosure).filter((f) => !bootJs.include
 // The chat / docs / agents / playground / custom styles: entry + legacy App.
 const legacyJs = filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks.legacyApp]))
 
+// Selectable layouts (ADR 0003 §1.4). vite.config.ts names the chunks of each
+// layout `layout-<id>`, the kit `layout-kit` and each layout feature
+// `lf-<name>`; a group may span several chunks. A layout's cost is its
+// closure minus what boot already loaded. Budgets: measured at F3 (stub
+// frames) plus 10%, never above the ADR caps (layouts 24 kB, Mission 28 kB;
+// kit 10 kB). A layout track raises its own up to the cap, with the reason.
+// The `lf-*` features do not exist yet: their entries are the ADR caps, for
+// the track that lands each one to set from its measurement. Every group in
+// the build must have a budget here.
+const LAYOUT_BUDGETS = {
+  'layout-chat-canvas': '4.6 kB',
+  'layout-workbench': '4.6 kB',
+  'layout-command': '4.6 kB',
+  'layout-guided': '4.6 kB',
+  'layout-mission': '4.6 kB',
+}
+const KIT_BUDGET = '5 kB'
+const FEATURE_BUDGETS = {
+  'lf-artifacts': '30 kB',
+  'lf-run-inspector': '14 kB',
+  'lf-command-bar': '6 kB',
+  'lf-step-tracker': '6 kB',
+  'lf-mission-board': '22 kB',
+}
+/** The app shell's default layout (style `app`): its /chat first screen has its own budget. */
+const DEFAULT_LAYOUT = 'layout-chat-canvas'
+
+const groupKeys = new Map()
+for (const [key, c] of Object.entries(manifest)) {
+  if (!/^(layout|lf)-[a-z][a-z0-9-]*$/.test(c.name ?? '')) continue
+  if (!groupKeys.has(c.name)) groupKeys.set(c.name, [])
+  groupKeys.get(c.name).push(key)
+}
+const bootSet = new Set(bootAll)
+const groupFiles = (group) =>
+  filesOf(manifest, staticClosure(manifest, groupKeys.get(group)), { css: true }).filter((f) => !bootSet.has(f))
+const layoutEntries = [...groupKeys.keys()].sort().map((group) => {
+  const limit = group === 'layout-kit' ? KIT_BUDGET : (LAYOUT_BUDGETS[group] ?? FEATURE_BUDGETS[group])
+  if (!limit) throw new Error(`.size-limit.mjs: no budget for chunk group ${group}; add it to LAYOUT_BUDGETS or FEATURE_BUDGETS`)
+  const what = group === 'layout-kit' ? 'layout kit' : group.startsWith('lf-') ? `layout feature ${group}` : `layout ${group} (closure minus boot)`
+  return { name: what, path: abs(group === 'layout-kit' ? filesOf(manifest, groupKeys.get(group), { css: true }) : groupFiles(group)), limit, gzip: true }
+})
+const defaultLayoutFirstScreen = groupKeys.has(DEFAULT_LAYOUT)
+  ? [
+      {
+        name: '/chat first screen JS with the default layout (boot + layout-chat-canvas + kit + chat route)',
+        path: abs([...new Set([...bootJs, ...groupFiles(DEFAULT_LAYOUT).filter((f) => f.endsWith('.js')), ...chatRouteJs])]),
+        limit: '270 kB',
+        gzip: true,
+      },
+    ]
+  : []
+
 // Everything under dist/assets ships in the Python wheel.
 const allAssets = readdirSync(path.join(DIST, 'assets'), { recursive: true, withFileTypes: true })
   .filter((entry) => entry.isFile())
@@ -47,6 +100,8 @@ export default [
   { name: 'Streamdown renderer chunk', path: abs([manifest[chunks.streamdown].file]), limit: '147 kB', gzip: true },
   { name: 'shikiPlugin chunk', path: abs([manifest[chunks.shikiPlugin].file]), limit: '55 kB', gzip: true },
   { name: 'legacy App path (entry + legacy-app-entry closure)', path: abs(legacyJs), limit: '250 kB', gzip: true },
+  ...layoutEntries,
+  ...defaultLayoutFirstScreen,
   // Uncompressed: this is what the wheel carries.
   { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9 MB', brotli: false },
 ]

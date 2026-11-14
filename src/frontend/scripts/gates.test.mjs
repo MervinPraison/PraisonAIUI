@@ -297,3 +297,108 @@ test('carry-forward is a no-op on the first deploy', () => {
   assert.equal(code, 0, out)
   assert.match(out, /no previous site/)
 })
+
+// ── check-layout-isolation (ADR 0003 R17) ────────────────────────────
+
+/** fakeManifest() plus two layouts sharing the kit, and a lazily loaded feature. */
+function layoutManifest() {
+  const m = fakeManifest()
+  m['_mount-1.js'].dynamicImports.push('src/app-layouts/alpha/Frame.tsx', 'src/app-layouts/beta/Frame.tsx')
+  Object.assign(m, {
+    'src/app-layouts/alpha/Frame.tsx': {
+      file: 'assets/layout-alpha-1.js',
+      name: 'layout-alpha',
+      isDynamicEntry: true,
+      imports: ['_vendor-1.js', '_mount-1.js', '_layout-kit-1.js'],
+      dynamicImports: ['src/layout-features/panel/Panel.tsx'],
+    },
+    'src/app-layouts/beta/Frame.tsx': {
+      file: 'assets/layout-beta-1.js',
+      name: 'layout-beta',
+      isDynamicEntry: true,
+      imports: ['_vendor-1.js', '_layout-kit-1.js'],
+    },
+    '_layout-kit-1.js': { file: 'assets/layout-kit-1.js', name: 'layout-kit', imports: ['_vendor-1.js'] },
+    'src/layout-features/panel/Panel.tsx': {
+      file: 'assets/lf-panel-1.js',
+      name: 'lf-panel',
+      isDynamicEntry: true,
+      imports: ['_vendor-1.js', '_layout-kit-1.js'],
+    },
+  })
+  return m
+}
+
+const layoutSrc = () =>
+  write(tmpdir(), {
+    'app-layouts/alpha/Frame.tsx': '',
+    'app-layouts/beta/Frame.tsx': '',
+    'app-layouts/kit/index.ts': '',
+    'app-layouts/isolation.test.ts': '',
+    'layout-features/panel/Panel.tsx': '',
+  })
+
+const isolation = (m, files = {}) => run('check-layout-isolation.mjs', ['--dist', fakeDist(m, files), '--src', layoutSrc()])
+
+test('check-layout-isolation passes when every layout and feature loads only lazily', () => {
+  const { code, out } = isolation(layoutManifest())
+  assert.equal(code, 0, out)
+  assert.match(out, /4 groups \(layout-alpha, layout-beta, layout-kit, lf-panel\)/)
+  assert.match(out, /check-layout-isolation: OK/)
+})
+
+test('check-layout-isolation fails when the boot closure loads a layout or the kit', () => {
+  const m = layoutManifest()
+  m['_mount-1.js'].imports.push('_layout-kit-1.js')
+  const { code, out } = isolation(m)
+  assert.equal(code, 1, out)
+  assert.match(out, /boot \(entry \+ shell mount\) statically loads layout-kit/)
+  assert.match(out, /assets\/mount-1\.js \(mount\) statically imports layout-kit/)
+})
+
+test('check-layout-isolation fails when a lazy shell chunk imports a layout chunk statically', () => {
+  const m = layoutManifest()
+  m['_md-1.js'].imports.push('src/app-layouts/beta/Frame.tsx')
+  const { code, out } = isolation(m)
+  assert.equal(code, 1, out)
+  assert.match(out, /assets\/md-1\.js .* statically imports layout-beta/)
+})
+
+test('check-layout-isolation fails when a layout brings another layout or a feature with it', () => {
+  const m = layoutManifest()
+  m['src/app-layouts/alpha/Frame.tsx'].imports.push('src/app-layouts/beta/Frame.tsx', 'src/layout-features/panel/Panel.tsx')
+  const { code, out } = isolation(m)
+  assert.equal(code, 1, out)
+  assert.match(out, /layout-alpha statically loads layout-beta/)
+  assert.match(out, /layout-alpha statically loads lf-panel/)
+})
+
+test('check-layout-isolation fails when a feature loads a layout, or the kit loads a feature', () => {
+  const m = layoutManifest()
+  m['src/layout-features/panel/Panel.tsx'].imports.push('src/app-layouts/beta/Frame.tsx')
+  m['_layout-kit-1.js'].imports.push('src/layout-features/panel/Panel.tsx')
+  const { code, out } = isolation(m)
+  assert.equal(code, 1, out)
+  assert.match(out, /lf-panel statically loads layout-beta \(features never import a layout\)/)
+  assert.match(out, /layout-kit statically loads lf-panel/)
+})
+
+test('check-layout-isolation fails when a frame or the kit pulls in a heavy library', () => {
+  const m = layoutManifest()
+  m['_layout-kit-1.js'].imports.push('_md-1.js')
+  const byChunk = isolation(m)
+  assert.equal(byChunk.code, 1, byChunk.out)
+  assert.match(byChunk.out, /layout-kit: assets\/md-1\.js contains streamdown/)
+
+  const byFingerprint = isolation(layoutManifest(), { 'assets/layout-beta-1.js': 'import "@assistant-ui/react"' })
+  assert.equal(byFingerprint.code, 1, byFingerprint.out)
+  assert.match(byFingerprint.out, /layout-beta: assets\/layout-beta-1\.js contains @assistant-ui/)
+})
+
+test('check-layout-isolation fails when a layout or feature folder was not built under its name', () => {
+  const m = layoutManifest()
+  m['src/app-layouts/beta/Frame.tsx'].name = 'Frame'
+  const { code, out } = isolation(m)
+  assert.equal(code, 1, out)
+  assert.match(out, /no layout-beta chunk in the build/)
+})
