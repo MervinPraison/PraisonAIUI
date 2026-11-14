@@ -33,6 +33,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { Markdown } from '@/markdown/LazyMarkdown'
+import { fenced } from '@/markdown/fence'
 import type { ShellPage } from '@/sdk/manifest'
 import { registerBlock, type BlockNode } from '@/sdk/registry'
 import { BlockList } from './BlockRenderer'
@@ -104,14 +105,6 @@ function MarkdownBlock({ node }: CoreBlockProps) {
   const p = propsOf(node)
   const content = str(p.content ?? p.text, typeof node.children === 'string' ? node.children : '')
   return <Markdown variant="docs" className="min-w-0">{content}</Markdown>
-}
-
-/** A fence longer than any backtick run inside the code. */
-function fenced(code: string, language: string): string {
-  const longest = Math.max(0, ...(code.match(/`+/g) ?? []).map((run) => run.length))
-  const fence = '`'.repeat(Math.max(3, longest + 1))
-  const lang = /^[\w#+.-]{1,32}$/.test(language) ? language : ''
-  return `${fence}${lang}\n${code}\n${fence}`
 }
 
 function CodeBlock({ node }: CoreBlockProps) {
