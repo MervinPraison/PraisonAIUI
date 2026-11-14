@@ -15,7 +15,8 @@ import remend from 'remend'
 import { Markdown } from './Markdown'
 import { convertMkdocsBlocks, preprocessMkdocsMarkdown, replaceMkdocsIcons, stripMkdocsGridWrappers } from './mkdocsPreprocess'
 import { createCuratedCodePlugin, resetShikiCaches, shikiStats } from './shikiPlugin'
-import { MATH_RE, SHIKI_THEMES } from './pluginLoaders'
+import { DOCS_MATH_RE, ensureMathPlugin, MATH_RE, needsMath, SHIKI_THEMES } from './pluginLoaders'
+import { normalizeTexDelimiters } from './texDelimiters'
 import { MAX_STREAM_INTERVAL_MS, StreamPacer } from './streamThrottle'
 import { gateMermaidSource, isAutoLoadImage, isExternalHref } from './urlPolicy'
 import { continueSplitLists } from './listNumbering'
@@ -239,10 +240,38 @@ test('an image whose URL is still streaming shows a skeleton and never fetches',
     assert.match(html, /data-streamdown="image-placeholder"/)
 })
 
-test('math: only $$ loads KaTeX (\\( and \\[ are escaped brackets in markdown)', () => {
+test('math: chat loads KaTeX for $$ and for \\(…\\) / \\[…\\]; never for prices', () => {
     assert.ok(MATH_RE.test('inline $$x^2$$'))
-    assert.ok(!MATH_RE.test('a regex \\(x\\) and \\[y\\]'))
-    assert.ok(!MATH_RE.test('costs $5 or $6'))
+    assert.ok(needsMath('inline $$x^2$$'))
+    assert.ok(needsMath('Einstein: \\(E = mc^2\\)'))
+    assert.ok(needsMath('\\[\\int_0^1 x\\,dx\\]'))
+    assert.ok(!needsMath('costs $5 or $6'))
+    assert.ok(!needsMath('Inline math $E = mc^2$'), 'single dollars stay text in chat')
+})
+
+test('math: docs also render single-dollar inline math, but not prices', () => {
+    assert.ok(needsMath('Inline math $E = mc^2$', 'docs'))
+    assert.ok(DOCS_MATH_RE.test('see $x$.'))
+    assert.ok(!DOCS_MATH_RE.test('costs $5 or $6'))
+    assert.ok(!DOCS_MATH_RE.test('between $ 5 and 6 $'))
+})
+
+test('TeX delimiters: \\[…\\] and \\(…\\) become $$ outside code only', () => {
+    assert.equal(normalizeTexDelimiters('a \\(x^2\\) b'), 'a $$x^2$$ b')
+    assert.equal(normalizeTexDelimiters('\\[\n\\sum_i i\n\\]'), '\n$$\n\\sum_i i\n$$\n')
+    const fenced = '```js\nconst re = /\\(x\\)/\n```'
+    assert.equal(normalizeTexDelimiters(fenced), fenced)
+    assert.equal(normalizeTexDelimiters('use `\\(a\\)` here'), 'use `\\(a\\)` here')
+    assert.equal(normalizeTexDelimiters('open \\( only'), 'open \\( only', 'an unclosed pair is left alone')
+    assert.equal(normalizeTexDelimiters('plain text'), 'plain text')
+})
+
+test('chat renders \\(…\\) through KaTeX once the plugin is loaded', async () => {
+    await ensureMathPlugin('chat')
+    const html = chat('Einstein: \\(E = mc^2\\)')
+    assert.match(html, /class="katex/)
+    await ensureMathPlugin('docs')
+    assert.match(docs('Inline math $E = mc^2$'), /class="katex/)
 })
 
 test('docs images (site-authored) load from any host', () => {

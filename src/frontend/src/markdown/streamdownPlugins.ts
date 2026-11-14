@@ -15,7 +15,7 @@ import type { PluginConfig } from 'streamdown'
 import { SHIKI_THEMES, getCodePlugin, loadCodePlugin } from './pluginLoaders'
 import { gateMermaidSource, gateSvgResources } from './urlPolicy'
 
-export { MATH_RE, SHIKI_THEMES, ensureMathPlugin, getMathPlugin, preloadMarkdownPlugins } from './pluginLoaders'
+export { MATH_RE, SHIKI_THEMES, ensureMathPlugin, getMathPlugin, needsMath, preloadMarkdownPlugins } from './pluginLoaders'
 
 type CodePlugin = NonNullable<PluginConfig['code']>
 type DiagramPlugin = NonNullable<PluginConfig['mermaid']>

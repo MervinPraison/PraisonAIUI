@@ -15,7 +15,8 @@
 import { memo, useId, useMemo, useState, useEffect, type ComponentType } from 'react'
 import { Streamdown, defaultRehypePlugins, type ControlsConfig, type PluginConfig, type StreamdownProps } from 'streamdown'
 import { cn } from '@/lib/utils'
-import { MATH_RE, SHIKI_THEMES, chatMermaidPlugin, ensureMathPlugin, getMathPlugin, lazyCodePlugin, lazyMermaidPlugin } from './streamdownPlugins'
+import { SHIKI_THEMES, chatMermaidPlugin, ensureMathPlugin, getMathPlugin, lazyCodePlugin, lazyMermaidPlugin, needsMath } from './streamdownPlugins'
+import { normalizeTexDelimiters } from './texDelimiters'
 import { ChatH1, ChatH2, ChatH3, ChatH4, ImageGate, LegacySafeCode, ListOl, ListUl, MarkdownImage, PolicyLink } from './chatComponents'
 import { DocsH1, DocsH2, DocsH3, DocsH4, DocsLink, DocsUl } from './docsComponents'
 import { Admonition, MkdocsTab, MkdocsTabs } from './MkdocsBlocks'
@@ -144,6 +145,14 @@ const BLOCK_CLASS = [
     '[&_[data-streamdown=mermaid]>div>.absolute:focus-within]:opacity-100',
     '[&_[data-streamdown=table-wrapper]]:border-0 [&_[data-streamdown=table-wrapper]]:bg-transparent [&_[data-streamdown=table-wrapper]]:p-0 [&_[data-streamdown=table-wrapper]]:gap-1',
     '[&_[data-streamdown=table-wrapper]>.border-collapse]:rounded-lg [&_[data-streamdown=table-wrapper]>.border-collapse]:bg-transparent',
+    // Table actions float over the table's top-right corner (as code blocks keep
+    // theirs in the header) instead of a line of their own above it.
+    '[&_[data-streamdown=table-wrapper]]:relative',
+    '[&_[data-streamdown=table-wrapper]>div:not(.border-collapse)]:absolute [&_[data-streamdown=table-wrapper]>div:not(.border-collapse)]:top-1.5 [&_[data-streamdown=table-wrapper]>div:not(.border-collapse)]:right-1.5 [&_[data-streamdown=table-wrapper]>div:not(.border-collapse)]:z-10',
+    '[&_[data-streamdown=table-wrapper]>div:not(.border-collapse)]:rounded-md [&_[data-streamdown=table-wrapper]>div:not(.border-collapse)]:bg-background/90',
+    '[@media(hover:hover)]:[&_[data-streamdown=table-wrapper]>div:not(.border-collapse)]:opacity-0',
+    '[@media(hover:hover)]:[&_[data-streamdown=table-wrapper]:hover>div:not(.border-collapse)]:opacity-100',
+    '[&_[data-streamdown=table-wrapper]>div:not(.border-collapse):focus-within]:opacity-100',
     '[&_table]:tabular-nums',
     // index.css tints `.prose :not(pre) > code` (the docs marker); inline code keeps the text colour.
     '[&_[data-streamdown=inline-code]]:bg-code [&_[data-streamdown=inline-code]]:text-inherit',
@@ -153,18 +162,18 @@ const VARIANT_CLASS = {
     docs: 'aiui-markdown-docs space-y-4',
 } as const
 
-function useMathPlugin(content: string) {
-    const needs = MATH_RE.test(content)
-    const [math, setMath] = useState(getMathPlugin)
+function useMathPlugin(content: string, variant: 'chat' | 'docs') {
+    const needs = needsMath(content, variant)
+    const [math, setMath] = useState(() => getMathPlugin(variant))
     useEffect(() => {
         if (!needs || math) return
         let live = true
-        ensureMathPlugin().then(
+        ensureMathPlugin(variant).then(
             (m) => { if (live) setMath(m) },
             () => { /* raw $$ stays visible */ },
         )
         return () => { live = false }
-    }, [needs, math])
+    }, [needs, math, variant])
     return needs ? math : null
 }
 
@@ -197,11 +206,12 @@ export const Markdown = memo(function Markdown({
     // must not saturate the main thread) and deferred (streamThrottle.ts).
     const paced = useStreamingText(source, !isDocs && streaming)
     // Chat: steps split by code fences keep counting (1., 2., 3.), see listNumbering.ts.
-    const text = useMemo(() => (isDocs ? paced : continueSplitLists(paced)), [paced, isDocs])
+    // `\(…\)` / `\[…\]` (LLM default) → `$$` so KaTeX renders them (texDelimiters.ts).
+    const text = useMemo(() => normalizeTexDelimiters(isDocs ? paced : continueSplitLists(paced)), [paced, isDocs])
     const guardId = useId()
     useLegacyCopyGuard(guardId)
 
-    const math = useMathPlugin(text)
+    const math = useMathPlugin(text, variant)
     // Chat diagrams are untrusted: their SVG is stripped of off-origin resources.
     const plugins = useMemo<PluginConfig>(
         () => ({ code: lazyCodePlugin, mermaid: isDocs ? lazyMermaidPlugin : chatMermaidPlugin, ...(math ? { math } : {}) }),
