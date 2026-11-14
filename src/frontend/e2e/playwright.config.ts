@@ -12,10 +12,12 @@
  *   chat-style         style chat, presets zinc and rose        theme-presets
  *   docs               `aiui build` output on `aiui serve`      markdown
  *   page-reload-*      the dashboard and app-shell servers      page-reload
+ *   layouts-host       app shell + the layout-plugin fixture    layouts-host
+ *                      (fixtures/layout-plugin/serve.py)
  *   legacy-baseline    the v0.3.153 tree (opt-in, see below)    legacy-parity
  *
  * Environment:
- *   AIUI_E2E_PORT          first of six consecutive ports (default 8720)
+ *   AIUI_E2E_PORT          first of seven consecutive ports (default 8720)
  *   AIUI_E2E_PYTHON        Python interpreter (default python3, then python)
  *   AIUI_E2E_REUSE=1       reuse servers that are already listening
  *   AIUI_E2E_BASELINE_SRC  a checkout of v0.3.153 (git worktree of 6bdf6f0);
@@ -44,12 +46,14 @@ const PORTS = {
   chatRose: BASE_PORT + 3,
   docs: BASE_PORT + 4,
   baseline: BASE_PORT + 5,
+  layouts: BASE_PORT + 6,
 }
 const url = (port: number) => `http://127.0.0.1:${port}`
 
 // Specs read the second chat-style server from here.
 process.env.AIUI_E2E_ROSE_URL = url(PORTS.chatRose)
 
+const PYTHON = process.env.AIUI_E2E_PYTHON || 'python3'
 const START = `node "${path.join(HERE, 'fixtures', 'start-server.mjs')}"`
 function server(port: number, args: string) {
   return {
@@ -98,6 +102,15 @@ export default defineConfig({
     server(PORTS.chatZinc, '-- --style chat --preset zinc'),
     server(PORTS.chatRose, '-- --style chat --preset rose'),
     server(PORTS.docs, '--docs'),
+    // The layout host suite: its own server, with a third-party layout plugin.
+    {
+      command: `${PYTHON} "${path.join(HERE, 'fixtures', 'layout-plugin', 'serve.py')}" --port ${PORTS.layouts}`,
+      url: `${url(PORTS.layouts)}/`,
+      reuseExistingServer: REUSE,
+      timeout: 120_000,
+      stdout: 'ignore' as const,
+      stderr: 'pipe' as const,
+    },
     ...(BASELINE_SRC ? [server(PORTS.baseline, `--src "${BASELINE_SRC}"`)] : []),
   ],
   projects: [
@@ -131,6 +144,11 @@ export default defineConfig({
       name: 'page-reload-app',
       testMatch: /[\\/]page-reload\.spec\.ts$/,
       use: { ...chromium, baseURL: url(PORTS.app) },
+    },
+    {
+      name: 'layouts-host',
+      testMatch: /[\\/]layouts-host\.spec\.ts$/,
+      use: { ...chromium, baseURL: url(PORTS.layouts) },
     },
     ...(BASELINE_SRC
       ? [

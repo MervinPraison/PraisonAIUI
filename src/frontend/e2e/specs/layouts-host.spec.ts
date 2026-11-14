@@ -13,7 +13,8 @@
  *     an aiui:plugin-error event;
  *   - phone: the frame's menu sheet.
  *
- * Run with e2e/fixtures/layout-plugin/playwright.config.ts (its own server).
+ * Runs as the `layouts-host` project of e2e/playwright.config.ts (CI), or on
+ * its own with e2e/fixtures/layout-plugin/playwright.config.ts.
  *
  * Until the server half of ADR 0003 (F2: manifest `layouts`) is merged, the
  * manifest the server sends has no `layouts` key; the suite then adds the
