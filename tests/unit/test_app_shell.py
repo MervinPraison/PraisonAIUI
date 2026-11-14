@@ -242,6 +242,13 @@ def test_shell_manifest_site_theme_follows_set_theme():
     assert m["site"]["theme"] == {"preset": "rose", "mode": "light", "radius": "lg"}
 
 
+def test_shell_manifest_reports_feedback_switch():
+    srv.set_style("app")
+    assert _client().get("/api/shell/manifest").json()["site"]["feedbackEnabled"] is True
+    srv.set_feedback_enabled(False)
+    assert _client().get("/api/shell/manifest").json()["site"]["feedbackEnabled"] is False
+
+
 @pytest.mark.parametrize("mode", ["require_auth", "AUTH_ENFORCE"])
 def test_boot_is_minimal_when_auth_enforced(monkeypatch, mode):
     srv.set_style("app")

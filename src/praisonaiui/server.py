@@ -1421,6 +1421,9 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
         "site": {
             "title": site_section.get("title", _branding["title"]),
             "logo": site_section.get("logo", _branding["logo"]),
+            # The chat hides thumbs up/down up front instead of finding out
+            # from the first 403 of POST /api/chat/feedback.
+            "feedbackEnabled": _feedback_enabled,
             **_shell_site_theme(),
         },
         "layout": {
