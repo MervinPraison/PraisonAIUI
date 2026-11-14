@@ -97,6 +97,15 @@ export class AskUnavailableError extends Error {
   }
 }
 
+/**
+ * Can this transport regenerate the session's last answer server-side? When it
+ * cannot (SSE, a socket that is not open, a transport without the method), a
+ * "regenerate" would only resend the question and leave a duplicate turn in
+ * history, so the UI does not offer it.
+ */
+export const canRegenerate = (t: Pick<AiuiTransport, 'canRegenerate'>, sessionId: string): boolean =>
+  t.canRegenerate?.(sessionId) ?? false
+
 export const isDisconnectError = (e: unknown): boolean => e instanceof Error && e.name === 'TransportDisconnectedError'
 export const isAbortError = (e: unknown): boolean => e instanceof Error && e.name === 'AbortError'
 

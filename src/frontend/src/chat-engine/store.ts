@@ -25,7 +25,7 @@ import {
   APPROVAL_ERROR, APPROVAL_PENDING, applyEvent, fromHistory, genId, hasPendingApprovalNotice, newAssistant, reconcileFromHistory, TERMINAL,
   type AiuiMessage, type AiuiSessionSignals, type AiuiToolPart, type ConnectionStatus, type JSONObject, type WireEvent,
 } from './protocol'
-import { AskUnavailableError, isAbortError, isDisconnectError, type AiuiTransport } from './transports'
+import { AskUnavailableError, canRegenerate, isAbortError, isDisconnectError, type AiuiTransport } from './transports'
 
 export interface SessionThread {
   sessionId: string
@@ -566,7 +566,7 @@ export const threadStore = {
     }
     const asst = newAssistant(undefined, opts.agentName)
     const turn: Turn = { id: genId('turn'), messageId: asst.id, userText: text, transport, detached: false }
-    const regenerate = !!opts.regenerate && (transport.canRegenerate?.(sid) ?? false)
+    const regenerate = !!opts.regenerate && canRegenerate(transport, sid)
     const ac = new AbortController()
     e.turn = turn
     e.abort = ac

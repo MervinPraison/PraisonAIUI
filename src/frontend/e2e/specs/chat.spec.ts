@@ -297,6 +297,17 @@ test('Regenerate is offered on the last answer only', async ({ page }) => {
   await expect(assistant(page).last().getByRole('button', { name: 'Regenerate' })).toHaveCount(1)
 })
 
+test('SSE fallback: Regenerate is not offered (it would only resend the question)', async ({ page }) => {
+  await openChat(page, 'sse')
+  await send(page, 'plain sse regen')
+  const reply = assistant(page).last()
+  await expect(reply).toContainText('You said: plain sse regen')
+  await waitForRunEnd(page)
+  await reply.hover()
+  await expect(reply.getByRole('button', { name: 'Copy', exact: true })).toBeVisible()
+  await expect(reply.getByRole('button', { name: 'Regenerate' })).toHaveCount(0)
+})
+
 test('Copy and feedback on an earlier answer are reachable by keyboard', async ({ page }) => {
   await openChat(page, 'ws')
   await send(page, 'plain one')

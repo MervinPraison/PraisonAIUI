@@ -6,6 +6,7 @@ import { afterEach, beforeEach, mock, test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   AskUnavailableError,
+  canRegenerate,
   createAutoTransport,
   createSseTransport,
   createWsTransport,
@@ -415,6 +416,9 @@ test('auto transport: falls back to SSE when the socket cannot open in time; ask
   assert.deepEqual(sseCalls, ['send:S1'])
   assert.equal(events[0].content, 'via sse')
   assert.equal(auto.canAnswerAsk!('S1'), false)
+  // Regenerate is a plain resend over SSE (a duplicate turn): not offered.
+  assert.equal(canRegenerate(auto, 'S1'), false)
+  assert.equal(canRegenerate(sse, 'S1'), false, 'a transport without canRegenerate cannot regenerate')
   await assert.rejects(auto.respondAsk('S1', undefined, 'A'), AskUnavailableError)
   await auto.cancel('S1', undefined)
   assert.deepEqual(sseCalls, ['send:S1', 'cancel:S1'])
@@ -429,6 +433,8 @@ test('auto transport: falls back to SSE when the socket cannot open in time; ask
   await turn.p
   assert.equal(turn.events[0].content, 'via ws')
   assert.equal(auto.canAnswerAsk!('S2'), true)
+  assert.equal(canRegenerate(auto, 'S2'), true)
+  assert.equal(canRegenerate(auto, 'S1'), false, 'S1 was carried by SSE')
   ws.close()
 })
 

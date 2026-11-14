@@ -19,7 +19,7 @@ import {
 import { convertMessage } from './convert'
 import { isLastReply } from './util'
 import { threadStore, type SessionThread } from './store'
-import { createSseTransport, type AiuiTransport } from './transports'
+import { canRegenerate, createSseTransport, type AiuiTransport } from './transports'
 import type { AiuiMessage } from './protocol'
 
 export interface AiuiStarter { title?: string; label?: string; prompt: string }
@@ -189,14 +189,17 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
       await sendText(text, atts?.length ? atts : undefined)
     },
     onCancel: () => threadStore.cancel(transport, sid),
-    onReload: async (parentId) => {
+    // No onReload (the Regenerate button is hidden) when the transport cannot
+    // regenerate server-side: on SSE a regenerate is a plain resend and the
+    // turn would appear twice after a reload. Re-read on every render, so it
+    // follows the socket state and the transport that carried the last turn.
+    onReload: !canRegenerate(transport, sid) ? undefined : async (parentId) => {
       // Only the last answer can be regenerated: the server answers its last
       // question again. A reload aimed at an earlier answer is ignored rather
       // than turned into a regenerate of the last turn.
       if (!isLastReply(threadStore.get(sid).messages, parentId)) return
-      // Over the WebSocket the server answers the last question again and the
-      // new answer replaces the old one in history (no duplicate turn after a
-      // reload). The SSE fallback has no regenerate and resends the question.
+      // The server answers the last question again and the new answer
+      // replaces the old one in history (no duplicate turn after a reload).
       const turn = threadStore.popLastTurn(sid)
       if (turn) await sendText(turn.text, turn.attachments, true)
     },
