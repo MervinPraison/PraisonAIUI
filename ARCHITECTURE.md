@@ -77,16 +77,18 @@ folder; a plugin may take a built-in's id only when that built-in is disabled.
 
 Each rule is testable. "Check" says how a reviewer verifies it.
 
-**R1. The core names no page and imports no feature.** `src/frontend/src/shell/`
-and `src/frontend/src/sdk/` contain no built-in page id literal and import nothing
+**R1. The core names no page and imports no feature.** The core
+(`src/frontend/src/shell/`, `sdk/`, `legacy/` and `blocks/`) contains no built-in
+page id or sidebar group name literal and imports nothing
 from `chat-engine`, `chat`, `agent-ui`, `views`, `pages` or `surfaces`; `sdk/`
 never imports `shell/`; only the shell imports `src/builtin`, and only as
 `@/builtin`. Page-specific behaviour goes in a first-party plugin or in manifest
 data. On the Python side, the host gains no page list of its own: pages and
 features come from `builtin/catalog.py` records.
 *Check:* `npm test` runs `src/shell/core-purity.test.ts`. Its `KNOWN_DEBT` table
-(`shell/icons.ts`, `shell/nav.ts`, gap G5) may only shrink; adding an entry or a
-new id to `BUILTIN_PAGE_IDS` without a record is a rejection.
+is empty; adding an entry, or a new id to `BUILTIN_PAGE_IDS` without a record, is
+a rejection. Icons (`navIcon`), full-bleed (`page.layout`) and group order
+(`layout.groups`) come from the manifest.
 
 **R2. First-party is a plugin.** Every shipped page and feature is a
 `BuiltinPlugin` record in `src/praisonaiui/builtin/catalog.py` (Python) and, if it
@@ -134,7 +136,7 @@ built-in commands never import plugins.
 `test_disabled_builtin_does_not_import_its_feature_module`), `e2e/specs/plugins.spec.ts`.
 
 **R5. The SDK surface is `SDK_EXPORTS`.** The `@aiui/sdk` module exports exactly
-the names in `SDK_EXPORTS` (`src/frontend/src/sdk/manifest.ts`, 20 names today).
+the names in `SDK_EXPORTS` (`src/frontend/src/sdk/manifest.ts`, 24 names today).
 Changes are additive under `SDK_VERSION = 1` / `SDK_API_VERSION = 1`: append a
 name and a capability string to `SDK_FEATURES` (append-only). Removing or
 changing a name, a signature or the manifest shape (`ShellManifest`, "FROZEN
@@ -206,7 +208,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Shell boot (JS + CSS before first paint) | 150 kB |
 | Chat route (added by `/chat`) | 140 kB |
 | `/chat` first-screen JS (boot + chat route) | 250 kB |
-| `index.css` | 32 kB |
+| `index.css` | 26 kB |
 | Streamdown renderer chunk | 147 kB (145 kB with `gzip -9`) |
 | shikiPlugin chunk | 55 kB |
 | Legacy App path (entry + legacy-app-entry closure) | 250 kB |
@@ -297,8 +299,6 @@ Versions from `src/frontend/package.json` (resolved in `package-lock.json`) and
 | `shiki` | 4.6.0 | Code highlighting via the curated `markdown/shikiPlugin.ts` (28 languages, JS regex engine) | Never `@streamdown/code` or a full Shiki import |
 | `mermaid` | ^11.17.2 | Diagrams, lazy `import('mermaid')` in `streamdownPlugins.ts` | Never import it statically |
 | `@streamdown/math` + `katex` | 1.0.3, 0.16.47 | Math, lazy (`pluginLoaders.ts`) | Never import statically |
-| `recharts` | 2.15.4 | Charts (`components/ui/chart.tsx`) | Stay on 2.x until a deliberate upgrade |
-| `react-day-picker`, `react-resizable-panels`, `embla-carousel-react`, `date-fns` | ^9.13.0, ^4.5.4, ^8.6.0, ^4.1.0 | shadcn calendar, resizable, carousel; dates | Use through their `components/ui` wrapper |
 | `@a2ui/react`, `@a2ui/web_core` | optional peer (>=0.10.0) | Agent-driven surfaces (`surfaces/`, `chat-engine/parts/A2uiPart.tsx`) | Lazy only; the app must work without them |
 | `@playwright/test`, `size-limit` | 1.65.0, 14.3.0 | e2e suites, budgets | One gate per concern; extend `.size-limit.mjs`, do not add a second size tool |
 | Starlette | >=0.37 | HTTP/WS server, routes, middleware | Routes through features/plugins (R11); auth via `http_guard` (R8) |
@@ -315,8 +315,7 @@ output from them), the legacy React App folders (`chat/`, `agent-ui/`, `views/`,
 `src/Header.tsx`, `src/Sidebar.tsx`), dashboard-plugin folders and `custom.js`
 `registerView` (use a UI plugin), HSL-triple theme variables (use seeds).
 
-**Duplicates to avoid:** a second sidebar or header (use `shell/Sidebar.tsx` on
-`components/ui/sidebar.tsx`), a second chat UI (extend `chat-engine/`, not
+**Duplicates to avoid:** a second sidebar or header (use `shell/Sidebar.tsx`), a second chat UI (extend `chat-engine/`, not
 `chat/`), a second markdown pipeline, a second toast or palette, a new plugin
 registry, a second theme store.
 
@@ -328,7 +327,7 @@ gap; if you touch one, leave it smaller.**
 
 | Gap | Status on `main` | Rule for new code |
 |---|---|---|
-| G5 | The shell still names pages: `shell/icons.ts` `ICON_BY_PAGE_ID`, `shell/nav.ts` `FULL_BLEED_IDS` (the catalog already sends `layout="full-bleed"` for chat) and `GROUP_ORDER` | New icons and layouts go in manifest data (catalog fields); shrink `KNOWN_DEBT` when you can |
+| G5 | Closed: icons, full-bleed layout and group order come from the manifest (`navIcon`, `page.layout`, `layout.groups`); `KNOWN_DEBT` is empty | New icons and layouts go in manifest data (catalog fields) |
 | G6 | `server.py` is host and features at once (4,471 lines, page APIs such as `/api/overview`, `/api/config`, `/api/logs` in `create_app`) | R11; extract one domain per PR with a route-table snapshot, re-exporting moved names |
 | G9 | About 15 registration paths; `register_page` and dashboard-plugin folders are not plugin records | R3: new code uses the supported column only |
 | G10 | A plugin can take a built-in id or feature name once that built-in is disabled (tested); while both are enabled the built-in wins, and app/dashboard-plugin adapters follow their own precedence | Replace a built-in by disabling it, not by a new override flag |
@@ -352,8 +351,8 @@ Walk it top to bottom; cite the rule number in review comments.
 
 1. **Scope and value** — one domain, a live consumer for every new knob or
    export, ≤ 800 added lines / ≤ 30 files, no sensitive paths (R15, prd.md non-goals).
-2. **Core purity** — no page id or feature import in `shell/` / `sdk/`; `KNOWN_DEBT`
-   not grown (R1).
+2. **Core purity** — no page id, group name or feature import in `shell/`, `sdk/`,
+   `legacy/`, `blocks/`; `KNOWN_DEBT` stays empty (R1).
 3. **Plugin model** — new page/feature is a catalog record (Python) and/or a
    `src/builtin` entry using `sdkApi`; disable-able via `builtin.<name>`; uses a
    supported API, not a legacy adapter or a new registry (R2, R3).
