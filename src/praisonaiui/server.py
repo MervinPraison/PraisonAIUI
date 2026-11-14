@@ -4101,9 +4101,9 @@ def create_app(
         Route("/api/overview", api_overview, methods=["GET"]),
         Route("/api/status", api_overview, methods=["GET"]),  # alias for CLI parity
         Route("/api/config", api_config_handler, methods=["GET", "PUT"]),
-        Route("/api/logs", api_logs, methods=["GET"]),
+        # /api/logs and /api/debug belong to builtin.logs / builtin.debug
+        # (their host_routes, mounted below while those built-ins are on).
         # Note: /api/usage is now provided by PraisonAIUsage feature
-        Route("/api/debug", api_debug, methods=["GET"]),
         Route("/api/provider", api_provider, methods=["GET"]),
         Route("/api/provider/health", api_provider_health, methods=["GET"]),
         # Action callback API
@@ -4117,10 +4117,7 @@ def create_app(
         # Component schema registry (built-in + user-registered)
         Route("/api/components/schemas", api_component_schemas, methods=["GET"]),
         # Gateway status
-        # MCP (Model Context Protocol) API
-        Route("/api/mcp/servers", api_mcp_servers, methods=["GET"]),
-        Route("/api/mcp/connect", api_mcp_connect, methods=["POST"]),
-        Route("/api/mcp/disconnect/{server_id}", api_mcp_disconnect, methods=["POST"]),
+        # MCP (Model Context Protocol) API: builtin.mcp's host_routes.
         # OAuth + thread-sharing (issue #22)
         Route("/api/auth/oauth/{provider}", oauth_authorize_handler, methods=["GET"]),
         Route(
@@ -4263,6 +4260,17 @@ def create_app(
     from praisonaiui.jobs_proxy import jobs_proxy_routes
 
     routes.extend(jobs_proxy_routes())
+    # Host-owned routes of the first-party plugins (MCP, debug, GET
+    # /api/logs): mounted only while their built-in is on.
+    for _brec in _plugin_registry.builtin_records():
+        _host_routes = getattr(_brec.plugin, "host_routes", None)
+        if _brec.status == "ok" and callable(_host_routes):
+            try:
+                routes.extend(_host_routes())
+            except Exception as exc:  # noqa: BLE001
+                logging.getLogger(__name__).warning(
+                    "%s host routes failed: %s", _brec.name, exc
+                )
     # Built-in features come from the first-party plugin records too: a
     # built-in named in ``extensions.disabled`` mounts none of its routes
     # (features the host needs are kept; see praisonaiui.builtin).

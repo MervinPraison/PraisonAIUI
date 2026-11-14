@@ -138,8 +138,18 @@ contributes no pages: they leave `GET /api/pages`, the shell manifest and the
 sidebar. Its feature routes are not mounted (`/api/training/...` returns 404),
 the server does not load its feature modules, and a bundled dashboard-plugin
 folder that belongs to it (`kanban` belongs to `builtin.work`, `video-studio`
-to `builtin.video`) is not served either. With the built-in off, an
-entry-point plugin may use its page ids and feature names.
+to `builtin.video`) is not served either. The same holds for the routes the
+host itself serves for a built-in: `builtin.mcp` owns `/api/mcp/*`,
+`builtin.debug` owns `/api/debug` and `builtin.logs` owns `GET /api/logs` as
+well as its `/api/logs/*` feature routes, so disabling them returns 404 there.
+With the built-in off, an entry-point plugin may use its page ids and feature
+names.
+
+A few host routes stay mounted whichever built-ins are off, because the host
+or the CLI uses them: `/api/overview` and `/api/status` (`aiui status`),
+`/api/feedback` (its `POST` backs the chat thumbs) and `/api/config`.
+Disabling `builtin.overview`, `builtin.feedback` or `builtin.config` removes
+their pages only.
 
 Some features are **required**: the server itself depends on `auth`, `theme`,
 `chat`, `usage`, `config_runtime` and `sessions_ext`. Disabling their record

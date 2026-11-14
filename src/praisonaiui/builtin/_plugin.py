@@ -12,7 +12,7 @@ from __future__ import annotations
 import importlib
 import logging
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, Union
+from typing import Any, Callable, Iterable, Optional, Union
 
 from praisonaiui.plugin_registry import PageSpec
 
@@ -66,6 +66,11 @@ class BuiltinPlugin:
     dashboard_plugins: names of bundled ``dashboard-plugins`` folders that
                  belong to this plugin (they carry one of its pages). They are
                  switched off together with it.
+    host_routes: optional factory returning Starlette routes whose handlers
+                 live in the host (``praisonaiui.server``) rather than in a
+                 feature module. It is called lazily, only while the plugin
+                 is on, so a disabled built-in leaves those paths unmounted.
+                 These are not features: ``/api/features`` does not list them.
     """
 
     name: str
@@ -73,6 +78,7 @@ class BuiltinPlugin:
     page_specs: PagesDecl = ()
     feature_refs: tuple[FeatureRef, ...] = ()
     dashboard_plugins: tuple[str, ...] = ()
+    host_routes: Optional[Callable[[], list[Any]]] = None
 
     @property
     def required(self) -> bool:
