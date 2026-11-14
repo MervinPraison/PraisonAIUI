@@ -1151,18 +1151,9 @@ def _is_page_navigation(scope: dict) -> bool:
     if page_id in _pages:
         return True
     # Pages from plugins and dashboard-plugin folders (the rest of the nav).
-    from praisonaiui.dashboard_plugins import discover_dashboard_plugins
-    from praisonaiui.plugin_registry import get_plugin_registry
-
-    restricted = _plugin_js_restricted(scope)
-    if any(s.id == page_id for s in get_plugin_registry().pages(restricted=restricted)):
-        return True
     dash = _resolved_dashboard_config() or {}
     extra = dash.get("pluginDirs") or dash.get("plugin_dirs") or []
-    return any(
-        (m.get("page") or {}).get("id") == page_id
-        for m in discover_dashboard_plugins(extra, _dashboard_plugin_allowlist())
-    )
+    return any(r.id == page_id for r in _page_records(_plugin_js_restricted(scope), extra))
 
 
 # ── React app shell (style="app") ────────────────────────────────────
@@ -1405,6 +1396,35 @@ def _resolved_dashboard_config() -> Optional[dict[str, Any]]:
     return None
 
 
+def _page_records(restricted: bool, extra_dirs: list, *, log_shadows: bool = False) -> list:
+    """Every page, one record per id: page table (app ``register_page`` and
+    built-ins), then plugin pages, then dashboard-plugin folders."""
+    from praisonaiui.builtin import page_sources as ps
+    from praisonaiui.dashboard_plugins import discover_dashboard_plugins
+    from praisonaiui.plugin_registry import get_plugin_registry
+
+    reg = get_plugin_registry()
+    # Shell-only presentation of the built-in pages (nav icon, layout); the
+    # page table (/api/pages, the legacy dashboard) never carries it.
+    spec_by_id = {s.id: s for s in reg.pages(origin="builtin")}
+    table = [
+        ps.table_page(
+            p,
+            custom=p["id"] in _custom_page_ids,
+            has_handler=f"page:{p['id']}" in _callbacks,
+            native=p["id"] in _NATIVE_PAGES,
+            has_action=p["id"] in _page_actions,
+            builtin_spec=spec_by_id.get(p["id"]),
+        )
+        for p in _pages.values()
+    ]
+    plugins = [ps.plugin_page(s) for s in reg.pages(restricted=restricted)]
+    folders = ps.folder_pages(
+        discover_dashboard_plugins(extra_dirs, _dashboard_plugin_allowlist())
+    )
+    return ps.merge_pages([*table, *plugins, *folders], log_shadows=log_shadows)
+
+
 def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = True) -> dict[str, Any]:
     """Everything the React shell needs to draw nav and lazy-load page modules.
 
@@ -1413,82 +1433,13 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
     plugin > dashboard-plugin folder. A shadowed page logs a warning.
     """
     from praisonaiui.builtin.catalog import NAV_GROUPS
-    from praisonaiui.dashboard_plugins import discover_dashboard_plugins
     from praisonaiui.plugin_registry import SDK_API_VERSION, get_plugin_registry
 
     reg = get_plugin_registry()
-    log = logging.getLogger(__name__)
-    pages: list[dict[str, Any]] = []
-    seen: dict[str, str] = {}
-    # Shell-only presentation of the built-in pages (nav icon, layout); the
-    # page table (/api/pages, the legacy dashboard) never carries it.
-    spec_by_id = {s.id: s for s in reg.pages(origin="builtin")}
-
-    for p in _pages.values():
-        custom = p["id"] in _custom_page_ids
-        if custom:
-            kind = "blocks" if f"page:{p['id']}" in _callbacks else "legacy"
-        else:
-            kind = "native" if p["id"] in _NATIVE_PAGES else "legacy"
-        entry: dict[str, Any] = {
-            "id": p["id"],
-            "title": p.get("title", p["id"]),
-            "kind": kind,
-            "icon": p.get("icon", "file"),
-            "group": p.get("group", "Custom"),
-            "order": p.get("order", 100),
-            "description": p.get("description", ""),
-            "apiEndpoint": p.get("api_endpoint"),
-            "source": "app" if custom else "builtin",
-        }
-        for opt in ("layout", "position"):
-            if p.get(opt):
-                entry[opt] = p[opt]
-        spec = None if custom else spec_by_id.get(p["id"])
-        if spec is not None:
-            if spec.nav_icon:
-                entry["navIcon"] = spec.nav_icon
-            if spec.shell_layout:
-                entry["layout"] = spec.shell_layout
-        if p["id"] in _page_actions:
-            entry["actionEndpoint"] = f"/api/pages/{p['id']}/action"
-        pages.append(entry)
-        seen[p["id"]] = entry["source"]
-
-    for spec in reg.pages(restricted=restricted):
-        if spec.id in seen:
-            log.warning(
-                "plugin page %r (%s) is shadowed by an existing page (%s)",
-                spec.id, spec.source, seen[spec.id],
-            )
-            continue
-        pages.append(spec.to_dict())
-        seen[spec.id] = spec.source
-
     dash = _resolved_dashboard_config() or {}
     extra_dirs = dash.get("pluginDirs") or dash.get("plugin_dirs") or []
-    for m in discover_dashboard_plugins(extra_dirs, _dashboard_plugin_allowlist()):
-        page = m.get("page") or {}
-        if not page or not page.get("id"):
-            continue
-        source = f"dashboard-plugin:{m['name']}"
-        if page["id"] in seen:
-            if seen[page["id"]] != source:
-                log.debug("dashboard-plugin page %r shadowed by %s", page["id"], seen[page["id"]])
-            continue
-        pages.append(
-            {
-                "order": 100,
-                **page,
-                "kind": "legacy",
-                "module": f"/dashboard-plugins/{m['name']}/{m['entry']}",
-                **({"css": f"/dashboard-plugins/{m['name']}/{m['css']}"} if m.get("css") else {}),
-                "source": source,
-            }
-        )
-        seen[page["id"]] = source
-
-    pages.sort(key=lambda p: (p.get("order", 100), p["id"]))
+    records = _page_records(restricted, extra_dirs, log_shadows=True)
+    pages = [r.shell_row for r in records]
     site_section = _get_site_section()
     return {
         "sdk": SDK_API_VERSION,
@@ -2664,36 +2615,15 @@ def _builtin_page_entry(spec: Any) -> dict[str, Any]:
 
 
 async def api_pages(request: Request) -> JSONResponse:
-    """List registered dashboard pages (protocol-driven)."""
-    from praisonaiui.dashboard_plugins import discover_dashboard_plugins
+    """List registered dashboard pages (protocol-driven).
 
-    pages = list(_pages.values())
+    The same merged page list as the shell manifest (see
+    :mod:`praisonaiui.builtin.page_sources`), minus what the legacy
+    dashboard cannot render (plugin pages other than ``blocks``).
+    """
     extra_dirs = (_dashboard_config or {}).get("pluginDirs") or []
-    known_ids = {p["id"] for p in pages}
-    for manifest in discover_dashboard_plugins(extra_dirs, _dashboard_plugin_allowlist()):
-        page = manifest.get("page")
-        if page and page["id"] not in known_ids:
-            pages.append(page)
-            known_ids.add(page["id"])
-    # Entry-point plugin pages the legacy dashboard can render too (server-driven
-    # ``_components`` blocks). React-module pages are app-shell only. Same
-    # default-deny rule as the shell manifest.
-    from praisonaiui.plugin_registry import get_plugin_registry
-
-    for spec in get_plugin_registry().pages(restricted=_plugin_js_restricted(request.scope)):
-        if spec.kind == "blocks" and spec.id not in known_ids:
-            pages.append(
-                {
-                    "id": spec.id,
-                    "title": spec.title,
-                    "icon": spec.icon,
-                    "group": spec.group,
-                    "description": spec.description,
-                    "api_endpoint": spec.api_endpoint,
-                    "order": spec.order,
-                }
-            )
-            known_ids.add(spec.id)
+    records = _page_records(_plugin_js_restricted(request.scope), extra_dirs)
+    pages = [r.api_row for r in records if r.api_row is not None]
     pages = sorted(pages, key=lambda p: (p.get("order", 100), p["id"]))
     return JSONResponse({"pages": pages})
 
