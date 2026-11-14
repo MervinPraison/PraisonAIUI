@@ -297,6 +297,35 @@ test('Regenerate is offered on the last answer only', async ({ page }) => {
   await expect(assistant(page).last().getByRole('button', { name: 'Regenerate' })).toHaveCount(1)
 })
 
+test('Copy and feedback on an earlier answer are reachable by keyboard', async ({ page }) => {
+  await openChat(page, 'ws')
+  await send(page, 'plain one')
+  await waitForRunEnd(page)
+  await send(page, 'plain two')
+  await expect(assistant(page).last()).toContainText('You said: plain two')
+  await waitForRunEnd(page)
+  await page.mouse.move(0, 0)
+  // Walk backwards from the composer until focus lands on the first answer's actions.
+  await composer(page).focus()
+  const reached = new Set<string>()
+  for (let i = 0; i < 60 && reached.size < 3; i++) {
+    await page.keyboard.press('Shift+Tab')
+    const hit = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null
+      const first = document.querySelector('[data-role="assistant"]')
+      return el && first?.contains(el) ? el.getAttribute('aria-label') : null
+    })
+    if (hit === 'Copy' || hit === 'Good response' || hit === 'Bad response') {
+      reached.add(hit)
+      // Focus inside the message reveals its actions.
+      await expect
+        .poll(() => page.evaluate(() => getComputedStyle((document.activeElement as HTMLElement).parentElement!).opacity))
+        .toBe('1')
+    }
+  }
+  expect([...reached].sort()).toEqual(['Bad response', 'Copy', 'Good response'])
+})
+
 test.describe('phone session rail', () => {
   test.use({ viewport: { width: 390, height: 800 } })
 

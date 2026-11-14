@@ -434,11 +434,21 @@ const MessageStatusNotes: FC = () => {
 type PartComponents = Parameters<typeof MessagePrimitive.Parts>[0]['components']
 const PartsContext = createContext<PartComponents>(undefined)
 
+/**
+ * Earlier answers keep their actions in the DOM (autohide="never") and reveal
+ * them on hover, on keyboard focus inside the message, and always on touch
+ * screens. The library's autohide reacts to mouseenter only and unmounts the
+ * hidden bar, so Tab could never reach Copy or feedback on an earlier answer.
+ */
+const REVEAL_ON_HOVER =
+  'opacity-0 group-hover/msg:opacity-100 group-focus-within/msg:opacity-100 [@media(hover:none)]:opacity-100 motion-safe:transition-opacity motion-safe:duration-[120ms]'
+
 const AssistantMessage: FC = () => {
   const components = useContext(PartsContext)
   const agent = useAuiState((s) => (s.message.metadata.custom as { agentName?: string }).agentName)
+  const isLast = useAuiState((s) => s.message.isLast)
   return (
-    <MessagePrimitive.Root className={cn(COLUMN, 'min-w-0 py-3')} data-role="assistant">
+    <MessagePrimitive.Root className={cn(COLUMN, 'group/msg min-w-0 py-3')} data-role="assistant">
       {agent && <div className="mb-1 text-xs font-medium text-muted-foreground">{agent}</div>}
       <div className="min-w-0 text-base leading-[1.55] break-words text-foreground">
         <MessagePrimitive.Parts components={components} />
@@ -449,7 +459,7 @@ const AssistantMessage: FC = () => {
           <ErrorPrimitive.Message />
         </ErrorPrimitive.Root>
       </MessagePrimitive.Error>
-      <ActionBarPrimitive.Root hideWhenRunning autohide="not-last" className="mt-1 -ml-1.5 flex gap-0.5">
+      <ActionBarPrimitive.Root hideWhenRunning autohide="never" className={cn('mt-1 -ml-1.5 flex gap-0.5', !isLast && REVEAL_ON_HOVER)}>
         <ActionBarPrimitive.Copy asChild>
           <Button variant="ghost" size="icon-xs" className={cn(iconButton, 'group/copy')} aria-label="Copy">
             <Copy className="group-data-[copied]/copy:hidden" />
