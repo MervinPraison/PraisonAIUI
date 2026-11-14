@@ -86,6 +86,12 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
     if (opts.sessionId) void threadStore.load(opts.sessionId)
   }, [opts.sessionId])
 
+  // Follow runs other tabs start in this session (read-only live message).
+  useEffect(() => {
+    if (!opts.sessionId) return
+    return threadStore.observe(transport, opts.sessionId)
+  }, [transport, opts.sessionId])
+
   // Live-connection state -> thread.signals.connection; keep the socket up while mounted.
   useEffect(() => {
     threadStore.setConnection(transport.status)
@@ -97,12 +103,13 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
     }
   }, [transport])
 
-  const sendText = useCallback(async (text: string, attachments?: AiuiMessage['attachments']) => {
+  const sendText = useCallback(async (text: string, attachments?: AiuiMessage['attachments'], regenerate = false) => {
     optsRef.current.onSend?.()
     const p = threadStore.send(transport, sid, text, {
       agentName: optsRef.current.agentName,
       attachmentIds: attachments?.map((a) => a.id),
       attachments,
+      regenerate,
     })
     if (isDraft) {
       optsRef.current.onSessionCreated?.(sid)
@@ -182,9 +189,11 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
     },
     onCancel: () => threadStore.cancel(transport, sid),
     onReload: async () => {
-      // The server has no regenerate; resend the last user turn (server history is append-only).
+      // Over the WebSocket the server answers the last question again and the
+      // new answer replaces the old one in history (no duplicate turn after a
+      // reload). The SSE fallback has no regenerate and resends the question.
       const turn = threadStore.popLastTurn(sid)
-      if (turn) await sendText(turn.text, turn.attachments)
+      if (turn) await sendText(turn.text, turn.attachments, true)
     },
     // The gate stays open until the server accepts; a rejection is kept on the part (see the store).
     onRespondToToolApproval: ({ approvalId, approved, optionId, text }) =>

@@ -7,8 +7,12 @@ import assert from 'node:assert/strict'
 import {
   AskUnavailableError,
   createAutoTransport,
+  createSseTransport,
   createWsTransport,
+  defaultWsUrl,
   isDisconnectError,
+  SSE_DROPPED,
+  wsAuthQuery,
   type AiuiTransport,
   type WsTransportOptions,
 } from './transports'
@@ -342,22 +346,48 @@ test('the socket closes when nothing needs it (after the idle grace period)', as
   t.close()
 })
 
-test('the stored gateway token goes in ?token= (browsers cannot set headers on a WS handshake)', async () => {
-  const g = globalThis as { sessionStorage?: unknown; location?: unknown }
-  const prev = { s: g.sessionStorage, l: g.location }
+async function withBrowserGlobals(fetchImpl: typeof fetch, fn: () => Promise<void>) {
+  const g = globalThis as { sessionStorage?: unknown; location?: unknown; fetch?: unknown }
+  const prev = { s: g.sessionStorage, l: g.location, f: g.fetch }
   g.sessionStorage = { getItem: (k: string) => (k === 'aiui_gateway_token' ? 'tok en' : null) }
   g.location = { protocol: 'https:', host: 'example.test' }
+  g.fetch = fetchImpl
   try {
-    const t = createWsTransport({ WebSocketImpl: FakeWebSocket as unknown as WsTransportOptions['WebSocketImpl'] })
-    const r = t.retain!()
-    await flush()
-    assert.equal(last().url, 'wss://example.test/api/chat/ws?token=tok%20en')
-    r()
-    t.close()
+    await fn()
   } finally {
     g.sessionStorage = prev.s
     g.location = prev.l
+    g.fetch = prev.f
   }
+}
+
+test('the stored gateway token is traded for a single-use ticket; the key never goes in the URL', async () => {
+  const calls: { url: string; auth: string | null }[] = []
+  const fakeFetch = (async (url: string, init?: RequestInit) => {
+    calls.push({ url, auth: new Headers(init?.headers).get('Authorization') })
+    return new Response(JSON.stringify({ ticket: 'tk-1', expires_in: 60 }), { status: 200 })
+  }) as unknown as typeof fetch
+  await withBrowserGlobals(fakeFetch, async () => {
+    const t = createWsTransport({ WebSocketImpl: FakeWebSocket as unknown as WsTransportOptions['WebSocketImpl'] })
+    const r = t.retain!()
+    await flush()
+    await flush()
+    assert.equal(last().url, 'wss://example.test/api/chat/ws?ticket=tk-1')
+    assert.ok(!last().url.includes('tok'))
+    assert.deepEqual(calls, [{ url: '/api/auth/ws-ticket', auth: 'Bearer tok en' }])
+    r()
+    t.close()
+  })
+})
+
+test('servers without the ticket endpoint still get ?token=; a refused token sends nothing', async () => {
+  await withBrowserGlobals((async () => new Response('', { status: 404 })) as unknown as typeof fetch, async () => {
+    assert.equal(await wsAuthQuery(), '?token=tok%20en')
+    assert.equal(await defaultWsUrl(), 'wss://example.test/api/chat/ws?token=tok%20en')
+  })
+  await withBrowserGlobals((async () => new Response('', { status: 401 })) as unknown as typeof fetch, async () => {
+    assert.equal(await wsAuthQuery(), '')
+  })
 })
 
 test('auto transport: falls back to SSE when the socket cannot open in time; ask answers then need a live channel', async () => {
@@ -400,4 +430,127 @@ test('auto transport: falls back to SSE when the socket cannot open in time; ask
   assert.equal(turn.events[0].content, 'via ws')
   assert.equal(auto.canAnswerAsk!('S2'), true)
   ws.close()
+})
+
+// ── two tabs on one session (review r1) ───────────────────────────────
+
+function startNamedTurn(t: AiuiTransport, sessionId: string, clientTurnId: string) {
+  const events: WireEvent[] = []
+  const ac = new AbortController()
+  const p = t.send({ sessionId, text: 'hi', signal: ac.signal, clientTurnId, onEvent: (ev) => events.push(ev) }).catch(() => undefined)
+  return { events, ac, p }
+}
+
+test('chat frames carry client_turn_id; another tab\'s run never binds the turn (server echoes the id)', async () => {
+  const t = makeWs()
+  const watched: WireEvent[] = []
+  t.watch!('S1', (ev) => watched.push(ev))
+  const turn = startNamedTurn(t, 'S1', 'mine')
+  await flush()
+  const ws = last()
+  assert.equal(ws.ofType('chat')[0].client_turn_id, 'mine')
+  // Tab A's run (already streaming) arrives first, then ours.
+  ws.emit({ type: 'run_content', session_id: 'S1', run_id: 'RA', token: 'd0 ', client_turn_id: 'theirs' })
+  ws.emit({ type: 'run_started', session_id: 'S1', run_id: 'RB', client_turn_id: 'mine' })
+  ws.emit({ type: 'run_content', session_id: 'S1', run_id: 'RA', token: 'd1 ', client_turn_id: 'theirs' })
+  ws.emit({ type: 'run_content', session_id: 'S1', run_id: 'RB', token: 'You said', client_turn_id: 'mine' })
+  assert.deepEqual(turn.events.map((e) => e.run_id), ['RB', 'RB'])
+  assert.deepEqual(watched.map((e) => e.run_id), ['RA', 'RA'])
+  // Stop names our run, not tab A's.
+  turn.ac.abort()
+  await turn.p
+  void t.cancel('S1', 'RB')
+  assert.deepEqual(ws.ofType('chat_abort'), [{ type: 'chat_abort', run_id: 'RB' }])
+  t.close()
+})
+
+test('a server that echoes the id once: a later run without the echo is not ours', async () => {
+  const t = makeWs()
+  const turn = startNamedTurn(t, 'S1', 'mine')
+  await flush()
+  const ws = last()
+  ws.emit({ type: 'run_content', session_id: 'S1', run_id: 'RX', token: 'x', client_turn_id: 'theirs' })
+  // A legacy client's run on a correlating server: no echo, still not ours.
+  ws.emit({ type: 'run_content', session_id: 'S1', run_id: 'RL', token: 'legacy' })
+  ws.emit({ type: 'run_started', session_id: 'S1', run_id: 'RM', client_turn_id: 'mine' })
+  assert.deepEqual(turn.events.map((e) => e.run_id), ['RM'])
+  t.close()
+})
+
+test('older servers (no echo): runs that started before the turn are not bound', async () => {
+  const t = makeWs()
+  const watched: WireEvent[] = []
+  t.watch!('S1', (ev) => watched.push(ev))
+  await t.connect()
+  const ws = last()
+  ws.emit({ type: 'run_started', session_id: 'S1', run_id: 'RA' }) // tab A starts first
+  const turn = startNamedTurn(t, 'S1', 'mine')
+  await flush()
+  ws.emit({ type: 'run_content', session_id: 'S1', run_id: 'RA', token: 'd0' })
+  ws.emit({ type: 'run_started', session_id: 'S1', run_id: 'RB' })
+  ws.emit({ type: 'run_content', session_id: 'S1', run_id: 'RB', token: 'mine' })
+  assert.deepEqual(turn.events.map((e) => e.run_id), ['RB', 'RB'])
+  assert.deepEqual(watched.map((e) => e.run_id), ['RA', 'RA'])
+  t.close()
+})
+
+test('Stop before run_started aborts our run, not another tab\'s run that streams meanwhile', async () => {
+  const t = makeWs()
+  const turn = startNamedTurn(t, 'S1', 'mine')
+  await flush()
+  const ws = last()
+  turn.ac.abort()
+  await turn.p
+  await t.cancel('S1')
+  ws.emit({ type: 'run_content', session_id: 'S1', run_id: 'RA', token: 'd5', client_turn_id: 'theirs' })
+  await flush()
+  assert.equal(ws.ofType('chat_abort').length, 0)
+  ws.emit({ type: 'run_started', session_id: 'S1', run_id: 'RB', client_turn_id: 'mine' })
+  await flush()
+  assert.deepEqual(ws.ofType('chat_abort'), [{ type: 'chat_abort', run_id: 'RB' }])
+  t.close()
+})
+
+test('runStatus asks the server; no answer (older server) reads as unknown', async () => {
+  mock.timers.enable({ apis: ['setTimeout', 'setInterval'] })
+  const t = makeWs({ ackTimeoutMs: 1000 })
+  t.retain!()
+  await flush()
+  assert.equal(t.status, 'open')
+  const p = t.runStatus!('R1')
+  assert.deepEqual(last().ofType('run_status'), [{ type: 'run_status', run_id: 'R1' }])
+  last().emit({ type: 'run_status', run_id: 'R1', session_id: null, active: false })
+  assert.equal(await p, false)
+  const q = t.runStatus!('R2')
+  mock.timers.tick(1000)
+  assert.equal(await q, undefined)
+  t.close()
+})
+
+test('SSE: a stream that drops mid-reply says so instead of the reader\'s bare "network error"', async () => {
+  const g = globalThis as { fetch?: unknown }
+  const prev = g.fetch
+  let pulls = 0
+  g.fetch = (async () =>
+    new Response(
+      new ReadableStream<Uint8Array>({
+        pull(ctrl) {
+          pulls += 1
+          if (pulls === 1) ctrl.enqueue(new TextEncoder().encode('data: {"type":"run_content","token":"tok0 "}\n\n'))
+          else ctrl.error(new TypeError('network error'))
+        },
+      }),
+      { status: 200 },
+    )) as unknown as typeof fetch
+  try {
+    const events: WireEvent[] = []
+    const sse = createSseTransport()
+    await assert.rejects(
+      sse.send({ sessionId: 'S', text: 'x', signal: new AbortController().signal, onEvent: (e) => events.push(e) }),
+      (err: Error) => err.message === SSE_DROPPED,
+    )
+    assert.equal(events.length, 1)
+  } finally {
+    g.fetch = prev
+  }
 })

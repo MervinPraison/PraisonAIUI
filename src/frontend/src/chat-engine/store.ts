@@ -12,8 +12,14 @@
  * WS drops: a turn whose socket closes mid-run is kept running in a
  * "reconnecting" state and keeps listening for its session. When the socket is
  * back, the persisted history decides: a reply that finished offline is merged
- * in and the turn ends; otherwise the turn keeps running behind a 60 s
- * watchdog that is re-armed by every event.
+ * in and the turn ends. Otherwise the server is asked whether the run is still
+ * alive (`run_status`): a run that died with an old server process ends the
+ * turn at once; one still going keeps the turn running behind a 60 s watchdog
+ * that is re-armed by every event (also the fallback for older servers).
+ *
+ * Other tabs: `observe()` follows the selected session's runs that this tab
+ * did not start, as a read-only live message, and reloads the history when
+ * one ends.
  */
 import {
   APPROVAL_ERROR, APPROVAL_PENDING, applyEvent, fromHistory, genId, hasPendingApprovalNotice, newAssistant, reconcileFromHistory, TERMINAL,
@@ -30,6 +36,11 @@ export interface SessionThread {
   activeRunId?: string
   /** The live turn lost its connection and waits for the socket to come back. */
   reconnecting?: boolean
+  /** Older messages exist on the server (see loadEarlier). */
+  hasMore?: boolean
+  /** Server position of the first loaded history message (paging cursor). */
+  historyStart?: number
+  isLoadingEarlier?: boolean
   signals: AiuiSessionSignals
 }
 
@@ -45,11 +56,18 @@ interface Turn {
   watchdog?: ReturnType<typeof setTimeout>
 }
 
+/** Another tab's run in this session, shown read-only. */
+interface RemoteRun {
+  runId: string
+  messageId: string
+}
+
 interface Entry {
   state: SessionThread
   listeners: Set<() => void>
   abort: AbortController | null
   turn: Turn | null
+  remote: RemoteRun | null
 }
 
 export const RECONNECT_WATCHDOG_MS = 60_000
@@ -60,7 +78,35 @@ function lastIndex<T>(a: readonly T[], f: (x: T) => boolean): number {
 }
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined)
-const errorText = (err: unknown) => (err instanceof Error && err.message ? err.message : 'Something went wrong')
+const errorText = (err: unknown) => {
+  // A fetch that never reached the server rejects with a bare TypeError
+  // ("Failed to fetch", "network error", "Load failed").
+  if (err instanceof TypeError) return 'Could not reach the server. Check the connection and try again.'
+  return err instanceof Error && err.message ? err.message : 'Something went wrong'
+}
+export const INTERRUPTED = 'The connection dropped and the reply did not finish.'
+
+function withQuery(url: string, params: Record<string, string | number>): string {
+  const q = Object.entries(params).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&')
+  return url + (url.includes('?') ? '&' : '?') + q
+}
+
+interface HistoryPage {
+  messages: AiuiMessage[]
+  start?: number
+  hasMore: boolean
+}
+
+async function fetchHistory(url: string): Promise<HistoryPage> {
+  const res = await fetch(url, { credentials: 'same-origin' })
+  const data = res.ok ? ((await res.json()) as JSONObject) : {}
+  const raw = ((data.messages ?? data.runs ?? []) as JSONObject[]).filter((m) => m && typeof m === 'object')
+  return {
+    messages: raw.map(fromHistory),
+    start: typeof data.start === 'number' ? data.start : undefined,
+    hasMore: data.has_more === true,
+  }
+}
 
 const entries = new Map<string, Entry>()
 let connection: ConnectionStatus | undefined
@@ -79,6 +125,7 @@ function entry(sid: string): Entry {
       listeners: new Set(),
       abort: null,
       turn: null,
+      remote: null,
     }
     entries.set(sid, e)
   }
@@ -160,11 +207,20 @@ function armWatchdog(sid: string, turn: Turn) {
     if (!e || e.turn !== turn) return
     patchMessage(sid, turn.messageId, (m) =>
       m.status?.type === 'running' || m.status?.type === 'requires-action'
-        ? { ...m, status: { type: 'incomplete', reason: 'error', error: 'The connection dropped and the reply did not finish.' } }
+        ? { ...m, status: { type: 'incomplete', reason: 'error', error: INTERRUPTED } }
         : m,
     )
     endTurn(sid, turn)
   }, watchdogMs)
+}
+
+function interrupt(sid: string, turn: Turn) {
+  patchMessage(sid, turn.messageId, (m) =>
+    m.status?.type === 'running' || m.status?.type === 'requires-action'
+      ? { ...m, custom: { ...m.custom, reconnecting: undefined }, status: { type: 'incomplete', reason: 'error', error: INTERRUPTED } }
+      : m,
+  )
+  endTurn(sid, turn)
 }
 
 function endTurn(sid: string, turn: Turn) {
@@ -189,6 +245,8 @@ function handleEvent(sid: string, turn: Turn, ev: WireEvent) {
   if (!e || e.turn !== turn) return // stale turn (cancelled / replaced) or a dropped session
   if (ev.type === 'session') return // the client already owns the id
   const runId = str(ev.run_id)
+  const ctid = str(ev.client_turn_id)
+  if (ctid && ctid !== turn.id) return // another tab's run of this session
   if (runId) {
     if (turn.runId && turn.runId !== runId) return // another run of this session
     turn.runId = runId
@@ -251,7 +309,14 @@ async function reconcile(sid: string, turn: Turn) {
     endTurn(sid, turn)
     return
   }
-  // Still running server-side (or history is unavailable): keep listening, bounded by the watchdog.
+  // Not in history: is the run still alive? A server restarted mid-run no
+  // longer knows it, so the reply will never finish: end the turn now.
+  if (turn.runId && turn.transport.runStatus) {
+    const active = await turn.transport.runStatus(turn.runId).catch(() => undefined)
+    if (e.turn !== turn) return
+    if (active === false) return interrupt(sid, turn)
+  }
+  // Still running server-side (or the server cannot say): keep listening, bounded by the watchdog.
   patchMessage(sid, turn.messageId, (m) => ({ ...m, custom: { ...m.custom, reconnecting: undefined } }))
   set(sid, { reconnecting: false }, true)
   armWatchdog(sid, turn)
@@ -317,6 +382,67 @@ export interface SendOptions {
   agentName?: string
   attachmentIds?: string[]
   attachments?: AiuiMessage['attachments']
+  /** Answer the last question again (the server replaces the old answer in history). */
+  regenerate?: boolean
+}
+
+// ── other tabs' runs (read-only) ───────────────────────────────────────
+
+function isLocalRun(e: Entry, runId: string | undefined, ctid: string | undefined): boolean {
+  const t = e.turn
+  if (!t) return false
+  if (ctid) return ctid === t.id
+  if (runId && t.runId) return runId === t.runId
+  return true // cannot tell (older server, turn without a run id yet): leave it to the turn
+}
+
+async function refreshWithRemote(sid: string) {
+  const e = entries.get(sid)
+  if (!e || e.turn) return // a local turn owns the tail of the thread; just keep the remote message
+  let page: HistoryPage
+  try {
+    page = await fetchHistory(withQuery(historyUrlFor(sid), { limit: 50 }))
+  } catch {
+    return
+  }
+  const cur = entries.get(sid)
+  if (!cur || cur.turn) return
+  set(sid, (s) => {
+    const remote = cur.remote ? s.messages.find((m) => m.id === cur.remote!.messageId) : undefined
+    return {
+      messages: remote ? [...page.messages, remote] : page.messages,
+      loaded: true,
+      hasMore: page.hasMore,
+      historyStart: page.start,
+    }
+  }, true)
+}
+
+function handleRemoteEvent(sid: string, ev: WireEvent) {
+  const e = entries.get(sid)
+  if (!e || ev.type === 'session') return
+  const runId = str(ev.run_id)
+  const ctid = str(ev.client_turn_id)
+  if (!runId || isLocalRun(e, runId, ctid)) return
+  if (!e.remote || e.remote.runId !== runId) {
+    if (TERMINAL.has(ev.type)) {
+      threadStore.invalidate(sid)
+      void threadStore.load(sid)
+      return
+    }
+    const msg = { ...newAssistant(runId, str(ev.agent_name)), custom: { remote: true } }
+    e.remote = { runId, messageId: msg.id }
+    set(sid, (s) => ({ messages: [...s.messages, msg] }), true)
+    void refreshWithRemote(sid) // brings in the other tab's question
+  }
+  patchMessage(sid, e.remote.messageId, (m) => applyEvent(m, ev).message)
+  if (TERMINAL.has(ev.type)) {
+    e.remote = null
+    if (!e.turn) {
+      set(sid, { loaded: false }, true)
+      void threadStore.load(sid) // the persisted version replaces the live copy
+    }
+  }
 }
 
 export const threadStore = {
@@ -373,18 +499,25 @@ export const threadStore = {
   async load(sid: string, url?: string): Promise<void> {
     const s = entry(sid).state
     if (s.loaded || s.isLoading || s.isRunning) return
+    // Messages already shown are replaced by the history (a reload after
+    // invalidate); only those added while it loads (a new turn) are kept.
+    const stale = new Set(s.messages.map((m) => m.id))
     set(sid, { isLoading: true }, true)
-    let history: AiuiMessage[] = []
+    let page: HistoryPage = { messages: [], hasMore: false }
     try {
-      const res = await fetch(url ?? historyUrlFor(sid), { credentials: 'same-origin' })
-      const data = res.ok ? ((await res.json()) as JSONObject) : {}
-      const raw = ((data.messages ?? data.runs ?? []) as JSONObject[]).filter((m) => m && typeof m === 'object')
-      history = raw.map(fromHistory)
+      page = await fetchHistory(url ?? historyUrlFor(sid))
     } catch {
-      history = []
+      page = { messages: [], hasMore: false }
     }
+    const history = page.messages
+    const paging = { hasMore: page.hasMore, historyStart: page.start }
+    const remote = entries.get(sid)?.remote
     set(sid, (cur) => {
-      if (!cur.messages.length) return { messages: history, loaded: true, isLoading: false }
+      // A remote (other tab) live message survives the reload at the end.
+      const remoteMsg = remote ? cur.messages.find((m) => m.id === remote.messageId) : undefined
+      const live0 = cur.messages.filter((m) => m !== remoteMsg && !stale.has(m.id))
+      if (!live0.length) return { messages: remoteMsg ? [...history, remoteMsg] : history, loaded: true, isLoading: false, ...paging }
+      cur = { ...cur, messages: live0 }
       // A turn started while history was loading: keep it after the older history.
       const live = cur.messages
       const firstLiveUser = live.find((m) => m.role === 'user')
@@ -394,8 +527,34 @@ export const threadStore = {
       if (liveText && lastHist?.role === 'user' && lastHist.parts.map((p) => (p.type === 'text' ? p.text : '')).join('').trim() === liveText) {
         older = older.slice(0, -1)
       }
-      return { messages: [...older, ...live], loaded: true, isLoading: false }
+      return { messages: [...older, ...live, ...(remoteMsg ? [remoteMsg] : [])], loaded: true, isLoading: false, ...paging }
     }, true)
+  },
+
+  /** Prepend the page of history before the oldest loaded message (servers that report has_more). */
+  async loadEarlier(sid: string, url?: string): Promise<void> {
+    const s = entry(sid).state
+    if (!s.hasMore || s.isLoadingEarlier || s.historyStart === undefined) return
+    set(sid, { isLoadingEarlier: true }, true)
+    let page: HistoryPage | null = null
+    try {
+      page = await fetchHistory(withQuery(url ?? historyUrlFor(sid), { limit: 50, before: s.historyStart }))
+    } catch {
+      page = null
+    }
+    set(sid, (cur) => (page
+      ? { messages: [...page.messages, ...cur.messages], hasMore: page.hasMore, historyStart: page.start, isLoadingEarlier: false }
+      : { isLoadingEarlier: false }), true)
+  },
+
+  /**
+   * Follow a session's runs that this tab did not start (another tab, a
+   * channel): shown as a read-only live message; the history is reloaded when
+   * the run ends. Returns stop().
+   */
+  observe(transport: AiuiTransport, sid: string): () => void {
+    if (!transport.watch) return () => undefined
+    return transport.watch(sid, (ev) => handleRemoteEvent(sid, ev))
   },
 
   async send(transport: AiuiTransport, sid: string, text: string, opts: SendOptions = {}): Promise<void> {
@@ -407,6 +566,7 @@ export const threadStore = {
     }
     const asst = newAssistant(undefined, opts.agentName)
     const turn: Turn = { id: genId('turn'), messageId: asst.id, userText: text, transport, detached: false }
+    const regenerate = !!opts.regenerate && (transport.canRegenerate?.(sid) ?? false)
     const ac = new AbortController()
     e.turn = turn
     e.abort = ac
@@ -418,6 +578,8 @@ export const threadStore = {
         agentName: opts.agentName,
         attachmentIds: opts.attachmentIds,
         signal: ac.signal,
+        clientTurnId: turn.id,
+        regenerate: regenerate || undefined,
         onEvent: (ev) => handleEvent(sid, turn, ev),
         onStart: ({ kind }) => {
           if (e.turn === turn) patchMessage(sid, turn.messageId, (m) => ({ ...m, custom: { ...m.custom, via: kind } }), true)
@@ -607,6 +769,7 @@ export const threadStore = {
     }
     e.turn = null
     e.abort = null
+    e.remote = null
     e.state = { ...EMPTY, sessionId: sid, loaded: true, signals: e.state.signals }
     notify(e, true)
     if (!e.listeners.size) entries.delete(sid)

@@ -13,16 +13,28 @@
  *    `{type:'subscribe', session_ids}` message and only send subscribed
  *    sessions; older servers ignore it and send everything, so events for a
  *    session with no local listener are dropped here.
- *    Subscriptions only ever grow during a connection: `unsubscribe` would also
- *    revoke this connection's right to abort runs in that session.
+ *    Subscriptions only ever grow during a connection (events of a session
+ *    with no listener are simply dropped here). A subscription only grants
+ *    delivery: stopping or answering a run needs the connection that started
+ *    a turn in its session.
  *  - `chat_abort` is answered with `{type:'chat_abort_result', status, run_id}`
  *    (older servers: the same without `type`), `ask_response` with
  *    `{type:'ask_response_ack'}`, `subscribe` with `{type:'subscribed'}`, `ping`
  *    with `{type:'pong'}`.
- *  - Auth: same URL as views/chat.js. Browsers cannot put an Authorization
- *    header on a WebSocket handshake, so when a gateway token is stored (the
- *    sessionStorage key dashboard.js and the shell use) it goes in `?token=`,
- *    which the server's auth middleware accepts for /api/* sockets.
+ *  - Several tabs on one session: every `chat` frame carries a
+ *    `client_turn_id`; newer servers echo it on every event of that run. A
+ *    turn binds to the run that names it, and other runs' events go to the
+ *    session's watchers (a read-only view), never into the turn. With older
+ *    servers (no echo) a turn binds to the first run it sees that did not
+ *    start before the turn did.
+ *  - Auth: browsers cannot put an Authorization header on a WebSocket
+ *    handshake. When a gateway token is stored (the sessionStorage key
+ *    dashboard.js and the shell use), each handshake first trades it for a
+ *    single-use ticket (`POST /api/auth/ws-ticket`) sent as `?ticket=`, so the
+ *    long-lived key never appears in a URL or an access log. Servers without
+ *    that endpoint get `?token=` as before.
+ *  - `{type:'run_status', run_id}` asks whether a run is still alive (after a
+ *    reconnect); older servers do not answer, which reads as "unknown".
  */
 import { TERMINAL, type ConnectionStatus, type WireEvent } from './protocol'
 
@@ -37,6 +49,10 @@ export interface SendArgs {
   onEvent: (ev: WireEvent) => void
   /** Called once the turn is on the wire, with the transport that carries it. */
   onStart?: (info: { kind: 'sse' | 'ws' }) => void
+  /** Names this turn on the wire (WS `client_turn_id`), so its run can be told from other tabs' runs. */
+  clientTurnId?: string
+  /** Answer the session's last question again instead of asking it twice (WS only). */
+  regenerate?: boolean
 }
 
 export interface AiuiTransport {
@@ -61,6 +77,10 @@ export interface AiuiTransport {
   watch?(sessionId: string, onEvent: (ev: WireEvent) => void): () => void
   /** Keep the live connection (and its reconnect loop) up while a view needs it. Returns release(). */
   retain?(): () => void
+  /** Is this run still alive on the server? `undefined` when the server cannot say. */
+  runStatus?(runId: string): Promise<boolean | undefined>
+  /** Whether `regenerate` replaces the last answer server-side (WS); otherwise it is a plain resend. */
+  canRegenerate?(sessionId: string): boolean
 }
 
 export class TransportDisconnectedError extends Error {
@@ -81,6 +101,8 @@ export const isDisconnectError = (e: unknown): boolean => e instanceof Error && 
 export const isAbortError = (e: unknown): boolean => e instanceof Error && e.name === 'AbortError'
 
 const jsonHeaders = { 'Content-Type': 'application/json' }
+
+export const SSE_DROPPED = 'The connection to the server was lost before the reply finished.'
 
 /** Parse a block of SSE lines into the JSON payload of its `data:` lines. */
 function parseSseFrame(frame: string): WireEvent | null {
@@ -115,7 +137,15 @@ export function createSseTransport(base = ''): AiuiTransport {
       const dec = new TextDecoder()
       let buf = ''
       for (;;) {
-        const { done, value } = await reader.read()
+        let chunk: ReadableStreamReadResult<Uint8Array>
+        try {
+          chunk = await reader.read()
+        } catch (err) {
+          if (isAbortError(err) || signal.aborted) throw err
+          // The fetch reader's own message is a bare "network error" / "Failed to fetch".
+          throw new Error(SSE_DROPPED)
+        }
+        const { done, value } = chunk
         if (done) break
         buf += dec.decode(value, { stream: true }).replace(/\r\n/g, '\n')
         let nl: number
@@ -148,8 +178,8 @@ export function createSseTransport(base = ''): AiuiTransport {
 type WebSocketCtor = new (url: string) => WebSocket
 
 export interface WsTransportOptions {
-  /** Defaults to ws(s)://<host>/api/chat/ws (+ ?token=), as views/chat.js does. Re-read on every (re)connect. */
-  url?: string | (() => string)
+  /** Defaults to ws(s)://<host>/api/chat/ws (+ ?ticket= or ?token=). Re-read on every (re)connect. */
+  url?: string | (() => string | Promise<string>)
   WebSocketImpl?: WebSocketCtor
   /** Reconnect backoff: doubles from min to max, with jitter (50-100 % of the step). */
   minBackoffMs?: number
@@ -185,11 +215,38 @@ function storedToken(): string {
   }
 }
 
-export function defaultWsUrl(): string {
+export const WS_TICKET_URL = '/api/auth/ws-ticket'
+
+/**
+ * The query string that authenticates one WebSocket handshake: a single-use
+ * ticket bought with the stored token, `?token=` on servers without the ticket
+ * endpoint, nothing when no token is stored (cookie or open servers).
+ */
+export async function wsAuthQuery(fetchImpl: typeof fetch = globalThis.fetch): Promise<string> {
+  const token = storedToken()
+  if (!token) return ''
+  try {
+    const res = await fetchImpl(WS_TICKET_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'same-origin',
+    })
+    if (res.ok) {
+      const data = (await res.json()) as { ticket?: unknown }
+      if (typeof data.ticket === 'string' && data.ticket) return `?ticket=${encodeURIComponent(data.ticket)}`
+    } else if (res.status !== 404 && res.status !== 405) {
+      return '' // the token was refused: the handshake fails the same way
+    }
+  } catch {
+    /* network trouble: the handshake will fail and retry */
+  }
+  return `?token=${encodeURIComponent(token)}`
+}
+
+export async function defaultWsUrl(): Promise<string> {
   const loc = globalThis.location
   const base = loc ? `${loc.protocol === 'https:' ? 'wss:' : 'ws:'}//${loc.host}/api/chat/ws` : 'ws://127.0.0.1/api/chat/ws'
-  const token = storedToken()
-  return token ? `${base}?token=${encodeURIComponent(token)}` : base
+  return base + (await wsAuthQuery())
 }
 
 const OPEN = 1
@@ -208,7 +265,16 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
   const idleCloseMs = options.idleCloseMs ?? 250
   const random = options.random ?? Math.random
 
-  type Turn = { onEvent: (ev: WireEvent) => void; runId?: string; settle: (err?: Error) => void }
+  type Turn = {
+    onEvent: (ev: WireEvent) => void
+    runId?: string
+    clientTurnId: string
+    /** Runs of this session already under way when the turn started: never this turn's. */
+    runsBefore: Set<string>
+    settle: (err?: Error) => void
+  }
+  type PendingCancel = { timer: ReturnType<typeof setTimeout>; clientTurnId?: string; runsBefore: Set<string> }
+  type StatusWaiter = { runId: string; done: (active: boolean | undefined) => void }
   type Ack = { kind: 'ask' | 'abort'; key: string; done: (ok: boolean, err?: Error) => void }
   type Waiter = { resolve: () => void; reject: (e: Error) => void }
 
@@ -222,10 +288,19 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
   let pongTimer: ReturnType<typeof setTimeout> | undefined
   let idleTimer: ReturnType<typeof setTimeout> | undefined
   let lastSubscription = ''
+  let opening = false
+  let openGen = 0
+  /** The server echoes client_turn_id (seen once on this transport). */
+  let serverCorrelates = false
 
   const turns = new Map<string, Turn>()
   const watchers = new Map<string, Set<(ev: WireEvent) => void>>()
-  const pendingCancel = new Map<string, ReturnType<typeof setTimeout>>()
+  const pendingCancel = new Map<string, PendingCancel>()
+  /** The last turn sent per session (a Stop before run_started aborts only its run). */
+  const lastTurn = new Map<string, { clientTurnId: string; runsBefore: Set<string> }>()
+  /** Run ids seen per session (bounded), to tell runs that started before a turn. */
+  const sessionRuns = new Map<string, Set<string>>()
+  const statusWaiters: StatusWaiter[] = []
   const pendingAborts = new Set<string>()
   const ignoredRuns = new Set<string>()
   const acks: Ack[] = []
@@ -240,7 +315,31 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
   }
 
   const wanted = () =>
-    retainCount > 0 || turns.size > 0 || watchers.size > 0 || pendingCancel.size > 0 || pendingAborts.size > 0 || acks.length > 0
+    retainCount > 0 || turns.size > 0 || watchers.size > 0 || pendingCancel.size > 0 || pendingAborts.size > 0 || acks.length > 0 ||
+    statusWaiters.length > 0
+
+  const noteRun = (sid: string, runId: string) => {
+    let set = sessionRuns.get(sid)
+    if (!set) sessionRuns.set(sid, (set = new Set()))
+    set.add(runId)
+    if (set.size > 50) set.delete(set.values().next().value as string)
+    if (sessionRuns.size > 200) sessionRuns.delete(sessionRuns.keys().next().value as string)
+  }
+
+  let turnSeq = 0
+  const newClientTurnId = () => `ct_${Date.now().toString(36)}_${(turnSeq++).toString(36)}_${Math.floor(random() * 1e9).toString(36)}`
+
+  /**
+   * Is an event of run `runId` (naming turn `ctid`, if the server echoes it)
+   * part of the turn `{clientTurnId, runsBefore, runId?}`?
+   */
+  const ownsRun = (t: { clientTurnId?: string; runsBefore: Set<string>; runId?: string }, runId: string, ctid: string | undefined) => {
+    if (t.runId) return t.runId === runId
+    if (ctid !== undefined) return ctid === t.clientTurnId
+    if (t.runsBefore.has(runId)) return false
+    // A server that echoes client_turn_id would have named our own run.
+    return !serverCorrelates
+  }
 
   const ignoreRun = (runId: string) => {
     ignoredRuns.add(runId)
@@ -351,6 +450,7 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
     const err = new TransportDisconnectedError()
     for (const w of openWaiters.splice(0)) w.reject(err)
     for (const turn of [...turns.values()]) turn.settle(err)
+    for (const w of [...statusWaiters]) w.done(undefined)
     for (const ack of [...acks]) {
       if (ack.kind === 'abort') {
         pendingAborts.add(ack.key) // unknown whether it arrived; chat_abort is idempotent
@@ -362,22 +462,50 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
     if (wanted()) scheduleReconnect() // status stays 'closed' until the next handshake starts
   }
 
+  function failOpen() {
+    setStatus('closed')
+    const err = new TransportDisconnectedError('Could not open the chat connection')
+    for (const w of openWaiters.splice(0)) w.reject(err)
+    if (wanted()) scheduleReconnect()
+  }
+
   function openSocket() {
-    if (sock) return
+    if (sock || opening) return
     if (reconnectTimer !== undefined) {
       clearTimeout(reconnectTimer)
       reconnectTimer = undefined
     }
     setStatus('connecting')
+    let url: string | Promise<string>
+    try {
+      url = resolveUrl()
+    } catch {
+      return failOpen()
+    }
+    if (typeof url === 'string') return startSocket(url)
+    // Resolving the URL may fetch a handshake ticket first.
+    const gen = ++openGen
+    opening = true
+    url.then(
+      (u) => {
+        if (gen !== openGen) return // closed meanwhile
+        opening = false
+        startSocket(u)
+      },
+      () => {
+        if (gen !== openGen) return
+        opening = false
+        failOpen()
+      },
+    )
+  }
+
+  function startSocket(url: string) {
     let ws: WebSocket
     try {
-      ws = new Impl(resolveUrl())
+      ws = new Impl(url)
     } catch {
-      setStatus('closed')
-      const err = new TransportDisconnectedError('Could not open the chat connection')
-      for (const w of openWaiters.splice(0)) w.reject(err)
-      if (wanted()) scheduleReconnect()
-      return
+      return failOpen()
     }
     sock = ws
     ws.onopen = () => {
@@ -411,7 +539,7 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
   }
 
   function ensureConnecting() {
-    if (!sock && reconnectTimer === undefined) openSocket()
+    if (!sock && !opening && reconnectTimer === undefined) openSocket()
   }
 
   function shutdown() {
@@ -419,6 +547,8 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
     if (reconnectTimer !== undefined) clearTimeout(reconnectTimer)
     idleTimer = reconnectTimer = undefined
     stopPing()
+    openGen += 1
+    opening = false
     const ws = sock
     sock = null
     lastSubscription = ''
@@ -444,8 +574,8 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
   }
 
   function clearPendingCancel(sid: string) {
-    const t = pendingCancel.get(sid)
-    if (t !== undefined) clearTimeout(t)
+    const p = pendingCancel.get(sid)
+    if (p !== undefined) clearTimeout(p.timer)
     pendingCancel.delete(sid)
     scheduleIdleCheck()
   }
@@ -463,6 +593,11 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
     const runId = typeof ev.run_id === 'string' && ev.run_id ? ev.run_id : undefined
     if (type === 'pong' || type === 'subscribed') return
     if (type === 'ask_response_ack') return resolveAck('ask', sid)
+    if (type === 'run_status' && runId) {
+      const active = typeof ev.active === 'boolean' ? ev.active : undefined
+      for (const w of statusWaiters.filter((x) => x.runId === runId)) w.done(active)
+      return
+    }
     // chat_abort reply: `{type:'chat_abort_result', status, run_id}` on newer servers,
     // `{status, run_id}` with no type on older ones. 'forbidden' (another client's run)
     // and 'no_active_run' (already over) both end the wait: there is nothing to retry.
@@ -471,34 +606,47 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
     }
     if (typeof type !== 'string' || !sid) return
     if (runId && ignoredRuns.has(runId)) return
+    const ctid = typeof ev.client_turn_id === 'string' && ev.client_turn_id ? ev.client_turn_id : undefined
+    if (ctid) serverCorrelates = true
 
     const turn = turns.get(sid)
-    if (pendingCancel.has(sid) && !(turn && runId && turn.runId === runId)) {
-      if (runId) {
-        // Stop was pressed before run_started: abort the run as soon as it is known.
+    const pending = pendingCancel.get(sid)
+    if (pending && !(turn && runId && turn.runId === runId)) {
+      if (runId && ownsRun({ ...pending, runId: undefined }, runId, ctid)) {
+        // Stop was pressed before run_started: abort our run as soon as it is known.
         clearPendingCancel(sid)
         void sendAbort(runId)
         return
       }
-      if (TERMINAL.has(type) && !turn) {
+      if (!runId && TERMINAL.has(type) && !turn && (ctid === undefined || ctid === pending.clientTurnId)) {
         clearPendingCancel(sid) // the run ended before it ever had an id (e.g. guardrail)
         return
       }
     }
 
     const event = ev as WireEvent
-    if (turn) {
-      if (runId) {
-        if (turn.runId && turn.runId !== runId) return // another run of this session
-        turn.runId ??= runId
+    const deliverToWatchers = () => {
+      const fns = watchers.get(sid)
+      if (fns) for (const fn of [...fns]) fn(event)
+      // else: a session this client has no listener for (older servers broadcast everything) -> drop
+    }
+    if (runId) {
+      if (!turn || !ownsRun(turn, runId, ctid)) {
+        noteRun(sid, runId)
+        deliverToWatchers() // another tab's run of this session: read-only view
+        return
       }
+      turn.runId ??= runId
+      noteRun(sid, runId)
+    } else if (turn && ctid !== undefined && ctid !== turn.clientTurnId) {
+      return deliverToWatchers() // e.g. another tab's guardrail refusal
+    }
+    if (turn) {
       turn.onEvent(event)
       if (TERMINAL.has(type)) turn.settle()
       return
     }
-    const fns = watchers.get(sid)
-    if (fns) for (const fn of [...fns]) fn(event)
-    // else: a session this client has no listener for (older servers broadcast everything) -> drop
+    deliverToWatchers()
   }
 
   function connect(timeoutMs?: number): Promise<void> {
@@ -524,7 +672,7 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
           scheduleIdleCheck()
         }, timeoutMs)
       }
-      if (!sock) openSocket() // connect now, even if a backoff timer is pending
+      if (!sock && !opening) openSocket() // connect now, even if a backoff timer is pending
     })
   }
 
@@ -535,7 +683,7 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
     },
     connect,
     close: shutdown,
-    async send({ sessionId, text, agentName, attachmentIds, signal, onEvent, onStart }) {
+    async send({ sessionId, text, agentName, attachmentIds, signal, onEvent, onStart, clientTurnId, regenerate }) {
       if (signal.aborted) return
       try {
         await connect()
@@ -549,6 +697,8 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
         const onAbort = () => turn.settle()
         const turn: Turn = {
           onEvent,
+          clientTurnId: clientTurnId ?? newClientTurnId(),
+          runsBefore: new Set(sessionRuns.get(sessionId) ?? []),
           settle: (err) => {
             if (settled) return
             settled = true
@@ -562,6 +712,8 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
         turns.get(sessionId)?.settle()
         signal.addEventListener('abort', onAbort, { once: true })
         turns.set(sessionId, turn)
+        lastTurn.set(sessionId, { clientTurnId: turn.clientTurnId, runsBefore: turn.runsBefore })
+        if (lastTurn.size > 200) lastTurn.delete(lastTurn.keys().next().value as string)
         if (idleTimer !== undefined) clearTimeout(idleTimer)
         syncSubscriptions()
         const sent = rawSend({
@@ -570,6 +722,8 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
           session_id: sessionId,
           agent_name: agentName,
           attachment_ids: attachmentIds,
+          client_turn_id: turn.clientTurnId,
+          ...(regenerate ? { regenerate: true } : {}),
         })
         if (!sent) {
           turn.settle(new TransportDisconnectedError('The chat connection closed before the message was sent'))
@@ -580,12 +734,14 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
     },
     async cancel(sessionId, runId) {
       if (runId) return sendAbort(runId)
-      // No run id yet: remember the Stop and abort the run when run_started names it.
+      // No run id yet: remember the Stop and abort the turn's run when it is named.
       clearPendingCancel(sessionId)
-      pendingCancel.set(
-        sessionId,
-        setTimeout(() => clearPendingCancel(sessionId), cancelTtl),
-      )
+      const sent = lastTurn.get(sessionId)
+      pendingCancel.set(sessionId, {
+        timer: setTimeout(() => clearPendingCancel(sessionId), cancelTtl),
+        clientTurnId: sent?.clientTurnId,
+        runsBefore: sent?.runsBefore ?? new Set(sessionRuns.get(sessionId) ?? []),
+      })
       if (idleTimer !== undefined) clearTimeout(idleTimer)
       syncSubscriptions()
       ensureConnecting()
@@ -604,6 +760,25 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
       await ack
     },
     canAnswerAsk: () => true,
+    canRegenerate: () => true,
+    async runStatus(runId) {
+      if (!sock || sock.readyState !== OPEN || status !== 'open') return undefined
+      return new Promise<boolean | undefined>((resolve) => {
+        const timer = setTimeout(() => waiter.done(undefined), ackTimeout)
+        const waiter: StatusWaiter = {
+          runId,
+          done: (active) => {
+            clearTimeout(timer)
+            const i = statusWaiters.indexOf(waiter)
+            if (i >= 0) statusWaiters.splice(i, 1)
+            resolve(active)
+            scheduleIdleCheck()
+          },
+        }
+        statusWaiters.push(waiter)
+        if (!rawSend({ type: 'run_status', run_id: runId })) waiter.done(undefined)
+      })
+    },
     onStatus(fn) {
       statusFns.add(fn)
       return () => {
@@ -648,7 +823,7 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
 }
 
 export interface AutoTransportOptions {
-  wsUrl?: string | (() => string)
+  wsUrl?: string | (() => string | Promise<string>)
   base?: string
   /** How long a send waits for the socket before falling back to SSE. */
   openTimeoutMs?: number
@@ -701,6 +876,8 @@ export function createAutoTransport(options: AutoTransportOptions = {}): AiuiTra
       return ws.respondAsk(sessionId, runId, response)
     },
     canAnswerAsk: (sessionId) => routes.get(sessionId) !== 'sse',
+    canRegenerate: (sessionId) => routes.get(sessionId) !== 'sse' && ws.status === 'open',
+    runStatus: (runId) => ws.runStatus!(runId),
     onStatus: (fn) => ws.onStatus!(fn),
     onReconnect: (fn) => ws.onReconnect!(fn),
     watch: (sessionId, fn) => ws.watch!(sessionId, fn),

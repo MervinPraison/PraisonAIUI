@@ -462,3 +462,153 @@ test('sending while a turn runs is ignored (queueing is deferred; the composer i
   await tick()
   assert.equal(threadStore.get('S').messages.filter((m) => m.role === 'user').length, 1)
 })
+
+// ── review round 1 ─────────────────────────────────────────────────────
+
+test('after a server restart a turn the server no longer knows ends at once (run_status), not after 60 s', async () => {
+  const f = fakeTransport()
+  const asked: string[] = []
+  f.t.runStatus = async (runId) => {
+    asked.push(runId)
+    return false
+  }
+  globalThis.fetch = (async () => new Response(JSON.stringify({ messages: [{ role: 'user', content: 'hi' }] }), { status: 200 })) as typeof fetch
+  const sent = threadStore.send(f.t, 'S', 'hi')
+  await tick()
+  f.emit('S', { type: 'run_started', session_id: 'S', run_id: 'R1' })
+  f.emit('S', { type: 'run_content', session_id: 'S', run_id: 'R1', token: 'part' })
+  f.drop('S')
+  await sent
+  f.reopen()
+  for (let i = 0; i < 5; i++) await tick()
+  assert.deepEqual(asked, ['R1'])
+  assert.equal(threadStore.get('S').isRunning, false)
+  const m = assistant('S')
+  assert.equal(m.status?.type, 'incomplete')
+  assert.ok(m.status?.type === 'incomplete' && /did not finish/.test(String(m.status.error)))
+  assert.equal(textOf(m), 'part')
+})
+
+test('a run the server still knows keeps the turn running after the reconnect', async () => {
+  const f = fakeTransport()
+  f.t.runStatus = async () => true
+  globalThis.fetch = (async () => new Response(JSON.stringify({ messages: [] }), { status: 200 })) as typeof fetch
+  const sent = threadStore.send(f.t, 'S', 'hi')
+  await tick()
+  f.emit('S', { type: 'run_started', session_id: 'S', run_id: 'R1' })
+  f.drop('S')
+  await sent
+  f.reopen()
+  for (let i = 0; i < 5; i++) await tick()
+  assert.equal(threadStore.get('S').isRunning, true)
+  threadStore.drop('S')
+})
+
+test('the turn names itself on the wire and ignores another tab\'s run that the transport hands it', async () => {
+  const turnArgs: SendArgs[] = []
+  const g = fakeTransport()
+  g.t.send = (a) => {
+    turnArgs.push(a)
+    return new Promise(() => undefined)
+  }
+  void threadStore.send(g.t, 'T', 'x')
+  await tick()
+  assert.ok(turnArgs[0].clientTurnId, 'clientTurnId is passed to the transport')
+  const own = turnArgs[0].clientTurnId
+  turnArgs[0].onEvent({ type: 'run_content', session_id: 'T', run_id: 'RA', token: 'd0 d1', client_turn_id: 'tab-one' })
+  turnArgs[0].onEvent({ type: 'run_content', session_id: 'T', run_id: 'RB', token: 'You said', client_turn_id: own })
+  assert.equal(textOf(assistant('T')), 'You said')
+  assert.equal(threadStore.get('T').activeRunId, 'RB')
+  threadStore.drop('T')
+})
+
+test('regenerate asks the transport to replace the answer when it can', async () => {
+  const seen: SendArgs[] = []
+  const f = fakeTransport()
+  f.t.canRegenerate = () => true
+  const origSend = f.t.send.bind(f.t)
+  f.t.send = (a) => {
+    seen.push(a)
+    return origSend(a)
+  }
+  void threadStore.send(f.t, 'S', 'q', { regenerate: true })
+  await tick()
+  assert.equal(seen[0].regenerate, true)
+  threadStore.drop('S')
+  const g = fakeTransport('sse')
+  const seen2: SendArgs[] = []
+  const send2 = g.t.send.bind(g.t)
+  g.t.send = (a) => {
+    seen2.push(a)
+    return send2(a)
+  }
+  void threadStore.send(g.t, 'S2', 'q', { regenerate: true })
+  await tick()
+  assert.equal(seen2[0].regenerate, undefined, 'SSE has no regenerate: a plain resend')
+  threadStore.drop('S2')
+})
+
+test('observe: another tab\'s run shows as a read-only live message and history reloads when it ends', async () => {
+  const f = fakeTransport()
+  let historyCalls = 0
+  const persisted = [
+    { role: 'user', content: 'earlier' },
+    { role: 'assistant', content: 'earlier reply' },
+    { role: 'user', content: 'dense from tab one' },
+  ]
+  globalThis.fetch = (async () => {
+    historyCalls += 1
+    return new Response(JSON.stringify({ messages: persisted, start: 0, has_more: false }), { status: 200 })
+  }) as typeof fetch
+  await threadStore.load('S')
+  const stop = threadStore.observe(f.t, 'S')
+  f.emit('S', { type: 'run_started', session_id: 'S', run_id: 'RA', client_turn_id: 'tab-one' })
+  f.emit('S', { type: 'run_content', session_id: 'S', run_id: 'RA', token: 'd0 ', client_turn_id: 'tab-one' })
+  for (let i = 0; i < 3; i++) await tick()
+  const s = threadStore.get('S')
+  assert.equal(s.isRunning, false, 'the composer stays usable')
+  const users = s.messages.filter((m) => m.role === 'user').map(textOf)
+  assert.deepEqual(users, ['earlier', 'dense from tab one'])
+  const live = assistant('S')
+  assert.equal(live.custom?.remote, true)
+  assert.equal(live.status?.type, 'running')
+  assert.equal(textOf(live), 'd0 ')
+
+  persisted.push({ role: 'assistant', content: 'd0 d1' })
+  f.emit('S', { type: 'run_completed', session_id: 'S', run_id: 'RA', content: 'd0 d1', client_turn_id: 'tab-one' })
+  for (let i = 0; i < 3; i++) await tick()
+  const after = threadStore.get('S').messages
+  assert.equal(after.length, 4)
+  assert.equal(textOf(after[3]), 'd0 d1')
+  assert.equal(after[3].custom?.remote, undefined)
+  assert.ok(historyCalls >= 3)
+  stop()
+})
+
+test('loadEarlier pages back through history', async () => {
+  const pages: Record<string, unknown> = {
+    'http://test/api/chat/history/S': { messages: [{ role: 'user', content: 'turn 36' }], start: 72, has_more: true },
+    'http://test/api/chat/history/S?limit=50&before=72': { messages: [{ role: 'user', content: 'turn 11' }], start: 22, has_more: true },
+    'http://test/api/chat/history/S?limit=50&before=22': { messages: [{ role: 'user', content: 'turn 0' }], start: 0, has_more: false },
+  }
+  globalThis.fetch = (async (url: string) => new Response(JSON.stringify(pages[url] ?? {}), { status: 200 })) as typeof fetch
+  await threadStore.load('S')
+  assert.equal(threadStore.get('S').hasMore, true)
+  await threadStore.loadEarlier('S')
+  await threadStore.loadEarlier('S')
+  const s = threadStore.get('S')
+  assert.deepEqual(s.messages.map(textOf), ['turn 0', 'turn 11', 'turn 36'])
+  assert.equal(s.hasMore, false)
+  await threadStore.loadEarlier('S') // nothing more: no request
+  assert.equal(threadStore.get('S').messages.length, 3)
+})
+
+test('a fetch that never reached the server reads as a connection problem, not "Failed to fetch"', async () => {
+  const f = fakeTransport('sse')
+  f.t.send = async () => {
+    throw new TypeError('Failed to fetch')
+  }
+  await threadStore.send(f.t, 'S', 'hi')
+  const m = assistant('S')
+  assert.ok(m.status?.type === 'incomplete' && /Could not reach the server/.test(String(m.status.error)))
+})
