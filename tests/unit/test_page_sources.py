@@ -151,6 +151,28 @@ def test_endpoints_agree_on_the_owner_of_an_id(folder):
     assert api["board"]["title"] == shell["board"]["title"] == "App Board"
 
 
+def test_react_plugin_page_does_not_hide_a_folder_page_from_the_dashboard(folder):
+    """A plugin page the dashboard cannot render (a React module) loses the
+    /api/pages merge to a folder page with its id; the shell keeps the plugin.
+
+    The merge used to pick the plugin record, which has no dashboard row, so
+    /api/pages listed neither page.
+    """
+
+    class Mine:
+        name = "mine"
+
+        def pages(self):
+            return [PageSpec(id="board", title="Plugin Board", kind="react", module="b.js")]
+
+    get_plugin_registry().register(Mine())
+    client = TestClient(srv.create_app())
+    api = {p["id"]: p for p in client.get("/api/pages").json()["pages"]}
+    shell = {p["id"]: p for p in client.get("/api/shell/manifest").json()["pages"]}
+    assert shell["board"]["source"] == "plugin:mine"
+    assert api["board"]["title"] == "Board"
+
+
 def test_merge_keeps_the_first_record_and_logs_plugin_shadows(caplog):
     a = ps.plugin_page(PageSpec(id="x", title="A", source="plugin:a"))
     b = ps.plugin_page(PageSpec(id="x", title="B", source="plugin:b"))

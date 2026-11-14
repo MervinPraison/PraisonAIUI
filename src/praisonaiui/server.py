@@ -1396,9 +1396,20 @@ def _resolved_dashboard_config() -> Optional[dict[str, Any]]:
     return None
 
 
-def _page_records(restricted: bool, extra_dirs: list, *, log_shadows: bool = False) -> list:
+def _page_records(
+    restricted: bool,
+    extra_dirs: list,
+    *,
+    log_shadows: bool = False,
+    dashboard: bool = False,
+) -> list:
     """Every page, one record per id: page table (app ``register_page`` and
-    built-ins), then plugin pages, then dashboard-plugin folders."""
+    built-ins), then plugin pages, then dashboard-plugin folders.
+
+    ``dashboard=True`` merges only the pages the legacy dashboard can render
+    (``api_row``), so a plugin page it cannot show (a React module) does not
+    hide a folder page with the same id from ``GET /api/pages``.
+    """
     from praisonaiui.builtin import page_sources as ps
     from praisonaiui.dashboard_plugins import discover_dashboard_plugins
     from praisonaiui.plugin_registry import get_plugin_registry
@@ -1422,7 +1433,10 @@ def _page_records(restricted: bool, extra_dirs: list, *, log_shadows: bool = Fal
     folders = ps.folder_pages(
         discover_dashboard_plugins(extra_dirs, _dashboard_plugin_allowlist())
     )
-    return ps.merge_pages([*table, *plugins, *folders], log_shadows=log_shadows)
+    records = [*table, *plugins, *folders]
+    if dashboard:
+        records = [r for r in records if r.api_row is not None]
+    return ps.merge_pages(records, log_shadows=log_shadows)
 
 
 def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = True) -> dict[str, Any]:
@@ -2618,12 +2632,13 @@ async def api_pages(request: Request) -> JSONResponse:
     """List registered dashboard pages (protocol-driven).
 
     The same merged page list as the shell manifest (see
-    :mod:`praisonaiui.builtin.page_sources`), minus what the legacy
-    dashboard cannot render (plugin pages other than ``blocks``).
+    :mod:`praisonaiui.builtin.page_sources`), merged over only what the
+    legacy dashboard can render (plugin pages other than ``blocks`` drop
+    out before the merge, so they never hide a folder page).
     """
     extra_dirs = (_dashboard_config or {}).get("pluginDirs") or []
-    records = _page_records(_plugin_js_restricted(request.scope), extra_dirs)
-    pages = [r.api_row for r in records if r.api_row is not None]
+    records = _page_records(_plugin_js_restricted(request.scope), extra_dirs, dashboard=True)
+    pages = [r.api_row for r in records]
     pages = sorted(pages, key=lambda p: (p.get("order", 100), p["id"]))
     return JSONResponse({"pages": pages})
 
