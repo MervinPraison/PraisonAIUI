@@ -104,7 +104,7 @@ function renderOutput(container, result) {
   const out = result.output != null ? result.output : (result.stdout || '');
   const err = result.error != null ? result.error : (result.stderr || '');
   const artifacts = Array.isArray(result.artifacts) ? result.artifacts : [];
-  const failed = ['error', 'failed', 'degraded'].includes(result.status);
+  const failed = ['error', 'failed', 'degraded', 'denied'].includes(result.status);
 
   const banner = container.querySelector('#cs-banner');
   if (failed) {
@@ -137,7 +137,7 @@ function renderHistory(container) {
     return;
   }
   list.innerHTML = history.map((h, i) => {
-    const ok = !['error', 'failed', 'degraded'].includes(h.result.status);
+    const ok = !['error', 'failed', 'degraded', 'denied'].includes(h.result.status);
     const icon = ok ? '<span style="color:#22c55e">●</span>' : '<span style="color:#ef4444">●</span>';
     const dur = h.duration != null ? `${(h.duration / 1000).toFixed(1)}s` : '';
     return `<div class="cs-history-row" data-idx="${i}" style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:6px;cursor:pointer;font-size:12px" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background='transparent'">
@@ -175,7 +175,7 @@ async function runCode(container) {
   runBtn.textContent = 'Running…';
   const start = Date.now();
   timerId = setInterval(() => {
-    runBtn.textContent = `Executing… ${((Date.now() - start) / 1000).toFixed(1)}s`;
+    runBtn.textContent = `Awaiting approval or running… ${((Date.now() - start) / 1000).toFixed(1)}s`;
   }, 100);
 
   let result;

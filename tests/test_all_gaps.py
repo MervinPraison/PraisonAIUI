@@ -8,10 +8,34 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+# Code runs wait for a human approval; this smoke script opts out (the SDK's
+# documented switch) so POST /api/code/execute does not block.
+os.environ["PRAISONAI_AUTO_APPROVE"] = "true"
+
 # Reset singletons before app creation
+from praisonaiui.features import knowledge as _knowledge
+from praisonaiui.features import media_analysis as _media
 from praisonaiui.features import memory as _mem
 
-_mem._memory_manager = None
+# In-memory store: the SDK one embeds text through a real provider.
+_mem.set_memory_manager(_mem.SimpleMemoryManager())
+# Same for knowledge: the SDK store's health check embeds a search query.
+_knowledge._knowledge_manager = _knowledge.SimpleKnowledgeManager()
+
+
+class _OfflineVision(_media.VisionAnalysisManager):
+    """No real LLM call: the endpoints are checked, not the model."""
+
+    def analyze(self, **kw):
+        if not kw.get("url") and not kw.get("base64_data"):
+            return {"error": "No image provided", "status": "error"}
+        return {"analysis": "stub", "status": "success", "provider": "test"}
+
+    def ocr(self, **kw):
+        return {"text": "stub", "status": "success", "provider": "test"}
+
+
+_media.set_analysis_manager(_OfflineVision())
 
 from starlette.testclient import TestClient
 

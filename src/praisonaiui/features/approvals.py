@@ -47,6 +47,19 @@ def _list_backend_approvals() -> List[Dict[str, Any]] | None:
     return items if isinstance(items, list) else None
 
 
+def _is_critical(entry: Dict[str, Any]) -> bool:
+    """Critical tools (``execute_code``, ``execute_command``…) are approved one
+    call at a time: an ``always`` approval never turns their gate off."""
+    if entry.get("risk_level") == "critical":
+        return True
+    try:
+        from praisonaiagents.approval import DEFAULT_DANGEROUS_TOOLS, get_risk_level
+    except ImportError:
+        return False
+    tool = entry.get("tool_name", "")
+    return "critical" in (DEFAULT_DANGEROUS_TOOLS.get(tool), get_risk_level(tool))
+
+
 # ── Approval Protocol ────────────────────────────────────────────────
 
 
@@ -245,7 +258,11 @@ class SimpleApprovalManager(ApprovalProtocol):
             entry["approver"] = approver
             if modified_args is not None:
                 entry["modified_args"] = dict(modified_args)
-            if always and entry["tool_name"] not in self._policies["auto_approve_tools"]:
+            if (
+                always
+                and entry["tool_name"] not in self._policies["auto_approve_tools"]
+                and not _is_critical(entry)
+            ):
                 self._policies["auto_approve_tools"].append(entry["tool_name"])
             self._history.appendleft(entry)
             self._signal(approval_id, entry)
@@ -355,7 +372,15 @@ class SDKApprovalManager(ApprovalProtocol):
         return policies
 
     def update_policies(self, updates: Dict[str, Any]) -> Dict[str, Any]:
+        from praisonaiagents.approval import DEFAULT_DANGEROUS_TOOLS
+
+        before = set(self._simple.get_policies().get("auto_approve_tools") or [])
         result = self._simple.update_policies(updates)
+        if "auto_approve_tools" in updates:
+            # Taking a dangerous tool off the auto-approve list gates it again.
+            for tool in before - set(updates["auto_approve_tools"] or []):
+                if tool in DEFAULT_DANGEROUS_TOOLS:
+                    self._registry.add_requirement(tool, DEFAULT_DANGEROUS_TOOLS[tool])
         for tool in updates.get("always_deny_tools") or []:
             self._registry.add_requirement(tool, "high")
         for tool in updates.get("auto_approve_tools") or []:
