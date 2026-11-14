@@ -68,3 +68,8 @@ graphify-out/
 src/frontend/e2e/.report/
 src/frontend/e2e/.results/
 src/frontend/e2e/.scratch/
+
+# Local run artefacts (keep the repo root clean)
+*.pid
+ui-config.test.json
+pr_body*.md

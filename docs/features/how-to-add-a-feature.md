@@ -306,7 +306,7 @@ See [Protocol Architecture](protocol-architecture.md).
 | `form_action` uses input labels as keys | **Implemented** — every form input now accepts an optional `name=` kwarg that becomes the submit-key. Tests: `tests/unit/test_form_input_names.py` (18 tests). |
 | No typed Python ⇄ JS contract | **Implemented** — `aiui.register_component_schema(type, schema)` + `GET /api/components/schemas`. Built-in schemas are auto-derived from `ui.py` signatures. Tests: `tests/unit/test_component_schemas.py` (9 tests). |
 | `/api/features` cold-start slow | **Mitigated** — `info()` calls are parallelized via `asyncio.gather`. Warm calls are now instant; cold starts are dominated by LiteLLM import (out of scope). |
-| `pygments 2.20` mkdocs build crash on `providers.md` | **Fixed** — `docs_hooks.py` patches `pymdownx.BlockHtmlFormatter.__init__` to coerce `filename=None` → `""`. |
+| `pygments 2.20` mkdocs build crash on `providers.md` | **Fixed** — `scripts/docs_hooks.py` patches `pymdownx.BlockHtmlFormatter.__init__` to coerce `filename=None` → `""`. |
 
 ### When NOT to use this approach
 
