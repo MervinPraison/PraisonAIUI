@@ -3759,6 +3759,7 @@ def create_app(
     """
     from praisonaiui.auth import (
         AuthMiddleware,
+        allow_signup_from_config,
         login_handler,
         logout_handler,
         me_handler,
@@ -3832,6 +3833,7 @@ def create_app(
                 AuthMiddleware,
                 require_auth=True,
                 exclude_paths=["/health", "/login", "/register"],
+                allow_signup=allow_signup_from_config(config),
             )
         )
 
