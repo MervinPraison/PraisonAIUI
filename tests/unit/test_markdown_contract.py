@@ -13,8 +13,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
-
 SRC = Path("src/frontend/src")
 MD = SRC / "markdown"
 PLUGINS = Path("src/praisonaiui/templates/frontend/plugins")
@@ -186,16 +184,14 @@ class TestReactStylesDoNotLoadLegacyMarkdownPlugins:
         assert self._plugins("dashboard") == ["fetch-retry", "dashboard"]
 
 
-_LEGACY_GUARD = MD / "legacyPlugins.ts"
-
-
 class TestVanillaPluginsLeaveStreamdownAlone:
     """Source-level guards that kept the vanilla plugins (plugin-loader,
     syntax-highlight, code-copy, mermaid, toc) off React-rendered markdown.
     highlight.js rebuilt <code> from its text (Shiki's line spans collapse
     into one line) and code-copy wrapped the <pre>. The React styles no
-    longer load those plugins (see the class above); the guards are checked
-    while markdown/legacyPlugins.ts still exists (LIBMD-3 removes it).
+    longer load those plugins (see the class above), so the renderer's own
+    guards against them are gone (LIBMD-3); the docs article keeps the
+    selector the plugins skip, for static sites that still opt into them.
     """
 
     GUARD = "#main-content article.prose"
@@ -216,32 +212,29 @@ class TestVanillaPluginsLeaveStreamdownAlone:
         root = re.search(r"const ROOT_CLASS = '([^']+)'", source)
         assert root and {"aiui-markdown", "not-prose"} <= set(root.group(1).split())
 
-    @pytest.mark.skipif(not _LEGACY_GUARD.exists(), reason="legacy plugin guards removed (LIBMD-3)")
-    def test_code_blocks_are_hidden_from_highlight_js(self):
-        # Chat messages have no guarded ancestor: every fenced block carries
-        # `nohighlight` and no word-boundary `language-` class.
-        source = _read(MD / "Markdown.tsx")
-        assert source.count("code: LegacySafeCode") == 2  # chat and docs maps
-        guard = _read(MD / "legacyPlugins.ts")
-        assert "'$1aiuilanguage-$2'" in guard
-        assert "export const NO_HIGHLIGHT = 'nohighlight'" in guard
+    def test_legacy_plugin_guards_are_gone(self):
+        # The React styles no longer load highlight.js or code-copy, so the
+        # Markdown renderer carries no guard against them (LIBMD-3).
+        assert not (MD / "legacyPlugins.ts").exists()
+        for name in ("Markdown.tsx", "chatComponents.tsx"):
+            source = _read(MD / name)
+            for marker in ("LegacySafeCode", "useLegacyCopyGuard", "aiuilanguage", "nohighlight"):
+                assert marker not in source, f"{marker} is back in {name}"
 
-    @pytest.mark.skipif(not _LEGACY_GUARD.exists(), reason="legacy plugin guards removed (LIBMD-3)")
-    def test_code_blocks_are_marked_done_for_code_copy(self):
-        source = _read(MD / "Markdown.tsx")
-        assert "useLegacyCopyGuard(guardId)" in source
-        assert "data-aiui-markdown={guardId}" in source
-        guard = _read(MD / "legacyPlugins.ts")
-        assert "new MutationObserver" in guard
-        assert "attributeFilter: ['data-copy-processed']" in guard
-        assert "copyProcessed" in guard  # dataset key of data-copy-processed
+    def test_code_block_component_renders_through_markdown(self):
+        # A `code_block` component is shown by the one Markdown renderer
+        # (Shiki, copy), not as a bare <pre> highlight.js used to pick up.
+        source = _read(SRC / "components" / "ComponentRenderer.tsx")
+        case = source.split("case 'code_block':")[1].split("case '")[0]
+        assert '<Markdown key={key} variant="docs"' in case
+        assert "fenced(code ?? '', language ?? '')" in case
+        assert "<pre" not in case
 
-    @pytest.mark.skipif(not _LEGACY_GUARD.exists(), reason="legacy plugin guards removed (LIBMD-3)")
     def test_legacy_pre_box_styles_are_reset_in_the_base_layer(self):
-        # syntax-highlight.js injects `pre {… !important}`; index.css has
-        # `.prose pre {… !important}` in the components layer. Only an
-        # !important rule in an earlier layer (base) beats both.
-        assert re.search(r"^\s*pre\s*\{", _read(PLUGINS / "syntax-highlight.js"), re.M)
+        # index.css has `.prose pre {… !important}` in the components layer,
+        # and it reaches the docs article through its `prose` marker. Only an
+        # !important rule in an earlier layer (base) beats it.
+        assert re.search(r"^\s*\.prose pre,", _read(SRC / "index.css"), re.M)
         assert "import './markdown.css'" in _read(MD / "Markdown.tsx")
         css = _read(MD / "markdown.css")
         rule = css.split("@layer base {")[1]

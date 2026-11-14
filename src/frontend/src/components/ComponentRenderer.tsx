@@ -20,6 +20,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { Skeleton as ShadcnSkeleton } from '@/components/ui/skeleton'
 import { Markdown } from '@/markdown/LazyMarkdown'
+import { fenced } from '@/markdown/fence'
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb'
 import { Pagination as ShadcnPagination, PaginationContent, PaginationItem, PaginationLink, PaginationPrevious, PaginationNext, PaginationEllipsis } from '@/components/ui/pagination'
 import {
@@ -320,11 +321,9 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
                 language?: string
             }
             return (
-                <pre key={key} className="rounded-lg bg-muted p-4 overflow-auto">
-                    <code className={language ? `language-${language}` : undefined}>
-                        {code ?? ''}
-                    </code>
-                </pre>
+                <Markdown key={key} variant="docs" className="min-w-0">
+                    {fenced(code ?? '', language ?? '')}
+                </Markdown>
             )
         }
 
