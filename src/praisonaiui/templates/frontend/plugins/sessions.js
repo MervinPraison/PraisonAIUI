@@ -120,26 +120,38 @@ async function deleteSession(sessionId) {
 }
 
 function formatDate(timestamp) {
-  if (!timestamp) return 'Unknown';
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleString();
+  if (!timestamp) return '';
+  // The API sends ISO strings; older servers sent epoch seconds.
+  const date = typeof timestamp === 'number' ? new Date(timestamp * 1000) : new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
+}
+
+// Titles are the user's first message: never put them in HTML unescaped.
+function esc(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[c]);
 }
 
 function renderSessionCard(session) {
   const id = session.session_id || session.id;
+  const title = (session.title && String(session.title).trim()) || id;
+  const created = formatDate(session.created_at);
+  // A JS string literal inside an HTML attribute: JSON-quote, then HTML-escape.
+  const jsId = esc(JSON.stringify(String(id)));
   return `
     <div class="aiui-session-card">
       <div class="aiui-session-info">
-        <div class="aiui-session-id">${id}</div>
+        <div class="aiui-session-id" title="${esc(id)}">${esc(title)}</div>
         <div class="aiui-session-meta">
-          ${session.created_at ? `Created: ${formatDate(session.created_at)}` : ''}
+          ${created ? `Created: ${esc(created)}` : ''}
         </div>
       </div>
       <div class="aiui-session-actions">
-        <button class="aiui-btn-icon" onclick="window.aiuiPreviewSession('${id}')" title="Preview">👁</button>
-        <button class="aiui-btn-icon" onclick="window.aiuiCompactSession('${id}')" title="Compact">📦</button>
-        <button class="aiui-btn-icon" onclick="window.aiuiResetSession('${id}')" title="Reset">↺</button>
-        <button class="aiui-btn-icon danger" onclick="window.aiuiDeleteSession('${id}')" title="Delete">🗑</button>
+        <button class="aiui-btn-icon" onclick="window.aiuiPreviewSession(${jsId})" title="Preview">👁</button>
+        <button class="aiui-btn-icon" onclick="window.aiuiCompactSession(${jsId})" title="Compact">📦</button>
+        <button class="aiui-btn-icon" onclick="window.aiuiResetSession(${jsId})" title="Reset">↺</button>
+        <button class="aiui-btn-icon danger" onclick="window.aiuiDeleteSession(${jsId})" title="Delete">🗑</button>
       </div>
     </div>
   `;
@@ -150,7 +162,7 @@ function renderSessionsUI() {
   if (!container) return;
   
   container.innerHTML = `
-    ${pageToolbar('Sessions', `<span class="aiui-sessions-count">${sessions.length} sessions</span>`)}
+    ${pageToolbar('Sessions', `<span class="aiui-sessions-count">${sessions.length} ${sessions.length === 1 ? 'session' : 'sessions'}</span>`)}
     
     <div class="aiui-sessions-list">
       ${sessions.length === 0 
