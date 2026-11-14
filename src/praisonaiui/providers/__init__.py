@@ -1158,6 +1158,7 @@ class PraisonAIProvider(BaseProvider):
 
         # Auto-track usage for analytics (Gap 8 — bridges to usage feature)
         try:
+            from praisonaiui.features.chat import current_run_id
             from praisonaiui.features.usage import track_usage
 
             agent_model = getattr(agent, "llm", "unknown")
@@ -1181,6 +1182,7 @@ class PraisonAIProvider(BaseProvider):
                 output_tokens=output_tokens,
                 session_id=session_id or "unknown",
                 agent_name=getattr(agent, "name", agent_name or "unknown"),
+                run_id=current_run_id.get(),
             )
         except (ImportError, Exception):
             pass  # Usage tracking failures should not break chat
