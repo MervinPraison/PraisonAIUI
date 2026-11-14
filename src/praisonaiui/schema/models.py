@@ -543,8 +543,14 @@ class ExtensionsConfig(BaseModel):
     """Entry-point plugin policy (group ``praisonaiui.plugins``), YAML ``extensions:``.
 
     - ``enabled`` omitted: every installed plugin is imported (``pip install``
-      means trust). A list makes it a strict allowlist.
-    - ``disabled`` always wins, and a disabled plugin is never imported.
+      means trust). A list makes it a strict allowlist of *third-party*
+      plugins only; it never switches a built-in off.
+    - ``disabled`` always wins, and a disabled plugin is never imported. It
+      also takes built-in record names, ``builtin.<name>`` (for example
+      ``builtin.training``), which removes that built-in's pages and its
+      optional features. A feature the host itself needs (a record listed as
+      ``required``) keeps running. A bare name such as ``training`` means a
+      third-party plugin of that name, never the built-in.
     - A bare list (``extensions: [a, b]``) is shorthand for ``enabled``.
 
     Plugin *browser* surfaces (pages, blocks, tool renderers and the static
