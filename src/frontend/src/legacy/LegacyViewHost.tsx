@@ -26,11 +26,12 @@ export interface LegacyViewHostProps {
 
 type HostStatus = 'loading' | 'ready' | 'error'
 
-/** Legacy pages that size themselves to the viewport and need the full content area. */
-const FULL_BLEED_PAGE_IDS = new Set(['chat', 'chat-canvas', 'code-studio', 'explorer'])
-
-function isFullBleedPage(pageId: string, page?: ShellPage): boolean {
-  return page?.layout === 'full-bleed' || FULL_BLEED_PAGE_IDS.has(pageId)
+/**
+ * Legacy pages that size themselves to the viewport and need the full content
+ * area: the manifest says so (`layout: 'full-bleed'`), never the page id.
+ */
+function isFullBleedPage(page?: Pick<ShellPage, 'layout'>): boolean {
+  return page?.layout === 'full-bleed'
 }
 
 export function LegacyViewHost({ pageId, page, className }: LegacyViewHostProps): JSX.Element {
@@ -98,7 +99,7 @@ export function LegacyViewHost({ pageId, page, className }: LegacyViewHostProps)
   }, [pageId, generation])
 
   const title = page?.title || pageId
-  const classes = ['aiui-legacy-host', isFullBleedPage(pageId, page) ? 'db-fill' : '', className]
+  const classes = ['aiui-legacy-host', isFullBleedPage(page) ? 'db-fill' : '', className]
     .filter(Boolean)
     .join(' ')
 

@@ -85,7 +85,7 @@ export default function ReactShell() {
 
   const page: ShellPage | undefined = pageById.get(pageId)
   const pageTitle = page?.title ?? (pageId ? (getPage(pageId) ? pageId : 'Not found') : title)
-  const fullBleed = isFullBleed(page, pageId)
+  const fullBleed = isFullBleed(page)
 
   // `/` → the configured default page, else the first page (replace: Back must not bounce).
   useEffect(() => {

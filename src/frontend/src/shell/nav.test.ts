@@ -142,11 +142,19 @@ test('layout.sidebar / layout.pageHeader = false hide the chrome; anything else 
   assert.equal(showPageHeader(manifest({ layout: { pageHeader: { title: true } } })), true)
 })
 
-test('full-bleed pages: layout flag, the known chat-like ids, and iframes', () => {
-  assert.equal(isFullBleed(undefined, 'chat'), true)
-  assert.equal(isFullBleed(p('x', 'G', 1, { layout: 'full-bleed' }), 'x'), true)
-  assert.equal(isFullBleed(p('y', 'G', 1, { kind: 'iframe' }), 'y'), true)
-  assert.equal(isFullBleed(p('logs', 'G', 1), 'logs'), false)
+test('full-bleed pages: the manifest layout flag and iframes, never the page id', () => {
+  assert.equal(isFullBleed(p('x', 'G', 1, { layout: 'full-bleed' })), true)
+  assert.equal(isFullBleed(p('y', 'G', 1, { kind: 'iframe' })), true)
+  assert.equal(isFullBleed(p('logs', 'G', 1)), false)
+  assert.equal(isFullBleed(undefined), false)
+  // The server's manifest marks the built-in full-bleed pages (catalog.py).
+  for (const id of ['chat', 'chat-canvas', 'code-studio']) {
+    assert.equal(isFullBleed(p(id, 'Agent', 1, { layout: 'full-bleed' })), true, id)
+  }
+  // An app's blocks page that reuses a built-in id is an ordinary padded page.
+  assert.equal(isFullBleed(p('code-studio', 'Custom', 100, { kind: 'blocks', source: 'app' })), false)
+  assert.equal(isFullBleed(p('chat', 'Custom', 100, { kind: 'blocks', source: 'app' })), false)
+  assert.equal(isFullBleed(p('explorer', 'Custom', 100)), false, 'explorer is not special')
 })
 
 test('the legacy runtime is preloaded only when a page (or custom.js) needs it', () => {

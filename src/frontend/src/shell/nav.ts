@@ -9,18 +9,19 @@ export const GROUP_ORDER = ['Agent', 'Work', 'Control', 'Settings'] as const
 const LAST_GROUP = 'Settings'
 const DEFAULT_GROUP = 'Other'
 
-/** Pages whose body owns the full viewport height (no padding, no page scroll). */
-const FULL_BLEED_IDS = new Set(['chat', 'chat-canvas', 'code-studio', 'explorer'])
-
 type PageWithPosition = ShellPage & { position?: string }
 
 export function isFooterPage(page: ShellPage): boolean {
   return (page as PageWithPosition).position === 'footer'
 }
 
-export function isFullBleed(page: ShellPage | undefined, pageId: string): boolean {
-  if (page?.kind === 'iframe') return true
-  return page?.layout === 'full-bleed' || FULL_BLEED_IDS.has(pageId)
+/**
+ * Whether a page's body owns the full viewport height (no padding, no page
+ * scroll): iframes, and pages whose manifest entry says `layout: 'full-bleed'`
+ * (the server sets it for chat, chat-canvas and code-studio). Never by id.
+ */
+export function isFullBleed(page: Pick<ShellPage, 'kind' | 'layout'> | undefined): boolean {
+  return page?.kind === 'iframe' || page?.layout === 'full-bleed'
 }
 
 /** Kinds the shell renders itself; every other kind goes to the legacy view host. */

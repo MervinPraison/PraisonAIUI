@@ -43,9 +43,7 @@ const NOT_A_PAGE_ID: Record<string, readonly string[]> = {
  * anything fails the test, so the table cannot go stale, and nothing may be
  * added to it.
  */
-const KNOWN_DEBT: Record<string, readonly string[]> = {
-  'shell/nav.ts': ['chat', 'chat-canvas', 'code-studio', 'explorer'], // FULL_BLEED_IDS → page.layout
-}
+const KNOWN_DEBT: Record<string, readonly string[]> = {}
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = []
