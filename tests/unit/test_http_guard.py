@@ -19,6 +19,7 @@ from starlette.websockets import WebSocketDisconnect
 
 import praisonaiui.server as srv
 from praisonaiui import http_guard
+from praisonaiui.datastore import MemoryDataStore
 from praisonaiui.server import create_app
 
 EVIL = "http://evil.example"
@@ -156,19 +157,48 @@ def test_auth_enforce_keeps_pages_and_static_public(monkeypatch, api_key):
     assert ok.status_code == 200 and "sessions" in ok.json()
 
 
-def test_auth_enforce_app_page_navigation_public_but_data_gated(monkeypatch, api_key):
-    """Under style app, /sessions and /agents are page URLs as well as JSON APIs."""
+@pytest.mark.parametrize("style", ["app", "dashboard"])
+def test_auth_enforce_page_navigation_public_but_data_gated(monkeypatch, api_key, style):
+    """/sessions and /agents are page URLs as well as JSON APIs (both styles
+    route /<page id>): a logged-out navigation gets the page, never the data."""
     monkeypatch.setenv("AUTH_ENFORCE", "true")
-    srv.set_style("app")
+    srv.set_style(style)
+    monkeypatch.setattr(srv, "_datastore", MemoryDataStore())
     client = TestClient(create_app(), raise_server_exceptions=False)
-    nav = client.get("/sessions", headers={"Accept": "text/html,*/*"})
-    assert nav.status_code == 200 and nav.headers["content-type"].startswith("text/html")
-    assert client.get("/sessions").status_code == 401
-    assert client.get("/agents", headers={"Accept": "application/json"}).status_code == 401
-    # a navigation never gets data
+    bearer = {"Authorization": f"Bearer {api_key}"}
+    sid = client.post("/sessions", headers=bearer).json()["session_id"]
+    for path in ("/sessions", "/agents"):
+        nav = client.get(path, headers={"Accept": "text/html,*/*"})
+        assert nav.status_code == 200 and nav.headers["content-type"].startswith("text/html")
+        assert nav.text == client.get("/", headers={"Accept": "text/html"}).text
+        assert client.get(path).status_code == 401
+        assert client.get(path, headers={"Accept": "application/json"}).status_code == 401
+        assert client.get(path, headers={"Accept": "text/html", "Sec-Fetch-Mode": "cors"}).status_code == 401
+        # signed in, a navigation still gets the page (the data is fetched)
+        assert client.get(path, headers={**bearer, "Accept": "text/html"}).headers[
+            "content-type"
+        ].startswith("text/html")
+    assert sid not in client.get("/sessions", headers={"Accept": "text/html"}).text
+    assert sid in client.get("/sessions", headers=bearer).text
+
+
+@pytest.mark.parametrize("mode", ["token", "require_auth"])
+def test_page_navigation_gets_no_data_in_other_auth_modes(monkeypatch, mode):
     srv.set_style("dashboard")
-    client = TestClient(create_app(), raise_server_exceptions=False)
-    assert client.get("/sessions", headers={"Accept": "text/html"}).status_code == 401
+    if mode == "token":
+        monkeypatch.setenv("AIUI_REQUIRE_TOKEN", "1")
+        monkeypatch.setenv("AIUI_URL_TOKEN", "s3cret")
+        app = create_app()
+    else:
+        app = create_app(require_auth=True)
+    client = TestClient(app, raise_server_exceptions=False)
+    nav = client.get("/sessions", headers={"Accept": "text/html"})
+    root = client.get("/", headers={"Accept": "text/html"})
+    # the same answer as the root page (token mode: its login form)
+    assert (nav.status_code, nav.text) == (root.status_code, root.text)
+    assert nav.headers["content-type"].startswith("text/html")
+    assert '"sessions"' not in nav.text
+    assert client.get("/sessions").status_code == 401
 
 
 def test_auth_enforce_websocket_ticket(monkeypatch, api_key):

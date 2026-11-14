@@ -26,7 +26,7 @@ from starlette.responses import (
     Response,
     StreamingResponse,
 )
-from starlette.routing import Mount, Route
+from starlette.routing import Mount, Route, request_response
 from starlette.staticfiles import StaticFiles
 
 from praisonaiui.datastore import BaseDataStore, JSONFileDataStore
@@ -1129,17 +1129,40 @@ async def _serve_index(request: Request) -> Response:
     return HTMLResponse(_build_html(style, request))
 
 
-def _is_app_page_navigation(request: Request) -> bool:
-    """True for a browser opening a shell page URL under style ``app``.
+#: Styles whose UI opens ``/<page id>`` as that page (dashboard.js
+#: ``selectPage`` and the app shell router). Other styles have no page URLs.
+_PAGE_PATH_STYLES = ("dashboard", "app")
+
+
+def _is_page_navigation(scope: dict) -> bool:
+    """True for a browser opening ``/<page id>`` (see ``NavigationRoute``).
 
     Some page ids (``agents``, ``sessions``) share their path with a JSON API
-    that is matched before the page fallback. A navigation asks for
-    ``text/html``; API clients (``fetch`` sends ``*/*``) keep getting JSON.
-    The legacy dashboard routes by ``?page=``/hash and is left unchanged.
+    that is matched before the page fallback. A navigation gets the page;
+    API clients (``fetch`` sends ``*/*``) keep getting JSON.
     """
-    if _effective_style != "app":
+    from praisonaiui.http_guard import is_browser_navigation
+
+    if _effective_style not in _PAGE_PATH_STYLES:
         return False
-    return "text/html" in request.headers.get("accept", "").lower()
+    page_id = scope.get("path", "")[1:]
+    if not page_id or "/" in page_id or not is_browser_navigation(scope):
+        return False
+    if page_id in _pages:
+        return True
+    # Pages from plugins and dashboard-plugin folders (the rest of the nav).
+    from praisonaiui.dashboard_plugins import discover_dashboard_plugins
+    from praisonaiui.plugin_registry import get_plugin_registry
+
+    restricted = _plugin_js_restricted(scope)
+    if any(s.id == page_id for s in get_plugin_registry().pages(restricted=restricted)):
+        return True
+    dash = _resolved_dashboard_config() or {}
+    extra = dash.get("pluginDirs") or dash.get("plugin_dirs") or []
+    return any(
+        (m.get("page") or {}).get("id") == page_id
+        for m in discover_dashboard_plugins(extra, _dashboard_plugin_allowlist())
+    )
 
 
 # ── React app shell (style="app") ────────────────────────────────────
@@ -2078,11 +2101,9 @@ async def list_agents(request: Request) -> Response:
     Returns the enriched third-party-chat-frontend-compatible schema
     (``agent_id``, ``name``, ``description``, ``model``, ``storage``,
     Issue #48) while keeping the legacy ``created_at`` field for
-    backward compatibility. Under style ``app`` a browser navigation to
-    ``/agents`` gets the shell page instead.
+    backward compatibility. A browser navigation to ``/agents`` never gets
+    here: it opens the Agents page (``_is_page_navigation``).
     """
-    if _is_app_page_navigation(request):
-        return HTMLResponse(_build_html(_effective_style, request))
     agents = [
         {
             "agent_id": name,
@@ -2159,9 +2180,7 @@ async def delete_team_session(request: Request) -> JSONResponse:
 
 
 async def list_sessions(request: Request) -> Response:
-    """List all sessions (style ``app``: a browser navigation gets the shell page)."""
-    if _is_app_page_navigation(request):
-        return HTMLResponse(_build_html(_effective_style, request))
+    """List all sessions (a browser navigation opens the Sessions page instead)."""
     sessions = await _datastore.list_sessions()
     return JSONResponse({"sessions": sessions})
 
@@ -4617,16 +4636,24 @@ def create_app(
         routes.append(Route("/{path:path}", _serve_index, methods=["GET"]))
 
     # The surface a logged-out browser needs (see http_guard.is_public_http):
-    # the HTML shell for page navigations and the share-link viewer. Data
-    # routes that double as page URLs are public only for a navigation.
-    from praisonaiui.http_guard import mark_public
+    # the HTML shell for page navigations and the share-link viewer.
+    from praisonaiui.http_guard import NavigationRoute, mark_public
 
     mark_public(_serve_index)
     mark_public(view_shared_thread_handler)
-    mark_public(list_agents, when=_is_app_page_navigation)
-    mark_public(list_sessions, when=_is_app_page_navigation)
+    _page_host: Any = _serve_index
     if static_dir and static_dir.exists():
-        mark_public(_http_only_static)
+        _page_host = mark_public(_http_only_static)
+    # First: a browser opening /<page id> gets the page even where a JSON API
+    # shares the path (GET /agents, /sessions); fetch() keeps getting JSON.
+    routes.insert(
+        0,
+        NavigationRoute(
+            _is_page_navigation,
+            _page_host,
+            request_response(_serve_index) if _page_host is _serve_index else _page_host,
+        ),
+    )
 
     app = Starlette(
         routes=routes,
