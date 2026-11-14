@@ -49,7 +49,8 @@ test('a server-driven blocks page renders core, plugin and legacy blocks, and ru
   const errors = collectPageErrors(page)
   await page.goto('/hello-blocks')
   const area = page.locator('[data-aiui-page="hello-blocks"]')
-  await expect(area.locator('[data-status="ready"]')).toBeVisible()
+  // The page's own state (a legacy-rendered block carries data-status too).
+  await expect(area.locator('.aiui-block-page[data-status="ready"]')).toBeVisible()
   await expect(area.getByRole('heading', { name: 'Hello from a plugin' })).toBeVisible()
   await expect(area.getByRole('table')).toContainText('get_weather')
   // The plugin's own block type.
