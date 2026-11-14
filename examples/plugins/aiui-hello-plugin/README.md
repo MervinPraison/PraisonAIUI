@@ -36,6 +36,8 @@ extensions:
 
 `hello.js` imports everything from `@aiui/sdk` by name. Types for that module
 are in `src/frontend/src/sdk/aiui-sdk.d.ts` (the frontend build also writes
-`dist/aiui-sdk.d.ts`); copy it into a plugin project to type-check it.
+`dist/aiui-sdk.d.ts`, and the installed package ships it as
+`praisonaiui/templates/frontend/aiui-sdk.d.ts`); copy it into a plugin
+project to type-check it.
 
 See `docs/features/plugins.md` for the full contract.

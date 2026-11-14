@@ -310,8 +310,11 @@ Feature names: `pages`, `blocks`, `tool-renderers`, `slots`, `views`,
 ### Types
 
 `@aiui/sdk` is not an npm package: the shell provides it at runtime. Its types
-are in `src/frontend/src/sdk/aiui-sdk.d.ts`, and the frontend build also
-writes `dist/aiui-sdk.d.ts`. Copy the file into a plugin project and include
+are in `src/frontend/src/sdk/aiui-sdk.d.ts`, the frontend build also writes
+`dist/aiui-sdk.d.ts`, and the installed package ships the same file at
+`praisonaiui/templates/frontend/aiui-sdk.d.ts` (find it with
+`python -c "import praisonaiui, pathlib; print(pathlib.Path(praisonaiui.__file__).parent / 'templates/frontend/aiui-sdk.d.ts')"`).
+Copy the file into a plugin project and include
 it in `tsconfig.json` (or `jsconfig.json` with `checkJs`) to type-check the
 plugin. It depends on `@types/react` only.
 

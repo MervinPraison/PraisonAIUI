@@ -7,7 +7,7 @@
  *
  * Compares dist/ with src/praisonaiui/templates/frontend/ (or --against):
  * the file set and sha256 of index.html, icon.svg, aiui-manifest.json,
- * aiui-externals.json and everything under assets/. Lists files that are
+ * aiui-externals.json, aiui-sdk.d.ts and everything under assets/. Lists files that are
  * missing from the copy, extra in the copy (stale chunks) or different, and
  * exits 1 on any difference. Other files in the copy (plugins/, chat.css, ...)
  * are hand-written and not compared.
@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DEFAULT_COPY = path.resolve(ROOT, '..', 'praisonaiui', 'templates', 'frontend')
-const ROOT_FILES = ['index.html', 'icon.svg', 'aiui-manifest.json', 'aiui-externals.json']
+const ROOT_FILES = ['index.html', 'icon.svg', 'aiui-manifest.json', 'aiui-externals.json', 'aiui-sdk.d.ts']
 
 function argValue(flag) {
   const i = process.argv.indexOf(flag)

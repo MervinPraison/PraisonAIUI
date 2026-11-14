@@ -11,7 +11,8 @@
  * Steps:
  *   1. delete <dest>/assets (removes stale hashed chunks from earlier builds)
  *   2. copy dist/assets/**, dist/index.html, dist/icon.svg,
- *      dist/aiui-manifest.json and dist/aiui-externals.json into <dest>
+ *      dist/aiui-manifest.json, dist/aiui-externals.json and
+ *      dist/aiui-sdk.d.ts into <dest>
  * Anything else in <dest> (plugins/, dashboard-plugins/, chat.css, ...) is
  * left untouched.
  */
@@ -23,7 +24,9 @@ import { fileURLToPath } from 'node:url'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DIST = path.join(ROOT, 'dist')
 const DEFAULT_DEST = path.resolve(ROOT, '..', 'praisonaiui', 'templates', 'frontend')
-const ROOT_FILES = ['index.html', 'icon.svg', 'aiui-manifest.json', 'aiui-externals.json']
+// aiui-sdk.d.ts: the @aiui/sdk typings (gen-externals), shipped so plugin
+// authors who pip-install praisonaiui can type-check against them.
+const ROOT_FILES = ['index.html', 'icon.svg', 'aiui-manifest.json', 'aiui-externals.json', 'aiui-sdk.d.ts']
 
 function fail(msg) {
   console.error(`sync-templates: ${msg}`)
