@@ -1,11 +1,14 @@
 /**
- * builtin.chat: the React chat page and its "New chat" command.
+ * builtin.chat: the React chat page, its "New chat" command, and the
+ * `sessions` and `chat` layout data feeds (ADR 0003 §1.1).
  *
  * registerChatPage() is `registerPage(id, () => import('@/chat-engine/ChatPage'))`
  * on the shared registry (the very function `sdk.registerPage` is), plus a
  * buffer for `aiui:prefill-composer` / `aiui:session-select` events that are
  * dispatched before the lazy chat chunk has loaded. Only that tiny module is
- * imported eagerly; the chat engine stays in its own chunk.
+ * imported eagerly; the chat engine stays in its own chunk. The feeds are
+ * provided as loaders of `@/chat-engine/feeds` (no assistant-ui), which runs
+ * only when a layout frame first reads one.
  */
 import { Plus } from 'lucide-react'
 import { registerChatPage } from '@/chat-engine/register'
@@ -25,6 +28,21 @@ export function startNewChat(sdk: Pick<BuiltinSdk, 'navigate' | 'getPageId'>, pa
   sdk.navigate(pageId)
 }
 
+/** Open the chat page unless it is on screen (a frame picked a session or prefilled the composer). */
+export function showChat(sdk: Pick<BuiltinSdk, 'navigate' | 'getPageId'>, pageId = CHAT_PAGE): void {
+  if (sdk.getPageId() !== pageId) sdk.navigate(pageId)
+}
+
+/** Provide `sessions` and `chat` to layout frames, lazily. Returns the removers. */
+export function provideChatFeeds(sdk: Pick<BuiltinSdk, 'navigate' | 'getPageId' | 'provideLayoutData'>): (() => void)[] {
+  const show = () => showChat(sdk)
+  const feeds = () => import('@/chat-engine/feeds')
+  return [
+    sdk.provideLayoutData('sessions', () => feeds().then((m) => m.createSessionsFeed({ show }))),
+    sdk.provideLayoutData('chat', () => feeds().then((m) => m.createChatFeed({ show }))),
+  ]
+}
+
 export const chatBuiltin: BuiltinPlugin = {
   name: 'builtin.chat',
   pages: [CHAT_PAGE],
@@ -39,6 +57,7 @@ export const chatBuiltin: BuiltinPlugin = {
         icon: Plus,
         run: () => startNewChat(sdk),
       })
+      provideChatFeeds(sdk)
     }
   },
 }
