@@ -23,7 +23,9 @@ def check(name, r, status=200, keys=None):
         passed += 1
         print(f"  ✓ {name}")
     except AssertionError as e:
-        failed += 1; errors.append(f"  ✗ {name}: {e}"); print(f"  ✗ {name}: {e}")
+        failed += 1
+        errors.append(f"  ✗ {name}: {e}")
+        print(f"  ✗ {name}: {e}")
 
 print("\n── Extended Sessions: API Tests ──")
 sid = "test-session-ext"
@@ -101,5 +103,6 @@ print(f"\n{'='*50}")
 print(f"  Sessions Ext: {passed} passed, {failed} failed")
 print(f"{'='*50}")
 if errors:
-    for e in errors: print(e)
+    for e in errors:
+        print(e)
     sys.exit(1)

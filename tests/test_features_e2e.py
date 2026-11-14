@@ -101,7 +101,7 @@ check("GET /api/schedules/:id", r, 200, ["id", "schedule"])
 
 r = client.post(f"/api/schedules/{job_id}/toggle")
 check("POST /api/schedules/:id/toggle", r, 200, ["id", "enabled"])
-assert r.json()["enabled"] == False
+assert r.json()["enabled"] is False
 
 r = client.post(f"/api/schedules/{job_id}/run")
 check("POST /api/schedules/:id/run", r, 200, ["triggered", "last_run_at"])

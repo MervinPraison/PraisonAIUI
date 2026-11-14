@@ -28,7 +28,9 @@ def check(name, r, status=200, keys=None):
         passed += 1
         print(f"  ✓ {name}")
     except AssertionError as e:
-        failed += 1; errors.append(f"  ✗ {name}: {e}"); print(f"  ✗ {name}: {e}")
+        failed += 1
+        errors.append(f"  ✗ {name}: {e}")
+        print(f"  ✗ {name}: {e}")
 
 
 # ── Protocol Compliance Tests ────────────────────────────────────────
@@ -174,7 +176,9 @@ try:
     passed += 1
     print("  ✓ Registered guardrail appears in list")
 except AssertionError as e:
-    failed += 1; errors.append(f"  ✗ Register check: {e}"); print(f"  ✗ Register check: {e}")
+    failed += 1
+    errors.append(f"  ✗ Register check: {e}")
+    print(f"  ✗ Register check: {e}")
 
 # Register second
 r2 = client.post("/api/guardrails/register", json={
@@ -196,7 +200,9 @@ try:
     passed += 1
     print("  ✓ Deleted guardrail no longer appears in list")
 except AssertionError as e:
-    failed += 1; errors.append(f"  ✗ Delete check: {e}"); print(f"  ✗ Delete check: {e}")
+    failed += 1
+    errors.append(f"  ✗ Delete check: {e}")
+    print(f"  ✗ Delete check: {e}")
 
 # DELETE nonexistent → 404
 check("DELETE nonexistent → 404", client.delete("/api/guardrails/nonexistent"), 404)
@@ -221,7 +227,9 @@ if r.status_code == 200:
         passed += 1
         print("  ✓ Instances tab removed from /api/pages")
     except AssertionError as e:
-        failed += 1; errors.append(f"  ✗ Instances tab: {e}"); print(f"  ✗ Instances tab: {e}")
+        failed += 1
+        errors.append(f"  ✗ Instances tab: {e}")
+        print(f"  ✗ Instances tab: {e}")
 else:
     # /api/pages might not exist in test mode, skip
     print("  ⊘ Skipped: /api/pages not available in test mode")
@@ -254,5 +262,6 @@ print(f"\n{'='*50}")
 print(f"  Guardrails: {passed} passed, {failed} failed")
 print(f"{'='*50}")
 if errors:
-    for e in errors: print(e)
+    for e in errors:
+        print(e)
     sys.exit(1)
