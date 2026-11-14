@@ -276,9 +276,7 @@ class TestRunEndpoint:
         events = _parse_sse(r.text)
         session_id = events[0]["session_id"]
         # Verify session exists via the datastore
-        session = asyncio.get_event_loop().run_until_complete(
-            _srv._datastore.get_session(session_id)
-        )
+        session = asyncio.run(_srv._datastore.get_session(session_id))
         assert session is not None
 
     def test_uses_existing_session(self, str_app):
