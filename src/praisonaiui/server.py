@@ -4063,6 +4063,12 @@ def create_app(
                 pass
         if not _theme_cfg:
             _theme_cfg = {"preset": "zinc", "darkMode": True, "radius": "md"}
+        # The app's default colour mode, the one style app gets as
+        # <html data-aiui-theme-default>: set_theme() > YAML > "system" when
+        # the app chose nothing (the dashboard then follows the OS). The
+        # filled-in darkMode above stays for older readers.
+        _theme_default = _shell_default_theme()
+        _theme_cfg = {**_theme_cfg, "mode": _theme_default}
 
         # Custom CSS: set_custom_css() > YAML site.custom_css
         _css = _custom_css
@@ -4113,6 +4119,7 @@ def create_app(
                     "title": _title,
                     "logo": _logo,
                     "theme": _theme_cfg,
+                    "themeDefault": _theme_default,
                     "customCss": _css,
                     **(
                         {

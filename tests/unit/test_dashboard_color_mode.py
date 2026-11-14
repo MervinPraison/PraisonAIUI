@@ -164,15 +164,18 @@ CASES = [
     ["server-bogus-os-light", None, False, {"themeDefault": "sepia", "theme": FILL_IN}],
 ]
 
-#: set_theme() calls whose /ui-config.json the dashboard reads, from a real app.
+#: set_theme() calls whose /ui-config.json the dashboard reads, from a real app
+#: (None: the app never calls set_theme()).
 LIVE = {
+    "live-no-theme-os-light": (None, False),
+    "live-no-theme-os-dark": (None, True),
     "live-set-theme-os-light": ({}, False),
     "live-set-theme-dark-os-light": ({"dark_mode": True}, False),
     "live-set-theme-light-os-dark": ({"dark_mode": False}, True),
 }
 
 
-def _live_site(tmp, theme_kwargs: dict) -> dict:
+def _live_site(tmp, theme_kwargs: dict | None) -> dict:
     from starlette.testclient import TestClient
 
     from praisonaiui import config_store
@@ -187,7 +190,8 @@ def _live_site(tmp, theme_kwargs: dict) -> dict:
         srv.reset_state()
         try:
             srv.set_style("dashboard")
-            srv.set_theme(**theme_kwargs)
+            if theme_kwargs is not None:
+                srv.set_theme(**theme_kwargs)
             return TestClient(srv.create_app()).get("/ui-config.json").json()["site"]
         finally:
             srv.reset_state()
@@ -256,6 +260,10 @@ DARK = {"attr": "dark", "dark": True}
         ("server-bogus-os-light", DARK),
         # A real app: set_theme() / set_theme(dark_mode=True) is dark on a
         # light OS, set_theme(dark_mode=False) is light on a dark one.
+        # An app that never calls set_theme() follows the OS: the server
+        # sends themeDefault 'system' (it used to send only the dark fill-in).
+        ("live-no-theme-os-light", LIGHT),
+        ("live-no-theme-os-dark", DARK),
         ("live-set-theme-os-light", DARK),
         ("live-set-theme-dark-os-light", DARK),
         ("live-set-theme-light-os-dark", LIGHT),
@@ -279,6 +287,17 @@ def test_follows_a_stored_pick_and_the_os(run):
     assert run["afterStoragePick"] == DARK
     # No stored choice, an app that chose nothing: the OS turning dark wins.
     assert run["afterOsChange"] == DARK
+
+
+def test_ui_config_reports_the_app_default_mode(tmp_path):
+    """/ui-config.json says which mode the app chose, so the dashboard need
+    not guess it from the theme's values."""
+    assert _live_site(tmp_path, None)["themeDefault"] == "system"
+    assert _live_site(tmp_path, None)["theme"]["mode"] == "system"
+    assert _live_site(tmp_path, {})["themeDefault"] == "dark"
+    light = _live_site(tmp_path, {"dark_mode": False})
+    assert light["themeDefault"] == "light"
+    assert light["theme"] == {"preset": "zinc", "darkMode": False, "radius": "md", "mode": "light"}
 
 
 def test_no_value_guessing():
