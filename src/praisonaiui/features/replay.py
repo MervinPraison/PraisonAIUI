@@ -9,7 +9,8 @@ Routes (contract v1, section 5):
 * ``GET /api/replay/runs/{run_id}/stream``       SSE tail of the JSONL file
 
 The trace directory is ``$PRAISONAI_TRACES_DIR``, else ``$PRAISON_HOME/traces``,
-else ``~/.praison/traces``.  Run ids must match ``^[A-Za-z0-9._-]+$``.
+else ``<data dir>/traces`` when ``$PRAISONAI_HOME`` / ``$AIUI_DATA_DIR`` is
+configured, else ``~/.praison/traces``.  Run ids must match ``^[A-Za-z0-9._-]+$``.
 
 The browser side lives in ``templates/frontend/plugins/views/replay-core.js``
 (pure functions) and ``replay.js`` (DOM/SVG).  :func:`standalone_html` inlines
@@ -367,7 +368,7 @@ def create_replay_app(
         placeholder: Placeholder text for the input box.
 
     Traces are read from the same folder as the rest of Replay
-    (``$PRAISONAI_TRACES_DIR`` > ``$PRAISON_HOME/traces`` > ``~/.praison/traces``).
+    (see :func:`praisonaiui.features._trace_jsonl.traces_dir`).
     Anyone who can reach the app can read the runs (and, with ``run``, start
     them): keep it on localhost or behind your app's auth.
     """

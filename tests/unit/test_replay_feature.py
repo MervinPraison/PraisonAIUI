@@ -67,6 +67,9 @@ def test_traces_dir_precedence(tmp_path, monkeypatch):
 
     monkeypatch.delenv("PRAISONAI_TRACES_DIR", raising=False)
     monkeypatch.delenv("PRAISON_HOME", raising=False)
+    # A data dir set by an earlier create_app() would otherwise take over.
+    monkeypatch.delenv("PRAISONAI_HOME", raising=False)
+    monkeypatch.delenv("AIUI_DATA_DIR", raising=False)
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     assert tj.traces_dir() == tmp_path / "home" / ".praison" / "traces"
     monkeypatch.setenv("PRAISON_HOME", str(tmp_path / "ph"))

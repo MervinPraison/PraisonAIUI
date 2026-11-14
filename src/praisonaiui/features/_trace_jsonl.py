@@ -73,15 +73,21 @@ _SPAN_KIND = {
 def traces_dir() -> Path:
     """Resolve the traces directory.
 
-    Precedence: ``$PRAISONAI_TRACES_DIR`` > ``$PRAISON_HOME/traces`` > ``~/.praison/traces``.
+    Precedence: ``$PRAISONAI_TRACES_DIR`` > ``$PRAISON_HOME/traces`` > the
+    configured data directory (``$PRAISONAI_HOME`` / ``$AIUI_DATA_DIR``) +
+    ``/traces`` > ``~/.praison/traces`` (the PraisonAI CLI's default, used only
+    when no data directory is configured; see ``_paths``).
     Never creates the directory (this module is read-only).
     """
+    from ._paths import feature_data_path
+
     override = os.environ.get("PRAISONAI_TRACES_DIR")
     if override:
         return Path(override).expanduser()
     home = os.environ.get("PRAISON_HOME")
-    base = Path(home).expanduser() if home else Path.home() / ".praison"
-    return base / "traces"
+    if home:
+        return Path(home).expanduser() / "traces"
+    return feature_data_path("traces", Path.home() / ".praison" / "traces")
 
 
 def is_valid_run_id(run_id: Any) -> bool:
