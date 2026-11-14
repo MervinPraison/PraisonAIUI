@@ -548,6 +548,57 @@ test('regenerate asks the transport to replace the answer when it can', async ()
   threadStore.drop('S2')
 })
 
+/** A regenerate of 'q' (old answer 'old answer') whose socket drops mid-stream, then reconnects. */
+async function regenerateThenDrop(history: unknown[], runActive: boolean | undefined) {
+  const f = fakeTransport()
+  f.t.canRegenerate = () => true
+  f.t.runStatus = async () => runActive
+  globalThis.fetch = (async () => new Response(JSON.stringify({ messages: history }), { status: 200 })) as typeof fetch
+  const sent = threadStore.send(f.t, 'S', 'q', { regenerate: true, replacedText: 'old answer' })
+  await tick()
+  f.emit('S', { type: 'run_started', session_id: 'S', run_id: 'R2' })
+  f.emit('S', { type: 'run_content', session_id: 'S', run_id: 'R2', token: 'new ' })
+  f.drop('S')
+  await sent
+  f.reopen()
+  for (let i = 0; i < 5; i++) await tick()
+  return f
+}
+
+test('a reconnect during a regenerate does not take the old answer (still in history) for the reply (R6)', async () => {
+  const f = await regenerateThenDrop([{ role: 'user', content: 'q' }, { role: 'assistant', content: 'old answer' }], true)
+  assert.equal(threadStore.get('S').isRunning, true, 'the regenerate keeps running')
+  assert.equal(textOf(assistant('S')), 'new ', 'the live text is not replaced by the old answer')
+  // The run goes on over watch() and finishes as this tab's own turn.
+  f.emit('S', { type: 'run_content', session_id: 'S', run_id: 'R2', token: 'answer' })
+  f.emit('S', { type: 'run_completed', session_id: 'S', run_id: 'R2', content: 'new answer' })
+  await tick()
+  assert.equal(threadStore.get('S').isRunning, false)
+  assert.equal(textOf(assistant('S')), 'new answer')
+  assert.equal(assistant('S').custom?.remote, undefined, 'not shown as another tab\'s reply')
+})
+
+test('a regenerate that finished while offline is taken from history once its answer is saved (R6)', async () => {
+  await regenerateThenDrop([{ role: 'user', content: 'q' }, { role: 'assistant', content: 'new answer', regenerates: true }], true)
+  assert.equal(threadStore.get('S').isRunning, false)
+  assert.equal(textOf(assistant('S')), 'new answer')
+})
+
+test('a finished regenerate whose answer reads the same as the old one still ends cleanly (R6)', async () => {
+  await regenerateThenDrop([{ role: 'user', content: 'q' }, { role: 'assistant', content: 'old answer', regenerates: true }], false)
+  const m = assistant('S')
+  assert.equal(threadStore.get('S').isRunning, false)
+  assert.equal(m.status?.type, 'complete')
+  assert.equal(textOf(m), 'old answer')
+})
+
+test('popLastTurn returns the question and the answer it replaces', async () => {
+  globalThis.fetch = (async () => new Response(JSON.stringify({ messages: [{ role: 'user', content: 'q' }, { role: 'assistant', content: 'a1' }] }), { status: 200 })) as typeof fetch
+  await threadStore.load('S')
+  assert.deepEqual(threadStore.popLastTurn('S'), { text: 'q', attachments: undefined, replacedText: 'a1' })
+  assert.equal(threadStore.get('S').messages.length, 0)
+})
+
 test('observe: another tab\'s run shows as a read-only live message and history reloads when it ends', async () => {
   const f = fakeTransport()
   let historyCalls = 0

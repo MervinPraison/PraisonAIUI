@@ -126,13 +126,14 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
     }
   }, [transport])
 
-  const sendText = useCallback(async (text: string, attachments?: AiuiMessage['attachments'], regenerate = false) => {
+  const sendText = useCallback(async (text: string, attachments?: AiuiMessage['attachments'], regenerate?: { replacedText?: string }) => {
     optsRef.current.onSend?.()
     const p = threadStore.send(transport, sid, text, {
       agentName: optsRef.current.agentName,
       attachmentIds: attachments?.map((a) => a.id),
       attachments,
-      regenerate,
+      regenerate: !!regenerate,
+      replacedText: regenerate?.replacedText,
     })
     if (isDraft) {
       optsRef.current.onSessionCreated?.(sid)
@@ -234,7 +235,7 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
       // The server answers the last question again and the new answer
       // replaces the old one in history (no duplicate turn after a reload).
       const turn = threadStore.popLastTurn(sid)
-      if (turn) await sendText(turn.text, turn.attachments, true)
+      if (turn) await sendText(turn.text, turn.attachments, { replacedText: turn.replacedText })
     },
     // The gate stays open until the server accepts; a rejection is kept on the part (see the store).
     onRespondToToolApproval: ({ approvalId, approved, optionId, text }) =>

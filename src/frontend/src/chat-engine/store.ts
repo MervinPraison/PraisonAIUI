@@ -54,6 +54,12 @@ interface Turn {
   detached: boolean
   unwatch?: () => void
   watchdog?: ReturnType<typeof setTimeout>
+  /**
+   * A server-side regenerate: until its answer is saved, history still shows
+   * the answer being replaced (`replacedText`), so a reconnect must not take
+   * that one for the reply.
+   */
+  regenerate?: { replacedText?: string }
 }
 
 /** Another tab's run in this session, shown read-only. */
@@ -307,6 +313,17 @@ function enterReconnecting(sid: string, turn: Turn) {
   if (turn.transport.status === 'open') void reconcile(sid, turn)
 }
 
+/**
+ * Is this saved reply the answer to the turn? For a regenerate, history keeps
+ * showing the old answer until the new one is saved (marked `regenerates`), so
+ * only a marked reply that differs from the old answer counts.
+ */
+function isOwnReply(turn: Turn, reply: JSONObject): boolean {
+  if (!turn.regenerate) return true
+  if (reply.regenerates !== true) return false
+  return String(reply.content ?? '') !== (turn.regenerate.replacedText ?? '')
+}
+
 /** After a reconnect: did the run finish while we were away? */
 async function reconcile(sid: string, turn: Turn) {
   const e = entries.get(sid)
@@ -325,16 +342,18 @@ async function reconcile(sid: string, turn: Turn) {
   const want = turn.userText.trim()
   const ui = raw ? lastIndex(raw, (m) => m.role === 'user' && String(m.content ?? '').trim() === want) : -1
   const reply = ui >= 0 ? raw!.slice(ui + 1).filter((m) => m.role === 'assistant').pop() : undefined
-  if (reply) {
-    patchMessage(sid, turn.messageId, (m) => reconcileFromHistory(m, reply))
+  const finish = (r: JSONObject) => {
+    patchMessage(sid, turn.messageId, (m) => reconcileFromHistory(m, r))
     endTurn(sid, turn)
-    return
   }
+  if (reply && isOwnReply(turn, reply)) return finish(reply)
   // Not in history: is the run still alive? A server restarted mid-run no
   // longer knows it, so the reply will never finish: end the turn now.
   if (turn.runId && turn.transport.runStatus) {
     const active = await turn.transport.runStatus(turn.runId).catch(() => undefined)
     if (e.turn !== turn) return
+    // A finished regenerate whose answer reads the same as the old one.
+    if (active === false && reply?.regenerates === true) return finish(reply)
     if (active === false) return interrupt(sid, turn)
   }
   // Still running server-side (or the server cannot say): keep listening, bounded by the watchdog.
@@ -405,6 +424,8 @@ export interface SendOptions {
   attachments?: AiuiMessage['attachments']
   /** Answer the last question again (the server replaces the old answer in history). */
   regenerate?: boolean
+  /** The answer a regenerate replaces (from popLastTurn), to tell it from the new one after a reconnect. */
+  replacedText?: string
 }
 
 // ── other tabs' runs (read-only) ───────────────────────────────────────
@@ -596,6 +617,7 @@ export const threadStore = {
     const asst = newAssistant(undefined, opts.agentName)
     const turn: Turn = { id: genId('turn'), messageId: asst.id, userText: text, transport, detached: false }
     const regenerate = !!opts.regenerate && canRegenerate(transport, sid)
+    if (regenerate) turn.regenerate = { replacedText: opts.replacedText }
     const ac = new AbortController()
     e.turn = turn
     e.abort = ac
@@ -771,15 +793,16 @@ export const threadStore = {
     set(sid, (s) => ({ messages: s.messages.map((m) => (m.id === messageId ? { ...m, custom: { ...m.custom, feedback: type } } : m)) }), true)
   },
 
-  /** Drop the last assistant turn (regenerate) and return the user text that produced it. */
-  popLastTurn(sid: string): { text: string; attachments?: AiuiMessage['attachments'] } | null {
+  /** Drop the last assistant turn (regenerate) and return the user text that produced it, and the answer it had. */
+  popLastTurn(sid: string): { text: string; attachments?: AiuiMessage['attachments']; replacedText?: string } | null {
     const msgs = entry(sid).state.messages
     const ui = lastIndex(msgs, (m) => m.role === 'user')
     if (ui < 0) return null
     const u = msgs[ui]
-    const text = u.parts.map((p) => (p.type === 'text' ? p.text : '')).join('')
+    const textOf = (m: AiuiMessage) => m.parts.map((p) => (p.type === 'text' ? p.text : '')).join('')
+    const old = msgs.slice(ui + 1).filter((m) => m.role === 'assistant').pop()
     set(sid, { messages: msgs.slice(0, ui) }, true)
-    return { text, attachments: u.attachments }
+    return { text: textOf(u), attachments: u.attachments, replacedText: old ? textOf(old) : undefined }
   },
 
   invalidate(sid: string) {
