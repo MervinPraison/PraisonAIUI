@@ -178,7 +178,7 @@ globalThis.history = { pushState() {}, replaceState() {} };
 globalThis.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
 globalThis.EventSource = class { close() {} };
 
-const PAGES = ['overview', 'runs', 'replay', 'logs', 'debug', 'metrics', 'kanban'].map((id) => ({ id, title: id }));
+const PAGES = ['overview', 'runs', 'replay', 'logs', 'debug', 'metrics', 'kanban', 'inspector'].map((id) => ({ id, title: id }));
 const MANIFEST = {
   legacy: { customJs: null, viewsBase: scenario === 'base' ? '/static/views/' : '/plugins/views/' },
   pages: [
@@ -186,6 +186,8 @@ const MANIFEST = {
     { id: 'runs', kind: 'legacy', source: 'builtin' },
     { id: 'replay', kind: 'legacy', source: 'builtin' },
     { id: 'chat', kind: 'native', source: 'builtin' },
+    // a built-in record without a view file (dashboard.js draws the panel)
+    { id: 'inspector', kind: 'legacy', source: 'builtin' },
     // an app page under a built-in id (register_page with a handler)
     { id: 'logs', kind: 'blocks', source: 'app', apiEndpoint: '/api/pages/logs/data' },
     // a dashboard-plugin folder page (its script calls registerView)
@@ -225,7 +227,7 @@ out.mount['kanban+host'] = await mount('kanban', { id: 'kanban', kind: 'legacy',
 out.mount['overview+hostapp'] = await mount('overview', { id: 'overview', kind: 'blocks', source: 'app' });
 // The dashboard style's selectPage (no host navigator installed). Pages not
 // mounted above, since a loaded view is cached in the view registry.
-for (const id of ['replay', 'logs', 'debug', 'kanban']) {
+for (const id of ['replay', 'logs', 'debug', 'kanban', 'inspector']) {
   const before = imports.length;
   await window.aiui.selectPage(id);
   out.select[id] = imports.slice(before).map((p) => p);
@@ -291,6 +293,8 @@ class TestFromTheManifest:
             "logs": [],
             "debug": [],
             "kanban": [],
+            # A panel page: no request for a views/inspector.js that does not exist.
+            "inspector": [],
         }
 
 
@@ -310,3 +314,5 @@ def test_without_a_manifest_listed_pages_resolve_by_file_name(tmp_path):
     # Not listed, or not a file name: nothing is imported.
     for page_id in ("chat", "board", "traces", "constructor", "../x"):
         assert out["mount"][page_id] == [], page_id
+    # Listed, but a panel page without a view file.
+    assert out["select"]["inspector"] == []

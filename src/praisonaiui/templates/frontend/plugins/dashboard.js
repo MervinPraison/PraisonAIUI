@@ -153,6 +153,9 @@ let _activeCleanup = null; // cleanup function for the active view
 // failed request): every page that /api/pages lists is tried by the same
 // file convention; a page without a view file falls through to the generic
 // viewer.
+// The Inspector is a built-in record without a view file: dashboard.js draws
+// it itself (showTestPanel / renderTestPanel), so it has no view module.
+const INSPECTOR_PAGE_ID = 'inspector';
 const DEFAULT_VIEWS_BASE = '/plugins/views/';
 const VIEW_FILE_ID = /^[A-Za-z0-9][\w-]*$/;
 let _viewsBase = DEFAULT_VIEWS_BASE;
@@ -194,6 +197,7 @@ function _isManifestPage(page) {
 // page has none (a registered view or the generic viewer renders it).
 // hostPage: the app shell's record of the page (manifest shape), if any.
 function viewModuleUrl(pageId, hostPage) {
+  if (pageId === INSPECTOR_PAGE_ID) return null;
   const rec = _isManifestPage(hostPage) ? hostPage : (_viewIndex ? _viewIndex.get(pageId) : undefined);
   const byName = VIEW_FILE_ID.test(pageId) ? `${_viewsBase}${pageId}.js` : null;
   if (rec) {
@@ -4008,7 +4012,7 @@ async function _mountViewBody(pageId, container, page, stale, hostPage) {
 
   // The Inspector is a built-in panel, not a page with data: the legacy shell
   // opens it as an action; a host mount renders the same panel.
-  if (pageId === 'inspector') {
+  if (pageId === INSPECTOR_PAGE_ID) {
     await renderTestPanel(container, { header: false });
     return noop;
   }
