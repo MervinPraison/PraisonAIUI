@@ -57,6 +57,20 @@ declare module '@aiui/sdk' {
     origin?: ShellPluginOrigin
     /** Built-ins only: the host needs part of this plugin even when disabled. */
     required?: boolean
+    /** The plugin's Python settings() sections (records with status `ok` only). */
+    settings?: {
+      id: string
+      title: string
+      description?: string
+      order?: number
+      fields: SettingsField[]
+      /** GET → `{values}`; PUT `{values}` → `{values}` or 400 `{error, fields}`. */
+      endpoint: string
+    }[]
+    /** The plugin's Python nav_groups(). */
+    navGroups?: { name: string; order?: number | null; folded?: boolean }[]
+    /** The plugin's Python themes(). */
+    themes?: ThemePresetInput[]
   }
 
   /** GET /api/shell/manifest. */
@@ -243,6 +257,58 @@ declare module '@aiui/sdk' {
   export type ThemeMode = 'light' | 'dark'
   /** React hook: the colour mode in effect, updated when it changes. Feature `'theme-mode'`. */
   export function useThemeMode(): ThemeMode
+
+  // ── shell contributions (features 'settings', 'nav-groups', 'theme-presets') ──
+
+  export type SettingsFieldType = 'string' | 'text' | 'number' | 'boolean' | 'select'
+  export type SettingsValue = string | number | boolean
+  export type SettingsValues = Record<string, SettingsValue>
+  export interface SettingsField {
+    /** Value key, `[A-Za-z_][A-Za-z0-9_]*`. */
+    key: string
+    label?: string
+    /** Default `'string'`. */
+    type?: SettingsFieldType
+    /** Default `''`, `0`, `false` or the first option. */
+    default?: SettingsValue
+    description?: string
+    /** `select` only. */
+    options?: readonly (string | { value: string; label?: string })[]
+  }
+  export interface SettingsSectionInput {
+    /** Unique id, by convention `<plugin>.<section>`. */
+    id: string
+    title: string
+    description?: string
+    /** Lower comes first. Default 100. */
+    order?: number
+    fields: readonly SettingsField[]
+    load(): Promise<SettingsValues>
+    /** Reject with an error whose `body.fields` maps keys to reasons to show them inline. */
+    save(values: SettingsValues): Promise<SettingsValues | void>
+  }
+  /** Add a section to the shell's settings dialog. Returns a remover. Feature `'settings'`. */
+  export function registerSettingsSection(section: SettingsSectionInput): () => void
+
+  export interface NavGroupOptions {
+    /** Among the groups: `layout.groups.order` sits at 100, 200, 300…; unordered groups follow. */
+    order?: number
+    /** Start collapsed. */
+    folded?: boolean
+  }
+  /** Declare the sidebar group your pages use. The app's `layout.groups` wins. Feature `'nav-groups'`. */
+  export function registerNavGroup(name: string, options?: NavGroupOptions): () => void
+
+  export interface ThemePresetInput {
+    /** Unique id, by convention `<plugin>.<name>`. */
+    id: string
+    label: string
+    /** Seed tokens (`--seed-*`, `--radius`, `--tint-mix`, `--accent-mix`) for light mode. */
+    light?: Readonly<Record<string, string>>
+    dark?: Readonly<Record<string, string>>
+  }
+  /** Offer a theme preset the viewer can pick in the command palette. Feature `'theme-presets'`. */
+  export function registerThemePreset(preset: ThemePresetInput): () => void
 
   // ── default export ─────────────────────────────────────────────────
 
