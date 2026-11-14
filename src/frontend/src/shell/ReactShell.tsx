@@ -9,7 +9,7 @@ import type { ShellPage } from '@/sdk/manifest'
 import { cn } from '@/lib/utils'
 import { useShell } from './context'
 import { FloatingMenuButton, ShellHeader } from './Header'
-import { defaultPageId, isFullBleed, navGroups, orderedPages, showPageHeader, showSidebar, siteTitle } from './nav'
+import { defaultPageId, isFullBleed, orderedPages, showPageHeader, showSidebar, siteTitle } from './nav'
 import {
   installPaletteHooks,
   isPaletteShortcut,
@@ -22,8 +22,12 @@ import {
 import { PageView } from './PageView'
 import { navigate, PAGE_CHANGE_EVENT, usePageId } from './router'
 import { AppSidebar } from './Sidebar'
+import { useNavGroupsConfig } from './useNavGroups'
+import { setSettingsDialogOpen, useSettingsDialog } from './settingsForm'
+import { useApplyThemePresets } from './themePresets'
 
 const CommandPalette = lazy(() => import('./CommandPalette'))
+const SettingsDialog = lazy(() => import('./SettingsDialog'))
 const loadMobileNav = () => import('./MobileNav')
 const MobileNav = lazy(loadMobileNav)
 
@@ -67,7 +71,7 @@ export default function ReactShell() {
   useRegistryVersion()
   const pages = manifest.pages
   const pageById = useMemo(() => new Map(pages.map((p) => [p.id, p] as const)), [pages])
-  const groups = useMemo(() => navGroups(manifest), [manifest])
+  const groups = useNavGroupsConfig(manifest)
   const firstPage = useMemo(() => orderedPages(pages, groups)[0], [pages, groups])
   const sidebar = showSidebar(manifest)
   const header = showPageHeader(manifest)
@@ -78,6 +82,8 @@ export default function ReactShell() {
   const [mobileRequested, setMobileRequested] = useState(false)
   const paletteOpen = useCommandPaletteOpen()
   const paletteRequested = useCommandPaletteRequested()
+  const settings = useSettingsDialog()
+  useApplyThemePresets()
 
   const openMobileNav = useCallback(() => {
     setMobileRequested(true)
@@ -91,9 +97,9 @@ export default function ReactShell() {
   // `/` → the configured default page, else the first page (replace: Back must not bounce).
   useEffect(() => {
     if (pageId) return
-    const target = defaultPageId(manifest)
+    const target = defaultPageId(manifest, groups)
     if (target) navigate(target, { replace: true })
-  }, [pageId, manifest])
+  }, [pageId, manifest, groups])
 
   useEffect(() => {
     document.title = pageId && pageTitle !== title ? `${pageTitle} · ${title}` : title
@@ -177,6 +183,11 @@ export default function ReactShell() {
       {sidebar && mobileRequested && (
         <Suspense fallback={null}>
           <MobileNav open={mobileOpen} onOpenChange={setMobileOpen} manifest={manifest} activeId={pageId} />
+        </Suspense>
+      )}
+      {settings.requested && (
+        <Suspense fallback={null}>
+          <SettingsDialog open={settings.open} onOpenChange={setSettingsDialogOpen} initialSectionId={settings.sectionId} />
         </Suspense>
       )}
       {paletteRequested && (

@@ -2,11 +2,11 @@
  * Lazy chunk: the command palette (cmdk via components/ui/command). Opened by
  * Ctrl/Cmd+K, the header search button and window.aiui.openCommandPalette().
  * Items: the commands registered through `registerCommand` (@aiui/sdk),
- * first-party ones included (builtin.chat's "New chat"), every page, and the
- * three colour modes.
+ * first-party ones included (builtin.chat's "New chat"), every page, the
+ * three colour modes, plugin theme presets and the plugin settings dialog.
  */
 import { useMemo, useState } from 'react'
-import { Check, Monitor, Moon, Sun } from 'lucide-react'
+import { Check, Monitor, Moon, Palette, SlidersHorizontal, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import {
   CommandDialog,
@@ -20,11 +20,14 @@ import {
 import type { ShellPage } from '@/sdk/manifest'
 import { notify } from '@/sdk/notify'
 import { useCommands, type ShellCommand } from '@/sdk/services'
+import { useSettingsSections, useThemePresets } from '@/sdk/contributions'
 import { footerPages, groupPages, type NavGroupsConfig } from './nav'
 import { paletteFilter, rankSections } from './paletteFilter'
 import { PageIcon } from './PageIcon'
 import { createFocusReturn } from './focusReturn'
 import { navigate } from './router'
+import { openSettingsDialog } from './settingsForm'
+import { setThemePreset, useThemePresetChoice } from './themePresets'
 
 const DEFAULT_COMMAND_GROUP = 'Commands'
 
@@ -84,6 +87,14 @@ export default function CommandPalette({
     return footer.length ? [...g, { name: 'More', pages: footer }] : g
   }, [pages, groupConfig])
   const registered = useCommands()
+  const settingsSections = useSettingsSections()
+  const presets = useThemePresets()
+  const presetChoice = useThemePresetChoice()
+  const activePreset = presets.some((p) => p.id === presetChoice) ? presetChoice : null
+  // Plugin presets (registerThemePreset / a plugin's themes()), plus the app's own.
+  const presetItems = presets.length
+    ? [{ id: null, label: 'Default' }, ...presets.map((p) => ({ id: p.id as string | null, label: p.label }))]
+    : []
   const commandGroups = useMemo(() => groupCommands(registered), [registered])
   const [search, setSearch] = useState('')
   // The palette stays mounted after its first open: every open starts with an
@@ -174,26 +185,72 @@ export default function CommandPalette({
                 }
               }),
             })),
+            ...(settingsSections.length
+              ? [
+                  {
+                    key: 'preferences',
+                    heading: 'Preferences',
+                    items: [
+                      {
+                        key: 'plugin-settings',
+                        value: 'Plugin settings',
+                        keywords: ['settings', 'preferences', 'options', ...settingsSections.map((x) => x.title)],
+                        node: (
+                          <CommandItem
+                            key="plugin-settings"
+                            value="Plugin settings"
+                            keywords={['settings', 'preferences', 'options', ...settingsSections.map((x) => x.title)]}
+                            onSelect={() => run(() => openSettingsDialog())}
+                          >
+                            <SlidersHorizontal />
+                            <span>Plugin settings</span>
+                          </CommandItem>
+                        ),
+                      },
+                    ],
+                  },
+                ]
+              : []),
             {
               key: 'theme',
               heading: 'Theme',
-              items: THEMES.map((t) => ({
-                key: t.value,
-                value: `${t.label} mode`,
-                keywords: ['theme', 'appearance'],
-                node: (
-                  <CommandItem
-                    key={t.value}
-                    value={`${t.label} mode`}
-                    keywords={['theme', 'appearance']}
-                    onSelect={() => run(() => setTheme(t.value))}
-                  >
-                    <t.icon />
-                    <span>{t.label} mode</span>
-                    {theme === t.value && <Check className="ml-auto" aria-label="Active" />}
-                  </CommandItem>
-                ),
-              })),
+              items: [
+                ...presetItems.map((p) => ({
+                  key: `preset:${p.id ?? ''}`,
+                  value: `${p.label} theme`,
+                  keywords: ['theme', 'appearance', 'preset', 'colours', 'colors'],
+                  node: (
+                    <CommandItem
+                      key={`preset:${p.id ?? ''}`}
+                      value={`${p.label} theme`}
+                      keywords={['theme', 'appearance', 'preset', 'colours', 'colors']}
+                      data-theme-preset={p.id ?? ''}
+                      onSelect={() => run(() => setThemePreset(p.id))}
+                    >
+                      <Palette />
+                      <span>{p.label} theme</span>
+                      {activePreset === p.id && <Check className="ml-auto" aria-label="Active" />}
+                    </CommandItem>
+                  ),
+                })),
+                ...THEMES.map((t) => ({
+                  key: t.value,
+                  value: `${t.label} mode`,
+                  keywords: ['theme', 'appearance'],
+                  node: (
+                    <CommandItem
+                      key={t.value}
+                      value={`${t.label} mode`}
+                      keywords={['theme', 'appearance']}
+                      onSelect={() => run(() => setTheme(t.value))}
+                    >
+                      <t.icon />
+                      <span>{t.label} mode</span>
+                      {theme === t.value && <Check className="ml-auto" aria-label="Active" />}
+                    </CommandItem>
+                  ),
+                })),
+              ],
             },
           ],
           search,

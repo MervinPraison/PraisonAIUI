@@ -47,6 +47,8 @@ def hello_site(tmp_path, monkeypatch):
     monkeypatch.syspath_prepend(str(EXAMPLE))
     monkeypatch.delenv("AIUI_DISABLE_PLUGIN_AUTOLOAD", raising=False)
     monkeypatch.delenv("AIUI_SHELL", raising=False)
+    # The example saves settings under the data dir: never the real one.
+    monkeypatch.setenv("AIUI_DATA_DIR", str(tmp_path / "data"))
     sys.modules.pop("aiui_hello", None)
     srv.reset_state()
     yield sp
@@ -120,6 +122,28 @@ def test_blocks_endpoint_and_action(client):
     assert any(c["type"] == "alert" for c in data["_components"])
 
     assert client.post("/api/plugins/hello/pages/hello-blocks/action", json={"action": "x"}).status_code == 400
+
+
+def test_example_declares_a_nav_group_and_a_settings_section_python_reads(client, hello_site):
+    m = client.get("/api/shell/manifest").json()
+    pages = {p["id"]: p for p in m["pages"]}
+    hello = {p["name"]: p for p in m["plugins"]}["hello"]
+    # Both pages sit in the group the plugin declares.
+    assert hello["navGroups"] == [{"name": "Hello", "order": 250, "folded": False}]
+    assert pages["hello"]["group"] == pages["hello-blocks"]["group"] == "Hello"
+    [section] = hello["settings"]
+    assert section["id"] == "greeting" and section["endpoint"] == "/api/plugins/hello/settings/greeting"
+    assert [f["key"] for f in section["fields"]] == ["greeting", "tone"]
+    assert [t["id"] for t in hello["themes"]] == ["sunrise"]
+
+    url = "/api/plugins/hello/settings/greeting"
+    assert client.get(url).json() == {"values": {"greeting": "Hello", "tone": "plain"}}
+    r = client.put(url, json={"values": {"greeting": "Howdy", "tone": "excited"}})
+    assert r.status_code == 200, r.text
+    # The blocks page's action greets with the saved values.
+    data = client.post("/api/plugins/hello/pages/hello-blocks/action", json={"action": "greet"}).json()
+    alert = next(c for c in data["_components"] if c["type"] == "alert")
+    assert re.fullmatch(r"Howdy #\d+ from Python!", alert["message"]), alert
 
 
 def test_plugin_js_is_default_deny_when_not_enabled(hello_site):

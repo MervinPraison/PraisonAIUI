@@ -33,7 +33,9 @@ def test_plugin_registry_exports_are_lazy_and_resolve():
         "import sys, praisonaiui as a\n"
         "assert 'praisonaiui.plugin_registry' not in sys.modules\n"
         "from praisonaiui import plugin_registry as r\n"
-        "for n in ('register_plugin','set_extensions','PageSpec','BlockSpec','ToolRendererSpec'):\n"
+        "for n in ('register_plugin','set_extensions','PageSpec','BlockSpec','ToolRendererSpec',\n"
+        "          'SettingsSectionSpec','SettingsField','NavGroupSpec','ThemeSpec',\n"
+        "          'get_plugin_settings'):\n"
         "    assert n in a.__all__, n\n"
         "    assert getattr(a, n) is getattr(r, n), n\n"
     )

@@ -36,6 +36,7 @@ import {
 import { SDK_FEATURES, SDK_VERSION, type SdkExportName, type ShellExternal } from './manifest'
 import { dismiss, notify } from './notify'
 import { fetchJson, getPageId, navigate, onActivate, registerCommand, useManifest, usePageId, useThemeMode } from './services'
+import { registerNavGroup, registerSettingsSection, registerThemePreset } from './contributions'
 
 export { getLastPluginLoadReport, loadManifestPlugins } from './loadPlugins'
 export type { PluginLoadFailure, PluginLoadReport, LoadPluginsOptions } from './loadPlugins'
@@ -103,6 +104,9 @@ export const sdkApi = Object.freeze({
   usePageId,
   useThemeMode,
   dismiss,
+  registerSettingsSection,
+  registerNavGroup,
+  registerThemePreset,
 } satisfies { [K in SdkExportName]: unknown })
 
 // Compile-time check that the published typings (./aiui-sdk.d.ts, the types a

@@ -173,6 +173,82 @@ class ToolRendererSpec:
         return _to_wire(self)
 
 
+SettingsFieldType = Literal["string", "text", "number", "boolean", "select"]
+_FIELD_TYPES: tuple[str, ...] = ("string", "text", "number", "boolean", "select")
+_FIELD_KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
+_MAX_TEXT = 10_000
+
+
+@dataclass(frozen=True)
+class SettingsField:
+    """One control of a plugin settings section (the shell renders it).
+
+    type: ``string`` (one line), ``text`` (multi-line), ``number``,
+    ``boolean`` (a switch) or ``select`` (one of ``options``). ``default``
+    defaults to ``""``, ``0``, ``False`` or the first option.
+    """
+
+    key: str
+    label: str = ""
+    type: SettingsFieldType = "string"
+    default: Any = None
+    description: str = ""
+    #: ``select`` only: the allowed values, as strings or ``{"value", "label"}`` dicts.
+    options: Optional[tuple] = None
+
+
+@dataclass(frozen=True)
+class SettingsSectionSpec:
+    """A settings section a plugin adds to the shell's settings dialog.
+
+    Values are saved per plugin under ``AIUI_DATA_DIR/plugin-settings/`` and
+    served at ``/api/plugins/<name>/settings/<id>`` (GET, PUT); Python code
+    reads them with :func:`get_plugin_settings`.
+    """
+
+    id: str
+    title: str
+    fields: tuple = ()
+    description: str = ""
+    order: int = 100
+
+
+@dataclass(frozen=True)
+class NavGroupSpec:
+    """A sidebar group a plugin's pages use (``PageSpec.group == name``).
+
+    ``order`` places the group among the others: the groups the app lists in
+    ``layout.groups.order`` sit at 100, 200, 300 …, groups with no order
+    follow them, and ``layout.groups.last`` stays last. The app's own
+    ``layout.groups`` always wins for a group it names. ``folded`` makes the
+    group start collapsed.
+    """
+
+    name: str
+    order: Optional[float] = None
+    folded: bool = False
+
+
+#: Tokens a plugin theme may set: the L0 seeds of ``styles/theme.css``.
+_THEME_TOKEN = re.compile(r"^--(seed-[a-z0-9-]{1,40}|radius|tint-mix|accent-mix)$")
+_THEME_VALUE = re.compile(r"^[#A-Za-z0-9 .,%()+\-/]{1,120}$")
+
+
+@dataclass(frozen=True)
+class ThemeSpec:
+    """A theme preset: seed tokens for light and dark mode.
+
+    ``light`` and ``dark`` map seed token names (``--seed-accent``,
+    ``--seed-paper``, ``--radius`` …) to CSS values. The viewer picks the
+    preset in the command palette; everything else derives from the seeds.
+    """
+
+    id: str
+    label: str = ""
+    light: Any = None
+    dark: Any = None
+
+
 @runtime_checkable
 class AiuiPlugin(Protocol):
     """Duck-typed plugin contract. Only ``name`` is required."""
@@ -191,6 +267,10 @@ class AiuiPlugin(Protocol):
     #   def features(self) -> Iterable[BaseFeatureProtocol]
     #   def cli_commands(self) -> typer.Typer | None
     #   def setup(self, ctx: dict) -> None                      (called once per create_app)
+    # Added under SDK 1 (feature names "settings", "nav-groups", "theme-presets"):
+    #   def settings(self) -> Iterable[SettingsSectionSpec | dict]
+    #   def nav_groups(self) -> Iterable[NavGroupSpec | dict]
+    #   def themes(self) -> Iterable[ThemeSpec | dict]
 
 
 @dataclass
@@ -501,8 +581,86 @@ class PluginRegistry:
             status = rec.status
             if status == "ok" and not self.js_allowed(rec, restricted=restricted):
                 status = "disabled-by-default"
-            out.append(rec.to_dict(status=status, include_error=include_errors))
+            d = rec.to_dict(status=status, include_error=include_errors)
+            if status == "ok":
+                d.update(self.contributions(rec))
+            out.append(d)
         return out
+
+    # settings, nav groups, themes (shell contributions on the record) -----
+    def contributions(self, rec: PluginRecord) -> dict[str, Any]:
+        """Wire form of a plugin's ``settings()``, ``nav_groups()`` and
+        ``themes()``, as extra keys of its manifest record (only non-empty
+        ones, so records of plugins without them are unchanged)."""
+        out: dict[str, Any] = {}
+        sections = self.settings_sections(rec)
+        if sections:
+            out["settings"] = [
+                {**_to_wire(s),
+                 "fields": [
+                     {**_to_wire(f), **({"options": list(f.options)} if f.options else {})}
+                     for f in s.fields
+                 ],
+                 "endpoint": f"/api/plugins/{rec.name}/settings/{s.id}"}
+                for s in sections
+            ]
+        groups = self._collect_from([rec], "nav_groups", _resolve_nav_group)
+        if groups:
+            out["navGroups"] = [_to_wire(g) for g in groups]
+        themes = self._collect_from([rec], "themes", _resolve_theme)
+        if themes:
+            out["themes"] = [_to_wire(t) for t in themes]
+        return out
+
+    def settings_sections(self, rec: PluginRecord) -> list[SettingsSectionSpec]:
+        """The valid sections of ``rec.settings()`` (first one wins per id)."""
+        seen: set[str] = set()
+        out: list[SettingsSectionSpec] = []
+        for s in self._collect_from([rec], "settings", _resolve_settings_section):
+            if s.id in seen:
+                logger.warning("aiui plugin %s: duplicate settings section %r", rec.name, s.id)
+                continue
+            seen.add(s.id)
+            out.append(s)
+        return out
+
+    def find_settings_section(self, plugin: str, section: str) -> Optional[SettingsSectionSpec]:
+        for rec in self.active():
+            if rec.name == plugin:
+                return next((s for s in self.settings_sections(rec) if s.id == section), None)
+        return None
+
+    def _settings_routes(self, rec: PluginRecord) -> list:
+        """``GET``/``PUT /settings/<section>`` for a plugin that declares settings."""
+        if not self.settings_sections(rec):
+            return []
+        from starlette.requests import Request
+        from starlette.responses import JSONResponse
+        from starlette.routing import Route
+
+        async def endpoint(request: Request) -> JSONResponse:
+            spec = next(
+                (s for s in self.settings_sections(rec) if s.id == request.path_params["section"]),
+                None,
+            )
+            if spec is None:
+                return JSONResponse({"error": "unknown settings section"}, status_code=404)
+            if request.method == "GET":
+                return JSONResponse({"values": read_settings_values(rec.name, spec)})
+            try:
+                body = await request.json()
+            except ValueError:
+                body = None
+            values = body.get("values") if isinstance(body, dict) else None
+            if not isinstance(values, dict):
+                return JSONResponse({"error": 'expected {"values": {...}}'}, status_code=400)
+            try:
+                saved = save_settings_values(rec.name, spec, values)
+            except SettingsError as exc:
+                return JSONResponse({"error": str(exc), "fields": exc.fields}, status_code=400)
+            return JSONResponse({"values": saved})
+
+        return [Route("/settings/{section}", endpoint, methods=["GET", "PUT"])]
 
     # contributions -----------------------------------------------------
     def pages(
@@ -596,21 +754,25 @@ class PluginRegistry:
         mounts: list = []
         for rec in self.active():
             fn = getattr(rec.plugin, "routes", None)
+            sub: list = []
             if callable(fn):
                 try:
                     sub = list(fn() or [])
-                    if sub:
-                        # Gated like the browser surfaces: a plugin listed as
-                        # "disabled-by-default" for this viewer answers 404
-                        # here too (enable it with extensions.enabled).
-                        mounts.append(
-                            Mount(
-                                f"/api/plugins/{rec.name}",
-                                app=_GatedStatic(self, rec, Router(routes=sub), is_restricted),
-                            )
-                        )
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("aiui plugin %s.routes() failed: %s", rec.name, exc)
+            # A plugin that declares settings() gets /settings/<section>
+            # (reserved: it is matched before the plugin's own routes).
+            sub = self._settings_routes(rec) + sub
+            if sub:
+                # Gated like the browser surfaces: a plugin listed as
+                # "disabled-by-default" for this viewer answers 404
+                # here too (enable it with extensions.enabled).
+                mounts.append(
+                    Mount(
+                        f"/api/plugins/{rec.name}",
+                        app=_GatedStatic(self, rec, Router(routes=sub), is_restricted),
+                    )
+                )
         for rec in self.active():
             d = self.static_dir_of(rec)
             if d is None:
@@ -803,6 +965,255 @@ def _resolve_asset(rec: PluginRecord, spec: Any, spec_type: type = BlockSpec):
     )
 
 
+def _from_dict(spec_type: type, spec: Any) -> Any:
+    if isinstance(spec, dict):
+        return spec_type(**{_snake(str(k)): v for k, v in spec.items()})
+    if not isinstance(spec, spec_type):
+        raise TypeError(f"expected {spec_type.__name__} or dict, got {type(spec).__name__}")
+    return spec
+
+
+def _short_text(value: Any, what: str, limit: int = 200) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{what} must be a string")
+    return value.strip()[:limit]
+
+
+def _spec_id(value: Any, what: str) -> str:
+    if not isinstance(value, str) or not _NAME_OK.match(value):
+        raise ValueError(f"invalid {what} {value!r} (allowed: a-z 0-9 _ -)")
+    return value
+
+
+def _option_values(options: Any) -> tuple[tuple[str, str], ...]:
+    """``select`` options as ``(value, label)`` pairs."""
+    out: list[tuple[str, str]] = []
+    for o in options or ():
+        if isinstance(o, str):
+            out.append((o, o))
+        elif isinstance(o, dict) and isinstance(o.get("value"), str):
+            out.append((o["value"], _short_text(o.get("label", o["value"]), "option label")))
+        else:
+            raise ValueError(f"invalid select option {o!r}")
+    if not out:
+        raise ValueError("a select field needs options")
+    return tuple(out)
+
+
+_TYPE_DEFAULTS: dict[str, Any] = {"string": "", "text": "", "number": 0, "boolean": False}
+
+
+def _resolve_field(spec: Any) -> SettingsField:
+    f = _from_dict(SettingsField, spec)
+    if not isinstance(f.key, str) or not _FIELD_KEY.match(f.key):
+        raise ValueError(f"invalid settings field key {f.key!r}")
+    if f.type not in _FIELD_TYPES:
+        raise ValueError(f"field {f.key!r}: unknown type {f.type!r} (allowed: {', '.join(_FIELD_TYPES)})")
+    options = None
+    if f.type == "select":
+        pairs = _option_values(f.options)
+        options = tuple({"value": v, "label": label} for v, label in pairs)
+        default = pairs[0][0] if f.default is None else f.default
+    else:
+        default = _TYPE_DEFAULTS[f.type] if f.default is None else f.default
+    field_ = replace(
+        f,
+        label=_short_text(f.label or f.key, "label"),
+        description=_short_text(f.description or "", "description", 500),
+        options=options,
+        default=default,
+    )
+    return replace(field_, default=_coerce_value(field_, default))
+
+
+def _resolve_settings_section(rec: PluginRecord, spec: Any) -> SettingsSectionSpec:
+    s = _from_dict(SettingsSectionSpec, spec)
+    fields = tuple(_resolve_field(f) for f in s.fields or ())
+    keys = [f.key for f in fields]
+    if len(set(keys)) != len(keys):
+        raise ValueError(f"section {s.id!r}: duplicate field keys")
+    if not fields:
+        raise ValueError(f"section {s.id!r} has no fields")
+    return SettingsSectionSpec(
+        id=_spec_id(s.id, "settings section id"),
+        title=_short_text(s.title, "title"),
+        fields=fields,
+        description=_short_text(s.description or "", "description", 500),
+        order=int(s.order),
+    )
+
+
+def _resolve_nav_group(rec: PluginRecord, spec: Any) -> NavGroupSpec:
+    g = _from_dict(NavGroupSpec, spec)
+    name = _short_text(g.name, "nav group name", 64)
+    if not name:
+        raise ValueError("a nav group needs a name")
+    order = g.order
+    if order is not None and (isinstance(order, bool) or not isinstance(order, (int, float))):
+        raise ValueError(f"nav group {name!r}: order must be a number")
+    if order is not None and order != order:  # NaN
+        raise ValueError(f"nav group {name!r}: order must be a number")
+    return NavGroupSpec(name=name, order=order, folded=bool(g.folded))
+
+
+def _theme_tokens(raw: Any, where: str) -> dict[str, str]:
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ValueError(f"{where} must be a dict of seed tokens")
+    out: dict[str, str] = {}
+    for k, v in raw.items():
+        name = str(k)
+        if not name.startswith("--"):
+            name = f"--{name}"
+        value = str(v).strip()
+        if not _THEME_TOKEN.match(name):
+            raise ValueError(f"{where}: {k!r} is not a seed token (--seed-*, --radius, --tint-mix, --accent-mix)")
+        if not _THEME_VALUE.match(value) or "url(" in value.lower():
+            raise ValueError(f"{where}: unsafe value for {name}: {v!r}")
+        out[name] = value
+    return out
+
+
+def _resolve_theme(rec: PluginRecord, spec: Any) -> ThemeSpec:
+    t = _from_dict(ThemeSpec, spec)
+    tid = _spec_id(t.id, "theme id")
+    light = _theme_tokens(t.light, f"theme {tid!r} light")
+    dark = _theme_tokens(t.dark, f"theme {tid!r} dark")
+    if not light and not dark:
+        raise ValueError(f"theme {tid!r} sets no tokens")
+    return ThemeSpec(id=tid, label=_short_text(t.label or tid, "label", 64), light=light, dark=dark)
+
+
+# ── Plugin settings values ───────────────────────────────────────────
+
+
+class SettingsError(ValueError):
+    """Values that do not fit a settings section; ``fields`` maps key → reason."""
+
+    def __init__(self, message: str, fields: dict[str, str]) -> None:
+        super().__init__(message)
+        self.fields = fields
+
+
+def _coerce_value(f: SettingsField, value: Any) -> Any:
+    if f.type in ("string", "text"):
+        if not isinstance(value, str):
+            raise ValueError("expected text")
+        if len(value) > _MAX_TEXT:
+            raise ValueError(f"longer than {_MAX_TEXT} characters")
+        return value if f.type == "text" else value.replace("\n", " ")
+    if f.type == "number":
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value != value:
+            raise ValueError("expected a number")
+        if value in (float("inf"), float("-inf")):
+            raise ValueError("expected a finite number")
+        return value
+    if f.type == "boolean":
+        if not isinstance(value, bool):
+            raise ValueError("expected true or false")
+        return value
+    allowed = [o["value"] for o in f.options or ()]
+    if value not in allowed:
+        raise ValueError(f"expected one of {', '.join(allowed)}")
+    return value
+
+
+_settings_lock = threading.Lock()
+
+
+def _settings_file(plugin: str) -> Path:
+    name = sanitize_plugin_name(plugin)
+    if name is None:
+        raise ValueError(f"invalid plugin name {plugin!r}")
+    base = Path(os.environ.get("AIUI_DATA_DIR", str(Path.home() / ".praisonaiui")))
+    return base / "plugin-settings" / f"{name}.json"
+
+
+def _read_settings_file(plugin: str) -> dict[str, Any]:
+    import json
+
+    try:
+        data = json.loads(_settings_file(plugin).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as exc:
+        logger.warning("aiui plugin %s: unreadable settings file: %s", plugin, exc)
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def read_settings_values(plugin: str, spec: SettingsSectionSpec) -> dict[str, Any]:
+    """Saved values of ``spec`` with defaults for keys never saved (or no longer valid)."""
+    with _settings_lock:
+        stored = _read_settings_file(plugin).get(spec.id)
+    stored = stored if isinstance(stored, dict) else {}
+    out: dict[str, Any] = {}
+    for f in spec.fields:
+        value = f.default
+        if f.key in stored:
+            try:
+                value = _coerce_value(f, stored[f.key])
+            except ValueError:
+                pass  # e.g. an option the plugin has since removed
+        out[f.key] = value
+    return out
+
+
+def save_settings_values(plugin: str, spec: SettingsSectionSpec, values: dict) -> dict[str, Any]:
+    """Validate ``values`` (a partial update) against ``spec`` and save them.
+
+    Raises :class:`SettingsError` naming each bad key; nothing is written then.
+    Returns the section's values after the save.
+    """
+    import json
+    import tempfile
+
+    by_key = {f.key: f for f in spec.fields}
+    errors: dict[str, str] = {}
+    clean: dict[str, Any] = {}
+    for key, value in values.items():
+        f = by_key.get(str(key))
+        if f is None:
+            errors[str(key)] = "unknown setting"
+            continue
+        try:
+            clean[f.key] = _coerce_value(f, value)
+        except ValueError as exc:
+            errors[f.key] = str(exc)
+    if errors:
+        raise SettingsError("invalid settings", errors)
+    path = _settings_file(plugin)
+    with _settings_lock:
+        data = _read_settings_file(plugin)
+        section = data.get(spec.id) if isinstance(data.get(spec.id), dict) else {}
+        data[spec.id] = {**section, **clean}
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.stem}-", suffix=".json")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump(data, fh, indent=2, sort_keys=True)
+            os.replace(tmp, path)
+        except BaseException:
+            Path(tmp).unlink(missing_ok=True)
+            raise
+    return read_settings_values(plugin, spec)
+
+
+def get_plugin_settings(plugin: str, section: str) -> dict[str, Any]:
+    """The values of a plugin's settings section, for the plugin's Python code.
+
+    Declared defaults fill in keys the viewer never saved. For a section the
+    plugin does not (or no longer) declare, the raw saved values are returned.
+    """
+    spec = get_plugin_registry().find_settings_section(sanitize_plugin_name(plugin) or plugin, section)
+    if spec is not None:
+        return read_settings_values(plugin, spec)
+    with _settings_lock:
+        stored = _read_settings_file(plugin).get(section)
+    return dict(stored) if isinstance(stored, dict) else {}
+
+
 # ── Shell selection ──────────────────────────────────────────────────
 
 SHELL_STYLES = ("app",)
@@ -902,11 +1313,17 @@ __all__ = [
     "AiuiPlugin",
     "BlockSpec",
     "ExtensionPolicy",
+    "NavGroupSpec",
     "PageSpec",
     "PluginRecord",
     "PluginRegistry",
+    "SettingsError",
+    "SettingsField",
+    "SettingsSectionSpec",
+    "ThemeSpec",
     "ToolRendererSpec",
     "get_plugin_registry",
+    "get_plugin_settings",
     "register_plugin",
     "resolve_shell_style",
     "sanitize_plugin_name",

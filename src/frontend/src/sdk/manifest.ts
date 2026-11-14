@@ -60,6 +60,10 @@ export const SDK_EXPORTS = [
   'useThemeMode',
   // Close a toast raised with notify() (feature notify.dismiss).
   'dismiss',
+  // Shell contributions (features settings, nav-groups, theme-presets).
+  'registerSettingsSection',
+  'registerNavGroup',
+  'registerThemePreset',
 ] as const
 export type SdkExportName = (typeof SDK_EXPORTS)[number]
 
@@ -98,6 +102,12 @@ export const SDK_FEATURES = [
   'theme-mode',
   // dismiss(id): close a toast raised with notify({ id })
   'notify.dismiss',
+  // registerSettingsSection() and a plugin record's `settings` (Python settings())
+  'settings',
+  // registerNavGroup() and a plugin record's `navGroups` (Python nav_groups())
+  'nav-groups',
+  // registerThemePreset() and a plugin record's `themes` (Python themes())
+  'theme-presets',
 ] as const
 export type SdkFeature = (typeof SDK_FEATURES)[number]
 
@@ -136,6 +146,31 @@ export interface ShellPluginRecord {
   origin?: ShellPluginOrigin
   /** Built-ins only: the host needs part of this plugin even when disabled. */
   required?: boolean
+  /** The plugin's settings() sections (only on records with status `ok`). */
+  settings?: ShellSettingsSection[]
+  /** The plugin's nav_groups(). */
+  navGroups?: { name: string; order?: number | null; folded?: boolean }[]
+  /** The plugin's themes(): seed tokens per mode. */
+  themes?: { id: string; label: string; light?: Record<string, string>; dark?: Record<string, string> }[]
+}
+
+export interface ShellSettingsField {
+  key: string
+  label?: string
+  type?: 'string' | 'text' | 'number' | 'boolean' | 'select'
+  default?: string | number | boolean
+  description?: string
+  options?: { value: string; label?: string }[]
+}
+
+export interface ShellSettingsSection {
+  id: string
+  title: string
+  description?: string
+  order?: number
+  fields: ShellSettingsField[]
+  /** GET → `{values}`, PUT `{values}` → `{values}` (or 400 `{error, fields}`). */
+  endpoint: string
 }
 
 export interface ShellManifest {

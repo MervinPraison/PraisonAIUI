@@ -1,10 +1,12 @@
-import { Menu, Monitor, Moon, Search, Sun } from 'lucide-react'
+import { Menu, Monitor, Moon, Search, SlidersHorizontal, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { isMacPlatform, openCommandPalette, paletteShortcutLabel, preloadCommandPalette } from './palette'
 import { Kbd } from '@/components/ui/kbd'
 import type { ShellPage } from '@/sdk/manifest'
 import { SHELL_SLOTS, Slot } from './Slot'
+import { useSettingsSections } from '@/sdk/contributions'
+import { openSettingsDialog, preloadSettingsDialog } from './settingsForm'
 
 const MODES = ['system', 'light', 'dark'] as const
 type Mode = (typeof MODES)[number]
@@ -30,6 +32,27 @@ export function ModeToggle() {
       className="text-muted-foreground hover:text-foreground"
     >
       <Icon />
+    </Button>
+  )
+}
+
+/** Opens the settings dialog; shown only while some plugin contributes a section. */
+function SettingsButton() {
+  const sections = useSettingsSections()
+  if (sections.length === 0) return null
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      onClick={() => openSettingsDialog()}
+      onPointerEnter={preloadSettingsDialog}
+      onFocus={preloadSettingsDialog}
+      aria-label="Plugin settings"
+      aria-haspopup="dialog"
+      data-aiui-settings-button=""
+      className="text-muted-foreground hover:text-foreground"
+    >
+      <SlidersHorizontal />
     </Button>
   )
 }
@@ -110,6 +133,7 @@ export function ShellHeader({
       <div className="flex shrink-0 items-center gap-1">
         <Slot name={SHELL_SLOTS.headerActions} pageId={pageId} page={page} className="flex items-center gap-1" />
         <SearchButton />
+        <SettingsButton />
         <ModeToggle />
       </div>
     </header>

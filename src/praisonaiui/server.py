@@ -1215,7 +1215,7 @@ _FALLBACK_EXTERNALS: dict[str, list[str]] = {
         "getToolRenderers", "subscribe", "useRegistryVersion", "Markdown",
         "SDK_FEATURES", "navigate", "notify", "fetchJson", "useManifest",
         "registerCommand", "onActivate", "getPageId", "usePageId", "useThemeMode",
-        "dismiss",
+        "dismiss", "registerSettingsSection", "registerNavGroup", "registerThemePreset",
     ],
 }
 

@@ -167,6 +167,11 @@ def __getattr__(name: str):
         "PageSpec",
         "BlockSpec",
         "ToolRendererSpec",
+        "SettingsSectionSpec",
+        "SettingsField",
+        "NavGroupSpec",
+        "ThemeSpec",
+        "get_plugin_settings",
     }
     _instrumentation_attrs = {
         "instrument_openai",
@@ -613,6 +618,11 @@ __all__ = [
     "PageSpec",
     "BlockSpec",
     "ToolRendererSpec",
+    "SettingsSectionSpec",
+    "SettingsField",
+    "NavGroupSpec",
+    "ThemeSpec",
+    "get_plugin_settings",
     # ── PraisonAIUI-native, non-developer-friendly names ────────────
     # Shorter, plain-English aliases for the symbols above.  Use these
     # in new code; the original names remain importable for backward
