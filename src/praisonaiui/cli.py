@@ -1240,6 +1240,86 @@ def dev(
                 console.print("\n[green]Dev server stopped.[/green]")
 
 
+def _apply_chat_yaml(chat_yaml: dict) -> Optional[str]:
+    """Apply a YAML chat config (style, dashboard, theme, branding, pages)
+    through the public APIs and register its callbacks.
+
+    Returns the YAML's style, if it names one.
+    """
+    import praisonaiui as _aiui
+
+    style = None
+    if "style" in chat_yaml:
+        _aiui.set_style(chat_yaml["style"])
+        style = chat_yaml["style"]
+    if "dashboard" in chat_yaml and isinstance(chat_yaml["dashboard"], dict):
+        _aiui.set_dashboard(
+            **{
+                k.replace("pageHeader", "page_header"): v
+                for k, v in chat_yaml["dashboard"].items()
+                if k.replace("pageHeader", "page_header") in ("sidebar", "page_header")
+            }
+        )
+    if "theme" in chat_yaml and isinstance(chat_yaml["theme"], dict):
+        _aiui.set_theme(
+            **{k.replace("darkMode", "dark_mode"): v for k, v in chat_yaml["theme"].items()}
+        )
+    if "branding" in chat_yaml and isinstance(chat_yaml["branding"], dict):
+        _aiui.set_branding(**chat_yaml["branding"])
+    if "pages" in chat_yaml and isinstance(chat_yaml["pages"], list):
+        _aiui.set_pages(chat_yaml["pages"])
+
+    # Auto-register callbacks from YAML
+    _register_yaml_chat(chat_yaml)
+    return style
+
+
+def _load_user_module(app_file: Path):
+    """Execute *app_file* as module ``user_app`` (registers its callbacks)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("user_app", app_file)
+    if spec is None or spec.loader is None:
+        return None
+    user_module = importlib.util.module_from_spec(spec)
+    sys.modules["user_app"] = user_module
+    spec.loader.exec_module(user_module)
+    return user_module
+
+
+def _make_datastore(name: str):
+    """``(store, label)`` for an ``aiui run --datastore`` value.
+
+    Raises ``ValueError`` for an unknown name.
+    """
+    if name == "memory":
+        from praisonaiui.datastore import MemoryDataStore
+
+        return MemoryDataStore(), name
+    if name == "sdk":
+        try:
+            from praisonaiui.datastore_sdk import SDKFileDataStore
+
+            return SDKFileDataStore(), name
+        except (ImportError, Exception):
+            from praisonaiui.datastore import JSONFileDataStore
+
+            return JSONFileDataStore(), "json (sdk fallback)"
+    if name.startswith("sdk:"):
+        from praisonaiui.datastore_sdk import SDKFileDataStore
+
+        return SDKFileDataStore(session_dir=name[4:]), name
+    if name == "json":
+        from praisonaiui.datastore import JSONFileDataStore
+
+        return JSONFileDataStore(), name
+    if name.startswith("json:"):
+        from praisonaiui.datastore import JSONFileDataStore
+
+        return JSONFileDataStore(data_dir=name[5:]), name
+    raise ValueError(f"Unknown datastore: {name}")
+
+
 def _register_yaml_chat(chat_yaml: dict) -> None:
     """Register chat callbacks from a YAML configuration.
 
@@ -1542,8 +1622,7 @@ def run(
         aiui run app.py --datastore json:/tmp/my-sessions  # Custom persistence path
         aiui run config.yaml                 # YAML-defined chat agent
     """
-    import importlib.util
-    import sys
+    import os
 
     if style not in UI_STYLES:
         console.print(f"[red]Error:[/red] Unknown --style {style!r}. Choose one of: {', '.join(UI_STYLES)}")
@@ -1579,49 +1658,21 @@ def run(
         if "datastore" in chat_yaml and datastore == "memory":
             datastore = chat_yaml["datastore"]
 
-        # Apply style/dashboard/theme/branding from YAML via protocol APIs
-        import praisonaiui as _aiui
-
-        if "style" in chat_yaml:
-            if chat_yaml["style"] not in UI_STYLES:
-                # A warning, not an error: configs that ran before keep running.
-                console.print(
-                    f"[yellow]Warning:[/yellow] Unknown style {chat_yaml['style']!r} in {app_file}. "
-                    f"Known styles: {', '.join(UI_STYLES)}"
-                )
-            _aiui.set_style(chat_yaml["style"])
-            style = chat_yaml["style"]
-        if "dashboard" in chat_yaml and isinstance(chat_yaml["dashboard"], dict):
-            _aiui.set_dashboard(
-                **{
-                    k.replace("pageHeader", "page_header"): v
-                    for k, v in chat_yaml["dashboard"].items()
-                    if k.replace("pageHeader", "page_header") in ("sidebar", "page_header")
-                }
+        if "style" in chat_yaml and chat_yaml["style"] not in UI_STYLES:
+            # A warning, not an error: configs that ran before keep running.
+            console.print(
+                f"[yellow]Warning:[/yellow] Unknown style {chat_yaml['style']!r} in {app_file}. "
+                f"Known styles: {', '.join(UI_STYLES)}"
             )
-        if "theme" in chat_yaml and isinstance(chat_yaml["theme"], dict):
-            _aiui.set_theme(
-                **{k.replace("darkMode", "dark_mode"): v for k, v in chat_yaml["theme"].items()}
-            )
-        if "branding" in chat_yaml and isinstance(chat_yaml["branding"], dict):
-            _aiui.set_branding(**chat_yaml["branding"])
-        if "pages" in chat_yaml and isinstance(chat_yaml["pages"], list):
-            _aiui.set_pages(chat_yaml["pages"])
-
-        # Auto-register callbacks from YAML
-        _register_yaml_chat(chat_yaml)
+        style = _apply_chat_yaml(chat_yaml) or style
         is_chat_mode = True
     else:
         # Load the user's app module FIRST to register callbacks
         console.print(f"[yellow]{_icon('⏳', '...')}[/yellow] Loading {app_file}...")
-        spec = importlib.util.spec_from_file_location("user_app", app_file)
-        if spec is None or spec.loader is None:
+        user_module = _load_user_module(app_file)
+        if user_module is None:
             console.print(f"[red]Error:[/red] Could not load {app_file}")
             raise typer.Exit(code=1)
-
-        user_module = importlib.util.module_from_spec(spec)
-        sys.modules["user_app"] = user_module
-        spec.loader.exec_module(user_module)
 
         # Check if app.py registered a @reply callback (chat mode)
         from praisonaiui.server import _callbacks
@@ -1798,35 +1849,13 @@ def run(
         # Set up datastore
         from praisonaiui.server import set_datastore
 
-        if datastore == "memory":
-            from praisonaiui.datastore import MemoryDataStore
-
-            store = MemoryDataStore()
-        elif datastore == "sdk":
-            try:
-                from praisonaiui.datastore_sdk import SDKFileDataStore
-
-                store = SDKFileDataStore()
-            except (ImportError, Exception):
-                from praisonaiui.datastore import JSONFileDataStore
-
-                store = JSONFileDataStore()
-                datastore = "json (sdk fallback)"
-        elif datastore.startswith("sdk:"):
-            from praisonaiui.datastore_sdk import SDKFileDataStore
-
-            store = SDKFileDataStore(session_dir=datastore[4:])
-        elif datastore == "json":
-            from praisonaiui.datastore import JSONFileDataStore
-
-            store = JSONFileDataStore()
-        elif datastore.startswith("json:"):
-            from praisonaiui.datastore import JSONFileDataStore
-
-            store = JSONFileDataStore(data_dir=datastore[5:])
-        else:
+        try:
+            store, datastore_label = _make_datastore(datastore)
+        except ValueError:
             console.print(f"[red]Error:[/red] Unknown datastore: {datastore}")
             raise typer.Exit(code=1)
+        datastore_requested = datastore
+        datastore = datastore_label
 
         set_datastore(store)
 
@@ -1866,14 +1895,36 @@ def run(
 
         import uvicorn
 
-        uvicorn.run(
-            server_app,
-            host=host,
-            port=actual_port,
-            log_level="info",
-            reload=reload,
-            reload_dirs=[str(app_file.parent)] if reload else None,
-        )
+        if reload:
+            # uvicorn can only reload an app it imports itself: hand it the
+            # factory, which rebuilds this app (module, style, datastore,
+            # static dir) in each worker from AIUI_RUN_SPEC.
+            from praisonaiui._run_factory import SPEC_ENV, encode_spec
+
+            os.environ[SPEC_ENV] = encode_spec(
+                app_file=app_file,
+                is_yaml=is_yaml,
+                style=style,
+                datastore=datastore_requested,
+                static_dir=static_dir,
+                config_path=config_path,
+            )
+            uvicorn.run(
+                "praisonaiui._run_factory:create",
+                factory=True,
+                host=host,
+                port=actual_port,
+                log_level="info",
+                reload=True,
+                reload_dirs=[str(app_file.resolve().parent)],
+            )
+        else:
+            uvicorn.run(
+                server_app,
+                host=host,
+                port=actual_port,
+                log_level="info",
+            )
 
 
 # ---------------------------------------------------------------------------
