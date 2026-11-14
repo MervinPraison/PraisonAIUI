@@ -750,6 +750,26 @@ def _get_site_section() -> dict:
         return {}
 
 
+def _shell_default_theme() -> str:
+    """The colour mode the app shell starts in before the viewer picks one.
+
+    ``set_theme(dark_mode=...)`` wins, then YAML ``site.theme`` (``mode:
+    light|dark|system`` or ``darkMode``). Without either the shell follows
+    the OS (``system``).
+    """
+    if isinstance(_theme, dict) and isinstance(_theme.get("darkMode"), bool):
+        return "dark" if _theme["darkMode"] else "light"
+    section = _get_site_section().get("theme")
+    if isinstance(section, dict):
+        mode = section.get("mode")
+        if mode in ("light", "dark", "system"):
+            return mode
+        dark = section.get("darkMode", section.get("dark_mode"))
+        if isinstance(dark, bool):
+            return "dark" if dark else "light"
+    return "system"
+
+
 # ── Dynamic HTML & plugin config generation ─────────────────────────
 
 
@@ -784,13 +804,15 @@ def _build_html(style: str, request: Optional[Request] = None) -> str:
         "</script>"
     )
     if style == "app":
-        # The shell's next-themes provider defaults to "system", so a viewer
-        # with no stored preference follows the OS before first paint too
-        # (no light frame for a first-time visitor in dark mode).
+        # A viewer with no stored preference gets the app's default
+        # (set_theme / YAML; see _shell_default_theme, also on
+        # <html data-aiui-theme-default> for next-themes), else the OS mode,
+        # before first paint (no light frame for a dark app).
         theme_bootstrap = (
             '<script id="aiui-theme-bootstrap">'
             "(function(){var d=document.documentElement,t=null;"
             "try{t=localStorage.getItem('aiui-theme-preference');}catch(e){}"
+            "if(t!=='dark'&&t!=='light'&&t!=='system')t=d.getAttribute('data-aiui-theme-default');"
             "try{if(t!=='dark'&&t!=='light')"
             "t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}catch(e){}"
             "if(t==='dark')d.classList.add('dark');"
@@ -865,7 +887,10 @@ def _build_html(style: str, request: Optional[Request] = None) -> str:
     html_open = '<html lang="en">'
     shell_head = ""
     if style == "app":
-        html_open = '<html lang="en" data-aiui-shell="react">'
+        html_open = (
+            '<html lang="en" data-aiui-shell="react" '
+            f'data-aiui-theme-default="{_shell_default_theme()}">'
+        )
         theme_vars_tag = _shell_theme_tag()
         shell_head = _shell_head(cache_bust, request)
 

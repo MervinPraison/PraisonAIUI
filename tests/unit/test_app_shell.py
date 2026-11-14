@@ -127,7 +127,9 @@ def test_app_html_structure():
     srv.set_style("app")
     client = _client()
     text = client.get("/").text
-    assert text.startswith('<!doctype html><html lang="en" data-aiui-shell="react">')
+    assert text.startswith(
+        '<!doctype html><html lang="en" data-aiui-shell="react" data-aiui-theme-default="system">'
+    )
     scripts = _scripts(text)
     types = [s.get("type") for s in scripts]
     assert types.count("importmap") == 1
@@ -405,14 +407,15 @@ def _bootstrap_js(text: str) -> str:
     return text.split('<script id="aiui-theme-bootstrap">', 1)[1].split("</script>", 1)[0]
 
 
-def _run_bootstrap(js: str, stored, prefers_dark: bool) -> bool:
+def _run_bootstrap(js: str, stored, prefers_dark: bool, default: str | None = None) -> bool:
     node = shutil.which("node")
     if not node:
         pytest.skip("node not installed")
     harness = (
         "const cls=new Set();"
         "globalThis.document={documentElement:{classList:"
-        "{add:c=>cls.add(c),remove:c=>cls.delete(c)}}};"
+        "{add:c=>cls.add(c),remove:c=>cls.delete(c)},"
+        f"getAttribute:()=>{json.dumps(default)}}}}};"
         f"const stored={json.dumps(stored)};"
         "globalThis.localStorage={getItem:()=>stored};"
         f"globalThis.matchMedia=()=>({{matches:{'true' if prefers_dark else 'false'}}});"
@@ -438,6 +441,41 @@ def _run_bootstrap(js: str, stored, prefers_dark: bool) -> bool:
 def test_app_theme_bootstrap_defaults_to_system(stored, prefers_dark, dark):
     js = _bootstrap_js(srv._build_html("app"))
     assert _run_bootstrap(js, stored, prefers_dark) is dark
+
+
+def _theme_default_attr(text: str) -> str:
+    return re.search(r'data-aiui-theme-default="(\w+)"', text).group(1)
+
+
+@pytest.mark.parametrize("dark_mode,expected", [(True, "dark"), (False, "light")])
+def test_app_shell_follows_set_theme_dark_mode(dark_mode, expected):
+    """set_theme(dark_mode=...) decides the first-visit mode under app, as it
+    does for the legacy dashboard, whatever the OS prefers."""
+    prev = srv._theme
+    try:
+        srv.set_theme(preset="indigo", dark_mode=dark_mode)
+        text = srv._build_html("app")
+    finally:
+        srv._theme = prev
+    assert _theme_default_attr(text) == expected
+    js = _bootstrap_js(text)
+    for prefers_dark in (True, False):
+        assert _run_bootstrap(js, None, prefers_dark, expected) is dark_mode
+    # an explicit viewer choice still wins
+    assert _run_bootstrap(js, "light", True, expected) is False
+    assert _run_bootstrap(js, "dark", False, expected) is True
+
+
+def test_app_shell_default_theme_from_yaml_mode(monkeypatch):
+    monkeypatch.setattr(srv, "_theme", None)
+    monkeypatch.setattr(srv, "_get_site_section", lambda: {"theme": {"mode": "dark"}})
+    assert srv._shell_default_theme() == "dark"
+    monkeypatch.setattr(srv, "_get_site_section", lambda: {"theme": {"darkMode": False}})
+    assert srv._shell_default_theme() == "light"
+    monkeypatch.setattr(srv, "_get_site_section", lambda: {"theme": {"mode": "system", "darkMode": True}})
+    assert srv._shell_default_theme() == "system"
+    monkeypatch.setattr(srv, "_get_site_section", lambda: {})
+    assert srv._shell_default_theme() == "system"
 
 
 def test_dashboard_theme_bootstrap_unchanged_for_missing_preference():

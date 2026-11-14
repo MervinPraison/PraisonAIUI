@@ -115,6 +115,16 @@ async function loadManifest(): Promise<Boot> {
   }
 }
 
+/**
+ * The app's colour mode for a viewer with no stored choice: the server puts
+ * set_theme(dark_mode=...) / YAML site.theme on <html data-aiui-theme-default>
+ * (the inline theme bootstrap reads the same attribute before first paint).
+ */
+export function shellDefaultTheme(root: HTMLElement = document.documentElement): 'light' | 'dark' | 'system' {
+  const v = root.getAttribute('data-aiui-theme-default')
+  return v === 'light' || v === 'dark' ? v : 'system'
+}
+
 export function ShellApp({ initialManifest }: { initialManifest: ShellManifest | null }) {
   const [boot, setBoot] = useState<Boot>(() =>
     initialManifest ? ready(initialManifest) : { status: 'loading' },
@@ -134,7 +144,7 @@ export function ShellApp({ initialManifest }: { initialManifest: ShellManifest |
   const reload = () => setBoot({ status: 'loading' })
 
   return (
-    <ThemeProvider attribute="class" storageKey="aiui-theme-preference" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider attribute="class" storageKey="aiui-theme-preference" defaultTheme={shellDefaultTheme()} enableSystem disableTransitionOnChange>
       {boot.status === 'ready' ? (
         <ShellReady manifest={boot.manifest} />
       ) : boot.status === 'auth' ? (
