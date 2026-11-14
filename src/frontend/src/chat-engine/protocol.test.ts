@@ -232,3 +232,45 @@ test('convertMessage: elements become data-element (never `image`), statuses and
   assert.equal(user.attachments?.[0].type, 'document')
   assert.equal(user.status, undefined)
 })
+
+test('run_completed.suggestions land in custom.suggestions; a final reply is stamped completedAt (layouts §3)', () => {
+  const before = Date.now()
+  const m = run([
+    { type: 'run_started', run_id: 'R1' },
+    { type: 'token', token: 'Hi' },
+    { type: 'run_completed', content: 'Hi', suggestions: ['  Time all three  ', 'Time all three', '', 42, 'Explain stability'] },
+  ] as WireEvent[])
+  assert.deepEqual(m.custom?.suggestions, ['Time all three', 'Explain stability'])
+  assert.ok(m.completedAt && m.completedAt >= before && m.completedAt >= m.createdAt)
+  // Absent or empty: no key at all, so chips stay hidden.
+  assert.equal(run([{ type: 'run_completed', content: 'x' }]).custom, undefined)
+  assert.equal(run([{ type: 'run_completed', content: 'x', suggestions: [] }]).custom, undefined)
+  // Also accepted under extra_data (the SSE /run shape).
+  assert.deepEqual(run([{ type: 'run_completed', content: 'x', extra_data: { suggestions: ['Next'] } }]).custom?.suggestions, ['Next'])
+  // At most eight, each at most 200 chars.
+  const many = run([{ type: 'run_completed', content: 'x', suggestions: Array.from({ length: 12 }, (_, i) => `s${i}`.padEnd(300, '.')) }])
+  const got = many.custom?.suggestions as string[]
+  assert.equal(got.length, 8)
+  assert.ok(got.every((t) => t.length === 200))
+})
+
+test('completedAt: unset while running or paused on a gate; set on error and cancel; kept once set', () => {
+  assert.equal(run([{ type: 'run_started' }, { type: 'token', token: 'a' }]).completedAt, undefined)
+  const gated = run([
+    { type: 'run_paused', extra_data: { type: 'approval_required', id: 'ap', tool_name: 'shell' } },
+    { type: 'run_completed', content: 'x' },
+  ])
+  assert.equal(gated.status?.type, 'requires-action')
+  assert.equal(gated.completedAt, undefined)
+  assert.ok(run([{ type: 'run_error', error: 'boom' }]).completedAt)
+  assert.ok(run([{ type: 'run_cancelled' }]).completedAt)
+  const done = { ...run([{ type: 'run_completed', content: 'x' }]), completedAt: 1 }
+  assert.equal(applyEvent(done, { type: 'run_completed', content: 'x' }).message.completedAt, 1)
+})
+
+test('history: completed_at and suggestions of a saved reply are restored', () => {
+  const m = fromHistory({ role: 'assistant', content: 'ok', completed_at: '2026-01-02T03:04:05Z', suggestions: ['More'] }, 0)
+  assert.equal(m.completedAt, Date.parse('2026-01-02T03:04:05Z'))
+  assert.deepEqual(m.custom?.suggestions, ['More'])
+  assert.equal(fromHistory({ role: 'assistant', content: 'ok' }, 0).completedAt, undefined)
+})
