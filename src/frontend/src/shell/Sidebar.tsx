@@ -111,9 +111,13 @@ export function SidebarNav({
     revealInScroller(nav, el)
     if (heading) revealInScroller(nav, heading)
   }, [activeId, collapsed])
-  useEffect(() => {
+  // Expanding the rail drops any tooltip left over from collapsed mode.
+  // Adjusted during render (not in an effect) to avoid a cascading re-render.
+  const [tipCollapsed, setTipCollapsed] = useState(collapsed)
+  if (tipCollapsed !== collapsed) {
+    setTipCollapsed(collapsed)
     if (!collapsed) setTip(null)
-  }, [collapsed])
+  }
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col', className)}>
       <nav
