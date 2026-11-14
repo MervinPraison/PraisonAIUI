@@ -154,6 +154,51 @@ def test_bad_bodies_are_refused(client, body, status):
     assert client.put("/api/artifacts/s1/k", json=body).status_code == status
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "javascript:alert(1)",
+        "java\nscript:alert(1)",  # the URL parser drops tab, CR and LF anywhere
+        "java\tscript:alert(1)",
+        "jav\r\nascript:alert(1)",
+        "\u0001javascript:alert(1)",  # and strips leading C0 controls and spaces
+        "\x00 \x1fJAVASCRIPT:alert(1)",
+        "javascript:alert(1)\x00",
+        "vbscript:msgbox(1)",
+        "data:text/html,<script>alert(1)</script>",
+        "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
+        "data:,alert(1)",
+        "file:///etc/passwd",
+        "/files/a\x00.png",  # a control character left inside
+    ],
+)
+def test_urls_a_browser_would_run_or_open_are_refused(client, url):
+    r = client.put("/api/artifacts/s1/k", json={"kind": "file", "url": url})
+    assert r.status_code == 400, url
+    assert client.get("/api/artifacts/s1").json()["artifacts"] == []
+
+
+@pytest.mark.parametrize(
+    "url, stored",
+    [
+        ("/files/a.png", "/files/a.png"),
+        ("files/report.pdf", "files/report.pdf"),
+        ("?download=1", "?download=1"),
+        ("https://example.com/a.csv", "https://example.com/a.csv"),
+        ("HTTP://example.com/a", "HTTP://example.com/a"),
+        ("blob:https://host/123", "blob:https://host/123"),
+        ("data:image/png;base64,iVBORw0KGgo=", "data:image/png;base64,iVBORw0KGgo="),
+        ("DATA:IMAGE/gif;base64,R0lG", "DATA:IMAGE/gif;base64,R0lG"),
+        ("  /files/a\n.png\t ", "/files/a.png"),  # stored as the browser reads it
+    ],
+)
+def test_paths_http_blob_and_data_images_are_allowed_and_normalised(client, url, stored):
+    r = client.put("/api/artifacts/s1/k", json={"kind": "file", "url": url})
+    assert r.status_code == 200 and r.json()["artifact"]["url"] == stored
+    [row] = client.get("/api/artifacts/s1").json()["artifacts"]
+    assert row["url"] == stored
+
+
 def test_limits(client, monkeypatch):
     from praisonaiui.features import artifacts
 

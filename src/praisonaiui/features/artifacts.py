@@ -31,6 +31,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -66,6 +67,37 @@ def artifacts_dir() -> Path:
     return feature_data_path("artifacts", aiui_default_data_dir() / "artifacts")
 
 
+#: Leading and trailing characters a browser strips from a URL (C0 controls and space).
+_URL_TRIM = "".join(chr(c) for c in range(0x21))
+_URL_DROPPED = re.compile(r"[\t\n\r]")
+_URL_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+_URL_SCHEME = re.compile(r"^([A-Za-z][A-Za-z0-9+.-]*):")
+_URL_SCHEMES = ("http", "https", "blob")
+
+
+def _safe_url(url: str) -> str:
+    """*url* as a browser reads it, when it may go in an ``href`` or ``src``.
+
+    The WHATWG URL parser drops every tab, CR and LF and strips leading and
+    trailing C0 controls and spaces, so ``"java\\nscript:"`` and
+    ``"\\x01javascript:"`` are ``javascript:`` once rendered. The URL is
+    normalised the same way first, then checked against an allowlist: a
+    relative or same-origin path (no scheme), ``http:``, ``https:``,
+    ``blob:``, and ``data:image/`` (the policy of ``markdown/urlPolicy.ts``).
+    The normalised form is what gets stored.
+    """
+    s = _URL_DROPPED.sub("", url).strip(_URL_TRIM)
+    if _URL_CONTROL.search(s):
+        raise ArtifactError("url must not contain control characters")
+    m = _URL_SCHEME.match(s)
+    if m is None:
+        return s
+    scheme = m.group(1).lower()
+    if scheme in _URL_SCHEMES or s.lower().startswith("data:image/"):
+        return s
+    raise ArtifactError("url scheme not allowed: use a path, http(s), blob or data:image/")
+
+
 def _session_file(session_id: str) -> Path:
     digest = hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:32]
     return artifacts_dir() / f"{digest}.json"
@@ -97,9 +129,8 @@ def _clean(session_id: str, key: str, body: Any) -> Dict[str, Any]:
             raise ArtifactError(f"{name} must be a string of at most {limit} characters")
         out[name] = value
     out.setdefault("messageId", "")
-    url = out.get("url", "")
-    if url and url.split(":", 1)[0].strip().lower() in ("javascript", "vbscript"):
-        raise ArtifactError("url scheme not allowed")
+    if "url" in out:
+        out["url"] = _safe_url(out["url"])
     content = body.get("content")
     if content is not None:
         if not isinstance(content, str):
