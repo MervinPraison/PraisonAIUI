@@ -331,24 +331,15 @@ function pause(m: AiuiMessage, ev: WireEvent): AiuiMessage {
 const stampDone = (m: AiuiMessage, now = Date.now()): AiuiMessage => (m.completedAt ? m : { ...m, completedAt: now })
 
 /**
- * `run_completed.suggestions`: follow-up prompts the frame may offer as
- * chips. Strings only, trimmed, deduplicated, at most 8 of 200 chars each.
+ * `run_completed.suggestions`: follow-up prompts a layout may offer as chips.
+ * Strings only, trimmed, deduplicated, at most 8 of 200 chars each; none
+ * leaves `custom` as it was.
  */
-export function readSuggestions(v: unknown): string[] | undefined {
-  if (!Array.isArray(v)) return undefined
-  const out: string[] = []
-  for (const x of v) {
-    if (typeof x !== 'string') continue
-    const t = x.trim().slice(0, 200)
-    if (t && !out.includes(t)) out.push(t)
-    if (out.length === 8) break
-  }
-  return out.length ? out : undefined
-}
-
 function withSuggestions(m: AiuiMessage, raw: unknown): AiuiMessage {
-  const suggestions = readSuggestions(raw)
-  return suggestions ? { ...m, custom: { ...m.custom, suggestions } } : m
+  const suggestions = Array.isArray(raw)
+    ? [...new Set(raw.filter((x): x is string => typeof x === 'string').map((x) => x.trim().slice(0, 200)).filter(Boolean))].slice(0, 8)
+    : []
+  return suggestions.length ? { ...m, custom: { ...m.custom, suggestions } } : m
 }
 
 function finalize(m: AiuiMessage, content: string | undefined): AiuiMessage {
@@ -518,8 +509,6 @@ export function fromHistory(raw: JSONObject, i: number): AiuiMessage {
       m = { ...m, parts: m.parts.map((p) => (p.type === 'tool-call' ? { ...p, timing: undefined } : p)) }
     }
     for (const el of (raw.elements as unknown[] | undefined) ?? []) m = addElement(m, el)
-    const done = Date.parse(s(raw.completed_at) ?? '')
-    if (done) m.completedAt = done
     m = withSuggestions(m, raw.suggestions)
   } else if (role === 'user') {
     const attachments = historyAttachments(raw.attachments)

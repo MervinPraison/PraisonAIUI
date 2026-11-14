@@ -3,7 +3,7 @@
 // by the chat page and the SessionsFeed a layout frame reads.
 import { afterEach, beforeEach, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { SETTLE_REFRESH_MS, sessionsStore } from './sessionsStore'
+import { resetSessionsForTests, SETTLE_REFRESH_MS, sessionsStore } from './sessionsStore'
 import { threadStore } from './store'
 import type { AiuiTransport, SendArgs } from './transports'
 
@@ -49,7 +49,7 @@ const tick = () => new Promise((r) => setTimeout(r, 0))
 const ids = () => sessionsStore.get().sessions.map((s) => s.id)
 
 beforeEach(() => {
-  sessionsStore.resetForTests()
+  resetSessionsForTests()
   threadStore.reset()
   calls = []
   listed = []
@@ -57,7 +57,7 @@ beforeEach(() => {
   installFetch()
 })
 afterEach(() => {
-  sessionsStore.resetForTests()
+  resetSessionsForTests()
   threadStore.reset()
   globalThis.fetch = realFetch
 })

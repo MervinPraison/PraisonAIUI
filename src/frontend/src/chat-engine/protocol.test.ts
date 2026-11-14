@@ -268,9 +268,7 @@ test('completedAt: unset while running or paused on a gate; set on error and can
   assert.equal(applyEvent(done, { type: 'run_completed', content: 'x' }).message.completedAt, 1)
 })
 
-test('history: completed_at and suggestions of a saved reply are restored', () => {
-  const m = fromHistory({ role: 'assistant', content: 'ok', completed_at: '2026-01-02T03:04:05Z', suggestions: ['More'] }, 0)
-  assert.equal(m.completedAt, Date.parse('2026-01-02T03:04:05Z'))
-  assert.deepEqual(m.custom?.suggestions, ['More'])
-  assert.equal(fromHistory({ role: 'assistant', content: 'ok' }, 0).completedAt, undefined)
+test('history: the suggestions of a saved reply are restored', () => {
+  assert.deepEqual(fromHistory({ role: 'assistant', content: 'ok', suggestions: ['More'] }, 0).custom?.suggestions, ['More'])
+  assert.equal(fromHistory({ role: 'assistant', content: 'ok' }, 0).custom, undefined)
 })

@@ -46,7 +46,7 @@ let settleTimer: ReturnType<typeof setTimeout> | undefined
 let sharedTransport: AiuiTransport | null = null
 
 function build(): SessionsSnapshot {
-  return Object.freeze({ sessions: mergeSessions(server, local), activeId, loading, error, selection })
+  return { sessions: mergeSessions(server, local), activeId, loading, error, selection }
 }
 
 function setActive(id: string | null) {
@@ -57,13 +57,7 @@ function setActive(id: string | null) {
 
 function emit() {
   snapshot = build()
-  for (const fn of [...listeners]) {
-    try {
-      fn()
-    } catch (err) {
-      console.error('[aiui chat] sessions listener failed', err)
-    }
-  }
+  for (const fn of [...listeners]) fn()
 }
 
 /** Refresh shortly after a turn ends, while anyone is listening. */
@@ -151,7 +145,7 @@ export const sessionsStore = {
   },
 
   /** Stop a live run, delete the chat, and select a new chat if it was open. */
-  async remove(id: string, transport: AiuiTransport = chatTransport()): Promise<void> {
+  async remove(id: string, transport: AiuiTransport): Promise<void> {
     if (threadStore.get(id).isRunning) await threadStore.cancel(transport, id)
     await deleteSession(id)
     deletedIds.add(id)
@@ -161,20 +155,20 @@ export const sessionsStore = {
     if (activeId === id) setActive(null)
     emit()
   },
+}
 
-  /** Test hook: back to an empty, loading store with no listeners. */
-  resetForTests(): void {
-    unwatchSettled()
-    listeners.clear()
-    deletedIds.clear()
-    server = []
-    local = {}
-    activeId = null
-    selection = 0
-    loading = true
-    error = null
-    refreshSeq = 0
-    sharedTransport = null
-    snapshot = build()
-  },
+/** Test hook: back to an empty, loading store with no listeners. */
+export function resetSessionsForTests(): void {
+  unwatchSettled()
+  listeners.clear()
+  deletedIds.clear()
+  server = []
+  local = {}
+  activeId = null
+  selection = 0
+  loading = true
+  error = null
+  refreshSeq = 0
+  sharedTransport = null
+  snapshot = build()
 }
