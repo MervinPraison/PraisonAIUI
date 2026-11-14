@@ -68,6 +68,12 @@ baselines are committed so far. On a platform without baselines the
 screenshot tests are **skipped** and the DOM checks still run; this is why
 the screenshot comparison is not enforced in CI (Linux) yet.
 
+Exception: `darwin/logs-light.png` and `darwin/usage-light.png` were
+re-captured from the build that fixed the dashboard's light mode
+(`--update-snapshots`): v0.3.153 painted the log panel and the usage cards
+with their dark literals on a light page, which was the bug. Re-capturing
+from v0.3.153 would bring the dark panels back into those two baselines.
+
 Baselines are captured from the v0.3.153 release itself, with the same spec:
 
 ```bash
