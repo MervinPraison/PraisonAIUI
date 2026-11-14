@@ -213,6 +213,9 @@ class ChatMessage:
     # This reply replaces the previous answer to the same question
     # (Regenerate); ``visible_history`` hides the replaced one.
     regenerates: bool = False
+    # Files sent with a user message: ``[{id, name, content_type}]``. Kept so
+    # a reloaded thread shows them and Regenerate can resend them.
+    attachments: Optional[List[Dict[str, Any]]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {
@@ -234,6 +237,8 @@ class ChatMessage:
             d["error"] = self.error
         if self.regenerates:
             d["regenerates"] = True
+        if self.attachments:
+            d["attachments"] = self.attachments
         return d
 
 
@@ -355,6 +360,7 @@ class ChatManager(ChatProtocol):
             content=content,
             session_id=session_id,
             agent_name=agent_name,
+            attachments=attachment_refs(attachments) or None,
         )
 
         # Store in history
@@ -648,13 +654,11 @@ async def _chat_send(request: Request) -> JSONResponse:
         existing = await _datastore.get_session(session_id)
         if existing is None:
             await _datastore.create_session(session_id)
-        await _datastore.add_message(
-            session_id,
-            {
-                "role": "user",
-                "content": content,
-            },
-        )
+        user_msg: Dict[str, Any] = {"role": "user", "content": content}
+        refs = attachment_refs(attachment_ids)
+        if refs:
+            user_msg["attachments"] = refs
+        await _datastore.add_message(session_id, user_msg)
     except Exception:
         pass
 
@@ -1368,8 +1372,8 @@ def _ws_ask_allowed(mgr: ChatManager, client_id: str, session_id: Any, run_id: A
     return mgr.may_control_session(client_id, target)
 
 
-async def _can_regenerate(mgr: ChatManager, session_id: str, content: str) -> bool:
-    """Is *content* the last question asked in *session_id* (and answered)?"""
+async def _last_user_message(mgr: ChatManager, session_id: str) -> Optional[Dict[str, Any]]:
+    """The last question asked in *session_id* (datastore first, then memory)."""
     from praisonaiui.server import _datastore
 
     try:
@@ -1380,7 +1384,34 @@ async def _can_regenerate(mgr: ChatManager, session_id: str, content: str) -> bo
         messages = [m.to_dict() for m in mgr._history.get(session_id, [])]
     messages = visible_history(list(messages))
     users = [m for m in messages if isinstance(m, dict) and m.get("role") == "user"]
-    return bool(users) and str(users[-1].get("content", "")).strip() == content.strip()
+    return users[-1] if users else None
+
+
+def _regenerate_target(last_user: Optional[Dict[str, Any]], content: str) -> bool:
+    return last_user is not None and str(last_user.get("content", "")).strip() == content.strip()
+
+
+async def _can_regenerate(mgr: ChatManager, session_id: str, content: str) -> bool:
+    """Is *content* the last question asked in *session_id* (and answered)?"""
+    return _regenerate_target(await _last_user_message(mgr, session_id), content)
+
+
+def saved_attachment_ids(message: Optional[Dict[str, Any]]) -> List[str]:
+    """Attachment ids stored on a history message (see :func:`attachment_refs`)."""
+    if not isinstance(message, dict):
+        return []
+    raw = message.get("attachments")
+    if not isinstance(raw, list):
+        meta = message.get("metadata")
+        raw = meta.get("attachments") if isinstance(meta, dict) else None
+    if not isinstance(raw, list):
+        return []
+    ids: List[str] = []
+    for ref in raw:
+        att_id = ref.get("id") if isinstance(ref, dict) else ref
+        if isinstance(att_id, str) and att_id:
+            ids.append(att_id)
+    return ids
 
 
 async def _rewind_provider(session_id: str, agent_name: Optional[str]) -> None:
@@ -1396,6 +1427,38 @@ async def _rewind_provider(session_id: str, agent_name: Optional[str]) -> None:
             await result
     except Exception as exc:  # never block a regenerate on it
         logger.debug("rewind_last_turn failed: %s", exc)
+
+
+def attachment_refs(attachment_ids: Any) -> List[Dict[str, Any]]:
+    """``[{id, name, content_type}]`` for the attachment ids of a user message.
+
+    Saved on the message so a reloaded thread can show the files and a
+    Regenerate after a reload sends them to the provider again. Unknown ids
+    are kept with the id alone.
+    """
+    if not isinstance(attachment_ids, list):
+        return []
+    try:
+        from praisonaiui.features.attachments import get_attachment_manager
+
+        att_mgr = get_attachment_manager()
+    except Exception:
+        att_mgr = None
+    refs: List[Dict[str, Any]] = []
+    for att_id in attachment_ids:
+        if isinstance(att_id, dict):
+            att_id = att_id.get("id")
+        if not isinstance(att_id, str) or not att_id:
+            continue
+        ref: Dict[str, Any] = {"id": att_id}
+        meta = att_mgr.get(att_id) if att_mgr is not None else None
+        if isinstance(meta, dict):
+            if meta.get("filename"):
+                ref["name"] = meta["filename"]
+            if meta.get("content_type"):
+                ref["content_type"] = meta["content_type"]
+        refs.append(ref)
+    return refs
 
 
 class _BadFrame(Exception):
@@ -1531,10 +1594,19 @@ async def _chat_ws(websocket: WebSocket) -> None:
                     mgr.note_client_session(client_id, session_id)
                     from praisonaiui.server import _datastore
 
+                    # Extract attachment_ids
+                    att_ids = data.get("attachment_ids") or []
+                    if not isinstance(att_ids, list):
+                        att_ids = []
                     if regenerate:
                         # Answer the last question again instead of asking it
                         # twice: only when it really is the last question.
-                        regenerate = await _can_regenerate(mgr, session_id, content)
+                        last_user = await _last_user_message(mgr, session_id)
+                        regenerate = _regenerate_target(last_user, content)
+                        if regenerate and not att_ids:
+                            # A client that reloaded the thread may not know
+                            # the files the question carried: reuse them.
+                            att_ids = saved_attachment_ids(last_user)
                     if regenerate:
                         await _rewind_provider(session_id, agent_name)
                     else:
@@ -1543,23 +1615,20 @@ async def _chat_ws(websocket: WebSocket) -> None:
                             content,
                             session_id=session_id,
                             agent_name=agent_name,
+                            attachments=att_ids,
                         )
                         # Also persist user message to datastore
                         try:
                             existing = await _datastore.get_session(session_id)
                             if existing is None:
                                 await _datastore.create_session(session_id)
-                            await _datastore.add_message(
-                                session_id,
-                                {
-                                    "role": "user",
-                                    "content": content,
-                                },
-                            )
+                            user_msg: Dict[str, Any] = {"role": "user", "content": content}
+                            refs = attachment_refs(att_ids)
+                            if refs:
+                                user_msg["attachments"] = refs
+                            await _datastore.add_message(session_id, user_msg)
                         except Exception:
                             pass
-                    # Extract attachment_ids
-                    att_ids = data.get("attachment_ids") or []
                     # Run agent and broadcast
                     asyncio.create_task(
                         _run_and_broadcast(

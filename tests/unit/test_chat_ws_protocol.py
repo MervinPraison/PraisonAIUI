@@ -1359,3 +1359,87 @@ def test_praisonai_provider_rewind_last_turn_only_touches_session_agents():
     p._agent = shared  # a pre-configured agent is never rewound
     assert p.rewind_last_turn(session_id="other") is False
     assert len(shared.chat_history) == 4
+
+
+# ── attachments survive a reload for Regenerate (R4) ──────────────────
+
+
+class _RecordingEcho(_CountingEcho):
+    def __init__(self) -> None:
+        super().__init__()
+        self.messages: List[str] = []
+
+    async def run(self, message, *, session_id=None, agent_name=None, **kw):
+        self.messages.append(message)
+        async for ev in super().run(message, session_id=session_id, agent_name=agent_name, **kw):
+            yield ev
+
+
+def _upload_text(tmp_path, text: str) -> str:
+    from praisonaiui.features import attachments as att_mod
+
+    mgr = att_mod.AttachmentManager(storage_dir=str(tmp_path / "att"))
+    att_mod._attachment_manager = mgr
+    return mgr.upload(text.encode(), "att.txt", "text/plain", session_id="s-att")["id"]
+
+
+def test_regenerate_after_reload_resends_the_saved_attachment(monkeypatch, _isolated, tmp_path):
+    from praisonaiui.features import attachments as att_mod
+
+    prev = att_mod._attachment_manager
+    try:
+        att_id = _upload_text(tmp_path, "SECRET-FILE-CONTENT-42")
+        provider = _RecordingEcho()
+        _use_provider(monkeypatch, provider)
+        with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+            ws.send_json(
+                {
+                    "type": "chat",
+                    "content": "plain read file",
+                    "session_id": "s-att",
+                    "attachment_ids": [att_id],
+                }
+            )
+            _read_until(ws, _turn_done("s-att"))
+            history = client.get("/api/chat/history/s-att").json()["messages"]
+            user = history[0]
+            assert user["role"] == "user"
+            assert user["attachments"] == [
+                {"id": att_id, "name": "att.txt", "content_type": "text/plain"}
+            ]
+            # After a reload the client knows the text only: no attachment_ids.
+            ws.send_json(
+                {
+                    "type": "chat",
+                    "content": "plain read file",
+                    "session_id": "s-att",
+                    "regenerate": True,
+                }
+            )
+            _read_until(ws, _turn_done("s-att"))
+        assert len(provider.messages) == 2
+        assert "SECRET-FILE-CONTENT-42" in provider.messages[0]
+        assert "SECRET-FILE-CONTENT-42" in provider.messages[1]
+    finally:
+        att_mod._attachment_manager = prev
+
+
+def test_regenerate_with_explicit_attachments_uses_those(monkeypatch, _isolated, tmp_path):
+    from praisonaiui.features import attachments as att_mod
+
+    prev = att_mod._attachment_manager
+    try:
+        first = _upload_text(tmp_path, "FIRST-FILE")
+        second = att_mod._attachment_manager.upload(b"SECOND-FILE", "b.txt", "text/plain")["id"]
+        provider = _RecordingEcho()
+        _use_provider(monkeypatch, provider)
+        with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+            ws.send_json({"type": "chat", "content": "q", "session_id": "s-att2", "attachment_ids": [first]})
+            _read_until(ws, _turn_done("s-att2"))
+            ws.send_json(
+                {"type": "chat", "content": "q", "session_id": "s-att2", "regenerate": True, "attachment_ids": [second]}
+            )
+            _read_until(ws, _turn_done("s-att2"))
+        assert "SECOND-FILE" in provider.messages[1] and "FIRST-FILE" not in provider.messages[1]
+    finally:
+        att_mod._attachment_manager = prev
