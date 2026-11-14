@@ -73,7 +73,7 @@ jobs:
         working-directory: src/frontend
 
       - name: Lint the React shell
-        run: npx eslint src/shell src/chat-engine src/markdown src/legacy src/sdk src/blocks e2e
+        run: npx eslint src/shell src/chat-engine src/markdown src/legacy src/sdk src/blocks src/builtin e2e
         working-directory: src/frontend
 
       # `npm run build` is the ship path: dist/ is synced to
