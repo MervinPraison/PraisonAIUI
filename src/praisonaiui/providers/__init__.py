@@ -128,6 +128,39 @@ def _build_stream_event_mapping():
     return mapping
 
 
+class _ReasoningCoalescer:
+    """Joins streamed reasoning deltas into one reasoning block.
+
+    A reasoning model streams its thinking as ``DELTA_TEXT`` pieces with
+    ``is_reasoning`` (a few characters each, mapped to ``REASONING_STEP``
+    events with a ``token``), and both chat UIs draw one row per
+    ``REASONING_STEP``. Consecutive pieces are held back and sent as
+    ``REASONING_STARTED``, a single ``REASONING_STEP`` with the joined text and
+    ``REASONING_COMPLETED`` when the next other event arrives or the run ends.
+    Whole reasoning steps (``ThoughtStep``, no ``token``) pass through as before.
+    """
+
+    def __init__(self) -> None:
+        self._pieces: List[str] = []
+
+    def feed(self, evt: RunEvent) -> List[RunEvent]:
+        if evt.type == RunEventType.REASONING_STEP and evt.token is not None:
+            self._pieces.append(evt.token)
+            return []
+        return [*self.flush(), evt]
+
+    def flush(self) -> List[RunEvent]:
+        text = "".join(self._pieces).strip()
+        self._pieces = []
+        if not text:
+            return []
+        return [
+            RunEvent(type=RunEventType.REASONING_STARTED),
+            RunEvent(type=RunEventType.REASONING_STEP, step=text),
+            RunEvent(type=RunEventType.REASONING_COMPLETED),
+        ]
+
+
 def _stream_event_to_run_event(stream_event) -> Optional[RunEvent]:
     """Translate a praisonaiagents StreamEvent to a RunEvent."""
     global _STREAM_EVENT_MAPPING
@@ -954,6 +987,7 @@ class PraisonAIProvider(BaseProvider):
                 await event_queue.put(None)
 
         chat_task = asyncio.create_task(_run_chat())
+        _reasoning = _ReasoningCoalescer()
 
         # Drain tokens as they arrive from the streaming callback
         while True:
@@ -980,7 +1014,8 @@ class PraisonAIProvider(BaseProvider):
                 # Also try name as secondary key
                 if run_evt.name:
                     _pending_tool_calls.pop(run_evt.name, None)
-            yield run_evt
+            for out_evt in _reasoning.feed(run_evt):
+                yield out_evt
 
         # Drain any remaining events that arrived after sentinel
         while not event_queue.empty():
@@ -1001,9 +1036,12 @@ class PraisonAIProvider(BaseProvider):
                         _pending_tool_calls.pop(key, None)
                         if run_evt.name:
                             _pending_tool_calls.pop(run_evt.name, None)
-                    yield run_evt
+                    for out_evt in _reasoning.feed(run_evt):
+                        yield out_evt
             except asyncio.QueueEmpty:
                 break
+        for out_evt in _reasoning.flush():
+            yield out_evt
 
         await chat_task
 
