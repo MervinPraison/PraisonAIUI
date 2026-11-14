@@ -5,6 +5,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createElement, Suspense } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { prerenderToNodeStream } from 'react-dom/static'
 import {
   getBlock,
   getPage,
@@ -51,15 +52,12 @@ test('registerPage treats a zero-arg arrow returning import() as a lazy loader',
   const C = getPage('lazy')
   assert.ok(C)
   assert.notEqual(C, Lazy)
-  // React.lazy object; resolve it the way React would.
-  const payload = (C as unknown as { _payload: unknown; _init: (p: unknown) => unknown })
-  try {
-    payload._init(payload._payload)
-  } catch (thenable) {
-    await thenable
-  }
-  const resolved = payload._init(payload._payload)
-  assert.equal(resolved, Lazy)
+  // A lazy component (retryable): rendering it loads the module.
+  const { prelude } = await prerenderToNodeStream(createElement(Suspense, { fallback: 'x' }, createElement(C!, { page })))
+  let streamed = ''
+  for await (const chunk of prelude) streamed += String(chunk)
+  assert.match(streamed, /<b>p<\/b>/)
+  // Loaded: later renders are synchronous.
   const html = renderToStaticMarkup(createElement(Suspense, { fallback: 'x' }, createElement(C!, { page })))
   assert.equal(html, '<b>p</b>')
 })
