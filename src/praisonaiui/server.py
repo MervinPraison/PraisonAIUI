@@ -4332,7 +4332,22 @@ def create_app(
             routes.append(Route("/", _serve_index, methods=["GET"]))
 
         _static_app = StaticFiles(directory=str(static_dir), html=True)
-        _static_root = Path(static_dir)
+        _static_root = Path(static_dir).resolve()
+
+        def _inside_static_root(candidate: Path) -> Path | None:
+            """Resolve ``candidate`` and return it only if it stays in static_dir.
+
+            The request path is attacker-controlled (uvicorn decodes ``%2f``
+            to ``/`` before the app sees it), so every lookup must be
+            contained, as StaticFiles.lookup_path does.
+            """
+            try:
+                resolved = candidate.resolve()
+            except (OSError, RuntimeError, ValueError):
+                return None
+            if resolved == _static_root or resolved.is_relative_to(_static_root):
+                return resolved
+            return None
 
         async def _serve_static_file(scope, receive, send, file_path: Path, media_type: str | None = None):
             from starlette.responses import FileResponse
@@ -4350,18 +4365,18 @@ def create_app(
             request_path = scope.get("path", "")
             rel = request_path.lstrip("/")
             if rel:
-                exact = _static_root / rel
-                if exact.is_file():
+                exact = _inside_static_root(_static_root / rel)
+                if exact is not None and exact.is_file():
                     await _serve_static_file(scope, receive, send, exact)
                     return
                 if not request_path.endswith("/"):
-                    html_path = _static_root / f"{rel}.html"
-                    if html_path.is_file():
+                    html_path = _inside_static_root(_static_root / f"{rel}.html")
+                    if html_path is not None and html_path.is_file():
                         await _serve_static_file(scope, receive, send, html_path, media_type="text/html")
                         return
-                if exact.is_dir():
-                    index = exact / "index.html"
-                    if index.is_file():
+                if exact is not None and exact.is_dir():
+                    index = _inside_static_root(exact / "index.html")
+                    if index is not None and index.is_file():
                         await _serve_static_file(scope, receive, send, index, media_type="text/html")
                         return
 
