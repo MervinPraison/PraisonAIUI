@@ -13,6 +13,7 @@ from starlette.testclient import TestClient
 
 import praisonaiui.config_store as config_store
 import praisonaiui.dashboard_plugins as dp
+import praisonaiui.features as features_registry
 import praisonaiui.server as srv
 from praisonaiui.plugin_registry import (
     ENTRY_POINT_GROUP,
@@ -142,9 +143,14 @@ def site(tmp_path, monkeypatch):
     monkeypatch.setenv("AIUI_DATA_DIR", str(data))
     monkeypatch.setattr(config_store, "_config_store", None)
     config_store.init_config_store(data / "config.yaml")
+    # Plugin features (fakeplug-feature) land in the process-wide feature
+    # registry; restore it so later tests see only the built-in set.
+    saved_features = dict(features_registry._features)
     srv.reset_state()
     yield sp
     srv.reset_state()
+    features_registry._features.clear()
+    features_registry._features.update(saved_features)
     for m in _MODS:
         sys.modules.pop(m, None)
 

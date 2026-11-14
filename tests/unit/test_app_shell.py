@@ -177,11 +177,90 @@ def test_app_page_paths_keep_their_json_api_for_api_clients():
     assert "sessions" in client.get("/sessions", headers={"accept": "application/json"}).json()
 
 
-def test_dashboard_agents_path_stays_json_for_browsers():
+NAV = {"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}
+
+
+def test_dashboard_deep_link_to_every_page_serves_the_dashboard():
+    """The default style pushes /<page id> (dashboard.js selectPage), so a
+    reload or a pasted link must open the page, not the JSON API that shares
+    the path (GET /agents, GET /sessions used to win)."""
     srv.set_style("dashboard")
     client = _client()
-    res = client.get("/agents", headers={"accept": "text/html"})
-    assert res.headers["content-type"].startswith("application/json")
+    ids = [p["id"] for p in client.get("/api/pages").json()["pages"]]
+    assert {"agents", "sessions"} <= set(ids)
+    for page_id in ids:
+        res = client.get(f"/{page_id}", headers=NAV)
+        assert res.status_code == 200, page_id
+        assert res.headers["content-type"].startswith("text/html"), page_id
+        assert "/plugins/plugin-loader.js" in res.text, page_id
+    # same HTML as the root page
+    assert client.get("/sessions", headers=NAV).text == client.get("/").text
+
+
+@pytest.mark.parametrize("style", ["dashboard", "app"])
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {},  # fetch() default Accept: */*
+        {"accept": "application/json"},
+        {"accept": "application/json, text/html"},
+        {"accept": "text/html", "sec-fetch-mode": "cors"},  # fetch() asking for HTML
+        {"accept": "text/html", "x-requested-with": "XMLHttpRequest"},
+    ],
+)
+def test_page_paths_keep_their_json_api_for_api_clients(style, headers):
+    srv.set_style(style)
+    client = _client()
+    for path, key in (("/agents", "agents"), ("/sessions", "sessions")):
+        res = client.get(path, headers=headers)
+        assert res.headers["content-type"].startswith("application/json"), (path, headers)
+        assert key in res.json()
+
+
+@pytest.mark.parametrize("style", ["dashboard", "app"])
+def test_navigation_header_decides_without_accept(style):
+    srv.set_style(style)
+    client = _client()
+    res = client.get("/sessions", headers={"accept": "*/*", "sec-fetch-mode": "navigate"})
+    assert res.headers["content-type"].startswith("text/html")
+
+
+def test_navigation_only_diverts_page_ids_and_page_styles():
+    srv.set_style("dashboard")
+    client = _client()
+    # not a page id: the JSON API answers a browser as before
+    assert client.get("/teams", headers=NAV).headers["content-type"].startswith("application/json")
+    # sub-paths stay the API
+    assert client.get("/sessions/none", headers=NAV).headers["content-type"].startswith(
+        "application/json"
+    )
+    # styles without page URLs keep the JSON
+    srv.set_style("chat")
+    client = _client()
+    assert client.get("/agents", headers=NAV).headers["content-type"].startswith("application/json")
+
+
+def test_page_navigation_with_a_static_dir_uses_its_fallback(tmp_path):
+    """With static_dir the catch-all is the static mount: a navigation gets
+    exactly what that mount serves for a page URL (the SPA HTML)."""
+    site = tmp_path / "site"
+    site.mkdir()
+    (site / "index.html").write_text("<html>static</html>", encoding="utf-8")
+    srv.set_style("dashboard")
+    client = TestClient(srv.create_app(static_dir=site))
+    nav = client.get("/sessions", headers=NAV)
+    assert nav.headers["content-type"].startswith("text/html")
+    assert nav.text == client.get("/chat", headers=NAV).text
+    assert "sessions" in client.get("/sessions").json()
+
+
+def test_app_page_whose_id_is_a_json_api_opens_as_a_page():
+    """Any page id, not only the built-ins: an app page named like an API."""
+    srv.set_style("dashboard")
+    srv.register_page("teams", title="Teams")
+    client = _client()
+    assert client.get("/teams", headers=NAV).headers["content-type"].startswith("text/html")
+    assert "teams" in client.get("/teams").json()
 
 
 def test_app_plugins_json_keeps_dashboard_modules():

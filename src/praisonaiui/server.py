@@ -26,7 +26,7 @@ from starlette.responses import (
     Response,
     StreamingResponse,
 )
-from starlette.routing import Mount, Route
+from starlette.routing import Mount, Route, request_response
 from starlette.staticfiles import StaticFiles
 
 from praisonaiui.datastore import BaseDataStore, JSONFileDataStore
@@ -1130,17 +1130,31 @@ async def _serve_index(request: Request) -> Response:
     return HTMLResponse(_build_html(style, request))
 
 
-def _is_app_page_navigation(request: Request) -> bool:
-    """True for a browser opening a shell page URL under style ``app``.
+#: Styles whose UI opens ``/<page id>`` as that page (dashboard.js
+#: ``selectPage`` and the app shell router). Other styles have no page URLs.
+_PAGE_PATH_STYLES = ("dashboard", "app")
+
+
+def _is_page_navigation(scope: dict) -> bool:
+    """True for a browser opening ``/<page id>`` (see ``NavigationRoute``).
 
     Some page ids (``agents``, ``sessions``) share their path with a JSON API
-    that is matched before the page fallback. A navigation asks for
-    ``text/html``; API clients (``fetch`` sends ``*/*``) keep getting JSON.
-    The legacy dashboard routes by ``?page=``/hash and is left unchanged.
+    that is matched before the page fallback. A navigation gets the page;
+    API clients (``fetch`` sends ``*/*``) keep getting JSON.
     """
-    if _effective_style != "app":
+    from praisonaiui.http_guard import is_browser_navigation
+
+    if _effective_style not in _PAGE_PATH_STYLES:
         return False
-    return "text/html" in request.headers.get("accept", "").lower()
+    page_id = scope.get("path", "")[1:]
+    if not page_id or "/" in page_id or not is_browser_navigation(scope):
+        return False
+    if page_id in _pages:
+        return True
+    # Pages from plugins and dashboard-plugin folders (the rest of the nav).
+    dash = _resolved_dashboard_config() or {}
+    extra = dash.get("pluginDirs") or dash.get("plugin_dirs") or []
+    return any(r.id == page_id for r in _page_records(_plugin_js_restricted(scope), extra))
 
 
 # ── React app shell (style="app") ────────────────────────────────────
@@ -1383,6 +1397,49 @@ def _resolved_dashboard_config() -> Optional[dict[str, Any]]:
     return None
 
 
+def _page_records(
+    restricted: bool,
+    extra_dirs: list,
+    *,
+    log_shadows: bool = False,
+    dashboard: bool = False,
+) -> list:
+    """Every page, one record per id: page table (app ``register_page`` and
+    built-ins), then plugin pages, then dashboard-plugin folders.
+
+    ``dashboard=True`` merges only the pages the legacy dashboard can render
+    (``api_row``), so a plugin page it cannot show (a React module) does not
+    hide a folder page with the same id from ``GET /api/pages``.
+    """
+    from praisonaiui.builtin import page_sources as ps
+    from praisonaiui.dashboard_plugins import discover_dashboard_plugins
+    from praisonaiui.plugin_registry import get_plugin_registry
+
+    reg = get_plugin_registry()
+    # Shell-only presentation of the built-in pages (nav icon, layout); the
+    # page table (/api/pages, the legacy dashboard) never carries it.
+    spec_by_id = {s.id: s for s in reg.pages(origin="builtin")}
+    table = [
+        ps.table_page(
+            p,
+            custom=p["id"] in _custom_page_ids,
+            has_handler=f"page:{p['id']}" in _callbacks,
+            native=p["id"] in _NATIVE_PAGES,
+            has_action=p["id"] in _page_actions,
+            builtin_spec=spec_by_id.get(p["id"]),
+        )
+        for p in _pages.values()
+    ]
+    plugins = [ps.plugin_page(s) for s in reg.pages(restricted=restricted)]
+    folders = ps.folder_pages(
+        discover_dashboard_plugins(extra_dirs, _dashboard_plugin_allowlist())
+    )
+    records = [*table, *plugins, *folders]
+    if dashboard:
+        records = [r for r in records if r.api_row is not None]
+    return ps.merge_pages(records, log_shadows=log_shadows)
+
+
 def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = True) -> dict[str, Any]:
     """Everything the React shell needs to draw nav and lazy-load page modules.
 
@@ -1391,82 +1448,13 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
     plugin > dashboard-plugin folder. A shadowed page logs a warning.
     """
     from praisonaiui.builtin.catalog import NAV_GROUPS
-    from praisonaiui.dashboard_plugins import discover_dashboard_plugins
     from praisonaiui.plugin_registry import SDK_API_VERSION, get_plugin_registry
 
     reg = get_plugin_registry()
-    log = logging.getLogger(__name__)
-    pages: list[dict[str, Any]] = []
-    seen: dict[str, str] = {}
-    # Shell-only presentation of the built-in pages (nav icon, layout); the
-    # page table (/api/pages, the legacy dashboard) never carries it.
-    spec_by_id = {s.id: s for s in reg.pages(origin="builtin")}
-
-    for p in _pages.values():
-        custom = p["id"] in _custom_page_ids
-        if custom:
-            kind = "blocks" if f"page:{p['id']}" in _callbacks else "legacy"
-        else:
-            kind = "native" if p["id"] in _NATIVE_PAGES else "legacy"
-        entry: dict[str, Any] = {
-            "id": p["id"],
-            "title": p.get("title", p["id"]),
-            "kind": kind,
-            "icon": p.get("icon", "file"),
-            "group": p.get("group", "Custom"),
-            "order": p.get("order", 100),
-            "description": p.get("description", ""),
-            "apiEndpoint": p.get("api_endpoint"),
-            "source": "app" if custom else "builtin",
-        }
-        for opt in ("layout", "position"):
-            if p.get(opt):
-                entry[opt] = p[opt]
-        spec = None if custom else spec_by_id.get(p["id"])
-        if spec is not None:
-            if spec.nav_icon:
-                entry["navIcon"] = spec.nav_icon
-            if spec.shell_layout:
-                entry["layout"] = spec.shell_layout
-        if p["id"] in _page_actions:
-            entry["actionEndpoint"] = f"/api/pages/{p['id']}/action"
-        pages.append(entry)
-        seen[p["id"]] = entry["source"]
-
-    for spec in reg.pages(restricted=restricted):
-        if spec.id in seen:
-            log.warning(
-                "plugin page %r (%s) is shadowed by an existing page (%s)",
-                spec.id, spec.source, seen[spec.id],
-            )
-            continue
-        pages.append(spec.to_dict())
-        seen[spec.id] = spec.source
-
     dash = _resolved_dashboard_config() or {}
     extra_dirs = dash.get("pluginDirs") or dash.get("plugin_dirs") or []
-    for m in discover_dashboard_plugins(extra_dirs, _dashboard_plugin_allowlist()):
-        page = m.get("page") or {}
-        if not page or not page.get("id"):
-            continue
-        source = f"dashboard-plugin:{m['name']}"
-        if page["id"] in seen:
-            if seen[page["id"]] != source:
-                log.debug("dashboard-plugin page %r shadowed by %s", page["id"], seen[page["id"]])
-            continue
-        pages.append(
-            {
-                "order": 100,
-                **page,
-                "kind": "legacy",
-                "module": f"/dashboard-plugins/{m['name']}/{m['entry']}",
-                **({"css": f"/dashboard-plugins/{m['name']}/{m['css']}"} if m.get("css") else {}),
-                "source": source,
-            }
-        )
-        seen[page["id"]] = source
-
-    pages.sort(key=lambda p: (p.get("order", 100), p["id"]))
+    records = _page_records(restricted, extra_dirs, log_shadows=True)
+    pages = [r.shell_row for r in records]
     site_section = _get_site_section()
     return {
         "sdk": SDK_API_VERSION,
@@ -2079,11 +2067,9 @@ async def list_agents(request: Request) -> Response:
     Returns the enriched third-party-chat-frontend-compatible schema
     (``agent_id``, ``name``, ``description``, ``model``, ``storage``,
     Issue #48) while keeping the legacy ``created_at`` field for
-    backward compatibility. Under style ``app`` a browser navigation to
-    ``/agents`` gets the shell page instead.
+    backward compatibility. A browser navigation to ``/agents`` never gets
+    here: it opens the Agents page (``_is_page_navigation``).
     """
-    if _is_app_page_navigation(request):
-        return HTMLResponse(_build_html(_effective_style, request))
     agents = [
         {
             "agent_id": name,
@@ -2160,9 +2146,7 @@ async def delete_team_session(request: Request) -> JSONResponse:
 
 
 async def list_sessions(request: Request) -> Response:
-    """List all sessions (style ``app``: a browser navigation gets the shell page)."""
-    if _is_app_page_navigation(request):
-        return HTMLResponse(_build_html(_effective_style, request))
+    """List all sessions (a browser navigation opens the Sessions page instead)."""
     sessions = await _datastore.list_sessions()
     return JSONResponse({"sessions": sessions})
 
@@ -2646,36 +2630,16 @@ def _builtin_page_entry(spec: Any) -> dict[str, Any]:
 
 
 async def api_pages(request: Request) -> JSONResponse:
-    """List registered dashboard pages (protocol-driven)."""
-    from praisonaiui.dashboard_plugins import discover_dashboard_plugins
+    """List registered dashboard pages (protocol-driven).
 
-    pages = list(_pages.values())
+    The same merged page list as the shell manifest (see
+    :mod:`praisonaiui.builtin.page_sources`), merged over only what the
+    legacy dashboard can render (plugin pages other than ``blocks`` drop
+    out before the merge, so they never hide a folder page).
+    """
     extra_dirs = (_dashboard_config or {}).get("pluginDirs") or []
-    known_ids = {p["id"] for p in pages}
-    for manifest in discover_dashboard_plugins(extra_dirs, _dashboard_plugin_allowlist()):
-        page = manifest.get("page")
-        if page and page["id"] not in known_ids:
-            pages.append(page)
-            known_ids.add(page["id"])
-    # Entry-point plugin pages the legacy dashboard can render too (server-driven
-    # ``_components`` blocks). React-module pages are app-shell only. Same
-    # default-deny rule as the shell manifest.
-    from praisonaiui.plugin_registry import get_plugin_registry
-
-    for spec in get_plugin_registry().pages(restricted=_plugin_js_restricted(request.scope)):
-        if spec.kind == "blocks" and spec.id not in known_ids:
-            pages.append(
-                {
-                    "id": spec.id,
-                    "title": spec.title,
-                    "icon": spec.icon,
-                    "group": spec.group,
-                    "description": spec.description,
-                    "api_endpoint": spec.api_endpoint,
-                    "order": spec.order,
-                }
-            )
-            known_ids.add(spec.id)
+    records = _page_records(_plugin_js_restricted(request.scope), extra_dirs, dashboard=True)
+    pages = [r.api_row for r in records]
     pages = sorted(pages, key=lambda p: (p.get("order", 100), p["id"]))
     return JSONResponse({"pages": pages})
 
@@ -4206,14 +4170,12 @@ def create_app(
             delete_team_session,
             methods=["DELETE"],
         ),
-        # Dashboard API
-        Route("/api/feedback", api_feedback, methods=["POST"]),
-        Route("/api/feedback", api_feedback_list, methods=["GET"]),
-        Route("/api/overview", api_overview, methods=["GET"]),
-        Route("/api/status", api_overview, methods=["GET"]),  # alias for CLI parity
+        # Dashboard API. Page-owned routes (GET /api/overview, GET
+        # /api/feedback, /api/logs, /api/debug, /api/mcp/*, the jobs proxy)
+        # are their built-in's host_routes, mounted below while it is on.
+        Route("/api/feedback", api_feedback, methods=["POST"]),  # chat thumbs
+        Route("/api/status", api_overview, methods=["GET"]),  # CLI parity
         Route("/api/config", api_config_handler, methods=["GET", "PUT"]),
-        # /api/logs and /api/debug belong to builtin.logs / builtin.debug
-        # (their host_routes, mounted below while those built-ins are on).
         # Note: /api/usage is now provided by PraisonAIUsage feature
         Route("/api/provider", api_provider, methods=["GET"]),
         Route("/api/provider/health", api_provider_health, methods=["GET"]),
@@ -4227,8 +4189,6 @@ def create_app(
         Route("/api/features", api_features, methods=["GET"]),
         # Component schema registry (built-in + user-registered)
         Route("/api/components/schemas", api_component_schemas, methods=["GET"]),
-        # Gateway status
-        # MCP (Model Context Protocol) API: builtin.mcp's host_routes.
         # OAuth + thread-sharing (issue #22)
         Route("/api/auth/oauth/{provider}", oauth_authorize_handler, methods=["GET"]),
         Route(
@@ -4368,11 +4328,8 @@ def create_app(
         pass
 
     # ── Auto-register and mount feature protocol routes ──────────────
-    from praisonaiui.jobs_proxy import jobs_proxy_routes
-
-    routes.extend(jobs_proxy_routes())
-    # Host-owned routes of the first-party plugins (MCP, debug, GET
-    # /api/logs): mounted only while their built-in is on.
+    # Host-owned routes of the first-party plugins (overview, feedback,
+    # jobs proxy, MCP, logs, debug): mounted only while their built-in is on.
     for _brec in _plugin_registry.builtin_records():
         _host_routes = getattr(_brec.plugin, "host_routes", None)
         if _brec.status == "ok" and callable(_host_routes):
@@ -4625,16 +4582,24 @@ def create_app(
         routes.append(Route("/{path:path}", _serve_index, methods=["GET"]))
 
     # The surface a logged-out browser needs (see http_guard.is_public_http):
-    # the HTML shell for page navigations and the share-link viewer. Data
-    # routes that double as page URLs are public only for a navigation.
-    from praisonaiui.http_guard import mark_public
+    # the HTML shell for page navigations and the share-link viewer.
+    from praisonaiui.http_guard import NavigationRoute, mark_public
 
     mark_public(_serve_index)
     mark_public(view_shared_thread_handler)
-    mark_public(list_agents, when=_is_app_page_navigation)
-    mark_public(list_sessions, when=_is_app_page_navigation)
+    _page_host: Any = _serve_index
     if static_dir and static_dir.exists():
-        mark_public(_http_only_static)
+        _page_host = mark_public(_http_only_static)
+    # First: a browser opening /<page id> gets the page even where a JSON API
+    # shares the path (GET /agents, /sessions); fetch() keeps getting JSON.
+    routes.insert(
+        0,
+        NavigationRoute(
+            _is_page_navigation,
+            _page_host,
+            request_response(_serve_index) if _page_host is _serve_index else _page_host,
+        ),
+    )
 
     app = Starlette(
         routes=routes,

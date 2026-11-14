@@ -3,6 +3,8 @@
 * ``is_public_http`` — the paths a logged-out browser needs (the HTML shell,
   static code, health). Auth middlewares gate everything else, deny by
   default, so a new route is protected without being listed anywhere.
+* ``is_browser_navigation`` / ``NavigationRoute`` — a top-level page load of
+  a URL that is also a JSON API gets the page, never the data.
 * WebSocket credentials and rejection (``websocket_token``,
   ``reject_websocket``), plus short-lived single-use WebSocket tickets
   (``POST /api/auth/ws-ticket``) so browsers never put a long-lived key in a
@@ -33,7 +35,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from starlette.routing import Match
+from starlette.routing import BaseRoute, Match, NoMatchFound
 
 # ── Public surface ───────────────────────────────────────────────────
 
@@ -125,6 +127,71 @@ def is_public_http(scope: dict) -> bool:
         except Exception:
             return False
     return False
+
+
+# ── Page navigations ─────────────────────────────────────────────────
+
+
+def is_browser_navigation(scope: dict) -> bool:
+    """True for a top-level page load, False for ``fetch()`` / XHR.
+
+    Browsers send ``Sec-Fetch-Mode: navigate`` only for a page load
+    (``fetch()`` sends ``cors`` / ``same-origin`` / ``no-cors``). Without
+    that header, a navigation asks for ``text/html`` and not for JSON
+    (``fetch()`` defaults to ``*/*``).
+    """
+    if scope.get("type") != "http" or scope.get("method", "GET") not in _SAFE_METHODS:
+        return False
+    mode = header(scope, b"sec-fetch-mode").strip().lower()
+    if mode:
+        return mode == "navigate"
+    if header(scope, b"x-requested-with"):
+        return False
+    accept = header(scope, b"accept").lower()
+    return "text/html" in accept and "application/json" not in accept
+
+
+class NavigationRoute(BaseRoute):
+    """Route that takes a request only when ``predicate(scope)`` is true.
+
+    The host puts one first in its route table, so a browser navigation to a
+    page URL that is also a JSON API (``GET /sessions``) gets the page while
+    ``fetch()`` keeps getting the API. ``endpoint`` is what auth middlewares
+    see for the request (:func:`_matched_endpoint`), so a navigation is
+    public exactly when that endpoint is (``mark_public``), and it never
+    reaches the data handler.
+    """
+
+    path = "{navigation}"
+
+    def __init__(self, predicate: Callable[[dict], bool], endpoint: Any, app: Any) -> None:
+        self.predicate = predicate
+        self.endpoint = endpoint
+        self.app = app
+
+    #: Per-request memo in the scope: auth middlewares match the route table
+    #: (:func:`_matched_endpoint`) before the router does, and the predicate
+    #: may scan plugin folders, so it runs once per request and path.
+    _MEMO_KEY = "aiui.navigation_match"
+
+    def matches(self, scope: dict) -> tuple[Match, dict]:
+        key = (id(self), scope.get("path", ""), scope.get("method", ""))
+        memo = scope.get(self._MEMO_KEY)
+        if memo is not None and memo[0] == key:
+            hit = memo[1]
+        else:
+            try:
+                hit = bool(self.predicate(scope))
+            except Exception:  # noqa: BLE001 - a failing check never diverts a request
+                hit = False
+            scope[self._MEMO_KEY] = (key, hit)
+        return (Match.FULL, {}) if hit else (Match.NONE, {})
+
+    async def handle(self, scope, receive, send) -> None:
+        await self.app(scope, receive, send)
+
+    def url_path_for(self, name: str, /, **path_params: Any):
+        raise NoMatchFound(name, path_params)
 
 
 # ── Credentials ──────────────────────────────────────────────────────
