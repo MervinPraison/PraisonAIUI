@@ -4,7 +4,7 @@
  * renderer, all loaded from the plugin's own files through the import map.
  */
 import { expect, test } from '@playwright/test'
-import { collectPageErrors } from './support'
+import { collectPageErrors, sidebarLink } from './support'
 
 test('the manifest lists the plugin and its surfaces', async ({ request }) => {
   const manifest = await (await request.get('/api/shell/manifest')).json()
@@ -21,7 +21,7 @@ test('the manifest lists the plugin and its surfaces', async ({ request }) => {
 test('a plugin React page renders in the shell and shares its React', async ({ page }) => {
   const errors = collectPageErrors(page)
   await page.goto('/overview')
-  await page.locator('[data-aiui-shell-sidebar] a[data-page-id="hello"]').click()
+  await (await sidebarLink(page, 'hello')).click()
   await expect(page).toHaveURL(/\/hello$/)
 
   const hello = page.getByTestId('hello-plugin')
@@ -84,6 +84,20 @@ test('a plugin that fails to load shows an error and a toast, not a blank shell'
   await expect(page.locator('[data-aiui-page="hello"]').getByRole('alert')).toContainText('is unavailable')
   await expect(page.locator('[data-sonner-toast]', { hasText: 'Plugin "hello" failed to load' })).toBeVisible()
   // Other pages still work.
-  await page.locator('[data-aiui-shell-sidebar] a[data-page-id="logs"]').click()
+  await (await sidebarLink(page, 'logs')).click()
   await expect(page.locator('[data-aiui-page="logs"] [data-status="ready"]')).toBeVisible()
+})
+
+test('a custom.js registerView takes priority over the page\'s server handler (set_custom_js)', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  await page.goto('/overview')
+  await (await sidebarLink(page, 'client-view')).click()
+  const area = page.locator('[data-aiui-page="client-view"]')
+  await expect(area.getByTestId('client-view')).toHaveText('Rendered by custom.js registerView')
+  await expect(area.locator('.aiui-legacy-host[data-status="ready"]')).toBeVisible()
+  await expect(area).not.toContainText('Server fallback')
+  // ...also when the page is opened from its URL.
+  await page.goto('/client-view')
+  await expect(page.getByTestId('client-view')).toBeVisible()
+  expect(errors.pageErrors).toEqual([])
 })

@@ -3,7 +3,7 @@
 It runs the real server (``create_app()``) with a scripted provider instead of
 an LLM, so every wire event the chat UI handles can be produced on demand.
 
-    python mock_server.py --port 8720 [--style chat] [--preset rose] [--plugin]
+    python mock_server.py --port 8720 [--style chat] [--preset rose] [--plugin] [--custom-js]
 
 Start it through ``start-server.mjs``, which sets ``AIUI_DATA_DIR`` (isolated),
 ``AIUI_TEMPLATES_DIR`` (the fresh build), ``PYTHONPATH`` and ``AIUI_SHELL``.
@@ -39,6 +39,7 @@ from praisonaiui.provider import BaseProvider, RunEvent, RunEventType
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 HELLO_PLUGIN = REPO_ROOT / "examples" / "plugins" / "aiui-hello-plugin"
+CUSTOM_JS = Path(__file__).resolve().parent / "custom-js" / "custom.js"
 
 # An image the page can always load (the chat only auto-loads same-origin,
 # data:image/ and blob: URLs).
@@ -228,6 +229,11 @@ def main() -> None:
     parser.add_argument(
         "--plugin", action="store_true", help="register the example hello plugin in-process"
     )
+    parser.add_argument(
+        "--custom-js",
+        action="store_true",
+        help="set_custom_js() with a registerView for 'client-view', a page that also has a server handler",
+    )
     args = parser.parse_args()
 
     if "AIUI_DATA_DIR" not in os.environ:
@@ -246,6 +252,19 @@ def main() -> None:
         from aiui_hello import plugin
 
         aiui.register_plugin(plugin)
+    if args.custom_js:
+        # A handler page (kind=blocks under the app shell) whose client view in
+        # custom.js must take priority, as in the legacy dashboard.
+        async def client_view_fallback() -> dict:
+            return {"_components": [{"type": "text", "content": "Server fallback: plugin not loaded"}]}
+
+        aiui.register_page(
+            "client-view",
+            title="Client view",
+            icon="🧩",
+            handler=client_view_fallback,
+        )
+        aiui.set_custom_js(CUSTOM_JS)
 
     app = ApprovalMock(srv.create_app())
     uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")

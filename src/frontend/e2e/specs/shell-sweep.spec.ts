@@ -7,13 +7,14 @@
  * whatever the server registers; it only looks at what a user can see.
  */
 import { expect, test, type Page } from '@playwright/test'
-import { installLeakProbe, leakDelta, leakDetail, leakSnapshot } from './leak-probe'
-import { collectPageErrors, hasHorizontalOverflow, setColorMode } from './support'
+import { installLeakProbe, leakDelta, leakDetail, leakSnapshot, type LeakDelta } from './leak-probe'
+import { collectPageErrors, hasHorizontalOverflow, setColorMode, sidebarLink } from './support'
 
 interface ManifestPage {
   id: string
   title: string
   kind: string
+  apiEndpoint?: string | null
 }
 
 /** A path no page owns: the shell shows "Page not found" and mounts no view. */
@@ -34,6 +35,36 @@ const KNOWN_LEAKS: Record<string, string> = {}
 // Pages whose URL does not open the app when loaded directly, each with the
 // reason. Empty: an entry that starts working fails the test until removed.
 const KNOWN_BROKEN_DEEP_LINKS: Record<string, string> = {}
+// Pages that render but whose own data endpoint answers an error (the page
+// shows an error body, not its content), each with the reason. An entry that
+// starts working fails the sweep until it is removed here.
+const KNOWN_BROKEN_PAGES: Record<string, string> = {}
+/**
+ * What a page may leave behind after its FIRST visit, with the reason: a
+ * library it loads once (its own window listeners, a measuring node) stays
+ * loaded for the rest of the session. Anything above these numbers, or on a
+ * page not listed, fails the sweep; so does a page listed here that leaves
+ * nothing (remove it). Connections are never allowed. Growth on a second visit
+ * is always a leak.
+ */
+const FIRST_VISIT_ALLOWANCE: Record<string, { allow: LeakDelta; reason: string }> = {
+  chat: {
+    allow: { windowListeners: 13, bodyChildren: 1 },
+    reason:
+      'the chat chunk loads once: its libraries register global pointer/mouse/touch/click listeners at module load, ' +
+      "and react-textarea-autosize (the composer) keeps one hidden measuring <textarea> in <body>",
+  },
+  'chat-canvas': {
+    allow: { windowListeners: 1 },
+    reason: 'a one-time DOMContentLoaded listener from the canvas view module, registered when it is first imported',
+  },
+  'code-studio': {
+    allow: { intervals: 1, windowListeners: 1, bodyChildren: 2 },
+    reason:
+      "Monaco (loaded once from its CDN): its own interval (L.cancelAndSet in editor.main.js), a 'message' listener, " +
+      'and its .context-view and .monaco-aria-container nodes in <body>; code-studio clears its own interval on cleanup',
+  },
+}
 
 async function manifestPages(page: Page): Promise<ManifestPage[]> {
   const res = await page.request.get('/api/shell/manifest')
@@ -57,6 +88,16 @@ async function pageState(page: Page, id: string): Promise<PageState> {
       .map((el) => el.getAttribute('data-status') || '')
       .filter((v) => v === 'loading' || v === 'ready' || v === 'error')
     if (statuses.includes('error')) return { state: 'error' as const, detail: host.innerText.trim().slice(0, 200) }
+    // A view that printed a raw server error body ({"error": "Not Found", ...}).
+    const text = host.innerText.trim()
+    if (text.startsWith('{') && text.endsWith('}')) {
+      try {
+        const body = JSON.parse(text) as Record<string, unknown>
+        if (body && typeof body === 'object' && 'error' in body) return { state: 'error' as const, detail: text.slice(0, 200) }
+      } catch {
+        /* not JSON: ordinary content */
+      }
+    }
     const alert = host.querySelector('[role="alert"]')
     if (alert && /failed to load|page not found/i.test(alert.textContent || '')) {
       return { state: 'error' as const, detail: (alert.textContent || '').trim().slice(0, 200) }
@@ -118,22 +159,47 @@ test('every manifest page renders with no errors and no leaks', async ({ page },
   const rows: Record<string, unknown>[] = []
   const stillListed = new Set(Object.keys(KNOWN_LEAKS).filter((id) => pages.some((p) => p.id === id)))
 
+  const brokenStillListed = new Set(Object.keys(KNOWN_BROKEN_PAGES).filter((id) => pages.some((p) => p.id === id)))
+  const allowanceStillListed = new Set(Object.keys(FIRST_VISIT_ALLOWANCE).filter((id) => pages.some((p) => p.id === id)))
+  const gutters: { id: string; left: number }[] = []
+  // The page's own data endpoint answering 4xx/5xx while the page is on screen.
+  let apiErrors: string[] = []
+  let watchedEndpoint = ''
+  page.on('response', (res) => {
+    if (!watchedEndpoint || res.status() < 400) return
+    try {
+      if (new URL(res.url()).pathname === watchedEndpoint) apiErrors.push(`${res.status()} ${watchedEndpoint}`)
+    } catch {
+      /* not a URL */
+    }
+  })
+
   let before = await leakSnapshot(page)
-  for (const { id, kind } of pages) {
+  for (const { id, kind, apiEndpoint } of pages) {
     const errorsBefore = errors.pageErrors.length
-    const link = page.locator(`[data-aiui-shell-sidebar] a[data-page-id="${id}"]`)
+    const link = await sidebarLink(page, id)
     if ((await link.count()) !== 1) {
       failures.push(`${id}: no sidebar link`)
       continue
     }
 
-    // First visit: the page must render. What it leaves behind once (a loaded
-    // library's own listeners, a measuring node) is recorded, not failed,
-    // except connections: nothing may keep a socket open after it is left.
+    // First visit: the page must render, its own endpoint must not fail, and
+    // what it leaves behind once must be within its FIRST_VISIT_ALLOWANCE.
     await link.scrollIntoViewIfNeeded()
+    apiErrors = []
+    watchedEndpoint = apiEndpoint && apiEndpoint.startsWith('/') ? apiEndpoint.split('?')[0] : ''
     await link.click()
-    const state = await waitForPage(page, id)
+    let state = await waitForPage(page, id)
     await page.waitForTimeout(150)
+    watchedEndpoint = ''
+    if (state.state === 'ready' && apiErrors.length) state = { state: 'error', detail: `its data endpoint answered ${apiErrors[0]}` }
+    // Legacy pages share the shell's gutter: their first content box starts where every other page's does.
+    const gutter = await page.evaluate((pageId) => {
+      const host = document.querySelector(`[data-aiui-page="${CSS.escape(pageId)}"] .aiui-legacy-host:not(.db-fill)`)
+      const mount = host?.querySelector('.aiui-legacy-mount')
+      return mount ? Math.round(mount.getBoundingClientRect().left) : null
+    }, id)
+    if (gutter !== null) gutters.push({ id, left: gutter })
     await leaveAndSettle(page)
     const afterFirst = await leakSnapshot(page)
     const firstVisit = leakDelta(before, afterFirst)
@@ -149,13 +215,28 @@ test('every manifest page renders with no errors and no leaks', async ({ page },
 
     const pageErrors = errors.pageErrors.slice(errorsBefore)
     rows.push({ id, kind, state: state.state, pageErrors: pageErrors.length, firstVisit, perVisit })
-    if (state.state !== 'ready') failures.push(`${id}: ${state.state} (${state.detail})`)
+    if (state.state !== 'ready' && KNOWN_BROKEN_PAGES[id]) {
+      brokenStillListed.delete(id)
+      testInfo.annotations.push({ type: 'known-broken', description: `${id}: ${KNOWN_BROKEN_PAGES[id]} (${state.detail})` })
+    } else if (state.state !== 'ready') {
+      failures.push(`${id}: ${state.state} (${state.detail})`)
+    }
     if (pageErrors.length) failures.push(`${id}: page error: ${pageErrors[0]}`)
 
     const leaks: string[] = []
     if (CONNECTIONS.some((k) => (firstVisit[k] ?? 0) > 0)) {
       leaks.push(`left a connection open: ${JSON.stringify(firstVisit)}`)
     }
+    const allowance = FIRST_VISIT_ALLOWANCE[id]
+    const over = Object.entries(firstVisit).filter(
+      ([k, n]) => !CONNECTIONS.includes(k as (typeof CONNECTIONS)[number]) && (n ?? 0) > ((allowance?.allow as Record<string, number> | undefined)?.[k] ?? 0),
+    )
+    if (over.length) {
+      failures.push(
+        `${id}: left more behind on its first visit than allowed: ${JSON.stringify(firstVisit)} (allowed ${JSON.stringify(allowance?.allow ?? {})}) ${JSON.stringify(await leakDetail(page))}`,
+      )
+    }
+    if (allowance && Object.values(firstVisit).some((n) => (n ?? 0) > 0)) allowanceStillListed.delete(id)
     if (Object.values(perVisit).some((n) => (n ?? 0) > 0)) {
       leaks.push(`leaks on every visit: ${JSON.stringify(perVisit)}`)
     }
@@ -169,6 +250,14 @@ test('every manifest page renders with no errors and no leaks', async ({ page },
   for (const id of stillListed) {
     failures.push(`${id}: no longer leaks. Remove it from KNOWN_LEAKS (${KNOWN_LEAKS[id]})`)
   }
+  for (const id of brokenStillListed) {
+    failures.push(`${id}: renders now. Remove it from KNOWN_BROKEN_PAGES (${KNOWN_BROKEN_PAGES[id]})`)
+  }
+  for (const id of allowanceStillListed) {
+    failures.push(`${id}: leaves nothing behind now. Remove it from FIRST_VISIT_ALLOWANCE (${FIRST_VISIT_ALLOWANCE[id].reason})`)
+  }
+  const lefts = [...new Set(gutters.map((g) => g.left))]
+  if (lefts.length > 1) failures.push(`legacy pages start at different x positions: ${JSON.stringify(gutters)}`)
 
   const ready = rows.filter((r) => r.state === 'ready').length
   console.log(`shell sweep: ${ready}/${pages.length} pages ready, ${errors.pageErrors.length} page errors`)
@@ -239,7 +328,8 @@ test('the command palette opens with the keyboard and navigates', async ({ page 
   await expect(search).toBeVisible()
   // Only the shell's palette may open: the legacy dashboard has its own.
   await expect(page.getByRole('dialog')).toHaveCount(1)
-  await search.fill('Logs')
+  // A prefix outranks fuzzy matches (Knowledge used to win for "log").
+  await search.fill('log')
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/\/logs$/)
   expect((await waitForPage(page, 'logs')).state).toBe('ready')
@@ -262,13 +352,13 @@ test('a new approval raises a toast that opens the approvals page, except on cha
     expect((await waitForPage(page, 'overview')).state).toBe('ready')
 
     // Chat shows approvals in its own thread, so no toast is raised there.
-    await page.locator('[data-aiui-shell-sidebar] a[data-page-id="chat"]').click()
+    await (await sidebarLink(page, 'chat')).click()
     await expect(page.getByRole('textbox', { name: 'Message' })).toBeVisible()
     await requestApproval('e2e_on_chat')
     await page.waitForTimeout(2_000)
     await expect(page.locator('[data-sonner-toast]', { hasText: 'e2e_on_chat' })).toHaveCount(0)
 
-    await page.locator('[data-aiui-shell-sidebar] a[data-page-id="overview"]').click()
+    await (await sidebarLink(page, 'overview')).click()
     expect((await waitForPage(page, 'overview')).state).toBe('ready')
     await requestApproval('e2e_deploy')
     const toast = page.locator('[data-sonner-toast]', { hasText: 'Approval needed: e2e_deploy' })
@@ -281,4 +371,30 @@ test('a new approval raises a toast that opens the approvals page, except on cha
   } finally {
     for (const id of created) await page.request.post(`/api/approvals/${id}/deny`, { data: {} })
   }
+})
+
+test('a 5xx from /api/auth/status never covers the shell with the legacy onboarding wizard', async ({ page }) => {
+  await page.route('**/api/auth/status', (route) => route.fulfill({ status: 502, body: 'Bad Gateway' }))
+  await page.goto('/overview')
+  expect((await waitForPage(page, 'overview')).state).toBe('ready')
+  await page.goto('/chat')
+  await expect(page.locator('[data-aiui-page="chat"]')).toBeVisible()
+  await page.waitForTimeout(1_000)
+  await expect(page.locator('#aiui-onboarding')).toHaveCount(0)
+})
+
+test('overview says when its data failed to load, with a retry', async ({ page }) => {
+  await page.route('**/api/**', (route) => {
+    const path = new URL(route.request().url()).pathname
+    // Only the overview's own data sources fail; the shell itself keeps working.
+    if (/^\/api\/(agents|sessions|approvals\/pending|usage|channels|gateway|features|traces|config\/runtime)/.test(path)) {
+      return route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"boom"}' })
+    }
+    return route.continue()
+  })
+  await page.goto('/overview')
+  const area = page.locator('[data-aiui-page="overview"]')
+  await expect(area.locator('[data-ov-error="banner"]')).toContainText('could not be loaded')
+  await expect(area.locator('[data-ov-error="agents"]')).toContainText('Agents could not be loaded')
+  await expect(area).not.toContainText('No agents registered yet')
 })

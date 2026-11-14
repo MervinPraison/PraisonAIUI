@@ -6,7 +6,7 @@
  *   SSE        POST /run, used when the socket cannot open. The tests get it
  *              the way a user does: the WebSocket is blocked.
  */
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page, type WebSocketRoute } from '@playwright/test'
 import { collectPageErrors, hasHorizontalOverflow } from './support'
 
 const composer = (page: Page) => page.getByRole('textbox', { name: 'Message' })
@@ -205,4 +205,80 @@ test('chat markdown: highlighted code, table, math, diagram, safe links and imag
   await expect(reply.locator('img[src*="images.example.invalid"]')).toHaveCount(0)
   expect(remoteImageRequests).toEqual([])
   expect(await hasHorizontalOverflow(page)).toBe(false)
+})
+
+test('WebSocket: a dropped connection reconnects (closed, then open) and the next turn works', async ({ page }) => {
+  // Pass the socket through, so the test can drop it like a server restart would.
+  const routes: WebSocketRoute[] = []
+  await page.routeWebSocket(/\/api\/chat\/ws/, (ws) => {
+    ws.connectToServer()
+    routes.push(ws)
+  })
+  await openChat(page, 'ws')
+  await page.evaluate(() => {
+    const w = window as unknown as { __conn: string[] }
+    w.__conn = []
+    const badge = () => document.querySelector('[data-connection]')
+    new MutationObserver(() => w.__conn.push(badge()?.getAttribute('data-connection') ?? '')).observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-connection'],
+    })
+  })
+  const before = routes.length
+  await routes[routes.length - 1].close({ code: 1012, reason: 'service restart' })
+  await expect.poll(() => routes.length, { timeout: 20_000 }).toBeGreaterThan(before)
+  await expect(page.locator('[data-connection="open"]')).toBeVisible({ timeout: 20_000 })
+  const seen = await page.evaluate(() => (window as unknown as { __conn: string[] }).__conn)
+  expect(seen, 'the badge left "open" while the socket was down').toEqual(expect.arrayContaining(['closed']))
+  await send(page, 'plain after reconnect')
+  await expect(assistant(page).last()).toContainText('You said: plain after reconnect')
+  await waitForRunEnd(page)
+})
+
+test('two tabs on one session: each tab shows its own reply, and Stop stops only its own run', async ({ page, context }) => {
+  await openChat(page, 'ws')
+  await send(page, 'slow from tab one')
+  await expect(assistant(page).last()).toContainText('w3 ')
+  const url = page.url()
+  expect(url).toMatch(/[?&]session=/)
+
+  const tab2 = await context.newPage()
+  const frames2 = recordSentFrames(tab2)
+  await tab2.goto(url)
+  await expect(composer(tab2)).toBeVisible()
+  await expect(tab2.locator('[data-connection="open"]')).toBeVisible()
+  await send(tab2, 'plain from tab two')
+  const reply2 = assistant(tab2).last()
+  await expect(reply2).toContainText('You said: plain from tab two')
+  await waitForRunEnd(tab2)
+  await expect(reply2).not.toContainText('w5 ')
+  // Tab one is still streaming its own reply: tab two's run did not end it or
+  // write into it. Tab two's reply shows in tab one as a separate, read-only message.
+  const own = assistant(page).filter({ hasText: 'You said: slow from tab one' })
+  await expect(own).toHaveCount(1)
+  await expect(own).not.toContainText('plain from tab two')
+  await expect(assistant(page).filter({ hasText: 'You said: plain from tab two' })).toHaveCount(1)
+  await expect(stopButton(page)).toBeVisible()
+
+  // Tab two's chat frame named its turn; tab one's Stop aborts tab one's run.
+  expect(frames2.find((f) => f.type === 'chat')?.client_turn_id, 'client_turn_id on the chat frame').toBeTruthy()
+  await stopButton(page).click()
+  await waitForRunEnd(page)
+  await tab2.close()
+})
+
+test('Regenerate replaces the answer: no duplicate turn after a reload', async ({ page }) => {
+  await openChat(page, 'ws')
+  await send(page, 'plain regen please')
+  await expect(assistant(page).last()).toContainText('You said: plain regen please')
+  await waitForRunEnd(page)
+  await assistant(page).last().hover()
+  await page.getByRole('button', { name: 'Regenerate' }).click()
+  await expect(assistant(page).last()).toContainText('You said: plain regen please')
+  await waitForRunEnd(page)
+  await page.reload()
+  await expect(assistant(page).last()).toContainText('You said: plain regen please')
+  await expect(page.locator('[data-role="user"]')).toHaveCount(1)
+  await expect(assistant(page)).toHaveCount(1)
 })

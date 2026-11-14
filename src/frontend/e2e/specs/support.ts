@@ -89,3 +89,13 @@ export async function toRgb(page: Page, cssColor: string): Promise<string> {
     return `rgb(${r}, ${g}, ${b})`
   }, cssColor)
 }
+
+/**
+ * The sidebar link of a page, with every folded sidebar group opened first
+ * (rarely used groups such as Examples start folded).
+ */
+export async function sidebarLink(page: Page, id: string) {
+  const folded = page.locator('[data-aiui-shell-sidebar] [data-group-toggle][aria-expanded="false"]:not([disabled])')
+  for (let i = await folded.count(); i > 0; i--) await folded.first().click()
+  return page.locator(`[data-aiui-shell-sidebar] a[data-page-id="${id}"]`)
+}

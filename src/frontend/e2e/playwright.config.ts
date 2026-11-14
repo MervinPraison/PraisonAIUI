@@ -84,7 +84,7 @@ export default defineConfig({
   },
   webServer: [
     server(PORTS.legacy, ''),
-    server(PORTS.app, '--shell app -- --plugin'),
+    server(PORTS.app, '--shell app -- --plugin --custom-js'),
     server(PORTS.chatZinc, '-- --style chat --preset zinc'),
     server(PORTS.chatRose, '-- --style chat --preset rose'),
     server(PORTS.docs, '--docs'),
