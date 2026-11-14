@@ -65,12 +65,13 @@ volumes:
 | `AIUI_DATA_DIR` | `~/.praisonaiui` | Data directory for config, sessions, logs |
 | `AIUI_PORT` | `8082` | Server port (Docker only) |
 | `AIUI_HOST` | `0.0.0.0` | Server bind address (Docker only) |
-| `AUTH_ENFORCE` | `false` | Enforce Bearer token auth on `/api/*` routes |
+| `AUTH_ENFORCE` | `false` | Enforce Bearer token auth on every route except the public surface (see below) |
+| `AIUI_ALLOWED_ORIGINS` | — | Comma-separated origins allowed to call the server from another site (CORS and cross-site requests); `*` allows any |
 | `OPENAI_API_KEY` | — | OpenAI API key for LLM provider |
 
 ### Auth Enforcement
 
-When `AUTH_ENFORCE=true`, all `/api/*` routes require a valid Bearer token in the `Authorization` header:
+When `AUTH_ENFORCE=true`, every route requires a valid Bearer token in the `Authorization` header: `/api/*`, and also `/sessions`, `/run`, `/cancel`, `/agents/{id}/runs`, `/teams/*`, `/v1/*` (OpenAI-compatible), `/agui` and any route a plugin adds. Only the public surface answers without one (deny by default):
 
 ```bash
 # Without AUTH_ENFORCE (default): open access
@@ -80,10 +81,25 @@ curl http://localhost:8082/api/config
 curl -H "Authorization: Bearer <api-key>" http://localhost:8082/api/config
 ```
 
-**Exempt paths** (always accessible without auth):
+**Public paths** (always accessible without auth):
 - `/health`, `/health/live`, `/health/ready`, `/api/health` — health checks
 - `/api/auth/login`, `/login` — login endpoints
 - `/api/protocol`, `/api/protocol/negotiate` — protocol discovery
+- the HTML page for a browser navigation (`/`, `/chat`, …; under `style: app`
+  `/sessions` and `/agents` too, but only as the page, never their JSON)
+- static code: `/assets/*`, `/plugins/*`, `/_aiui/externals/*`, `/_plugins/*`,
+  `/icon.svg`, `/manifest.json`, `/sw.js`, `/custom.js`, `/ui-config.json`
+
+WebSocket handshakes are gated too (all of them). Browsers cannot send an
+`Authorization` header on a WebSocket, so the UI first exchanges its key for a
+single-use ticket (`POST /api/auth/ws-ticket`, valid 60 s) and connects with
+`?ticket=`. Clients that cannot do that may still send `?token=<key>`; it is
+redacted from the server's access log.
+
+The other auth modes gate WebSockets as well: URL-token mode
+(`AIUI_REQUIRE_TOKEN=1`) accepts its session cookie, a Bearer header, `?token=`
+or a ticket; `create_app(require_auth=True)` / YAML `auth.requireAuth` checks
+session tokens on every route and socket except the public surface above.
 
 ## Configuration
 
@@ -221,6 +237,26 @@ aiui auth create-key --name "my-app"
 
 # Use the key
 curl -H "X-API-Key: <key>" http://localhost:8082/api/config
+```
+
+### Cross-site requests
+
+By default the server only serves its own pages: responses carry no CORS
+headers, and a page on another site can neither open a WebSocket to it nor
+send it a state-changing request (`POST`/`PUT`/`PATCH`/`DELETE`, including
+`text/plain` "simple" requests that skip the CORS preflight). The check uses
+the browser's `Sec-Fetch-Site` header, so it works behind a reverse proxy that
+rewrites `Host`; without that header the `Origin` is compared with `Host` and
+`X-Forwarded-Host`. Requests with neither header (curl, SDK clients) are not
+affected. A local dev server (Vite on another port) talking to a local server
+is allowed.
+
+To let another site call the server (an embedded widget, a separate frontend),
+list its origin:
+
+```bash
+AIUI_ALLOWED_ORIGINS=https://app.example.com,https://admin.example.com
+# AIUI_ALLOWED_ORIGINS=*   # the old allow-everything behaviour
 ```
 
 ### Network Considerations

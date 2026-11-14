@@ -353,7 +353,11 @@ class TestThemePipelineIntegration:
     """G9: Integration test — YAML preset -> compile -> theme.css with correct colors."""
 
     def test_rose_preset_produces_theme_css(self, tmp_path: Path):
-        """Rose preset in YAML config → compiled theme.css has non-zinc colors."""
+        """Rose preset in YAML config → compiled theme.css carries rose seeds.
+
+        Seed contract (ADR-0001 §7): theme.css holds seeds only (no HSL-triple
+        shadcn vars and no .dark block); light/dark values are derived in CSS.
+        """
         config = Config(
             site=SiteConfig(
                 title="Rose Site",
@@ -369,8 +373,14 @@ class TestThemePipelineIntegration:
 
         theme_css = (tmp_path / "output" / "assets" / "theme.css").read_text(encoding="utf-8")
         assert ":root {" in theme_css
-        assert ".dark {" in theme_css
         assert "--radius: 1rem" in theme_css  # xl = 1rem
+        assert "--seed-accent-light: #e11d48;" in theme_css  # rose-600 (light mode)
+        assert "--seed-accent-dark: #f43f5e;" in theme_css  # rose-500 (dark mode)
+        assert "--db-accent-rgb: 244,63,94;" in theme_css
+        # Seeds only: no unlayered shadcn vars that would override the derived ones
+        assert "--primary:" not in theme_css
+        assert "--background:" not in theme_css
+        assert ".dark" not in theme_css
 
     def test_light_mode_no_dark_block(self, tmp_path: Path):
         """Light mode config → theme.css has no .dark block."""

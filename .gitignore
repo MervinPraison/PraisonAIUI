@@ -58,3 +58,13 @@ _site
 .praisonai
 tmp/
 *.db
+# Local tooling and agent scratch
+graphify-out/
+.claude/worktrees/
+.claude/ui-reset/
+.claude/settings.local.json
+
+# Playwright output (src/frontend/e2e)
+src/frontend/e2e/.report/
+src/frontend/e2e/.results/
+src/frontend/e2e/.scratch/

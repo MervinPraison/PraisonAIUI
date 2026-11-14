@@ -8,6 +8,24 @@ import { registerDefaultSurfaceRenderer } from '../surface-utils.js';
 
 const STYLE_ID = 'chat-canvas-styles';
 
+// Mounts of this page whose render() has not been released yet. The embedded
+// chat (its WebSocket) and the preview (its surface socket) are module-wide,
+// so they are torn down only once no mount is outstanding: a render
+// superseded while it loads, and cleaned up late, never closes the sockets of
+// the page on screen. The legacy dashboard calls the cleanup() export once
+// for every render() that returned; the shell's mountView calls the function
+// render() returns once per mount, and cleanup() only while no other mount
+// is live. On globalThis because the legacy dashboard imports a fresh copy
+// of this file (?v=<time>) on each first visit.
+const views = globalThis.__aiuiViewMounts || (globalThis.__aiuiViewMounts = {});
+const state = views['chat-canvas'] || (views['chat-canvas'] = { live: new Set() });
+
+function settle() {
+  if (state.live.size > 0) return;
+  chatView.cleanup();
+  unmountPreview();
+}
+
 function injectStyles() {
   if (document.getElementById(STYLE_ID)) return;
   const style = document.createElement('style');
@@ -92,10 +110,25 @@ async function loadPreviewConfig() {
 }
 
 export async function render(container) {
+  const mount = {};
+  state.live.add(mount);
+  // This mount's own cleanup; the shell's mountView calls it once per mount.
+  const release = () => { if (state.live.delete(mount)) settle(); };
+  try {
+    await renderInto(container);
+  } catch (err) {
+    release(); // no host cleans up a render that threw
+    throw err;
+  }
+  return release;
+}
+
+async function renderInto(container) {
   injectStyles();
   registerDefaultSurfaceRenderer('main');
 
   const previewCfg = await loadPreviewConfig();
+  if (!container.isConnected) return; // left while loading: open no sockets
   const params = new URLSearchParams(location.search);
   const surfaceId = params.get('surface') || previewCfg.surfaceId || 'main';
   const width = previewCfg.width || '40%';
@@ -147,6 +180,9 @@ export async function render(container) {
 }
 
 export function cleanup() {
-  chatView.cleanup();
-  unmountPreview();
+  // Releases one render: the legacy dashboard does not say which one, and
+  // only how many remain matters.
+  const oldest = state.live.values().next();
+  if (!oldest.done) state.live.delete(oldest.value);
+  settle();
 }

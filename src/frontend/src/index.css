@@ -1,82 +1,43 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./styles/theme.css";
+@import "streamdown/styles.css";
 @plugin "@tailwindcss/typography";
+
+/* Class sources. Streamdown renders its own Tailwind classes. Dev harness pages,
+   the old spike and build scripts must not add CSS to the shipped bundle. */
+@source "../node_modules/streamdown/dist/*.js";
+@source not "./spike";
+@source not "../dev";
+@source not "../spike.html";
+@source not "../scripts";
+@source not "../e2e";
 
 @custom-variant dark (&:is(.dark *));
 
-@theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
-  --color-destructive: hsl(var(--destructive));
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
-  --color-chart-1: hsl(var(--chart-1));
-  --color-chart-2: hsl(var(--chart-2));
-  --color-chart-3: hsl(var(--chart-3));
-  --color-chart-4: hsl(var(--chart-4));
-  --color-chart-5: hsl(var(--chart-5));
-  --color-sidebar: hsl(var(--sidebar));
-  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
-  --color-sidebar-primary: hsl(var(--sidebar-primary));
-  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
-  --color-sidebar-accent: hsl(var(--sidebar-accent));
-  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
-  --color-sidebar-border: hsl(var(--sidebar-border));
-  --color-sidebar-ring: hsl(var(--sidebar-ring));
-}
-
-/* Color variables are injected via theme.css at build time.
-   Do NOT hardcode color values here — they come from YAML theme config. */
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  html,
-  body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
-  }
-}
+/* Tokens live in styles/theme.css (seeds -> tiers -> shadcn vars, full colours).
+   Consume them as var(--x). Wrapping them in hsl() (the old HSL-triple format) is invalid.
+   Base element rules are scoped there so the legacy dashboard (which also loads
+   this file) renders exactly as before. */
 
 @layer components {
   /* Readable prose in light and dark mode */
   .prose-neutral {
-    --tw-prose-body: hsl(var(--foreground));
-    --tw-prose-headings: hsl(var(--foreground));
-    --tw-prose-bold: hsl(var(--foreground));
-    --tw-prose-counters: hsl(var(--muted-foreground));
-    --tw-prose-bullets: hsl(var(--muted-foreground));
-    --tw-prose-pre-code: hsl(var(--foreground));
-    --tw-prose-pre-bg: hsl(var(--muted));
-    --tw-prose-code: hsl(var(--foreground));
+    --tw-prose-body: var(--foreground);
+    --tw-prose-headings: var(--foreground);
+    --tw-prose-bold: var(--foreground);
+    --tw-prose-counters: var(--muted-foreground);
+    --tw-prose-bullets: var(--muted-foreground);
+    --tw-prose-pre-code: var(--foreground);
+    --tw-prose-pre-bg: var(--muted);
+    --tw-prose-code: var(--foreground);
   }
 
   .prose pre,
   .prose-neutral :where(pre) {
     @apply bg-muted text-foreground border border-border;
-    color: hsl(var(--foreground)) !important;
-    background-color: hsl(var(--muted)) !important;
+    color: var(--foreground) !important;
+    background-color: var(--muted) !important;
   }
 
   .prose pre code,
@@ -86,7 +47,7 @@
   }
 
   .prose :not(pre) > code {
-    @apply bg-primary/10 text-primary;
+    @apply bg-primary/10 text-link;
   }
 
   .prose .aiui-feature-grid > li {
@@ -114,8 +75,8 @@
   }
 
   :root:not(.dark) .mermaid-diagram:not(.mermaid-error) {
-    background: hsl(var(--muted));
-    border: 1px solid hsl(var(--border));
+    background: var(--muted);
+    border: 1px solid var(--border);
   }
 
   .dark .mermaid-diagram:not(.mermaid-error) {
@@ -176,22 +137,22 @@
 
 /* Prose readability — must beat @tailwindcss/typography defaults (unlayered) */
 article.prose :where(p, li, td, th, blockquote, strong, em, h1, h3, h4, h5, h6) {
-  color: hsl(var(--foreground)) !important;
+  color: var(--foreground) !important;
   -webkit-text-fill-color: unset !important;
   opacity: 1 !important;
 }
 
 article.prose :where(h2) {
-  color: hsl(var(--primary)) !important;
+  color: var(--ui-link) !important;
   -webkit-text-fill-color: unset !important;
   opacity: 1 !important;
 }
 
 article.prose .aiui-feature-grid > li {
-  color: hsl(var(--foreground)) !important;
+  color: var(--foreground) !important;
 }
 
 .dark article.prose.dark\:prose-invert :where(p, li, td, th, blockquote, strong, h1, h2, h3, h4) {
-  color: hsl(var(--foreground)) !important;
+  color: var(--foreground) !important;
   -webkit-text-fill-color: unset !important;
 }

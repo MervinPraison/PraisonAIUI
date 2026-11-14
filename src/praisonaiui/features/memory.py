@@ -36,6 +36,20 @@ logger = logging.getLogger(__name__)
 # ── Memory Protocol ──────────────────────────────────────────────────
 
 
+
+def _sdk_text(record: Dict[str, Any]) -> str:
+    """The memory text of an SDK record.
+
+    praisonaiagents stores it under ``content`` (``text`` and ``memory`` are
+    older spellings). Falling back to ``str(record)`` would show the dict repr
+    as the memory text.
+    """
+    for key in ("text", "content", "memory"):
+        value = record.get(key)
+        if isinstance(value, str):
+            return value
+    return str(record)
+
 class MemoryProtocol(ABC):
     """Protocol interface for memory backends.
 
@@ -300,7 +314,7 @@ class SDKMemoryManager(MemoryProtocol):
                                         combined.append(
                                             {
                                                 "id": str(r.get("id", "")),
-                                                "text": r.get("text", str(r)),
+                                                "text": _sdk_text(r),
                                                 "memory_type": mtype,
                                                 "metadata": r.get("metadata", {}),
                                                 "score": 1.0,
@@ -320,7 +334,7 @@ class SDKMemoryManager(MemoryProtocol):
                             return [
                                 {
                                     "id": str(r.get("id", i)),
-                                    "text": r.get("text", str(r)),
+                                    "text": _sdk_text(r),
                                     "memory_type": memory_type,
                                     "metadata": r.get("metadata", {}),
                                     "score": 1.0,
@@ -364,7 +378,7 @@ class SDKMemoryManager(MemoryProtocol):
                         sdk_entries.append(
                             {
                                 "id": str(r.get("id", "")),
-                                "text": r.get("text", r.get("memory", str(r))),
+                                "text": _sdk_text(r),
                                 "memory_type": mtype,
                                 "metadata": r.get("metadata", {}),
                                 "created_at": r.get("created_at"),
@@ -462,7 +476,7 @@ class SDKMemoryManager(MemoryProtocol):
                             mtype = "long"
                         return {
                             "id": str(m["id"]),
-                            "text": m.get("text", ""),
+                            "text": _sdk_text(m),
                             "memory_type": mtype,
                             "metadata": m.get("metadata", {}),
                             "created_at": m.get("created_at"),

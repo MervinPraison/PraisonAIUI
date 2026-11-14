@@ -5,6 +5,9 @@
  */
 
 let ws = null;
+let reconnectTimer = null;
+// Set by destroy() so a socket closed on purpose is not reconnected.
+let closing = false;
 let logs = [];
 let levelFilter = 'DEBUG';
 let searchFilter = '';
@@ -12,11 +15,11 @@ let autoScroll = true;
 let paused = false;
 
 const LEVEL_COLORS = {
-  DEBUG: '#6b7280',
-  INFO: '#3b82f6',
-  WARNING: '#f59e0b',
-  ERROR: '#ef4444',
-  CRITICAL: '#dc2626',
+  DEBUG: 'var(--db-p-text-muted, #6b7280)',
+  INFO: 'var(--db-p-info, #3b82f6)',
+  WARNING: 'var(--db-p-warning, #f59e0b)',
+  ERROR: 'var(--db-p-error, #ef4444)',
+  CRITICAL: 'var(--db-p-error-strong, #dc2626)',
 };
 
 const LEVEL_PRIORITY = {
@@ -27,20 +30,56 @@ const LEVEL_PRIORITY = {
   CRITICAL: 50,
 };
 
+// WebSocket handshake credential: a single-use ticket from dashboard.js
+// (window.aiui.wsAuthParam), so the stored key never goes in the URL; the key
+// as token= without it (same storage as dashboard.js getStoredToken()).
+function wsAuthParam() {
+  const shared = window.aiui && window.aiui.wsAuthParam;
+  if (typeof shared === 'function') return shared().catch(() => '');
+  try {
+    const token = window.sessionStorage.getItem('aiui_gateway_token') || '';
+    return Promise.resolve(token ? 'token=' + encodeURIComponent(token) : '');
+  } catch (e) {
+    return Promise.resolve('');
+  }
+}
+
+let connectGen = 0;
+let connecting = false;
+
 function connectWebSocket() {
-  if (ws && ws.readyState === WebSocket.OPEN) return;
-  
+  if (closing) return;
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    // A re-rendered page gets a fresh badge; reflect the live socket.
+    if (ws.readyState === WebSocket.OPEN) updateConnectionStatus(true);
+    return;
+  }
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if (connecting) return;
+
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const url = `${protocol}//${window.location.host}/api/logs/stream?level=${levelFilter}&search=${encodeURIComponent(searchFilter)}`;
+  let url = `${protocol}//${window.location.host}/api/logs/stream?level=${levelFilter}&search=${encodeURIComponent(searchFilter)}`;
+  // Browsers cannot set an Authorization header on a WebSocket handshake; the
+  // stream is refused without a credential when auth is enforced.
+  const gen = ++connectGen;
+  connecting = true;
+  wsAuthParam().then((param) => {
+    connecting = false;
+    if (gen !== connectGen || closing) return;
+    openLogSocket(param ? `${url}&${param}` : url);
+  });
+}
+
+function openLogSocket(url) {
+  const sock = new WebSocket(url);
+  ws = sock;
   
-  ws = new WebSocket(url);
-  
-  ws.onopen = () => {
+  sock.onopen = () => {
     console.debug('[AIUI:logs] WebSocket connected');
     updateConnectionStatus(true);
   };
   
-  ws.onmessage = (event) => {
+  sock.onmessage = (event) => {
     const data = JSON.parse(event.data);
     
     if (data.type === 'initial' || data.type === 'filtered') {
@@ -58,13 +97,15 @@ function connectWebSocket() {
     }
   };
   
-  ws.onclose = () => {
+  sock.onclose = () => {
+    if (ws !== sock) return; // superseded or destroyed
+    ws = null;
     console.debug('[AIUI:logs] WebSocket disconnected');
     updateConnectionStatus(false);
-    setTimeout(connectWebSocket, 3000);
+    if (!closing) reconnectTimer = setTimeout(connectWebSocket, 3000);
   };
   
-  ws.onerror = (err) => {
+  sock.onerror = (err) => {
     console.warn('[AIUI:logs] WebSocket error:', err);
   };
 }
@@ -206,6 +247,7 @@ function renderLogsUI() {
     <div class="aiui-logs-content"></div>
   `;
   
+  closing = false;
   connectWebSocket();
 }
 
@@ -238,7 +280,7 @@ function injectStyles() {
     .aiui-logs-title h2 {
       font-size: 1.5rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0;
     }
 
@@ -249,18 +291,18 @@ function injectStyles() {
     }
 
     .aiui-logs-status.connected {
-      background: rgba(34, 197, 94, 0.2);
-      color: #22c55e;
+      background: var(--db-p-success-bg, rgba(34, 197, 94, 0.2));
+      color: var(--db-p-success, #22c55e);
     }
 
     .aiui-logs-status.disconnected {
-      background: rgba(239, 68, 68, 0.2);
-      color: #ef4444;
+      background: var(--db-p-error-bg, rgba(239, 68, 68, 0.2));
+      color: var(--db-p-error, #ef4444);
     }
 
     .aiui-logs-count {
       font-size: 0.8125rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
     }
 
     .aiui-logs-toolbar {
@@ -283,38 +325,38 @@ function injectStyles() {
       font-size: 0.6875rem;
       font-weight: 600;
       cursor: pointer;
-      background: rgba(148, 163, 184, 0.1);
-      color: #94a3b8;
+      background: var(--db-p-muted, rgba(148, 163, 184, 0.1));
+      color: var(--db-p-text-dim, #94a3b8);
       transition: all 0.2s;
     }
 
     .aiui-level-btn:hover {
-      background: rgba(148, 163, 184, 0.2);
+      background: var(--db-p-fill, rgba(148, 163, 184, 0.2));
     }
 
     .aiui-level-btn.active {
-      background: rgba(59, 130, 246, 0.2);
-      color: #3b82f6;
+      background: var(--db-p-accent-glow, rgba(59, 130, 246, 0.2));
+      color: var(--db-p-accent, #3b82f6);
     }
 
-    .aiui-level-btn[data-level="DEBUG"].active { background: rgba(107, 114, 128, 0.2); color: #6b7280; }
-    .aiui-level-btn[data-level="INFO"].active { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-    .aiui-level-btn[data-level="WARNING"].active { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
-    .aiui-level-btn[data-level="ERROR"].active { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+    .aiui-level-btn[data-level="DEBUG"].active { background: var(--db-p-muted, rgba(107, 114, 128, 0.2)); color: var(--db-p-text-muted, #6b7280); }
+    .aiui-level-btn[data-level="INFO"].active { background: var(--db-p-info-bg, rgba(59, 130, 246, 0.2)); color: var(--db-p-info, #3b82f6); }
+    .aiui-level-btn[data-level="WARNING"].active { background: var(--db-p-warning-bg, rgba(245, 158, 11, 0.2)); color: var(--db-p-warning, #f59e0b); }
+    .aiui-level-btn[data-level="ERROR"].active { background: var(--db-p-error-bg, rgba(239, 68, 68, 0.2)); color: var(--db-p-error, #ef4444); }
 
     .aiui-logs-search input {
-      background: rgba(15, 23, 42, 0.8);
-      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: var(--db-p-input-bg, rgba(15, 23, 42, 0.8));
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.2));
       border-radius: 0.375rem;
       padding: 0.375rem 0.75rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       font-size: 0.8125rem;
       width: 200px;
     }
 
     .aiui-logs-search input:focus {
       outline: none;
-      border-color: #3b82f6;
+      border-color: var(--db-p-accent, #3b82f6);
     }
 
     .aiui-logs-actions {
@@ -329,20 +371,20 @@ function injectStyles() {
       border-radius: 0.375rem;
       font-size: 0.75rem;
       cursor: pointer;
-      background: rgba(148, 163, 184, 0.1);
-      color: #94a3b8;
+      background: var(--db-p-muted, rgba(148, 163, 184, 0.1));
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-pause-btn.paused {
-      background: rgba(34, 197, 94, 0.2);
-      color: #22c55e;
+      background: var(--db-p-success-bg, rgba(34, 197, 94, 0.2));
+      color: var(--db-p-success, #22c55e);
     }
 
     .aiui-logs-content {
       flex: 1;
       overflow-y: auto;
-      background: rgba(15, 23, 42, 0.8);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: var(--db-p-surface, rgba(15, 23, 42, 0.8));
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.5rem;
       padding: 0.5rem;
       font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
@@ -354,15 +396,15 @@ function injectStyles() {
       display: flex;
       gap: 0.5rem;
       padding: 0.125rem 0;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.05);
+      border-bottom: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.05));
     }
 
     .aiui-log-entry:hover {
-      background: rgba(148, 163, 184, 0.05);
+      background: var(--db-p-hover, rgba(148, 163, 184, 0.05));
     }
 
     .aiui-log-time {
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       flex-shrink: 0;
     }
 
@@ -373,7 +415,7 @@ function injectStyles() {
     }
 
     .aiui-log-logger {
-      color: #8b5cf6;
+      color: var(--db-p-purple, #8b5cf6);
       flex-shrink: 0;
       max-width: 150px;
       overflow: hidden;
@@ -381,14 +423,14 @@ function injectStyles() {
     }
 
     .aiui-log-message {
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       word-break: break-word;
     }
 
     .aiui-logs-empty {
       text-align: center;
       padding: 2rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
     }
 
     @media (max-width: 768px) {
@@ -430,10 +472,22 @@ export default {
   onContentChange(root) {
     checkForLogsPage(root);
   },
+  // Called by the view's cleanup() when the page is left. Idempotent and
+  // safe before any render; the next render reconnects with fresh state.
   destroy() {
+    closing = true;
+    connectGen += 1; // a ticket fetch in flight must not open a socket now
+    connecting = false;
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     if (ws) {
-      ws.close();
+      const sock = ws;
       ws = null;
+      try { sock.close(); } catch (e) { /* already closed */ }
     }
+    // The page re-renders its toolbar with defaults; keep state in step.
+    logs = [];
+    levelFilter = 'DEBUG';
+    searchFilter = '';
+    paused = false;
   },
 };

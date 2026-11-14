@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aiui-hello-plugin"
+version = "0.1.0"
+description = "Example PraisonAIUI plugin: a React page, a blocks page, a tool renderer and a CLI command"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+# The PyPI distribution of praisonaiui is "aiui" (import name: praisonaiui).
+dependencies = ["aiui"]
+
+# The whole contract: one entry point in the "praisonaiui.plugins" group.
+# The value names a plugin instance, a class or a zero-argument factory.
+[project.entry-points."praisonaiui.plugins"]
+hello = "aiui_hello:plugin"
+
+[tool.hatch.build.targets.wheel]
+packages = ["aiui_hello"]
+# static/hello.js ships inside the package (served at /_plugins/hello/hello.js)

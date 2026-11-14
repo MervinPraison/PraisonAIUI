@@ -1,0 +1,400 @@
+/**
+ * App shell sweep: every page the server lists in the shell manifest must
+ * render in the React shell without errors and without leaving resources
+ * behind (ADR-0001 §9, default-flip criterion 1).
+ *
+ * The sweep reads the page list from GET /api/shell/manifest, so it follows
+ * whatever the server registers; it only looks at what a user can see.
+ */
+import { expect, test, type Page } from '@playwright/test'
+import { installLeakProbe, leakDelta, leakDetail, leakSnapshot, type LeakDelta } from './leak-probe'
+import { collectPageErrors, hasHorizontalOverflow, setColorMode, sidebarLink } from './support'
+
+interface ManifestPage {
+  id: string
+  title: string
+  kind: string
+  apiEndpoint?: string | null
+}
+
+/** A path no page owns: the shell shows "Page not found" and mounts no view. */
+const NEUTRAL = '/e2e-neutral-page'
+/** Pages for the light / dark / phone checks and the screenshots attached to the report. */
+const KEY_PAGES = ['chat', 'overview', 'usage', 'logs', 'approvals', 'jobs']
+/** Limit the sweep while debugging: AIUI_E2E_SWEEP_PAGES=chat,logs */
+const ONLY = (process.env.AIUI_E2E_SWEEP_PAGES || '').split(',').filter(Boolean)
+
+/**
+ * Defects the sweep found that are fixed outside the test suite. Each entry is
+ * a strict expectation: the test fails if a defect is still listed after it
+ * has been fixed, so the lists cannot go stale.
+ */
+// Pages that leak on leaving, each with the reason. Empty: an entry that stops
+// leaking fails the sweep until it is removed here.
+const KNOWN_LEAKS: Record<string, string> = {}
+// Pages whose URL does not open the app when loaded directly, each with the
+// reason. Empty: an entry that starts working fails the test until removed.
+const KNOWN_BROKEN_DEEP_LINKS: Record<string, string> = {}
+// Pages that render but whose own data endpoint answers an error (the page
+// shows an error body, not its content), each with the reason. An entry that
+// starts working fails the sweep until it is removed here.
+const KNOWN_BROKEN_PAGES: Record<string, string> = {}
+/**
+ * What a page may leave behind after its FIRST visit, with the reason: a
+ * library it loads once (its own window listeners, a measuring node) stays
+ * loaded for the rest of the session. Anything above these numbers, or on a
+ * page not listed, fails the sweep; so does a page listed here that leaves
+ * nothing (remove it). Connections are never allowed. Growth on a second visit
+ * is always a leak.
+ */
+const FIRST_VISIT_ALLOWANCE: Record<string, { allow: LeakDelta; reason: string }> = {
+  chat: {
+    allow: { windowListeners: 13, bodyChildren: 1 },
+    reason:
+      'the chat chunk loads once: its libraries register global pointer/mouse/touch/click listeners at module load, ' +
+      "and react-textarea-autosize (the composer) keeps one hidden measuring <textarea> in <body>",
+  },
+  'chat-canvas': {
+    allow: { windowListeners: 1 },
+    reason: 'a one-time DOMContentLoaded listener from the canvas view module, registered when it is first imported',
+  },
+  'code-studio': {
+    allow: { intervals: 1, windowListeners: 1, bodyChildren: 2 },
+    reason:
+      "Monaco (loaded once from its CDN): its own interval (L.cancelAndSet in editor.main.js), a 'message' listener, " +
+      'and its .context-view and .monaco-aria-container nodes in <body>; code-studio clears its own interval on cleanup',
+  },
+}
+
+async function manifestPages(page: Page): Promise<ManifestPage[]> {
+  const res = await page.request.get('/api/shell/manifest')
+  expect(res.ok(), `GET /api/shell/manifest -> ${res.status()}`).toBe(true)
+  const manifest = await res.json()
+  expect(manifest.style, 'the server must run the app shell (AIUI_SHELL=app)').toBe('app')
+  const pages: ManifestPage[] = manifest.pages
+  return pages.filter((p) => ONLY.length === 0 || ONLY.includes(p.id))
+}
+
+type PageState = { state: 'loading' | 'ready' | 'error'; detail: string }
+
+/** What the page area shows right now, judged from the DOM only. */
+async function pageState(page: Page, id: string): Promise<PageState> {
+  return page.evaluate((pageId) => {
+    const host = document.querySelector(`[data-aiui-page="${CSS.escape(pageId)}"]`) as HTMLElement | null
+    if (!host) return { state: 'loading' as const, detail: 'page area not mounted' }
+    if (host.querySelector('[data-aiui-skeleton]')) return { state: 'loading' as const, detail: 'skeleton' }
+    // Views use data-status for their own rows too; only these values are page states.
+    const statuses = [...host.querySelectorAll('[data-status]')]
+      .map((el) => el.getAttribute('data-status') || '')
+      .filter((v) => v === 'loading' || v === 'ready' || v === 'error')
+    if (statuses.includes('error')) return { state: 'error' as const, detail: host.innerText.trim().slice(0, 200) }
+    // A view that printed a raw server error body ({"error": "Not Found", ...}).
+    const text = host.innerText.trim()
+    if (text.startsWith('{') && text.endsWith('}')) {
+      try {
+        const body = JSON.parse(text) as Record<string, unknown>
+        if (body && typeof body === 'object' && 'error' in body) return { state: 'error' as const, detail: text.slice(0, 200) }
+      } catch {
+        /* not JSON: ordinary content */
+      }
+    }
+    const alert = host.querySelector('[role="alert"]')
+    if (alert && /failed to load|page not found/i.test(alert.textContent || '')) {
+      return { state: 'error' as const, detail: (alert.textContent || '').trim().slice(0, 200) }
+    }
+    if (statuses.includes('loading')) return { state: 'loading' as const, detail: 'loading' }
+    const hasContent =
+      host.innerText.trim().length > 0 || !!host.querySelector('canvas, svg, iframe, img, input, textarea, button')
+    return hasContent ? { state: 'ready' as const, detail: '' } : { state: 'loading' as const, detail: 'empty' }
+  }, id)
+}
+
+/** Poll until the page is ready or failed; a page still loading after 20 s is returned as such. */
+async function waitForPage(page: Page, id: string): Promise<PageState> {
+  const deadline = Date.now() + 20_000
+  let last = await pageState(page, id)
+  while (last.state === 'loading' && Date.now() < deadline) {
+    await page.waitForTimeout(100)
+    last = await pageState(page, id)
+  }
+  return last
+}
+
+async function expectNeutral(page: Page) {
+  await expect(page.locator('[data-aiui-shell-root]')).toBeVisible()
+  await expect(page.getByText('Page not found')).toBeVisible()
+}
+
+/**
+ * Leave the current view (browser Back to the neutral page) and let anything
+ * it scheduled run: the fake clock jumps 6 s, so a "reconnect in 3 s" timer
+ * fires now instead of during a later page's measurement.
+ */
+async function leaveAndSettle(page: Page) {
+  await page.goBack()
+  await expectNeutral(page)
+  await page.clock.fastForward(6_000)
+  await page.waitForTimeout(250)
+}
+
+const CONNECTIONS = ['ws', 'es'] as const
+
+test('every manifest page renders with no errors and no leaks', async ({ page }, testInfo) => {
+  const pages = await manifestPages(page)
+  expect(pages.length, 'pages to sweep').toBeGreaterThan(0)
+  test.setTimeout(60_000 + pages.length * 20_000)
+  // Order matters: the probe must wrap the clock's timers, not be replaced by them.
+  await page.clock.install()
+  await page.addInitScript(installLeakProbe)
+  const errors = collectPageErrors(page)
+
+  await page.goto(NEUTRAL)
+  await expectNeutral(page)
+  // Let the shell finish booting (its own listeners and streams) before the first count.
+  await page.waitForLoadState('networkidle')
+  await page.clock.fastForward(6_000)
+  await page.waitForTimeout(500)
+
+  const failures: string[] = []
+  const rows: Record<string, unknown>[] = []
+  const stillListed = new Set(Object.keys(KNOWN_LEAKS).filter((id) => pages.some((p) => p.id === id)))
+
+  const brokenStillListed = new Set(Object.keys(KNOWN_BROKEN_PAGES).filter((id) => pages.some((p) => p.id === id)))
+  const allowanceStillListed = new Set(Object.keys(FIRST_VISIT_ALLOWANCE).filter((id) => pages.some((p) => p.id === id)))
+  const gutters: { id: string; left: number }[] = []
+  // The page's own data endpoint answering 4xx/5xx while the page is on screen.
+  let apiErrors: string[] = []
+  let watchedEndpoint = ''
+  page.on('response', (res) => {
+    if (!watchedEndpoint || res.status() < 400) return
+    try {
+      if (new URL(res.url()).pathname === watchedEndpoint) apiErrors.push(`${res.status()} ${watchedEndpoint}`)
+    } catch {
+      /* not a URL */
+    }
+  })
+
+  let before = await leakSnapshot(page)
+  for (const { id, kind, apiEndpoint } of pages) {
+    const errorsBefore = errors.pageErrors.length
+    const link = await sidebarLink(page, id)
+    if ((await link.count()) !== 1) {
+      failures.push(`${id}: no sidebar link`)
+      continue
+    }
+
+    // First visit: the page must render, its own endpoint must not fail, and
+    // what it leaves behind once must be within its FIRST_VISIT_ALLOWANCE.
+    await link.scrollIntoViewIfNeeded()
+    apiErrors = []
+    watchedEndpoint = apiEndpoint && apiEndpoint.startsWith('/') ? apiEndpoint.split('?')[0] : ''
+    await link.click()
+    let state = await waitForPage(page, id)
+    await page.waitForTimeout(150)
+    watchedEndpoint = ''
+    if (state.state === 'ready' && apiErrors.length) state = { state: 'error', detail: `its data endpoint answered ${apiErrors[0]}` }
+    // Legacy pages share the shell's gutter: their first content box starts where every other page's does.
+    const gutter = await page.evaluate((pageId) => {
+      const host = document.querySelector(`[data-aiui-page="${CSS.escape(pageId)}"] .aiui-legacy-host:not(.db-fill)`)
+      const mount = host?.querySelector('.aiui-legacy-mount')
+      return mount ? Math.round(mount.getBoundingClientRect().left) : null
+    }, id)
+    if (gutter !== null) gutters.push({ id, left: gutter })
+    await leaveAndSettle(page)
+    const afterFirst = await leakSnapshot(page)
+    const firstVisit = leakDelta(before, afterFirst)
+
+    // Second visit: everything one-off is loaded now, so any growth is a leak per visit.
+    await link.click()
+    await waitForPage(page, id)
+    await page.waitForTimeout(150)
+    await leaveAndSettle(page)
+    const afterSecond = await leakSnapshot(page)
+    const perVisit = leakDelta(afterFirst, afterSecond)
+    before = afterSecond
+
+    const pageErrors = errors.pageErrors.slice(errorsBefore)
+    rows.push({ id, kind, state: state.state, pageErrors: pageErrors.length, firstVisit, perVisit })
+    if (state.state !== 'ready' && KNOWN_BROKEN_PAGES[id]) {
+      brokenStillListed.delete(id)
+      testInfo.annotations.push({ type: 'known-broken', description: `${id}: ${KNOWN_BROKEN_PAGES[id]} (${state.detail})` })
+    } else if (state.state !== 'ready') {
+      failures.push(`${id}: ${state.state} (${state.detail})`)
+    }
+    if (pageErrors.length) failures.push(`${id}: page error: ${pageErrors[0]}`)
+
+    const leaks: string[] = []
+    if (CONNECTIONS.some((k) => (firstVisit[k] ?? 0) > 0)) {
+      leaks.push(`left a connection open: ${JSON.stringify(firstVisit)}`)
+    }
+    const allowance = FIRST_VISIT_ALLOWANCE[id]
+    const over = Object.entries(firstVisit).filter(
+      ([k, n]) => !CONNECTIONS.includes(k as (typeof CONNECTIONS)[number]) && (n ?? 0) > ((allowance?.allow as Record<string, number> | undefined)?.[k] ?? 0),
+    )
+    if (over.length) {
+      failures.push(
+        `${id}: left more behind on its first visit than allowed: ${JSON.stringify(firstVisit)} (allowed ${JSON.stringify(allowance?.allow ?? {})}) ${JSON.stringify(await leakDetail(page))}`,
+      )
+    }
+    if (allowance && Object.values(firstVisit).some((n) => (n ?? 0) > 0)) allowanceStillListed.delete(id)
+    if (Object.values(perVisit).some((n) => (n ?? 0) > 0)) {
+      leaks.push(`leaks on every visit: ${JSON.stringify(perVisit)}`)
+    }
+    if (leaks.length && KNOWN_LEAKS[id]) {
+      stillListed.delete(id)
+      testInfo.annotations.push({ type: 'known-leak', description: `${id}: ${KNOWN_LEAKS[id]} (${leaks.join('; ')})` })
+    } else if (leaks.length) {
+      failures.push(`${id}: ${leaks.join('; ')} ${JSON.stringify(await leakDetail(page))}`)
+    }
+  }
+  for (const id of stillListed) {
+    failures.push(`${id}: no longer leaks. Remove it from KNOWN_LEAKS (${KNOWN_LEAKS[id]})`)
+  }
+  for (const id of brokenStillListed) {
+    failures.push(`${id}: renders now. Remove it from KNOWN_BROKEN_PAGES (${KNOWN_BROKEN_PAGES[id]})`)
+  }
+  for (const id of allowanceStillListed) {
+    failures.push(`${id}: leaves nothing behind now. Remove it from FIRST_VISIT_ALLOWANCE (${FIRST_VISIT_ALLOWANCE[id].reason})`)
+  }
+  const lefts = [...new Set(gutters.map((g) => g.left))]
+  if (lefts.length > 1) failures.push(`legacy pages start at different x positions: ${JSON.stringify(gutters)}`)
+
+  const ready = rows.filter((r) => r.state === 'ready').length
+  console.log(`shell sweep: ${ready}/${pages.length} pages ready, ${errors.pageErrors.length} page errors`)
+  for (const row of rows) {
+    const residue = JSON.stringify({ firstVisit: row.firstVisit, perVisit: row.perVisit })
+    if (residue !== '{"firstVisit":{},"perVisit":{}}') console.log(`  ${row.id}: ${residue}`)
+  }
+  await testInfo.attach('shell-sweep.json', { body: JSON.stringify(rows, null, 2), contentType: 'application/json' })
+  expect(failures, failures.join('\n')).toEqual([])
+})
+
+test('every page opens from its own URL (reload, bookmark)', async ({ page }, testInfo) => {
+  const pages = await manifestPages(page)
+  test.setTimeout(60_000 + pages.length * 10_000)
+  const errors = collectPageErrors(page)
+  const failures: string[] = []
+  const stillListed = new Set(Object.keys(KNOWN_BROKEN_DEEP_LINKS).filter((id) => pages.some((p) => p.id === id)))
+  for (const { id } of pages) {
+    const response = await page.goto(`/${id}`)
+    const isHtml = (response?.headers()['content-type'] || '').includes('text/html')
+    const state = isHtml
+      ? await waitForPage(page, id)
+      : { state: 'error', detail: 'the server did not answer with the app' }
+    if (state.state === 'ready') continue
+    if (KNOWN_BROKEN_DEEP_LINKS[id]) {
+      stillListed.delete(id)
+      testInfo.annotations.push({ type: 'known-issue', description: `/${id}: ${KNOWN_BROKEN_DEEP_LINKS[id]}` })
+    } else {
+      failures.push(`/${id}: ${state.state} (${state.detail})`)
+    }
+  }
+  for (const id of stillListed) {
+    failures.push(`/${id} opens now. Remove it from KNOWN_BROKEN_DEEP_LINKS (${KNOWN_BROKEN_DEEP_LINKS[id]})`)
+  }
+  expect(failures, failures.join('\n')).toEqual([])
+  expect(errors.pageErrors).toEqual([])
+})
+
+for (const variant of [
+  { name: 'light', mode: 'light', viewport: { width: 1280, height: 800 } },
+  { name: 'dark', mode: 'dark', viewport: { width: 1280, height: 800 } },
+  { name: 'phone', mode: 'light', viewport: { width: 390, height: 844 } },
+] as const) {
+  test(`key pages fit the viewport (${variant.name})`, async ({ page }, testInfo) => {
+    const pages = await manifestPages(page)
+    await page.setViewportSize(variant.viewport)
+    await setColorMode(page, variant.mode)
+    const errors = collectPageErrors(page)
+    for (const id of KEY_PAGES.filter((k) => pages.some((p) => p.id === k))) {
+      await page.goto(`/${id}`)
+      const state = await waitForPage(page, id)
+      expect(state.state, `/${id}: ${state.detail}`).toBe('ready')
+      const dark = await page.evaluate(() => document.documentElement.classList.contains('dark'))
+      expect(dark, `/${id}: <html class="dark">`).toBe(variant.mode === 'dark')
+      expect(await hasHorizontalOverflow(page), `/${id} scrolls sideways at ${variant.viewport.width}px`).toBe(false)
+      // For owner review (attached to the HTML report), not compared.
+      await testInfo.attach(`${id}-${variant.name}.png`, { body: await page.screenshot(), contentType: 'image/png' })
+    }
+    expect(errors.pageErrors).toEqual([])
+  })
+}
+
+test('the command palette opens with the keyboard and navigates', async ({ page }) => {
+  await page.goto('/overview')
+  expect((await waitForPage(page, 'overview')).state).toBe('ready')
+  await page.keyboard.press('ControlOrMeta+k')
+  const search = page.getByRole('combobox', { name: 'Search pages and commands' })
+  await expect(search).toBeVisible()
+  // Only the shell's palette may open: the legacy dashboard has its own.
+  await expect(page.getByRole('dialog')).toHaveCount(1)
+  // A prefix outranks fuzzy matches (Knowledge used to win for "log").
+  await search.fill('log')
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/\/logs$/)
+  expect((await waitForPage(page, 'logs')).state).toBe('ready')
+})
+
+test('a new approval raises a toast that opens the approvals page, except on chat', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  const created: string[] = []
+  const requestApproval = async (toolName: string) => {
+    const res = await page.request.post('/api/approvals', {
+      data: { tool_name: toolName, risk_level: 'high', description: 'raised by the e2e suite' },
+    })
+    expect(res.status(), `POST /api/approvals -> ${res.status()}`).toBe(201)
+    const entry = await res.json()
+    expect(entry.status, 'the default policy leaves a new approval pending').toBe('pending')
+    created.push(entry.id)
+  }
+  try {
+    await page.goto('/overview')
+    expect((await waitForPage(page, 'overview')).state).toBe('ready')
+
+    // Chat shows approvals in its own thread, so no toast is raised there.
+    await (await sidebarLink(page, 'chat')).click()
+    await expect(page.getByRole('textbox', { name: 'Message' })).toBeVisible()
+    await requestApproval('e2e_on_chat')
+    await page.waitForTimeout(2_000)
+    await expect(page.locator('[data-sonner-toast]', { hasText: 'e2e_on_chat' })).toHaveCount(0)
+
+    await (await sidebarLink(page, 'overview')).click()
+    expect((await waitForPage(page, 'overview')).state).toBe('ready')
+    await requestApproval('e2e_deploy')
+    const toast = page.locator('[data-sonner-toast]', { hasText: 'Approval needed: e2e_deploy' })
+    await expect(toast).toBeVisible()
+    await expect(toast).toContainText('high risk')
+    await toast.getByRole('button', { name: 'Review' }).click()
+    await expect(page).toHaveURL(/\/approvals$/)
+    expect((await waitForPage(page, 'approvals')).state).toBe('ready')
+    expect(errors.pageErrors).toEqual([])
+  } finally {
+    for (const id of created) await page.request.post(`/api/approvals/${id}/deny`, { data: {} })
+  }
+})
+
+test('a 5xx from /api/auth/status never covers the shell with the legacy onboarding wizard', async ({ page }) => {
+  await page.route('**/api/auth/status', (route) => route.fulfill({ status: 502, body: 'Bad Gateway' }))
+  await page.goto('/overview')
+  expect((await waitForPage(page, 'overview')).state).toBe('ready')
+  await page.goto('/chat')
+  await expect(page.locator('[data-aiui-page="chat"]')).toBeVisible()
+  await page.waitForTimeout(1_000)
+  await expect(page.locator('#aiui-onboarding')).toHaveCount(0)
+})
+
+test('overview says when its data failed to load, with a retry', async ({ page }) => {
+  await page.route('**/api/**', (route) => {
+    const path = new URL(route.request().url()).pathname
+    // Only the overview's own data sources fail; the shell itself keeps working.
+    if (/^\/api\/(agents|sessions|approvals\/pending|usage|channels|gateway|features|traces|config\/runtime)/.test(path)) {
+      return route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"boom"}' })
+    }
+    return route.continue()
+  })
+  await page.goto('/overview')
+  const area = page.locator('[data-aiui-page="overview"]')
+  await expect(area.locator('[data-ov-error="banner"]')).toContainText('could not be loaded')
+  await expect(area.locator('[data-ov-error="agents"]')).toContainText('Agents could not be loaded')
+  await expect(area).not.toContainText('No agents registered yet')
+})

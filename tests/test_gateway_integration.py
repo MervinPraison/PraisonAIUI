@@ -14,7 +14,9 @@ def check(name, condition, msg=""):
         passed += 1
         print(f"  ✓ {name}")
     except AssertionError as e:
-        failed += 1; errors.append(f"  ✗ {name}: {e}"); print(f"  ✗ {name}: {e}")
+        failed += 1
+        errors.append(f"  ✗ {name}: {e}")
+        print(f"  ✗ {name}: {e}")
 
 
 # ── Gateway Ref Singleton ────────────────────────────────────────────
@@ -67,7 +69,7 @@ _gateway_ref.set_gateway(MockGWWithChannels())
 result = ch._get_gateway_health()
 check("With gateway → channel data", result is not None)
 check("Has discord-main", "discord-main" in result if result else False)
-check("discord-main running", result.get("discord-main", {}).get("running") == True if result else False)
+check("discord-main running", result.get("discord-main", {}).get("running") is True if result else False)
 check("Has telegram-bot", "telegram-bot" in result if result else False)
 
 _gateway_ref.set_gateway(None)
@@ -117,5 +119,6 @@ print(f"\n{'='*50}")
 print(f"  Gateway Integration: {passed} passed, {failed} failed")
 print(f"{'='*50}")
 if errors:
-    for e in errors: print(e)
+    for e in errors:
+        print(e)
     sys.exit(1)

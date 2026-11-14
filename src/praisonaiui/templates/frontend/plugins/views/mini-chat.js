@@ -16,9 +16,24 @@
  *   chat.disconnect();  // on card change / teardown
  */
 
+// Under AUTH_ENFORCE the server also gates WebSocket handshakes, and browsers
+// cannot set an Authorization header on them. dashboard.js trades the stored
+// key for a single-use ticket (window.aiui.wsAuthParam); without it, fall back
+// to ?token= as before. Resolves to "name=value" or ''.
+function wsAuthParam() {
+  const shared = window.aiui && window.aiui.wsAuthParam;
+  if (typeof shared === 'function') return shared().catch(() => '');
+  try {
+    const token = window.sessionStorage.getItem('aiui_gateway_token') || '';
+    return Promise.resolve(token ? 'token=' + encodeURIComponent(token) : '');
+  } catch (e) {
+    return Promise.resolve('');
+  }
+}
+
 function wsUrl() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return protocol + '//' + location.host + '/api/chat/ws';
+  return wsAuthParam().then((param) => protocol + '//' + location.host + '/api/chat/ws' + (param ? '?' + param : ''));
 }
 
 function genSessionId() {
@@ -75,9 +90,24 @@ export function createMiniChat({ agentId = '', sessionId = '' } = {}) {
     }
   }
 
+  let opening = null;
+
   function ensureSocket() {
-    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return ws;
-    ws = new WebSocket(wsUrl());
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return Promise.resolve(ws);
+    if (opening) return opening;
+    opening = wsUrl().then((url) => {
+      opening = null;
+      if (closed) throw new Error('Disconnected');
+      return openSocket(url);
+    }, (err) => {
+      opening = null;
+      throw err;
+    });
+    return opening;
+  }
+
+  function openSocket(url) {
+    ws = new WebSocket(url);
     ws.onmessage = (event) => {
       let data;
       try { data = JSON.parse(event.data); } catch (_) { return; }
@@ -94,7 +124,10 @@ export function createMiniChat({ agentId = '', sessionId = '' } = {}) {
   }
 
   function transmit(text) {
-    const sock = ensureSocket();
+    ensureSocket().then((sock) => transmitOn(sock, text), () => finish('onError', new Error('Connection unavailable')));
+  }
+
+  function transmitOn(sock, text) {
     const payload = JSON.stringify({
       type: 'chat',
       content: text,

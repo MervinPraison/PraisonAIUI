@@ -89,11 +89,37 @@ function renderEmptySurface(host) {
     '</div>';
 }
 
+// Under AUTH_ENFORCE the server also gates WebSocket handshakes, and browsers
+// cannot set an Authorization header on them. dashboard.js trades the stored
+// key for a single-use ticket (window.aiui.wsAuthParam); without it, fall back
+// to ?token= as before. Resolves to "name=value" or ''.
+function wsAuthParam() {
+  const shared = window.aiui && window.aiui.wsAuthParam;
+  if (typeof shared === 'function') return shared().catch(() => '');
+  try {
+    const token = window.sessionStorage.getItem('aiui_gateway_token') || '';
+    return Promise.resolve(token ? 'token=' + encodeURIComponent(token) : '');
+  } catch (e) {
+    return Promise.resolve('');
+  }
+}
+
+let _previewGen = 0;
+
 export function connectSurfaceWs(host, surfaceId, onMessage) {
   disconnectSurfaceWs();
+  const gen = ++_previewGen;
   const sid = surfaceId || 'main';
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  _previewWs = new WebSocket(proto + '//' + location.host + '/api/chat/ws');
+  return wsAuthParam().then((param) => {
+    if (gen !== _previewGen) return null; // disconnected or reconnected meanwhile
+    _previewWs = new WebSocket(proto + '//' + location.host + '/api/chat/ws' + (param ? '?' + param : ''));
+    attachSurfaceHandler(host, sid, onMessage);
+    return _previewWs;
+  });
+}
+
+function attachSurfaceHandler(host, sid, onMessage) {
   _previewWs.onmessage = (ev) => {
     try {
       const data = JSON.parse(ev.data);
@@ -103,10 +129,10 @@ export function connectSurfaceWs(host, surfaceId, onMessage) {
       }
     } catch (_) { /* ignore */ }
   };
-  return _previewWs;
 }
 
 export function disconnectSurfaceWs() {
+  _previewGen += 1;
   if (_previewWs) {
     try { _previewWs.close(); } catch (_) { /* ignore */ }
     _previewWs = null;

@@ -5,8 +5,12 @@ enriched fields (icon, description, step_number, formatted_result)
 matching the CLI's EditorOutput, and that tool_call_id is present
 for frontend deduplication.
 
+Every test here runs /run against the default provider, which calls a real
+LLM over the network, so the module is marked ``live`` and skipped unless
+PRAISONAI_LIVE_TESTS=1 (or AIUI_LIVE_LLM=1) is set.
+
 Run with:
-    python -m pytest tests/integration/test_tool_call_parity.py -v -o "addopts="
+    PRAISONAI_LIVE_TESTS=1 python -m pytest tests/integration/test_tool_call_parity.py -v -o "addopts="
 """
 
 import json
@@ -18,6 +22,8 @@ from praisonaiui.server import (
     _callbacks,
     create_app,
 )
+
+pytestmark = pytest.mark.live
 
 # ---------------------------------------------------------------------------
 # Helpers

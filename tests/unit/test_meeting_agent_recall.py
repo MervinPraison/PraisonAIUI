@@ -41,8 +41,8 @@ def recall_env(monkeypatch, tmp_path):
 
 def test_verify_request_accepts_valid_signature():
     verify_mod = _load("recall_verify", _ROOT / "meeting_integrations" / "recall" / "verify.py")
-    import hmac
     import hashlib
+    import hmac
 
     body = '{"event":"bot.done"}'
     msg_id = "msg_test"
@@ -105,8 +105,8 @@ def test_webhook_rejects_invalid_signature():
 def test_webhook_accepts_valid_signature_and_queues():
     example = _load("meeting_agent_recall_app2", _ROOT / "app.py")
     verify_mod = _load("recall_verify2", _ROOT / "meeting_integrations" / "recall" / "verify.py")
-    import hmac
     import hashlib
+    import hmac
 
     body = json.dumps(
         {

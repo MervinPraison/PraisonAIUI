@@ -23,7 +23,9 @@ def check(name, r, status=200, keys=None):
         passed += 1
         print(f"  ✓ {name}")
     except AssertionError as e:
-        failed += 1; errors.append(f"  ✗ {name}: {e}"); print(f"  ✗ {name}: {e}")
+        failed += 1
+        errors.append(f"  ✗ {name}: {e}")
+        print(f"  ✗ {name}: {e}")
 
 
 # ── CRUD Tests ────────────────────────────────────────────────────────
@@ -43,7 +45,7 @@ r = client.post("/api/channels", json={
 check("POST /api/channels (create discord)", r, 201, ["id", "name", "platform", "enabled"])
 ch_id = r.json()["id"]
 assert r.json()["platform"] == "discord"
-assert r.json()["enabled"] == True
+assert r.json()["enabled"] is True
 
 # Create second
 r2 = client.post("/api/channels", json={
@@ -80,11 +82,11 @@ print("\n── Channels: Toggle Tests ──")
 
 r = client.post(f"/api/channels/{ch_id2}/toggle")
 check("POST toggle (disable)", r, 200, ["id", "enabled"])
-assert r.json()["enabled"] == False
+assert r.json()["enabled"] is False
 
 r = client.post(f"/api/channels/{ch_id2}/toggle")
 check("POST toggle (enable)", r, 200)
-assert r.json()["enabled"] == True
+assert r.json()["enabled"] is True
 
 check("POST toggle missing → 404", client.post("/api/channels/xxx/toggle"), 404)
 
@@ -130,7 +132,9 @@ try:
     passed += 1
     print("  ✓ _get_gateway_health() returns None without gateway")
 except AssertionError as e:
-    failed += 1; errors.append(f"  ✗ _get_gateway_health: {e}"); print(f"  ✗ _get_gateway_health: {e}")
+    failed += 1
+    errors.append(f"  ✗ _get_gateway_health: {e}")
+    print(f"  ✗ _get_gateway_health: {e}")
 
 # Test with mock gateway set via _gateway_ref
 from praisonaiui.features import _gateway_ref
@@ -150,11 +154,13 @@ gw_health = ch_feature._get_gateway_health()
 try:
     assert gw_health is not None, "Expected gateway health data"
     assert "mock-ch" in gw_health, f"Expected 'mock-ch' in {gw_health}"
-    assert gw_health["mock-ch"]["running"] == True
+    assert gw_health["mock-ch"]["running"] is True
     passed += 1
     print("  ✓ _get_gateway_health() returns data with mock gateway")
 except AssertionError as e:
-    failed += 1; errors.append(f"  ✗ _get_gateway_health mock: {e}"); print(f"  ✗ _get_gateway_health mock: {e}")
+    failed += 1
+    errors.append(f"  ✗ _get_gateway_health mock: {e}")
+    print(f"  ✗ _get_gateway_health mock: {e}")
 
 # Reset
 _gateway_ref.set_gateway(None)
@@ -170,5 +176,6 @@ print(f"\n{'='*50}")
 print(f"  Channels: {passed} passed, {failed} failed")
 print(f"{'='*50}")
 if errors:
-    for e in errors: print(e)
+    for e in errors:
+        print(e)
     sys.exit(1)

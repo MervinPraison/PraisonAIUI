@@ -13,6 +13,9 @@ import { showToast } from '../toast.js';
 
 // ── State ────────────────────────────────────────────────────────
 let ws = null;
+// Pending WebSocket reconnect (setTimeout id); cleanup() cancels it.
+let wsReconnectTimer = null;
+let wsConnectGen = 0; // bumped by every connect and by cleanup: a stale ticket fetch never opens a socket
 let currentSessionId = null;
 let currentAgentName = null;
 let isStreaming = false;
@@ -282,7 +285,7 @@ function injectStyles() {
     .tool-media-preview .chat-msg-image { max-height:160px; }
     .chat-msg-user .chat-msg-content { background:var(--db-accent); color:#fff; }
     .chat-msg-streaming .chat-msg-content::after { content:'▌'; animation:blink 1s infinite; }
-    .chat-typing-indicator { display:inline-flex; align-items:center; gap:4px; color:var(--muted-foreground,#94a3b8); font-size:13px; }
+    .chat-typing-indicator { display:inline-flex; align-items:center; gap:4px; color:var(--db-p-text-dim, #94a3b8); font-size:13px; }
     .chat-typing-indicator .dot { width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.5; animation:typing-bounce 1.2s infinite; }
     .chat-typing-indicator .dot:nth-child(2) { animation-delay:.15s; }
     .chat-typing-indicator .dot:nth-child(3) { animation-delay:.3s; }
@@ -988,7 +991,11 @@ export async function render(container) {
 }
 
 export function cleanup() {
-  if (ws) { try { ws.close(); } catch(e) {} ws = null; }
+  // Detach onclose first: otherwise closing schedules a reconnect that opens a
+  // socket nobody ever closes once the view is gone.
+  if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+  wsConnectGen += 1; // a ticket fetch still in flight must not open a socket now
+  if (ws) { try { ws.onclose = null; ws.close(); } catch(e) {} ws = null; }
   stopContextPoll();
   if (contextRefreshDebounce) { clearTimeout(contextRefreshDebounce); contextRefreshDebounce = null; }
   if (sessionSelectHandler) {
@@ -1267,16 +1274,46 @@ function newSession() {
 }
 
 // ── WebSocket ────────────────────────────────────────────────────
+// Under AUTH_ENFORCE the server also gates WebSocket handshakes, and browsers
+// cannot set an Authorization header on them. dashboard.js trades the stored
+// key for a single-use ticket (window.aiui.wsAuthParam); without it, fall back
+// to ?token= as before. Resolves to "name=value" or ''.
+function wsAuthParam() {
+  const shared = window.aiui && window.aiui.wsAuthParam;
+  if (typeof shared === 'function') return shared().catch(() => '');
+  try {
+    const token = window.sessionStorage.getItem('aiui_gateway_token') || '';
+    return Promise.resolve(token ? 'token=' + encodeURIComponent(token) : '');
+  } catch (e) {
+    return Promise.resolve('');
+  }
+}
+
+function scheduleReconnect(delayMs) {
+  if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
+  wsReconnectTimer = setTimeout(() => {
+    wsReconnectTimer = null;
+    connectWebSocket();
+  }, delayMs);
+}
+
 function connectWebSocket() {
+  if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
   // Close any existing connection to prevent duplicate events
   if (ws) {
     try { ws.onclose = null; ws.close(); } catch (e) {}
     ws = null;
   }
 
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = protocol + '//' + location.host + '/api/chat/ws';
+  const gen = ++wsConnectGen;
+  wsAuthParam().then((param) => {
+    if (gen !== wsConnectGen) return; // a newer connect (or teardown) won
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    openChatSocket(protocol + '//' + location.host + '/api/chat/ws' + (param ? '?' + param : ''));
+  });
+}
 
+function openChatSocket(wsUrl) {
   try {
     ws = new WebSocket(wsUrl);
 
@@ -1306,7 +1343,7 @@ function connectWebSocket() {
     ws.onclose = () => {
       console.log('[Chat] WebSocket closed, reconnecting in 3s…');
       setStatus('disconnected');
-      setTimeout(connectWebSocket, 3000);
+      scheduleReconnect(3000);
     };
 
     ws.onerror = (e) => {
@@ -1315,7 +1352,7 @@ function connectWebSocket() {
     };
   } catch (e) {
     console.warn('[Chat] WebSocket connection failed:', e);
-    setTimeout(connectWebSocket, 5000);
+    scheduleReconnect(5000);
   }
 }
 

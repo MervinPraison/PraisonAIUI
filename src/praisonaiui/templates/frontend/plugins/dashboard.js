@@ -241,8 +241,33 @@ const aiuiSdk = {
 window.aiui = window.aiui || {};
 window.aiui.registerView = function(pageId, renderFn, cleanupFn) {
   VIEW_REGISTRY[pageId] = { render: renderFn, cleanup: cleanupFn || null };
+  // Late registration for the page already on screen: re-render it.
+  if (pageId === activePageId && document.getElementById('db-main-content')) {
+    selectPage(pageId);
+  }
 };
 window.aiui.views = VIEW_REGISTRY;
+// WebSocket handshake credential (browsers cannot set headers on one): a
+// single-use ticket bought with the stored key, so the key never appears in a
+// URL or an access log; `token=` for servers without the ticket endpoint; ''
+// when no key is stored (cookie or open servers). Resolves to "name=value".
+window.aiui.wsAuthParam = async function () {
+  let token = '';
+  try { token = window.sessionStorage.getItem('aiui_gateway_token') || ''; } catch (e) { /* storage blocked */ }
+  if (!token) return '';
+  try {
+    const res = await fetch('/api/auth/ws-ticket', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token }, credentials: 'same-origin',
+    });
+    if (res.ok) {
+      const d = await res.json();
+      if (d && typeof d.ticket === 'string' && d.ticket) return 'ticket=' + encodeURIComponent(d.ticket);
+    } else if (res.status !== 404 && res.status !== 405) {
+      return '';
+    }
+  } catch (e) { /* network trouble: the handshake fails and retries */ }
+  return 'token=' + encodeURIComponent(token);
+};
 window.aiui.registerComponent = function(type, renderFn) {
   COMPONENT_REGISTRY[type] = renderFn;
 };
@@ -291,6 +316,14 @@ const DASHBOARD_STYLE = `
 
   /* Root becomes the flex container */
   #root { display: flex; min-height: 100vh; }
+  /* With a shell:header slot: sidebar | (header row sized to content, page panel below). */
+  #root.db-active:has(> #db-shell-header-slot) {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+    height: 100vh; min-height: 0;
+  }
+  #root.db-active:has(> #db-shell-header-slot) > .db-sidebar { grid-column: 1; grid-row: 1 / -1; }
+  #db-shell-header-slot { grid-column: 2; grid-row: 1; min-width: 0; padding: 8px 40px 0; }
+  #root.db-active:has(> #db-shell-header-slot) > .db-main { grid-column: 2; grid-row: 2; height: auto; min-height: 0; }
 
   /* Sidebar */
   .db-sidebar {
@@ -471,9 +504,8 @@ const DASHBOARD_STYLE = `
     .db-sidebar.db-sidebar-open { transform: translateX(0); visibility: visible; transition: transform 0.2s ease; }
     .db-mobile-overlay.db-visible { display: block; }
     .db-main { padding-top: 48px; }
-    /* The shell header slot sits in the same flex row; give it its own line. */
-    #root.db-active { flex-wrap: wrap; }
-    #db-shell-header-slot { flex: 0 0 100%; margin-top: 48px; }
+    /* Sidebar is fixed here; the header row sits below the fixed mobile bar. */
+    #db-shell-header-slot { margin-top: 48px; padding: 8px 16px 0; }
     #db-shell-header-slot + .db-main { padding-top: 16px; }
   }
   @media (max-width: 600px) {
@@ -859,6 +891,11 @@ const DASHBOARD_STYLE = `
 let activePageId = null;
 let pagesData = [];
 
+// Host mode (style `app`): set only by initHostRuntime(), see the end of this
+// file. While they keep these defaults the legacy dashboard is unchanged.
+let _hostMode = false;
+let _hostNavigate = null;
+
 // ── Theme preset → --db-* CSS variable mapping ───────────────────────
 // When site.theme.preset is set (via YAML or aiui.set_theme()), we map
 // the preset name to appropriate --db-* values so the dashboard adopts
@@ -889,6 +926,9 @@ const PRESET_COLORS = {
 };
 
 async function applyThemeFromConfig(cfg) {
+  // Host mode: theme tokens come from the shell (legacy/bridge.css). Inline
+  // !important vars on <html> would override them and user CSS alike.
+  if (_hostMode) return;
   const theme = cfg?.site?.theme;
   if (!theme) return;
 
@@ -1126,6 +1166,14 @@ function initCommandPalette() {
 }
 
 window.aiui = window.aiui || {};
+// Host mode: the React shell loads before this module and may already own
+// these hooks. Remember them so initHostRuntime({ palette: false }) can hand
+// them back (_restoreShellPaletteHooks).
+const _shellPaletteHooks = {
+  open: window.aiui.openCommandPalette,
+  close: window.aiui.closeCommandPalette,
+  global: window.openCommandPalette,
+};
 window.aiui.openCommandPalette = openCommandPalette;
 window.aiui.closeCommandPalette = closeCommandPalette;
 window.openCommandPalette = openCommandPalette;
@@ -1339,7 +1387,11 @@ function installAuthFetch() {
     const token = getStoredToken();
     if (!token) return nativeFetch(input, init);
 
-    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    // A URL object has no .url; without .href it would read as '' (same
+    // origin) and the token would go to any host.
+    const url = typeof input === 'string' ? input
+      : (typeof URL !== 'undefined' && input instanceof URL) ? input.href
+      : (input && input.url) || '';
     if (!isSameOrigin(url)) return nativeFetch(input, init);
 
     const opts = { ...(init || {}) };
@@ -1359,7 +1411,10 @@ async function fetchAuthStatus() {
     const token = getStoredToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch('/api/auth/status', { headers, credentials: 'same-origin' });
-    if (!res.ok) return { authenticated: false, mode: 'gateway', auth_required: true };
+    // Only a refusal means "needs a key". A 5xx (server restarting, a proxy
+    // error) says nothing about auth: no wizard for it.
+    if (res.status === 401 || res.status === 403) return { authenticated: false, mode: 'gateway', auth_required: true };
+    if (!res.ok) return null;
     return await res.json();
   } catch (e) {
     return null;
@@ -1425,7 +1480,7 @@ async function probeGatewayReachable(urlString) {
   }
 }
 
-async function maybeShowOnboarding() {
+async function maybeShowOnboarding(opts = {}) {
   let params;
   try {
     params = new URLSearchParams(window.location.search);
@@ -1445,6 +1500,9 @@ async function maybeShowOnboarding() {
     } catch (e) { /* ignore */ }
     if (ok) return;
   }
+  // Under the React app shell its own token gate (BootScreen) asks for the
+  // key; the legacy wizard would cover the whole shell.
+  if (opts.wizard === false) return;
 
   const status = await fetchAuthStatus();
   if (!status) return;
@@ -1972,7 +2030,14 @@ function showDashboardInitError(message) {
   banner.textContent = message;
 }
 
+// A render superseded by a newer selectPage never became active, so run its
+// own cleanup to release intervals/listeners it set up.
+function _supersededCleanup(fn) {
+  if (fn) { try { fn(); } catch (e) {} }
+}
+
 async function selectPage(pageId) {
+  if (_hostNavigate) return _hostNavigate(pageId); // host mode: the shell router owns navigation
   // Cleanup previous view if it has a cleanup function
   if (_activeCleanup) { try { _activeCleanup(); } catch(e) {} _activeCleanup = null; }
 
@@ -2042,9 +2107,11 @@ async function selectPage(pageId) {
 
   // Priority 1: Custom registered view
   if (VIEW_REGISTRY[pageId]) {
+    const view = VIEW_REGISTRY[pageId];
     try {
-      await VIEW_REGISTRY[pageId].render(container);
-      _activeCleanup = VIEW_REGISTRY[pageId].cleanup || null;
+      await view.render(container);
+      if (!container.isConnected) { _supersededCleanup(view.cleanup); return; } // superseded by a newer selectPage
+      _activeCleanup = view.cleanup || null;
       rendered = true;
     } catch (e) { console.warn(`View '${pageId}' render error:`, e); }
   }
@@ -2055,17 +2122,21 @@ async function selectPage(pageId) {
       const viewUrl = BUILTIN_VIEWS[pageId] + '?v=' + Date.now();
       const mod = await import(viewUrl);
       if (mod.render) {
+        if (!container.isConnected) return; // superseded by a newer selectPage
         await mod.render(container);
+        if (!container.isConnected) { _supersededCleanup(mod.cleanup); return; }
         _activeCleanup = mod.cleanup || null;
         rendered = true;
-        // Cache for future use
-        VIEW_REGISTRY[pageId] = { render: mod.render, cleanup: mod.cleanup || null };
+        // Cache for future use (never overwrite a view registered meanwhile)
+        if (!VIEW_REGISTRY[pageId]) {
+          VIEW_REGISTRY[pageId] = { render: mod.render, cleanup: mod.cleanup || null };
+        }
       }
     } catch (e) { console.warn(`Built-in view '${pageId}' import error:`, e); }
   }
 
   // Priority 3: Generic JSON viewer fallback
-  if (!rendered) {
+  if (!rendered && container.isConnected) {
     loadGenericViewer(page, container);
   }
 
@@ -3199,12 +3270,17 @@ async function showTestPanel() {
   });
   const main = document.getElementById('db-main-content');
   if (!main) return;
+  await renderTestPanel(main, { header: true });
+}
 
+// The Inspector panel's body, rendered into `main`: the legacy shell's
+// content area, or a host-mode mount (the React shell header shows the title).
+async function renderTestPanel(main, { header }) {
   main.innerHTML = `
-    <div class="db-page-header">
+    ${header ? `<div class="db-page-header">
       <h1 class="db-page-title">🔍 Inspector</h1>
       <p class="db-page-desc">Interactive data flow debugger — click a feature to inspect its API endpoints and see raw request/response data.</p>
-    </div>
+    </div>` : ''}
     <div id="fi-container">
       <div class="db-loading"><div class="db-spinner"></div></div>
     </div>
@@ -3517,23 +3593,341 @@ window.aiui.registerSlot('shell:header', () => {
 window.aiui.registerSlot('shell:sidebar:footer', () => {
   const el = document.createElement('div');
   el.innerHTML = '<span class="db-health-dot" style="color:var(--db-text-dim)">●</span> <span class="db-health-label">Checking…</span>';
-  fetch('/api/health').then((r) => r.json()).then((d) => {
+  // Connection indicator uses side-effect-free liveness (#341). Deep
+  // feature/SDK-gap diagnostics remain at /api/health (Debug view).
+  fetch('/api/health/live').then((r) => r.json()).then((d) => {
     const ok = d && (d.status === 'ok' || d.status === 'healthy');
     const dot = el.querySelector('.db-health-dot');
     const label = el.querySelector('.db-health-label');
-    const gaps = (d && d.sdk_gaps) || [];
-    if (dot) dot.style.color = ok && !gaps.length ? '#22c55e' : (gaps.length ? '#f59e0b' : '#ef4444');
-    if (label) {
-      if (gaps.length) {
-        label.textContent = `SDK gaps (${gaps.length})`;
-        label.title = gaps.map((g) => `${g.feature}: ${g.message}`).join('\n');
-      } else {
-        label.textContent = ok ? (d.integrated ? 'Integrated' : 'Connected') : 'Degraded';
-        label.title = '';
-      }
-    }
+    if (dot) dot.style.color = ok ? '#22c55e' : '#ef4444';
+    if (label) label.textContent = ok ? 'Connected' : 'Degraded';
   }).catch(() => { const label = el.querySelector('.db-health-label'); if (label) label.textContent = 'Offline'; });
   return el;
 });
 
-export { init, onContentChange };
+// Replay registrations queued by the /custom.js stubs (see server.py).
+(window.aiui.__queue || []).splice(0).forEach(([name, args]) => {
+  try { window.aiui[name](...args); } catch (e) { console.warn(`[AIUI] queued ${name} failed:`, e); }
+});
+
+// ── Host mode (React shell strangler, ADR-0001) ──────────────────────
+// Style `app` imports this module as a runtime only (src/frontend/src/legacy/
+// runtime.ts). The React shell owns #root, the chrome and routing, and mounts
+// one page at a time through mountView(). init() and buildDashboard() never
+// run in this mode, and nothing below touches #root. Everything here is inert
+// until initHostRuntime() is called, so the dashboard style is unchanged.
+
+// Non-colour layout defaults kept from DASHBOARD_STYLE's :root block.
+const _HOST_LAYOUT_VARS = ['--db-sidebar-w', '--db-sidebar-collapsed-w', '--db-transition'];
+
+// DASHBOARD_STYLE minus the rules that assume this module owns the page:
+// - the :root block of dark --db-* colours. The shell's legacy/bridge.css maps
+//   --db-* onto its tokens at zero specificity, so user CSS (set_custom_css,
+//   `:root { --db-accent: … }`) still wins. Only the layout vars survive, also
+//   at zero specificity.
+// - body { … } and #root { display: flex } (the shell owns both).
+// - `#root select option` is re-scoped to the legacy host.
+// White alpha tints (rgba(255,255,255,a)), which assume a dark page, become
+// the same alpha of the text colour so they also read on a light page.
+function hostScopedStyle() {
+  return DASHBOARD_STYLE
+    .replace(/:root \{([^}]*)\}/, (_block, body) => {
+      const keep = body.split('\n')
+        .map((line) => line.trim())
+        .filter((line) => _HOST_LAYOUT_VARS.some((name) => line.startsWith(name + ':')));
+      return `:where(html) { ${keep.join(' ')} }`;
+    })
+    .replace(/\n\s*body \{[^}]*\}/, '\n  .aiui-legacy-host { color: var(--db-text); }')
+    .replace(/\n\s*#root \{ display: flex; min-height: 100vh; \}/, '')
+    .replace(/#root select option/g, '.aiui-legacy-host select option')
+    .replace(/rgba\(255,\s*255,\s*255,\s*(0?\.\d+)\)/g, (_m, alpha) =>
+      `color-mix(in oklab, var(--db-text) ${Math.round(parseFloat(alpha) * 1000) / 10}%, transparent)`);
+}
+
+// initHostRuntime({ palette: false }): give the Ctrl+K hooks back to the shell
+// (or drop the legacy ones) unless something else has replaced them already.
+function _restoreShellPaletteHooks() {
+  const hand = (obj, key, legacyFn, previous) => {
+    if (obj[key] !== legacyFn) return;
+    if (typeof previous === 'function') obj[key] = previous;
+    else delete obj[key];
+  };
+  hand(window.aiui, 'openCommandPalette', openCommandPalette, _shellPaletteHooks.open);
+  hand(window.aiui, 'closeCommandPalette', closeCommandPalette, _shellPaletteHooks.close);
+  hand(window, 'openCommandPalette', openCommandPalette, _shellPaletteHooks.global);
+}
+
+// approvalUi 'event-only': the approval stream only announces approvals on
+// window (aiui:approval-required, plus aiui:approval-resolved) and never opens
+// the legacy modal. The shell shows a toast and the React chat shows the gate
+// in its thread, so one approval never gets two competing dialogs.
+const _hostAnnouncedApprovals = new Set();
+function _announceApproval(entry) {
+  if (entry.id != null) {
+    if (_hostAnnouncedApprovals.has(entry.id)) return; // already announced (reconnect, or an earlier lookup)
+    _hostAnnouncedApprovals.add(entry.id);
+    if (_hostAnnouncedApprovals.size > 500) _hostAnnouncedApprovals.delete(_hostAnnouncedApprovals.values().next().value);
+  }
+  window.dispatchEvent(new CustomEvent('aiui:approval-required', { detail: entry }));
+}
+// The stream's 'new' message may carry no entry (it only signals), so the
+// pending list is looked up and each approval not yet announced is announced.
+async function _announceNewApprovals(entry) {
+  if (entry && entry.id != null) { _announceApproval(entry); return; }
+  let pending = null;
+  try {
+    const res = await fetch('/api/approvals/pending');
+    if (res.ok) pending = (await res.json()).approvals;
+  } catch (e) { console.warn('[AIUI] pending approvals:', e); }
+  if (!Array.isArray(pending)) { _announceApproval(entry || {}); return; }
+  pending.forEach((item) => { if (item && item.id != null) _announceApproval(item); });
+}
+function _initHostApprovalEvents() {
+  if (approvalSSESource) return;
+  try {
+    approvalSSESource = new EventSource('/api/approvals/stream');
+    approvalSSESource.onmessage = (event) => {
+      let msg;
+      try { msg = JSON.parse(event.data); } catch (e) { console.error('Failed to parse approval SSE:', e); return; }
+      if (!msg) return;
+      if (msg.event === 'new') {
+        _announceNewApprovals(msg.data);
+      } else if (msg.event === 'resolved') {
+        window.dispatchEvent(new CustomEvent('aiui:approval-resolved', { detail: msg.data || {} }));
+      }
+    };
+    approvalSSESource.onerror = () => {
+      console.warn('Approval SSE connection error, retrying...');
+      if (approvalSSESource) { approvalSSESource.close(); approvalSSESource = null; }
+      setTimeout(_initHostApprovalEvents, 5000);
+    };
+  } catch (e) {
+    console.error('Failed to init approval stream:', e);
+  }
+}
+
+let _hostRuntimeReady = null;
+let _hostKeyBindingsInstalled = false;
+
+/**
+ * Boot the legacy runtime for a host that owns the page (the React shell).
+ * Runs once; later calls only update `navigate` and return the same promise.
+ * If the boot rejects, the next call boots again (key bindings stay single).
+ *
+ * opts.navigate(pageId)  every legacy selectPage() call goes here instead.
+ * opts.palette           false: do not install the legacy Ctrl+K palette and
+ *                        leave window.aiui.openCommandPalette to the host.
+ * opts.approvalUi        'event-only': announce approvals on window, never
+ *                        open the legacy approval modal. Default 'modal'.
+ *                        (`approvals: false` is accepted as an alias.)
+ * Resolves to { pages } (the /api/pages list plus dashboard-plugin pages).
+ */
+function initHostRuntime(opts = {}) {
+  if (typeof opts.navigate === 'function') _hostNavigate = opts.navigate;
+  if (_hostRuntimeReady) return _hostRuntimeReady;
+  _hostMode = true;
+  const approvalUi = (opts.approvalUi === 'event-only' || opts.approvals === false) ? 'event-only' : 'modal';
+  if (!_hostKeyBindingsInstalled) {
+    _hostKeyBindingsInstalled = true;
+    if (opts.palette === false) _restoreShellPaletteHooks();
+    else initCommandPalette();
+    initSessionSearch(); // Escape for the session search overlay (window.aiui.openSessionSearch)
+  }
+
+  const ready = (async () => {
+    installAuthFetch();
+    if (!document.getElementById('aiui-legacy-style')) {
+      const style = document.createElement('style');
+      style.id = 'aiui-legacy-style';
+      style.textContent = hostScopedStyle();
+      // First in <head>: the shell's stylesheets follow it, and the
+      // aiui-css-guard keeps user CSS (#aiui-custom-css) last.
+      document.head.insertBefore(style, document.head.firstChild);
+    }
+    // Magic links (?token=) still work; the wizard is the shell's TokenGate's job.
+    const reactShell = document.documentElement.dataset.aiuiShell === 'react';
+    try { await maybeShowOnboarding({ wizard: !reactShell }); } catch (e) { console.warn('[AIUI] Onboarding gate error:', e); }
+    try {
+      const res = await fetch('/api/pages');
+      if (!res.ok) throw new Error(`GET /api/pages: HTTP ${res.status}`);
+      pagesData = (await res.json()).pages || [];
+    } catch (e) { console.warn('[AIUI] host runtime pages:', e); }
+    try { await loadDashboardPlugins(); } catch (e) { console.warn('[AIUI] host runtime plugins:', e); }
+    if (approvalUi === 'event-only') {
+      _initHostApprovalEvents();
+    } else {
+      initApprovalStream();
+      window.addEventListener('aiui:approval-required', (e) => { if (e.detail) showApprovalModal(e.detail); });
+    }
+    return { pages: pagesData.slice() };
+  })();
+  _hostRuntimeReady = ready;
+  ready.catch(() => { if (_hostRuntimeReady === ready) _hostRuntimeReady = null; });
+  return ready;
+}
+
+// The legacy record for a page (it carries api_endpoint and other legacy
+// fields), else the host's page (manifest shape: apiEndpoint), else a stub.
+function _hostPageRecord(pageId, hostPage) {
+  const known = pagesData.find((p) => p.id === pageId);
+  if (known) return known;
+  if (hostPage && typeof hostPage === 'object') {
+    const page = { ...hostPage, id: pageId, title: hostPage.title || pageId };
+    if (page.api_endpoint == null && typeof hostPage.apiEndpoint === 'string') page.api_endpoint = hostPage.apiEndpoint;
+    return page;
+  }
+  return { id: pageId, title: pageId };
+}
+
+// The documented `page:<id>:toolbar` slot. selectPage() renders it in the
+// page header, which the shell owns in host mode, so it goes in a row just
+// above the view instead (not for full-bleed pages, as in selectPage()).
+// Returns the row, or null.
+function _mountHostToolbar(pageId, page, container) {
+  const render = SLOT_REGISTRY[`page:${pageId}:toolbar`];
+  const parent = container.parentNode;
+  if (typeof render !== 'function' || !parent || page.layout === 'full-bleed') return null;
+  let node = null;
+  try { node = render(); } catch (e) { console.warn(`[AIUI] Slot 'page:${pageId}:toolbar':`, e); }
+  if (!node) return null;
+  const row = document.createElement('div');
+  row.className = 'db-slot-host aiui-legacy-toolbar';
+  row.dataset.slot = `page:${pageId}:toolbar`;
+  row.appendChild(node);
+  parent.insertBefore(row, container);
+  return row;
+}
+
+// Failed imports per built-in view in host mode. A browser keeps a failed
+// module fetch in its module map for the life of the document, so importing
+// the same URL again rejects without a request; after a failure the next
+// mount adds `&r=<n>` to fetch again. A successful import is cached in
+// VIEW_REGISTRY, so a view module is never loaded twice.
+const _hostViewImportFailures = Object.create(null);
+
+function _hostViewUrl(pageId) {
+  const build = window.__AIUI_BUILD__ == null ? '' : String(window.__AIUI_BUILD__);
+  const failures = _hostViewImportFailures[pageId] || 0;
+  return BUILTIN_VIEWS[pageId] + '?v=' + encodeURIComponent(build) + (failures ? '&r=' + failures : '');
+}
+
+async function _importHostView(pageId) {
+  try {
+    return await import(_hostViewUrl(pageId));
+  } catch (e) {
+    _hostViewImportFailures[pageId] = (_hostViewImportFailures[pageId] || 0) + 1;
+    throw e;
+  }
+}
+
+// Mounts per page id that have started and not yet been cleaned up. A view's
+// module-level cleanup export is shared by every mount of that page, so it
+// only runs when the last live mount of the page goes.
+const _hostLiveMounts = Object.create(null);
+
+// One resolution pass for mountView(). Resolves to the view's two cleanups,
+// kept apart: `instance` is what render() returned (it belongs to this mount),
+// `module` is the view's module-level cleanup export (it tears down state the
+// module shares across every mount of the page). Either may be null.
+async function _mountViewBody(pageId, container, page, stale) {
+  const combine = (returned, moduleCleanup) => ({
+    instance: typeof returned === 'function' ? returned : null,
+    module: typeof moduleCleanup === 'function' && moduleCleanup !== returned ? moduleCleanup : null,
+  });
+  const noop = { instance: null, module: null };
+
+  // Priority 1: registered view (plugins, custom.js, cached built-ins)
+  const view = VIEW_REGISTRY[pageId];
+  if (view && typeof view.render === 'function') {
+    try {
+      return combine(await view.render(container), view.cleanup);
+    } catch (e) { console.warn(`View '${pageId}' render error:`, e); }
+    if (stale()) return noop;
+  }
+
+  // The Inspector is a built-in panel, not a page with data: the legacy shell
+  // opens it as an action; a host mount renders the same panel.
+  if (pageId === 'inspector') {
+    await renderTestPanel(container, { header: false });
+    return noop;
+  }
+
+  // Priority 2: built-in view module. The build id (not Date.now(), as in
+  // selectPage) keeps one module instance per build across mounts.
+  if (Object.prototype.hasOwnProperty.call(BUILTIN_VIEWS, pageId)) {
+    try {
+      const mod = await _importHostView(pageId);
+      if (typeof mod.render === 'function') {
+        if (stale()) return noop;
+        const returned = await mod.render(container);
+        // Cache for later mounts (never overwrite a view registered meanwhile)
+        if (!VIEW_REGISTRY[pageId]) VIEW_REGISTRY[pageId] = { render: mod.render, cleanup: mod.cleanup || null };
+        return combine(returned, mod.cleanup);
+      }
+    } catch (e) { console.warn(`Built-in view '${pageId}' import error:`, e); }
+    if (stale()) return noop;
+  }
+
+  // Priority 3: generic data viewer
+  await loadGenericViewer(page, container);
+  return noop;
+}
+
+/**
+ * Mount one page's view into `container`; resolves to its cleanup function.
+ * Same resolution order as selectPage(): registered view, built-in view
+ * module, then the generic data viewer. Unlike selectPage():
+ * - a cleanup that render() returns is honoured as well as the module's
+ *   cleanup export, and the combined cleanup runs at most once. The module's
+ *   cleanup is skipped while another mount of the same page is live, so a
+ *   stale mount that finishes late never tears down the newer mount's state;
+ * - if the container is detached or opts.signal aborts while the view loads,
+ *   the view is cleaned up at once and a no-op is returned.
+ * opts.page is the host's page record (manifest shape), used when /api/pages
+ * does not know the id.
+ */
+async function mountView(pageId, container, opts = {}) {
+  const signal = opts.signal;
+  const stale = () => !container.isConnected || Boolean(signal && signal.aborted);
+  if (stale()) return () => {};
+  const page = _hostPageRecord(pageId, opts.page);
+  activePageId = pageId;
+  container.setAttribute('data-page', pageId);
+
+  // This mount counts as live until its cleanup runs (see _hostLiveMounts).
+  const live = _hostLiveMounts[pageId] || (_hostLiveMounts[pageId] = new Set());
+  const token = {};
+  live.add(token);
+  const run = (fn) => { if (fn) { try { fn(); } catch (e) { console.warn(`[AIUI] cleanup '${pageId}':`, e); } } };
+
+  const toolbar = _mountHostToolbar(pageId, page, container);
+  let parts = { instance: null, module: null };
+  try {
+    parts = await _mountViewBody(pageId, container, page, stale);
+  } catch (e) {
+    live.delete(token);
+    throw e;
+  } finally {
+    if (toolbar && stale()) toolbar.remove();
+  }
+  let done = false;
+  const cleanup = () => {
+    if (done) return;
+    done = true;
+    live.delete(token);
+    run(parts.instance);
+    // Another mount of this page started meanwhile and is still live (a
+    // re-mount while this render was in flight): the module's shared state is
+    // now that mount's, so leave it to that mount's cleanup.
+    if (live.size === 0) run(parts.module);
+    if (toolbar) toolbar.remove();
+  };
+  if (!stale()) return cleanup;
+  cleanup();
+  return () => {};
+}
+
+window.aiui.mountView = mountView;
+window.aiui.initHostRuntime = initHostRuntime;
+
+export { init, onContentChange, initHostRuntime, mountView };

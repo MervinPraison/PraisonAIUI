@@ -1,0 +1,11 @@
+/* Dev-only stylesheet for design-dev.html. The shipped index.css excludes
+   ../dev from class scanning (harness classes must never reach the bundle), so
+   the harness builds its own sheet from the same layers: Tailwind, the token
+   layer, and classes from src/ plus this harness. */
+@import "tailwindcss" source("../src");
+@import "tw-animate-css";
+@import "../src/styles/theme.css";
+@source "./design-dev.tsx";
+@source not "../src/spike";
+
+@custom-variant dark (&:is(.dark *));

@@ -21,11 +21,11 @@ const PLATFORM_ICONS = {
 };
 
 const STATUS_COLORS = {
-  running: '#22c55e',    // green
-  enabled: '#eab308',    // yellow
-  stopped: '#ef4444',    // red
-  error: '#ef4444',      // red
-  not_configured: '#6b7280' // gray
+  running: 'var(--db-p-success, #22c55e)',
+  enabled: 'var(--db-p-warning, #eab308)',
+  stopped: 'var(--db-p-error, #ef4444)',
+  error: 'var(--db-p-error, #ef4444)',
+  not_configured: 'var(--db-p-text-muted, #6b7280)',
 };
 
 async function fetchChannels() {
@@ -69,7 +69,7 @@ function showNotification(message, type = 'info') {
     right: 1rem;
     padding: 0.75rem 1rem;
     border-radius: 0.5rem;
-    background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
+    background: ${type === 'success' ? 'var(--db-p-success-strong, #22c55e)' : type === 'error' ? 'var(--db-p-error-strong, #ef4444)' : 'var(--db-p-info, #3b82f6)'};
     color: white;
     font-size: 0.875rem;
     z-index: 9999;
@@ -202,13 +202,13 @@ function injectStyles() {
       align-items: center;
       margin-bottom: 1.5rem;
       padding-bottom: 1rem;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      border-bottom: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
     }
 
     .aiui-channels-header h2 {
       font-size: 1.5rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0;
     }
 
@@ -221,7 +221,7 @@ function injectStyles() {
       display: flex;
       align-items: center;
       font-size: 0.875rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-channels-grid {
@@ -231,8 +231,8 @@ function injectStyles() {
     }
 
     .aiui-channel-card {
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: linear-gradient(135deg, var(--db-p-card-bg, rgba(30, 41, 59, 0.8)) 0%, var(--db-p-card-bg, rgba(15, 23, 42, 0.9)) 100%);
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
       border-radius: 0.75rem;
       padding: 1.25rem;
       transition: transform 0.2s, box-shadow 0.2s;
@@ -257,7 +257,7 @@ function injectStyles() {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(56, 189, 248, 0.1);
+      background: var(--db-p-info-bg, rgba(56, 189, 248, 0.1));
       border-radius: 0.5rem;
     }
 
@@ -268,13 +268,13 @@ function injectStyles() {
     .aiui-channel-name {
       font-size: 1rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0 0 0.25rem 0;
     }
 
     .aiui-channel-platform {
       font-size: 0.75rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       text-transform: capitalize;
     }
 
@@ -282,7 +282,7 @@ function injectStyles() {
       display: flex;
       align-items: center;
       font-size: 0.8125rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-channel-details {
@@ -290,7 +290,7 @@ function injectStyles() {
       gap: 1.5rem;
       margin-bottom: 1rem;
       padding: 0.75rem;
-      background: rgba(0, 0, 0, 0.2);
+      background: var(--db-p-canvas, rgba(0, 0, 0, 0.2));
       border-radius: 0.5rem;
     }
 
@@ -302,14 +302,14 @@ function injectStyles() {
 
     .aiui-stat-label {
       font-size: 0.6875rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
 
     .aiui-stat-value {
       font-size: 0.875rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
     }
 
     .aiui-channel-actions {
@@ -332,19 +332,19 @@ function injectStyles() {
     }
 
     .aiui-btn-restart {
-      background: rgba(56, 189, 248, 0.15);
-      color: #38bdf8;
-      border: 1px solid rgba(56, 189, 248, 0.3);
+      background: var(--db-p-info-bg, rgba(56, 189, 248, 0.15));
+      color: var(--db-p-info, #38bdf8);
+      border: 1px solid var(--db-p-info-bg, rgba(56, 189, 248, 0.3));
     }
 
     .aiui-btn-restart:hover {
-      background: rgba(56, 189, 248, 0.25);
+      background: var(--db-p-info-bg, rgba(56, 189, 248, 0.25));
     }
 
     .aiui-channels-empty {
       text-align: center;
       padding: 4rem 2rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-empty-icon {
@@ -355,7 +355,7 @@ function injectStyles() {
 
     .aiui-channels-empty h3 {
       font-size: 1.25rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       margin: 0 0 0.5rem 0;
     }
 
@@ -368,7 +368,7 @@ function injectStyles() {
 
     .aiui-empty-hint {
       font-size: 0.8125rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
     }
 
     @media (max-width: 768px) {

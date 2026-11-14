@@ -25,6 +25,8 @@ def client():
 
     _srv._DEEP_HEALTH_CACHE = {}
     _srv._DEEP_HEALTH_CACHE_TIME = 0.0
+    _srv._health_cache = {}
+    _srv._health_cache_time = 0
     # Snapshot and clear the global feature registry so a feature leaked by an
     # earlier test (e.g. one that crashed before its cleanup) cannot slow down
     # /health and flake the deep-health timing/cache assertions under the full
@@ -202,6 +204,97 @@ class TestHealthEndpoint:
         assert second.status_code == 200
         assert second.json().get("cached") is True
         assert duration < 0.1
+
+    def test_slow_provider_does_not_block_readiness(self, client):
+        """Cold /api/health and /health/ready bound a slow provider (#341)."""
+        import asyncio
+        import time
+
+        import praisonaiui.server as _srv
+
+        class _SlowProvider:
+            async def health(self):
+                await asyncio.sleep(5)
+                return {"status": "ok"}
+
+        prev_provider = _srv._provider
+        _srv._provider = _SlowProvider()
+        _srv._health_cache = {}
+        _srv._health_cache_time = 0
+        try:
+            for path in ("/api/health", "/health/ready"):
+                start = time.perf_counter()
+                response = client.get(path)
+                duration = time.perf_counter() - start
+                assert response.status_code == 200
+                data = response.json()
+                assert data["status"] == "ok"
+                assert data["provider"]["name"] == "_SlowProvider"
+                assert duration < 2.0
+        finally:
+            _srv._provider = prev_provider
+            _srv._health_cache = {}
+            _srv._health_cache_time = 0
+
+    def test_non_dict_provider_health_does_not_500_readiness(self, client):
+        """A provider returning a non-dict from health() must not break /health/ready."""
+        import praisonaiui.server as _srv
+
+        class _NoneProvider:
+            async def health(self):
+                return None
+
+        prev_provider = _srv._provider
+        _srv._provider = _NoneProvider()
+        try:
+            response = client.get("/health/ready")
+            assert response.status_code == 200
+            assert response.json()["provider"] == {"name": "_NoneProvider"}
+        finally:
+            _srv._provider = prev_provider
+
+
+class TestFooterLiveness:
+    """Dashboard footer uses side-effect-free liveness (#341)."""
+
+    def test_live_makes_no_provider_or_feature_calls(self, client):
+        import praisonaiui.server as _srv
+        from praisonaiui.features import _features
+
+        calls = {"provider": 0, "feature": 0}
+
+        class _Provider:
+            async def health(self):
+                calls["provider"] += 1
+                return {}
+
+        class _Feature:
+            async def health(self):
+                calls["feature"] += 1
+                return {"healthy": True}
+
+        original = _srv._provider
+        _srv._provider = _Provider()
+        _features["__count__"] = _Feature()
+        try:
+            assert client.get("/api/health/live").status_code == 200
+            assert calls == {"provider": 0, "feature": 0}
+        finally:
+            _srv._provider = original
+            _features.pop("__count__", None)
+
+    def test_sidebar_footer_uses_liveness_endpoint(self):
+        from pathlib import Path
+
+        import praisonaiui
+
+        js = (
+            Path(praisonaiui.__file__).parent
+            / "templates/frontend/plugins/dashboard.js"
+        ).read_text(encoding="utf-8")
+        footer = js[js.index("shell:sidebar:footer"):]
+        assert "fetch('/api/health/live')" in footer
+        assert "fetch('/api/health')" not in footer
 
 
 class TestProviderHealthEndpoint:

@@ -91,7 +91,7 @@ export function Header({
                             <span className="text-primary-foreground text-[10px] font-bold">AI</span>
                         </div>
                     )}
-                    <span className="font-semibold text-[15px] tracking-tight truncate hidden sm:inline">{logoText}</span>
+                    <span className="font-semibold text-[15px] tracking-tight truncate max-w-[50vw] sm:max-w-none">{logoText}</span>
                 </a>
 
                 {showMintlifyNav && (

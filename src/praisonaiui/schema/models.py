@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ThemeConfig(BaseModel):
@@ -37,6 +37,17 @@ class ThemeConfig(BaseModel):
     ] = "zinc"
     radius: Literal["none", "sm", "md", "lg", "xl"] = "md"
     dark_mode: bool = Field(default=True, alias="darkMode")
+    accent: Optional[str] = Field(
+        default=None,
+        description=(
+            "Accent colour (any CSS colour) that overrides the preset's accent. "
+            "Used by the React app shell (style 'app')."
+        ),
+    )
+    density: Optional[Literal["compact", "comfortable", "spacious"]] = Field(
+        default=None,
+        description="Control density of the React app shell (style 'app').",
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -528,12 +539,48 @@ MessageElementUnion = (
 )
 
 
+class ExtensionsConfig(BaseModel):
+    """Entry-point plugin policy (group ``praisonaiui.plugins``), YAML ``extensions:``.
+
+    - ``enabled`` omitted: every installed plugin is imported (``pip install``
+      means trust). A list makes it a strict allowlist of *third-party*
+      plugins only; it never switches a built-in off.
+    - ``disabled`` always wins, and a disabled plugin is never imported. It
+      also takes built-in record names, ``builtin.<name>`` (for example
+      ``builtin.training``), which removes that built-in's pages and its
+      optional features. A feature the host itself needs (a record listed as
+      ``required``) keeps running. A bare name such as ``training`` means a
+      third-party plugin of that name, never the built-in.
+    - A bare list (``extensions: [a, b]``) is shorthand for ``enabled``.
+
+    Plugin *browser* surfaces (pages, blocks, tool renderers and the static
+    ``/_plugins/<name>/`` dir) are default-deny when the server requires auth or
+    is reached from a non-loopback address: they are only served for plugins
+    named in ``enabled``.
+
+    Distinct from ``site.plugins`` (docs JS plugins) and ``dashboard.plugins``
+    (legacy dashboard-plugin allowlist).
+    """
+
+    enabled: Optional[list[str]] = None
+    disabled: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _bare_list_means_enabled(cls, data: Any) -> Any:
+        if isinstance(data, (list, tuple)):
+            return {"enabled": list(data)}
+        return data
+
+
 class Config(BaseModel):
     """Root configuration model for aiui.template.yaml."""
 
     schema_version: int = Field(default=1, alias="schemaVersion")
     site: SiteConfig
-    style: Literal["docs", "chat", "agents", "playground", "dashboard", "custom"] = "docs"
+    style: Literal["docs", "chat", "agents", "playground", "dashboard", "custom", "app"] = "docs"
     layout: Optional[LayoutConfig] = None
     content: Optional[ContentConfig] = None
     components: dict[str, ComponentConfig] = Field(default_factory=dict)
@@ -543,6 +590,7 @@ class Config(BaseModel):
     auth: Optional[AuthConfig] = None
     widgets: list[InputWidgetConfig] = Field(default_factory=list)
     dashboard: Optional[DashboardConfig] = None
+    extensions: Optional[ExtensionsConfig] = None
     seo: Optional[SEOConfig] = None
     i18n: Optional[I18nConfig] = None
     a11y: Optional[A11yConfig] = None

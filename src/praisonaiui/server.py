@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sys
 import time
 from collections import deque
@@ -30,6 +31,7 @@ from starlette.staticfiles import StaticFiles
 
 from praisonaiui.datastore import BaseDataStore, JSONFileDataStore
 from praisonaiui.features import auto_register_defaults, get_features
+from praisonaiui.http_guard import ws_ticket_handler
 from praisonaiui.provider import BaseProvider, RunEventType
 from praisonaiui.schemas import (  # noqa: F401  (re-exported via praisonaiui.__getattr__)
     get_component_schemas,
@@ -48,6 +50,8 @@ _page_actions: dict[str, Callable] = {}
 _enabled_pages: Optional[set[str]] = None
 # Track which page IDs were added by @aiui.page() (always shown)
 _custom_page_ids: set[str] = set()
+# Built-in page ids the last create_app() put into _pages (from plugin records)
+_builtin_page_ids: set[str] = set()
 
 
 # Pluggable datastore (default: SDK-backed store if available, else JSON file store)
@@ -130,6 +134,7 @@ def reset_state() -> None:
     _enabled_pages_ref = globals()
     _enabled_pages_ref["_enabled_pages"] = None
     _custom_page_ids.clear()
+    _builtin_page_ids.clear()
     _active_tasks.clear()
     _log_buffer.clear()
     _usage_stats.update(
@@ -171,6 +176,17 @@ def reset_state() -> None:
         reset_theme_manager()
     except Exception:
         pass
+    # Reset the entry-point plugin registry (register_plugin, set_extensions)
+    try:
+        from praisonaiui.plugin_registry import get_plugin_registry
+
+        get_plugin_registry().reset()
+    except Exception:
+        pass
+    global _auth_required_by_app
+    _auth_required_by_app = False
+    _shell_cache.clear()
+    _shell_theme_extra.clear()
     # Reset user-registered component schemas (built-ins are preserved)
     try:
         reset_component_schemas()
@@ -181,7 +197,9 @@ def reset_state() -> None:
 def set_style(style: str) -> None:
     """Set the UI style from Python code (call before server starts).
 
-    Valid values: 'chat', 'agents', 'playground', 'dashboard', 'docs', 'custom'.
+    Valid values: 'chat', 'agents', 'playground', 'dashboard', 'docs', 'custom',
+    and 'app' (the React shell, opt-in). ``AIUI_SHELL=app`` turns 'dashboard'
+    into 'app'; ``AIUI_SHELL=legacy`` turns 'app' back into 'dashboard'.
     This takes priority over auto-detection but is overridden by CLI --style.
     """
     global _style
@@ -276,9 +294,11 @@ def set_custom_js(path: str | Path) -> None:
 
     Reads the file at ``path`` and serves it at ``/custom.js``. A
     ``<script src="/custom.js">`` tag is injected into the host HTML
-    *after* the plugin loader, so ``window.aiui`` and all registry APIs
-    (``registerView``, ``registerComponent``) are ready when your code
-    runs.
+    *after* the plugin loader. ``window.aiui`` registry APIs
+    (``registerView``, ``registerComponent``, ``registerSlot``,
+    ``registerSurfaceRenderer``) can be called directly at load time:
+    calls made before the dashboard module is ready are queued and
+    replayed, and a view registered for the active page re-renders it.
 
     Use this to ship client-side extensions from your Python app without
     modifying the package bundle.
@@ -412,7 +432,52 @@ def set_dashboard(
 def _dashboard_plugin_allowlist() -> list[str] | None:
     """Plugin-name allowlist from ``set_dashboard(plugins=...)`` (``None`` = all)."""
     allowed = (_dashboard_config or {}).get("plugins")
-    return list(allowed) if allowed is not None else None
+    allowed = list(allowed) if allowed is not None else None
+    return _without_disabled_builtin_folders(allowed)
+
+
+def _without_disabled_builtin_folders(allowed: list[str] | None) -> list[str] | None:
+    """Drop bundled dashboard-plugin folders owned by a disabled built-in.
+
+    A built-in may ship one of its pages as a bundled ``dashboard-plugins``
+    folder (kanban does). Without this, switching the built-in off would let
+    the folder put the same page straight back. A folder of the same name
+    that the user installed (home dir, ``plugin_dirs``) is not affected.
+    """
+    try:
+        from praisonaiui.plugin_registry import get_plugin_registry
+
+        reg = get_plugin_registry()
+        if not reg.policy.disabled:  # default: nothing to do, nothing scanned
+            return allowed
+        owned = {
+            str(name)
+            for rec in reg.builtin_records()
+            if rec.status == "disabled"
+            for name in getattr(rec.plugin, "dashboard_plugins", ()) or ()
+        }
+        if not owned:
+            return allowed
+        from praisonaiui import dashboard_plugins as _dp
+
+        # Callers scan different extra dirs (set_dashboard() or the YAML
+        # dashboard section), so list names over all of them. Extra dirs only
+        # add names: a name's first folder (home, then bundled) is the same
+        # whichever extras are scanned.
+        extra: list[str] = []
+        for cfg in (_dashboard_config or {}, _resolved_dashboard_config() or {}):
+            for d in cfg.get("pluginDirs") or cfg.get("plugin_dirs") or []:
+                if d not in extra:
+                    extra.append(d)
+        bundled = _dp._BUILTIN_PLUGIN_ROOT.resolve()
+        return [
+            m["name"]
+            for m in _dp.discover_dashboard_plugins(extra, allowed)
+            if not (m["name"] in owned and Path(m["root"]).parent == bundled)
+        ]
+    except Exception:  # noqa: BLE001 - never break page listing over this
+        logging.getLogger(__name__).debug("dashboard-plugin ownership check failed", exc_info=True)
+        return allowed
 
 
 _jobs_api_config: dict[str, str] = {"apiBase": "/api/jobs", "backend": "aiui"}
@@ -685,20 +750,46 @@ def _get_site_section() -> dict:
         return {}
 
 
+def _shell_default_theme() -> str:
+    """The colour mode the app shell starts in before the viewer picks one.
+
+    ``set_theme(dark_mode=...)`` wins, then YAML ``site.theme`` (``mode:
+    light|dark|system`` or ``darkMode``). Without either the shell follows
+    the OS (``system``).
+    """
+    if isinstance(_theme, dict) and isinstance(_theme.get("darkMode"), bool):
+        return "dark" if _theme["darkMode"] else "light"
+    section = _get_site_section().get("theme")
+    if isinstance(section, dict):
+        mode = section.get("mode")
+        if mode in ("light", "dark", "system"):
+            return mode
+        dark = section.get("darkMode", section.get("dark_mode"))
+        if isinstance(dark, bool):
+            return "dark" if dark else "light"
+    return "system"
+
+
 # ── Dynamic HTML & plugin config generation ─────────────────────────
 
 
-def _build_html(style: str) -> str:
+def _build_html(style: str, request: Optional[Request] = None) -> str:
     """Generate the host HTML based on style. No template files needed.
 
     The SDK owns the HTML. Users never write HTML.
+
+    ``request`` only matters for style ``app``: it decides whether plugin
+    browser surfaces are default-deny for this viewer (see
+    :func:`_plugin_js_restricted`). Without it the safe (restricted) view is
+    rendered.
     """
     # Branding-driven title: set_branding() → YAML config → default
     _site_section = _get_site_section()
     _site_title = (
         _site_section.get("title", _branding["title"]) if _site_section else _branding["title"]
     )
-    title = f"{_site_title} Dashboard" if style == "dashboard" else _site_title
+    # "app" is the React shell for the same product dashboard: same tab title.
+    title = f"{_site_title} Dashboard" if style in ("dashboard", "app") else _site_title
     cache_bust = int(_server_start_time)
 
     # Anti-flicker: hide React content until plugins render (uses theme CSS vars)
@@ -712,10 +803,27 @@ def _build_html(style: str) -> str:
         "}catch(e){}})();"
         "</script>"
     )
+    if style == "app":
+        # A viewer with no stored preference gets the app's default
+        # (set_theme / YAML; see _shell_default_theme, also on
+        # <html data-aiui-theme-default> for next-themes), else the OS mode,
+        # before first paint (no light frame for a dark app).
+        theme_bootstrap = (
+            '<script id="aiui-theme-bootstrap">'
+            "(function(){var d=document.documentElement,t=null;"
+            "try{t=localStorage.getItem('aiui-theme-preference');}catch(e){}"
+            "if(t!=='dark'&&t!=='light'&&t!=='system')t=d.getAttribute('data-aiui-theme-default');"
+            "try{if(t!=='dark'&&t!=='light')"
+            "t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}catch(e){}"
+            "if(t==='dark')d.classList.add('dark');"
+            "else if(t==='light')d.classList.remove('dark');"
+            "})();"
+            "</script>"
+        )
     if style == "docs":
         anti_flicker = (
             '<style id="aiui-anti-flicker">'
-            "html,body{background:hsl(var(--background))!important;color:hsl(var(--foreground))}"
+            "html,body{background:var(--background)!important;color:var(--foreground)}"
             "#root>*{opacity:0;transition:opacity .15s ease}"
             "</style>"
         )
@@ -774,6 +882,18 @@ def _build_html(style: str) -> str:
         except Exception:
             pass
 
+    # React app shell (style "app"): the shell owns #root and hosts the legacy
+    # views; plugin bundles share its React through the import map.
+    html_open = '<html lang="en">'
+    shell_head = ""
+    if style == "app":
+        html_open = (
+            '<html lang="en" data-aiui-shell="react" '
+            f'data-aiui-theme-default="{_shell_default_theme()}">'
+        )
+        theme_vars_tag = _shell_theme_tag()
+        shell_head = _shell_head(cache_bust, request)
+
     canonical_script = (
         '<script id="aiui-canonical-url">'
         "(function(){var p=location.pathname.replace(/\\/+$/, '')||'/';"
@@ -783,12 +903,13 @@ def _build_html(style: str) -> str:
     )
 
     return (
-        '<!doctype html><html lang="en"><head>'
+        f"<!doctype html>{html_open}<head>"
         '<meta charset="UTF-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1.0">'
         f"{canonical_script}"
         f"{theme_bootstrap}"
         f'<link rel="stylesheet" href="/assets/index.css?v={cache_bust}">'
+        f"{shell_head}"
         f"{anti_flicker}"
         f"{theme_vars_tag}"
         f"{custom_css_tag}"
@@ -802,11 +923,37 @@ def _build_html(style: str) -> str:
     )
 
 
+def _frontend_templates_dir() -> Path:
+    """Directory holding the built React frontend (``assets/``, ``aiui-manifest.json``,
+    ``aiui-externals.json``).
+
+    Defaults to the packaged ``templates/frontend``. ``AIUI_TEMPLATES_DIR`` points
+    it at another build, e.g. one copied with
+    ``node scripts/sync-templates.mjs --dest <dir>``, without touching the
+    packaged (tracked) files.
+    """
+    override = os.environ.get("AIUI_TEMPLATES_DIR", "").strip()
+    if override:
+        return Path(override).expanduser().resolve()
+    return Path(__file__).parent / "templates" / "frontend"
+
+
 def _custom_js_tag(cache_bust: int) -> str:
     """Return a <script src="/custom.js"> tag if set_custom_js() was called."""
     if _custom_js is None:
         return ""
-    return f'<script src="/custom.js?v={cache_bust}"></script>'
+    return _CUSTOM_JS_QUEUE + f'<script src="/custom.js?v={cache_bust}"></script>'
+
+
+# Registration stubs for /custom.js: the dashboard module loads
+# asynchronously, so until it defines the real registry APIs these stubs
+# queue calls on ``window.aiui.__queue``; dashboard.js replays them.
+_CUSTOM_JS_QUEUE = (
+    "<script>(function(a){a.__queue=a.__queue||[];"
+    "['registerView','registerComponent','registerSlot','registerSurfaceRenderer']"
+    ".forEach(function(n){if(!a[n])a[n]=function(){a.__queue.push([n,arguments]);};});"
+    "})(window.aiui=window.aiui||{});</script>"
+)
 
 
 async def _serve_custom_js(request: Request) -> Response:
@@ -834,8 +981,12 @@ async def _plugins_config(request: Request) -> JSONResponse:
     style = _effective_style
     # Base plugins (always loaded)
     plugins: list[str] = ["fetch-retry"]
-    if style == "dashboard":
-        plugins.append("dashboard")
+    if style in ("dashboard", "app"):
+        # Under "app" the React shell imports dashboard.js itself (as a
+        # runtime, never buildDashboard()), but the optional modules
+        # allowlist (jobs/auth/api) is honoured exactly as for "dashboard".
+        if style == "dashboard":
+            plugins.append("dashboard")
         dash_cfg = _dashboard_config or {}
         for mod in dash_cfg.get("modules") or []:
             if mod in ("jobs", "auth", "api") and mod not in plugins:
@@ -868,7 +1019,588 @@ async def _serve_index(request: Request) -> Response:
             status_code=404,
         )
     style = _effective_style  # Single source of truth (set by create_app)
-    return HTMLResponse(_build_html(style))
+    return HTMLResponse(_build_html(style, request))
+
+
+def _is_app_page_navigation(request: Request) -> bool:
+    """True for a browser opening a shell page URL under style ``app``.
+
+    Some page ids (``agents``, ``sessions``) share their path with a JSON API
+    that is matched before the page fallback. A navigation asks for
+    ``text/html``; API clients (``fetch`` sends ``*/*``) keep getting JSON.
+    The legacy dashboard routes by ``?page=``/hash and is left unchanged.
+    """
+    if _effective_style != "app":
+        return False
+    return "text/html" in request.headers.get("accept", "").lower()
+
+
+# ── React app shell (style="app") ────────────────────────────────────
+#
+# ADR-0001 §2/§8. One Vite build: the shell is the same /assets/index.js entry
+# (main.tsx switches on <html data-aiui-shell="react">). The server adds:
+#   - an import map that points plugin bare specifiers (react, @aiui/sdk, …)
+#     at /_aiui/externals/*.js shims re-exporting the shell's own instances;
+#   - the shell manifest inline (<script id="aiui-boot">) and at
+#     GET /api/shell/manifest;
+#   - window.__AIUI_BUILD__ (cache-bust string for lazily imported legacy views).
+
+# Set by create_app(): require_auth=True, YAML auth.requireAuth, or URL-token
+# auth opted in. AUTH_ENFORCE (env) is read per request.
+_auth_required_by_app: bool = False
+# mtime-keyed caches for files read from the frontend templates dir
+_shell_cache: dict[str, Any] = {}
+# YAML site.theme accent/density for style "app" (see _sync_yaml_theme_for_shell)
+_shell_theme_extra: dict[str, str] = {}
+
+# Bare specifier -> shim slug (/_aiui/externals/<slug>.js). Mirrors
+# SHELL_EXTERNALS in src/frontend/src/sdk/manifest.ts.
+_SHELL_EXTERNALS: dict[str, str] = {
+    "react": "react",
+    "react/jsx-runtime": "react-jsx-runtime",
+    "react-dom": "react-dom",
+    "react-dom/client": "react-dom-client",
+    "@aiui/sdk": "sdk",
+}
+
+# Used only when the served frontend build has no aiui-externals.json (a
+# bundle built before scripts/gen-externals.mjs existed). Generated from
+# React/ReactDOM 19.2.4 (production + development builds) and SDK_EXPORTS in
+# src/frontend/src/sdk/manifest.ts; tests/unit/test_app_shell.py checks both.
+_FALLBACK_EXTERNALS: dict[str, list[str]] = {
+    "react": [
+        "Activity", "Children", "Component", "Fragment", "Profiler", "PureComponent",
+        "StrictMode", "Suspense", "__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE",
+        "__COMPILER_RUNTIME", "act", "cache", "cacheSignal", "captureOwnerStack",
+        "cloneElement", "createContext", "createElement", "createRef", "forwardRef",
+        "isValidElement", "lazy", "memo", "startTransition", "unstable_useCacheRefresh",
+        "use", "useActionState", "useCallback", "useContext", "useDebugValue",
+        "useDeferredValue", "useEffect", "useEffectEvent", "useId", "useImperativeHandle",
+        "useInsertionEffect", "useLayoutEffect", "useMemo", "useOptimistic", "useReducer",
+        "useRef", "useState", "useSyncExternalStore", "useTransition", "version",
+    ],
+    "react/jsx-runtime": ["Fragment", "jsx", "jsxs"],
+    "react-dom": [
+        "__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE", "createPortal",
+        "flushSync", "preconnect", "prefetchDNS", "preinit", "preinitModule", "preload",
+        "preloadModule", "requestFormReset", "unstable_batchedUpdates", "useFormState",
+        "useFormStatus", "version",
+    ],
+    "react-dom/client": ["createRoot", "hydrateRoot", "version"],
+    "@aiui/sdk": [
+        "SDK_VERSION", "registerPage", "registerBlock", "registerSlot",
+        "registerToolRenderer", "registerView", "getPage", "getBlock", "getSlot",
+        "getToolRenderers", "subscribe", "useRegistryVersion", "Markdown",
+        "SDK_FEATURES", "navigate", "notify", "fetchJson", "useManifest",
+        "registerCommand", "onActivate",
+    ],
+}
+
+_JS_IDENT_RE = re.compile(r"^[A-Za-z_$][\w$]*$")
+_JS_RESERVED = frozenset(
+    "break case catch class const continue debugger default delete do else enum export "
+    "extends false finally for function if import in instanceof new null return super "
+    "switch this throw true try typeof var void while with yield let static implements "
+    "interface package private protected public await arguments eval".split()
+)
+
+# Built-in pages the app shell renders natively in React (kind="native" in
+# praisonaiui.builtin.catalog). Filled by create_app() from the enabled
+# built-in records; every other built-in page is hosted through
+# LegacyViewHost (kind="legacy") until it is ported.
+_NATIVE_PAGES: set[str] = set()
+
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
+
+
+def _shell_version() -> str:
+    """The running package version (the source tree's, not stale dist metadata)."""
+    from praisonaiui.__version__ import __version__
+
+    return __version__
+
+
+def _auth_enforced() -> bool:
+    """True when the server requires auth (require_auth / token opt-in / AUTH_ENFORCE)."""
+    if _auth_required_by_app:
+        return True
+    return os.environ.get("AUTH_ENFORCE", "").lower() in ("true", "1", "yes")
+
+
+def _is_loopback_host(host: Any) -> bool:
+    if not host:
+        return False
+    host = str(host).strip("[]").lower()
+    if host in _LOOPBACK_HOSTS:
+        return True
+    try:
+        import ipaddress
+
+        ip = ipaddress.ip_address(host)
+        mapped = getattr(ip, "ipv4_mapped", None)
+        return bool(ip.is_loopback or (mapped is not None and mapped.is_loopback))
+    except ValueError:
+        return False
+
+
+def _is_loopback_scope(scope: Optional[dict]) -> bool:
+    """True when this connection came from and arrived at a loopback address,
+    with no proxy forwarding headers (a reverse proxy on localhost would
+    otherwise make every remote viewer look local)."""
+    if not scope:
+        return False
+    for key, _value in scope.get("headers") or []:
+        if key.lower() in (b"x-forwarded-for", b"forwarded", b"x-real-ip"):
+            return False
+    client = scope.get("client")
+    if not client or not _is_loopback_host(client[0]):
+        return False
+    server = scope.get("server")
+    if server and not _is_loopback_host(server[0]):
+        return False
+    return True
+
+
+def _plugin_js_restricted(scope: Optional[dict]) -> bool:
+    """Whether entry-point plugin browser surfaces are default-deny for this request.
+
+    Restricted when auth is enforced or the request is not purely loopback.
+    Then only plugins named in ``extensions.enabled`` (and in-process
+    ``register_plugin`` objects) contribute pages, blocks, tool renderers and
+    ``/_plugins/<name>/`` files.
+    """
+    return _auth_enforced() or not _is_loopback_scope(scope)
+
+
+def _cached_json_file(path: Path) -> Optional[Any]:
+    """Parse a JSON file, cached by (path, mtime). None when missing/invalid."""
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return None
+    key = str(path)
+    hit = _shell_cache.get(key)
+    if hit and hit[0] == mtime:
+        return hit[1]
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        data = None
+    _shell_cache[key] = (mtime, data)
+    return data
+
+
+def _shell_externals() -> dict[str, list[str]]:
+    """Named exports per bare specifier, from the build's aiui-externals.json.
+
+    The file is written at build time from Object.keys() of the bundled React
+    (scripts/gen-externals.mjs), so the shims always match the React the
+    shell actually ships. Falls back to :data:`_FALLBACK_EXTERNALS`.
+    """
+    data = _cached_json_file(_frontend_templates_dir() / "aiui-externals.json")
+    modules = data.get("modules") if isinstance(data, dict) else None
+    out: dict[str, list[str]] = {}
+    for spec in _SHELL_EXTERNALS:
+        names = modules.get(spec) if isinstance(modules, dict) else None
+        if not isinstance(names, list) or not names:
+            names = _FALLBACK_EXTERNALS[spec]
+        out[spec] = [
+            n for n in names
+            if isinstance(n, str) and _JS_IDENT_RE.match(n) and n not in _JS_RESERVED
+        ]
+    return out
+
+
+def _shell_external_js(spec: str) -> str:
+    names = ", ".join(_shell_externals()[spec])
+    key = json.dumps(spec)
+    return (
+        "const s = window.__AIUI_SDK__;\n"
+        f"const m = s && s.modules && s.modules[{key}];\n"
+        f"if (!m) throw new Error('aiui shell not booted: ' + {key});\n"
+        "export default m;\n"
+        f"export const {{ {names} }} = m;\n"
+    )
+
+
+async def _serve_shell_external(request: Request) -> Response:
+    """ESM shim: ``export default`` + named re-exports from window.__AIUI_SDK__."""
+    slug = request.path_params["name"].removesuffix(".js")
+    spec = next((k for k, v in _SHELL_EXTERNALS.items() if v == slug), None)
+    if spec is None:
+        return Response(status_code=404)
+    # The import map adds ?v=<build>, so a versioned URL never changes.
+    cache = (
+        "public, max-age=31536000, immutable" if request.query_params.get("v") else "no-cache"
+    )
+    return Response(
+        _shell_external_js(spec),
+        media_type="text/javascript",
+        headers={"Cache-Control": cache},
+    )
+
+
+def _json_for_html(value: Any) -> str:
+    """JSON safe to inline in <script> (no '<', '>' or '&' reach the tokenizer)."""
+    return (
+        json.dumps(value, separators=(",", ":"), ensure_ascii=False)
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
+
+
+def _resolved_dashboard_config() -> Optional[dict[str, Any]]:
+    """set_dashboard() > YAML ``dashboard:`` section (same rule as /ui-config.json)."""
+    if _dashboard_config:
+        return _dashboard_config
+    try:
+        from praisonaiui.config_store import get_config_store
+
+        cs = get_config_store()
+        section = cs.get_section("dashboard") if cs else None
+        if section and isinstance(section, dict):
+            return {
+                "sidebar": section.get("sidebar", True),
+                "pageHeader": section.get("pageHeader", section.get("page_header", True)),
+                "modules": section.get("modules") or [],
+                "pluginDirs": section.get("pluginDirs") or section.get("plugin_dirs") or [],
+            }
+    except Exception:
+        pass
+    return None
+
+
+def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = True) -> dict[str, Any]:
+    """Everything the React shell needs to draw nav and lazy-load page modules.
+
+    Mirrors ``ShellManifest`` in src/frontend/src/sdk/manifest.ts.
+    Precedence on id collision: app (register_page) > builtin > entry-point
+    plugin > dashboard-plugin folder. A shadowed page logs a warning.
+    """
+    from praisonaiui.dashboard_plugins import discover_dashboard_plugins
+    from praisonaiui.plugin_registry import SDK_API_VERSION, get_plugin_registry
+
+    reg = get_plugin_registry()
+    log = logging.getLogger(__name__)
+    pages: list[dict[str, Any]] = []
+    seen: dict[str, str] = {}
+
+    for p in _pages.values():
+        custom = p["id"] in _custom_page_ids
+        if custom:
+            kind = "blocks" if f"page:{p['id']}" in _callbacks else "legacy"
+        else:
+            kind = "native" if p["id"] in _NATIVE_PAGES else "legacy"
+        entry: dict[str, Any] = {
+            "id": p["id"],
+            "title": p.get("title", p["id"]),
+            "kind": kind,
+            "icon": p.get("icon", "file"),
+            "group": p.get("group", "Custom"),
+            "order": p.get("order", 100),
+            "description": p.get("description", ""),
+            "apiEndpoint": p.get("api_endpoint"),
+            "source": "app" if custom else "builtin",
+        }
+        for opt in ("layout", "position"):
+            if p.get(opt):
+                entry[opt] = p[opt]
+        if p["id"] in _page_actions:
+            entry["actionEndpoint"] = f"/api/pages/{p['id']}/action"
+        pages.append(entry)
+        seen[p["id"]] = entry["source"]
+
+    for spec in reg.pages(restricted=restricted):
+        if spec.id in seen:
+            log.warning(
+                "plugin page %r (%s) is shadowed by an existing page (%s)",
+                spec.id, spec.source, seen[spec.id],
+            )
+            continue
+        pages.append(spec.to_dict())
+        seen[spec.id] = spec.source
+
+    dash = _resolved_dashboard_config() or {}
+    extra_dirs = dash.get("pluginDirs") or dash.get("plugin_dirs") or []
+    for m in discover_dashboard_plugins(extra_dirs, _dashboard_plugin_allowlist()):
+        page = m.get("page") or {}
+        if not page or not page.get("id"):
+            continue
+        source = f"dashboard-plugin:{m['name']}"
+        if page["id"] in seen:
+            if seen[page["id"]] != source:
+                log.debug("dashboard-plugin page %r shadowed by %s", page["id"], seen[page["id"]])
+            continue
+        pages.append(
+            {
+                "order": 100,
+                **page,
+                "kind": "legacy",
+                "module": f"/dashboard-plugins/{m['name']}/{m['entry']}",
+                **({"css": f"/dashboard-plugins/{m['name']}/{m['css']}"} if m.get("css") else {}),
+                "source": source,
+            }
+        )
+        seen[page["id"]] = source
+
+    pages.sort(key=lambda p: (p.get("order", 100), p["id"]))
+    site_section = _get_site_section()
+    return {
+        "sdk": SDK_API_VERSION,
+        "version": _shell_version(),
+        "style": _effective_style,
+        # Same title/logo resolution as the host HTML and /ui-config.json.
+        "site": {
+            "title": site_section.get("title", _branding["title"]),
+            "logo": site_section.get("logo", _branding["logo"]),
+            **_shell_site_theme(),
+        },
+        "layout": {
+            "sidebar": dash.get("sidebar", True),
+            "pageHeader": dash.get("pageHeader", dash.get("page_header", True)),
+        },
+        "pages": pages,
+        "blocks": [b.to_dict() for b in reg.blocks(restricted=restricted)],
+        "toolRenderers": [t.to_dict() for t in reg.tool_renderers(restricted=restricted)],
+        "plugins": reg.records_for_manifest(restricted=restricted, include_errors=include_errors),
+        "legacy": {
+            "customJs": "/custom.js" if _custom_js is not None else None,
+            "viewsBase": "/plugins/views/",
+        },
+    }
+
+
+def _shell_site_theme() -> dict[str, Any]:
+    """``{"theme": {preset, mode, radius}}`` from set_theme() / the ThemeManager.
+
+    The shell uses ``mode`` as its default colour mode when the viewer has no
+    stored preference (the legacy dashboard defaults to dark the same way).
+    """
+    try:
+        from praisonaiui.features.theme import get_theme_manager
+
+        mgr = get_theme_manager()
+        return {
+            "theme": {
+                "preset": mgr.get_theme(),
+                "mode": mgr.get_mode(),
+                "radius": mgr.get_radius(),
+            }
+        }
+    except Exception:  # noqa: BLE001 - the manifest must always build
+        return {}
+
+
+def _shell_importmap(cache_bust: int, manifest: Optional[dict[str, Any]]) -> str:
+    imports = {
+        spec: f"/_aiui/externals/{slug}.js?v={cache_bust}"
+        for spec, slug in _SHELL_EXTERNALS.items()
+    }
+    importmap: dict[str, Any] = {"imports": imports}
+    integrity: dict[str, str] = {}
+    if manifest:
+        for item in [*manifest.get("pages", []), *manifest.get("blocks", []),
+                     *manifest.get("toolRenderers", [])]:
+            mod, sri = item.get("module"), item.get("integrity")
+            if mod and sri and str(mod).startswith("/_plugins/"):
+                integrity[mod] = sri
+    if integrity:
+        # Browsers that support import-map integrity enforce SRI on these.
+        importmap["integrity"] = integrity
+    return f'<script type="importmap">{_json_for_html(importmap)}</script>'
+
+
+def _shell_head(cache_bust: int, request: Optional[Request]) -> str:
+    """Import map, build id and inline boot manifest for style ``app``.
+
+    With auth enforced, '/' is served to unauthenticated visitors, so only
+    ``{sdk, version, style}`` is inlined and the shell fetches the full
+    manifest from the (auth-gated) /api/shell/manifest. Plugin error strings
+    are never inlined.
+    """
+    from praisonaiui.plugin_registry import SDK_API_VERSION
+
+    scope = request.scope if request is not None else None
+    manifest: Optional[dict[str, Any]] = None
+    if _auth_enforced():
+        boot: dict[str, Any] = {
+            "sdk": SDK_API_VERSION,
+            "version": _shell_version(),
+            "style": _effective_style,
+        }
+    else:
+        try:
+            manifest = _build_shell_manifest(
+                restricted=_plugin_js_restricted(scope), include_errors=False
+            )
+            boot = manifest
+        except Exception as exc:  # noqa: BLE001 - never break the page
+            logging.getLogger(__name__).warning("shell manifest failed: %s", exc)
+            boot = {"sdk": SDK_API_VERSION, "version": _shell_version(), "style": _effective_style}
+    return (
+        f"{_shell_importmap(cache_bust, manifest)}"
+        f"<script>window.__AIUI_BUILD__={_json_for_html(str(cache_bust))}</script>"
+        f'<script id="aiui-boot" type="application/json">{_json_for_html(boot)}</script>'
+    )
+
+
+def _sync_yaml_theme_for_shell(config: Optional[dict]) -> None:
+    """Style ``app``: apply YAML ``site.theme`` to the ThemeManager at startup.
+
+    The shell's server theme tag, its manifest and the legacy views it hosts
+    all read the ThemeManager (``/api/theme``), so the YAML theme has to land
+    there. ``set_theme()`` still wins (it already synced the manager), and
+    runtime changes through ``/api/theme`` win after startup. The legacy
+    ``dashboard`` style never calls this, so its output is unchanged.
+
+    ``accent`` and ``density`` (optional ``site.theme`` keys) have no
+    ThemeManager equivalent; they are kept for :func:`_shell_theme_tag`.
+    """
+    _shell_theme_extra.clear()
+    section: Any = None
+    site = config.get("site") if isinstance(config, dict) else None
+    if isinstance(site, dict):
+        section = site.get("theme")
+    if not isinstance(section, dict):
+        section = (_get_site_section() or {}).get("theme")
+    if not isinstance(section, dict) or _theme is not None:
+        return
+    for key in ("accent", "density"):
+        value = section.get(key)
+        if isinstance(value, str) and value.strip():
+            _shell_theme_extra[key] = value.strip()
+    try:
+        from praisonaiui.features.theme import get_theme_manager
+
+        mgr = get_theme_manager()
+        preset = section.get("preset")
+        if isinstance(preset, str) and preset in mgr.list_themes():
+            mgr.set_theme(preset)
+        dark = section.get("darkMode", section.get("dark_mode"))
+        if isinstance(dark, bool):
+            mgr.set_mode("dark" if dark else "light")
+        radius = section.get("radius")
+        if isinstance(radius, str):
+            mgr.set_radius(radius)
+    except Exception as exc:  # noqa: BLE001 - theming must never break startup
+        logging.getLogger(__name__).debug("YAML theme sync skipped: %s", exc)
+
+
+def _shell_theme_tag() -> str:
+    """Seed theme for style ``app`` (no !important: runtime themes still win).
+
+    Only seeds and the ``--db-accent-rgb`` triple are emitted, never the
+    ``--db-accent`` / ``--db-accent-glow`` / ``--db-radius`` overrides the
+    dashboard style forces with !important: under the shell those come from
+    the token bridge, and user CSS must be able to override them.
+    """
+    try:
+        from praisonaiui.features.theme import PRESET_COLORS, get_theme_manager
+        from praisonaiui.themes import get_radius_value, get_seed_theme_css
+
+        mgr = get_theme_manager()
+        preset = mgr.get_theme()
+        # ThemeManager's accent: the preset's own accent (get_seed_theme_css
+        # treats it as the preset itself) or a register_theme() custom accent.
+        accent: Optional[str] = (
+            _brand_color
+            or _shell_theme_extra.get("accent")
+            or mgr.get_vars(preset).get("--db-accent")
+        )
+        css = get_seed_theme_css(
+            # A register_theme() name is not a seed preset: its accent carries it.
+            preset=preset if preset in PRESET_COLORS else None,
+            radius=get_radius_value(mgr.get_radius()),
+            accent=accent,
+            density=_shell_theme_extra.get("density"),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logging.getLogger(__name__).debug("seed theme css unavailable: %s", exc)
+        return ""
+    if not css:
+        return ""
+    css = css.replace("</", "<\\/")  # never close the <style> early
+    return f'<style id="aiui-server-theme">{css}</style>'
+
+
+async def api_shell_manifest(request: Request) -> JSONResponse:
+    return JSONResponse(
+        _build_shell_manifest(restricted=_plugin_js_restricted(request.scope))
+    )
+
+
+async def api_plugins_list(request: Request) -> JSONResponse:
+    from praisonaiui.plugin_registry import get_plugin_registry
+
+    reg = get_plugin_registry()
+    restricted = _plugin_js_restricted(request.scope)
+    plugins: list[dict[str, Any]] = []
+    # ``?origin=builtin`` or ``?origin=all`` also lists the first-party
+    # plugins. The default stays third-party only.
+    origin = request.query_params.get("origin", "")
+    if origin in ("builtin", "all"):
+        plugins.extend(rec.to_dict() for rec in reg.builtin_records())
+    if origin != "builtin":
+        plugins.extend(reg.records_for_manifest(restricted=restricted))
+    return JSONResponse({"plugins": plugins})
+
+
+_HASHED_ASSET_RE = re.compile(r"-([A-Za-z0-9_-]{8})\.[A-Za-z0-9]+$")
+_NO_CACHE_ASSETS = frozenset({"index.js", "index.css"})
+
+
+def _hashed_asset_names(frontend_dir: Path) -> Optional[set[str]]:
+    """Basenames of the content-hashed files listed in aiui-manifest.json
+    (None when the build has no Vite manifest, i.e. an unhashed bundle)."""
+    data = _cached_json_file(frontend_dir / "aiui-manifest.json")
+    if not isinstance(data, dict):
+        return None
+    names: set[str] = set()
+    for chunk in data.values():
+        if not isinstance(chunk, dict):
+            continue
+        for f in [chunk.get("file"), *(chunk.get("css") or []), *(chunk.get("assets") or [])]:
+            if isinstance(f, str):
+                names.add(f.rsplit("/", 1)[-1])
+    return names - _NO_CACHE_ASSETS
+
+
+class _AssetStaticFiles(StaticFiles):
+    """/assets with cache headers that survive upgrades.
+
+    - Content-hashed chunks (``name-[hash].ext`` from the Vite build) never
+      change: ``public, max-age=31536000, immutable``.
+    - ``index.js`` / ``index.css`` keep fixed names (loaded with ``?v=``) and
+      anything not known to be hashed: ``no-cache`` (revalidate via ETag).
+    """
+
+    def __init__(self, *args: Any, frontend_dir: Path, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._frontend_dir = frontend_dir
+
+    def cache_control_for(self, name: str) -> str:
+        if name in _NO_CACHE_ASSETS:
+            return "no-cache"
+        hashed = _hashed_asset_names(self._frontend_dir)
+        if hashed is None:
+            return "no-cache"
+        if name in hashed:
+            return "public, max-age=31536000, immutable"
+        # Hashed files the Vite manifest does not list (fonts/images pulled in
+        # by CSS url()). An all-lowercase suffix ("mermaid-renderer.js") is a
+        # word rather than a hash: fail safe to revalidation.
+        m = _HASHED_ASSET_RE.search(name)
+        if m and not (m.group(1).isalpha() and m.group(1).islower()):
+            return "public, max-age=31536000, immutable"
+        return "no-cache"
+
+    def file_response(self, full_path, stat_result, scope, status_code: int = 200) -> Response:
+        response = super().file_response(full_path, stat_result, scope, status_code)
+        response.headers["Cache-Control"] = self.cache_control_for(os.path.basename(str(full_path)))
+        return response
 
 
 def set_datastore(store: BaseDataStore) -> None:
@@ -1095,11 +1827,18 @@ async def health_ready(request: Request) -> JSONResponse:
 
     provider = get_provider()
     provider_info = {"name": type(provider).__name__}
-    try:
-        provider_health = await provider.health()
-        provider_info.update(provider_health)
-    except Exception:
-        pass
+
+    async def _safe_provider() -> Dict[str, Any]:
+        # Bounded like feature checks so a slow provider cannot hang readiness
+        # (or the cold /api/health dashboard request that delegates here).
+        try:
+            result = await asyncio.wait_for(provider.health(), timeout=0.5)
+        except Exception:
+            return {}
+        return result if isinstance(result, dict) else {}
+
+    # Start the provider check now so it runs concurrently with feature checks.
+    provider_task = asyncio.ensure_future(_safe_provider())
 
     features_health = {}
     sdk_gaps: list = []
@@ -1137,6 +1876,8 @@ async def health_ready(request: Request) -> JSONResponse:
                     })
         except Exception:
             pass
+
+    provider_info.update(await provider_task)
 
     payload: Dict[str, Any] = {
         "status": "ok",
@@ -1184,14 +1925,17 @@ async def health_cached(request: Request) -> JSONResponse:
     return JSONResponse(_health_cache)
 
 
-async def list_agents(request: Request) -> JSONResponse:
+async def list_agents(request: Request) -> Response:
     """List all registered agents (merges registry + provider).
 
     Returns the enriched third-party-chat-frontend-compatible schema
     (``agent_id``, ``name``, ``description``, ``model``, ``storage``,
     Issue #48) while keeping the legacy ``created_at`` field for
-    backward compatibility.
+    backward compatibility. Under style ``app`` a browser navigation to
+    ``/agents`` gets the shell page instead.
     """
+    if _is_app_page_navigation(request):
+        return HTMLResponse(_build_html(_effective_style, request))
     agents = [
         {
             "agent_id": name,
@@ -1267,8 +2011,10 @@ async def delete_team_session(request: Request) -> JSONResponse:
     return await delete_session(request)
 
 
-async def list_sessions(request: Request) -> JSONResponse:
-    """List all sessions."""
+async def list_sessions(request: Request) -> Response:
+    """List all sessions (style ``app``: a browser navigation gets the shell page)."""
+    if _is_app_page_navigation(request):
+        return HTMLResponse(_build_html(_effective_style, request))
     sessions = await _datastore.list_sessions()
     return JSONResponse({"sessions": sessions})
 
@@ -1732,6 +2478,25 @@ async def api_action_click(request: Request) -> JSONResponse:
         return JSONResponse({"error": f"Internal error: {str(e)}"}, status_code=500)
 
 
+def _builtin_page_entry(spec: Any) -> dict[str, Any]:
+    """Page-table row for a first-party ``PageSpec``.
+
+    The key order is part of the ``GET /api/pages`` wire format (the response
+    is serialized in insertion order), so it is fixed here.
+    """
+    entry: dict[str, Any] = {"id": spec.id, "title": spec.title, "icon": spec.icon}
+    if spec.icon_svg:
+        entry["icon_svg"] = spec.icon_svg
+    entry["group"] = spec.group
+    entry["description"] = spec.description
+    entry["order"] = spec.order
+    for opt in ("layout", "position"):
+        if getattr(spec, opt):
+            entry[opt] = getattr(spec, opt)
+    entry["api_endpoint"] = spec.api_endpoint or f"/api/{spec.id}"
+    return entry
+
+
 async def api_pages(request: Request) -> JSONResponse:
     """List registered dashboard pages (protocol-driven)."""
     from praisonaiui.dashboard_plugins import discover_dashboard_plugins
@@ -1744,6 +2509,25 @@ async def api_pages(request: Request) -> JSONResponse:
         if page and page["id"] not in known_ids:
             pages.append(page)
             known_ids.add(page["id"])
+    # Entry-point plugin pages the legacy dashboard can render too (server-driven
+    # ``_components`` blocks). React-module pages are app-shell only. Same
+    # default-deny rule as the shell manifest.
+    from praisonaiui.plugin_registry import get_plugin_registry
+
+    for spec in get_plugin_registry().pages(restricted=_plugin_js_restricted(request.scope)):
+        if spec.kind == "blocks" and spec.id not in known_ids:
+            pages.append(
+                {
+                    "id": spec.id,
+                    "title": spec.title,
+                    "icon": spec.icon,
+                    "group": spec.group,
+                    "description": spec.description,
+                    "api_endpoint": spec.api_endpoint,
+                    "order": spec.order,
+                }
+            )
+            known_ids.add(spec.id)
     pages = sorted(pages, key=lambda p: (p.get("order", 100), p["id"]))
     return JSONResponse({"pages": pages})
 
@@ -2128,7 +2912,7 @@ async def view_shared_thread_handler(request: Request) -> Response:
                     "read_only": True,
                 }
             )
-        return HTMLResponse(_build_html(_effective_style))
+        return HTMLResponse(_build_html(_effective_style, request))
     except ImportError:
         return JSONResponse({"error": "Sharing feature not available"}, status_code=500)
 
@@ -2423,6 +3207,8 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
         seen_tool_ids: set = set()
         collected_tool_calls: list = []  # Collect for persistence
         collected_elements: list = []
+        reply_status: Optional[str] = None
+        reply_error: Optional[str] = None
 
         # Inject knowledge context if available (non-blocking)
         augmented_message = message
@@ -2533,7 +3319,14 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
                     yield f"data: {json.dumps(run_event.to_dict())}\n\n"
 
         except asyncio.CancelledError:
-            # Client disconnected
+            # Client disconnected (the SSE Stop aborts the fetch). Persist the
+            # partial reply in its own task: this one is being cancelled, so
+            # anything it awaits from here on may be cancelled too.
+            asyncio.ensure_future(
+                _persist_reply(
+                    full_response, collected_tool_calls, collected_elements, "cancelled", None
+                )
+            )
             cancel_cb = _callbacks.get("cancel")
             if cancel_cb:
                 try:
@@ -2543,46 +3336,68 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
                 except Exception:
                     pass
             yield f"data: {json.dumps({'type': 'run_cancelled'})}\n\n"
+            return
 
         except Exception as e:
+            reply_status, reply_error = "error", str(e)
             yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
 
-        # Save assistant response to session (include tool calls for persistence)
-        if full_response or collected_elements:
-            msg_data: dict = {
-                "role": "assistant",
-                "content": full_response or "",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-            if collected_tool_calls:
-                msg_data["toolCalls"] = collected_tool_calls
-            if collected_elements:
-                msg_data["elements"] = collected_elements
-            await _datastore.add_message(session_id, msg_data)
-
-            # Auto-store conversation turn in memory (non-blocking)
-            try:
-                from praisonaiui.features.memory import get_memory_manager
-
-                mgr = get_memory_manager()
-                mgr.store(
-                    message,
-                    memory_type="short",
-                    session_id=session_id,
-                    agent_id=agent_name,
-                    metadata={"role": "user"},
-                )
-                mgr.store(
-                    full_response,
-                    memory_type="short",
-                    session_id=session_id,
-                    agent_id=agent_name,
-                    metadata={"role": "assistant"},
-                )
-            except Exception:
-                pass  # Memory failures must never break chat
-
+        await _persist_reply(
+            full_response, collected_tool_calls, collected_elements, reply_status, reply_error
+        )
         yield f"data: {json.dumps({'type': 'end'})}\n\n"
+
+    async def _persist_reply(
+        full_response: str,
+        collected_tool_calls: list,
+        collected_elements: list,
+        status: Optional[str],
+        error: Optional[str],
+    ) -> None:
+        """Save the assistant reply (with tool calls) to the session.
+
+        A reply cut short by Stop (``cancelled``) or by a provider error
+        (``error``) says so; without the flag a reload shows the partial text
+        as a complete answer.
+        """
+        if not (full_response or collected_elements):
+            return
+        msg_data: dict = {
+            "role": "assistant",
+            "content": full_response or "",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if collected_tool_calls:
+            msg_data["toolCalls"] = collected_tool_calls
+        if collected_elements:
+            msg_data["elements"] = collected_elements
+        if status:
+            msg_data["status"] = status
+        if error:
+            msg_data["error"] = error
+        await _datastore.add_message(session_id, msg_data)
+
+        # Auto-store conversation turn in memory (non-blocking)
+        try:
+            from praisonaiui.features.memory import get_memory_manager
+
+            mgr = get_memory_manager()
+            mgr.store(
+                message,
+                memory_type="short",
+                session_id=session_id,
+                agent_id=agent_name,
+                metadata={"role": "user"},
+            )
+            mgr.store(
+                full_response,
+                memory_type="short",
+                session_id=session_id,
+                agent_id=agent_name,
+                metadata={"role": "assistant"},
+            )
+        except Exception:
+            pass  # Memory failures must never break chat
 
     return StreamingResponse(
         event_stream(),
@@ -2810,54 +3625,95 @@ def _init_gateway_standalone(config: Optional[dict] = None) -> None:
 
 
 class AuthEnforcementMiddleware:
-    """Optional middleware that enforces auth on /api/* routes when AUTH_ENFORCE=true."""
+    """Optional middleware that enforces API-key auth when AUTH_ENFORCE=true.
 
-    EXEMPT_PATHS = {
-        "/health",
-        "/api/health",
-        "/health/live",
-        "/health/ready",
-        "/api/health/live",
-        "/api/health/ready",
-        "/api/auth/login",
-        "/login",
-        "/api/protocol",
-        "/api/protocol/negotiate",
-    }
+    Deny by default: every HTTP request and every WebSocket handshake needs
+    a valid API key (:func:`praisonaiui.features.auth.verify_api_key`), except
+    the public surface in :func:`praisonaiui.http_guard.is_public_http`: the
+    HTML shell for page navigations, static code (``/assets``, ``/plugins``,
+    ``/_aiui/externals``, ``/_plugins``), health checks and the login
+    endpoints. So ``/sessions``, ``/run``, ``/agents/{id}/runs``, ``/v1/*``,
+    ``/agui`` … are gated like ``/api/*``, and so is any route added later.
+
+    HTTP sends the key as ``Authorization: Bearer <key>``. Browsers cannot set
+    headers on a WebSocket, so a handshake carries a single-use ticket from
+    ``POST /api/auth/ws-ticket`` as ``?ticket=`` (older clients: the key as
+    ``?token=``, redacted from the logs). A rejected handshake is closed
+    before it is accepted (HTTP 403, close code 1008).
+    """
+
+    EXEMPT_PATHS = frozenset(
+        {
+            "/health",
+            "/api/health",
+            "/health/live",
+            "/health/ready",
+            "/api/health/live",
+            "/api/health/ready",
+            "/api/auth/login",
+            "/login",
+            "/api/protocol",
+            "/api/protocol/negotiate",
+        }
+    )
 
     def __init__(self, app):
         self.app = app
         self.enforce = os.environ.get("AUTH_ENFORCE", "").lower() in ("true", "1", "yes")
 
-    async def __call__(self, scope, receive, send):
-        if self.enforce and scope["type"] == "http":
-            path = scope.get("path", "")
-            if path.startswith("/api/") and path not in self.EXEMPT_PATHS:
-                # Check for Bearer token in Authorization header
-                headers = dict(scope.get("headers", []))
-                auth_header = headers.get(b"authorization", b"").decode()
-                if not auth_header.startswith("Bearer "):
-                    # Return 401 Unauthorized
-                    response = JSONResponse(
-                        {
-                            "error": "Authorization required",
-                            "hint": "Set Authorization: Bearer <token>",
-                        },
-                        status_code=401,
-                    )
-                    await response(scope, receive, send)
-                    return
-                else:
-                    token = auth_header[7:]
-                    from praisonaiui.features.auth import verify_api_key
+    @staticmethod
+    def _websocket_token(scope) -> str:
+        from praisonaiui.http_guard import websocket_token
 
-                    if not verify_api_key(token):
-                        response = JSONResponse(
-                            {"error": "Invalid or expired token"},
-                            status_code=401,
-                        )
-                        await response(scope, receive, send)
-                        return
+        return websocket_token(scope)
+
+    async def _check_websocket(self, scope, receive, send) -> bool:
+        """Return True when the handshake may proceed; otherwise reject it."""
+        from praisonaiui.http_guard import reject_websocket, websocket_has_ticket
+
+        if scope.get("path", "") in self.EXEMPT_PATHS:
+            return True
+        if websocket_has_ticket(scope):
+            return True
+        token = self._websocket_token(scope)
+        if token:
+            from praisonaiui.features.auth import verify_api_key
+
+            if verify_api_key(token):
+                return True
+        await reject_websocket(receive, send)
+        return False
+
+    async def _check_http(self, scope, receive, send) -> bool:
+        from praisonaiui.http_guard import bearer_token, header, is_public_http
+
+        if scope.get("path", "") in self.EXEMPT_PATHS or is_public_http(scope):
+            return True
+        if not header(scope, b"authorization").startswith("Bearer "):
+            response = JSONResponse(
+                {
+                    "error": "Authorization required",
+                    "hint": "Set Authorization: Bearer <token>",
+                },
+                status_code=401,
+            )
+            await response(scope, receive, send)
+            return False
+        from praisonaiui.features.auth import verify_api_key
+
+        if not verify_api_key(bearer_token(scope)):
+            response = JSONResponse({"error": "Invalid or expired token"}, status_code=401)
+            await response(scope, receive, send)
+            return False
+        return True
+
+    async def __call__(self, scope, receive, send):
+        if self.enforce and scope["type"] == "websocket":
+            if not await self._check_websocket(scope, receive, send):
+                return
+        elif self.enforce and scope["type"] == "http":
+            if not await self._check_http(scope, receive, send):
+                return
         await self.app(scope, receive, send)
 
 
@@ -2922,14 +3778,29 @@ def create_app(
         if auth_config.get("requireToken") or auth_config.get("require_token"):
             _config_requires_token = True
 
+    from praisonaiui.http_guard import (
+        OriginGuardMiddleware,
+        configured_origins,
+        install_secret_redaction,
+    )
+
+    # Cross-origin access is opt-in: AIUI_ALLOWED_ORIGINS lists the origins
+    # (``*`` restores the old allow-everything behaviour). By default a page
+    # on another site can neither read responses (no CORS headers) nor
+    # drive the server (OriginGuardMiddleware refuses cross-site WebSocket
+    # handshakes and state-changing requests, text/plain CSRF included).
+    _allowed_origins = configured_origins()
     middleware = [
         Middleware(
             CORSMiddleware,
-            allow_origins=["*"],
+            allow_origins=_allowed_origins,
             allow_methods=["*"],
             allow_headers=["*"],
         ),
+        Middleware(OriginGuardMiddleware, allowed_origins=_allowed_origins),
     ]
+    # Older clients pass credentials as ?token=; keep them out of the logs.
+    install_secret_redaction()
 
     # Add optional AUTH_ENFORCE middleware (env var driven)
     middleware.append(Middleware(AuthEnforcementMiddleware))
@@ -2954,13 +3825,20 @@ def create_app(
         )
 
     if require_auth:
+        # Exclusions are exact paths; the rest of the public surface (the
+        # HTML shell, static code) comes from http_guard.is_public_http.
         middleware.append(
             Middleware(
                 AuthMiddleware,
                 require_auth=True,
-                exclude_paths=["/health", "/login", "/register", "/"],
+                exclude_paths=["/health", "/login", "/register"],
             )
         )
+
+    # Shell boot (style "app") inlines only {sdk, version, style} and plugin
+    # browser surfaces become default-deny whenever the app requires auth.
+    global _auth_required_by_app
+    _auth_required_by_app = bool(require_auth or (_tok and _token_auth_opt_in))
 
     # Store config path globally for the config endpoint
     global _config_path, _config_cache
@@ -2984,6 +3862,9 @@ def create_app(
     effective_style = _style or "dashboard"  # default when running server directly
     if config and isinstance(config, dict):
         effective_style = config.get("style", effective_style)
+    from praisonaiui.plugin_registry import get_plugin_registry, resolve_shell_style
+
+    effective_style = resolve_shell_style(effective_style)  # AIUI_SHELL=app|react|legacy
     _effective_style = effective_style  # share with _plugins_config()
 
     async def _ui_config_json(request: Request) -> JSONResponse:
@@ -3077,7 +3958,8 @@ def create_app(
                     ),
                 },
                 "chat": {
-                    "enabled": effective_style in ("chat", "agents", "playground", "dashboard"),
+                    "enabled": effective_style
+                    in ("chat", "agents", "playground", "dashboard", "app"),
                     "mode": _chat_mode_cfg,
                     "preview": _chat_preview_cfg,
                     **(
@@ -3121,6 +4003,7 @@ def create_app(
         Route("/api/health/live", health_live, methods=["GET"]),
         Route("/api/health/ready", health_ready, methods=["GET"]),
         Route("/login", login_handler, methods=["POST"]),
+        Route("/api/auth/ws-ticket", ws_ticket_handler, methods=["POST"]),
         Route("/register", register_handler, methods=["POST"]),
         Route("/logout", logout_handler, methods=["POST"]),
         Route("/me", me_handler, methods=["GET"]),
@@ -3279,6 +4162,33 @@ def create_app(
 
         _log.getLogger(__name__).warning("Failed to init config store: %s", e)
 
+    # ── Entry-point plugin policy ───────────────────────────────────
+    # set_extensions() > create_app(config=…)["extensions"] > data-dir
+    # config.yaml ``extensions:`` > every installed plugin. Applied only now,
+    # after init_config_store(), so the data-dir config.yaml is actually read.
+    _plugin_registry = get_plugin_registry()
+    _ext_section = config.get("extensions") if isinstance(config, dict) else None
+    if _ext_section is None:
+        try:
+            from praisonaiui.config_store import get_config_store
+
+            _cs_ext = get_config_store()
+            _ext_section = _cs_ext.get_section("extensions") if _cs_ext else None
+        except Exception:
+            _ext_section = None
+    # Always applied (None → load everything) so a policy from an earlier
+    # create_app() in the same process does not linger.
+    _plugin_registry.apply_config(_ext_section)
+    # First-party pages are plugin records too. Registered here (idempotent)
+    # so the same policy governs them.
+    from praisonaiui.builtin import register_builtin_plugins
+
+    register_builtin_plugins(_plugin_registry)
+
+    # Style "app": YAML site.theme reaches the ThemeManager (dashboard: unchanged).
+    if effective_style == "app":
+        _sync_yaml_theme_for_shell(config)
+
     # Legacy: keep usage persistence via its own JSON (not yet migrated)
     try:
         from praisonaiui.features.usage import set_data_file as set_usage_data_file
@@ -3291,333 +4201,60 @@ def create_app(
     from praisonaiui.jobs_proxy import jobs_proxy_routes
 
     routes.extend(jobs_proxy_routes())
+    # Built-in features come from the first-party plugin records too: a
+    # built-in named in ``extensions.disabled`` mounts none of its routes
+    # (features the host needs are kept; see praisonaiui.builtin).
     auto_register_defaults()
+    # Entry-point plugins may contribute whole feature protocols (same
+    # contract as built-ins); registered before routes are collected.
+    # An enabled built-in's feature names win.
+    from praisonaiui.features import register_feature as _register_feature
+
+    for _pf in _plugin_registry.features():
+        try:
+            if _pf.name not in get_features():
+                _register_feature(_pf)
+            else:
+                logging.getLogger(__name__).warning(
+                    "plugin feature %r ignored: a feature with that name exists", _pf.name
+                )
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("plugin feature registration failed: %s", exc)
     for feature in get_features().values():
         routes.extend(feature.routes())
 
-    # Register built-in dashboard pages via the same protocol
-    from praisonaiui.features.replay import REPLAY_MARK_SVG
+    # ── App shell + entry-point plugin surface ─────────────────────
+    routes.append(Route("/api/shell/manifest", api_shell_manifest, methods=["GET"]))
+    routes.append(Route("/api/plugins", api_plugins_list, methods=["GET"]))
+    routes.append(Route("/_aiui/externals/{name}", _serve_shell_external, methods=["GET"]))
+    # /api/plugins/<name>/… (Python routes) and /_plugins/<name>/… (static,
+    # default-deny per request, see _plugin_js_restricted)
+    routes.extend(_plugin_registry.starlette_routes(_plugin_js_restricted))
+    for _rec in _plugin_registry.active():
+        _setup = getattr(_rec.plugin, "setup", None)
+        if callable(_setup):
+            try:
+                _setup({"style": effective_style, "config": config or {}})
+            except Exception as exc:  # noqa: BLE001
+                logging.getLogger(__name__).warning("plugin %s.setup failed: %s", _rec.name, exc)
 
-    _builtin_pages = [
-        {
-            "id": "overview",
-            "title": "Overview",
-            "icon": "📊",
-            "group": "Control",
-            "description": "System health and statistics",
-            "order": 10,
-        },
-        {
-            "id": "chat",
-            "title": "Chat",
-            "icon": "💬",
-            "group": "Agent",
-            "description": "AI agent chat",
-            "order": 1,
-            "layout": "full-bleed",
-        },
-        {
-            "id": "chat-canvas",
-            "title": "Chat + Canvas",
-            "icon": "💬🖼️",
-            "group": "Agent",
-            "description": "Chat with live A2UI preview panel",
-            "order": 2,
-            "layout": "full-bleed",
-        },
-        {
-            "id": "canvas",
-            "title": "Canvas",
-            "icon": "🖼️",
-            "group": "Agent",
-            "description": "Live A2UI surface workspace",
-            "order": 6,
-        },
-        {
-            "id": "channels",
-            "title": "Channels",
-            "icon": "📡",
-            "group": "Agent",
-            "description": "Messaging platform connections",
-            "order": 5,
-        },
-        {
-            "id": "inbox",
-            "title": "Channel Inbox",
-            "icon": "📥",
-            "group": "Agent",
-            "description": "Unified multi-channel conversation triage",
-            "order": 6,
-        },
-        {
-            "id": "sessions",
-            "title": "Sessions",
-            "icon": "📋",
-            "group": "Control",
-            "description": "Manage conversation sessions",
-            "order": 20,
-        },
-        {
-            "id": "runs",
-            "title": "Runs",
-            "icon": "⏱️",
-            "group": "Control",
-            "description": "Run flight recorder — timeline debugger",
-            "order": 22,
-        },
-        {
-            "id": "replay",
-            "title": "Replay",
-            "icon": "⏮️",
-            "icon_svg": REPLAY_MARK_SVG,
-            "group": "Control",
-            "description": "Recorded agent runs, step by step: who did what, when, and at what cost",
-            "order": 21,
-        },
-        {
-            "id": "usage",
-            "title": "Usage",
-            "icon": "📈",
-            "group": "Control",
-            "description": "Token usage and metrics",
-            "order": 30,
-        },
-        {
-            "id": "feedback",
-            "title": "Feedback",
-            "icon": "👍",
-            "group": "Control",
-            "description": "Message feedback analytics",
-            "order": 25,
-        },
-        {
-            "id": "cron",
-            "title": "Cron",
-            "icon": "⏰",
-            "group": "Agent",
-            "description": "Scheduled jobs",
-            "order": 35,
-        },
-        {
-            "id": "jobs",
-            "title": "Jobs",
-            "icon": "📋",
-            "group": "Control",
-            "description": "Async agent jobs",
-            "order": 40,
-        },
-        {
-            "id": "work",
-            "title": "Work Hub",
-            "icon": "🗂️",
-            "group": "Work",
-            "description": "Unified kanban, card detail, chat and job log",
-            "order": 9,
-        },
-        {
-            "id": "jobs-board",
-            "title": "Jobs Board",
-            "icon": "📊",
-            "group": "Work",
-            "description": "Jobs kanban by status",
-            "order": 11,
-        },
-        {
-            "id": "kanban",
-            "title": "Kanban",
-            "icon": "📌",
-            "group": "Work",
-            "description": "Multi-agent task board",
-            "order": 10,
-        },
-        {
-            "id": "approvals",
-            "title": "Approvals",
-            "icon": "✅",
-            "group": "Control",
-            "description": "Execution approval queue",
-            "order": 45,
-        },
-        {
-            "id": "api",
-            "title": "API",
-            "icon": "🔌",
-            "group": "Control",
-            "description": "OpenAI-compatible API endpoints",
-            "order": 50,
-        },
-        {
-            "id": "agents",
-            "title": "Agents",
-            "icon": "🤖",
-            "group": "Agent",
-            "description": "Configured AI agents",
-            "order": 10,
-        },
-        {
-            "id": "skills",
-            "title": "Skills",
-            "icon": "⚡",
-            "group": "Agent",
-            "description": "Agent skills & plugins",
-            "order": 20,
-        },
-        {
-            "id": "marketplace",
-            "title": "Marketplace",
-            "icon": "🧩",
-            "group": "Agent",
-            "description": "Browse, install & manage plugins",
-            "order": 22,
-        },
-        {
-            "id": "memory",
-            "title": "Memory",
-            "icon": "🧠",
-            "group": "Agent",
-            "description": "Agent memory & knowledge store",
-            "order": 25,
-        },
-        {
-            "id": "knowledge",
-            "title": "Knowledge",
-            "icon": "📚",
-            "group": "Agent",
-            "description": "Knowledge base & RAG",
-            "order": 27,
-        },
-        {
-            "id": "nodes",
-            "title": "Nodes",
-            "icon": "🖥️",
-            "group": "Control",
-            "description": "Execution nodes & presence",
-            "order": 15,
-        },
-        {
-            "id": "mcp",
-            "title": "MCP",
-            "icon": "🔌",
-            "group": "Agent",
-            "description": "Model Context Protocol servers",
-            "order": 30,
-        },
-        {
-            "id": "config",
-            "title": "Config",
-            "icon": "⚙️",
-            "group": "Settings",
-            "description": "Server configuration",
-            "order": 10,
-        },
-        {
-            "id": "auth",
-            "title": "Auth",
-            "icon": "🔐",
-            "group": "Settings",
-            "description": "Authentication settings",
-            "order": 15,
-        },
-        {
-            "id": "logs",
-            "title": "Logs",
-            "icon": "📜",
-            "group": "Settings",
-            "description": "Server logs and events",
-            "order": 20,
-        },
-        {
-            "id": "debug",
-            "title": "Debug",
-            "icon": "🐛",
-            "group": "Settings",
-            "description": "Debug information",
-            "order": 30,
-        },
-        {
-            "id": "guardrails",
-            "title": "Guardrails",
-            "icon": "🛡️",
-            "group": "Agent",
-            "description": "Input/output safety guardrails",
-            "order": 35,
-        },
-        {
-            "id": "eval",
-            "title": "Eval",
-            "icon": "📊",
-            "group": "Control",
-            "description": "Agent evaluation & accuracy",
-            "order": 40,
-        },
-        {
-            "id": "training",
-            "title": "Training",
-            "icon": "🧪",
-            "group": "Control",
-            "description": "Inspect praisonai-train sessions & apply profiles",
-            "order": 42,
-        },
-        {
-            "id": "code-studio",
-            "title": "Code Studio",
-            "icon": "💻",
-            "group": "Control",
-            "description": "Write, run, and share code in a sandbox",
-            "order": 45,
-        },
-        {
-            "id": "telemetry",
-            "title": "Telemetry",
-            "icon": "📈",
-            "group": "Settings",
-            "description": "Performance monitoring & profiling",
-            "order": 25,
-        },
-        {
-            "id": "traces",
-            "title": "Traces",
-            "icon": "🔍",
-            "group": "Settings",
-            "description": "Distributed tracing & observability",
-            "order": 27,
-        },
-        {
-            "id": "security",
-            "title": "Security",
-            "icon": "🔒",
-            "group": "Settings",
-            "description": "Security monitoring & audit log",
-            "order": 12,
-        },
-        {
-            "id": "inspector",
-            "title": "Inspector",
-            "icon": "🔍",
-            "group": "Control",
-            "description": "Interactive API inspector",
-            "order": 99,
-            "position": "footer",
-        },
-        {
-            "id": "theme-picker",
-            "title": "Theme",
-            "icon": "🎨",
-            "group": "Settings",
-            "description": "Live color scheme picker",
-            "order": 35,
-        },
-    ]
-    _page_api_overrides = {
-        "sessions": "/sessions",
-        "runs": "/api/sessions",
-        "replay": "/api/replay/runs",
-        "cron": "/api/schedules",
-        "channels": "/api/channels",
-        "mcp": "/api/mcp/servers",
-        "marketplace": "/api/marketplace/plugins",
-        "code-studio": "/api/code/languages",
-    }
+    # Built-in pages are first-party plugin records (praisonaiui.builtin), read
+    # through the plugin registry like any other plugin's pages. A built-in
+    # named in ``extensions.disabled`` contributes none.
+    _builtin_specs = _plugin_registry.pages(origin="builtin")
+    _builtin_pages = [_builtin_page_entry(s) for s in _builtin_specs]
+    _NATIVE_PAGES.clear()
+    _NATIVE_PAGES.update(s.id for s in _builtin_specs if s.kind == "native")
+    for _unknown in _plugin_registry.unknown_builtin_names():
+        logging.getLogger(__name__).warning(
+            "extensions.disabled names %r, but no such built-in exists", _unknown
+        )
+    # A built-in page added by an earlier create_app() in this process must
+    # not outlive the policy that now disables it. App pages are kept.
+    _contributed = {p["id"] for p in _builtin_pages}
+    for _pid in _builtin_page_ids - _contributed:
+        if _pid not in _custom_page_ids:
+            _pages.pop(_pid, None)
 
     # Read page whitelist from config.yaml if set_pages() was not called
     if _enabled_pages is None:
@@ -3643,17 +4280,28 @@ def create_app(
         # If whitelist is set, skip pages not in the whitelist
         if _enabled_pages is not None and p["id"] not in _enabled_pages:
             continue
-        _pages[p["id"]] = {
-            **p,
-            "api_endpoint": _page_api_overrides.get(p["id"], f"/api/{p['id']}"),
-        }
+        _pages[p["id"]] = p
+    _builtin_page_ids.clear()
+    _builtin_page_ids.update(
+        pid for pid in _contributed if pid in _pages and pid not in _custom_page_ids
+    )
 
     # Always mount built-in frontend plugins and assets BEFORE catch-all /
-    _frontend_dir = Path(__file__).parent / "templates" / "frontend"
+    _package_frontend_dir = Path(__file__).parent / "templates" / "frontend"
+    _frontend_dir = _frontend_templates_dir()
+    # Hand-written plugins/ ship with the package; an AIUI_TEMPLATES_DIR build
+    # copy only replaces them if it carries its own plugins/ directory.
     _plugins_dir = _frontend_dir / "plugins"
+    if not _plugins_dir.is_dir():
+        _plugins_dir = _package_frontend_dir / "plugins"
     if static_dir and (Path(static_dir) / "plugins").is_dir():
         _plugins_dir = Path(static_dir) / "plugins"
     _assets_dir = _frontend_dir / "assets"
+    if not _assets_dir.is_dir() and _frontend_dir != _package_frontend_dir:
+        logging.getLogger(__name__).warning(
+            "AIUI_TEMPLATES_DIR=%s has no assets/ directory; /assets will not be served",
+            _frontend_dir,
+        )
 
     # Dynamic plugins.json route — MUST come before static /plugins mount
     # so the dynamic endpoint takes priority over the static file.
@@ -3666,7 +4314,12 @@ def create_app(
     if _plugins_dir.exists():
         routes.append(Mount("/plugins", app=StaticFiles(directory=str(_plugins_dir))))
     if _assets_dir.exists():
-        routes.append(Mount("/assets", app=StaticFiles(directory=str(_assets_dir))))
+        routes.append(
+            Mount(
+                "/assets",
+                app=_AssetStaticFiles(directory=str(_assets_dir), frontend_dir=_frontend_dir),
+            )
+        )
 
     # Add static file serving if static_dir provided (catch-all, must be last)
     # Wrap StaticFiles so WebSocket requests don't crash with AssertionError
@@ -3748,7 +4401,7 @@ def create_app(
                 from starlette.responses import HTMLResponse
 
                 style = _effective_style  # Single source of truth
-                html_content = _build_html(style)
+                html_content = _build_html(style, Request(scope))
                 response = HTMLResponse(html_content)
                 await response(scope, receive, send)
             else:
@@ -3773,6 +4426,18 @@ def create_app(
         routes.append(Route("/", _serve_index, methods=["GET"]))
         # Catch-all for SPA path-based routing (e.g. /chat, /memory, /knowledge)
         routes.append(Route("/{path:path}", _serve_index, methods=["GET"]))
+
+    # The surface a logged-out browser needs (see http_guard.is_public_http):
+    # the HTML shell for page navigations and the share-link viewer. Data
+    # routes that double as page URLs are public only for a navigation.
+    from praisonaiui.http_guard import mark_public
+
+    mark_public(_serve_index)
+    mark_public(view_shared_thread_handler)
+    mark_public(list_agents, when=_is_app_page_navigation)
+    mark_public(list_sessions, when=_is_app_page_navigation)
+    if static_dir and static_dir.exists():
+        mark_public(_http_only_static)
 
     app = Starlette(
         routes=routes,

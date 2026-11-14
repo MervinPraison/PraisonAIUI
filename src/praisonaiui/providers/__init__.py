@@ -14,7 +14,9 @@ token-by-token streaming and ``HookRegistry`` for tool/agent lifecycle events.
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import logging
+import sys
 import uuid
 from typing import Any, AsyncIterator, Dict, List, Optional
 
@@ -225,6 +227,10 @@ def _hook_event_to_run_events(hook_event_name: str, event_data) -> List[RunEvent
     if hook_event_name == "before_tool":
         tool_name = getattr(event_data, "tool_name", None)
         args = getattr(event_data, "arguments", None)
+        # Hook inputs do not carry the LLM tool-call id today; use it when a
+        # future SDK adds one. ``_run_direct_mode`` fills it in otherwise
+        # from the streamed tool call (see _fill_approval_tool_call_id).
+        tool_call_id = getattr(event_data, "tool_call_id", None)
 
         # Check if this tool requires approval
         should_check_approval = _should_check_approval(tool_name)
@@ -239,16 +245,19 @@ def _hook_event_to_run_events(hook_event_name: str, event_data) -> List[RunEvent
             if approval_id:
                 # Emit approval required event - using RUN_PAUSED as closest match
                 # The extra_data contains the approval info for frontend handling
+                approval_extra: Dict[str, Any] = {
+                    "type": "approval_required",
+                    "id": approval_id,
+                    "tool_name": tool_name,
+                    "arguments": args,
+                    "risk_level": _get_tool_risk_level(tool_name),
+                }
+                if tool_call_id:
+                    approval_extra["tool_call_id"] = tool_call_id
                 events.append(
                     RunEvent(
                         type=RunEventType.RUN_PAUSED,
-                        extra_data={
-                            "type": "approval_required",
-                            "id": approval_id,
-                            "tool_name": tool_name,
-                            "arguments": args,
-                            "risk_level": _get_tool_risk_level(tool_name),
-                        }
+                        extra_data=approval_extra,
                     )
                 )
 
@@ -257,6 +266,7 @@ def _hook_event_to_run_events(hook_event_name: str, event_data) -> List[RunEvent
                 type=RunEventType.TOOL_CALL_STARTED,
                 name=tool_name,
                 args=args,
+                tool_call_id=tool_call_id,
             )
         )
     elif hook_event_name == "after_tool":
@@ -290,6 +300,30 @@ def _hook_event_to_run_events(hook_event_name: str, event_data) -> List[RunEvent
     return events
 
 
+def _fill_approval_tool_call_id(run_evt: RunEvent, pending: Dict[str, RunEvent]) -> None:
+    """Add the gated call's ``tool_call_id`` to an approval ``RUN_PAUSED``.
+
+    The ``before_tool`` hook does not know the LLM tool-call id, but the
+    streamed ``TOOL_CALL_STARTED`` for the same call arrived earlier and is
+    still pending. Use the newest pending call with the same tool name, so
+    the client can attach the approval to the right tool card.
+    """
+    if run_evt.type != RunEventType.RUN_PAUSED:
+        return
+    extra = run_evt.extra_data
+    if not isinstance(extra, dict) or extra.get("type") != "approval_required":
+        return
+    if extra.get("tool_call_id"):
+        return
+    tool_name = extra.get("tool_name")
+    if not tool_name:
+        return
+    for started in reversed(list(pending.values())):
+        if started.name == tool_name and started.tool_call_id:
+            extra["tool_call_id"] = started.tool_call_id
+            return
+
+
 # Map legacy queue event types → RunEventType
 _LEGACY_MAP: Dict[str, RunEventType] = {
     "token": RunEventType.RUN_CONTENT,
@@ -319,6 +353,9 @@ class PraisonAIProvider(BaseProvider):
     2. Direct mode: No handler → uses PraisonAI Agent directly with streaming
     """
 
+    # Name of a lazily created agent with no CRUD definition or ``name=``.
+    DEFAULT_AGENT_NAME = "Assistant"
+
     def __init__(self, agent=None, agents=None, **agent_kwargs):
         """Initialize with optional pre-configured agent(s).
 
@@ -347,6 +384,42 @@ class PraisonAIProvider(BaseProvider):
           3. Per-session cached agent
           4. Lazy-create new agent (with CRUD definition if matched)
         """
+        existing = self._find_existing_agent(agent_name, session_id)
+        if existing is not None:
+            return existing
+        return self._create_session_agent(agent_name, session_id)
+
+    @staticmethod
+    def _crud_agent_def(agent_name: Optional[str]) -> Optional[Dict[str, Any]]:
+        """The CRUD-defined agent (Agents page) named *agent_name*, if any."""
+        if not agent_name:
+            return None
+        try:
+            from praisonaiui.features.agents import get_agent_registry
+
+            for _def in get_agent_registry().list_all():
+                if _def.get("name") == agent_name:
+                    return _def
+        except ImportError:  # SDK registry missing its optional deps
+            pass
+        return None
+
+    def _new_agent_name(self, agent_name: Optional[str]) -> Optional[str]:
+        """The name ``_create_session_agent`` gives a new agent (no build)."""
+        name: Optional[str] = self.DEFAULT_AGENT_NAME
+        _def = self._crud_agent_def(agent_name)
+        if _def is not None:
+            name = _def["name"]
+        if "name" in self._agent_kwargs:
+            name = self._agent_kwargs["name"]
+        return name
+
+    def _find_existing_agent(
+        self,
+        agent_name: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ):
+        """Steps 1-3 of ``_get_or_create_agent``: never builds an agent."""
         # 1. If specific agent requested and we have a pre-configured list
         if agent_name and self._agents:
             for a in self._agents:
@@ -395,15 +468,22 @@ class PraisonAIProvider(BaseProvider):
         cache_key = f"{session_id}:{agent_name or ''}"
         if session_id and cache_key in self._session_agents:
             return self._session_agents[cache_key]
+        return None
 
-        # 4. Lazy-create agent for this session
+    def _create_session_agent(
+        self,
+        agent_name: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ):
+        """Step 4 of ``_get_or_create_agent``: build and cache a new agent."""
+        cache_key = f"{session_id}:{agent_name or ''}"
         try:
             from praisonaiagents import Agent
         except ImportError:
             return None
 
         kwargs = {
-            "name": "Assistant",
+            "name": self.DEFAULT_AGENT_NAME,
             "instructions": (
                 "You are a helpful assistant with access to tools for file operations, "
                 "command execution, and web search. Use markdown formatting. "
@@ -429,34 +509,26 @@ class PraisonAIProvider(BaseProvider):
             pass  # praisonai/praisonaiagents not installed — no tools
 
         # Check CRUD-defined agents for matching name
-        if agent_name:
-            try:
-                from praisonaiui.features.agents import get_agent_registry
+        # (``_new_agent_name`` mirrors this naming without building)
+        _def = self._crud_agent_def(agent_name)
+        if _def is not None:
+            kwargs["name"] = _def["name"]
+            kwargs["instructions"] = (
+                _def.get("instructions") or _def.get("system_prompt") or kwargs["instructions"]
+            )
+            if _def.get("model"):
+                kwargs["llm"] = _def["model"]
+            # Also get tools from CRUD definition if specified
+            if _def.get("tools"):
+                try:
+                    from praisonai.tool_resolver import ToolResolver
 
-                for _def in get_agent_registry().list_all():
-                    if _def.get("name") == agent_name:
-                        kwargs["name"] = _def["name"]
-                        kwargs["instructions"] = (
-                            _def.get("instructions")
-                            or _def.get("system_prompt")
-                            or kwargs["instructions"]
-                        )
-                        if _def.get("model"):
-                            kwargs["llm"] = _def["model"]
-                        # Also get tools from CRUD definition if specified
-                        if _def.get("tools"):
-                            try:
-                                from praisonai.tool_resolver import ToolResolver
-
-                                resolver = ToolResolver()
-                                crud_tools = resolver.resolve_many(_def["tools"])
-                                if crud_tools:
-                                    kwargs["tools"] = crud_tools
-                            except ImportError:
-                                pass
-                        break
-            except ImportError:
-                pass
+                    resolver = ToolResolver()
+                    crud_tools = resolver.resolve_many(_def["tools"])
+                    if crud_tools:
+                        kwargs["tools"] = crud_tools
+                except ImportError:
+                    pass
 
         kwargs.update(self._agent_kwargs)
         agent = Agent(**kwargs)
@@ -498,6 +570,73 @@ class PraisonAIProvider(BaseProvider):
             self._agent = agent
 
         return agent
+
+    def rewind_last_turn(
+        self,
+        agent_name: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> bool:
+        """Forget the session's last exchange before a regenerate.
+
+        Drops the last user message and everything after it from the agent's
+        ``chat_history``, so the regenerated answer is not produced with the
+        question (and the old answer) in context twice. Only a per-session
+        agent is touched: pre-configured, registered and gateway agents may
+        be shared across sessions, so their history is left alone. Returns
+        True when something was dropped.
+        """
+        cache_key = f"{session_id}:{agent_name or ''}"
+        agent = self._session_agents.get(cache_key) if session_id else None
+        history = getattr(agent, "chat_history", None)
+        if not isinstance(history, list):
+            return False
+        for i in range(len(history) - 1, -1, -1):
+            entry = history[i]
+            role = entry.get("role") if isinstance(entry, dict) else getattr(entry, "role", None)
+            if role == "user":
+                del history[i:]
+                return True
+        return False
+
+    def resolve_agent_name(
+        self,
+        agent_name: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """Return the name of the agent ``run()`` will use for this turn.
+
+        The WS chat route calls this before announcing ``run_started`` so the
+        announcement carries the real agent name (the provider's own
+        ``run_started`` is not forwarded there). It mirrors ``run()``:
+        callback mode answers with the requested name; direct mode looks the
+        agent up exactly as ``_get_or_create_agent`` does.
+
+        It never builds an agent (that can take seconds on a session's first
+        turn and would hold back the run id and the Stop button): when the
+        agent does not exist yet, it returns the name it will be created
+        with.
+        """
+        try:
+            from praisonaiui.server import _callbacks
+
+            if _callbacks.get("reply"):
+                return agent_name
+        except ImportError:
+            pass
+        agent = self._find_existing_agent(agent_name, session_id)
+        if agent is not None:
+            return getattr(agent, "name", None) or agent_name
+        # Checked without importing it (the import is slow; run() does it).
+        if sys.modules.get("praisonaiagents") is not None:
+            installed = True
+        else:
+            try:
+                installed = importlib.util.find_spec("praisonaiagents") is not None
+            except (ImportError, ValueError):
+                installed = False
+        if not installed:
+            return agent_name  # run() falls back to an unnamed echo
+        return self._new_agent_name(agent_name) or agent_name
 
     async def run(
         self,
@@ -828,6 +967,7 @@ class PraisonAIProvider(BaseProvider):
                 tok = run_evt.token or run_evt.content or ""
                 if tok and tok != "None":
                     _streamed_text += tok
+            _fill_approval_tool_call_id(run_evt, _pending_tool_calls)
             # Track pending tool calls
             if run_evt.type == RunEventType.TOOL_CALL_STARTED and run_evt.name:
                 key = run_evt.tool_call_id or run_evt.name
@@ -849,6 +989,7 @@ class PraisonAIProvider(BaseProvider):
                         tok = run_evt.token or run_evt.content or ""
                         if tok and tok != "None":
                             _streamed_text += tok
+                    _fill_approval_tool_call_id(run_evt, _pending_tool_calls)
                     # Track pending tool calls in drain phase too
                     if run_evt.type == RunEventType.TOOL_CALL_STARTED and run_evt.name:
                         key = run_evt.tool_call_id or run_evt.name

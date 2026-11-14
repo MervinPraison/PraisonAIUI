@@ -23,7 +23,9 @@ def check(name, r, status=200, keys=None):
         passed += 1
         print(f"  ✓ {name}")
     except AssertionError as e:
-        failed += 1; errors.append(f"  ✗ {name}: {e}"); print(f"  ✗ {name}: {e}")
+        failed += 1
+        errors.append(f"  ✗ {name}: {e}")
+        print(f"  ✗ {name}: {e}")
 
 print("\n── Schedules: API Tests ──")
 
@@ -37,7 +39,7 @@ r = client.post("/api/schedules", json={
 })
 check("POST create (interval)", r, 201, ["id", "name", "schedule", "enabled"])
 jid = r.json()["id"]
-assert r.json()["enabled"] == True
+assert r.json()["enabled"] is True
 
 # Create cron job
 r2 = client.post("/api/schedules", json={
@@ -58,12 +60,12 @@ check("GET /:id", client.get(f"/api/schedules/{jid}"), 200, ["id", "schedule"])
 # Toggle off
 r = client.post(f"/api/schedules/{jid}/toggle")
 check("POST toggle (disable)", r, 200, ["id", "enabled"])
-assert r.json()["enabled"] == False
+assert r.json()["enabled"] is False
 
 # Toggle back on
 r = client.post(f"/api/schedules/{jid}/toggle")
 check("POST toggle (enable)", r, 200)
-assert r.json()["enabled"] == True
+assert r.json()["enabled"] is True
 
 # Run immediately
 r = client.post(f"/api/schedules/{jid}/run")
@@ -95,5 +97,6 @@ print(f"\n{'='*50}")
 print(f"  Schedules: {passed} passed, {failed} failed")
 print(f"{'='*50}")
 if errors:
-    for e in errors: print(e)
+    for e in errors:
+        print(e)
     sys.exit(1)

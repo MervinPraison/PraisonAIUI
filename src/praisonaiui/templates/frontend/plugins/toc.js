@@ -52,6 +52,9 @@ function updateToc(root) {
   const tocNav = findTocNav(root);
   if (!tocNav) return;
   if (tocNav.dataset.tocDynamic) return;
+  // The React TOC (Toc.tsx) collects the page's headings itself. Rebuilding it
+  // here showed a second, differently styled TOC (with the H1) on first paint.
+  if (tocNav.dataset.aiuiToc === 'react') return;
 
   // Extract headings
   const headings = article.querySelectorAll('h1, h2, h3');

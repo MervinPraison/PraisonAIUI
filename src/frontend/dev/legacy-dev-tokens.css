@@ -1,0 +1,84 @@
+/*
+ * DEV-ONLY stand-in for styles/theme.css (seed -> tiers -> shadcn vars, ADR-0001
+ * §7), taken from the design-system spike. legacy-dev.tsx injects it only when
+ * the real token layer is missing (no --seed-paper on <html>), so once
+ * theme.css lands this file is inert. Never import it from src/.
+ */
+:root {
+  color-scheme: light;
+  --seed-tint: #71717a;
+  --tint-mix: 6%;
+  --accent-mix: 0%;
+  --seed-ink: #17171a;
+  --seed-paper: #ffffff;
+  --seed-sunken: #f4f4f5;
+  --seed-raised: #ffffff;
+  --seed-accent: var(--seed-ink); /* neutral preset: the accent follows ink */
+  --seed-danger: #dc2626;
+  --seed-success: #16a34a;
+  --seed-warning: #ca8a04;
+  --seed-info: #2563eb;
+  --radius: 0.5rem;
+}
+.dark {
+  color-scheme: dark;
+  --seed-ink: #f4f4f5;
+  --seed-paper: #0c0c0e;
+  --seed-sunken: #141416;
+  --seed-raised: #1a1a1d;
+  --seed-danger: #f05252;
+  --seed-success: #3fb27f;
+  --seed-warning: #e3a008;
+  --seed-info: #4f8cf7;
+  --tint-mix: 4%;
+}
+:root,
+.dark {
+  --ui-base: var(--seed-ink);
+  --ui-accent: var(--seed-accent);
+  --ui-neutral: color-mix(in oklab, var(--seed-tint) var(--tint-mix), var(--seed-paper));
+  --ui-bg-app: var(--ui-neutral);
+  --ui-bg-sidebar: color-mix(in oklab, var(--seed-sunken) 70%, var(--ui-neutral));
+  --ui-bg-card: color-mix(in oklab, var(--seed-raised) 85%, var(--ui-neutral));
+  --ui-bg-elevated: var(--seed-raised);
+  --ui-bg-input: color-mix(in oklab, var(--seed-raised) 92%, var(--ui-base));
+  --ui-fill-3: color-mix(in oklab, var(--ui-base) 5%, transparent);
+  --ui-fill-4: color-mix(in oklab, var(--ui-base) 3%, transparent);
+  --ui-stroke-1: color-mix(in oklab, var(--ui-base) 18%, transparent);
+  --ui-stroke-2: color-mix(in oklab, var(--ui-base) 11%, transparent);
+  --ui-stroke-3: color-mix(in oklab, var(--ui-base) 7%, transparent);
+  --ui-text-1: color-mix(in oklab, var(--ui-base) 94%, transparent);
+  --ui-text-2: color-mix(in oklab, var(--ui-base) 72%, transparent);
+  --ui-text-3: color-mix(in oklab, var(--ui-base) 54%, transparent);
+  --ui-text-4: color-mix(in oklab, var(--ui-base) 36%, transparent);
+  --ui-row-hover: var(--ui-fill-4);
+  --ui-row-active: color-mix(in oklab, var(--ui-accent) 10%, var(--ui-fill-3));
+  --ui-focus: color-mix(in oklab, var(--ui-accent) 55%, transparent);
+
+  --background: var(--ui-bg-app);
+  --foreground: var(--ui-text-1);
+  --card: var(--ui-bg-card);
+  --card-foreground: var(--ui-text-1);
+  --popover: var(--ui-bg-elevated);
+  --popover-foreground: var(--ui-text-1);
+  --primary: var(--ui-accent);
+  --primary-foreground: var(--seed-paper);
+  --secondary: var(--ui-fill-3);
+  --secondary-foreground: var(--ui-text-1);
+  --muted: var(--ui-fill-4);
+  --muted-foreground: var(--ui-text-3);
+  --accent: var(--ui-fill-3);
+  --accent-foreground: var(--ui-text-1);
+  --destructive: var(--seed-danger);
+  --success: var(--seed-success);
+  --warning: var(--seed-warning);
+  --info: var(--seed-info);
+  --border: var(--ui-stroke-2);
+  --input: var(--ui-stroke-1);
+  --ring: var(--ui-focus);
+  --sidebar: var(--ui-bg-sidebar);
+  --sidebar-foreground: var(--ui-text-2);
+  --sidebar-accent: var(--ui-row-active);
+  --sidebar-accent-foreground: var(--ui-text-1);
+  --sidebar-border: var(--ui-stroke-3);
+}

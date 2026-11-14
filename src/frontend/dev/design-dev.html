@@ -1,0 +1,23 @@
+<!doctype html>
+<!-- Dev-only design-system harness (WP0b). Not built, not scanned by Tailwind
+     for the shipped CSS. Run `npm run dev` and open /dev/design-dev.html
+     Query params: ?dark=1  ?preset=blue  ?density=compact  ?view=gallery|shell -->
+<html lang="en" data-aiui-shell="react">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AIUI design system</title>
+    <script>
+      (function () {
+        var q = new URLSearchParams(location.search)
+        var h = document.documentElement
+        if (q.get('dark') === '1') h.classList.add('dark')
+        if (q.get('density')) h.setAttribute('data-density', q.get('density'))
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./design-dev.tsx"></script>
+  </body>
+</html>

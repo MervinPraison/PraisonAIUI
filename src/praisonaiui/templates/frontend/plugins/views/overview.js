@@ -99,6 +99,9 @@ async function loadAll() {
   return {
     agents, sessions, pending, usage, timeseries, channels, gateway, features, traces, models,
     finops: (runtime && runtime.config && runtime.config.finops) || null,
+    // How many sources failed, and why (the first reason), for the error banner.
+    failed: results.filter((r) => r.status === 'rejected').length,
+    failure: (results.find((r) => r.status === 'rejected') || {}).reason?.message || '',
     errors: {
       agents: results[0].status === 'rejected',
       sessions: results[1].status === 'rejected',
@@ -191,7 +194,14 @@ function renderFinOps(data) {
   return `<div id="ov-finops-banner">${banner}</div>${strip}`;
 }
 
-function renderAgentTable(agents) {
+function renderAgentTable(agents, failed) {
+  if (failed) {
+    return `<div class="db-card" role="alert" data-ov-error="agents" style="text-align:center;padding:2rem 1.5rem;color:var(--db-text-dim)">
+      <div style="color:var(--db-text);font-weight:600;margin-bottom:.35rem">Agents could not be loaded</div>
+      <div style="font-size:13px;margin-bottom:1rem">The server did not answer. Try again in a moment.</div>
+      <button class="aiui-btn" data-ov-retry="1" style="padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px">Retry</button>
+    </div>`;
+  }
   if (agents.length === 0) {
     return `<div class="db-card" style="text-align:center;padding:2.5rem 1.5rem;color:var(--db-text-dim)">
       <div style="font-size:2.5rem;opacity:.4;margin-bottom:.75rem">🤖</div>
@@ -307,6 +317,10 @@ function shell(data) {
       <span style="font-size:11px;padding:2px 8px;border:1px solid var(--db-border);border-radius:6px">Ctrl+K</span>
     </div>
 
+    ${data.failed ? `<div class="db-alert db-alert-error" role="alert" data-ov-error="banner" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px">
+      <span>Some overview data could not be loaded${data.failure ? ` (${esc(data.failure)})` : ''}. The values below may be incomplete.</span>
+      <button class="aiui-btn" data-ov-retry="1" style="padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px">Retry</button>
+    </div>` : ''}
     <div id="ov-metrics">${renderMetrics(data)}</div>
 
     <div id="ov-finops">${renderFinOps(data)}</div>
@@ -314,7 +328,7 @@ function shell(data) {
     <div class="db-ov-columns" style="display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-top:20px">
       <div>
         <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">Active Agents</h3>
-        <div id="ov-agents">${renderAgentTable(data.agents)}</div>
+        <div id="ov-agents">${renderAgentTable(data.agents, data.errors.agents)}</div>
       </div>
       <div>
         <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">Needs Attention</h3>
@@ -388,6 +402,10 @@ function openDrawer(agent) {
 
 function bindEvents(container, data) {
   const agentById = (id) => data.agents.find((a) => (a.id || a.name) === id);
+
+  container.querySelectorAll('[data-ov-retry]').forEach((el) => {
+    el.addEventListener('click', () => { paint(); });
+  });
 
   container.querySelectorAll('[data-nav]').forEach((el) => {
     const go = () => navigate(el.getAttribute('data-nav'));

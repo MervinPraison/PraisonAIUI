@@ -109,18 +109,23 @@ YAML config → Pydantic models → Compiler → JSON manifests → React SPA
 - **Fixtures** in `test_cli.py` create full project directories with config + docs
 
 ### Frontend Build
-1. Source in `src/frontend/src/` (React 19 + TypeScript + Vite)
-2. Build: `cd src/frontend && npm run build`
+1. Source in `src/frontend/src/` (React 19 + TypeScript + Vite). Node version: `src/frontend/.nvmrc`.
+2. Build: `cd src/frontend && npm ci && npm run build` (postbuild prunes KaTeX woff/ttf and writes `dist/aiui-externals.json`)
 3. Optional A2UI renderer (full agent-driven UI catalog): `npm install @a2ui/react @a2ui/web_core`
-4. Output: `src/frontend/dist/`
-5. Sync to templates: copy `dist/{index.html,assets/,icon.svg}` → `src/praisonaiui/templates/frontend/`
-6. Compiler copies templates to output dir during `aiui build`
+4. Output: `src/frontend/dist/`. `assets/index.js` and `assets/index.css` keep fixed names (served as `?v=<hash>`); every other chunk is content-hashed (`assets/<name>-<hash>.js`) and listed in `dist/aiui-manifest.json`
+5. Sync to templates: `npm run sync` copies `dist/{index.html,icon.svg,aiui-manifest.json,aiui-externals.json,assets/}` → `src/praisonaiui/templates/frontend/` and **deletes the old `assets/` first**, so stale hashed chunks never linger. To serve a build without touching the tracked tree: `node scripts/sync-templates.mjs --dest "$TMP/frontend"` and `AIUI_TEMPLATES_DIR="$TMP/frontend"`
+6. Compiler copies templates to the output dir during `aiui build` and rewrites `index.html` to `/assets/index.js?v=<sha256[:10]>` (same for `index.css`); `AIUI_TEMPLATES_DIR` overrides the bundle there too
+7. Gates (CI frontend job): `npx tsc -b`, `npm test`, `npm run test:scripts`, `npm run size` (gzip budgets in `.size-limit.mjs`), `npm run check:closure` (no Streamdown/Shiki/Mermaid/KaTeX/assistant-ui before first paint), and on PRs that touch the frontend `npm run check:bundle` (committed bundle == fresh build; fix with `npm run build && npm run sync`)
+8. Browser suites: `npm run test:e2e` (Playwright, chromium; see `src/frontend/e2e/README.md`). They serve `dist/`, so build first
+
+UI styles: `dashboard` (vanilla JS, the default) and the opt-in React shell `app` (`style: app`, `aiui.set_style("app")` or `AIUI_SHELL=app`; `AIUI_SHELL=legacy` is the kill switch). Do not change the default. See `docs/features/react-shell.md`.
 
 Chat inline media (agent-generated images): `RunEventType.MESSAGE_ELEMENT` — see `docs/features/image-preview-chat.md`
 
 ## Gotchas
 
-- **Frontend bundle is committed** — changes to `src/frontend/src/` require rebuilding and syncing to `templates/frontend/`
+- **Frontend bundle is committed** — changes to `src/frontend/src/` require `npm run build && npm run sync` and committing `templates/frontend/` (CI's bundle-sync check fails otherwise; after a merge to main a bot PR resyncs it)
+- **Hashed chunks** — never reference a chunk by name; read `aiui-manifest.json` (see `src/frontend/scripts/lib/build-manifest.mjs`)
 - **Pydantic V2** — uses `model_config = ConfigDict(populate_by_name=True)`, not deprecated `class Config`
 - **SPA fallback** — serve returns `index.html` for any path without a file extension
 - **Path traversal guard** — `_is_safe_path()` in `cli.py` blocks `../` regardless of encoding

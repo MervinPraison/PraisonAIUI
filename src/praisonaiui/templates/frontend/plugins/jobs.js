@@ -42,11 +42,11 @@ function normalizeJobsResponse(data) {
 }
 
 const STATUS_CONFIG = {
-  queued: { icon: '⏳', color: '#6b7280', label: 'Queued' },
-  running: { icon: '🔄', color: '#3b82f6', label: 'Running', pulse: true },
-  succeeded: { icon: '✅', color: '#22c55e', label: 'Completed' },
-  failed: { icon: '❌', color: '#ef4444', label: 'Failed' },
-  cancelled: { icon: '⚪', color: '#9ca3af', label: 'Cancelled' },
+  queued: { icon: '⏳', color: 'var(--db-p-text-muted, #6b7280)', soft: 'var(--db-p-muted, #6b728020)', label: 'Queued' },
+  running: { icon: '🔄', color: 'var(--db-p-info, #3b82f6)', soft: 'var(--db-p-info-bg, #3b82f620)', label: 'Running', pulse: true },
+  succeeded: { icon: '✅', color: 'var(--db-p-success, #22c55e)', soft: 'var(--db-p-success-bg, #22c55e20)', label: 'Completed' },
+  failed: { icon: '❌', color: 'var(--db-p-error, #ef4444)', soft: 'var(--db-p-error-bg, #ef444420)', label: 'Failed' },
+  cancelled: { icon: '⚪', color: 'var(--db-p-text-dim, #9ca3af)', soft: 'var(--db-p-muted, #9ca3af20)', label: 'Cancelled' },
 };
 
 async function fetchJobs() {
@@ -64,7 +64,7 @@ async function fetchJobs() {
 
 async function cancelJob(jobId) {
   try {
-    const resp = await fetch(jobsUrl(`${jobId}/cancel`), { method: 'POST' });
+    const resp = await fetch(jobsUrl(`${encodeURIComponent(jobId)}/cancel`), { method: 'POST' });
     const data = await resp.json();
     if (resp.ok) {
       showNotification(`Job "${jobId}" cancelled`, 'success');
@@ -85,7 +85,7 @@ async function deleteJob(jobId) {
     return;
   }
   try {
-    const resp = await fetch(jobsUrl(jobId), { method: 'DELETE' });
+    const resp = await fetch(jobsUrl(encodeURIComponent(jobId)), { method: 'DELETE' });
     if (resp.ok) {
       showNotification(`Job "${jobId}" deleted`, 'success');
       await fetchJobs();
@@ -111,7 +111,7 @@ function showNotification(message, type = 'info') {
     right: 1rem;
     padding: 0.75rem 1rem;
     border-radius: 0.5rem;
-    background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
+    background: ${type === 'success' ? 'var(--db-p-success-strong, #22c55e)' : type === 'error' ? 'var(--db-p-error-strong, #ef4444)' : 'var(--db-p-info, #3b82f6)'};
     color: white;
     font-size: 0.875rem;
     z-index: 9999;
@@ -133,7 +133,7 @@ function getStatusBadge(status) {
     border-radius: 9999px;
     font-size: 0.75rem;
     font-weight: 500;
-    background: ${config.color}20;
+    background: ${config.soft};
     color: ${config.color};
     ${pulseStyle}
   ">
@@ -164,9 +164,13 @@ function renderProgressBar(percentage) {
   `;
 }
 
+// Job fields come from the API (prompts, results and errors are user or model
+// text) and are written with innerHTML, so they are escaped as HTML text.
 function escapeAttr(value) {
-  return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+const escapeHtml = escapeAttr;
 
 // Navigate to Chat and load the job's linked session (same event the
 // session-search palette and run recorder use).
@@ -186,12 +190,12 @@ function renderJobRow(job) {
     : (job.started_at ? (Date.now() / 1000) - job.started_at : null);
 
   return `
-    <tr class="aiui-job-row" data-job-id="${job.id}">
+    <tr class="aiui-job-row" data-job-id="${escapeAttr(job.id)}">
       <td class="aiui-job-id">
-        <code>${job.id}</code>
+        <code>${escapeHtml(job.id)}</code>
       </td>
       <td class="aiui-job-prompt">
-        <div class="aiui-job-prompt-text">${(job.prompt || '').substring(0, 50)}${job.prompt?.length > 50 ? '...' : ''}</div>
+        <div class="aiui-job-prompt-text">${escapeHtml((job.prompt || '').substring(0, 50))}${job.prompt?.length > 50 ? '...' : ''}</div>
       </td>
       <td class="aiui-job-status">
         ${getStatusBadge(status)}
@@ -207,14 +211,14 @@ function renderJobRow(job) {
       </td>
       <td class="aiui-job-actions">
         ${!isTerminal ? `
-          <button class="aiui-btn aiui-btn-sm aiui-btn-cancel" onclick="window.aiuiCancelJob('${job.id}')" title="Cancel">
+          <button class="aiui-btn aiui-btn-sm aiui-btn-cancel" onclick="window.aiuiCancelJob(this.closest('[data-job-id]').dataset.jobId)" title="Cancel">
             ⏹️
           </button>
         ` : `
-          ${_jobsCfg.backend !== 'praisonai' ? `<button class="aiui-btn aiui-btn-sm aiui-btn-delete" onclick="window.aiuiDeleteJob('${job.id}')" title="Delete">🗑️</button>` : ''}
+          ${_jobsCfg.backend !== 'praisonai' ? `<button class="aiui-btn aiui-btn-sm aiui-btn-delete" onclick="window.aiuiDeleteJob(this.closest('[data-job-id]').dataset.jobId)" title="Delete">🗑️</button>` : ''}
         `}
         ${job.session_id ? `<button class="aiui-btn aiui-btn-sm aiui-btn-open-session" data-session-id="${escapeAttr(job.session_id)}" onclick="window.aiuiOpenJobSession(this.dataset.sessionId)" title="Open session in Chat">💬</button>` : ''}
-        <button class="aiui-btn aiui-btn-sm aiui-btn-view" onclick="window.aiuiViewJob('${job.id}')" title="View Details">
+        <button class="aiui-btn aiui-btn-sm aiui-btn-view" onclick="window.aiuiViewJob(this.closest('[data-job-id]').dataset.jobId)" title="View Details">
           👁️
         </button>
       </td>
@@ -224,7 +228,7 @@ function renderJobRow(job) {
 
 async function viewJob(jobId) {
   try {
-    const resp = await fetch(jobsUrl(jobId));
+    const resp = await fetch(jobsUrl(encodeURIComponent(jobId)));
     const job = await resp.json();
     
     const modal = document.createElement('div');
@@ -239,7 +243,7 @@ async function viewJob(jobId) {
         <div class="aiui-job-modal-body">
           <div class="aiui-job-detail">
             <label>ID</label>
-            <code>${job.id}</code>
+            <code>${escapeHtml(job.id)}</code>
           </div>
           <div class="aiui-job-detail">
             <label>Status</label>
@@ -247,24 +251,24 @@ async function viewJob(jobId) {
           </div>
           <div class="aiui-job-detail">
             <label>Prompt</label>
-            <p>${job.prompt || '-'}</p>
+            <p>${job.prompt ? escapeHtml(job.prompt) : '-'}</p>
           </div>
           ${job.result ? `
             <div class="aiui-job-detail">
               <label>Result</label>
-              <pre>${typeof job.result === 'string' ? job.result : JSON.stringify(job.result, null, 2)}</pre>
+              <pre>${escapeHtml(typeof job.result === 'string' ? job.result : JSON.stringify(job.result, null, 2))}</pre>
             </div>
           ` : ''}
           ${job.error ? `
             <div class="aiui-job-detail aiui-job-error">
               <label>Error</label>
-              <pre>${job.error}</pre>
+              <pre>${escapeHtml(job.error)}</pre>
             </div>
           ` : ''}
           ${job.metrics ? `
             <div class="aiui-job-detail">
               <label>Metrics</label>
-              <pre>${JSON.stringify(job.metrics, null, 2)}</pre>
+              <pre>${escapeHtml(JSON.stringify(job.metrics, null, 2))}</pre>
             </div>
           ` : ''}
         </div>
@@ -358,13 +362,13 @@ function injectStyles() {
       align-items: center;
       margin-bottom: 1.5rem;
       padding-bottom: 1rem;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      border-bottom: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
     }
 
     .aiui-jobs-header h2 {
       font-size: 1.5rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
       margin: 0;
     }
 
@@ -375,7 +379,7 @@ function injectStyles() {
 
     .aiui-summary-stat {
       font-size: 0.875rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-jobs-table-wrapper {
@@ -391,28 +395,28 @@ function injectStyles() {
     .aiui-jobs-table th {
       text-align: left;
       padding: 0.75rem 1rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       font-weight: 500;
       text-transform: uppercase;
       font-size: 0.6875rem;
       letter-spacing: 0.05em;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      border-bottom: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
     }
 
     .aiui-jobs-table td {
       padding: 0.75rem 1rem;
-      color: #e2e8f0;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.05);
+      color: var(--db-p-text, #e2e8f0);
+      border-bottom: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.05));
     }
 
     .aiui-job-row:hover {
-      background: rgba(148, 163, 184, 0.05);
+      background: var(--db-p-hover, rgba(148, 163, 184, 0.05));
     }
 
     .aiui-job-id code {
       font-size: 0.75rem;
-      color: #94a3b8;
-      background: rgba(0, 0, 0, 0.2);
+      color: var(--db-p-text-dim, #94a3b8);
+      background: var(--db-p-muted, rgba(0, 0, 0, 0.2));
       padding: 0.125rem 0.375rem;
       border-radius: 0.25rem;
     }
@@ -433,21 +437,21 @@ function injectStyles() {
     .aiui-job-progress-bar {
       width: 80px;
       height: 6px;
-      background: rgba(148, 163, 184, 0.2);
+      background: var(--db-p-muted, rgba(148, 163, 184, 0.2));
       border-radius: 3px;
       overflow: hidden;
     }
 
     .aiui-job-progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #3b82f6, #60a5fa);
+      background: linear-gradient(90deg, var(--db-p-accent, #3b82f6), var(--db-p-accent, #60a5fa));
       border-radius: 3px;
       transition: width 0.3s ease;
     }
 
     .aiui-job-progress-text {
       font-size: 0.75rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-job-actions {
@@ -462,27 +466,27 @@ function injectStyles() {
     }
 
     .aiui-btn-cancel {
-      background: rgba(239, 68, 68, 0.1);
-      color: #ef4444;
-      border: 1px solid rgba(239, 68, 68, 0.2);
+      background: var(--db-p-error-bg, rgba(239, 68, 68, 0.1));
+      color: var(--db-p-error, #ef4444);
+      border: 1px solid var(--db-p-error-bg, rgba(239, 68, 68, 0.2));
     }
 
     .aiui-btn-delete {
-      background: rgba(107, 114, 128, 0.1);
-      color: #9ca3af;
-      border: 1px solid rgba(107, 114, 128, 0.2);
+      background: var(--db-p-muted, rgba(107, 114, 128, 0.1));
+      color: var(--db-p-text-dim, #9ca3af);
+      border: 1px solid var(--db-p-border, rgba(107, 114, 128, 0.2));
     }
 
     .aiui-btn-view {
-      background: rgba(59, 130, 246, 0.1);
-      color: #3b82f6;
-      border: 1px solid rgba(59, 130, 246, 0.2);
+      background: var(--db-p-accent-glow, rgba(59, 130, 246, 0.1));
+      color: var(--db-p-accent, #3b82f6);
+      border: 1px solid var(--db-p-accent-glow, rgba(59, 130, 246, 0.2));
     }
 
     .aiui-jobs-empty {
       text-align: center;
       padding: 4rem 2rem;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
     }
 
     .aiui-empty-icon {
@@ -493,13 +497,13 @@ function injectStyles() {
 
     .aiui-jobs-empty h3 {
       font-size: 1.25rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       margin: 0 0 0.5rem 0;
     }
 
     .aiui-empty-hint {
       font-size: 0.8125rem;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
     }
 
     /* Modal styles */
@@ -520,13 +524,13 @@ function injectStyles() {
 
     .aiui-job-modal-content {
       position: relative;
-      background: #1e293b;
+      background: var(--db-p-popover, #1e293b);
       border-radius: 0.75rem;
       max-width: 600px;
       width: 90%;
       max-height: 80vh;
       overflow: auto;
-      border: 1px solid rgba(148, 163, 184, 0.1);
+      border: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
     }
 
     .aiui-job-modal-header {
@@ -534,18 +538,18 @@ function injectStyles() {
       justify-content: space-between;
       align-items: center;
       padding: 1rem 1.25rem;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      border-bottom: 1px solid var(--db-p-border, rgba(148, 163, 184, 0.1));
     }
 
     .aiui-job-modal-header h3 {
       margin: 0;
-      color: #f1f5f9;
+      color: var(--db-p-text, #f1f5f9);
     }
 
     .aiui-job-modal-header button {
       background: none;
       border: none;
-      color: #94a3b8;
+      color: var(--db-p-text-dim, #94a3b8);
       font-size: 1.25rem;
       cursor: pointer;
     }
@@ -562,23 +566,23 @@ function injectStyles() {
       display: block;
       font-size: 0.6875rem;
       text-transform: uppercase;
-      color: #64748b;
+      color: var(--db-p-text-muted, #64748b);
       margin-bottom: 0.375rem;
     }
 
     .aiui-job-detail pre {
-      background: rgba(0, 0, 0, 0.3);
+      background: var(--db-p-canvas, rgba(0, 0, 0, 0.3));
       padding: 0.75rem;
       border-radius: 0.375rem;
       overflow-x: auto;
       font-size: 0.8125rem;
-      color: #e2e8f0;
+      color: var(--db-p-text, #e2e8f0);
       margin: 0;
     }
 
     .aiui-job-error pre {
-      color: #fca5a5;
-      background: rgba(239, 68, 68, 0.1);
+      color: var(--db-p-error, #fca5a5);
+      background: var(--db-p-error-bg, rgba(239, 68, 68, 0.1));
     }
 
     @media (max-width: 768px) {
@@ -625,5 +629,13 @@ export default {
   },
   onContentChange(root) {
     checkForJobsPage(root);
+  },
+  // Called by the view's cleanup() when the page is left: stop the refresh
+  // poll so it does not keep running against a detached page, and close a
+  // job-details modal (it lives on <body>, outside the page). Idempotent.
+  stop() {
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = null;
+    document.querySelectorAll('.aiui-job-modal').forEach((el) => el.remove());
   },
 };

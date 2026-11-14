@@ -73,7 +73,10 @@ def test_no_heavy_deps_imported_by_example(example):
     assert leaked == [], f"Heavy deps leaked: {leaked}"
 
 
-def test_slack_adapter_not_constructed_without_tokens(example):
+def test_slack_adapter_not_constructed_without_tokens(example, monkeypatch):
+    # Loading the example can read a local .env, which puts real tokens back.
+    monkeypatch.delenv("SLACK_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("SLACK_APP_TOKEN", raising=False)
     assert example._slack_adapter() is None
     assert asyncio.run(example.post_meeting_summary("m-1001", "C123")) is False
 

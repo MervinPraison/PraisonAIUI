@@ -29,13 +29,13 @@ def test_exponent_limits():
     # Valid small exponents should work
     assert eval_math_expression("2**3") == 8
     assert eval_math_expression("3**4") == 81
-    
+
     # Large exponents should be rejected
     with pytest.raises(ValueError, match="Exponent too large"):
         eval_math_expression("2**101")
     with pytest.raises(ValueError, match="Exponent too large"):
         eval_math_expression("2**1000")
-    
-    # Negative large exponents should also be rejected  
+
+    # Negative large exponents should also be rejected
     with pytest.raises(ValueError, match="Exponent too large"):
         eval_math_expression("2**-101")

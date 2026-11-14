@@ -152,8 +152,8 @@ function injectStyles() {
       transition: border-color 0.3s ease, box-shadow 0.3s ease;
     }
     :root:not(.dark) .mermaid-diagram {
-      background: hsl(var(--muted));
-      border: 1px solid hsl(var(--border));
+      background: var(--muted);
+      border: 1px solid var(--border);
     }
     .dark .mermaid-diagram {
       background: rgba(15, 23, 42, 0.5);
@@ -212,7 +212,7 @@ function injectStyles() {
     :root:not(.dark) article.prose h4, :root:not(.dark) article.prose h5, :root:not(.dark) article.prose h6,
     :root:not(.dark) .prose h1, :root:not(.dark) .prose h2, :root:not(.dark) .prose h3,
     :root:not(.dark) .prose h4, :root:not(.dark) .prose h5, :root:not(.dark) .prose h6 {
-      color: hsl(var(--foreground)) !important;
+      color: var(--foreground) !important;
       -webkit-text-fill-color: unset !important;
       opacity: 1 !important;
     }

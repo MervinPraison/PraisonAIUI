@@ -23,7 +23,9 @@ def check(name, r, status=200, keys=None):
         passed += 1
         print(f"  ✓ {name}")
     except AssertionError as e:
-        failed += 1; errors.append(f"  ✗ {name}: {e}"); print(f"  ✗ {name}: {e}")
+        failed += 1
+        errors.append(f"  ✗ {name}: {e}")
+        print(f"  ✗ {name}: {e}")
 
 
 # ── Node CRUD Tests ──────────────────────────────────────────────────
@@ -161,7 +163,9 @@ try:
     passed += 1
     print("  ✓ Node status enriched with gateway data")
 except AssertionError as e:
-    failed += 1; errors.append(f"  ✗ Gateway enrichment: {e}"); print(f"  ✗ Gateway enrichment: {e}")
+    failed += 1
+    errors.append(f"  ✗ Gateway enrichment: {e}")
+    print(f"  ✗ Gateway enrichment: {e}")
 
 # Reset
 _gateway_ref.set_gateway(None)
@@ -176,5 +180,6 @@ print(f"\n{'='*50}")
 print(f"  Nodes & Instances: {passed} passed, {failed} failed")
 print(f"{'='*50}")
 if errors:
-    for e in errors: print(e)
+    for e in errors:
+        print(e)
     sys.exit(1)
