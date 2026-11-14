@@ -321,10 +321,12 @@ html[data-aiui-shell='react'] .aiui-legacy-host .aiui-btn-primary {
   border-color: transparent !important;
 }
 
-/* Status text the views colour with raw hex: status tokens instead. */
-html[data-aiui-shell='react'] .aiui-legacy-host [style*='#22c55e' i] {
+/* Status text some views colour with a literal green or red in an inline
+   style (matched without the leading '#', so this file stays hex-free):
+   status tokens instead. */
+html[data-aiui-shell='react'] .aiui-legacy-host [style*='22c55e' i] {
   color: var(--success) !important;
 }
-html[data-aiui-shell='react'] .aiui-legacy-host [style*='#ef4444' i] {
+html[data-aiui-shell='react'] .aiui-legacy-host [style*='ef4444' i] {
   color: var(--destructive) !important;
 }
