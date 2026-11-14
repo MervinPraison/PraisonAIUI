@@ -8,6 +8,7 @@ import {
   groupPages,
   isFullBleed,
   isGroupOpen,
+  navGroups,
   needsLegacyRuntime,
   orderedPages,
   readGroupState,
@@ -95,8 +96,11 @@ const manifest = (over: Partial<ShellManifest> = {}): ShellManifest => ({
   ...over,
 })
 
-test('groups follow Agent, Work, Control, then other groups, with Settings last', () => {
-  const groups = groupPages(PAGES)
+/** The server's default `layout.groups` (builtin/catalog.py NAV_GROUPS). */
+const NAV_GROUPS = { order: ['Agent', 'Work', 'Control'], last: 'Settings', folded: ['Work', 'Examples', 'Create'] }
+
+test('groups follow the manifest order (Agent, Work, Control), then other groups, with Settings last', () => {
+  const groups = groupPages(PAGES, navGroups(manifest({ layout: { groups: NAV_GROUPS } })))
   assert.deepEqual(
     groups.map((g) => g.name),
     ['Agent', 'Work', 'Control', 'Plugins', 'Other', 'Settings'],
@@ -109,6 +113,31 @@ test('groups follow Agent, Work, Control, then other groups, with Settings last'
     groups.find((g) => g.name === 'Settings')?.pages.map((x) => x.id),
     ['config', 'logs'],
   )
+})
+
+test('without layout.groups the shell keeps first-appearance order and folds nothing', () => {
+  assert.deepEqual(
+    groupPages(PAGES).map((g) => g.name),
+    ['Agent', 'Work', 'Settings', 'Control', 'Plugins', 'Other'],
+  )
+  assert.deepEqual(navGroups(manifest()), {})
+  for (const name of ['Work', 'Examples', 'Create', 'Agent']) assert.equal(isGroupOpen(name, false, {}), true, name)
+})
+
+test('layout.groups from set_dashboard(groups=) reorders and refolds; malformed values are ignored', () => {
+  const g = navGroups(manifest({ layout: { groups: { order: ['Control', 'Plugins'], last: 'Agent', folded: [] } } }))
+  assert.deepEqual(
+    groupPages(PAGES, g).map((x) => x.name),
+    ['Control', 'Plugins', 'Work', 'Settings', 'Other', 'Agent'],
+  )
+  assert.equal(isGroupOpen('Work', false, {}, g.folded), true)
+  assert.deepEqual(
+    navGroups(manifest({ layout: { groups: { order: 'Agent', last: 3, folded: ['Work', 7] } } as unknown as ShellManifest['layout'] })),
+    { folded: ['Work'] },
+  )
+  assert.deepEqual(navGroups(manifest({ layout: { groups: ['x'] } as unknown as ShellManifest['layout'] })), {})
+  // The default page is the first page in the configured sidebar order.
+  assert.equal(defaultPageId(manifest({ layout: { groups: { order: ['Control'] } } })), 'overview')
 })
 
 test('footer pages are listed separately and last in display order', () => {
@@ -354,12 +383,12 @@ test('revealInScroller scrolls the sidebar only as far as needed, without scroll
 })
 
 test('sidebar groups: rarely used ones start folded, the current page\'s group is always open, the viewer\'s choice sticks', () => {
-  assert.equal(isGroupOpen('Agent', false, {}), true)
-  assert.equal(isGroupOpen('Examples', false, {}), false)
-  assert.equal(isGroupOpen('Work', false, {}), false)
-  assert.equal(isGroupOpen('Work', true, { Work: false }), true, 'the active page\'s group cannot be hidden')
-  assert.equal(isGroupOpen('Agent', false, { Agent: false }), false)
-  assert.equal(isGroupOpen('Examples', false, { Examples: true }), true)
+  assert.equal(isGroupOpen('Agent', false, {}, NAV_GROUPS.folded), true)
+  assert.equal(isGroupOpen('Examples', false, {}, NAV_GROUPS.folded), false)
+  assert.equal(isGroupOpen('Work', false, {}, NAV_GROUPS.folded), false)
+  assert.equal(isGroupOpen('Work', true, { Work: false }, NAV_GROUPS.folded), true, 'the active page\'s group cannot be hidden')
+  assert.equal(isGroupOpen('Agent', false, { Agent: false }, NAV_GROUPS.folded), false)
+  assert.equal(isGroupOpen('Examples', false, { Examples: true }, NAV_GROUPS.folded), true)
   const store = new Map<string, string>()
   const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) }
   writeGroupState({ Work: true, Agent: false }, storage)

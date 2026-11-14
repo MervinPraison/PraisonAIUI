@@ -65,7 +65,12 @@ declare module '@aiui/sdk' {
     version: string
     style: string
     site: Record<string, unknown>
-    layout: { sidebar?: unknown; pageHeader?: unknown }
+    layout: {
+      sidebar?: unknown
+      pageHeader?: unknown
+      /** Sidebar group order, the group pinned last, and the groups that start folded. */
+      groups?: { order?: string[]; last?: string; folded?: string[] }
+    }
     pages: ShellPage[]
     blocks: { type: string; module: string; integrity?: string; source: string }[]
     toolRenderers: { toolName: string; module: string; integrity?: string; source: string }[]

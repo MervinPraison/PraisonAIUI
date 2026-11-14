@@ -9,7 +9,7 @@ import type { ShellPage } from '@/sdk/manifest'
 import { cn } from '@/lib/utils'
 import { useShell } from './context'
 import { FloatingMenuButton, ShellHeader } from './Header'
-import { defaultPageId, isFullBleed, orderedPages, showPageHeader, showSidebar, siteTitle } from './nav'
+import { defaultPageId, isFullBleed, navGroups, orderedPages, showPageHeader, showSidebar, siteTitle } from './nav'
 import {
   installPaletteHooks,
   isPaletteShortcut,
@@ -67,7 +67,8 @@ export default function ReactShell() {
   useRegistryVersion()
   const pages = manifest.pages
   const pageById = useMemo(() => new Map(pages.map((p) => [p.id, p] as const)), [pages])
-  const firstPage = useMemo(() => orderedPages(pages)[0], [pages])
+  const groups = useMemo(() => navGroups(manifest), [manifest])
+  const firstPage = useMemo(() => orderedPages(pages, groups)[0], [pages, groups])
   const sidebar = showSidebar(manifest)
   const header = showPageHeader(manifest)
   const title = siteTitle(manifest)
@@ -180,7 +181,13 @@ export default function ReactShell() {
       )}
       {paletteRequested && (
         <Suspense fallback={null}>
-          <CommandPalette open={paletteOpen} onOpenChange={setCommandPaletteOpen} pages={pages} activeId={pageId} />
+          <CommandPalette
+            open={paletteOpen}
+            onOpenChange={setCommandPaletteOpen}
+            pages={pages}
+            groups={groups}
+            activeId={pageId}
+          />
         </Suspense>
       )}
     </div>

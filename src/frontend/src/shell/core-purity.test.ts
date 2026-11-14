@@ -29,6 +29,13 @@ const BUILTIN_PAGE_IDS = [
   'theme-picker', 'explorer',
 ]
 
+/**
+ * Sidebar group names the server's built-in pages and bundled dashboard
+ * plugins use (builtin/catalog.py NAV_GROUPS and the plugin folders' `group`).
+ * Their order and fold state come from the manifest (`layout.groups`).
+ */
+const BUILTIN_GROUP_NAMES = ['Agent', 'Work', 'Control', 'Settings', 'Examples', 'Create']
+
 /** The same word used for something that is not a page (file → literals). */
 const NOT_A_PAGE_ID: Record<string, readonly string[]> = {
   // Boot state "the server asked for a token".
@@ -153,6 +160,21 @@ test('shell/ and sdk/ contain no built-in page id literal', () => {
   }
   assert.deepEqual(bad, [], 'page-specific behaviour belongs in a plugin (src/builtin), not in the core')
   assert.deepEqual(stale, [], 'KNOWN_DEBT lists debt that is already paid: delete these entries')
+})
+
+/** String literals in `code` that are exactly a built-in sidebar group name. */
+function groupNameLiterals(code: string): string[] {
+  const names = new Set(BUILTIN_GROUP_NAMES)
+  const found = new Set<string>()
+  const re = /(['"`])([A-Za-z]+)\1/g
+  for (let m = re.exec(code); m; m = re.exec(code)) if (names.has(m[2])) found.add(m[2])
+  return [...found].sort()
+}
+
+test('shell/ and sdk/ name no built-in sidebar group (order and folding come from layout.groups)', () => {
+  const bad = files.flatMap((f) => groupNameLiterals(f.code).map((name) => `${f.rel} names group '${name}'`))
+  assert.deepEqual(bad, [], 'set the group order and fold state in builtin/catalog.py NAV_GROUPS')
+  assert.deepEqual(groupNameLiterals("const ORDER = ['Agent', 'Work']; x = 'Workers'"), ['Agent', 'Work'])
 })
 
 test('the scanners catch what they are meant to catch', () => {

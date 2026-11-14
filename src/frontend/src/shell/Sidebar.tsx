@@ -9,7 +9,18 @@ import { ChevronRight, PanelLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
-import { footerPages, groupPages, isGroupOpen, readGroupState, revealInScroller, siteLogo, siteTitle, writeGroupState } from './nav'
+import {
+  footerPages,
+  groupPages,
+  isGroupOpen,
+  navGroups,
+  readGroupState,
+  revealInScroller,
+  siteLogo,
+  siteTitle,
+  writeGroupState,
+  type NavGroupsConfig,
+} from './nav'
 import { PageIcon } from './PageIcon'
 import { isPlainLeftClick, navigate, pathForPage } from './router'
 import { SHELL_SLOTS, Slot } from './Slot'
@@ -73,18 +84,21 @@ function NavItem({
  */
 export function SidebarNav({
   pages,
+  groupConfig,
   activeId,
   collapsed = false,
   onNavigate,
   className,
 }: {
   pages: readonly ShellPage[]
+  /** The manifest's `layout.groups` (navGroups()): group order and which start folded. */
+  groupConfig?: NavGroupsConfig
   activeId: string
   collapsed?: boolean
   onNavigate?: () => void
   className?: string
 }) {
-  const groups = useMemo(() => groupPages(pages), [pages])
+  const groups = useMemo(() => groupPages(pages, groupConfig), [pages, groupConfig])
   const footer = useMemo(() => footerPages(pages), [pages])
   const navRef = useRef<HTMLElement>(null)
   const [folds, setFolds] = useState<Record<string, boolean>>(readGroupState)
@@ -129,7 +143,7 @@ export function SidebarNav({
       >
         {groups.map((group, i) => {
           const hasActive = group.pages.some((p) => p.id === activeId)
-          const open = collapsed || isGroupOpen(group.name, hasActive, folds)
+          const open = collapsed || isGroupOpen(group.name, hasActive, folds, groupConfig?.folded)
           const listId = `aiui-nav-group-${i}`
           return (
             <section key={group.name} aria-label={group.name}>
@@ -226,6 +240,7 @@ export function AppSidebar({
   onToggleCollapsed: () => void
   className?: string
 }) {
+  const groupConfig = useMemo(() => navGroups(manifest), [manifest])
   return (
     <aside
       aria-label="Sidebar"
@@ -251,7 +266,7 @@ export function AppSidebar({
           <PanelLeft />
         </Button>
       </div>
-      <SidebarNav pages={manifest.pages} activeId={activeId} collapsed={collapsed} />
+      <SidebarNav pages={manifest.pages} groupConfig={groupConfig} activeId={activeId} collapsed={collapsed} />
     </aside>
   )
 }

@@ -20,7 +20,7 @@ import {
 import type { ShellPage } from '@/sdk/manifest'
 import { notify } from '@/sdk/notify'
 import { useCommands, type ShellCommand } from '@/sdk/services'
-import { footerPages, groupPages } from './nav'
+import { footerPages, groupPages, type NavGroupsConfig } from './nav'
 import { paletteFilter, rankSections } from './paletteFilter'
 import { PageIcon } from './PageIcon'
 import { navigate } from './router'
@@ -66,19 +66,22 @@ export default function CommandPalette({
   open,
   onOpenChange,
   pages,
+  groups: groupConfig,
   activeId,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   pages: readonly ShellPage[]
+  /** The manifest's `layout.groups` (navGroups()), so pages list in sidebar order. */
+  groups?: NavGroupsConfig
   activeId: string
 }) {
   const { theme, setTheme } = useTheme()
   const groups = useMemo(() => {
-    const g = groupPages(pages)
+    const g = groupPages(pages, groupConfig)
     const footer = footerPages(pages)
     return footer.length ? [...g, { name: 'More', pages: footer }] : g
-  }, [pages])
+  }, [pages, groupConfig])
   const registered = useCommands()
   const commandGroups = useMemo(() => groupCommands(registered), [registered])
   const [search, setSearch] = useState('')

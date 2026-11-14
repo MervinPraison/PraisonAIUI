@@ -3,9 +3,10 @@
  * Loaded on the first tap (or hover/focus) of the header menu button, so the
  * Sheet never sits on the boot path.
  */
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import type { ShellManifest } from '@/sdk/manifest'
+import { navGroups } from './nav'
 import { SidebarBrand, SidebarNav } from './Sidebar'
 
 const DESKTOP_QUERY = '(min-width: 768px)'
@@ -21,6 +22,7 @@ export default function MobileNav({
   manifest: ShellManifest
   activeId: string
 }) {
+  const groupConfig = useMemo(() => navGroups(manifest), [manifest])
   // Widening to the desktop layout shows the real sidebar: drop the sheet.
   useEffect(() => {
     if (!open) return
@@ -61,7 +63,12 @@ export default function MobileNav({
             </div>
           </SheetTitle>
         </div>
-        <SidebarNav pages={manifest.pages} activeId={activeId} onNavigate={() => onOpenChange(false)} />
+        <SidebarNav
+          pages={manifest.pages}
+          groupConfig={groupConfig}
+          activeId={activeId}
+          onNavigate={() => onOpenChange(false)}
+        />
       </SheetContent>
     </Sheet>
   )

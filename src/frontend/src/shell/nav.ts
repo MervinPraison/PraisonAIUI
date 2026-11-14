@@ -4,10 +4,38 @@
  */
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
 
-/** Built-in sidebar groups, in display order. Other groups sit before Settings. */
-export const GROUP_ORDER = ['Agent', 'Work', 'Control', 'Settings'] as const
-const LAST_GROUP = 'Settings'
 const DEFAULT_GROUP = 'Other'
+
+/**
+ * How the sidebar arranges its groups (manifest `layout.groups`, which the
+ * server fills from builtin/catalog.py NAV_GROUPS and set_dashboard(groups=)):
+ * `order` lists groups first, in that order; other groups follow in
+ * first-appearance order; `last` is pinned at the end. `folded` groups start
+ * collapsed. Without it, groups keep first-appearance order and none is folded.
+ */
+export interface NavGroupsConfig {
+  order?: readonly string[]
+  last?: string
+  folded?: readonly string[]
+}
+
+function stringList(v: unknown): string[] | undefined {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : undefined
+}
+
+/** The manifest's `layout.groups`, with anything malformed dropped. */
+export function navGroups(manifest: Pick<ShellManifest, 'layout'>): NavGroupsConfig {
+  const raw = (manifest.layout as Record<string, unknown> | undefined)?.groups
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const g = raw as Record<string, unknown>
+  const out: NavGroupsConfig = {}
+  const order = stringList(g.order)
+  const folded = stringList(g.folded)
+  if (order) out.order = order
+  if (folded) out.folded = folded
+  if (typeof g.last === 'string' && g.last) out.last = g.last
+  return out
+}
 
 type PageWithPosition = ShellPage & { position?: string }
 
@@ -50,10 +78,11 @@ function byOrder(a: ShellPage, b: ShellPage): number {
   return (a.order ?? 100) - (b.order ?? 100)
 }
 
-function groupRank(group: string): number {
-  if (group === LAST_GROUP) return GROUP_ORDER.length + 1
-  const i = (GROUP_ORDER as readonly string[]).indexOf(group)
-  return i >= 0 ? i : GROUP_ORDER.length // unknown groups: after Control, before Settings
+function groupRank(group: string, groups: NavGroupsConfig): number {
+  const order = groups.order ?? []
+  if (groups.last && group === groups.last) return order.length + 1
+  const i = order.indexOf(group)
+  return i >= 0 ? i : order.length // other groups: after the ordered ones, before `last`
 }
 
 export interface NavGroup {
@@ -63,20 +92,20 @@ export interface NavGroup {
 
 /**
  * Sidebar groups for the non-footer pages. Pages keep their manifest order
- * within a group (stable sort by `order`); groups follow GROUP_ORDER, unknown
- * groups appear in first-appearance order before Settings.
+ * within a group (stable sort by `order`); groups are arranged by `groups`
+ * (see NavGroupsConfig), else in first-appearance order.
  */
-export function groupPages(pages: readonly ShellPage[]): NavGroup[] {
-  const groups = new Map<string, ShellPage[]>()
+export function groupPages(pages: readonly ShellPage[], groups: NavGroupsConfig = {}): NavGroup[] {
+  const byGroup = new Map<string, ShellPage[]>()
   for (const p of [...pages].sort(byOrder)) {
     if (isFooterPage(p)) continue
     const name = p.group || DEFAULT_GROUP
-    let list = groups.get(name)
-    if (!list) groups.set(name, (list = []))
+    let list = byGroup.get(name)
+    if (!list) byGroup.set(name, (list = []))
     list.push(p)
   }
-  return [...groups.entries()]
-    .map(([name, list], appearance) => ({ name, pages: list, rank: groupRank(name), appearance }))
+  return [...byGroup.entries()]
+    .map(([name, list], appearance) => ({ name, pages: list, rank: groupRank(name, groups), appearance }))
     .sort((a, b) => a.rank - b.rank || a.appearance - b.appearance)
     .map(({ name, pages: list }) => ({ name, pages: list }))
 }
@@ -87,8 +116,8 @@ export function footerPages(pages: readonly ShellPage[]): ShellPage[] {
 }
 
 /** Every page in sidebar display order (groups first, then footer pages). */
-export function orderedPages(pages: readonly ShellPage[]): ShellPage[] {
-  return [...groupPages(pages).flatMap((g) => g.pages), ...footerPages(pages)]
+export function orderedPages(pages: readonly ShellPage[], groups: NavGroupsConfig = {}): ShellPage[] {
+  return [...groupPages(pages, groups).flatMap((g) => g.pages), ...footerPages(pages)]
 }
 
 function stringField(obj: Record<string, unknown>, ...keys: string[]): string | undefined {
@@ -110,7 +139,7 @@ export function defaultPageId(manifest: Pick<ShellManifest, 'pages' | 'layout' |
   const configured =
     stringField(layout, 'default', 'defaultPage') ?? stringField(manifest.site, 'defaultPage', 'default_page')
   if (configured && ids.has(configured)) return configured
-  return orderedPages(manifest.pages)[0]?.id ?? null
+  return orderedPages(manifest.pages, navGroups(manifest))[0]?.id ?? null
 }
 
 /** `layout.sidebar: false` (set_dashboard(sidebar=False)) hides the sidebar. */
@@ -159,15 +188,22 @@ export function revealInScroller(
 
 // ── collapsible sidebar groups ─────────────────────────────────────────
 
-/** Groups that start folded (rarely used); the group of the current page is always open. */
-export const DEFAULT_FOLDED_GROUPS: readonly string[] = ['Examples', 'Create', 'Work']
 export const GROUP_STATE_KEY = 'aiui-sidebar-groups'
 
-/** Is a sidebar group expanded? `stored` maps group name → open, as the viewer left it. */
-export function isGroupOpen(name: string, hasActivePage: boolean, stored: Readonly<Record<string, boolean>>): boolean {
+/**
+ * Is a sidebar group expanded? The group of the current page always is.
+ * `stored` maps group name → open, as the viewer left it; otherwise a group
+ * starts folded when it is in `folded` (manifest `layout.groups.folded`).
+ */
+export function isGroupOpen(
+  name: string,
+  hasActivePage: boolean,
+  stored: Readonly<Record<string, boolean>>,
+  folded: readonly string[] = [],
+): boolean {
   if (hasActivePage) return true
   if (Object.prototype.hasOwnProperty.call(stored, name)) return stored[name] === true
-  return !DEFAULT_FOLDED_GROUPS.includes(name)
+  return !folded.includes(name)
 }
 
 export function readGroupState(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Record<string, boolean> {
