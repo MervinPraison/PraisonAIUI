@@ -59,9 +59,18 @@ function readUrlState(): { session: string | null; agent: string | null } {
   }
 }
 
+/** Shown when the app configured no starters: a first-time visitor gets a few ideas. */
+export const DEFAULT_STARTERS: AiuiStarter[] = [
+  { title: 'Summarize a document', label: 'Attach a file and get the key points', prompt: 'Summarize the attached document in five bullet points.' },
+  { title: 'Write code', label: 'Describe what it should do', prompt: 'Write a small Python function that ' },
+  { title: 'Plan a task', label: 'Break it into steps', prompt: 'Help me plan this task step by step: ' },
+  { title: 'Explain a concept', label: 'In plain words', prompt: 'Explain in plain words: ' },
+]
+
 function ConnectionBadge({ status, kind }: { status?: ConnectionStatus; kind: 'ws' | 'sse' }) {
   if (!status) return null
   const label = status === 'open' ? 'Connected' : status === 'connecting' ? 'Connecting' : kind === 'sse' ? 'Offline, using HTTP' : 'Offline'
+  const short = status === 'open' ? 'Live' : status === 'connecting' ? '…' : 'Offline'
   return (
     <span
       className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-xs text-muted-foreground"
@@ -73,11 +82,12 @@ function ConnectionBadge({ status, kind }: { status?: ConnectionStatus; kind: 'w
       <span
         className={cn(
           'size-2 rounded-full',
-          status === 'open' ? 'bg-primary' : status === 'connecting' ? 'bg-muted-foreground motion-safe:animate-pulse' : 'bg-destructive',
+          status === 'open' ? 'bg-success' : status === 'connecting' ? 'bg-warning motion-safe:animate-pulse' : 'bg-destructive',
         )}
         aria-hidden
       />
       <span className="hidden sm:inline">{label}</span>
+      <span className="sm:hidden" aria-hidden>{short}</span>
     </span>
   )
 }
@@ -159,8 +169,8 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
       })
       .catch(() => undefined)
     void fetchStarters()
-      .then((list) => alive && setStarters(list))
-      .catch(() => undefined)
+      .then((list) => alive && setStarters(list.length ? list : DEFAULT_STARTERS))
+      .catch(() => alive && setStarters(DEFAULT_STARTERS))
     return () => {
       alive = false
     }
@@ -311,32 +321,42 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
           <SessionRail {...railProps} onClose={() => setRailOpen(false)} className="absolute inset-y-0 left-0 w-72 max-w-[85%] shadow-xl" />
         </div>
       )}
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col" aria-label={page.title || 'Chat'}>
-        <header className="flex h-12 shrink-0 items-center gap-1.5 px-2 sm:px-3">
-          <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground lg:hidden" onClick={() => setRailOpen(true)} aria-label="Show chats">
-            <PanelLeft />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="hidden text-muted-foreground hover:text-foreground lg:inline-flex"
-            onClick={toggleRail}
-            aria-label={railHidden ? 'Show chats' : 'Hide chats'}
-            aria-pressed={!railHidden}
-          >
-            <PanelLeft />
-          </Button>
-          <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{heading}</h1>
-          <AgentPicker agents={agents} value={agent} onChange={setAgent} />
-          <ConnectionBadge status={thread.signals.connection} kind={transport.kind} />
+      <section className="@container flex min-h-0 min-w-0 flex-1 flex-col" aria-label={page.title || 'Chat'}>
+        {/* The title lines up with the thread column; the rail toggle sits in the gutter. */}
+        <header className="relative flex h-12 shrink-0 items-center px-4 sm:px-6">
+          <div className="absolute top-2 left-2 flex sm:left-3">
+            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground lg:hidden" onClick={() => setRailOpen(true)} aria-label="Show chats">
+              <PanelLeft />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="hidden text-muted-foreground hover:text-foreground lg:inline-flex"
+              onClick={toggleRail}
+              aria-label={railHidden ? 'Show chats' : 'Hide chats'}
+              aria-pressed={!railHidden}
+            >
+              <PanelLeft />
+            </Button>
+          </div>
+          <div className="mx-auto flex w-full max-w-[760px] min-w-0 items-center gap-1.5 pl-7 @[54rem]:pl-0" data-chat-header-column>
+            <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{heading}</h1>
+            <AgentPicker agents={agents} value={agent} onChange={setAgent} />
+            <ConnectionBadge status={thread.signals.connection} kind={transport.kind} />
+          </div>
         </header>
         <div className="min-h-0 min-w-0 flex-1">
           <AssistantRuntimeProvider runtime={runtime}>
             <Thread
               sessionId={threadSessionId}
               loading={thread.isLoading && !thread.messages.length}
-              subtitle={agent ? `Chatting with ${agent}` : undefined}
+              subtitle={agent ? `Chatting with ${agent}` : agents.length ? 'Default agent' : undefined}
               notice={notice ? { text: notice, onDismiss: () => setNotice(null) } : null}
+              hasMore={thread.hasMore}
+              loadingEarlier={thread.isLoadingEarlier}
+              onLoadEarlier={() => {
+                if (threadSessionId) void threadStore.loadEarlier(threadSessionId)
+              }}
             />
           </AssistantRuntimeProvider>
         </div>

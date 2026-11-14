@@ -29,8 +29,8 @@ import {
   type ToolCallMessagePartProps,
 } from '@assistant-ui/react'
 import {
-  ArrowDown, ArrowUp, Brain, Check, ChevronRight, Copy, Paperclip, RefreshCw, ShieldAlert, Square,
-  ThumbsDown, ThumbsUp, Wrench, X,
+  ArrowDown, ArrowUp, Brain, Check, ChevronRight, Code, Copy, FileText, Globe, Paperclip, RefreshCw, Search,
+  ShieldAlert, Square, Terminal, ThumbsDown, ThumbsUp, Wrench, X, type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
@@ -87,8 +87,10 @@ const Reasoning: FC<ReasoningMessagePartProps> = ({ text, status, timing }) => {
         )}
       </button>
       {open && body && (
-        <div className="mt-1 ml-2 border-l border-border pl-4 text-sm leading-relaxed whitespace-pre-wrap break-words text-muted-foreground">
-          {body}
+        <div className="mt-1 ml-2 min-w-0 border-l border-border pl-4 text-sm leading-relaxed break-words text-muted-foreground" data-reasoning-body>
+          <Markdown variant="chat" streaming={!done} className="min-w-0 max-w-full text-sm text-muted-foreground">
+            {body}
+          </Markdown>
         </div>
       )}
     </div>
@@ -105,6 +107,20 @@ function stringify(v: unknown): string {
 }
 
 type ToolState = 'running' | 'done' | 'error' | 'approval' | 'approved' | 'denied' | 'stopped'
+
+/** Line icons for well-known tools (the server's emoji would clash with the lucide set). */
+const TOOL_ICON_RULES: [RegExp, LucideIcon][] = [
+  [/search|lookup|query|find|grep/i, Search],
+  [/shell|bash|command|exec|terminal|run_?cmd/i, Terminal],
+  [/web|url|fetch|http|browse|crawl|scrape/i, Globe],
+  [/file|read|write|edit|document|pdf/i, FileText],
+  [/code|python|javascript|eval|interpreter/i, Code],
+]
+
+function toolIcon(name: string): LucideIcon {
+  for (const [re, icon] of TOOL_ICON_RULES) if (re.test(name)) return icon
+  return Wrench
+}
 
 const PILL: Record<ToolState, { label: string; className: string }> = {
   running: { label: 'Running', className: 'bg-muted text-muted-foreground' },
@@ -190,6 +206,10 @@ function ApprovalGate({ prompt, risk, pending, error: partError, respond }: {
   )
 }
 
+/** Arguments/result: flat, marked by a left rule (no box inside the row). */
+const TOOL_PRE =
+  'max-h-72 overflow-auto border-l-2 border-border pl-3 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words text-foreground'
+
 /** Default tool UI: a compact collapsible row; an open approval gate renders inline. */
 const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
   const { toolName, args, result, artifact, approval, respondToApproval, timing } = props
@@ -198,25 +218,31 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
   const a = (artifact ?? {}) as Record<string, unknown>
   const state = toolState(props)
   const pill = PILL[state]
-  const icon = typeof a.icon === 'string' && a.icon ? a.icon : null
-  const description = typeof a.description === 'string' ? a.description.replace(icon ?? '\u0000', '').trim() : ''
+  // The server's emoji icon is not shown (one line-icon set); it is only
+  // stripped from the description it may prefix.
+  const emoji = typeof a.icon === 'string' && a.icon ? a.icon : null
+  const description = typeof a.description === 'string' ? a.description.replace(emoji ?? '\u0000', '').trim() : ''
+  const Icon = toolIcon(toolName)
   const took = timing?.completedAt ? formatDuration(timing.completedAt - timing.startedAt) : ''
   const hasArgs = args && Object.keys(args).length > 0
   const a2ui = Array.isArray(a.a2ui) && a.a2ui.length ? (a.a2ui as Record<string, unknown>[]) : null
+  // Flat row; a hairline only once it holds something (expanded, a gate, a surface).
+  const framed = open || state === 'approval' || a2ui !== null
   return (
     <div
-      className={cn('my-2 min-w-0 rounded-lg border', state === 'approval' ? 'border-border shadow-sm' : 'border-border/70')}
+      className={cn('my-1.5 min-w-0 rounded-md', framed && 'border border-border', state === 'approval' && 'shadow-sm')}
       data-tool={toolName}
       data-state={state}
+      data-open={open || undefined}
     >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg px-3 text-left text-sm outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex h-8 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
       >
         <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground" aria-hidden>
-          {icon ? <span className="text-sm leading-none">{icon}</span> : <Wrench className="size-3.5" />}
+          <Icon className="size-3.5" />
         </span>
         <span className="shrink-0 font-medium text-foreground">{toolName}</span>
         {description && <span className="min-w-0 truncate text-muted-foreground">{description}</span>}
@@ -239,20 +265,16 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
         />
       )}
       {open && (
-        <div className="space-y-2 border-t border-border px-3 py-2.5">
+        <div className="space-y-3 px-3 pt-1 pb-3">
           {description && <p className="text-xs break-words text-muted-foreground sm:hidden">{description}</p>}
           <div>
             <div className="mb-1 text-xs font-medium text-muted-foreground">Arguments</div>
-            <pre className="max-h-72 overflow-auto rounded-md bg-muted px-2.5 py-2 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words">
-              {hasArgs ? stringify(args) : '{}'}
-            </pre>
+            <pre className={TOOL_PRE}>{hasArgs ? stringify(args) : '{}'}</pre>
           </div>
           {result !== undefined && (
             <div>
               <div className="mb-1 text-xs font-medium text-muted-foreground">Result</div>
-              <pre className="max-h-72 overflow-auto rounded-md bg-muted px-2.5 py-2 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words">
-                {stringify(result)}
-              </pre>
+              <pre className={TOOL_PRE}>{stringify(result)}</pre>
             </div>
           )}
         </div>
@@ -373,8 +395,9 @@ const iconButton = 'text-muted-foreground hover:text-foreground'
 const MessageStatusNotes: FC = () => {
   const s = useAuiState((st) => {
     const status = st.message.status
-    const custom = st.message.metadata.custom as { reconnecting?: boolean }
+    const custom = st.message.metadata.custom as { reconnecting?: boolean; remote?: boolean }
     if (custom.reconnecting) return 'reconnecting'
+    if (custom.remote && status?.type === 'running') return 'remote'
     if (status?.type === 'running' && st.message.content.length === 0) return 'pending'
     if (status?.type === 'incomplete' && status.reason === 'cancelled') return 'stopped'
     return null
@@ -394,6 +417,13 @@ const MessageStatusNotes: FC = () => {
     )
   }
   if (s === 'stopped') return <div className="mt-1 text-xs text-muted-foreground">Stopped</div>
+  if (s === 'remote') {
+    return (
+      <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground" role="status" data-remote-turn>
+        <Spinner className="size-3" /> Replying in another tab or window
+      </div>
+    )
+  }
   return null
 }
 
@@ -484,6 +514,15 @@ const ComposerAttachment: FC = () => (
   </AttachmentPrimitive.Root>
 )
 
+/** Focus the composer on load only with a mouse/trackpad: on a phone it would open the keyboard over the thread. */
+function finePointer(): boolean {
+  try {
+    return typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches
+  } catch {
+    return false
+  }
+}
+
 export interface ComposerNotice {
   text: string
   onDismiss?: () => void
@@ -501,7 +540,7 @@ const Composer: FC<{ placeholder?: string; notice?: ComposerNotice | null }> = (
         )}
       </div>
     )}
-    <ComposerPrimitive.Root className="flex w-full min-w-0 flex-col rounded-xl border border-border bg-background shadow-sm focus-within:border-ring/60 focus-within:ring-2 focus-within:ring-ring/15">
+    <ComposerPrimitive.Root className="flex w-full min-w-0 flex-col rounded-xl border border-border bg-background shadow-sm motion-safe:transition-shadow motion-safe:duration-[120ms] focus-within:border-ring/30 focus-within:shadow-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/30">
       <div className="flex flex-wrap gap-1.5 px-3 pt-2.5 empty:hidden">
         <ComposerPrimitive.Attachments>{() => <ComposerAttachment />}</ComposerPrimitive.Attachments>
       </div>
@@ -513,7 +552,7 @@ const Composer: FC<{ placeholder?: string; notice?: ComposerNotice | null }> = (
         </ComposerPrimitive.AddAttachment>
         <ComposerPrimitive.Input
           rows={1}
-          autoFocus
+          autoFocus={finePointer()}
           placeholder={placeholder ?? 'Message…'}
           aria-label="Message"
           className="max-h-[40vh] min-h-8 min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-base leading-[1.45] text-foreground outline-none placeholder:text-muted-foreground"
@@ -551,6 +590,10 @@ export interface ThreadProps {
   notice?: ComposerNotice | null
   /** Passed to parts that post back to the server (A2UI surface actions). */
   sessionId?: string
+  /** Older messages exist on the server: show "Load earlier messages". */
+  hasMore?: boolean
+  loadingEarlier?: boolean
+  onLoadEarlier?: () => void
 }
 
 const ThreadSkeleton: FC = () => (
@@ -587,7 +630,7 @@ function usePartComponents() {
 
 const MESSAGE_COMPONENTS = { UserMessage, AssistantMessage, SystemMessage }
 
-export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loading, notice, sessionId }) => {
+export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loading, notice, sessionId, hasMore, loadingEarlier, onLoadEarlier }) => {
   const parts = usePartComponents()
   return (
     <SessionIdContext.Provider value={sessionId}>
@@ -598,12 +641,12 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
           <ThreadSkeleton />
         ) : (
           <ThreadPrimitive.Empty>
-            <div className={cn(COLUMN, 'flex flex-1 flex-col justify-center gap-6 py-10')}>
+            <div className={cn(COLUMN, 'flex flex-1 flex-col items-center justify-end gap-6 pt-10 pb-[12vh] text-center')} data-thread-empty>
               <div>
                 <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title ?? 'How can I help you today?'}</h2>
                 {subtitle && <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>}
               </div>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid w-full gap-2 text-left sm:grid-cols-2">
                 <ThreadPrimitive.Suggestions>
                   {({ suggestion }) => (
                     <SuggestionPrimitive.Trigger send asChild>
@@ -621,8 +664,19 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
             </div>
           </ThreadPrimitive.Empty>
         )}
+        {hasMore && !loading && (
+          <div className={cn(COLUMN, 'flex justify-center pt-4 pb-2')}>
+            <Button type="button" variant="ghost" size="sm" disabled={loadingEarlier} onClick={onLoadEarlier} data-load-earlier>
+              {loadingEarlier && <Spinner className="size-3.5" />}
+              Load earlier messages
+            </Button>
+          </div>
+        )}
         <ThreadPrimitive.Messages components={MESSAGE_COMPONENTS} />
-        <div className="min-h-4 flex-1" aria-hidden />
+        {/* Keeps the composer at the bottom of a short thread; an empty thread centres itself instead. */}
+        <AuiIf condition={(st) => st.thread.messages.length > 0}>
+          <div className="min-h-4 flex-1" aria-hidden />
+        </AuiIf>
         <ThreadPrimitive.ViewportFooter className={cn(COLUMN, 'sticky bottom-0 bg-background pt-2 pb-3')}>
           <div className="relative">
             <ThreadPrimitive.ScrollToBottom asChild>
