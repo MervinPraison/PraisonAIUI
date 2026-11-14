@@ -145,16 +145,25 @@ the server does not load its feature modules, and a bundled dashboard-plugin
 folder that belongs to it (`kanban` belongs to `builtin.work`, `video-studio`
 to `builtin.video`) is not served either. The same holds for the routes the
 host itself serves for a built-in: `builtin.mcp` owns `/api/mcp/*`,
-`builtin.debug` owns `/api/debug` and `builtin.logs` owns `GET /api/logs` as
-well as its `/api/logs/*` feature routes, so disabling them returns 404 there.
-With the built-in off, an entry-point plugin may use its page ids and feature
-names.
+`builtin.debug` owns `/api/debug`, `builtin.logs` owns `GET /api/logs` as
+well as its `/api/logs/*` feature routes, `builtin.overview` owns
+`GET /api/overview`, `builtin.feedback` owns `GET /api/feedback` and
+`builtin.jobs` owns the optional `/api/jobs` proxy (`set_jobs_proxy`), so
+disabling them returns 404 there. With the built-in off, an entry-point
+plugin may use its page ids and feature names.
 
-A few host routes stay mounted whichever built-ins are off, because the host
-or the CLI uses them: `/api/overview` and `/api/status` (`aiui status`),
-`/api/feedback` (its `POST` backs the chat thumbs) and `/api/config`.
-Disabling `builtin.overview`, `builtin.feedback` or `builtin.config` removes
-their pages only.
+A few host routes stay mounted whichever built-ins are off, because the host,
+several pages or the CLI use them: `GET /api/status` (`aiui status`, the same
+data as `/api/overview`), `POST /api/feedback` (the chat thumbs),
+`/api/config`, `/api/gateway/status`, `/api/provider*`, the chat protocol
+(`/agents`, `/sessions`, `/run`, `/cancel`, `/teams`, `/starters`,
+`/profiles`, `/welcome`, `/api/actions/*`, thread sharing), `/health*`, auth,
+`/api/pages`, `/api/features`, `/api/shell/manifest` and `/api/plugins`.
+Disabling `builtin.config` removes its page only. Where a page id is also a
+JSON path (`/agents`, `/sessions`, or an app page named like an API), a
+browser navigation to `/<page id>` gets the page and `fetch()` gets the JSON,
+under the `dashboard` and `app` styles.
+`tests/unit/test_route_table_snapshot.py` pins the default route table.
 
 Some features are **required**: the server itself depends on `auth`, `theme`,
 `chat`, `usage`, `config_runtime` and `sessions_ext`. Disabling their record

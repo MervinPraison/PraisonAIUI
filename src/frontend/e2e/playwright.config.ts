@@ -11,6 +11,7 @@
  *   app-shell          AIUI_SHELL=app + the example plugin      shell-sweep, chat, plugins
  *   chat-style         style chat, presets zinc and rose        theme-presets
  *   docs               `aiui build` output on `aiui serve`      markdown
+ *   page-reload-*      the dashboard and app-shell servers      page-reload
  *   legacy-baseline    the v0.3.153 tree (opt-in, see below)    legacy-parity
  *
  * Environment:
@@ -119,6 +120,17 @@ export default defineConfig({
       name: 'docs',
       testMatch: /[\\/]markdown\.spec\.ts$/,
       use: { ...chromium, baseURL: url(PORTS.docs) },
+    },
+    // One spec against both page styles (the servers above, no new ones).
+    {
+      name: 'page-reload-dashboard',
+      testMatch: /[\\/]page-reload\.spec\.ts$/,
+      use: { ...chromium, baseURL: url(PORTS.legacy) },
+    },
+    {
+      name: 'page-reload-app',
+      testMatch: /[\\/]page-reload\.spec\.ts$/,
+      use: { ...chromium, baseURL: url(PORTS.app) },
     },
     ...(BASELINE_SRC
       ? [
