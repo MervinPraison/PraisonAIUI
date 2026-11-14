@@ -294,6 +294,30 @@ class TestProScope:
         assert "data-aiui-tokens" not in theme
         assert "--pro-" not in theme and "--seed-pro-" not in theme
 
+    def test_seed_defaults_are_declared_on_html_only(self):
+        # A descendant that re-declared the layered --seed-pro-* defaults would
+        # hide the server's unlayered :root seeds (set_brand_color) below it.
+        seeded = [
+            selector
+            for selector, body in _pro_rules()
+            if any(name.startswith("--seed-pro-") for name in _pro_decls(body))
+        ]
+        assert seeded
+        for selector in seeded:
+            assert [part.strip() for part in selector.split(",")] == [PRO_SCOPE]
+
+    def test_palette_lives_on_html_and_dark_subtrees_like_classic_seeds(self):
+        allowed = {PRO_SCOPE, f"{PRO_SCOPE}.dark", f"{PRO_SCOPE} .dark"}
+        for selector, body in _pro_rules():
+            if any(name.startswith("--pro-") for name in _pro_decls(body)):
+                assert {part.strip() for part in selector.split(",")} <= allowed, selector
+
+    def test_mapping_recomputes_in_scopes_and_dark_subtrees(self):
+        selector, body = _pro_rules()[2]
+        parts = {part.strip() for part in selector.split(",")}
+        assert parts == {PRO_SCOPE, f"{PRO_SCOPE} [data-aiui-scope]", f"{PRO_SCOPE} .dark"}
+        assert "--primary" in _pro_decls(body)
+
     def test_accent_roles_read_runtime_seed_then_mode_seed(self):
         rules = _pro_rules()
         mapping = _pro_decls(rules[2][1])

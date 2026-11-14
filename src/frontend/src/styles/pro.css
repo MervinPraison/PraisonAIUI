@@ -21,13 +21,17 @@
  *                               YAML preset, theme.accent or set_brand_color) or
  *                               unsuffixed per mode (registerThemePreset).
  *   L2  shadcn + --ui-* tiers   mapped from P0/P1, so primitives and the classic
- *                               utilities (bg-muted, text-tier-3, shadow-md ...)
+ *                               utilities (surfaces, text tiers, shadows)
  *                               draw in Pro inside a layout. */
 
 @layer base {
-  /* ── P0 light palette + P1 default accent seeds (indigo) ──────────────── */
-  html[data-aiui-shell="react"][data-aiui-tokens="pro"],
-  html[data-aiui-shell="react"][data-aiui-tokens="pro"] [data-aiui-scope] {
+  /* ── P0 light palette + P1 default accent seeds (indigo) ────────────────
+     On <html> only, like theme.css's mode seeds: a descendant that declared
+     the --seed-pro-* defaults again would hide the server's unlayered
+     :root seeds (set_brand_color) from everything below it. A nested .dark
+     subtree gets the dark palette below, and the mapping rule recomputes in
+     every [data-aiui-scope] and .dark subtree. */
+  html[data-aiui-shell="react"][data-aiui-tokens="pro"] {
     --pro-background: #ffffff;
     --pro-foreground: #18181b;
     --pro-sidebar: #f7f7f8;
@@ -78,9 +82,7 @@
 
   /* ── P0 dark palette ──────────────────────────────────────────────────── */
   html[data-aiui-shell="react"][data-aiui-tokens="pro"].dark,
-  html[data-aiui-shell="react"][data-aiui-tokens="pro"].dark [data-aiui-scope],
-  html[data-aiui-shell="react"][data-aiui-tokens="pro"] .dark,
-  html[data-aiui-shell="react"][data-aiui-tokens="pro"] .dark [data-aiui-scope] {
+  html[data-aiui-shell="react"][data-aiui-tokens="pro"] .dark {
     --pro-background: #0e0e11;
     --pro-foreground: #ededf0;
     --pro-sidebar: #09090b;
