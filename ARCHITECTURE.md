@@ -34,8 +34,9 @@ Markdown. Pages and features extend through one plugin model: Python records
 |---|---|---|
 | **Core, browser** | `src/frontend/src/shell/`, `src/frontend/src/sdk/`, `main.tsx` | Boot split, router, sidebar, header, command palette, slot hosts, registries (`sdk/registry.ts`), plugin contributions: settings sections, nav groups, theme presets (`sdk/contributions.ts`), manifest contract (`sdk/manifest.ts`), plugin loader (`sdk/loadPlugins.ts`), shell services (`sdk/services.ts`, `sdk/notify.ts`) |
 | **Core, Python** | `server.py` (`create_app`, `_build_html`, `_build_shell_manifest`, externals shims), `plugin_registry.py` (`PluginRegistry`, `ExtensionPolicy`, `SDK_API_VERSION = 1`), `features/__init__.py` (feature registry), `http_guard.py`, `auth.py` | HTTP host, auth, manifest, plugin discovery and policy |
-| **First-party plugins** | `src/frontend/src/builtin/` (`BUILTIN_PLUGINS`: `builtin.chat`, `builtin.approvals`); `src/praisonaiui/builtin/catalog.py` (46 `BuiltinPlugin` records, 38 pages, 44 feature refs) | Every page and feature that ships with aiui |
+| **First-party plugins** | `src/frontend/src/builtin/` (`BUILTIN_PLUGINS`: `builtin.chat`, `builtin.approvals`, `builtin.layouts` with the five layout descriptors in `builtin/layouts/`); `src/praisonaiui/builtin/catalog.py` (46 `BuiltinPlugin` records, 38 pages, 44 feature refs) | Every page and feature that ships with aiui |
 | **Engines** (libraries the plugins use) | `chat-engine/` (protocol reducer, store, transports, `useAiuiRuntime`, Thread), `markdown/` (`<Markdown>` on Streamdown), `blocks/` (BlockPage, core blocks), `legacy/` (`LegacyViewHost`, `runtime.ts`, `bridge.css`) | Reusable rendering and protocol code; never imported by the core |
+| **Layouts** (ADR 0003) | `src/frontend/src/app-layouts/<id>/` (one frame per layout, chunk `layout-<id>`), `app-layouts/kit/` (shared frame pieces, chunk `layout-kit`), `src/frontend/src/layout-features/<name>/` (layout-specific features, chunk `lf-<name>`; **(planned)**, none yet); the host is `shell/LayoutHost.tsx`, `shell/ClassicFrame.tsx` the core's own frame | The frame around the routed page; loaded only when that layout is on screen (R17) |
 | **Design system** | `components/ui/` (shadcn on `radix-ui`), `styles/theme.css`, `index.css`, `themes.ts`, `lib/utils.ts`; Python `themes.py` `get_seed_theme_css()` | Tokens and primitives ([DESIGN.md](src/frontend/DESIGN.md)) |
 | **Features (Python)** | `src/praisonaiui/features/*.py` (`BaseFeatureProtocol` subclasses) | Domain APIs, mounted only when their built-in record is enabled |
 | **Legacy React App** | `App.tsx`, `legacy-app-entry.tsx`, `chat/`, `agent-ui/`, `views/`, `pages/`, `surfaces/`, `components/*` (non-ui), `Header.tsx`, `Sidebar.tsx`, `Content.tsx` | The chat/docs/agents/playground/custom styles; maintained, not grown |
@@ -216,11 +217,18 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Streamdown renderer chunk | 147 kB (145 kB with `gzip -9`) |
 | shikiPlugin chunk | 55 kB |
 | Legacy App path (entry + legacy-app-entry closure) | 250 kB |
+| Each built-in layout `layout-<id>` (closure minus boot; stub frames today, ADR cap 24 kB, Mission 28 kB) | 4.6 kB |
+| Layout kit `layout-kit` (ADR cap 10 kB) | 5 kB |
+| Layout features `lf-artifacts` / `lf-run-inspector` / `lf-command-bar` / `lf-step-tracker` / `lf-mission-board` **(planned)** | 30 / 14 / 6 / 6 / 22 kB |
+| `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 270 kB |
 | Wheel: all of `dist/assets` (uncompressed) | 9 MB |
 
 Streamdown, Shiki, Mermaid, KaTeX and `@assistant-ui` never enter the static
 closure of the entry, the shell or the legacy App (`npm run check:closure`).
-Accepted exception: the docs style preloads Streamdown (~355 kB). Never reference
+Accepted exception: the docs style preloads Streamdown (~355 kB). Every
+budgeted layout and the kit must exist in the build (`npm run size` fails
+otherwise); a layout track raises its own budget up to the ADR cap, with the
+reason. Never reference
 a chunk by name; resolve it through `aiui-manifest.json`. Python: `import
 praisonaiui` stays under 200 ms (`tests/unit/test_dx_polish.py`
 `test_import_time_performance`, warm import); optional or heavy dependencies
@@ -281,6 +289,31 @@ else merges by hand. Split large work into stacked PRs, one domain each.
 **R16. Docs move with the code.** A change to a rule, budget, public API, SDK
 export or token updates this file, `docs/features/*.md` or DESIGN.md in the same
 PR. Plans are written as **(planned)**, never as present fact.
+
+**R17. Layouts are isolated and load only when on screen.** A layout
+([ADR 0003](docs/adr/0003-selectable-layouts.md),
+[`docs/features/layouts.md`](docs/features/layouts.md)) is
+`src/frontend/src/app-layouts/<id>/**`, emitted as chunk `layout-<id>`; a
+layout-specific feature is `layout-features/<name>/**` (chunk `lf-<name>`);
+shared frame pieces live in `app-layouts/kit/` (chunk `layout-kit`) and are
+never copied. A layout never imports another layout or `@/shell/**`, and
+imports a layout feature only with `import()`; a feature never imports a
+layout. Frames and the kit import only `@/sdk/*`, `@/components/ui/*`,
+`@/lib/*`, the kit and the light chat-engine modules (`store`, `api`,
+`protocol`, `sessionList`, `feeds`), never `Thread`, `ChatPage`,
+`useAiuiRuntime` or `@assistant-ui`. The core (`shell/`, `sdk/`, `legacy/`,
+`blocks/`) names no layout id and imports neither folder; built-in layouts
+register through `builtin.layouts` with `registerLayout`, the call a
+third-party plugin uses. The boot path downloads no layout or feature chunk,
+and the browser downloads only the chunks of the layout on screen. A layout
+that fails to load or render falls back to the classic frame with one toast
+and `aiui:plugin-error` (R4).
+*Check:* `app-layouts/isolation.test.ts` and `shell/core-purity.test.ts`
+(`npm test`); `scripts/check-layout-isolation.mjs` (part of
+`npm run check:closure`, cases in `scripts/gates.test.mjs`);
+`e2e/specs/layouts-host.spec.ts` (the `layouts-host` e2e project: network
+isolation per layout, leak probe on switching, failure fallback); the layout
+budgets in R10.
 
 ## 4. The stack
 
@@ -357,7 +390,8 @@ Walk it top to bottom; cite the rule number in review comments.
    `src/builtin` entry using `sdkApi`; disable-able via `builtin.<name>`; uses a
    supported API, not a legacy adapter or a new registry (R2, R3).
 4. **Isolation and laziness** — heavy code in lazy chunks; one failure does not
-   take down others; no top-level import of optional deps (R4, R10).
+   take down others; no top-level import of optional deps; a layout imports no
+   other layout and the core names none (R4, R10, R17).
 5. **Contracts** — `SDK_EXPORTS` / `SDK_FEATURES` changed only by appending;
    manifest shape additive; public Python APIs, YAML, `/api/*`, events intact (R5, R7).
 6. **Default unchanged** — golden HTML and builtin page snapshot untouched, or the
