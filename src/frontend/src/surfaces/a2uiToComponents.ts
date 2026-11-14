@@ -12,6 +12,13 @@ function textFromNode(node: Record<string, unknown>): string {
     return String(node.content ?? node.label ?? '')
 }
 
+/** `![alt](<url>)`, with the characters that would end either part escaped. */
+function markdownImage(url: string, alt: string): string {
+    const safeAlt = alt.replace(/[\\[\]]/g, (c) => `\\${c}`).replace(/\s+/g, ' ')
+    const safeUrl = url.replace(/[<>\s]/g, (c) => encodeURIComponent(c))
+    return `![${safeAlt}](<${safeUrl}>)`
+}
+
 function mapComponent(comp: Record<string, unknown>): ComponentDict | null {
     const type = comp.component as string | undefined
     if (!type) return null
@@ -24,15 +31,15 @@ function mapComponent(comp: Record<string, unknown>): ComponentDict | null {
         case 'Divider':
             return { type: 'separator' }
         case 'Image': {
-            const url = (comp.url as Record<string, unknown>)?.literal ?? comp.url
-            return { type: 'image', src: String(url ?? ''), alt: textFromNode(comp) }
+            const url = String((comp.url as Record<string, unknown>)?.literal ?? comp.url ?? '')
+            if (!url) return null
+            // As a markdown image: the chat markdown's image gate applies (an
+            // agent-chosen off-origin URL is click-to-load, never auto-fetched).
+            return { type: 'markdown', content: markdownImage(url, textFromNode(comp)) }
         }
+        // Buttons need the A2UI action wiring: leave the surface to A2uiRenderer.
         case 'Button':
-            return {
-                type: 'button',
-                label: textFromNode(comp),
-                variant: 'default',
-            }
+            return null
         default:
             return null
     }
