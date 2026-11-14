@@ -3,9 +3,10 @@
  * Loaded on the first tap (or hover/focus) of the header menu button, so the
  * Sheet never sits on the boot path.
  */
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import type { ShellManifest } from '@/sdk/manifest'
+import { createFocusReturn } from './focusReturn'
 import { navGroups } from './nav'
 import { SidebarBrand, SidebarNav } from './Sidebar'
 
@@ -23,6 +24,9 @@ export default function MobileNav({
   activeId: string
 }) {
   const groupConfig = useMemo(() => navGroups(manifest), [manifest])
+  // No Dialog.Trigger: closing returns focus to the menu button (or wherever
+  // it was), or to the new page's main region after choosing a page.
+  const [focus] = useState(createFocusReturn)
   // Widening to the desktop layout shows the real sidebar: drop the sheet.
   useEffect(() => {
     if (!open) return
@@ -47,12 +51,14 @@ export default function MobileNav({
         aria-describedby={undefined}
         // Start on the current page's link rather than the close button.
         onOpenAutoFocus={(e) => {
+          focus.capture()
           const current = (e.currentTarget as HTMLElement | null)?.querySelector<HTMLElement>('a[aria-current="page"]')
           if (!current) return
           e.preventDefault()
           current.focus({ preventScroll: true })
           current.scrollIntoView?.({ block: 'nearest' })
         }}
+        onCloseAutoFocus={focus.restore}
         data-aiui-mobile-nav=""
         className="w-72 max-w-[85vw] gap-0 border-sidebar-border bg-sidebar p-0 text-sidebar-foreground"
       >
@@ -67,7 +73,10 @@ export default function MobileNav({
           pages={manifest.pages}
           groupConfig={groupConfig}
           activeId={activeId}
-          onNavigate={() => onOpenChange(false)}
+          onNavigate={() => {
+            focus.toMain()
+            onOpenChange(false)
+          }}
         />
       </SheetContent>
     </Sheet>

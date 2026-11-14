@@ -23,6 +23,7 @@ import { useCommands, type ShellCommand } from '@/sdk/services'
 import { footerPages, groupPages, type NavGroupsConfig } from './nav'
 import { paletteFilter, rankSections } from './paletteFilter'
 import { PageIcon } from './PageIcon'
+import { createFocusReturn } from './focusReturn'
 import { navigate } from './router'
 
 const DEFAULT_COMMAND_GROUP = 'Commands'
@@ -85,10 +86,17 @@ export default function CommandPalette({
   const registered = useCommands()
   const commandGroups = useMemo(() => groupCommands(registered), [registered])
   const [search, setSearch] = useState('')
+  // No Dialog.Trigger: put focus back where it was (the composer, a button),
+  // or on the new page's main region after navigating, never on <body>.
+  const [focus] = useState(createFocusReturn)
 
   const run = (action: () => void) => {
     onOpenChange(false)
     action()
+  }
+  const goTo = (pageId: string) => {
+    if (pageId !== activeId) focus.toMain()
+    run(() => navigate(pageId))
   }
 
   return (
@@ -99,6 +107,8 @@ export default function CommandPalette({
       description="Search pages and commands"
       showCloseButton={false}
       filter={paletteFilter}
+      onOpenAutoFocus={focus.capture}
+      onCloseAutoFocus={focus.restore}
       className="top-[15%] translate-y-0 sm:max-w-xl"
     >
       <CommandInput
@@ -146,7 +156,7 @@ export default function CommandPalette({
                   value,
                   keywords,
                   node: (
-                    <CommandItem key={p.id} value={value} keywords={keywords} onSelect={() => run(() => navigate(p.id))}>
+                    <CommandItem key={p.id} value={value} keywords={keywords} onSelect={() => goTo(p.id)}>
                       <PageIcon page={p} />
                       <span className="truncate">{p.title}</span>
                       {p.id === activeId && <CommandShortcut>Current</CommandShortcut>}

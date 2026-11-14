@@ -379,6 +379,54 @@ test('the command palette opens with the keyboard and navigates', async ({ page 
   expect((await waitForPage(page, 'logs')).state).toBe('ready')
 })
 
+test('closing the palette gives focus back: typing in the composer continues, navigating lands on main', async ({ page }) => {
+  await page.goto('/chat')
+  const composer = page.getByRole('textbox', { name: 'Message' })
+  await composer.click()
+  await page.keyboard.type('draft ')
+  await page.keyboard.press('ControlOrMeta+k')
+  const search = page.getByRole('combobox', { name: 'Search pages and commands' })
+  await expect(search).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(search).toBeHidden()
+  await expect(composer).toBeFocused()
+  await page.keyboard.type('continues')
+  await expect(composer).toHaveValue('draft continues')
+
+  // From a button: back on the button.
+  const searchButton = page.getByRole('button', { name: 'Search pages and commands' }).first()
+  await searchButton.click()
+  await expect(search).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(searchButton).toBeFocused()
+
+  // Choosing a page: focus starts on the new page's main region, not <body>.
+  await page.keyboard.press('ControlOrMeta+k')
+  await search.fill('logs')
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/\/logs$/)
+  await expect(page.locator('#aiui-main')).toBeFocused()
+})
+
+test('closing the mobile nav returns focus to the menu button', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/overview')
+  expect((await waitForPage(page, 'overview')).state).toBe('ready')
+  const menu = page.getByRole('button', { name: 'Open navigation' })
+  await menu.click()
+  const sheet = page.locator('[data-aiui-mobile-nav]')
+  await expect(sheet).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(sheet).toBeHidden()
+  await expect(menu).toBeFocused()
+  // Choosing a page in the sheet: focus lands on the new page's main region.
+  await menu.click()
+  await sheet.locator('a[data-page-id="logs"]').click()
+  await expect(page).toHaveURL(/\/logs$/)
+  await expect(sheet).toBeHidden()
+  await expect(page.locator('#aiui-main')).toBeFocused()
+})
+
 test('legacy pages share the gutter and width of a React page', async ({ page }) => {
   /** Left edge and width of the page's first content box, and of its page area. */
   const measure = (id: string) =>
