@@ -9,6 +9,31 @@ Machine-readable context for AI coding agents.
 - [`prd.md`](prd.md): current product requirements (top section) and flip criteria.
 - [`src/frontend/DESIGN.md`](src/frontend/DESIGN.md): visual rules and tokens for any UI change.
 
+`CLAUDE.md` (Claude Code) and `GEMINI.md` (Gemini CLI) import this file; Codex
+and Cursor read it directly. Keep shared guidance here.
+
+## Principles
+
+Each line names the rule in [`ARCHITECTURE.md`](ARCHITECTURE.md) §3 that enforces it.
+
+- **Modular and extendable by default.** Everything first-party is a plugin (a `builtin/catalog.py` record, React code through `sdkApi`), and a third-party plugin can do what a built-in does (R2, R3).
+- **Load only what is requested.** Heavy code in lazy chunks, optional Python dependencies imported inside the function that needs them, layout and feature code never on the boot path (R4, R10).
+- **Small core.** `shell/`, `sdk/`, `legacy/`, `blocks/` name no page or feature; `server.py` gains no routes or `create_app` params (R1, R11).
+- **Use the stack before hand-rolling.** Take the library in the stack table (ARCHITECTURE §4); no second sidebar, palette, toaster, markdown pipeline or registry (R3).
+- **Backwards compatible public APIs.** Additive changes only to `SDK_EXPORTS`, the manifest, Python APIs, YAML, `/api/*` and events; the default `dashboard` output does not change (R5, R6, R7).
+- **Secure by default.** Auth on every HTTP route and WebSocket in every auth mode; escape untrusted text; markdown keeps `rehype-sanitize` (R8, R9).
+- **Tests with every change; verify before claiming done.** Add the test R12 asks for, run the gates (ARCHITECTURE §7) and report what you ran and its result (R12, R13).
+- **Small PRs through the pipeline.** One domain, at most 800 added lines and 30 files, no sensitive paths; the review chain and merge gate merge it (R15).
+- **Docs move with the code.** Rule, API, token or budget changes update the docs in the same PR; anything not on `main` is written as **(planned)** (R16).
+- **Design: tokens and primitives only.** Light and dark, 390 px phone width, visible focus ring, `aria-label` on icon-only controls, lucide icons and no emoji in UI chrome (R14, DESIGN.md).
+
+## Skills
+
+Workflows live in `.claude/skills/<name>/SKILL.md` (Claude Code loads them; other
+agents read the file): `aiui-change` (a change end to end), `aiui-pr-review`
+(review a PR rule by rule), `aiui-release` (PyPI release through the pipeline),
+`aiui-design` (design principles, page types, baseline comparison).
+
 ## Project Overview
 
 PraisonAIUI (PyPI `aiui`, import `praisonaiui`) is a Python package and
