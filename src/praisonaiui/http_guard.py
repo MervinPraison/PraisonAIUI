@@ -12,6 +12,8 @@
   requests that skip the CORS preflight).
 * ``HostGuardMiddleware`` — refuses a request to a loopback or private-network
   server whose ``Host`` is a DNS name it does not know (DNS rebinding).
+* ``JSONObjectBodyMiddleware`` — answers 400 to a JSON request body that is
+  an array or a scalar, which every built-in handler would index as a dict.
 * ``install_secret_redaction`` — strips ``token=``/``ticket=`` values from
   uvicorn's access and error logs (and so from the Logs page buffer).
 """
@@ -457,6 +459,98 @@ class HostGuardMiddleware:
             status_code=400,
         )
         await response(scope, receive, send)
+
+
+# ── JSON request bodies ──────────────────────────────────────────────
+
+_BODY_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+#: Content types whose body the handlers read with ``request.json()``.
+_JSON_LIKE = ("application/json", "text/plain", "")
+_MAX_INSPECT_BYTES = 4 * 1024 * 1024
+
+
+def _json_like(content_type: str) -> bool:
+    ct = content_type.split(";", 1)[0].strip().lower()
+    return ct in _JSON_LIKE or ct.endswith("+json")
+
+
+class JSONObjectBodyMiddleware:
+    """Refuse a JSON request body that is not an object (or ``null``).
+
+    Every built-in handler reads its body with ``await request.json()`` and
+    then calls ``body.get(...)`` / ``body[...]``, so ``[1, 2]`` or ``"x"``
+    raised inside the handler and came back as a 500. This answers 400
+    before the handler runs, for every route at once. Malformed JSON, an
+    empty body and ``null`` pass through unchanged (handlers already deal
+    with them), as do multipart uploads and other non-JSON bodies, bodies
+    over 4 MiB, and third-party plugin routes under *skip_prefixes*.
+    """
+
+    def __init__(self, app, skip_prefixes: Iterable[str] = ("/api/plugins/",)):
+        self.app = app
+        self.skip_prefixes = tuple(skip_prefixes)
+
+    async def __call__(self, scope, receive, send):
+        if (
+            scope["type"] != "http"
+            or scope.get("method", "GET") not in _BODY_METHODS
+            or scope.get("path", "").startswith(self.skip_prefixes)
+            or not _json_like(header(scope, b"content-type"))
+        ):
+            await self.app(scope, receive, send)
+            return
+
+        chunks: list[bytes] = []
+        size = 0
+        more = True
+        pending: Optional[dict] = None
+        while more:
+            message = await receive()
+            if message["type"] != "http.request":
+                pending = message  # disconnect: let the app see it
+                break
+            body = message.get("body", b"")
+            chunks.append(body)
+            size += len(body)
+            more = message.get("more_body", False)
+            if size > _MAX_INSPECT_BYTES:
+                break
+        buffered = b"".join(chunks)
+
+        if not more and pending is None and _is_non_object_json(buffered):
+            response = JSONResponse(
+                {"error": "Request body must be a JSON object"}, status_code=400
+            )
+            await response(scope, receive, send)
+            return
+
+        replayed = False
+
+        async def replay():
+            nonlocal replayed
+            if not replayed:
+                replayed = True
+                if pending is not None and not buffered:
+                    return pending
+                return {"type": "http.request", "body": buffered, "more_body": more}
+            if pending is not None:
+                return pending
+            return await receive()
+
+        await self.app(scope, replay, send)
+
+
+def _is_non_object_json(body: bytes) -> bool:
+    import json
+
+    text = body.strip()
+    if not text or text[:1] in (b"{", b"n"):
+        return False  # empty, an object or null (or malformed: the handler decides)
+    try:
+        value = json.loads(text)
+    except (ValueError, UnicodeDecodeError):
+        return False
+    return not isinstance(value, dict) and value is not None
 
 
 # ── Log redaction ────────────────────────────────────────────────────

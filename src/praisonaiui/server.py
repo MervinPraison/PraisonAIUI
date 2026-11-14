@@ -3920,6 +3920,12 @@ def create_app(
             )
         )
 
+    # Innermost: a JSON body that is an array or scalar gets 400 instead of
+    # crashing the handler (which reads it as a dict) with a 500.
+    from praisonaiui.http_guard import JSONObjectBodyMiddleware
+
+    middleware.append(Middleware(JSONObjectBodyMiddleware))
+
     # Shell boot (style "app") inlines only {sdk, version, style} and plugin
     # browser surfaces become default-deny whenever the app requires auth.
     global _auth_required_by_app
