@@ -8,6 +8,8 @@ Regressions covered:
 
 * GFM tables in a reply rendered as raw ``| … |`` text; headings, lists and
   code are checked alongside, and untrusted text stays escaped (R9).
+* While a reply streamed, its reasoning and tool rows were appended below the
+  answer; after a reload (the saved transcript) the tool row sits above it.
 """
 
 from __future__ import annotations
@@ -26,7 +28,7 @@ NODE = shutil.which("node")
 
 pytestmark = pytest.mark.skipif(NODE is None, reason="node is not installed")
 
-EXPORTS = ["renderMarkdown", "escapeHtml"]
+EXPORTS = ["renderMarkdown", "escapeHtml", "handleWsMessage"]
 
 _HARNESS = r"""
 import { pathToFileURL } from 'node:url';
@@ -34,10 +36,73 @@ import { readFileSync } from 'node:fs';
 
 const [, , modPath, inputPath] = process.argv;
 const input = JSON.parse(readFileSync(inputPath, 'utf8'));
+
+// A fake DOM with just what the message list code touches.
+class El {
+  constructor(tag) {
+    this.tagName = String(tag).toUpperCase();
+    this.children = []; this.parentNode = null; this.id = ''; this.className = '';
+    this.innerHTML = ''; this.textContent = ''; this.style = {}; this.dataset = {};
+    this.scrollTop = 0; this.scrollHeight = 0; this.title = '';
+    const el = this;
+    this.classList = {
+      add(c) { if (!el.className.split(' ').includes(c)) el.className = (el.className + ' ' + c).trim(); },
+      remove(c) { el.className = el.className.split(' ').filter((x) => x !== c).join(' '); },
+      toggle(c, on) { const has = el.className.split(' ').includes(c); if (on ?? !has) this.add(c); else this.remove(c); },
+      contains(c) { return el.className.split(' ').includes(c); },
+    };
+  }
+  appendChild(c) { return this.insertBefore(c, null); }
+  insertBefore(c, ref) {
+    if (c.parentNode) c.remove();
+    c.parentNode = this;
+    const i = ref ? this.children.indexOf(ref) : -1;
+    if (ref && i < 0) throw new Error('insertBefore: reference is not a child');
+    if (i < 0) this.children.push(c); else this.children.splice(i, 0, c);
+    return c;
+  }
+  remove() { if (this.parentNode) { const s = this.parentNode.children; s.splice(s.indexOf(this), 1); this.parentNode = null; } }
+  setAttribute(k, v) { this[k] = String(v); }
+  addEventListener() {}
+  querySelector() { return null; }
+  querySelectorAll() { return []; }
+}
+const root = new El('html');
+const find = (n, id) => { if (n.id === id) return n; for (const c of n.children) { const h = find(c, id); if (h) return h; } return null; };
+globalThis.window = globalThis;
+globalThis.document = {
+  createElement: (t) => new El(t),
+  getElementById: (id) => find(root, id),
+  querySelector: () => null,
+  querySelectorAll: () => [],
+};
+globalThis.fetch = async () => ({ ok: false, status: 404, json: async () => ({}) });
+process.on('unhandledRejection', () => {});
+
 const mod = await import(pathToFileURL(modPath).href);
 const out = {};
 if (input.markdown) {
   out.markdown = Object.fromEntries(Object.entries(input.markdown).map(([k, v]) => [k, mod.renderMarkdown(v)]));
+}
+if (input.stream) {
+  const list = new El('div'); list.id = 'chat-messages'; root.appendChild(list);
+  const label = (el) => {
+    const c = el.className;
+    if (c.includes('chat-reasoning')) return 'reasoning';
+    if (c.includes('chat-tool-call')) return 'tool:' + (c.includes('chat-tool-done') ? 'done' : 'running');
+    if (c.includes('chat-msg-user')) return 'user';
+    if (c.includes('chat-msg-assistant')) return 'answer';
+    return c;
+  };
+  out.stream = [];
+  for (const step of input.stream) {
+    if (step.user) {
+      const u = new El('div'); u.className = 'chat-msg chat-msg-user'; list.appendChild(u);
+    } else {
+      mod.handleWsMessage(step);
+    }
+    if (step.snapshot) out.stream.push({ at: step.snapshot, order: list.children.map(label) });
+  }
 }
 console.log(JSON.stringify(out));
 """
@@ -230,3 +295,43 @@ class TestEscaping:
 
     def test_nul_cannot_forge_a_placeholder(self, md):
         assert md["nul"] == "aCB0b"
+
+
+def _turn(n: int, *, snapshot: bool = True) -> list[dict]:
+    tid = f"tc_{n}"
+    return [
+        {"user": True},
+        {"type": "run_started", "agent_name": "Mock", "run_id": f"r{n}"},
+        {"type": "run_content", "token": "Answer ", "agent_name": "Mock"},
+        {"type": "reasoning_step", "step": "Parse the request"},
+        {"type": "reasoning_step", "step": "Decide to call a tool"},
+        {"type": "tool_call_started", "name": "web_search", "tool_call_id": tid, "args": {"q": "x"}},
+        {"type": "run_content", "token": "text", "agent_name": "Mock", "snapshot": f"live{n}"},
+        {"type": "tool_call_completed", "name": "web_search", "tool_call_id": tid, "result": {"hits": 2},
+         "snapshot": f"tool-done{n}"},
+        {"type": "run_completed", "content": "Answer text", "agent_name": "Mock", "snapshot": f"final{n}"},
+    ]
+
+
+@pytest.fixture(scope="module")
+def stream(tmp_path_factory) -> dict[str, list[str]]:
+    out = _run(tmp_path_factory.mktemp("stream"), {"stream": _turn(1) + _turn(2)})["stream"]
+    return {s["at"]: s["order"] for s in out}
+
+
+class TestStreamingOrder:
+    TURN = ["user", "reasoning", "reasoning"]
+
+    def test_rows_stay_above_the_answer_while_streaming(self, stream):
+        assert stream["live1"] == [*self.TURN, "tool:running", "answer"]
+
+    def test_completed_tool_keeps_its_place(self, stream):
+        assert stream["tool-done1"] == [*self.TURN, "tool:done", "answer"]
+
+    def test_final_render_matches_the_live_order(self, stream):
+        assert stream["final1"] == stream["tool-done1"]
+
+    def test_next_turn_rows_go_above_the_next_answer(self, stream):
+        first = [*self.TURN, "tool:done", "answer"]
+        assert stream["live2"] == [*first, *self.TURN, "tool:running", "answer"]
+        assert stream["final2"] == [*first, *first]

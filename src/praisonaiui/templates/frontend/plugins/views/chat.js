@@ -30,6 +30,7 @@ let prefillHandler = null;
 let containerRef = null;
 let currentDeltaEl = null;
 let currentDeltaBodyEl = null;
+let currentDeltaMsgEl = null;  // the .chat-msg of the answer being streamed
 let currentDeltaText = '';
 let pendingMediaElements = [];
 let pendingAttachments = [];  // { id, filename, content_type, preview_url }
@@ -1114,6 +1115,7 @@ export function cleanup() {
   messageQueue = [];
   currentDeltaEl = null;
   currentDeltaBodyEl = null;
+  currentDeltaMsgEl = null;
   currentDeltaText = '';
   pendingMediaElements = [];
 }
@@ -1852,6 +1854,7 @@ function beginAssistantStream(agentName) {
     '<span class="chat-typing-indicator"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Generating response…</span>';
   bodyEl.appendChild(currentDeltaEl);
   currentDeltaBodyEl = bodyEl;
+  currentDeltaMsgEl = msgEl;
 
   msgEl.appendChild(avatarEl);
   msgEl.appendChild(bodyEl);
@@ -1876,6 +1879,7 @@ function finalizeDelta(content, agentName) {
     }
     currentDeltaEl = null;
     currentDeltaBodyEl = null;
+    currentDeltaMsgEl = null;
     currentDeltaText = '';
   } else if (!isBlankAssistantContent(content)) {
     appendMessage('assistant', content, agentName, pendingMediaElements.length ? pendingMediaElements.slice() : null);
@@ -1932,7 +1936,16 @@ function appendToolCall(data, status) {
   // Populate detail panel
   _updateToolDetails(el, data);
 
-  messagesEl.appendChild(el);
+  appendTurnRow(messagesEl, el);
+}
+
+// A reasoning or tool row of the turn being streamed goes above that turn's
+// answer, where the saved transcript (and so a reload) puts it. Outside a
+// stream (history, or before the answer started) it is appended.
+function appendTurnRow(messagesEl, el) {
+  const answer = currentDeltaMsgEl;
+  if (answer && answer.parentNode === messagesEl) messagesEl.insertBefore(el, answer);
+  else messagesEl.appendChild(el);
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
@@ -2034,8 +2047,7 @@ function appendReasoning(step) {
   const el = document.createElement('div');
   el.className = 'chat-reasoning';
   el.innerHTML = '💭 ' + escapeHtml(step || '');
-  messagesEl.appendChild(el);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+  appendTurnRow(messagesEl, el);
 }
 
 function appendAskWidget(question, options, sessionId, runId) {
@@ -2745,6 +2757,7 @@ function setStreaming(val) {
   if (!val) {
     currentRunId = null;
     currentDeltaEl = null;
+    currentDeltaMsgEl = null;
     currentDeltaText = '';
   }
 }
