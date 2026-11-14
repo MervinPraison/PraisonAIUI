@@ -274,3 +274,13 @@ def test_resolve_reads_the_registry_for_an_explicit_style():
     sel = layouts.resolve(reg, "app")
     assert sel.ids == BUILTIN_ORDER and sel.default == "chat-canvas"
     assert layouts.resolve(reg, "dashboard").ids == []
+
+
+def test_available_layout_ids_is_the_set_on_offer():
+    from praisonaiui.builtin import register_builtin_plugins
+    from praisonaiui.plugin_registry import get_plugin_registry
+
+    reg = get_plugin_registry()
+    register_builtin_plugins(reg)
+    assert layouts.available_layout_ids(reg, style="app") == set(BUILTIN_ORDER)
+    assert layouts.available_layout_ids(reg, style="dashboard") == set()

@@ -73,6 +73,10 @@ class BuiltinPlugin:
                  These are not features: ``/api/features`` does not list them.
     layout_specs: the app shell layouts it provides (ADR 0003, see
                  :func:`layout_spec`); read by the ``layouts()`` hook.
+    for_layouts: the layouts this plugin serves data to. While none of them
+                 is available (and ``extensions.enabled`` does not name the
+                 record), the record is ``disabled`` and its feature modules
+                 are never imported.
     """
 
     name: str
@@ -82,6 +86,7 @@ class BuiltinPlugin:
     dashboard_plugins: tuple[str, ...] = ()
     host_routes: Optional[Callable[[], list[Any]]] = None
     layout_specs: tuple[LayoutSpec, ...] = ()
+    for_layouts: tuple[str, ...] = ()
 
     @property
     def required(self) -> bool:

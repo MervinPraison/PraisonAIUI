@@ -340,6 +340,9 @@ class PluginRecord:
     #: Built-ins only: the host itself depends on part of this plugin, so
     #: disabling it keeps the required part (see ``praisonaiui.builtin``).
     required: bool = False
+    #: Why a built-in is ``disabled`` when the policy did not do it (for
+    #: example ``"no layout needs it"`` for a layout-gated record).
+    reason: Optional[str] = None
 
     def to_dict(self, *, status: Optional[str] = None, include_error: bool = True) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -352,6 +355,8 @@ class PluginRecord:
         }
         if self.required:
             d["required"] = True
+        if self.reason:
+            d["reason"] = self.reason
         if self.error and include_error:
             d["error"] = self.error
         return d
@@ -470,7 +475,28 @@ class PluginRegistry:
                     required=bool(getattr(obj, "required", False)),
                 )
             )
+        self._gate_on_layouts(out, policy)
         return out
+
+    def builtin_names(self) -> list[str]:
+        """Record names of the first-party plugins (no policy, no gating)."""
+        with self._lock:
+            return [_builtin_name(obj) for obj in self._builtins]
+
+    def _gate_on_layouts(self, records: list[PluginRecord], policy: ExtensionPolicy) -> None:
+        """A built-in with ``for_layouts`` is on only while one of those
+        layouts is available, or while ``extensions.enabled`` names it."""
+        gated = [r for r in records if r.status == "ok" and _for_layouts(r.plugin)]
+        if not gated:
+            return
+        from praisonaiui.layouts import available_layout_ids
+
+        available = available_layout_ids(self, builtins=records)
+        for rec in gated:
+            if policy.explicitly_enabled(rec.name):
+                continue
+            if not available.intersection(_for_layouts(rec.plugin)):
+                rec.status, rec.reason = "disabled", "no layout needs it"
 
     def records(self, origin: OriginFilter = "all") -> list[PluginRecord]:
         """Plugin records filtered by origin (built-ins first)."""
@@ -745,13 +771,19 @@ class PluginRegistry:
         return [r for r in self.builtin_records() if r.status == "ok"]
 
     # layouts (ADR 0003) ------------------------------------------------
-    def layout_specs(self, *, restricted: bool = False) -> list[LayoutSpec]:
+    def layout_specs(
+        self, *, restricted: bool = False, builtins: Optional[list[PluginRecord]] = None
+    ) -> list[LayoutSpec]:
         """Every layout the enabled plugins declare with ``layouts()``:
         built-ins first, then third-party plugins whose browser surfaces are
         allowed (``restricted`` as in :meth:`js_allowed`). A repeated id
         keeps its first declaration and logs a warning.
+
+        ``builtins`` is for the record gating, which passes the records it
+        is still building.
         """
-        recs = self._enabled_builtins() + self.js_active(restricted=restricted)
+        own = self.builtin_records() if builtins is None else builtins
+        recs = [r for r in own if r.status == "ok"] + self.js_active(restricted=restricted)
         out: list[LayoutSpec] = []
         owner: dict[str, str] = {}
         for rec, spec in self._collect_pairs(recs, "layouts", _resolve_layout):
@@ -1110,6 +1142,12 @@ def _resolve_layout(rec: PluginRecord, spec: Any) -> LayoutSpec:
         primary=primary,
         source="builtin" if builtin else f"plugin:{rec.name}",
     )
+
+
+def _for_layouts(plugin: Any) -> tuple[str, ...]:
+    """A built-in's ``for_layouts``: the layouts it serves data to (ADR 0003)."""
+    value = getattr(plugin, "for_layouts", None) or ()
+    return (value,) if isinstance(value, str) else tuple(str(v) for v in value)
 
 
 def _resolve_asset(rec: PluginRecord, spec: Any, spec_type: type = BlockSpec):

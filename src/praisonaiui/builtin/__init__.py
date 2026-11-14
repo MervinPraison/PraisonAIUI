@@ -38,7 +38,8 @@ def register_builtin_plugins(registry: Optional[Any] = None) -> None:
         from praisonaiui.plugin_registry import get_plugin_registry
 
         registry = get_plugin_registry()
-    known = {rec.name for rec in registry.builtin_records()}
+    # Names only: building the records would also resolve layout gating.
+    known = set(registry.builtin_names())
     for plugin in BUILTIN_PLUGINS:
         if f"builtin.{plugin.name}" not in known:
             registry.register_builtin(plugin)

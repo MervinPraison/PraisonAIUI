@@ -233,6 +233,7 @@ def resolve(
     style: Optional[str] = None,
     *,
     restricted: bool = False,
+    builtins: Optional[list] = None,
 ) -> LayoutSelection:
     """The layouts on offer and the default, after every override.
 
@@ -259,7 +260,7 @@ def resolve(
         from praisonaiui.plugin_registry import get_plugin_registry
 
         registry = get_plugin_registry()
-    known = registry.layout_specs(restricted=restricted)
+    known = registry.layout_specs(restricted=restricted, builtins=builtins)
     by_id = {s.id: s for s in known}
     available: list[Any]
     if "available" in chosen:
@@ -295,6 +296,14 @@ def resolve(
     )
 
 
+def available_layout_ids(
+    registry: Any = None, *, style: Optional[str] = None, builtins: Optional[list] = None
+) -> set[str]:
+    """Ids of the layouts on offer (no request context: plugin layouts count
+    whatever the viewer). Used to gate built-ins with ``for_layouts``."""
+    return set(resolve(registry, style, builtins=builtins).ids)
+
+
 def layouts_manifest(registry: Any = None, style: Optional[str] = None, *, restricted: bool = True) -> dict[str, Any]:
     """The shell manifest's ``layouts`` key (``ShellLayouts`` in sdk/manifest.ts)."""
     sel = resolve(registry, style, restricted=restricted)
@@ -315,6 +324,7 @@ __all__ = [
     "LAYOUT_ENV",
     "LAYOUT_ID_PATTERN",
     "LayoutSelection",
+    "available_layout_ids",
     "check_layout_id",
     "layouts_manifest",
     "reset",
