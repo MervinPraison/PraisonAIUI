@@ -214,14 +214,19 @@ const SessionItem: FC<{
 
 /** After a delete the row is gone: focus the next row (else the previous one, else New chat). */
 function useFocusAfterDelete(newChat: RefObject<HTMLButtonElement | null>, list: RefObject<HTMLElement | null>) {
-  const [target, setTarget] = useState<{ id: string | null } | null>(null)
+  const pending = useRef<{ id: string | null } | null>(null)
+  const [deletes, setDeletes] = useState(0)
   useEffect(() => {
+    const target = pending.current
     if (!target) return
+    pending.current = null
     const row = target.id ? list.current?.querySelector<HTMLElement>(`[data-session-id="${CSS.escape(target.id)}"] > button`) : null
     if (focusLost()) (row ?? newChat.current)?.focus()
-    setTarget(null)
-  }, [target, newChat, list])
-  return setTarget
+  }, [deletes, newChat, list])
+  return (target: { id: string | null }) => {
+    pending.current = target
+    setDeletes((n) => n + 1)
+  }
 }
 
 export const SessionRail: FC<SessionRailProps> = ({
