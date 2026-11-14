@@ -355,7 +355,18 @@ test('Load earlier messages shows the older page', async ({ page }) => {
   const messages = page.locator('[data-role="user"], [data-role="assistant"]')
   await expect(messages).toHaveCount(50)
   await expect(page.locator('[data-role="user"]').first()).toHaveText('plain turn 6')
-  await page.locator('[data-load-earlier]').click()
+  // Hold the older page back a moment: while it loads, the button keeps
+  // keyboard focus (it is not disabled) and shows a spinner.
+  await page.route(/\/api\/chat\/history\/.*before=/, async (route) => {
+    await new Promise((r) => setTimeout(r, 1_000))
+    await route.continue()
+  })
+  const loadEarlier = page.locator('[data-load-earlier]')
+  await loadEarlier.focus()
+  await page.keyboard.press('Enter')
+  await expect(loadEarlier.locator('[role="status"], svg').first()).toBeVisible()
+  await expect(loadEarlier).toBeFocused()
+  await expect(loadEarlier).toBeEnabled()
   await expect(messages).toHaveCount(60)
   await expect(page.locator('[data-role="user"]').first()).toHaveText('plain turn 1')
   await expect(page.locator('[data-load-earlier]')).toHaveCount(0)

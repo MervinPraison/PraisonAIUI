@@ -615,10 +615,6 @@ export interface ThreadProps {
   sessionId?: string
   /** Suggestion prompts that go into the composer to be finished, instead of being sent. */
   fillPrompts?: ReadonlySet<string>
-  /** Older messages exist on the server: show "Load earlier messages". */
-  hasMore?: boolean
-  loadingEarlier?: boolean
-  onLoadEarlier?: () => void
 }
 
 const ThreadSkeleton: FC = () => (
@@ -665,7 +661,7 @@ function focusComposerEnd(from: HTMLElement) {
   })
 }
 
-export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loading, notice, sessionId, fillPrompts, hasMore, loadingEarlier, onLoadEarlier }) => {
+export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loading, notice, sessionId, fillPrompts }) => {
   const parts = usePartComponents()
   return (
     <SessionIdContext.Provider value={sessionId}>
@@ -703,14 +699,19 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
             </div>
           </ThreadPrimitive.Empty>
         )}
-        {hasMore && !loading && (
+        {/* Stays enabled while a page loads (a press joins that load), so keyboard focus stays on it. */}
+        <AuiIf condition={(st) => st.thread.hasEarlier}>
           <div className={cn(COLUMN, 'flex justify-center pt-4 pb-2')}>
-            <Button type="button" variant="ghost" size="sm" disabled={loadingEarlier} onClick={onLoadEarlier} data-load-earlier>
-              {loadingEarlier && <Spinner className="size-3.5" />}
-              Load earlier messages
-            </Button>
+            <ThreadPrimitive.LoadEarlier asChild>
+              <Button type="button" variant="ghost" size="sm" data-load-earlier>
+                <AuiIf condition={(st) => st.thread.isLoadingEarlier}>
+                  <Spinner className="size-3.5" />
+                </AuiIf>
+                Load earlier messages
+              </Button>
+            </ThreadPrimitive.LoadEarlier>
           </div>
-        )}
+        </AuiIf>
         <ThreadPrimitive.Messages components={MESSAGE_COMPONENTS} />
         {/* Keeps the composer at the bottom of a short thread; an empty thread centres itself instead. */}
         <AuiIf condition={(st) => st.thread.messages.length > 0}>

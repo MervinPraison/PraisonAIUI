@@ -175,6 +175,11 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
     isRunning: thread.isRunning,
     isLoading: thread.isLoading,
     activeRunId: thread.activeRunId,
+    // Paging back through history: the runtime serialises presses and
+    // exposes thread.isLoadingEarlier; ThreadPrimitive.LoadEarlier keeps
+    // focus on the button while a page loads.
+    hasEarlier: Boolean(thread.hasMore) && !thread.isLoading,
+    onLoadEarlier: () => threadStore.loadEarlier(sid),
     convertMessage,
     suggestions: opts.starters?.map((s) => ({ title: s.title, label: s.label, prompt: s.prompt })),
     onNew: async (msg: AppendMessage) => {

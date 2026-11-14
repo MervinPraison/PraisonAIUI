@@ -371,11 +371,6 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
               subtitle={agent ? `Chatting with ${agent}` : agents.length ? 'Default agent' : undefined}
               notice={notice ? { text: notice, onDismiss: () => setNotice(null) } : null}
               fillPrompts={fill}
-              hasMore={thread.hasMore}
-              loadingEarlier={thread.isLoadingEarlier}
-              onLoadEarlier={() => {
-                if (threadSessionId) void threadStore.loadEarlier(threadSessionId)
-              }}
             />
           </AssistantRuntimeProvider>
         </div>
