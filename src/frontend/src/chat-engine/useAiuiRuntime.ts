@@ -38,11 +38,6 @@ export interface UseAiuiRuntimeOptions {
   agentName?: string
   starters?: AiuiStarter[]
   historyUrl?: (sid: string) => string
-  /** Session list for the threadList adapter (the host owns fetching). */
-  sessions?: { id: string; title?: string }[]
-  onSelectSession?: (id: string | null) => void
-  onRenameSession?: (id: string, title: string) => Promise<void> | void
-  onDeleteSession?: (id: string) => Promise<void> | void
   /** User-facing problems the runtime would otherwise swallow (e.g. an attachment over 10 MB). */
   onError?: (message: string) => void
   /** A message is being sent: an earlier onError notice no longer applies. */
@@ -215,16 +210,10 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
     adapters: {
       attachments,
       feedback,
-      threadList: {
-        threadId: opts.sessionId ?? undefined,
-        threads: opts.sessions?.map((s) => ({ status: 'regular' as const, id: s.id, title: s.title })),
-        onSwitchToThread: (id) => optsRef.current.onSelectSession?.(id),
-        onSwitchToNewThread: () => optsRef.current.onSelectSession?.(null),
-        onRename: (id, title) => {
-          void optsRef.current.onRenameSession?.(id, title)
-        },
-        onDelete: (id) => optsRef.current.onDeleteSession?.(id),
-      },
+      // Only the id: a change of it makes assistant-ui rebuild the thread
+      // core, which is what gives each session a fresh composer. The session
+      // list, rename and delete live in the SessionRail, not in assistant-ui.
+      threadList: { threadId: opts.sessionId ?? undefined },
     },
   })
 
