@@ -91,6 +91,7 @@ nav:
     - GitHub Pages: getting-started/github-pages.md
   - Core Concepts:
     - Architecture: concepts/architecture.md
+    - Bootstrap (aiui run): concepts/bootstrap.md
     - YAML Configuration: concepts/configuration.md
     - Templates & Layouts: concepts/templates.md
     - Slots & Components: concepts/slots.md
