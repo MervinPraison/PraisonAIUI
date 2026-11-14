@@ -62,13 +62,34 @@ volumes:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `AIUI_DATA_DIR` | `~/.praisonaiui` | Data directory for config, sessions, logs |
+| `AIUI_DATA_DIR` | `~/.praisonaiui` | Data directory for config, sessions, logs, and feature data (see below) |
 | `AIUI_PORT` | `8082` | Server port (Docker only) |
 | `AIUI_HOST` | `0.0.0.0` | Server bind address (Docker only) |
 | `AUTH_ENFORCE` | `false` | Enforce Bearer token auth on every route except the public surface (see below) |
 | `AIUI_ALLOWED_ORIGINS` | — | Comma-separated origins allowed to call the server from another site (CORS and cross-site requests); `*` allows any |
 | `AIUI_ALLOWED_HOSTS` | — | Comma-separated host names the server answers to when reached on a loopback or private address (`.example.com` also matches subdomains); `*` turns the check off |
 | `OPENAI_API_KEY` | — | OpenAI API key for LLM provider |
+
+### Feature data and the data directory
+
+When `AIUI_DATA_DIR` or `PRAISONAI_HOME` is set (`PRAISONAI_HOME` wins when both are),
+feature data lives under that directory, so two servers with different data
+directories never see each other's data:
+
+| Data | With a data directory | Without one (default install) | Explicit override |
+|------|-----------------------|-------------------------------|-------------------|
+| Recorded runs (Overview, Replay, Runs) | `<data dir>/traces` | `~/.praison/traces` | `PRAISONAI_TRACES_DIR`, then `PRAISON_HOME/traces` |
+| Memory | `<data dir>/memory` | `~/.praisonai/memory` and `./.praisonai/memory` | — |
+| Knowledge store | `<data dir>/knowledge` | `./.praisonai` | — |
+| Training sessions | `<data dir>/train` | `~/.praison/train` | `PRAISON_TRAIN_DIR` |
+| MCP server list | `<data dir>/mcp.json` | `~/.praisonai/mcp.json` | — |
+| Video projects | `<data dir>/projects` | `~/.praisonai/projects` | `PRAISONAI_PROJECTS_DIR`, `set_video_engine(projects_dir=)` |
+
+Setting `AIUI_DATA_DIR` to its default, `~/.praisonaiui`, counts as not set.
+
+The PraisonAI CLI always records runs to `~/.praison/traces`. A server with a data
+directory does not show those runs unless you also set
+`PRAISONAI_TRACES_DIR=~/.praison/traces`.
 
 ### Auth Enforcement
 
