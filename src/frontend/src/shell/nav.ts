@@ -165,18 +165,22 @@ function stringField(obj: Record<string, unknown>, ...keys: string[]): string | 
 /**
  * The page `/` redirects to: a configured default (`layout.default`,
  * `layout.defaultPage` or `site.defaultPage`) when it names a known page,
- * else the first page in sidebar order.
+ * else the active layout's `home` when it names one, else the first page in
+ * sidebar order.
  */
 export function defaultPageId(
   manifest: Pick<ShellManifest, 'pages' | 'layout' | 'site'>,
   groups: NavGroupsConfig = navGroups(manifest),
+  home?: string,
 ): string | null {
   const ids = new Set(manifest.pages.map((p) => p.id))
   const layout = manifest.layout as Record<string, unknown>
   const configured =
     stringField(layout, 'default', 'defaultPage') ?? stringField(manifest.site, 'defaultPage', 'default_page')
   if (configured && ids.has(configured)) return configured
-  return orderedPages(manifest.pages, groups)[0]?.id ?? null
+  if (home && ids.has(home)) return home
+  // Layout-owned pages (ADR 0003) open first only as `home` or the configured default.
+  return orderedPages(manifest.pages.filter((p) => !p.layouts), groups)[0]?.id ?? null
 }
 
 /** `layout.sidebar: false` (set_dashboard(sidebar=False)) hides the sidebar. */
