@@ -8,6 +8,10 @@ It contributes, to the React app shell (``style: app`` or ``AIUI_SHELL=app``):
 * a ``hello_badge`` block type (rendered by ``hello.js``) that any blocks page
   can use;
 * a renderer for the ``get_weather`` tool call in chat;
+* a ``Hello`` sidebar group for both pages (:meth:`nav_groups`);
+* a "Hello plugin" section in the shell's settings dialog (:meth:`settings`),
+  whose greeting the blocks page uses;
+* a "Sunrise" theme preset (:meth:`themes`), picked in the command palette;
 * an ``aiui hello greet NAME`` command.
 
 Install it next to praisonaiui (``pip install -e examples/plugins/aiui-hello-plugin``)
@@ -23,7 +27,15 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from praisonaiui.plugin_registry import BlockSpec, ToolRendererSpec
+from praisonaiui.plugin_registry import (
+    BlockSpec,
+    NavGroupSpec,
+    SettingsField,
+    SettingsSectionSpec,
+    ThemeSpec,
+    ToolRendererSpec,
+    get_plugin_settings,
+)
 
 __all__ = ["HelloPlugin", "plugin"]
 __version__ = "0.1.0"
@@ -98,7 +110,11 @@ async def _hello_blocks_action(request: Request) -> JSONResponse:
     if not isinstance(body, dict) or body.get("action") != "greet":
         return JSONResponse({"error": "unknown action"}, status_code=400)
     n = next(_greetings)
-    return JSONResponse({**_blocks(f"Hello #{n} from Python.", n), "message": f"Greeting #{n} sent"})
+    # Values from the shell's settings dialog (defaults until someone saves).
+    prefs = get_plugin_settings("hello", "greeting")
+    end = "!" if prefs.get("tone") == "excited" else "."
+    text = f"{prefs.get('greeting') or 'Hello'} #{n} from Python{end}"
+    return JSONResponse({**_blocks(text, n), "message": f"Greeting #{n} sent"})
 
 
 class HelloPlugin:
@@ -117,7 +133,7 @@ class HelloPlugin:
                 "kind": "react",
                 "module": "hello.js",  # relative → /_plugins/hello/hello.js (+ sha384 integrity)
                 "icon": "plug",  # a lucide name the shell maps (or an emoji)
-                "group": "Examples",
+                "group": "Hello",  # declared in nav_groups()
                 "order": 900,
                 "description": "A React page from a plugin",
             },
@@ -126,10 +142,44 @@ class HelloPlugin:
                 "title": "Hello blocks",
                 "kind": "blocks",  # data: GET /api/plugins/hello/pages/hello-blocks
                 "icon": "layout-dashboard",
-                "group": "Examples",
+                "group": "Hello",
                 "order": 901,
                 "description": "A server-driven blocks page from a plugin",
             },
+        ]
+
+    def nav_groups(self):
+        # The sidebar group both pages use. 250 sits between the app's second
+        # and third groups (its layout.groups.order is at 100, 200, 300).
+        return [NavGroupSpec(name="Hello", order=250)]
+
+    def settings(self):
+        # Rendered by the shell's settings dialog; saved values come back
+        # through get_plugin_settings("hello", "greeting").
+        return [
+            SettingsSectionSpec(
+                id="greeting",
+                title="Hello plugin",
+                description="How the Hello blocks page greets you.",
+                fields=(
+                    SettingsField(key="greeting", label="Greeting", default="Hello",
+                                  description="The word the Say hello button uses."),
+                    SettingsField(key="tone", label="Tone", type="select",
+                                  options=({"value": "plain", "label": "Plain"},
+                                           {"value": "excited", "label": "Excited"})),
+                ),
+            )
+        ]
+
+    def themes(self):
+        # Seed tokens only: the shell derives every other colour from them.
+        return [
+            ThemeSpec(
+                id="sunrise",
+                label="Sunrise",
+                light={"--seed-accent": "#c2410c", "--seed-tint": "#78716c"},
+                dark={"--seed-accent": "#fb923c", "--seed-tint": "#78716c"},
+            )
         ]
 
     def blocks(self):
