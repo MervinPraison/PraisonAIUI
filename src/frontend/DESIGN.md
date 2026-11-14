@@ -33,6 +33,12 @@ Where things live:
 | Legacy `--db-*` bridge (app shell only) | `src/legacy/bridge.css` |
 | Visual harness | `dev/design-dev.html` (`npm run dev`, open `/dev/design-dev.html`) |
 
+Tailwind scans this file as a class source, so a utility or a `@theme`
+variable named here (as a class, or as `var(--name)`) is compiled into
+`index.css`, which the dashboard links too. Name only what the bundle already
+ships, or a family (`text-tier-1..4`, `bg-{danger,success}-soft`);
+`test_seed_theme.py` checks it, and `npm run check:bundle` catches the rest.
+
 ## Principles
 
 1. **Flat, not boxed.** No card-in-card and no divider borders inside a panel.
@@ -314,6 +320,12 @@ server seed tags, plugin theme presets, `set_custom_css`) still beats Pro.
 | P1 accent seeds | `--seed-pro-{accent,accent-fg,soft,link,ring}`, unsuffixed, or with `-light` / `-dark` | the server (`-light`/`-dark`, from the theme config) and theme presets (unsuffixed, per mode). Default: indigo |
 | mapped | the classic seeds, the `--ui-*` tiers and every shadcn variable | `pro.css`, from P0 and P1 |
 
+Like the classic mode seeds, P0 and the P1 defaults are declared on `<html>`
+(and the dark palette on `.dark` subtrees) only, so the server's unlayered
+`:root` seeds reach every descendant. The mapping is declared again on
+`[data-aiui-scope]` and `.dark`, so re-seed a scope with the unsuffixed
+`--seed-pro-<role>`.
+
 ### Palette
 
 | `--pro-*` | Light | Dark | Becomes |
@@ -340,7 +352,7 @@ server seed tags, plugin theme presets, `set_custom_css`) still beats Pro.
 One deliberate change from the design: light `danger-soft` is `#fff5f5`, not
 `#fef2f2`. The design's "Failed" chip puts danger text on that fill, which
 is 4.41:1; `#fff5f5` makes it 4.52:1. Do not put danger text on `bg-muted`
-(4.39:1 in light mode); use `bg-danger-soft` or the page.
+(4.39:1 in light mode); use the danger soft fill or the page.
 
 ### Accent
 
@@ -399,13 +411,13 @@ as the matching utility (`var(--muted)` → `bg-muted`). The others:
 
 | Design | Use |
 | --- | --- |
-| `var(--ui-text-3)` | `text-tier-3` |
+| `var(--ui-text-3)` | `text-tier-1..4` (tier 3) |
 | `var(--ui-link)`, `var(--ui-accent-soft)`, `var(--ui-code-bg)` | `text-link`, `bg-accent-soft`, `bg-code` |
 | `var(--ui-{success,warning,danger,info}-soft)` | `bg-{success,warning,danger,info}-soft` |
 | `var(--ui-warning-line)`, `var(--ui-danger-line)`, `var(--ui-ring-soft)` | `var(--ui-…)` (Pro only; no utility yet) |
 | `var(--syntax-fn)`, `var(--syntax-number)`, `var(--scrim)` | `var(--ui-syntax-fn)`, `var(--ui-syntax-number)`, `var(--ui-scrim)` |
-| `var(--shadow-sm/-float/-overlay)` | `shadow-sm`, `shadow-md` (float), `shadow-lg` (overlay) |
-| `var(--font-sans)`, `var(--font-mono)` | `font-sans`, `font-mono` |
+| the design's small, float and overlay shadow variables | `shadow-sm`, `shadow-md` (float), `shadow-lg` (overlay) |
+| the design's sans and mono font variables | `font-sans`, `font-mono` |
 | inline `style` sizes | the variants and the scale above, never `px` at the call site |
 
 ### Guarantees

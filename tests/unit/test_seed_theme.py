@@ -455,3 +455,42 @@ class TestProServerTag:
         _server.set_theme(preset="blue")
         _server.set_brand_color("#ff0000")
         assert "--seed-pro-" not in _server._build_html("dashboard")
+
+
+class TestDesignDocBundle:
+    """DESIGN.md is a Tailwind class source (R13).
+
+    Tailwind compiles every utility it finds in the file, and every `@theme`
+    variable named as `--name`, into assets/index.css, which the dashboard
+    links too. So the doc may only name what the committed bundle already
+    ships; anything else changes the bundle with no source change in sight.
+    This approximates Tailwind's scanner; `npm run check:bundle` is exact.
+    """
+
+    DESIGN_MD = Path("src/frontend/DESIGN.md")
+    BUNDLE_CSS = Path("src/praisonaiui/templates/frontend/assets/index.css")
+    UTILITY = re.compile(
+        r"`((?:bg|text|shadow|font|rounded|border|ring|fill|stroke)-[a-z0-9]+(?:-[a-z0-9]+)*)`"
+    )
+
+    def _theme_vars(self) -> set[str]:
+        theme = THEME_CSS.read_text(encoding="utf-8")
+        names: set[str] = set()
+        for block in re.findall(r"@theme[^{]*\{(.*?)\n\}", theme, re.S):
+            names |= set(re.findall(r"(--[a-z0-9-]+)\s*:", block))
+        return names
+
+    def test_named_utilities_are_in_the_bundle(self):
+        bundle = self.BUNDLE_CSS.read_text(encoding="utf-8")
+        named = set(self.UTILITY.findall(self.DESIGN_MD.read_text(encoding="utf-8")))
+        assert {"text-tier-2", "bg-accent-soft", "shadow-sm"} <= named  # the scan works
+        missing = sorted(u for u in named if not re.search(rf"\.{re.escape(u)}[{{:,\s]", bundle))
+        assert missing == []
+
+    def test_named_theme_variables_are_in_the_bundle(self):
+        bundle = self.BUNDLE_CSS.read_text(encoding="utf-8")
+        theme_vars = self._theme_vars()
+        assert "--color-background" in theme_vars  # the parse works
+        doc = self.DESIGN_MD.read_text(encoding="utf-8")
+        named = set(re.findall(r"(?<![\w-])(--[a-z][a-z0-9-]*[a-z0-9])", doc)) & theme_vars
+        assert sorted(v for v in named if f"{v}:" not in bundle) == []
