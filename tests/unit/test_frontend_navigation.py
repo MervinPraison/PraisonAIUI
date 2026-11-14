@@ -15,6 +15,7 @@ import pytest
 
 FRONTEND = Path(__file__).resolve().parents[2] / "src" / "praisonaiui" / "templates" / "frontend"
 ASSETS = FRONTEND / "assets"
+SOURCE = Path(__file__).resolve().parents[2] / "src" / "frontend"
 
 
 def _bundle_js() -> dict[str, str]:
@@ -84,6 +85,25 @@ class TestFrontendNavigation:
             if key != "index.html":
                 imported = [*chunk.get("imports", []), *chunk.get("dynamicImports", [])]
                 assert "index.html" not in imported, f"{chunk['file']} imports the entry"
+
+    def test_externals_carry_the_sdk_contract(self):
+        """aiui-externals.json (written by gen-externals, copied by sync) is what
+        the server re-exports to plugins: it must list this source's @aiui/sdk
+        exports and SDK_FEATURES, and the typings ship next to it."""
+        path = FRONTEND / "aiui-externals.json"
+        if not path.exists():
+            pytest.skip("bundle was built before aiui-externals.json was added")
+        data = json.loads(path.read_text(encoding="utf-8"))
+        src = (SOURCE / "src" / "sdk" / "manifest.ts").read_text(encoding="utf-8")
+
+        def const_list(name: str) -> list[str]:
+            block = src.split(f"export const {name} = [", 1)[1].split("]", 1)[0]
+            block = re.sub(r"//[^\n]*", "", block)  # comments may hold quotes
+            return re.findall(r"'([^']+)'", block)
+
+        assert data["modules"]["@aiui/sdk"] == const_list("SDK_EXPORTS")
+        assert data["sdkFeatures"] == const_list("SDK_FEATURES")
+        assert (FRONTEND / "aiui-sdk.d.ts").is_file(), "sync ships the @aiui/sdk typings"
 
     def test_title_template_handling(self):
         """Test that title template handling is robust."""
