@@ -3786,6 +3786,7 @@ def create_app(
             allow_signup = True
 
     from praisonaiui.http_guard import (
+        HostGuardMiddleware,
         OriginGuardMiddleware,
         configured_origins,
         install_secret_redaction,
@@ -3798,6 +3799,9 @@ def create_app(
     # handshakes and state-changing requests, text/plain CSRF included).
     _allowed_origins = configured_origins()
     middleware = [
+        # Outermost: a DNS-rebound page passes the Origin check (it looks
+        # same-origin), but its Host header still names the attacker's site.
+        Middleware(HostGuardMiddleware),
         Middleware(
             CORSMiddleware,
             allow_origins=_allowed_origins,

@@ -10,16 +10,20 @@
 * ``OriginGuardMiddleware`` — refuses cross-site WebSocket handshakes and
   cross-site state-changing requests (CSRF, including ``text/plain`` "simple"
   requests that skip the CORS preflight).
+* ``HostGuardMiddleware`` — refuses a request to a loopback or private-network
+  server whose ``Host`` is a DNS name it does not know (DNS rebinding).
 * ``install_secret_redaction`` — strips ``token=``/``ticket=`` values from
   uvicorn's access and error logs (and so from the Logs page buffer).
 """
 
 from __future__ import annotations
 
+import ipaddress
 import logging
 import os
 import re
 import secrets
+import socket
 import threading
 import time
 from typing import Any, Callable, Iterable, Optional
@@ -314,6 +318,129 @@ class OriginGuardMiddleware:
             await response(scope, receive, send)
             return
         await self.app(scope, receive, send)
+
+
+# ── Host guard (DNS rebinding) ───────────────────────────────────────
+
+
+def configured_hosts(env: Optional[dict] = None) -> list[str]:
+    """``AIUI_ALLOWED_HOSTS`` (comma separated; ``*`` turns the check off).
+
+    An entry starting with ``.`` also matches its subdomains
+    (``.example.com`` matches ``example.com`` and ``a.example.com``).
+    """
+    raw = (env if env is not None else os.environ).get("AIUI_ALLOWED_HOSTS", "")
+    return [h.strip().lower().rstrip(".") for h in raw.split(",") if h.strip()]
+
+
+def _host_header_name(value: str) -> str:
+    value = value.strip().lower()
+    if value.startswith("["):
+        return value[1 : value.find("]")] if "]" in value else value[1:]
+    return value.rsplit(":", 1)[0] if value.count(":") == 1 else value
+
+
+def _ip(value: str):
+    try:
+        return ipaddress.ip_address(value)
+    except ValueError:
+        return None
+
+
+def _rebindable_server(scope: dict) -> bool:
+    """Does this connection reach the server on a non-public address?
+
+    Loopback, private, link-local, unspecified and other non-global ranges.
+    That is the address DNS rebinding points a victim's browser at. A server
+    reached on a public address can be called directly, so rebinding gains
+    an attacker nothing there and the check is skipped.
+    """
+    server = scope.get("server")
+    if not server:
+        return False
+    ip = _ip(str(server[0]).strip("[]"))
+    if ip is None:
+        return False
+    mapped = getattr(ip, "ipv4_mapped", None)
+    if mapped is not None:
+        ip = mapped
+    return not ip.is_global
+
+
+def _machine_names() -> set[str]:
+    try:
+        name = socket.gethostname().strip().lower().rstrip(".")
+    except OSError:
+        return set()
+    return {name, f"{name}.local"} if name else set()
+
+
+def host_allowed(scope: dict, allowed: Iterable[str] = ()) -> bool:
+    """Is the ``Host`` header one this server answers to?
+
+    Always allowed: IP literals, ``localhost`` / ``*.localhost``, mDNS
+    ``*.local`` names, this machine's hostname, a missing Host (not a
+    browser), and anything in ``AIUI_ALLOWED_HOSTS``. Only checked when the
+    connection reaches the server on a loopback or private address.
+    """
+    allowed = list(allowed)
+    if "*" in allowed or not _rebindable_server(scope):
+        return True
+    name = _host_header_name(header(scope, b"host")).rstrip(".")
+    if not name or _ip(name) is not None:
+        return True
+    if name == "localhost" or name.endswith((".localhost", ".local")):
+        return True
+    if name in _machine_names():
+        return True
+    for entry in allowed:
+        if entry.startswith("."):
+            if name == entry[1:] or name.endswith(entry):
+                return True
+        elif name == entry:
+            return True
+    return False
+
+
+class HostGuardMiddleware:
+    """Refuse requests whose ``Host`` names an unknown site (DNS rebinding).
+
+    After a DNS rebind an attacker's page is "same-origin" with a local
+    server, so the Origin check passes; the ``Host`` header still carries
+    the attacker's name. Install it outermost. HTTP gets 400, a WebSocket
+    handshake is closed with 1008. ``AIUI_ALLOWED_HOSTS`` lists the public
+    names of a server behind a reverse proxy on the same machine.
+    """
+
+    def __init__(self, app, allowed_hosts: Optional[Iterable[str]] = None):
+        self.app = app
+        self.allowed = list(allowed_hosts) if allowed_hosts is not None else configured_hosts()
+        self._warned: set[str] = set()
+
+    async def __call__(self, scope, receive, send):
+        kind = scope["type"]
+        if kind not in ("http", "websocket") or host_allowed(scope, self.allowed):
+            await self.app(scope, receive, send)
+            return
+        host = header(scope, b"host")
+        if host not in self._warned and len(self._warned) < 100:
+            self._warned.add(host)
+            logging.getLogger(__name__).warning(
+                "Refused request for Host %r (possible DNS rebinding). If this is "
+                "the server's own name, add it to AIUI_ALLOWED_HOSTS.",
+                host,
+            )
+        if kind == "websocket":
+            await reject_websocket(receive, send, "Host not allowed")
+            return
+        response = JSONResponse(
+            {
+                "error": "Host not allowed",
+                "hint": "Add this host name to AIUI_ALLOWED_HOSTS to allow it.",
+            },
+            status_code=400,
+        )
+        await response(scope, receive, send)
 
 
 # ── Log redaction ────────────────────────────────────────────────────
