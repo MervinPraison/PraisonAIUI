@@ -9,7 +9,7 @@
  * dispatches `aiui:view-registered` (the legacy runtime's wrapper does it
  * after load; `watchQueuedRegistrations` makes the stub do it before).
  */
-import { useEffect, useState } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 
 export const VIEW_REGISTERED_EVENT = 'aiui:view-registered'
 
@@ -50,19 +50,28 @@ export function watchQueuedRegistrations(): void {
   a.registerView = wrapped
 }
 
+/**
+ * Subscribe to legacy view registrations for `pageId`: wraps the queue stub
+ * (so pre-load registrations announce themselves) and calls `onChange` for
+ * every registration of this id (or an unspecified one).
+ */
+export function subscribeLegacyView(pageId: string, onChange: () => void): () => void {
+  if (typeof window === 'undefined') return () => undefined
+  watchQueuedRegistrations()
+  const on = (e: Event) => {
+    const id = (e as CustomEvent<{ pageId?: unknown }>).detail?.pageId
+    if (id === pageId || id === undefined) onChange()
+  }
+  window.addEventListener(VIEW_REGISTERED_EVENT, on)
+  return () => window.removeEventListener(VIEW_REGISTERED_EVENT, on)
+}
+
+const noSubscribe = () => () => undefined
+const never = () => false
+
 /** True once a legacy view is registered for `pageId` (re-checked on every registration). */
 export function useLegacyViewRegistered(pageId: string, enabled: boolean): boolean {
-  const [has, setHas] = useState(() => enabled && hasLegacyView(pageId))
-  useEffect(() => {
-    if (!enabled) return
-    watchQueuedRegistrations()
-    setHas(hasLegacyView(pageId))
-    const on = (e: Event) => {
-      const id = (e as CustomEvent<{ pageId?: unknown }>).detail?.pageId
-      if (id === pageId || id === undefined) setHas(hasLegacyView(pageId))
-    }
-    window.addEventListener(VIEW_REGISTERED_EVENT, on)
-    return () => window.removeEventListener(VIEW_REGISTERED_EVENT, on)
-  }, [pageId, enabled])
-  return enabled && has
+  const subscribe = useCallback((cb: () => void) => subscribeLegacyView(pageId, cb), [pageId])
+  const snapshot = useCallback(() => hasLegacyView(pageId), [pageId])
+  return useSyncExternalStore(enabled ? subscribe : noSubscribe, enabled ? snapshot : never, enabled ? snapshot : never)
 }

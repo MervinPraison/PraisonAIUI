@@ -3,7 +3,7 @@
 // BlockPage fallback "Plugin not loaded").
 import { afterEach, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { hasLegacyView, VIEW_REGISTERED_EVENT, watchQueuedRegistrations } from './legacyViews'
+import { hasLegacyView, subscribeLegacyView, VIEW_REGISTERED_EVENT, watchQueuedRegistrations } from './legacyViews'
 
 const g = globalThis as unknown as Record<string, unknown>
 if (typeof g.window === 'undefined') g.window = globalThis
@@ -19,8 +19,8 @@ const w = globalThis as unknown as { aiui?: Record<string, unknown> }
 function installQueueStub() {
   const a: Record<string, unknown> = (w.aiui = {})
   a.__queue = []
-  a.registerView = function () {
-    ;(a.__queue as unknown[]).push(['registerView', arguments])
+  a.registerView = (...args: unknown[]) => {
+    ;(a.__queue as unknown[]).push(['registerView', args])
   }
   return a
 }
@@ -64,4 +64,24 @@ test('the real registry (dashboard.js loaded) is never wrapped by the stub watch
   w.aiui = { views: {}, registerView: real }
   watchQueuedRegistrations()
   assert.equal(w.aiui.registerView, real)
+})
+
+test('subscribeLegacyView wraps the stub and reports only registrations of its page', () => {
+  const a = installQueueStub()
+  let calls = 0
+  const off = subscribeLegacyView('mine', () => calls++)
+  try {
+    const register = a.registerView as (...x: unknown[]) => void
+    register('other', () => undefined)
+    assert.equal(calls, 0, 'another page id is ignored')
+    register('mine', () => undefined)
+    assert.equal(calls, 1)
+    assert.equal(hasLegacyView('mine'), true)
+    window.dispatchEvent(new CustomEvent(VIEW_REGISTERED_EVENT, { detail: {} }))
+    assert.equal(calls, 2, 'an event without a page id re-checks every page')
+  } finally {
+    off()
+  }
+  ;(a.registerView as (...x: unknown[]) => void)('mine', () => undefined)
+  assert.equal(calls, 2, 'unsubscribed')
 })
