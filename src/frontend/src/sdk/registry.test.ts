@@ -151,6 +151,47 @@ test('registerSlot without options keeps the one-per-slot replace behaviour', ()
   }
 })
 
+test('registerSlot returns a disposer that removes only its own contribution', () => {
+  const A = () => null
+  const B = () => null
+  const C = () => null
+  const slot = 'test:dispose'
+  const original = console.warn
+  console.warn = () => {}
+  try {
+    const offA = registerSlot(slot, A, { id: 'a', order: 10 })
+    const offB = registerSlot(slot, B, { id: 'b', order: 20 })
+    assert.equal(typeof offA, 'function')
+    let changes = 0
+    const off = subscribe(() => (changes += 1))
+    offA()
+    assert.deepEqual(getSlotContributions(slot).map((c) => c.id), ['b'])
+    assert.equal(changes, 1)
+    offA() // twice: nothing left to remove, no notification
+    assert.equal(changes, 1)
+
+    // A replaced contribution's disposer leaves the replacement alone.
+    registerSlot(slot, C, { id: 'b', order: 20 })
+    offB()
+    assert.equal(getSlot(slot), C)
+    off()
+
+    // An identical re-registration hands back a disposer for the same entry.
+    const again = registerSlot(slot, C, { id: 'b', order: 20 })
+    again()
+    assert.deepEqual(getSlotContributions(slot), [])
+    assert.equal(getSlot(slot), undefined)
+
+    // The default contribution too.
+    const offDefault = registerSlot(slot, A)
+    assert.equal(getSlot(slot), A)
+    offDefault()
+    assert.equal(getSlot(slot), undefined)
+  } finally {
+    console.warn = original
+  }
+})
+
 test('registerSlot validates its options', () => {
   const C = () => null
   assert.throws(() => registerSlot('test:bad', C, { id: '' }), TypeError)

@@ -149,8 +149,12 @@ declare module '@aiui/sdk' {
    * `sidebar:footer` or `page:<id>:toolbar`. The component receives
    * `{ slot, pageId, page? }` (`sidebar:footer` also gets `collapsed`).
    * Passing `options` needs the `slots.multi` feature.
+   *
+   * Returns a disposer that removes this contribution, and nothing once a
+   * later call replaced it (feature `slots.dispose`; older shells return
+   * undefined).
    */
-  export function registerSlot(slot: string, component: AnyComponent, options?: SlotOptions): void
+  export function registerSlot(slot: string, component: AnyComponent, options?: SlotOptions): () => void
   /** Register a vanilla view (`render(container)`), like custom.js `window.aiui.registerView`. */
   export function registerView(
     pageId: string,
