@@ -63,6 +63,18 @@ def _manifest_pages(client: TestClient) -> list[dict]:
     return client.get("/api/shell/manifest").json()["pages"]
 
 
+#: Built-in pages whose shell ``layout`` comes from ``PageSpec.shell_layout``.
+SHELL_ONLY_LAYOUT = {"code-studio"}
+
+
+def _without_shell_presentation(entry: dict) -> dict:
+    """A manifest row minus what only the app shell reads (navIcon, shell layout)."""
+    out = {k: v for k, v in entry.items() if k != "navIcon"}
+    if out["id"] in SHELL_ONLY_LAYOUT:
+        out.pop("layout", None)
+    return out
+
+
 def _builtin_only(pages: list[dict]) -> list[dict]:
     # Dashboard-plugin folders (bundled or in the user's home) add pages too;
     # theirs carry no api_endpoint.
@@ -124,10 +136,96 @@ def test_default_pages_match_the_pre_change_snapshot(style):
     assert list(srv._pages) == BUILTIN_IDS
     assert _wire(_builtin_only(_api_pages(client))) == _wire(SNAPSHOT["api_pages"])
     builtin = [p for p in _manifest_pages(client) if p["source"] == "builtin"]
-    assert _wire(builtin) == _wire(SNAPSHOT["manifest_pages"])
+    assert _wire([_without_shell_presentation(p) for p in builtin]) == _wire(
+        SNAPSHOT["manifest_pages"]
+    )
     # No plugin record shows up where only third-party plugins were listed.
     assert client.get("/api/shell/manifest").json()["plugins"] == []
     assert client.get("/api/plugins").content == b'{"plugins":[]}'
+
+
+#: The lucide icon each built-in page had in the shell's former page-id map
+#: (src/frontend/src/shell/icons.ts ICON_BY_PAGE_ID), by lucide name.
+NAV_ICONS = {
+    "chat": "message-square",
+    "chat-canvas": "columns-2",
+    "channels": "radio",
+    "inbox": "inbox",
+    "canvas": "panels-top-left",
+    "agents": "bot",
+    "skills": "zap",
+    "marketplace": "store",
+    "mcp": "plug",
+    "memory": "brain",
+    "knowledge": "book-open",
+    "cron": "clock",
+    "guardrails": "shield-check",
+    "work": "layout-dashboard",
+    "jobs-board": "columns-3",
+    "kanban": "square-kanban",
+    "overview": "gauge",
+    "sessions": "messages-square",
+    "replay": "rotate-ccw",
+    "runs": "activity",
+    "usage": "chart-column",
+    "feedback": "message-square",
+    "jobs": "list-checks",
+    "approvals": "shield-check",
+    "api": "braces",
+    "nodes": "server",
+    "eval": "clipboard-check",
+    "training": "flask-conical",
+    "code-studio": "code",
+    "inspector": "bug",
+    "config": "settings",
+    "auth": "key-round",
+    "security": "lock",
+    "logs": "scroll-text",
+    "debug": "bug",
+    "telemetry": "activity",
+    "traces": "activity",
+    "theme-picker": "settings",
+}
+
+
+@pytest.mark.parametrize("style", ["dashboard", "app"])
+def test_manifest_gives_every_builtin_its_nav_icon_and_api_pages_none(style):
+    srv.set_style(style)
+    client = _client()
+    manifest = _manifest_pages(client)
+    icons = {p["id"]: p.get("navIcon") for p in manifest if p["source"] == "builtin"}
+    assert icons == NAV_ICONS
+    for row in _api_pages(client):
+        assert "navIcon" not in row and "nav_icon" not in row
+
+
+def test_full_bleed_builtins_carry_the_layout_in_the_manifest_only():
+    srv.set_style("app")
+    client = _client()
+    layouts = {p["id"]: p.get("layout") for p in _manifest_pages(client)}
+    full_bleed = {i for i, v in layouts.items() if v == "full-bleed"}
+    assert full_bleed == {"chat", "chat-canvas", "code-studio"}
+    api = {p["id"]: p for p in _api_pages(client)}
+    assert "layout" not in api["code-studio"]
+    assert api["chat"]["layout"] == "full-bleed"
+
+
+def test_app_page_under_a_builtin_id_keeps_its_own_icon_and_layout():
+    aiui.register_page("code-studio", title="Mine", icon="🔥", group="Custom")
+    client = _client()
+    entry = next(p for p in _manifest_pages(client) if p["id"] == "code-studio")
+    assert entry["source"] == "app" and entry["icon"] == "🔥"
+    assert "navIcon" not in entry and "layout" not in entry
+
+
+def test_manifest_nav_groups_default_and_override():
+    from praisonaiui.builtin.catalog import NAV_GROUPS
+
+    client = _client()
+    assert client.get("/api/shell/manifest").json()["layout"]["groups"] == NAV_GROUPS
+    srv.set_dashboard(groups={"folded": [], "order": ["Control", "Agent"]})
+    groups = client.get("/api/shell/manifest").json()["layout"]["groups"]
+    assert groups == {"order": ["Control", "Agent"], "last": "Settings", "folded": []}
 
 
 def test_api_plugins_can_list_builtins_on_request():

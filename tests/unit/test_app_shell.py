@@ -507,7 +507,10 @@ def test_shell_manifest_lists_builtin_pages_by_kind():
     assert builtin["chat"]["kind"] == "native"
     assert builtin["chat"]["source"] == "builtin"
     assert m["legacy"] == {"customJs": None, "viewsBase": "/plugins/views/"}
-    assert m["layout"] == {"sidebar": True, "pageHeader": True}
+    assert {k: v for k, v in m["layout"].items() if k != "groups"} == {
+        "sidebar": True,
+        "pageHeader": True,
+    }
     assert [p["id"] for p in m["pages"]] == [
         p["id"] for p in sorted(m["pages"], key=lambda p: (p.get("order", 100), p["id"]))
     ]
@@ -517,14 +520,20 @@ def test_shell_manifest_layout_from_set_dashboard():
     srv.set_style("app")
     srv.set_dashboard(sidebar=False, page_header=False)
     m = _client().get("/api/shell/manifest").json()
-    assert m["layout"] == {"sidebar": False, "pageHeader": False}
+    assert {k: v for k, v in m["layout"].items() if k != "groups"} == {
+        "sidebar": False,
+        "pageHeader": False,
+    }
 
 
 def test_shell_manifest_layout_from_yaml_dashboard_section(_isolated):
     (_isolated / "config.yaml").write_text("dashboard:\n  sidebar: false\n  page_header: false\n")
     srv.set_style("app")
     m = _client().get("/api/shell/manifest").json()
-    assert m["layout"] == {"sidebar": False, "pageHeader": False}
+    assert {k: v for k, v in m["layout"].items() if k != "groups"} == {
+        "sidebar": False,
+        "pageHeader": False,
+    }
 
 
 def test_shell_manifest_site_title_matches_host_html(_isolated):

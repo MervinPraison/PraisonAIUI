@@ -134,6 +134,12 @@ class PageSpec:
     #: Inline SVG markup for the nav icon (the legacy dashboard prefers it over
     #: ``icon``). Trusted markup: only set it from code you control.
     icon_svg: Optional[str] = None
+    #: App shell only: a lucide icon name for the sidebar (``navIcon`` on the
+    #: wire), preferred over ``icon``. The legacy dashboard keeps ``icon``.
+    nav_icon: Optional[str] = None
+    #: App shell only: the shell's ``layout`` for a built-in page whose
+    #: ``layout`` must stay unset for the legacy dashboard (``"full-bleed"``).
+    shell_layout: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         return _to_wire(self)

@@ -394,6 +394,7 @@ def set_dashboard(
     modules: list[str] | None = None,
     plugin_dirs: list[str] | None = None,
     plugins: list[str] | None = None,
+    groups: dict[str, Any] | None = None,
 ) -> None:
     """Configure dashboard layout options.
 
@@ -410,6 +411,10 @@ def set_dashboard(
             ``plugin_dirs``); ``[]`` disables all. Applies to both the sidebar
             pages and the browser plugin manifest. This scopes navigation only;
             it is not an authorization boundary for API routes.
+        groups: App shell sidebar groups, merged over the built-in defaults:
+            ``order`` (group names in display order), ``last`` (the group
+            pinned last) and ``folded`` (groups that start collapsed), e.g.
+            ``{"folded": []}``. The legacy dashboard ignores it.
 
     Example::
 
@@ -427,6 +432,8 @@ def set_dashboard(
     }
     if plugins is not None:
         _dashboard_config["plugins"] = list(plugins)
+    if groups is not None:
+        _dashboard_config["groups"] = dict(groups)
 
 
 def _dashboard_plugin_allowlist() -> list[str] | None:
@@ -1138,7 +1145,8 @@ _FALLBACK_EXTERNALS: dict[str, list[str]] = {
         "registerToolRenderer", "registerView", "getPage", "getBlock", "getSlot",
         "getToolRenderers", "subscribe", "useRegistryVersion", "Markdown",
         "SDK_FEATURES", "navigate", "notify", "fetchJson", "useManifest",
-        "registerCommand", "onActivate",
+        "registerCommand", "onActivate", "getPageId", "usePageId", "useThemeMode",
+        "dismiss",
     ],
 }
 
@@ -1313,6 +1321,7 @@ def _resolved_dashboard_config() -> Optional[dict[str, Any]]:
                 "pageHeader": section.get("pageHeader", section.get("page_header", True)),
                 "modules": section.get("modules") or [],
                 "pluginDirs": section.get("pluginDirs") or section.get("plugin_dirs") or [],
+                **({"groups": section["groups"]} if isinstance(section.get("groups"), dict) else {}),
             }
     except Exception:
         pass
@@ -1326,6 +1335,7 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
     Precedence on id collision: app (register_page) > builtin > entry-point
     plugin > dashboard-plugin folder. A shadowed page logs a warning.
     """
+    from praisonaiui.builtin.catalog import NAV_GROUPS
     from praisonaiui.dashboard_plugins import discover_dashboard_plugins
     from praisonaiui.plugin_registry import SDK_API_VERSION, get_plugin_registry
 
@@ -1333,6 +1343,9 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
     log = logging.getLogger(__name__)
     pages: list[dict[str, Any]] = []
     seen: dict[str, str] = {}
+    # Shell-only presentation of the built-in pages (nav icon, layout); the
+    # page table (/api/pages, the legacy dashboard) never carries it.
+    spec_by_id = {s.id: s for s in reg.pages(origin="builtin")}
 
     for p in _pages.values():
         custom = p["id"] in _custom_page_ids
@@ -1354,6 +1367,12 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
         for opt in ("layout", "position"):
             if p.get(opt):
                 entry[opt] = p[opt]
+        spec = None if custom else spec_by_id.get(p["id"])
+        if spec is not None:
+            if spec.nav_icon:
+                entry["navIcon"] = spec.nav_icon
+            if spec.shell_layout:
+                entry["layout"] = spec.shell_layout
         if p["id"] in _page_actions:
             entry["actionEndpoint"] = f"/api/pages/{p['id']}/action"
         pages.append(entry)
@@ -1407,6 +1426,7 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
         "layout": {
             "sidebar": dash.get("sidebar", True),
             "pageHeader": dash.get("pageHeader", dash.get("page_header", True)),
+            "groups": {**NAV_GROUPS, **(dash.get("groups") or {})},
         },
         "pages": pages,
         "blocks": [b.to_dict() for b in reg.blocks(restricted=restricted)],
