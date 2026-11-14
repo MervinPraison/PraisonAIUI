@@ -394,6 +394,7 @@ def set_dashboard(
     modules: list[str] | None = None,
     plugin_dirs: list[str] | None = None,
     plugins: list[str] | None = None,
+    groups: dict[str, Any] | None = None,
 ) -> None:
     """Configure dashboard layout options.
 
@@ -410,6 +411,10 @@ def set_dashboard(
             ``plugin_dirs``); ``[]`` disables all. Applies to both the sidebar
             pages and the browser plugin manifest. This scopes navigation only;
             it is not an authorization boundary for API routes.
+        groups: App shell sidebar groups, merged over the built-in defaults:
+            ``order`` (group names in display order), ``last`` (the group
+            pinned last) and ``folded`` (groups that start collapsed), e.g.
+            ``{"folded": []}``. The legacy dashboard ignores it.
 
     Example::
 
@@ -427,6 +432,8 @@ def set_dashboard(
     }
     if plugins is not None:
         _dashboard_config["plugins"] = list(plugins)
+    if groups is not None:
+        _dashboard_config["groups"] = dict(groups)
 
 
 def _dashboard_plugin_allowlist() -> list[str] | None:
@@ -648,6 +655,20 @@ def set_sidebar_config(
     )
 
 
+def _safe_accent_var(key: str, value: Any) -> bool:
+    """Only values that cannot break out of the dashboard's ``<style>`` tag."""
+    from praisonaiui.features.theme import is_valid_accent, normalize_rgb_triple
+    from praisonaiui.themes import _CSS_LENGTH
+
+    if not isinstance(value, str):
+        return False
+    if key == "--db-accent-rgb":
+        return normalize_rgb_triple(value) == value
+    if key == "--db-radius":
+        return bool(_CSS_LENGTH.match(value.strip()))
+    return is_valid_accent(value)
+
+
 def register_theme(name: str, variables: dict[str, str]) -> None:
     """Register a custom theme preset via the protocol-driven ThemeManager.
 
@@ -687,6 +708,37 @@ def set_pages(page_ids: list[str]) -> None:
     """
     global _enabled_pages
     _enabled_pages = set(page_ids)
+
+
+def _config_page_whitelist(builtin_pages: list[dict]) -> Optional[set[str]]:
+    """The built-in page whitelist from config.yaml ``pages:``, or None.
+
+    ``pages.enabled: [chat, logs]`` shows only those built-ins;
+    ``pages.disabled: [usage]`` shows every built-in except those.
+    """
+    try:
+        from praisonaiui.config_store import get_config_store
+    except ImportError:
+        return None
+    try:
+        cfg = get_config_store()
+        pages_cfg = (cfg.get_section("pages") if cfg else None) or {}
+    except Exception as exc:  # noqa: BLE001 - a bad config must not stop the server
+        logging.getLogger(__name__).warning("config.yaml pages: could not be read: %s", exc)
+        return None
+    if not isinstance(pages_cfg, dict):
+        logging.getLogger(__name__).warning(
+            "config.yaml pages: must be a mapping with enabled/disabled lists; ignored"
+        )
+        return None
+    enabled = pages_cfg.get("enabled")
+    disabled = pages_cfg.get("disabled")
+    if enabled and isinstance(enabled, list):
+        return {str(p) for p in enabled}
+    if disabled and isinstance(disabled, list):
+        hidden = {str(p) for p in disabled}
+        return {p["id"] for p in builtin_pages if p["id"] not in hidden}
+    return None
 
 
 def remove_page(page_id: str) -> None:
@@ -875,8 +927,10 @@ def _build_html(style: str, request: Optional[Request] = None) -> str:
             mgr = get_theme_manager()
             tvars = mgr.get_vars()
             accent_pairs = ";".join(
-                f"{k}:{v}!important" for k, v in tvars.items() if k in _ACCENT_KEYS
-            )
+                f"{k}:{v}!important"
+                for k, v in tvars.items()
+                if k in _ACCENT_KEYS and _safe_accent_var(k, v)
+            ).replace("</", "<\\/")
             if accent_pairs:
                 theme_vars_tag = f'<style id="aiui-server-theme">:root{{{accent_pairs}}}</style>'
         except Exception:
@@ -892,7 +946,7 @@ def _build_html(style: str, request: Optional[Request] = None) -> str:
             f'data-aiui-theme-default="{_shell_default_theme()}">'
         )
         theme_vars_tag = _shell_theme_tag()
-        shell_head = _shell_head(cache_bust, request)
+        shell_head = _shell_head(cache_bust, request) + _shell_modulepreload_tags(request)
 
     canonical_script = (
         '<script id="aiui-canonical-url">'
@@ -921,6 +975,60 @@ def _build_html(style: str, request: Optional[Request] = None) -> str:
         f"{_custom_js_tag(cache_bust)}"
         "</body></html>"
     )
+
+
+def _shell_modulepreload_tags(request: Optional[Request]) -> str:
+    """``<link rel=modulepreload>`` for the chunks the app shell loads at boot.
+
+    Without them the browser finds the shell mount chunk (and, on /chat, the
+    chat page chunk) only after index.js has run: one more round trip before
+    first paint. The list is the static closure of the index.html entry plus
+    the shell mount chunk, and on the chat page also the ChatPage chunk, read
+    from the build's aiui-manifest.json (the same walk as
+    src/frontend/scripts/lib/build-manifest.mjs ``staticClosure``). index.js
+    itself is left out: its script tag loads it with ``?v=``. Returns "" when
+    the build has no manifest.
+    """
+    data = _cached_json_file(_frontend_templates_dir() / "aiui-manifest.json")
+    if not isinstance(data, dict):
+        return ""
+    entry = data.get("index.html")
+    if not isinstance(entry, dict):
+        return ""
+
+    def chunk(key: Any) -> dict[str, Any]:
+        c = data.get(key) if isinstance(key, str) else None
+        return c if isinstance(c, dict) else {}
+
+    # The shell mount chunk has no src key (Rollup merges shell/mount.tsx with
+    # modules it shares): it is the entry's lazy import named "mount".
+    roots = ["index.html"] + [k for k in entry.get("dynamicImports") or [] if chunk(k).get("name") == "mount"]
+    path = request.url.path if request is not None else "/"
+    if path.strip("/").split("/", 1)[0] == "chat":
+        roots += [
+            k for k, c in data.items()
+            if isinstance(c, dict) and c.get("name") == "ChatPage" and c.get("isDynamicEntry")
+        ]
+
+    seen: set[str] = set()
+    stack = list(roots)
+    while stack:
+        key = stack.pop()
+        if key in seen:
+            continue
+        seen.add(key)
+        stack.extend(k for k in chunk(key).get("imports") or [] if isinstance(k, str))
+
+    entry_file = entry.get("file")
+    files = sorted(
+        f for f in (chunk(k).get("file") for k in seen)
+        if isinstance(f, str) and f.endswith(".js") and f != entry_file and _SAFE_ASSET_FILE.match(f)
+    )
+    return "".join(f'<link rel="modulepreload" crossorigin href="/{f}">' for f in files)
+
+
+# A Vite output path (assets/<name>-<hash>.js): never markup-significant.
+_SAFE_ASSET_FILE = re.compile(r"^assets/[A-Za-z0-9._-]+\.js$")
 
 
 def _frontend_templates_dir() -> Path:
@@ -992,18 +1100,17 @@ async def _plugins_config(request: Request) -> JSONResponse:
             if mod in ("jobs", "auth", "api") and mod not in plugins:
                 plugins.append(mod)
     elif style == "docs":
+        # Code highlighting, copy buttons and mermaid come from the React
+        # markdown renderer (Streamdown + Shiki + the bundled mermaid), so the
+        # legacy highlight.js / code-copy / CDN mermaid plugins are not loaded.
         plugins += [
             "topnav",
-            "syntax-highlight",
-            "code-copy",
             "content-loader",
-            "mermaid",
             "nav-intercept",
             "homepage",
         ]
-    else:
-        # chat / agents / playground — minimal plugins
-        plugins += ["syntax-highlight", "code-copy"]
+    # chat / agents / playground: Streamdown renders every markdown surface,
+    # so only the base plugins load.
     return JSONResponse({"plugins": plugins})
 
 
@@ -1092,7 +1199,8 @@ _FALLBACK_EXTERNALS: dict[str, list[str]] = {
         "registerToolRenderer", "registerView", "getPage", "getBlock", "getSlot",
         "getToolRenderers", "subscribe", "useRegistryVersion", "Markdown",
         "SDK_FEATURES", "navigate", "notify", "fetchJson", "useManifest",
-        "registerCommand", "onActivate",
+        "registerCommand", "onActivate", "getPageId", "usePageId", "useThemeMode",
+        "dismiss",
     ],
 }
 
@@ -1267,6 +1375,7 @@ def _resolved_dashboard_config() -> Optional[dict[str, Any]]:
                 "pageHeader": section.get("pageHeader", section.get("page_header", True)),
                 "modules": section.get("modules") or [],
                 "pluginDirs": section.get("pluginDirs") or section.get("plugin_dirs") or [],
+                **({"groups": section["groups"]} if isinstance(section.get("groups"), dict) else {}),
             }
     except Exception:
         pass
@@ -1280,6 +1389,7 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
     Precedence on id collision: app (register_page) > builtin > entry-point
     plugin > dashboard-plugin folder. A shadowed page logs a warning.
     """
+    from praisonaiui.builtin.catalog import NAV_GROUPS
     from praisonaiui.dashboard_plugins import discover_dashboard_plugins
     from praisonaiui.plugin_registry import SDK_API_VERSION, get_plugin_registry
 
@@ -1287,6 +1397,9 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
     log = logging.getLogger(__name__)
     pages: list[dict[str, Any]] = []
     seen: dict[str, str] = {}
+    # Shell-only presentation of the built-in pages (nav icon, layout); the
+    # page table (/api/pages, the legacy dashboard) never carries it.
+    spec_by_id = {s.id: s for s in reg.pages(origin="builtin")}
 
     for p in _pages.values():
         custom = p["id"] in _custom_page_ids
@@ -1308,6 +1421,12 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
         for opt in ("layout", "position"):
             if p.get(opt):
                 entry[opt] = p[opt]
+        spec = None if custom else spec_by_id.get(p["id"])
+        if spec is not None:
+            if spec.nav_icon:
+                entry["navIcon"] = spec.nav_icon
+            if spec.shell_layout:
+                entry["layout"] = spec.shell_layout
         if p["id"] in _page_actions:
             entry["actionEndpoint"] = f"/api/pages/{p['id']}/action"
         pages.append(entry)
@@ -1356,11 +1475,15 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
         "site": {
             "title": site_section.get("title", _branding["title"]),
             "logo": site_section.get("logo", _branding["logo"]),
+            # The chat hides thumbs up/down up front instead of finding out
+            # from the first 403 of POST /api/chat/feedback.
+            "feedbackEnabled": _feedback_enabled,
             **_shell_site_theme(),
         },
         "layout": {
             "sidebar": dash.get("sidebar", True),
             "pageHeader": dash.get("pageHeader", dash.get("page_header", True)),
+            "groups": {**NAV_GROUPS, **(dash.get("groups") or {})},
         },
         "pages": pages,
         "blocks": [b.to_dict() for b in reg.blocks(restricted=restricted)],
@@ -1601,6 +1724,30 @@ class _AssetStaticFiles(StaticFiles):
         response = super().file_response(full_path, stat_result, scope, status_code)
         response.headers["Cache-Control"] = self.cache_control_for(os.path.basename(str(full_path)))
         return response
+
+
+def gzip_static(app: Any, minimum_size: int = 1024, compresslevel: int = 6) -> Any:
+    """Wrap a static-file ASGI app so its responses are gzip-compressed.
+
+    Only static mounts are wrapped (``/assets``, ``/plugins``, ``aiui
+    serve``), so SSE and WebSocket routes are never touched on any Starlette
+    version. Range requests pass through uncompressed: a ``206`` body must
+    match its ``Content-Range`` in the identity encoding.
+    """
+    from starlette.middleware.gzip import GZipMiddleware
+
+    gz = GZipMiddleware(app, minimum_size=minimum_size, compresslevel=compresslevel)
+
+    async def _gzip_static_app(scope, receive, send):
+        if scope["type"] == "http" and not any(
+            k.lower() == b"range" for k, _ in scope.get("headers", ())
+        ):
+            await gz(scope, receive, send)
+        else:
+            await app(scope, receive, send)
+
+    _gzip_static_app.inner = app  # type: ignore[attr-defined]
+    return _gzip_static_app
 
 
 def set_datastore(store: BaseDataStore) -> None:
@@ -3751,6 +3898,10 @@ def create_app(
 ) -> Starlette:
     """Create the Starlette application.
 
+    With ``require_auth=True`` (or YAML ``auth.requireAuth``) ``POST /register``
+    is open only for the first user, for a signed-in user, or with YAML
+    ``auth.allowSignup`` (see :class:`praisonaiui.auth.AuthMiddleware`).
+
     URL-token auth (``TokenQueryMiddleware``) is opt-in: it activates only
     when ``AIUI_REQUIRE_TOKEN`` is truthy, YAML ``auth.requireToken`` is set,
     or ``require_auth=True``. A bare ``GATEWAY_AUTH_TOKEN`` /
@@ -3780,6 +3931,7 @@ def create_app(
             _config_requires_token = True
 
     from praisonaiui.http_guard import (
+        HostGuardMiddleware,
         OriginGuardMiddleware,
         configured_origins,
         install_secret_redaction,
@@ -3792,6 +3944,9 @@ def create_app(
     # handshakes and state-changing requests, text/plain CSRF included).
     _allowed_origins = configured_origins()
     middleware = [
+        # Outermost: a DNS-rebound page passes the Origin check (it looks
+        # same-origin), but its Host header still names the attacker's site.
+        Middleware(HostGuardMiddleware),
         Middleware(
             CORSMiddleware,
             allow_origins=_allowed_origins,
@@ -3828,6 +3983,8 @@ def create_app(
     if require_auth:
         # Exclusions are exact paths; the rest of the public surface (the
         # HTML shell, static code) comes from http_guard.is_public_http.
+        # /register is listed so AuthMiddleware can apply the signup policy
+        # (first user, signed-in user, or auth.allowSignup) itself.
         middleware.append(
             Middleware(
                 AuthMiddleware,
@@ -3836,6 +3993,12 @@ def create_app(
                 allow_signup=allow_signup_from_config(config),
             )
         )
+
+    # Innermost: a JSON body that is an array or scalar gets 400 instead of
+    # crashing the handler (which reads it as a dict) with a 500.
+    from praisonaiui.http_guard import JSONObjectBodyMiddleware
+
+    middleware.append(Middleware(JSONObjectBodyMiddleware))
 
     # Shell boot (style "app") inlines only {sdk, version, style} and plugin
     # browser surfaces become default-deny whenever the app requires auth.
@@ -4041,9 +4204,9 @@ def create_app(
         Route("/api/overview", api_overview, methods=["GET"]),
         Route("/api/status", api_overview, methods=["GET"]),  # alias for CLI parity
         Route("/api/config", api_config_handler, methods=["GET", "PUT"]),
-        Route("/api/logs", api_logs, methods=["GET"]),
+        # /api/logs and /api/debug belong to builtin.logs / builtin.debug
+        # (their host_routes, mounted below while those built-ins are on).
         # Note: /api/usage is now provided by PraisonAIUsage feature
-        Route("/api/debug", api_debug, methods=["GET"]),
         Route("/api/provider", api_provider, methods=["GET"]),
         Route("/api/provider/health", api_provider_health, methods=["GET"]),
         # Action callback API
@@ -4057,10 +4220,7 @@ def create_app(
         # Component schema registry (built-in + user-registered)
         Route("/api/components/schemas", api_component_schemas, methods=["GET"]),
         # Gateway status
-        # MCP (Model Context Protocol) API
-        Route("/api/mcp/servers", api_mcp_servers, methods=["GET"]),
-        Route("/api/mcp/connect", api_mcp_connect, methods=["POST"]),
-        Route("/api/mcp/disconnect/{server_id}", api_mcp_disconnect, methods=["POST"]),
+        # MCP (Model Context Protocol) API: builtin.mcp's host_routes.
         # OAuth + thread-sharing (issue #22)
         Route("/api/auth/oauth/{provider}", oauth_authorize_handler, methods=["GET"]),
         Route(
@@ -4203,6 +4363,17 @@ def create_app(
     from praisonaiui.jobs_proxy import jobs_proxy_routes
 
     routes.extend(jobs_proxy_routes())
+    # Host-owned routes of the first-party plugins (MCP, debug, GET
+    # /api/logs): mounted only while their built-in is on.
+    for _brec in _plugin_registry.builtin_records():
+        _host_routes = getattr(_brec.plugin, "host_routes", None)
+        if _brec.status == "ok" and callable(_host_routes):
+            try:
+                routes.extend(_host_routes())
+            except Exception as exc:  # noqa: BLE001
+                logging.getLogger(__name__).warning(
+                    "%s host routes failed: %s", _brec.name, exc
+                )
     # Built-in features come from the first-party plugin records too: a
     # built-in named in ``extensions.disabled`` mounts none of its routes
     # (features the host needs are kept; see praisonaiui.builtin).
@@ -4251,39 +4422,31 @@ def create_app(
         logging.getLogger(__name__).warning(
             "extensions.disabled names %r, but no such built-in exists", _unknown
         )
-    # A built-in page added by an earlier create_app() in this process must
-    # not outlive the policy that now disables it. App pages are kept.
     _contributed = {p["id"] for p in _builtin_pages}
-    for _pid in _builtin_page_ids - _contributed:
-        if _pid not in _custom_page_ids:
+
+    # Page whitelist: set_pages() wins; otherwise config.yaml ``pages:``
+    # (``enabled`` lists the built-ins to show, ``disabled`` hides some).
+    # Re-read on every create_app() so it never outlives its config. This
+    # only hides pages; the feature's API routes stay mounted.
+    _page_whitelist = _enabled_pages
+    if _page_whitelist is None:
+        _page_whitelist = _config_page_whitelist(_builtin_pages)
+
+    # A built-in page added by an earlier create_app() in this process must
+    # not outlive the policy that now disables or hides it. App pages are kept.
+    for _pid in list(_builtin_page_ids):
+        if _pid in _custom_page_ids:
+            continue
+        if _pid not in _contributed or (
+            _page_whitelist is not None and _pid not in _page_whitelist
+        ):
             _pages.pop(_pid, None)
-
-    # Read page whitelist from config.yaml if set_pages() was not called
-    if _enabled_pages is None:
-        try:
-            from praisonaiui.config_store import get_config_store
-
-            _cfg = get_config_store()
-            # YAMLConfigStore exposes get_section(), not get(): the old .get()
-            # raised AttributeError, which the except below swallowed, so
-            # config.yaml pages.enabled / pages.disabled were silently ignored.
-            _pages_cfg = _cfg.get_section("pages") if _cfg else {}
-            if isinstance(_pages_cfg, dict):
-                _enabled_list = _pages_cfg.get("enabled")
-                _disabled_list = _pages_cfg.get("disabled")
-                if _enabled_list and isinstance(_enabled_list, list):
-                    set_pages(_enabled_list)
-                elif _disabled_list and isinstance(_disabled_list, list):
-                    # Blacklist: all pages except disabled ones
-                    set_pages([p["id"] for p in _builtin_pages if p["id"] not in _disabled_list])
-        except Exception as exc:  # a broken config must not stop the server
-            logging.getLogger(__name__).warning("Ignoring config.yaml pages section: %s", exc)
 
     for p in _builtin_pages:
         if p["id"] in _pages:  # user already overrode this page
             continue
         # If whitelist is set, skip pages not in the whitelist
-        if _enabled_pages is not None and p["id"] not in _enabled_pages:
+        if _page_whitelist is not None and p["id"] not in _page_whitelist:
             continue
         _pages[p["id"]] = p
     _builtin_page_ids.clear()
@@ -4316,13 +4479,19 @@ def create_app(
     # it returns 404 when unset (tests rely on this) and serves content otherwise.
     routes.append(Route("/custom.js", _serve_custom_js, methods=["GET"]))
 
+    # Static code is sent gzip-compressed (the bundle budgets are gzip
+    # sizes; uncompressed the chat chunk alone is ~450 KB).
     if _plugins_dir.exists():
-        routes.append(Mount("/plugins", app=StaticFiles(directory=str(_plugins_dir))))
+        routes.append(
+            Mount("/plugins", app=gzip_static(StaticFiles(directory=str(_plugins_dir))))
+        )
     if _assets_dir.exists():
         routes.append(
             Mount(
                 "/assets",
-                app=_AssetStaticFiles(directory=str(_assets_dir), frontend_dir=_frontend_dir),
+                app=gzip_static(
+                    _AssetStaticFiles(directory=str(_assets_dir), frontend_dir=_frontend_dir)
+                ),
             )
         )
 
@@ -4337,7 +4506,22 @@ def create_app(
             routes.append(Route("/", _serve_index, methods=["GET"]))
 
         _static_app = StaticFiles(directory=str(static_dir), html=True)
-        _static_root = Path(static_dir)
+        _static_root = Path(static_dir).resolve()
+
+        def _inside_static_root(candidate: Path) -> Path | None:
+            """Resolve ``candidate`` and return it only if it stays in static_dir.
+
+            The request path is attacker-controlled (uvicorn decodes ``%2f``
+            to ``/`` before the app sees it), so every lookup must be
+            contained, as StaticFiles.lookup_path does.
+            """
+            try:
+                resolved = candidate.resolve()
+            except (OSError, RuntimeError, ValueError):
+                return None
+            if resolved == _static_root or resolved.is_relative_to(_static_root):
+                return resolved
+            return None
 
         async def _serve_static_file(scope, receive, send, file_path: Path, media_type: str | None = None):
             from starlette.responses import FileResponse
@@ -4355,18 +4539,18 @@ def create_app(
             request_path = scope.get("path", "")
             rel = request_path.lstrip("/")
             if rel:
-                exact = _static_root / rel
-                if exact.is_file():
+                exact = _inside_static_root(_static_root / rel)
+                if exact is not None and exact.is_file():
                     await _serve_static_file(scope, receive, send, exact)
                     return
                 if not request_path.endswith("/"):
-                    html_path = _static_root / f"{rel}.html"
-                    if html_path.is_file():
+                    html_path = _inside_static_root(_static_root / f"{rel}.html")
+                    if html_path is not None and html_path.is_file():
                         await _serve_static_file(scope, receive, send, html_path, media_type="text/html")
                         return
-                if exact.is_dir():
-                    index = exact / "index.html"
-                    if index.is_file():
+                if exact is not None and exact.is_dir():
+                    index = _inside_static_root(exact / "index.html")
+                    if index is not None and index.is_file():
                         await _serve_static_file(scope, receive, send, index, media_type="text/html")
                         return
 

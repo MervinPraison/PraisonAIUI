@@ -5,8 +5,7 @@
  * Covers: streaming repair (remend), XSS in both variants, the chat link and
  * image policy (no auto-loaded off-origin images), MkDocs blocks, heading ids,
  * the incremental Shiki tokenizer for streamed fences, the streaming
- * render pacer, chat list numbering across code fences and the guard that
- * keeps the legacy highlight.js plugin off Streamdown code blocks.
+ * render pacer and chat list numbering across code fences.
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -20,7 +19,8 @@ import { normalizeTexDelimiters } from './texDelimiters'
 import { MAX_STREAM_INTERVAL_MS, StreamPacer } from './streamThrottle'
 import { gateMermaidSource, isAutoLoadImage, isExternalHref } from './urlPolicy'
 import { continueSplitLists } from './listNumbering'
-import { NO_HIGHLIGHT, legacySafeCodeClass } from './legacyPlugins'
+import { fenced } from './fence'
+import { CHAT_CONTROLS, COPY_FAILED, DOCS_CONTROLS, reportCopyError } from './controls'
 
 const chat = (md: string, streaming = false) => renderToStaticMarkup(<Markdown variant="chat" streaming={streaming}>{md}</Markdown>)
 const docs = (md: string) => renderToStaticMarkup(<Markdown variant="docs">{preprocessMkdocsMarkdown(md)}</Markdown>)
@@ -434,38 +434,14 @@ test('chat: a wrapped paragraph line that starts with a number does not start a 
     )
 })
 
-// ── legacy plugins: highlight.js must skip Streamdown code blocks ──
-/**
- * highlight.js 11.9 blockLanguage() + shouldNotHighlight(), as used by
- * plugins/syntax-highlight.js: the language comes from the <code> class plus
- * its parent's class; a block whose result matches /^(no-?highlight)$/i is skipped.
- */
-function hljsWouldHighlight(codeClass: string, preClass: string): boolean {
-    const classes = `${codeClass} ${preClass}`
-    const m = /\blang(?:uage)?-([\w-]+)\b/i.exec(classes)
-    const known = new Set(['python', 'yaml', 'bash', 'javascript', 'typescript', 'json', 'css', 'html', 'xml', 'ts', 'py', 'sh'])
-    const language = m ? (known.has(m[1]) ? m[1] : 'no-highlight') : classes.split(/\s+/).find((c) => /^(no-?highlight)$/i.test(c) || known.has(c))
-    return !/^(no-?highlight)$/i.test(language ?? '')
-}
-
-test('legacySafeCodeClass hides the fence language from highlight.js, not from Streamdown', () => {
-    assert.equal(legacySafeCodeClass('language-ts'), `aiuilanguage-ts ${NO_HIGHLIGHT}`)
-    assert.equal(legacySafeCodeClass('x language-c++ y'), `x aiuilanguage-c++ y ${NO_HIGHLIGHT}`)
-    assert.equal(legacySafeCodeClass(undefined), NO_HIGHLIGHT)
-    assert.equal(/language-([^\s]+)/.exec(legacySafeCodeClass('language-python'))?.[1], 'python') // Streamdown's own match
-    assert.ok(hljsWouldHighlight('', 'language-python')) // the replica does highlight a plain fence
-})
-
+// ── fenced code keeps its language class for Streamdown ──
 for (const [name, render] of [['chat', (m: string) => chat(m)], ['docs', docs]] as const) {
-    test(`${name}: fenced code keeps its language but highlight.js skips it`, () => {
+    test(`${name}: fenced code keeps its language`, () => {
         const html = render('```python\nimport os\n\nprint(os.getcwd())\n```\n\n```\nplain\n```')
-        const bodies = [...html.matchAll(/<div class="([^"]*)" data-language="([^"]*)" data-streamdown="code-block-body"[^>]*><pre class="([^"]*)"[^>]*><code(?: class="([^"]*)")?/g)]
+        const bodies = [...html.matchAll(/<div class="([^"]*)" data-language="([^"]*)" data-streamdown="code-block-body"/g)]
         assert.equal(bodies.length, 2, html)
         assert.equal(bodies[0][2], 'python')
         assert.match(html, /data-streamdown="code-block-header"[^>]*><span[^>]*>python<\/span>/)
-        for (const [, , , preClass, codeClass] of bodies) {
-            assert.equal(hljsWouldHighlight(codeClass ?? '', preClass), false, preClass)
-        }
     })
 }
 
@@ -474,7 +450,6 @@ test('the markdown root opts out of @tailwindcss/typography (not-prose)', () => 
         const root = html.match(/^<div[^>]*class="([^"]*)"/)
         assert.ok(root)
         assert.match(root[1], /\bnot-prose\b/)
-        assert.match(html.slice(0, 400), /data-aiui-markdown="/)
     }
 })
 
@@ -669,4 +644,60 @@ test('streaming chat message renders its whole text on first render (no paced bl
     const md = 'Partial **answer** so far'
     assert.match(chat(md, true), /Partial <[^>]*data-streamdown="strong">answer</)
     assert.match(chat(md, true), /so far/)
+})
+
+// ── code as data (chat `code` elements, the `code` block): one renderer ──
+test('fenced(): the fence outgrows any backtick run in the code; unsafe language names are dropped', () => {
+    assert.equal(fenced('print(1)', 'python'), '```python\nprint(1)\n```')
+    assert.equal(fenced('a ```` b', 'md'), '`````md\na ```` b\n`````')
+    assert.equal(fenced('x', 'py\n```html'), '```\nx\n```')
+})
+
+test('a chat code element renders as a Streamdown code block (language label, controls), not a bare <pre>', () => {
+    const html = chat(fenced('def f():\n    return "```"', 'python'))
+    assert.match(html, /data-streamdown="code-block"/)
+    assert.match(html, /data-streamdown="code-block-header"[^>]*><span[^>]*>python<\/span>/)
+    assert.match(html, /return/)
+})
+
+// ── footnotes: ids are unique per message (LIBMD-4) ──
+test('two messages with footnotes: every id is unique and each footnote link targets its own message', () => {
+    const html = renderToStaticMarkup(
+        <div>
+            <section><Markdown variant="chat">{'First[^1]\n\n[^1]: one'}</Markdown></section>
+            <section><Markdown variant="chat">{'Second[^1]\n\n[^1]: two'}</Markdown></section>
+        </div>,
+    )
+    const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1])
+    assert.ok(ids.length >= 6, `footnote ids rendered: ${ids.join(', ')}`)
+    assert.equal(new Set(ids).size, ids.length, `duplicate ids: ${ids.join(', ')}`)
+    for (const part of html.split('<section>').slice(1)) {
+        const own = new Set([...part.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]))
+        const hrefs = [...part.matchAll(/href="\\?#([^"]+)"/g)].map((m) => m[1])
+        assert.ok(hrefs.length >= 2)
+        for (const h of hrefs) assert.ok(own.has(h), `#${h} points inside its own message`)
+        const described = [...part.matchAll(/aria-describedby="([^"]+)"/g)].map((m) => m[1])
+        for (const d of described) assert.ok(own.has(d), `aria-describedby ${d} is in its own message`)
+    }
+})
+
+// ── failed copy is reported (LIBMD-6) ──
+test('code copy in both variants reports a failure (no clipboard on plain-http origins)', () => {
+    for (const controls of [CHAT_CONTROLS, DOCS_CONTROLS]) {
+        assert.ok(typeof controls === 'object' && typeof controls.code === 'object')
+        const copy = controls.code.copy
+        assert.ok(typeof copy === 'object' && copy.onError === reportCopyError)
+    }
+    assert.match(COPY_FAILED, /HTTPS or localhost/)
+})
+
+// ── bidi: direction per block (LIBMD-5) ──
+test('an Arabic paragraph renders right to left; English stays left to right', () => {
+    const arabic = 'مرحبا بالعالم.'
+    for (const html of [chat(`${arabic}\n\nHello world.\n\n\`\`\`py\nprint(1)\n\`\`\``), docs(`${arabic}\n\nHello world.`)]) {
+        const rtl = [...html.matchAll(/dir="rtl"/g)].length
+        assert.ok(rtl >= 1, 'the Arabic block is marked rtl')
+        assert.match(html, new RegExp(`dir="rtl"[^>]*>(?:<[^>]+>)*${arabic}`))
+        assert.doesNotMatch(html, /dir="rtl"[^>]*>(?:<[^>]+>)*Hello/)
+    }
 })

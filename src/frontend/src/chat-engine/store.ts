@@ -25,7 +25,7 @@ import {
   APPROVAL_ERROR, APPROVAL_PENDING, applyEvent, fromHistory, genId, hasPendingApprovalNotice, newAssistant, reconcileFromHistory, TERMINAL,
   type AiuiMessage, type AiuiSessionSignals, type AiuiToolPart, type ConnectionStatus, type JSONObject, type WireEvent,
 } from './protocol'
-import { AskUnavailableError, isAbortError, isDisconnectError, type AiuiTransport } from './transports'
+import { AskUnavailableError, canRegenerate, isAbortError, isDisconnectError, type AiuiTransport } from './transports'
 
 export interface SessionThread {
   sessionId: string
@@ -54,6 +54,12 @@ interface Turn {
   detached: boolean
   unwatch?: () => void
   watchdog?: ReturnType<typeof setTimeout>
+  /**
+   * A server-side regenerate: until its answer is saved, history still shows
+   * the answer being replaced (`replacedText`), so a reconnect must not take
+   * that one for the reply.
+   */
+  regenerate?: { replacedText?: string }
 }
 
 /** Another tab's run in this session, shown read-only. */
@@ -68,9 +74,17 @@ interface Entry {
   abort: AbortController | null
   turn: Turn | null
   remote: RemoteRun | null
+  /**
+   * Another tab asked a question in this session while this tab's own turn
+   * owned the thread tail: its question was never shown here, so the thread
+   * is reloaded (in saved order) once the own turn ends.
+   */
+  remoteDuringTurn?: boolean
 }
 
 export const RECONNECT_WATCHDOG_MS = 60_000
+/** The terminal event goes out just before the server saves the reply: give the save a moment. */
+export const SETTLE_RELOAD_MS = 300
 
 function lastIndex<T>(a: readonly T[], f: (x: T) => boolean): number {
   for (let i = a.length - 1; i >= 0; i--) if (f(a[i])) return i
@@ -101,17 +115,39 @@ async function fetchHistory(url: string): Promise<HistoryPage> {
   const res = await fetch(url, { credentials: 'same-origin' })
   const data = res.ok ? ((await res.json()) as JSONObject) : {}
   const raw = ((data.messages ?? data.runs ?? []) as JSONObject[]).filter((m) => m && typeof m === 'object')
+  const start = typeof data.start === 'number' ? data.start : undefined
   return {
-    messages: raw.map(fromHistory),
-    start: typeof data.start === 'number' ? data.start : undefined,
+    // Persisted messages carry no id: number them by their position on the
+    // server, so every page gets distinct, stable ids (h_<position>). With the
+    // index inside the page, each page reused h_0..h_49 and assistant-ui
+    // dropped the older page as duplicates.
+    messages: raw.map((m, i) => fromHistory(m, (start ?? 0) + i)),
+    start,
     hasMore: data.has_more === true,
   }
+}
+
+/**
+ * The earlier pages the reader already loaded (Load earlier messages) that
+ * come before a freshly fetched latest page: a reload of the latest page
+ * keeps them instead of throwing them away. They are the first
+ * `page.start - historyStart` messages of the thread, which start at the
+ * server position `historyStart`.
+ */
+function earlierPages(s: SessionThread, page: HistoryPage): { messages: AiuiMessage[]; paging: Partial<SessionThread> } | null {
+  if (s.historyStart === undefined || page.start === undefined || s.historyStart >= page.start) return null
+  const count = page.start - s.historyStart
+  const ids = new Set(page.messages.map((m) => m.id))
+  const messages = s.messages.slice(0, count).filter((m) => !ids.has(m.id))
+  if (!messages.length) return null
+  return { messages, paging: { hasMore: s.hasMore, historyStart: s.historyStart } }
 }
 
 const entries = new Map<string, Entry>()
 let connection: ConnectionStatus | undefined
 let historyUrlFor = (sid: string) => `/api/chat/history/${encodeURIComponent(sid)}`
 let watchdogMs = RECONNECT_WATCHDOG_MS
+let settleReloadMs = SETTLE_RELOAD_MS
 const settledFns = new Set<(sid: string) => void>()
 const reconnectBindings = new WeakMap<AiuiTransport, () => void>()
 
@@ -223,6 +259,19 @@ function interrupt(sid: string, turn: Turn) {
   endTurn(sid, turn)
 }
 
+/** After the own turn: reload the thread if another tab's run went by meanwhile (R7). */
+function reloadIfRemoteSeen(sid: string) {
+  const e = entries.get(sid)
+  if (!e?.remoteDuringTurn) return
+  e.remoteDuringTurn = false
+  setTimeout(() => {
+    const cur = entries.get(sid)
+    if (cur !== e || cur.turn) return // dropped, or a new turn owns the tail again
+    threadStore.invalidate(sid)
+    void threadStore.load(sid)
+  }, settleReloadMs)
+}
+
 function endTurn(sid: string, turn: Turn) {
   const e = entries.get(sid)
   if (!e || e.turn !== turn) return
@@ -238,6 +287,7 @@ function endTurn(sid: string, turn: Turn) {
   })
   set(sid, { isRunning: false, reconnecting: false }, true)
   for (const fn of [...settledFns]) fn(sid)
+  reloadIfRemoteSeen(sid)
 }
 
 function handleEvent(sid: string, turn: Turn, ev: WireEvent) {
@@ -286,6 +336,17 @@ function enterReconnecting(sid: string, turn: Turn) {
   if (turn.transport.status === 'open') void reconcile(sid, turn)
 }
 
+/**
+ * Is this saved reply the answer to the turn? For a regenerate, history keeps
+ * showing the old answer until the new one is saved (marked `regenerates`), so
+ * only a marked reply that differs from the old answer counts.
+ */
+function isOwnReply(turn: Turn, reply: JSONObject): boolean {
+  if (!turn.regenerate) return true
+  if (reply.regenerates !== true) return false
+  return String(reply.content ?? '') !== (turn.regenerate.replacedText ?? '')
+}
+
 /** After a reconnect: did the run finish while we were away? */
 async function reconcile(sid: string, turn: Turn) {
   const e = entries.get(sid)
@@ -304,16 +365,18 @@ async function reconcile(sid: string, turn: Turn) {
   const want = turn.userText.trim()
   const ui = raw ? lastIndex(raw, (m) => m.role === 'user' && String(m.content ?? '').trim() === want) : -1
   const reply = ui >= 0 ? raw!.slice(ui + 1).filter((m) => m.role === 'assistant').pop() : undefined
-  if (reply) {
-    patchMessage(sid, turn.messageId, (m) => reconcileFromHistory(m, reply))
+  const finish = (r: JSONObject) => {
+    patchMessage(sid, turn.messageId, (m) => reconcileFromHistory(m, r))
     endTurn(sid, turn)
-    return
   }
+  if (reply && isOwnReply(turn, reply)) return finish(reply)
   // Not in history: is the run still alive? A server restarted mid-run no
   // longer knows it, so the reply will never finish: end the turn now.
   if (turn.runId && turn.transport.runStatus) {
     const active = await turn.transport.runStatus(turn.runId).catch(() => undefined)
     if (e.turn !== turn) return
+    // A finished regenerate whose answer reads the same as the old one.
+    if (active === false && reply?.regenerates === true) return finish(reply)
     if (active === false) return interrupt(sid, turn)
   }
   // Still running server-side (or the server cannot say): keep listening, bounded by the watchdog.
@@ -384,6 +447,8 @@ export interface SendOptions {
   attachments?: AiuiMessage['attachments']
   /** Answer the last question again (the server replaces the old answer in history). */
   regenerate?: boolean
+  /** The answer a regenerate replaces (from popLastTurn), to tell it from the new one after a reconnect. */
+  replacedText?: string
 }
 
 // ── other tabs' runs (read-only) ───────────────────────────────────────
@@ -409,11 +474,14 @@ async function refreshWithRemote(sid: string) {
   if (!cur || cur.turn) return
   set(sid, (s) => {
     const remote = cur.remote ? s.messages.find((m) => m.id === cur.remote!.messageId) : undefined
+    const earlier = earlierPages(s, page)
+    const history = earlier ? [...earlier.messages, ...page.messages] : page.messages
     return {
-      messages: remote ? [...page.messages, remote] : page.messages,
+      messages: remote ? [...history, remote] : history,
       loaded: true,
       hasMore: page.hasMore,
       historyStart: page.start,
+      ...earlier?.paging,
     }
   }, true)
 }
@@ -424,6 +492,7 @@ function handleRemoteEvent(sid: string, ev: WireEvent) {
   const runId = str(ev.run_id)
   const ctid = str(ev.client_turn_id)
   if (!runId || isLocalRun(e, runId, ctid)) return
+  if (e.turn) e.remoteDuringTurn = true
   if (!e.remote || e.remote.runId !== runId) {
     if (TERMINAL.has(ev.type)) {
       threadStore.invalidate(sid)
@@ -460,9 +529,10 @@ export const threadStore = {
   /** Deliver any batched notifications now (tests, and before reading the DOM). */
   flush,
 
-  configure(opts: { historyUrl?: (sid: string) => string; watchdogMs?: number }) {
+  configure(opts: { historyUrl?: (sid: string) => string; watchdogMs?: number; settleReloadMs?: number }) {
     if (opts.historyUrl) historyUrlFor = opts.historyUrl
     if (opts.watchdogMs !== undefined) watchdogMs = opts.watchdogMs
+    if (opts.settleReloadMs !== undefined) settleReloadMs = opts.settleReloadMs
   },
 
   /** Publish the live transport's state into every thread's signals.connection. */
@@ -509,8 +579,10 @@ export const threadStore = {
     } catch {
       page = { messages: [], hasMore: false }
     }
-    const history = page.messages
-    const paging = { hasMore: page.hasMore, historyStart: page.start }
+    // A reload (after invalidate) keeps the earlier pages the reader loaded.
+    const earlier = earlierPages(s, page)
+    const history = earlier ? [...earlier.messages, ...page.messages] : page.messages
+    const paging = { hasMore: page.hasMore, historyStart: page.start, ...earlier?.paging }
     const remote = entries.get(sid)?.remote
     set(sid, (cur) => {
       // A remote (other tab) live message survives the reload at the end.
@@ -542,9 +614,12 @@ export const threadStore = {
     } catch {
       page = null
     }
-    set(sid, (cur) => (page
-      ? { messages: [...page.messages, ...cur.messages], hasMore: page.hasMore, historyStart: page.start, isLoadingEarlier: false }
-      : { isLoadingEarlier: false }), true)
+    set(sid, (cur) => {
+      if (!page) return { isLoadingEarlier: false }
+      const shown = new Set(cur.messages.map((m) => m.id))
+      const older = page.messages.filter((m) => !shown.has(m.id))
+      return { messages: [...older, ...cur.messages], hasMore: page.hasMore, historyStart: page.start, isLoadingEarlier: false }
+    }, true)
   },
 
   /**
@@ -566,7 +641,8 @@ export const threadStore = {
     }
     const asst = newAssistant(undefined, opts.agentName)
     const turn: Turn = { id: genId('turn'), messageId: asst.id, userText: text, transport, detached: false }
-    const regenerate = !!opts.regenerate && (transport.canRegenerate?.(sid) ?? false)
+    const regenerate = !!opts.regenerate && canRegenerate(transport, sid)
+    if (regenerate) turn.regenerate = { replacedText: opts.replacedText }
     const ac = new AbortController()
     e.turn = turn
     e.abort = ac
@@ -617,6 +693,7 @@ export const threadStore = {
     )
     set(sid, { isRunning: false, reconnecting: false }, true)
     for (const fn of [...settledFns]) fn(sid)
+    reloadIfRemoteSeen(sid)
     await (turn?.transport ?? transport).cancel(sid, runId)
   },
 
@@ -742,15 +819,16 @@ export const threadStore = {
     set(sid, (s) => ({ messages: s.messages.map((m) => (m.id === messageId ? { ...m, custom: { ...m.custom, feedback: type } } : m)) }), true)
   },
 
-  /** Drop the last assistant turn (regenerate) and return the user text that produced it. */
-  popLastTurn(sid: string): { text: string; attachments?: AiuiMessage['attachments'] } | null {
+  /** Drop the last assistant turn (regenerate) and return the user text that produced it, and the answer it had. */
+  popLastTurn(sid: string): { text: string; attachments?: AiuiMessage['attachments']; replacedText?: string } | null {
     const msgs = entry(sid).state.messages
     const ui = lastIndex(msgs, (m) => m.role === 'user')
     if (ui < 0) return null
     const u = msgs[ui]
-    const text = u.parts.map((p) => (p.type === 'text' ? p.text : '')).join('')
+    const textOf = (m: AiuiMessage) => m.parts.map((p) => (p.type === 'text' ? p.text : '')).join('')
+    const old = msgs.slice(ui + 1).filter((m) => m.role === 'assistant').pop()
     set(sid, { messages: msgs.slice(0, ui) }, true)
-    return { text, attachments: u.attachments }
+    return { text: textOf(u), attachments: u.attachments, replacedText: old ? textOf(old) : undefined }
   },
 
   invalidate(sid: string) {

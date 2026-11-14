@@ -26,7 +26,10 @@ declare module '@aiui/sdk' {
     id: string
     title: string
     kind: ShellPageKind
+    /** An emoji or a lucide icon name (`bot`, `chart-column`, …). */
     icon?: string
+    /** A lucide icon name for the shell's sidebar, preferred over `icon` (built-in pages set it). */
+    navIcon?: string
     group?: string
     order?: number
     description?: string
@@ -62,7 +65,12 @@ declare module '@aiui/sdk' {
     version: string
     style: string
     site: Record<string, unknown>
-    layout: { sidebar?: unknown; pageHeader?: unknown }
+    layout: {
+      sidebar?: unknown
+      pageHeader?: unknown
+      /** Sidebar group order, the group pinned last, and the groups that start folded. */
+      groups?: { order?: string[]; last?: string; folded?: string[] }
+    }
     pages: ShellPage[]
     blocks: { type: string; module: string; integrity?: string; source: string }[]
     toolRenderers: { toolName: string; module: string; integrity?: string; source: string }[]
@@ -178,6 +186,8 @@ declare module '@aiui/sdk' {
   }
   /** Show a toast. Resolves to the toast id once the toaster has loaded. */
   export function notify(message: string, options?: NotifyOptions): Promise<string | number | undefined>
+  /** Close the toast with this id (all toasts without one). Feature `'notify.dismiss'`. */
+  export function dismiss(id?: string | number): Promise<void>
 
   export interface FetchJsonOptions extends Omit<RequestInit, 'body'> {
     /** A plain object or array is sent as JSON (method defaults to POST). */
@@ -221,6 +231,18 @@ declare module '@aiui/sdk' {
    * a function that cancels a hook that has not run yet.
    */
   export function onActivate(hook: (context: ActivateContext) => void): () => void
+
+  /**
+   * The id of the page on screen ('' at `/`), read the way the shell's router
+   * reads the URL. Feature `'page-id'`.
+   */
+  export function getPageId(): string
+  /** React hook: the current page id; re-renders on navigation. Feature `'page-id'`. */
+  export function usePageId(): string
+
+  export type ThemeMode = 'light' | 'dark'
+  /** React hook: the colour mode in effect, updated when it changes. Feature `'theme-mode'`. */
+  export function useThemeMode(): ThemeMode
 
   // ── default export ─────────────────────────────────────────────────
 

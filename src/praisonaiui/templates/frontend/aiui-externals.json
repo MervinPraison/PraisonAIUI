@@ -15,7 +15,10 @@
     "commands",
     "activate",
     "slots.multi",
-    "blocks.fallback"
+    "blocks.fallback",
+    "page-id",
+    "theme-mode",
+    "notify.dismiss"
   ],
   "react": "19.2.4",
   "modules": {
@@ -111,7 +114,11 @@
       "fetchJson",
       "useManifest",
       "registerCommand",
-      "onActivate"
+      "onActivate",
+      "getPageId",
+      "usePageId",
+      "useThemeMode",
+      "dismiss"
     ]
   }
 }

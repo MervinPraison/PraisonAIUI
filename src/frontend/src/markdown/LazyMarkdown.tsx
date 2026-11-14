@@ -9,8 +9,9 @@
  *
  * Import this module, never ./Markdown directly.
  */
-import { Component, lazy, Suspense, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
+import { Component, Suspense, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
+import { retryableLazy, retryFailedLazies } from '@/lib/retryableLazy'
 import { preloadMarkdownPlugins } from './pluginLoaders'
 
 export interface MarkdownProps {
@@ -35,16 +36,20 @@ function loadImpl() {
             return { default: Loaded }
         })
         .catch((e: unknown) => {
-            // React.lazy caches a rejection forever, so a fresh lazy lets a later mount retry
-            // (chunk 404 after a deploy, offline).
-            implLoading = null
-            Impl = lazy(loadImpl)
+            implLoading = null // the next attempt imports again
             throw e
         })
     return implLoading
 }
 
-let Impl = lazy(loadImpl)
+/**
+ * A failed import (chunk 404 after a deploy, offline) keeps failing, so the
+ * boundary below shows plain text instead of React re-rendering into a new
+ * import on every rejection. retryFailedLazies() lets it import again: the
+ * shell's page boundary calls it on Try again and on the next page, and every
+ * newly mounted Markdown calls it too.
+ */
+const Impl = retryableLazy<MarkdownProps>(loadImpl)
 
 function PlainText({ children, className }: Pick<MarkdownProps, 'children' | 'className'>) {
     return (
@@ -57,6 +62,13 @@ function PlainText({ children, className }: Pick<MarkdownProps, 'children' | 'cl
 /** If the renderer chunk cannot load, keep the text readable instead of crashing the page. */
 class RendererBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
     state = { failed: false }
+    constructor(props: { fallback: ReactNode; children: ReactNode }) {
+        super(props)
+        // A new Markdown (a new message, another page): a renderer chunk that
+        // failed earlier gets one more import. A failed boundary stays on plain
+        // text for its lifetime, so this never loops.
+        retryFailedLazies()
+    }
     static getDerivedStateFromError() {
         return { failed: true }
     }

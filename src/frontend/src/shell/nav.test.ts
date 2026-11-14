@@ -8,6 +8,7 @@ import {
   groupPages,
   isFullBleed,
   isGroupOpen,
+  navGroups,
   needsLegacyRuntime,
   orderedPages,
   readGroupState,
@@ -19,7 +20,42 @@ import {
   usesLegacyHost,
   writeGroupState,
 } from '@/shell/nav'
-import { emojiForPage, FallbackPageIcon, ICON_BY_PAGE_ID, iconForPage, PAGE_ICON_SET } from '@/shell/icons'
+import {
+  Activity,
+  BookOpen,
+  Bot,
+  Braces,
+  Brain,
+  Bug,
+  ChartColumn,
+  ClipboardCheck,
+  Clock,
+  Code,
+  Columns2,
+  Columns3,
+  FlaskConical,
+  Gauge,
+  Inbox,
+  KeyRound,
+  LayoutDashboard,
+  ListChecks,
+  Lock,
+  MessageSquare,
+  MessagesSquare,
+  PanelsTopLeft,
+  Plug,
+  Radio,
+  RotateCcw,
+  ScrollText,
+  Server,
+  Settings,
+  ShieldCheck,
+  SquareKanban,
+  Store,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react'
+import { emojiForPage, FallbackPageIcon, ICON_BY_NAME, iconForPage, PAGE_ICON_SET } from '@/shell/icons'
 import { approvalKey, describeApproval } from '@/builtin/approvals'
 import { isPaletteShortcut, isSidebarShortcut } from '@/shell/palette'
 
@@ -60,8 +96,11 @@ const manifest = (over: Partial<ShellManifest> = {}): ShellManifest => ({
   ...over,
 })
 
-test('groups follow Agent, Work, Control, then other groups, with Settings last', () => {
-  const groups = groupPages(PAGES)
+/** The server's default `layout.groups` (builtin/catalog.py NAV_GROUPS). */
+const NAV_GROUPS = { order: ['Agent', 'Work', 'Control'], last: 'Settings', folded: ['Work', 'Examples', 'Create'] }
+
+test('groups follow the manifest order (Agent, Work, Control), then other groups, with Settings last', () => {
+  const groups = groupPages(PAGES, navGroups(manifest({ layout: { groups: NAV_GROUPS } })))
   assert.deepEqual(
     groups.map((g) => g.name),
     ['Agent', 'Work', 'Control', 'Plugins', 'Other', 'Settings'],
@@ -74,6 +113,31 @@ test('groups follow Agent, Work, Control, then other groups, with Settings last'
     groups.find((g) => g.name === 'Settings')?.pages.map((x) => x.id),
     ['config', 'logs'],
   )
+})
+
+test('without layout.groups the shell keeps first-appearance order and folds nothing', () => {
+  assert.deepEqual(
+    groupPages(PAGES).map((g) => g.name),
+    ['Agent', 'Work', 'Settings', 'Control', 'Plugins', 'Other'],
+  )
+  assert.deepEqual(navGroups(manifest()), {})
+  for (const name of ['Work', 'Examples', 'Create', 'Agent']) assert.equal(isGroupOpen(name, false, {}), true, name)
+})
+
+test('layout.groups from set_dashboard(groups=) reorders and refolds; malformed values are ignored', () => {
+  const g = navGroups(manifest({ layout: { groups: { order: ['Control', 'Plugins'], last: 'Agent', folded: [] } } }))
+  assert.deepEqual(
+    groupPages(PAGES, g).map((x) => x.name),
+    ['Control', 'Plugins', 'Work', 'Settings', 'Other', 'Agent'],
+  )
+  assert.equal(isGroupOpen('Work', false, {}, g.folded), true)
+  assert.deepEqual(
+    navGroups(manifest({ layout: { groups: { order: 'Agent', last: 3, folded: ['Work', 7] } } as unknown as ShellManifest['layout'] })),
+    { folded: ['Work'] },
+  )
+  assert.deepEqual(navGroups(manifest({ layout: { groups: ['x'] } as unknown as ShellManifest['layout'] })), {})
+  // The default page is the first page in the configured sidebar order.
+  assert.equal(defaultPageId(manifest({ layout: { groups: { order: ['Control'] } } })), 'overview')
 })
 
 test('footer pages are listed separately and last in display order', () => {
@@ -107,11 +171,19 @@ test('layout.sidebar / layout.pageHeader = false hide the chrome; anything else 
   assert.equal(showPageHeader(manifest({ layout: { pageHeader: { title: true } } })), true)
 })
 
-test('full-bleed pages: layout flag, the known chat-like ids, and iframes', () => {
-  assert.equal(isFullBleed(undefined, 'chat'), true)
-  assert.equal(isFullBleed(p('x', 'G', 1, { layout: 'full-bleed' }), 'x'), true)
-  assert.equal(isFullBleed(p('y', 'G', 1, { kind: 'iframe' }), 'y'), true)
-  assert.equal(isFullBleed(p('logs', 'G', 1), 'logs'), false)
+test('full-bleed pages: the manifest layout flag and iframes, never the page id', () => {
+  assert.equal(isFullBleed(p('x', 'G', 1, { layout: 'full-bleed' })), true)
+  assert.equal(isFullBleed(p('y', 'G', 1, { kind: 'iframe' })), true)
+  assert.equal(isFullBleed(p('logs', 'G', 1)), false)
+  assert.equal(isFullBleed(undefined), false)
+  // The server's manifest marks the built-in full-bleed pages (catalog.py).
+  for (const id of ['chat', 'chat-canvas', 'code-studio']) {
+    assert.equal(isFullBleed(p(id, 'Agent', 1, { layout: 'full-bleed' })), true, id)
+  }
+  // An app's blocks page that reuses a built-in id is an ordinary padded page.
+  assert.equal(isFullBleed(p('code-studio', 'Custom', 100, { kind: 'blocks', source: 'app' })), false)
+  assert.equal(isFullBleed(p('chat', 'Custom', 100, { kind: 'blocks', source: 'app' })), false)
+  assert.equal(isFullBleed(p('explorer', 'Custom', 100)), false, 'explorer is not special')
 })
 
 test('the legacy runtime is preloaded only when a page (or custom.js) needs it', () => {
@@ -148,13 +220,71 @@ test('site title and logo', () => {
   assert.equal(siteLogo(manifest({ site: { logo: 'javascript:alert(1)' } })), null)
 })
 
+/**
+ * Every built-in page as the server's manifest lists it (builtin/catalog.py:
+ * the emoji `icon` and the shell's `navIcon`), with the lucide icon the shell
+ * showed for it before the manifest carried icon names.
+ */
+const BUILTIN_ICONS: [id: string, icon: string, navIcon: string, shown: LucideIcon][] = [
+  ['chat', '💬', 'message-square', MessageSquare],
+  ['chat-canvas', '💬🖼️', 'columns-2', Columns2],
+  ['channels', '📡', 'radio', Radio],
+  ['inbox', '📥', 'inbox', Inbox],
+  ['canvas', '🖼️', 'panels-top-left', PanelsTopLeft],
+  ['agents', '🤖', 'bot', Bot],
+  ['skills', '⚡', 'zap', Zap],
+  ['marketplace', '🧩', 'store', Store],
+  ['mcp', '🔌', 'plug', Plug],
+  ['memory', '🧠', 'brain', Brain],
+  ['knowledge', '📚', 'book-open', BookOpen],
+  ['cron', '⏰', 'clock', Clock],
+  ['guardrails', '🛡️', 'shield-check', ShieldCheck],
+  ['work', '🗂️', 'layout-dashboard', LayoutDashboard],
+  ['jobs-board', '📊', 'columns-3', Columns3],
+  ['kanban', '📌', 'square-kanban', SquareKanban],
+  ['overview', '📊', 'gauge', Gauge],
+  ['sessions', '📋', 'messages-square', MessagesSquare],
+  ['replay', '⏮️', 'rotate-ccw', RotateCcw],
+  ['runs', '⏱️', 'activity', Activity],
+  ['usage', '📈', 'chart-column', ChartColumn],
+  ['feedback', '👍', 'message-square', MessageSquare],
+  ['jobs', '📋', 'list-checks', ListChecks],
+  ['approvals', '✅', 'shield-check', ShieldCheck],
+  ['api', '🔌', 'braces', Braces],
+  ['nodes', '🖥️', 'server', Server],
+  ['eval', '📊', 'clipboard-check', ClipboardCheck],
+  ['training', '🧪', 'flask-conical', FlaskConical],
+  ['code-studio', '💻', 'code', Code],
+  ['inspector', '🔍', 'bug', Bug],
+  ['config', '⚙️', 'settings', Settings],
+  ['auth', '🔐', 'key-round', KeyRound],
+  ['security', '🔒', 'lock', Lock],
+  ['logs', '📜', 'scroll-text', ScrollText],
+  ['debug', '🐛', 'bug', Bug],
+  ['telemetry', '📈', 'activity', Activity],
+  ['traces', '🔍', 'activity', Activity],
+  ['theme-picker', '🎨', 'settings', Settings],
+]
+const builtinIcon = (id: string) => {
+  const row = BUILTIN_ICONS.find(([pid]) => pid === id)
+  assert.ok(row, id)
+  return iconForPage({ icon: row[1], navIcon: row[2] })
+}
+
 test('the static icon map stays within 34 lucide icons', () => {
   assert.ok(PAGE_ICON_SET.length <= 34, `icon budget exceeded: ${PAGE_ICON_SET.length}`)
   assert.equal(new Set(PAGE_ICON_SET).size, PAGE_ICON_SET.length)
-  for (const [id, icon] of Object.entries(ICON_BY_PAGE_ID)) {
-    assert.ok(PAGE_ICON_SET.includes(icon), `${id} uses an icon outside PAGE_ICON_SET`)
+  for (const [name, icon] of Object.entries(ICON_BY_NAME)) {
+    assert.ok(PAGE_ICON_SET.includes(icon), `${name} uses an icon outside PAGE_ICON_SET`)
   }
   assert.ok(PAGE_ICON_SET.includes(FallbackPageIcon))
+})
+
+test('every built-in page shows the same icon as before, from its manifest navIcon', () => {
+  assert.equal(BUILTIN_ICONS.length, 38)
+  for (const [id, icon, navIcon, shown] of BUILTIN_ICONS) {
+    assert.equal(iconForPage({ icon, navIcon }), shown, `${id} (${navIcon})`)
+  }
 })
 
 test('pages that sit together in the sidebar get distinct icons (usable collapsed rail)', () => {
@@ -165,16 +295,32 @@ test('pages that sit together in the sidebar get distinct icons (usable collapse
     ['config', 'auth', 'security', 'logs', 'debug'],
   ]
   for (const ids of groups) {
-    const icons = ids.map((id) => ICON_BY_PAGE_ID[id])
+    const icons = ids.map(builtinIcon)
     const dupes = ids.filter((_, i) => icons.indexOf(icons[i]) !== i)
     assert.deepEqual(dupes, [], `repeated icons in ${ids.join(', ')}`)
   }
 })
 
-test('icons resolve by page id, then by lucide-style name, then emoji, then nothing', () => {
-  assert.equal(iconForPage({ id: 'logs', icon: '📜' }), ICON_BY_PAGE_ID.logs)
-  assert.equal(iconForPage({ id: 'plugin-x', icon: 'Bot' }), ICON_BY_PAGE_ID.agents)
-  assert.equal(iconForPage({ id: 'plugin-y', icon: '🦄' }), undefined)
+test('a page that reuses a built-in id shows its own icon, never one picked by id', () => {
+  // An app page (register_page) under a built-in id: the manifest has no navIcon.
+  const appLogs = { id: 'logs', icon: '🔥', source: 'app' }
+  assert.equal(iconForPage(appLogs), undefined)
+  assert.equal(emojiForPage(appLogs), '🔥')
+  // A plugin page under a built-in id, with a lucide name in `icon`.
+  assert.equal(iconForPage(p('agents', 'Agent', 10, { icon: 'chart', source: 'plugin:x' })), ChartColumn)
+  // An older server without navIcon: the built-in emoji shows.
+  assert.equal(iconForPage({ icon: '📜' }), undefined)
+  assert.equal(emojiForPage({ icon: '📜' }), '📜')
+  // navIcon wins over a name in `icon`; an unknown navIcon falls back to `icon`.
+  assert.equal(iconForPage({ icon: 'bot', navIcon: 'lock' }), Lock)
+  assert.equal(iconForPage({ icon: 'bot', navIcon: 'no-such-icon' }), Bot)
+  assert.equal(iconForPage({ icon: 'constructor' }), undefined, 'object keys are not icon names')
+})
+
+test('icons resolve by navIcon, then by lucide-style name in icon, then emoji, then nothing', () => {
+  assert.equal(iconForPage({ icon: 'Bot' }), Bot)
+  assert.equal(iconForPage({ icon: ' Scroll-Text ' }), ScrollText)
+  assert.equal(iconForPage({ icon: '🦄' }), undefined)
   assert.equal(emojiForPage({ icon: '🦄' }), '🦄')
   assert.equal(emojiForPage({ icon: '💬🖼️' }), '💬', 'first emoji cluster only')
   assert.equal(emojiForPage({ icon: '⚙️' }), '⚙️', 'keeps the variation selector')
@@ -237,12 +383,12 @@ test('revealInScroller scrolls the sidebar only as far as needed, without scroll
 })
 
 test('sidebar groups: rarely used ones start folded, the current page\'s group is always open, the viewer\'s choice sticks', () => {
-  assert.equal(isGroupOpen('Agent', false, {}), true)
-  assert.equal(isGroupOpen('Examples', false, {}), false)
-  assert.equal(isGroupOpen('Work', false, {}), false)
-  assert.equal(isGroupOpen('Work', true, { Work: false }), true, 'the active page\'s group cannot be hidden')
-  assert.equal(isGroupOpen('Agent', false, { Agent: false }), false)
-  assert.equal(isGroupOpen('Examples', false, { Examples: true }), true)
+  assert.equal(isGroupOpen('Agent', false, {}, NAV_GROUPS.folded), true)
+  assert.equal(isGroupOpen('Examples', false, {}, NAV_GROUPS.folded), false)
+  assert.equal(isGroupOpen('Work', false, {}, NAV_GROUPS.folded), false)
+  assert.equal(isGroupOpen('Work', true, { Work: false }, NAV_GROUPS.folded), true, 'the active page\'s group cannot be hidden')
+  assert.equal(isGroupOpen('Agent', false, { Agent: false }, NAV_GROUPS.folded), false)
+  assert.equal(isGroupOpen('Examples', false, { Examples: true }, NAV_GROUPS.folded), true)
   const store = new Map<string, string>()
   const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) }
   writeGroupState({ Work: true, Agent: false }, storage)

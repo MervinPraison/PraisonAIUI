@@ -75,7 +75,7 @@ aiui serve
 
 ## UI Styles
 
-Six distinct UI styles, selectable via `--style` or `aiui.set_style()`:
+Seven distinct UI styles, selectable via `--style` or `aiui.set_style()`:
 
 | Style | Flag | Description | Best For |
 |-------|------|-------------|----------|
@@ -85,6 +85,7 @@ Six distinct UI styles, selectable via `--style` or `aiui.set_style()`:
 | **Playground** | `--style playground` | Input/output side-by-side panels | Prompt testing, comparison |
 | **Docs** | `--style docs` | Three-column documentation layout | Documentation sites, knowledge bases |
 | **Custom** | `--style custom` | User-defined layout | Full control |
+| **App (opt-in)** | `--style app` | The React app shell: one sidebar for every page, React chat, plugin pages | Trying the new UI before it becomes the default |
 
 ```bash
 aiui run app.py --style dashboard

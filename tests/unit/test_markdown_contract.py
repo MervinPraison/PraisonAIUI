@@ -96,7 +96,9 @@ class TestSecurity:
             assert "defaultRehypePlugins.raw" in block
             assert "sanitizePlugin" in block
             assert "defaultRehypePlugins.harden" in block
-        assert "rehypePlugins={isDocs ? DOCS_REHYPE : CHAT_REHYPE}" in source
+        # Each variant's list, plus the per-instance footnote-label prefix step.
+        assert "[...(isDocs ? DOCS_REHYPE : CHAT_REHYPE)!, [rehypeFootnoteLabel, idPrefix]]" in source
+        assert "rehypePlugins={rehypePlugins}" in source
         assert "allowedTags" not in source.split("*/", 1)[1]  # only mentioned in the header comment
 
     def test_chat_image_gate_runs_after_sanitize(self):
@@ -145,14 +147,51 @@ class TestSecurity:
         assert body.index("...config") < body.index("securityLevel: 'strict'")
 
 
+class TestReactStylesDoNotLoadLegacyMarkdownPlugins:
+    """Streamdown (Shiki + bundled mermaid) renders every markdown surface of
+    the chat, agents, playground and docs styles. The legacy highlight.js,
+    code-copy and CDN mermaid plugins only duplicated it (about 30 third-party
+    requests per page, a floating mermaid@11 with securityLevel 'loose'), so
+    plugins.json no longer lists them for those styles."""
+
+    LEGACY = ("syntax-highlight", "code-copy", "mermaid")
+
+    @staticmethod
+    def _plugins(style: str) -> list[str]:
+        from starlette.testclient import TestClient
+
+        import praisonaiui.server as srv
+
+        prev = srv._style
+        try:
+            srv.set_style(style)
+            client = TestClient(srv.create_app())
+            return client.get("/plugins/plugins.json").json()["plugins"]
+        finally:
+            srv._style = prev
+
+    def test_chat_agents_playground_load_only_base_plugins(self):
+        for style in ("chat", "agents", "playground"):
+            plugins = self._plugins(style)
+            assert plugins == ["fetch-retry"], (style, plugins)
+
+    def test_docs_keeps_its_navigation_plugins_only(self):
+        plugins = self._plugins("docs")
+        assert not set(plugins) & set(self.LEGACY), plugins
+        assert plugins == ["fetch-retry", "topnav", "content-loader", "nav-intercept", "homepage"]
+
+    def test_dashboard_is_unchanged(self):
+        assert self._plugins("dashboard") == ["fetch-retry", "dashboard"]
+
+
 class TestVanillaPluginsLeaveStreamdownAlone:
-    """The docs, chat, agents and playground styles still load the vanilla
-    plugins (plugin-loader, syntax-highlight, code-copy, mermaid, toc). They
-    rewrite code blocks they find: highlight.js rebuilds <code> from its text
-    (Shiki's line spans collapse into one line) and code-copy wraps the <pre>.
-    Rendered behaviour is covered by markdown.test.tsx and
-    tests/browser/test_markdown_legacy_plugins_browser.py; these pin the
-    source-level contract that keeps them off React-rendered markdown.
+    """Source-level guards that kept the vanilla plugins (plugin-loader,
+    syntax-highlight, code-copy, mermaid, toc) off React-rendered markdown.
+    highlight.js rebuilt <code> from its text (Shiki's line spans collapse
+    into one line) and code-copy wrapped the <pre>. The React styles no
+    longer load those plugins (see the class above), so the renderer's own
+    guards against them are gone (LIBMD-3); the docs article keeps the
+    selector the plugins skip, for static sites that still opt into them.
     """
 
     GUARD = "#main-content article.prose"
@@ -173,29 +212,29 @@ class TestVanillaPluginsLeaveStreamdownAlone:
         root = re.search(r"const ROOT_CLASS = '([^']+)'", source)
         assert root and {"aiui-markdown", "not-prose"} <= set(root.group(1).split())
 
-    def test_code_blocks_are_hidden_from_highlight_js(self):
-        # Chat messages have no guarded ancestor: every fenced block carries
-        # `nohighlight` and no word-boundary `language-` class.
-        source = _read(MD / "Markdown.tsx")
-        assert source.count("code: LegacySafeCode") == 2  # chat and docs maps
-        guard = _read(MD / "legacyPlugins.ts")
-        assert "'$1aiuilanguage-$2'" in guard
-        assert "export const NO_HIGHLIGHT = 'nohighlight'" in guard
+    def test_legacy_plugin_guards_are_gone(self):
+        # The React styles no longer load highlight.js or code-copy, so the
+        # Markdown renderer carries no guard against them (LIBMD-3).
+        assert not (MD / "legacyPlugins.ts").exists()
+        for name in ("Markdown.tsx", "chatComponents.tsx"):
+            source = _read(MD / name)
+            for marker in ("LegacySafeCode", "useLegacyCopyGuard", "aiuilanguage", "nohighlight"):
+                assert marker not in source, f"{marker} is back in {name}"
 
-    def test_code_blocks_are_marked_done_for_code_copy(self):
-        source = _read(MD / "Markdown.tsx")
-        assert "useLegacyCopyGuard(guardId)" in source
-        assert "data-aiui-markdown={guardId}" in source
-        guard = _read(MD / "legacyPlugins.ts")
-        assert "new MutationObserver" in guard
-        assert "attributeFilter: ['data-copy-processed']" in guard
-        assert "copyProcessed" in guard  # dataset key of data-copy-processed
+    def test_code_block_component_renders_through_markdown(self):
+        # A `code_block` component is shown by the one Markdown renderer
+        # (Shiki, copy), not as a bare <pre> highlight.js used to pick up.
+        source = _read(SRC / "components" / "ComponentRenderer.tsx")
+        case = source.split("case 'code_block':")[1].split("case '")[0]
+        assert '<Markdown key={key} variant="docs"' in case
+        assert "fenced(code ?? '', language ?? '')" in case
+        assert "<pre" not in case
 
     def test_legacy_pre_box_styles_are_reset_in_the_base_layer(self):
-        # syntax-highlight.js injects `pre {… !important}`; index.css has
-        # `.prose pre {… !important}` in the components layer. Only an
-        # !important rule in an earlier layer (base) beats both.
-        assert re.search(r"^\s*pre\s*\{", _read(PLUGINS / "syntax-highlight.js"), re.M)
+        # index.css has `.prose pre {… !important}` in the components layer,
+        # and it reaches the docs article through its `prose` marker. Only an
+        # !important rule in an earlier layer (base) beats it.
+        assert re.search(r"^\s*\.prose pre,", _read(SRC / "index.css"), re.M)
         assert "import './markdown.css'" in _read(MD / "Markdown.tsx")
         css = _read(MD / "markdown.css")
         rule = css.split("@layer base {")[1]

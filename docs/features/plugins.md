@@ -13,8 +13,13 @@ pip install -e examples/plugins/aiui-hello-plugin
 aiui plugins list          # name, version, status, load error
 aiui plugins doctor        # load, SDK version, static files + SRI, shadowed ids
 aiui hello greet Ada       # a command contributed by the plugin
-AIUI_SHELL=app aiui run app.py
+aiui run app.py --style app
 ```
+
+`AIUI_SHELL=app` switches only the `dashboard` style to the app shell. An
+`app.py` with `@aiui.reply` runs in the `chat` style, which `AIUI_SHELL`
+leaves alone (the server logs `AIUI_SHELL=app ignored: style is 'chat'`), so
+pass `--style app` (or call `aiui.set_style("app")`).
 
 Then open `/hello` (a React page) and `/hello-blocks` (a server-driven page).
 
@@ -138,8 +143,18 @@ contributes no pages: they leave `GET /api/pages`, the shell manifest and the
 sidebar. Its feature routes are not mounted (`/api/training/...` returns 404),
 the server does not load its feature modules, and a bundled dashboard-plugin
 folder that belongs to it (`kanban` belongs to `builtin.work`, `video-studio`
-to `builtin.video`) is not served either. With the built-in off, an
-entry-point plugin may use its page ids and feature names.
+to `builtin.video`) is not served either. The same holds for the routes the
+host itself serves for a built-in: `builtin.mcp` owns `/api/mcp/*`,
+`builtin.debug` owns `/api/debug` and `builtin.logs` owns `GET /api/logs` as
+well as its `/api/logs/*` feature routes, so disabling them returns 404 there.
+With the built-in off, an entry-point plugin may use its page ids and feature
+names.
+
+A few host routes stay mounted whichever built-ins are off, because the host
+or the CLI uses them: `/api/overview` and `/api/status` (`aiui status`),
+`/api/feedback` (its `POST` backs the chat thumbs) and `/api/config`.
+Disabling `builtin.overview`, `builtin.feedback` or `builtin.config` removes
+their pages only.
 
 Some features are **required**: the server itself depends on `auth`, `theme`,
 `chat`, `usage`, `config_runtime` and `sessions_ext`. Disabling their record

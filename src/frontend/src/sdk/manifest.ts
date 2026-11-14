@@ -54,6 +54,12 @@ export const SDK_EXPORTS = [
   'useManifest',
   'registerCommand',
   'onActivate',
+  // Current page and colour mode (additive; see the page-id and theme-mode features).
+  'getPageId',
+  'usePageId',
+  'useThemeMode',
+  // Close a toast raised with notify() (feature notify.dismiss).
+  'dismiss',
 ] as const
 export type SdkExportName = (typeof SDK_EXPORTS)[number]
 
@@ -86,6 +92,12 @@ export const SDK_FEATURES = [
   'slots.multi',
   // registerBlock(type, C, { fallback: true })
   'blocks.fallback',
+  // getPageId() / usePageId(): the current page, read like the shell's router
+  'page-id',
+  // useThemeMode(): 'light' | 'dark'
+  'theme-mode',
+  // dismiss(id): close a toast raised with notify({ id })
+  'notify.dismiss',
 ] as const
 export type SdkFeature = (typeof SDK_FEATURES)[number]
 
@@ -96,6 +108,8 @@ export interface ShellPage {
   title: string
   kind: ShellPageKind
   icon?: string
+  /** A lucide icon name for the shell's sidebar, preferred over `icon` (built-in pages set it). */
+  navIcon?: string
   group?: string
   order?: number
   description?: string
@@ -129,7 +143,12 @@ export interface ShellManifest {
   version: string
   style: string
   site: Record<string, unknown>
-  layout: { sidebar?: unknown; pageHeader?: unknown }
+  layout: {
+    sidebar?: unknown
+    pageHeader?: unknown
+    /** Sidebar group order, the group pinned last, and the groups that start folded. */
+    groups?: { order?: string[]; last?: string; folded?: string[] }
+  }
   pages: ShellPage[]
   blocks: { type: string; module: string; integrity?: string; source: string }[]
   toolRenderers: { toolName: string; module: string; integrity?: string; source: string }[]

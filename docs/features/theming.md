@@ -100,10 +100,13 @@ The frontend includes a ThemeToggle component for light/dark/system modes.
 
 ## Theme Toggle Component
 
-Add a theme toggle to your header:
+The React UI already shows a theme toggle in its header. There is no npm
+package to install: inside this repository's frontend (`src/frontend`) the
+component comes from the in-repo components barrel,
+`src/frontend/src/components/index.ts`:
 
 ```tsx
-import { ThemeToggle } from '@praisonaiui/react'
+import { ThemeToggle } from '@/components'
 
 function Header() {
   return (
@@ -114,6 +117,9 @@ function Header() {
   )
 }
 ```
+
+A plugin page in the app shell (`--style app`) reads the current mode with
+`useThemeMode()` from `@aiui/sdk` instead.
 
 ## Custom CSS Variables
 

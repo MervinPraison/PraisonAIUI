@@ -52,7 +52,7 @@ Record what was merged in the pin doc (§3).
    The registry resolves dependencies and CSS slices. Commit the resulting
    `package-lock.json` change in the same PR.
 2. **Re-export through the adapter** — add the component to
-   `src/frontend/src/components/index.ts` (`@praisonaiui/react`). Consumers never import
+   `src/frontend/src/components/index.ts`, the in-repo components barrel. Consumers never import
    the raw vendored path (see §4).
 3. **Update the pin record** — create/update `docs/frontend/BEAUTIFULUI_UPSTREAM.md` with:
    the upstream **git SHA**, the **date**, the **registry base URL**, and the **component
@@ -70,12 +70,14 @@ Record what was merged in the pin doc (§3).
 
 ## 4. Adapter boundary
 
-Consumers import from **`@praisonaiui/react` only** — never from raw vendored paths such as
-`@/components/ui/...` or any upstream module.
+Consumers import from **the components barrel (`@/components`) only** — never from raw
+vendored paths such as `@/components/ui/...` or any upstream module. The frontend
+`package.json` is private and has no library build, so there is no npm package to import
+from; plugins for the app shell use `@aiui/sdk` instead.
 
 ```tsx
-// ✅ stable PraisonAIUI contract
-import { Button, ThemeToggle } from '@praisonaiui/react'
+// ✅ stable PraisonAIUI contract (src/frontend/src/components/index.ts)
+import { Button, ThemeToggle } from '@/components'
 
 // ❌ leaks upstream/shadcn paths across the codebase
 import { Button } from '@/components/ui/button'

@@ -63,6 +63,18 @@ def _manifest_pages(client: TestClient) -> list[dict]:
     return client.get("/api/shell/manifest").json()["pages"]
 
 
+#: Built-in pages whose shell ``layout`` comes from ``PageSpec.shell_layout``.
+SHELL_ONLY_LAYOUT = {"code-studio"}
+
+
+def _without_shell_presentation(entry: dict) -> dict:
+    """A manifest row minus what only the app shell reads (navIcon, shell layout)."""
+    out = {k: v for k, v in entry.items() if k != "navIcon"}
+    if out["id"] in SHELL_ONLY_LAYOUT:
+        out.pop("layout", None)
+    return out
+
+
 def _builtin_only(pages: list[dict]) -> list[dict]:
     # Dashboard-plugin folders (bundled or in the user's home) add pages too;
     # theirs carry no api_endpoint.
@@ -124,10 +136,96 @@ def test_default_pages_match_the_pre_change_snapshot(style):
     assert list(srv._pages) == BUILTIN_IDS
     assert _wire(_builtin_only(_api_pages(client))) == _wire(SNAPSHOT["api_pages"])
     builtin = [p for p in _manifest_pages(client) if p["source"] == "builtin"]
-    assert _wire(builtin) == _wire(SNAPSHOT["manifest_pages"])
+    assert _wire([_without_shell_presentation(p) for p in builtin]) == _wire(
+        SNAPSHOT["manifest_pages"]
+    )
     # No plugin record shows up where only third-party plugins were listed.
     assert client.get("/api/shell/manifest").json()["plugins"] == []
     assert client.get("/api/plugins").content == b'{"plugins":[]}'
+
+
+#: The lucide icon each built-in page had in the shell's former page-id map
+#: (src/frontend/src/shell/icons.ts ICON_BY_PAGE_ID), by lucide name.
+NAV_ICONS = {
+    "chat": "message-square",
+    "chat-canvas": "columns-2",
+    "channels": "radio",
+    "inbox": "inbox",
+    "canvas": "panels-top-left",
+    "agents": "bot",
+    "skills": "zap",
+    "marketplace": "store",
+    "mcp": "plug",
+    "memory": "brain",
+    "knowledge": "book-open",
+    "cron": "clock",
+    "guardrails": "shield-check",
+    "work": "layout-dashboard",
+    "jobs-board": "columns-3",
+    "kanban": "square-kanban",
+    "overview": "gauge",
+    "sessions": "messages-square",
+    "replay": "rotate-ccw",
+    "runs": "activity",
+    "usage": "chart-column",
+    "feedback": "message-square",
+    "jobs": "list-checks",
+    "approvals": "shield-check",
+    "api": "braces",
+    "nodes": "server",
+    "eval": "clipboard-check",
+    "training": "flask-conical",
+    "code-studio": "code",
+    "inspector": "bug",
+    "config": "settings",
+    "auth": "key-round",
+    "security": "lock",
+    "logs": "scroll-text",
+    "debug": "bug",
+    "telemetry": "activity",
+    "traces": "activity",
+    "theme-picker": "settings",
+}
+
+
+@pytest.mark.parametrize("style", ["dashboard", "app"])
+def test_manifest_gives_every_builtin_its_nav_icon_and_api_pages_none(style):
+    srv.set_style(style)
+    client = _client()
+    manifest = _manifest_pages(client)
+    icons = {p["id"]: p.get("navIcon") for p in manifest if p["source"] == "builtin"}
+    assert icons == NAV_ICONS
+    for row in _api_pages(client):
+        assert "navIcon" not in row and "nav_icon" not in row
+
+
+def test_full_bleed_builtins_carry_the_layout_in_the_manifest_only():
+    srv.set_style("app")
+    client = _client()
+    layouts = {p["id"]: p.get("layout") for p in _manifest_pages(client)}
+    full_bleed = {i for i, v in layouts.items() if v == "full-bleed"}
+    assert full_bleed == {"chat", "chat-canvas", "code-studio"}
+    api = {p["id"]: p for p in _api_pages(client)}
+    assert "layout" not in api["code-studio"]
+    assert api["chat"]["layout"] == "full-bleed"
+
+
+def test_app_page_under_a_builtin_id_keeps_its_own_icon_and_layout():
+    aiui.register_page("code-studio", title="Mine", icon="🔥", group="Custom")
+    client = _client()
+    entry = next(p for p in _manifest_pages(client) if p["id"] == "code-studio")
+    assert entry["source"] == "app" and entry["icon"] == "🔥"
+    assert "navIcon" not in entry and "layout" not in entry
+
+
+def test_manifest_nav_groups_default_and_override():
+    from praisonaiui.builtin.catalog import NAV_GROUPS
+
+    client = _client()
+    assert client.get("/api/shell/manifest").json()["layout"]["groups"] == NAV_GROUPS
+    srv.set_dashboard(groups={"folded": [], "order": ["Control", "Agent"]})
+    groups = client.get("/api/shell/manifest").json()["layout"]["groups"]
+    assert groups == {"order": ["Control", "Agent"], "last": "Settings", "folded": []}
 
 
 def test_api_plugins_can_list_builtins_on_request():
@@ -635,6 +733,16 @@ def test_no_builtin_feature_route_is_shadowed():
         if hasattr(r, "path_regex")
     ]
     assert len(routes) > 200  # sanity: the scan really sees the feature routes
+    # Host-owned built-in routes (builtin.mcp, builtin.debug, builtin.logs)
+    # are mounted from the same records, so they must not clash either.
+    host = [
+        (f"host:{p.name}", r)
+        for p in BUILTIN_PLUGINS
+        if p.host_routes
+        for r in p.host_routes()
+    ]
+    assert len(host) >= 5
+    routes += host
 
     def concrete(path: str) -> str:
         return re.sub(r"\{[^}]+\}", "x", path)
@@ -654,27 +762,41 @@ def test_no_builtin_feature_route_is_shadowed():
     assert clashes == []
 
 
-def _write_config(data: Path, text: str) -> None:
-    (data / "config.yaml").write_text(text, encoding="utf-8")
-    config_store.init_config_store(data / "config.yaml")
+# ── config.yaml pages.enabled / pages.disabled (page-level hide) ─────
 
 
-def test_config_yaml_pages_disabled_hides_pages(_isolated):
-    _write_config(_isolated, "pages:\n  disabled: [logs, training]\n")
-    ids = {p["id"] for p in _builtin_only(_api_pages(_client()))}
-    assert "logs" not in ids and "training" not in ids
-    assert "chat" in ids
+def _write_data_config(data_dir, text: str) -> None:
+    (data_dir / "config.yaml").write_text(text, encoding="utf-8")
+    config_store._config_store = None
 
 
-def test_config_yaml_pages_enabled_is_a_whitelist(_isolated):
-    _write_config(_isolated, "pages:\n  enabled: [chat, logs]\n")
-    assert sorted(p["id"] for p in _builtin_only(_api_pages(_client()))) == ["chat", "logs"]
+def test_config_yaml_pages_disabled_hides_the_page_but_keeps_its_api(_isolated):
+    _write_data_config(_isolated, "pages:\n  disabled: [usage]\n")
+    client = _client()
+    assert "usage" not in {p["id"] for p in _api_pages(client)}
+    assert "usage" not in {p["id"] for p in _manifest_pages(client)}
+    assert "chat" in {p["id"] for p in _api_pages(client)}
+    assert client.get("/api/usage").status_code == 200  # page-level hide only
+
+
+def test_config_yaml_pages_enabled_lists_only_those_builtins(_isolated):
+    _write_data_config(_isolated, "pages:\n  enabled: [chat, logs]\n")
+    client = _client()
+    assert sorted(p["id"] for p in _builtin_only(_api_pages(client))) == ["chat", "logs"]
 
 
 def test_set_pages_wins_over_config_yaml_pages(_isolated):
-    _write_config(_isolated, "pages:\n  enabled: [logs]\n")
-    aiui.set_pages(["chat"])
-    assert [p["id"] for p in _builtin_only(_api_pages(_client()))] == ["chat"]
+    _write_data_config(_isolated, "pages:\n  enabled: [chat, logs]\n")
+    aiui.set_pages(["chat", "usage"])
+    client = _client()
+    assert sorted(p["id"] for p in _builtin_only(_api_pages(client))) == ["chat", "usage"]
+
+
+def test_config_yaml_pages_does_not_outlive_its_config(_isolated):
+    _write_data_config(_isolated, "pages:\n  disabled: [usage]\n")
+    assert "usage" not in {p["id"] for p in _api_pages(_client())}
+    _write_data_config(_isolated, "server:\n  port: 8000\n")
+    assert "usage" in {p["id"] for p in _api_pages(_client())}
 
 
 def test_bad_config_yaml_pages_section_is_ignored_with_a_warning(_isolated, monkeypatch, caplog):
@@ -690,4 +812,61 @@ def test_bad_config_yaml_pages_section_is_ignored_with_a_warning(_isolated, monk
     with caplog.at_level("WARNING"):
         ids = {p["id"] for p in _builtin_only(_api_pages(_client()))}
     assert "chat" in ids  # server still starts with every page
-    assert "Ignoring config.yaml pages section" in caplog.text
+    assert "config.yaml pages: could not be read" in caplog.text
+
+
+# ── host-owned built-in routes (builtin.mcp / debug / logs) ──────────
+
+HOST_ROUTES = {
+    ("/api/mcp/servers", frozenset({"GET", "HEAD"})),
+    ("/api/mcp/connect", frozenset({"POST"})),
+    ("/api/mcp/disconnect/{server_id}", frozenset({"POST"})),
+    ("/api/debug", frozenset({"GET", "HEAD"})),
+    ("/api/logs", frozenset({"GET", "HEAD"})),
+}
+
+
+def _route_rows(app) -> list[tuple[str, frozenset]]:
+    return [
+        (r.path, frozenset(r.methods or ()))
+        for r in app.routes
+        if type(r).__name__ == "Route"
+    ]
+
+
+def test_host_routes_are_mounted_once_by_default():
+    rows = _route_rows(srv.create_app())
+    for row in HOST_ROUTES:
+        assert rows.count(row) == 1, row
+    client = _client()
+    assert client.get("/api/mcp/servers").status_code == 200
+    assert client.get("/api/debug").status_code == 200
+    assert client.get("/api/logs").status_code == 200
+    # They are host routes, not features: /api/features is unchanged.
+    assert _feature_names() == DEFAULT_FEATURES
+
+
+def test_disabled_builtins_unmount_their_host_routes():
+    set_extensions(disabled=["builtin.mcp", "builtin.debug", "builtin.logs"])
+    app = srv.create_app()
+    rows = set(_route_rows(app))
+    assert not (rows & HOST_ROUTES)
+    client = TestClient(app)
+    assert client.get("/api/mcp/servers").status_code == 404
+    # POSTs reach only the GET-only SPA catch-all now: never the handler.
+    assert client.post("/api/mcp/connect", json={"command": "true"}).status_code in (404, 405)
+    assert client.post("/api/mcp/disconnect/x").status_code in (404, 405)
+    assert client.get("/api/debug").status_code == 404
+    assert client.get("/api/logs").status_code == 404
+    _assert_gone(client, "mcp", "debug", "logs")
+
+
+def test_host_routes_come_back_when_the_policy_changes():
+    set_extensions(disabled=["builtin.mcp"])
+    assert TestClient(srv.create_app()).get("/api/mcp/servers").status_code == 404
+    get_plugin_registry().set_policy(ExtensionPolicy())
+    assert TestClient(srv.create_app()).get("/api/mcp/servers").status_code == 200
+
+
+def test_host_route_handlers_still_import_from_the_server():
+    from praisonaiui.server import api_debug, api_logs, api_mcp_connect  # noqa: F401

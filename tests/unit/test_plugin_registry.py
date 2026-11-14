@@ -154,14 +154,26 @@ def _records():
 
 
 class _Loopback:
-    """ASGI wrapper making every request look like it came over 127.0.0.1."""
+    """ASGI wrapper making every request look like it came over 127.0.0.1.
+
+    The Host header follows the address, as a browser's would (the host
+    guard refuses an unknown name such as TestClient's "testserver" on a
+    loopback connection).
+    """
 
     def __init__(self, app):
         self.app = app
 
     async def __call__(self, scope, receive, send):
         if scope["type"] in ("http", "websocket"):
-            scope = {**scope, "client": ("127.0.0.1", 50000), "server": ("127.0.0.1", 8000)}
+            headers = [(k, v) for k, v in scope.get("headers", []) if k != b"host"]
+            headers.append((b"host", b"127.0.0.1:8000"))
+            scope = {
+                **scope,
+                "client": ("127.0.0.1", 50000),
+                "server": ("127.0.0.1", 8000),
+                "headers": headers,
+            }
         await self.app(scope, receive, send)
 
 

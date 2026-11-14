@@ -548,6 +548,65 @@ test('regenerate asks the transport to replace the answer when it can', async ()
   threadStore.drop('S2')
 })
 
+/** A regenerate of 'q' (old answer 'old answer') whose socket drops mid-stream, then reconnects. */
+async function regenerateThenDrop(history: unknown[], runActive: boolean | undefined) {
+  const f = fakeTransport()
+  f.t.canRegenerate = () => true
+  f.t.runStatus = async () => runActive
+  globalThis.fetch = (async () => new Response(JSON.stringify({ messages: history }), { status: 200 })) as typeof fetch
+  const sent = threadStore.send(f.t, 'S', 'q', { regenerate: true, replacedText: 'old answer' })
+  await tick()
+  f.emit('S', { type: 'run_started', session_id: 'S', run_id: 'R2' })
+  f.emit('S', { type: 'run_content', session_id: 'S', run_id: 'R2', token: 'new ' })
+  f.drop('S')
+  await sent
+  f.reopen()
+  for (let i = 0; i < 5; i++) await tick()
+  return f
+}
+
+test('a reconnect during a regenerate does not take the old answer (still in history) for the reply (R6)', async () => {
+  const f = await regenerateThenDrop([{ role: 'user', content: 'q' }, { role: 'assistant', content: 'old answer' }], true)
+  assert.equal(threadStore.get('S').isRunning, true, 'the regenerate keeps running')
+  assert.equal(textOf(assistant('S')), 'new ', 'the live text is not replaced by the old answer')
+  // The run goes on over watch() and finishes as this tab's own turn.
+  f.emit('S', { type: 'run_content', session_id: 'S', run_id: 'R2', token: 'answer' })
+  f.emit('S', { type: 'run_completed', session_id: 'S', run_id: 'R2', content: 'new answer' })
+  await tick()
+  assert.equal(threadStore.get('S').isRunning, false)
+  assert.equal(textOf(assistant('S')), 'new answer')
+  assert.equal(assistant('S').custom?.remote, undefined, 'not shown as another tab\'s reply')
+})
+
+test('a regenerate that finished while offline is taken from history once its answer is saved (R6)', async () => {
+  await regenerateThenDrop([{ role: 'user', content: 'q' }, { role: 'assistant', content: 'new answer', regenerates: true }], true)
+  assert.equal(threadStore.get('S').isRunning, false)
+  assert.equal(textOf(assistant('S')), 'new answer')
+})
+
+test('a finished regenerate whose answer reads the same as the old one still ends cleanly (R6)', async () => {
+  await regenerateThenDrop([{ role: 'user', content: 'q' }, { role: 'assistant', content: 'old answer', regenerates: true }], false)
+  const m = assistant('S')
+  assert.equal(threadStore.get('S').isRunning, false)
+  assert.equal(m.status?.type, 'complete')
+  assert.equal(textOf(m), 'old answer')
+})
+
+test('popLastTurn returns the question and the answer it replaces', async () => {
+  globalThis.fetch = (async () => new Response(JSON.stringify({ messages: [{ role: 'user', content: 'q' }, { role: 'assistant', content: 'a1' }] }), { status: 200 })) as typeof fetch
+  await threadStore.load('S')
+  assert.deepEqual(threadStore.popLastTurn('S'), { text: 'q', attachments: undefined, replacedText: 'a1' })
+  assert.equal(threadStore.get('S').messages.length, 0)
+})
+
+test('popLastTurn after a reload resends the saved attachments (R4)', async () => {
+  const user = { role: 'user', content: 'q', attachments: [{ id: 'att_1', name: 'a.csv', content_type: 'text/csv' }] }
+  globalThis.fetch = (async () => new Response(JSON.stringify({ messages: [user, { role: 'assistant', content: 'a1' }] }), { status: 200 })) as typeof fetch
+  await threadStore.load('S')
+  const turn = threadStore.popLastTurn('S')
+  assert.deepEqual(turn?.attachments, [{ id: 'att_1', name: 'a.csv', contentType: 'text/csv' }])
+})
+
 test('observe: another tab\'s run shows as a read-only live message and history reloads when it ends', async () => {
   const f = fakeTransport()
   let historyCalls = 0
@@ -585,6 +644,44 @@ test('observe: another tab\'s run shows as a read-only live message and history 
   stop()
 })
 
+test('another tab\'s question asked during this tab\'s own turn shows once the own turn ends (R7)', async () => {
+  threadStore.configure({ settleReloadMs: 0 })
+  const f = fakeTransport()
+  let remote: ((ev: WireEvent) => void) | undefined
+  const watch = f.t.watch!.bind(f.t)
+  f.t.watch = (sid, fn) => {
+    remote ??= fn // the first watcher is observe()
+    return watch(sid, fn)
+  }
+  const persisted: Record<string, unknown>[] = []
+  globalThis.fetch = (async () => new Response(JSON.stringify({ messages: persisted, start: 0, has_more: false }), { status: 200 })) as typeof fetch
+  await threadStore.load('S')
+  const stop = threadStore.observe(f.t, 'S')
+  const sent = threadStore.send(f.t, 'S', 'dense from tab one')
+  await tick()
+  f.emit('S', { type: 'run_started', session_id: 'S', run_id: 'RA' })
+  f.emit('S', { type: 'run_content', session_id: 'S', run_id: 'RA', token: 'd0 ' })
+  // Tab two asks and gets its answer while tab one is still streaming.
+  remote!({ type: 'run_started', session_id: 'S', run_id: 'RB', client_turn_id: 'tab-two' })
+  remote!({ type: 'run_content', session_id: 'S', run_id: 'RB', token: 'You said: hello', client_turn_id: 'tab-two' })
+  remote!({ type: 'run_completed', session_id: 'S', run_id: 'RB', content: 'You said: hello', client_turn_id: 'tab-two' })
+  persisted.push(
+    { role: 'user', content: 'dense from tab one' },
+    { role: 'user', content: 'hello from tab two' },
+    { role: 'assistant', content: 'You said: hello' },
+    { role: 'assistant', content: 'd0 d1' },
+  )
+  f.emit('S', { type: 'run_completed', session_id: 'S', run_id: 'RA', content: 'd0 d1' })
+  f.end('S')
+  await sent
+  for (let i = 0; i < 6; i++) await tick()
+  const shown = threadStore.get('S').messages.map((m) => `${m.role}:${textOf(m)}`)
+  assert.deepEqual(shown, [
+    'user:dense from tab one', 'user:hello from tab two', 'assistant:You said: hello', 'assistant:d0 d1',
+  ])
+  stop()
+})
+
 test('loadEarlier pages back through history', async () => {
   const pages: Record<string, unknown> = {
     'http://test/api/chat/history/S': { messages: [{ role: 'user', content: 'turn 36' }], start: 72, has_more: true },
@@ -601,6 +698,43 @@ test('loadEarlier pages back through history', async () => {
   assert.equal(s.hasMore, false)
   await threadStore.loadEarlier('S') // nothing more: no request
   assert.equal(threadStore.get('S').messages.length, 3)
+})
+
+test('history pages get distinct ids by server position, so assistant-ui keeps every page (R1/G2)', async () => {
+  const msg = (n: number) => [{ role: 'user', content: `q${n}` }, { role: 'assistant', content: `a${n}` }]
+  const pages: Record<string, unknown> = {
+    'http://test/api/chat/history/S': { messages: [...msg(2), ...msg(3)], start: 4, has_more: true },
+    'http://test/api/chat/history/S?limit=50&before=4': { messages: [...msg(0), ...msg(1)], start: 0, has_more: false },
+  }
+  globalThis.fetch = (async (url: string) => new Response(JSON.stringify(pages[url] ?? {}), { status: 200 })) as typeof fetch
+  await threadStore.load('S')
+  await threadStore.loadEarlier('S')
+  const s = threadStore.get('S')
+  assert.deepEqual(s.messages.map(textOf), ['q0', 'a0', 'q1', 'a1', 'q2', 'a2', 'q3', 'a3'])
+  const ids = s.messages.map((m) => m.id)
+  assert.equal(new Set(ids).size, ids.length, `ids are unique: ${ids.join(',')}`)
+  assert.deepEqual(ids, ['h_0', 'h_1', 'h_2', 'h_3', 'h_4', 'h_5', 'h_6', 'h_7'])
+})
+
+test('reloading the latest page keeps the earlier pages the reader loaded (R1)', async () => {
+  const msg = (n: number) => [{ role: 'user', content: `q${n}` }, { role: 'assistant', content: `a${n}` }]
+  const pages: Record<string, unknown> = {
+    'http://test/api/chat/history/S': { messages: [...msg(2), ...msg(3)], start: 4, has_more: true },
+    'http://test/api/chat/history/S?limit=50&before=4': { messages: [...msg(0), ...msg(1)], start: 0, has_more: false },
+  }
+  globalThis.fetch = (async (url: string) => new Response(JSON.stringify(pages[url] ?? {}), { status: 200 })) as typeof fetch
+  await threadStore.load('S')
+  await threadStore.loadEarlier('S')
+  // Another turn was saved (say by another tab); the latest page moves on.
+  pages['http://test/api/chat/history/S'] = { messages: [...msg(3), ...msg(4)], start: 6, has_more: true }
+  threadStore.invalidate('S')
+  await threadStore.load('S')
+  const s = threadStore.get('S')
+  assert.deepEqual(s.messages.map(textOf), ['q0', 'a0', 'q1', 'a1', 'q2', 'a2', 'q3', 'a3', 'q4', 'a4'])
+  assert.equal(s.hasMore, false, 'the earlier pages reach the start')
+  assert.equal(s.historyStart, 0)
+  const ids = s.messages.map((m) => m.id)
+  assert.equal(new Set(ids).size, ids.length)
 })
 
 test('a fetch that never reached the server reads as a connection problem, not "Failed to fetch"', async () => {

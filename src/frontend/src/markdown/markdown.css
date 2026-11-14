@@ -1,14 +1,12 @@
 /*
  * Streamdown code blocks are one flat surface: the code-block panel. Its <pre>
- * must not be boxed again by styles written for the old renderers:
- *  - plugins/syntax-highlight.js injects `pre { background, padding … !important;
- *    border; border-radius }` (unlayered) on the docs and chat pages;
- *  - index.css styles `.prose pre` (background and colour !important, in the
- *    components layer), which reaches the docs article through its legacy
- *    `prose` marker (see Content.tsx).
- * An !important declaration in an earlier cascade layer beats !important
- * declarations in later layers and unlayered ones, so this reset lives in the
- * base layer (index.css declares the layer order before this chunk loads).
+ * must not be boxed again by index.css's `.prose pre` rule (background and
+ * colour !important, in the components layer), which reaches the docs article
+ * through its legacy `prose` marker (see Content.tsx). An !important
+ * declaration in an earlier cascade layer beats !important declarations in
+ * later layers, so this reset lives in the base layer (index.css declares the
+ * layer order before this chunk loads). The legacy highlight.js plugin that
+ * also boxed every <pre> no longer loads on the React styles.
  */
 @layer base {
   .aiui-markdown [data-streamdown='code-block-body'] > pre {

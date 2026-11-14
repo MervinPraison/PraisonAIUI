@@ -255,12 +255,46 @@ html[data-aiui-shell='react'] .aiui-legacy-mount {
 html[data-aiui-shell='react'] .aiui-legacy-mount:has(> .aiui-config-header) {
   max-width: 760px !important;
 }
+/* Views that wrap themselves in their own gutter (channels, security,
+   telemetry, traces, guardrails, eval, training: an inline
+   `padding:24px;max-width:1200px;margin:0 auto` div) start at the shell's
+   gutter like every other page. */
+html[data-aiui-shell='react'] .aiui-legacy-mount > div[style^='padding:24px;max-width:'] {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: none !important;
+}
+/* Theme picker: a form, so the same left-aligned measure as config. */
+html[data-aiui-shell='react'] .aiui-legacy-mount > .theme-picker {
+  padding: 0;
+  margin: 0;
+  max-width: 760px;
+}
+/* Empty states (agents, approvals, channels, jobs, cron, skills, usage: a
+   wrapper holding .aiui-empty-icon) centre their content; their side padding
+   only moved the box off the gutter. */
+html[data-aiui-shell='react'] .aiui-legacy-mount :has(> .aiui-empty-icon) {
+  padding-inline: 0;
+}
 
 /* The shell header already shows the page title: the view's own heading is
-   kept for screen readers only, and its actions stay right-aligned. */
+   kept for screen readers only, and its actions stay right-aligned.
+   A view's title is the leading h1/h2 of its first block, of that block's
+   first row (guardrails, feedback), or of a known header class. */
 html[data-aiui-shell='react'] [data-aiui-page-header='shown']
   :is(.aiui-logs-title, .aiui-config-header, .aiui-usage-header, .db-page-toolbar, .aiui-board-page-header)
-  > h2 {
+  > h2,
+html[data-aiui-shell='react'] [data-aiui-page-header='shown'] .aiui-legacy-mount > div:first-of-type > :is(h1, h2):first-child,
+html[data-aiui-shell='react'] [data-aiui-page-header='shown']
+  .aiui-legacy-mount
+  > div:first-of-type
+  > div:first-child
+  > :is(h1, h2):first-child,
+html[data-aiui-shell='react'] [data-aiui-page-header='shown']
+  .aiui-legacy-mount
+  .aiui-channels-header
+  > div:first-child
+  > h2:first-child {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -274,6 +308,16 @@ html[data-aiui-shell='react'] [data-aiui-page-header='shown']
 html[data-aiui-shell='react'] [data-aiui-page-header='shown']
   :is(.aiui-logs-header, .aiui-config-header, .aiui-usage-header, .db-page-toolbar, .aiui-board-page-header) {
   justify-content: flex-end;
+}
+/* Rows styled inline (guardrails, feedback) need the override. */
+html[data-aiui-shell='react'] [data-aiui-page-header='shown']
+  .aiui-legacy-mount
+  > div:first-of-type:has(> :is(h1, h2):first-child),
+html[data-aiui-shell='react'] [data-aiui-page-header='shown']
+  .aiui-legacy-mount
+  > div:first-of-type
+  > div:first-child:has(> :is(h1, h2):first-child) {
+  justify-content: flex-end !important;
 }
 
 /* One search: the header's ⌘K. */

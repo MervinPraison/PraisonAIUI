@@ -20,9 +20,10 @@ import {
 import type { ShellPage } from '@/sdk/manifest'
 import { notify } from '@/sdk/notify'
 import { useCommands, type ShellCommand } from '@/sdk/services'
-import { footerPages, groupPages } from './nav'
+import { footerPages, groupPages, type NavGroupsConfig } from './nav'
 import { paletteFilter, rankSections } from './paletteFilter'
 import { PageIcon } from './PageIcon'
+import { createFocusReturn } from './focusReturn'
 import { navigate } from './router'
 
 const DEFAULT_COMMAND_GROUP = 'Commands'
@@ -66,26 +67,44 @@ export default function CommandPalette({
   open,
   onOpenChange,
   pages,
+  groups: groupConfig,
   activeId,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   pages: readonly ShellPage[]
+  /** The manifest's `layout.groups` (navGroups()), so pages list in sidebar order. */
+  groups?: NavGroupsConfig
   activeId: string
 }) {
   const { theme, setTheme } = useTheme()
   const groups = useMemo(() => {
-    const g = groupPages(pages)
+    const g = groupPages(pages, groupConfig)
     const footer = footerPages(pages)
     return footer.length ? [...g, { name: 'More', pages: footer }] : g
-  }, [pages])
+  }, [pages, groupConfig])
   const registered = useCommands()
   const commandGroups = useMemo(() => groupCommands(registered), [registered])
   const [search, setSearch] = useState('')
+  // The palette stays mounted after its first open: every open starts with an
+  // empty query (reset while rendering the reopen, so closing never flashes
+  // the unfiltered list), however it was closed (Esc, a choice, Ctrl+K).
+  const [wasOpen, setWasOpen] = useState(open)
+  if (wasOpen !== open) {
+    setWasOpen(open)
+    if (open) setSearch('')
+  }
+  // No Dialog.Trigger: put focus back where it was (the composer, a button),
+  // or on the new page's main region after navigating, never on <body>.
+  const [focus] = useState(createFocusReturn)
 
   const run = (action: () => void) => {
     onOpenChange(false)
     action()
+  }
+  const goTo = (pageId: string) => {
+    if (pageId !== activeId) focus.toMain()
+    run(() => navigate(pageId))
   }
 
   return (
@@ -96,6 +115,9 @@ export default function CommandPalette({
       description="Search pages and commands"
       showCloseButton={false}
       filter={paletteFilter}
+      loop
+      onOpenAutoFocus={focus.capture}
+      onCloseAutoFocus={focus.restore}
       className="top-[15%] translate-y-0 sm:max-w-xl"
     >
       <CommandInput
@@ -143,7 +165,7 @@ export default function CommandPalette({
                   value,
                   keywords,
                   node: (
-                    <CommandItem key={p.id} value={value} keywords={keywords} onSelect={() => run(() => navigate(p.id))}>
+                    <CommandItem key={p.id} value={value} keywords={keywords} onSelect={() => goTo(p.id)}>
                       <PageIcon page={p} />
                       <span className="truncate">{p.title}</span>
                       {p.id === activeId && <CommandShortcut>Current</CommandShortcut>}

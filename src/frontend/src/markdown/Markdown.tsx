@@ -13,25 +13,25 @@
  * `<!---->` and corrupts fenced code. Extend the sanitize schema instead.
  */
 import { memo, useId, useMemo, useState, useEffect, type ComponentType } from 'react'
-import { Streamdown, defaultRehypePlugins, type ControlsConfig, type PluginConfig, type StreamdownProps } from 'streamdown'
+import { Streamdown, defaultRehypePlugins, type PluginConfig, type StreamdownProps } from 'streamdown'
 import { cn } from '@/lib/utils'
 import { SHIKI_THEMES, chatMermaidPlugin, ensureMathPlugin, getMathPlugin, lazyCodePlugin, lazyMermaidPlugin, needsMath } from './streamdownPlugins'
 import { normalizeTexDelimiters } from './texDelimiters'
-import { ChatH1, ChatH2, ChatH3, ChatH4, ImageGate, LegacySafeCode, ListOl, ListUl, MarkdownImage, PolicyLink } from './chatComponents'
+import { ChatH1, ChatH2, ChatH3, ChatH4, ImageGate, ListOl, ListUl, MarkdownImage, PolicyLink } from './chatComponents'
 import { DocsH1, DocsH2, DocsH3, DocsH4, DocsLink, DocsUl } from './docsComponents'
 import { Admonition, MkdocsTab, MkdocsTabs } from './MkdocsBlocks'
 import { IMAGE_GATE_TAG, rehypeImageGate } from './urlPolicy'
 import { mermaidConfigFor, useThemeKey } from './themeStore'
 import { useStreamingText } from './streamThrottle'
 import { continueSplitLists } from './listNumbering'
-import { useLegacyCopyGuard } from './legacyPlugins'
+import { rehypeFootnoteLabel } from './hast'
+import { CHAT_CONTROLS, DOCS_CONTROLS } from './controls' // owner decision 9
 import './markdown.css'
 
 type Components = NonNullable<StreamdownProps['components']>
 
 const CHAT_COMPONENTS = {
     a: PolicyLink,
-    code: LegacySafeCode,
     img: MarkdownImage,
     ul: ListUl,
     ol: ListOl,
@@ -44,7 +44,6 @@ const CHAT_COMPONENTS = {
 
 const DOCS_COMPONENTS = {
     a: DocsLink,
-    code: LegacySafeCode,
     img: MarkdownImage,
     ul: DocsUl,
     ol: ListOl,
@@ -100,19 +99,6 @@ const CHAT_REHYPE = [
     defaultRehypePlugins.harden,
 ] as StreamdownProps['rehypePlugins']
 
-// ── controls (owner decision 9) ──
-const CHAT_CONTROLS: ControlsConfig = {
-    code: { copy: true, download: true },
-    table: { copy: true, download: false, fullscreen: false },
-    mermaid: { panZoom: true, fullscreen: true, download: false, copy: false },
-    image: false,
-}
-const DOCS_CONTROLS: ControlsConfig = {
-    code: { copy: true, download: false },
-    table: false,
-    mermaid: { panZoom: true, fullscreen: false, download: false, copy: false },
-    image: false,
-}
 
 const LINKS_AS_ANCHORS = { enabled: false } // real <a>; policy lives in the `a` component
 
@@ -174,8 +160,17 @@ export const Markdown = memo(function Markdown({
     // Chat: steps split by code fences keep counting (1., 2., 3.), see listNumbering.ts.
     // `\(…\)` / `\[…\]` (LLM default) → `$$` so KaTeX renders them (texDelimiters.ts).
     const text = useMemo(() => normalizeTexDelimiters(isDocs ? paced : continueSplitLists(paced)), [paced, isDocs])
-    const guardId = useId()
-    useLegacyCopyGuard(guardId)
+    const instanceId = useId()
+
+    // Footnote ids are per renderer instance: with remark-rehype's default
+    // prefix every message emitted user-content-fn-1, so a footnote link in
+    // one message jumped to another message's note.
+    const idPrefix = `user-content-${instanceId.replace(/[^\w-]/g, '')}-`
+    const remarkRehypeOptions = useMemo(() => ({ clobberPrefix: idPrefix }), [idPrefix])
+    const rehypePlugins = useMemo(
+        () => [...(isDocs ? DOCS_REHYPE : CHAT_REHYPE)!, [rehypeFootnoteLabel, idPrefix]] as StreamdownProps['rehypePlugins'],
+        [isDocs, idPrefix],
+    )
 
     const math = useMathPlugin(text, variant)
     // Chat diagrams are untrusted: their SVG is stripped of off-origin resources.
@@ -188,6 +183,11 @@ export const Markdown = memo(function Markdown({
     // subscribe to theme flips.
     const hasMermaid = MERMAID_FENCE.test(text)
     const themeKey = useThemeKey(hasMermaid)
+    // Chat diagrams have a fullscreen view: give it modal focus handling.
+    const fullscreenDiagram = hasMermaid && !isDocs
+    useEffect(() => {
+        if (fullscreenDiagram) void import('./mermaidFullscreen').then((m) => m.installMermaidFullscreenFocus(), () => undefined)
+    }, [fullscreenDiagram])
     const mermaid = useMemo(
         () => (hasMermaid ? { config: mermaidConfigFor(themeKey) } : undefined),
         [hasMermaid, themeKey],
@@ -202,8 +202,10 @@ export const Markdown = memo(function Markdown({
         <Streamdown
             className={cn(ROOT_CLASS, VARIANT_CLASS[variant], className)}
             data-aiui-theme={hasMermaid ? hashKey(themeKey) : undefined}
-            data-aiui-markdown={guardId} /* root handle for useLegacyCopyGuard */
             mode={isDocs ? 'static' : 'streaming'}
+            // Per-block direction: Arabic / Hebrew paragraphs render right to
+            // left with their punctuation in place; code stays left to right.
+            dir="auto"
             isAnimating={!isDocs && streaming}
             // Repair only while tokens arrive: a finished message is shown as
             // written. (remend corrupts some complete text, e.g. it appends
@@ -213,7 +215,8 @@ export const Markdown = memo(function Markdown({
             plugins={plugins}
             shikiTheme={SHIKI_THEMES}
             mermaid={mermaid}
-            rehypePlugins={isDocs ? DOCS_REHYPE : CHAT_REHYPE}
+            remarkRehypeOptions={remarkRehypeOptions}
+            rehypePlugins={rehypePlugins}
             components={merged}
             linkSafety={LINKS_AS_ANCHORS}
             lineNumbers={false}

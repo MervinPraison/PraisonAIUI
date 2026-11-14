@@ -6,6 +6,7 @@ import { afterEach, beforeEach, mock, test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   AskUnavailableError,
+  canRegenerate,
   createAutoTransport,
   createSseTransport,
   createWsTransport,
@@ -415,6 +416,9 @@ test('auto transport: falls back to SSE when the socket cannot open in time; ask
   assert.deepEqual(sseCalls, ['send:S1'])
   assert.equal(events[0].content, 'via sse')
   assert.equal(auto.canAnswerAsk!('S1'), false)
+  // Regenerate is a plain resend over SSE (a duplicate turn): not offered.
+  assert.equal(canRegenerate(auto, 'S1'), false)
+  assert.equal(canRegenerate(sse, 'S1'), false, 'a transport without canRegenerate cannot regenerate')
   await assert.rejects(auto.respondAsk('S1', undefined, 'A'), AskUnavailableError)
   await auto.cancel('S1', undefined)
   assert.deepEqual(sseCalls, ['send:S1', 'cancel:S1'])
@@ -429,6 +433,40 @@ test('auto transport: falls back to SSE when the socket cannot open in time; ask
   await turn.p
   assert.equal(turn.events[0].content, 'via ws')
   assert.equal(auto.canAnswerAsk!('S2'), true)
+  assert.equal(canRegenerate(auto, 'S2'), true)
+  assert.equal(canRegenerate(auto, 'S1'), false, 'S1 was carried by SSE')
+  ws.close()
+})
+
+test('auto transport: after the socket failed to open, sends skip the open timeout for a while (G7)', async () => {
+  FakeWebSocket.autoOpen = false
+  const ws = makeWs()
+  let connects = 0
+  const realConnect = ws.connect.bind(ws)
+  ws.connect = (t?: number) => {
+    connects++
+    return realConnect(t)
+  }
+  const sse: AiuiTransport = {
+    kind: 'sse',
+    async send({ onEvent }) {
+      onEvent({ type: 'run_completed', content: 'via sse' })
+    },
+    async cancel() {},
+    async respondAsk() {},
+  }
+  let clock = 1_000
+  const auto = createAutoTransport({ ws, sse, openTimeoutMs: 30, fallbackBackoffMs: 10_000, now: () => clock })
+  assert.equal(auto.httpFallback, true)
+  const send = (sid: string) => auto.send({ sessionId: sid, text: 'x', signal: new AbortController().signal, onEvent: () => {} })
+  await send('A')
+  assert.equal(connects, 1)
+  clock += 5_000
+  await send('B') // inside the back-off: straight to SSE
+  assert.equal(connects, 1, 'no second open attempt (and no 3 s wait) inside the back-off')
+  clock += 6_000
+  await send('C') // back-off over: probe the socket again
+  assert.equal(connects, 2)
   ws.close()
 })
 

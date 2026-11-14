@@ -22,7 +22,7 @@ Agent APIs (Python) ──► event bus / WS messages
                     (stable PraisonAIUI contracts)
                               │
                               ▼
-              @praisonaiui/react re-exports
+      components barrel (src/frontend/src/components/index.ts)
               (BeautifulUI vendored components)
                               │
                               ▼

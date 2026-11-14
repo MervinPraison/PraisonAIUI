@@ -90,3 +90,20 @@ To enforce the comparison in CI, run the same commands inside the CI image
 Reports go to `e2e/.report` (HTML) and `e2e/.results` (traces of failures);
 both are ignored by git. `npx playwright show-report e2e/.report` opens the
 report, which also carries the key-page screenshots for review.
+
+## In CI: parallel shards
+
+With `CI` set, the config distributes single tests (not whole files) across
+shards (`fullyParallel`; each job still runs one worker, so the tests of a job
+never overlap) and writes a blob report to `e2e/.blob/`. The CI e2e job runs
+four shards in parallel, and a final job merges their reports:
+
+```bash
+CI=1 npx playwright test -c e2e/playwright.config.ts --shard=1/4   # one job per shard
+npx playwright merge-reports --reporter html ./all-blob-reports      # after all shards
+```
+
+Every shard starts the same servers, so any shard can run any test. Run the
+same command with the same `--shard` to reproduce one CI shard locally.
+Screenshot comparisons stay platform-aware: without `__baseline__/linux/`
+they are skipped on the Linux runners and the DOM checks still run.

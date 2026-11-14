@@ -17,7 +17,7 @@ import { provideShellHost } from '@/sdk/services'
 import { installBuiltins } from '@/builtin'
 import { getStoredToken, installAuthFetch } from './auth'
 import { installPaletteHooks } from './palette'
-import { navigate, patchHistory, rewriteHashDeepLink } from './router'
+import { getPageId, navigate, patchHistory, rewriteHashDeepLink, subscribeLocation } from './router'
 import { ShellApp } from './ShellApp'
 
 const roots = new WeakMap<HTMLElement, Root>()
@@ -29,7 +29,7 @@ export function mountShell(el: HTMLElement): void {
   // 2. window.__AIUI_SDK__ exists before any plugin module is imported.
   installSdk()
   // The SDK's shell services (navigate, fetchJson) run on the shell's router and token.
-  provideShellHost({ navigate, getToken: getStoredToken })
+  provideShellHost({ navigate, getToken: getStoredToken, getPageId, subscribeLocation })
   // First-party plugins queue on the same onActivate hook plugin modules use.
   installBuiltins()
   // 3. Routing: patched history, legacy hash deep links, legacy selectPage → shell.

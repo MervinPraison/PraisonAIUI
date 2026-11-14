@@ -210,6 +210,32 @@ export function isDarkMode(): boolean {
     return document.documentElement.classList.contains('dark')
 }
 
+const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)'
+let systemQuery: MediaQueryList | null = null
+let onSystemChange: (() => void) | null = null
+
+/**
+ * 'System' mode: apply the OS scheme now and on every OS change (the app
+ * shell gets the same from next-themes); any other mode stops following it.
+ */
+function followSystemScheme(follow: boolean): void {
+    if (!follow) {
+        if (systemQuery && onSystemChange) systemQuery.removeEventListener('change', onSystemChange)
+        systemQuery = null
+        onSystemChange = null
+        return
+    }
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+    if (!systemQuery) {
+        const query = window.matchMedia(SYSTEM_DARK_QUERY)
+        const listener = () => applyDarkMode(query.matches)
+        query.addEventListener('change', listener)
+        systemQuery = query
+        onSystemChange = listener
+    }
+    applyDarkMode(systemQuery.matches)
+}
+
 /**
  * Apply stored user theme preference over YAML default dark mode.
  */
@@ -220,13 +246,12 @@ export function applyStoredThemePreference(yamlDefaultDark: boolean): void {
     } catch {
         return
     }
+    followSystemScheme(stored === 'system')
     if (stored === 'light') {
         applyDarkMode(false)
     } else if (stored === 'dark') {
         applyDarkMode(true)
-    } else if (stored === 'system') {
-        applyDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches)
-    } else {
+    } else if (stored !== 'system') {
         applyDarkMode(yamlDefaultDark)
     }
 }
@@ -240,11 +265,8 @@ export function setThemePreference(preference: ThemePreference): void {
     } catch {
         // ignore storage failures
     }
-    if (preference === 'system') {
-        applyDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches)
-    } else {
-        applyDarkMode(preference === 'dark')
-    }
+    followSystemScheme(preference === 'system')
+    if (preference !== 'system') applyDarkMode(preference === 'dark')
 }
 
 /**

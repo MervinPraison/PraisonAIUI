@@ -242,6 +242,13 @@ def test_shell_manifest_site_theme_follows_set_theme():
     assert m["site"]["theme"] == {"preset": "rose", "mode": "light", "radius": "lg"}
 
 
+def test_shell_manifest_reports_feedback_switch():
+    srv.set_style("app")
+    assert _client().get("/api/shell/manifest").json()["site"]["feedbackEnabled"] is True
+    srv.set_feedback_enabled(False)
+    assert _client().get("/api/shell/manifest").json()["site"]["feedbackEnabled"] is False
+
+
 @pytest.mark.parametrize("mode", ["require_auth", "AUTH_ENFORCE"])
 def test_boot_is_minimal_when_auth_enforced(monkeypatch, mode):
     srv.set_style("app")
@@ -507,7 +514,10 @@ def test_shell_manifest_lists_builtin_pages_by_kind():
     assert builtin["chat"]["kind"] == "native"
     assert builtin["chat"]["source"] == "builtin"
     assert m["legacy"] == {"customJs": None, "viewsBase": "/plugins/views/"}
-    assert m["layout"] == {"sidebar": True, "pageHeader": True}
+    assert {k: v for k, v in m["layout"].items() if k != "groups"} == {
+        "sidebar": True,
+        "pageHeader": True,
+    }
     assert [p["id"] for p in m["pages"]] == [
         p["id"] for p in sorted(m["pages"], key=lambda p: (p.get("order", 100), p["id"]))
     ]
@@ -517,14 +527,20 @@ def test_shell_manifest_layout_from_set_dashboard():
     srv.set_style("app")
     srv.set_dashboard(sidebar=False, page_header=False)
     m = _client().get("/api/shell/manifest").json()
-    assert m["layout"] == {"sidebar": False, "pageHeader": False}
+    assert {k: v for k, v in m["layout"].items() if k != "groups"} == {
+        "sidebar": False,
+        "pageHeader": False,
+    }
 
 
 def test_shell_manifest_layout_from_yaml_dashboard_section(_isolated):
     (_isolated / "config.yaml").write_text("dashboard:\n  sidebar: false\n  page_header: false\n")
     srv.set_style("app")
     m = _client().get("/api/shell/manifest").json()
-    assert m["layout"] == {"sidebar": False, "pageHeader": False}
+    assert {k: v for k, v in m["layout"].items() if k != "groups"} == {
+        "sidebar": False,
+        "pageHeader": False,
+    }
 
 
 def test_shell_manifest_site_title_matches_host_html(_isolated):
@@ -923,3 +939,71 @@ def test_shell_routes_gated_by_auth_enforce(monkeypatch, api_key):
 def test_env_isolation_from_conftest():
     assert os.environ.get("AIUI_DISABLE_PLUGIN_AUTOLOAD") == "1"
     assert "AIUI_SHELL" not in os.environ
+
+
+def _preload_build(root: Path) -> Path:
+    """A templates dir whose aiui-manifest.json mirrors the real chunk graph."""
+    (root / "assets").mkdir(parents=True)
+    manifest = {
+        "index.html": {
+            "file": "assets/index.js", "isEntry": True, "src": "index.html",
+            "imports": ["_preload-helper-AAAAAAAA.js"],
+            "dynamicImports": ["_mount-BBBBBBBB.js", "src/legacy-app-entry.tsx"],
+        },
+        "_preload-helper-AAAAAAAA.js": {"file": "assets/preload-helper-AAAAAAAA.js"},
+        "_mount-BBBBBBBB.js": {
+            "file": "assets/mount-BBBBBBBB.js", "name": "mount", "isDynamicEntry": True,
+            "imports": ["_vendor-react-CCCCCCCC.js", "_preload-helper-AAAAAAAA.js"],
+            "dynamicImports": ["_ChatPage-DDDDDDDD.js"],
+            "css": ["assets/mount-BBBBBBBB.css"],
+        },
+        "_vendor-react-CCCCCCCC.js": {"file": "assets/vendor-react-CCCCCCCC.js"},
+        "src/legacy-app-entry.tsx": {
+            "file": "assets/legacy-app-entry-EEEEEEEE.js", "isDynamicEntry": True,
+            "imports": ["_vendor-react-CCCCCCCC.js"],
+        },
+        "_ChatPage-DDDDDDDD.js": {
+            "file": "assets/ChatPage-DDDDDDDD.js", "name": "ChatPage", "isDynamicEntry": True,
+            "imports": ["_mount-BBBBBBBB.js", "_thread-FFFFFFFF.js"],
+        },
+        "_thread-FFFFFFFF.js": {"file": "assets/thread-FFFFFFFF.js"},
+    }
+    (root / "aiui-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    return root
+
+
+def _preloads(html_text: str) -> list[str]:
+    return re.findall(r'<link rel="modulepreload" crossorigin href="([^"]+)">', html_text)
+
+
+def test_app_html_modulepreloads_the_shell_boot_chunks(tmp_path, monkeypatch):
+    monkeypatch.setenv("AIUI_TEMPLATES_DIR", str(_preload_build(tmp_path / "fe")))
+    srv.set_style("app")
+    head = _client().get("/").text.split("</head>", 1)[0]
+    assert _preloads(head) == [
+        "/assets/mount-BBBBBBBB.js",
+        "/assets/preload-helper-AAAAAAAA.js",
+        "/assets/vendor-react-CCCCCCCC.js",
+    ]
+
+
+def test_app_html_on_chat_also_preloads_the_chat_page(tmp_path, monkeypatch):
+    monkeypatch.setenv("AIUI_TEMPLATES_DIR", str(_preload_build(tmp_path / "fe")))
+    srv.set_style("app")
+    links = _preloads(_client().get("/chat").text)
+    assert "/assets/ChatPage-DDDDDDDD.js" in links and "/assets/thread-FFFFFFFF.js" in links
+    assert "/assets/index.js" not in links  # its script tag loads it with ?v=
+    assert not any("legacy-app-entry" in link for link in links)
+    assert "/assets/ChatPage-DDDDDDDD.js" not in _preloads(_client().get("/sessions").text)
+
+
+def test_modulepreload_only_for_the_app_style_and_a_manifest(tmp_path, monkeypatch):
+    monkeypatch.setenv("AIUI_TEMPLATES_DIR", str(_preload_build(tmp_path / "fe")))
+    for style in ("dashboard", "chat"):
+        srv.set_style(style)
+        assert _preloads(srv._build_html(style)) == []
+    empty = tmp_path / "nomanifest"
+    empty.mkdir()
+    monkeypatch.setenv("AIUI_TEMPLATES_DIR", str(empty))
+    srv.set_style("app")
+    assert _preloads(srv._build_html("app")) == []

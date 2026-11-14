@@ -12,7 +12,7 @@
  *   first text arrives.
  * - Element, ask and A2UI parts are lazy chunks.
  */
-import { createContext, lazy, memo, useContext, useMemo, useState, type ComponentType, type FC, type MouseEvent, type ReactElement } from 'react'
+import { createContext, lazy, memo, useContext, useId, useMemo, useState, type ComponentType, type FC, type MouseEvent, type ReactElement } from 'react'
 import {
   ActionBarPrimitive,
   AttachmentPrimitive,
@@ -67,6 +67,9 @@ const TextPart: FC = () => {
 
 const Reasoning: FC<ReasoningMessagePartProps> = ({ text, status, timing }) => {
   const [open, setOpen] = useState(false)
+  // A native disclosure (aria-expanded + aria-controls): radix Collapsible
+  // would cost ~1.5-3.8 kB gzip on a chat route near its budget.
+  const panelId = useId()
   const done = Boolean(timing?.completedAt) || status.type !== 'running'
   const body = text.replace(/\u200b/g, '').trim()
   const took = timing?.completedAt && timing.startedAt ? formatDuration(timing.completedAt - timing.startedAt) : ''
@@ -78,6 +81,7 @@ const Reasoning: FC<ReasoningMessagePartProps> = ({ text, status, timing }) => {
         onClick={() => setOpen((v) => !v)}
         disabled={!body}
         aria-expanded={open}
+        aria-controls={open && body ? panelId : undefined}
         className="-mx-1.5 flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:hover:text-muted-foreground"
       >
         {done ? <Brain className="size-4" aria-hidden /> : <Spinner className="size-3.5" />}
@@ -87,7 +91,7 @@ const Reasoning: FC<ReasoningMessagePartProps> = ({ text, status, timing }) => {
         )}
       </button>
       {open && body && (
-        <div className="mt-1 ml-2 min-w-0 border-l border-border pl-4 text-sm leading-relaxed break-words text-muted-foreground" data-reasoning-body>
+        <div id={panelId} className="mt-1 ml-2 min-w-0 border-l border-border pl-4 text-sm leading-relaxed break-words text-muted-foreground" data-reasoning-body>
           <Markdown variant="chat" streaming={!done} className="min-w-0 max-w-full text-sm text-muted-foreground">
             {body}
           </Markdown>
@@ -219,6 +223,7 @@ const TOOL_PRE =
 const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
   const { toolName, args, result, artifact, approval, respondToApproval, timing } = props
   const [open, setOpen] = useState(false)
+  const panelId = useId()
   const sessionId = useContext(SessionIdContext)
   const a = (artifact ?? {}) as Record<string, unknown>
   const state = toolState(props)
@@ -243,6 +248,7 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
         className="flex h-8 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
       >
         <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground" aria-hidden>
@@ -269,7 +275,7 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
         />
       )}
       {open && (
-        <div className="space-y-3 px-3 pt-1 pb-3">
+        <div id={panelId} className="space-y-3 px-3 pt-1 pb-3">
           {description && <p className="text-xs break-words text-muted-foreground sm:hidden">{description}</p>}
           <div>
             <div className="mb-1 text-xs font-medium text-muted-foreground">Arguments</div>
@@ -434,11 +440,21 @@ const MessageStatusNotes: FC = () => {
 type PartComponents = Parameters<typeof MessagePrimitive.Parts>[0]['components']
 const PartsContext = createContext<PartComponents>(undefined)
 
+/**
+ * Earlier answers keep their actions in the DOM (autohide="never") and reveal
+ * them on hover, on keyboard focus inside the message, and always on touch
+ * screens. The library's autohide reacts to mouseenter only and unmounts the
+ * hidden bar, so Tab could never reach Copy or feedback on an earlier answer.
+ */
+const REVEAL_ON_HOVER =
+  'opacity-0 group-hover/msg:opacity-100 group-focus-within/msg:opacity-100 [@media(hover:none)]:opacity-100 motion-safe:transition-opacity motion-safe:duration-[120ms]'
+
 const AssistantMessage: FC = () => {
   const components = useContext(PartsContext)
   const agent = useAuiState((s) => (s.message.metadata.custom as { agentName?: string }).agentName)
+  const isLast = useAuiState((s) => s.message.isLast)
   return (
-    <MessagePrimitive.Root className={cn(COLUMN, 'min-w-0 py-3')} data-role="assistant">
+    <MessagePrimitive.Root className={cn(COLUMN, 'group/msg min-w-0 py-3')} data-role="assistant">
       {agent && <div className="mb-1 text-xs font-medium text-muted-foreground">{agent}</div>}
       <div className="min-w-0 text-base leading-[1.55] break-words text-foreground">
         <MessagePrimitive.Parts components={components} />
@@ -449,28 +465,33 @@ const AssistantMessage: FC = () => {
           <ErrorPrimitive.Message />
         </ErrorPrimitive.Root>
       </MessagePrimitive.Error>
-      <ActionBarPrimitive.Root hideWhenRunning autohide="not-last" className="mt-1 -ml-1.5 flex gap-0.5">
+      <ActionBarPrimitive.Root hideWhenRunning autohide="never" className={cn('mt-1 -ml-1.5 flex gap-0.5', !isLast && REVEAL_ON_HOVER)}>
         <ActionBarPrimitive.Copy asChild>
           <Button variant="ghost" size="icon-xs" className={cn(iconButton, 'group/copy')} aria-label="Copy">
             <Copy className="group-data-[copied]/copy:hidden" />
             <Check className="hidden group-data-[copied]/copy:block" />
           </Button>
         </ActionBarPrimitive.Copy>
-        <ActionBarPrimitive.Reload asChild>
-          <Button variant="ghost" size="icon-xs" className={iconButton} aria-label="Regenerate">
-            <RefreshCw />
-          </Button>
-        </ActionBarPrimitive.Reload>
-        <ActionBarPrimitive.FeedbackPositive asChild>
-          <Button variant="ghost" size="icon-xs" className={cn(iconButton, 'data-[submitted]:text-foreground')} aria-label="Good response">
-            <ThumbsUp />
-          </Button>
-        </ActionBarPrimitive.FeedbackPositive>
-        <ActionBarPrimitive.FeedbackNegative asChild>
-          <Button variant="ghost" size="icon-xs" className={cn(iconButton, 'data-[submitted]:text-foreground')} aria-label="Bad response">
-            <ThumbsDown />
-          </Button>
-        </ActionBarPrimitive.FeedbackNegative>
+        {/* Only the last answer can be regenerated (the server answers its last question again). */}
+        <AuiIf condition={(st) => st.message.isLast && st.thread.capabilities.reload}>
+          <ActionBarPrimitive.Reload asChild>
+            <Button variant="ghost" size="icon-xs" className={iconButton} aria-label="Regenerate">
+              <RefreshCw />
+            </Button>
+          </ActionBarPrimitive.Reload>
+        </AuiIf>
+        <AuiIf condition={(st) => st.thread.capabilities.feedback}>
+          <ActionBarPrimitive.FeedbackPositive asChild>
+            <Button variant="ghost" size="icon-xs" className={cn(iconButton, 'data-[submitted]:text-foreground')} aria-label="Good response">
+              <ThumbsUp />
+            </Button>
+          </ActionBarPrimitive.FeedbackPositive>
+          <ActionBarPrimitive.FeedbackNegative asChild>
+            <Button variant="ghost" size="icon-xs" className={cn(iconButton, 'data-[submitted]:text-foreground')} aria-label="Bad response">
+              <ThumbsDown />
+            </Button>
+          </ActionBarPrimitive.FeedbackNegative>
+        </AuiIf>
       </ActionBarPrimitive.Root>
     </MessagePrimitive.Root>
   )
@@ -544,7 +565,7 @@ const Composer: FC<{ placeholder?: string; notice?: ComposerNotice | null }> = (
         )}
       </div>
     )}
-    <ComposerPrimitive.Root className="flex w-full min-w-0 flex-col rounded-xl border border-border bg-background shadow-sm motion-safe:transition-shadow motion-safe:duration-[120ms] focus-within:border-ring/30 focus-within:shadow-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/30">
+    <ComposerPrimitive.Root className="flex w-full min-w-0 flex-col rounded-xl border border-border bg-background shadow-sm motion-safe:transition-shadow motion-safe:duration-[120ms] focus-within:border-ring/30 focus-within:shadow-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/30 group-data-[dragging]/drop:border-ring/60 group-data-[dragging]/drop:ring-2 group-data-[dragging]/drop:ring-ring/40">
       <div className="flex flex-wrap gap-1.5 px-3 pt-2.5 empty:hidden">
         <ComposerPrimitive.Attachments>{() => <ComposerAttachment />}</ComposerPrimitive.Attachments>
       </div>
@@ -594,10 +615,8 @@ export interface ThreadProps {
   notice?: ComposerNotice | null
   /** Passed to parts that post back to the server (A2UI surface actions). */
   sessionId?: string
-  /** Older messages exist on the server: show "Load earlier messages". */
-  hasMore?: boolean
-  loadingEarlier?: boolean
-  onLoadEarlier?: () => void
+  /** Suggestion prompts that go into the composer to be finished, instead of being sent. */
+  fillPrompts?: ReadonlySet<string>
 }
 
 const ThreadSkeleton: FC = () => (
@@ -634,12 +653,24 @@ function usePartComponents() {
 
 const MESSAGE_COMPONENTS = { UserMessage, AssistantMessage, SystemMessage }
 
-export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loading, notice, sessionId, hasMore, loadingEarlier, onLoadEarlier }) => {
+/** After a template starter fills the composer, put the caret at its end. */
+function focusComposerEnd(from: HTMLElement) {
+  requestAnimationFrame(() => {
+    const input = from.closest('[data-aiui-thread]')?.querySelector<HTMLTextAreaElement>('textarea[aria-label="Message"]')
+    if (!input) return
+    input.focus()
+    input.setSelectionRange(input.value.length, input.value.length)
+  })
+}
+
+export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loading, notice, sessionId, fillPrompts }) => {
   const parts = usePartComponents()
   return (
     <SessionIdContext.Provider value={sessionId}>
     <PartsContext.Provider value={parts}>
-    <ThreadPrimitive.Root className="flex h-full min-h-0 min-w-0 flex-col bg-background text-foreground">
+    {/* A file dropped anywhere on the thread is attached (same adapter, 10 MB check, notice). */}
+    <ComposerPrimitive.AttachmentDropzone asChild>
+    <ThreadPrimitive.Root className="group/drop flex h-full min-h-0 min-w-0 flex-col bg-background text-foreground" data-aiui-dropzone>
       <ThreadPrimitive.Viewport autoScroll className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-4 sm:px-6" data-aiui-thread>
         {loading ? (
           <ThreadSkeleton />
@@ -652,30 +683,39 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
               </div>
               <div className="grid w-full gap-2 text-left sm:grid-cols-2">
                 <ThreadPrimitive.Suggestions>
-                  {({ suggestion }) => (
-                    <SuggestionPrimitive.Trigger send asChild>
-                      <button
-                        type="button"
-                        className="min-w-0 rounded-xl border border-border px-4 py-3 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <div className="truncate font-medium text-foreground">{suggestion.title ?? suggestion.prompt}</div>
-                        {suggestion.label && <div className="mt-0.5 truncate text-muted-foreground">{suggestion.label}</div>}
-                      </button>
-                    </SuggestionPrimitive.Trigger>
-                  )}
+                  {({ suggestion }) => {
+                    const fill = fillPrompts?.has(suggestion.prompt) ?? false
+                    return (
+                      <SuggestionPrimitive.Trigger send={!fill} asChild>
+                        <button
+                          type="button"
+                          onClick={fill ? (e) => focusComposerEnd(e.currentTarget) : undefined}
+                          className="min-w-0 rounded-xl border border-border px-4 py-3 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <div className="truncate font-medium text-foreground">{suggestion.title ?? suggestion.prompt}</div>
+                          {suggestion.label && <div className="mt-0.5 truncate text-muted-foreground">{suggestion.label}</div>}
+                        </button>
+                      </SuggestionPrimitive.Trigger>
+                    )
+                  }}
                 </ThreadPrimitive.Suggestions>
               </div>
             </div>
           </ThreadPrimitive.Empty>
         )}
-        {hasMore && !loading && (
+        {/* Stays enabled while a page loads (a press joins that load), so keyboard focus stays on it. */}
+        <AuiIf condition={(st) => st.thread.hasEarlier}>
           <div className={cn(COLUMN, 'flex justify-center pt-4 pb-2')}>
-            <Button type="button" variant="ghost" size="sm" disabled={loadingEarlier} onClick={onLoadEarlier} data-load-earlier>
-              {loadingEarlier && <Spinner className="size-3.5" />}
-              Load earlier messages
-            </Button>
+            <ThreadPrimitive.LoadEarlier asChild>
+              <Button type="button" variant="ghost" size="sm" data-load-earlier>
+                <AuiIf condition={(st) => st.thread.isLoadingEarlier}>
+                  <Spinner className="size-3.5" />
+                </AuiIf>
+                Load earlier messages
+              </Button>
+            </ThreadPrimitive.LoadEarlier>
           </div>
-        )}
+        </AuiIf>
         <ThreadPrimitive.Messages components={MESSAGE_COMPONENTS} />
         {/* Keeps the composer at the bottom of a short thread; an empty thread centres itself instead. */}
         <AuiIf condition={(st) => st.thread.messages.length > 0}>
@@ -698,6 +738,7 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
+    </ComposerPrimitive.AttachmentDropzone>
     </PartsContext.Provider>
     </SessionIdContext.Provider>
   )

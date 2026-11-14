@@ -19,6 +19,8 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { Skeleton as ShadcnSkeleton } from '@/components/ui/skeleton'
+import { Markdown } from '@/markdown/LazyMarkdown'
+import { fenced } from '@/markdown/fence'
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb'
 import { Pagination as ShadcnPagination, PaginationContent, PaginationItem, PaginationLink, PaginationPrevious, PaginationNext, PaginationEllipsis } from '@/components/ui/pagination'
 import {
@@ -319,11 +321,9 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
                 language?: string
             }
             return (
-                <pre key={key} className="rounded-lg bg-muted p-4 overflow-auto">
-                    <code className={language ? `language-${language}` : undefined}>
-                        {code ?? ''}
-                    </code>
-                </pre>
+                <Markdown key={key} variant="docs" className="min-w-0">
+                    {fenced(code ?? '', language ?? '')}
+                </Markdown>
             )
         }
 
@@ -586,14 +586,15 @@ function renderComponent(component: ComponentDict, index: number): React.ReactNo
             return <Tag key={key} className={sizeMap[level] ?? sizeMap[2]}>{headerText ?? ''}</Tag>
         }
 
+        // ui.markdown_text() and A2UI Markdown: real markdown, sanitized. The
+        // chat variant also gates off-origin images (agent-sourced content).
+        case 'markdown':
         case 'markdown_text': {
-            const { content } = component as ComponentDict & { content?: string }
+            const content = component.content
             return (
-                <div
-                    key={key}
-                    dangerouslySetInnerHTML={{ __html: content ?? '' }}
-                    className="prose dark:prose-invert"
-                />
+                <Markdown key={key} variant="chat">
+                    {typeof content === 'string' ? content : String(content ?? '')}
+                </Markdown>
             )
         }
 

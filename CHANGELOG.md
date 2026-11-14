@@ -17,6 +17,23 @@
   handshakes and cross-site `POST`/`PUT`/`PATCH`/`DELETE` requests. Set
   `AIUI_ALLOWED_ORIGINS` (comma-separated, or `*`) for a frontend served from
   another origin. See [Deployment → Cross-site requests](docs/features/deployment.md#cross-site-requests).
+- **Local servers check the `Host` header.** A server reached on a loopback or
+  private address answers only IP addresses, `localhost`, `*.local`, its own
+  hostname and the names in `AIUI_ALLOWED_HOSTS` (DNS rebinding guard). A
+  reverse proxy on the same machine that forwards a public host name to a
+  loopback-bound server (nginx → `127.0.0.1:8082` with
+  `proxy_set_header Host $host`) must now set `AIUI_ALLOWED_HOSTS` to that
+  name. See [Deployment → Host names](docs/features/deployment.md#host-names-dns-rebinding).
+- **Self-signup is off under `require_auth`.** `POST /register` needs a session
+  unless `create_app(allow_signup=True)` or YAML `auth.allowSignup` is set.
+- **App shell: full-bleed comes from `page.layout`.** The shell no longer keeps
+  a list of page ids that fill the viewport. An app that registers its own
+  `explorer` (or any) legacy page that needs the full viewport must pass
+  `layout='full-bleed'`.
+- **The frontend package is private.** `src/frontend/package.json` is no longer
+  publishable and `build:lib` is removed; import UI components from the
+  in-repo barrel `src/frontend/src/components/index.ts`, and write app-shell
+  plugins against `@aiui/sdk`.
 
 ### Security
 
@@ -42,3 +59,9 @@
 
 - `style: app` (opt-in React shell); see
   [React app shell](docs/features/react-shell.md).
+- App shell: built-in sidebar icons and group order come from the manifest
+  (`navIcon` on each page, `layout.groups`); `set_dashboard(groups=...)` or
+  YAML `dashboard.groups` overrides the group order and folding.
+- `@aiui/sdk` exports `getPageId`, `usePageId`, `useThemeMode` and `dismiss`.
+- The shell manifest reports `site.feedbackEnabled`, so the chat hides
+  feedback buttons when feedback is switched off.

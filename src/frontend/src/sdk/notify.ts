@@ -43,6 +43,21 @@ export function useToasterRequested(): boolean {
   return useSyncExternalStore(subscribe, getRequested, getRequested)
 }
 
+/**
+ * Close the toast with this id (the `id` passed to notify(), or the id it
+ * resolved to); with no id, close every toast. Nothing to close until a toast
+ * was raised, so sonner is never loaded just for this.
+ */
+export function dismiss(id?: string | number): Promise<void> {
+  if (!toasterRequested) return Promise.resolve()
+  return import('sonner').then(
+    ({ toast }) => {
+      toast.dismiss(id)
+    },
+    () => undefined,
+  )
+}
+
 /** Show a toast. Returns the sonner toast id once sonner has loaded. */
 export function notify(message: string, opts: NotifyOptions = {}): Promise<string | number | undefined> {
   requestToaster()

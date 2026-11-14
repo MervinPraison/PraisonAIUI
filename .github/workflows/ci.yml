@@ -108,10 +108,17 @@ jobs:
         run: npm run check:bundle
         working-directory: src/frontend
 
+  # Playwright in four parallel shards (playwright.config.ts: fullyParallel and
+  # blob reports when CI is set), so the slowest job is about a quarter of the
+  # serial run. e2e-report merges the shards' blob reports into one HTML report.
   e2e:
-    name: e2e
+    name: e2e (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
 
     steps:
       - uses: actions/checkout@v4
@@ -120,6 +127,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -135,8 +144,22 @@ jobs:
         run: npm ci
         working-directory: src/frontend
 
+      # The browser build is keyed by the lockfile (it pins @playwright/test).
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('src/frontend/package-lock.json') }}
+
       - name: Install Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+        working-directory: src/frontend
+
+      - name: Install Chromium system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
         working-directory: src/frontend
 
       - name: Build frontend
@@ -149,16 +172,17 @@ jobs:
       # only macOS baselines are committed so far, so on this runner the
       # screenshot comparison is not enforced yet (the DOM checks are). See
       # src/frontend/e2e/README.md for how to add the Linux baselines.
-      - name: Playwright suites
-        run: npm run test:e2e
+      - name: Playwright suites (shard ${{ matrix.shard }}/4)
+        run: npx playwright test -c e2e/playwright.config.ts --shard=${{ matrix.shard }}/4
         working-directory: src/frontend
         env:
           AIUI_E2E_PYTHON: python
 
       # Python checks the python job has to skip: the runtime leak probe of the
       # legacy views (WP5's gate; needs a browser) and the React-export coverage
-      # of the import-map shims (needs src/frontend/node_modules).
+      # of the import-map shims (needs src/frontend/node_modules). Once, in shard 1.
       - name: Runtime leak probe and React-export coverage (pytest)
+        if: matrix.shard == 1
         run: |
           pip install playwright
           python -m playwright install --with-deps chromium-headless-shell
@@ -166,15 +190,69 @@ jobs:
         env:
           RUN_BROWSER_TESTS: "1"
 
-      - name: Upload the Playwright report
+      - name: Upload the blob report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: blob-report-${{ matrix.shard }}
+          path: src/frontend/e2e/.blob
+          retention-days: 3
+          # dot-folder: upload-artifact v4 skips hidden paths unless told otherwise
+          include-hidden-files: true
+
+      - name: Upload traces and screenshots
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
-          path: |
-            src/frontend/e2e/.report
-            src/frontend/e2e/.results
+          name: playwright-results-${{ matrix.shard }}
+          path: src/frontend/e2e/.results
           retention-days: 7
+          # dot-folder: upload-artifact v4 skips hidden paths unless told otherwise
+          include-hidden-files: true
+
+  e2e-report:
+    name: e2e report
+    if: ${{ !cancelled() }}
+    needs: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: src/frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: src/frontend
+
+      - name: Download the shard reports
+        uses: actions/download-artifact@v4
+        with:
+          path: src/frontend/e2e/all-blob-reports
+          pattern: blob-report-*
+          merge-multiple: true
+
+      - name: Merge into one HTML report
+        run: npx playwright merge-reports --reporter html,list ./e2e/all-blob-reports
+        working-directory: src/frontend
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: e2e/.report
+          PLAYWRIGHT_HTML_OPEN: never
+
+      - name: Upload the Playwright report
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: src/frontend/e2e/.report
+          retention-days: 7
+          # dot-folder: upload-artifact v4 skips hidden paths unless told otherwise
+          include-hidden-files: true
 
   # Safety net after a merge: rebuild the bundle on the CI image and, when the
   # committed copy differs, open a pull request with the synced files. Pull

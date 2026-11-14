@@ -10,12 +10,13 @@
  * The page does not register itself; the shell calls registerChatPage()
  * from ./register.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type JSX } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type JSX } from 'react'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import { PanelLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ShellPage } from '@/sdk/manifest'
+import { useManifest } from '@/sdk/services'
 import { deleteSession, fetchAgents, fetchSessions, fetchStarters, renameSession, type ChatAgent, type ChatSession } from './api'
 import type { ConnectionStatus } from './protocol'
 import { takePendingPrefill, takePendingSessionSelect } from './register'
@@ -24,14 +25,33 @@ import { addLocalSession, markListed, mergeSessions, removeLocalSession, renameL
 import { threadStore } from './store'
 import { Thread } from './Thread'
 import { createAutoTransport, type AiuiTransport } from './transports'
-import { DEFAULT_STARTERS } from './starters'
+import { DEFAULT_STARTERS, fillPrompts } from './starters'
+import { connectionLabel } from './util'
 import { useAiuiRuntime, type AiuiStarter } from './useAiuiRuntime'
+
+/** Phone rail (radix Dialog sheet): loaded on the first tap of "Show chats". */
+const loadRailSheet = () => import('./RailSheet')
+const RailSheet = lazy(loadRailSheet)
+function preloadRailSheet() {
+  void loadRailSheet().catch(() => {
+    /* retried on open */
+  })
+}
 
 let sharedTransport: AiuiTransport | null = null
 /** One WebSocket for every chat view; streams outlive the page component. */
 function getSharedTransport(): AiuiTransport {
   return (sharedTransport ??= createAutoTransport())
 }
+
+/**
+ * The shell unmounts the page on every navigation. The open conversation and
+ * an unsent draft survive leaving and coming back to /chat (an explicit
+ * ?session= still wins); "New chat" clears them.
+ */
+let lastSessionId: string | null = null
+const drafts = new Map<string, string>()
+const draftKey = (sid: string | null) => sid ?? ''
 
 const RAIL_PREF_KEY = 'aiui-chat-rail-hidden'
 
@@ -60,10 +80,9 @@ function readUrlState(): { session: string | null; agent: string | null } {
   }
 }
 
-function ConnectionBadge({ status, kind }: { status?: ConnectionStatus; kind: 'ws' | 'sse' }) {
+function ConnectionBadge({ status, transport }: { status?: ConnectionStatus; transport: AiuiTransport }) {
   if (!status) return null
-  const label = status === 'open' ? 'Connected' : status === 'connecting' ? 'Connecting' : kind === 'sse' ? 'Offline, using HTTP' : 'Offline'
-  const short = status === 'open' ? 'Live' : status === 'connecting' ? '…' : 'Offline'
+  const { label, short, tone } = connectionLabel(status, transport)
   return (
     <span
       className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-xs text-muted-foreground"
@@ -75,7 +94,8 @@ function ConnectionBadge({ status, kind }: { status?: ConnectionStatus; kind: 'w
       <span
         className={cn(
           'size-2 rounded-full',
-          status === 'open' ? 'bg-success' : status === 'connecting' ? 'bg-warning motion-safe:animate-pulse' : 'bg-destructive',
+          tone === 'ok' ? 'bg-success' : tone === 'down' ? 'bg-destructive' : 'bg-warning',
+          status === 'connecting' && 'motion-safe:animate-pulse',
         )}
         aria-hidden
       />
@@ -114,7 +134,7 @@ export interface ChatPageProps {
 export default function ChatPage({ page, transport: transportProp }: ChatPageProps): JSX.Element {
   const [transport] = useState(() => transportProp ?? getSharedTransport())
   const [initial] = useState(readUrlState)
-  const [sessionId, setSessionId] = useState<string | null>(initial.session)
+  const [sessionId, setSessionId] = useState<string | null>(() => initial.session ?? lastSessionId)
   const [agents, setAgents] = useState<ChatAgent[]>([])
   const [agent, setAgent] = useState('')
   const [starters, setStarters] = useState<AiuiStarter[] | undefined>(undefined)
@@ -124,9 +144,15 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   const [localSessions, setLocalSessions] = useState<LocalSessions>({})
   const [query, setQuery] = useState('')
   const [railOpen, setRailOpen] = useState(false)
+  // The sheet chunk is mounted after the first open only (as the shell does with MobileNav).
+  const [railRequested, setRailRequested] = useState(false)
+  const railButton = useRef<HTMLButtonElement>(null)
   const [railHidden, setRailHidden] = useState(readRailHidden)
   const [notice, setNotice] = useState<string | null>(null)
   const running = useSyncExternalStore(threadStore.subscribeRunning, threadStore.runningSessions)
+  // The shell header owns the page <h1>; with it hidden (layout.pageHeader: false) the chat title is the h1.
+  const manifest = useManifest()
+  const Heading = manifest?.layout.pageHeader === false ? 'h1' : 'h2'
 
   // Chats deleted during this visit. A list request that was already in flight
   // when the delete finished must not bring them back.
@@ -184,6 +210,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
 
   // Mirror the selection into ?session= (and drop a consumed ?agent=).
   useEffect(() => {
+    lastSessionId = sessionId
     try {
       const url = new URL(window.location.href)
       if (sessionId) url.searchParams.set('session', sessionId)
@@ -218,7 +245,31 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
     onSessionCreated,
     onError: setNotice,
     onSend: clearNotice,
+    // Servers that report it (site.feedbackEnabled); older ones are found out on the first 403.
+    feedback: manifest?.site.feedbackEnabled !== false,
   })
+
+  // An unsent draft is kept when the page unmounts and put back when it
+  // returns (a prefill event, handled below, still wins).
+  const draftSession = useRef(sessionId)
+  useEffect(() => {
+    draftSession.current = sessionId
+  }, [sessionId])
+  useEffect(() => {
+    const key = draftKey(draftSession.current)
+    const saved = drafts.get(key)
+    drafts.delete(key)
+    if (saved) setComposerText(saved)
+    return () => {
+      let text = ''
+      try {
+        text = runtime.thread.composer.getState().text
+      } catch {
+        /* runtime already disposed */
+      }
+      if (text.trim()) drafts.set(draftKey(draftSession.current), text)
+    }
+  }, [runtime, setComposerText])
 
   // Window events from the shell and other pages.
   useEffect(() => {
@@ -276,6 +327,8 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   // Server list + sessions created here that the server has not listed yet.
   const shownSessions = useMemo(() => mergeSessions(sessions, localSessions), [sessions, localSessions])
 
+  const fill = useMemo(() => fillPrompts(starters), [starters])
+
   const current = sessionId ? shownSessions.find((s) => s.id === sessionId) : undefined
   const heading = current?.title ?? (sessionId ? 'Chat' : 'New chat')
 
@@ -303,22 +356,30 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   return (
     <div className="relative flex h-full min-h-0 w-full min-w-0 overflow-hidden bg-background text-foreground" data-aiui-chat data-page-id={page.id}>
       {!railHidden && <SessionRail {...railProps} className="hidden shrink-0 border-r border-border/70 lg:flex" />}
-      {railOpen && (
-        <div
-          className="absolute inset-0 z-30 lg:hidden"
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setRailOpen(false)
-          }}
-        >
-          <div className="absolute inset-0 bg-foreground/20" onClick={() => setRailOpen(false)} aria-hidden />
-          <SessionRail {...railProps} onClose={() => setRailOpen(false)} className="absolute inset-y-0 left-0 w-72 max-w-[85%] shadow-xl" />
-        </div>
+      {railRequested && (
+        <Suspense fallback={null}>
+          <RailSheet open={railOpen} onOpenChange={setRailOpen} rail={railProps} returnFocus={railButton} />
+        </Suspense>
       )}
       <section className="@container flex min-h-0 min-w-0 flex-1 flex-col" aria-label={page.title || 'Chat'}>
         {/* The title lines up with the thread column; the rail toggle sits in the gutter. */}
         <header className="relative flex h-12 shrink-0 items-center px-4 sm:px-6">
           <div className="absolute top-2 left-2 flex sm:left-3">
-            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground lg:hidden" onClick={() => setRailOpen(true)} aria-label="Show chats">
+            <Button
+              ref={railButton}
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground hover:text-foreground lg:hidden"
+              onClick={() => {
+                setRailRequested(true)
+                setRailOpen(true)
+              }}
+              onPointerEnter={preloadRailSheet}
+              onFocus={preloadRailSheet}
+              aria-label="Show chats"
+              aria-haspopup="dialog"
+              aria-expanded={railOpen}
+            >
               <PanelLeft />
             </Button>
             <Button
@@ -333,9 +394,9 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
             </Button>
           </div>
           <div className="mx-auto flex w-full max-w-[760px] min-w-0 items-center gap-1.5 pl-7 @[54rem]:pl-0" data-chat-header-column>
-            <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{heading}</h1>
+            <Heading className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" data-chat-title>{heading}</Heading>
             <AgentPicker agents={agents} value={agent} onChange={setAgent} />
-            <ConnectionBadge status={thread.signals.connection} kind={transport.kind} />
+            <ConnectionBadge status={thread.signals.connection} transport={transport} />
           </div>
         </header>
         <div className="min-h-0 min-w-0 flex-1">
@@ -345,11 +406,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
               loading={thread.isLoading && !thread.messages.length}
               subtitle={agent ? `Chatting with ${agent}` : agents.length ? 'Default agent' : undefined}
               notice={notice ? { text: notice, onDismiss: () => setNotice(null) } : null}
-              hasMore={thread.hasMore}
-              loadingEarlier={thread.isLoadingEarlier}
-              onLoadEarlier={() => {
-                if (threadSessionId) void threadStore.loadEarlier(threadSessionId)
-              }}
+              fillPrompts={fill}
             />
           </AssistantRuntimeProvider>
         </div>

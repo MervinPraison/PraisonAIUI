@@ -14,6 +14,8 @@ import {
   FetchJsonError,
   getCommands,
   getManifest,
+  getPageId,
+  getThemeMode,
   navigate,
   onActivate,
   provideShellHost,
@@ -130,6 +132,52 @@ test('the published typings (aiui-sdk.d.ts) declare exactly SDK_EXPORTS', () => 
   assert.deepEqual([...declared].sort(), [...SDK_EXPORTS].sort())
   assert.match(dts, /declare module '@aiui\/sdk'/)
   assert.doesNotMatch(dts, /^(import|export)\s/m, 'no top-level import/export: the file must stay ambient')
+})
+
+test('getPageId, usePageId and useThemeMode are appended exports with their own features', () => {
+  assert.deepEqual(SDK_EXPORTS.slice(20, 23), ['getPageId', 'usePageId', 'useThemeMode'])
+  for (const f of ['page-id', 'theme-mode']) assert.ok((SDK_FEATURES as readonly string[]).includes(f), f)
+})
+
+// ── current page + colour mode ───────────────────────────────────────
+
+test('getPageId reads the first path segment without a shell, and asks the shell once provided', () => {
+  const saved = location.pathname
+  try {
+    location.pathname = '/code-studio/x'
+    assert.equal(getPageId(), 'code-studio')
+    location.pathname = '/'
+    assert.equal(getPageId(), '')
+    location.pathname = '/a%20b'
+    assert.equal(getPageId(), 'a b')
+    location.pathname = '/%E0%A4%A'
+    assert.equal(getPageId(), '%E0%A4%A', 'a malformed escape is returned as it is')
+
+    const listeners: (() => void)[] = []
+    provideShellHost({
+      getPageId: () => 'from-router',
+      subscribeLocation: (cb) => {
+        listeners.push(cb)
+        return () => listeners.splice(listeners.indexOf(cb), 1)
+      },
+    })
+    assert.equal(getPageId(), 'from-router')
+  } finally {
+    location.pathname = saved
+  }
+})
+
+test('getThemeMode follows the dark class on <html>', () => {
+  const classes = new Set<string>()
+  g.document = { documentElement: { classList: { contains: (c: string) => classes.has(c) } } }
+  try {
+    assert.equal(getThemeMode(), 'light')
+    classes.add('dark')
+    assert.equal(getThemeMode(), 'dark')
+  } finally {
+    delete g.document
+  }
+  assert.equal(getThemeMode(), 'light', 'no document: light')
 })
 
 // ── navigate ─────────────────────────────────────────────────────────

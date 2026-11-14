@@ -119,8 +119,9 @@ def test_replay_core_node_suite():
         text=True,
         timeout=120,
     )
+    # The exit code is the verdict: Node's report format (TAP or spec)
+    # depends on the environment, so do not grep for "# fail 0".
     assert proc.returncode == 0, proc.stdout[-4000:] + proc.stderr[-2000:]
-    assert re.search(r"# fail 0", proc.stdout)
 
 
 def test_replay_page_uses_own_svg_mark_not_emoji_heading():

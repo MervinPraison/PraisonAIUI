@@ -67,6 +67,7 @@ volumes:
 | `AIUI_HOST` | `0.0.0.0` | Server bind address (Docker only) |
 | `AUTH_ENFORCE` | `false` | Enforce Bearer token auth on every route except the public surface (see below) |
 | `AIUI_ALLOWED_ORIGINS` | — | Comma-separated origins allowed to call the server from another site (CORS and cross-site requests); `*` allows any |
+| `AIUI_ALLOWED_HOSTS` | — | Comma-separated host names the server answers to when reached on a loopback or private address (`.example.com` also matches subdomains); `*` turns the check off |
 | `OPENAI_API_KEY` | — | OpenAI API key for LLM provider |
 
 ### Auth Enforcement
@@ -283,6 +284,26 @@ list its origin:
 AIUI_ALLOWED_ORIGINS=https://app.example.com,https://admin.example.com
 # AIUI_ALLOWED_ORIGINS=*   # the old allow-everything behaviour
 ```
+
+### Host names (DNS rebinding)
+
+A server reached on a loopback or private address (`127.0.0.1`, `192.168.x.x`,
+a Docker bridge) only answers requests whose `Host` is an IP address,
+`localhost` / `*.localhost`, a `*.local` name, the machine's own hostname, or a
+name listed in `AIUI_ALLOWED_HOSTS`. Anything else gets `400 Host not allowed`
+(a WebSocket is closed with code 1008). This stops DNS rebinding, where a
+website points its own domain at `127.0.0.1` so that the browser treats it as
+same-origin with your local server.
+
+If a reverse proxy on the same machine forwards a public name to the server
+(nginx → `127.0.0.1:8082` with `proxy_set_header Host $host`), list that name:
+
+```bash
+AIUI_ALLOWED_HOSTS=aiui.example.com          # or .example.com for subdomains
+# AIUI_ALLOWED_HOSTS=*   # turn the check off
+```
+
+A server reached directly on a public IP address is not checked.
 
 ### Network Considerations
 
