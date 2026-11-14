@@ -137,52 +137,72 @@ const COMPONENT_REGISTRY = {};
 const VIEW_REGISTRY = {};
 let _activeCleanup = null; // cleanup function for the active view
 
-// Built-in page-to-module mapping (protocol-first: page IDs come from /api/pages)
-// Paths are relative to /plugins/ where dashboard.js is served from
-const BUILTIN_VIEWS = {
-  chat:           '/plugins/views/chat.js',
-  'chat-canvas':  '/plugins/views/chat-canvas.js',
-  canvas:         '/plugins/views/canvas.js',
-  overview:       '/plugins/views/overview.js',
-  agents:         '/plugins/views/agents.js',
-  sessions:       '/plugins/views/sessions.js',
-  runs:           '/plugins/views/run-recorder.js',
-  replay:         '/plugins/views/replay.js',
-  memory:         '/plugins/views/memory.js',
-  knowledge:      '/plugins/views/knowledge.js',
-  logs:           '/plugins/views/logs.js',
-  schedules:      '/plugins/views/schedules.js',
-  cron:           '/plugins/views/schedules.js',
-  config:         '/plugins/views/config.js',
-  config_runtime: '/plugins/views/config.js',
-  approvals:      '/plugins/views/approvals.js',
-  usage:          '/plugins/views/usage.js',
-  channels:       '/plugins/views/channels.js',
-  inbox:          '/plugins/views/inbox.js',
-  skills:         '/plugins/views/skills.js',
-  tools:          '/plugins/views/skills.js',
-  nodes:          '/plugins/views/nodes.js',
-  instances:      '/plugins/views/nodes.js',
-  explorer:       '/plugins/views/explorer.js',
-  debug:          '/plugins/views/debug.js',
-  guardrails:     '/plugins/views/guardrails.js',
-  eval:           '/plugins/views/eval.js',
-  training:       '/plugins/views/training-lab.js',
-  telemetry:      '/plugins/views/telemetry.js',
-  traces:         '/plugins/views/traces.js',
-  security:       '/plugins/views/security.js',
-  'theme-picker': '/plugins/views/theme-picker.js',
-  feedback:       '/plugins/views/feedback.js',
-  jobs:           '/plugins/views/jobs.js',
-  kanban:         '/plugins/views/kanban.js',
-  work:           '/plugins/views/work-hub.js',
-  'jobs-board':   '/plugins/views/jobs-board.js',
-  auth:           '/plugins/views/auth.js',
-  api:            '/plugins/views/api.js',
-  mcp:            '/plugins/views/mcp.js',
-  marketplace:    '/plugins/views/marketplace.js',
-  'code-studio':  '/plugins/views/code-studio.js',
-};
+// ── View modules (protocol-first) ────────────────────────────────────
+// Which view module renders a page comes from the server, not from a list
+// here. GET /api/shell/manifest says where each page comes from (`source`),
+// how it renders (`kind`) and where the built-in views live
+// (`legacy.viewsBase`). A built-in page's view is `<viewsBase><page id>.js`
+// (a built-in record may also name its own `module`); a page that an app
+// (register_page / @aiui.page), a plugin or a dashboard-plugin folder
+// provides never gets a built-in view, even when it reuses a built-in's id
+// (it renders through registerView or the generic viewer). A disabled
+// built-in is simply absent from the manifest, and a new built-in page only
+// needs its catalog record and its view file.
+//
+// Fallback, only when the manifest cannot be read (an older server, a
+// failed request): every page that /api/pages lists is tried by the same
+// file convention; a page without a view file falls through to the generic
+// viewer.
+const DEFAULT_VIEWS_BASE = '/plugins/views/';
+const VIEW_FILE_ID = /^[A-Za-z0-9][\w-]*$/;
+let _viewsBase = DEFAULT_VIEWS_BASE;
+let _viewIndex = null; // Map<page id, manifest page>; null while unknown or unreachable
+let _viewIndexLoad = null;
+
+// Loads the manifest's page records once; never rejects.
+function loadViewIndex() {
+  if (!_viewIndexLoad) {
+    _viewIndexLoad = (async () => {
+      try {
+        const res = await fetch('/api/shell/manifest');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const manifest = await res.json();
+        if (!manifest || !Array.isArray(manifest.pages)) throw new Error('no pages in the manifest');
+        const base = manifest.legacy && manifest.legacy.viewsBase;
+        if (typeof base === 'string' && /^\/(?!\/)[\w./-]*\/$/.test(base) && !base.includes('..')) _viewsBase = base;
+        _viewIndex = new Map(manifest.pages.filter((pg) => pg && typeof pg.id === 'string').map((pg) => [pg.id, pg]));
+      } catch (e) {
+        console.warn('[AIUI] /api/shell/manifest unavailable; views resolve by file name:', e);
+        _viewIndex = null;
+      }
+    })();
+  }
+  return _viewIndexLoad;
+}
+
+function _sameOriginPath(url) {
+  return typeof url === 'string' && url.startsWith('/') && !url.startsWith('//') && !url.includes('\\');
+}
+
+// A page record from the manifest: it says how the page renders and where
+// it comes from.
+function _isManifestPage(page) {
+  return Boolean(page) && typeof page === 'object' && typeof page.kind === 'string' && typeof page.source === 'string';
+}
+
+// The view module URL for a page (without a cache-bust), or null when the
+// page has none (a registered view or the generic viewer renders it).
+// hostPage: the app shell's record of the page (manifest shape), if any.
+function viewModuleUrl(pageId, hostPage) {
+  const rec = _isManifestPage(hostPage) ? hostPage : (_viewIndex ? _viewIndex.get(pageId) : undefined);
+  const byName = VIEW_FILE_ID.test(pageId) ? `${_viewsBase}${pageId}.js` : null;
+  if (rec) {
+    if (rec.source !== 'builtin' || (rec.kind !== 'legacy' && rec.kind !== 'native')) return null;
+    return _sameOriginPath(rec.module) ? rec.module : byName;
+  }
+  if (_viewIndex) return null; // the server does not list this page
+  return pagesData.some((pg) => pg.id === pageId) ? byName : null;
+}
 
 const SLOT_REGISTRY = {};
 let _dashboardPluginManifests = [];
@@ -1920,6 +1940,7 @@ async function buildDashboard() {
     const [pagesRes, configRes] = await Promise.all([
       fetch('/api/pages'),
       fetch('/ui-config.json'),
+      loadViewIndex(),
     ]);
     const pagesJson = await pagesRes.json();
     pagesData = pagesJson.pages || [];
@@ -2236,7 +2257,7 @@ async function selectPage(pageId) {
 
   // ── View Resolution (protocol-first, extensible) ──────────────
   // 1. Check custom registered views first (highest priority)
-  // 2. Try dynamic import from built-in view map
+  // 2. Try dynamic import of the page's view module (viewModuleUrl)
   // 3. Fall back to generic JSON viewer
   let rendered = false;
 
@@ -2251,10 +2272,11 @@ async function selectPage(pageId) {
     } catch (e) { console.warn(`View '${pageId}' render error:`, e); }
   }
 
-  // Priority 2: Built-in view module (dynamic import)
-  if (!rendered && BUILTIN_VIEWS[pageId]) {
+  // Priority 2: the page's view module (dynamic import)
+  const viewModule = rendered ? null : viewModuleUrl(pageId);
+  if (viewModule) {
     try {
-      const viewUrl = BUILTIN_VIEWS[pageId] + '?v=' + Date.now();
+      const viewUrl = viewModule + '?v=' + Date.now();
       const mod = await import(viewUrl);
       if (mod.render) {
         if (!container.isConnected) return; // superseded by a newer selectPage
@@ -3940,15 +3962,15 @@ function _mountHostToolbar(pageId, page, container) {
 // VIEW_REGISTRY, so a view module is never loaded twice.
 const _hostViewImportFailures = Object.create(null);
 
-function _hostViewUrl(pageId) {
+function _hostViewUrl(pageId, viewModule) {
   const build = window.__AIUI_BUILD__ == null ? '' : String(window.__AIUI_BUILD__);
   const failures = _hostViewImportFailures[pageId] || 0;
-  return BUILTIN_VIEWS[pageId] + '?v=' + encodeURIComponent(build) + (failures ? '&r=' + failures : '');
+  return viewModule + '?v=' + encodeURIComponent(build) + (failures ? '&r=' + failures : '');
 }
 
-async function _importHostView(pageId) {
+async function _importHostView(pageId, viewModule) {
   try {
-    return await import(_hostViewUrl(pageId));
+    return await import(_hostViewUrl(pageId, viewModule));
   } catch (e) {
     _hostViewImportFailures[pageId] = (_hostViewImportFailures[pageId] || 0) + 1;
     throw e;
@@ -3964,7 +3986,7 @@ const _hostLiveMounts = Object.create(null);
 // kept apart: `instance` is what render() returned (it belongs to this mount),
 // `module` is the view's module-level cleanup export (it tears down state the
 // module shares across every mount of the page). Either may be null.
-async function _mountViewBody(pageId, container, page, stale) {
+async function _mountViewBody(pageId, container, page, stale, hostPage) {
   const combine = (returned, moduleCleanup) => ({
     instance: typeof returned === 'function' ? returned : null,
     module: typeof moduleCleanup === 'function' && moduleCleanup !== returned ? moduleCleanup : null,
@@ -3987,11 +4009,15 @@ async function _mountViewBody(pageId, container, page, stale) {
     return noop;
   }
 
-  // Priority 2: built-in view module. The build id (not Date.now(), as in
-  // selectPage) keeps one module instance per build across mounts.
-  if (Object.prototype.hasOwnProperty.call(BUILTIN_VIEWS, pageId)) {
+  // Priority 2: the page's view module (viewModuleUrl). The build id (not
+  // Date.now(), as in selectPage) keeps one module instance per build
+  // across mounts.
+  if (!_isManifestPage(hostPage)) await loadViewIndex();
+  if (stale()) return noop;
+  const viewModule = viewModuleUrl(pageId, hostPage);
+  if (viewModule) {
     try {
-      const mod = await _importHostView(pageId);
+      const mod = await _importHostView(pageId, viewModule);
       if (typeof mod.render === 'function') {
         if (stale()) return noop;
         const returned = await mod.render(container);
@@ -4010,8 +4036,8 @@ async function _mountViewBody(pageId, container, page, stale) {
 
 /**
  * Mount one page's view into `container`; resolves to its cleanup function.
- * Same resolution order as selectPage(): registered view, built-in view
- * module, then the generic data viewer. Unlike selectPage():
+ * Same resolution order as selectPage(): registered view, the page's view
+ * module (viewModuleUrl), then the generic data viewer. Unlike selectPage():
  * - a cleanup that render() returns is honoured as well as the module's
  *   cleanup export, and the combined cleanup runs at most once. The module's
  *   cleanup is skipped while another mount of the same page is live, so a
@@ -4038,7 +4064,7 @@ async function mountView(pageId, container, opts = {}) {
   const toolbar = _mountHostToolbar(pageId, page, container);
   let parts = { instance: null, module: null };
   try {
-    parts = await _mountViewBody(pageId, container, page, stale);
+    parts = await _mountViewBody(pageId, container, page, stale, opts.page);
   } catch (e) {
     live.delete(token);
     throw e;
