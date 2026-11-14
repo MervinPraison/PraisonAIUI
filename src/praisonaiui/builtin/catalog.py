@@ -47,7 +47,8 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
         "chat",
         "Agent chat, with and without the canvas panel",
         (
-            page("chat", "Chat", "💬", "Agent", "AI agent chat", 1, layout="full-bleed"),
+            # React chat in the app shell (builtin.chat in src/frontend/src/builtin).
+            page("chat", "Chat", "💬", "Agent", "AI agent chat", 1, kind="native", layout="full-bleed"),
             page(
                 "chat-canvas",
                 "Chat + Canvas",

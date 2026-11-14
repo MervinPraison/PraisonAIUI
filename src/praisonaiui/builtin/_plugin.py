@@ -110,13 +110,21 @@ def page(
     group: str,
     description: str,
     order: int,
+    *,
+    kind: str = "legacy",
     **extra: object,
 ) -> PageSpec:
-    """A legacy-hosted built-in page (vanilla view mounted by the shell)."""
+    """A built-in page.
+
+    ``kind="legacy"`` (the default): a vanilla view the shell mounts through
+    the legacy host. ``kind="native"``: the app shell renders it with a React
+    page registered by a first-party browser plugin (src/frontend/src/builtin);
+    the legacy dashboard style ignores the kind.
+    """
     return PageSpec(
         id=id,
         title=title,
-        kind="legacy",
+        kind=kind,  # type: ignore[arg-type]
         icon=icon,
         group=group,
         description=description,

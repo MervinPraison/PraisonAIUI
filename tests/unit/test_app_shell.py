@@ -454,7 +454,7 @@ def test_ui_config_chat_enabled_for_app():
 # ── shell manifest ───────────────────────────────────────────────────
 
 
-def test_shell_manifest_lists_builtin_pages_as_legacy():
+def test_shell_manifest_lists_builtin_pages_by_kind():
     srv.set_style("app")
     m = _client().get("/api/shell/manifest").json()
     assert m["sdk"] == 1 and m["style"] == "app"
@@ -462,8 +462,12 @@ def test_shell_manifest_lists_builtin_pages_as_legacy():
                       "toolRenderers", "plugins", "legacy"}
     builtin = {p["id"]: p for p in m["pages"] if p["source"] == "builtin"}
     assert len(builtin) >= 38
-    for pid in ("chat", "overview", "sessions", "usage", "logs", "approvals", "config", "jobs"):
+    for pid in ("chat-canvas", "overview", "sessions", "usage", "logs", "approvals", "config", "jobs"):
         assert builtin[pid]["kind"] == "legacy"
+    # The React chat (builtin.chat in the browser) is reported as native, and
+    # keeps source "builtin" so the browser lets builtin.chat claim the id.
+    assert builtin["chat"]["kind"] == "native"
+    assert builtin["chat"]["source"] == "builtin"
     assert m["legacy"] == {"customJs": None, "viewsBase": "/plugins/views/"}
     assert m["layout"] == {"sidebar": True, "pageHeader": True}
     assert [p["id"] for p in m["pages"]] == [

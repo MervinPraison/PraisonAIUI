@@ -81,7 +81,9 @@ def test_catalog_holds_the_38_pages_once_each():
     for plugin in BUILTIN_PLUGINS:
         for spec in plugin.pages():
             assert isinstance(spec, PageSpec)
-            assert spec.source == "builtin" and spec.kind == "legacy"
+            assert spec.source == "builtin"
+            # Only the React chat is native; every other page is legacy-hosted.
+            assert spec.kind == ("native" if spec.id == "chat" else "legacy"), spec.id
 
 
 def test_records_are_trusted_first_party_and_separate_from_third_party():

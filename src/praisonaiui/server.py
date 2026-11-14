@@ -1078,8 +1078,10 @@ _JS_RESERVED = frozenset(
     "interface package private protected public await arguments eval".split()
 )
 
-# Pages already ported to native React. Everything else in _pages is hosted
-# through LegacyViewHost (kind="legacy") until it is ported.
+# Built-in pages the app shell renders natively in React (kind="native" in
+# praisonaiui.builtin.catalog). Filled by create_app() from the enabled
+# built-in records; every other built-in page is hosted through
+# LegacyViewHost (kind="legacy") until it is ported.
 _NATIVE_PAGES: set[str] = set()
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
@@ -4170,7 +4172,10 @@ def create_app(
     # Built-in pages are first-party plugin records (praisonaiui.builtin), read
     # through the plugin registry like any other plugin's pages. A built-in
     # named in ``extensions.disabled`` contributes none.
-    _builtin_pages = [_builtin_page_entry(s) for s in _plugin_registry.pages(origin="builtin")]
+    _builtin_specs = _plugin_registry.pages(origin="builtin")
+    _builtin_pages = [_builtin_page_entry(s) for s in _builtin_specs]
+    _NATIVE_PAGES.clear()
+    _NATIVE_PAGES.update(s.id for s in _builtin_specs if s.kind == "native")
     for _unknown in _plugin_registry.unknown_builtin_names():
         logging.getLogger(__name__).warning(
             "extensions.disabled names %r, but no such built-in exists", _unknown
