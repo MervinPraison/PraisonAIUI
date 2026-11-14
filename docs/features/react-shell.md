@@ -146,7 +146,7 @@ release:
 
 | # | Criterion | Status |
 |---|---|---|
-| 1 | Every page renders in the shell with status ready, 0 page errors and 0 leak delta in the Playwright sweep | **Not met.** 42/42 pages ready, 0 page errors, no page grows per visit; `chat-canvas` leaves its WebSocket reconnecting after it is left. `/agents` and `/sessions` cannot be opened by URL (the server answers JSON) |
+| 1 | Every page renders in the shell with status ready, 0 page errors and 0 leak delta in the Playwright sweep | **Not met.** 42/42 pages ready, 0 page errors, no page grows per visit, and every page opens by URL. Three pages keep a one-time residue after their first visit that does not grow: `chat` (window listeners and one body child), `chat-canvas` (one window listener) and `code-studio` (one interval, one window listener, two body children) |
 | 2 | Chat parity complete | **Not met.** Done: streaming, tools, reasoning, approvals, ask, attachments, Stop, history, feedback, session rail, reconnect. Missing: message queue, channel messages with unread dots, context ring and compaction banner, cost chip, memory panel, floating and focus modes |
 | 3 | Light mode correct on every page; owner signs off the light and dark screenshots | **Not met.** Awaiting owner review |
 | 4 | Gates green: size, bundle-sync, entry closure, screenshots, pytest, tsc | **Partly.** All run green locally; screenshot comparison is not enforced in CI until Linux baselines exist |
