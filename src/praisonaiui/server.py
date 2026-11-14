@@ -648,6 +648,20 @@ def set_sidebar_config(
     )
 
 
+def _safe_accent_var(key: str, value: Any) -> bool:
+    """Only values that cannot break out of the dashboard's ``<style>`` tag."""
+    from praisonaiui.features.theme import is_valid_accent, normalize_rgb_triple
+    from praisonaiui.themes import _CSS_LENGTH
+
+    if not isinstance(value, str):
+        return False
+    if key == "--db-accent-rgb":
+        return normalize_rgb_triple(value) == value
+    if key == "--db-radius":
+        return bool(_CSS_LENGTH.match(value.strip()))
+    return is_valid_accent(value)
+
+
 def register_theme(name: str, variables: dict[str, str]) -> None:
     """Register a custom theme preset via the protocol-driven ThemeManager.
 
@@ -875,8 +889,10 @@ def _build_html(style: str, request: Optional[Request] = None) -> str:
             mgr = get_theme_manager()
             tvars = mgr.get_vars()
             accent_pairs = ";".join(
-                f"{k}:{v}!important" for k, v in tvars.items() if k in _ACCENT_KEYS
-            )
+                f"{k}:{v}!important"
+                for k, v in tvars.items()
+                if k in _ACCENT_KEYS and _safe_accent_var(k, v)
+            ).replace("</", "<\\/")
             if accent_pairs:
                 theme_vars_tag = f'<style id="aiui-server-theme">:root{{{accent_pairs}}}</style>'
         except Exception:

@@ -32,6 +32,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from collections import Counter
@@ -1691,8 +1692,11 @@ def _post_json(url: str, body: dict, content_type: str = "application/json") -> 
     req = urllib.request.Request(
         url, data=json.dumps(body).encode(), headers={"Content-Type": content_type}, method="POST"
     )
-    with urllib.request.urlopen(req, timeout=10) as r:
-        return r.status
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return r.status
+    except urllib.error.HTTPError as exc:
+        return exc.code
 
 
 @pytest.mark.skipif(not RUNTIME, reason="runtime probe is opt-in (RUN_BROWSER_TESTS=1)")
@@ -1700,14 +1704,16 @@ def _post_json(url: str, body: dict, content_type: str = "application/json") -> 
 def test_theme_picker_runs_no_script_from_registered_themes(chromium, dashboard_url):
     """Reproduces the stored XSS: hostile custom themes are registered through
     the API (once as a cross-site-style text/plain POST), then /theme-picker
-    is opened. Nothing may run, and the themes still work (delete by name)."""
+    is opened. Nothing may run, and the themes still work (delete by name).
+    A hostile accent is now refused by the API itself (400); the picker's own
+    escaping of accents is covered by test_theme_picker_escapes_hostile_*."""
     hostile = [
         {"name": XSS_NAME, "accent": "#ff0000"},
         {"name": "evil-accent", "accent": XSS_ACCENT, "accentRgb": XSS_ACCENT},
     ]
     try:
         assert _post_json(f"{dashboard_url}/api/theme/register", hostile[0]) == 200
-        assert _post_json(f"{dashboard_url}/api/theme/register", hostile[1], "text/plain") == 200
+        assert _post_json(f"{dashboard_url}/api/theme/register", hostile[1], "text/plain") == 400
         ctx = chromium.new_context(viewport={"width": 1280, "height": 800})
         page = ctx.new_page()
         errors: list[str] = []
@@ -1729,7 +1735,7 @@ def test_theme_picker_runs_no_script_from_registered_themes(chromium, dashboard_
                            injected: q('#theme-picker-root img, #theme-picker-root script, #theme-picker-root svg').length,
                            handlers,
                            titleA: sw(a) ? sw(a).title : null,
-                           bgB: sw(b) ? getComputedStyle(sw(b)).backgroundColor : null,
+                           swatchB: !!sw(b),
                            labels: q('.tp-custom-tag').map((e) => e.textContent.replace('×', '').trim()) };
                 }""",
                 [XSS_NAME, "evil-accent"],
@@ -1737,8 +1743,8 @@ def test_theme_picker_runs_no_script_from_registered_themes(chromium, dashboard_
             assert got["x"] is None and got["y"] is None, got
             assert got["injected"] == 0 and not got["handlers"], got
             assert got["titleA"] == XSS_NAME, got  # shown as text, not markup
-            assert got["bgB"] == "rgb(99, 102, 241)", got  # fallback accent
-            assert XSS_NAME in got["labels"] and "evil-accent" in got["labels"], got
+            assert got["swatchB"] is False, got  # refused at registration
+            assert XSS_NAME in got["labels"] and "evil-accent" not in got["labels"], got
             # Delete reads the real name back from the escaped attribute.
             page.click(f'.tp-delete-btn[data-delete="{XSS_NAME}"]')
             page.wait_for_function(
