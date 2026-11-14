@@ -9,6 +9,7 @@
  * hooks on every aiui:page-change as well.
  */
 import { useSyncExternalStore } from 'react'
+import { PAGE_CHANGE_EVENT } from './router'
 
 let open = false
 let requested = false
@@ -61,6 +62,34 @@ export function preloadCommandPalette(): void {
   void import('./CommandPalette').catch(() => {
     /* retried on open */
   })
+}
+
+/**
+ * Run `fn` once the first page is on screen (its chunk loaded and mounted),
+ * or after `timeoutMs` if no page announces itself, so warm-up downloads
+ * (the palette) never compete with the routed page's own chunks. `fn` may
+ * return a cleanup (e.g. an idle-callback cancel). Returns a canceller.
+ */
+export function afterFirstPage(fn: () => void | (() => void), timeoutMs = 8000): () => void {
+  let done = false
+  let inner: void | (() => void)
+  const run = () => {
+    if (done) return
+    done = true
+    window.removeEventListener(PAGE_CHANGE_EVENT, run)
+    window.clearTimeout(timer)
+    inner = fn()
+  }
+  window.addEventListener(PAGE_CHANGE_EVENT, run)
+  const timer = window.setTimeout(run, timeoutMs)
+  return () => {
+    if (!done) {
+      done = true
+      window.removeEventListener(PAGE_CHANGE_EVENT, run)
+      window.clearTimeout(timer)
+    }
+    if (typeof inner === 'function') inner()
+  }
 }
 
 type AiuiWindow = Window & { aiui?: Record<string, unknown> }

@@ -408,6 +408,21 @@ test('closing the palette gives focus back: typing in the composer continues, na
   await expect(page.locator('#aiui-main')).toBeFocused()
 })
 
+test('the palette chunk is warmed only after the routed page has loaded', async ({ page }) => {
+  const events: string[] = []
+  page.on('request', (r) => {
+    if (/\/assets\/CommandPalette-[^/]+\.js$/.test(r.url())) events.push('palette requested')
+  })
+  page.on('requestfinished', (r) => {
+    if (/\/assets\/ChatPage-[^/]+\.js$/.test(r.url())) events.push('chat page loaded')
+  })
+  await page.goto('/chat')
+  await expect(page.getByRole('textbox', { name: 'Message' })).toBeVisible()
+  await expect.poll(() => events.includes('palette requested'), { timeout: 15_000 }).toBe(true)
+  expect(events.indexOf('chat page loaded'), JSON.stringify(events)).toBeGreaterThanOrEqual(0)
+  expect(events.indexOf('chat page loaded'), JSON.stringify(events)).toBeLessThan(events.indexOf('palette requested'))
+})
+
 test('the palette reopens with an empty query, and arrow keys wrap around the list', async ({ page }) => {
   await page.goto('/overview')
   expect((await waitForPage(page, 'overview')).state).toBe('ready')
