@@ -1,124 +1,89 @@
 /**
- * The app shell: sidebar + header + routed page body (ADR-0001 §3).
+ * The app shell (ADR-0001 §3): the root element, the skip link, the command
+ * palette, the settings dialog, global shortcuts and the document title.
+ * The frame around the routed page is the selected layout's (ADR 0003,
+ * shell/LayoutHost.tsx) or the core's classic frame (shell/ClassicFrame.tsx).
  * The shell never touches the legacy runtime's DOM; legacy views live inside
  * LegacyViewHost's own mount node.
  */
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo } from 'react'
 import { getPage, useRegistryVersion } from '@/sdk/registry'
-import type { ShellPage } from '@/sdk/manifest'
-import { cn } from '@/lib/utils'
+import type { ShellManifest, ShellPage } from '@/sdk/manifest'
 import { useShell } from './context'
-import { FloatingMenuButton, ShellHeader } from './Header'
-import { defaultPageId, isFullBleed, orderedPages, showPageHeader, showSidebar, siteTitle } from './nav'
+import { ClassicFrame } from './ClassicFrame'
+import { LayoutHost } from './LayoutHost'
+import { MAIN_ID, navPagesForLayout, resolveRoutePage } from './layoutNav'
+import { useActiveLayout } from './layoutSelect'
+import { defaultPageId, isFullBleed, orderedPages, showPageHeader, siteTitle } from './nav'
 import {
   installPaletteHooks,
   isPaletteShortcut,
-  isSidebarShortcut,
   setCommandPaletteOpen,
   toggleCommandPalette,
   useCommandPaletteOpen,
   useCommandPaletteRequested,
 } from './palette'
-import { PageView } from './PageView'
 import { navigate, PAGE_CHANGE_EVENT, usePageId } from './router'
-import { AppSidebar } from './Sidebar'
 import { useNavGroupsConfig } from './useNavGroups'
 import { setSettingsDialogOpen, useSettingsDialog } from './settingsForm'
 import { useApplyThemePresets } from './themePresets'
 
 const CommandPalette = lazy(() => import('./CommandPalette'))
 const SettingsDialog = lazy(() => import('./SettingsDialog'))
-const loadMobileNav = () => import('./MobileNav')
-const MobileNav = lazy(loadMobileNav)
-
-/** Same key as the legacy dashboard sidebar, so the choice carries over. */
-const COLLAPSED_KEY = 'aiui-sidebar-collapsed'
-
-function readCollapsed(): boolean {
-  try {
-    return window.localStorage.getItem(COLLAPSED_KEY) === 'true'
-  } catch {
-    return false
-  }
-}
-
-function useSidebarCollapsed(): [boolean, () => void] {
-  const [collapsed, setCollapsed] = useState(readCollapsed)
-  const toggle = useCallback(() => {
-    setCollapsed((c) => {
-      const next = !c
-      try {
-        window.localStorage.setItem(COLLAPSED_KEY, String(next))
-      } catch {
-        /* not persisted */
-      }
-      return next
-    })
-  }, [])
-  return [collapsed, toggle]
-}
-
-function preloadMobileNav() {
-  void loadMobileNav().catch(() => {
-    /* retried on open */
-  })
-}
 
 export default function ReactShell() {
   const { manifest, pluginsSettled } = useShell()
   const pageId = usePageId()
   // Late registerPage() calls (plugins) can turn an unknown id into a page.
   useRegistryVersion()
+  const active = useActiveLayout(manifest, pluginsSettled)
+  // The layout on screen ('' while the classic frame is: none selected, or the fallback).
+  const layoutId = active.render === 'layout' ? active.selected : ''
   const pages = manifest.pages
-  const pageById = useMemo(() => new Map(pages.map((p) => [p.id, p] as const)), [pages])
+  // Layout-owned pages of other layouts leave the sidebar and palette (their URLs still render).
+  const listedPages = useMemo(() => navPagesForLayout(pages, layoutId), [pages, layoutId])
+  const frameManifest = useMemo<ShellManifest>(
+    () => (listedPages.length === pages.length && listedPages.every((p, i) => p === pages[i]) ? manifest : { ...manifest, pages: listedPages }),
+    [manifest, pages, listedPages],
+  )
   const groups = useNavGroupsConfig(manifest)
-  const firstPage = useMemo(() => orderedPages(pages, groups)[0], [pages, groups])
-  const sidebar = showSidebar(manifest)
+  const firstPage = useMemo(() => orderedPages(listedPages, groups)[0], [listedPages, groups])
   const header = showPageHeader(manifest)
   const title = siteTitle(manifest)
 
-  const [collapsed, toggleCollapsed] = useSidebarCollapsed()
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [mobileRequested, setMobileRequested] = useState(false)
   const paletteOpen = useCommandPaletteOpen()
   const paletteRequested = useCommandPaletteRequested()
   const settings = useSettingsDialog()
   useApplyThemePresets()
 
-  const openMobileNav = useCallback(() => {
-    setMobileRequested(true)
-    setMobileOpen(true)
-  }, [])
-
-  const page: ShellPage | undefined = pageById.get(pageId)
+  const page: ShellPage | undefined = resolveRoutePage(pages, pageId, layoutId)
   const pageTitle = page?.title ?? (pageId ? (getPage(pageId) ? pageId : 'Not found') : title)
   const fullBleed = isFullBleed(page)
+  const home = active.spec?.home
 
-  // `/` → the configured default page, else the first page (replace: Back must not bounce).
+  // `/` → the configured default page, else the layout's home, else the first
+  // page (replace: Back must not bounce). Waits while the layout is pending.
   useEffect(() => {
-    if (pageId) return
-    const target = defaultPageId(manifest, groups)
+    if (pageId || active.render === 'pending') return
+    const target = defaultPageId(manifest, groups, layoutId ? home : undefined)
     if (target) navigate(target, { replace: true })
-  }, [pageId, manifest, groups])
+  }, [pageId, manifest, groups, layoutId, home, active.render])
 
   useEffect(() => {
     document.title = pageId && pageTitle !== title ? `${pageTitle} · ${title}` : title
   }, [pageId, pageTitle, title])
 
-  // Global shortcuts: Ctrl/Cmd+K palette, Ctrl/Cmd+B sidebar.
+  // Global shortcut: Ctrl/Cmd+K palette (Ctrl/Cmd+B belongs to the classic frame).
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (isPaletteShortcut(e)) {
         e.preventDefault()
         toggleCommandPalette()
-      } else if (sidebar && isSidebarShortcut(e)) {
-        e.preventDefault()
-        toggleCollapsed()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [sidebar, toggleCollapsed])
+  }, [])
 
   // dashboard.js assigns window.aiui.openCommandPalette when it loads; reclaim it.
   useEffect(() => {
@@ -127,64 +92,42 @@ export default function ReactShell() {
     return () => window.removeEventListener(PAGE_CHANGE_EVENT, installPaletteHooks)
   }, [])
 
+  const classic = (
+    <ClassicFrame
+      manifest={frameManifest}
+      pageId={page?.id ?? pageId}
+      page={page}
+      pageTitle={pageTitle}
+      fullBleed={fullBleed}
+      firstPage={firstPage}
+      pluginsSettled={pluginsSettled}
+    />
+  )
+
   return (
     <div
       className="aiui-app flex h-dvh w-full overflow-hidden bg-background text-foreground"
       data-aiui-shell-root=""
       data-aiui-page-header={header ? 'shown' : 'hidden'}
+      data-aiui-layout={layoutId || undefined}
     >
       <a
-        href="#aiui-main"
+        href={`#${MAIN_ID}`}
         className="sr-only z-[var(--z-blocking,1000)] rounded-lg bg-background px-3 py-2 text-sm font-medium text-foreground shadow-lg ring-2 ring-ring focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
       >
         Skip to content
       </a>
-      {sidebar && (
-        <AppSidebar
-          manifest={manifest}
-          activeId={pageId}
-          collapsed={collapsed}
-          onToggleCollapsed={toggleCollapsed}
-          className="hidden md:flex"
-        />
-      )}
-      <div className="flex min-w-0 flex-1 flex-col">
-        {header ? (
-          <ShellHeader
-            title={pageTitle}
-            description={page?.description}
-            pageId={pageId}
-            page={page}
-            showMenuButton={sidebar}
-            onOpenMenu={openMobileNav}
-            onPreloadMenu={preloadMobileNav}
-          />
-        ) : (
-          sidebar && <FloatingMenuButton onOpenMenu={openMobileNav} onPreloadMenu={preloadMobileNav} />
-        )}
-        <main
-          id="aiui-main"
-          tabIndex={-1}
-          className={cn(
-            'aiui-app min-h-0 min-w-0 flex-1 outline-none',
-            fullBleed ? 'flex flex-col overflow-hidden' : 'overflow-y-auto',
-          )}
-        >
-          <PageView
-            key={pageId}
-            pageId={pageId}
-            page={page}
-            pluginsSettled={pluginsSettled}
-            fullBleed={fullBleed}
-            firstPage={firstPage}
-          />
-        </main>
-      </div>
-      {sidebar && mobileRequested && (
-        <Suspense fallback={null}>
-          <MobileNav open={mobileOpen} onOpenChange={setMobileOpen} manifest={manifest} activeId={pageId} />
-        </Suspense>
-      )}
+      <LayoutHost
+        active={active}
+        manifest={manifest}
+        groups={groups}
+        routeId={pageId}
+        page={page}
+        fullBleed={fullBleed}
+        firstPage={firstPage}
+        pluginsSettled={pluginsSettled}
+        classic={classic}
+      />
       {settings.requested && (
         <Suspense fallback={null}>
           <SettingsDialog open={settings.open} onOpenChange={setSettingsDialogOpen} initialSectionId={settings.sectionId} />
@@ -195,7 +138,7 @@ export default function ReactShell() {
           <CommandPalette
             open={paletteOpen}
             onOpenChange={setCommandPaletteOpen}
-            pages={pages}
+            pages={listedPages}
             groups={groups}
             activeId={pageId}
           />
