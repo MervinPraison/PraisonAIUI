@@ -114,9 +114,13 @@ class TestRegistration:
         assert "/plugins/views/inbox.js" in src
 
     def test_page_registered_in_server(self):
-        src = SERVER.read_text(encoding="utf-8")
-        assert '"id": "inbox"' in src
-        assert "Channel Inbox" in src
+        # Built-in pages are first-party plugin records (praisonaiui.builtin),
+        # read by the server through the plugin registry.
+        from praisonaiui.builtin import BUILTIN_PLUGINS
+
+        pages = {s.id: s for p in BUILTIN_PLUGINS for s in p.pages()}
+        assert pages["inbox"].title == "Channel Inbox"
+        assert 'pages(origin="builtin")' in SERVER.read_text(encoding="utf-8")
 
     def test_channels_links_to_inbox(self):
         assert 'href="/inbox"' in CHANNELS_VIEW.read_text(encoding="utf-8")
