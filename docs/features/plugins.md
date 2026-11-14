@@ -96,11 +96,10 @@ Every member except `name` is optional:
 | `nav_groups()` | `NavGroupSpec` or dicts | The sidebar groups your pages use, with their position |
 | `themes()` | `ThemeSpec` or dicts | Theme presets made of seed tokens |
 
-`PageSpec`, `BlockSpec` and `ToolRendererSpec` are importable from
-`praisonaiui` (or `praisonaiui.plugin_registry`). `SettingsSectionSpec`,
+`PageSpec`, `BlockSpec`, `ToolRendererSpec`, `SettingsSectionSpec`,
 `SettingsField`, `NavGroupSpec`, `ThemeSpec` and `get_plugin_settings` are
-importable from `praisonaiui.plugin_registry`. Dicts with the same field
-names work too.
+importable from `praisonaiui` (or `praisonaiui.plugin_registry`). Dicts with
+the same field names work too.
 
 ### Page kinds
 
