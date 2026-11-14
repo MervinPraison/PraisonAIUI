@@ -54,6 +54,10 @@ export const SDK_EXPORTS = [
   'useManifest',
   'registerCommand',
   'onActivate',
+  // Current page and colour mode (additive; see the page-id and theme-mode features).
+  'getPageId',
+  'usePageId',
+  'useThemeMode',
 ] as const
 export type SdkExportName = (typeof SDK_EXPORTS)[number]
 
@@ -86,6 +90,10 @@ export const SDK_FEATURES = [
   'slots.multi',
   // registerBlock(type, C, { fallback: true })
   'blocks.fallback',
+  // getPageId() / usePageId(): the current page, read like the shell's router
+  'page-id',
+  // useThemeMode(): 'light' | 'dark'
+  'theme-mode',
 ] as const
 export type SdkFeature = (typeof SDK_FEATURES)[number]
 

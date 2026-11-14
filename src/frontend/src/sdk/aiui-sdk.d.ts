@@ -230,6 +230,18 @@ declare module '@aiui/sdk' {
    */
   export function onActivate(hook: (context: ActivateContext) => void): () => void
 
+  /**
+   * The id of the page on screen ('' at `/`), read the way the shell's router
+   * reads the URL. Feature `'page-id'`.
+   */
+  export function getPageId(): string
+  /** React hook: the current page id; re-renders on navigation. Feature `'page-id'`. */
+  export function usePageId(): string
+
+  export type ThemeMode = 'light' | 'dark'
+  /** React hook: the colour mode in effect, updated when it changes. Feature `'theme-mode'`. */
+  export function useThemeMode(): ThemeMode
+
   // ── default export ─────────────────────────────────────────────────
 
   /** The whole module as one object, for feature detection: `sdk.SDK_FEATURES?.includes(...)`. */

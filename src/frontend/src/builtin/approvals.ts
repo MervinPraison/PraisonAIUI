@@ -10,7 +10,6 @@
  * It is a service, not a page: it activates whether or not the manifest lists
  * the approvals page (`always`), and offers "Review" only when it does.
  */
-import { currentPageId } from './page'
 import type { BuiltinPlugin, BuiltinSdk } from './types'
 
 export const APPROVAL_EVENT = 'aiui:approval-required'
@@ -57,14 +56,14 @@ export function describeApproval(d: ApprovalDetail): { title: string; descriptio
  * action.
  */
 export function listenForApprovals(
-  sdk: Pick<BuiltinSdk, 'notify' | 'navigate'>,
+  sdk: Pick<BuiltinSdk, 'notify' | 'navigate' | 'getPageId'>,
   hasApprovalsPage: boolean,
 ): () => void {
   const seen = new Set<string>()
   const onApproval = (e: Event) => {
     const detail = (e as CustomEvent<unknown>).detail
     if (!detail || typeof detail !== 'object') return
-    const current = currentPageId()
+    const current = sdk.getPageId()
     if (current === CHAT_PAGE) return
     const d = detail as ApprovalDetail
     const key = approvalKey(d)

@@ -17,13 +17,15 @@ win.clearTimeout = clearTimeout
 
 const { APPROVAL_EVENT, listenForApprovals } = await import('./approvals')
 const { startNewChat } = await import('./chat')
-const { PAGE_CHANGE_EVENT, currentPageId, whenPageShown } = await import('./page')
+const { PAGE_CHANGE_EVENT, whenPageShown } = await import('./page')
+const { getPageId } = await import('@/sdk/services')
 
 type Toast = { title: string; opts: Record<string, unknown> }
-function fakeSdk() {
+function fakeSdk(pageId: () => string = getPageId) {
   const toasts: Toast[] = []
   const navigations: string[] = []
   const sdk = {
+    getPageId: pageId,
     notify: (title: string, opts: Record<string, unknown> = {}) => {
       toasts.push({ title, opts })
       return Promise.resolve(undefined)
@@ -42,13 +44,20 @@ beforeEach(() => {
   win.location.pathname = '/overview'
 })
 
-test('currentPageId reads the first path segment', () => {
-  win.location.pathname = '/code-studio/x'
-  assert.equal(currentPageId(), 'code-studio')
-  win.location.pathname = '/'
-  assert.equal(currentPageId(), '')
-  win.location.pathname = '/a%20b'
-  assert.equal(currentPageId(), 'a b')
+test('the built-ins learn the current page from sdk.getPageId, not from the URL themselves', () => {
+  // The SDK reads the first path segment, as the shell router does.
+  win.location.pathname = '/chat/x'
+  assert.equal(getPageId(), 'chat')
+  // Whatever the SDK says wins: here the shell reports chat while the URL says overview.
+  win.location.pathname = '/overview'
+  const { sdk, toasts } = fakeSdk(() => 'chat')
+  const stop = listenForApprovals(sdk, true)
+  try {
+    approval({ id: 'p1', tool_name: 'shell' })
+    assert.equal(toasts.length, 0, 'chat shows the gate in the thread')
+  } finally {
+    stop()
+  }
 })
 
 test('an approval raises one toast per request, with Review opening the approvals page', () => {

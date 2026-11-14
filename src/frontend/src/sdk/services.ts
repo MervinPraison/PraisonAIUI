@@ -3,7 +3,8 @@
  * app around it, as an explicit contract instead of implicit globals
  * (a patched window.fetch, the history API, CSS variables).
  *
- *   navigate, fetchJson, useManifest, registerCommand, onActivate
+ *   navigate, fetchJson, useManifest, registerCommand, onActivate,
+ *   getPageId / usePageId, useThemeMode
  *   (notify lives in ./notify)
  *
  * Dependency direction: the SDK never imports the shell. The shell *provides*
@@ -28,7 +29,14 @@ export interface ShellHost {
   navigate(pageId: string, opts?: NavigateOptions): void
   /** The gateway token to send with same-origin requests, or ''. */
   getToken(): string
+  /** The id of the page on screen ('' at `/`), as the shell's router reads the URL. */
+  getPageId(): string
+  /** Call `cb` on every URL change; returns the unsubscribe function. */
+  subscribeLocation(cb: () => void): () => void
 }
+
+/** `aiui:locationchange`: the shell's router dispatches it on push/replaceState. */
+const LOCATION_CHANGE_EVENT = 'aiui:locationchange'
 
 const defaultHost: ShellHost = {
   navigate(pageId, opts) {
@@ -38,6 +46,22 @@ const defaultHost: ShellHost = {
     else window.history.pushState({ pageId }, '', path)
   },
   getToken: () => '',
+  getPageId() {
+    const seg = window.location.pathname.replace(/^\/+/, '').split('/')[0] || ''
+    try {
+      return decodeURIComponent(seg)
+    } catch {
+      return seg
+    }
+  },
+  subscribeLocation(cb) {
+    window.addEventListener('popstate', cb)
+    window.addEventListener(LOCATION_CHANGE_EVENT, cb)
+    return () => {
+      window.removeEventListener('popstate', cb)
+      window.removeEventListener(LOCATION_CHANGE_EVENT, cb)
+    }
+  },
 }
 
 let host: ShellHost = defaultHost
@@ -58,6 +82,49 @@ export function navigate(pageId: string, opts: NavigateOptions = {}): void {
     throw new TypeError(`[aiui sdk] navigate: expected a non-empty page id, got ${String(pageId)}`)
   }
   host.navigate(pageId, opts)
+}
+
+// ── current page + colour mode ───────────────────────────────────────
+
+/**
+ * The id of the page on screen ('' at `/`), read the way the shell's router
+ * reads it, so a plugin never parses the URL itself.
+ */
+export function getPageId(): string {
+  return host.getPageId()
+}
+
+function subscribePageId(cb: () => void): () => void {
+  return host.subscribeLocation(cb)
+}
+
+const noPageId = () => ''
+
+/** React hook: the current page id; re-renders when the user moves to another page. */
+export function usePageId(): string {
+  return useSyncExternalStore(subscribePageId, getPageId, noPageId)
+}
+
+export type ThemeMode = 'light' | 'dark'
+
+/** The colour mode in effect: the `dark` class on <html> (next-themes and the legacy path set it). */
+export function getThemeMode(): ThemeMode {
+  if (typeof document === 'undefined') return 'light'
+  return document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+}
+
+function subscribeThemeMode(cb: () => void): () => void {
+  if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return () => {}
+  const observer = new MutationObserver(cb)
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+  return () => observer.disconnect()
+}
+
+const lightMode = (): ThemeMode => 'light'
+
+/** React hook: 'light' or 'dark', updated when the viewer (or the OS, in system mode) switches. */
+export function useThemeMode(): ThemeMode {
+  return useSyncExternalStore(subscribeThemeMode, getThemeMode, lightMode)
 }
 
 // ── fetchJson ────────────────────────────────────────────────────────
