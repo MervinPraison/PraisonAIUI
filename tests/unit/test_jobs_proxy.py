@@ -38,7 +38,7 @@ def test_proxy_forwards_list_and_normalises_ids(proxy_client):
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
-    with patch("praisonaiui.jobs_proxy.httpx.AsyncClient", return_value=mock_client):
+    with patch("httpx.AsyncClient", return_value=mock_client):
         resp = proxy_client.get("/api/jobs")
 
     assert resp.status_code == 200
@@ -64,7 +64,7 @@ def test_proxy_maps_subpaths(proxy_client):
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
-    with patch("praisonaiui.jobs_proxy.httpx.AsyncClient", return_value=mock_client):
+    with patch("httpx.AsyncClient", return_value=mock_client):
         resp = proxy_client.get("/api/jobs/run_xyz/status")
 
     assert resp.status_code == 404
