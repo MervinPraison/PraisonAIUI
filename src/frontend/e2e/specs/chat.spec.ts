@@ -438,6 +438,52 @@ test('tool and reasoning rows are disclosures: aria-controls names the panel the
   }
 })
 
+test('session rail rename and delete keep keyboard focus in the rail', async ({ page }) => {
+  await openChat(page, 'ws')
+  const title = `plain focus ${Date.now()}`
+  await send(page, title)
+  await waitForRunEnd(page)
+  const rail = page.getByRole('navigation', { name: 'Chats' })
+  // A second chat stays open, so the one under test is not the active chat.
+  await rail.getByRole('button', { name: 'New chat' }).click()
+  await send(page, `plain other ${Date.now()}`)
+  await waitForRunEnd(page)
+  const row = rail.locator('li', { hasText: title }).first()
+  await expect(row).toBeVisible()
+  const rowButton = row.locator('> button')
+  const focusedLabel = () => page.evaluate(() => (document.activeElement as HTMLElement | null)?.textContent?.trim() ?? '')
+
+  // The actions show on focus: Tab from the row reaches Rename, then Delete.
+  const toAction = async (name: 'Rename' | 'Delete') => {
+    await rowButton.focus()
+    await page.keyboard.press('Tab')
+    if (name === 'Delete') await page.keyboard.press('Tab')
+    await expect(row.getByRole('button', { name: new RegExp(`^${name} `) })).toBeFocused()
+  }
+
+  // Delete, then Cancel: focus goes to Cancel, then back to the row.
+  await toAction('Delete')
+  await page.keyboard.press('Enter')
+  await expect(rail.getByRole('button', { name: 'Cancel' })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(rowButton).toBeFocused()
+
+  // Rename, then Escape: back to the row.
+  await toAction('Rename')
+  await page.keyboard.press('Enter')
+  await expect(rail.getByRole('textbox', { name: 'Chat title' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(rowButton).toBeFocused()
+
+  // Delete for real: focus moves to a neighbour row or New chat, never <body>.
+  await toAction('Delete')
+  await page.keyboard.press('Enter')
+  await rail.getByRole('button', { name: 'Delete', exact: true }).click()
+  await expect(rail.locator('li', { hasText: title })).toHaveCount(0)
+  await expect.poll(() => page.evaluate(() => document.activeElement?.closest('nav[aria-label="Chats"]') !== null)).toBe(true)
+  expect(await focusedLabel()).not.toContain(title)
+})
+
 test.describe('phone session rail', () => {
   test.use({ viewport: { width: 390, height: 800 } })
 
