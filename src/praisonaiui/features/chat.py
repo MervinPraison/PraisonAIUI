@@ -804,6 +804,14 @@ async def _run_and_broadcast(
 
     first_event: Optional["asyncio.Future[Any]"] = None
 
+    async def _emit(event: Dict[str, Any]) -> None:
+        # Every event of the run names the sender's turn, so a client with
+        # several tabs on this session can tell its run from another's even
+        # when it never saw that run's run_started.
+        if client_turn_id:
+            event["client_turn_id"] = client_turn_id
+        await mgr.broadcast(session_id, event)
+
     try:
         # Name the agent on the single ``run_started`` (the provider's own
         # copy is not forwarded, see below). Sources, best first:
@@ -852,9 +860,7 @@ async def _run_and_broadcast(
         }
         if announced_name:
             started_event["agent_name"] = announced_name
-        if client_turn_id:
-            started_event["client_turn_id"] = client_turn_id
-        await mgr.broadcast(session_id, started_event)
+        await _emit(started_event)
 
         async def _provider_stream() -> AsyncIterator[Any]:
             # Replays the peeked first event (if any), then the rest.
@@ -906,7 +912,7 @@ async def _run_and_broadcast(
                     continue
                 announced_name = name
                 payload["agent_name"] = name
-                await mgr.broadcast(session_id, payload)
+                await _emit(payload)
                 continue
             if event.type == RunEventType.RUN_CANCELLED:
                 cancelled = True
@@ -1002,8 +1008,7 @@ async def _run_and_broadcast(
                     for el in extra["elements"]:
                         if isinstance(el, dict):
                             _collect_element(collected_elements, el)
-                            await mgr.broadcast(
-                                session_id,
+                            await _emit(
                                 {
                                     "type": "message_element",
                                     "session_id": session_id,
@@ -1072,12 +1077,11 @@ async def _run_and_broadcast(
             if event.agent_name:
                 payload["agent_name"] = event.agent_name
 
-            await mgr.broadcast(session_id, payload)
+            await _emit(payload)
 
     except asyncio.CancelledError:
         cancelled = True
-        await mgr.broadcast(
-            session_id,
+        await _emit(
             {
                 "type": "run_cancelled",
                 "session_id": session_id,
@@ -1087,8 +1091,7 @@ async def _run_and_broadcast(
     except Exception as e:
         logger.error(f"Chat run error: {e}")
         run_error = str(e) or type(e).__name__
-        await mgr.broadcast(
-            session_id,
+        await _emit(
             {
                 "type": "run_error",
                 "session_id": session_id,

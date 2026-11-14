@@ -1185,6 +1185,18 @@ def test_two_clients_on_one_session_each_get_their_own_run_started(monkeypatch):
             assert _read_until(a, lambda f: f.get("type") == "chat_abort_result")[-1]["status"] == "aborted"
 
 
+def test_every_event_of_a_run_carries_its_client_turn_id(monkeypatch):
+    """A tab that joins mid-run never sees that run's run_started, so each
+    event names its turn too."""
+    _use_provider(monkeypatch, ProtocolProvider())
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        ws.send_json({"type": "chat", "content": "x", "session_id": "s-every", "client_turn_id": "t1"})
+        frames = _read_until(ws, _turn_done("s-every"))
+    run_frames = [f for f in frames if f.get("run_id")]
+    assert len(run_frames) > 3
+    assert all(f.get("client_turn_id") == "t1" for f in run_frames), run_frames
+
+
 def test_client_turn_id_is_optional_and_bounded(monkeypatch):
     _use_provider(monkeypatch, EchoProvider())
     with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
