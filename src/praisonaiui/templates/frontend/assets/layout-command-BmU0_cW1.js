@@ -1,0 +1,1 @@
+import{j as r}from"./vendor-react-SCdx8Lck.js";import"./skeleton-Bja1JQqA.js";import{B as t}from"./layout-kit-CMeXvIwB.js";import"./preload-helper-BXl3LOEh.js";import"./mount-jFta6t1Y.js";import"./notify-KiJzb5wq.js";function s(m){return r.jsx(t,{...m,name:"command",chatPage:"chat"})}export{s as default};
