@@ -39,6 +39,7 @@ import { BlockList } from './BlockRenderer'
 import { InFrameContext, useBlockContext, useInFrame } from './context'
 import { notify, type NotifyType } from '@/sdk/notify'
 import { arr, display, isRecord, num, safeUrl, str, toBlockNodes } from './normalize'
+import { tabForKey } from './tabKeys'
 
 export type CoreBlockProps = { node: BlockNode; page?: ShellPage }
 type CoreBlock = ComponentType<CoreBlockProps>
@@ -305,10 +306,9 @@ function TabsBlock({ node, page }: CoreBlockProps) {
   if (items.length === 0) return null
   const current = Math.min(active, items.length - 1)
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
-    if (!step) return
+    const next = tabForKey(e.key, current, items.length)
+    if (next === null) return
     e.preventDefault()
-    const next = (current + step + items.length) % items.length
     setActive(next)
     document.getElementById(`${id}-tab-${next}`)?.focus()
   }
