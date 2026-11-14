@@ -11,9 +11,11 @@ Skipped when Playwright or its Chromium is not installed.
 from __future__ import annotations
 
 import contextlib
+import logging
 import socket
 import threading
 import time
+import urllib.request
 
 import pytest
 
@@ -36,13 +38,19 @@ def _isolated(tmp_path, monkeypatch):
 
 @contextlib.contextmanager
 def _serve(app):
-    """Run *app* on a free loopback port (real HTTP, streams included)."""
+    """Run *app* on a free loopback port (real HTTP, streams included).
+
+    ``log_config=None`` and no ``log_level``: uvicorn.Config otherwise runs
+    ``logging.config.dictConfig`` for the whole process (``uvicorn.access``
+    stops propagating, levels go to WARNING), and every later test in the
+    same process loses uvicorn records from ``caplog``.
+    """
     import uvicorn
 
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
     port = sock.getsockname()[1]
-    server = uvicorn.Server(uvicorn.Config(app, log_level="warning", lifespan="off"))
+    server = uvicorn.Server(uvicorn.Config(app, log_config=None, lifespan="off"))
     thread = threading.Thread(target=server.run, kwargs={"sockets": [sock]}, daemon=True)
     thread.start()
     deadline = time.monotonic() + 15
@@ -54,6 +62,35 @@ def _serve(app):
         server.should_exit = True
         thread.join(timeout=10)
         sock.close()
+
+
+_UVICORN_LOGGERS = ("uvicorn", "uvicorn.access", "uvicorn.error", "uvicorn.asgi")
+
+
+def _logging_state():
+    return {
+        name: (lg.propagate, lg.level, tuple(lg.handlers), lg.disabled)
+        for name in _UVICORN_LOGGERS
+        for lg in [logging.getLogger(name)]
+    }
+
+
+def test_in_process_server_leaves_process_logging_alone(caplog):
+    """Serving here must not reconfigure logging for the tests that run after it.
+
+    test_http_guard.py::test_token_redacted_from_uvicorn_logs reads uvicorn
+    records through caplog; it failed whenever it ran after this module.
+    """
+    before = _logging_state()
+    srv.set_style("dashboard")
+    with _serve(srv.create_app()) as base:
+        with urllib.request.urlopen(base + "/api/pages", timeout=10) as res:
+            assert res.status == 200
+    assert _logging_state() == before
+    assert logging.getLogger("uvicorn.access").propagate is True
+    caplog.set_level(logging.INFO)
+    logging.getLogger("uvicorn.access").info("after-serve-probe")
+    assert "after-serve-probe" in caplog.text
 
 
 @pytest.mark.parametrize("style", ["dashboard", "app"])
