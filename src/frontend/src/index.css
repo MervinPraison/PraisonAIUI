@@ -19,7 +19,6 @@
 @source not "./layouts/DashboardLayout.tsx";
 @source not "./layouts/FlexibleLayout.tsx";
 @source not "./layouts/widgets.tsx";
-@source not "./modals/AddMCPServerModal.tsx";
 @source not "./agent-ui";
 
 @custom-variant dark (&:is(.dark *));
