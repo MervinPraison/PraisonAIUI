@@ -102,12 +102,25 @@ export function SidebarNav({
   const footer = useMemo(() => footerPages(pages), [pages])
   const navRef = useRef<HTMLElement>(null)
   const [folds, setFolds] = useState<Record<string, boolean>>(readGroupState)
-  const [tip, setTip] = useState<{ title: string; top: number; left: number } | null>(null)
+  const [tip, setTip] = useState<{ title: string; top: number; left: number; anchor: HTMLElement } | null>(null)
   const onTip = useCallback<TipHandler>((page, anchor) => {
     if (!page || !anchor) return setTip(null)
     const r = anchor.getBoundingClientRect()
-    setTip({ title: page.title, top: r.top + r.height / 2, left: r.right + 8 })
+    setTip({ title: page.title, top: r.top + r.height / 2, left: r.right + 8, anchor })
   }, [])
+  // The rail scrolled: follow the link while it still has focus or the
+  // pointer (focusing a link below the fold scrolls the rail, and a keyboard
+  // user must still see its name); otherwise drop the tooltip.
+  const onRailScroll = () => {
+    if (!tip) return
+    const { anchor } = tip
+    if (anchor.isConnected && (anchor === document.activeElement || anchor.matches(':hover'))) {
+      const r = anchor.getBoundingClientRect()
+      setTip({ ...tip, top: r.top + r.height / 2, left: r.right + 8 })
+    } else {
+      setTip(null)
+    }
+  }
   // WCAG 1.4.13: Escape dismisses the tooltip without moving the pointer or
   // focus (shown by hover or by keyboard focus on a rail link).
   const tipShown = tip !== null
@@ -148,7 +161,7 @@ export function SidebarNav({
       <nav
         ref={navRef}
         aria-label="Pages"
-        onScroll={tip ? () => setTip(null) : undefined}
+        onScroll={tip ? onRailScroll : undefined}
         // A fade under the brand row: scrolled items never butt against it.
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-3 [mask-image:linear-gradient(to_bottom,transparent,#000_12px)]"
       >

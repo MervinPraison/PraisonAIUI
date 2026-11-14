@@ -527,8 +527,16 @@ test('Escape dismisses the collapsed rail tooltip, for keyboard focus and for ho
   const tip = page.locator('[data-aiui-nav-tip]')
   await page.getByRole('button', { name: 'Collapse sidebar' }).click()
   const link = page.locator('[data-aiui-shell-sidebar] a[data-page-id="logs"]')
+  // Logs sits below the fold of the rail: focusing it scrolls the rail, and the
+  // tooltip must follow the link rather than vanish (keyboard users).
+  await page.locator('[data-aiui-shell-sidebar] nav').evaluate((nav) => {
+    nav.scrollTop = 0
+  })
   await link.focus()
   await expect(tip).toHaveText('Logs')
+  const box = await link.boundingBox()
+  const tipBox = await tip.boundingBox()
+  expect(Math.abs(box!.y + box!.height / 2 - (tipBox!.y + tipBox!.height / 2)), 'next to the link').toBeLessThan(4)
   await page.keyboard.press('Escape')
   await expect(tip).toHaveCount(0)
   await expect(link, 'focus stays on the link').toBeFocused()
