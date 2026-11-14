@@ -11,6 +11,7 @@ import { activateShell } from '@/sdk/services'
 import { loadManifestPlugins } from '@/sdk/install'
 import { BootError, BootSkeleton, TokenGate } from './BootScreen'
 import { ShellContext, type ShellState } from './context'
+import { shellDefaultTheme } from './defaultTheme'
 import { needsLegacyRuntime } from './nav'
 import { preloadCommandPalette } from './palette'
 import ReactShell from './ReactShell'
@@ -113,16 +114,6 @@ async function loadManifest(): Promise<Boot> {
     const detail = err instanceof Error ? err.message : String(err)
     return { status: 'error', message: `The server did not return the app manifest (${detail}).` }
   }
-}
-
-/**
- * The app's colour mode for a viewer with no stored choice: the server puts
- * set_theme(dark_mode=...) / YAML site.theme on <html data-aiui-theme-default>
- * (the inline theme bootstrap reads the same attribute before first paint).
- */
-export function shellDefaultTheme(root: HTMLElement = document.documentElement): 'light' | 'dark' | 'system' {
-  const v = root.getAttribute('data-aiui-theme-default')
-  return v === 'light' || v === 'dark' ? v : 'system'
 }
 
 export function ShellApp({ initialManifest }: { initialManifest: ShellManifest | null }) {
