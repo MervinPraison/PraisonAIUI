@@ -607,6 +607,8 @@ export interface ThreadProps {
   notice?: ComposerNotice | null
   /** Passed to parts that post back to the server (A2UI surface actions). */
   sessionId?: string
+  /** Suggestion prompts that go into the composer to be finished, instead of being sent. */
+  fillPrompts?: ReadonlySet<string>
   /** Older messages exist on the server: show "Load earlier messages". */
   hasMore?: boolean
   loadingEarlier?: boolean
@@ -647,7 +649,17 @@ function usePartComponents() {
 
 const MESSAGE_COMPONENTS = { UserMessage, AssistantMessage, SystemMessage }
 
-export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loading, notice, sessionId, hasMore, loadingEarlier, onLoadEarlier }) => {
+/** After a template starter fills the composer, put the caret at its end. */
+function focusComposerEnd(from: HTMLElement) {
+  requestAnimationFrame(() => {
+    const input = from.closest('[data-aiui-thread]')?.querySelector<HTMLTextAreaElement>('textarea[aria-label="Message"]')
+    if (!input) return
+    input.focus()
+    input.setSelectionRange(input.value.length, input.value.length)
+  })
+}
+
+export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loading, notice, sessionId, fillPrompts, hasMore, loadingEarlier, onLoadEarlier }) => {
   const parts = usePartComponents()
   return (
     <SessionIdContext.Provider value={sessionId}>
@@ -665,17 +677,21 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
               </div>
               <div className="grid w-full gap-2 text-left sm:grid-cols-2">
                 <ThreadPrimitive.Suggestions>
-                  {({ suggestion }) => (
-                    <SuggestionPrimitive.Trigger send asChild>
-                      <button
-                        type="button"
-                        className="min-w-0 rounded-xl border border-border px-4 py-3 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <div className="truncate font-medium text-foreground">{suggestion.title ?? suggestion.prompt}</div>
-                        {suggestion.label && <div className="mt-0.5 truncate text-muted-foreground">{suggestion.label}</div>}
-                      </button>
-                    </SuggestionPrimitive.Trigger>
-                  )}
+                  {({ suggestion }) => {
+                    const fill = fillPrompts?.has(suggestion.prompt) ?? false
+                    return (
+                      <SuggestionPrimitive.Trigger send={!fill} asChild>
+                        <button
+                          type="button"
+                          onClick={fill ? (e) => focusComposerEnd(e.currentTarget) : undefined}
+                          className="min-w-0 rounded-xl border border-border px-4 py-3 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <div className="truncate font-medium text-foreground">{suggestion.title ?? suggestion.prompt}</div>
+                          {suggestion.label && <div className="mt-0.5 truncate text-muted-foreground">{suggestion.label}</div>}
+                        </button>
+                      </SuggestionPrimitive.Trigger>
+                    )
+                  }}
                 </ThreadPrimitive.Suggestions>
               </div>
             </div>

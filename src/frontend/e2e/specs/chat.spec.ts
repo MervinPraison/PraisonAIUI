@@ -363,6 +363,19 @@ test('Load earlier messages shows the older page', async ({ page }) => {
   expect(errors.pageErrors).toEqual([])
 })
 
+test('a default starter fills the composer instead of sending a fragment', async ({ page }) => {
+  const frames = recordSentFrames(page)
+  await openChat(page, 'ws')
+  const card = page.locator('[data-thread-empty]').getByRole('button', { name: /Write code/ })
+  await expect(card).toBeVisible()
+  await card.click()
+  await expect(composer(page)).toHaveValue('Write a small Python function that ')
+  await expect(composer(page)).toBeFocused()
+  await page.waitForTimeout(300)
+  expect(frames.filter((f) => f.type === 'chat')).toEqual([])
+  await expect(page.locator('[data-role="user"]')).toHaveCount(0)
+})
+
 test.describe('phone session rail', () => {
   test.use({ viewport: { width: 390, height: 800 } })
 

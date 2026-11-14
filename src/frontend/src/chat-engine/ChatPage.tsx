@@ -24,7 +24,7 @@ import { addLocalSession, markListed, mergeSessions, removeLocalSession, renameL
 import { threadStore } from './store'
 import { Thread } from './Thread'
 import { createAutoTransport, type AiuiTransport } from './transports'
-import { DEFAULT_STARTERS } from './starters'
+import { DEFAULT_STARTERS, fillPrompts } from './starters'
 import { useAiuiRuntime, type AiuiStarter } from './useAiuiRuntime'
 
 /** Phone rail (radix Dialog sheet): loaded on the first tap of "Show chats". */
@@ -288,6 +288,8 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   // Server list + sessions created here that the server has not listed yet.
   const shownSessions = useMemo(() => mergeSessions(sessions, localSessions), [sessions, localSessions])
 
+  const fill = useMemo(() => fillPrompts(starters), [starters])
+
   const current = sessionId ? shownSessions.find((s) => s.id === sessionId) : undefined
   const heading = current?.title ?? (sessionId ? 'Chat' : 'New chat')
 
@@ -365,6 +367,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
               loading={thread.isLoading && !thread.messages.length}
               subtitle={agent ? `Chatting with ${agent}` : agents.length ? 'Default agent' : undefined}
               notice={notice ? { text: notice, onDismiss: () => setNotice(null) } : null}
+              fillPrompts={fill}
               hasMore={thread.hasMore}
               loadingEarlier={thread.isLoadingEarlier}
               onLoadEarlier={() => {

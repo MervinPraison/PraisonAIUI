@@ -22,7 +22,13 @@ import { threadStore, type SessionThread } from './store'
 import { canRegenerate, createSseTransport, type AiuiTransport } from './transports'
 import type { AiuiMessage } from './protocol'
 
-export interface AiuiStarter { title?: string; label?: string; prompt: string }
+export interface AiuiStarter {
+  title?: string
+  label?: string
+  prompt: string
+  /** The prompt is a template to finish: a click puts it in the composer instead of sending it. */
+  fill?: boolean
+}
 
 export interface UseAiuiRuntimeOptions {
   /** Controlled session id. `null` = new chat; the id is minted client-side on first send. */
