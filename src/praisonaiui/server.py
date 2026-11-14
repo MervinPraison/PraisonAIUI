@@ -1649,6 +1649,30 @@ class _AssetStaticFiles(StaticFiles):
         return response
 
 
+def gzip_static(app: Any, minimum_size: int = 1024, compresslevel: int = 6) -> Any:
+    """Wrap a static-file ASGI app so its responses are gzip-compressed.
+
+    Only static mounts are wrapped (``/assets``, ``/plugins``, ``aiui
+    serve``), so SSE and WebSocket routes are never touched on any Starlette
+    version. Range requests pass through uncompressed: a ``206`` body must
+    match its ``Content-Range`` in the identity encoding.
+    """
+    from starlette.middleware.gzip import GZipMiddleware
+
+    gz = GZipMiddleware(app, minimum_size=minimum_size, compresslevel=compresslevel)
+
+    async def _gzip_static_app(scope, receive, send):
+        if scope["type"] == "http" and not any(
+            k.lower() == b"range" for k, _ in scope.get("headers", ())
+        ):
+            await gz(scope, receive, send)
+        else:
+            await app(scope, receive, send)
+
+    _gzip_static_app.inner = app  # type: ignore[attr-defined]
+    return _gzip_static_app
+
+
 def set_datastore(store: BaseDataStore) -> None:
     """Set the datastore implementation (call before server starts)."""
     global _datastore
@@ -4375,13 +4399,19 @@ def create_app(
     # it returns 404 when unset (tests rely on this) and serves content otherwise.
     routes.append(Route("/custom.js", _serve_custom_js, methods=["GET"]))
 
+    # Static code is sent gzip-compressed (the bundle budgets are gzip
+    # sizes; uncompressed the chat chunk alone is ~450 KB).
     if _plugins_dir.exists():
-        routes.append(Mount("/plugins", app=StaticFiles(directory=str(_plugins_dir))))
+        routes.append(
+            Mount("/plugins", app=gzip_static(StaticFiles(directory=str(_plugins_dir))))
+        )
     if _assets_dir.exists():
         routes.append(
             Mount(
                 "/assets",
-                app=_AssetStaticFiles(directory=str(_assets_dir), frontend_dir=_frontend_dir),
+                app=gzip_static(
+                    _AssetStaticFiles(directory=str(_assets_dir), frontend_dir=_frontend_dir)
+                ),
             )
         )
 
