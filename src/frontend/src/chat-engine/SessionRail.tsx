@@ -197,7 +197,8 @@ const SessionItem: FC<{
         </span>
         {meta && <span className="truncate pr-12 text-xs text-muted-foreground">{meta}</span>}
       </button>
-      <div className="absolute top-1 right-1 hidden gap-0.5 group-focus-within/item:flex group-hover/item:flex" data-session-actions>
+      {/* Hover or focus shows the actions; touch screens (no hover) always show them. */}
+      <div className="absolute top-1 right-1 hidden gap-0.5 group-focus-within/item:flex group-hover/item:flex [@media(hover:none)]:flex" data-session-actions>
         {!s.platform && (
           <Button variant="ghost" size="icon-xs" className="text-muted-foreground hover:text-foreground" aria-label={`Rename ${s.title}`} onClick={() => setMode('rename')}>
             <Pencil />

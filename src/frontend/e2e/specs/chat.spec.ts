@@ -513,3 +513,20 @@ test.describe('phone session rail', () => {
     await expect(show).toBeFocused()
   })
 })
+
+test.describe('session rail on a touch screen', () => {
+  test.use({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true })
+
+  test('Rename and Delete are visible without hover', async ({ page }) => {
+    await openChat(page, 'ws')
+    await send(page, 'plain touch rail')
+    await waitForRunEnd(page)
+    await page.getByRole('button', { name: 'Show chats' }).tap()
+    const dialog = page.getByRole('dialog', { name: 'Chats' })
+    const row = dialog.locator('li', { hasText: /plain touch rail/i }).first()
+    await expect(row.getByRole('button', { name: /^Rename / })).toBeVisible()
+    await expect(row.getByRole('button', { name: /^Delete / })).toBeVisible()
+    await row.getByRole('button', { name: /^Delete / }).tap()
+    await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeVisible()
+  })
+})
