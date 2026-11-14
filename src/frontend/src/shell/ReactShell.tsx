@@ -121,7 +121,11 @@ export default function ReactShell() {
   }, [])
 
   return (
-    <div className="aiui-app flex h-dvh w-full overflow-hidden bg-background text-foreground" data-aiui-shell-root="">
+    <div
+      className="aiui-app flex h-dvh w-full overflow-hidden bg-background text-foreground"
+      data-aiui-shell-root=""
+      data-aiui-page-header={header ? 'shown' : 'hidden'}
+    >
       <a
         href="#aiui-main"
         className="sr-only z-[var(--z-blocking,1000)] rounded-lg bg-background px-3 py-2 text-sm font-medium text-foreground shadow-lg ring-2 ring-ring focus:not-sr-only focus:fixed focus:top-2 focus:left-2"

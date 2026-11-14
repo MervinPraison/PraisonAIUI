@@ -240,3 +240,91 @@
 .aiui-legacy-error p {
   margin: 0;
 }
+
+/* ── Legacy pages inside the shell: one gutter, one title, one primary ──
+   Scoped to the React shell (the legacy dashboard is untouched). The
+   views style their mount (#db-page-content) with their own padding and
+   max-width; the shell's page area already provides both. */
+
+html[data-aiui-shell='react'] .aiui-legacy-mount {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: none !important;
+}
+/* Forms stay readable: a measure, left-aligned with every other page. */
+html[data-aiui-shell='react'] .aiui-legacy-mount:has(> .aiui-config-header) {
+  max-width: 760px !important;
+}
+
+/* The shell header already shows the page title: the view's own heading is
+   kept for screen readers only, and its actions stay right-aligned. */
+html[data-aiui-shell='react'] [data-aiui-page-header='shown']
+  :is(.aiui-logs-title, .aiui-config-header, .aiui-usage-header, .db-page-toolbar, .aiui-board-page-header)
+  > h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+html[data-aiui-shell='react'] [data-aiui-page-header='shown']
+  :is(.aiui-logs-header, .aiui-config-header, .aiui-usage-header, .db-page-toolbar, .aiui-board-page-header) {
+  justify-content: flex-end;
+}
+
+/* One search: the header's ⌘K. */
+html[data-aiui-shell='react'] .db-omnibar {
+  display: none !important;
+}
+
+/* Flat surfaces: one hairline, no filled card holding filled sections. */
+html[data-aiui-shell='react'] .aiui-legacy-host .db-card {
+  background: transparent;
+  border-color: var(--border);
+  box-shadow: none;
+}
+/* Board cards sit on a column: they keep a surface to stand out from it. */
+html[data-aiui-shell='react'] .aiui-legacy-host .aiui-board-card .db-card {
+  background: var(--card);
+}
+html[data-aiui-shell='react'] .aiui-legacy-host .aiui-config-section {
+  background: transparent;
+  border-color: var(--border);
+}
+html[data-aiui-shell='react'] .aiui-legacy-host .aiui-config-section-header {
+  background: transparent;
+  font-weight: 500;
+}
+
+/* Metric tiles: labels on one line so every value sits on the same row. */
+html[data-aiui-shell='react'] .aiui-legacy-host .db-card-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  color: var(--ui-text-3, var(--muted-foreground));
+}
+html[data-aiui-shell='react'] .aiui-legacy-host :is(.db-card-value, td, th) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* One primary colour: the shell's. */
+html[data-aiui-shell='react'] .aiui-legacy-host .aiui-btn-primary {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  border-color: transparent !important;
+}
+
+/* Status text the views colour with raw hex: status tokens instead. */
+html[data-aiui-shell='react'] .aiui-legacy-host [style*='#22c55e' i] {
+  color: var(--success) !important;
+}
+html[data-aiui-shell='react'] .aiui-legacy-host [style*='#ef4444' i] {
+  color: var(--destructive) !important;
+}
