@@ -3270,12 +3270,17 @@ async function showTestPanel() {
   });
   const main = document.getElementById('db-main-content');
   if (!main) return;
+  await renderTestPanel(main, { header: true });
+}
 
+// The Inspector panel's body, rendered into `main`: the legacy shell's
+// content area, or a host-mode mount (the React shell header shows the title).
+async function renderTestPanel(main, { header }) {
   main.innerHTML = `
-    <div class="db-page-header">
+    ${header ? `<div class="db-page-header">
       <h1 class="db-page-title">🔍 Inspector</h1>
       <p class="db-page-desc">Interactive data flow debugger — click a feature to inspect its API endpoints and see raw request/response data.</p>
-    </div>
+    </div>` : ''}
     <div id="fi-container">
       <div class="db-loading"><div class="db-spinner"></div></div>
     </div>
@@ -3838,6 +3843,13 @@ async function _mountViewBody(pageId, container, page, stale) {
       return combine(await view.render(container), view.cleanup);
     } catch (e) { console.warn(`View '${pageId}' render error:`, e); }
     if (stale()) return noop;
+  }
+
+  // The Inspector is a built-in panel, not a page with data: the legacy shell
+  // opens it as an action; a host mount renders the same panel.
+  if (pageId === 'inspector') {
+    await renderTestPanel(container, { header: false });
+    return noop;
   }
 
   // Priority 2: built-in view module. The build id (not Date.now(), as in
