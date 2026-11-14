@@ -12,7 +12,7 @@
  *   first text arrives.
  * - Element, ask and A2UI parts are lazy chunks.
  */
-import { createContext, lazy, memo, useContext, useMemo, useState, type ComponentType, type FC, type MouseEvent } from 'react'
+import { createContext, lazy, memo, useContext, useMemo, useState, type ComponentType, type FC, type MouseEvent, type ReactElement } from 'react'
 import {
   ActionBarPrimitive,
   AttachmentPrimitive,
@@ -30,7 +30,7 @@ import {
 } from '@assistant-ui/react'
 import {
   ArrowDown, ArrowUp, Brain, Check, ChevronRight, Code, Copy, FileText, Globe, Paperclip, RefreshCw, Search,
-  ShieldAlert, Square, Terminal, ThumbsDown, ThumbsUp, Wrench, X, type LucideIcon,
+  ShieldAlert, Square, Terminal, ThumbsDown, ThumbsUp, Wrench, X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
@@ -108,18 +108,23 @@ function stringify(v: unknown): string {
 
 type ToolState = 'running' | 'done' | 'error' | 'approval' | 'approved' | 'denied' | 'stopped'
 
-/** Line icons for well-known tools (the server's emoji would clash with the lucide set). */
-const TOOL_ICON_RULES: [RegExp, LucideIcon][] = [
-  [/search|lookup|query|find|grep/i, Search],
-  [/shell|bash|command|exec|terminal|run_?cmd/i, Terminal],
-  [/web|url|fetch|http|browse|crawl|scrape/i, Globe],
-  [/file|read|write|edit|document|pdf/i, FileText],
-  [/code|python|javascript|eval|interpreter/i, Code],
+/**
+ * Line icons for well-known tools (the server's emoji would clash with the
+ * lucide set). Static elements: rendering one never creates a component.
+ */
+const TOOL_ICON_CLASS = 'size-3.5'
+const TOOL_ICON_RULES: [RegExp, ReactElement][] = [
+  [/search|lookup|query|find|grep/i, <Search className={TOOL_ICON_CLASS} />],
+  [/shell|bash|command|exec|terminal|run_?cmd/i, <Terminal className={TOOL_ICON_CLASS} />],
+  [/web|url|fetch|http|browse|crawl|scrape/i, <Globe className={TOOL_ICON_CLASS} />],
+  [/file|read|write|edit|document|pdf/i, <FileText className={TOOL_ICON_CLASS} />],
+  [/code|python|javascript|eval|interpreter/i, <Code className={TOOL_ICON_CLASS} />],
 ]
+const DEFAULT_TOOL_ICON = <Wrench className={TOOL_ICON_CLASS} />
 
-function toolIcon(name: string): LucideIcon {
+function toolIcon(name: string): ReactElement {
   for (const [re, icon] of TOOL_ICON_RULES) if (re.test(name)) return icon
-  return Wrench
+  return DEFAULT_TOOL_ICON
 }
 
 const PILL: Record<ToolState, { label: string; className: string }> = {
@@ -222,7 +227,6 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
   // stripped from the description it may prefix.
   const emoji = typeof a.icon === 'string' && a.icon ? a.icon : null
   const description = typeof a.description === 'string' ? a.description.replace(emoji ?? '\u0000', '').trim() : ''
-  const Icon = toolIcon(toolName)
   const took = timing?.completedAt ? formatDuration(timing.completedAt - timing.startedAt) : ''
   const hasArgs = args && Object.keys(args).length > 0
   const a2ui = Array.isArray(a.a2ui) && a.a2ui.length ? (a.a2ui as Record<string, unknown>[]) : null
@@ -242,7 +246,7 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
         className="flex h-8 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
       >
         <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground" aria-hidden>
-          <Icon className="size-3.5" />
+          {toolIcon(toolName)}
         </span>
         <span className="shrink-0 font-medium text-foreground">{toolName}</span>
         {description && <span className="min-w-0 truncate text-muted-foreground">{description}</span>}
