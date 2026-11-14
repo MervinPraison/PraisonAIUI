@@ -26,7 +26,9 @@ export default function TurnMeta({ variant }: { variant: ThreadVariant }): JSX.E
   if (variant === 'quiet') return null
   const name = agent || 'Assistant'
   if (variant === 'dense') {
-    const meta = [clock(createdAt, true), runId ? runId.slice(0, 14) : ''].filter(Boolean).join(' · ')
+    // A long run id (a UUID) is cut to its first 8 characters.
+    const run = runId && runId.length > 14 ? runId.slice(0, 8) : runId
+    const meta = [clock(createdAt, true), run].filter(Boolean).join(' · ')
     return (
       <div className="mb-1 flex min-w-0 items-center gap-2" data-turn-meta="dense">
         <span className="shrink-0 text-sm font-semibold text-foreground">{name}</span>

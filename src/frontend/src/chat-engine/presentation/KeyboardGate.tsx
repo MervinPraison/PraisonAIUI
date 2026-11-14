@@ -43,14 +43,18 @@ export default function KeyboardGate(p: GateProps): JSX.Element {
         {command ? <code className="font-mono text-xs break-all">{command}</code> : (p.label || p.toolName)}
         {p.risk && <span className={isHighRisk(p.risk) ? 'text-destructive' : 'text-muted-foreground'}> · {p.risk} risk</span>}
       </p>
-      <div className="flex shrink-0 gap-1.5">
+      <div className="flex shrink-0 items-center gap-1.5">
+        {/* Keyboard hint: hidden on touch screens, where there is no keyboard to use. */}
+        <span className="mr-1 hidden items-center gap-1 text-xs text-muted-foreground [@media(hover:hover)]:inline-flex" aria-hidden>
+          <Kbd>A</Kbd> approve <Kbd>D</Kbd> deny
+        </span>
         <Button type="button" size="sm" disabled={busy !== null} onClick={() => void act(true)} aria-keyshortcuts="A">
           {busy === 'approve' && <Spinner className="size-3" />}
-          Approve <Kbd>A</Kbd>
+          Approve
         </Button>
         <Button type="button" size="sm" variant="outline" disabled={busy !== null} onClick={() => void act(false)} aria-keyshortcuts="D">
           {busy === 'deny' && <Spinner className="size-3" />}
-          Deny <Kbd>D</Kbd>
+          Deny
         </Button>
       </div>
       {error && (

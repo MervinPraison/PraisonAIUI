@@ -44,7 +44,7 @@ export default function ApprovalCard(p: GateProps): JSX.Element {
           <ShieldAlert className="size-4" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h3 id={`${id}-h`} className="text-base font-semibold break-words">{gateTitle(agent, tool)}</h3>
+          <h3 id={`${id}-h`} className="text-base font-semibold break-words">{gateTitle(agent, p.toolName)}</h3>
           <p id={`${id}-d`} className="break-words text-muted-foreground">{lead}</p>
         </div>
       </div>
@@ -85,15 +85,17 @@ export default function ApprovalCard(p: GateProps): JSX.Element {
         >
           Why am I asked?
         </Button>
-        <span className="flex-1" />
-        <Button type="button" variant="outline" size="lg" disabled={busy !== null} onClick={() => void act(false)}>
-          {busy === 'deny' && <Spinner className="size-3.5" />}
-          Not now
-        </Button>
-        <Button type="button" size="lg" disabled={busy !== null} onClick={() => void act(true)}>
-          {busy === 'approve' && <Spinner className="size-3.5" />}
-          Approve
-        </Button>
+        {/* The two decisions stay together (they wrap as a pair on a phone). */}
+        <div className="ml-auto flex gap-2">
+          <Button type="button" variant="outline" size="lg" disabled={busy !== null} onClick={() => void act(false)}>
+            {busy === 'deny' && <Spinner className="size-3.5" />}
+            Not now
+          </Button>
+          <Button type="button" size="lg" disabled={busy !== null} onClick={() => void act(true)}>
+            {busy === 'approve' && <Spinner className="size-3.5" />}
+            Approve
+          </Button>
+        </div>
       </div>
       {error && (
         <p className="text-xs text-destructive sm:ml-11" role="alert">

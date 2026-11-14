@@ -13,6 +13,8 @@
 }
 
 [data-variant='dense'] [data-user-bubble] {
+  display: flex;
+  gap: 0.625rem;
   max-width: none;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
@@ -21,8 +23,8 @@
 }
 
 [data-variant='dense'] [data-user-bubble]::before {
-  content: '› ';
-  content: '› ' / ''; /* decorative: no alt text where supported */
+  content: '›';
+  content: '›' / ''; /* decorative: no alt text where supported */
   font-family: var(--aiui-font-mono);
   font-weight: 600;
   color: var(--primary);
@@ -31,5 +33,9 @@
 [data-variant='dense'] [data-tool] {
   border: 1px solid var(--border);
   border-radius: 0.375rem;
+}
+
+/* The tool row itself in monospace; its gate keeps the body font. */
+[data-variant='dense'] [data-tool] > button {
   font-family: var(--aiui-font-mono);
 }
