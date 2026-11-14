@@ -25,6 +25,7 @@ import { footerPages, groupPages, type NavGroupsConfig } from './nav'
 import { paletteFilter, rankSections } from './paletteFilter'
 import { PageIcon } from './PageIcon'
 import { createFocusReturn } from './focusReturn'
+import { useCommandPaletteQuery } from './palette'
 import { navigate } from './router'
 import { openSettingsDialog } from './settingsForm'
 import { setThemePreset, useThemePresetChoice } from './themePresets'
@@ -96,14 +97,17 @@ export default function CommandPalette({
     ? [{ id: null, label: 'Default' }, ...presets.map((p) => ({ id: p.id as string | null, label: p.label }))]
     : []
   const commandGroups = useMemo(() => groupCommands(registered), [registered])
-  const [search, setSearch] = useState('')
+  // openCommandPalette({ query }) prefills the search (a layout's command bar).
+  const query = useCommandPaletteQuery()
+  const [search, setSearch] = useState(() => (open ? query : ''))
   // The palette stays mounted after its first open: every open starts with an
-  // empty query (reset while rendering the reopen, so closing never flashes
-  // the unfiltered list), however it was closed (Esc, a choice, Ctrl+K).
-  const [wasOpen, setWasOpen] = useState(open)
-  if (wasOpen !== open) {
-    setWasOpen(open)
-    if (open) setSearch('')
+  // empty query, or the one it was opened with (reset while rendering the
+  // reopen, so closing never flashes the unfiltered list), however it was
+  // closed (Esc, a choice, Ctrl+K). A new query while open replaces the text.
+  const [seen, setSeen] = useState({ open, query })
+  if (seen.open !== open || (open && seen.query !== query)) {
+    setSeen({ open, query })
+    if (open) setSearch(query)
   }
   // No Dialog.Trigger: put focus back where it was (the composer, a button),
   // or on the new page's main region after navigating, never on <body>.
