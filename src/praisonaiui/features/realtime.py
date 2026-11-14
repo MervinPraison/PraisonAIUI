@@ -17,7 +17,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 from starlette.websockets import WebSocket
 
-from ._base import BaseFeatureProtocol
+from ._base import BaseFeatureProtocol, sdk_installed
 
 logger = logging.getLogger(__name__)
 
@@ -203,15 +203,14 @@ class OpenAIRealtimeManager(RealtimeProtocol):
             logger.info(f"Closed realtime session: {session_id}")
 
     def health(self) -> Dict[str, Any]:
-        try:
-            import openai  # noqa: F401
-
+        # find_spec, not import: importing openai costs ~1 s on the event loop.
+        if sdk_installed("openai"):
             return {
                 "status": "ok",
                 "provider": "OpenAIRealtimeManager",
                 "active_sessions": len(self._sessions),
             }
-        except ImportError:
+        else:
             return {
                 "status": "degraded",
                 "provider": "OpenAIRealtimeManager",

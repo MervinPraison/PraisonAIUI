@@ -23,7 +23,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from ._base import BaseFeatureProtocol
+from ._base import BaseFeatureProtocol, sdk_installed
 from ._paths import feature_data_path
 
 logger = logging.getLogger(__name__)
@@ -520,8 +520,15 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         return {"total": len(self._local_index), "backend": "local"}
 
     def health(self) -> Dict[str, Any]:
-        sdk = self._get_sdk_knowledge()
-        embedding_available = sdk is not None and not self._embedding_unavailable
+        # Report what is known; never start the SDK here. health() backs
+        # /api/features and /api/health, and the first start imports chromadb
+        # and makes an embedding call: seconds of blocking I/O on the event
+        # loop, so every other request (the Overview page) waited on it.
+        if self._sdk_probed:
+            sdk_ok = self._sdk_knowledge is not None
+        else:
+            sdk_ok = sdk_installed()
+        embedding_available = sdk_ok and not self._embedding_unavailable
         warnings: List[str] = []
         embedding: Dict[str, Any] = {"available": embedding_available}
         if self._embedding_unavailable:
@@ -531,12 +538,13 @@ class SDKKnowledgeManager(KnowledgeProtocol):
                 "matching. Set AIUI_EMBEDDING_MODEL to an accessible model."
             )
         status = "ok"
-        if sdk is None or self._embedding_unavailable:
+        if not sdk_ok or self._embedding_unavailable:
             status = "degraded"
         return {
             "status": status,
             "provider": "SDKKnowledgeManager",
-            "sdk_available": sdk is not None,
+            "sdk_available": sdk_ok,
+            "sdk_initialized": self._sdk_probed,
             "total_indexed": len(self._local_index),
             "embedding": embedding,
             "warnings": warnings,

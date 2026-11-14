@@ -23,7 +23,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from ._base import BaseFeatureProtocol
+from ._base import BaseFeatureProtocol, sdk_installed
 
 logger = logging.getLogger(__name__)
 
@@ -222,9 +222,10 @@ class SDKAgentRegistry(AgentRegistryProtocol):
     """Wraps praisonaiagents.Agent for production use."""
 
     def __init__(self) -> None:
-        from praisonaiagents import Agent
-
-        self._Agent = Agent
+        # Agent itself is imported on first create(): importing it here put
+        # the SDK import on the first /api/agents and /api/features request.
+        if not sdk_installed():
+            raise ImportError("praisonaiagents is not installed")
         self._simple = SimpleAgentRegistry()
         logger.info("SDKAgentRegistry initialized (praisonaiagents available)")
 
@@ -234,8 +235,10 @@ class SDKAgentRegistry(AgentRegistryProtocol):
     def create(self, agent_def: Dict[str, Any]) -> Dict[str, Any]:
         agent = self._simple.create(agent_def)
         try:
+            from praisonaiagents import Agent
+
             # Instantiate SDK Agent to validate integrated configuration.
-            self._Agent(
+            Agent(
                 name=agent.get("name", "assistant"),
                 instructions=(
                     agent.get("instructions")

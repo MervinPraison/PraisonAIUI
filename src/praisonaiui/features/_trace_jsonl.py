@@ -137,6 +137,25 @@ def list_run_files(directory: Optional[Path] = None) -> List[Path]:
     return [p for _, p in items]
 
 
+def count_run_files(directory: Optional[Path] = None) -> int:
+    """Number of run files, from directory entries only (no stat, no sort).
+
+    Cheap enough for ``health()``, which must not stat or open every file.
+    """
+    base = directory or traces_dir()
+    try:
+        with os.scandir(base) as it:
+            return sum(
+                1
+                for e in it
+                if e.name.endswith(".jsonl")
+                and is_valid_run_id(e.name[: -len(".jsonl")])
+                and e.is_file()
+            )
+    except OSError:
+        return 0
+
+
 # ── Reading ───────────────────────────────────────────────────────────
 
 

@@ -195,7 +195,7 @@ class ReplayFeature(BaseFeatureProtocol):
             "status": "ok",
             "feature": self.name,
             "traces_dir": str(d),
-            "runs": len(tj.list_run_files(d)),
+            "runs": tj.count_run_files(d),
         }
 
     def cli_commands(self) -> List[Dict[str, Any]]:

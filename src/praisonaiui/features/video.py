@@ -87,11 +87,14 @@ class VideoFeature(BaseFeatureProtocol):
         ]
 
     async def health(self) -> Dict[str, Any]:
-        engine = await health()
-        return {"status": "ok", "feature": self.name, "engine": engine}
+        # No engine round trip here: this runs for every /api/features and
+        # /api/health request (up to a 5 s timeout per call). The engine is
+        # checked by GET /api/video/health, which Video Studio calls.
+        return {"status": "ok", "feature": self.name}
 
     async def _health(self, request: Request) -> JSONResponse:
-        return JSONResponse(await self.health())
+        engine = await health()
+        return JSONResponse({**(await self.health()), "engine": engine})
 
     async def _lint(self, request: Request) -> JSONResponse:
         body = await request.json()

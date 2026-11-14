@@ -28,7 +28,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from ._base import BaseFeatureProtocol
+from ._base import BaseFeatureProtocol, sdk_installed
 from ._paths import configured_data_dir
 
 logger = logging.getLogger(__name__)
@@ -227,6 +227,7 @@ class SDKMemoryManager(MemoryProtocol):
     def __init__(self, **config: Any) -> None:
         self._config = config
         self._sdk_memory = None
+        self._sdk_error: Optional[str] = None  # last init failure, for health()
         self._local_index: Dict[str, Dict[str, Any]] = {}
 
     def _sdk_config(self) -> Dict[str, Any]:
@@ -252,11 +253,14 @@ class SDKMemoryManager(MemoryProtocol):
 
                 # SDK Memory requires config dict (can be empty for defaults)
                 self._sdk_memory = Memory(config=self._sdk_config())
+                self._sdk_error = None
                 logger.info("SDK Memory initialized: %s", type(self._sdk_memory).__name__)
             except ImportError:
+                self._sdk_error = "praisonaiagents not installed"
                 logger.warning("praisonaiagents not installed; falling back to local index")
                 return None
             except BaseException as e:
+                self._sdk_error = str(e) or type(e).__name__
                 logger.warning("SDK Memory init failed: %s; using local index", e)
                 return None
         return self._sdk_memory
@@ -567,15 +571,20 @@ class SDKMemoryManager(MemoryProtocol):
         return super().get_context(query, limit=limit)
 
     def health(self) -> Dict[str, Any]:
-        sdk = None
-        try:
-            sdk = self._get_sdk_memory()
-        except BaseException:
-            sdk = None
+        # Report what is known; never start the SDK here. health() backs
+        # /api/features and /api/health, and starting SDK Memory opens its
+        # stores and vector DB on the event loop (seconds on first use).
+        if self._sdk_memory is not None:
+            sdk_ok = True
+        elif self._sdk_error is not None:
+            sdk_ok = False
+        else:
+            sdk_ok = sdk_installed()
         return {
-            "status": "ok" if sdk is not None else "degraded",
+            "status": "ok" if sdk_ok else "degraded",
             "provider": "SDKMemoryManager",
-            "sdk_available": sdk is not None,
+            "sdk_available": sdk_ok,
+            "sdk_initialized": self._sdk_memory is not None,
             "total_indexed": len(self._local_index),
         }
 
