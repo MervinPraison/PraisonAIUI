@@ -169,6 +169,44 @@ def _is_job_due(job) -> bool:
     return False
 
 
+async def _call_in_daemon_thread(fn, *args):
+    """Run blocking ``fn(*args)`` in a daemon thread and await its result.
+
+    ``asyncio.to_thread`` uses the loop's default executor, and closing a
+    loop (``asyncio.run``, every TestClient request, server shutdown) joins
+    that executor for up to 300 s. A scheduled job that is still waiting on a
+    real model call would hold shutdown, and the process exit, that long. A
+    daemon thread never blocks loop close or interpreter exit; if the loop
+    has gone away by the time the call returns, the result is dropped.
+    """
+    import asyncio
+    import threading
+
+    loop = asyncio.get_running_loop()
+    fut = loop.create_future()
+
+    def _settle(setter, value):
+        if not fut.done():
+            setter(value)
+
+    def _worker():
+        try:
+            value = fn(*args)
+        except BaseException as exc:  # noqa: BLE001 - re-raised in the awaiting task
+            try:
+                loop.call_soon_threadsafe(_settle, fut.set_exception, exc)
+            except RuntimeError:
+                pass  # loop closed
+            return
+        try:
+            loop.call_soon_threadsafe(_settle, fut.set_result, value)
+        except RuntimeError:
+            pass  # loop closed
+
+    threading.Thread(target=_worker, name="aiui-schedule-run", daemon=True).start()
+    return await fut
+
+
 async def _get_agent_for_execution(
     job_id: str,
     agent_name: Optional[str] = None,
@@ -317,9 +355,7 @@ async def _execute_job(job_id: str, job) -> None:
             )
 
             if agent is not None:
-                import asyncio
-
-                result = await asyncio.to_thread(agent.chat, message)
+                result = await _call_in_daemon_thread(agent.chat, message)
                 result = str(result)
             else:
                 status = "failed"
@@ -795,9 +831,7 @@ class SchedulesFeature(BaseFeatureProtocol):
                 )
 
                 if agent is not None:
-                    import asyncio
-
-                    result = await asyncio.to_thread(agent.chat, message)
+                    result = await _call_in_daemon_thread(agent.chat, message)
                     result = str(result)
                 else:
                     status = "failed"
