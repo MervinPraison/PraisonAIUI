@@ -440,6 +440,86 @@ def test_steps_are_capped_but_counted(monkeypatch):
     assert len(run["steps"]) == 3 and run["stepCount"] == 5
 
 
+# ── persistence ──────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_finished_runs_persist_under_the_data_dir_with_their_usage(monkeypatch, _isolated):
+    from praisonaiui.features import run_ledger, usage
+
+    _ledger()  # observing from here on (create_app builds the feature)
+    run_id = await _one_run(monkeypatch, _Tracking(tokens=(10, 5)))
+    _ledger().flush(5)
+    path = _isolated / "runs" / run_ledger.LEDGER_FILE
+    assert path.is_file() and run_id in path.read_text()
+
+    # a new process: empty usage ring, fresh ledger
+    monkeypatch.setattr(usage, "_usage_records", type(usage._usage_records)(maxlen=10))
+    run_ledger.reset_run_ledger()
+    ledger = run_ledger.get_run_ledger()
+    assert ledger.run(run_id) is None
+    ledger.ensure_loaded()
+    run = ledger.run(run_id)
+    assert run["status"] == "completed" and run["tokens"] == 15 and len(run["steps"]) == 3
+
+
+def test_load_skips_torn_lines_compacts_and_keeps_newer_runs(monkeypatch, _isolated):
+    import json
+
+    from praisonaiui.features import run_ledger
+
+    monkeypatch.setattr(run_ledger, "RING_SIZE", 3)
+    d = _isolated / "runs"
+    d.mkdir()
+    rows = [{"id": f"old{i}", "startedAt": i, "status": "completed", "steps": [], "stepCount": 0} for i in range(7)]
+    text = "".join(json.dumps(r) + "\n" for r in rows) + '{"id": "torn'
+    (d / run_ledger.LEDGER_FILE).write_text(text)
+    ledger = _ledger()
+    _feed(ledger, "live", {"type": "run_completed"}, {"type": "run_closed"})
+    ledger.ensure_loaded()
+    ids = [r["id"] for r in ledger.recent(limit=10)]
+    assert ids[0] == "live" and "torn" not in ids
+    assert len(ids) == 3  # the ring size
+    lines = (d / run_ledger.LEDGER_FILE).read_text().splitlines()
+    assert len(lines) <= 7  # compacted (more than twice the ring)
+
+
+def test_unwritable_data_dir_is_logged_not_raised(monkeypatch, _isolated, caplog):
+    from praisonaiui.features import run_ledger
+
+    blocker = _isolated / "file"
+    blocker.write_text("x")
+    monkeypatch.setattr(run_ledger, "ledger_dir", lambda: blocker / "runs")
+    ledger = _ledger()
+    _feed(ledger, "r1", {"type": "run_completed"}, {"type": "run_closed"})
+    assert ledger.run("r1")["status"] == "completed"
+    assert "could not write" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_on_the_event_loop_the_append_runs_on_the_writer_thread(monkeypatch):
+    import threading
+
+    from praisonaiui.features import run_ledger
+
+    release = threading.Event()
+    seen: List[str] = []
+
+    def slow_append(self, line):
+        seen.append(threading.current_thread().name)
+        release.wait(5)
+
+    monkeypatch.setattr(run_ledger.RunLedger, "_append", slow_append)
+    ledger = _ledger()
+    for rid in ("r1", "r2"):
+        _feed(ledger, rid, {"type": "run_completed"}, {"type": "run_closed"})
+    # The observer returned while the disk write is still blocked.
+    assert ledger.run("r2")["status"] == "completed"
+    release.set()
+    await asyncio.to_thread(ledger.flush, 5)
+    assert len(seen) == 2 and all(n.startswith("aiui-run-ledger") for n in seen)
+
+
 # ── stored runs ──────────────────────────────────────────────────────
 
 _H = 3_600_000

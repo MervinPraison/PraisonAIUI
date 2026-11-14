@@ -19,16 +19,21 @@ Tokens and cost come from ``usage.track_usage(..., run_id=...)``. A usage
 record without a run id (a provider that does not tag its records) is joined
 by session and time window instead, and the run says ``approximate: true``.
 
-Finished runs are kept in memory (the newest ``RING_SIZE``).
+Finished runs are kept in memory (the newest ``RING_SIZE``) and appended to
+``<data dir>/runs/ledger.jsonl``. The append happens on one writer thread, in
+order, so the chat broadcast path never waits on the disk.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import threading
 import time
 from collections import OrderedDict
+from concurrent.futures import Future, ThreadPoolExecutor
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 from starlette.requests import Request
@@ -39,14 +44,22 @@ from ._base import BaseFeatureProtocol
 
 logger = logging.getLogger(__name__)
 
-#: Finished runs kept in memory.
+#: Finished runs kept in memory (and read back from disk at start).
 RING_SIZE = 1000
 #: Steps kept per run; later steps still count in ``stepCount``.
 MAX_STEPS = 200
 #: Usage tracked this long after a run's last event still belongs to it (the
 #: time-window join for records without a run id).
 WINDOW_GRACE_S = 5.0
+LEDGER_FILE = "ledger.jsonl"
 _TERMINAL = {"completed", "failed", "cancelled"}
+
+
+def ledger_dir() -> Path:
+    """``<data dir>/runs`` (resolved per call, so it follows the environment)."""
+    from ._paths import aiui_default_data_dir, feature_data_path
+
+    return feature_data_path("runs", aiui_default_data_dir() / "runs")
 
 
 def _now_ms() -> int:
@@ -67,6 +80,10 @@ class RunLedger:
         self._lock = threading.RLock()
         self._live: Dict[str, Dict[str, Any]] = {}
         self._done: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
+        self._loaded = False
+        self._file_lock = threading.Lock()
+        self._writer: Optional[ThreadPoolExecutor] = None
+        self._last_write: Optional["Future[None]"] = None
 
     # ── events ───────────────────────────────────────────────────────
 
@@ -243,16 +260,101 @@ class RunLedger:
         self._finish(run)
 
     def _finish(self, run: Dict[str, Any]) -> None:
-        """Move a run to the finished ring with its usage."""
+        """Move a run to the finished ring with its usage, and append it to disk."""
         self._live.pop(run["id"], None)
         run.update(_usage_totals(run, _UsageIndex.build(run["startedAt"])))
         self._remember(run)
+        self._persist(json.dumps(run, separators=(",", ":")))
 
     def _remember(self, run: Dict[str, Any]) -> None:
         self._done[run["id"]] = run
         self._done.move_to_end(run["id"])
         while len(self._done) > RING_SIZE:
             self._done.popitem(last=False)
+
+    # ── disk ─────────────────────────────────────────────────────────
+
+    def _persist(self, line: str) -> None:
+        """Append *line* to the ledger file, off the event loop.
+
+        A run finishes inside ``ChatManager.broadcast`` (the observer), on the
+        event loop: there the write is queued to one writer thread, so lines
+        keep their order and the loop never blocks on the disk. Without a
+        running loop (a script, a test) it is written right away.
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            self._append(line)
+            return
+        if self._writer is None:
+            self._writer = ThreadPoolExecutor(max_workers=1, thread_name_prefix="aiui-run-ledger")
+        self._last_write = self._writer.submit(self._append, line)
+
+    def flush(self, timeout: Optional[float] = None) -> None:
+        """Wait until every queued append is on disk."""
+        last = self._last_write
+        if last is not None:
+            last.result(timeout)
+
+    def close(self) -> None:
+        """Finish the queued appends and stop the writer thread."""
+        writer, self._writer = self._writer, None
+        if writer is not None:
+            writer.shutdown(wait=True)
+
+    def _append(self, line: str) -> None:
+        try:
+            path = ledger_dir() / LEDGER_FILE
+            with self._file_lock:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with open(path, "a", encoding="utf-8") as fh:
+                    fh.write(line + "\n")
+        except OSError as exc:
+            logger.warning("Run ledger: could not write %s: %s", LEDGER_FILE, exc)
+
+    def ensure_loaded(self) -> None:
+        """Read the finished runs back from disk once (call it off the event loop)."""
+        if self._loaded:
+            return
+        path = ledger_dir() / LEDGER_FILE
+        loaded: List[Dict[str, Any]] = []
+        try:
+            with self._file_lock, open(path, encoding="utf-8") as fh:
+                lines = fh.readlines()
+        except FileNotFoundError:
+            lines = []
+        except OSError as exc:
+            logger.warning("Run ledger: could not read %s: %s", path, exc)
+            lines = []
+        for line in lines[-RING_SIZE:]:
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue  # a torn last line
+            if isinstance(rec, dict) and isinstance(rec.get("id"), str):
+                loaded.append(rec)
+        if len(lines) > 2 * RING_SIZE:
+            self._compact(path, lines[-RING_SIZE:])
+        with self._lock:
+            if self._loaded:
+                return
+            kept = self._done
+            self._done = OrderedDict()
+            for rec in loaded:
+                self._remember(rec)
+            for rec in kept.values():  # runs finished in this process win
+                self._remember(rec)
+            self._loaded = True
+
+    def _compact(self, path: Path, lines: List[str]) -> None:
+        tmp = path.with_suffix(".jsonl.tmp")
+        try:
+            with self._file_lock:
+                tmp.write_text("".join(lines), encoding="utf-8")
+                tmp.replace(path)
+        except OSError as exc:
+            logger.warning("Run ledger: could not compact %s: %s", path, exc)
 
     # ── queries ──────────────────────────────────────────────────────
 
@@ -334,7 +436,7 @@ def _usage_totals(
 
     By run id first; else untagged records of the run's session inside its
     time window (``approximate``); else what *fallback* already holds (a run
-    run whose records left the usage ring).
+    run read back from disk whose records left the usage ring).
     """
     records = index.by_run.get(run["id"], [])
     approximate = False
@@ -398,6 +500,7 @@ def reset_run_ledger() -> None:
 
             if _ledger.observe in _event_observers:
                 _event_observers.remove(_ledger.observe)
+            _ledger.close()
         _ledger = None
 
 
@@ -439,7 +542,10 @@ class RunLedgerFeature(BaseFeatureProtocol):
         return {"status": "ok", "feature": self.name, **self._ledger.stats()}
 
     async def _ready(self) -> RunLedger:
-        return get_run_ledger()
+        ledger = get_run_ledger()
+        if not ledger._loaded:
+            await asyncio.to_thread(ledger.ensure_loaded)
+        return ledger
 
     async def _list(self, request: Request) -> JSONResponse:
         ledger = await self._ready()
