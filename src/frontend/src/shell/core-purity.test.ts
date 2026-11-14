@@ -1,4 +1,5 @@
-// Core purity: the shell (src/shell) and the SDK (src/sdk) are the small core.
+// Core purity: the shell (src/shell), the SDK (src/sdk) and the host code they
+// mount pages with (src/legacy, src/blocks; ADR §3) are the small core.
 // Every page and feature, first-party included, is contributed from outside
 // it (src/builtin, plugin modules). This test reads the sources and fails when
 // the core
@@ -12,7 +13,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 
 const SRC = path.resolve(process.cwd(), 'src')
-const CORE_DIRS = ['shell', 'sdk']
+const CORE_DIRS = ['shell', 'sdk', 'legacy', 'blocks']
 
 /** Feature code the core must never import (statically or lazily). */
 const FEATURE_DIRS = ['chat-engine', 'chat', 'agent-ui', 'views', 'pages', 'surfaces']
@@ -103,10 +104,12 @@ function pageIdLiterals(code: string): string[] {
 test('the core has sources to check', () => {
   assert.ok(files.some((f) => f.rel === 'shell/mount.tsx'), 'shell/mount.tsx was scanned')
   assert.ok(files.some((f) => f.rel === 'sdk/registry.ts'), 'sdk/registry.ts was scanned')
+  assert.ok(files.some((f) => f.rel === 'legacy/LegacyViewHost.tsx'), 'legacy/LegacyViewHost.tsx was scanned')
+  assert.ok(files.some((f) => f.rel === 'blocks/coreBlocks.tsx'), 'blocks/coreBlocks.tsx was scanned')
   assert.ok(!files.some((f) => f.rel === 'shell/ported.ts'), 'shell/ported.ts is gone: pages register from src/builtin')
 })
 
-test('shell/ and sdk/ never import a feature module (@/chat-engine, …)', () => {
+test('the core never imports a feature module (@/chat-engine, …)', () => {
   const bad: string[] = []
   for (const f of files) {
     for (const spec of specifiers(f.code)) {
@@ -142,7 +145,7 @@ test('only the shell may import src/builtin, and only its index', () => {
   assert.deepEqual(bad, [])
 })
 
-test('shell/ and sdk/ contain no built-in page id literal', () => {
+test('the core contains no built-in page id literal', () => {
   const bad: string[] = []
   const stale: string[] = []
   for (const f of files) {
@@ -171,7 +174,7 @@ function groupNameLiterals(code: string): string[] {
   return [...found].sort()
 }
 
-test('shell/ and sdk/ name no built-in sidebar group (order and folding come from layout.groups)', () => {
+test('the core names no built-in sidebar group (order and folding come from layout.groups)', () => {
   const bad = files.flatMap((f) => groupNameLiterals(f.code).map((name) => `${f.rel} names group '${name}'`))
   assert.deepEqual(bad, [], 'set the group order and fold state in builtin/catalog.py NAV_GROUPS')
   assert.deepEqual(groupNameLiterals("const ORDER = ['Agent', 'Work']; x = 'Workers'"), ['Agent', 'Work'])
