@@ -318,6 +318,23 @@ class TestProScope:
         assert parts == {PRO_SCOPE, f"{PRO_SCOPE} [data-aiui-scope]", f"{PRO_SCOPE} .dark"}
         assert "--primary" in _pro_decls(body)
 
+    def test_wiring_is_stated_as_planned_until_something_imports_pro_css(self):
+        # R16: the header and setTokenSystem must not describe the F3 wiring
+        # as done while no module imports pro.css.
+        imports = re.compile(r"""import\s+['"][^'"]*styles/pro\.css['"]""")
+        importers = [
+            p
+            for p in Path("src/frontend/src").rglob("*.ts*")
+            if imports.search(p.read_text(encoding="utf-8"))
+        ]
+        if importers:
+            pytest.skip(f"pro.css is imported by {importers[0]}")
+        header = PRO_CSS.read_text(encoding="utf-8").split("*/", 1)[0]
+        assert "(planned" in header and "imported by the shell chunk" not in header
+        ts = THEMES_TS.read_text(encoding="utf-8")
+        doc = ts[: ts.index("export function setTokenSystem")].rsplit("/**", 1)[1]
+        assert "(planned" in doc and "The shell calls this" not in doc
+
     def test_accent_roles_read_runtime_seed_then_mode_seed(self):
         rules = _pro_rules()
         mapping = _pro_decls(rules[2][1])

@@ -2,11 +2,12 @@
  * (ADR 0003, track F4). See src/frontend/DESIGN.md "PraisonAI Pro tokens".
  *
  * SCOPE. Every rule is scoped to html[data-aiui-shell="react"][data-aiui-tokens="pro"].
- * The shell sets data-aiui-tokens="pro" while a layout frame is mounted and
- * removes it for the classic frame (themes.ts setTokenSystem). Without the
- * attribute this file matches nothing, so the classic frame, the dashboard
- * and every other style render exactly as before. This file is imported by
- * the shell chunk, never by index.css.
+ * themes.ts setTokenSystem('pro') sets the attribute and setTokenSystem(null)
+ * removes it. Without the attribute this file matches nothing, so the classic
+ * frame, the dashboard and every other style render exactly as before.
+ * (planned: the F3 layout host imports this file in the shell chunk, never
+ * from index.css, and switches the attribute on while a layout frame is
+ * mounted and off for the classic frame. Until then nothing imports it.)
  *
  * LAYERS. Everything sits in @layer base, after styles/theme.css, with a more
  * specific selector, so it beats the classic defaults while unlayered CSS

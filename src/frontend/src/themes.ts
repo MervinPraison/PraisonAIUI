@@ -627,8 +627,9 @@ export type TokenSystem = 'pro'
 
 /**
  * Switch the Pro token system on (`'pro'`) or back to the classic tokens
- * (`null`). The shell calls this when it mounts a layout frame or the
- * classic frame; nothing else paints differently.
+ * (`null`). Only `styles/pro.css` reads the attribute, so nothing else
+ * paints differently. (planned: the F3 layout host calls this when it mounts
+ * a layout frame or the classic frame; nothing calls it yet.)
  */
 export function setTokenSystem(system: TokenSystem | null, root?: HTMLElement): void {
     const el = root ?? (typeof document === 'undefined' ? null : document.documentElement)
