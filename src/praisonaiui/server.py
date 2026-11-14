@@ -1450,6 +1450,7 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
     plugin > dashboard-plugin folder. A shadowed page logs a warning.
     """
     from praisonaiui.builtin.catalog import NAV_GROUPS
+    from praisonaiui.layouts import layouts_manifest
     from praisonaiui.plugin_registry import SDK_API_VERSION, get_plugin_registry
 
     reg = get_plugin_registry()
@@ -1480,6 +1481,7 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
         "blocks": [b.to_dict() for b in reg.blocks(restricted=restricted)],
         "toolRenderers": [t.to_dict() for t in reg.tool_renderers(restricted=restricted)],
         "plugins": reg.records_for_manifest(restricted=restricted, include_errors=include_errors),
+        "layouts": layouts_manifest(reg, _effective_style, restricted=restricted),  # ADR 0003
         "legacy": {
             "customJs": "/custom.js" if _custom_js is not None else None,
             "viewsBase": "/plugins/views/",

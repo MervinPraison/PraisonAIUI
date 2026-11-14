@@ -27,6 +27,10 @@ NAV_GROUPS: dict[str, object] = {
     "folded": ["Work", "Examples", "Create"],
 }
 
+#: The layout a style opens with when nothing picks one (ADR 0003). Only
+#: ``style: app`` draws layouts; ``layout: classic`` restores its own frame.
+STYLE_DEFAULT_LAYOUT: dict[str, str] = {"app": "chat-canvas"}
+
 
 def _replay_pages() -> tuple[PageSpec, ...]:
     # The brand mark lives with the feature; import it only when the page is on.

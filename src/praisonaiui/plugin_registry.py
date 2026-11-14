@@ -602,6 +602,9 @@ class PluginRegistry:
             self._builtins.clear()
             self.policy = ExtensionPolicy()
             self._explicit = False
+        from praisonaiui import layouts  # set_layout() state lives there
+
+        layouts.reset()
 
     def active(self) -> list[PluginRecord]:
         """Records whose plugin object loaded (Python surfaces are live)."""
