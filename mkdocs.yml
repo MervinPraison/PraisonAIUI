@@ -105,6 +105,7 @@ nav:
     - Attachments: features/attachments.md
     - Theme System: features/theme-system.md
     - Plugins: features/plugins.md
+    - React App Shell: features/react-shell.md
     - CSS Architecture: features/css-architecture.md
     - Model Fallback: features/model-fallback.md
     - Subagent Tree: features/subagent-tree.md
