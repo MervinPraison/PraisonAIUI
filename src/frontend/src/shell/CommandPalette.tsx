@@ -21,6 +21,7 @@ import type { ShellPage } from '@/sdk/manifest'
 import { notify } from '@/sdk/notify'
 import { useCommands, type ShellCommand } from '@/sdk/services'
 import { footerPages, groupPages } from './nav'
+import { paletteFilter } from './paletteFilter'
 import { PageIcon } from './PageIcon'
 import { navigate } from './router'
 
@@ -93,6 +94,7 @@ export default function CommandPalette({
       title="Command palette"
       description="Search pages and commands"
       showCloseButton={false}
+      filter={paletteFilter}
       className="top-[15%] translate-y-0 sm:max-w-xl"
     >
       <CommandInput placeholder="Search pages and commands…" aria-label="Search pages and commands" />
@@ -119,11 +121,11 @@ export default function CommandPalette({
             {group.pages.map((p) => (
               <CommandItem
                 key={p.id}
-                // cmdk ranks prefix matches highest, so the value starts with the
-                // title; the id keeps it unique. Descriptions stay out: fuzzy
-                // matching over prose ranks unrelated pages first.
+                // The value starts with the title (paletteFilter ranks a title
+                // prefix first); the id keeps it unique. Group and description
+                // are keywords: they match only by word prefix, never fuzzily.
                 value={`${p.title} ${p.id}`}
-                keywords={[p.id]}
+                keywords={[p.id, group.name, ...(p.description ? [p.description] : [])]}
                 onSelect={() => run(() => navigate(p.id))}
               >
                 <PageIcon page={p} />
