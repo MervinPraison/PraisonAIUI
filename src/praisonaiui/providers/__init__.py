@@ -270,13 +270,15 @@ def _hook_event_to_run_events(hook_event_name: str, event_data) -> List[RunEvent
             )
         )
     elif hook_event_name == "after_tool":
-        result = getattr(event_data, "result", None)
+        # praisonaiagents' AfterToolInput names them tool_output / tool_error;
+        # result / error are the older names.
+        result = getattr(event_data, "tool_output", getattr(event_data, "result", None))
         events.append(
             RunEvent(
                 type=RunEventType.TOOL_CALL_COMPLETED,
                 name=getattr(event_data, "tool_name", None),
                 result=result,
-                error=getattr(event_data, "error", None),
+                error=getattr(event_data, "tool_error", getattr(event_data, "error", None)),
                 extra_data=_tool_completed_extra_from_result(result),
             )
         )
