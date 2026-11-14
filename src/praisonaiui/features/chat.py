@@ -324,10 +324,12 @@ class ChatManager(ChatProtocol):
 
     def __init__(self) -> None:
         self._active_runs: Dict[str, asyncio.Task] = {}
-        # run_id → session_id for every run started by ``_run_and_broadcast``.
-        # Used to check that a WS ``chat_abort`` comes from a client that
-        # owns the run's session.
+        # run_id → session_id for every run started by ``_run_and_broadcast``
+        # (routing, delivery, and run_status).
         self._run_sessions: Dict[str, str] = {}
+        # run_id → the WS client_id that started the run (None: started over
+        # HTTP). Only that connection may stop or answer it while connected.
+        self._run_owner: Dict[str, Optional[str]] = {}
         self._history: Dict[str, List[ChatMessage]] = {}
         self._ws_clients: Dict[str, WebSocket] = {}
         # Per-client session scoping (see ``broadcast``).
@@ -539,6 +541,35 @@ class ChatManager(ChatProtocol):
             return True
         return not self.session_has_connected_owner(session_id)
 
+    def may_control_run(self, client_id: Optional[str], run_id: Any) -> bool:
+        """May *client_id* stop or answer the live run *run_id*?
+
+        Only the connection that started the run may, while it is connected.
+        A run started over HTTP, or whose starting connection has gone (the
+        tab reconnected), may be controlled by any caller, so it can always
+        be stopped. Posting a message into the run's session confers nothing:
+        that starts a different run. A run this manager did not start (no
+        owner record) falls back to the session rule.
+        """
+        if not isinstance(run_id, str) or run_id not in self._run_owner:
+            return self.may_control_session(client_id, self.session_for_run(run_id))
+        owner = self._run_owner.get(run_id)
+        if owner is None or owner not in self._ws_clients:
+            return True
+        return owner == client_id
+
+    def live_runs_in_session(self, session_id: Optional[str]) -> List[str]:
+        """Run ids currently registered for *session_id*."""
+        if not session_id:
+            return []
+        return [
+            rid
+            for rid, sid in list(self._run_sessions.items())
+            if sid == session_id
+            and rid in self._active_runs
+            and not self._active_runs[rid].done()
+        ]
+
     def _delivers_to(self, client_id: str, session_id: str) -> bool:
         if not session_id:
             # Session-less events (e.g. a global a2ui surface) cannot be
@@ -712,8 +743,12 @@ async def _run_and_broadcast(
     *,
     client_turn_id: Optional[str] = None,
     regenerate: bool = False,
+    owner_client_id: Optional[str] = None,
 ) -> None:
     """Run the provider and broadcast streaming events to WS clients.
+
+    *owner_client_id* is the WS connection that started the run (None for
+    HTTP): only it may stop or answer the run while it is connected.
 
     *client_turn_id* (from the sender's ``chat`` frame) is echoed on
     ``run_started``, so a client with several tabs on one session binds its
@@ -805,6 +840,7 @@ async def _run_and_broadcast(
     if self_task is not None:
         mgr._active_runs[run_id] = self_task
     mgr._run_sessions[run_id] = session_id
+    mgr._run_owner[run_id] = owner_client_id
 
     first_event: Optional["asyncio.Future[Any]"] = None
 
@@ -1110,6 +1146,7 @@ async def _run_and_broadcast(
         # Always deregister the run, on normal completion, error, or abort.
         mgr._active_runs.pop(run_id, None)
         mgr._run_sessions.pop(run_id, None)
+        mgr._run_owner.pop(run_id, None)
 
     # Save assistant response
     if full_response or collected_elements:
@@ -1308,17 +1345,15 @@ async def _chat_abort(request: Request) -> JSONResponse:
     run_id = body.get("run_id", "")
     mgr = get_chat_manager()
     task = mgr._active_runs.get(run_id) if isinstance(run_id, str) else None
-    if task is not None and not task.done() and not mgr.may_control_session(
-        None, mgr.session_for_run(run_id)
-    ):
-        # Same rule as the WS chat_abort: a run whose session a connected
-        # client started a turn in is that connection's to stop.
-        logger.warning("HTTP abort of run %s refused: its session has a live owner", run_id)
+    if task is not None and not task.done() and not mgr.may_control_run(None, run_id):
+        # Same rule as the WS chat_abort: a run a connected client started
+        # is that connection's to stop.
+        logger.warning("HTTP abort of run %s refused: a live connection started it", run_id)
         return JSONResponse(
             {
                 "status": "forbidden",
                 "run_id": run_id,
-                "error": "run belongs to a session a live connection started",
+                "error": "run belongs to a live connection",
             },
             status_code=403,
         )
@@ -1327,12 +1362,12 @@ async def _chat_abort(request: Request) -> JSONResponse:
 
 
 async def _ws_abort(mgr: ChatManager, client_id: str, run_id: Any) -> Dict[str, Any]:
-    """Handle a WS ``chat_abort``: only the session's owner may stop a run.
+    """Handle a WS ``chat_abort``: only the run's own connection may stop it.
 
-    The owner is a client that started a turn in the run's session over this
-    connection or subscribed to it. When no connected client owns the
-    session (the starting tab reconnected, or the turn came over HTTP), any
-    client may stop it, as before. Unknown or finished runs answer
+    The owner is the connection that started the run. Subscribing to the
+    session, or posting another message into it, grants nothing. When the
+    owner is gone (the starting tab reconnected) or the run came over HTTP,
+    any client may stop it, as before. Unknown or finished runs answer
     ``no_active_run`` as before; a live run owned by another connected
     client answers ``forbidden`` and keeps running.
     """
@@ -1344,14 +1379,13 @@ async def _ws_abort(mgr: ChatManager, client_id: str, run_id: Any) -> Dict[str, 
     if task is None or task.done():
         reply.update(await mgr.abort_run(run_id))
         return reply
-    owner_session = mgr.session_for_run(run_id)
-    if not mgr.may_control_session(client_id, owner_session):
+    if not mgr.may_control_run(client_id, run_id):
         logger.warning("Chat WS client %s may not abort run %s", client_id, run_id)
         reply.update(
             {
                 "status": "forbidden",
                 "run_id": run_id,
-                "error": "run belongs to a session another connection started or subscribed to",
+                "error": "run belongs to another connection",
             }
         )
         return reply
@@ -1362,13 +1396,18 @@ async def _ws_abort(mgr: ChatManager, client_id: str, run_id: Any) -> Dict[str, 
 def _ws_ask_allowed(mgr: ChatManager, client_id: str, session_id: Any, run_id: Any) -> bool:
     """May *client_id* answer an ask prompt in *session_id* / *run_id*?
 
-    Same rule as ``chat_abort``. A live ``run_id`` decides the session (so
-    a client cannot answer another session's run by naming its own session).
+    Same rule as ``chat_abort``: a live ``run_id`` must be this connection's
+    run. Without one, the answer would reach whatever run is waiting in the
+    session, so every live run there must be this connection's to control.
     """
-    run_session = mgr.session_for_run(run_id) if isinstance(run_id, str) and run_id else None
-    target = run_session or (session_id if isinstance(session_id, str) else None)
+    if isinstance(run_id, str) and run_id and mgr.session_for_run(run_id):
+        return mgr.may_control_run(client_id, run_id)
+    target = session_id if isinstance(session_id, str) else None
     if not target:
         return True  # nothing to attribute it to: unchanged behaviour
+    live = mgr.live_runs_in_session(target)
+    if live:
+        return all(mgr.may_control_run(client_id, rid) for rid in live)
     return mgr.may_control_session(client_id, target)
 
 
@@ -1506,10 +1545,10 @@ async def _chat_ws(websocket: WebSocket) -> None:
       one in history)
     * ``{type: "run_status", run_id}`` → ``{type: "run_status", run_id,
       session_id, active}``
-    * ``{type: "chat_abort", run_id}`` — allowed for runs in a session this
-      connection started a turn in or subscribed to, or that no connected
-      client owns; answered with ``{type: "chat_abort_result", status,
-      run_id}`` (status ``forbidden`` otherwise).
+    * ``{type: "chat_abort", run_id}`` — allowed for a run this connection
+      started, or one whose starting connection is gone (or that came over
+      HTTP); answered with ``{type: "chat_abort_result", status, run_id}``
+      (status ``forbidden`` otherwise).
     * ``{type: "ask_response", session_id, run_id, response}`` — same rule;
       answered with ``{type: "ask_response_ack", status}``.
     * ``{type: "subscribe", session_ids: [...]}`` / ``{type: "unsubscribe",
@@ -1589,8 +1628,8 @@ async def _chat_ws(websocket: WebSocket) -> None:
                     if guardrail_blocked:
                         continue  # skip agent run, wait for next message
 
-                    # This client now owns the session: it may abort runs
-                    # in it, and (if scoped) receives its events.
+                    # This client started a turn here: it (if scoped)
+                    # receives the session's events, and controls its run.
                     mgr.note_client_session(client_id, session_id)
                     from praisonaiui.server import _datastore
 
@@ -1638,6 +1677,7 @@ async def _chat_ws(websocket: WebSocket) -> None:
                             att_ids,
                             client_turn_id=client_turn_id,
                             regenerate=regenerate,
+                            owner_client_id=client_id,
                         )
                     )
 
