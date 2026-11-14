@@ -10,7 +10,7 @@
  * The page does not register itself; the shell calls registerChatPage()
  * from ./register.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type JSX } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type JSX } from 'react'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import { PanelLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -26,6 +26,15 @@ import { Thread } from './Thread'
 import { createAutoTransport, type AiuiTransport } from './transports'
 import { DEFAULT_STARTERS } from './starters'
 import { useAiuiRuntime, type AiuiStarter } from './useAiuiRuntime'
+
+/** Phone rail (radix Dialog sheet): loaded on the first tap of "Show chats". */
+const loadRailSheet = () => import('./RailSheet')
+const RailSheet = lazy(loadRailSheet)
+function preloadRailSheet() {
+  void loadRailSheet().catch(() => {
+    /* retried on open */
+  })
+}
 
 let sharedTransport: AiuiTransport | null = null
 /** One WebSocket for every chat view; streams outlive the page component. */
@@ -124,6 +133,9 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   const [localSessions, setLocalSessions] = useState<LocalSessions>({})
   const [query, setQuery] = useState('')
   const [railOpen, setRailOpen] = useState(false)
+  // The sheet chunk is mounted after the first open only (as the shell does with MobileNav).
+  const [railRequested, setRailRequested] = useState(false)
+  const railButton = useRef<HTMLButtonElement>(null)
   const [railHidden, setRailHidden] = useState(readRailHidden)
   const [notice, setNotice] = useState<string | null>(null)
   const running = useSyncExternalStore(threadStore.subscribeRunning, threadStore.runningSessions)
@@ -303,22 +315,30 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   return (
     <div className="relative flex h-full min-h-0 w-full min-w-0 overflow-hidden bg-background text-foreground" data-aiui-chat data-page-id={page.id}>
       {!railHidden && <SessionRail {...railProps} className="hidden shrink-0 border-r border-border/70 lg:flex" />}
-      {railOpen && (
-        <div
-          className="absolute inset-0 z-30 lg:hidden"
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setRailOpen(false)
-          }}
-        >
-          <div className="absolute inset-0 bg-foreground/20" onClick={() => setRailOpen(false)} aria-hidden />
-          <SessionRail {...railProps} onClose={() => setRailOpen(false)} className="absolute inset-y-0 left-0 w-72 max-w-[85%] shadow-xl" />
-        </div>
+      {railRequested && (
+        <Suspense fallback={null}>
+          <RailSheet open={railOpen} onOpenChange={setRailOpen} rail={railProps} returnFocus={railButton} />
+        </Suspense>
       )}
       <section className="@container flex min-h-0 min-w-0 flex-1 flex-col" aria-label={page.title || 'Chat'}>
         {/* The title lines up with the thread column; the rail toggle sits in the gutter. */}
         <header className="relative flex h-12 shrink-0 items-center px-4 sm:px-6">
           <div className="absolute top-2 left-2 flex sm:left-3">
-            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground lg:hidden" onClick={() => setRailOpen(true)} aria-label="Show chats">
+            <Button
+              ref={railButton}
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground hover:text-foreground lg:hidden"
+              onClick={() => {
+                setRailRequested(true)
+                setRailOpen(true)
+              }}
+              onPointerEnter={preloadRailSheet}
+              onFocus={preloadRailSheet}
+              aria-label="Show chats"
+              aria-haspopup="dialog"
+              aria-expanded={railOpen}
+            >
               <PanelLeft />
             </Button>
             <Button

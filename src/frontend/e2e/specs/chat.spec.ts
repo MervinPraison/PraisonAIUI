@@ -282,3 +282,33 @@ test('Regenerate replaces the answer: no duplicate turn after a reload', async (
   await expect(page.locator('[data-role="user"]')).toHaveCount(1)
   await expect(assistant(page)).toHaveCount(1)
 })
+
+test.describe('phone session rail', () => {
+  test.use({ viewport: { width: 390, height: 800 } })
+
+  test('opens as a modal dialog: focus moves in, Tab stays in, Escape closes and focus returns', async ({ page }) => {
+    await openChat(page, 'ws')
+    const show = page.getByRole('button', { name: 'Show chats' })
+    await show.focus()
+    await page.keyboard.press('Enter')
+    const dialog = page.getByRole('dialog', { name: 'Chats' })
+    await expect(dialog).toBeVisible()
+    await expect(dialog).toHaveAttribute('aria-modal', 'true')
+    const focusInside = () => dialog.evaluate((el) => el.contains(document.activeElement))
+    await expect.poll(focusInside).toBe(true)
+    for (let i = 0; i < 8; i++) {
+      await page.keyboard.press('Tab')
+      expect(await focusInside(), `Tab ${i + 1} stays in the rail`).toBe(true)
+    }
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    await expect(show).toBeFocused()
+
+    // The close button also hands focus back.
+    await show.click()
+    await expect(dialog).toBeVisible()
+    await dialog.getByRole('button', { name: 'Close chats' }).click()
+    await expect(dialog).toHaveCount(0)
+    await expect(show).toBeFocused()
+  })
+})
