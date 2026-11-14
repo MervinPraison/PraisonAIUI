@@ -892,8 +892,14 @@ const DASHBOARD_STYLE = `
 // DASHBOARD_STYLE's :root block is the dark palette. Light mode is
 // html[data-db-mode="light"] (set by applyColorMode). The block has the
 // same specificity as :root (0,1,0), so user CSS (set_custom_css, kept last
-// in <head>) still wins. Host mode (style `app`) never loads this: the
-// shell's legacy/bridge.css owns the colours there.
+// in <head>) still wins. It also defines the neutral roles of the plugin
+// tier --db-p-* (surfaces, text, strokes): the feature-plugin modules paint
+// var(--db-p-<role>, <dark literal>), and with nothing defined there the
+// log panel, form fields and cards stayed dark on a light page. Accent,
+// status and chart roles keep their literals, mid tones that read in both
+// modes, so buttons and badges look the same as in dark mode. Dark mode
+// leaves --db-p-* undefined, so it stays exactly as before. Host mode (style `app`) never loads this: the shell's
+// legacy/bridge.css maps the same roles onto its tokens.
 const DASHBOARD_LIGHT_STYLE = `
   :root:where([data-db-mode="light"]) {
     --db-bg: #fafafa;
@@ -923,7 +929,33 @@ const DASHBOARD_LIGHT_STYLE = `
     --db-info: #2563eb;
     --db-info-bg: rgba(37,99,235,0.1);
     --db-scrollbar-thumb: rgba(0,0,0,0.12);
+
+    --db-p-bg: var(--db-bg);
+    --db-p-canvas: var(--db-canvas);
+    --db-p-sidebar-bg: var(--db-sidebar-bg);
+    --db-p-card-bg: var(--db-surface);
+    --db-p-surface: var(--db-surface);
+    --db-p-popover: var(--db-popover);
+    --db-p-input-bg: var(--db-input-bg);
+    --db-p-muted: var(--db-muted);
+    --db-p-muted-fg: var(--db-muted-fg);
+    --db-p-hover: var(--db-hover);
+    --db-p-fill: rgba(0,0,0,0.06);
+    --db-p-text: var(--db-text);
+    --db-p-text-dim: var(--db-text-dim);
+    --db-p-text-muted: var(--db-text-muted);
+    --db-p-border: var(--db-border);
+    --db-p-border-light: var(--db-border-light);
   }
+  /* White tints that assume a dark page become the same alpha of black. */
+  :root:where([data-db-mode="light"]) .db-card:hover,
+  :root:where([data-db-mode="light"]) .db-metric:hover { border-color: rgba(0,0,0,0.16); }
+  :root:where([data-db-mode="light"]) .db-cmdk-overlay,
+  :root:where([data-db-mode="light"]) .db-session-search-overlay { background: rgba(0,0,0,0.25); }
+  :root:where([data-db-mode="light"]) .db-cmdk-box,
+  :root:where([data-db-mode="light"]) .db-session-search { background: var(--db-popover); box-shadow: 0 16px 48px rgba(0,0,0,0.16); }
+  :root:where([data-db-mode="light"]) .db-skeleton { background: linear-gradient(90deg, var(--db-border) 25%, rgba(0,0,0,0.04) 50%, var(--db-border) 75%); background-size: 200% 100%; }
+  :root:where([data-db-mode="light"]) .db-error { border-color: #dc2626; color: #b91c1c; background: rgba(220,38,38,0.08); }
 `;
 
 let activePageId = null;

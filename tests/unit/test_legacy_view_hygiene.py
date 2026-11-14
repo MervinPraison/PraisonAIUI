@@ -9,9 +9,10 @@ Three guarantees for the vanilla dashboard's views and feature-plugin modules:
    resources. It needs Playwright and Chromium, so it is opt-in like
    ``tests/browser``: ``RUN_BROWSER_TESTS=1 pytest tests/unit/test_legacy_view_hygiene.py``.
 2. **Tokens.** The 12 feature-plugin modules paint colours only through the
-   plugin-tier namespace ``var(--db-p-<role>, <original literal>)``. Nothing in
-   the legacy dashboard defines ``--db-p-*``, so every value resolves to its
-   original literal and the legacy dashboard stays pixel-identical. The React
+   plugin-tier namespace ``var(--db-p-<role>, <original literal>)``. In dark
+   mode (the default) nothing defines ``--db-p-*``, so every value resolves to
+   its original literal and the legacy dashboard stays pixel-identical; its
+   light mode maps the roles onto light values (``DASHBOARD_LIGHT_STYLE``). The React
    shell (style ``app``) maps the roles onto its tokens in
    ``src/frontend/src/legacy/bridge.css``, which is how these pages become
    correct in light mode there.
@@ -214,15 +215,39 @@ def test_modules_do_not_reuse_dashboard_vars(module):
     assert not hits, f"{module}: use the --db-p-* namespace, found {sorted(set(hits))}"
 
 
-def test_db_p_namespace_is_undefined_in_the_legacy_dashboard():
-    """No legacy plugin or view defines --db-p-*, so the literal fallbacks apply."""
+def test_db_p_namespace_is_defined_only_for_dashboard_light_mode():
+    """Dark mode (the default) leaves --db-p-* undefined, so the literal
+    fallbacks apply and it stays pixel-identical. The only definitions are
+    dashboard.js's light-mode block, under html[data-db-mode="light"]: without
+    them the log panel and form fields stayed dark on a light page."""
     definition = re.compile(r"--db-p-[a-z0-9-]+\s*:")
+    dashboard = PLUGINS / "dashboard.js"
     offenders = [
         str(p.relative_to(ROOT))
         for p in sorted(PLUGINS.rglob("*.js"))
-        if definition.search(_read(p))
+        if p != dashboard and definition.search(_read(p))
     ]
     assert not offenders, f"--db-p-* defined in legacy code: {offenders}"
+    src = _read(dashboard)
+    defined = set()
+    for m in definition.finditer(src):
+        block_start = src.rfind("{", 0, m.start())
+        sel_start = max(src.rfind("}", 0, block_start), src.rfind("`", 0, block_start)) + 1
+        selector = src[sel_start:block_start].strip()
+        assert selector == ':root:where([data-db-mode="light"])', selector
+        defined.add(m.group(0).split(":")[0][len("--db-p-"):].strip())
+    # Not in DASHBOARD_STYLE, which host mode (style `app`) reuses.
+    style = src.split("const DASHBOARD_STYLE = `", 1)[1].split("`;", 1)[0]
+    assert not definition.search(style)
+    # Every neutral role the modules read (surfaces, text, strokes) follows
+    # light mode; accent, status and chart roles keep their mid-tone literals.
+    neutral = {
+        "bg", "canvas", "sidebar-bg", "card-bg", "surface", "popover", "input-bg", "muted",
+        "muted-fg", "hover", "fill", "text", "text-dim", "text-muted", "border", "border-light",
+    }
+    assert defined == neutral, sorted(defined ^ neutral)
+    used = {m.group(1) for mod in TOKEN_MODULES for m in DB_P_VAR.finditer(_read(PLUGINS / mod))}
+    assert not sorted((used & neutral) - defined)
 
 
 def test_db_p_definitions_in_frontend_css_are_scoped_to_the_shell():
