@@ -3363,23 +3363,27 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
         reply_status: Optional[str] = None
         reply_error: Optional[str] = None
 
-        # Inject knowledge context if available (non-blocking)
+        # Inject knowledge context if available. The store blocks (chromadb,
+        # embedding calls), so it runs in a worker thread, off the event loop.
         augmented_message = message
         try:
-            from praisonaiui.features.knowledge import get_knowledge_manager
+            from praisonaiui.features import knowledge as _knowledge
 
-            k_mgr = get_knowledge_manager()
-            k_entries = k_mgr.list_all()
-            if k_entries:
-                k_results = k_mgr.search(message, limit=5)
-                if k_results:
-                    context_lines = [r.get("text", "") for r in k_results if r.get("text")]
-                    if context_lines:
-                        context_block = "\n".join(context_lines)
-                        augmented_message = (
-                            f"[Knowledge Context]\n{context_block}\n"
-                            f"[/Knowledge Context]\n\n{message}"
-                        )
+            def _knowledge_hits(text: str) -> list:
+                k_mgr = _knowledge.get_knowledge_manager()
+                return k_mgr.search(text, limit=5) if k_mgr.list_all() else []
+
+            k_results = await _knowledge._off_loop(_knowledge_hits, message)
+            if k_results:
+                context_lines = [r.get("text", "") for r in k_results if r.get("text")]
+                if context_lines:
+                    context_block = "\n".join(context_lines)
+                    augmented_message = (
+                        f"[Knowledge Context]\n{context_block}\n"
+                        f"[/Knowledge Context]\n\n{message}"
+                    )
+        except asyncio.CancelledError:
+            raise
         except BaseException:
             pass  # Knowledge failures (incl. pyo3 Rust panics) must never break chat
 
@@ -3530,25 +3534,23 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
             msg_data["error"] = error
         await _datastore.add_message(session_id, msg_data)
 
-        # Auto-store conversation turn in memory (non-blocking)
+        # Auto-store the conversation turn in memory, in a worker thread
+        # (SQLite, vector store and embedding calls block).
         try:
-            from praisonaiui.features.memory import get_memory_manager
+            from praisonaiui.features import memory as _memory
 
-            mgr = get_memory_manager()
-            mgr.store(
-                message,
-                memory_type="short",
-                session_id=session_id,
-                agent_id=agent_name,
-                metadata={"role": "user"},
-            )
-            mgr.store(
-                full_response,
-                memory_type="short",
-                session_id=session_id,
-                agent_id=agent_name,
-                metadata={"role": "assistant"},
-            )
+            def _remember_turn() -> None:
+                mgr = _memory.get_memory_manager()
+                for text, role in ((message, "user"), (full_response, "assistant")):
+                    mgr.store(
+                        text,
+                        memory_type="short",
+                        session_id=session_id,
+                        agent_id=agent_name,
+                        metadata={"role": role},
+                    )
+
+            await _memory._off_loop(_remember_turn)
         except Exception:
             pass  # Memory failures must never break chat
 
