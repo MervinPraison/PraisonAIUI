@@ -21,10 +21,14 @@ def test_view_files_exist():
     assert VIEW.exists()
 
 
-def test_replay_registered_in_builtin_views():
-    source = (FRONTEND / "dashboard.js").read_text(encoding="utf-8")
-    block = source.split("const BUILTIN_VIEWS = {", 1)[1].split("};", 1)[0]
-    assert re.search(r"^\s*replay:\s*'/plugins/views/replay\.js',", block, re.M)
+def test_replay_is_a_builtin_page_with_its_view_file():
+    # dashboard.js loads a built-in page's view as views/<page id>.js
+    # (test_dashboard_view_resolution.py), so the page and file must match.
+    from praisonaiui.builtin import BUILTIN_PLUGINS
+
+    specs = {spec.id: spec for plugin in BUILTIN_PLUGINS for spec in plugin.pages()}
+    assert specs["replay"].kind == "legacy"
+    assert (VIEWS / "replay.js").is_file()
 
 
 def test_dashboard_accepts_hash_deep_links():

@@ -19,7 +19,7 @@ never read or written.
 
 | Project | Server | Specs |
 |---|---|---|
-| `dashboard-legacy` | default style (vanilla dashboard) | `legacy-parity` |
+| `dashboard-legacy` | default style (vanilla dashboard) | `legacy-parity`, `legacy-dashboard` |
 | `app-shell` | `AIUI_SHELL=app` + the example plugin | `shell-sweep`, `chat`, `plugins` |
 | `chat-style` | `style: chat`, presets `zinc` and `rose` (two servers) | `theme-presets` |
 | `docs` | `aiui build` of `fixtures/docs-site`, served by `aiui serve` | `markdown` |
@@ -48,6 +48,12 @@ never read or written.
   (`/overview`, `/chat`, `/logs`, `/usage`, `/agents`, `/approvals`, `/jobs`,
   dark and light, 1280×800, at most 0.5% differing pixels; the log stream and
   the usage chart's time axis are masked), plus the overscroll background check.
+- **legacy-dashboard**: the default dashboard's chat renders a markdown table
+  as a `<table>` and keeps reasoning and the tool step above a streaming
+  answer; with no app or viewer choice (`site.themeDefault: system`) it
+  follows the OS scheme, an app that asks for dark (`set_theme()`) never shows
+  a light frame on a light OS, a light pick on the Theme page survives a
+  reload, and light mode reaches the log panel and form fields.
 - **theme-presets**: `zinc` vs `rose` paint different `--primary` colours,
   and primary, body and muted text reach 4.5:1 in light and dark.
 - **plugins**: the example plugin's React page, blocks page, block type, tool
@@ -67,6 +73,12 @@ baselines live per platform in `__baseline__/<platform>/`. Only `darwin`
 baselines are committed so far. On a platform without baselines the
 screenshot tests are **skipped** and the DOM checks still run; this is why
 the screenshot comparison is not enforced in CI (Linux) yet.
+
+Exception: `darwin/logs-light.png` and `darwin/usage-light.png` were
+re-captured from the build that fixed the dashboard's light mode
+(`--update-snapshots`): v0.3.153 painted the log panel and the usage cards
+with their dark literals on a light page, which was the bug. Re-capturing
+from v0.3.153 would bring the dark panels back into those two baselines.
 
 Baselines are captured from the v0.3.153 release itself, with the same spec:
 

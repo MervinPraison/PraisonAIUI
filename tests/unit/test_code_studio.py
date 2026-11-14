@@ -67,9 +67,12 @@ class TestCodeStudioFrontend:
         assert "eval(" not in src
 
     def test_registered_in_dashboard(self):
-        src = (PLUGINS / "dashboard.js").read_text(encoding="utf-8")
-        assert "'code-studio'" in src
-        assert "code-studio.js" in src
+        # dashboard.js loads a built-in page's view as views/<page id>.js.
+        from praisonaiui.builtin import BUILTIN_PLUGINS
+
+        ids = {spec.id for plugin in BUILTIN_PLUGINS for spec in plugin.pages()}
+        assert "code-studio" in ids
+        assert (VIEWS / "code-studio.js").is_file()
 
     def test_send_to_agent_event(self):
         src = (VIEWS / "code-studio.js").read_text(encoding="utf-8")

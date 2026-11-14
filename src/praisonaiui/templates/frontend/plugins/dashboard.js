@@ -137,52 +137,76 @@ const COMPONENT_REGISTRY = {};
 const VIEW_REGISTRY = {};
 let _activeCleanup = null; // cleanup function for the active view
 
-// Built-in page-to-module mapping (protocol-first: page IDs come from /api/pages)
-// Paths are relative to /plugins/ where dashboard.js is served from
-const BUILTIN_VIEWS = {
-  chat:           '/plugins/views/chat.js',
-  'chat-canvas':  '/plugins/views/chat-canvas.js',
-  canvas:         '/plugins/views/canvas.js',
-  overview:       '/plugins/views/overview.js',
-  agents:         '/plugins/views/agents.js',
-  sessions:       '/plugins/views/sessions.js',
-  runs:           '/plugins/views/run-recorder.js',
-  replay:         '/plugins/views/replay.js',
-  memory:         '/plugins/views/memory.js',
-  knowledge:      '/plugins/views/knowledge.js',
-  logs:           '/plugins/views/logs.js',
-  schedules:      '/plugins/views/schedules.js',
-  cron:           '/plugins/views/schedules.js',
-  config:         '/plugins/views/config.js',
-  config_runtime: '/plugins/views/config.js',
-  approvals:      '/plugins/views/approvals.js',
-  usage:          '/plugins/views/usage.js',
-  channels:       '/plugins/views/channels.js',
-  inbox:          '/plugins/views/inbox.js',
-  skills:         '/plugins/views/skills.js',
-  tools:          '/plugins/views/skills.js',
-  nodes:          '/plugins/views/nodes.js',
-  instances:      '/plugins/views/nodes.js',
-  explorer:       '/plugins/views/explorer.js',
-  debug:          '/plugins/views/debug.js',
-  guardrails:     '/plugins/views/guardrails.js',
-  eval:           '/plugins/views/eval.js',
-  training:       '/plugins/views/training-lab.js',
-  telemetry:      '/plugins/views/telemetry.js',
-  traces:         '/plugins/views/traces.js',
-  security:       '/plugins/views/security.js',
-  'theme-picker': '/plugins/views/theme-picker.js',
-  feedback:       '/plugins/views/feedback.js',
-  jobs:           '/plugins/views/jobs.js',
-  kanban:         '/plugins/views/kanban.js',
-  work:           '/plugins/views/work-hub.js',
-  'jobs-board':   '/plugins/views/jobs-board.js',
-  auth:           '/plugins/views/auth.js',
-  api:            '/plugins/views/api.js',
-  mcp:            '/plugins/views/mcp.js',
-  marketplace:    '/plugins/views/marketplace.js',
-  'code-studio':  '/plugins/views/code-studio.js',
-};
+// ── View modules (protocol-first) ────────────────────────────────────
+// Which view module renders a page comes from the server, not from a list
+// here. GET /api/shell/manifest says where each page comes from (`source`),
+// how it renders (`kind`) and where the built-in views live
+// (`legacy.viewsBase`). A built-in page's view is `<viewsBase><page id>.js`
+// (a built-in record may also name its own `module`); a page that an app
+// (register_page / @aiui.page), a plugin or a dashboard-plugin folder
+// provides never gets a built-in view, even when it reuses a built-in's id
+// (it renders through registerView or the generic viewer). A disabled
+// built-in is simply absent from the manifest, and a new built-in page only
+// needs its catalog record and its view file.
+//
+// Fallback, only when the manifest cannot be read (an older server, a
+// failed request): every page that /api/pages lists is tried by the same
+// file convention; a page without a view file falls through to the generic
+// viewer.
+// The Inspector is a built-in record without a view file: dashboard.js draws
+// it itself (showTestPanel / renderTestPanel), so it has no view module.
+const INSPECTOR_PAGE_ID = 'inspector';
+const DEFAULT_VIEWS_BASE = '/plugins/views/';
+const VIEW_FILE_ID = /^[A-Za-z0-9][\w-]*$/;
+let _viewsBase = DEFAULT_VIEWS_BASE;
+let _viewIndex = null; // Map<page id, manifest page>; null while unknown or unreachable
+let _viewIndexLoad = null;
+
+// Loads the manifest's page records once; never rejects.
+function loadViewIndex() {
+  if (!_viewIndexLoad) {
+    _viewIndexLoad = (async () => {
+      try {
+        const res = await fetch('/api/shell/manifest');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const manifest = await res.json();
+        if (!manifest || !Array.isArray(manifest.pages)) throw new Error('no pages in the manifest');
+        const base = manifest.legacy && manifest.legacy.viewsBase;
+        if (typeof base === 'string' && /^\/(?!\/)[\w./-]*\/$/.test(base) && !base.includes('..')) _viewsBase = base;
+        _viewIndex = new Map(manifest.pages.filter((pg) => pg && typeof pg.id === 'string').map((pg) => [pg.id, pg]));
+      } catch (e) {
+        console.warn('[AIUI] /api/shell/manifest unavailable; views resolve by file name:', e);
+        _viewIndex = null;
+      }
+    })();
+  }
+  return _viewIndexLoad;
+}
+
+function _sameOriginPath(url) {
+  return typeof url === 'string' && url.startsWith('/') && !url.startsWith('//') && !url.includes('\\');
+}
+
+// A page record from the manifest: it says how the page renders and where
+// it comes from.
+function _isManifestPage(page) {
+  return Boolean(page) && typeof page === 'object' && typeof page.kind === 'string' && typeof page.source === 'string';
+}
+
+// The view module URL for a page (without a cache-bust), or null when the
+// page has none (a registered view or the generic viewer renders it).
+// hostPage: the app shell's record of the page (manifest shape), if any.
+function viewModuleUrl(pageId, hostPage) {
+  if (pageId === INSPECTOR_PAGE_ID) return null;
+  const rec = _isManifestPage(hostPage) ? hostPage : (_viewIndex ? _viewIndex.get(pageId) : undefined);
+  const byName = VIEW_FILE_ID.test(pageId) ? `${_viewsBase}${pageId}.js` : null;
+  if (rec) {
+    if (rec.source !== 'builtin' || (rec.kind !== 'legacy' && rec.kind !== 'native')) return null;
+    return _sameOriginPath(rec.module) ? rec.module : byName;
+  }
+  if (_viewIndex) return null; // the server does not list this page
+  return pagesData.some((pg) => pg.id === pageId) ? byName : null;
+}
 
 const SLOT_REGISTRY = {};
 let _dashboardPluginManifests = [];
@@ -888,6 +912,76 @@ const DASHBOARD_STYLE = `
   .db-cmdk-empty { padding: 24px; text-align: center; font-size: 13px; color: var(--db-text-dim); }
 `;
 
+// ── Light mode (dashboard style only) ────────────────────────────────
+// DASHBOARD_STYLE's :root block is the dark palette. Light mode is
+// html[data-db-mode="light"] (set by applyColorMode). The block has the
+// same specificity as :root (0,1,0), so user CSS (set_custom_css, kept last
+// in <head>) still wins. It also defines the neutral roles of the plugin
+// tier --db-p-* (surfaces, text, strokes): the feature-plugin modules paint
+// var(--db-p-<role>, <dark literal>), and with nothing defined there the
+// log panel, form fields and cards stayed dark on a light page. Accent,
+// status and chart roles keep their literals, mid tones that read in both
+// modes, so buttons and badges look the same as in dark mode. Dark mode
+// leaves --db-p-* undefined, so it stays exactly as before. Host mode (style `app`) never loads this: the shell's
+// legacy/bridge.css maps the same roles onto its tokens.
+const DASHBOARD_LIGHT_STYLE = `
+  :root:where([data-db-mode="light"]) {
+    --db-bg: #fafafa;
+    --db-canvas: #f4f4f5;
+    --db-sidebar-bg: #f4f4f5;
+    --db-card-bg: rgba(0,0,0,0.02);
+    --db-surface: #ffffff;
+    --db-popover: #ffffff;
+    --db-input-bg: #ffffff;
+    --db-muted: #f4f4f5;
+    --db-muted-fg: #71717a;
+    --db-hover: rgba(0,0,0,0.04);
+    --db-text: #18181b;
+    --db-text-dim: #52525b;
+    --db-text-muted: #71717a;
+    --db-border: rgba(0,0,0,0.1);
+    --db-border-light: rgba(0,0,0,0.06);
+    --db-sidebar-accent: rgba(0,0,0,0.04);
+    --db-sidebar-accent-fg: #18181b;
+    --db-sidebar-border: rgba(0,0,0,0.08);
+    --db-success: #16a34a;
+    --db-success-bg: rgba(22,163,74,0.12);
+    --db-warning: #a16207;
+    --db-warning-bg: rgba(202,138,4,0.14);
+    --db-error: #dc2626;
+    --db-error-bg: rgba(220,38,38,0.1);
+    --db-info: #2563eb;
+    --db-info-bg: rgba(37,99,235,0.1);
+    --db-scrollbar-thumb: rgba(0,0,0,0.12);
+
+    --db-p-bg: var(--db-bg);
+    --db-p-canvas: var(--db-canvas);
+    --db-p-sidebar-bg: var(--db-sidebar-bg);
+    --db-p-card-bg: var(--db-surface);
+    --db-p-surface: var(--db-surface);
+    --db-p-popover: var(--db-popover);
+    --db-p-input-bg: var(--db-input-bg);
+    --db-p-muted: var(--db-muted);
+    --db-p-muted-fg: var(--db-muted-fg);
+    --db-p-hover: var(--db-hover);
+    --db-p-fill: rgba(0,0,0,0.06);
+    --db-p-text: var(--db-text);
+    --db-p-text-dim: var(--db-text-dim);
+    --db-p-text-muted: var(--db-text-muted);
+    --db-p-border: var(--db-border);
+    --db-p-border-light: var(--db-border-light);
+  }
+  /* White tints that assume a dark page become the same alpha of black. */
+  :root:where([data-db-mode="light"]) .db-card:hover,
+  :root:where([data-db-mode="light"]) .db-metric:hover { border-color: rgba(0,0,0,0.16); }
+  :root:where([data-db-mode="light"]) .db-cmdk-overlay,
+  :root:where([data-db-mode="light"]) .db-session-search-overlay { background: rgba(0,0,0,0.25); }
+  :root:where([data-db-mode="light"]) .db-cmdk-box,
+  :root:where([data-db-mode="light"]) .db-session-search { background: var(--db-popover); box-shadow: 0 16px 48px rgba(0,0,0,0.16); }
+  :root:where([data-db-mode="light"]) .db-skeleton { background: linear-gradient(90deg, var(--db-border) 25%, rgba(0,0,0,0.04) 50%, var(--db-border) 75%); background-size: 200% 100%; }
+  :root:where([data-db-mode="light"]) .db-error { border-color: #dc2626; color: #b91c1c; background: rgba(220,38,38,0.08); }
+`;
+
 let activePageId = null;
 let pagesData = [];
 
@@ -925,10 +1019,83 @@ const PRESET_COLORS = {
   rose:    { accent: '#f43f5e', accentRgb: '244,63,94' },
 };
 
+// ── Colour mode (light / dark) ───────────────────────────────────────
+// The viewer's choice lives under the key the app shell (next-themes) and
+// the server's theme bootstrap script read: 'light' | 'dark' | 'system'.
+// Without one, the app's default applies (see appDefaultColorMode), and when
+// that is 'system' the OS scheme. Dashboard style only: host mode leaves
+// <html> to the shell.
+const COLOR_MODE_KEY = 'aiui-theme-preference';
+// The app's default mode, from applyThemeFromConfig(). Until /ui-config.json
+// has answered it is dark, the dashboard's historical default and what the
+// server sends when nothing else is set, so a dark app never shows a light
+// frame first.
+let _appColorMode = 'dark';
+const _isColorMode = (v) => v === 'light' || v === 'dark' || v === 'system';
+
+function _storedColorMode() {
+  try {
+    const v = localStorage.getItem(COLOR_MODE_KEY);
+    return _isColorMode(v) ? v : null;
+  } catch (e) { return null; } // storage blocked
+}
+
+function _systemColorMode() {
+  try { return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; } catch (e) { return 'dark'; }
+}
+
+// The app's default colour mode from the `site` part of /ui-config.json.
+// `site.themeDefault` is the server's own answer (set_theme() > YAML
+// site.theme > 'system' when the app chose nothing), the value style app
+// gets as <html data-aiui-theme-default>. Without it (an older server), the
+// theme as sent: YAML `mode: light|dark|system`, else `darkMode`. The values
+// are never second-guessed: set_theme() with its defaults asks for dark.
+function appDefaultColorMode(site) {
+  if (!site || typeof site !== 'object') return 'system';
+  if (_isColorMode(site.themeDefault)) return site.themeDefault;
+  const theme = site.theme;
+  if (!theme || typeof theme !== 'object') return 'system';
+  if (_isColorMode(theme.mode)) return theme.mode;
+  if (typeof theme.darkMode === 'boolean') return theme.darkMode ? 'dark' : 'light';
+  return 'system';
+}
+
+function resolveColorMode() {
+  const pref = _storedColorMode() || _appColorMode;
+  return pref === 'light' || pref === 'dark' ? pref : _systemColorMode();
+}
+
+// Puts the resolved mode on <html>: data-db-mode drives DASHBOARD_LIGHT_STYLE,
+// the `dark` class is what the theme bootstrap and index.css use.
+function applyColorMode() {
+  const mode = resolveColorMode();
+  const root = document.documentElement;
+  root.setAttribute('data-db-mode', mode);
+  root.classList.toggle('dark', mode === 'dark');
+  return mode;
+}
+
+// Applies the mode now (before the dashboard paints) and follows a change of
+// the stored choice (the Theme page, another tab) or of the OS scheme.
+function initColorMode() {
+  applyColorMode();
+  window.addEventListener('storage', (e) => { if (e.key === COLOR_MODE_KEY || e.key === null) applyColorMode(); });
+  try {
+    const query = matchMedia('(prefers-color-scheme: dark)');
+    if (typeof query.addEventListener === 'function') query.addEventListener('change', applyColorMode);
+  } catch (e) { /* no matchMedia */ }
+}
+
 async function applyThemeFromConfig(cfg) {
   // Host mode: theme tokens come from the shell (legacy/bridge.css). Inline
   // !important vars on <html> would override them and user CSS alike.
   if (_hostMode) return;
+  // Dark/light mode: the app's default, used while the viewer has not chosen
+  // one (DASHBOARD_LIGHT_STYLE paints light, not inline variables, so a
+  // viewer's choice and user CSS still apply).
+  _appColorMode = appDefaultColorMode(cfg?.site);
+  applyColorMode();
+
   const theme = cfg?.site?.theme;
   if (!theme) return;
 
@@ -954,18 +1121,6 @@ async function applyThemeFromConfig(cfg) {
     customVars['--db-accent'] = colors.accent;
     customVars['--db-accent-glow'] = `rgba(${colors.accentRgb},0.15)`;
     customVars['--db-accent-rgb'] = colors.accentRgb;
-  }
-
-  // Dark/light mode
-  if (theme.darkMode === false) {
-    customVars['--db-bg'] = '#fafafa';
-    customVars['--db-sidebar-bg'] = '#f4f4f5';
-    customVars['--db-text'] = '#18181b';
-    customVars['--db-text-dim'] = '#71717a';
-    customVars['--db-border'] = 'rgba(0,0,0,0.08)';
-    customVars['--db-card-bg'] = 'rgba(0,0,0,0.02)';
-    customVars['--db-hover'] = 'rgba(0,0,0,0.04)';
-    document.body.style.background = 'var(--db-bg)';
   }
 
   // Radius
@@ -1729,10 +1884,18 @@ async function init() {
   // Attach stored gateway token to same-origin requests (no-op without a token).
   installAuthFetch();
 
+  // Colour mode before the styles go in, so the dashboard's first frame is
+  // already light or dark as the viewer chose (or the OS, by default).
+  initColorMode();
+
   // Inject styles
   const style = document.createElement('style');
   style.textContent = DASHBOARD_STYLE;
   document.head.appendChild(style);
+  const lightStyle = document.createElement('style');
+  lightStyle.id = 'aiui-dashboard-light';
+  lightStyle.textContent = DASHBOARD_LIGHT_STYLE;
+  document.head.appendChild(lightStyle);
 
   // Apply theme from config BEFORE building dashboard
   try {
@@ -1785,6 +1948,7 @@ async function buildDashboard() {
     const [pagesRes, configRes] = await Promise.all([
       fetch('/api/pages'),
       fetch('/ui-config.json'),
+      loadViewIndex(),
     ]);
     const pagesJson = await pagesRes.json();
     pagesData = pagesJson.pages || [];
@@ -2101,7 +2265,7 @@ async function selectPage(pageId) {
 
   // ── View Resolution (protocol-first, extensible) ──────────────
   // 1. Check custom registered views first (highest priority)
-  // 2. Try dynamic import from built-in view map
+  // 2. Try dynamic import of the page's view module (viewModuleUrl)
   // 3. Fall back to generic JSON viewer
   let rendered = false;
 
@@ -2116,10 +2280,11 @@ async function selectPage(pageId) {
     } catch (e) { console.warn(`View '${pageId}' render error:`, e); }
   }
 
-  // Priority 2: Built-in view module (dynamic import)
-  if (!rendered && BUILTIN_VIEWS[pageId]) {
+  // Priority 2: the page's view module (dynamic import)
+  const viewModule = rendered ? null : viewModuleUrl(pageId);
+  if (viewModule) {
     try {
-      const viewUrl = BUILTIN_VIEWS[pageId] + '?v=' + Date.now();
+      const viewUrl = viewModule + '?v=' + Date.now();
       const mod = await import(viewUrl);
       if (mod.render) {
         if (!container.isConnected) return; // superseded by a newer selectPage
@@ -2201,6 +2366,13 @@ function renderComponents(data, container) {
     viewer.appendChild(pre);
     container.appendChild(viewer);
   }
+}
+
+// Component text comes from page handlers that may echo user or agent text
+// (R9): it goes into markup only through this.
+const _HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (c) => _HTML_ESCAPES[c]);
 }
 
 function renderComponent(comp) {
@@ -2478,9 +2650,9 @@ function renderMetric(comp) {
     deltaClass = deltaVal > 0 ? 'positive' : deltaVal < 0 ? 'negative' : 'neutral';
   }
   let html = '';
-  if (comp.label) html += `<div class="db-metric-label">${comp.label}</div>`;
-  if (comp.value !== undefined) html += `<div class="db-metric-value">${comp.value}</div>`;
-  if (deltaVal !== '' && deltaVal !== undefined) html += `<div class="db-metric-delta ${deltaClass}">${deltaVal}</div>`;
+  if (comp.label) html += `<div class="db-metric-label">${escapeHtml(comp.label)}</div>`;
+  if (comp.value !== undefined) html += `<div class="db-metric-value">${escapeHtml(comp.value)}</div>`;
+  if (deltaVal !== '' && deltaVal !== undefined) html += `<div class="db-metric-delta ${deltaClass}">${escapeHtml(deltaVal)}</div>`;
   el.innerHTML = html;
   return el;
 }
@@ -2508,8 +2680,8 @@ function renderAlert(comp) {
   const el = document.createElement('div');
   el.className = `db-alert db-alert-${variant}`;
   const icons = { info: 'ℹ️', success: '✓', warning: '⚠️', error: '✗' };
-  const titleHtml = comp.title ? `<strong style="display:block;margin-bottom:2px">${comp.title}</strong>` : '';
-  el.innerHTML = `<span>${icons[variant] || 'ℹ️'}</span><span>${titleHtml}${comp.message || comp.content || ''}</span>`;
+  const titleHtml = comp.title ? `<strong style="display:block;margin-bottom:2px">${escapeHtml(comp.title)}</strong>` : '';
+  el.innerHTML = `<span>${icons[variant] || 'ℹ️'}</span><span>${titleHtml}${escapeHtml(comp.message || comp.content || '')}</span>`;
   return el;
 }
 
@@ -2869,7 +3041,7 @@ function renderEmpty(comp) {
 function renderSpinnerComponent(comp) {
   const el = document.createElement('div');
   el.className = 'db-spinner-container';
-  el.innerHTML = `<div class="db-spinner"></div><span>${comp.text || 'Loading…'}</span>`;
+  el.innerHTML = `<div class="db-spinner"></div><span>${escapeHtml(comp.text || 'Loading…')}</span>`;
   return el;
 }
 
@@ -2877,7 +3049,7 @@ function renderAvatar(comp) {
   const el = document.createElement('div');
   el.className = 'db-avatar';
   if (comp.src) {
-    el.innerHTML = `<img src="${comp.src}" alt="${comp.name || ''}">`;
+    el.innerHTML = `<img src="${escapeHtml(comp.src)}" alt="${escapeHtml(comp.name || '')}">`;
   } else {
     const name = comp.name || comp.fallback || '?';
     const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
@@ -2891,8 +3063,8 @@ function renderCallout(comp) {
   const el = document.createElement('div');
   el.className = `db-callout db-callout-${variant}`;
   let html = '';
-  if (comp.title) html += `<div class="db-callout-title">${comp.title}</div>`;
-  html += `<div class="db-callout-content">${comp.content || ''}</div>`;
+  if (comp.title) html += `<div class="db-callout-title">${escapeHtml(comp.title)}</div>`;
+  html += `<div class="db-callout-content">${escapeHtml(comp.content || '')}</div>`;
   el.innerHTML = html;
   return el;
 }
@@ -3805,15 +3977,15 @@ function _mountHostToolbar(pageId, page, container) {
 // VIEW_REGISTRY, so a view module is never loaded twice.
 const _hostViewImportFailures = Object.create(null);
 
-function _hostViewUrl(pageId) {
+function _hostViewUrl(pageId, viewModule) {
   const build = window.__AIUI_BUILD__ == null ? '' : String(window.__AIUI_BUILD__);
   const failures = _hostViewImportFailures[pageId] || 0;
-  return BUILTIN_VIEWS[pageId] + '?v=' + encodeURIComponent(build) + (failures ? '&r=' + failures : '');
+  return viewModule + '?v=' + encodeURIComponent(build) + (failures ? '&r=' + failures : '');
 }
 
-async function _importHostView(pageId) {
+async function _importHostView(pageId, viewModule) {
   try {
-    return await import(_hostViewUrl(pageId));
+    return await import(_hostViewUrl(pageId, viewModule));
   } catch (e) {
     _hostViewImportFailures[pageId] = (_hostViewImportFailures[pageId] || 0) + 1;
     throw e;
@@ -3829,7 +4001,7 @@ const _hostLiveMounts = Object.create(null);
 // kept apart: `instance` is what render() returned (it belongs to this mount),
 // `module` is the view's module-level cleanup export (it tears down state the
 // module shares across every mount of the page). Either may be null.
-async function _mountViewBody(pageId, container, page, stale) {
+async function _mountViewBody(pageId, container, page, stale, hostPage) {
   const combine = (returned, moduleCleanup) => ({
     instance: typeof returned === 'function' ? returned : null,
     module: typeof moduleCleanup === 'function' && moduleCleanup !== returned ? moduleCleanup : null,
@@ -3847,16 +4019,20 @@ async function _mountViewBody(pageId, container, page, stale) {
 
   // The Inspector is a built-in panel, not a page with data: the legacy shell
   // opens it as an action; a host mount renders the same panel.
-  if (pageId === 'inspector') {
+  if (pageId === INSPECTOR_PAGE_ID) {
     await renderTestPanel(container, { header: false });
     return noop;
   }
 
-  // Priority 2: built-in view module. The build id (not Date.now(), as in
-  // selectPage) keeps one module instance per build across mounts.
-  if (Object.prototype.hasOwnProperty.call(BUILTIN_VIEWS, pageId)) {
+  // Priority 2: the page's view module (viewModuleUrl). The build id (not
+  // Date.now(), as in selectPage) keeps one module instance per build
+  // across mounts.
+  if (!_isManifestPage(hostPage)) await loadViewIndex();
+  if (stale()) return noop;
+  const viewModule = viewModuleUrl(pageId, hostPage);
+  if (viewModule) {
     try {
-      const mod = await _importHostView(pageId);
+      const mod = await _importHostView(pageId, viewModule);
       if (typeof mod.render === 'function') {
         if (stale()) return noop;
         const returned = await mod.render(container);
@@ -3875,8 +4051,8 @@ async function _mountViewBody(pageId, container, page, stale) {
 
 /**
  * Mount one page's view into `container`; resolves to its cleanup function.
- * Same resolution order as selectPage(): registered view, built-in view
- * module, then the generic data viewer. Unlike selectPage():
+ * Same resolution order as selectPage(): registered view, the page's view
+ * module (viewModuleUrl), then the generic data viewer. Unlike selectPage():
  * - a cleanup that render() returns is honoured as well as the module's
  *   cleanup export, and the combined cleanup runs at most once. The module's
  *   cleanup is skipped while another mount of the same page is live, so a
@@ -3903,7 +4079,7 @@ async function mountView(pageId, container, opts = {}) {
   const toolbar = _mountHostToolbar(pageId, page, container);
   let parts = { instance: null, module: null };
   try {
-    parts = await _mountViewBody(pageId, container, page, stale);
+    parts = await _mountViewBody(pageId, container, page, stale, opts.page);
   } catch (e) {
     live.delete(token);
     throw e;

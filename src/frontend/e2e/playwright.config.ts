@@ -7,7 +7,7 @@
  * AIUI_TEMPLATES_DIR. Run `npm run build` first.
  *
  *   project            server                                   specs
- *   dashboard-legacy   default style (vanilla dashboard)        legacy-parity
+ *   dashboard-legacy   default style (vanilla dashboard)        legacy-parity, legacy-dashboard
  *   app-shell          AIUI_SHELL=app + the example plugin      shell-sweep, chat, plugins
  *   chat-style         style chat, presets zinc and rose        theme-presets
  *   docs               `aiui build` output on `aiui serve`      markdown
@@ -103,7 +103,7 @@ export default defineConfig({
   projects: [
     {
       name: 'dashboard-legacy',
-      testMatch: /[\\/]legacy-parity\.spec\.ts$/,
+      testMatch: /[\\/]legacy-(parity|dashboard)\.spec\.ts$/,
       use: { ...chromium, baseURL: url(PORTS.legacy) },
     },
     {
