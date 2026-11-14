@@ -46,3 +46,13 @@ export function formatDuration(ms: number): string {
   const m = Math.floor(s / 60)
   return `${m}m ${Math.round(s % 60)}s`
 }
+
+/**
+ * Does a reload of the reply under `parentId` target the last message of the
+ * thread? assistant-ui passes the reply's parent (the message before it). Only
+ * the last answer can be regenerated: the server answers its last question.
+ */
+export function isLastReply(messages: readonly { id: string; role: string }[], parentId: string | null): boolean {
+  if (parentId === null || messages.length < 2) return false
+  return messages[messages.length - 2].id === parentId && messages[messages.length - 1].role === 'assistant'
+}

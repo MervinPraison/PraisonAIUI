@@ -283,6 +283,20 @@ test('Regenerate replaces the answer: no duplicate turn after a reload', async (
   await expect(assistant(page)).toHaveCount(1)
 })
 
+test('Regenerate is offered on the last answer only', async ({ page }) => {
+  await openChat(page, 'ws')
+  await send(page, 'plain alpha')
+  await waitForRunEnd(page)
+  await send(page, 'plain bravo')
+  await expect(assistant(page).last()).toContainText('You said: plain bravo')
+  await waitForRunEnd(page)
+  const first = assistant(page).first()
+  await first.hover()
+  await expect(first.getByRole('button', { name: 'Copy', exact: true })).toBeVisible()
+  await expect(first.getByRole('button', { name: 'Regenerate' })).toHaveCount(0)
+  await expect(assistant(page).last().getByRole('button', { name: 'Regenerate' })).toHaveCount(1)
+})
+
 test.describe('phone session rail', () => {
   test.use({ viewport: { width: 390, height: 800 } })
 

@@ -17,6 +17,7 @@ import {
   type PendingAttachment,
 } from '@assistant-ui/react'
 import { convertMessage } from './convert'
+import { isLastReply } from './util'
 import { threadStore, type SessionThread } from './store'
 import { createSseTransport, type AiuiTransport } from './transports'
 import type { AiuiMessage } from './protocol'
@@ -188,7 +189,11 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
       await sendText(text, atts?.length ? atts : undefined)
     },
     onCancel: () => threadStore.cancel(transport, sid),
-    onReload: async () => {
+    onReload: async (parentId) => {
+      // Only the last answer can be regenerated: the server answers its last
+      // question again. A reload aimed at an earlier answer is ignored rather
+      // than turned into a regenerate of the last turn.
+      if (!isLastReply(threadStore.get(sid).messages, parentId)) return
       // Over the WebSocket the server answers the last question again and the
       // new answer replaces the old one in history (no duplicate turn after a
       // reload). The SSE fallback has no regenerate and resends the question.

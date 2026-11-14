@@ -456,11 +456,14 @@ const AssistantMessage: FC = () => {
             <Check className="hidden group-data-[copied]/copy:block" />
           </Button>
         </ActionBarPrimitive.Copy>
-        <ActionBarPrimitive.Reload asChild>
-          <Button variant="ghost" size="icon-xs" className={iconButton} aria-label="Regenerate">
-            <RefreshCw />
-          </Button>
-        </ActionBarPrimitive.Reload>
+        {/* Only the last answer can be regenerated (the server answers its last question again). */}
+        <AuiIf condition={(st) => st.message.isLast && st.thread.capabilities.reload}>
+          <ActionBarPrimitive.Reload asChild>
+            <Button variant="ghost" size="icon-xs" className={iconButton} aria-label="Regenerate">
+              <RefreshCw />
+            </Button>
+          </ActionBarPrimitive.Reload>
+        </AuiIf>
         <ActionBarPrimitive.FeedbackPositive asChild>
           <Button variant="ghost" size="icon-xs" className={cn(iconButton, 'data-[submitted]:text-foreground')} aria-label="Good response">
             <ThumbsUp />
