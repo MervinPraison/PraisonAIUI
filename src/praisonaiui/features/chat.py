@@ -127,6 +127,19 @@ def _paused_payload_fields(
 # ── Tool display enrichment (reuses SDK's TOOL_LABELS — DRY) ────────
 
 
+def _display_args(args: Any) -> Optional[Dict[str, Any]]:
+    """Tool arguments as a dict for display, or None.
+
+    A streamed tool call carries its arguments as a JSON string.
+    """
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except ValueError:
+            return None
+    return args if isinstance(args, dict) else None
+
+
 def _enrich_tool_payload(
     payload: Dict[str, Any],
     step_counter: int,
@@ -138,7 +151,7 @@ def _enrich_tool_payload(
     so both CLI and AIUI share a single source of truth.
     """
     name = payload.get("name") or ""
-    args = payload.get("args")
+    args = _display_args(payload.get("args"))
     result = payload.get("result")
 
     try:
@@ -154,7 +167,7 @@ def _enrich_tool_payload(
             from praisonaiagents.output.editor import EditorOutput
 
             desc = EditorOutput._format_action("", icon, label, args)
-        except (ImportError, AttributeError):
+        except Exception:  # display only: never fail the chat turn over it
             desc = f"{icon} {label}"
             if args:
                 for key in ("query", "filepath", "file_path", "directory", "command"):
@@ -180,7 +193,7 @@ def _enrich_tool_payload(
                 str(result)[:500] if result else None,
             )
             payload["formatted_result"] = formatted or "✓ Done"
-        except (ImportError, AttributeError):
+        except Exception:  # display only, as above
             payload["formatted_result"] = "✓ Done"
 
     return payload
