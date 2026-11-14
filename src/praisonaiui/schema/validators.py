@@ -333,15 +333,25 @@ def layout_warnings(config: Any) -> list[ValidationError]:
     5101: an id that is not a built-in layout (a plugin may still provide
     it; plugin layouts are only known once the server runs).
     5102: a layout chosen while the style is not ``app`` (it is ignored).
+    5103: a malformed entry (a bad id, a string where a list goes); the
+    server ignores it.
     """
     layout = getattr(config, "layout", None)
     if layout is None:
         return []
+    out: list[ValidationError] = [
+        ValidationError(
+            code=5103,
+            category="layout",
+            message=f"layout.{key} ignored: {reason}",
+            suggestion="Layout ids use a-z, 0-9 and -, start with a letter; lists are YAML lists",
+        )
+        for key, reason in layout.rejected.items()
+    ]
     chosen = [layout.default] if layout.default else []
     chosen += list(layout.available or [])
     if not chosen:
-        return []
-    out: list[ValidationError] = []
+        return out
     known = builtin_layout_ids()
     for lid in dict.fromkeys(chosen):
         if lid != "classic" and lid not in known:

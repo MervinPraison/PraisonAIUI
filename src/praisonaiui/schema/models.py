@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
 
 class ThemeConfig(BaseModel):
@@ -390,6 +390,9 @@ class LayoutConfig(BaseModel):
     - ``options``: per-layout settings, keyed by layout id.
 
     A bare string is shorthand: ``layout: command`` is ``{default: command}``.
+    A malformed selection entry (a bad id, a string where a list goes) never
+    fails the config: it is dropped, as the server drops it, and listed in
+    ``rejected`` for ``aiui validate`` (warning 5103).
     """
 
     mode: Literal[
@@ -412,24 +415,27 @@ class LayoutConfig(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    @model_validator(mode="before")
+    #: Selection entries dropped as malformed: key → reason.
+    _rejected: dict[str, str] = PrivateAttr(default_factory=dict)
+
+    @property
+    def rejected(self) -> dict[str, str]:
+        return dict(self._rejected)
+
+    @model_validator(mode="wrap")
     @classmethod
-    def _string_means_default(cls, data: Any) -> Any:
+    def _selection(cls, data: Any, handler: Any) -> "LayoutConfig":
         if isinstance(data, str):
-            return {"default": data}
-        return data
+            data = {"default": data}
+        rejected: dict[str, str] = {}
+        if isinstance(data, dict):
+            from praisonaiui.layouts import split_selection
 
-    @model_validator(mode="after")
-    def _layout_ids(self) -> "LayoutConfig":
-        from praisonaiui.layouts import check_layout_id
-
-        if self.default is not None:
-            check_layout_id(self.default, allow_classic=True, what="layout.default")
-        for lid in self.available or ():
-            check_layout_id(lid, what="layout.available entry")
-        for lid in self.options:
-            check_layout_id(lid, what="layout.options key")
-        return self
+            valid, rejected = split_selection(data)
+            data = {k: v for k, v in data.items() if k not in rejected} | valid
+        model = handler(data)
+        model._rejected = rejected
+        return model
 
 
 class AuthProviderConfig(BaseModel):

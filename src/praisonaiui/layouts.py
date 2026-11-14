@@ -163,6 +163,32 @@ def _yaml_section() -> Any:
         return None
 
 
+#: The layout-selection keys of YAML ``layout:`` and their checks.
+_SELECTION_CHECKS = (
+    ("default", lambda v: check_layout_id(v, allow_classic=True, what="default layout")),
+    ("available", lambda v: [check_layout_id(x, what="available layout") for x in _id_list(v, "available")]),
+    ("primary", _page_ids),
+    ("options", _options),
+)
+
+
+def split_selection(raw: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
+    """``(valid, rejected)`` for the selection keys of a YAML ``layout:``
+    mapping: a bad entry is moved to ``rejected`` (key → reason) and never
+    fails the config. The server drops it with a warning, and ``aiui
+    validate`` reports it (5103), so both read the same rules."""
+    valid: dict[str, Any] = {}
+    rejected: dict[str, str] = {}
+    for key, check in _SELECTION_CHECKS:
+        if raw.get(key) is None:
+            continue
+        try:
+            valid[key] = check(raw[key])
+        except ValueError as exc:
+            rejected[key] = str(exc)
+    return valid, rejected
+
+
 def _yaml_selection() -> dict[str, Any]:
     """The layout keys of YAML ``layout:``. A bad entry is dropped with a warning."""
     raw = _yaml_section()
@@ -170,20 +196,9 @@ def _yaml_selection() -> dict[str, Any]:
         raw = {"default": raw}
     if not isinstance(raw, dict):
         return {}
-    out: dict[str, Any] = {}
-    checks = (
-        ("default", lambda v: check_layout_id(v, allow_classic=True, what="default layout")),
-        ("available", lambda v: [check_layout_id(x, what="available layout") for x in _id_list(v, "available")]),
-        ("primary", _page_ids),
-        ("options", _options),
-    )
-    for key, check in checks:
-        if raw.get(key) is None:
-            continue
-        try:
-            out[key] = check(raw[key])
-        except ValueError as exc:
-            _warn_once(f"yaml:{key}:{raw[key]!r}", "YAML layout.%s ignored: %s", key, exc)
+    out, rejected = split_selection(raw)
+    for key, reason in rejected.items():
+        _warn_once(f"yaml:{key}:{raw[key]!r}", "YAML layout.%s ignored: %s", key, reason)
     choice = raw.get("user_choice", raw.get("userChoice"))
     if isinstance(choice, bool):
         out["user_choice"] = choice
@@ -330,4 +345,5 @@ __all__ = [
     "reset",
     "resolve",
     "set_layout",
+    "split_selection",
 ]

@@ -47,17 +47,53 @@ def test_existing_chat_position_config_is_unchanged():
 
 def test_classic_is_a_valid_default_but_not_a_layout():
     assert LayoutConfig.model_validate("classic").default == "classic"
-    with pytest.raises(ValidationError):
-        LayoutConfig.model_validate({"available": ["classic"]})
+    lc = LayoutConfig.model_validate({"available": ["classic"]})
+    assert lc.available is None and "reserved" in lc.rejected["available"]
 
 
 @pytest.mark.parametrize(
-    "raw",
-    ["Command", "1st", "a" * 41, {"available": ["ok", "Not OK"]}, {"options": {"BAD": {}}}],
+    ("raw", "key"),
+    [
+        ("Command", "default"),
+        ("1st", "default"),
+        ("a" * 41, "default"),
+        ({"default": "Bad_Id"}, "default"),
+        ({"available": ["ok", "Not OK"]}, "available"),
+        ({"available": "command"}, "available"),
+        ({"options": {"BAD": {}}}, "options"),
+        ({"options": {"mission": 3}}, "options"),
+        ({"primary": "chat"}, "primary"),
+    ],
 )
-def test_bad_ids_are_rejected(raw):
+def test_a_malformed_entry_is_dropped_and_never_fails_the_config(raw, key):
+    # Before layouts, these keys were ignored; a config that loaded must still load.
+    lc = LayoutConfig.model_validate(raw)
+    assert getattr(lc, key) in (None, {}) and key in lc.rejected
+    cfg = Config.model_validate({"site": SITE, "style": "app", "layout": raw})
+    result = validate_config(cfg)
+    warns = [w for w in result.warnings if w.code == 5103]
+    assert len(warns) == 1 and f"layout.{key} ignored" in warns[0].message
+    assert result.valid
+
+
+def test_a_malformed_entry_keeps_the_rest_of_the_section():
+    lc = LayoutConfig.model_validate(
+        {"mode": "sidebar", "default": "Bad!", "available": ["command", "workbench"], "userChoice": False}
+    )
+    assert (lc.mode, lc.default, lc.available, lc.user_choice) == ("sidebar", None, ["command", "workbench"], False)
+    assert list(lc.rejected) == ["default"]
+
+
+def test_the_server_and_validate_drop_the_same_entries():
+    from praisonaiui.layouts import split_selection
+
+    raw = {"default": "Bad!", "available": ["command"], "primary": "chat"}
+    assert set(split_selection(raw)[1]) == set(LayoutConfig.model_validate(raw).rejected) == {"default", "primary"}
+
+
+def test_a_wrong_chat_position_still_fails_as_before():
     with pytest.raises(ValidationError):
-        LayoutConfig.model_validate(raw)
+        LayoutConfig.model_validate({"mode": "nowhere"})
 
 
 def _codes(cfg: dict) -> list[int]:
