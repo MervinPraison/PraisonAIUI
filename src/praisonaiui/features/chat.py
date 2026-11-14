@@ -474,26 +474,37 @@ class ChatManager(ChatProtocol):
             client_id, ()
         ) or session_id in self._ws_subscriptions.get(client_id, ())
 
-    def session_has_connected_owner(self, session_id: Optional[str]) -> bool:
-        """True if a connected WS client started a turn in or subscribed to it."""
+    def client_started_session(self, client_id: str, session_id: Optional[str]) -> bool:
+        """True if *client_id* started a turn in *session_id* over this connection."""
         if not session_id:
             return False
-        return any(self.client_owns_session(cid, session_id) for cid in list(self._ws_clients))
+        return session_id in self._ws_sent_sessions.get(client_id, ())
 
-    def may_control_session(self, client_id: str, session_id: Optional[str]) -> bool:
+    def session_has_connected_owner(self, session_id: Optional[str]) -> bool:
+        """True if a connected WS client started a turn in *session_id*.
+
+        Subscribing does not count: any client can subscribe to any session,
+        so a subscription must never confer control over its runs.
+        """
+        if not session_id:
+            return False
+        return any(self.client_started_session(cid, session_id) for cid in list(self._ws_clients))
+
+    def may_control_session(self, client_id: Optional[str], session_id: Optional[str]) -> bool:
         """May *client_id* stop or answer runs in *session_id*?
 
-        A connection that owns the session (started a turn in it or
-        subscribed to it) may. So may any connection when no connected
-        client owns the session: the tab that started the run reconnected
-        (a new connection), or the turn came in over ``POST /api/chat/send``.
-        Without that, such a run could no longer be stopped over WS at all.
+        A connection that started a turn in the session may. So may any
+        caller (*client_id* ``None`` is an HTTP caller) when no connected
+        client started a turn there: the starting tab reconnected (a new
+        connection), or the turn came over ``POST /api/chat/send``. Without
+        that, such a run could no longer be stopped at all.
 
-        This is a guard against one tab stopping or answering another
-        tab's live turn. It is not access control: without WS
-        authentication any client can claim a session by subscribing.
+        Subscribing to a session only grants delivery of its events, never
+        control. This guards one connection's live turn against other
+        connections; it is not per-user access control (sessions are not
+        bound to an authenticated principal).
         """
-        if self.client_owns_session(client_id, session_id):
+        if client_id is not None and self.client_started_session(client_id, session_id):
             return True
         return not self.session_has_connected_owner(session_id)
 
@@ -1211,8 +1222,25 @@ async def _chat_abort(request: Request) -> JSONResponse:
     except Exception:
         return JSONResponse({"error": "Invalid JSON"}, status_code=400)
 
+    if not isinstance(body, dict):
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
     run_id = body.get("run_id", "")
     mgr = get_chat_manager()
+    task = mgr._active_runs.get(run_id) if isinstance(run_id, str) else None
+    if task is not None and not task.done() and not mgr.may_control_session(
+        None, mgr.session_for_run(run_id)
+    ):
+        # Same rule as the WS chat_abort: a run whose session a connected
+        # client started a turn in is that connection's to stop.
+        logger.warning("HTTP abort of run %s refused: its session has a live owner", run_id)
+        return JSONResponse(
+            {
+                "status": "forbidden",
+                "run_id": run_id,
+                "error": "run belongs to a session a live connection started",
+            },
+            status_code=403,
+        )
     result = await mgr.abort_run(run_id)
     return JSONResponse(result)
 

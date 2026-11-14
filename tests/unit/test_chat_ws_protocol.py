@@ -12,8 +12,10 @@ Covers the WP3 server fixes:
   level, keeping ``question``/``options`` for old clients;
 * per-client ``subscribe`` scoping with legacy fan-out for clients that never
   subscribe;
-* ``chat_abort`` / ``ask_response`` only from a client that owns the run's
-  session, or from anyone when no connected client owns it (reconnect, HTTP);
+* ``chat_abort`` / ``ask_response`` (and ``POST /api/chat/abort``) only from
+  the connection that started a turn in the run's session, or from anyone
+  when no connected client started one there (reconnect, HTTP); subscribing
+  never grants control;
 * the per-client caps drop the oldest entry, never the session in use;
 * malformed frames get ``protocol_error`` and keep the socket open;
 * cancelled replies persist with ``status: "cancelled"``;
@@ -689,11 +691,20 @@ def test_chat_abort_requires_session_ownership_and_persists_cancelled(monkeypatc
             reply = _read_until(other, lambda f: f.get("type") == "chat_abort_result")[-1]
             assert reply == {"type": "chat_abort_result", "status": "no_active_run", "run_id": "nope"}
 
-            # Subscribing grants ownership.
+            # Subscribing grants delivery, never control (security review:
+            # any client can subscribe to any session id it knows).
             other.send_json({"type": "subscribe", "session_ids": ["s-slow"]})
             _read_until(other, lambda f: f.get("type") == "subscribed")
             other.send_json({"type": "chat_abort", "run_id": run_id})
             reply = _read_until(other, lambda f: f.get("type") == "chat_abort_result")[-1]
+            assert reply["status"] == "forbidden"
+            # Nor can the REST endpoint be used to go around the rule.
+            rest = client.post("/api/chat/abort", json={"run_id": run_id})
+            assert rest.status_code == 403 and rest.json()["status"] == "forbidden"
+            assert run_id in get_chat_manager()._active_runs
+
+            owner.send_json({"type": "chat_abort", "run_id": run_id})
+            reply = _read_until(owner, lambda f: f.get("type") == "chat_abort_result")[-1]
             assert reply["status"] == "aborted"
 
             cancelled = _read_until(owner, _turn_done("s-slow"))[-1]
@@ -769,6 +780,36 @@ class _AskProvider(SlowProvider):
 
     async def submit_ask_response(self, session_id, run_id, response):
         self.answers.append((session_id, run_id, response))
+
+
+def test_http_abort_of_orphaned_or_http_run_still_works(monkeypatch):
+    _use_provider(monkeypatch, SlowProvider())
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        client.post("/api/chat/send", json={"content": "long", "session_id": "s-h2"})
+        run_id = _read_until(ws, lambda f: f.get("type") == "run_started")[-1]["run_id"]
+        resp = client.post("/api/chat/abort", json={"run_id": run_id})
+        assert resp.status_code == 200 and resp.json()["status"] == "aborted"
+        _read_until(ws, _turn_done("s-h2"))
+        assert client.post("/api/chat/abort", json=["x"]).status_code == 400
+
+
+def test_subscribing_does_not_let_a_client_answer_another_tabs_ask(monkeypatch):
+    provider = _AskProvider()
+    _use_provider(monkeypatch, provider)
+    with TestClient(_app()) as client:
+        with client.websocket_connect("/api/chat/ws") as owner, client.websocket_connect(
+            "/api/chat/ws"
+        ) as other:
+            owner.send_json({"type": "chat", "content": "long", "session_id": "s-ask3"})
+            run_id = _read_until(owner, lambda f: f.get("type") == "run_started")[-1]["run_id"]
+            other.send_json({"type": "subscribe", "session_ids": ["s-ask3"]})
+            _read_until(other, lambda f: f.get("type") == "subscribed")
+            other.send_json(
+                {"type": "ask_response", "session_id": "s-ask3", "run_id": run_id, "response": "B"}
+            )
+            ack = _read_until(other, lambda f: f.get("type") == "ask_response_ack")[-1]
+            assert ack["status"] == "forbidden"
+            assert provider.answers == []
 
 
 def test_ask_response_requires_session_ownership(monkeypatch):
