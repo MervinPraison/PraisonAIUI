@@ -33,6 +33,29 @@ jobs:
           aiui build --output site --minify
           cp CNAME site/CNAME
 
+      # A deploy replaces every file. Readers with the previous page still open
+      # would then ask for chunks that are gone, so the previous build's
+      # assets are kept next to the new ones for one release.
+      - name: Keep the previous deploy's chunks
+        run: |
+          mkdir -p previous-site
+          if git fetch --no-tags --depth=1 origin gh-pages; then
+            # Only paths the previous deploy has: older sites have no manifest.
+            paths=()
+            for p in assets aiui-manifest.json; do
+              if git cat-file -e "FETCH_HEAD:$p" 2>/dev/null; then paths+=("$p"); fi
+            done
+            if [ "${#paths[@]}" -gt 0 ]; then
+              git archive --format=tar -o previous.tar FETCH_HEAD "${paths[@]}"
+              tar -xf previous.tar -C previous-site
+              rm previous.tar
+            fi
+          else
+            echo "No previous deploy (gh-pages) to keep chunks from."
+          fi
+          node src/frontend/scripts/carry-forward-assets.mjs previous-site site
+          rm -rf previous-site
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:

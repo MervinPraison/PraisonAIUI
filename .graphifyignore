@@ -1,0 +1,5 @@
+src/praisonaiui/templates/frontend/assets/
+src/frontend/dist/
+node_modules/
+.claude/
+graphify-out/

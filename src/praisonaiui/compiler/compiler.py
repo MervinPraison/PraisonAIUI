@@ -434,13 +434,28 @@ class Compiler:
             json.dumps(data, indent=indent, ensure_ascii=False), encoding="utf-8"
         )
 
+    @staticmethod
+    def _frontend_dirs() -> tuple[Path, Path]:
+        """Return ``(build_dir, packaged_dir)`` for the frontend templates.
+
+        ``build_dir`` holds the Vite build (index.html, assets/). It is the
+        packaged ``templates/frontend`` unless ``AIUI_TEMPLATES_DIR`` points at
+        another build (the same override the server honours), for example one
+        copied with ``node scripts/sync-templates.mjs --dest <dir>``.
+        """
+        import os
+
+        packaged = Path(__file__).parent.parent / "templates" / "frontend"
+        override = os.environ.get("AIUI_TEMPLATES_DIR", "").strip()
+        if override:
+            return Path(override).expanduser().resolve(), packaged
+        return packaged, packaged
+
     def _copy_viewer(self, output_dir: Path) -> None:
         """Copy frontend bundle to output directory."""
         import shutil
 
-        # Get the templates directory relative to this file
-        templates_dir = Path(__file__).parent.parent / "templates"
-        frontend_dir = templates_dir / "frontend"
+        frontend_dir, packaged_dir = self._frontend_dirs()
 
         if frontend_dir.exists():
             # Copy index.html and patch anti-flicker for darkMode
@@ -450,12 +465,6 @@ class Compiler:
             )
             self._patch_antiflicker(output_dir / "index.html")
             self._patch_static_shell(output_dir / "index.html")
-            # Create 404.html as a copy of patched index.html
-            # for SPA routing on static hosts like GitHub Pages
-            shutil.copy(
-                output_dir / "index.html",
-                output_dir / "404.html",
-            )
             # Copy assets folder if exists
             assets_src = frontend_dir / "assets"
             if assets_src.exists():
@@ -463,6 +472,20 @@ class Compiler:
                 if assets_dst.exists():
                     shutil.rmtree(assets_dst)
                 shutil.copytree(assets_src, assets_dst)
+            # index.js and index.css keep fixed names (their chunks are
+            # content-hashed), so give them a content hash in the URL. Must run
+            # before 404.html and the per-route pages are copied from index.html.
+            self._patch_asset_versions(
+                output_dir / "index.html",
+                output_dir / "assets",
+                version_entry=(frontend_dir / "aiui-manifest.json").is_file(),
+            )
+            # Create 404.html as a copy of patched index.html
+            # for SPA routing on static hosts like GitHub Pages
+            shutil.copy(
+                output_dir / "index.html",
+                output_dir / "404.html",
+            )
             # Copy root-level static files (icons, favicons, etc.)
             static_exts = {
                 ".svg",
@@ -474,9 +497,56 @@ class Compiler:
             for f in frontend_dir.iterdir():
                 if f.is_file() and f.suffix in static_exts:
                     shutil.copy(f, output_dir / f.name)
+            # The Vite manifest lists every file of this build. A deploy step
+            # reads the previous site's copy to carry old hashed chunks forward
+            # for one release (see scripts/carry-forward-assets.mjs).
+            build_manifest = frontend_dir / "aiui-manifest.json"
+            if build_manifest.is_file():
+                shutil.copy(build_manifest, output_dir / build_manifest.name)
 
-            # Copy plugins directory and generate plugins.json
-            self._copy_plugins(output_dir, frontend_dir)
+            # Copy plugins directory and generate plugins.json. A build-only
+            # AIUI_TEMPLATES_DIR has no plugins/: use the packaged ones.
+            plugins_root = frontend_dir if (frontend_dir / "plugins").is_dir() else packaged_dir
+            self._copy_plugins(output_dir, plugins_root)
+
+    _ENTRY_ASSET_RE = re.compile(
+        r"""(?P<attr>\b(?:src|href)=)(?P<q>["'])/assets/(?P<name>index\.(?:js|css))(?:\?[^"']*)?(?P=q)"""
+    )
+
+    def _patch_asset_versions(
+        self, html_path: Path, assets_dir: Path, *, version_entry: bool = True
+    ) -> None:
+        """Rewrite ``/assets/index.js`` and ``/assets/index.css`` in index.html
+        to ``...?v=<first 10 hex of the file's sha256>``.
+
+        Both files have fixed names, so a static host would otherwise serve a
+        stale copy from cache after a deploy while the hashed chunks they
+        import have changed. A missing file leaves its reference untouched.
+
+        ``version_entry=False`` leaves index.js alone. That is for bundles
+        built before chunks were hashed (no ``aiui-manifest.json``): their
+        chunks import ``./index.js``, which is a different module URL from
+        ``index.js?v=...``, so the entry would be evaluated twice.
+        """
+        import hashlib
+
+        if not html_path.is_file():
+            return
+
+        def versioned(match: re.Match[str]) -> str:
+            asset = assets_dir / match.group("name")
+            if not asset.is_file():
+                return match.group(0)
+            if asset.suffix == ".js" and not version_entry:
+                return match.group(0)
+            digest = hashlib.sha256(asset.read_bytes()).hexdigest()[:10]
+            q = match.group("q")
+            return f"{match.group('attr')}{q}/assets/{match.group('name')}?v={digest}{q}"
+
+        html = html_path.read_text(encoding="utf-8")
+        patched = self._ENTRY_ASSET_RE.sub(versioned, html)
+        if patched != html:
+            html_path.write_text(patched, encoding="utf-8")
 
     def _patch_antiflicker(self, html_path: Path) -> None:
         """Patch theme bootstrap in index.html to respect darkMode."""
