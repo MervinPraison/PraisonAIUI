@@ -151,7 +151,7 @@ Six parallel reviewers produced 40 findings.
 | Robustness | custom.js `registerView` no longer overrode an `@aiui.page` handler | Legacy view registry checked first |
 | Robustness | Regenerate duplicated turns after reload | Server-side handling of the replaced turn |
 | Design | Legacy onboarding wizard covered the shell on any non-OK auth status | Only 401/403 mean unauthenticated |
-| Design | Legacy pages: double padding, mixed gutters, duplicate titles | Partly fixed in round 1; remainder in round 2 (inner wrappers, generic heading hide, stronger e2e check) |
+| Design | Legacy pages: double padding, mixed gutters, duplicate titles | Partly fixed in round 1; the remainder was started in round 2 and carried into the final review (planned, not yet on main) |
 | Design | Legacy chrome broke the design system (emoji, card-in-card, second omnibar) | Restyled through `bridge.css` under the shell only |
 | Design | Sidebar icons repeated, collapsed rail unusable | ~32 distinct icons within the boot budget |
 | Design | ⌘K ranked fuzzy over exact prefix | Prefix-first filter |
@@ -161,8 +161,10 @@ reasoning rendering), long ungrouped sidebar, test gaps (leak gate tolerance, op
 probe, no WS-restart e2e, no browser test for custom JS under `app`), a missing changelog
 entry for the HSL break, and plugin SRI / remote-route policy gaps.
 
-Round 1 left 2 items open (CI eslint step failing on 6 errors; legacy-page padding);
-both were closed in fix round 2 and PR #356.
+Round 1 left 2 items open (CI eslint step failing on 6 errors; legacy-page padding).
+The eslint errors were fixed in fix round 2 and PR #356. The padding fix was
+started in round 2 but set aside unfinished when the branch shipped; it is carried
+into the final in-depth review (planned).
 
 ## 5. PR triage (14 Nov, against v0.3.155)
 
