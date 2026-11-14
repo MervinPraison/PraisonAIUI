@@ -142,6 +142,19 @@ test('the app shell opens in the default layout and downloads only its chunks', 
   expect(errors.pageErrors).toEqual([])
 })
 
+for (const id of BUILTIN_IDS) {
+  test(`network isolation: ${id} downloads its own chunks and the kit, nothing of another layout`, async ({ page }) => {
+    const scripts = trackScripts(page)
+    for (const pageId of ['chat', 'logs']) {
+      await page.goto(`/${pageId}?layout=${id}`)
+      await expect(frame(page, id)).toBeVisible()
+      await expect(page.locator(`#aiui-main [data-aiui-page="${pageId}"]`)).toBeVisible()
+    }
+    expect(layoutGroups(scripts)).toEqual([`layout-${id}`, 'layout-kit'].sort())
+    expect(scripts.filter((s) => /^lf-/.test(s) || s.startsWith('/_plugins/layoutfx/'))).toEqual([])
+  })
+}
+
 test('?layout=classic previews the classic frame for this tab, across navigation and reload', async ({ page }) => {
   const scripts = trackScripts(page)
   await page.goto('/chat?layout=classic')
