@@ -402,3 +402,11 @@ test('check-layout-isolation fails when a layout or feature folder was not built
   assert.equal(code, 1, out)
   assert.match(out, /no layout-beta chunk in the build/)
 })
+
+test('npm run check:closure runs the layout isolation gate too (CI runs check:closure)', () => {
+  const pkg = JSON.parse(readFileSync(path.join(SCRIPTS, '..', 'package.json'), 'utf8'))
+  const script = pkg.scripts['check:closure']
+  assert.match(script, /node scripts\/check-entry-closure\.mjs/)
+  assert.match(script, /node scripts\/check-layout-isolation\.mjs/)
+  assert.doesNotMatch(script, /[;|]/, 'chained with && so either failure fails the step')
+})

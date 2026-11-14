@@ -63,6 +63,14 @@ for (const [key, c] of Object.entries(manifest)) {
   if (!groupKeys.has(c.name)) groupKeys.set(c.name, [])
   groupKeys.get(c.name).push(key)
 }
+// A layout or the kit whose chunk is missing from the build would otherwise
+// lose its budget without a word (the frames are lazy, so Rollup drops them
+// when nothing registers them). The `lf-*` features are optional until their
+// tracks land.
+const missing = [...Object.keys(LAYOUT_BUDGETS), 'layout-kit'].filter((group) => !groupKeys.has(group))
+if (missing.length > 0) {
+  throw new Error(`.size-limit.mjs: no chunk in the build for ${missing.join(', ')}; is builtin.layouts in BUILTIN_PLUGINS?`)
+}
 const bootSet = new Set(bootAll)
 const groupFiles = (group) =>
   filesOf(manifest, staticClosure(manifest, groupKeys.get(group)), { css: true }).filter((f) => !bootSet.has(f))
@@ -72,16 +80,14 @@ const layoutEntries = [...groupKeys.keys()].sort().map((group) => {
   const what = group === 'layout-kit' ? 'layout kit' : group.startsWith('lf-') ? `layout feature ${group}` : `layout ${group} (closure minus boot)`
   return { name: what, path: abs(group === 'layout-kit' ? filesOf(manifest, groupKeys.get(group), { css: true }) : groupFiles(group)), limit, gzip: true }
 })
-const defaultLayoutFirstScreen = groupKeys.has(DEFAULT_LAYOUT)
-  ? [
-      {
-        name: '/chat first screen JS with the default layout (boot + layout-chat-canvas + kit + chat route)',
-        path: abs([...new Set([...bootJs, ...groupFiles(DEFAULT_LAYOUT).filter((f) => f.endsWith('.js')), ...chatRouteJs])]),
-        limit: '270 kB',
-        gzip: true,
-      },
-    ]
-  : []
+const defaultLayoutFirstScreen = [
+  {
+    name: '/chat first screen JS with the default layout (boot + layout-chat-canvas + kit + chat route)',
+    path: abs([...new Set([...bootJs, ...groupFiles(DEFAULT_LAYOUT).filter((f) => f.endsWith('.js')), ...chatRouteJs])]),
+    limit: '270 kB',
+    gzip: true,
+  },
+]
 
 // Everything under dist/assets ships in the Python wheel.
 const allAssets = readdirSync(path.join(DIST, 'assets'), { recursive: true, withFileTypes: true })
