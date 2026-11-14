@@ -6,7 +6,7 @@
  * few seconds, every reply has reasoning and one tool call).
  */
 import { expect, test, type Page } from '@playwright/test'
-import { collectPageErrors, toRgb } from './support'
+import { collectPageErrors, setDashboardMode, toRgb } from './support'
 
 /** Relative luminance of an `rgb()`/`rgba()` colour (0 black, 1 white). */
 function luminance(css: string): number {
@@ -72,14 +72,57 @@ test.describe('chat', () => {
   })
 })
 
+/**
+ * Serves /ui-config.json with `site.themeDefault` set, the server's own answer
+ * for the app's default mode ('system' when the app chose nothing).
+ */
+async function withThemeDefault(page: Page, themeDefault: string) {
+  await page.route('**/ui-config.json*', async (route) => {
+    const response = await route.fetch()
+    const config = await response.json()
+    config.site = { ...(config.site ?? {}), themeDefault }
+    await route.fulfill({ response, json: config })
+  })
+}
+
 test.describe('light and dark', () => {
-  test('without a choice the dashboard follows the OS', async ({ page }) => {
+  test('with no app or viewer choice the dashboard follows the OS', async ({ page }) => {
+    await withThemeDefault(page, 'system')
     for (const scheme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme: scheme })
       await page.goto('/overview')
       await expect(page.locator('.db-sidebar')).toBeVisible()
       await expect(page.locator('html')).toHaveAttribute('data-db-mode', scheme)
     }
+  })
+
+  test('an app that asks for dark stays dark on a light OS', async ({ page }) => {
+    // aiui.set_theme(dark_mode=True): the theme equals the server's fill-in
+    // one, which must not read as "no choice".
+    await page.route('**/ui-config.json*', async (route) => {
+      const response = await route.fetch()
+      const config = await response.json()
+      config.site = { ...(config.site ?? {}), theme: { preset: 'zinc', darkMode: true, radius: 'md' } }
+      delete config.site.themeDefault
+      await route.fulfill({ response, json: config })
+    })
+    await page.emulateMedia({ colorScheme: 'light' })
+    // Every mode <html> takes during the load: never a light frame.
+    await page.addInitScript(() => {
+      const modes: string[] = []
+      ;(window as unknown as { __aiuiModes: string[] }).__aiuiModes = modes
+      // <html> may not exist yet when this runs: watch the whole document.
+      new MutationObserver(() => {
+        const m = document.documentElement?.getAttribute('data-db-mode')
+        if (m) modes.push(m)
+      }).observe(document, { subtree: true, attributes: true, attributeFilter: ['data-db-mode'] })
+    })
+    await page.goto('/overview')
+    await expect(page.locator('.db-sidebar')).toBeVisible()
+    await expect(page.locator('html')).toHaveAttribute('data-db-mode', 'dark')
+    const modes = await page.evaluate(() => (window as unknown as { __aiuiModes: string[] }).__aiuiModes)
+    expect(modes.length).toBeGreaterThan(0)
+    expect(modes.filter((m) => m !== 'dark')).toEqual([])
   })
 
   test('a light pick on the Theme page survives a reload', async ({ page, request }) => {
@@ -104,7 +147,7 @@ test.describe('light and dark', () => {
   })
 
   test('light mode reaches the log panel and form fields', async ({ page }) => {
-    await page.emulateMedia({ colorScheme: 'light' })
+    await setDashboardMode(page, 'light')
     await page.goto('/logs')
     const panel = page.locator('.aiui-logs-content')
     await expect(panel).toBeVisible()

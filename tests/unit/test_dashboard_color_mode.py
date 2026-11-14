@@ -5,9 +5,16 @@ Regressions:
 * a light pick was lost on reload: the dashboard always started dark. The
   viewer's choice (``aiui-theme-preference``, the key the app shell and the
   server's bootstrap script share) now decides, then the app's default
-  (``site.theme`` in /ui-config.json), then the OS scheme;
+  (``site.themeDefault`` in /ui-config.json, else ``site.theme``), then the
+  OS scheme;
+* ``aiui.set_theme()`` / ``set_theme(dark_mode=True)`` sends exactly the
+  theme the server fills in when nothing is set, and the dashboard took it
+  for "no choice": a dark app turned light on a light OS. The theme's values
+  are now taken as sent; only the server's ``themeDefault`` can say
+  ``system``;
 * the mode is on ``<html>`` before the dashboard's stylesheet goes in, so
-  the first frame is already in the right mode;
+  the first frame is already in a mode (dark until the config answers, so a
+  dark app never shows a light frame);
 * light mode came from inline ``!important`` variables for a handful of
   colours, so the plugin tier ``--db-p-*`` (log panel, form fields) stayed
   dark. It is now a stylesheet keyed on ``html[data-db-mode="light"]``.
@@ -33,7 +40,9 @@ pytestmark = pytest.mark.skipif(NODE is None, reason="node is not installed")
 
 _HARNESS = r"""
 import { pathToFileURL } from 'node:url';
-const [, , dashPath] = process.argv;
+import { readFileSync } from 'node:fs';
+const [, , dashPath, inputPath] = process.argv;
+const input = JSON.parse(readFileSync(inputPath, 'utf8'));
 
 class El {
   constructor(tag) {
@@ -97,32 +106,11 @@ const reset = (pref, dark) => {
 };
 const out = {};
 
-// Resolution order: stored choice > app default > OS.
-const cases = {};
-for (const [name, pref, dark, theme] of [
-  ['os-light', null, false, undefined],
-  ['os-dark', null, true, undefined],
-  ['pref-light-os-dark', 'light', true, undefined],
-  ['pref-dark-os-light', 'dark', false, undefined],
-  ['pref-system-os-dark', 'system', true, undefined],
-  ['server-default-os-light', null, false, { preset: 'zinc', darkMode: true, radius: 'md' }],
-  ['app-dark-os-light', null, false, { preset: 'blue', darkMode: true, radius: 'md' }],
-  ['app-light-os-dark', null, true, { preset: 'zinc', darkMode: false, radius: 'md' }],
-  ['app-light-pref-dark', 'dark', false, { preset: 'zinc', darkMode: false, radius: 'md' }],
-  ['yaml-system-os-dark', null, true, { preset: 'blue', darkMode: false, mode: 'system' }],
-  ['yaml-light-os-dark', null, true, { mode: 'light' }],
-]) {
-  reset(pref, dark);
-  await src.applyThemeFromConfig({ site: theme ? { theme } : {} });
-  if (!theme) src.applyColorMode();
-  cases[name] = mode();
-}
-out.cases = cases;
-
-// init(): the mode is on <html> before the dashboard's styles are added, and
-// a stored choice or OS change made later is followed.
+// init() first, as on a fresh page load: the mode is on <html> before the
+// dashboard's styles are added, and a stored choice or OS change made later
+// is followed.
 reset(null, false);
-uiConfig = { site: { theme: { preset: 'zinc', darkMode: true, radius: 'md' } } };
+uiConfig = input.initConfig;
 const seen = [];
 const realAppend = head.appendChild.bind(head);
 head.appendChild = (c) => { if (c.tagName === 'STYLE') seen.push({ id: c.id, attr: html.getAttribute('data-db-mode'), text: c.textContent.slice(0, 200) }); return realAppend(c); };
@@ -136,8 +124,73 @@ out.afterStoragePick = mode();
 store.delete('aiui-theme-preference');
 osDark = true; mqListeners.forEach((f) => f());
 out.afterOsChange = mode();
+
+// Resolution order: stored choice > app default > OS.
+const cases = {};
+for (const [name, pref, dark, site] of input.cases) {
+  reset(pref, dark);
+  await src.applyThemeFromConfig({ site });
+  cases[name] = mode();
+}
+out.cases = cases;
 console.log(JSON.stringify(out));
 """
+
+
+#: The theme server.py sends when nothing sets one, and also exactly what
+#: ``aiui.set_theme()`` with its defaults stores.
+FILL_IN = {"preset": "zinc", "darkMode": True, "radius": "md"}
+
+# name, stored choice, OS dark, the `site` part of /ui-config.json
+CASES = [
+    ["os-light", None, False, {}],
+    ["os-dark", None, True, {}],
+    ["pref-light-os-dark", "light", True, {}],
+    ["pref-dark-os-light", "dark", False, {}],
+    ["pref-system-os-dark", "system", True, {}],
+    # A server without `themeDefault`: the theme is taken as sent.
+    ["set-theme-defaults-os-light", None, False, {"theme": FILL_IN}],
+    ["app-dark-os-light", None, False, {"theme": {**FILL_IN, "preset": "blue"}}],
+    ["app-light-os-dark", None, True, {"theme": {**FILL_IN, "darkMode": False}}],
+    ["app-light-pref-dark", "dark", False, {"theme": {**FILL_IN, "darkMode": False}}],
+    ["yaml-system-os-dark", None, True, {"theme": {"preset": "blue", "darkMode": False, "mode": "system"}}],
+    ["yaml-light-os-dark", None, True, {"theme": {"mode": "light"}}],
+    # The server's own answer wins over the theme's values.
+    ["server-system-os-light", None, False, {"themeDefault": "system", "theme": FILL_IN}],
+    ["server-system-os-dark", None, True, {"themeDefault": "system", "theme": FILL_IN}],
+    ["server-dark-os-light", None, False, {"themeDefault": "dark", "theme": FILL_IN}],
+    ["server-light-os-dark", None, True, {"themeDefault": "light", "theme": FILL_IN}],
+    ["server-dark-pref-light", "light", False, {"themeDefault": "dark", "theme": FILL_IN}],
+    ["server-bogus-os-light", None, False, {"themeDefault": "sepia", "theme": FILL_IN}],
+]
+
+#: set_theme() calls whose /ui-config.json the dashboard reads, from a real app.
+LIVE = {
+    "live-set-theme-os-light": ({}, False),
+    "live-set-theme-dark-os-light": ({"dark_mode": True}, False),
+    "live-set-theme-light-os-dark": ({"dark_mode": False}, True),
+}
+
+
+def _live_site(tmp, theme_kwargs: dict) -> dict:
+    from starlette.testclient import TestClient
+
+    from praisonaiui import config_store
+    from praisonaiui import server as srv
+
+    with pytest.MonkeyPatch.context() as mp:
+        data = tmp / f"data-{len(list(tmp.iterdir()))}"
+        data.mkdir()
+        mp.setenv("AIUI_DATA_DIR", str(data))
+        mp.setattr(config_store, "_config_store", None)
+        config_store.init_config_store(data / "config.yaml")
+        srv.reset_state()
+        try:
+            srv.set_style("dashboard")
+            srv.set_theme(**theme_kwargs)
+            return TestClient(srv.create_app()).get("/ui-config.json").json()["site"]
+        finally:
+            srv.reset_state()
 
 
 @pytest.fixture(scope="module")
@@ -150,8 +203,19 @@ def run(tmp_path_factory) -> dict:
         encoding="utf-8",
     )
     (tmp / "harness.mjs").write_text(_HARNESS, encoding="utf-8")
+    live_dir = tmp_path_factory.mktemp("live")
+    live = [
+        [name, None, os_dark, _live_site(live_dir, kwargs)]
+        for name, (kwargs, os_dark) in LIVE.items()
+    ]
+    inputs = {
+        "cases": CASES + live,
+        # No stored choice, a light OS, an app that chose nothing.
+        "initConfig": {"site": {"themeDefault": "system", "theme": FILL_IN}},
+    }
+    (tmp / "input.json").write_text(json.dumps(inputs), encoding="utf-8")
     proc = subprocess.run(
-        [NODE, str(tmp / "harness.mjs"), str(copy)],
+        [NODE, str(tmp / "harness.mjs"), str(copy), str(tmp / "input.json")],
         capture_output=True,
         text=True,
         timeout=60,
@@ -173,14 +237,28 @@ DARK = {"attr": "dark", "dark": True}
         ("pref-light-os-dark", LIGHT),
         ("pref-dark-os-light", DARK),
         ("pref-system-os-dark", DARK),
-        # The server's fill-in theme is not an app choice: the OS decides.
-        ("server-default-os-light", LIGHT),
+        # set_theme()'s defaults ask for dark, even though they equal the
+        # server's fill-in theme (R7: set_theme keeps its behaviour).
+        ("set-theme-defaults-os-light", DARK),
         ("app-dark-os-light", DARK),
         ("app-light-os-dark", LIGHT),
         # The viewer's choice beats the app default.
         ("app-light-pref-dark", DARK),
         ("yaml-system-os-dark", DARK),
         ("yaml-light-os-dark", LIGHT),
+        # themeDefault: 'system' (the app chose nothing) follows the OS.
+        ("server-system-os-light", LIGHT),
+        ("server-system-os-dark", DARK),
+        ("server-dark-os-light", DARK),
+        ("server-light-os-dark", LIGHT),
+        ("server-dark-pref-light", LIGHT),
+        # An unknown value is ignored; the theme decides.
+        ("server-bogus-os-light", DARK),
+        # A real app: set_theme() / set_theme(dark_mode=True) is dark on a
+        # light OS, set_theme(dark_mode=False) is light on a dark one.
+        ("live-set-theme-os-light", DARK),
+        ("live-set-theme-dark-os-light", DARK),
+        ("live-set-theme-light-os-dark", LIGHT),
     ],
 )
 def test_resolution_order(run, case, expected):
@@ -189,15 +267,25 @@ def test_resolution_order(run, case, expected):
 
 def test_mode_is_set_before_the_dashboard_styles(run):
     first, light = run["firstStyles"]
-    assert first["attr"] == "light"  # already resolved when DASHBOARD_STYLE goes in
-    assert light == {"id": "aiui-dashboard-light", "attr": "light", "light": True}
+    # Already resolved when DASHBOARD_STYLE goes in: dark until /ui-config.json
+    # answers (the historical default; a dark app shows no light frame).
+    assert first["attr"] == "dark"
+    assert light == {"id": "aiui-dashboard-light", "attr": "dark", "light": True}
+    # The app chose nothing (themeDefault: system) and the OS is light.
     assert run["afterInit"] == LIGHT
 
 
 def test_follows_a_stored_pick_and_the_os(run):
     assert run["afterStoragePick"] == DARK
-    # No stored choice, server default theme: the OS turning dark wins.
+    # No stored choice, an app that chose nothing: the OS turning dark wins.
     assert run["afterOsChange"] == DARK
+
+
+def test_no_value_guessing():
+    """The dashboard once read the fill-in theme's exact values as "no
+    choice", which also matched set_theme()'s defaults."""
+    src = DASHBOARD_JS.read_text(encoding="utf-8")
+    assert "_isServerDefaultTheme" not in src
 
 
 def test_no_inline_light_variables_remain():

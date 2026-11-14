@@ -49,8 +49,10 @@ never read or written.
   the usage chart's time axis are masked), plus the overscroll background check.
 - **legacy-dashboard**: the default dashboard's chat renders a markdown table
   as a `<table>` and keeps reasoning and the tool step above a streaming
-  answer; with no choice it follows the OS scheme, a light pick on the Theme
-  page survives a reload, and light mode reaches the log panel and form fields.
+  answer; with no app or viewer choice (`site.themeDefault: system`) it
+  follows the OS scheme, an app that asks for dark (`set_theme()`) never shows
+  a light frame on a light OS, a light pick on the Theme page survives a
+  reload, and light mode reaches the log panel and form fields.
 - **theme-presets**: `zinc` vs `rose` paint different `--primary` colours,
   and primary, body and muted text reach 4.5:1 in light and dark.
 - **plugins**: the example plugin's React page, blocks page, block type, tool

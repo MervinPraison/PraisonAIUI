@@ -1018,17 +1018,21 @@ const PRESET_COLORS = {
 // ── Colour mode (light / dark) ───────────────────────────────────────
 // The viewer's choice lives under the key the app shell (next-themes) and
 // the server's theme bootstrap script read: 'light' | 'dark' | 'system'.
-// Without one, the app's default applies (site.theme from /ui-config.json),
-// and without that the OS scheme. Dashboard style only: host mode leaves
+// Without one, the app's default applies (see appDefaultColorMode), and when
+// that is 'system' the OS scheme. Dashboard style only: host mode leaves
 // <html> to the shell.
 const COLOR_MODE_KEY = 'aiui-theme-preference';
-// The app's default mode, from applyThemeFromConfig(); 'system' until then.
-let _appColorMode = 'system';
+// The app's default mode, from applyThemeFromConfig(). Until /ui-config.json
+// has answered it is dark, the dashboard's historical default and what the
+// server sends when nothing else is set, so a dark app never shows a light
+// frame first.
+let _appColorMode = 'dark';
+const _isColorMode = (v) => v === 'light' || v === 'dark' || v === 'system';
 
 function _storedColorMode() {
   try {
     const v = localStorage.getItem(COLOR_MODE_KEY);
-    return v === 'light' || v === 'dark' || v === 'system' ? v : null;
+    return _isColorMode(v) ? v : null;
   } catch (e) { return null; } // storage blocked
 }
 
@@ -1036,19 +1040,19 @@ function _systemColorMode() {
   try { return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; } catch (e) { return 'dark'; }
 }
 
-// server.py fills site.theme with exactly this when the app set no theme
-// (no set_theme(), no YAML site.theme): that is not an app choice of dark.
-function _isServerDefaultTheme(theme) {
-  return Object.keys(theme).sort().join(',') === 'darkMode,preset,radius'
-    && theme.preset === 'zinc' && theme.darkMode === true && theme.radius === 'md';
-}
-
-// The app's default colour mode from site.theme: YAML `mode: light|dark|system`,
-// else `darkMode` (set_theme(dark_mode=…)), else the OS.
-function appDefaultColorMode(theme) {
+// The app's default colour mode from the `site` part of /ui-config.json.
+// `site.themeDefault` is the server's own answer (set_theme() > YAML
+// site.theme > 'system' when the app chose nothing), the value style app
+// gets as <html data-aiui-theme-default>. Without it (an older server), the
+// theme as sent: YAML `mode: light|dark|system`, else `darkMode`. The values
+// are never second-guessed: set_theme() with its defaults asks for dark.
+function appDefaultColorMode(site) {
+  if (!site || typeof site !== 'object') return 'system';
+  if (_isColorMode(site.themeDefault)) return site.themeDefault;
+  const theme = site.theme;
   if (!theme || typeof theme !== 'object') return 'system';
-  if (theme.mode === 'light' || theme.mode === 'dark' || theme.mode === 'system') return theme.mode;
-  if (typeof theme.darkMode === 'boolean' && !_isServerDefaultTheme(theme)) return theme.darkMode ? 'dark' : 'light';
+  if (_isColorMode(theme.mode)) return theme.mode;
+  if (typeof theme.darkMode === 'boolean') return theme.darkMode ? 'dark' : 'light';
   return 'system';
 }
 
@@ -1082,6 +1086,12 @@ async function applyThemeFromConfig(cfg) {
   // Host mode: theme tokens come from the shell (legacy/bridge.css). Inline
   // !important vars on <html> would override them and user CSS alike.
   if (_hostMode) return;
+  // Dark/light mode: the app's default, used while the viewer has not chosen
+  // one (DASHBOARD_LIGHT_STYLE paints light, not inline variables, so a
+  // viewer's choice and user CSS still apply).
+  _appColorMode = appDefaultColorMode(cfg?.site);
+  applyColorMode();
+
   const theme = cfg?.site?.theme;
   if (!theme) return;
 
@@ -1108,12 +1118,6 @@ async function applyThemeFromConfig(cfg) {
     customVars['--db-accent-glow'] = `rgba(${colors.accentRgb},0.15)`;
     customVars['--db-accent-rgb'] = colors.accentRgb;
   }
-
-  // Dark/light mode: the app's default, used while the viewer has not chosen
-  // one (DASHBOARD_LIGHT_STYLE paints light, not inline variables, so a
-  // viewer's choice and user CSS still apply).
-  _appColorMode = appDefaultColorMode(theme);
-  applyColorMode();
 
   // Radius
   const radiusMap = { none: '0', sm: '6px', md: '10px', lg: '14px', xl: '20px' };
