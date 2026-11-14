@@ -996,6 +996,19 @@ async def _serve_index(request: Request) -> Response:
     return HTMLResponse(_build_html(style, request))
 
 
+def _is_app_page_navigation(request: Request) -> bool:
+    """True for a browser opening a shell page URL under style ``app``.
+
+    Some page ids (``agents``, ``sessions``) share their path with a JSON API
+    that is matched before the page fallback. A navigation asks for
+    ``text/html``; API clients (``fetch`` sends ``*/*``) keep getting JSON.
+    The legacy dashboard routes by ``?page=``/hash and is left unchanged.
+    """
+    if _effective_style != "app":
+        return False
+    return "text/html" in request.headers.get("accept", "").lower()
+
+
 # ── React app shell (style="app") ────────────────────────────────────
 #
 # ADR-0001 §2/§8. One Vite build: the shell is the same /assets/index.js entry
@@ -1884,14 +1897,17 @@ async def health_cached(request: Request) -> JSONResponse:
     return JSONResponse(_health_cache)
 
 
-async def list_agents(request: Request) -> JSONResponse:
+async def list_agents(request: Request) -> Response:
     """List all registered agents (merges registry + provider).
 
     Returns the enriched third-party-chat-frontend-compatible schema
     (``agent_id``, ``name``, ``description``, ``model``, ``storage``,
     Issue #48) while keeping the legacy ``created_at`` field for
-    backward compatibility.
+    backward compatibility. Under style ``app`` a browser navigation to
+    ``/agents`` gets the shell page instead.
     """
+    if _is_app_page_navigation(request):
+        return HTMLResponse(_build_html(_effective_style, request))
     agents = [
         {
             "agent_id": name,
@@ -1967,8 +1983,10 @@ async def delete_team_session(request: Request) -> JSONResponse:
     return await delete_session(request)
 
 
-async def list_sessions(request: Request) -> JSONResponse:
-    """List all sessions."""
+async def list_sessions(request: Request) -> Response:
+    """List all sessions (style ``app``: a browser navigation gets the shell page)."""
+    if _is_app_page_navigation(request):
+        return HTMLResponse(_build_html(_effective_style, request))
     sessions = await _datastore.list_sessions()
     return JSONResponse({"sessions": sessions})
 

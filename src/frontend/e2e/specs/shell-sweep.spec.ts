@@ -31,12 +31,9 @@ const ONLY = (process.env.AIUI_E2E_SWEEP_PAGES || '').split(',').filter(Boolean)
 // Pages that leak on leaving, each with the reason. Empty: an entry that stops
 // leaking fails the sweep until it is removed here.
 const KNOWN_LEAKS: Record<string, string> = {}
-const KNOWN_BROKEN_DEEP_LINKS: Record<string, string> = {
-  // GET /agents and GET /sessions are JSON APIs that the server answers
-  // before the page fallback, so reloading these pages shows raw JSON.
-  agents: 'GET /agents returns the agent list (JSON) to a browser navigation',
-  sessions: 'GET /sessions returns the session list (JSON) to a browser navigation',
-}
+// Pages whose URL does not open the app when loaded directly, each with the
+// reason. Empty: an entry that starts working fails the test until removed.
+const KNOWN_BROKEN_DEEP_LINKS: Record<string, string> = {}
 
 async function manifestPages(page: Page): Promise<ManifestPage[]> {
   const res = await page.request.get('/api/shell/manifest')

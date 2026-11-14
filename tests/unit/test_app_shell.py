@@ -153,6 +153,35 @@ def test_app_html_structure():
     assert 'data-aiui-shell="react"' in client.get("/overview").text
 
 
+def test_app_deep_link_to_every_page_serves_the_shell():
+    """Opening /<page id> in a browser shows the app, even when a JSON API
+    shares the path (GET /agents, GET /sessions)."""
+    srv.set_style("app")
+    client = _client()
+    nav = {"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}
+    ids = [p["id"] for p in client.get("/api/shell/manifest").json()["pages"]]
+    assert {"agents", "sessions"} <= set(ids)
+    for page_id in ids:
+        res = client.get(f"/{page_id}", headers=nav)
+        assert res.status_code == 200, page_id
+        assert res.headers["content-type"].startswith("text/html"), page_id
+        assert 'data-aiui-shell="react"' in res.text, page_id
+
+
+def test_app_page_paths_keep_their_json_api_for_api_clients():
+    srv.set_style("app")
+    client = _client()
+    assert "agents" in client.get("/agents").json()
+    assert "sessions" in client.get("/sessions", headers={"accept": "application/json"}).json()
+
+
+def test_dashboard_agents_path_stays_json_for_browsers():
+    srv.set_style("dashboard")
+    client = _client()
+    res = client.get("/agents", headers={"accept": "text/html"})
+    assert res.headers["content-type"].startswith("application/json")
+
+
 def test_app_plugins_json_keeps_dashboard_modules():
     srv.set_style("app")
     srv.set_dashboard(modules=["jobs", "auth", "api", "bogus"])
