@@ -1,4 +1,6 @@
 /** Pure helpers shared by the chat UI (kept out of .tsx so Fast Refresh stays happy). */
+import type { ConnectionStatus } from './protocol'
+import type { AiuiTransport } from './transports'
 
 /** Same-origin, data:image and blob: images load automatically; anything else waits for a click. */
 export function isTrustedImageUrl(url: string): boolean {
@@ -45,4 +47,26 @@ export function formatDuration(ms: number): string {
   if (s < 60) return `${s < 10 ? s.toFixed(1) : Math.round(s)}s`
   const m = Math.floor(s / 60)
   return `${m}m ${Math.round(s % 60)}s`
+}
+
+/**
+ * Does a reload of the reply under `parentId` target the last message of the
+ * thread? assistant-ui passes the reply's parent (the message before it). Only
+ * the last answer can be regenerated: the server answers its last question.
+ */
+export function isLastReply(messages: readonly { id: string; role: string }[], parentId: string | null): boolean {
+  if (parentId === null || messages.length < 2) return false
+  return messages[messages.length - 2].id === parentId && messages[messages.length - 1].role === 'assistant'
+}
+
+/**
+ * Live-connection badge. A closed socket with the HTTP fallback is not
+ * offline: turns still stream over POST /run, so it reads "Using HTTP" in
+ * the warning colour; only a transport without a fallback is "Offline".
+ */
+export function connectionLabel(status: ConnectionStatus, transport: Pick<AiuiTransport, 'kind' | 'httpFallback'>) {
+  if (status === 'open') return { label: 'Connected', short: 'Live', tone: 'ok' as const }
+  if (status === 'connecting') return { label: 'Connecting', short: '…', tone: 'pending' as const }
+  if (transport.kind === 'sse' || transport.httpFallback) return { label: 'Using HTTP', short: 'HTTP', tone: 'pending' as const }
+  return { label: 'Offline', short: 'Offline', tone: 'down' as const }
 }

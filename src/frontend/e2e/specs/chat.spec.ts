@@ -282,3 +282,319 @@ test('Regenerate replaces the answer: no duplicate turn after a reload', async (
   await expect(page.locator('[data-role="user"]')).toHaveCount(1)
   await expect(assistant(page)).toHaveCount(1)
 })
+
+test('Regenerate is offered on the last answer only', async ({ page }) => {
+  await openChat(page, 'ws')
+  await send(page, 'plain alpha')
+  await waitForRunEnd(page)
+  await send(page, 'plain bravo')
+  await expect(assistant(page).last()).toContainText('You said: plain bravo')
+  await waitForRunEnd(page)
+  const first = assistant(page).first()
+  await first.hover()
+  await expect(first.getByRole('button', { name: 'Copy', exact: true })).toBeVisible()
+  await expect(first.getByRole('button', { name: 'Regenerate' })).toHaveCount(0)
+  await expect(assistant(page).last().getByRole('button', { name: 'Regenerate' })).toHaveCount(1)
+})
+
+test('SSE fallback: Regenerate is not offered (it would only resend the question)', async ({ page }) => {
+  await openChat(page, 'sse')
+  await send(page, 'plain sse regen')
+  const reply = assistant(page).last()
+  await expect(reply).toContainText('You said: plain sse regen')
+  await waitForRunEnd(page)
+  await reply.hover()
+  await expect(reply.getByRole('button', { name: 'Copy', exact: true })).toBeVisible()
+  await expect(reply.getByRole('button', { name: 'Regenerate' })).toHaveCount(0)
+})
+
+test('Copy and feedback on an earlier answer are reachable by keyboard', async ({ page }) => {
+  await openChat(page, 'ws')
+  await send(page, 'plain one')
+  await waitForRunEnd(page)
+  await send(page, 'plain two')
+  await expect(assistant(page).last()).toContainText('You said: plain two')
+  await waitForRunEnd(page)
+  await page.mouse.move(0, 0)
+  // Walk backwards from the composer until focus lands on the first answer's actions.
+  await composer(page).focus()
+  const reached = new Set<string>()
+  for (let i = 0; i < 60 && reached.size < 3; i++) {
+    await page.keyboard.press('Shift+Tab')
+    const hit = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null
+      const first = document.querySelector('[data-role="assistant"]')
+      return el && first?.contains(el) ? el.getAttribute('aria-label') : null
+    })
+    if (hit === 'Copy' || hit === 'Good response' || hit === 'Bad response') {
+      reached.add(hit)
+      // Focus inside the message reveals its actions.
+      await expect
+        .poll(() => page.evaluate(() => getComputedStyle((document.activeElement as HTMLElement).parentElement!).opacity))
+        .toBe('1')
+    }
+  }
+  expect([...reached].sort()).toEqual(['Bad response', 'Copy', 'Good response'])
+})
+
+test('Load earlier messages shows the older page', async ({ page }) => {
+  test.setTimeout(120_000)
+  const errors = collectPageErrors(page)
+  // 30 turns = 60 messages: the first page holds the last 50.
+  const sid = `e2e-earlier-${Date.now()}`
+  for (let i = 1; i <= 30; i++) {
+    const res = await page.request.post('/run', { data: { message: `plain turn ${i}`, session_id: sid } })
+    expect(res.ok()).toBe(true)
+    await res.body()
+  }
+  const warnings: string[] = []
+  page.on('console', (m) => {
+    if (/duplicate message id/i.test(m.text())) warnings.push(m.text())
+  })
+  await page.goto(`/chat?session=${encodeURIComponent(sid)}`)
+  const messages = page.locator('[data-role="user"], [data-role="assistant"]')
+  await expect(messages).toHaveCount(50)
+  await expect(page.locator('[data-role="user"]').first()).toHaveText('plain turn 6')
+  // Hold the older page back a moment: while it loads, the button keeps
+  // keyboard focus (it is not disabled) and shows a spinner.
+  await page.route(/\/api\/chat\/history\/.*before=/, async (route) => {
+    await new Promise((r) => setTimeout(r, 1_000))
+    await route.continue()
+  })
+  const loadEarlier = page.locator('[data-load-earlier]')
+  await loadEarlier.focus()
+  await page.keyboard.press('Enter')
+  await expect(loadEarlier.locator('[role="status"], svg').first()).toBeVisible()
+  await expect(loadEarlier).toBeFocused()
+  await expect(loadEarlier).toBeEnabled()
+  await expect(messages).toHaveCount(60)
+  await expect(page.locator('[data-role="user"]').first()).toHaveText('plain turn 1')
+  await expect(page.locator('[data-load-earlier]')).toHaveCount(0)
+  expect(warnings).toEqual([])
+  expect(errors.pageErrors).toEqual([])
+})
+
+test('a default starter fills the composer instead of sending a fragment', async ({ page }) => {
+  const frames = recordSentFrames(page)
+  await openChat(page, 'ws')
+  const card = page.locator('[data-thread-empty]').getByRole('button', { name: /Write code/ })
+  await expect(card).toBeVisible()
+  await card.click()
+  await expect(composer(page)).toHaveValue('Write a small Python function that ')
+  await expect(composer(page)).toBeFocused()
+  await page.waitForTimeout(300)
+  expect(frames.filter((f) => f.type === 'chat')).toEqual([])
+  await expect(page.locator('[data-role="user"]')).toHaveCount(0)
+})
+
+test('a code element is highlighted like reply code, and copying without a clipboard does not throw', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  // Plain http to a LAN address has no navigator.clipboard.
+  await page.addInitScript(() => Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }))
+  await openChat(page, 'ws')
+  await send(page, 'plain codeel')
+  await waitForRunEnd(page)
+  const block = assistant(page).last().locator('[data-element="code"] [data-streamdown="code-block"]')
+  await expect(block).toBeVisible()
+  await expect(block).toContainText('python')
+  await expect(block.locator('[style*="--shiki-dark"]').first()).toBeVisible()
+  await block.hover()
+  await block.getByRole('button', { name: /copy/i }).first().click()
+  // The failure is reported, not swallowed.
+  await expect(page.getByText('Could not copy: the clipboard needs HTTPS or localhost')).toBeVisible()
+  expect(errors.pageErrors).toEqual([])
+})
+
+test('mermaid fullscreen behaves as a modal: focus moves in, the page behind is inert, focus returns', async ({ page }) => {
+  await openChat(page, 'ws')
+  await send(page, 'markdown plain')
+  await waitForRunEnd(page)
+  const reply = assistant(page).last()
+  await expect(reply.locator('svg[aria-roledescription^="flowchart"]')).toBeVisible({ timeout: 30_000 })
+  const trigger = reply.getByRole('button', { name: 'View fullscreen' })
+  await trigger.click()
+  const dialog = page.locator('[data-streamdown="mermaid-fullscreen"]')
+  await expect(dialog).toBeVisible()
+  const focusInside = () => dialog.evaluate((el) => el.contains(document.activeElement))
+  await expect.poll(focusInside).toBe(true)
+  for (let i = 0; i < 5; i++) {
+    await page.keyboard.press('Tab')
+    expect(await focusInside(), `Tab ${i + 1} stays in the dialog`).toBe(true)
+  }
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(trigger).toBeFocused()
+  expect(await page.evaluate(() => document.querySelector('#root')?.hasAttribute('inert'))).toBe(false)
+})
+
+test('the chat page has one h1 (the shell header); the chat title is an h2', async ({ page }) => {
+  await openChat(page, 'ws')
+  await expect(page.locator('h1')).toHaveCount(1)
+  await expect(page.locator('h2[data-chat-title]')).toHaveText('New chat')
+})
+
+test('tool and reasoning rows are disclosures: aria-controls names the panel they open', async ({ page }) => {
+  await openChat(page, 'ws')
+  await send(page, 'disclose this')
+  await waitForRunEnd(page)
+  const reply = assistant(page).last()
+  for (const row of [reply.locator('[data-tool="web_search"]'), reply.locator('[data-part="reasoning"]')]) {
+    const button = row.locator('button[aria-expanded]').first()
+    await expect(button).toHaveAttribute('aria-expanded', 'false')
+    await button.click()
+    await expect(button).toHaveAttribute('aria-expanded', 'true')
+    const id = await button.getAttribute('aria-controls')
+    expect(id, 'aria-controls').toBeTruthy()
+    await expect(row.locator(`[id="${id}"]`)).toBeVisible()
+  }
+})
+
+test('session rail rename and delete keep keyboard focus in the rail', async ({ page }) => {
+  await openChat(page, 'ws')
+  const title = `plain focus ${Date.now()}`
+  await send(page, title)
+  await waitForRunEnd(page)
+  const rail = page.getByRole('navigation', { name: 'Chats' })
+  // A second chat stays open, so the one under test is not the active chat.
+  await rail.getByRole('button', { name: 'New chat' }).click()
+  await send(page, `plain other ${Date.now()}`)
+  await waitForRunEnd(page)
+  const row = rail.locator('li', { hasText: title }).first()
+  await expect(row).toBeVisible()
+  const rowButton = row.locator('> button')
+  const focusedLabel = () => page.evaluate(() => (document.activeElement as HTMLElement | null)?.textContent?.trim() ?? '')
+
+  // The actions show on focus: Tab from the row reaches Rename, then Delete.
+  const toAction = async (name: 'Rename' | 'Delete') => {
+    await rowButton.focus()
+    await page.keyboard.press('Tab')
+    if (name === 'Delete') await page.keyboard.press('Tab')
+    await expect(row.getByRole('button', { name: new RegExp(`^${name} `) })).toBeFocused()
+  }
+
+  // Delete, then Cancel: focus goes to Cancel, then back to the row.
+  await toAction('Delete')
+  await page.keyboard.press('Enter')
+  await expect(rail.getByRole('button', { name: 'Cancel' })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(rowButton).toBeFocused()
+
+  // Rename, then Escape: back to the row.
+  await toAction('Rename')
+  await page.keyboard.press('Enter')
+  await expect(rail.getByRole('textbox', { name: 'Chat title' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(rowButton).toBeFocused()
+
+  // Delete for real: focus moves to a neighbour row or New chat, never <body>.
+  await toAction('Delete')
+  await page.keyboard.press('Enter')
+  await rail.getByRole('button', { name: 'Delete', exact: true }).click()
+  await expect(rail.locator('li', { hasText: title })).toHaveCount(0)
+  await expect.poll(() => page.evaluate(() => document.activeElement?.closest('nav[aria-label="Chats"]') !== null)).toBe(true)
+  expect(await focusedLabel()).not.toContain(title)
+})
+
+test('a file dropped on the composer is attached', async ({ page }) => {
+  await openChat(page, 'ws')
+  const dataTransfer = await page.evaluateHandle(() => {
+    const dt = new DataTransfer()
+    dt.items.add(new File(['hello from a dropped file'], 'notes.txt', { type: 'text/plain' }))
+    return dt
+  })
+  const target = composer(page)
+  await target.dispatchEvent('dragenter', { dataTransfer })
+  await target.dispatchEvent('dragover', { dataTransfer })
+  await expect(page.locator('[data-aiui-dropzone][data-dragging]')).toHaveCount(1)
+  await target.dispatchEvent('drop', { dataTransfer })
+  await expect(page.getByRole('button', { name: 'Remove attachment' })).toBeVisible()
+  await expect(page.locator('[data-aiui-thread]')).toContainText('notes.txt')
+  await expect(page.locator('[data-aiui-dropzone][data-dragging]')).toHaveCount(0)
+})
+
+test('feedback switched off on the server: the thumbs disappear instead of flipping back', async ({ page }) => {
+  await page.route('**/api/feedback', (route) => route.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"Feedback is disabled"}' }))
+  await openChat(page, 'ws')
+  await send(page, 'plain feedback off')
+  await waitForRunEnd(page)
+  const reply = assistant(page).last()
+  await reply.getByRole('button', { name: 'Good response' }).click()
+  await expect(page.getByRole('button', { name: 'Good response' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Bad response' })).toHaveCount(0)
+  await expect(reply.getByRole('button', { name: 'Copy', exact: true })).toBeVisible()
+})
+
+test('with the socket blocked the badge says "Using HTTP", and a second message does not wait for the socket', async ({ page }) => {
+  await openChat(page, 'sse')
+  await send(page, 'plain over http one')
+  await waitForRunEnd(page)
+  const badge = page.locator('[data-connection]')
+  await expect(badge).toHaveAttribute('title', 'Using HTTP')
+  const t0 = Date.now()
+  await send(page, 'plain over http two')
+  await expect(assistant(page).last()).toContainText('You said: plain over http two')
+  expect(Date.now() - t0, 'no 3 s socket probe before the second turn').toBeLessThan(2_500)
+})
+
+test('leaving /chat and coming back keeps the conversation and the unsent draft', async ({ page }) => {
+  await openChat(page, 'ws')
+  await send(page, 'plain come back')
+  await waitForRunEnd(page)
+  await expect(page).toHaveURL(/[?&]session=/)
+  await composer(page).fill('half-written follow-up')
+  const pages = page.getByRole('navigation', { name: 'Pages' })
+  await pages.getByRole('link').filter({ hasNotText: /^Chat$/ }).first().click()
+  await expect(composer(page)).toHaveCount(0)
+  await pages.getByRole('link', { name: 'Chat', exact: true }).click()
+  await expect(page.locator('[data-chat-title]')).toHaveText(/plain come back/i)
+  await expect(assistant(page).last()).toContainText('You said: plain come back')
+  await expect(composer(page)).toHaveValue('half-written follow-up')
+  await expect(page).toHaveURL(/[?&]session=/)
+})
+
+test.describe('phone session rail', () => {
+  test.use({ viewport: { width: 390, height: 800 } })
+
+  test('opens as a modal dialog: focus moves in, Tab stays in, Escape closes and focus returns', async ({ page }) => {
+    await openChat(page, 'ws')
+    const show = page.getByRole('button', { name: 'Show chats' })
+    await show.focus()
+    await page.keyboard.press('Enter')
+    const dialog = page.getByRole('dialog', { name: 'Chats' })
+    await expect(dialog).toBeVisible()
+    await expect(dialog).toHaveAttribute('aria-modal', 'true')
+    const focusInside = () => dialog.evaluate((el) => el.contains(document.activeElement))
+    await expect.poll(focusInside).toBe(true)
+    for (let i = 0; i < 8; i++) {
+      await page.keyboard.press('Tab')
+      expect(await focusInside(), `Tab ${i + 1} stays in the rail`).toBe(true)
+    }
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    await expect(show).toBeFocused()
+
+    // The close button also hands focus back.
+    await show.click()
+    await expect(dialog).toBeVisible()
+    await dialog.getByRole('button', { name: 'Close chats' }).click()
+    await expect(dialog).toHaveCount(0)
+    await expect(show).toBeFocused()
+  })
+})
+
+test.describe('session rail on a touch screen', () => {
+  test.use({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true })
+
+  test('Rename and Delete are visible without hover', async ({ page }) => {
+    await openChat(page, 'ws')
+    await send(page, 'plain touch rail')
+    await waitForRunEnd(page)
+    await page.getByRole('button', { name: 'Show chats' }).tap()
+    const dialog = page.getByRole('dialog', { name: 'Chats' })
+    const row = dialog.locator('li', { hasText: /plain touch rail/i }).first()
+    await expect(row.getByRole('button', { name: /^Rename / })).toBeVisible()
+    await expect(row.getByRole('button', { name: /^Delete / })).toBeVisible()
+    await row.getByRole('button', { name: /^Delete / }).tap()
+    await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeVisible()
+  })
+})

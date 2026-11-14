@@ -1,6 +1,9 @@
 /**
- * data-element renderer (lazy chunk). Images are drawn here; video, audio,
- * pdf, file and code reuse chat/MultimediaElements.tsx (a second lazy chunk).
+ * data-element renderer (lazy chunk). Images are drawn here; code goes
+ * through the chat Markdown renderer (Shiki highlighting in both themes, a
+ * language label, copy and download, the same as code in the reply text);
+ * video, audio, pdf and file reuse chat/MultimediaElements.tsx (a second lazy
+ * chunk).
  *
  * Exfiltration guard: images, video, audio and PDFs load automatically only
  * from same-origin, data:image and blob: URLs. Any other URL renders a
@@ -10,6 +13,8 @@
 import { lazy, useState, type FC, type ReactNode } from 'react'
 import { ImageOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Markdown } from '@/markdown/LazyMarkdown'
+import { fenced } from '@/markdown/fence'
 import { hostOf, isTrustedImageUrl, safeUrl } from '../util'
 import { LazyBoundary } from './LazyBoundary'
 
@@ -25,8 +30,6 @@ const Multimedia = lazy(() =>
           return <m.AudioElement url={url} className="w-full" />
         case 'pdf':
           return <m.PdfElement url={url} name={name ?? 'Document'} />
-        case 'code':
-          return <m.CodeBlock code={String(el.content ?? '')} language={typeof el.language === 'string' ? el.language : undefined} />
         default:
           return (
             <m.FileElement
@@ -91,6 +94,16 @@ const ElementPart: FC<{ data: Record<string, unknown> }> = ({ data }) => {
     return (
       <div className="my-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground" data-element={type} data-blocked-media>
         {name || 'An attachment'} has an unsupported link and was not loaded.
+      </div>
+    )
+  }
+  if (type === 'code') {
+    const code = typeof data.content === 'string' ? data.content : typeof data.code === 'string' ? data.code : String(data.content ?? '')
+    return (
+      <div className="my-2 min-w-0 max-w-full" data-element={type}>
+        <Markdown variant="chat" className="min-w-0 max-w-full">
+          {fenced(code, typeof data.language === 'string' ? data.language : '')}
+        </Markdown>
       </div>
     )
   }

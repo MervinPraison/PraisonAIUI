@@ -142,6 +142,19 @@ class MockProvider(BaseProvider):
             yield RunEvent(type=RunEventType.RUN_CONTENT, token=tok, agent_name="Mock")
             await asyncio.sleep(delay)
 
+        if "codeel" in text:
+            # A code element (not markdown): rendered by the chat Markdown renderer.
+            yield RunEvent(
+                type=RunEventType.MESSAGE_ELEMENT,
+                extra_data={
+                    "element": {
+                        "type": "code",
+                        "language": "python",
+                        "content": "def add(a, b):\n    return a + b",
+                    }
+                },
+            )
+
         if "ask" in text:
             yield RunEvent(
                 type=RunEventType.RUN_PAUSED,

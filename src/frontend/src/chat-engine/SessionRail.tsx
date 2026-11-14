@@ -2,7 +2,7 @@
  * Chat session rail: new chat, search, list, inline rename and delete.
  * Flat list grouped by whitespace; actions appear on hover/focus.
  */
-import { useEffect, useRef, useState, type FC, type FormEvent, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type FC, type FormEvent, type KeyboardEvent, type RefObject } from 'react'
 import { MessageSquarePlus, Pencil, Search, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -44,6 +44,9 @@ function relativeTime(t?: number): string {
   return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
+/** The focused control was unmounted (focus fell to <body>); a click elsewhere keeps its target. */
+const focusLost = () => !document.activeElement || document.activeElement === document.body
+
 const RenameField: FC<{ initial: string; onSave: (title: string) => Promise<void>; onCancel: () => void }> = ({ initial, onSave, onCancel }) => {
   const [value, setValue] = useState(initial)
   const [busy, setBusy] = useState(false)
@@ -69,6 +72,7 @@ const RenameField: FC<{ initial: string; onSave: (title: string) => Promise<void
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault()
+      e.stopPropagation() // the phone sheet would close on it
       onCancel()
     }
   }
@@ -101,6 +105,17 @@ const SessionItem: FC<{
   const [mode, setMode] = useState<'view' | 'rename' | 'confirm'>('view')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Rename and Delete swap the row for a form; when it is back (Cancel,
+  // Escape, a saved title) focus returns to the row instead of <body>.
+  const rowRef = useRef<HTMLButtonElement>(null)
+  const left = useRef(false)
+  useEffect(() => {
+    if (mode !== 'view') left.current = true
+    else if (left.current) {
+      left.current = false
+      if (focusLost()) rowRef.current?.focus()
+    }
+  }, [mode])
 
   if (mode === 'rename') {
     return (
@@ -119,7 +134,17 @@ const SessionItem: FC<{
 
   if (mode === 'confirm') {
     return (
-      <li className="rounded-md bg-muted px-2 py-2" data-session-id={s.id}>
+      <li
+        className="rounded-md bg-muted px-2 py-2"
+        data-session-id={s.id}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && !busy) {
+            e.preventDefault()
+            e.stopPropagation() // the phone sheet would close on it
+            setMode('view')
+          }
+        }}
+      >
         <p className="truncate text-sm text-foreground">Delete “{s.title}”?</p>
         {error && <p className="mt-1 text-xs text-destructive" role="alert">{error}</p>}
         <div className="mt-2 flex gap-1.5">
@@ -144,7 +169,7 @@ const SessionItem: FC<{
             {busy && <Spinner className="size-3" />}
             Delete
           </Button>
-          <Button size="xs" variant="ghost" disabled={busy} onClick={() => setMode('view')}>
+          <Button size="xs" variant="ghost" disabled={busy} onClick={() => setMode('view')} autoFocus>
             Cancel
           </Button>
         </div>
@@ -156,6 +181,7 @@ const SessionItem: FC<{
   return (
     <li className="group/item relative" data-session-id={s.id}>
       <button
+        ref={rowRef}
         type="button"
         onClick={onSelect}
         aria-current={active ? 'true' : undefined}
@@ -171,7 +197,8 @@ const SessionItem: FC<{
         </span>
         {meta && <span className="truncate pr-12 text-xs text-muted-foreground">{meta}</span>}
       </button>
-      <div className="absolute top-1 right-1 hidden gap-0.5 group-focus-within/item:flex group-hover/item:flex">
+      {/* Hover or focus shows the actions; touch screens (no hover) always show them. */}
+      <div className="absolute top-1 right-1 hidden gap-0.5 group-focus-within/item:flex group-hover/item:flex [@media(hover:none)]:flex" data-session-actions>
         {!s.platform && (
           <Button variant="ghost" size="icon-xs" className="text-muted-foreground hover:text-foreground" aria-label={`Rename ${s.title}`} onClick={() => setMode('rename')}>
             <Pencil />
@@ -185,16 +212,42 @@ const SessionItem: FC<{
   )
 }
 
+/** After a delete the row is gone: focus the next row (else the previous one, else New chat). */
+function useFocusAfterDelete(newChat: RefObject<HTMLButtonElement | null>, list: RefObject<HTMLElement | null>) {
+  const pending = useRef<{ id: string | null } | null>(null)
+  const [deletes, setDeletes] = useState(0)
+  useEffect(() => {
+    const target = pending.current
+    if (!target) return
+    pending.current = null
+    const row = target.id ? list.current?.querySelector<HTMLElement>(`[data-session-id="${CSS.escape(target.id)}"] > button`) : null
+    if (focusLost()) (row ?? newChat.current)?.focus()
+  }, [deletes, newChat, list])
+  return (target: { id: string | null }) => {
+    pending.current = target
+    setDeletes((n) => n + 1)
+  }
+}
+
 export const SessionRail: FC<SessionRailProps> = ({
   sessions, loading, error, activeId, runningIds, query, onQuery, onSelect, onNew, onRename, onDelete, onClose, className,
 }) => {
   const q = query.trim().toLowerCase()
   const shown = q ? sessions.filter((s) => matches(s, q)) : sessions
+  const newChatRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const focusAfterDelete = useFocusAfterDelete(newChatRef, listRef)
+  const remove = async (id: string) => {
+    const i = shown.findIndex((x) => x.id === id)
+    const next = shown[i + 1] ?? shown[i - 1]
+    await onDelete(id)
+    focusAfterDelete({ id: next?.id ?? null })
+  }
   return (
     <nav aria-label="Chats" className={cn('flex h-full min-h-0 w-64 flex-col bg-background', className)}>
       <div className="flex h-12 shrink-0 items-center gap-1 px-3">
         <span className="flex-1 text-sm font-medium text-foreground">Chats</span>
-        <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" onClick={onNew} aria-label="New chat" title="New chat">
+        <Button ref={newChatRef} variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" onClick={onNew} aria-label="New chat" title="New chat">
           <MessageSquarePlus />
         </Button>
         {onClose && (
@@ -216,7 +269,7 @@ export const SessionRail: FC<SessionRailProps> = ({
           />
         </label>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+      <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
         {loading && !sessions.length ? (
           <div className="space-y-2 px-1 pt-1" aria-hidden>
             {[0, 1, 2, 3].map((i) => (
@@ -237,7 +290,7 @@ export const SessionRail: FC<SessionRailProps> = ({
                 running={runningIds.has(s.id)}
                 onSelect={() => onSelect(s.id)}
                 onRename={(title) => onRename(s.id, title)}
-                onDelete={() => onDelete(s.id)}
+                onDelete={() => remove(s.id)}
               />
             ))}
           </ul>

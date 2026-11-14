@@ -17,11 +17,18 @@ import {
   type PendingAttachment,
 } from '@assistant-ui/react'
 import { convertMessage } from './convert'
+import { isLastReply } from './util'
 import { threadStore, type SessionThread } from './store'
-import { createSseTransport, type AiuiTransport } from './transports'
+import { canRegenerate, createSseTransport, type AiuiTransport } from './transports'
 import type { AiuiMessage } from './protocol'
 
-export interface AiuiStarter { title?: string; label?: string; prompt: string }
+export interface AiuiStarter {
+  title?: string
+  label?: string
+  prompt: string
+  /** The prompt is a template to finish: a click puts it in the composer instead of sending it. */
+  fill?: boolean
+}
 
 export interface UseAiuiRuntimeOptions {
   /** Controlled session id. `null` = new chat; the id is minted client-side on first send. */
@@ -31,16 +38,32 @@ export interface UseAiuiRuntimeOptions {
   agentName?: string
   starters?: AiuiStarter[]
   historyUrl?: (sid: string) => string
-  /** Session list for the threadList adapter (the host owns fetching). */
-  sessions?: { id: string; title?: string }[]
-  onSelectSession?: (id: string | null) => void
-  onRenameSession?: (id: string, title: string) => Promise<void> | void
-  onDeleteSession?: (id: string) => Promise<void> | void
   /** User-facing problems the runtime would otherwise swallow (e.g. an attachment over 10 MB). */
   onError?: (message: string) => void
   /** A message is being sent: an earlier onError notice no longer applies. */
   onSend?: () => void
+  /**
+   * Offer thumbs up/down (default true). false hides them: the server has
+   * feedback switched off (manifest `site.feedbackEnabled: false`).
+   */
+  feedback?: boolean
 }
+
+/** The server answered a feedback post with 403 (set_feedback_enabled(False)): stop offering it. */
+let feedbackRefused = false
+const refusalFns = new Set<() => void>()
+function refuseFeedback() {
+  if (feedbackRefused) return
+  feedbackRefused = true
+  for (const fn of [...refusalFns]) fn()
+}
+function subscribeRefusal(fn: () => void) {
+  refusalFns.add(fn)
+  return () => {
+    refusalFns.delete(fn)
+  }
+}
+const getRefused = () => feedbackRefused
 
 export { convertMessage }
 
@@ -103,13 +126,14 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
     }
   }, [transport])
 
-  const sendText = useCallback(async (text: string, attachments?: AiuiMessage['attachments'], regenerate = false) => {
+  const sendText = useCallback(async (text: string, attachments?: AiuiMessage['attachments'], regenerate?: { replacedText?: string }) => {
     optsRef.current.onSend?.()
     const p = threadStore.send(transport, sid, text, {
       agentName: optsRef.current.agentName,
       attachmentIds: attachments?.map((a) => a.id),
       attachments,
-      regenerate,
+      regenerate: !!regenerate,
+      replacedText: regenerate?.replacedText,
     })
     if (isDraft) {
       optsRef.current.onSessionCreated?.(sid)
@@ -162,17 +186,28 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
       threadStore.setFeedback(sid, message.id, type)
       void postJson('/api/feedback', { session_id: sid, message_id: message.id, value: type === 'positive' ? 1 : -1 })
         .then((res) => {
-          if (!res.ok) threadStore.setFeedback(sid, message.id, undefined)
+          if (res.ok) return
+          threadStore.setFeedback(sid, message.id, undefined)
+          // Feedback is switched off on the server: hide the buttons rather than flip and revert.
+          if (res.status === 403) refuseFeedback()
         })
         .catch(() => threadStore.setFeedback(sid, message.id, undefined))
     },
   }), [sid])
+
+  const refused = useSyncExternalStore(subscribeRefusal, getRefused, getRefused)
+  const offerFeedback = opts.feedback !== false && !refused
 
   const runtime = useExternalStoreRuntime<AiuiMessage>({
     messages: thread.messages,
     isRunning: thread.isRunning,
     isLoading: thread.isLoading,
     activeRunId: thread.activeRunId,
+    // Paging back through history: the runtime serialises presses and
+    // exposes thread.isLoadingEarlier; ThreadPrimitive.LoadEarlier keeps
+    // focus on the button while a page loads.
+    hasEarlier: Boolean(thread.hasMore) && !thread.isLoading,
+    onLoadEarlier: () => threadStore.loadEarlier(sid),
     convertMessage,
     suggestions: opts.starters?.map((s) => ({ title: s.title, label: s.label, prompt: s.prompt })),
     onNew: async (msg: AppendMessage) => {
@@ -188,29 +223,31 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
       await sendText(text, atts?.length ? atts : undefined)
     },
     onCancel: () => threadStore.cancel(transport, sid),
-    onReload: async () => {
-      // Over the WebSocket the server answers the last question again and the
-      // new answer replaces the old one in history (no duplicate turn after a
-      // reload). The SSE fallback has no regenerate and resends the question.
+    // No onReload (the Regenerate button is hidden) when the transport cannot
+    // regenerate server-side: on SSE a regenerate is a plain resend and the
+    // turn would appear twice after a reload. Re-read on every render, so it
+    // follows the socket state and the transport that carried the last turn.
+    onReload: !canRegenerate(transport, sid) ? undefined : async (parentId) => {
+      // Only the last answer can be regenerated: the server answers its last
+      // question again. A reload aimed at an earlier answer is ignored rather
+      // than turned into a regenerate of the last turn.
+      if (!isLastReply(threadStore.get(sid).messages, parentId)) return
+      // The server answers the last question again and the new answer
+      // replaces the old one in history (no duplicate turn after a reload).
       const turn = threadStore.popLastTurn(sid)
-      if (turn) await sendText(turn.text, turn.attachments, true)
+      if (turn) await sendText(turn.text, turn.attachments, { replacedText: turn.replacedText })
     },
     // The gate stays open until the server accepts; a rejection is kept on the part (see the store).
     onRespondToToolApproval: ({ approvalId, approved, optionId, text }) =>
       threadStore.respondApproval(transport, sid, approvalId, { approved, optionId, text }),
     adapters: {
       attachments,
-      feedback,
-      threadList: {
-        threadId: opts.sessionId ?? undefined,
-        threads: opts.sessions?.map((s) => ({ status: 'regular' as const, id: s.id, title: s.title })),
-        onSwitchToThread: (id) => optsRef.current.onSelectSession?.(id),
-        onSwitchToNewThread: () => optsRef.current.onSelectSession?.(null),
-        onRename: (id, title) => {
-          void optsRef.current.onRenameSession?.(id, title)
-        },
-        onDelete: (id) => optsRef.current.onDeleteSession?.(id),
-      },
+      // No adapter: thread.capabilities.feedback is false and the Thread hides the buttons.
+      feedback: offerFeedback ? feedback : undefined,
+      // Only the id: a change of it makes assistant-ui rebuild the thread
+      // core, which is what gives each session a fresh composer. The session
+      // list, rename and delete live in the SessionRail, not in assistant-ui.
+      threadList: { threadId: opts.sessionId ?? undefined },
     },
   })
 

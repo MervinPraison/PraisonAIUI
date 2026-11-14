@@ -20,6 +20,8 @@ import { normalizeTexDelimiters } from './texDelimiters'
 import { MAX_STREAM_INTERVAL_MS, StreamPacer } from './streamThrottle'
 import { gateMermaidSource, isAutoLoadImage, isExternalHref } from './urlPolicy'
 import { continueSplitLists } from './listNumbering'
+import { fenced } from './fence'
+import { CHAT_CONTROLS, COPY_FAILED, DOCS_CONTROLS, reportCopyError } from './controls'
 import { NO_HIGHLIGHT, legacySafeCodeClass } from './legacyPlugins'
 
 const chat = (md: string, streaming = false) => renderToStaticMarkup(<Markdown variant="chat" streaming={streaming}>{md}</Markdown>)
@@ -669,4 +671,60 @@ test('streaming chat message renders its whole text on first render (no paced bl
     const md = 'Partial **answer** so far'
     assert.match(chat(md, true), /Partial <[^>]*data-streamdown="strong">answer</)
     assert.match(chat(md, true), /so far/)
+})
+
+// ── code as data (chat `code` elements, the `code` block): one renderer ──
+test('fenced(): the fence outgrows any backtick run in the code; unsafe language names are dropped', () => {
+    assert.equal(fenced('print(1)', 'python'), '```python\nprint(1)\n```')
+    assert.equal(fenced('a ```` b', 'md'), '`````md\na ```` b\n`````')
+    assert.equal(fenced('x', 'py\n```html'), '```\nx\n```')
+})
+
+test('a chat code element renders as a Streamdown code block (language label, controls), not a bare <pre>', () => {
+    const html = chat(fenced('def f():\n    return "```"', 'python'))
+    assert.match(html, /data-streamdown="code-block"/)
+    assert.match(html, /data-streamdown="code-block-header"[^>]*><span[^>]*>python<\/span>/)
+    assert.match(html, /return/)
+})
+
+// ── footnotes: ids are unique per message (LIBMD-4) ──
+test('two messages with footnotes: every id is unique and each footnote link targets its own message', () => {
+    const html = renderToStaticMarkup(
+        <div>
+            <Markdown variant="chat">{'First[^1]\n\n[^1]: one'}</Markdown>
+            <Markdown variant="chat">{'Second[^1]\n\n[^1]: two'}</Markdown>
+        </div>,
+    )
+    const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1])
+    assert.ok(ids.length >= 6, `footnote ids rendered: ${ids.join(', ')}`)
+    assert.equal(new Set(ids).size, ids.length, `duplicate ids: ${ids.join(', ')}`)
+    for (const part of html.split('data-aiui-markdown=').slice(1)) {
+        const own = new Set([...part.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]))
+        const hrefs = [...part.matchAll(/href="\\?#([^"]+)"/g)].map((m) => m[1])
+        assert.ok(hrefs.length >= 2)
+        for (const h of hrefs) assert.ok(own.has(h), `#${h} points inside its own message`)
+        const described = [...part.matchAll(/aria-describedby="([^"]+)"/g)].map((m) => m[1])
+        for (const d of described) assert.ok(own.has(d), `aria-describedby ${d} is in its own message`)
+    }
+})
+
+// ── failed copy is reported (LIBMD-6) ──
+test('code copy in both variants reports a failure (no clipboard on plain-http origins)', () => {
+    for (const controls of [CHAT_CONTROLS, DOCS_CONTROLS]) {
+        assert.ok(typeof controls === 'object' && typeof controls.code === 'object')
+        const copy = controls.code.copy
+        assert.ok(typeof copy === 'object' && copy.onError === reportCopyError)
+    }
+    assert.match(COPY_FAILED, /HTTPS or localhost/)
+})
+
+// ── bidi: direction per block (LIBMD-5) ──
+test('an Arabic paragraph renders right to left; English stays left to right', () => {
+    const arabic = 'مرحبا بالعالم.'
+    for (const html of [chat(`${arabic}\n\nHello world.\n\n\`\`\`py\nprint(1)\n\`\`\``), docs(`${arabic}\n\nHello world.`)]) {
+        const rtl = [...html.matchAll(/dir="rtl"/g)].length
+        assert.ok(rtl >= 1, 'the Arabic block is marked rtl')
+        assert.match(html, new RegExp(`dir="rtl"[^>]*>(?:<[^>]+>)*${arabic}`))
+        assert.doesNotMatch(html, /dir="rtl"[^>]*>(?:<[^>]+>)*Hello/)
+    }
 })
