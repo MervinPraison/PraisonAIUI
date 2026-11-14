@@ -11,9 +11,11 @@ The BeautifulUI dashboard source. Built with React 19 + Vite 7 + Tailwind v4.
 cd src/frontend
 npm ci
 npm run build       # SPA build → dist/ (dashboard ship path)
-npm run build:lib   # library build for the @praisonaiui/react package
 npm run lint        # eslint
 ```
+
+The package is private: it is not published to npm. What ships is the build,
+inside the Python wheel.
 
 `npm run build` output in `dist/` is synced to `src/praisonaiui/templates/frontend/`
 (the committed bundle served by `aiui build`). The CI `frontend` job runs
