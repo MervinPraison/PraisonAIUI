@@ -2687,19 +2687,25 @@ async def api_component_schemas(request: Request) -> JSONResponse:
     return JSONResponse({"schemas": get_component_schemas()})
 
 
+#: Seconds one feature's ``info()`` may take in ``GET /api/features``.
+_FEATURE_INFO_TIMEOUT = 2.0
+
+
 async def api_features(request: Request) -> JSONResponse:
     """List all registered feature protocols.
 
     Calls ``info()`` on every registered feature concurrently (via
-    ``asyncio.gather``). This avoids the previous N*latency cold-start
-    time where features with slow imports (e.g. LiteLLM) serialized the
-    whole response.
+    ``asyncio.gather``), each with a timeout, so one slow feature (a
+    third-party one, or a slow import such as LiteLLM) cannot hold the
+    whole response, and with it the Overview page.
     """
     features = list(get_features().values())
 
     async def _safe_info(f):
         try:
-            return await f.info()
+            return await asyncio.wait_for(f.info(), timeout=_FEATURE_INFO_TIMEOUT)
+        except asyncio.TimeoutError:
+            return {"name": f.name, "status": "timeout"}
         except Exception:
             return {"name": f.name, "status": "error"}
 
