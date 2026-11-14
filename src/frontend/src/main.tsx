@@ -1,4 +1,5 @@
 import './index.css'
+import { createChunkErrorHandler } from './chunkReload'
 
 // Boot entry (assets/index.js). It stays tiny: it only decides which UI to
 // load, and both choices are lazy chunks.
@@ -6,22 +7,30 @@ import './index.css'
 //   anything else (chat, docs, agents, playground, custom) -> legacy-app-entry
 // The vanilla `dashboard` style never loads this script at all.
 
-// A deploy replaces the hashed chunks. A tab still running the previous
-// index.js then fails to fetch a lazy chunk; reload once to pick up the new
-// build. The guard is keyed by this entry's URL (it carries ?v=<build>), so a
-// chunk that is missing in the *current* build cannot cause a reload loop.
-const RELOAD_KEY = 'aiuiReloadedFor'
-window.addEventListener('vite:preloadError', (event) => {
-  const build = import.meta.url
+// A failed lazy chunk: reload once only when the server now serves another
+// build (a deploy), never because the network is down (chunkReload.ts). The
+// error itself reaches the page's error boundary, whose Try again retries.
+function sessionStore(): Storage | null {
   try {
-    if (sessionStorage.getItem(RELOAD_KEY) === build) return
-    sessionStorage.setItem(RELOAD_KEY, build)
+    return window.sessionStorage
   } catch {
-    return // no sessionStorage: never risk an unguarded reload loop
+    return null
   }
-  event.preventDefault()
-  window.location.reload()
-})
+}
+window.addEventListener(
+  'vite:preloadError',
+  createChunkErrorHandler({
+    entryUrl: import.meta.url,
+    isOnline: () => navigator.onLine !== false,
+    fetchPage: () =>
+      fetch(window.location.pathname, { cache: 'no-store', credentials: 'same-origin' }).then((r) =>
+        r.ok ? r.text() : '',
+      ),
+    onOnline: (cb) => window.addEventListener('online', cb, { once: true }),
+    storage: sessionStore(),
+    reload: () => window.location.reload(),
+  }),
+)
 
 const rootEl = document.getElementById('root')
 
@@ -36,8 +45,9 @@ function bootFailed(err: unknown) {
   }
 }
 
-// When the preloadError handler above has scheduled a reload, Vite resolves
-// the import with `undefined` instead of rejecting, hence the `m &&` guards.
+// The preloadError handler never calls preventDefault, so a failed import
+// rejects into bootFailed. (Vite resolves a prevented one with `undefined`;
+// the `m &&` guards keep that case harmless.)
 if (rootEl) {
   if (document.documentElement.dataset.aiuiShell === 'react') {
     import('./shell/mount')

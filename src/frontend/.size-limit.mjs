@@ -39,7 +39,8 @@ export default [
   { name: 'shell boot (JS + CSS before first paint)', path: abs(bootAll), limit: '150 kB', gzip: true },
   { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '140 kB', gzip: true },
   { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '250 kB', gzip: true },
-  { name: 'index.css', path: abs(['assets/index.css']), limit: '32 kB', gzip: true },
+  // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
+  { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
   // 144.8 kB for this chunk. size-limit compresses with Node's zlib (Chromium's
   // fork), which gives 146.6 kB for the same bytes: 147 kB is that budget here.

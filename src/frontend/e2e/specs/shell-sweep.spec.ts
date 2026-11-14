@@ -175,7 +175,7 @@ test('every manifest page renders with no errors and no leaks', async ({ page },
   })
 
   let before = await leakSnapshot(page)
-  for (const { id, kind, apiEndpoint } of pages) {
+  for (const { id, title, kind, apiEndpoint } of pages) {
     const errorsBefore = errors.pageErrors.length
     const link = await sidebarLink(page, id)
     if ((await link.count()) !== 1) {
@@ -193,13 +193,57 @@ test('every manifest page renders with no errors and no leaks', async ({ page },
     await page.waitForTimeout(150)
     watchedEndpoint = ''
     if (state.state === 'ready' && apiErrors.length) state = { state: 'error', detail: `its data endpoint answered ${apiErrors[0]}` }
-    // Legacy pages share the shell's gutter: their first content box starts where every other page's does.
-    const gutter = await page.evaluate((pageId) => {
-      const host = document.querySelector(`[data-aiui-page="${CSS.escape(pageId)}"] .aiui-legacy-host:not(.db-fill)`)
-      const mount = host?.querySelector('.aiui-legacy-mount')
-      return mount ? Math.round(mount.getBoundingClientRect().left) : null
-    }, id)
-    if (gutter !== null) gutters.push({ id, left: gutter })
+    // Legacy pages share the shell's gutter and title: their first visible
+    // content box starts at the mount's left edge (no inner padding wrapper),
+    // and no visible h1/h2 repeats the title the shell header already shows.
+    const layout = await page.evaluate(
+      ({ pageId, title }) => {
+        const host = document.querySelector(`[data-aiui-page="${CSS.escape(pageId)}"] .aiui-legacy-host:not(.db-fill)`)
+        const mount = host?.querySelector('.aiui-legacy-mount')
+        if (!mount) return null
+        const visible = (el: Element) => {
+          const r = el.getBoundingClientRect()
+          if (r.width <= 2 || r.height <= 2) return false
+          const s = getComputedStyle(el)
+          return s.visibility !== 'hidden' && s.display !== 'none' && s.position !== 'fixed' && s.clip !== 'rect(0px, 0px, 0px, 0px)'
+        }
+        let left = Infinity
+        let first = ''
+        for (const el of mount.querySelectorAll('*')) {
+          if (!visible(el)) continue
+          const s = getComputedStyle(el)
+          const boxed = parseFloat(s.borderLeftWidth) > 0 || !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(s.backgroundColor)
+          const text = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())
+          const x = el.getBoundingClientRect().left
+          if ((boxed || text) && x < left) {
+            left = x
+            first = `${el.tagName.toLowerCase()}${el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : ''}`
+          }
+        }
+        const norm = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+        const want = norm(title)
+        const repeats = [...mount.querySelectorAll('h1, h2')]
+          .filter((h) => visible(h) && want && norm(h.textContent || '').includes(want))
+          .map((h) => (h.textContent || '').trim())
+        return {
+          mountLeft: Math.round(mount.getBoundingClientRect().left),
+          contentLeft: Number.isFinite(left) ? Math.round(left) : null,
+          first,
+          repeats,
+          headerShown: !!document.querySelector('[data-aiui-page-header="shown"]'),
+        }
+      },
+      { pageId: id, title },
+    )
+    if (layout) {
+      gutters.push({ id, left: layout.mountLeft })
+      if (layout.contentLeft !== null && Math.abs(layout.contentLeft - layout.mountLeft) > 1) {
+        failures.push(`${id}: content starts at x=${layout.contentLeft} (${layout.first}), not at the shell gutter x=${layout.mountLeft}`)
+      }
+      if (layout.headerShown && layout.repeats.length) {
+        failures.push(`${id}: a visible heading repeats the header title "${title}": ${JSON.stringify(layout.repeats)}`)
+      }
+    }
     await leaveAndSettle(page)
     const afterFirst = await leakSnapshot(page)
     const firstVisit = leakDelta(before, afterFirst)
@@ -335,6 +379,191 @@ test('the command palette opens with the keyboard and navigates', async ({ page 
   expect((await waitForPage(page, 'logs')).state).toBe('ready')
 })
 
+test('closing the palette gives focus back: typing in the composer continues, navigating lands on main', async ({ page }) => {
+  await page.goto('/chat')
+  const composer = page.getByRole('textbox', { name: 'Message' })
+  await composer.click()
+  await page.keyboard.type('draft ')
+  await page.keyboard.press('ControlOrMeta+k')
+  const search = page.getByRole('combobox', { name: 'Search pages and commands' })
+  await expect(search).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(search).toBeHidden()
+  await expect(composer).toBeFocused()
+  await page.keyboard.type('continues')
+  await expect(composer).toHaveValue('draft continues')
+
+  // From a button: back on the button.
+  const searchButton = page.getByRole('button', { name: 'Search pages and commands' }).first()
+  await searchButton.click()
+  await expect(search).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(searchButton).toBeFocused()
+
+  // Choosing a page: focus starts on the new page's main region, not <body>.
+  await page.keyboard.press('ControlOrMeta+k')
+  await search.fill('logs')
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/\/logs$/)
+  await expect(page.locator('#aiui-main')).toBeFocused()
+})
+
+test('the palette chunk is warmed only after the routed page has loaded', async ({ page }) => {
+  const events: string[] = []
+  page.on('request', (r) => {
+    if (/\/assets\/CommandPalette-[^/]+\.js$/.test(r.url())) events.push('palette requested')
+  })
+  page.on('requestfinished', (r) => {
+    if (/\/assets\/ChatPage-[^/]+\.js$/.test(r.url())) events.push('chat page loaded')
+  })
+  await page.goto('/chat')
+  await expect(page.getByRole('textbox', { name: 'Message' })).toBeVisible()
+  await expect.poll(() => events.includes('palette requested'), { timeout: 15_000 }).toBe(true)
+  expect(events.indexOf('chat page loaded'), JSON.stringify(events)).toBeGreaterThanOrEqual(0)
+  expect(events.indexOf('chat page loaded'), JSON.stringify(events)).toBeLessThan(events.indexOf('palette requested'))
+})
+
+test('the palette reopens with an empty query, and arrow keys wrap around the list', async ({ page }) => {
+  await page.goto('/overview')
+  expect((await waitForPage(page, 'overview')).state).toBe('ready')
+  const search = page.getByRole('combobox', { name: 'Search pages and commands' })
+  await page.keyboard.press('ControlOrMeta+k')
+  await search.fill('log')
+  await page.keyboard.press('Escape')
+  await expect(search).toBeHidden()
+  await page.keyboard.press('ControlOrMeta+k')
+  await expect(search).toHaveValue('')
+
+  const items = page.locator('[cmdk-item]')
+  const selected = page.locator('[cmdk-item][data-selected="true"]')
+  const first = await items.first().textContent()
+  const last = await items.last().textContent()
+  await expect(selected).toHaveText(first ?? '')
+  await page.keyboard.press('ArrowUp')
+  await expect(selected, 'ArrowUp on the first item wraps to the last').toHaveText(last ?? '')
+  await page.keyboard.press('ArrowDown')
+  await expect(selected, 'ArrowDown on the last item wraps to the first').toHaveText(first ?? '')
+})
+
+test('closing the mobile nav returns focus to the menu button', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/overview')
+  expect((await waitForPage(page, 'overview')).state).toBe('ready')
+  const menu = page.getByRole('button', { name: 'Open navigation' })
+  await menu.click()
+  const sheet = page.locator('[data-aiui-mobile-nav]')
+  await expect(sheet).toBeVisible()
+  // Functional motion (DESIGN.md): the sheet slides in within 200 ms, not shadcn's 500 ms.
+  const seconds = await sheet.evaluate((el) => parseFloat(getComputedStyle(el).animationDuration))
+  expect(seconds, 'sheet open animation').toBeLessThanOrEqual(0.2)
+  await page.keyboard.press('Escape')
+  await expect(sheet).toBeHidden()
+  await expect(menu).toBeFocused()
+  // Choosing a page in the sheet: focus lands on the new page's main region.
+  await menu.click()
+  await sheet.locator('a[data-page-id="logs"]').click()
+  await expect(page).toHaveURL(/\/logs$/)
+  await expect(sheet).toBeHidden()
+  await expect(page.locator('#aiui-main')).toBeFocused()
+})
+
+test('legacy pages share the gutter and width of a React page', async ({ page }) => {
+  /** Left edge and width of the page's first content box, and of its page area. */
+  const measure = (id: string) =>
+    page.evaluate((pageId) => {
+      const area = document.querySelector(`[data-aiui-page="${CSS.escape(pageId)}"]`)
+      if (!area) return null
+      // The React page's body or the legacy view's mount: the box the page's content lives in.
+      const body =
+        area.querySelector('.aiui-legacy-mount') ??
+        [...area.children].find((el) => !el.hasAttribute('data-aiui-slot') && el.getBoundingClientRect().height > 0)
+      if (!body) return null
+      const a = area.getBoundingClientRect()
+      const b = body.getBoundingClientRect()
+      const s = getComputedStyle(area)
+      // Where the first visible text or box inside it starts (an inner
+      // padding wrapper moves this off the gutter, not the body itself).
+      let content = Infinity
+      for (const el of body.querySelectorAll('*')) {
+        const r = el.getBoundingClientRect()
+        const cs = getComputedStyle(el)
+        if (r.width <= 2 || r.height <= 2 || cs.visibility === 'hidden' || cs.position === 'fixed' || cs.position === 'absolute') continue
+        const boxed = parseFloat(cs.borderLeftWidth) > 0 || !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(cs.backgroundColor)
+        const text = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())
+        if (boxed || text) content = Math.min(content, r.left)
+      }
+      return {
+        left: Math.round(b.left),
+        width: Math.round(b.width),
+        content: Number.isFinite(content) ? Math.round(content) : null,
+        gutter: Math.round(a.left + parseFloat(s.paddingLeft)),
+        measure: Math.round(a.width - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight)),
+      }
+    }, id)
+
+  await page.goto('/hello')
+  await expect(page.locator('[data-aiui-page="hello"]')).toContainText(/hello/i)
+  const react = await measure('hello')
+  expect(react, 'the React page area').not.toBeNull()
+  expect(react!.left, 'a React page starts at the shell gutter').toBe(react!.gutter)
+  // Data pages use the full page width; forms (config, theme-picker) keep a reading measure.
+  for (const id of ['logs', 'usage', 'channels', 'security', 'jobs']) {
+    await page.goto(`/${id}`)
+    expect((await waitForPage(page, id)).state, id).toBe('ready')
+    const legacy = await measure(id)
+    expect(legacy, `${id}: the legacy mount`).not.toBeNull()
+    // Same page area as the React page, and the view's mount fills it: no
+    // second gutter, no narrower max-width of its own.
+    expect(legacy!.gutter, `${id}: page area`).toBe(react!.gutter)
+    expect(legacy!.left, `${id}: gutter`).toBe(react!.gutter)
+    expect(legacy!.width, `${id}: width`).toBe(react!.measure)
+    expect(legacy!.content, `${id}: first content box`).toBe(react!.gutter)
+  }
+})
+
+test('Escape dismisses the collapsed rail tooltip, for keyboard focus and for hover', async ({ page }) => {
+  await page.goto('/overview')
+  expect((await waitForPage(page, 'overview')).state).toBe('ready')
+  const tip = page.locator('[data-aiui-nav-tip]')
+  await page.getByRole('button', { name: 'Collapse sidebar' }).click()
+  const link = page.locator('[data-aiui-shell-sidebar] a[data-page-id="logs"]')
+  // Logs sits below the fold of the rail: focusing it scrolls the rail, and the
+  // tooltip must follow the link rather than vanish (keyboard users).
+  await page.locator('[data-aiui-shell-sidebar] nav').evaluate((nav) => {
+    nav.scrollTop = 0
+  })
+  await link.focus()
+  await expect(tip).toHaveText('Logs')
+  const box = await link.boundingBox()
+  const tipBox = await tip.boundingBox()
+  expect(Math.abs(box!.y + box!.height / 2 - (tipBox!.y + tipBox!.height / 2)), 'next to the link').toBeLessThan(4)
+  await page.keyboard.press('Escape')
+  await expect(tip).toHaveCount(0)
+  await expect(link, 'focus stays on the link').toBeFocused()
+  await page.locator('[data-aiui-shell-sidebar] a[data-page-id="usage"]').hover()
+  await expect(tip).toHaveText('Usage')
+  await page.keyboard.press('Escape')
+  await expect(tip).toHaveCount(0)
+  await page.getByRole('button', { name: 'Expand sidebar' }).click()
+})
+
+test('the collapsed rail shows a tooltip that never survives a collapse toggle', async ({ page }) => {
+  await page.goto('/overview')
+  expect((await waitForPage(page, 'overview')).state).toBe('ready')
+  const tip = page.locator('[data-aiui-nav-tip]')
+  await page.getByRole('button', { name: 'Collapse sidebar' }).click()
+  const link = page.locator('[data-aiui-shell-sidebar] a[data-page-id="logs"]')
+  await link.focus()
+  await expect(tip).toHaveText('Logs')
+  // Toggle with the keyboard: focus stays on the link, so no blur clears the tip.
+  await page.keyboard.press('ControlOrMeta+b')
+  await expect(page.getByRole('button', { name: 'Collapse sidebar' })).toBeVisible()
+  await expect(tip).toHaveCount(0)
+  await page.keyboard.press('ControlOrMeta+b')
+  await expect(page.getByRole('button', { name: 'Expand sidebar' })).toBeVisible()
+  await expect(tip, 'a stale tooltip from before the toggle').toHaveCount(0)
+})
+
 test('a new approval raises a toast that opens the approvals page, except on chat', async ({ page }) => {
   const errors = collectPageErrors(page)
   const created: string[] = []
@@ -373,6 +602,54 @@ test('a new approval raises a toast that opens the approvals page, except on cha
   }
 })
 
+test('a page chunk that fails to load offline never reloads the tab, and Try again works once back online', async ({ page, context }) => {
+  const navigations: string[] = []
+  page.on('framenavigated', (f) => {
+    if (f === page.mainFrame()) navigations.push(f.url())
+  })
+  await page.goto('/hello')
+  await expect(page.locator('[data-aiui-page="hello"]')).toContainText(/hello/i)
+  const loads = navigations.length
+  // The legacy host chunk is not loaded yet on a React page: it is fetched on the first legacy page.
+  await context.setOffline(true)
+  await (await sidebarLink(page, 'sessions')).click()
+  // The page's error boundary renders in place of the page area.
+  const area = page.locator('#aiui-main')
+  await expect(area.getByRole('alert')).toContainText('failed to load')
+  await page.waitForTimeout(1500)
+  expect(navigations.filter((u) => u.startsWith('chrome-error')), 'never the browser offline page').toEqual([])
+  expect(navigations.slice(loads).every((u) => new URL(u).pathname === '/sessions'), JSON.stringify(navigations)).toBe(true)
+  await expect(page.locator('[data-aiui-shell-root]')).toBeVisible()
+
+  await context.setOffline(false)
+  await area.getByRole('button', { name: 'Try again' }).click()
+  expect((await waitForPage(page, 'sessions')).state).toBe('ready')
+  // The failed load did not poison the chunk for other legacy pages.
+  await (await sidebarLink(page, 'usage')).click()
+  expect((await waitForPage(page, 'usage')).state).toBe('ready')
+  expect(navigations.filter((u) => !u.startsWith('http')), 'no reload, no error page').toEqual([])
+})
+
+test('after a page chunk 404s, the next page of that kind loads once the chunk is back', async ({ page }) => {
+  // The chunk 404s until it is "redeployed" (React's own render retry fails too).
+  let broken = true
+  await page.route(/\/assets\/LegacyViewHost-[^/]+\.js$/, (route) =>
+    broken ? route.fulfill({ status: 404, body: 'gone' }) : route.continue(),
+  )
+  await page.goto('/hello')
+  await expect(page.locator('[data-aiui-page="hello"]')).toContainText(/hello/i)
+  await (await sidebarLink(page, 'sessions')).click()
+  // The page's error boundary renders in place of the page area.
+  const area = page.locator('#aiui-main')
+  await expect(area.getByRole('alert')).toContainText('failed to load')
+  broken = false
+  // No Try again: simply opening another legacy page imports the chunk again.
+  await (await sidebarLink(page, 'usage')).click()
+  expect((await waitForPage(page, 'usage')).state).toBe('ready')
+  await (await sidebarLink(page, 'sessions')).click()
+  expect((await waitForPage(page, 'sessions')).state).toBe('ready')
+})
+
 test('a 5xx from /api/auth/status never covers the shell with the legacy onboarding wizard', async ({ page }) => {
   await page.route('**/api/auth/status', (route) => route.fulfill({ status: 502, body: 'Bad Gateway' }))
   await page.goto('/overview')
@@ -398,3 +675,4 @@ test('overview says when its data failed to load, with a retry', async ({ page }
   await expect(area.locator('[data-ov-error="agents"]')).toContainText('Agents could not be loaded')
   await expect(area).not.toContainText('No agents registered yet')
 })
+

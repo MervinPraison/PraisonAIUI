@@ -186,7 +186,10 @@ static fallbacks). Charts 2–5 rotate the accent hue by 72° steps.
 - Z ladder (use the tokens for app-level layers; local stacking stays
   `z-10`/`z-20`): `--z-sticky` 20 · `--z-header` 30 · `--z-sidebar` 40 ·
   `--z-overlay` 50 · `--z-modal` 60 · `--z-popover` 70 · `--z-toast` 80 ·
-  `--z-tooltip` 90 · `--z-command` 100 · `--z-blocking` 1000.
+  `--z-tooltip` 90 · `--z-command` 100 · `--z-blocking` 1000. Shell code uses
+  them (rail tooltip, floating menu button, skip link, toaster); the radix
+  primitives in `components/ui` still use shadcn's `z-50` and stack in portal
+  order, which is correct as long as only one modal layer is open.
 
 ## Motion
 
@@ -220,20 +223,22 @@ padding or icon sizes at the call site.
 | --- | --- |
 | `Spinner` | `size: sm \| default \| lg`, `tone: current \| muted`; `role=status`, `aria-label="Loading"` by default |
 | `Skeleton` | `bg-fill-3` pulse; size it with layout classes only |
-| `Empty` (+ `EmptyHeader/Media/Title/Description/Content`) | the only empty state; `EmptyMedia variant="icon"` for the icon tile |
+| `EmptyState` (`shell/primitives.tsx`) | the only empty state in the shell: icon tile, title, description, actions; `role="alert"` for failures |
 | `Kbd`, `KbdGroup` | keyboard hints (`⌘K`, `Enter`); 20px tall, `text-2xs` |
-| `Badge` | `default \| secondary \| outline \| destructive`; status pills |
+| `Badge` | `default \| secondary \| outline \| destructive`; labels and counts. The chat tool row's status pill is hand-built in the chat chunk (it carries the run state colours) |
 | `Input`, `Textarea` | 32px input, `border-input`, 2px focus ring; 16px text on mobile (no iOS zoom), 14px from `md` |
-| `Collapsible` | tool rows, reasoning rows, sidebar groups |
-| `Sidebar` (+ provider, groups, menu) | shadcn sidebar, 240px, `⌘B` toggle, icon rail when collapsed |
-| `Toaster` (`sonner.tsx`) | toasts on `--popover` with `shadow-float`, `z-index: var(--z-toast)`; wrap in next-themes `ThemeProvider` (`attribute="class"`, `storageKey="aiui-theme-preference"`) |
-| `Dialog`, `Popover`, `DropdownMenu`, `Select`, `HoverCard` | floating surfaces: `border-hairline` + `shadow-md/lg`, radius `lg`/`xl` |
+| Disclosures | tool rows and reasoning rows use native `<details>`-style toggles in the chat chunk; sidebar groups are buttons with `aria-expanded` (no radix Collapsible) |
+| Shell sidebar (`shell/Sidebar.tsx`) | hand-built, not the shadcn `sidebar`: that one statically imports Sheet and Tooltip, which would put radix Dialog and Popper on the boot path (boot budget 150 kB). 240px, `⌘B` toggle, icon rail with its own tooltip (Escape dismisses it) when collapsed; the phone sheet (`shell/MobileNav.tsx`) is a lazy chunk |
+| `ShellToaster` (`shell/ShellToaster.tsx`) | sonner toasts on `--popover` with `shadow-float`, `z-index: var(--z-toast)`; lazy (the first `notify()` mounts it), themed by next-themes (`attribute="class"`, `storageKey="aiui-theme-preference"`) |
+| `Dialog`, `Sheet`, `Popover`, `DropdownMenu`, `Select`, `Command` | floating surfaces: `border-hairline` + `shadow-md/lg`, radius `lg`/`xl` |
 
-Generated shadcn files are ours. Refresh them with care: never run
-`shadcn add -o` over existing components (it bumps recharts, react-day-picker
-and the resizable-panels API), keep `cn` from `@/lib/utils` (not the `cn`
-package), keep `radix-ui` pinned, and delete the `:root/.dark --sidebar: hsl(…)`
-block the CLI appends to `index.css`.
+Generated shadcn files are ours. Add a component only when something imports
+it (unused ones were removed with their dependencies: calendar, carousel,
+chart, resizable, sidebar, …). Refresh with care: never run `shadcn add -o`
+over existing components, keep `cn` from `@/lib/utils` (not the `cn` package;
+it extends tailwind-merge with the theme's `shadow-float/overlay` and
+`max-w-reading`), keep `radix-ui` pinned, and delete the
+`:root/.dark --sidebar: hsl(…)` block the CLI appends to `index.css`.
 
 ## Chat idiom
 

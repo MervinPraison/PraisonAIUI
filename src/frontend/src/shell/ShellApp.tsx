@@ -13,7 +13,7 @@ import { BootError, BootSkeleton, TokenGate } from './BootScreen'
 import { ShellContext, type ShellState } from './context'
 import { shellDefaultTheme } from './defaultTheme'
 import { needsLegacyRuntime } from './nav'
-import { preloadCommandPalette } from './palette'
+import { afterFirstPage, preloadCommandPalette } from './palette'
 import ReactShell from './ReactShell'
 
 const ShellToaster = lazy(() => import('./ShellToaster'))
@@ -63,11 +63,15 @@ function ShellReady({ manifest }: { manifest: ShellManifest }) {
       // Only when a page will actually use it: an app whose pages are all
       // React, blocks or iframes never downloads dashboard.js.
       if (needsLegacyRuntime(manifest, (id) => getPage(id) !== undefined)) preloadLegacyRuntime()
-      preloadCommandPalette()
     })
+    // The palette is warmed only once the routed page is on screen, so its
+    // chunks never compete with the page's (on /chat they used to load
+    // alongside ChatPage and delay the composer).
+    const cancelPalette = afterFirstPage(() => onIdle(preloadCommandPalette))
     return () => {
       alive = false
       cancelIdle()
+      cancelPalette()
     }
   }, [manifest])
 

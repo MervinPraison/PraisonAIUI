@@ -9,15 +9,15 @@
  */
 import { Plus } from 'lucide-react'
 import { registerChatPage } from '@/chat-engine/register'
-import { currentPageId, whenPageShown } from './page'
+import { whenPageShown } from './page'
 import type { BuiltinPlugin, BuiltinSdk } from './types'
 
 const CHAT_PAGE = 'chat'
 
 /** Open chat on a fresh session: navigate, wait for the chat view to mount, then ask it to reset. */
-export function startNewChat(sdk: Pick<BuiltinSdk, 'navigate'>, pageId = CHAT_PAGE): void {
+export function startNewChat(sdk: Pick<BuiltinSdk, 'navigate' | 'getPageId'>, pageId = CHAT_PAGE): void {
   const fire = () => window.dispatchEvent(new CustomEvent('aiui:session-select', { detail: { sessionId: null } }))
-  if (currentPageId() === pageId) {
+  if (sdk.getPageId() === pageId) {
     fire()
     return
   }

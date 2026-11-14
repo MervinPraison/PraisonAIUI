@@ -6,7 +6,8 @@
  *
  * FROZEN CONTRACT: change only additively.
  */
-import { lazy, useSyncExternalStore, type ComponentType } from 'react'
+import { useSyncExternalStore, type ComponentType } from 'react'
+import { retryableLazy } from '@/lib/retryableLazy'
 import type { ShellPage } from './manifest'
 
 export interface BlockNode {
@@ -113,7 +114,8 @@ function looksLikeLoader(c: unknown): boolean {
 }
 
 function lazyPage(load: () => unknown, fallbackComponent: PageComponent): PageComponent {
-  return lazy(async () => {
+  // Retryable: a failed chunk load is imported again on the next mount.
+  return retryableLazy(async () => {
     let result: unknown
     try {
       result = load()

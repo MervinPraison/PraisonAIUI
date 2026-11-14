@@ -9,7 +9,18 @@ import { ChevronRight, PanelLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
-import { footerPages, groupPages, isGroupOpen, readGroupState, revealInScroller, siteLogo, siteTitle, writeGroupState } from './nav'
+import {
+  footerPages,
+  groupPages,
+  isGroupOpen,
+  navGroups,
+  readGroupState,
+  revealInScroller,
+  siteLogo,
+  siteTitle,
+  writeGroupState,
+  type NavGroupsConfig,
+} from './nav'
 import { PageIcon } from './PageIcon'
 import { isPlainLeftClick, navigate, pathForPage } from './router'
 import { SHELL_SLOTS, Slot } from './Slot'
@@ -73,27 +84,54 @@ function NavItem({
  */
 export function SidebarNav({
   pages,
+  groupConfig,
   activeId,
   collapsed = false,
   onNavigate,
   className,
 }: {
   pages: readonly ShellPage[]
+  /** The manifest's `layout.groups` (navGroups()): group order and which start folded. */
+  groupConfig?: NavGroupsConfig
   activeId: string
   collapsed?: boolean
   onNavigate?: () => void
   className?: string
 }) {
-  const groups = useMemo(() => groupPages(pages), [pages])
+  const groups = useMemo(() => groupPages(pages, groupConfig), [pages, groupConfig])
   const footer = useMemo(() => footerPages(pages), [pages])
   const navRef = useRef<HTMLElement>(null)
   const [folds, setFolds] = useState<Record<string, boolean>>(readGroupState)
-  const [tip, setTip] = useState<{ title: string; top: number; left: number } | null>(null)
+  const [tip, setTip] = useState<{ title: string; top: number; left: number; anchor: HTMLElement } | null>(null)
   const onTip = useCallback<TipHandler>((page, anchor) => {
     if (!page || !anchor) return setTip(null)
     const r = anchor.getBoundingClientRect()
-    setTip({ title: page.title, top: r.top + r.height / 2, left: r.right + 8 })
+    setTip({ title: page.title, top: r.top + r.height / 2, left: r.right + 8, anchor })
   }, [])
+  // The rail scrolled: follow the link while it still has focus or the
+  // pointer (focusing a link below the fold scrolls the rail, and a keyboard
+  // user must still see its name); otherwise drop the tooltip.
+  const onRailScroll = () => {
+    if (!tip) return
+    const { anchor } = tip
+    if (anchor.isConnected && (anchor === document.activeElement || anchor.matches(':hover'))) {
+      const r = anchor.getBoundingClientRect()
+      setTip({ ...tip, top: r.top + r.height / 2, left: r.right + 8 })
+    } else {
+      setTip(null)
+    }
+  }
+  // WCAG 1.4.13: Escape dismisses the tooltip without moving the pointer or
+  // focus (shown by hover or by keyboard focus on a rail link).
+  const tipShown = tip !== null
+  useEffect(() => {
+    if (!tipShown) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setTip(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [tipShown])
   const toggleGroup = (name: string, open: boolean) => {
     setFolds((cur) => {
       const next = { ...cur, [name]: !open }
@@ -123,13 +161,13 @@ export function SidebarNav({
       <nav
         ref={navRef}
         aria-label="Pages"
-        onScroll={tip ? () => setTip(null) : undefined}
+        onScroll={tip ? onRailScroll : undefined}
         // A fade under the brand row: scrolled items never butt against it.
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-3 [mask-image:linear-gradient(to_bottom,transparent,#000_12px)]"
       >
         {groups.map((group, i) => {
           const hasActive = group.pages.some((p) => p.id === activeId)
-          const open = collapsed || isGroupOpen(group.name, hasActive, folds)
+          const open = collapsed || isGroupOpen(group.name, hasActive, folds, groupConfig?.folded)
           const listId = `aiui-nav-group-${i}`
           return (
             <section key={group.name} aria-label={group.name}>
@@ -226,6 +264,7 @@ export function AppSidebar({
   onToggleCollapsed: () => void
   className?: string
 }) {
+  const groupConfig = useMemo(() => navGroups(manifest), [manifest])
   return (
     <aside
       aria-label="Sidebar"
@@ -251,7 +290,7 @@ export function AppSidebar({
           <PanelLeft />
         </Button>
       </div>
-      <SidebarNav pages={manifest.pages} activeId={activeId} collapsed={collapsed} />
+      <SidebarNav pages={manifest.pages} groupConfig={groupConfig} activeId={activeId} collapsed={collapsed} />
     </aside>
   )
 }

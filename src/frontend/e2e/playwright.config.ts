@@ -20,6 +20,11 @@
  *   AIUI_E2E_BASELINE_SRC  a checkout of v0.3.153 (git worktree of 6bdf6f0);
  *                          enables the legacy-baseline project, which writes
  *                          e2e/__baseline__/<platform>/ (npm run test:e2e:baseline)
+ *
+ * CI runs the suites in parallel jobs (`--shard=i/n`): there every test is
+ * its own unit of distribution (fullyParallel; each job still runs one worker,
+ * so tests in a job never overlap), and each job writes a blob report to
+ * e2e/.blob/ that a final job merges (`npx playwright merge-reports`).
  */
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -29,6 +34,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 const BASE_PORT = Number(process.env.AIUI_E2E_PORT || 8720)
 const BASELINE_SRC = process.env.AIUI_E2E_BASELINE_SRC || ''
 const REUSE = process.env.AIUI_E2E_REUSE === '1'
+const CI = !!process.env.CI
 
 const PORTS = {
   legacy: BASE_PORT,
@@ -64,12 +70,15 @@ export default defineConfig({
   // (legacy-baseline) and the one that compares (dashboard-legacy), and are
   // kept per platform: font rendering differs between macOS and Linux.
   snapshotPathTemplate: path.join(HERE, '__baseline__', '{platform}', '{arg}{ext}'),
-  fullyParallel: false,
+  // Shards split by test, not by file: the shell sweep alone is a third of the run.
+  fullyParallel: CI,
   workers: 1,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  forbidOnly: CI,
+  retries: CI ? 1 : 0,
   timeout: 60_000,
-  reporter: [['list'], ['html', { outputFolder: path.join(HERE, '.report'), open: 'never' }]],
+  reporter: CI
+    ? [['list'], ['blob', { outputDir: path.join(HERE, '.blob') }]]
+    : [['list'], ['html', { outputFolder: path.join(HERE, '.report'), open: 'never' }]],
   expect: {
     timeout: 15_000,
     toHaveScreenshot: { animations: 'disabled', caret: 'hide', scale: 'css' },
