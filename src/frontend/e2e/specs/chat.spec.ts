@@ -495,6 +495,23 @@ test('session rail rename and delete keep keyboard focus in the rail', async ({ 
   expect(await focusedLabel()).not.toContain(title)
 })
 
+test('a file dropped on the composer is attached', async ({ page }) => {
+  await openChat(page, 'ws')
+  const dataTransfer = await page.evaluateHandle(() => {
+    const dt = new DataTransfer()
+    dt.items.add(new File(['hello from a dropped file'], 'notes.txt', { type: 'text/plain' }))
+    return dt
+  })
+  const target = composer(page)
+  await target.dispatchEvent('dragenter', { dataTransfer })
+  await target.dispatchEvent('dragover', { dataTransfer })
+  await expect(page.locator('[data-aiui-dropzone][data-dragging]')).toHaveCount(1)
+  await target.dispatchEvent('drop', { dataTransfer })
+  await expect(page.getByRole('button', { name: 'Remove attachment' })).toBeVisible()
+  await expect(page.locator('[data-aiui-thread]')).toContainText('notes.txt')
+  await expect(page.locator('[data-aiui-dropzone][data-dragging]')).toHaveCount(0)
+})
+
 test.describe('phone session rail', () => {
   test.use({ viewport: { width: 390, height: 800 } })
 

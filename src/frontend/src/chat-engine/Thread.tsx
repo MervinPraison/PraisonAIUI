@@ -563,7 +563,7 @@ const Composer: FC<{ placeholder?: string; notice?: ComposerNotice | null }> = (
         )}
       </div>
     )}
-    <ComposerPrimitive.Root className="flex w-full min-w-0 flex-col rounded-xl border border-border bg-background shadow-sm motion-safe:transition-shadow motion-safe:duration-[120ms] focus-within:border-ring/30 focus-within:shadow-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/30">
+    <ComposerPrimitive.Root className="flex w-full min-w-0 flex-col rounded-xl border border-border bg-background shadow-sm motion-safe:transition-shadow motion-safe:duration-[120ms] focus-within:border-ring/30 focus-within:shadow-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/30 group-data-[dragging]/drop:border-ring/60 group-data-[dragging]/drop:ring-2 group-data-[dragging]/drop:ring-ring/40">
       <div className="flex flex-wrap gap-1.5 px-3 pt-2.5 empty:hidden">
         <ComposerPrimitive.Attachments>{() => <ComposerAttachment />}</ComposerPrimitive.Attachments>
       </div>
@@ -666,7 +666,9 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
   return (
     <SessionIdContext.Provider value={sessionId}>
     <PartsContext.Provider value={parts}>
-    <ThreadPrimitive.Root className="flex h-full min-h-0 min-w-0 flex-col bg-background text-foreground">
+    {/* A file dropped anywhere on the thread is attached (same adapter, 10 MB check, notice). */}
+    <ComposerPrimitive.AttachmentDropzone asChild>
+    <ThreadPrimitive.Root className="group/drop flex h-full min-h-0 min-w-0 flex-col bg-background text-foreground" data-aiui-dropzone>
       <ThreadPrimitive.Viewport autoScroll className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-4 sm:px-6" data-aiui-thread>
         {loading ? (
           <ThreadSkeleton />
@@ -734,6 +736,7 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
+    </ComposerPrimitive.AttachmentDropzone>
     </PartsContext.Provider>
     </SessionIdContext.Provider>
   )
