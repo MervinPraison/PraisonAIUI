@@ -518,7 +518,7 @@ NOT_DEFAULT = {"AudioFeature", "LifecycleFeature", "WindowMessageFeature"}
 # Feature classes whose records gate on a layout (ADR 0003 ``for_layouts``):
 # off unless a layout that needs them is available, so not in the default
 # set (their records: tests/unit/test_run_ledger.py).
-LAYOUT_GATED = {"RunLedgerFeature"}
+LAYOUT_GATED = {"ArtifactsFeature", "RunLedgerFeature"}
 FEATURES_DIR = Path(srv.__file__).parent / "features"
 
 
