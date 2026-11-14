@@ -422,6 +422,22 @@ test('the chat page has one h1 (the shell header); the chat title is an h2', asy
   await expect(page.locator('h2[data-chat-title]')).toHaveText('New chat')
 })
 
+test('tool and reasoning rows are disclosures: aria-controls names the panel they open', async ({ page }) => {
+  await openChat(page, 'ws')
+  await send(page, 'disclose this')
+  await waitForRunEnd(page)
+  const reply = assistant(page).last()
+  for (const row of [reply.locator('[data-tool="web_search"]'), reply.locator('[data-part="reasoning"]')]) {
+    const button = row.locator('button[aria-expanded]').first()
+    await expect(button).toHaveAttribute('aria-expanded', 'false')
+    await button.click()
+    await expect(button).toHaveAttribute('aria-expanded', 'true')
+    const id = await button.getAttribute('aria-controls')
+    expect(id, 'aria-controls').toBeTruthy()
+    await expect(row.locator(`[id="${id}"]`)).toBeVisible()
+  }
+})
+
 test.describe('phone session rail', () => {
   test.use({ viewport: { width: 390, height: 800 } })
 

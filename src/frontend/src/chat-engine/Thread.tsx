@@ -12,7 +12,7 @@
  *   first text arrives.
  * - Element, ask and A2UI parts are lazy chunks.
  */
-import { createContext, lazy, memo, useContext, useMemo, useState, type ComponentType, type FC, type MouseEvent, type ReactElement } from 'react'
+import { createContext, lazy, memo, useContext, useId, useMemo, useState, type ComponentType, type FC, type MouseEvent, type ReactElement } from 'react'
 import {
   ActionBarPrimitive,
   AttachmentPrimitive,
@@ -67,6 +67,9 @@ const TextPart: FC = () => {
 
 const Reasoning: FC<ReasoningMessagePartProps> = ({ text, status, timing }) => {
   const [open, setOpen] = useState(false)
+  // A native disclosure (aria-expanded + aria-controls): radix Collapsible
+  // would cost ~1.5-3.8 kB gzip on a chat route near its budget.
+  const panelId = useId()
   const done = Boolean(timing?.completedAt) || status.type !== 'running'
   const body = text.replace(/\u200b/g, '').trim()
   const took = timing?.completedAt && timing.startedAt ? formatDuration(timing.completedAt - timing.startedAt) : ''
@@ -78,6 +81,7 @@ const Reasoning: FC<ReasoningMessagePartProps> = ({ text, status, timing }) => {
         onClick={() => setOpen((v) => !v)}
         disabled={!body}
         aria-expanded={open}
+        aria-controls={open && body ? panelId : undefined}
         className="-mx-1.5 flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:hover:text-muted-foreground"
       >
         {done ? <Brain className="size-4" aria-hidden /> : <Spinner className="size-3.5" />}
@@ -87,7 +91,7 @@ const Reasoning: FC<ReasoningMessagePartProps> = ({ text, status, timing }) => {
         )}
       </button>
       {open && body && (
-        <div className="mt-1 ml-2 min-w-0 border-l border-border pl-4 text-sm leading-relaxed break-words text-muted-foreground" data-reasoning-body>
+        <div id={panelId} className="mt-1 ml-2 min-w-0 border-l border-border pl-4 text-sm leading-relaxed break-words text-muted-foreground" data-reasoning-body>
           <Markdown variant="chat" streaming={!done} className="min-w-0 max-w-full text-sm text-muted-foreground">
             {body}
           </Markdown>
@@ -219,6 +223,7 @@ const TOOL_PRE =
 const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
   const { toolName, args, result, artifact, approval, respondToApproval, timing } = props
   const [open, setOpen] = useState(false)
+  const panelId = useId()
   const sessionId = useContext(SessionIdContext)
   const a = (artifact ?? {}) as Record<string, unknown>
   const state = toolState(props)
@@ -243,6 +248,7 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
         className="flex h-8 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
       >
         <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground" aria-hidden>
@@ -269,7 +275,7 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
         />
       )}
       {open && (
-        <div className="space-y-3 px-3 pt-1 pb-3">
+        <div id={panelId} className="space-y-3 px-3 pt-1 pb-3">
           {description && <p className="text-xs break-words text-muted-foreground sm:hidden">{description}</p>}
           <div>
             <div className="mb-1 text-xs font-medium text-muted-foreground">Arguments</div>
