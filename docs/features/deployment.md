@@ -102,11 +102,30 @@ The other auth modes gate WebSockets as well: URL-token mode
 or a ticket; `create_app(require_auth=True)` / YAML `auth.requireAuth` checks
 session tokens on every route and socket except the public surface above.
 
-Under `require_auth`, `POST /register` is not public: creating an account needs
-an existing session, because registering returns a session token. Seed the
-first users from your app with `praisonaiui.auth.register_user(name, password)`,
-or opt in to open self-signup with `create_app(require_auth=True,
-allow_signup=True)` / YAML `auth.allowSignup: true`.
+### Self-registration under `requireAuth`
+
+A token from `POST /register` passes the `requireAuth` check, so registration is
+closed by default. `POST /register` is accepted only:
+
+- for the **first user**: while no account exists (and no login, password,
+  header or OAuth callback is registered), the first registration creates it;
+- from a **signed-in user** (`Authorization: Bearer <session token>`), to add
+  an account;
+- for **anyone** when the config opts in:
+
+```yaml
+auth:
+  requireAuth: true
+  allowSignup: true   # open sign-up: any visitor can register and sign in
+```
+
+(`create_app(config={"auth": {"requireAuth": True, "allowSignup": True}})` from
+Python.) Otherwise it returns `403 {"error": "Registration is closed"}`.
+Accounts live in memory, so after a restart the first-user window is open
+again until someone registers; create the admin in your app at startup
+(`praisonaiui.auth.register_user("admin", password)`) to close it. Under
+`AUTH_ENFORCE` and URL-token mode `/register` already needs the API key or URL
+token, as before; with no auth mode it stays open.
 
 ## Configuration
 

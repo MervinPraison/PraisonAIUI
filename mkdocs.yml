@@ -53,7 +53,7 @@ plugins:
             show_source: true
 
 hooks:
-  - docs_hooks.py
+  - scripts/docs_hooks.py
 
 markdown_extensions:
   - pymdownx.highlight:

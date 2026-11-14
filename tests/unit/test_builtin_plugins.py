@@ -799,6 +799,22 @@ def test_config_yaml_pages_does_not_outlive_its_config(_isolated):
     assert "usage" in {p["id"] for p in _api_pages(_client())}
 
 
+def test_bad_config_yaml_pages_section_is_ignored_with_a_warning(_isolated, monkeypatch, caplog):
+    real = config_store.YAMLConfigStore.get_section
+
+    def boom(self, key):
+        if key == "pages":
+            raise RuntimeError("corrupt section")
+        return real(self, key)
+
+    # create_app() may build a fresh store, so patch the class, not one instance.
+    monkeypatch.setattr(config_store.YAMLConfigStore, "get_section", boom)
+    with caplog.at_level("WARNING"):
+        ids = {p["id"] for p in _builtin_only(_api_pages(_client()))}
+    assert "chat" in ids  # server still starts with every page
+    assert "config.yaml pages: could not be read" in caplog.text
+
+
 # ── host-owned built-in routes (builtin.mcp / debug / logs) ──────────
 
 HOST_ROUTES = {

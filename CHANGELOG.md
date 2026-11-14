@@ -43,6 +43,11 @@
 - URL-token mode (`AIUI_REQUIRE_TOKEN`) and `require_auth=True` / YAML
   `auth.requireAuth` now gate WebSocket handshakes; `require_auth` no longer
   exempts every path.
+- Under `require_auth=True` / YAML `auth.requireAuth`, `POST /register` is
+  closed by default: it registers only the first user, or a signed-in user
+  adding an account, unless YAML `auth.allowSignup: true` opens sign-up to
+  anyone. It used to give any visitor a token that passed the auth check.
+  See [Deployment → Self-registration](docs/features/deployment.md#self-registration-under-requireauth).
 - WebSocket clients exchange the stored key for a single-use ticket
   (`POST /api/auth/ws-ticket`); `?token=` values are redacted from the logs.
 - Only the connection that started a turn in a session may stop it or answer

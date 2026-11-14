@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-import httpx
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
+
+if TYPE_CHECKING:  # httpx is only needed when the proxy is configured and used
+    import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +89,14 @@ async def _proxy_jobs(request: Request) -> Response:
     target = f"{upstream}/api/v1/runs{suffix}"
     if request.url.query:
         target = f"{target}?{request.url.query}"
+
+    try:
+        import httpx  # lazy: a plain `pip install aiui` does not ship httpx
+    except ImportError:
+        return JSONResponse(
+            {"error": "Jobs proxy needs the httpx package: pip install httpx"},
+            status_code=501,
+        )
 
     body = await request.body()
     try:

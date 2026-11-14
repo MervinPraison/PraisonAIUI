@@ -415,7 +415,7 @@ class AuthConfig(BaseModel):
     )
     oauth: list[AuthProviderConfig] = Field(default_factory=list)
     require_auth: bool = Field(default=False, alias="requireAuth")
-    # With require_auth, POST /register needs a session unless this is set.
+    # With requireAuth, POST /register is open only for the first user unless this is set.
     allow_signup: bool = Field(default=False, alias="allowSignup")
     url_token: Optional[str] = Field(default=None, alias="urlToken")
     url_token_env: Optional[str] = Field(

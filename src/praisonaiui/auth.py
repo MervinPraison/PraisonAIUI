@@ -126,9 +126,42 @@ async def handle_login(username: str, password: str) -> Optional[dict[str, Any]]
     return None
 
 
+def allow_signup_from_config(config: Optional[dict]) -> bool:
+    """YAML ``auth.allowSignup``: anyone may register while auth is required."""
+    auth_cfg = (config or {}).get("auth") or {}
+    return bool(auth_cfg.get("allowSignup") or auth_cfg.get("allow_signup"))
+
+
+def signup_bootstrap_open() -> bool:
+    """True while no account exists and no login callback owns the accounts,
+    so the first ``POST /register`` creates the first user (the admin)."""
+    return not _users and not (
+        _login_callback or _password_auth_callback or _header_auth_callback or _oauth_callbacks
+    )
+
+
+_SIGNUP_BOOTSTRAP = "aiui_signup_bootstrap"
+
+
+def _signup_closed() -> JSONResponse:
+    return JSONResponse(
+        {
+            "error": "Registration is closed",
+            "hint": "Sign in first, or ask an existing user to create the account. "
+            "Set auth.allowSignup: true to let anyone register.",
+        },
+        status_code=403,
+    )
+
+
 class AuthMiddleware:
     """Session-token authentication (``create_app(require_auth=True)`` or YAML
     ``auth.requireAuth``).
+
+    ``/register`` is closed to anonymous callers (a token it returns passes
+    this middleware): it is open only for the first user
+    (:func:`signup_bootstrap_open`), with *allow_signup* (YAML
+    ``auth.allowSignup``), or to a caller with a valid session token.
 
     Pure ASGI, so WebSocket handshakes are gated too (``BaseHTTPMiddleware``
     never sees them). A request passes when its path is in *exclude_paths*,
@@ -140,14 +173,19 @@ class AuthMiddleware:
 
     *exclude_paths* entries match exactly; an entry ending in ``/`` matches
     that prefix. (Prefix matching of ``"/"`` used to exclude every path.)
-    ``/register`` is not excluded by default: it returns a session token, so
-    leaving it open would let anyone sign themselves in.
     """
 
-    def __init__(self, app, require_auth: bool = False, exclude_paths: list[str] = None):
+    def __init__(
+        self,
+        app,
+        require_auth: bool = False,
+        exclude_paths: list[str] = None,
+        allow_signup: bool = False,
+    ):
         self.app = app
         self.require_auth = require_auth
-        self.exclude_paths = list(exclude_paths or ["/health", "/login"])
+        self.exclude_paths = list(exclude_paths or ["/health", "/login", "/register"])
+        self.allow_signup = allow_signup
 
     def _excluded(self, path: str) -> bool:
         for p in self.exclude_paths:
@@ -169,6 +207,18 @@ class AuthMiddleware:
         )
 
         path = scope.get("path", "")
+        if kind == "http" and path == "/register":
+            state = scope.setdefault("state", {})
+            user_id = validate_token(bearer_token(scope))
+            if user_id:
+                state["user_id"] = user_id
+            elif not self.allow_signup:
+                if not signup_bootstrap_open():
+                    await _signup_closed()(scope, receive, send)
+                    return
+                state[_SIGNUP_BOOTSTRAP] = True
+            await self.app(scope, receive, send)
+            return
         if self._excluded(path):
             await self.app(scope, receive, send)
             return
@@ -222,6 +272,10 @@ async def register_handler(request: Request) -> JSONResponse:
 
     if not username or not password:
         return JSONResponse({"error": "Username and password required"}, status_code=400)
+
+    # Admitted as the first user: another request may have won the race.
+    if request.scope.get("state", {}).get(_SIGNUP_BOOTSTRAP) and not signup_bootstrap_open():
+        return _signup_closed()
 
     try:
         user = register_user(username, password)

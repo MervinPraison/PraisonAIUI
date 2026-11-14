@@ -2,10 +2,20 @@
 
 Machine-readable context for AI coding agents.
 
+## Read first
+
+- [`ARCHITECTURE.md`](ARCHITECTURE.md): layer map, the numbered rules (R1-R16),
+  the stack table and the PR review checklist. Every PR is reviewed against it.
+- [`prd.md`](prd.md): current product requirements (top section) and flip criteria.
+- [`src/frontend/DESIGN.md`](src/frontend/DESIGN.md): visual rules and tokens for any UI change.
+
 ## Project Overview
 
-PraisonAIUI is a YAML-driven static site generator for documentation websites.
-It compiles `aiui.template.yaml` into a React SPA with a Starlette+Uvicorn server.
+PraisonAIUI (PyPI `aiui`, import `praisonaiui`) is a Python package and
+Starlette+Uvicorn server that gives AI agents a web UI: the default vanilla-JS
+`dashboard` style, an opt-in React app shell (`style: app`), React chat/agents/
+playground styles, and a YAML-driven docs site (`aiui build`). Pages and
+features extend through UI plugins (see `docs/features/plugins.md`).
 
 ## Quick Commands
 
@@ -13,7 +23,7 @@ It compiles `aiui.template.yaml` into a React SPA with a Starlette+Uvicorn serve
 # Setup
 pip install -e ".[dev]"
 
-# Lint
+# Lint (CI runs `ruff check src/praisonaiui`)
 ruff check src/ tests/
 
 # Test (all)
@@ -46,8 +56,13 @@ aiui serve --output aiui-output/ --ssl-certfile cert.pem --ssl-keyfile key.pem
 ```
 PraisonAIUI/
 ├── src/
-│   ├── praisonaiui/             # Python package (PyPI: praisonaiui)
-│   │   ├── cli.py               # Typer CLI: init, validate, build, serve, dev
+│   ├── praisonaiui/             # Python package (PyPI: aiui)
+│   │   ├── cli.py               # Typer CLI: run, build, serve, plugins, doctor, …
+│   │   ├── server.py            # Starlette host: create_app, HTML, shell manifest
+│   │   ├── plugin_registry.py   # UI plugin registry + ExtensionPolicy (entry points)
+│   │   ├── builtin/             # First-party plugin records (catalog.py: pages + features)
+│   │   ├── features/            # Feature protocols (domain APIs)
+│   │   ├── http_guard.py        # Public surface, WS tickets, origin guard, log redaction
 │   │   ├── compiler/
 │   │   │   ├── compiler.py      # Config → JSON manifest compiler
 │   │   │   ├── docs_scanner.py  # Markdown scanner with frontmatter
@@ -55,14 +70,19 @@ PraisonAIUI/
 │   │   ├── schema/
 │   │   │   ├── models.py        # Pydantic V2 models (Config, SiteConfig, etc.)
 │   │   │   └── validators.py    # Cross-reference validation logic
-│   │   ├── plugins.py           # Plugin system with hook chaining
+│   │   ├── plugins.py           # Docs compiler hooks (not UI plugins)
 │   │   ├── components.py        # Component registry
 │   │   ├── themes.py            # Theme preset system
-│   │   └── templates/frontend/  # Built React bundle (committed)
+│   │   └── templates/frontend/  # Built React bundle (committed) + vanilla dashboard plugins/
 │   │
 │   └── frontend/                # React 19 + Vite + TypeScript source
 │       └── src/
-│           ├── App.tsx           # Main app (state, routing, SEO, layout)
+│           ├── main.tsx          # Boot split: shell/mount (style app) or legacy-app-entry
+│           ├── shell/ sdk/       # Core: app shell, registries, @aiui/sdk (names no page)
+│           ├── builtin/          # First-party browser plugins (chat, approvals)
+│           ├── chat-engine/ markdown/ blocks/ legacy/   # Engines used by plugins
+│           ├── components/ui/    # shadcn primitives on radix-ui
+│           ├── App.tsx           # Legacy React App (chat/docs/agents/playground styles)
 │           ├── types.ts          # Shared TypeScript interfaces
 │           ├── Header.tsx        # Header component
 │           ├── Sidebar.tsx       # Navigation sidebar
@@ -73,22 +93,15 @@ PraisonAIUI/
 │           └── themes.ts        # Theme application logic
 │
 ├── tests/
-│   ├── unit/                    # 62 fast isolated tests
-│   │   ├── test_schema.py       # 9 tests — Pydantic models
-│   │   ├── test_validators.py   # 4 tests — config validation
-│   │   ├── test_compiler.py     # 16 tests — compilation pipeline
-│   │   ├── test_scanner.py      # 7 tests — docs scanner
-│   │   ├── test_serve.py        # 9 tests — serve command
-│   │   ├── test_plugins.py      # 8 tests — plugin system
-│   │   └── test_i18n_a11y.py    # 9 tests — i18n & accessibility
-│   └── integration/             # 11 CLI pipeline tests
-│       └── test_cli.py          # validate → build → serve
+│   ├── unit/                    # Fast isolated tests (pytest tests/unit)
+│   │   └── fixtures/            # golden_dashboard_html.txt, builtin_pages_snapshot.json
+│   └── integration/             # CLI pipeline tests (test_cli.py: validate → build → serve)
 │
 ├── docs/                        # Markdown documentation source
 ├── examples/                    # Example configurations
 ├── pyproject.toml               # Package config + tool settings
 ├── aiui.template.yaml           # Reference configuration
-└── .github/workflows/ci.yml     # CI: ruff + pytest (blocks on failure)
+└── .github/workflows/ci.yml     # CI: python (ruff + pytest), frontend, e2e, bundle-sync
 ```
 
 ## Key Patterns
@@ -107,6 +120,23 @@ YAML config → Pydantic models → Compiler → JSON manifests → React SPA
 - **Unit tests** use `tmp_path` fixture for filesystem isolation
 - **Integration tests** use `CliRunner` from Typer for CLI testing
 - **Fixtures** in `test_cli.py` create full project directories with config + docs
+
+### Extension Points (where a change goes)
+
+The rules for each are in `ARCHITECTURE.md`. Pick the row first, then read that rule.
+
+| I want to… | Use | Where | Frontend rebuild? |
+|---|---|---|---|
+| Add a page from Python | `@aiui.page(...)` (`callbacks.py`) or `aiui.register_page(...)` (`server.py`) | app code | No |
+| Add a React page as a plugin | `registerPage` from `@aiui/sdk`, shipped by a `praisonaiui.plugins` entry-point package | `docs/features/plugins.md`, `examples/plugins/aiui-hello-plugin` | No (the plugin ships its own built JS) |
+| Add a first-party page or feature | a record in `src/praisonaiui/builtin/catalog.py` (+ `src/frontend/src/builtin` for React code) | ARCHITECTURE R2 | Only for React code |
+| Add backend routes | a feature module in `src/praisonaiui/features/` or a plugin's `routes`/`features` hook; never new `create_app` params (R11) | `features/__init__.py` | No |
+| Inject custom JS/CSS | `aiui.set_custom_js(path)`, `aiui.set_custom_css(css)` | app code | No |
+| Third-party dashboard UI plugin (manifest + static files) | a folder in `~/.praisonai/dashboard-plugins/` or `templates/frontend/dashboard-plugins/` | `dashboard_plugins.py` | No |
+| Fix a legacy vanilla view | edit `src/praisonaiui/templates/frontend/plugins/views/*.js` directly (hand-written, shipped as-is; not generated by the build). No new views: use a React page | ARCHITECTURE §4 | No |
+| Change the React shell, chat, markdown, blocks | `src/frontend/src/**` | Frontend Build below | **Yes**: `npm run build && npm run sync`, commit `templates/frontend/` |
+
+Who owns the page (`#root`): in the default `dashboard` style the vanilla `plugins/dashboard.js` renders the page and the React bundle stays idle; in `style: app` the React shell owns `#root` and hosts legacy views inside `src/frontend/src/legacy/LegacyViewHost.tsx`; the `chat`, `docs` and other styles render the older React `App`. Test locations: `tests/unit/`, `tests/integration/`, `src/frontend/src/**/*.test.ts(x)` (`npm test`) and `src/frontend/e2e/` (`npm run test:e2e`). Count tests with `pytest --collect-only -q | tail -1` rather than trusting a number written here.
 
 ### Frontend Build
 1. Source in `src/frontend/src/` (React 19 + TypeScript + Vite). Node version: `src/frontend/.nvmrc`.

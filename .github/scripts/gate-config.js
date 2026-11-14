@@ -23,7 +23,9 @@ module.exports = {
   packagePaths: ['src/praisonaiui', 'src/frontend', 'pyproject.toml'],
   finalClaudeScope:
     'SCOPE: Focus ONLY on PraisonAIUI (src/praisonaiui, src/frontend, tests, docs). '
-    + 'Do NOT expand into praisonaiagents or the monorepo unless the PR explicitly requires it.',
+    + 'Do NOT expand into praisonaiagents or the monorepo unless the PR explicitly requires it. '
+    + 'Validate the PR against ARCHITECTURE.md (the numbered rules R1-R16 and the PR review checklist) '
+    + 'and prd.md (current product requirements and non-goals); cite rule numbers for any violation.',
   finalClaudeProductValue:
     '4. Product value: review in depth whether the change genuinely adds PraisonAIUI UX value — '
     + 'never add features for the sake of adding them. It must strengthen the UI (simpler, '

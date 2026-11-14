@@ -1,4 +1,123 @@
-# PraisonAIUI - Comprehensive Product Requirements Document
+# PraisonAIUI product requirements
+
+## Product requirements (Nov 2026)
+
+This section is current. Everything under
+[Historical (docs-generator era)](#historical-docs-generator-era) is the
+January 2026 PRD, kept for reference; where it disagrees with this section or
+with [ARCHITECTURE.md](ARCHITECTURE.md), those win.
+
+### What it is
+
+`aiui` (PyPI `aiui`, import `praisonaiui`) is the web UI for AI agents: a
+Python package and Starlette server that gives an agent app a chat, an
+operations dashboard and a docs site from Python and YAML, with no frontend
+build needed by the user. It is the UI layer of the PraisonAI ecosystem: agent
+runtime code belongs in `praisonaiagents` and agent-callable tools in
+PraisonAI-Tools, not here.
+
+### Users
+
+| User | Wants |
+|---|---|
+| Agent developer (Python) | A working chat and dashboard for their agents in a few lines of Python or YAML |
+| Operator / team running agents | To see and control runs, sessions, approvals, schedules, usage, logs and config in one place |
+| End user of an agent app | A fast, readable chat that streams, shows tools and reasoning, and asks before risky actions |
+| Plugin author | To add pages, blocks, tool renderers, routes and commands without forking aiui |
+| Docs author | A docs site from Markdown and one YAML file (`aiui build`) |
+
+### Jobs to be done
+
+1. "Give my agent a UI": `aiui run app.py` serves chat plus dashboard; streaming,
+   tool calls, reasoning, attachments, approvals and ask prompts work out of the box.
+2. "Run agents in production": approvals, sessions, runs, replay, usage, logs,
+   schedules, memory, knowledge, guardrails and config pages, behind auth.
+3. "Make it mine": theme seeds, brand colour, page selection
+   (`set_pages`, `extensions.disabled: [builtin.<name>]`), custom pages
+   (`register_page`, UI plugins), custom CSS/JS.
+4. "Extend it safely": a pip-installable UI plugin with a stable, versioned SDK
+   (`@aiui/sdk`, `SDK_API_VERSION = 1`) and failure isolation.
+5. "Publish docs": a docs site from `docs/` and `aiui.template.yaml`.
+
+### Product surfaces
+
+| Surface | How to get it | State |
+|---|---|---|
+| Dashboard (vanilla JS) | default style `dashboard` | Default. Frozen output (ARCHITECTURE R6) |
+| React app shell | `style: app`, `aiui.set_style("app")`, `AIUI_SHELL=app`; kill switch `AIUI_SHELL=legacy` | Opt-in. React chat; other pages through the legacy host or block pages |
+| Chat and agent styles | `style: chat`, `agents`, `playground`, `custom` | Older React App (`legacy-app-entry`), Streamdown markdown |
+| Docs | `style: docs`, `aiui build` / `aiui serve` | Supported |
+| Plugins | entry point `praisonaiui.plugins`, `aiui.register_plugin()`, browser `@aiui/sdk` | Supported; built-ins use the same model |
+| CLI | `aiui run`, `build`, `serve`, `plugins list/doctor`, `doctor`, … | Supported |
+
+### Requirements
+
+- **Backwards compatible.** Existing apps keep working across minor releases:
+  `register_page`, `set_pages`, `set_custom_js`, `set_custom_css`, `set_theme`,
+  YAML config and every `/api/*` path (ARCHITECTURE R7).
+- **Modular.** Every first-party page and feature is a plugin record that can be
+  disabled; the core names no page (R1, R2).
+- **Secure by default.** Auth covers every HTTP route and WebSocket in every
+  auth mode; cross-origin access is opt-in; untrusted markdown is hardened (R8, R9).
+- **Fast.** Budgets in `src/frontend/.size-limit.mjs` (shell boot ≤ 150 kB gzip,
+  `/chat` first screen ≤ 250 kB) and `import praisonaiui` < 200 ms (R10).
+- **Looks right.** Tokens and primitives per `src/frontend/DESIGN.md`; light and
+  dark designed, WCAG AA, usable at 390 px (R14).
+- **Lightweight.** No knob, export or module without a live consumer; no
+  duplicate of an existing capability.
+
+### Non-goals
+
+- An agent runtime, LLM client or tool library (praisonaiagents, PraisonAI-Tools).
+- A general-purpose website builder or CMS.
+- A big-bang rewrite of the 41 legacy views: they move to React one page at a
+  time behind the legacy host (strangler).
+- Sandboxing installed plugins: `pip install` means trust; `kind: iframe` is
+  the sandboxed option.
+- New `create_app()` parameters or page-specific code in `server.py`.
+- Astryx and vendoring the AI Elements registry (deferred).
+
+### Success criteria
+
+- `style: app` passes every gate in CI (types, unit, lint, size, closure,
+  bundle-sync, e2e) and the default `dashboard` output is unchanged.
+- Modularity re-verify score keeps rising (latest 82 frontend / 68 Python /
+  75 overall); open gaps are listed in ARCHITECTURE §5.
+- Plugin authors can ship a page with only `@aiui/sdk` and an entry point
+  (`examples/plugins/aiui-hello-plugin`).
+
+### Flip criteria: making `app` the default
+
+The default stays `dashboard` until **all** of these hold (ADR-0001 §9; status
+in `docs/features/react-shell.md` "When the default flips"):
+
+1. Every `/api/pages` id renders in the app shell with status ready, 0 page
+   errors and 0 leak delta in the Playwright sweep.
+2. Chat parity is complete. Still missing: message queue, channel messages with
+   unread dots, context ring and compaction banner, cost chip, memory panel,
+   floating and focus modes.
+3. Light mode is correct on every page, and the owner signs off the light and
+   dark screenshot set.
+4. Gates are green: size budgets, bundle-sync, entry closure, screenshots,
+   pytest, tsc (screenshots enforced in CI once Linux baselines exist).
+5. `set_custom_js`, `custom.js` `registerView` and the three bundled
+   dashboard plugins work under `app`.
+6. One minor release has shipped with `app` opt-in, then two weeks with no open
+   P1 from opt-in users.
+
+After the flip **(planned)**: `_style or "app"`, `AIUI_SHELL=legacy` stays the
+documented way back, and the dashboard shell code is deleted in a later phase.
+
+---
+
+## Historical (docs-generator era)
+
+> The content below is the January 2026 PRD from when PraisonAIUI was a
+> YAML-driven docs site generator. It is kept unchanged for reference. It does
+> not describe the current architecture (for example, react-markdown and
+> react-syntax-highlighter have been replaced by Streamdown and Shiki).
+
+### PraisonAIUI - Comprehensive Product Requirements Document (January 2026)
 
 ## Executive Summary
 

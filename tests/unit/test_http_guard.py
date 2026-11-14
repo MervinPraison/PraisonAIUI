@@ -241,6 +241,10 @@ def test_require_auth_gates_api(require_auth_client):
     assert c.get("/api/shell/manifest").status_code == 401
     assert c.get("/sessions").status_code == 401
     assert c.post("/run", json={"message": "x"}).status_code == 401
+    # unprefixed mounts of the same handlers (GHSA class: auth on /api/* only)
+    assert c.get("/agents", headers={"Accept": "application/json"}).status_code == 401
+    assert c.get("/teams").status_code == 401
+    assert c.post("/teams/t1/runs", json={"message": "x"}).status_code == 401
     # the page and the login endpoint stay reachable
     assert c.get("/").status_code == 200
     assert c.get("/health").status_code == 200
@@ -383,3 +387,15 @@ def test_ws_route_walk_rejects_everything_without_credentials(monkeypatch, api_k
     assert "/api/chat/ws" in paths
     for path in paths:
         assert _ws_rejected(client, path), path
+
+
+def test_auth_enforce_gates_unprefixed_mounts(monkeypatch):
+    """AUTH_ENFORCE must cover the root mounts of /api handlers, not only /api/*."""
+    monkeypatch.setenv("AUTH_ENFORCE", "true")
+    client = TestClient(create_app(), raise_server_exceptions=False)
+    json_hdr = {"Accept": "application/json"}
+    for path in ("/sessions", "/agents", "/teams", "/api/sessions", "/api/teams"):
+        assert client.get(path, headers=json_hdr).status_code == 401, path
+    assert client.post("/sessions", json={}, headers=json_hdr).status_code == 401
+    assert client.post("/run", json={"session_id": "x", "message": "hi"}, headers=json_hdr).status_code == 401
+    assert client.post("/teams/t1/runs", json={"message": "hi"}, headers=json_hdr).status_code == 401

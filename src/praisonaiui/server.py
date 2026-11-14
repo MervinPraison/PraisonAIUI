@@ -3895,13 +3895,12 @@ def create_app(
     static_dir: Optional[Path] = None,
     require_auth: bool = False,
     config_path: Optional[Path] = None,
-    allow_signup: bool = False,
 ) -> Starlette:
     """Create the Starlette application.
 
     With ``require_auth=True`` (or YAML ``auth.requireAuth``) ``POST /register``
-    needs an existing session, so a stranger cannot mint a token. Pass
-    ``allow_signup=True`` (YAML ``auth.allowSignup``) to let anyone sign up.
+    is open only for the first user, for a signed-in user, or with YAML
+    ``auth.allowSignup`` (see :class:`praisonaiui.auth.AuthMiddleware`).
 
     URL-token auth (``TokenQueryMiddleware``) is opt-in: it activates only
     when ``AIUI_REQUIRE_TOKEN`` is truthy, YAML ``auth.requireToken`` is set,
@@ -3911,6 +3910,7 @@ def create_app(
     """
     from praisonaiui.auth import (
         AuthMiddleware,
+        allow_signup_from_config,
         login_handler,
         logout_handler,
         me_handler,
@@ -3929,8 +3929,6 @@ def create_app(
             require_auth = True
         if auth_config.get("requireToken") or auth_config.get("require_token"):
             _config_requires_token = True
-        if auth_config.get("allowSignup") or auth_config.get("allow_signup"):
-            allow_signup = True
 
     from praisonaiui.http_guard import (
         HostGuardMiddleware,
@@ -3985,15 +3983,14 @@ def create_app(
     if require_auth:
         # Exclusions are exact paths; the rest of the public surface (the
         # HTML shell, static code) comes from http_guard.is_public_http.
-        # /register mints a session token, so it is open only on opt-in.
-        _auth_excluded = ["/health", "/login"]
-        if allow_signup:
-            _auth_excluded.append("/register")
+        # /register is listed so AuthMiddleware can apply the signup policy
+        # (first user, signed-in user, or auth.allowSignup) itself.
         middleware.append(
             Middleware(
                 AuthMiddleware,
                 require_auth=True,
-                exclude_paths=_auth_excluded,
+                exclude_paths=["/health", "/login", "/register"],
+                allow_signup=allow_signup_from_config(config),
             )
         )
 

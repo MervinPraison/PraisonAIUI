@@ -364,6 +364,23 @@ pip install -e .[dev]
 pytest tests -v
 ```
 
+### Repository map
+
+| Path | What it is |
+|---|---|
+| `app.py` | The default demo app (`aiui run app.py`; also what the Docker image runs) |
+| `aiui.template.yaml` | Reference config for the static docs site (`aiui build`) |
+| `examples/` | Runnable examples: `python/`, `yaml/`, `plugins/` (start here) |
+| `src/praisonaiui/` | The Python package (server, CLI, features, plugin registry) |
+| `src/frontend/` | React source for the app shell, chat and docs UI (built into `src/praisonaiui/templates/frontend/`) |
+| `docs/` | User documentation (served at [ui.praison.ai](https://ui.praison.ai)) |
+| `tests/` | Unit and integration tests (`pytest tests`) |
+| `scripts/` | Maintenance scripts: `docs_hooks.py` (mkdocs), `dev/` (manual checks) |
+| `ARCHITECTURE.md` | Rules, stack and PR checklist for contributors |
+| `AGENTS.md` | Quick context and commands for AI coding agents |
+| `prd.md` | Product requirements |
+| `CHANGELOG.md`, `SECURITY.md` | Release notes; how to report a vulnerability |
+
 ## License
 
 MIT © [Praison Limited](https://praison.ai)

@@ -34,7 +34,10 @@ class TestCodeExecutionApi:
         d = r.json()
         assert "languages" in d and "count" in d
 
-    def test_execute(self):
+    def test_execute(self, monkeypatch):
+        # Runs wait for a human approval (test_code_execution_approval.py);
+        # the SDK's documented opt-out lets this smoke test run straight away.
+        monkeypatch.setenv("PRAISONAI_AUTO_APPROVE", "true")
         client = TestClient(create_app())
         r = client.post(
             "/api/code/execute",
