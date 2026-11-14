@@ -4262,7 +4262,10 @@ def create_app(
             from praisonaiui.config_store import get_config_store
 
             _cfg = get_config_store()
-            _pages_cfg = _cfg.get("pages", {}) if _cfg else {}
+            # YAMLConfigStore exposes get_section(), not get(): the old .get()
+            # raised AttributeError, which the except below swallowed, so
+            # config.yaml pages.enabled / pages.disabled were silently ignored.
+            _pages_cfg = _cfg.get_section("pages") if _cfg else {}
             if isinstance(_pages_cfg, dict):
                 _enabled_list = _pages_cfg.get("enabled")
                 _disabled_list = _pages_cfg.get("disabled")
@@ -4271,8 +4274,8 @@ def create_app(
                 elif _disabled_list and isinstance(_disabled_list, list):
                     # Blacklist: all pages except disabled ones
                     set_pages([p["id"] for p in _builtin_pages if p["id"] not in _disabled_list])
-        except (ImportError, Exception):
-            pass
+        except Exception as exc:  # a broken config must not stop the server
+            logging.getLogger(__name__).warning("Ignoring config.yaml pages section: %s", exc)
 
     for p in _builtin_pages:
         if p["id"] in _pages:  # user already overrode this page

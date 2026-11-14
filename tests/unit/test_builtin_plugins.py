@@ -652,3 +652,42 @@ def test_no_builtin_feature_route_is_shadowed():
             ):
                 clashes.append((n1, r1.path, n2, r2.path))
     assert clashes == []
+
+
+def _write_config(data: Path, text: str) -> None:
+    (data / "config.yaml").write_text(text, encoding="utf-8")
+    config_store.init_config_store(data / "config.yaml")
+
+
+def test_config_yaml_pages_disabled_hides_pages(_isolated):
+    _write_config(_isolated, "pages:\n  disabled: [logs, training]\n")
+    ids = {p["id"] for p in _builtin_only(_api_pages(_client()))}
+    assert "logs" not in ids and "training" not in ids
+    assert "chat" in ids
+
+
+def test_config_yaml_pages_enabled_is_a_whitelist(_isolated):
+    _write_config(_isolated, "pages:\n  enabled: [chat, logs]\n")
+    assert sorted(p["id"] for p in _builtin_only(_api_pages(_client()))) == ["chat", "logs"]
+
+
+def test_set_pages_wins_over_config_yaml_pages(_isolated):
+    _write_config(_isolated, "pages:\n  enabled: [logs]\n")
+    aiui.set_pages(["chat"])
+    assert [p["id"] for p in _builtin_only(_api_pages(_client()))] == ["chat"]
+
+
+def test_bad_config_yaml_pages_section_is_ignored_with_a_warning(_isolated, monkeypatch, caplog):
+    real = config_store.YAMLConfigStore.get_section
+
+    def boom(self, key):
+        if key == "pages":
+            raise RuntimeError("corrupt section")
+        return real(self, key)
+
+    # create_app() may build a fresh store, so patch the class, not one instance.
+    monkeypatch.setattr(config_store.YAMLConfigStore, "get_section", boom)
+    with caplog.at_level("WARNING"):
+        ids = {p["id"] for p in _builtin_only(_api_pages(_client()))}
+    assert "chat" in ids  # server still starts with every page
+    assert "Ignoring config.yaml pages section" in caplog.text
