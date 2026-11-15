@@ -15,6 +15,7 @@ import {
   entryMatches,
   filterEntries,
   LOG_LEVELS,
+  logTime,
   normalizeLevel,
   splitMatches,
   stepMatch,
@@ -24,8 +25,12 @@ import './page.css'
 
 export interface LogEntry {
   id: string
-  /** Display time ("15:20:31.204"). */
-  ts: string
+  /**
+   * When: a time of day ("15:20:31.204"), an ISO 8601 stamp or epoch
+   * seconds/milliseconds. The cell shows the time of day (model.logTime) and
+   * keeps the full value in its title.
+   */
+  ts: string | number
   /** Any logger spelling: WARNING, warn, ERROR, critical… */
   level: string
   source?: string
@@ -174,6 +179,7 @@ export function LogViewer({ label, entries, initialLevels, actions, follow = tru
             const lvl = normalizeLevel(e.level)
             const expanded = open === e.id
             const detailId = `${searchId}-${e.id}`
+            const time = logTime(e.ts)
             return (
               <li key={e.id} className="aiui-tpl-log-item" data-entry-id={e.id} data-open={expanded || undefined}>
                 <button
@@ -183,7 +189,9 @@ export function LogViewer({ label, entries, initialLevels, actions, follow = tru
                   aria-controls={e.detail != null && expanded ? detailId : undefined}
                   onClick={() => setOpen(expanded ? null : e.id)}
                 >
-                  <span className="aiui-tpl-log-ts">{e.ts}</span>
+                  <span className="aiui-tpl-log-ts" title={time.full}>
+                    {time.text}
+                  </span>
                   <span className="aiui-tpl-lvl" data-level={lvl}>
                     {lvl.toUpperCase()}
                   </span>

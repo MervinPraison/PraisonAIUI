@@ -7,6 +7,7 @@ import {
   filterEntries,
   findCard,
   isStackedBelow,
+  logTime,
   monogram,
   moveCard,
   moveSelection,
@@ -139,4 +140,33 @@ test('isStackedBelow: a panel under the table (phone), not beside it', () => {
   assert.equal(isStackedBelow({ top: 900, bottom: 1300 }, main), true)
   assert.equal(isStackedBelow({ top: 899.7, bottom: 1300 }, main), true, 'sub-pixel slack')
   assert.equal(isStackedBelow({ top: 100, bottom: 700 }, main), false, 'beside the table')
+})
+
+test('logTime: a time of day from ISO stamps, epochs and bare times', () => {
+  const local = (d: Date, ms = true) => {
+    const p = (n: number, w = 2) => String(n).padStart(w, '0')
+    const t = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+    return ms ? `${t}.${p(d.getMilliseconds(), 3)}` : t
+  }
+  const utc = '2026-11-15T10:00:10Z'
+  assert.deepEqual(logTime(utc), { text: local(new Date(utc), false), full: utc })
+  // Python isoformat(): microseconds and an offset; milliseconds are kept.
+  const py = '2026-11-15T10:00:10.123456+05:30'
+  assert.deepEqual(logTime(py), { text: local(new Date('2026-11-15T04:30:10.123Z')), full: py })
+  assert.equal(logTime('2026-11-15T10:00:10.5-0800').text, local(new Date('2026-11-15T18:00:10.500Z')))
+  // No zone: shown as written. logging's asctime uses a comma.
+  assert.deepEqual(logTime('2026-11-15 10:00:10,042'), { text: '10:00:10.042', full: '2026-11-15 10:00:10,042' })
+  assert.deepEqual(logTime('2026-11-15T09:05'), { text: '09:05:00', full: '2026-11-15T09:05' })
+  // Epoch seconds (float), milliseconds, and as a numeric string.
+  const at = Date.UTC(2026, 10, 15, 10, 0, 10, 250)
+  assert.deepEqual(logTime(at / 1000), { text: local(new Date(at)), full: '2026-11-15T10:00:10.250Z' })
+  assert.deepEqual(logTime(at), { text: local(new Date(at)), full: '2026-11-15T10:00:10.250Z' })
+  assert.equal(logTime(String(Math.floor(at / 1000))).text, local(new Date(Math.floor(at / 1000) * 1000), false))
+  // A bare time passes through; other text keeps its full value as the title.
+  assert.deepEqual(logTime('15:20:31.204'), { text: '15:20:31.204' })
+  assert.deepEqual(logTime('Nov 15 10:00:10'), { text: 'Nov 15 10:00:10', full: 'Nov 15 10:00:10' })
+  assert.deepEqual(logTime(undefined), { text: '' })
+  assert.deepEqual(logTime(''), { text: '' })
+  // Every converted form fits the 100px column: at most "HH:MM:SS.mmm".
+  for (const v of [utc, py, at, at / 1000, '2026-11-15 10:00:10,042']) assert.ok(logTime(v).text.length <= 12, String(v))
 })

@@ -111,6 +111,51 @@ export function countLevels<E extends { level: unknown }>(entries: readonly E[])
   return out
 }
 
+const pad = (n: number, w = 2) => String(n).padStart(w, '0')
+
+function clockOf(d: Date, ms: boolean): string {
+  const t = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  return ms ? `${t}.${pad(d.getMilliseconds(), 3)}` : t
+}
+
+// 2026-11-15T10:00:10.123456+05:30, 2026-11-15 10:00:10Z, 2026-11-15T10:00
+const ISO_STAMP = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:[.,](\d+))?)?\s*(Z|[+-]\d{2}:?\d{2})?$/i
+
+/**
+ * The log grid's time cell: a time of day ("15:20:31.204", as ProLogs shows
+ * it) from whatever a logger gives. An ISO 8601 stamp (Python's isoformat(),
+ * logging's asctime) or epoch seconds/milliseconds becomes the viewer's local
+ * time of day (a stamp without a zone stays as written), with milliseconds
+ * when the source has them. `full` is the original value, for the cell's
+ * title, whenever the cell shows less than it; a bare time passes through.
+ */
+export function logTime(ts: unknown): { text: string; full?: string } {
+  if (typeof ts === 'number' || (typeof ts === 'string' && /^\d{9,}(\.\d+)?$/.test(ts.trim()))) {
+    const n = Number(ts)
+    if (!Number.isFinite(n)) return { text: '' }
+    // Seconds until the year 5138; anything larger is milliseconds.
+    const millis = n < 1e11 ? n * 1000 : n
+    const d = new Date(millis)
+    if (Number.isNaN(d.getTime())) return { text: String(ts) }
+    return { text: clockOf(d, millis % 1000 !== 0), full: d.toISOString() }
+  }
+  const raw = typeof ts === 'string' ? ts.trim() : ''
+  if (!raw) return { text: '' }
+  const m = ISO_STAMP.exec(raw)
+  if (!m) {
+    // A bare time ("15:20:31.204") fits the column; anything else keeps its
+    // full text in the title, since the cell may cut it short.
+    return /^\d{1,2}:\d{2}(:\d{2}([.,]\d{1,3})?)?$/.test(raw) ? { text: raw } : { text: raw, full: raw }
+  }
+  const [, y, mo, dd, hh, mi, ss = '00', frac, zone] = m
+  const ms = frac ? Number(frac.slice(0, 3).padEnd(3, '0')) : 0
+  if (!zone) return { text: `${hh}:${mi}:${ss}${frac ? `.${pad(ms, 3)}` : ''}`, full: raw }
+  const z = /^([+-])(\d{2}):?(\d{2})$/.exec(zone)
+  const offsetMin = z ? (z[1] === '-' ? -1 : 1) * (Number(z[2]) * 60 + Number(z[3])) : 0
+  const d = new Date(Date.UTC(+y, +mo - 1, +dd, +hh, +mi, +ss, ms) - offsetMin * 60_000)
+  return { text: clockOf(d, Boolean(frac)), full: raw }
+}
+
 /** Case-insensitive text match of a log entry (message and source). */
 export function entryMatches(entry: { message: string; source?: string }, query: string): boolean {
   const q = query.trim().toLowerCase()

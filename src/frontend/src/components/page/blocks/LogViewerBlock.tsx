@@ -8,9 +8,15 @@ import { arr, display, isRecord, str } from '@/blocks/normalize'
 import type { BlockNode } from '@/sdk/registry'
 import { LogViewer, type LogEntry } from '../LogViewer'
 
+/** Epoch numbers stay numbers, so LogViewer can tell them from text. */
+const when = (v: unknown): string | number => (typeof v === 'number' ? v : str(v))
+
 /**
- * `{type: "log_viewer", title, entries: [{ts | time, level, source | logger,
- *   message, detail}]}`; `detail` may be a string or a dict (shown as JSON).
+ * `{type: "log_viewer", title, entries: [{ts | time | timestamp, level,
+ *   source | logger, message, detail}]}`. The time may be a time of day
+ * ("15:20:31.204"), an ISO 8601 stamp (`datetime.isoformat()`, logging's
+ * asctime) or epoch seconds/milliseconds; the row shows the time of day and
+ * the full value on hover. `detail` may be a string or a dict (shown as JSON).
  */
 export function LogViewerBlock({ node }: { node: BlockNode }) {
   const p = node.props ?? {}
@@ -20,7 +26,7 @@ export function LogViewerBlock({ node }: { node: BlockNode }) {
         .filter(isRecord)
         .map((e, i) => ({
           id: str(e.id, String(i)),
-          ts: str(e.ts ?? e.time ?? e.timestamp),
+          ts: when(e.ts ?? e.time ?? e.timestamp),
           level: str(e.level, 'info'),
           source: e.source != null || e.logger != null ? str(e.source ?? e.logger) : undefined,
           message: display(e.message ?? e.msg ?? ''),

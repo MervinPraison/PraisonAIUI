@@ -203,11 +203,12 @@ test('editor on a phone: the workspace spans the width and every output tab show
   }
 })
 
-test('list_detail on a phone: a tap brings the stacked detail on screen and focuses it', async ({ page }) => {
-  // A blocks page added to the manifest in the browser only (no fixture change):
-  // one page of 25 agents, so the detail panel stacks under the whole table.
-  const rows = Array.from({ length: 25 }, (_, i) => ({ id: `a${i}`, name: `Agent ${i}`, runs: i, detail: { model: 'mock' } }))
-  const extra = { id: 'e2e-list', title: 'List demo', kind: 'blocks', source: 'e2e', apiEndpoint: '/api/e2e-list' }
+/**
+ * A blocks page added to the manifest in the browser only (no fixture change),
+ * served `components` from its own endpoint, then opened from /chat.
+ */
+async function openBlocksPage(page: Page, id: string, title: string, components: unknown[]) {
+  const extra = { id, title, kind: 'blocks', source: 'e2e', apiEndpoint: `/api/${id}` }
   // The manifest arrives inlined in the HTML (<script id="aiui-boot">), or from
   // /api/shell/manifest when the server inlines only part of it.
   await page.route('**/chat?*', async (route) => {
@@ -228,18 +229,22 @@ test('list_detail on a phone: a tap brings the stacked detail on screen and focu
     manifest.pages.push(extra)
     await route.fulfill({ response, json: manifest })
   })
-  await page.route('**/api/e2e-list*', (route) =>
-    route.fulfill({
-      json: { _components: [{ type: 'list_detail', title: 'Agents', columns: ['name', 'runs'], rows, page_size: 25 }] },
-    }),
-  )
-  await page.setViewportSize(PHONE)
+  await page.route(`**/api/${id}*`, (route) => route.fulfill({ json: { _components: components } }))
   await page.goto('/chat?layout=chat-canvas')
   await page.getByRole('textbox', { name: /message/i }).first().waitFor()
-  await page.evaluate(() => {
-    history.pushState({}, '', '/e2e-list')
+  await page.evaluate((path) => {
+    history.pushState({}, '', path)
     dispatchEvent(new PopStateEvent('popstate'))
-  })
+  }, `/${id}`)
+}
+
+test('list_detail on a phone: a tap brings the stacked detail on screen and focuses it', async ({ page }) => {
+  // One page of 25 agents, so the detail panel stacks under the whole table.
+  const rows = Array.from({ length: 25 }, (_, i) => ({ id: `a${i}`, name: `Agent ${i}`, runs: i, detail: { model: 'mock' } }))
+  await page.setViewportSize(PHONE)
+  await openBlocksPage(page, 'e2e-list', 'List demo', [
+    { type: 'list_detail', title: 'Agents', columns: ['name', 'runs'], rows, page_size: 25 },
+  ])
   const last = page.locator('tr[data-row-id="a24"]')
   await last.waitFor()
   // The toolbar has no "25 shown" next to the pager.
@@ -254,6 +259,29 @@ test('list_detail on a phone: a tap brings the stacked detail on screen and focu
   await page.keyboard.press('Escape')
   await expect(detail).toHaveCount(0)
   await expect(page.locator('tr[data-row-id="a3"]')).toBeFocused()
+})
+
+test('log_viewer: full ISO stamps show a time of day that stays inside the Time column', async ({ page }) => {
+  // What Python's logging and isoformat() produce, not ProLogs' short times.
+  const stamps = ['2026-11-15T10:00:10Z', '2026-11-15T10:00:11.123456+00:00', '2026-11-15 10:00:12,042', Date.UTC(2026, 10, 15, 10, 0, 13, 500) / 1000]
+  const levels = ['info', 'debug', 'warning', 'error']
+  const entries = stamps.map((ts, i) => ({ ts, level: levels[i], source: 'agent', message: `line ${i}` }))
+  await page.setViewportSize(DESKTOP)
+  await openBlocksPage(page, 'e2e-log', 'Log demo', [{ type: 'log_viewer', title: 'Agent log', entries }])
+  const rows = page.locator('.aiui-tpl-log-row')
+  await expect(rows).toHaveCount(stamps.length)
+  for (let i = 0; i < stamps.length; i++) {
+    const ts = rows.nth(i).locator('.aiui-tpl-log-ts')
+    await expect(ts).toHaveText(/^\d{2}:\d{2}:\d{2}(\.\d{3})?$/)
+    await expect(ts).toHaveAttribute('title', /2026-11-15/)
+    // The text fits its cell (nothing clipped), and the cell ends before Level.
+    const fit = await ts.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }))
+    expect(fit.scroll, `row ${i}`).toBeLessThanOrEqual(fit.client)
+    const tsBox = (await ts.boundingBox())!
+    const lvlBox = (await rows.nth(i).locator('.aiui-tpl-lvl').boundingBox())!
+    expect(tsBox.x + tsBox.width, `row ${i}`).toBeLessThanOrEqual(lvlBox.x)
+  }
+  expect(await hasHorizontalOverflow(page)).toBe(false)
 })
 
 for (const mode of MODES) {

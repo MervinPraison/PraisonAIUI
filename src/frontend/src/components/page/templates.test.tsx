@@ -183,6 +183,30 @@ test('log_viewer block: logger spellings and dict detail', () => {
   assert.match(html, /<span class="aiui-tpl-log-src" title="app">app<\/span>/)
 })
 
+test('log_viewer block: a full ISO stamp shows its time of day and keeps the stamp as the title', () => {
+  const stamp = '2026-11-15T10:00:10'
+  const node = {
+    type: 'log_viewer',
+    props: {
+      entries: [
+        { ts: stamp, level: 'info', source: 'agent', message: 'started' },
+        { timestamp: '2026-11-15 10:00:11,250', level: 'warning', message: 'slow' },
+        { time: 'not a time at all, but long', level: 'debug', message: 'odd' },
+      ],
+    },
+  }
+  const html = renderToStaticMarkup(<LogViewerBlock node={node} />)
+  assert.match(html, /<span class="aiui-tpl-log-ts" title="2026-11-15T10:00:10">10:00:10<\/span>/)
+  assert.match(html, /<span class="aiui-tpl-log-ts" title="2026-11-15 10:00:11,250">10:00:11\.250<\/span>/)
+  assert.match(html, /<span class="aiui-tpl-log-ts" title="not a time at all, but long">not a time at all, but long<\/span>/)
+  assert.doesNotMatch(html, />2026-11-15/, 'no date in a time cell')
+})
+
+test('LogViewer: a bare time has no redundant title', () => {
+  const html = renderToStaticMarkup(<LogViewer label="Log lines" entries={entries} />)
+  assert.match(html, /<span class="aiui-tpl-log-ts">15:20:31\.204<\/span>/)
+})
+
 test('Editor: tabs, run bar, panel, aside and status; CodeView marks diagnostics', () => {
   const html = renderToStaticMarkup(
     <Editor

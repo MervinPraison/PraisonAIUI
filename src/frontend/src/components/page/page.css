@@ -481,10 +481,15 @@
 .aiui-tpl-log-item[data-open='true'] > .aiui-tpl-log-row {
   border-bottom: 0;
 }
+/* LogViewer shows a time of day (model.logTime) that fits 100px; anything
+   longer is cut short here rather than running into the Level column. */
 .aiui-tpl-log-ts {
+  min-width: 0;
+  overflow: hidden;
   color: var(--tpl-meta);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .aiui-tpl-log-src {
   overflow: hidden;
