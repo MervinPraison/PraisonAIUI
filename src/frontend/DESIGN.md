@@ -305,7 +305,9 @@ and `gallery` (`aiui.board()`, `aiui.gallery()` props) and the new
 lazily, so a template's chunk is fetched only when a page shows it.
 
 **Legacy views.** `legacy/page-types.css` dresses the vanilla views in their
-template. Every rule starts with
+template. `legacy/LegacyViewHost.tsx` imports it, so it arrives with the lazy
+legacy host chunk and never at boot (`bridge.css` is in the shell boot through
+`runtime.ts`, so it cannot carry it). Every rule starts with
 `html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type=…]`,
 so the styles apply under the selectable layouts only. The classic frame
 (`layout: classic`) and the dashboard keep today's look. Rules name the

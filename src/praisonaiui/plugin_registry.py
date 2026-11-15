@@ -149,6 +149,11 @@ class PageSpec:
     #: While a layout listing this page is active, it stands in for the page
     #: with this id (nav item and URL).
     replaces: Optional[str] = None
+    #: App shell only: the page template (``pageType`` on the wire) the shell
+    #: styles the page with: ``list``, ``board``, ``log``, ``editor``,
+    #: ``gallery``, ``overview``, ``settings`` or ``chat`` (DESIGN.md "Page
+    #: templates"). Built-in pages get theirs from ``builtin/page_types.py``.
+    page_type: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         d = _to_wire(self)
@@ -1058,7 +1063,14 @@ def _page_layout_fields(spec: PageSpec) -> dict[str, Any]:
             raise ValueError("layouts must be a list of layout ids")
         layouts = tuple(_layout_id(v) for v in layouts)
     replaces = None if spec.replaces is None else _spec_id(spec.replaces, "replaces page id")
-    return {"layouts": layouts, "replaces": replaces, "shell_only": bool(spec.shell_only)}
+    from praisonaiui.builtin.page_types import validate_page_type
+
+    return {
+        "layouts": layouts,
+        "replaces": replaces,
+        "shell_only": bool(spec.shell_only),
+        "page_type": validate_page_type(spec.page_type),
+    }
 
 
 def _resolve_page(rec: PluginRecord, spec: Any) -> PageSpec:
@@ -1093,6 +1105,9 @@ def _resolve_builtin_page(rec: PluginRecord, spec: Any) -> PageSpec:
         spec = PageSpec(**{_snake(str(k)): v for k, v in spec.items()})
     if not isinstance(spec, PageSpec):
         raise TypeError(f"expected PageSpec, got {type(spec).__name__}")
+    from praisonaiui.builtin.page_types import apply_page_type
+
+    spec = apply_page_type(spec)
     return spec if spec.source == "builtin" else replace(spec, source="builtin")
 
 

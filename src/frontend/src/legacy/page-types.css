@@ -1,7 +1,9 @@
 /*
  * Page templates for legacy views (ADR 0003, track T). Imported by
- * bridge.css, so it ships with the legacy host chunk only, never in
- * index.css; the legacy dashboard (style `dashboard`) never loads it.
+ * LegacyViewHost.tsx (not bridge.css: runtime.ts pulls bridge.css into the
+ * shell boot), so it ships with the lazy legacy host chunk only, never in
+ * index.css or at boot; the legacy dashboard (style `dashboard`) never
+ * loads it.
  *
  * Each built-in page names a PraisonAI Pro template in the manifest
  * (`pageType`, from praisonaiui/builtin/page_types.py); the shell puts it on
