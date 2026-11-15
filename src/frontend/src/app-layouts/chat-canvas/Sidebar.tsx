@@ -25,7 +25,7 @@ export function Brand({ chrome, size = 'default' }: { chrome: Pick<LayoutChrome,
       ) : (
         <span
           aria-hidden="true"
-          className="flex size-[26px] shrink-0 items-center justify-center rounded-[7px] bg-foreground text-sm font-semibold text-background"
+          className="flex size-[26px] shrink-0 items-center justify-center rounded-[7px] bg-primary text-sm font-semibold text-primary-foreground"
         >
           {logo?.value ?? (chrome.siteTitle.slice(0, 1).toUpperCase() || 'A')}
         </span>

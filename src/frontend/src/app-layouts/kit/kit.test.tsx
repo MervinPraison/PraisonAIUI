@@ -257,11 +257,17 @@ test('useChat / useApprovals are null while nothing provides the feed', () => {
 
 
 test('a folded nav section is a group header, not a link: 11px uppercase muted, spaced, with a chevron', () => {
-  const out = renderToStaticMarkup(createElement(NavSection, { title: 'Control', folded: true }, createElement('span', null, 'x')))
+  const out = renderToStaticMarkup(createElement(NavSection, { title: 'Control', folded: true, children: createElement('span', null, 'x') }))
   assert.match(out, /<details class="group\/sec mt-4[^"]*" data-aiui-nav-group="">/)
   const summary = out.match(/<summary class="([^"]*)"/)?.[1] ?? ''
   for (const cls of ['uppercase', 'tracking-[0.04em]', 'text-tier-3', 'text-[11px]']) assert.ok(summary.split(' ').includes(cls), cls)
   assert.match(out, /<svg[^>]*group-open\/sec:rotate-90/)
   // A plain section keeps its quiet h2.
-  assert.match(renderToStaticMarkup(createElement(NavSection, { title: 'Chats' }, null)), /<h2[^>]*>Chats<\/h2>/)
+  assert.match(renderToStaticMarkup(createElement(NavSection, { title: 'Chats', children: null })), /<h2[^>]*>Chats<\/h2>/)
+})
+
+test('the brand tile is the accent with a white mark in both themes (it never flips from ink to paper)', () => {
+  const out = renderToStaticMarkup(createElement(Brand, { chrome: { siteTitle: 'PraisonAI', siteLogo: null } }))
+  assert.match(out, /class="[^"]*bg-primary[^"]*text-primary-foreground[^"]*">P</)
+  assert.doesNotMatch(out, /bg-foreground/)
 })
