@@ -155,7 +155,7 @@ test('desktop: sidebar with brand, New chat ⌘N, primary pages, More, Chats; to
   assert.match(out, /<h2[^>]*>Chats<\/h2>/)
   assert.match(out, /aria-current="true" data-aiui-session="sort"/)
   assert.match(out, /role="status" data-aiui-connection="online"/)
-  assert.match(out, /aria-label="Search pages and commands"/)
+  assert.match(out, /Search and more<\/span>[\s\S]*?data-aiui-shortcut="mod\+k"/)
   assert.match(out, /aria-label="Switch light or dark theme"/)
   assert.match(out, /data-slot-name="sidebar:footer"/)
   // top bar

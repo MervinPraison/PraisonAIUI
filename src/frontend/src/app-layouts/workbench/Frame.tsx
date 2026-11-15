@@ -3,9 +3,9 @@
  * and QuietPhone.dc.html in the Pro tokens).
  *
  *   desktop / tablet  a 256 px sidebar (brand and collapse ⌘B, New chat ⌘N,
- *                     the layout's primary pages, the rest folded under
- *                     More, "Chats" with search and times, the connection
- *                     line, Search ⌘K, theme) beside a 56 px top bar (title ·
+ *                     the layout's primary pages and Search and more ⌘K,
+ *                     the rest folded under More, "Chats" with search,
+ *                     times and Waiting, the connection line, theme) beside a 56 px top bar (title ·
  *                     agent · model, the `header:actions` slot, Share, More)
  *                     and the routed page
  *   phone             a header (menu, title with agent · model, new chat);
@@ -20,7 +20,7 @@
  * this folder (app-layouts/isolation.test.ts).
  */
 import { useCallback, useMemo, useState } from 'react'
-import { Bot, Ellipsis, Menu, PanelLeft, Plus, Share, SquarePen, SunMoon } from 'lucide-react'
+import { Bot, Ellipsis, Menu, PanelLeft, Plus, Search, Share, SquarePen, SunMoon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { LayoutProps } from '@/sdk/layouts'
 import { notify } from '@/sdk/notify'
@@ -29,6 +29,7 @@ import {
   Brand,
   ConnectionStatus,
   NavList,
+  navRowClass,
   NavSection,
   PhoneSheet,
   preloadPhoneSheet,
@@ -42,6 +43,7 @@ import {
 } from '@/app-layouts/kit'
 import { agentOf, chatPageOf, frameTitle, readCollapsed, SHORTCUTS, waitingSessionIds, writeCollapsed } from './model'
 import { useAgentModel } from './useAgentModel'
+import './workbench.css'
 
 type SidebarProps = Pick<LayoutProps, 'nav' | 'chrome'> & {
   size: KitSize
@@ -79,7 +81,21 @@ function SidebarBody({ nav, chrome, size, chatPage, onNavigate }: SidebarProps) 
           {!touch && <ShortcutHint combo={SHORTCUTS.newChat} tone="on-accent" />}
         </Button>
       )}
-      <NavList items={nav.primary} go={nav.go} onNavigate={onNavigate} size={size} aria-label="Primary" />
+      <div className="flex flex-col gap-0.5">
+        <NavList items={nav.primary} go={nav.go} onNavigate={onNavigate} size={size} aria-label="Primary" />
+        <button
+          type="button"
+          className={cn(navRowClass(size), 'text-sidebar-foreground')}
+          onClick={() => {
+            onNavigate?.()
+            chrome.openPalette()
+          }}
+        >
+          <Search aria-hidden="true" className="size-4 shrink-0" />
+          <span className="min-w-0 flex-1 truncate">Search and more</span>
+          {!touch && <ShortcutHint combo="mod+k" />}
+        </button>
+      </div>
       {more.length > 0 && (
         <NavSection title={`More (${more.length})`} folded size={size}>
           <div className="max-h-64 overflow-y-auto">
@@ -97,21 +113,8 @@ function SidebarBody({ nav, chrome, size, chatPage, onNavigate }: SidebarProps) 
         className="min-h-0 flex-1"
       />
       <NavList items={nav.footer} go={nav.go} onNavigate={onNavigate} size={size} />
-      <div className="mt-auto flex items-center gap-1 border-t border-sidebar-border pt-2 pl-2">
+      <div className="mt-auto flex shrink-0 items-center gap-1 border-t border-sidebar-border pt-2 pl-2">
         <ConnectionStatus className={cn('flex-1', touch && 'text-sm')} />
-        <Button
-          variant="outline"
-          size={touch ? 'default' : 'xs'}
-          className={cn('text-muted-foreground', touch && 'h-11')}
-          aria-label="Search pages and commands"
-          onClick={() => {
-            onNavigate?.()
-            chrome.openPalette()
-          }}
-        >
-          Search
-          <ShortcutHint combo="mod+k" />
-        </Button>
         <Button
           variant="ghost"
           size="icon-sm"
@@ -261,7 +264,7 @@ export default function WorkbenchFrame(props: LayoutProps) {
         >
           <div className="flex h-8 shrink-0 items-center justify-between gap-2 pl-1">
             <Brand chrome={chrome} />
-            <Button variant="ghost" size="icon-sm" aria-label="Collapse sidebar" title="Collapse sidebar" aria-expanded onClick={toggleSidebar}>
+            <Button variant="ghost" size="icon-sm" aria-label="Collapse sidebar" title="Collapse sidebar" onClick={toggleSidebar}>
               <PanelLeft />
             </Button>
           </div>
@@ -271,7 +274,7 @@ export default function WorkbenchFrame(props: LayoutProps) {
       <div className="flex min-w-0 flex-1 flex-col bg-background">
         <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border pr-4 pl-6">
           {collapsed && (
-            <Button variant="ghost" size="icon-sm" className="-ml-2" aria-label="Expand sidebar" title="Expand sidebar" aria-expanded={false} onClick={toggleSidebar}>
+            <Button variant="ghost" size="icon-sm" className="-ml-2" aria-label="Expand sidebar" title="Expand sidebar" onClick={toggleSidebar}>
               <PanelLeft />
             </Button>
           )}
