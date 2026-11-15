@@ -159,6 +159,9 @@ test('desktop: sidebar with brand, New chat ⌘N, primary pages, More, Chats; to
   assert.match(out, /aria-current="true" data-aiui-session="sort"/)
   assert.match(out, /role="status" data-aiui-connection="online"/)
   assert.match(out, /Search and more<\/span>[\s\S]*?data-aiui-shortcut="mod\+k"/)
+  // One search in the sidebar: the chat filter is behind the Chats header's magnifier, not a second box.
+  assert.match(out, /<h2[^>]*>Chats<\/h2><button[^>]*aria-label="Search chats" aria-expanded="false"/)
+  assert.doesNotMatch(out, /type="search"/)
   assert.match(out, /aria-label="Switch light or dark theme"/)
   assert.match(out, /data-slot-name="sidebar:footer"/)
   // top bar

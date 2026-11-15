@@ -119,7 +119,12 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
       await expect(nav.locator('[data-aiui-nav-item="chat"]')).toHaveAttribute('aria-current', 'page')
       await expect(nav.getByRole('button', { name: 'Search and more' })).toBeVisible()
       await expect(nav.getByRole('heading', { name: 'Chats' })).toBeVisible()
-      await expect(nav.getByRole('searchbox', { name: 'Search chats' })).toBeVisible()
+      // One search entry in the sidebar (Search and more ⌘K); the chat filter opens from the Chats header.
+      await expect(nav.getByRole('searchbox', { name: 'Search chats' })).toHaveCount(0)
+      await nav.getByRole('button', { name: 'Search chats' }).click()
+      await expect(nav.getByRole('searchbox', { name: 'Search chats' })).toBeFocused()
+      await page.keyboard.press('Escape')
+      await expect(nav.getByRole('searchbox', { name: 'Search chats' })).toHaveCount(0)
       await expect(nav.getByRole('status')).toContainText('Connected')
       // The chat draws no session rail of its own here, and the thread is quiet.
       await expect(page.locator('#aiui-main [data-session-id]')).toHaveCount(0)
@@ -210,7 +215,7 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
         sheet.getByRole('button', { name: 'Close menu' }),
         sheet.getByRole('button', { name: /New chat/ }),
         sheet.locator('[data-aiui-nav-item="chat"]'),
-        sheet.getByRole('searchbox', { name: 'Search chats' }),
+        sheet.getByRole('button', { name: 'Search chats' }),
         sheet.locator('[data-aiui-session]').first(),
       ]
       for (const t of targets) expect((await box(t)).height).toBeGreaterThanOrEqual(44)

@@ -4,7 +4,7 @@
  *
  *   desktop / tablet  a 256 px sidebar (brand and collapse ⌘B, New chat ⌘N,
  *                     the layout's primary pages and Search and more ⌘K,
- *                     (every other page is in the palette), "Chats" with search,
+ *                     (every other page is in the palette), "Chats" with a search toggle,
  *                     times and Waiting, the connection line, theme) beside a 56 px top bar (title ·
  *                     agent · model, the `header:actions` slot, Share, More)
  *                     and the routed page
@@ -97,7 +97,7 @@ function SidebarBody({ nav, chrome, size, chatPage, onNavigate }: SidebarProps) 
       </div>
       <SessionList
         title="Chats"
-        search
+        search="toggle"
         showTime
         waitingIds={waiting}
         size={size}

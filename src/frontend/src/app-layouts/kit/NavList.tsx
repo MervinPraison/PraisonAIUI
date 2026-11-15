@@ -71,9 +71,12 @@ export function NavSection({
   folded,
   size = 'default',
   className,
+  action,
 }: {
   title: string
   children: ReactNode
+  /** A control at the end of a plain section's title row (e.g. a search toggle). */
+  action?: ReactNode
   /** Start collapsed (a `<details>` the viewer opens); omit for a plain section. */
   folded?: boolean
   size?: KitSize
@@ -82,7 +85,14 @@ export function NavSection({
   if (folded === undefined) {
     return (
       <section className={cn('flex min-h-0 flex-col gap-1', className)}>
-        <h2 className={cn('m-0 px-2 py-1 font-medium text-muted-foreground', size === 'touch' ? 'text-[13px]' : 'text-xs')}>{title}</h2>
+        {action ? (
+          <div className="flex items-center pr-0.5">
+            <h2 className={cn('m-0 min-w-0 flex-1 px-2 py-1 font-medium text-muted-foreground', size === 'touch' ? 'text-[13px]' : 'text-xs')}>{title}</h2>
+            {action}
+          </div>
+        ) : (
+          <h2 className={cn('m-0 px-2 py-1 font-medium text-muted-foreground', size === 'touch' ? 'text-[13px]' : 'text-xs')}>{title}</h2>
+        )}
         {children}
       </section>
     )

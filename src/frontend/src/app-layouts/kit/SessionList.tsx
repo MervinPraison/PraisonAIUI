@@ -18,8 +18,12 @@ export interface SessionListProps {
   title?: string
   /** Show at most this many (the newest first, as the feed orders them). */
   limit?: number
-  /** A search box over titles. */
-  search?: boolean
+  /**
+   * A search box over titles: always shown (true), or behind a magnifier in
+   * the title row ('toggle'), for a frame whose sidebar already has a
+   * search entry (one search, not two stacked).
+   */
+  search?: boolean | 'toggle'
   size?: KitSize
   /** After a session is opened (the frame goes to its chat page, a sheet closes). */
   onOpen?(sessionId: string): void
@@ -46,6 +50,7 @@ export function SessionList({
   const sessions = useSessions()
   const minute = useMinuteClock()
   const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
   const shown = useMemo(() => {
     const all = sessions?.state.sessions ?? []
     const q = query.trim().toLowerCase()
@@ -59,8 +64,28 @@ export function SessionList({
 
   return (
     <div className={cn('flex min-h-0 flex-col gap-2', className)} data-aiui-session-list="">
-      <NavSection title={title} size={size} className="flex-1">
-        {search && (
+      <NavSection
+        title={title}
+        size={size}
+        className="flex-1"
+        action={
+          search === 'toggle' ? (
+            <button
+              type="button"
+              className={cn('flex items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-sidebar-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring', touch ? 'size-11' : 'size-7')}
+              aria-label={open ? 'Close chat search' : 'Search chats'}
+              aria-expanded={open}
+              onClick={() => {
+                if (open) setQuery('')
+                setOpen((v) => !v)
+              }}
+            >
+              <Search aria-hidden="true" className="size-3.5" />
+            </button>
+          ) : undefined
+        }
+      >
+        {(search === true || (search === 'toggle' && (open || query))) && (
           <div className="relative">
             <Search aria-hidden="true" className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-tier-3', touch ? 'left-3 size-4' : 'left-2.5 size-3.5')} />
             <Input
@@ -69,6 +94,13 @@ export function SessionList({
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search chats"
               aria-label="Search chats"
+              autoFocus={search === 'toggle'}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' && search === 'toggle') {
+                  setQuery('')
+                  setOpen(false)
+                }
+              }}
               className={cn('bg-background', touch ? 'h-11 pl-9 text-base' : 'h-8 pl-8')}
             />
           </div>
