@@ -157,7 +157,7 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     const approve = reply.getByRole('button', { name: 'Approve' })
     await expect(approve).toBeVisible()
     // One request, shown once: the card carries the tool row (tool, risk, Details).
-    await expect(reply.locator('[data-approval-card] [data-approval-tool]')).toContainText('shell')
+    await expect(reply.locator('[data-approval-card] [data-approval-tool]')).toContainText('High risk')
     await expect(reply.locator('[data-tool] > button[aria-expanded]')).toHaveCount(0)
     await reply.locator('[data-approval-tool]').click()
     await expect(reply.getByText('Arguments')).toBeVisible()

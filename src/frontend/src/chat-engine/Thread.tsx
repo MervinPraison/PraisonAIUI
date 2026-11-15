@@ -47,7 +47,7 @@ import type { ChatPresentation } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
 import { LazyBoundary } from './parts/LazyBoundary'
 import { useDecision, type InlineGateProps } from './presentation/decision'
-import { commandOf } from './presentation/command'
+import { commandLabel, commandOf } from './presentation/command'
 import { APPROVAL_ERROR, APPROVAL_PENDING, PENDING_APPROVAL } from './protocol'
 import { formatDuration, safeUrl } from './util'
 
@@ -185,8 +185,9 @@ function ApprovalGate(p: InlineGateProps & { args?: Readonly<Record<string, unkn
   const [busy, error, act] = useDecision(p)
   const high = risk === 'high' || risk === 'critical'
   const command = commandOf(args)
-  // "Run: pip install numpy" for a command; "Details:" for any other arguments.
-  const label = args && ['command', 'cmd', 'code', 'script'].some((k) => k in args) ? 'Run' : 'Details'
+  // "Run: pip install numpy", "Query: …", "Address: …", "File: …", else "Details: …".
+  const named = commandLabel(args)
+  const label = named === 'Command' ? 'Run' : named
   return (
     <div className="border-t border-border px-3 py-2.5" data-approval-gate>
       <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end">
