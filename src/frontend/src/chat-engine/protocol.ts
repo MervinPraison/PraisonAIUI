@@ -60,12 +60,17 @@ export interface AiuiMessage {
   role: 'user' | 'assistant' | 'system'
   parts: AiuiPart[]
   createdAt: number
+  /** assistant only: epoch ms when the reply became final (complete, error or cancelled). */
+  completedAt?: number
   status?: AiuiStatus // assistant only
   runId?: string
   agentName?: string
   /** user-only: uploaded attachment descriptors */
   attachments?: { id: string; name: string; contentType: string; previewUrl?: string }[]
-  /** channel/platform, feedback, transport (`via`), reconnect state, etc. */
+  /**
+   * channel/platform, feedback, transport (`via`), reconnect state, and
+   * `suggestions` (follow-up prompts from run_completed.suggestions).
+   */
   custom?: JSONObject
 }
 
@@ -322,6 +327,18 @@ function pause(m: AiuiMessage, ev: WireEvent): AiuiMessage {
   return { ...m, parts: [...m.parts, part], status: { type: 'requires-action', reason: 'interrupt' } }
 }
 
+/** Stamp the moment a reply became final (kept when it is final already). */
+const stampDone = (m: AiuiMessage): AiuiMessage => (m.completedAt ? m : { ...m, completedAt: Date.now() })
+
+/**
+ * `run_completed.suggestions`: follow-up prompts a layout may offer as chips.
+ * Non-empty strings only, trimmed, at most 8; none leaves `custom` as it was.
+ */
+function withSuggestions(m: AiuiMessage, raw: unknown): AiuiMessage {
+  const suggestions = Array.isArray(raw) ? raw.map((x) => (typeof x === 'string' ? x.trim() : '')).filter(Boolean).slice(0, 8) : []
+  return suggestions.length ? { ...m, custom: { ...m.custom, suggestions } } : m
+}
+
 function finalize(m: AiuiMessage, content: string | undefined): AiuiMessage {
   let next = closeReasoning(m)
   if (content && content !== 'None') {
@@ -331,7 +348,8 @@ function finalize(m: AiuiMessage, content: string | undefined): AiuiMessage {
       next = { ...next, parts: [...next.parts.filter((p) => p.type !== 'text'), { type: 'text', id: genId('t'), text: content }] }
     }
   }
-  return { ...next, status: hasOpenGate(next) ? next.status : { type: 'complete' } }
+  if (hasOpenGate(next)) return next
+  return stampDone({ ...next, status: { type: 'complete' } })
 }
 
 /**
@@ -407,14 +425,14 @@ export function applyEvent(
     case 'message':
     case 'run_completed':
     case 'team_run_completed':
-      return { message: finalize(m, s(ev.content)) }
+      return { message: withSuggestions(finalize(m, s(ev.content)), ev.suggestions ?? obj(ev.extra_data).suggestions) }
     case 'error':
     case 'run_error':
     case 'team_run_error':
-      return { message: { ...closeReasoning(m), status: { type: 'incomplete', reason: 'error', error: s(ev.error) ?? s(ev.message) ?? 'Unknown error' } } }
+      return { message: stampDone({ ...closeReasoning(m), status: { type: 'incomplete', reason: 'error', error: s(ev.error) ?? s(ev.message) ?? 'Unknown error' } }) }
     case 'run_cancelled':
     case 'team_run_cancelled':
-      return { message: { ...closeReasoning(m), status: { type: 'incomplete', reason: 'cancelled' } } }
+      return { message: stampDone({ ...closeReasoning(m), status: { type: 'incomplete', reason: 'cancelled' } }) }
     case 'end':
     case 'done':
       return { message: m.status?.type === 'running' ? finalize(m, undefined) : m }
@@ -488,6 +506,7 @@ export function fromHistory(raw: JSONObject, i: number): AiuiMessage {
       m = { ...m, parts: m.parts.map((p) => (p.type === 'tool-call' ? { ...p, timing: undefined } : p)) }
     }
     for (const el of (raw.elements as unknown[] | undefined) ?? []) m = addElement(m, el)
+    m = withSuggestions(m, raw.suggestions)
   } else if (role === 'user') {
     const attachments = historyAttachments(raw.attachments)
     if (attachments.length) m.attachments = attachments

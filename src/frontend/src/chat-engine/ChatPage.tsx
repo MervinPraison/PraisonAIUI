@@ -6,25 +6,38 @@
  * ?agent= preselect), starters, the thread and composer, and a connection
  * badge. Listens for `aiui:prefill-composer` and `aiui:session-select`.
  * The selected session is mirrored into ?session= so a reload restores it.
+ * The session list and selection live in ./sessionsStore, shared with the
+ * SessionsFeed a layout frame reads.
+ *
+ * Inside a layout (ADR 0003 §1.3) the page reads `useLayout()?.meta.chat`:
+ *   sessions  'page' (default) keeps the rail; 'frame' | 'tabs' | 'none' hide it
+ *   thread / approvals  passed to the Thread (variant, approval presentation)
+ *   aside     a side panel (desktop), collapsed on a tablet, a Chat | <label>
+ *             switch on a phone
+ *   turnHeader / turnFooter / empty  regions inside the Thread
+ * All of it is drawn by the lazy presentation host (./presentation/host),
+ * which loads each feature as a lazy chunk again; without a layout none of
+ * it is downloaded.
  *
  * The page does not register itself; the shell calls registerChatPage()
  * from ./register.
  */
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type JSX } from 'react'
+import { lazy, Suspense, use, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type JSX } from 'react'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import { PanelLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { useLayout } from '@/sdk/layouts'
 import type { ShellPage } from '@/sdk/manifest'
 import { useManifest } from '@/sdk/services'
-import { deleteSession, fetchAgents, fetchSessions, fetchStarters, renameSession, type ChatAgent, type ChatSession } from './api'
+import { fetchAgents, fetchStarters, type ChatAgent, type ChatSession } from './api'
 import type { ConnectionStatus } from './protocol'
 import { takePendingPrefill, takePendingSessionSelect } from './register'
 import { SessionRail } from './SessionRail'
-import { addLocalSession, markListed, mergeSessions, removeLocalSession, renameLocalSession, type LocalSessions } from './sessionList'
+import { chatTransport, sessionsStore } from './sessionsStore'
 import { threadStore } from './store'
-import { Thread } from './Thread'
-import { createAutoTransport, type AiuiTransport } from './transports'
+import { Thread, type PresentationHost, type ThreadPresentation } from './Thread'
+import type { AiuiTransport } from './transports'
 import { DEFAULT_STARTERS, fillPrompts } from './starters'
 import { connectionLabel } from './util'
 import { useAiuiRuntime, type AiuiStarter } from './useAiuiRuntime'
@@ -38,18 +51,23 @@ function preloadRailSheet() {
   })
 }
 
-let sharedTransport: AiuiTransport | null = null
-/** One WebSocket for every chat view; streams outlive the page component. */
-function getSharedTransport(): AiuiTransport {
-  return (sharedTransport ??= createAutoTransport())
-}
+/**
+ * The layout presentation host, loaded the first time a layout declares
+ * `meta.chat` (the page suspends for it once). A chunk that fails to load
+ * resolves to null: the default chat, with a warning.
+ */
+let presentationHost: Promise<PresentationHost | null> | null = null
+const loadPresentationHost = () =>
+  (presentationHost ??= import('./presentation/host').catch((err: unknown) => {
+    console.warn('[aiui chat] layout presentation failed to load', err)
+    return null
+  }))
 
 /**
- * The shell unmounts the page on every navigation. The open conversation and
- * an unsent draft survive leaving and coming back to /chat (an explicit
- * ?session= still wins); "New chat" clears them.
+ * An unsent draft survives leaving and coming back to /chat (the open
+ * conversation is kept by ./sessionsStore; an explicit ?session= still
+ * wins); "New chat" clears it.
  */
-let lastSessionId: string | null = null
 const drafts = new Map<string, string>()
 const draftKey = (sid: string | null) => sid ?? ''
 
@@ -132,52 +150,51 @@ export interface ChatPageProps {
 }
 
 export default function ChatPage({ page, transport: transportProp }: ChatPageProps): JSX.Element {
-  const [transport] = useState(() => transportProp ?? getSharedTransport())
-  const [initial] = useState(readUrlState)
-  const [sessionId, setSessionId] = useState<string | null>(() => initial.session ?? lastSessionId)
+  const [transport] = useState(() => transportProp ?? chatTransport())
+  // `at`: the store's selection counter when the page mounted.
+  const [initial] = useState(() => ({ ...readUrlState(), at: sessionsStore.get().selection }))
+  const sessions = useSyncExternalStore(sessionsStore.subscribe, sessionsStore.get)
+  // ?session= wins over the session kept from the last visit. It is applied
+  // to the store before paint, and read from `initial` until the store's
+  // selection has moved on from `at`.
+  const sessionId = initial.session && sessions.selection === initial.at ? initial.session : sessions.activeId
+  useLayoutEffect(() => {
+    if (initial.session) sessionsStore.select(initial.session)
+  }, [initial])
   const [agents, setAgents] = useState<ChatAgent[]>([])
   const [agent, setAgent] = useState('')
   const [starters, setStarters] = useState<AiuiStarter[] | undefined>(undefined)
-  const [sessions, setSessions] = useState<ChatSession[]>([])
-  const [sessionsLoading, setSessionsLoading] = useState(true)
-  const [sessionsError, setSessionsError] = useState<string | null>(null)
-  const [localSessions, setLocalSessions] = useState<LocalSessions>({})
   const [query, setQuery] = useState('')
   const [railOpen, setRailOpen] = useState(false)
   // The sheet chunk is mounted after the first open only (as the shell does with MobileNav).
   const [railRequested, setRailRequested] = useState(false)
   const railButton = useRef<HTMLButtonElement>(null)
   const [railHidden, setRailHidden] = useState(readRailHidden)
+  // A notice belongs to the chat it was raised in: opening another session
+  // (here or from a layout frame's list) clears it.
   const [notice, setNotice] = useState<string | null>(null)
+  const [noticeFor, setNoticeFor] = useState(sessionId)
+  if (noticeFor !== sessionId) {
+    setNoticeFor(sessionId)
+    setNotice(null)
+  }
   const running = useSyncExternalStore(threadStore.subscribeRunning, threadStore.runningSessions)
   // The shell header owns the page <h1>; with it hidden (layout.pageHeader: false) the chat title is the h1.
   const manifest = useManifest()
   const Heading = manifest?.layout.pageHeader === false ? 'h1' : 'h2'
 
-  // Chats deleted during this visit. A list request that was already in flight
-  // when the delete finished must not bring them back.
-  const deletedIds = useRef(new Set<string>())
-  const refreshSeq = useRef(0)
-
-  const refreshSessions = useCallback(async () => {
-    const seq = ++refreshSeq.current
-    try {
-      const list = (await fetchSessions()).filter((s) => !deletedIds.current.has(s.id))
-      if (seq !== refreshSeq.current) return // a newer refresh owns the list
-      setSessions(list)
-      setLocalSessions((local) => markListed(local, list))
-      setSessionsError(null)
-    } catch {
-      if (seq === refreshSeq.current) setSessionsError('Chats could not be loaded')
-    } finally {
-      if (seq === refreshSeq.current) setSessionsLoading(false)
-    }
-  }, [])
+  // A layout's presentation of the chat (null: the classic frame, the page as before).
+  const chat = useLayout()?.meta.chat
+  const ownRail = !chat?.sessions || chat.sessions === 'page'
+  // The aside's open/close toggle is drawn into the header from its own chunk.
+  const [asideSlot, setAsideSlot] = useState<HTMLElement | null>(null)
+  const host = chat ? use(loadPresentationHost()) : null
+  const presentation = useMemo<ThreadPresentation | undefined>(() => chat && { chat, host, sessionId }, [chat, host, sessionId])
 
   // Initial data: sessions, agents (with ?agent= preselect), starters.
   useEffect(() => {
     let alive = true
-    void refreshSessions()
+    void sessionsStore.refresh()
     void fetchAgents()
       .then((list) => {
         if (!alive) return
@@ -193,24 +210,10 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
     return () => {
       alive = false
     }
-  }, [refreshSessions, initial.agent])
-
-  // A finished turn may have created or retitled a session.
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const off = threadStore.onSettled(() => {
-      if (timer !== undefined) clearTimeout(timer)
-      timer = setTimeout(() => void refreshSessions(), 300)
-    })
-    return () => {
-      off()
-      if (timer !== undefined) clearTimeout(timer)
-    }
-  }, [refreshSessions])
+  }, [initial.agent])
 
   // Mirror the selection into ?session= (and drop a consumed ?agent=).
   useEffect(() => {
-    lastSessionId = sessionId
     try {
       const url = new URL(window.location.href)
       if (sessionId) url.searchParams.set('session', sessionId)
@@ -223,26 +226,19 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   }, [sessionId])
 
   const select = useCallback((id: string | null) => {
-    setSessionId(id)
+    sessionsStore.select(id)
     setRailOpen(false)
     setNotice(null)
   }, [])
 
   const clearNotice = useCallback(() => setNotice(null), [])
 
-  const onSessionCreated = useCallback((id: string) => {
-    const first = threadStore.get(id).messages.find((m) => m.role === 'user')
-    const text = first?.parts.map((p) => (p.type === 'text' ? p.text : '')).join(' ').replace(/\s+/g, ' ').trim()
-    if (text) setLocalSessions((local) => addLocalSession(local, id, text.length > 60 ? `${text.slice(0, 57)}…` : text))
-    setSessionId(id)
-  }, [])
-
   const { runtime, thread, setComposerText, sessionId: threadSessionId } = useAiuiRuntime({
     sessionId,
     transport,
     agentName: agent || undefined,
     starters,
-    onSessionCreated,
+    onSessionCreated: sessionsStore.noteCreated,
     onError: setNotice,
     onSend: clearNotice,
     // Servers that report it (site.feedbackEnabled); older ones are found out on the first 403.
@@ -275,7 +271,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   useEffect(() => {
     // Events dispatched while the chat chunk was still loading (see ./register).
     const bufferedSession = takePendingSessionSelect()
-    if (bufferedSession) select(bufferedSession)
+    if (bufferedSession) sessionsStore.select(bufferedSession)
     const buffered = takePendingPrefill()
     if (buffered) setComposerText(buffered)
     const onPrefill = (e: Event) => {
@@ -286,6 +282,11 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
     }
     const onSelect = (e: Event) => {
       const id = (e as CustomEvent<{ sessionId?: unknown }>).detail?.sessionId
+      // `sessionId: null` is "New chat" (builtin.chat startNewChat).
+      if (id === null) {
+        select(null)
+        return
+      }
       if (typeof id !== 'string' || !id) return
       takePendingSessionSelect() // handled here; do not replay it on the next mount
       select(id)
@@ -306,30 +307,9 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
     }
   }, [setComposerText, select])
 
-  const rename = useCallback(async (id: string, title: string) => {
-    await renameSession(id, title)
-    setSessions((list) => list.map((s) => (s.id === id ? { ...s, title, untitled: false } : s)))
-    // A chat started here may not be listed by the server yet; its row comes from the local entry.
-    setLocalSessions((local) => renameLocalSession(local, id, title))
-  }, [])
-
-  const remove = useCallback(async (id: string) => {
-    if (threadStore.get(id).isRunning) await threadStore.cancel(transport, id)
-    await deleteSession(id)
-    deletedIds.current.add(id) // a list fetched before the delete still has it
-    threadStore.drop(id)
-    setSessions((list) => list.filter((s) => s.id !== id))
-    // A chat started here is also listed from its local entry; drop that too.
-    setLocalSessions((local) => removeLocalSession(local, id))
-    setSessionId((cur) => (cur === id ? null : cur))
-  }, [transport])
-
-  // Server list + sessions created here that the server has not listed yet.
-  const shownSessions = useMemo(() => mergeSessions(sessions, localSessions), [sessions, localSessions])
-
   const fill = useMemo(() => fillPrompts(starters), [starters])
 
-  const current = sessionId ? shownSessions.find((s) => s.id === sessionId) : undefined
+  const current = sessionId ? sessions.sessions.find((s) => s.id === sessionId) : undefined
   const heading = current?.title ?? (sessionId ? 'Chat' : 'New chat')
 
   const toggleRail = () => {
@@ -340,22 +320,22 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   }
 
   const railProps = {
-    sessions: shownSessions,
-    loading: sessionsLoading,
-    error: sessionsError,
+    sessions: sessions.sessions as ChatSession[],
+    loading: sessions.loading,
+    error: sessions.error,
     activeId: sessionId,
     runningIds: running,
     query,
     onQuery: setQuery,
     onSelect: (id: string) => select(id),
     onNew: () => select(null),
-    onRename: rename,
-    onDelete: remove,
+    onRename: sessionsStore.rename,
+    onDelete: (id: string) => sessionsStore.remove(id, transport),
   }
 
   return (
     <div className="relative flex h-full min-h-0 w-full min-w-0 overflow-hidden bg-background text-foreground" data-aiui-chat data-page-id={page.id}>
-      {!railHidden && <SessionRail {...railProps} className="hidden shrink-0 border-r border-border/70 lg:flex" />}
+      {ownRail && !railHidden && <SessionRail {...railProps} className="hidden shrink-0 border-r border-border/70 lg:flex" />}
       {railRequested && (
         <Suspense fallback={null}>
           <RailSheet open={railOpen} onOpenChange={setRailOpen} rail={railProps} returnFocus={railButton} />
@@ -364,39 +344,42 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
       <section className="@container flex min-h-0 min-w-0 flex-1 flex-col" aria-label={page.title || 'Chat'}>
         {/* The title lines up with the thread column; the rail toggle sits in the gutter. */}
         <header className="relative flex h-12 shrink-0 items-center px-4 sm:px-6">
-          <div className="absolute top-2 left-2 flex sm:left-3">
-            <Button
-              ref={railButton}
-              variant="ghost"
-              size="icon-sm"
-              className="text-muted-foreground hover:text-foreground lg:hidden"
-              onClick={() => {
-                setRailRequested(true)
-                setRailOpen(true)
-              }}
-              onPointerEnter={preloadRailSheet}
-              onFocus={preloadRailSheet}
-              aria-label="Show chats"
-              aria-haspopup="dialog"
-              aria-expanded={railOpen}
-            >
-              <PanelLeft />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="hidden text-muted-foreground hover:text-foreground lg:inline-flex"
-              onClick={toggleRail}
-              aria-label={railHidden ? 'Show chats' : 'Hide chats'}
-              aria-pressed={!railHidden}
-            >
-              <PanelLeft />
-            </Button>
-          </div>
-          <div className="mx-auto flex w-full max-w-[760px] min-w-0 items-center gap-1.5 pl-7 @[54rem]:pl-0" data-chat-header-column>
+          {ownRail && (
+            <div className="absolute top-2 left-2 flex sm:left-3">
+              <Button
+                ref={railButton}
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground hover:text-foreground lg:hidden"
+                onClick={() => {
+                  setRailRequested(true)
+                  setRailOpen(true)
+                }}
+                onPointerEnter={preloadRailSheet}
+                onFocus={preloadRailSheet}
+                aria-label="Show chats"
+                aria-haspopup="dialog"
+                aria-expanded={railOpen}
+              >
+                <PanelLeft />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="hidden text-muted-foreground hover:text-foreground lg:inline-flex"
+                onClick={toggleRail}
+                aria-label={railHidden ? 'Show chats' : 'Hide chats'}
+                aria-pressed={!railHidden}
+              >
+                <PanelLeft />
+              </Button>
+            </div>
+          )}
+          <div className={cn('mx-auto flex w-full max-w-[760px] min-w-0 items-center gap-1.5', ownRail && 'pl-7 @[54rem]:pl-0')} data-chat-header-column>
             <Heading className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" data-chat-title>{heading}</Heading>
             <AgentPicker agents={agents} value={agent} onChange={setAgent} />
             <ConnectionBadge status={thread.signals.connection} transport={transport} />
+            {chat?.aside && <span className="contents" ref={setAsideSlot} />}
           </div>
         </header>
         <div className="min-h-0 min-w-0 flex-1">
@@ -405,12 +388,14 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
               sessionId={threadSessionId}
               loading={thread.isLoading && !thread.messages.length}
               subtitle={agent ? `Chatting with ${agent}` : agents.length ? 'Default agent' : undefined}
-              notice={notice ? { text: notice, onDismiss: () => setNotice(null) } : null}
+              notice={notice ? { text: notice, onDismiss: clearNotice } : null}
               fillPrompts={fill}
+              presentation={presentation}
             />
           </AssistantRuntimeProvider>
         </div>
       </section>
+      {presentation?.host && <presentation.host.Aside presentation={presentation} slot={asideSlot} />}
     </div>
   )
 }

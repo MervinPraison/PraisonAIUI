@@ -1,0 +1,31 @@
+/*
+ * Thread variant `steps` (Guided): larger type, a labelled question bubble,
+ * an avatar header on each answer (TurnMeta). Where the layout's turnHeader
+ * region (the step tracker) is on a turn, it owns that turn's steps, so the
+ * thread's own reasoning and tool rows are hidden; an open approval stays
+ * visible.
+ * Lazy: loaded only when a layout picks this variant. Tokens only.
+ */
+[data-variant='steps'] {
+  --font-size-base: 1rem;
+}
+
+[data-variant='steps'] [data-role='user']::before {
+  content: 'You';
+  padding-inline-end: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--muted-foreground);
+}
+
+[data-variant='steps'] [data-user-bubble] {
+  max-width: min(85%, 34rem);
+  border-radius: 1.25rem 1.25rem 0.375rem 1.25rem;
+  background: var(--ui-bubble-user);
+  padding: 0.875rem 1.125rem;
+}
+
+[data-variant='steps'] [data-role='assistant']:has(> [data-chat-region='turnHeader']) [data-part='reasoning'],
+[data-variant='steps'] [data-role='assistant']:has(> [data-chat-region='turnHeader']) [data-tool]:not([data-state='approval']) {
+  display: none;
+}
