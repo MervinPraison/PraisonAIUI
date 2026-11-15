@@ -14,7 +14,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Optional, Union
 
-from praisonaiui.plugin_registry import PageSpec
+from praisonaiui.plugin_registry import LayoutSpec, PageSpec
 
 #: Package that built-in feature modules are relative to.
 FEATURES_PACKAGE = "praisonaiui.features"
@@ -71,6 +71,12 @@ class BuiltinPlugin:
                  feature module. It is called lazily, only while the plugin
                  is on, so a disabled built-in leaves those paths unmounted.
                  These are not features: ``/api/features`` does not list them.
+    layout_specs: the app shell layouts it provides (ADR 0003, see
+                 :func:`layout_spec`); read by the ``layouts()`` hook.
+    for_layouts: the layouts this plugin serves data to. While none of them
+                 is available (and ``extensions.enabled`` does not name the
+                 record), the record is ``disabled`` and its feature modules
+                 are never imported.
     """
 
     name: str
@@ -79,15 +85,28 @@ class BuiltinPlugin:
     feature_refs: tuple[FeatureRef, ...] = ()
     dashboard_plugins: tuple[str, ...] = ()
     host_routes: Optional[Callable[[], list[Any]]] = None
+    layout_specs: tuple[LayoutSpec, ...] = ()
+    for_layouts: tuple[str, ...] = ()
 
     @property
     def required(self) -> bool:
         """True when the host needs part of this plugin (a required feature)."""
         return any(ref.required for ref in self.feature_refs)
 
-    def pages(self) -> list[PageSpec]:
+    def _all_pages(self) -> list[PageSpec]:
         specs = self.page_specs() if callable(self.page_specs) else self.page_specs
         return list(specs)
+
+    def pages(self) -> list[PageSpec]:
+        """Its page-table pages (``/api/pages``, the dashboard, the shell)."""
+        return [s for s in self._all_pages() if not s.shell_only]
+
+    def shell_pages(self) -> list[PageSpec]:
+        """Its ``shell_only`` pages: the app shell manifest only (ADR 0003)."""
+        return [s for s in self._all_pages() if s.shell_only]
+
+    def layouts(self) -> list[LayoutSpec]:
+        return list(self.layout_specs)
 
     def features(self) -> list[Any]:
         """Instances of every feature this plugin owns (the plugin is on)."""
@@ -125,7 +144,10 @@ def page(
     ``kind="legacy"`` (the default): a vanilla view the shell mounts through
     the legacy host. ``kind="native"``: the app shell renders it with a React
     page registered by a first-party browser plugin (src/frontend/src/builtin);
-    the legacy dashboard style ignores the kind.
+    the legacy dashboard style ignores the kind. ``shell_only=True`` keeps
+    the page out of the page table, ``/api/pages`` and the dashboard; with
+    ``layouts=(...)`` the shell manifest carries it only while one of those
+    layouts is available (ADR 0003).
     """
     return PageSpec(
         id=id,
@@ -137,4 +159,28 @@ def page(
         order=order,
         source="builtin",
         **extra,  # type: ignore[arg-type]
+    )
+
+
+def layout_spec(
+    id: str,
+    title: str,
+    description: str,
+    order: float,
+    *,
+    home: str,
+    primary: tuple[str, ...],
+) -> LayoutSpec:
+    """A first-party layout (ADR 0003). Its frame is the browser descriptor
+    ``src/frontend/src/builtin/layouts/<id>.ts``; ``home`` is the page ``/``
+    opens and ``primary`` the default primary nav (YAML ``layout.primary``
+    wins)."""
+    return LayoutSpec(
+        id=id,
+        title=title,
+        description=description,
+        order=order,
+        home=home,
+        primary=primary,
+        source="builtin",
     )

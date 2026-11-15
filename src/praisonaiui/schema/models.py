@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
 
 class ThemeConfig(BaseModel):
@@ -378,7 +378,22 @@ class DashboardConfig(BaseModel):
 
 
 class LayoutConfig(BaseModel):
-    """Layout configuration for chat positioning."""
+    """Layout configuration: chat positioning (``mode``, ``width``, ``height``)
+    and, for ``style: app``, the selectable shell layouts (ADR 0003).
+
+    - ``default``: the layout a viewer starts with; ``classic`` is the
+      shell's own frame. ``AIUI_LAYOUT`` and ``aiui.set_layout()`` win.
+    - ``available``: the layouts offered, in picker order (default: every
+      layout the enabled plugins declare).
+    - ``user_choice``: a viewer's own pick may override ``default``.
+    - ``primary``: page ids of the primary nav, for every layout.
+    - ``options``: per-layout settings, keyed by layout id.
+
+    A bare string is shorthand: ``layout: command`` is ``{default: command}``.
+    A malformed selection entry (a bad id, a string where a list goes) never
+    fails the config: it is dropped, as the server drops it, and listed in
+    ``rejected`` for ``aiui validate`` (warning 5103).
+    """
 
     mode: Literal[
         "fullscreen",
@@ -392,8 +407,35 @@ class LayoutConfig(BaseModel):
     ] = "fullscreen"
     width: Optional[str] = None
     height: Optional[str] = None
+    default: Optional[str] = None
+    available: Optional[list[str]] = None
+    user_choice: bool = Field(default=True, alias="userChoice")
+    primary: Optional[list[str]] = None
+    options: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
     model_config = ConfigDict(populate_by_name=True)
+
+    #: Selection entries dropped as malformed: key → reason.
+    _rejected: dict[str, str] = PrivateAttr(default_factory=dict)
+
+    @property
+    def rejected(self) -> dict[str, str]:
+        return dict(self._rejected)
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _selection(cls, data: Any, handler: Any) -> "LayoutConfig":
+        if isinstance(data, str):
+            data = {"default": data}
+        rejected: dict[str, str] = {}
+        if isinstance(data, dict):
+            from praisonaiui.layouts import split_selection
+
+            valid, rejected = split_selection(data)
+            data = {k: v for k, v in data.items() if k not in rejected} | valid
+        model = handler(data)
+        model._rejected = rejected
+        return model
 
 
 class AuthProviderConfig(BaseModel):

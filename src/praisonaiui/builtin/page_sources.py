@@ -106,10 +106,11 @@ def table_page(
 def plugin_page(spec: PageSpec) -> PageRecord:
     """A page an entry-point or ``register_plugin`` plugin contributes.
 
-    The legacy dashboard renders only server-driven ``blocks`` pages.
+    The legacy dashboard renders only server-driven ``blocks`` pages, and
+    never a ``shell_only`` one.
     """
     api_row = None
-    if spec.kind == "blocks":
+    if spec.kind == "blocks" and not spec.shell_only:
         api_row = {
             "id": spec.id,
             "title": spec.title,
@@ -120,6 +121,47 @@ def plugin_page(spec: PageSpec) -> PageRecord:
             "order": spec.order,
         }
     return PageRecord(spec, spec.to_dict(), api_row)
+
+
+def shell_page(spec: PageSpec) -> PageRecord:
+    """A first-party ``shell_only`` page (ADR 0003): a shell manifest row in
+    the page-table row format, and no ``/api/pages`` row."""
+    entry: dict[str, Any] = {
+        "id": spec.id,
+        "title": spec.title,
+        "kind": spec.kind,
+        "icon": spec.icon,
+        "group": spec.group,
+        "order": spec.order,
+        "description": spec.description,
+        "source": spec.source,
+    }
+    if spec.api_endpoint:
+        entry["apiEndpoint"] = spec.api_endpoint
+    if spec.shell_layout or spec.layout:
+        entry["layout"] = spec.shell_layout or spec.layout
+    if spec.nav_icon:
+        entry["navIcon"] = spec.nav_icon
+    if spec.layouts:
+        entry["layouts"] = list(spec.layouts)
+    if spec.replaces:
+        entry["replaces"] = spec.replaces
+    return PageRecord(spec, entry, None)
+
+
+def shell_pages(registry: Any, style: Optional[str], *, restricted: bool) -> list[PageRecord]:
+    """The shell-only built-in pages for the layouts on offer (none outside
+    ``style: app``). The layout choice is resolved only when a built-in
+    declares such a page, so page navigation does not pay for it otherwise."""
+    specs = registry.shell_pages(None)
+    if not specs:
+        return []
+    from praisonaiui.layouts import resolve
+
+    ids = set(resolve(registry, style, restricted=restricted).ids)
+    if not ids:
+        return []
+    return [shell_page(s) for s in specs if not s.layouts or ids.intersection(s.layouts)]
 
 
 def folder_page(manifest: dict[str, Any]) -> Optional[PageRecord]:
@@ -185,5 +227,7 @@ __all__ = [
     "folder_pages",
     "merge_pages",
     "plugin_page",
+    "shell_page",
+    "shell_pages",
     "table_page",
 ]

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from praisonaiui.plugin_registry import PageSpec
 
-from ._plugin import BuiltinPlugin, feature, page
+from ._plugin import BuiltinPlugin, feature, layout_spec, page
 
 #: App shell sidebar groups: display order (other groups follow in
 #: first-appearance order, then ``last``) and the groups that start folded.
@@ -26,6 +26,10 @@ NAV_GROUPS: dict[str, object] = {
     "last": "Settings",
     "folded": ["Work", "Examples", "Create"],
 }
+
+#: The layout a style opens with when nothing picks one (ADR 0003). Only
+#: ``style: app`` draws layouts; ``layout: classic`` restores its own frame.
+STYLE_DEFAULT_LAYOUT: dict[str, str] = {"app": "chat-canvas"}
 
 
 def _replay_pages() -> tuple[PageSpec, ...]:
@@ -716,5 +720,86 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
         feature_refs=(feature(".video", "VideoFeature"),),
         # The bundled folder is the Video Studio page; it only calls /api/video.
         dashboard_plugins=("video-studio",),
+    ),
+    # ── Layouts (ADR 0003) ───────────────────────────────────────────
+    # App shell frames. Each record is one layout (its frame is the browser
+    # descriptor src/frontend/src/builtin/layouts/<id>.ts and the lazy chunk
+    # app-layouts/<id>/); ``extensions.disabled: [builtin.layout-<id>]``
+    # takes it off the picker. A layout's own pages (shell_only, never in the
+    # page table, /api/pages or the dashboard) are added by the track that
+    # ships the React page for them, never before: the shell would list a
+    # page nothing can render. ``primary`` may name such pages; the shell
+    # keeps only the ids the manifest carries.
+    BuiltinPlugin(
+        "layout-chat-canvas",
+        "Chat and Canvas layout: chat beside a canvas of the artifacts it makes",
+        layout_specs=(
+            layout_spec(
+                "chat-canvas",
+                "Chat and Canvas",
+                "Chat on the left, the tables, code and files it makes on a canvas beside it",
+                10,
+                home="chat",
+                primary=("chat", "artifacts", "agents", "cron", "knowledge", "sessions", "config"),
+            ),
+        ),
+    ),
+    BuiltinPlugin(
+        "layout-workbench",
+        "Quiet Workbench layout: a calm sidebar of chats and a focused thread",
+        layout_specs=(
+            layout_spec(
+                "workbench",
+                "Quiet Workbench",
+                "A calm sidebar with your chats and a focused, quiet thread",
+                20,
+                home="chat",
+                primary=("chat", "agents", "knowledge", "runs", "config"),
+            ),
+        ),
+    ),
+    BuiltinPlugin(
+        "layout-command",
+        "Command Deck layout: keyboard-first, with a run inspector",
+        layout_specs=(
+            layout_spec(
+                "command",
+                "Command Deck",
+                "Keyboard first: a command bar, session tabs and a run inspector with steps, tokens and cost",
+                30,
+                home="chat",
+                primary=("chat", "runs", "agents", "jobs", "config"),
+            ),
+        ),
+    ),
+    BuiltinPlugin(
+        "layout-guided",
+        "Guided Studio layout: plain-language steps for newcomers",
+        layout_specs=(
+            layout_spec(
+                "guided",
+                "Guided Studio",
+                "For newcomers: templates to start from and each step explained in plain words",
+                40,
+                # The start and templates pages arrive with the Guided frame
+                # (track G); until then its home is the chat.
+                home="chat",
+                primary=("start", "chat", "agents", "templates"),
+            ),
+        ),
+    ),
+    BuiltinPlugin(
+        "layout-mission",
+        "Mission Control layout: agents, runs, approvals and spend at a glance",
+        layout_specs=(
+            layout_spec(
+                "mission",
+                "Mission Control",
+                "Operations view: every agent's status, today's runs and cost, and approvals first",
+                50,
+                home="overview",
+                primary=("overview", "agents", "approvals", "chat", "runs", "sessions"),
+            ),
+        ),
     ),
 )
