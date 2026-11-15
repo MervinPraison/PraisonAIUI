@@ -23,6 +23,7 @@ import {
   resetApiCachesForTests,
   runCode,
 } from './api'
+import { MAX_KEY } from './derive'
 
 const g = globalThis as unknown as Record<string, unknown>
 if (typeof g.window === 'undefined') g.window = globalThis
@@ -156,6 +157,7 @@ test('contract: kinds, routes and limits match features/artifacts.py', () => {
     'PUT, DELETE /api/artifacts/{session_id}/{key:path}',
   ])
   assert.match(py, /^MAX_CONTENT = 512 \* 1024$/m)
+  assert.match(py, new RegExp(`^MAX_KEY = ${MAX_KEY}$`, 'm'), 'derive.boundKey caps keys at the server limit')
   assert.match(py, /_TEXT_LIMITS = \{"messageId": 200, "language": 64, "mimeType": 128, "url": 4096\}/)
   assert.match(py, /^MAX_TITLE = 300$/m)
   // An edit (or no version) takes the next number; a version with a number replaces it.

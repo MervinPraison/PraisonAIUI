@@ -336,6 +336,23 @@ const ELEMENT_KINDS: Record<string, ArtifactKind> = { image: 'image', pdf: 'pdf'
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
 
+/** The server's `MAX_KEY` (features/artifacts.py, counted in code points): a longer key is refused with a 400. */
+export const MAX_KEY = 300
+
+/**
+ * A key the server takes: a key over MAX_KEY (a wide table's header
+ * signature, a long URL or file name) becomes its first code points, `~` and
+ * a hash of the whole key, so it stays stable and distinct. Sliced by code
+ * point, so no lone surrogate breaks encodeURIComponent.
+ */
+export function boundKey(key: string): string {
+  const points = Array.from(key)
+  if (points.length <= MAX_KEY) return key
+  let h = 0x811c9dc5
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 0x01000193)
+  return `${points.slice(0, MAX_KEY - 9).join('')}~${(h >>> 0).toString(16).padStart(8, '0')}`
+}
+
 const headerSig = (header: readonly string[]) => header.map((h) => plainText(h).toLowerCase().replace(/\s+/g, ' ')).join('|')
 
 function fromFence(b: FenceBlock): Found {
@@ -494,6 +511,7 @@ export function deriveArtifacts(messages: readonly DeriveMessage[], sessionId: s
         counters.set(f.counter, n)
         key = `${f.counter}:${n}`
       }
+      key = boundKey(key)
       const prev = keys.get(key)
       let v: DerivedArtifact
       if (prev && prev.latest.content === f.content && prev.latest.url === f.url) {

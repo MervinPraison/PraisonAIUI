@@ -3,6 +3,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  boundKey,
+  MAX_KEY,
   deriveArtifacts,
   isLarge,
   languageName,
@@ -235,4 +237,27 @@ test('helpers: splitRow, parseInfo, plainText, languageName, parseTable, CSV, is
   assert.equal(isLarge({ kind: 'table', rows: 5 }), false)
   assert.equal(isLarge({ kind: 'code', lines: 12 }), true)
   assert.equal(isLarge({ kind: 'image' }), false)
+})
+
+test('keys stay within the server\'s MAX_KEY: a wide table, a long URL, stable and distinct', () => {
+  const cols = Array.from({ length: 40 }, (_, i) => `Column number ${i} 😀`)
+  const tableOf = (h: string[]) => `| ${h.join(' | ')} |\n|${h.map(() => '---').join('|')}|\n| ${h.map((_, i) => i).join(' | ')} |\n| ${h.map((_, i) => i + 1).join(' | ')} |`
+  const wide = (extra: string) => tableOf([...cols, extra])
+  const m = (id: string, text: string): DeriveMessage => ({ id, role: 'assistant', createdAt: T0, parts: [{ type: 'text', text }] })
+  const a = deriveArtifacts([m('m1', wide('A'))], 's').versions[0]
+  const b = deriveArtifacts([m('m1', wide('B'))], 's').versions[0]
+  assert.equal(Array.from(a.key).length, MAX_KEY)
+  assert.ok(a.key.startsWith('table:column number 0'))
+  assert.notEqual(a.key, b.key, 'distinct signatures stay distinct')
+  assert.equal(deriveArtifacts([m('m9', wide('A'))], 's').versions[0].key, a.key, 'stable across derivations')
+  assert.doesNotThrow(() => encodeURIComponent(a.key))
+  const url = `https://example.com/${'x'.repeat(400)}.png`
+  const img = deriveArtifacts([{ id: 'm2', role: 'assistant', createdAt: T0, parts: [{ type: 'data', name: 'element', data: { type: 'image', url } }] }], 's').versions[0]
+  assert.ok(Array.from(img.key).length <= MAX_KEY)
+  assert.equal(img.url, url, 'only the key is shortened')
+  assert.equal(boundKey('short'), 'short')
+  // The same table widened in a later reply is still one artifact with two versions.
+  const two = deriveArtifacts([m('m1', tableOf(cols)), m('m3', wide('A'))], 's')
+  assert.deepEqual(two.versions.map((v) => v.version), [1, 2])
+  assert.equal(new Set(two.versions.map((v) => v.key)).size, 1)
 })
