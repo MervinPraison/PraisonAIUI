@@ -75,6 +75,20 @@ async function runPaletteCommand(page: Page, name: string): Promise<void> {
   await page.getByRole('option', { name }).click()
 }
 
+/**
+ * The modifier the page binds `mod+…` to: ⌘ when the page's platform is
+ * Apple, Ctrl elsewhere (the kit's isMacPlatform). Playwright's
+ * `ControlOrMeta` follows the host OS instead, and devices['Desktop Chrome']
+ * reports Windows, so on a macOS host it would press ⌘ on a Ctrl page.
+ */
+async function pageModifiers(page: Page): Promise<{ mod: 'Meta' | 'Control'; other: 'Meta' | 'Control' }> {
+  const mac = await page.evaluate(() => {
+    const nav = navigator as Navigator & { userAgentData?: { platform?: string } }
+    return /mac|iphone|ipad|ipod/i.test(nav.userAgentData?.platform || nav.platform || nav.userAgent || '')
+  })
+  return mac ? { mod: 'Meta', other: 'Control' } : { mod: 'Control', other: 'Meta' }
+}
+
 /** Icon-only buttons inside the frame that have no accessible name. */
 async function unnamedIconButtons(page: Page): Promise<string[]> {
   return frame(page).evaluate((root) => {
@@ -214,7 +228,13 @@ test('⌘B hides the sidebar and it stays hidden after a reload; New chat starts
   const sidebar = page.getByRole('navigation', { name: 'Main' })
   await expect(sidebar).toBeVisible()
   await page.locator('body').click()
-  await page.keyboard.press('ControlOrMeta+b')
+  const { mod, other } = await pageModifiers(page)
+  // The other platform's modifier is not the shortcut (Ctrl+B on a Mac moves
+  // the caret back one character in a text field).
+  await page.keyboard.press(`${other}+b`)
+  await page.waitForTimeout(150)
+  await expect(sidebar).toBeVisible()
+  await page.keyboard.press(`${mod}+b`)
   await expect(sidebar).toHaveCount(0)
   await page.reload()
   await expect(frame(page)).toBeVisible()
