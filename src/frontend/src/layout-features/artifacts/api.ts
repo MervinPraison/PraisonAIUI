@@ -21,22 +21,32 @@ import { fetchJson, getManifest } from '@/sdk/services'
 
 export const ARTIFACTS_RECORD = 'builtin.artifacts'
 export const CODE_RECORD = 'builtin.code-studio'
+/** The pages those records own. */
+export const ARTIFACTS_PAGE = 'artifacts'
+export const CODE_PAGE = 'code-studio'
 /** The server's `KINDS`. */
 export const ARTIFACT_KINDS: readonly ArtifactKind[] = ['code', 'table', 'markdown', 'file', 'image', 'pdf', 'video', 'a2ui']
 /** The server's limits (`MAX_CONTENT`, `_TEXT_LIMITS`): larger values are left out of a PUT. */
 export const MAX_CONTENT_BYTES = 512 * 1024
 const LIMITS = { title: 300, messageId: 200, language: 64, mimeType: 128, url: 4096 } as const
 
-const recordOk = (name: string, manifest: ShellManifest | null) => !!manifest?.plugins?.some((p) => p.name === name && p.status === 'ok')
+/**
+ * Whether a built-in record is on. The shell manifest's `plugins` lists
+ * third-party records only, so a built-in shows through the page it owns
+ * (a record's pages are in the manifest exactly while it is on); a record
+ * listed with status `ok` counts too.
+ */
+const recordOn = (name: string, pageId: string, manifest: ShellManifest | null) =>
+  !!manifest && (manifest.pages?.some((p) => p.id === pageId) || !!manifest.plugins?.some((p) => p.name === name && p.status === 'ok'))
 
-/** True when the server stores artifacts (the `builtin.artifacts` record is on). */
+/** True when the server stores artifacts (`builtin.artifacts` is on: its `artifacts` page is listed). */
 export function artifactsServerEnabled(manifest: ShellManifest | null = getManifest()): boolean {
-  return recordOk(ARTIFACTS_RECORD, manifest)
+  return recordOn(ARTIFACTS_RECORD, ARTIFACTS_PAGE, manifest)
 }
 
-/** True when the server can run code (the `builtin.code-studio` record is on). */
+/** True when the server can run code (`builtin.code-studio` is on: its `code-studio` page is listed). */
 export function codeRunAvailable(manifest: ShellManifest | null = getManifest()): boolean {
-  return recordOk(CODE_RECORD, manifest)
+  return recordOn(CODE_RECORD, CODE_PAGE, manifest)
 }
 
 const seg = (s: string) => encodeURIComponent(s)

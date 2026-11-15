@@ -47,15 +47,28 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 
 beforeEach(() => resetApiCachesForTests())
 
-const manifest = (plugins: ShellManifest['plugins']): ShellManifest =>
-  ({ sdk: 1, version: '0', style: 'app', site: {}, layout: {}, pages: [], blocks: [], toolRenderers: [], plugins, legacy: { customJs: null, viewsBase: '' } }) as ShellManifest
+const manifest = (plugins: ShellManifest['plugins'], pages: string[] = []): ShellManifest =>
+  ({
+    sdk: 1, version: '0', style: 'app', site: {}, layout: {}, blocks: [], toolRenderers: [], plugins, legacy: { customJs: null, viewsBase: '' },
+    pages: pages.map((id) => ({ id, title: id, kind: 'react' })),
+  }) as ShellManifest
 
-test('record checks: builtin.artifacts and builtin.code-studio must be ok', () => {
+test('record checks: a built-in is on while its page is listed (or its record is ok)', () => {
   assert.equal(artifactsServerEnabled(null), false, 'no manifest (dev, tests): client only')
+  // The manifest lists third-party records only: built-ins show through their pages.
+  assert.equal(artifactsServerEnabled(manifest([], ['chat', 'artifacts'])), true)
+  assert.equal(artifactsServerEnabled(manifest([], ['chat'])), false)
+  assert.equal(codeRunAvailable(manifest([], ['code-studio'])), true)
+  assert.equal(codeRunAvailable(manifest([], ['artifacts'])), false)
   assert.equal(artifactsServerEnabled(manifest([{ name: 'builtin.artifacts', status: 'disabled' }])), false)
   assert.equal(artifactsServerEnabled(manifest([{ name: 'builtin.artifacts', status: 'ok' }])), true)
-  assert.equal(codeRunAvailable(manifest([{ name: 'builtin.artifacts', status: 'ok' }])), false)
   assert.equal(codeRunAvailable(manifest([{ name: 'builtin.code-studio', status: 'ok' }])), true)
+})
+
+test('contract: the records own the pages the checks look for (builtin/catalog.py)', () => {
+  const py = readFileSync(path.resolve(process.cwd(), '../praisonaiui/builtin/catalog.py'), 'utf8')
+  assert.match(py, /BuiltinPlugin\(\s*"code-studio",[\s\S]*?page\(\s*"code-studio",/, 'builtin.code-studio owns the code-studio page')
+  assert.match(py, /BuiltinPlugin\(\s*"artifacts",/, 'the builtin.artifacts record exists')
 })
 
 test('index, session, put, delete: URLs, methods, bodies', async () => {

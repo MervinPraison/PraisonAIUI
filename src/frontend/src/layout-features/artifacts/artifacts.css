@@ -19,3 +19,9 @@
   z-index: 50;
   border-radius: 0;
 }
+
+/* Phone: every control in the canvas is at least 44px tall (ADR 0003 §1.5). */
+[data-aiui-canvas][data-touch] button,
+[data-aiui-canvas][data-touch] [role='tab'] {
+  min-height: 44px;
+}

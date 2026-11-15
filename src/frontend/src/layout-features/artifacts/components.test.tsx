@@ -83,6 +83,7 @@ test('CanvasPanel: tabs, the newest artifact with its versions and actions, the 
 
 test('CanvasPanel on a phone: no split or expand, History under the viewer', () => {
   const out = html(createElement(CanvasPanel, { sessionId: 's1', viewport: 'phone', reportBadge: () => {} }))
+  assert.match(out, /data-touch="true"/, "phone: 44 px controls (artifacts.css)")
   assert.doesNotMatch(out, /Split: show another/)
   assert.doesNotMatch(out, /Expand the canvas/)
   assert.match(out, /aria-label="History" class="flex flex-col gap-2\.5 w-full border-t/)

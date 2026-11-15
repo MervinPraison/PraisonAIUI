@@ -102,6 +102,7 @@ export default function CanvasPanel({ sessionId, viewport, reportBadge }: ChatRe
       aria-label="Canvas"
       data-aiui-canvas
       data-expanded={expanded || undefined}
+      data-touch={phone || undefined}
       className={cn('flex min-h-0 flex-1 flex-col overflow-hidden bg-card', !phone && 'm-3 rounded-xl border border-hairline shadow-sm', expanded && 'm-0')}
     >
       {count === 0 ? (
