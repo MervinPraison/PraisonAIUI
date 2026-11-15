@@ -419,15 +419,19 @@ function approvalUrl(approvalId: string, approved: boolean): string {
   return `/api/approvals/${encodeURIComponent(approvalId)}/${approved ? 'approve' : 'deny'}`
 }
 
-/** Send an approve/deny decision. Resolves when the server accepted it; rejects with the message to show. */
-async function postDecision(approvalId: string, approved: boolean, reason: string): Promise<void> {
+/**
+ * Send an approve/deny decision. `always` asks the server to remember it for
+ * this tool ("Always allow" / "Always deny"). Resolves when the server
+ * accepted it; rejects with the message to show.
+ */
+async function postDecision(approvalId: string, approved: boolean, reason: string, always = false): Promise<void> {
   let res: Response
   try {
     res = await fetch(approvalUrl(approvalId, approved), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify(always ? { reason, always: true } : { reason }),
     })
   } catch {
     throw new Error('Could not reach the server; try again')
@@ -439,6 +443,8 @@ export interface ApprovalDecision {
   approved: boolean
   text?: string
   optionId?: string
+  /** Remember the decision for this tool (approval gates only; ignored for asks). */
+  always?: boolean
 }
 
 export interface SendOptions {
@@ -727,7 +733,7 @@ export const threadStore = {
     patchApprovalPart(sid, approvalId, (p) => ({ ...p, artifact: { ...withoutDecisionState(p.artifact), [APPROVAL_PENDING]: pending } }))
     try {
       if (ask) await transport.respondAsk(sid, str(part.artifact.run_id), answer ?? '')
-      else await postDecision(approvalId, d.approved, d.text ?? '')
+      else await postDecision(approvalId, d.approved, d.text ?? '', d.always === true)
     } catch (err) {
       throw fail(errorText(err))
     }
