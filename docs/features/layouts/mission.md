@@ -91,7 +91,7 @@ See [layout data](../layout-data.md) for the run ledger's routes and gating: it 
 
 The frame imports only the SDK, `components/ui`, `lib` and the layout kit, and the board only with
 `import()` of its one entry, `mission-board/index.ts` (R17), so the board builds as a single chunk:
-one request, not one per part. Budgets (`.size-limit.mjs`, gzip): `layout-mission` 10.5 kB,
+one request, not one per part. Budgets (`.size-limit.mjs`, gzip): `layout-mission` 13.2 kB (kit included),
 `lf-mission-board` 11.8 kB. Every board part sits behind its own error boundary: a part that fails to load
 or render disappears and the frame keeps working.
 
