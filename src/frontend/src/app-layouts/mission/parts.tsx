@@ -1,18 +1,15 @@
 /**
  * Mission Control frame pieces (Mission.dc.html, MissionPhone.dc.html, Pro
- * tokens): the brand, the top bar, the nav with counts, the approval
- * banner and the chat header. Tokens and primitives only.
+ * tokens): the brand, the top bar, the nav with counts and the chat
+ * header (the approval banner is the mission board's, loaded lazily). Tokens and primitives only.
  */
-import { useState, type Ref } from 'react'
-import { Bell, Search, Square, SunMoon, TriangleAlert } from 'lucide-react'
-import { describeCall, isPlainLeftClick, ShortcutHint } from '@/app-layouts/kit'
+import { Bell, CircleStop, Search, SunMoon, TriangleAlert } from 'lucide-react'
+import { isPlainLeftClick, ShortcutHint } from '@/app-layouts/kit'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { LayoutChrome, LayoutNavItem } from '@/sdk/layouts'
-import type { ApprovalItem, ApprovalsFeed } from '@/sdk/layoutTypes'
-import { notify } from '@/sdk/notify'
 import { renderNavIcon } from './icons'
-import { approvalTitle, navCount, waited, type HealthState, type NavCounts } from './model'
+import { navCount, type HealthState, type NavCounts } from './model'
 
 export function NavIcon({ item, className }: { item: LayoutNavItem; className?: string }) {
   const icon = renderNavIcon(item, cn('shrink-0', className))
@@ -184,75 +181,6 @@ export function NavRows({ items, go, counts, onNavigate, touch }: { items: reado
   )
 }
 
-// ── approval banner ──────────────────────────────────────────────────
-
-export interface ApprovalBannerProps {
-  item: ApprovalItem
-  more: number
-  feed: ApprovalsFeed
-  now: number
-  touch?: boolean
-  onReview?(): void
-  approveRef?: Ref<HTMLButtonElement>
-  className?: string
-}
-
-export function ApprovalBanner({ item, more, feed, now, touch, onReview, approveRef, className }: ApprovalBannerProps) {
-  const [busy, setBusy] = useState(false)
-  const decide = (approved: boolean) => async () => {
-    setBusy(true)
-    try {
-      await (approved ? feed.approve(item.id) : feed.deny(item.id))
-    } catch (err) {
-      void notify(err instanceof Error ? err.message : 'Could not send the decision', { type: 'error' })
-    } finally {
-      setBusy(false)
-    }
-  }
-  const call = describeCall(item)
-  const waiting = item.createdAt ? waited(now - item.createdAt) : null
-  return (
-    <div
-      role="alert"
-      data-aiui-approval-banner={item.id}
-      className={cn('flex flex-wrap items-center gap-3 rounded-lg border border-[var(--ui-warning-line)] bg-warning-soft px-3 py-2.5', touch && 'flex-col items-stretch rounded-xl p-3', className)}
-    >
-      <div className="flex min-w-0 flex-[1_1_260px] gap-2.5">
-        <span aria-hidden="true" className={cn('flex shrink-0 items-center justify-center rounded-md bg-warning text-warning-foreground', touch ? 'size-8' : 'size-7')}>
-          <TriangleAlert className="size-4" />
-        </span>
-        <div className="flex min-w-0 flex-col gap-px">
-          <span className={cn('font-semibold text-foreground', touch ? 'text-[15px]' : 'text-sm')}>{approvalTitle(item)}</span>
-          <span className={cn('min-w-0 text-muted-foreground', touch ? 'text-[13px]' : 'text-[13px]')}>
-            Wants to run <code className="font-mono text-foreground break-all">{call.length > 120 ? `${call.slice(0, 119)}…` : call}</code>
-            {item.riskLevel && ` · ${item.riskLevel} risk`}
-            {waiting && (
-              <>
-                {' · waiting '}
-                <span className="font-mono">{waiting}</span>
-              </>
-            )}
-            {more > 0 && ` · ${more} more waiting`}
-          </span>
-        </div>
-      </div>
-      <div className={cn('flex items-center gap-1.5', touch && 'gap-2')}>
-        {onReview && !touch && (
-          <Button variant="link" size="sm" onClick={onReview}>
-            Review
-          </Button>
-        )}
-        <Button variant="outline" size={touch ? 'lg' : 'sm'} className={cn('bg-card', touch && 'h-11 flex-1 text-[15px]')} disabled={busy} onClick={decide(false)}>
-          Deny
-        </Button>
-        <Button ref={approveRef} size={touch ? 'lg' : 'sm'} className={cn(touch && 'h-11 flex-1 text-[15px]')} disabled={busy} onClick={decide(true)}>
-          Approve
-        </Button>
-      </div>
-    </div>
-  )
-}
-
 // ── chat header ──────────────────────────────────────────────────────
 
 export interface ChatHeaderProps {
@@ -292,7 +220,7 @@ export function ChatHeader({ title, state, meta, onStop, onOpenRuns }: ChatHeade
         )}
         {onStop && (
           <Button variant="outline" size="sm" onClick={onStop}>
-            <Square aria-hidden className="fill-current" />
+            <CircleStop aria-hidden />
             Stop run
           </Button>
         )}

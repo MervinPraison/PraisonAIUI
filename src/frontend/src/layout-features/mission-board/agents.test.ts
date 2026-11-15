@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { AgentStatus, ApprovalItem, RunKpis, SessionSummary } from '@/sdk/layoutTypes'
 import { agentCountsLabel, agentViews, defaultAgent, sessionsOf } from './agents'
-import { agentDoing, agentMeta, agentTimer, kpiCells } from './cards'
+import { agentDoing, agentMeta, agentTimer, approvalTitle, kpiCells, requestTitle } from './cards'
 
 const NOW = 50_000_000
 const researcher: AgentStatus = { name: 'Researcher', state: 'running', elapsedMs: 7000, model: 'gpt-4o-mini', tokensToday: 3412, costToday: 0.012, lastRunAt: NOW - 7000 }
@@ -43,7 +43,7 @@ test('sessions of an agent, or all of them when no session says its agent', () =
   ]
   assert.deepEqual(sessionsOf(sessions, 'researcher'), { sessions: [sessions[0]], filtered: true })
   assert.deepEqual(sessionsOf(sessions, null), { sessions, filtered: false })
-  const plain = sessions.map(({ agent: _a, ...s }) => s)
+  const plain = sessions.map((s) => ({ id: s.id, title: s.title }))
   assert.deepEqual(sessionsOf(plain, 'Researcher'), { sessions: plain, filtered: false })
 })
 
@@ -91,4 +91,15 @@ test('KPI cells like the design: Runs today +6, Success 97.6%, Cost $1.84 of $10
       ['—', '', ''],
     ],
   )
+})
+
+test('the banner title names the agent that asks', () => {
+  assert.equal(approvalTitle({ agentName: 'Coder' }), 'Coder needs your approval to continue')
+  assert.equal(approvalTitle({ agentName: ' ' }), 'An agent needs your approval to continue')
+})
+
+test('a request card says what the agent wants to do', () => {
+  assert.equal(requestTitle({ agentName: 'Coder', toolName: 'shell' }), 'Coder wants to run a command')
+  assert.equal(requestTitle({ agentName: 'Coder' }), 'Coder wants to run a command')
+  assert.equal(requestTitle({ toolName: 'web_search' }), 'An agent wants to use web_search')
 })

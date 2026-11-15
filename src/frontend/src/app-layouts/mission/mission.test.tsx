@@ -10,7 +10,6 @@ import { provideLayoutData, resetLayoutsForTests, type LayoutNav, type LayoutNav
 import type { ApprovalItem, ApprovalsFeed } from '@/sdk/layoutTypes'
 import MissionFrame from './Frame'
 import {
-  approvalTitle,
   bannerApproval,
   environmentOf,
   frameContent,
@@ -19,7 +18,6 @@ import {
   navCount,
   phoneNav,
   SHORTCUTS,
-  waited,
 } from './model'
 
 beforeEach(() => resetLayoutsForTests())
@@ -81,10 +79,6 @@ test('the banner shows the oldest pending approval, never on the approvals page'
   assert.equal(bannerApproval([a, b], 'chat')?.id, 'b')
   assert.equal(bannerApproval([a, b], 'approvals'), null)
   assert.equal(bannerApproval([], 'chat'), null)
-  assert.equal(approvalTitle(b), 'Coder needs your approval to continue')
-  assert.equal(approvalTitle(a), 'An agent needs your approval to continue')
-  assert.equal(waited(42_000), '0:42')
-  assert.equal(waited(75 * 60_000), '75:00')
 })
 
 test('environment option and provider health', () => {
@@ -137,7 +131,7 @@ function props(pageId: string, viewport: LayoutProps['viewport']): LayoutProps {
   }
 }
 
-test('desktop: top bar, nav with counts, the approval banner and the routed page', () => {
+test('desktop: top bar, nav with counts and the routed page', () => {
   provideLayoutData('approvals', approvals([{ id: 'ap_1', agentName: 'Coder', toolName: 'shell', args: { cmd: 'pip install numpy' }, createdAt: 1 }]))
   const out = renderToStaticMarkup(createElement(MissionFrame, props('logs', 'desktop')))
   assert.match(out, /data-aiui-layout-frame="mission" data-viewport="desktop"/)
@@ -145,9 +139,7 @@ test('desktop: top bar, nav with counts, the approval banner and the routed page
   assert.match(out, />prod</, 'the environment badge')
   assert.match(out, /aria-label="Approvals, 1 waiting"/)
   assert.match(out, /aria-label="Approvals, 1 waiting"[^>]*data-aiui-nav-item="approvals"/)
-  assert.match(out, /data-aiui-approval-banner="ap_1"/)
-  assert.match(out, /Coder needs your approval to continue/)
-  assert.match(out, /pip install numpy/)
+  // The banner is the board's (lazy; mission-board/board.test.tsx renders it).
   assert.match(out, /<main id="aiui-main"[^>]*><div data-outlet="logs">/)
   const primary = out.match(/<nav aria-label="Main"[\s\S]*?<\/nav>/)?.[0] ?? ''
   assert.ok((primary.match(/data-aiui-nav-item=/g) ?? []).length - 2 <= 7, 'at most 7 primary items')
@@ -163,7 +155,7 @@ test('desktop: no banner and no bell count without pending approvals; the board 
   assert.doesNotMatch(out, /data-outlet=/)
 })
 
-test('phone: header with 44 px controls, four tabs and More, the approval card on top', () => {
+test('phone: header with 44 px controls, four tabs and More', () => {
   provideLayoutData('approvals', approvals([{ id: 'ap_1', agentName: 'Coder', createdAt: 1 }]))
   const out = renderToStaticMarkup(createElement(MissionFrame, props('chat', 'phone')))
   assert.match(out, /data-viewport="phone"/)
@@ -171,7 +163,6 @@ test('phone: header with 44 px controls, four tabs and More, the approval card o
   assert.deepEqual(tabs, ['overview', 'agents', 'approvals', 'chat', 'more'])
   assert.match(out, /aria-label="1 pending"/, 'the approvals tab badge')
   assert.match(out, /class="[^"]*size-11" aria-label="Search"/)
-  assert.match(out, /data-aiui-approval-banner="ap_1"/)
-  assert.match(out, /h-11 flex-1/, 'touch-size decision buttons')
+  assert.match(out, /aria-label="Approvals, 1 waiting"[^>]*data-aiui-approvals-bell="1"/)
   assert.doesNotMatch(out, /data-aiui-ops-column/, 'no ops column on a phone')
 })

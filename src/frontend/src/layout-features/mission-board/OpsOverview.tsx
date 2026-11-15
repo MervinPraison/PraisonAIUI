@@ -6,7 +6,7 @@
  * agent to open its chat". Chunk lf-mission-board, loaded only on this page.
  */
 import { useMemo } from 'react'
-import { ApprovalCard, useSessions } from '@/app-layouts/kit'
+import { useSessions } from '@/app-layouts/kit'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import type { LayoutViewport } from '@/sdk/layouts'
@@ -14,6 +14,7 @@ import type { AgentStatus, RunStatus, RunSummary } from '@/sdk/layoutTypes'
 import { agentCountsLabel, agentViews, sessionsOf } from './agents'
 import { formatCost, formatCount, formatDuration, formatTime } from './format'
 import { useApprovals, useFeed, useNow, useRuns, useRunsStatus } from './hooks'
+import { RequestCard } from './RequestCard'
 import { AgentCard, KpiStrip, StateChip, type ChipState } from './widgets'
 
 export interface OpsOverviewProps {
@@ -55,7 +56,7 @@ export default function OpsOverview({ viewport, openChat, environment }: OpsOver
   const approvals = useApprovals()
   const sessions = useSessions()
   const views = useMemo(() => agentViews(ledgerAgents, approvals.pending), [ledgerAgents, approvals.pending])
-  const now = useNow(views.some((a) => a.state !== 'idle'))
+  const now = useNow(approvals.pending.length > 0 || views.some((a) => a.state !== 'idle'))
 
   const openAgent = (name: string) => {
     if (sessions) {
@@ -69,13 +70,7 @@ export default function OpsOverview({ viewport, openChat, environment }: OpsOver
     <section aria-label="Needs your approval" className="flex flex-col gap-2" data-aiui-ops-approvals="">
       <SectionTitle meta={`${approvals.pending.length} waiting`}>Needs your approval</SectionTitle>
       {approvals.pending.map((item) => (
-        <ApprovalCard
-          key={item.id}
-          item={item}
-          size={size}
-          onApprove={() => approvals.feed!.approve(item.id)}
-          onDeny={() => approvals.feed!.deny(item.id)}
-        />
+        <RequestCard key={item.id} item={item} feed={approvals.feed!} now={now} touch={phone} />
       ))}
     </section>
   )

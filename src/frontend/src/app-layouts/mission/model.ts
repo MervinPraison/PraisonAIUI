@@ -84,17 +84,6 @@ export function bannerApproval(pending: readonly ApprovalItem[], pageId: string)
   return [...pending].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0))[0]
 }
 
-/** "Coder needs your approval to continue" (the banner's title). */
-export function approvalTitle(item: Pick<ApprovalItem, 'agentName'>): string {
-  return `${item.agentName?.trim() || 'An agent'} needs your approval to continue`
-}
-
-/** A waiting timer: 42 s → "0:42", 75 min → "75:00". */
-export function waited(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000))
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-}
-
 export type HealthState = 'ok' | 'degraded' | 'unknown'
 
 /** `/api/provider/health` → the top bar's pill. */

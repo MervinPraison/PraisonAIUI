@@ -90,14 +90,3 @@ export function useHealth(): { state: HealthState; label: string; agents?: numbe
   }, [])
   return health
 }
-
-/** Date.now(), every second while `active` (the banner's waiting timer). */
-export function useTick(active: boolean): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    if (!active) return
-    const t = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(t)
-  }, [active])
-  return now
-}

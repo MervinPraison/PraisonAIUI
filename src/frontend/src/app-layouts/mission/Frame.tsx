@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { LayoutProps } from '@/sdk/layouts'
-import { useApprovals, useChatState, useHealth, useRunCounts, useRunsFeed, useTick } from './data'
+import { useApprovals, useChatState, useHealth, useRunCounts, useRunsFeed } from './data'
 import {
   APPROVALS_PAGE,
   bannerApproval,
@@ -40,10 +40,11 @@ import {
   type NavCounts,
 } from './model'
 import { iconFor } from './icons'
-import { ApprovalBanner, BrandMark, ChatHeader, CountBadge, EnvBadge, HealthDot, MorePagesButton, NavRows, TopBar } from './parts'
+import { BrandMark, ChatHeader, CountBadge, EnvBadge, HealthDot, MorePagesButton, NavRows, TopBar } from './parts'
 
 const OpsColumn = lazy(() => import('@/layout-features/mission-board/OpsColumn'))
 const OpsOverview = lazy(() => import('@/layout-features/mission-board/OpsOverview'))
+const ApprovalBanner = lazy(() => import('@/layout-features/mission-board/ApprovalBanner'))
 
 /** A board part that fails to load or render disappears on its own (logged); the frame keeps working (R4). */
 class PartBoundary extends Component<{ name: string; fallback?: ReactNode; children: ReactNode }, { failed: boolean }> {
@@ -84,7 +85,6 @@ export default function MissionFrame(props: LayoutProps) {
   const sessions = useSessions()
   const chat = useChatState()
   const banner = approvals.feed ? bannerApproval(approvals.pending, pageId) : null
-  const now = useTick(!!banner?.createdAt)
   const approveRef = useRef<HTMLButtonElement>(null)
   const [moreOpen, setMoreOpen] = useState(false)
 
@@ -100,16 +100,19 @@ export default function MissionFrame(props: LayoutProps) {
   const bannerEl = (cls?: string) =>
     banner &&
     approvals.feed && (
-      <ApprovalBanner
-        item={banner}
-        more={approvals.pending.length - 1}
-        feed={approvals.feed}
-        now={now}
-        touch={phone}
-        onReview={review}
-        approveRef={approveRef}
-        className={cls}
-      />
+      <PartBoundary name="approval banner">
+        <Suspense fallback={null}>
+          <ApprovalBanner
+            item={banner}
+            more={approvals.pending.length - 1}
+            feed={approvals.feed}
+            touch={phone}
+            onReview={review}
+            approveRef={approveRef}
+            className={cls}
+          />
+        </Suspense>
+      </PartBoundary>
     )
 
   const overview = (

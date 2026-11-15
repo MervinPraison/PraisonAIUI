@@ -6,7 +6,7 @@
  * no server call and shows nothing for a turn without steps.
  */
 import { useMemo } from 'react'
-import { Check, TriangleAlert, X } from 'lucide-react'
+import { Check, CircleX, TriangleAlert } from 'lucide-react'
 import type { TurnRegionProps } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
 import { formatClock, formatDuration } from './format'
@@ -44,7 +44,7 @@ export default function RunTimeline({ messageId }: TurnRegionProps) {
               {waiting ? (
                 <TriangleAlert aria-hidden className="size-3" />
               ) : s.status === 'error' ? (
-                <X aria-hidden className="size-3 text-destructive" />
+                <CircleX aria-hidden className="size-3 text-destructive" />
               ) : s.status === 'done' ? (
                 <Check aria-hidden className="size-3" />
               ) : null}

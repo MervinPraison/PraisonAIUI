@@ -1,10 +1,12 @@
 /**
- * What the KPI strip and the agent cards say (pure; cards.test.ts): the
- * four KPI cells of a window, and an agent card's activity line, meta line
- * and timer.
+ * What the KPI strip, the agent cards and the banner say (pure;
+ * agents.test.ts): the four KPI cells of a window, an agent card's
+ * activity line, meta line and timer, and the banner's title.
  */
-import { describeCall } from '@/app-layouts/kit'
-import type { RunKpis } from '@/sdk/layoutTypes'
+// The kit's own module, not its index: only this board uses it, so it ships in
+// lf-mission-board and the kit chunk every layout loads stays as it is.
+import { describeCall } from '@/app-layouts/kit/format'
+import type { ApprovalItem, RunKpis } from '@/sdk/layoutTypes'
 import type { AgentView } from './agents'
 import { formatAgo, formatClock, formatCost, formatCount, formatDelta, formatDuration, formatPercent, formatTokens, metaLine } from './format'
 
@@ -50,4 +52,16 @@ export function agentTimer(a: AgentView, now: number): { text: string; warn: boo
   if (a.state === 'running' && a.elapsedMs !== undefined) return { text: formatDuration(a.elapsedMs), warn: false }
   if (a.state === 'idle' && a.lastRunAt) return { text: formatAgo(a.lastRunAt, now), warn: false }
   return null
+}
+
+/** "Coder needs your approval to continue" (the banner's title). */
+export function approvalTitle(item: Pick<ApprovalItem, 'agentName'>): string {
+  return `${item.agentName?.trim() || 'An agent'} needs your approval to continue`
+}
+
+/** "Coder wants to run a command" / "Coder wants to use web_search" (a request card's title). */
+export function requestTitle(item: Pick<ApprovalItem, 'agentName' | 'toolName'>): string {
+  const who = item.agentName?.trim() || 'An agent'
+  const tool = item.toolName?.trim()
+  return !tool || /^(shell|terminal|bash|exec|run_command|execute_command)$/i.test(tool) ? `${who} wants to run a command` : `${who} wants to use ${tool}`
 }
