@@ -54,10 +54,16 @@ export default function CommandBar({ openPalette, onAsk, agent, size = 'default'
     openPalette({ query })
   }
 
+  // While `/…` is typed the bar keeps the text and the focus and hands every
+  // change to the palette: keys typed before the palette has mounted and
+  // taken the focus are not lost. Once it has the focus the bar empties.
   const onChange = (next: string) => {
+    setValue(next)
     const intent = barIntent(next)
-    if (intent.kind === 'palette') toPalette(intent.query)
-    else setValue(next)
+    if (intent.kind === 'palette') openPalette({ query: intent.query })
+  }
+  const onBlur = () => {
+    if (barIntent(value).kind === 'palette') setValue('')
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -117,6 +123,7 @@ export default function CommandBar({ openPalette, onAsk, agent, size = 'default'
         enterKeyHint="send"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         onKeyDown={onKeyDown}
         placeholder="Ask or run a command…"
         aria-keyshortcuts="/"

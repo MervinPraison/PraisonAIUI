@@ -4,6 +4,8 @@
  *
  *   deriveRun(messages, now, seen)  status, steps with timings, files
  *                                   touched, the pending approval
+ *   rememberApprovals(…)            note when each open approval was first
+ *                                   seen (its waiting time counts from then)
  *   deriveFiles(parts)              files the run's tools wrote or read
  *   formatDuration / formatCost / formatTokens
  *
@@ -211,12 +213,32 @@ export function latestRunMessage(messages: readonly ChatMessageView[]): ChatMess
   return undefined
 }
 
+/** Note `at` for the latest run's open approvals not seen before. Returns true when one was added. */
+export function rememberApprovals(messages: readonly ChatMessageView[], seen: Map<string, number>, at: number): boolean {
+  let added = false
+  for (const p of latestRunMessage(messages)?.parts ?? []) {
+    if (isPendingApproval(p) && !seen.has(p.approval.id)) {
+      seen.set(p.approval.id, at)
+      added = true
+    }
+  }
+  return added
+}
+
+/** Whether the latest run is still going (running, or paused on a decision): its clock ticks. */
+export function isRunLive(messages: readonly ChatMessageView[]): boolean {
+  const m = latestRunMessage(messages)
+  const st = m?.status?.type
+  if (!m || st === 'incomplete' || st === 'complete') return false
+  return st === 'running' || st === 'requires-action' || m.parts.some(isPendingApproval)
+}
+
 /**
  * The latest run of `messages`, or null when the chat has no answer yet.
- * `seen` remembers when each approval was first seen (the caller keeps it
- * across renders), so its waiting time keeps counting.
+ * `seen` holds when each approval was first seen (rememberApprovals); one
+ * it does not hold yet counts from `now`. Read only.
  */
-export function deriveRun(messages: readonly ChatMessageView[], now: number, seen: Map<string, number> = new Map()): InspectorRun | null {
+export function deriveRun(messages: readonly ChatMessageView[], now: number, seen: ReadonlyMap<string, number> = new Map()): InspectorRun | null {
   const m = latestRunMessage(messages)
   if (!m) return null
   const st = m.status?.type
@@ -236,8 +258,7 @@ export function deriveRun(messages: readonly ChatMessageView[], now: number, see
 
   let approval: InspectorApproval | undefined
   if (pending && status === 'waiting') {
-    const since = seen.get(pending.approval.id) ?? now
-    seen.set(pending.approval.id, since)
+    const since = Math.min(seen.get(pending.approval.id) ?? now, now)
     const { call, isCommand } = callOf(pending)
     const description = typeof pending.artifact.description === 'string' && pending.artifact.description
       ? pending.artifact.description

@@ -25,6 +25,8 @@ import { cn } from '@/lib/utils'
 import { hasRunLedger, useRunDetail } from './api'
 import {
   deriveRun,
+  isRunLive,
+  rememberApprovals,
   formatCost,
   formatDuration,
   formatTokens,
@@ -59,14 +61,18 @@ function useChat(): { feed: ChatFeed | null; state: ChatState } {
   return { feed, state }
 }
 
-/** `now`, ticking every second while `live`. */
+/** `now`, ticking every second while `live` (and at once when it starts). */
 function useNow(live: boolean): number {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     if (!live) return
-    setNow(Date.now())
-    const t = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(t)
+    const tick = () => setNow(Date.now())
+    const first = setTimeout(tick, 0)
+    const t = setInterval(tick, 1000)
+    return () => {
+      clearTimeout(first)
+      clearInterval(t)
+    }
   }, [live])
   return now
 }
@@ -316,12 +322,14 @@ function foreignKey(e: KeyboardEvent, typing: (t: EventTarget | null) => boolean
 
 export default function RunInspector({ variant = 'panel', keys = true, isTypingTarget = inField, className }: RunInspectorProps): JSX.Element | null {
   const { feed: chat, state } = useChat()
-  const seen = useRef(new Map<string, number>()).current
-  const [live, setLive] = useState(false)
-  const now = useNow(live)
+  // When each approval was first seen, kept across renders (its waiting time counts from then).
+  const [seen] = useState(() => new Map<string, number>())
+  useEffect(() => {
+    rememberApprovals(state.messages, seen, Date.now())
+  }, [state.messages, seen])
+  const now = useNow(isRunLive(state.messages))
   const run = useMemo(() => deriveRun(state.messages, now, seen), [state.messages, now, seen])
   const isLive = !!run && (run.status === 'running' || run.status === 'waiting')
-  useEffect(() => setLive(isLive), [isLive])
 
   const manifest = useManifest()
   const detail = useRunDetail(run?.runId, hasRunLedger(manifest), `${run?.status}:${run?.steps.length}`)

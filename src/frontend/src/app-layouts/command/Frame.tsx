@@ -44,7 +44,7 @@ import {
 } from '@/app-layouts/kit'
 import { chatGates, fetchRecentRuns, hasRunLedger, latestAgent, useApprovals, useChat, usePending } from './data'
 import { CommandBar, Feature, RunInspector } from './features'
-import { railIcon } from './icons'
+import { RAIL_ICONS } from './icons'
 import {
   activityText,
   createGoSequence,
@@ -59,6 +59,8 @@ import {
 } from './model'
 import ShortcutSheet from './ShortcutSheet'
 
+
+const NO_IDS: ReadonlySet<string> = new Set()
 
 const isDialogTarget = (t: EventTarget | null) =>
   !!(t as Element | null)?.closest?.('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]')
@@ -82,7 +84,7 @@ function Brand({ chrome, compact = false }: Pick<LayoutProps, 'chrome'> & { comp
 }
 
 function ItemIcon({ item, className }: { item: LayoutNavItem; className?: string }) {
-  const Icon = railIcon(item.navIcon)
+  const Icon = item.navIcon ? RAIL_ICONS[item.navIcon] : undefined
   if (Icon) return <Icon aria-hidden className={cn('size-4.5 shrink-0', className)} />
   const mark = item.icon && item.icon.length <= 4 ? item.icon : item.title.slice(0, 1).toUpperCase()
   return (
@@ -198,6 +200,10 @@ function SessionTabs({
 }) {
   const mac = isMacPlatform()
   const list = useRef<HTMLDivElement>(null)
+  // The open session's tab stays in view (⌘1–9, New chat, a pick from elsewhere).
+  useEffect(() => {
+    list.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  }, [activeId])
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     const dir = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
     if (!dir && e.key !== 'Home' && e.key !== 'End') return
@@ -209,8 +215,9 @@ function SessionTabs({
     all[next].focus()
   }
   return (
-    <div className="flex h-10.5 shrink-0 items-stretch overflow-x-auto border-b border-border bg-sidebar" data-command-tabs="">
-      <div ref={list} role="tablist" aria-label="Open sessions" className="flex min-w-0 items-stretch" onKeyDown={onKeyDown}>
+    <div className="flex h-10.5 shrink-0 items-stretch border-b border-border bg-sidebar" data-command-tabs="">
+      {/* The tabs scroll sideways on their own; New chat and the run panel toggle stay put. */}
+      <div ref={list} role="tablist" aria-label="Open sessions" className="flex min-w-0 items-stretch overflow-x-auto [scrollbar-width:none]" onKeyDown={onKeyDown}>
         {tabs.map((t) => (
           <button
             key={t.id ?? 'new'}
@@ -223,7 +230,7 @@ function SessionTabs({
             data-session-tab={t.id ?? ''}
             onClick={() => onSelect(t.id)}
             className={cn(
-              'flex max-w-62 shrink-0 items-center gap-2 border-r border-border px-3 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+              'flex max-w-56 shrink-0 items-center gap-2 border-r border-border px-3 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
               t.active ? 'bg-background font-semibold text-foreground shadow-[inset_0_2px_0_var(--primary)]' : 'font-medium text-muted-foreground hover:bg-card hover:text-foreground',
             )}
           >
@@ -246,8 +253,8 @@ function SessionTabs({
       >
         <Plus aria-hidden className="size-4" />
       </button>
-      <span className="flex-1" />
-      <div className="flex shrink-0 items-center gap-2 px-3 text-2xs whitespace-nowrap text-tier-3">
+      <span className="min-w-0 flex-1" />
+      <div className="flex shrink-0 items-center gap-2 border-l border-border px-3 text-2xs whitespace-nowrap text-tier-3">
         {activeId && <span className="font-mono" title={activeId}>{shortSessionId(activeId)}</span>}
         <Button
           variant="outline"
@@ -410,7 +417,7 @@ export default function CommandFrame(props: LayoutProps) {
   const pending = usePending(chat.state, approvals.state)
   const gates = useMemo(() => chatGates(chat.state.messages, chat.state.sessionId), [chat.state.messages, chat.state.sessionId])
   const activeId = sessions?.state.activeId ?? chat.state.sessionId
-  const runningIds = sessions?.state.runningIds ?? new Set<string>()
+  const runningIds = sessions?.state.runningIds ?? NO_IDS
   const waitingIds = useMemo(() => new Set(pending.map((a) => a.sessionId).filter((s): s is string => !!s)), [pending])
   const tabs = useMemo(
     () => sessionTabs(sessions?.state.sessions ?? [], activeId, runningIds, waitingIds),

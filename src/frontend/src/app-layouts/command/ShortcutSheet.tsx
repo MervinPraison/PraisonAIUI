@@ -16,12 +16,10 @@ export interface ShortcutSheetProps {
 
 export default function ShortcutSheet({ open, onOpenChange, sections }: ShortcutSheetProps): JSX.Element {
   const ref = useRef<HTMLDialogElement>(null)
-  const restore = useRef<HTMLElement | null>(null)
   useEffect(() => {
     const d = ref.current
     if (!d) return
     if (open && !d.open) {
-      restore.current = document.activeElement as HTMLElement | null
       if (typeof d.showModal === 'function') d.showModal()
       else d.setAttribute('open', '')
     } else if (!open && d.open) {
@@ -33,10 +31,8 @@ export default function ShortcutSheet({ open, onOpenChange, sections }: Shortcut
       ref={ref}
       aria-labelledby="aiui-command-shortcuts-h"
       data-command-shortcuts=""
-      onClose={() => {
-        onOpenChange(false)
-        restore.current?.focus?.()
-      }}
+      // The browser puts focus back where it was when the dialog opened.
+      onClose={() => onOpenChange(false)}
       // A click on the backdrop (the dialog element itself, outside its box) closes it.
       onClick={(e) => {
         if (e.target === e.currentTarget) ref.current?.close()

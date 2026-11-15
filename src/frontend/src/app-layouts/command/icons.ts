@@ -23,7 +23,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-const ICONS: Record<string, LucideIcon> = {
+/** Lucide icons by `navIcon` name. */
+export const RAIL_ICONS: Readonly<Record<string, LucideIcon>> = {
   activity: Activity,
   'book-open': BookOpen,
   bot: Bot,
@@ -41,8 +42,4 @@ const ICONS: Record<string, LucideIcon> = {
   settings: Settings2,
   'shield-check': ShieldCheck,
   'square-kanban': SquareKanban,
-}
-
-export function railIcon(navIcon: string | undefined): LucideIcon | undefined {
-  return navIcon ? ICONS[navIcon] : undefined
 }

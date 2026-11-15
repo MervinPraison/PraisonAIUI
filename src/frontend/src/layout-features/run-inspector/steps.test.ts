@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { ChatMessageView, ChatPartView } from '@/sdk/layoutTypes'
-import { deriveFiles, deriveRun, filesOfCommand, formatCost, formatDuration, formatTokens, statusLabel } from './steps'
+import { deriveFiles, deriveRun, filesOfCommand, isRunLive, rememberApprovals, formatCost, formatDuration, formatTokens, statusLabel } from './steps'
 
 const T0 = 1_700_000_000_000
 
@@ -43,6 +43,9 @@ test('no assistant message: no run', () => {
 
 test('a run paused on approval: four steps, the gate waiting, its wait counted from first sight', () => {
   const seen = new Map<string, number>()
+  assert.equal(isRunLive([user, sortingRun()]), true)
+  assert.equal(rememberApprovals([user, sortingRun()], seen, T0 + 4800), true)
+  assert.equal(rememberApprovals([user, sortingRun()], seen, T0 + 9999), false, 'first sight only')
   const first = deriveRun([user, sortingRun()], T0 + 4800, seen)!
   assert.equal(first.status, 'waiting')
   assert.equal(first.runId, 'run_3c7e19')
@@ -79,6 +82,7 @@ test('a run paused on approval: four steps, the gate waiting, its wait counted f
 
 test('bars sit on the run’s time line: x and w are percents of the span', () => {
   const run = deriveRun([user, sortingRun({ gate: 'none' })], T0 + 9999)!
+  assert.equal(isRunLive([user, sortingRun({ gate: 'none' })]), false)
   assert.equal(run.status, 'completed')
   assert.equal(run.endedAt, T0 + 6000)
   assert.equal(run.elapsedMs, 6000)
