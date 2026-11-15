@@ -523,7 +523,7 @@ export function applyTheme(
 
 // ── PraisonAI Pro token system (selectable layouts, ADR 0003 F4) ─────────
 // The palette of the Pro design files. styles/pro.css holds it as `--pro-*`
-// defaults under html[data-aiui-shell="react"][data-aiui-tokens="pro"];
+// defaults under the app shell or the docs site with data-aiui-tokens="pro";
 // Python themes.PRO_NEUTRALS / PRO_ACCENTS hold the same tables
 // (tests/unit/test_seed_theme.py keeps all three equal).
 

@@ -144,7 +144,14 @@ class TestInjectThemeCss:
     def test_build_time_theme_css_is_seeds(self, tmp_path: Path):
         inject_theme_css(tmp_path, preset="rose", dark_mode=True, radius="1rem")
         css = (tmp_path / "assets" / "theme.css").read_text(encoding="utf-8")
-        assert css == get_seed_theme_css("rose", "1rem")
+        # Classic seeds, then the preset's Pro accent seeds (the docs site draws in Pro).
+        assert css == f"{get_seed_theme_css('rose', '1rem')}\n{get_pro_seed_css('rose')}\n"
+
+    def test_build_time_theme_css_has_no_pro_seeds_for_the_pro_default(self, tmp_path: Path):
+        inject_theme_css(tmp_path, preset="zinc", dark_mode=True, radius="0.5rem")
+        css = (tmp_path / "assets" / "theme.css").read_text(encoding="utf-8")
+        assert css == get_seed_theme_css("zinc", "0.5rem")
+        assert "--seed-pro-" not in css
 
 
 class TestFrontendMirrors:
@@ -209,7 +216,21 @@ class TestLegacyHslValidator:
 
 PRO_CSS = Path("src/frontend/src/styles/pro.css")
 INDEX_CSS = Path("src/frontend/src/index.css")
-PRO_SCOPE = 'html[data-aiui-shell="react"][data-aiui-tokens="pro"]'
+# The app shell (style app) or the docs site (style docs), once Pro is on.
+PRO_SCOPE = 'html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"]'
+
+
+def _selector_parts(selector: str) -> list[str]:
+    """Split a selector list on its top-level commas (not those inside :is())."""
+    parts, depth, start = [], 0, 0
+    for i, ch in enumerate(selector):
+        depth += ch == "("
+        depth -= ch == ")"
+        if ch == "," and depth == 0:
+            parts.append(selector[start:i].strip())
+            start = i + 1
+    parts.append(selector[start:].strip())
+    return parts
 
 
 def _pro_rules() -> list[tuple[str, str]]:
@@ -302,8 +323,8 @@ class TestProScope:
         rules = _pro_rules()
         assert len(rules) >= 4
         for selector, _ in rules:
-            for part in selector.split(","):
-                assert part.strip().startswith(PRO_SCOPE), part
+            for part in _selector_parts(selector):
+                assert part.startswith(PRO_SCOPE), part
 
     def test_everything_is_inside_layer_base(self):
         css = re.sub(r"/\*.*?\*/", "", PRO_CSS.read_text(encoding="utf-8"), flags=re.S).strip()
@@ -326,17 +347,17 @@ class TestProScope:
         ]
         assert seeded
         for selector in seeded:
-            assert [part.strip() for part in selector.split(",")] == [PRO_SCOPE]
+            assert _selector_parts(selector) == [PRO_SCOPE]
 
     def test_palette_lives_on_html_and_dark_subtrees_like_classic_seeds(self):
         allowed = {PRO_SCOPE, f"{PRO_SCOPE}.dark", f"{PRO_SCOPE} .dark"}
         for selector, body in _pro_rules():
             if any(name.startswith("--pro-") for name in _pro_decls(body)):
-                assert {part.strip() for part in selector.split(",")} <= allowed, selector
+                assert set(_selector_parts(selector)) <= allowed, selector
 
     def test_mapping_recomputes_in_scopes_and_dark_subtrees(self):
         selector, body = _pro_rules()[2]
-        parts = {part.strip() for part in selector.split(",")}
+        parts = set(_selector_parts(selector))
         assert parts == {PRO_SCOPE, f"{PRO_SCOPE} [data-aiui-scope]", f"{PRO_SCOPE} .dark"}
         assert "--primary" in _pro_decls(body)
 
