@@ -132,7 +132,11 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     expect(bodySize).toBeGreaterThanOrEqual(14)
 
     // A conversation: table, code block, an approval decided on the card.
-    await expect(page.locator('[data-connection="open"]')).toBeVisible()
+    // The connection is chrome (the top bar's line), not a pill in the thread.
+    await expect(page.locator('[data-connection="open"]')).toBeAttached()
+    await expect(page.locator('[data-cc-connection="open"]')).toBeVisible()
+    const pillWidth = await page.locator('[data-aiui-chat] [data-connection]').evaluate((el) => el.getBoundingClientRect().width)
+    expect(pillWidth, 'the chat page badge is for screen readers only').toBeLessThanOrEqual(1)
     await send(page, 'markdown apok')
     const reply = assistant(page).last()
     await expect(reply.locator('table')).toBeVisible()
@@ -140,6 +144,11 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     await expect(page.locator('[data-variant="bubbles"]')).toHaveCount(1)
     const approve = reply.getByRole('button', { name: 'Approve' })
     await expect(approve).toBeVisible()
+    // One request, shown once: the card carries the tool row (tool, risk, Details).
+    await expect(reply.locator('[data-approval-card] [data-approval-tool]')).toContainText('shell')
+    await expect(reply.locator('[data-tool] > button[aria-expanded]')).toHaveCount(0)
+    await reply.locator('[data-approval-tool]').click()
+    await expect(reply.getByText('Arguments')).toBeVisible()
     await approve.click()
     await expect(approve).toHaveCount(0)
     const seen = await (await page.request.get('/__e2e/approval-posts')).json()

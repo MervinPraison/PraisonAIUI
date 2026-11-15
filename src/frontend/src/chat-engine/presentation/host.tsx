@@ -4,9 +4,9 @@
  * small wrappers the Thread and the page render; each feature behind them
  * is its own lazy chunk again, fetched only when the layout asks for it:
  *
- *   Gate          approvals 'card' (./ApprovalCard) or 'keyboard' (./KeyboardGate);
- *                 in the 'steps' thread it is pinned above the composer
- *   Pinned        that place above the composer (./pinned), and the
+ *   Gate          approvals 'card' (./ApprovalCard) or 'keyboard' (./KeyboardGate),
+ *                 in the turn under the answer
+ *   Pinned        the composer's footer: the connection banner and the
  *                 composer's model button (./ComposerModel, composer.css)
  *   Turn          one assistant turn: the variant's turn header (./TurnMeta)
  *                 and stylesheet (./quiet.css, ./bubbles.css…), and the
@@ -23,14 +23,12 @@
  * (R10) to the chat itself: it carries only the calls into this module.
  */
 import { lazy, useEffect, useMemo, type JSX, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
 import { useAuiState, type ToolCallMessagePartProps } from '@assistant-ui/react'
 import type { ChatPresentation, RegionLoader, TurnRegionProps } from '@/sdk/layouts'
 import { APPROVAL_ERROR, APPROVAL_PENDING } from '../protocol'
 import LazyRegion from '../LazyRegion'
 import { LazyBoundary } from '../parts/LazyBoundary'
 import type { GateProps } from './decision'
-import { pinsGates, pinnedSlotRef, usePinnedSlot } from './pinned'
 import { useRegionProps } from './regionState'
 import type { ThreadVariant } from './TurnMeta'
 import { ComposerModel } from './ComposerModel'
@@ -59,10 +57,12 @@ const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined)
  * loads, or if it fails. `description` is the tool row's text (the server's
  * emoji already stripped).
  */
-export function Gate({ presentation, part, description, children }: {
+export function Gate({ presentation, part, description, expand, children }: {
   presentation: { chat: ChatPresentation }
   part: ToolCallMessagePartProps
   description?: string
+  /** The tool row's disclosure; the card draws it in its header (the row is not drawn while it waits). */
+  expand?: GateProps['expand']
   children: ReactNode
 }): JSX.Element {
   const mode = presentation.chat.approvals
@@ -79,44 +79,31 @@ export function Gate({ presentation, part, description, children }: {
     description: description || undefined,
     agent: str(a.agent_name),
     args: part.args,
+    expand,
   }
   const C = mode === 'card' ? ApprovalCard : KeyboardGate
+  // Every layout keeps the decision in its turn, right under the answer it
+  // belongs to and before the message actions (the 12px block rhythm).
   return (
-    <PinnedGate presentation={presentation}>
-      <LazyBoundary fallback={children} failed={children}>
-        <C {...p} />
-      </LazyBoundary>
-    </PinnedGate>
+    <LazyBoundary fallback={children} failed={children}>
+      <C {...p} />
+    </LazyBoundary>
   )
 }
 
 /**
- * An open gate in the 'steps' thread: the turn's steps are the layout's
- * (its turnHeader), so the decision moves out of the turn to just above the
- * composer, where it is seen without scrolling. Elsewhere, or until that
- * place is mounted, it stays in the turn.
+ * The composer's footer in a layout (the Thread mounts it above the
+ * composer): the banner shown while the live connection is down
+ * (./ConnectionBanner), the model button the composer row gets (a portal,
+ * drawn after mount), and the send count that retires the composer's key
+ * hint (./composerHint).
  */
-function PinnedGate({ presentation, children }: { presentation: { chat: ChatPresentation }; children: ReactNode }): JSX.Element {
-  const slot = usePinnedSlot()
-  return slot && pinsGates(presentation.chat) ? createPortal(children, slot) : <>{children}</>
-}
-
-/**
- * The composer's footer in a layout: the place above the composer that
- * pinned gates go to (nothing for a thread that pins none), the model
- * button the composer row gets (a portal, drawn after mount), and the send
- * count that retires the composer's key hint (./composerHint), and the
- * banner shown while the live connection is down (./ConnectionBanner).
- */
-export function Pinned({ presentation }: { presentation: { chat: ChatPresentation } }): JSX.Element | null {
+export function Pinned(_props: { presentation: { chat: ChatPresentation } }): JSX.Element | null {
   useComposerHint()
   return (
     <>
       <ConnectionBanner />
       <ComposerModel />
-      {pinsGates(presentation.chat) && (
-        <div ref={pinnedSlotRef} className="flex flex-col gap-2 pb-3 empty:hidden sm:pb-4" data-chat-pinned aria-label="Waiting for your OK" role="region" />
-      )}
     </>
   )
 }

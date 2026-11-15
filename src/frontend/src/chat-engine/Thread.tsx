@@ -47,6 +47,7 @@ import type { ChatPresentation } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
 import { LazyBoundary } from './parts/LazyBoundary'
 import { useDecision, type InlineGateProps } from './presentation/decision'
+import { commandLabel, commandOf } from './presentation/gateText'
 import { APPROVAL_ERROR, APPROVAL_PENDING, PENDING_APPROVAL } from './protocol'
 import { formatDuration, safeUrl } from './util'
 
@@ -173,24 +174,32 @@ function toolState(p: ToolCallMessagePartProps): ToolState {
   return 'running'
 }
 
-/** Approve/Deny inline (the default; ./presentation/decision holds the decision state). */
-function ApprovalGate(p: InlineGateProps) {
-  const { prompt, risk } = p
+/**
+ * Approve/Deny inline (the default; ./presentation/decision holds the
+ * decision state). The exact command or arguments are always shown above
+ * the buttons ("Run: pip install numpy"): nothing is approved unseen. The
+ * risk level is a chip in the tool row's header.
+ */
+function ApprovalGate(p: InlineGateProps & { args?: Readonly<Record<string, unknown>> }) {
+  const { prompt, risk, args } = p
   const [busy, error, act] = useDecision(p)
   const high = risk === 'high' || risk === 'critical'
+  const command = commandOf(args)
+  const label = commandLabel(args)
   return (
     <div className="border-t border-border px-3 py-2.5" data-approval-gate>
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end">
         <div className="flex min-w-0 flex-1 items-start gap-2">
           <ShieldAlert className={cn('mt-0.5 size-4 shrink-0', high ? 'text-destructive' : 'text-muted-foreground')} aria-hidden />
-          <p className="min-w-0 text-sm break-words text-foreground">
-            {prompt}
-            {risk && (
-              <span className={cn('ml-2 inline-block rounded px-1.5 text-xs', high ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground')}>
-                {risk} risk
-              </span>
+          <div className="min-w-0 space-y-1.5">
+            <p className="text-sm break-words text-foreground">{prompt}</p>
+            {command && (
+              <p className="flex min-w-0 items-baseline gap-1.5 text-sm" data-gate-command>
+                <span className="shrink-0 text-muted-foreground">{label === 'Command' ? 'Run' : label}:</span>
+                <code className="min-w-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs break-all text-foreground">{command}</code>
+              </p>
             )}
-          </p>
+          </div>
         </div>
         <div className="flex shrink-0 gap-2 pl-6 sm:pl-0">
           <Button type="button" size="sm" disabled={busy !== null} onClick={() => void act(true)}>
@@ -234,12 +243,18 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
   const took = timing?.completedAt ? formatDuration(timing.completedAt - timing.startedAt) : ''
   const hasArgs = args && Object.keys(args).length > 0
   const a2ui = Array.isArray(a.a2ui) && a.a2ui.length ? (a.a2ui as Record<string, unknown>[]) : null
+  const risk = typeof a.risk_level === 'string' && a.risk_level ? a.risk_level : undefined
+  // A layout's explained card carries the tool name, risk and the expand
+  // toggle in its own header: the row is not drawn twice while it waits.
+  const merged = state === 'approval' && !!host && pres?.chat.approvals === 'card'
   // Flat row; a hairline only once it holds something (expanded, a gate, a surface).
   const framed = open || state === 'approval' || a2ui !== null
+  const toggle = () => setOpen((v) => !v)
   const gate = approval && approval.approved === undefined && (
     <ApprovalGate
       prompt={approval.prompt ?? `Allow ${toolName}?`}
-      risk={typeof a.risk_level === 'string' ? a.risk_level : undefined}
+      args={args}
+      risk={risk}
       pending={typeof a[APPROVAL_PENDING] === 'string' ? a[APPROVAL_PENDING] : undefined}
       error={typeof a[APPROVAL_ERROR] === 'string' ? a[APPROVAL_ERROR] : undefined}
       respond={(approved) => respondToApproval({ approved })}
@@ -252,9 +267,9 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
       data-state={state}
       data-open={open || undefined}
     >
-      <button
+      {!merged && <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         className="flex h-8 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
@@ -265,6 +280,11 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
         <span className="shrink-0 font-medium text-foreground">{toolName}</span>
         {description && <span className="min-w-0 truncate text-muted-foreground">{description}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2">
+          {state === 'approval' && risk && (
+            <span className={cn('rounded px-1.5 py-0.5 text-xs', risk === 'high' || risk === 'critical' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground')} data-tool-risk>
+              {risk} risk
+            </span>
+          )}
           <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs', pill.className)}>
             {state === 'running' && <Spinner className="size-3" />}
             {pill.label}
@@ -272,8 +292,12 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
           {took && <span className="hidden text-xs tabular-nums text-muted-foreground sm:inline">{took}</span>}
           <ChevronRight className={cn('size-3.5 text-muted-foreground motion-safe:transition-transform motion-safe:duration-[120ms]', open && 'rotate-90')} aria-hidden />
         </span>
-      </button>
-      {gate && (host ? <host.Gate presentation={pres} part={props} description={description}>{gate}</host.Gate> : gate)}
+      </button>}
+      {gate && (host ? (
+        <host.Gate presentation={pres} part={props} description={description} expand={{ open, toggle, panelId }}>
+          {gate}
+        </host.Gate>
+      ) : gate)}
       {open && (
         <div id={panelId} className="space-y-3 px-3 pt-1 pb-3">
           {description && <p className="text-xs break-words text-muted-foreground sm:hidden">{description}</p>}

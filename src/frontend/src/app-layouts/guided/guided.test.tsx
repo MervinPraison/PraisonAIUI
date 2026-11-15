@@ -268,10 +268,11 @@ test('guidedPagesBuiltin registers only the pages the manifest lists, lazily', (
   assert.equal((registered[0][1] as () => unknown).length, 0, 'a loader, not a component')
 })
 
-test('the chat page title and connection row step aside under Guided; the pinned approval keeps room above the composer', () => {
+test('the chat page title and connection row step aside under Guided; the approval stays in its turn', () => {
   const css = readFileSync(path.join(process.cwd(), 'src/app-layouts/guided/guided.css'), 'utf8')
   assert.match(css, /\[data-aiui-layout-frame='guided'\] \[data-aiui-chat\] > section > header:not\(:has\(select\)\)/)
   const host = readFileSync(path.join(process.cwd(), 'src/chat-engine/presentation/host.tsx'), 'utf8')
-  assert.match(host, /data-chat-pinned/)
-  assert.match(host, /pb-3 empty:hidden sm:pb-4" data-chat-pinned/)
+  assert.doesNotMatch(host, /data-chat-pinned|createPortal/, 'no approval is moved out of its turn')
+  const steps = readFileSync(path.join(process.cwd(), 'src/chat-engine/presentation/steps.css'), 'utf8')
+  assert.match(steps, /\[data-tool\]:not\(:has\(\[data-approval-gate\]\)\)/, 'the waiting tool keeps its place for the card')
 })

@@ -25,6 +25,12 @@ export interface GateProps {
   description?: string
   agent?: string
   args?: Readonly<Record<string, unknown>>
+  /**
+   * The tool row's disclosure, when the presentation draws the row itself
+   * (the explained card's header): whether the arguments panel is open, the
+   * toggle, and the panel's id for aria-controls.
+   */
+  expand?: { open: boolean; toggle(): void; panelId: string }
 }
 
 /** What the default inline gate needs (the Thread builds it from the tool part). */

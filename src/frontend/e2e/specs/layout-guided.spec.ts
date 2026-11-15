@@ -9,8 +9,9 @@
  *   - a turn: the plain-language step tracker (its chunk loads with the
  *     first answer), Show details, follow-up chips from
  *     run_completed.suggestions that fill the composer;
- *   - an approval: the explained card pinned above the composer (desktop and
- *     phone), the gated tool's raw row hidden, "Why am I asked?", Approve;
+ *   - an approval: the explained card in the turn, under the answer and
+ *     before its actions (desktop and phone), the card as the tool's only
+ *     row, "Why am I asked?", Approve;
  *   - templates on an empty chat, the Home (`start`) and Templates pages,
  *     `/` opening on Home, a non-chat page (logs) in the outlet;
  *   - phone: four bottom tabs, a chats sheet, 44 px targets, 15 px text;
@@ -211,18 +212,22 @@ for (const [name, viewport] of [
   ['desktop', { width: 1440, height: 900 }],
   ['phone', { width: 390, height: 844 }],
 ] as const) {
-  test(`${name}: an approval is the explained card, pinned above the composer, and Approve decides it`, async ({ page }) => {
+  test(`${name}: an approval is the explained card in the turn, under the answer and before its actions, and Approve decides it`, async ({ page }) => {
     await page.setViewportSize(viewport)
     await openGuided(page)
     await send(page, 'apok please')
-    // Guided.dc.html / GuidedPhone.dc.html: the card sits right above the composer, out of the turn.
-    const card = page.locator('[data-chat-pinned] [data-approval-card]')
+    // The card is part of the turn: right under the assistant text, before the message actions.
+    const card = lastTurn(page).locator('[data-approval-card]')
     await expect(card).toBeVisible()
-    await expect(lastTurn(page).locator('[data-approval-card]')).toHaveCount(0)
-    const [c, m] = [await card.boundingBox(), await composer(page).boundingBox()]
-    expect(c && m && c.y + c.height <= m.y && m.y - (c.y + c.height) < 48, 'directly above the composer').toBe(true)
-    // The step tracker owns the steps: the gated tool's raw row is not shown.
-    await expect(lastTurn(page).locator('[data-tool]')).toBeHidden()
+    await expect(page.locator('[data-chat-pinned]')).toHaveCount(0)
+    // The card is the tool row too (tool, risk, Details): no second "Needs approval" row above it.
+    await expect(card.locator('[data-approval-tool]')).toBeVisible()
+    await expect(lastTurn(page).locator('[data-tool] > button[aria-expanded]')).toHaveCount(0)
+    const actions = lastTurn(page).getByRole('button', { name: 'Copy' })
+    if (await actions.count()) {
+      const [c, a] = [await card.boundingBox(), await actions.first().boundingBox()]
+      expect(c && a && c.y + c.height <= a.y, 'before the message actions').toBe(true)
+    }
     await expect(card.getByRole('heading')).toContainText(/^Allow .+ to use .+\?$/)
     await expect(lastTurn(page).locator('[data-step-tracker]')).toHaveAttribute('data-step-tracker', 'waiting')
     await expect(lastTurn(page).locator('[data-step-tracker]')).toContainText('Waiting for your OK')
@@ -236,7 +241,6 @@ for (const [name, viewport] of [
     await shot(page, `${name}-approval-light`)
     await card.getByRole('button', { name: 'Approve' }).click()
     await expect(card).toHaveCount(0)
-    await expect(page.locator('[data-chat-pinned]')).toBeHidden()
     const seen = await (await page.request.get('/__e2e/approval-posts')).json()
     expect(seen.posts).toContain('POST /api/approvals/ap_ok/approve')
   })

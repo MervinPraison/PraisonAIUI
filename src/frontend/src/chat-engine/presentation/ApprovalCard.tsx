@@ -6,7 +6,7 @@
  */
 import { useId, useState, type JSX } from 'react'
 import { useAuiState } from '@assistant-ui/react'
-import { ShieldAlert } from 'lucide-react'
+import { ChevronRight, ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
@@ -36,6 +36,27 @@ export default function ApprovalCard(p: GateProps): JSX.Element {
       data-approval-card
       data-risk={p.risk || undefined}
     >
+      {/* The tool row, merged into the card: the tool, its risk, and the arguments disclosure. */}
+      {p.expand && (
+        <button
+          type="button"
+          onClick={p.expand.toggle}
+          aria-expanded={p.expand.open}
+          aria-controls={p.expand.open ? p.expand.panelId : undefined}
+          className="-mx-1.5 -mt-1.5 flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          data-approval-tool
+        >
+          <span className="truncate font-mono text-foreground">{p.toolName}</span>
+          {p.risk && (
+            <>
+              <span aria-hidden>·</span>
+              <span className={cn('shrink-0 capitalize', high && 'text-destructive')}>{p.risk} risk</span>
+            </>
+          )}
+          <span className="ml-auto shrink-0">{p.expand.open ? 'Hide details' : 'Details'}</span>
+          <ChevronRight className={cn('size-3.5 shrink-0 motion-safe:transition-transform motion-safe:duration-[120ms]', p.expand.open && 'rotate-90')} aria-hidden />
+        </button>
+      )}
       <div className="flex items-start gap-3">
         <span
           className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', high ? 'bg-danger-soft text-destructive' : 'bg-warning-soft text-warning')}
@@ -48,7 +69,7 @@ export default function ApprovalCard(p: GateProps): JSX.Element {
           <p id={`${id}-d`} className="break-words text-muted-foreground">{lead}</p>
         </div>
       </div>
-      {(command || p.risk) && (
+      {(command || (p.risk && !p.expand)) && (
         <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 sm:ml-11">
           {command && (
             <>
@@ -58,7 +79,7 @@ export default function ApprovalCard(p: GateProps): JSX.Element {
               </dd>
             </>
           )}
-          {p.risk && (
+          {p.risk && !p.expand && (
             <>
               <dt className="text-muted-foreground">Risk</dt>
               <dd className={cn('capitalize', high && 'text-destructive')}>{p.risk}</dd>

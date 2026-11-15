@@ -146,6 +146,12 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
       const approve = reply.getByRole('button', { name: 'Approve' })
       await expect(approve).toBeVisible()
       await expect(reply.getByRole('button', { name: 'Deny' })).toBeVisible()
+      // Nothing is approved unseen: the exact command sits above Approve and Deny,
+      // and the risk is a chip in the row header next to "Needs approval".
+      await expect(reply.locator('[data-gate-command]')).toHaveText('Run:ls')
+      const [cmd, btn] = [await reply.locator('[data-gate-command]').boundingBox(), await approve.boundingBox()]
+      expect(cmd && btn && cmd.y <= btn.y, 'the command is not below the buttons').toBe(true)
+      await expect(reply.locator('[data-tool="shell"] > button [data-tool-risk]')).toHaveText('high risk')
       expect(await fontSize(reply.locator('p').first())).toBeGreaterThanOrEqual(14)
       await attachShot(page, `workbench-desktop-chat-${mode}`)
       await approve.click()
