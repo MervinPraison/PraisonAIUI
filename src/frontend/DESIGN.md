@@ -302,7 +302,7 @@ layer above: same utilities, same primitives, different values.
 
 **When it applies.** `styles/pro.css` is scoped to
 `html[data-aiui-shell="react"][data-aiui-tokens="pro"]`. `setTokenSystem('pro')`
-(`themes.ts`) sets the attribute and `setTokenSystem(null)` removes it. The
+(`proTokens.ts`, re-exported by `themes.ts`) sets the attribute and `setTokenSystem(null)` removes it. The
 shell's layout host (`shell/LayoutHost.tsx`, which imports `pro.css` in the
 shell chunk) switches Pro on while a layout frame is mounted and off for the
 classic frame and the fallback. Without the attribute nothing in `pro.css`
@@ -428,7 +428,7 @@ the page, card, sidebar, muted and active-row surfaces; semantic text on the
 page, card and its own soft fill; every on-colour; and for every swatch,
 every preset and a set of extreme custom accents, the on-accent text, the
 link on every surface and on the soft fill, and a 3:1 focus ring.
-`tests/unit/test_seed_theme.py` keeps `pro.css`, `themes.ts` and `themes.py`
+`tests/unit/test_seed_theme.py` keeps `pro.css`, `themes.ts` (and `proTokens.ts`) and `themes.py`
 equal and checks that every `pro.css` rule is scoped and layered.
 
 ## Legacy dashboard isolation
