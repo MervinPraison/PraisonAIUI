@@ -301,7 +301,8 @@ chunks would split them out of the chat route. Styles are plain token CSS
 engine or layout (`components/page/isolation.test.ts`). The blocks `board`
 and `gallery` (`aiui.board()`, `aiui.gallery()` props) and the new
 `list_detail`, `log_viewer` and `code_editor` render through the adapters in
-`components/page/blocks/`. `blocks/coreBlocks.tsx` registers each adapter
+`components/page/blocks/`; a board card that is another block (text, badge,
+metric…) renders as that block, as the dashboard's board does. `blocks/coreBlocks.tsx` registers each adapter
 lazily, so a template's chunk is fetched only when a page shows it.
 
 **Legacy views.** `legacy/page-types.css` dresses the vanilla views in their

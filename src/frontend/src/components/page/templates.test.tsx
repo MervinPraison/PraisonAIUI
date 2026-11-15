@@ -2,6 +2,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { renderToStaticMarkup as renderMarkup } from 'react-dom/server'
+// Registers the core blocks a board card may be (text, badge…), as the blocks chunk does.
+import '@/blocks/coreBlocks'
 import { Board } from './Board'
 import { BoardBlock } from './blocks/BoardBlock'
 import { CodeEditorBlock } from './blocks/CodeEditorBlock'
@@ -118,6 +120,29 @@ test('board block: aiui.board() columns and card dicts', () => {
   assert.match(html, /<h3>Task<\/h3><p class="aiui-tpl-card-body">3<\/p><div class="aiui-tpl-card-foot">agent-a<\/div>/)
   assert.match(html, /<h3>Shipped<\/h3><div class="aiui-tpl-card-foot">bob<\/div>/)
   assert.doesNotMatch(html, /draggable/, 'a block board is read-only')
+})
+
+test('board block: a card that is another block renders as that block, not as "Card"', () => {
+  const node = {
+    type: 'board',
+    props: {
+      columns: [
+        {
+          id: 'todo',
+          title: 'Todo',
+          cards: [
+            { type: 'text', props: { content: 'Write the release notes' } },
+            { type: 'badge', props: { text: 'Blocked', variant: 'destructive' } },
+          ],
+        },
+      ],
+    },
+  }
+  const html = renderToStaticMarkup(<BoardBlock node={node} />)
+  assert.doesNotMatch(html, /<h3>Card<\/h3>/)
+  assert.match(html, /aria-label="Write the release notes"/)
+  assert.match(html, /class="aiui-tpl-card-content"><p [^>]*>Write the release notes<\/p>/)
+  assert.match(html, /aria-label="Blocked"[\s\S]*class="aiui-tpl-card-content">[\s\S]*Blocked/)
 })
 
 const entries = [

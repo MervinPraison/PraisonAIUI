@@ -24,6 +24,12 @@ export interface BoardCard {
   /** Status chip, due date, agent… */
   footer?: ReactNode
   href?: string
+  /**
+   * Arbitrary content (a block the block layer renders) in place of the
+   * visible title, body and footer. `title` still names the card for
+   * assistive tech and the keyboard-move announcements.
+   */
+  content?: ReactNode
 }
 
 export interface BoardColumn {
@@ -145,9 +151,17 @@ export function Board({ label, columns, onMove, toolbar, className }: BoardProps
                             {card.meta}
                           </div>
                         )}
-                        <h3>{card.href ? <a href={card.href}>{card.title}</a> : card.title}</h3>
-                        {card.body != null && card.body !== '' && <p className="aiui-tpl-card-body">{card.body}</p>}
-                        {card.footer != null && card.footer !== '' && <div className="aiui-tpl-card-foot">{card.footer}</div>}
+                        {card.content != null ? (
+                          <div className="aiui-tpl-card-content">{card.content}</div>
+                        ) : (
+                          <>
+                            <h3>{card.href ? <a href={card.href}>{card.title}</a> : card.title}</h3>
+                            {card.body != null && card.body !== '' && <p className="aiui-tpl-card-body">{card.body}</p>}
+                            {card.footer != null && card.footer !== '' && (
+                              <div className="aiui-tpl-card-foot">{card.footer}</div>
+                            )}
+                          </>
+                        )}
                       </article>
                     </li>
                   ))}
