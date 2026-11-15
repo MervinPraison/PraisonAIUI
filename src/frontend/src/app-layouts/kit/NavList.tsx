@@ -1,22 +1,15 @@
 /**
  * Navigation links for layout frames, over LayoutNav items (ADR 0003).
  * Pro spec: 32 px rows (44 px on touch), 8 px radius, 14 px text (15 px on
- * touch), the active row on `sidebar-accent` with medium weight.
+ * touch), the active row on `sidebar-accent` with medium weight and its icon
+ * in the accent. Icons come from the item's `navIcon` (./pageIcons) unless the
+ * frame passes `renderIcon`.
  */
 import type { ReactNode } from 'react'
 import type { LayoutNavItem } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
+import { NavIcon } from './pageIcons'
 import { isPlainLeftClick, navRowClass, type KitSize } from './rows'
-
-/** The manifest `icon` when it is a short mark (an emoji); frames pass `renderIcon` for real icons. */
-function ItemMark({ item }: { item: LayoutNavItem }) {
-  const mark = item.icon && item.icon.length <= 4 ? item.icon : item.title.slice(0, 1).toUpperCase()
-  return (
-    <span aria-hidden="true" className="flex size-4 shrink-0 items-center justify-center text-xs text-muted-foreground">
-      {mark}
-    </span>
-  )
-}
 
 export interface NavListProps {
   items: readonly LayoutNavItem[]
@@ -52,7 +45,7 @@ export function NavList({ items, go, onNavigate, size = 'default', renderIcon, b
                 onNavigate?.(item.id)
               }}
             >
-              {renderIcon ? renderIcon(item) : <ItemMark item={item} />}
+              {renderIcon ? renderIcon(item) : <NavIcon item={item} className={cn(item.active && 'text-primary')} />}
               <span className="min-w-0 flex-1 truncate">{item.title}</span>
               {count ? (
                 <span className="ml-auto text-xs text-muted-foreground tabular-nums" aria-label={`${count} new`}>
@@ -73,24 +66,26 @@ export function NavSection({
   children,
   folded,
   size = 'default',
+  className,
 }: {
   title: string
   children: ReactNode
   /** Start collapsed (a `<details>` the viewer opens); omit for a plain section. */
   folded?: boolean
   size?: KitSize
+  className?: string
 }) {
   const heading = cn('px-2 font-medium text-muted-foreground', size === 'touch' ? 'text-[13px]' : 'text-xs')
   if (folded === undefined) {
     return (
-      <section className="flex min-h-0 flex-col gap-1">
+      <section className={cn('flex min-h-0 flex-col gap-1', className)}>
         <h2 className={cn(heading, 'm-0 py-1')}>{title}</h2>
         {children}
       </section>
     )
   }
   return (
-    <details open={!folded} className="flex flex-col gap-1">
+    <details open={!folded} className={cn('flex flex-col gap-1', className)}>
       <summary className={cn(heading, 'cursor-pointer list-none rounded-md py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring')}>
         {title}
       </summary>

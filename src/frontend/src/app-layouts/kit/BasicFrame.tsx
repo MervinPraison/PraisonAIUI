@@ -10,6 +10,7 @@ import { Menu, Plus, Search, SunMoon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { LayoutProps } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
+import { Brand } from './Brand'
 import { NavList, NavSection } from './NavList'
 import { PhoneSheet } from './PhoneSheet'
 import { preloadPhoneSheet } from './phoneSheetLoader'
@@ -26,22 +27,6 @@ export interface BasicFrameProps extends LayoutProps {
   chatPage?: string
   /** Extra content at the top of the main column (a status strip). */
   banner?: ReactNode
-}
-
-function Brand({ chrome }: Pick<LayoutProps, 'chrome'>) {
-  const logo = chrome.siteLogo
-  return (
-    <span className="flex min-w-0 items-center gap-2 text-foreground">
-      {logo?.kind === 'img' ? (
-        <img src={logo.value} alt="" className="size-6 shrink-0 rounded-md" />
-      ) : (
-        <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center rounded-[7px] bg-foreground text-xs font-semibold text-background">
-          {logo?.value ?? chrome.siteTitle.slice(0, 1)}
-        </span>
-      )}
-      <span className="truncate text-[15px] font-semibold tracking-tight">{chrome.siteTitle}</span>
-    </span>
-  )
 }
 
 function SidebarBody({
