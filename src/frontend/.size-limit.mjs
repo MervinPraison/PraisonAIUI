@@ -42,9 +42,10 @@ const legacyJs = filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks
 //
 // Every layout's closure holds the kit chunks, so kit code that one layout
 // starts to use is paid for by all of them. Mission is the first to use
-// PhoneTabs and describeCall, and the mission board shares useSessions with
-// the frames: the kit went from 4.53 to 5.22 kB and each stub frame from 4.14
-// to 4.86 kB. Mission (frame, top bar, nav counts, phone tabs, data hooks)
+// PhoneTabs, and the mission board shares useSessions with the frames (Rollup
+// splits it into a chunk of its own): the kit went from 4.53 to 5.22 kB and
+// each stub frame from 4.14 to 4.86 kB. (describeCall ships in
+// lf-mission-board: the board imports kit/format directly.) Mission (frame, top bar, nav counts, phone tabs, data hooks)
 // measures 9.52 kB. Each budget is its measurement plus about 10%.
 const LAYOUT_BUDGETS = {
   'layout-chat-canvas': '5.3 kB',
