@@ -1,5 +1,6 @@
 // The layout kit v1: nav rows, sessions over the feed, phone tabs, the
-// explained approval card, shortcuts.
+// explained approval card, shortcuts; v2 (Track W): page icons, times and
+// Waiting in the session list, the connection line, the brand, feed hooks.
 import { beforeEach, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createElement } from 'react'
@@ -8,14 +9,22 @@ import { provideLayoutData, resetLayoutsForTests, type LayoutNavItem } from '@/s
 import type { SessionsFeed, SessionsState } from '@/sdk/layoutTypes'
 import {
   ApprovalCard,
+  Brand,
+  ConnectionStatus,
   describeCall,
+  iconForNavItem,
   matchesShortcut,
+  NavIcon,
   NavList,
   parseShortcut,
   PhoneSheet,
   PhoneTabs,
+  relativeTime,
   SessionList,
   shortcutLabels,
+  useApprovals,
+  useChat,
+  useMinuteClock,
 } from '@/app-layouts/kit'
 
 const html = (el: ReturnType<typeof createElement>) => renderToStaticMarkup(el)
@@ -151,4 +160,88 @@ test('shortcuts: mod is ⌘ on Apple platforms and Ctrl elsewhere', () => {
   assert.equal(matchesShortcut(ev('1', { metaKey: true }), 'mod+1', true), true)
   assert.deepEqual(shortcutLabels('mod+k', true), ['⌘', 'K'])
   assert.deepEqual(shortcutLabels('mod+shift+enter', false), ['Ctrl', 'Shift', 'Enter'])
+})
+
+test('relativeTime: Now, minutes, hours today, Yesterday, a weekday, then a date', () => {
+  const now = new Date(2026, 0, 15, 10, 0, 0).getTime() // Thu 15 Jan 2026, 10:00 local
+  const at = (d: number, h: number, m = 0) => new Date(2026, 0, d, h, m).getTime()
+  assert.equal(relativeTime(undefined, now), '')
+  assert.equal(relativeTime(now + 5_000, now), 'Now', 'a clock skew counts as now')
+  assert.equal(relativeTime(now - 30_000, now), 'Now')
+  assert.equal(relativeTime(now - 5 * 60_000, now), '5m')
+  assert.equal(relativeTime(at(15, 8), now), '2h')
+  assert.equal(relativeTime(at(14, 23), now), 'Yesterday')
+  assert.equal(relativeTime(at(12, 9), now), 'Mon')
+  assert.equal(relativeTime(at(2, 9), now), 'Jan 2')
+  assert.equal(relativeTime(new Date(2025, 11, 31).getTime(), now), 'Dec 31, 2025')
+})
+
+test('NavIcon: a lucide icon for navIcon, else the emoji, else the first letter', () => {
+  assert.match(html(createElement(NavIcon, { item: { title: 'Chat', navIcon: 'message-square' } })), /<svg[^>]*lucide-message-square/)
+  assert.match(html(createElement(NavIcon, { item: { title: 'Mine', icon: 'bot' } })), /lucide-bot/, 'a name in icon works too')
+  assert.match(html(createElement(NavIcon, { item: { title: 'Fun', icon: '🎉' } })), />🎉</)
+  assert.match(html(createElement(NavIcon, { item: { title: 'weather' } })), />W</)
+  assert.equal(iconForNavItem({ navIcon: 'no-such-icon' }), undefined)
+})
+
+test('NavList draws page icons by default, the active one in the accent', () => {
+  const out = html(createElement(NavList, { items: [item('chat', { active: true, navIcon: 'message-square' })], go: () => {} }))
+  assert.match(out, /lucide-message-square[^"]*text-primary/)
+})
+
+test('SessionList: times, a search box with its icon, Waiting for a pending approval', () => {
+  const now = new Date(2026, 0, 15, 10, 0).getTime()
+  provideLayoutData(
+    'sessions',
+    sessionsFeed({
+      sessions: [
+        { id: 's1', title: 'Compare sorting algorithms', updatedAt: now - 10_000 },
+        { id: 's2', title: 'Quick: summarise release notes', updatedAt: now - 2 * 3_600_000 },
+        { id: 's3', title: 'Quick: draft a reply to Sam', updatedAt: now - 3_600_000 },
+      ],
+      activeId: 's1',
+    }),
+  )
+  const out = html(createElement(SessionList, { title: 'Chats', search: true, showTime: true, now, waitingIds: new Set(['s3']) }))
+  assert.match(out, /<h2[^>]*>Chats<\/h2>/)
+  assert.match(out, /lucide-search/)
+  assert.match(out, /aria-label="Search chats"/)
+  assert.match(out, /data-aiui-session="s1".*?>Now</)
+  assert.match(out, /data-aiui-session="s2".*?>2h</)
+  assert.match(out, /data-aiui-session="s3".*?Waiting/)
+  assert.doesNotMatch(html(createElement(SessionList, {})), /tabular-nums">Now/, 'no times unless asked')
+})
+
+test('ConnectionStatus says Connected while the browser is online', () => {
+  const out = html(createElement(ConnectionStatus, { detail: 'local' }))
+  assert.match(out, /role="status" data-aiui-connection="online"/)
+  assert.match(out, /Connected/)
+  assert.match(out, /· <!-- -->local|· local/)
+})
+
+test('Brand: the logo image, else the title’s first letter', () => {
+  assert.match(html(createElement(Brand, { chrome: { siteTitle: 'PraisonAI', siteLogo: null } })), />P<\/span><span[^>]*>PraisonAI</)
+  assert.match(html(createElement(Brand, { chrome: { siteTitle: 'X', siteLogo: { kind: 'img', value: '/logo.svg' } } })), /<img src="\/logo.svg" alt=""/)
+})
+
+test('useMinuteClock reads the real time and stays stable between ticks', () => {
+  const seen: number[] = []
+  function Probe() {
+    seen.push(useMinuteClock(), useMinuteClock())
+    return null
+  }
+  const before = Date.now()
+  html(createElement(Probe))
+  assert.equal(seen[0], seen[1])
+  assert.ok(seen[0] >= before - 60_000 && seen[0] <= Date.now())
+})
+
+test('useChat / useApprovals are null while nothing provides the feed', () => {
+  const seen: unknown[] = []
+  function Probe() {
+    seen.push(useChat(), useApprovals())
+    return null
+  }
+  html(createElement(Probe))
+  assert.deepEqual(seen, [null, null])
 })
