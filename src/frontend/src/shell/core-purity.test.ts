@@ -15,20 +15,32 @@ import path from 'node:path'
 const SRC = path.resolve(process.cwd(), 'src')
 const CORE_DIRS = ['shell', 'sdk', 'legacy', 'blocks']
 
-/** Feature code the core must never import (statically or lazily). */
-const FEATURE_DIRS = ['chat-engine', 'chat', 'agent-ui', 'views', 'pages', 'surfaces']
+/**
+ * Feature code the core must never import (statically or lazily). Layouts
+ * (ADR 0003 R17) are features too: the shell renders whatever registerLayout()
+ * provided and never imports a frame or a layout feature.
+ */
+const FEATURE_DIRS = ['chat-engine', 'chat', 'agent-ui', 'views', 'pages', 'surfaces', 'app-layouts', 'layout-features']
 
 /**
  * Ids of the server's built-in pages (server.py `_builtin_pages`) plus
- * `explorer`. A new built-in page belongs in this list too.
+ * `explorer`, and the layout-owned pages (`start`, `templates`,
+ * `ops-overview`, `artifacts`; ADR 0003 §1.3). A new built-in page belongs in
+ * this list too.
  */
 const BUILTIN_PAGE_IDS = [
   'overview', 'chat', 'chat-canvas', 'canvas', 'channels', 'inbox', 'sessions', 'runs', 'replay',
   'usage', 'feedback', 'cron', 'jobs', 'work', 'jobs-board', 'kanban', 'approvals', 'api', 'agents',
   'skills', 'marketplace', 'memory', 'knowledge', 'nodes', 'mcp', 'config', 'auth', 'logs', 'debug',
   'guardrails', 'eval', 'training', 'code-studio', 'telemetry', 'traces', 'security', 'inspector',
-  'theme-picker', 'explorer',
+  'theme-picker', 'explorer', 'start', 'templates', 'ops-overview', 'artifacts',
 ]
+
+/**
+ * The built-in layouts (builtin/catalog.py `builtin.layout-<id>`). The core
+ * picks a layout from manifest data and the registry, never by id.
+ */
+const LAYOUT_IDS = ['workbench', 'command', 'chat-canvas', 'guided', 'mission']
 
 /**
  * Sidebar group names the server's built-in pages and bundled dashboard
@@ -163,6 +175,27 @@ test('the core contains no built-in page id literal', () => {
   }
   assert.deepEqual(bad, [], 'page-specific behaviour belongs in a plugin (src/builtin), not in the core')
   assert.deepEqual(stale, [], 'KNOWN_DEBT lists debt that is already paid: delete these entries')
+})
+
+/** String literals in `code` that are exactly a built-in layout id. */
+function layoutIdLiterals(code: string): string[] {
+  const ids = new Set(LAYOUT_IDS)
+  const found = new Set<string>()
+  const re = /(['"`])([a-z][a-z-]*)\1/g
+  for (let m = re.exec(code); m; m = re.exec(code)) if (ids.has(m[2])) found.add(m[2])
+  return [...found].sort()
+}
+
+test('the core names no layout (ADR 0003: selection comes from manifest.layouts and registerLayout)', () => {
+  const bad = files.flatMap((f) => layoutIdLiterals(f.code).map((id) => `${f.rel} names layout '${id}'`))
+  assert.deepEqual(bad, [], 'layout-specific behaviour belongs in src/builtin/layouts or app-layouts/<id>, not in the core')
+  assert.deepEqual(layoutIdLiterals("x = 'mission'; y = \"chat-canvas\"; z = 'missions'"), ['chat-canvas', 'mission'])
+})
+
+test('the core never imports a layout or a layout feature, even lazily', () => {
+  assert.equal(targetDir('@/app-layouts/kit', path.join(SRC, 'shell', 'a.ts')), 'app-layouts')
+  assert.equal(targetDir('../layout-features/artifacts/derive', path.join(SRC, 'sdk', 'a.ts')), 'layout-features')
+  assert.ok(FEATURE_DIRS.includes('app-layouts') && FEATURE_DIRS.includes('layout-features'))
 })
 
 /** String literals in `code` that are exactly a built-in sidebar group name. */

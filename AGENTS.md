@@ -4,7 +4,7 @@ Machine-readable context for AI coding agents.
 
 ## Read first
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md): layer map, the numbered rules (R1-R16),
+- [`ARCHITECTURE.md`](ARCHITECTURE.md): layer map, the numbered rules (R1-R17),
   the stack table and the PR review checklist. Every PR is reviewed against it.
 - [`prd.md`](prd.md): current product requirements (top section) and flip criteria.
 - [`src/frontend/DESIGN.md`](src/frontend/DESIGN.md): visual rules and tokens for any UI change.
@@ -17,7 +17,7 @@ and Cursor read it directly. Keep shared guidance here.
 Each line names the rule in [`ARCHITECTURE.md`](ARCHITECTURE.md) §3 that enforces it.
 
 - **Modular and extendable by default.** Everything first-party is a plugin (a `builtin/catalog.py` record, React code through `sdkApi`), and a third-party plugin can do what a built-in does (R2, R3).
-- **Load only what is requested.** Heavy code in lazy chunks, optional Python dependencies imported inside the function that needs them, layout and feature code never on the boot path (R4, R10).
+- **Load only what is requested.** Heavy code in lazy chunks, optional Python dependencies imported inside the function that needs them, layout and feature code never on the boot path (R4, R10, R17).
 - **Small core.** `shell/`, `sdk/`, `legacy/`, `blocks/` name no page or feature; `server.py` gains no routes or `create_app` params (R1, R11).
 - **Use the stack before hand-rolling.** Take the library in the stack table (ARCHITECTURE §4); no second sidebar, palette, toaster, markdown pipeline or registry (R3).
 - **Backwards compatible public APIs.** Additive changes only to `SDK_EXPORTS`, the manifest, Python APIs, YAML, `/api/*` and events; the default `dashboard` output does not change (R5, R6, R7).

@@ -28,6 +28,7 @@ import {
   type AnyComponent,
 } from './registry'
 import type { ShellManifest } from './manifest'
+import { getLayoutComponent, registerLayout, type LayoutComponent, type LayoutMeta } from './layouts'
 
 export type PluginContributionKind = 'page' | 'block' | 'toolRenderer'
 
@@ -276,11 +277,75 @@ export async function loadPluginModules(
   return out
 }
 
+// ── plugin layouts (ADR 0003) ────────────────────────────────────────
+
+/** Layout id → module URL this loader registered it for. */
+const manifestLayouts = new Map<string, string>()
+
+/**
+ * Register the plugin layouts `manifest.layouts.available` lists with a
+ * `module`, lazily: registerLayout(id, meta, loader), where the loader
+ * imports the module only when the shell first renders that layout, never
+ * while the other plugin modules load. An inactive layout's code is never
+ * downloaded.
+ *
+ * The module either calls registerLayout(id, meta, Frame) while it is
+ * evaluated (its meta, chat presentation included, then replaces the
+ * manifest's title and description) or default-exports the frame. A
+ * failed import, or a module that does neither, rejects the loader: the
+ * shell's layout host then shows the classic frame, a toast and an
+ * `aiui:plugin-error` event, and every other layout still works.
+ *
+ * Idempotent. A layout something else registered already (a plugin page
+ * module, a built-in) is left alone. Returns the ids registered by this call.
+ */
+export function registerManifestLayouts(manifest: ShellManifest, opts: Pick<LoadPluginsOptions, 'importModule'> = {}): string[] {
+  const importModule = opts.importModule ?? nativeImport
+  const done: string[] = []
+  for (const spec of manifest.layouts?.available ?? []) {
+    if (!spec.module || manifestLayouts.get(spec.id) === spec.module) continue
+    if (getLayoutComponent(spec.id) && !manifestLayouts.has(spec.id)) continue
+    const { id, module, css } = spec
+    const meta: LayoutMeta = spec.description ? { title: spec.title, description: spec.description } : { title: spec.title }
+    const load = async (): Promise<{ default: LayoutComponent }> => {
+      const url = resolveModuleUrl(module)
+      if (!url) throw new Error(`layout '${id}' (${spec.source}) has no loadable module URL`)
+      const cssUrl = resolveModuleUrl(css)
+      if (cssUrl) addStylesheet(cssUrl)
+      let p = imported.get(url)
+      if (!p) {
+        p = importModule(url)
+        imported.set(url, p)
+        p.catch(() => imported.delete(url))
+      }
+      const mod = await p
+      const now = getLayoutComponent(id)
+      if (now && now !== placeholder) return { default: now } // registered itself while evaluated
+      const exported = typeof mod === 'object' && mod !== null ? (mod as Record<string, unknown>).default : undefined
+      if (isComponent(exported)) return { default: exported as LayoutComponent }
+      throw new Error(`layout '${id}': ${url} did not call registerLayout('${id}', …) and has no default component export`)
+    }
+    try {
+      registerLayout(id, meta, load)
+    } catch (err) {
+      console.warn(`[aiui sdk] ${spec.source} layout '${id}' was not registered: ${describe(err)}`)
+      continue
+    }
+    // What registerLayout() made of `load`; a module that registers itself replaces it.
+    const placeholder = getLayoutComponent(id)
+    manifestLayouts.set(id, module)
+    done.push(id)
+  }
+  return done
+}
+
 /**
  * The shell's entry point (frozen contract, ADR-0001 §5): import the plugin
- * modules of `manifest`. Never rejects; see getLastPluginLoadReport().
+ * modules of `manifest` and register its plugin layouts (lazily). Never
+ * rejects; see getLastPluginLoadReport().
  */
 export async function loadManifestPlugins(manifest: ShellManifest): Promise<void> {
+  registerManifestLayouts(manifest)
   await loadPluginModules(manifest)
 }
 
@@ -293,5 +358,6 @@ export function getLastPluginLoadReport(): PluginLoadReport | null {
 export function resetPluginLoaderForTests(): void {
   imported.clear()
   stylesheets.clear()
+  manifestLayouts.clear()
   lastReport = null
 }
