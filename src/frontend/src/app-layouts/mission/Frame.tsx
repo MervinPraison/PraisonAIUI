@@ -39,6 +39,7 @@ import {
   type NavCounts,
 } from './model'
 import { iconFor } from './icons'
+import './mission.css'
 import { BrandMark, ChatHeader, CountBadge, EnvBadge, HealthDot, MorePagesButton, NavRows, TopBar } from './parts'
 
 // The board is one chunk (layout-features/mission-board/index.ts): every part comes from that one import().
@@ -256,13 +257,8 @@ export default function MissionFrame(props: LayoutProps) {
           <NavRows items={nav.footer} go={nav.go} counts={counts} />
           <div className="mt-auto flex flex-col gap-2 border-t border-border p-2.5">
             <MorePagesButton chrome={chrome} />
-            <div className="flex flex-col gap-0.5 text-xs text-tier-3">
-              <span className="flex items-center gap-1.5 text-muted-foreground">
-                <HealthDot state={health.state} />
-                {health.state === 'ok' ? 'Gateway healthy' : health.label}
-              </span>
-              {!!health.agents && <span className="font-mono">{health.agents} agents configured</span>}
-            </div>
+            {/* The top bar's pill is the one status indicator. */}
+            {!!health.agents && <span className="font-mono text-xs text-tier-3">{health.agents} agents configured</span>}
             <chrome.Slot name="sidebar:footer" />
           </div>
         </nav>

@@ -1,7 +1,8 @@
 /**
  * The operations column beside the chat (Mission.dc.html "Operations"):
- * today's KPI strip, every agent's status card (waiting ones first), and the
- * selected agent's sessions with New chat. Loaded by the Mission frame with
+ * today's KPI strip, every agent's status card (waiting ones first), the
+ * selected agent's sessions with New chat, and the latest runs (so the
+ * column below the sessions shows what ran, not empty space). Loaded by the Mission frame with
  * import() (chunk lf-mission-board) only while the chat page is on screen.
  */
 import { useMemo, useState } from 'react'
@@ -9,15 +10,16 @@ import { Plus } from 'lucide-react'
 import { useSessions } from '@/app-layouts/kit'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { AgentStatus } from '@/sdk/layoutTypes'
+import type { AgentStatus, RunSummary } from '@/sdk/layoutTypes'
 import { cn } from '@/lib/utils'
 import { agentCountsLabel, agentViews, defaultAgent, sessionsOf, withChatGates } from './agents'
-import { formatAgo } from './format'
+import { formatAgo, formatDuration } from './format'
 import { useApprovals, useChat, useFeed, useNow, useRuns, useRunsStatus } from './hooks'
 import { lastAssistant, timelineSteps } from './timeline'
-import { AgentCard, KpiStrip } from './widgets'
+import { AgentCard, KpiStrip, RUN_STATE, StateChip } from './widgets'
 
 const NO_AGENTS: readonly AgentStatus[] = Object.freeze([])
+const NO_RUNS: readonly RunSummary[] = Object.freeze([])
 
 export interface OpsColumnProps {
   /** Open the chat page (after a session is picked or created). */
@@ -30,6 +32,7 @@ export default function OpsColumn({ openChat, className }: OpsColumnProps) {
   const status = useRunsStatus(runs)
   const kpis = useFeed(useMemo(() => runs.kpis('today'), [runs]), null)
   const ledgerAgents = useFeed(useMemo(() => runs.agents(), [runs]), NO_AGENTS)
+  const recent = useFeed(useMemo(() => runs.recent({ limit: 6 }), [runs]), NO_RUNS)
   const { pending } = useApprovals()
   const sessions = useSessions()
   const chat = useChat()
@@ -134,6 +137,26 @@ export default function OpsColumn({ openChat, className }: OpsColumnProps) {
               })}
             </ul>
           )}
+        </div>
+      )}
+
+      {status !== 'off' && recent.length > 0 && (
+        <div className="flex flex-col gap-1" data-aiui-ops-runs="">
+          <div className="flex h-8 items-center">
+            <h2 className="m-0 text-[13px] font-semibold tracking-wide text-muted-foreground">Recent runs</h2>
+          </div>
+          <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
+            {recent.map((r) => {
+              const st = RUN_STATE[r.status] ?? RUN_STATE.completed
+              return (
+                <li key={r.id} data-aiui-run={r.id} className="flex h-8 min-w-0 items-center gap-2 px-2.5 text-sm">
+                  <span className="min-w-0 flex-1 truncate text-muted-foreground">{r.agent ?? 'Agent'}</span>
+                  <StateChip state={st.state} label={st.label} size="compact" />
+                  <span className="w-12 shrink-0 text-right font-mono text-xs text-tier-3">{formatDuration((r.endedAt ?? now) - r.startedAt)}</span>
+                </li>
+              )
+            })}
+          </ul>
         </div>
       )}
     </section>

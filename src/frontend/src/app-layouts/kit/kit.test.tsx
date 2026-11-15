@@ -17,6 +17,7 @@ import {
   matchesShortcut,
   NavIcon,
   NavList,
+  NavSection,
   parseShortcut,
   PhoneSheet,
   PhoneTabs,
@@ -252,4 +253,15 @@ test('useChat / useApprovals are null while nothing provides the feed', () => {
   }
   html(createElement(Probe))
   assert.deepEqual(seen, [null, null])
+})
+
+
+test('a folded nav section is a group header, not a link: 11px uppercase muted, spaced, with a chevron', () => {
+  const out = renderToStaticMarkup(createElement(NavSection, { title: 'Control', folded: true }, createElement('span', null, 'x')))
+  assert.match(out, /<details class="group\/sec mt-4[^"]*" data-aiui-nav-group="">/)
+  const summary = out.match(/<summary class="([^"]*)"/)?.[1] ?? ''
+  for (const cls of ['uppercase', 'tracking-[0.04em]', 'text-tier-3', 'text-[11px]']) assert.ok(summary.split(' ').includes(cls), cls)
+  assert.match(out, /<svg[^>]*group-open\/sec:rotate-90/)
+  // A plain section keeps its quiet h2.
+  assert.match(renderToStaticMarkup(createElement(NavSection, { title: 'Chats' }, null)), /<h2[^>]*>Chats<\/h2>/)
 })

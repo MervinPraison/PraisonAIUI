@@ -60,7 +60,11 @@ export function NavList({ items, go, onNavigate, size = 'default', renderIcon, b
   )
 }
 
-/** A titled block of a frame's sidebar ("More", "Recent chats"). */
+/**
+ * A titled block of a frame's sidebar ("More", "Recent chats"). A folded
+ * block is a group header, not a link: 11px uppercase muted text with
+ * 0.04em tracking, 16px above it and a chevron that turns when it opens.
+ */
 export function NavSection({
   title,
   children,
@@ -75,19 +79,26 @@ export function NavSection({
   size?: KitSize
   className?: string
 }) {
-  const heading = cn('px-2 font-medium text-muted-foreground', size === 'touch' ? 'text-[13px]' : 'text-xs')
   if (folded === undefined) {
     return (
       <section className={cn('flex min-h-0 flex-col gap-1', className)}>
-        <h2 className={cn(heading, 'm-0 py-1')}>{title}</h2>
+        <h2 className={cn('m-0 px-2 py-1 font-medium text-muted-foreground', size === 'touch' ? 'text-[13px]' : 'text-xs')}>{title}</h2>
         {children}
       </section>
     )
   }
   return (
-    <details open={!folded} className={cn('flex flex-col gap-1', className)}>
-      <summary className={cn(heading, 'cursor-pointer list-none rounded-md py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring')}>
-        {title}
+    <details open={!folded} className={cn('group/sec mt-4 flex flex-col gap-1', className)} data-aiui-nav-group="">
+      <summary
+        className={cn(
+          'flex cursor-pointer list-none items-center gap-1 rounded-md px-2 py-1 font-medium tracking-[0.04em] text-tier-3 uppercase outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden',
+          size === 'touch' ? 'min-h-11 text-xs' : 'text-[11px]',
+        )}
+      >
+        <span className="min-w-0 flex-1 truncate">{title}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="size-3 shrink-0 transition-transform group-open/sec:rotate-90">
+          <path d="m9 18 6-6-6-6" />
+        </svg>
       </summary>
       {children}
     </details>

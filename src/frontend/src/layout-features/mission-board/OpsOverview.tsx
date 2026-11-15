@@ -9,12 +9,12 @@ import { useMemo } from 'react'
 import { useSessions } from '@/app-layouts/kit'
 import { cn } from '@/lib/utils'
 import type { LayoutViewport } from '@/sdk/layouts'
-import type { AgentStatus, RunStatus, RunSummary } from '@/sdk/layoutTypes'
+import type { AgentStatus, RunSummary } from '@/sdk/layoutTypes'
 import { agentCountsLabel, agentViews, sessionsOf } from './agents'
 import { formatCost, formatCount, formatDuration, formatTime } from './format'
 import { useApprovals, useFeed, useNow, useRuns, useRunsStatus } from './hooks'
 import { RequestCard } from './RequestCard'
-import { AgentCard, KpiStrip, StateChip, type ChipState } from './widgets'
+import { AgentCard, KpiStrip, RUN_STATE, StateChip } from './widgets'
 
 // The recent-runs table, drawn here with components/ui/table's classes: that
 // module is shared with the chat route's lazy chunks, and importing it here
@@ -33,14 +33,6 @@ export interface OpsOverviewProps {
 
 const NO_AGENTS: readonly AgentStatus[] = Object.freeze([])
 const NO_RUNS: readonly RunSummary[] = Object.freeze([])
-
-const RUN_STATE: Record<RunStatus, { state: ChipState; label: string }> = {
-  running: { state: 'running', label: 'Running' },
-  waiting: { state: 'waiting', label: 'Waiting' },
-  completed: { state: 'done', label: 'Succeeded' },
-  failed: { state: 'failed', label: 'Failed' },
-  cancelled: { state: 'idle', label: 'Cancelled' },
-}
 
 function SectionTitle({ children, meta }: { children: string; meta?: string }) {
   return (

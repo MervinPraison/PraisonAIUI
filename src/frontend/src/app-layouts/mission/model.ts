@@ -79,12 +79,12 @@ export function hasPage(nav: Pick<LayoutNav, 'primary' | 'groups' | 'footer'>, p
 
 export type HealthState = 'ok' | 'degraded' | 'unknown'
 
-/** `/api/provider/health` → the top bar's pill. */
+/** `/api/provider/health` → the top bar's pill: the one status word Mission shows ("Connected", as every layout says it). */
 export function healthOf(body: unknown): { state: HealthState; label: string; agents?: number } {
   const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}
   const status = typeof b.status === 'string' ? b.status.toLowerCase() : ''
   const agents = typeof b.agents === 'number' ? b.agents : undefined
-  if (status === 'ok' || status === 'healthy') return { state: 'ok', label: 'All systems live', agents }
+  if (status === 'ok' || status === 'healthy') return { state: 'ok', label: 'Connected', agents }
   if (!status || status === 'unknown') return { state: 'unknown', label: 'Status unknown', agents }
   return { state: 'degraded', label: 'Provider degraded', agents }
 }

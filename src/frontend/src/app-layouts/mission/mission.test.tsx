@@ -78,7 +78,7 @@ test('environment option and provider health', () => {
   assert.equal(environmentOf({ options: { environment: ' prod ' } }), 'prod')
   assert.equal(environmentOf({ options: { environment: 7 } }), undefined)
   assert.equal(environmentOf(undefined), undefined)
-  assert.deepEqual(healthOf({ status: 'ok', agents: 3 }), { state: 'ok', label: 'All systems live', agents: 3 })
+  assert.deepEqual(healthOf({ status: 'ok', agents: 3 }), { state: 'ok', label: 'Connected', agents: 3 })
   assert.equal(healthOf({ status: 'healthy' }).state, 'ok')
   assert.equal(healthOf({ status: 'error' }).state, 'degraded')
   assert.equal(healthOf(null).state, 'unknown')
@@ -172,4 +172,11 @@ test('the board is imported only through its one entry, so it builds as one chun
   for (const name of ['AttentionBanner', 'OpsColumn', 'OpsOverview', 'RunTimeline', 'missionRuns'] as const) {
     assert.equal(typeof board[name], 'function', name)
   }
+})
+
+test('one status indicator: the top bar pill; the sidebar repeats no health line', () => {
+  const out = renderToStaticMarkup(createElement(MissionFrame, props('logs', 'desktop')))
+  assert.doesNotMatch(out, /Gateway healthy|All systems live/)
+  const sidebar = out.match(/<nav aria-label="Main"[\s\S]*?<\/nav>/)?.[0] ?? ''
+  assert.doesNotMatch(sidebar, /data-aiui-health|rounded-full bg-success/)
 })

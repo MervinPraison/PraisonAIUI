@@ -184,3 +184,17 @@ test('request card: Deny then Approve, like the banner and MissionPhone.dc.html'
     assert.deepEqual([...out.matchAll(/<button[^>]*>([^<]+)<\/button>/g)].map((m) => m[1]), ['Deny', 'Approve'], touch ? 'phone' : 'desktop')
   }
 })
+
+test('ops column: the latest runs fill the column under the sessions (none listed without any)', () => {
+  const now = Date.now()
+  provideLayoutData('runs', runs(kpis, [], [
+    { id: 'r1', agent: 'Researcher', status: 'waiting', startedAt: now - 5000 },
+    { id: 'r2', agent: 'Coder', status: 'completed', startedAt: now - 60000, endedAt: now - 57300 },
+  ]))
+  const out = html(createElement(OpsColumn, { openChat: () => {} }))
+  assert.match(out, /data-aiui-ops-runs=""[\s\S]*Recent runs/)
+  assert.deepEqual([...out.matchAll(/data-aiui-run="([^"]+)"/g)].map((m) => m[1]), ['r1', 'r2'])
+  assert.match(out, /data-aiui-run="r2"[\s\S]*?Succeeded[\s\S]*?2\.7s/)
+  provideLayoutData('runs', runs(kpis, []))
+  assert.doesNotMatch(html(createElement(OpsColumn, { openChat: () => {} })), /data-aiui-ops-runs/)
+})

@@ -1,0 +1,26 @@
+/*
+ * Mission Control (chunk layout-mission): loaded with the frame, so it
+ * applies only while this layout is on screen. Tokens only.
+ *
+ * The chat panel's header already names the chat and its run, and the top
+ * bar's pill is the one status indicator, so the chat page's own title and
+ * connection row steps aside (its heading stays for screen readers).
+ */
+[data-aiui-layout-frame='mission'] [data-aiui-chat] > section > header:not(:has(select)),
+[data-aiui-layout-frame='mission'] [data-chat-title] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* With an agent picker the row stays for it alone. */
+[data-aiui-layout-frame='mission'] [data-chat-header-column] {
+  justify-content: flex-end;
+}
+
+[data-aiui-layout-frame='mission'] [data-aiui-chat] [data-connection] {
+  display: none;
+}

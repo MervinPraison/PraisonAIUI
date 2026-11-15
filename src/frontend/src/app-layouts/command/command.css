@@ -10,13 +10,23 @@
  *   with no buttons. On a phone the Run sheet shows the approval, so the
  *   strip is not drawn at all.
  */
-[data-aiui-layout-frame='command'] [data-aiui-chat] > section > header {
+[data-aiui-layout-frame='command'] [data-aiui-chat] > section > header:not(:has(select)),
+[data-aiui-layout-frame='command'] [data-chat-title] {
   position: absolute;
   width: 1px;
   height: 1px;
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* With an agent picker the row stays for it alone. */
+[data-aiui-layout-frame='command'] [data-chat-header-column] {
+  justify-content: flex-end;
+}
+
+[data-aiui-layout-frame='command'] [data-aiui-chat] [data-connection] {
+  display: none;
 }
 
 [data-aiui-layout-frame='command'][data-run-panel='open'] [data-approval-keys] [data-gate-actions] {
