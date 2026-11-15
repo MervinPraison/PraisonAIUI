@@ -8,6 +8,7 @@
 import { sdkApi } from '@/sdk/install'
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
 import { approvalsBuiltin } from './approvals'
+import { artifactsBuiltin } from './artifacts'
 import { chatBuiltin } from './chat'
 import { layoutsBuiltin } from './layouts'
 import type { BuiltinPlugin, BuiltinSdk } from './types'
@@ -18,6 +19,9 @@ export const BUILTIN_PLUGINS: readonly BuiltinPlugin[] = Object.freeze([
   chatBuiltin,
   approvalsBuiltin,
   layoutsBuiltin,
+  // The artifacts index (Chat and Canvas): the server lists its page only
+  // while builtin.artifacts is on, so this activates only then.
+  artifactsBuiltin,
 ])
 
 const activated = new Set<string>()

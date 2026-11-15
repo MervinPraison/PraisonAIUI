@@ -38,7 +38,7 @@ test('built-in names are unique, namespaced and each one owns a page or is a ser
 
 test('the built-in layouts and their picker ship in the list (otherwise Rollup drops them)', () => {
   const names = BUILTIN_PLUGINS.map((b) => b.name)
-  assert.deepEqual(names, ['builtin.chat', 'builtin.approvals', 'builtin.layouts'])
+  assert.deepEqual(names, ['builtin.chat', 'builtin.approvals', 'builtin.layouts', 'builtin.artifacts'])
 })
 
 const page = (id: string, extra: Partial<ShellPage> = {}): ShellPage => ({
@@ -173,4 +173,22 @@ test('installBuiltins queues on onActivate: nothing registers until the shell ha
   assert.equal(newChat.group, 'Actions')
   assert.doesNotMatch(renderPage('chat', m), /Page not found/)
   assert.deepEqual(activateBuiltins(m), [], 'already active')
+})
+
+test('builtin.artifacts registers its page, lazily, only while the manifest lists it (the record is on)', async () => {
+  resetBuiltinsForTests()
+  const artifacts = BUILTIN_PLUGINS.filter((b) => b.name === 'builtin.artifacts')
+  const registered: [string, unknown][] = []
+  const sdk = { ...sdkApi, registerPage: (id: string, c: unknown) => void registered.push([id, c]) } as typeof sdkApi
+  assert.deepEqual(activateBuiltins(manifest([page('chat')]), sdk, artifacts), [], 'record off: nothing registers')
+  assert.equal(registered.length, 0)
+  const listed = page('artifacts', { kind: 'native', source: 'builtin.artifacts', layouts: ['chat-canvas'] })
+  assert.deepEqual(activateBuiltins(manifest([page('chat'), listed]), sdk, artifacts), ['builtin.artifacts'])
+  assert.equal(registered.length, 1)
+  const [id, loader] = registered[0]
+  assert.equal(id, 'artifacts')
+  assert.equal(typeof loader, 'function', 'a loader, not the component: the page stays in its lazy chunk')
+  const mod = (await (loader as () => Promise<{ default: unknown }>)()) as { default: unknown }
+  assert.equal(typeof mod.default, 'function', 'the loader resolves to ArtifactsPage')
+  resetBuiltinsForTests()
 })
