@@ -6,10 +6,10 @@
  * Used by React pages directly, and by the `list_detail` block
  * (ListDetailBlock below, registered lazily by blocks/coreBlocks.tsx).
  */
-import { useId, useMemo, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
-import { moveSelection, pageRange } from './model'
+import { isStackedBelow, moveSelection, pageRange } from './model'
 import { Glyph } from './parts'
 import './page.css'
 
@@ -75,6 +75,10 @@ export function ListDetail<R extends { id: string }>({
 }: ListDetailProps<R>) {
   const detailId = useId()
   const ids = useMemo(() => rows.map((r) => r.id), [rows])
+  const mainRef = useRef<HTMLDivElement>(null)
+  const detailRef = useRef<HTMLElement>(null)
+  /** A pointer selection asks for the panel to be brought on screen. */
+  const reveal = useRef(false)
   const focusRow = (table: HTMLElement | null, id: string | null) => {
     if (!table || id == null) return
     const el = table.querySelector<HTMLElement>(`tr[data-row-id="${CSS.escape(id)}"]`)
@@ -103,6 +107,27 @@ export function ListDetail<R extends { id: string }>({
   }
 
   const showDetail = selectedId != null && detail != null
+
+  // On a phone the panel stacks under the whole table, off screen: after a tap
+  // scroll it into view and move focus to it. Beside the table (desktop) the
+  // focus stays on the row, so arrow keys keep browsing.
+  useEffect(() => {
+    if (!reveal.current || !showDetail) return
+    reveal.current = false
+    const aside = detailRef.current
+    const main = mainRef.current
+    if (!aside || !main || !isStackedBelow(aside.getBoundingClientRect(), main.getBoundingClientRect())) return
+    aside.scrollIntoView?.({ block: 'start' })
+    aside.focus({ preventScroll: true })
+  }, [selectedId, showDetail])
+
+  const closeDetail = () => {
+    const id = selectedId ?? null
+    onSelect?.(null)
+    // Back to the row the panel described (the panel is gone after this render).
+    requestAnimationFrame(() => focusRow(mainRef.current, id))
+  }
+
   return (
     <div className={['aiui-tpl aiui-tpl-list', className].filter(Boolean).join(' ')} data-aiui-template="list">
       {toolbar && (
@@ -111,7 +136,7 @@ export function ListDetail<R extends { id: string }>({
         </div>
       )}
       <div className="aiui-tpl-list-body">
-        <div className="aiui-tpl-list-main">
+        <div className="aiui-tpl-list-main" ref={mainRef}>
           {rows.length === 0 && empty ? (
             <div className="aiui-tpl-empty">{empty}</div>
           ) : (
@@ -152,7 +177,10 @@ export function ListDetail<R extends { id: string }>({
                       aria-selected={selected}
                       aria-controls={showDetail && selected ? detailId : undefined}
                       tabIndex={tabbable ? 0 : -1}
-                      onClick={() => onSelect?.(row.id)}
+                      onClick={() => {
+                        reveal.current = true
+                        onSelect?.(row.id)
+                      }}
                       onDoubleClick={() => onOpen?.(row.id)}
                     >
                       {columns.map((col) => (
@@ -169,10 +197,22 @@ export function ListDetail<R extends { id: string }>({
           {footer}
         </div>
         {showDetail && (
-          <aside id={detailId} className="aiui-tpl-detail" aria-label={typeof detailTitle === 'string' ? detailTitle : 'Details'}>
+          <aside
+            id={detailId}
+            ref={detailRef}
+            tabIndex={-1}
+            className="aiui-tpl-detail"
+            aria-label={typeof detailTitle === 'string' ? detailTitle : 'Details'}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault()
+                closeDetail()
+              }
+            }}
+          >
             <div className="aiui-tpl-detail-head">
               <h2>{detailTitle}</h2>
-              <Button type="button" variant="ghost" size="icon-sm" aria-label="Close details" title="Close details (Esc)" onClick={() => onSelect?.(null)}>
+              <Button type="button" variant="ghost" size="icon-sm" aria-label="Close details" title="Close details (Esc)" onClick={closeDetail}>
                 <Glyph name="close" />
               </Button>
             </div>

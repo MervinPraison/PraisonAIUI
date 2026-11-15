@@ -82,7 +82,12 @@ export function ListDetailBlock({ node }: { node: BlockNode }) {
               }}
             />
             <span className="aiui-tpl-grow" />
-            <span className="aiui-tpl-meta">{filtered.length} shown</span>
+            {/* The pager says how many there are; this says what the search kept. */}
+            {q && (
+              <span className="aiui-tpl-meta" role="status">
+                {filtered.length} of {rows.length} match
+              </span>
+            )}
           </>
         ) : undefined
       }

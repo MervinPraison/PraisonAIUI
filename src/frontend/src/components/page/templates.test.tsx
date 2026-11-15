@@ -38,7 +38,8 @@ test('ListDetail: a labelled table, a roving tab stop and the selected row', () 
   assert.match(html, /<th scope="col" data-align="end">Tokens<\/th>/)
   assert.match(html, /data-row-id="notes" aria-selected="true" aria-controls="[^"]+" tabindex="0"/)
   assert.match(html, /data-row-id="sort" aria-selected="false" tabindex="-1"/)
-  assert.match(html, /<aside id="[^"]+" class="aiui-tpl-detail" aria-label="Summarise release notes">/)
+  // tabindex -1: a tap on a phone moves focus to the panel stacked under the table.
+  assert.match(html, /<aside id="[^"]+" tabindex="-1" class="aiui-tpl-detail" aria-label="Summarise release notes">/)
   assert.match(html, /aria-label="Close details"/)
   assert.match(html, /<dt>Tokens<\/dt><dd>3,980<\/dd>/)
 })
@@ -83,6 +84,8 @@ test('list_detail block: columns, rows and a search past one page', () => {
   assert.equal((html.match(/data-row-id=/g) ?? []).length, 10, 'one page of rows')
   assert.match(html, /Search agents/)
   assert.match(html, /1–10 of 30/)
+  // No "30 shown" beside "1–10 of 30": the toolbar count appears only for a search.
+  assert.doesNotMatch(html, /shown|match/)
 })
 
 test('Board: columns with counts, a WIP limit, cards and keyboard hints', () => {

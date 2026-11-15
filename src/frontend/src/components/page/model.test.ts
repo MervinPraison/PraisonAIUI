@@ -6,6 +6,7 @@ import {
   entryMatches,
   filterEntries,
   findCard,
+  isStackedBelow,
   monogram,
   moveCard,
   moveSelection,
@@ -131,4 +132,11 @@ test('monogram', () => {
   assert.equal(monogram('code_reviewer'), 'CR')
   assert.equal(monogram('Slack'), 'SL')
   assert.equal(monogram('  '), '?')
+})
+
+test('isStackedBelow: a panel under the table (phone), not beside it', () => {
+  const main = { top: 100, bottom: 900 }
+  assert.equal(isStackedBelow({ top: 900, bottom: 1300 }, main), true)
+  assert.equal(isStackedBelow({ top: 899.7, bottom: 1300 }, main), true, 'sub-pixel slack')
+  assert.equal(isStackedBelow({ top: 100, bottom: 700 }, main), false, 'beside the table')
 })

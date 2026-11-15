@@ -174,3 +174,17 @@ export function monogram(title: string): string {
   const letters = words.length === 1 ? words[0].slice(0, 2) : words[0][0] + words[1][0]
   return letters.toUpperCase()
 }
+
+/** The edges of a box, as getBoundingClientRect() gives them. */
+export interface Edges {
+  top: number
+  bottom: number
+}
+
+/**
+ * True when `panel` sits under `main` (the stacked phone layout) rather than
+ * beside it. Half a pixel of slack absorbs sub-pixel layout.
+ */
+export function isStackedBelow(panel: Edges, main: Edges): boolean {
+  return panel.top >= main.bottom - 0.5
+}
