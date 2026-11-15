@@ -240,7 +240,7 @@ function ApprovalBlock({ approval, run, d, touch }: { approval: InspectorApprova
 function Metrics({ run, tokens, tokensSub, cost, model }: { run: InspectorRun; tokens: string; tokensSub: string; cost: string; model: string }) {
   const waiting = run.steps.filter((s) => s.state === 'waiting').length
   const items = [
-    { label: 'Elapsed', value: formatDuration(run.elapsedMs), sub: run.approval ? `+${formatDuration(run.waitingMs, true)} waiting` : run.status === 'running' ? 'live' : statusLabel(run.status).text },
+    { label: 'Elapsed', value: formatDuration(run.elapsedMs), sub: run.approval ? `+${formatDuration(run.waitingMs, true)} wait` : run.status === 'running' ? 'live' : statusLabel(run.status).text },
     { label: 'Tokens', value: tokens, sub: tokensSub },
     { label: 'Cost', value: cost, sub: model },
     { label: 'Steps', value: `${run.doneSteps}/${run.steps.length}`, sub: waiting ? `${waiting} waiting` : '' },
@@ -251,7 +251,7 @@ function Metrics({ run, tokens, tokensSub, cost, model }: { run: InspectorRun; t
         <div key={m.label} className="min-w-0 bg-card px-2.5 py-2">
           <dt className="text-2xs text-tier-3">{m.label}</dt>
           <dd className="m-0 mt-0.5 truncate font-mono text-sm font-medium tabular-nums">{m.value}</dd>
-          <dd className="m-0 truncate font-mono text-[11px] text-tier-3">{m.sub || ' '}</dd>
+          <dd className="m-0 font-mono text-[11px] leading-tight break-words text-tier-3">{m.sub || ' '}</dd>
         </div>
       ))}
     </dl>
@@ -520,7 +520,7 @@ export default function RunInspector({ variant = 'panel', keys = true, isTypingT
           </Button>
         )}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3.5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-3.5 pb-8">
         {!chat ? (
           <p className="m-0 text-sm text-muted-foreground">Run details appear here when chat is on.</p>
         ) : !run ? (

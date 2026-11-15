@@ -9,7 +9,7 @@
  *               More (the palette) and ⌘/ (all shortcuts)
  *   chat page   session tabs (⌘1–9) with the Run panel toggle (⌘I), the
  *               page, and the run inspector beside it (lf-run-inspector)
- *   status bar  online, agent, active runs and approvals, today's tokens and
+ *   status bar  Connected, agent, active runs and approvals, today's tokens and
  *               cost (the run ledger), the shortcut hints
  *   phone       the bar on top with the menu (destinations, approvals and
  *               sessions in a sheet), an n/m session switcher, the page, and
@@ -59,6 +59,7 @@ import {
   type TodayUsage,
 } from './model'
 import ShortcutSheet from './ShortcutSheet'
+import './command.css'
 
 
 const NO_IDS: ReadonlySet<string> = new Set()
@@ -301,7 +302,7 @@ function StatusBar({
     >
       <span className="flex items-center gap-1.5" role="status">
         <span aria-hidden className={cn('size-1.5 rounded-full', online ? 'bg-success' : 'bg-destructive')} />
-        {online ? `online · ${typeof location === 'undefined' ? '' : location.host}` : 'offline'}
+        {online ? 'Connected' : 'Offline'}
       </span>
       {agent && <span>agent {agent}</span>}
       <span>{activityText(activeRuns, approvals)}</span>
@@ -666,7 +667,12 @@ export default function CommandFrame(props: LayoutProps) {
   }
 
   return (
-    <div data-aiui-layout-frame="command" data-viewport={viewport} className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+    <div
+      data-aiui-layout-frame="command"
+      data-viewport={viewport}
+      data-run-panel={onChat && inspectorOpen ? 'open' : undefined}
+      className="flex min-h-0 min-w-0 flex-1 flex-col bg-background"
+    >
       <header className="flex min-h-14 shrink-0 flex-wrap items-center gap-3 border-b border-border bg-background px-3.5 py-2">
         <a
           href="/"

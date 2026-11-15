@@ -141,3 +141,12 @@ test('phone: menu with the approvals dot, the bar, New chat, the n/m switcher; n
   assert.doesNotMatch(out, /data-command-status/)
   assert.doesNotMatch(out, /data-phone-sheet/, 'the sheet mounts on first open')
 })
+
+test('the run panel open on chat marks the frame (the paused strip turns into one line); the status bar says Connected', () => {
+  provideLayoutData('sessions', sessionsFeed({ sessions: [{ id: 's1', title: 'One' }], activeId: 's1' }))
+  const chat = html(props('chat'))
+  assert.match(chat, /data-aiui-layout-frame="command"[^>]*data-run-panel="open"/)
+  assert.match(chat, /data-command-status=""[\s\S]*Connected/)
+  assert.doesNotMatch(chat, /online ·/)
+  assert.doesNotMatch(html(props('logs')), /data-run-panel/)
+})
