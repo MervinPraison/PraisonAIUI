@@ -726,6 +726,30 @@ html[data-aiui-shell='react'][data-aiui-tokens='pro']
   border-radius: 8px !important;
   color: var(--foreground) !important;
 }
+/* Output pane: the view paints it terminal-black inline (0d1117) while its
+   tab and text colours follow the theme, so in light mode the tabs read dark
+   on dark (about 1.1:1 for the active tab). ProEditor puts the panel on the
+   code surface with foreground text in both schemes. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='editor']
+  .aiui-legacy-mount
+  .cs-root
+  [style*='background:' i][style*='0d1117' i] {
+  background: var(--ui-code-bg, var(--muted)) !important;
+  color: var(--foreground);
+}
+/* The tabs keep the view's own token colours (--db-text active, --db-text-dim
+   otherwise), which now sit on a surface of the same scheme. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='editor'] .aiui-legacy-mount .cs-tab {
+  min-height: 32px;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='editor']
+  .aiui-legacy-mount
+  .cs-tab-panel
+  span[style*='71717a' i] {
+  color: var(--ui-text-3, var(--muted-foreground)) !important;
+}
 html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='editor'] .aiui-legacy-mount .cs-tab-panel {
   font-family: var(--font-mono);
   font-size: 12.5px;
