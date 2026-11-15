@@ -4,7 +4,7 @@
  * shows as waiting even before the ledger's next poll, and approvals are
  * listed first ("approvals everywhere").
  */
-import type { AgentStatus, ApprovalItem, ChatMessageView, SessionSummary } from '@/sdk/layoutTypes'
+import type { AgentStatus, ApprovalItem, ChatMessageView, RunSummary, SessionSummary } from '@/sdk/layoutTypes'
 
 export type AgentState = AgentStatus['state']
 
@@ -70,6 +70,15 @@ export function sessionsOf(sessions: readonly SessionSummary[], agent: string | 
   const mine = sessions.filter((s) => key(s.agent) === k)
   const known = sessions.some((s) => !!s.agent)
   return known ? { sessions: mine, filtered: true } : { sessions: [...sessions], filtered: false }
+}
+
+/**
+ * A run row's title: its chat's title (the question that started it), else
+ * "<agent> run", so six runs of one agent are not six identical rows.
+ */
+export function runTitle(run: Pick<RunSummary, 'sessionId' | 'agent'>, sessionTitles: ReadonlyMap<string, string>): string {
+  const t = run.sessionId ? sessionTitles.get(run.sessionId)?.trim() : undefined
+  return t || `${run.agent ?? 'Agent'} run`
 }
 
 /** The agent the column shows first: the open chat's, else the first that waits or runs, else the first. */

@@ -79,6 +79,21 @@ export function hasPage(nav: Pick<LayoutNav, 'primary' | 'groups' | 'footer'>, p
 
 export type HealthState = 'ok' | 'degraded' | 'unknown'
 
+/**
+ * The nav groups Mission lists under its primary pages: the ones an operator
+ * works in (Control: logs, jobs, traces; Settings), plus whichever group
+ * holds the page on screen, opened. Every other page is one search away
+ * (More pages, ⌘K), so the sidebar is not six folded headings.
+ */
+export const MISSION_GROUPS: readonly string[] = ['control', 'settings']
+
+export function missionGroups(groups: LayoutNav['groups']): { name: string; folded: boolean; items: LayoutNav['groups'][number]['items'] }[] {
+  return groups
+    .map((g) => ({ ...g, active: g.items.some((i) => i.active) }))
+    .filter((g) => g.items.length && (g.active || MISSION_GROUPS.includes(g.name.toLowerCase())))
+    .map(({ active, ...g }) => ({ ...g, folded: !active }))
+}
+
 /** `/api/provider/health` → the top bar's pill: the one status word Mission shows ("Connected", as every layout says it). */
 export function healthOf(body: unknown): { state: HealthState; label: string; agents?: number } {
   const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}

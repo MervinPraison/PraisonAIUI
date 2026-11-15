@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { AgentStatus, RunSummary } from '@/sdk/layoutTypes'
 import { cn } from '@/lib/utils'
-import { agentCountsLabel, agentViews, defaultAgent, sessionsOf, withChatGates } from './agents'
+import { agentCountsLabel, agentViews, defaultAgent, runTitle, sessionsOf, withChatGates } from './agents'
 import { formatAgo, formatDuration } from './format'
 import { useApprovals, useChat, useFeed, useNow, useRuns, useRunsStatus } from './hooks'
 import { lastAssistant, timelineSteps } from './timeline'
@@ -35,6 +35,7 @@ export default function OpsColumn({ openChat, className }: OpsColumnProps) {
   const recent = useFeed(useMemo(() => runs.recent({ limit: 6 }), [runs]), NO_RUNS)
   const { pending } = useApprovals()
   const sessions = useSessions()
+  const sessionTitles = useMemo(() => new Map((sessions?.state.sessions ?? []).map((s) => [s.id, s.title])), [sessions?.state.sessions])
   const chat = useChat()
   const views = useMemo(() => agentViews(ledgerAgents, withChatGates(pending, chat.state.messages)), [ledgerAgents, pending, chat.state.messages])
   const turn = lastAssistant(chat.state.messages)
@@ -150,9 +151,10 @@ export default function OpsColumn({ openChat, className }: OpsColumnProps) {
               const st = RUN_STATE[r.status] ?? RUN_STATE.completed
               return (
                 <li key={r.id} data-aiui-run={r.id} className="flex h-8 min-w-0 items-center gap-2 px-2.5 text-sm">
-                  <span className="min-w-0 flex-1 truncate text-muted-foreground">{r.agent ?? 'Agent'}</span>
+                  <span className="min-w-0 flex-1 truncate text-foreground" title={r.agent}>{runTitle(r, sessionTitles)}</span>
+                  <span className="shrink-0 text-xs text-tier-3 tabular-nums">{formatAgo(r.startedAt, now)}</span>
                   <StateChip state={st.state} label={st.label} size="compact" />
-                  <span className="w-12 shrink-0 text-right font-mono text-xs text-tier-3">{formatDuration((r.endedAt ?? now) - r.startedAt)}</span>
+                  <span className="w-10 shrink-0 text-right text-xs text-tier-3 tabular-nums">{formatDuration((r.endedAt ?? now) - r.startedAt)}</span>
                 </li>
               )
             })}

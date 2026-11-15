@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { AgentStatus, ApprovalItem, ChatMessageView, RunKpis, SessionSummary } from '@/sdk/layoutTypes'
-import { agentCountsLabel, agentViews, attention, chatGates, defaultAgent, sessionsOf, withChatGates } from './agents'
+import { agentCountsLabel, agentViews, attention, chatGates, defaultAgent, runTitle, sessionsOf, withChatGates } from './agents'
 import { agentDoing, agentMeta, agentTimer, approvalTitle, kpiCells, requestTitle } from './cards'
 
 const NOW = 50_000_000
@@ -137,4 +137,11 @@ test('the banner: listed approvals first, the chat gate off the chat page, none 
   assert.equal(attention([], [], on('logs')), null)
   const older = { id: 'old', createdAt: 1 }
   assert.equal(attention([pip, older], [], on('logs'))?.item.id, 'old')
+})
+
+test('runTitle: the run\'s chat title, else "<agent> run"', () => {
+  const titles = new Map([['s1', 'Compare sorting algorithms']])
+  assert.equal(runTitle({ sessionId: 's1', agent: 'Researcher' }, titles), 'Compare sorting algorithms')
+  assert.equal(runTitle({ sessionId: 'gone', agent: 'Researcher' }, titles), 'Researcher run')
+  assert.equal(runTitle({}, titles), 'Agent run')
 })

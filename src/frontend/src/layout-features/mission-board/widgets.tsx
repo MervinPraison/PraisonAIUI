@@ -87,7 +87,7 @@ export function KpiStrip({ kpis, status, size = 'default' }: { kpis: RunKpis | n
               <span className="truncate text-xs text-tier-3">{size === 'default' ? c.label : (c.shortLabel ?? c.label)}</span>
               <span className={cn('font-semibold tracking-tight tabular-nums', touch ? 'text-lg' : 'text-xl')}>{c.value}</span>
               {!touch && c.sub && (
-                <span className={cn('truncate font-mono text-xs', c.tone === 'success' ? 'text-success' : c.tone === 'warning' ? 'text-warning' : 'text-tier-3')}>
+                <span className={cn('truncate text-xs tabular-nums', c.tone === 'success' ? 'text-success' : c.tone === 'warning' ? 'text-warning' : 'text-tier-3')}>
                   {c.sub}
                 </span>
               )}
@@ -167,7 +167,7 @@ export function AgentCard({ agent: a, now, selected, steps, sessionTitle, size =
         <span className={cn('truncate font-semibold', touch ? 'text-base' : 'text-sm')}>{a.name}</span>
         <StateChip state={a.state} size={size} label={touch && waiting ? 'Needs approval' : undefined} />
         {timer && (
-          <span className={cn('ml-auto shrink-0 font-mono text-xs tabular-nums', timer.warn ? 'font-medium text-warning' : 'text-tier-3')}>
+          <span className={cn('ml-auto shrink-0 text-xs tabular-nums', timer.warn ? 'font-medium text-warning' : 'text-tier-3')}>
             {timer.text}
           </span>
         )}

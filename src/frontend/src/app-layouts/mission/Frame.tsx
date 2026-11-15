@@ -32,6 +32,7 @@ import {
   environmentOf,
   frameContent,
   hasPage,
+  missionGroups,
   missionSpec,
   phoneNav,
   RUNS_PAGE,
@@ -249,8 +250,8 @@ export default function MissionFrame(props: LayoutProps) {
       <div className="flex min-h-0 flex-1">
         <nav aria-label="Main" className="flex w-[216px] shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-border bg-background px-2 py-3">
           <NavRows items={nav.primary} go={nav.go} counts={counts} />
-          {nav.groups.map((g) => (
-            <NavSection key={g.name} title={g.name} folded>
+          {missionGroups(nav.groups).map((g) => (
+            <NavSection key={g.name} title={g.name} folded={g.folded}>
               <NavList items={g.items} go={nav.go} />
             </NavSection>
           ))}
@@ -258,7 +259,7 @@ export default function MissionFrame(props: LayoutProps) {
           <div className="mt-auto flex flex-col gap-2 border-t border-border p-2.5">
             <MorePagesButton chrome={chrome} />
             {/* The top bar's pill is the one status indicator. */}
-            {!!health.agents && <span className="font-mono text-xs text-tier-3">{health.agents} agents configured</span>}
+            {!!health.agents && <span className="text-xs text-tier-3 tabular-nums">{health.agents} agents configured</span>}
             <chrome.Slot name="sidebar:footer" />
           </div>
         </nav>

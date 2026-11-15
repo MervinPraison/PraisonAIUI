@@ -16,6 +16,7 @@ import {
   frameContent,
   hasPage,
   healthOf,
+  missionGroups,
   navCount,
   phoneNav,
   SHORTCUTS,
@@ -179,4 +180,17 @@ test('one status indicator: the top bar pill; the sidebar repeats no health line
   assert.doesNotMatch(out, /Gateway healthy|All systems live/)
   const sidebar = out.match(/<nav aria-label="Main"[\s\S]*?<\/nav>/)?.[0] ?? ''
   assert.doesNotMatch(sidebar, /data-aiui-health|rounded-full bg-success/)
+})
+
+test('missionGroups: Control and Settings, plus the group holding the open page (opened); the rest are behind More pages', () => {
+  const it = (id: string, active = false) => ({ id, title: id, group: 'x', href: `/${id}`, active }) as LayoutNavItem
+  const groups = [
+    { name: 'Agent', folded: true, items: [it('skills')] },
+    { name: 'Control', folded: true, items: [it('logs')] },
+    { name: 'Examples', folded: true, items: [it('demo', true)] },
+    { name: 'Create', folded: true, items: [it('builder')] },
+    { name: 'Settings', folded: true, items: [it('theme')] },
+    { name: 'Work', folded: true, items: [] },
+  ]
+  assert.deepEqual(missionGroups(groups).map((g) => [g.name, g.folded]), [['Control', true], ['Examples', false], ['Settings', true]])
 })
