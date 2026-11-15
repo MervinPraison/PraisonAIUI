@@ -231,11 +231,29 @@ test('empty: an empty thread shows the region instead of the starters', async ()
   assert.match(out, /data-test-templates/)
 })
 
+test('empty: a layout without an empty region keeps the starters', async () => {
+  sid = null
+  withLayout({ thread: 'bubbles' })
+  const out = await render()
+  assert.match(out, /data-thread-empty/)
+  assert.match(out, /class="grid w-full gap-2 text-left sm:grid-cols-2"/)
+  assert.doesNotMatch(out, /data-test-templates|data-chat-region="empty"/)
+})
+
 function setWidth(w: number) {
   Object.defineProperty(globalThis, 'innerWidth', { value: w, configurable: true, writable: true })
 }
 
 const asideProps = { loader: regions.aside, label: 'Canvas', sessionId: SID }
+
+test('host.Aside: nothing without chat.aside; the panel labelled asideLabel, else "Panel"', async () => {
+  const aside = (chat: ChatPresentation) => html(createElement(host.Aside, { presentation: { chat, sessionId: SID } }))
+  assert.equal(await aside({ thread: 'bubbles' }), '')
+  assert.match(await aside({ aside: regions.aside }), /<aside[^>]*aria-label="Panel"/)
+  const canvas = await aside({ aside: regions.aside, asideLabel: 'Canvas' })
+  assert.match(canvas, /<aside[^>]*aria-label="Canvas"/)
+  assert.match(canvas, new RegExp(`data-test-canvas="${SID}"`))
+})
 
 test('aside on a desktop: an open, resizable panel with the region', async () => {
   const out = await html(createElement(ChatAside, asideProps))

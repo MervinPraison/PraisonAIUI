@@ -17,7 +17,7 @@ import { holdKeys, type GateAct } from './keys'
 import './approvals.css'
 
 export default function KeyboardGate(p: GateProps): JSX.Element {
-  const { busy, error, act } = useDecision(p.pending, p.error, p.respond)
+  const [busy, error, act] = useDecision(p)
   const latest = useRef<GateAct>(() => undefined)
   useEffect(() => {
     latest.current = (approved) => {

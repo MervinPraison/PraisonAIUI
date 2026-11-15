@@ -173,8 +173,9 @@ function toolState(p: ToolCallMessagePartProps): ToolState {
 }
 
 /** Approve/Deny inline (the default; ./presentation/decision holds the decision state). */
-function ApprovalGate({ prompt, risk, pending, error: partError, respond }: InlineGateProps) {
-  const { busy, error, act } = useDecision(pending, partError, respond)
+function ApprovalGate(p: InlineGateProps) {
+  const { prompt, risk } = p
+  const [busy, error, act] = useDecision(p)
   const high = risk === 'high' || risk === 'critical'
   return (
     <div className="border-t border-border px-3 py-2.5" data-approval-gate>
@@ -271,7 +272,7 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
           <ChevronRight className={cn('size-3.5 text-muted-foreground motion-safe:transition-transform motion-safe:duration-[120ms]', open && 'rotate-90')} aria-hidden />
         </span>
       </button>
-      {gate && (host ? <host.Gate mode={pres.chat.approvals} part={props} description={description} fallback={gate} /> : gate)}
+      {gate && (host ? <host.Gate presentation={pres} part={props} description={description}>{gate}</host.Gate> : gate)}
       {open && (
         <div id={panelId} className="space-y-3 px-3 pt-1 pb-3">
           {description && <p className="text-xs break-words text-muted-foreground sm:hidden">{description}</p>}
@@ -674,6 +675,28 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
   const parts = usePartComponents()
   const chat = presentation?.chat
   const host = presentation?.host
+  // The starters of an empty thread; a layout's `empty` region replaces them.
+  const starters = (
+    <div className="grid w-full gap-2 text-left sm:grid-cols-2">
+      <ThreadPrimitive.Suggestions>
+        {({ suggestion }) => {
+          const fill = fillPrompts?.has(suggestion.prompt) ?? false
+          return (
+            <SuggestionPrimitive.Trigger send={!fill} asChild>
+              <button
+                type="button"
+                onClick={fill ? (e) => focusComposerEnd(e.currentTarget) : undefined}
+                className="min-w-0 rounded-xl border border-border px-4 py-3 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="truncate font-medium text-foreground">{suggestion.title ?? suggestion.prompt}</div>
+                {suggestion.label && <div className="mt-0.5 truncate text-muted-foreground">{suggestion.label}</div>}
+              </button>
+            </SuggestionPrimitive.Trigger>
+          )
+        }}
+      </ThreadPrimitive.Suggestions>
+    </div>
+  )
   return (
     <SessionIdContext.Provider value={sessionId}>
     <PartsContext.Provider value={parts}>
@@ -695,29 +718,7 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
                 <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title ?? 'How can I help you today?'}</h2>
                 {subtitle && <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>}
               </div>
-              {host && chat?.empty ? (
-                <host.Region loader={chat.empty} name="empty" sessionId={presentation.sessionId} />
-              ) : (
-              <div className="grid w-full gap-2 text-left sm:grid-cols-2">
-                <ThreadPrimitive.Suggestions>
-                  {({ suggestion }) => {
-                    const fill = fillPrompts?.has(suggestion.prompt) ?? false
-                    return (
-                      <SuggestionPrimitive.Trigger send={!fill} asChild>
-                        <button
-                          type="button"
-                          onClick={fill ? (e) => focusComposerEnd(e.currentTarget) : undefined}
-                          className="min-w-0 rounded-xl border border-border px-4 py-3 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          <div className="truncate font-medium text-foreground">{suggestion.title ?? suggestion.prompt}</div>
-                          {suggestion.label && <div className="mt-0.5 truncate text-muted-foreground">{suggestion.label}</div>}
-                        </button>
-                      </SuggestionPrimitive.Trigger>
-                    )
-                  }}
-                </ThreadPrimitive.Suggestions>
-              </div>
-              )}
+              {host ? <host.Empty presentation={presentation}>{starters}</host.Empty> : starters}
             </div>
           </ThreadPrimitive.Empty>
         )}

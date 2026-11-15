@@ -8,8 +8,12 @@
  *   Turn          one assistant turn: the variant's turn header (./TurnMeta)
  *                 and stylesheet (./quiet.css, ./bubbles.css…), and the
  *                 layout's turnHeader / turnFooter regions around it
+ *   Empty         an empty thread: the layout's `empty` region or the starters
  *   Region        a layout region (turnHeader, turnFooter, empty) via ../LazyRegion
  *   Aside         the side panel / phone switch for `aside` (./Aside)
+ *
+ * Gate, Turn and Empty take the presentation and wrap the default they
+ * replace (`children`), which is what shows without that feature.
  *
  * The state behind them (viewport, the aside badge) is in ./regionState.
  * Keeping all of it out of the chat route leaves that route's budget
@@ -21,7 +25,6 @@ import type { ChatPresentation, RegionLoader, TurnRegionProps } from '@/sdk/layo
 import { APPROVAL_ERROR, APPROVAL_PENDING } from '../protocol'
 import LazyRegion from '../LazyRegion'
 import { LazyBoundary } from '../parts/LazyBoundary'
-import type { ChatAsideProps } from './Aside'
 import type { GateProps } from './decision'
 import { useRegionProps } from './regionState'
 import type { ThreadVariant } from './TurnMeta'
@@ -41,18 +44,19 @@ const VARIANT_CSS: Record<ThreadVariant, () => Promise<unknown>> = {
 const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined)
 
 /**
- * The layout's approval presentation for an open gate on a tool part;
- * `fallback` (the inline gate) for `inline`, while the chunk loads, or if it
- * fails. `description` is the tool row's text (the server's emoji already
- * stripped).
+ * The layout's approval presentation (`chat.approvals`) for an open gate on
+ * a tool part; `children` (the inline gate) for `inline`, while the chunk
+ * loads, or if it fails. `description` is the tool row's text (the server's
+ * emoji already stripped).
  */
-export function Gate({ mode, part, description, fallback }: {
-  mode?: ChatPresentation['approvals']
+export function Gate({ presentation, part, description, children }: {
+  presentation: { chat: ChatPresentation }
   part: ToolCallMessagePartProps
   description?: string
-  fallback: ReactNode
+  children: ReactNode
 }): JSX.Element {
-  if (mode !== 'card' && mode !== 'keyboard') return <>{fallback}</>
+  const mode = presentation.chat.approvals
+  if (mode !== 'card' && mode !== 'keyboard') return <>{children}</>
   const a = (part.artifact ?? {}) as Record<string, unknown>
   const p: GateProps = {
     prompt: part.approval?.prompt ?? `Allow ${part.toolName}?`,
@@ -68,10 +72,19 @@ export function Gate({ mode, part, description, fallback }: {
   }
   const C = mode === 'card' ? ApprovalCard : KeyboardGate
   return (
-    <LazyBoundary fallback={fallback} failed={fallback}>
+    <LazyBoundary fallback={children} failed={children}>
       <C {...p} />
     </LazyBoundary>
   )
+}
+
+/** An empty thread: the layout's `empty` region, else `children` (the starters). */
+export function Empty({ presentation, children }: {
+  presentation: { chat: ChatPresentation; sessionId: string | null }
+  children: ReactNode
+}): JSX.Element {
+  const { chat, sessionId } = presentation
+  return chat.empty ? <Region loader={chat.empty} name="empty" sessionId={sessionId} /> : <>{children}</>
 }
 
 /**
@@ -123,11 +136,20 @@ export function Region({ loader, name, sessionId, messageId }: {
   return <LazyRegion loader={loader as RegionLoader} props={props} name={name} />
 }
 
-/** The side panel for `aside`; nothing while its chunk loads or if it fails. */
-export function Aside(p: ChatAsideProps): JSX.Element {
+/**
+ * The side panel for `chat.aside` (nothing without one), labelled
+ * `asideLabel` or "Panel"; nothing while its chunk loads or if it fails.
+ * `slot` is where the desktop toggle goes (the chat header).
+ */
+export function Aside({ presentation, slot }: {
+  presentation: { chat: ChatPresentation; sessionId: string | null }
+  slot?: HTMLElement | null
+}): JSX.Element | null {
+  const { chat, sessionId } = presentation
+  if (!chat.aside) return null
   return (
     <LazyBoundary failed={null}>
-      <AsideLazy {...p} />
+      <AsideLazy loader={chat.aside} label={chat.asideLabel || 'Panel'} sessionId={sessionId} slot={slot} />
     </LazyBoundary>
   )
 }

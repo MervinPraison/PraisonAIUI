@@ -30,10 +30,13 @@ export interface GateProps {
 /** What the default inline gate needs (the Thread builds it from the tool part). */
 export type InlineGateProps = Pick<GateProps, 'prompt' | 'risk' | 'pending' | 'error' | 'respond'>
 
-export function useDecision(pending: string | undefined, partError: string | undefined, respond: (approved: boolean) => Promise<void>) {
+/**
+ * `[busy, error, act]`: the decision in flight ('approve' | 'deny' | null),
+ * the error to show, and the click handler (approved: true for Approve).
+ */
+export function useDecision({ pending, error, respond }: Pick<GateProps, 'pending' | 'error' | 'respond'>) {
   const [clicked, setClicked] = useState<null | 'approve' | 'deny'>(null)
   const [localError, setLocalError] = useState<string | null>(null)
-  const busy: null | 'approve' | 'deny' = pending === 'approve' || pending === 'deny' ? pending : clicked
   const act = async (approved: boolean) => {
     setClicked(approved ? 'approve' : 'deny')
     setLocalError(null)
@@ -45,5 +48,6 @@ export function useDecision(pending: string | undefined, partError: string | und
       setClicked(null)
     }
   }
-  return { busy, error: partError ?? localError, act }
+  const busy: null | 'approve' | 'deny' = pending === 'approve' || pending === 'deny' ? pending : clicked
+  return [busy, error ?? localError, act] as const
 }

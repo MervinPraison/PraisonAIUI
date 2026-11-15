@@ -59,7 +59,7 @@ function preloadRailSheet() {
 let presentationHost: Promise<PresentationHost | null> | null = null
 const loadPresentationHost = () =>
   (presentationHost ??= import('./presentation/host').catch((err: unknown) => {
-    console.warn('[aiui chat] the layout presentation failed to load; showing the default chat', err)
+    console.warn('[aiui chat] layout presentation failed to load', err)
     return null
   }))
 
@@ -395,7 +395,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
           </AssistantRuntimeProvider>
         </div>
       </section>
-      {host && chat?.aside && <host.Aside loader={chat.aside} label={chat.asideLabel || 'Panel'} sessionId={sessionId} slot={asideSlot} />}
+      {presentation?.host && <presentation.host.Aside presentation={presentation} slot={asideSlot} />}
     </div>
   )
 }

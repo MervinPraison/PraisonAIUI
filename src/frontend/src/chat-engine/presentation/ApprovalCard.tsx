@@ -15,7 +15,7 @@ import { commandLabel, commandOf, gateTitle, isHighRisk, whyAsked } from './gate
 import './approvals.css'
 
 export default function ApprovalCard(p: GateProps): JSX.Element {
-  const { busy, error, act } = useDecision(p.pending, p.error, p.respond)
+  const [busy, error, act] = useDecision(p)
   const [why, setWhy] = useState(false)
   const id = useId()
   const msgAgent = useAuiState((s) => (s.message.metadata.custom as { agentName?: string }).agentName)
