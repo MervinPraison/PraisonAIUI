@@ -1,1 +1,0 @@
-import{j as t}from"./vendor-react-SCdx8Lck.js";import"./skeleton-Bja1JQqA.js";import{B as m}from"./layout-kit-C8MLKJzm.js";import"./preload-helper-BXl3LOEh.js";import"./mount-DQUQ8P57.js";import"./notify-KiJzb5wq.js";function u(r){return t.jsx(m,{...r,name:"guided",chatPage:"chat"})}export{u as default};
