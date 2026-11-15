@@ -28,7 +28,7 @@ import {
   type AnyComponent,
 } from './registry'
 import type { ShellManifest } from './manifest'
-import { getLayoutComponent, registerLayout, type LayoutComponent, type LayoutMeta } from './layouts'
+import { getLayoutComponent, registerLayoutPlaceholder, type LayoutComponent, type LayoutMeta } from './layouts'
 
 export type PluginContributionKind = 'page' | 'block' | 'toolRenderer'
 
@@ -284,7 +284,7 @@ const manifestLayouts = new Map<string, string>()
 
 /**
  * Register the plugin layouts `manifest.layouts.available` lists with a
- * `module`, lazily: registerLayout(id, meta, loader), where the loader
+ * `module`, lazily: registerLayoutPlaceholder(id, meta, loader), where the loader
  * imports the module only when the shell first renders that layout, never
  * while the other plugin modules load. An inactive layout's code is never
  * downloaded.
@@ -326,12 +326,12 @@ export function registerManifestLayouts(manifest: ShellManifest, opts: Pick<Load
       throw new Error(`layout '${id}': ${url} did not call registerLayout('${id}', …) and has no default component export`)
     }
     try {
-      registerLayout(id, meta, load)
+      registerLayoutPlaceholder(id, meta, load)
     } catch (err) {
       console.warn(`[aiui sdk] ${spec.source} layout '${id}' was not registered: ${describe(err)}`)
       continue
     }
-    // What registerLayout() made of `load`; a module that registers itself replaces it.
+    // What registerLayoutPlaceholder() made of `load`; a module that registers itself replaces it.
     const placeholder = getLayoutComponent(id)
     manifestLayouts.set(id, module)
     done.push(id)

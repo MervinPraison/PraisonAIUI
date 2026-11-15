@@ -73,16 +73,39 @@ test('the module is imported on first render and its default export is the frame
   assert.match(urls[0], /\/_plugins\/aurora\/layout\.js$/)
 })
 
-test('a module that calls registerLayout itself wins, meta included', async () => {
-  registerManifestLayouts(manifestWith([PLUGIN]), {
-    importModule: async () => {
-      quietly(() => registerLayout('aurora', { title: 'Aurora (own meta)', chat: { thread: 'dense' } }, Frame))
-      return {}
-    },
-  })
-  assert.match(await render('aurora'), /plugin frame chat/)
+test('a module that calls registerLayout itself wins, meta included, without a warning', async () => {
+  const warnings: string[] = []
+  const warn = console.warn
+  console.warn = (...args: unknown[]) => void warnings.push(args.map(String).join(' '))
+  try {
+    registerManifestLayouts(manifestWith([PLUGIN]), {
+      importModule: async () => {
+        registerLayout('aurora', { title: 'Aurora (own meta)', chat: { thread: 'dense' } }, Frame)
+        return {}
+      },
+    })
+    assert.match(await render('aurora'), /plugin frame chat/)
+  } finally {
+    console.warn = warn
+  }
   assert.equal(getLayouts()[0].meta.title, 'Aurora (own meta)')
   assert.equal(getLayouts()[0].meta.chat?.thread, 'dense')
+  assert.deepEqual(warnings, [], 'replacing the manifest placeholder is silent')
+})
+
+test('registering over a real layout still warns', () => {
+  const warnings: string[] = []
+  const warn = console.warn
+  console.warn = (...args: unknown[]) => void warnings.push(args.map(String).join(' '))
+  try {
+    registerManifestLayouts(manifestWith([PLUGIN]), { importModule: async () => ({ default: Frame }) })
+    registerLayout('aurora', { title: 'First' }, Frame)
+    registerLayout('aurora', { title: 'Second' }, Frame)
+  } finally {
+    console.warn = warn
+  }
+  assert.equal(warnings.length, 1)
+  assert.match(warnings[0], /registerLayout\('aurora'\) replaces an earlier registration/)
 })
 
 test('a module that neither registers nor exports a frame, or fails to import, rejects (the host falls back)', async () => {

@@ -207,6 +207,8 @@ export function writeStoredLayout(id: string, persist: boolean): void {
 interface LayoutEntry {
   info: LayoutInfo
   component: LayoutComponent
+  /** A manifest stand-in (registerLayoutPlaceholder): replacing it is silent. */
+  placeholder: boolean
 }
 
 const layouts = new Map<string, LayoutEntry>()
@@ -295,13 +297,27 @@ function normalizeMeta(kind: string, raw: unknown): LayoutMeta {
  * registered layout the manifest does not list is never selected.
  */
 export function registerLayout(id: string, meta: LayoutMeta, c: LayoutComponent | LayoutLoader): () => void {
+  return addLayout(id, meta, c, false)
+}
+
+/**
+ * Loader internal (not an SDK export): register the stand-in for a manifest
+ * plugin layout, whose module is imported on first render. The module's own
+ * registerLayout(id, …) then replaces it silently, as intended.
+ */
+export function registerLayoutPlaceholder(id: string, meta: LayoutMeta, loader: LayoutLoader): () => void {
+  return addLayout(id, meta, loader, true)
+}
+
+function addLayout(id: string, meta: LayoutMeta, c: LayoutComponent | LayoutLoader, placeholder: boolean): () => void {
   const kind = 'registerLayout'
   if (id === CLASSIC_LAYOUT_ID) fail(kind, `'${CLASSIC_LAYOUT_ID}' is reserved for the core frame`)
   if (!isLayoutId(id)) fail(kind, `invalid layout id ${String(id)} (use a-z, 0-9 and -, starting with a letter)`)
   const normalized = normalizeMeta(`${kind}('${id}')`, meta)
   const component = toComponent<LayoutComponent>(kind, id, c)
-  if (layouts.has(id)) console.warn(`[aiui sdk] ${kind}('${id}') replaces an earlier registration`)
-  const entry: LayoutEntry = { info: Object.freeze({ id, meta: normalized }), component }
+  const previous = layouts.get(id)
+  if (previous && !previous.placeholder) console.warn(`[aiui sdk] ${kind}('${id}') replaces an earlier registration`)
+  const entry: LayoutEntry = { info: Object.freeze({ id, meta: normalized }), component, placeholder }
   layouts.set(id, entry)
   emitLayouts()
   return () => {
