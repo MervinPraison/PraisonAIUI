@@ -111,7 +111,7 @@ function Detail({ target, title, onBack }: { target: Target; title?: string; onB
     }
   }
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2" data-artifacts-page="">
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="ghost" onClick={onBack}>
           <ArrowLeft />
@@ -170,7 +170,7 @@ export default function ArtifactsPage({ page }: { page?: ShellPage }): JSX.Eleme
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-6 sm:px-6" data-artifacts-page>
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-6 sm:px-6" data-artifacts-page="">
       {target ? (
         <Detail
           key={`${target.sessionId}\n${target.key}`}

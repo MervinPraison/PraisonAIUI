@@ -25,3 +25,14 @@
 [data-aiui-canvas][data-touch] [role='tab'] {
   min-height: 44px;
 }
+
+/* The artifacts page (index and detail, with its viewer and History) on a
+   touch screen or a phone-width window: the same 44px rule. */
+@media (pointer: coarse), (max-width: 639px) {
+  [data-artifacts-page] :is(button, input, select, a, [role='tab'], [role='menuitem'], [role='option']) {
+    min-height: 44px;
+  }
+  [data-artifacts-page] button:has(> svg:only-child) {
+    min-width: 44px;
+  }
+}

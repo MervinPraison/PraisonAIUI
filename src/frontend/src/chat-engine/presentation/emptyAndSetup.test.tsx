@@ -12,12 +12,13 @@ afterEach(() => {
   resetProviderHealthForTests()
 })
 
-test('heroMark: an image path or URL, else the text mascot, else none', () => {
+test('heroMark: an image path or URL, plain text letters, else the PraisonAI glyph (emoji mascots too)', () => {
   assert.deepEqual(heroMark('/logo.svg'), { kind: 'img', src: '/logo.svg' })
   assert.deepEqual(heroMark('https://x.test/l.png'), { kind: 'img', src: 'https://x.test/l.png' })
   assert.deepEqual(heroMark('AI'), { kind: 'text', text: 'AI' })
-  assert.equal(heroMark(''), null)
-  assert.equal(heroMark(undefined), null)
+  assert.deepEqual(heroMark(''), { kind: 'glyph' })
+  assert.deepEqual(heroMark(undefined), { kind: 'glyph' })
+  assert.deepEqual(heroMark('\u{1F99E}'), { kind: 'glyph' })
 })
 
 test('the hero: a 44px wordmark, the promise line, then the starters', () => {

@@ -9,8 +9,8 @@ import { cn } from '@/lib/utils'
 import { parseTable, plainText } from '../derive'
 import { nextSort, sortRows, sortSummary, type SortState } from './sort'
 
-const YES = /^(yes|true|✓|✔|✅)$/i
-const NO = /^(no|false|✗|✘|❌)$/i
+const YES = /^(yes|true|\u2713|\u2714|\u2705)$/i
+const NO = /^(no|false|\u2717|\u2718|\u274c)$/i
 
 function Cell({ md }: { md: string }): JSX.Element {
   const text = plainText(md)

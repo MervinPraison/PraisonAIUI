@@ -222,3 +222,10 @@ test('table sorting: numbers as numbers, natural text, empty last, three-state h
   assert.equal(sortSummary({ col: 0, dir: 'asc' }, ['Algorithm'], [['x']]), 'Sorted by Algorithm, A to Z. Select a column header to sort.')
   assert.equal(sortSummary({ col: 1, dir: 'desc' }, ['a', 'Cost'], rows), 'Sorted by Cost, largest first. Select a column header to sort.')
 })
+
+test('ArtifactsPage: both views carry the page marker that artifacts.css gives 44 px touch targets', async () => {
+  const { readFileSync } = await import('node:fs')
+  const css = readFileSync('src/layout-features/artifacts/artifacts.css', 'utf8')
+  assert.match(css, /@media \(pointer: coarse\), \(max-width: 639px\) \{\s*\[data-artifacts-page\] :is\(button, input/)
+  assert.match(html(createElement(ArtifactsPage, {})), /data-artifacts-page=""/)
+})
