@@ -14,8 +14,8 @@
  *     chunks and its two features, the run inspector only on the chat page);
  *   - switching away and back leaves no socket, timer or listener.
  *
- * Runs with the layouts server, e.g. as part of the `layouts-host` project
- * (its testMatch must include this file), or on its own:
+ * Runs with the layouts server in the `layouts-host` project (its testMatch
+ * takes every layout-<id>.spec.ts), or on its own:
  *   AIUI_E2E_REUSE=1 npx playwright test -c e2e/fixtures/layout-plugin/playwright.config.ts e2e/specs/layout-command.spec.ts
  */
 import { readFileSync } from 'node:fs'

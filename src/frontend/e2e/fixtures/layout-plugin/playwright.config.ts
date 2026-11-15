@@ -1,7 +1,8 @@
 /**
- * The layout host suite (e2e/specs/layouts-host.spec.ts) against its own
- * server: the mock server in the app shell with the third-party layout
- * plugin of this folder (serve.py). Run `npm run build` first.
+ * The layout host suite (e2e/specs/layouts-host.spec.ts) and every layout's
+ * own suite (e2e/specs/layout-<id>.spec.ts) against their own server: the
+ * mock server in the app shell with the third-party layout plugin of this
+ * folder (serve.py). Run `npm run build` first.
  *
  *   npx playwright test -c e2e/fixtures/layout-plugin/playwright.config.ts
  *
@@ -21,7 +22,8 @@ const CI = !!process.env.CI
 
 export default defineConfig({
   testDir: path.join(E2E, 'specs'),
-  testMatch: /[\\/]layouts-host\.spec\.ts$/,
+  // The host suite and every layout's own suite (layout-<id>.spec.ts).
+  testMatch: /[\\/](layouts-host|layout-[a-z][a-z0-9-]*)\.spec\.ts$/,
   outputDir: path.join(E2E, '.results', 'layouts-host'),
   workers: 1,
   forbidOnly: CI,

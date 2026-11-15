@@ -115,13 +115,23 @@ Budgets (gzip, `npm run size`, measured plus 10%): `layout-command` 13.1 kB
 The frame uses only part of the kit (not `BasicFrame` or `ShortcutHint`), so
 Rollup emits the kit as two eager chunks: the pieces every layout uses, and
 the pieces only the stub frames use (plus the lazy sheet). That costs each
-stub frame about 60 B of gzip for the second file.
+stub frame about 60 B of gzip for the second file, and the kit about 30 B:
+`.size-limit.mjs` budgets the stub frames at 5.3 kB and the kit at 5.7 kB
+(measured 4.66 and 5.03 kB, plus 10%).
 
 The tests are `app-layouts/command/*.test.ts(x)` (the frame model, the
 render and the data helpers), `layout-features/run-inspector/*.test.ts(x)`
 (steps, files, formats, the panel and the peek),
 `layout-features/command-bar/bar.test.tsx`, and
-`e2e/specs/layout-command.spec.ts` in the browser.
+`e2e/specs/layout-command.spec.ts` in the browser. That spec runs in the
+`layouts-host` Playwright project, against the layouts server, with
+`e2e/specs/layouts-host.spec.ts` (whose network-isolation case allows this
+layout exactly `lf-command-bar` and `lf-run-inspector`):
+
+```bash
+cd src/frontend && npm run build
+npx playwright test -c e2e/fixtures/layout-plugin/playwright.config.ts
+```
 
 ## Not in this version
 
