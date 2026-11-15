@@ -213,6 +213,10 @@ test('desktop frame: sidebar destinations, recent chats as cards, the chat heade
   assert.match(out, /<main[^>]*id="aiui-main"/)
   assert.match(out, /data-outlet=""/)
   assert.match(out, />More tools</)
+  // "More tools" is a 15px row like Settings, not a tiny uppercase heading; Settings stays in view, 16px off the bottom.
+  assert.match(out, /data-aiui-more-tools=""><summary class="[^"]*min-h-12[^"]*text-\[15px\] font-semibold/)
+  assert.doesNotMatch(out, /uppercase[^"]*">More tools/)
+  assert.match(out, /class="[^"]*sticky bottom-0[^"]*pb-4[^"]*" data-aiui-settings-row=""/)
   assert.match(out, /data-slot-name="header:actions"/)
   assert.doesNotMatch(out, /data-aiui-phone-tabs/)
 })

@@ -21,7 +21,7 @@ import { Bot, Menu, Plus, Search, Sparkles, SunMoon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { LayoutNavItem, LayoutProps } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
-import { BrandTile, isPlainLeftClick, NavList, NavSection, PhoneSheet, PhoneTabs, preloadPhoneSheet, ShortcutHint, useSessions, useShortcut } from '@/app-layouts/kit'
+import { BrandTile, isPlainLeftClick, NavList, PhoneSheet, PhoneTabs, preloadPhoneSheet, ShortcutHint, useSessions, useShortcut } from '@/app-layouts/kit'
 import { guidedNav, HELP_ID, helpAddress, PAGE, type GuidedItem } from './nav'
 import { agentOf, useChat } from './chat'
 import { PAGE_ICONS } from './icons'
@@ -122,8 +122,21 @@ function RecentChats({ limit, seeAll, onOpen }: { limit?: number; seeAll?: () =>
 function MoreTools({ more, go, onNavigate, size }: { more: ReturnType<typeof guidedNav>['more']; go(id: string): void; onNavigate?(): void; size: 'default' | 'touch' }) {
   if (more.length === 0) return null
   return (
-    <NavSection title="More tools" folded size={size}>
-      <div className="flex flex-col gap-2 pt-1">
+    // A row like Settings (not a tiny uppercase heading) that opens the other pages.
+    <details className="group/more flex flex-col" data-aiui-more-tools="">
+      <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-xl px-3.5 text-[15px] font-semibold text-sidebar-foreground outline-none hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-5 shrink-0">
+          <rect width="7" height="7" x="3" y="3" rx="1" />
+          <rect width="7" height="7" x="14" y="3" rx="1" />
+          <rect width="7" height="7" x="14" y="14" rx="1" />
+          <rect width="7" height="7" x="3" y="14" rx="1" />
+        </svg>
+        <span className="min-w-0 flex-1">More tools</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform group-open/more:rotate-90">
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      </summary>
+      <div className="flex flex-col gap-2 pt-1 pl-2">
         {more.map((g) => (
           <div key={g.name} className="flex flex-col gap-0.5">
             {more.length > 1 && <span className="px-2 text-xs font-medium text-muted-foreground">{g.name}</span>}
@@ -131,13 +144,14 @@ function MoreTools({ more, go, onNavigate, size }: { more: ReturnType<typeof gui
           </div>
         ))}
       </div>
-    </NavSection>
+    </details>
   )
 }
 
-function SettingsRow({ item, go, toggleColorMode }: { item: LayoutNavItem | null; go(id: string): void; toggleColorMode(): void }) {
+/** The sidebar's last row: it stays in view at the bottom, 16px clear of the edge. */
+function SettingsRow({ item, go, toggleColorMode, sticky }: { item: LayoutNavItem | null; go(id: string): void; toggleColorMode(): void; sticky?: boolean }) {
   return (
-    <div className="mt-auto flex items-center gap-1">
+    <div className={cn('mt-auto flex items-center gap-1', sticky && 'sticky bottom-0 -mb-4 bg-sidebar pt-2 pb-4')} data-aiui-settings-row="">
       {item && (
         <a
           href={item.href}
@@ -338,7 +352,7 @@ export default function GuidedFrame(props: LayoutProps) {
         </ul>
         <RecentChats limit={RECENT} seeAll={has(PAGE.sessions) ? () => nav.go(PAGE.sessions) : undefined} onOpen={openChat} />
         <MoreTools more={g.more} go={goId} size="default" />
-        <SettingsRow item={g.settings} go={goId} toggleColorMode={chrome.toggleColorMode} />
+        <SettingsRow item={g.settings} go={goId} toggleColorMode={chrome.toggleColorMode} sticky />
         <chrome.Slot name="sidebar:footer" />
       </nav>
       <div className="flex min-w-0 flex-1 flex-col">
