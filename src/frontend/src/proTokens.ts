@@ -19,7 +19,7 @@ type ProAccentModes = Record<'light' | 'dark', Readonly<Record<ProAccentRole, st
 export const PRO_ACCENTS: Record<ProAccentName, ProAccentModes> = {
     indigo: {
         light: { 'accent': '#4f46e5', 'accent-fg': '#ffffff', 'soft': '#eef2ff', 'link': '#4338ca', 'ring': '#4f46e5' },
-        dark: { 'accent': '#818cf8', 'accent-fg': '#0e0e11', 'soft': '#1e1e3f', 'link': '#a5b4fc', 'ring': '#818cf8' },
+        dark: { 'accent': '#5b5ef0', 'accent-fg': '#ffffff', 'soft': '#1e1e3f', 'link': '#a5b4fc', 'ring': '#818cf8' },
     },
     blue: {
         light: { 'accent': '#2563eb', 'accent-fg': '#ffffff', 'soft': '#eff6ff', 'link': '#1d4ed8', 'ring': '#2563eb' },

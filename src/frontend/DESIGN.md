@@ -416,13 +416,17 @@ is 4.41:1; `#fff5f5` makes it 4.52:1. Do not put danger text on `bg-muted`
 
 | Swatch | Light accent / link / ring | Dark accent / link / ring | Picked by |
 | --- | --- | --- | --- |
-| indigo (default) | `#4f46e5` / `#4338ca` / `#4f46e5` | `#818cf8` / `#a5b4fc` / `#818cf8` | no preset, a neutral preset (zinc is the default), `indigo`, or accent `#4f46e5` |
+| indigo (default) | `#4f46e5` / `#4338ca` / `#4f46e5` | `#5b5ef0` / `#a5b4fc` / `#818cf8` | no preset, a neutral preset (zinc is the default), `indigo`, or accent `#4f46e5` |
 | blue | `#2563eb` / `#1d4ed8` / `#2563eb` | `#60a5fa` / `#93c5fd` / `#60a5fa` | preset `blue` or accent `#2563eb` |
 | teal | `#0f766e` / `#115e59` / `#0f766e` | `#2dd4bf` / `#5eead4` / `#2dd4bf` | preset `teal` or accent `#0f766e` |
 | graphite | `#18181b` / `#18181b` / `#52525b` | `#ededf0` / `#ededf0` / `#a1a1aa` | accent `#18181b` |
 
 Each swatch also sets the on-accent text (`#ffffff` light, `#0e0e11` dark) and
-the soft fill (`--ui-accent-soft`, for selected chips and avatar tiles). The
+the soft fill (`--ui-accent-soft`, for selected chips and avatar tiles).
+One deliberate change from the design: the default indigo's dark accent is
+`#5b5ef0` with white text (4.88:1; 3.95:1 against the page), not the
+design's pale `#818cf8` with dark text, which made every filled button the
+brightest thing on a dark screen. Its dark ring stays `#818cf8`. The
 accent keys are the design's own picker values, so `theme.accent`,
 `set_brand_color()` and `register_theme()` pick a swatch by its hex.
 

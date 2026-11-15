@@ -670,7 +670,7 @@ def _swatch(light: tuple[str, ...], dark: tuple[str, ...]) -> dict[str, dict[str
 PRO_ACCENTS: dict[str, dict[str, dict[str, str]]] = {
     "indigo": _swatch(
         ("#4f46e5", "#ffffff", "#eef2ff", "#4338ca", "#4f46e5"),
-        ("#818cf8", "#0e0e11", "#1e1e3f", "#a5b4fc", "#818cf8"),
+        ("#5b5ef0", "#ffffff", "#1e1e3f", "#a5b4fc", "#818cf8"),
     ),
     "blue": _swatch(
         ("#2563eb", "#ffffff", "#eff6ff", "#1d4ed8", "#2563eb"),

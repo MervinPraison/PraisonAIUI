@@ -274,6 +274,27 @@ class TestProTables:
         assert list(PRO_ACCENT_KEYS) == ["#4f46e5", "#2563eb", "#0f766e", "#18181b"]
 
 
+def _luminance(hex_colour: str) -> float:
+    rgb = [int(hex_colour[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+    lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+def _contrast(a: str, b: str) -> float:
+    hi, lo = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def test_default_dark_accent_is_a_restrained_fill_with_white_text():
+    """Dark mode's filled buttons are an indigo fill with white text that passes
+    4.5:1, and the fill still stands 3:1 off the page; not the design's pale
+    lavender with dark text, which outshone the content."""
+    dark = PRO_ACCENTS["indigo"]["dark"]
+    assert dark["accent-fg"] == "#ffffff"
+    assert _contrast(dark["accent"], dark["accent-fg"]) >= 4.5
+    assert _contrast(dark["accent"], "#0e0e11") >= 3.0
+
+
 class TestProScope:
     """pro.css can only paint a document that switched the Pro system on."""
 
