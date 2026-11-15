@@ -77,18 +77,21 @@
 
 /* The "Enter to send" line is a hint for a first-time user, not chrome: it
    shows only while the composer is focused and empty, and never again after
-   three sends (./composerHint sets data-composer-hint="off"). */
+   three sends (./composerHint sets data-composer-hint="off"). Focus only
+   fades it (its row keeps its height), so a click elsewhere never shifts
+   the thread under the pointer; the row itself goes after the three sends. */
 [data-variant] form:has(textarea[aria-label='Message']) + p {
-  display: none;
+  opacity: 0;
+  transition: opacity 160ms;
 }
 
 [data-variant] form:has(textarea[aria-label='Message']:focus:placeholder-shown) + p {
-  display: flex;
+  opacity: 1;
 }
 
-@media (max-width: 639.98px) {
-  [data-variant] form:has(textarea[aria-label='Message']:focus:placeholder-shown) + p {
-    display: none;
+@media (prefers-reduced-motion: reduce) {
+  [data-variant] form:has(textarea[aria-label='Message']) + p {
+    transition: none;
   }
 }
 
