@@ -31,6 +31,7 @@ from praisonaiui.themes import (
 )
 
 THEMES_TS = Path("src/frontend/src/themes.ts")
+PRO_TOKENS_TS = Path("src/frontend/src/proTokens.ts")  # the Pro accents (re-exported by themes.ts)
 THEME_CSS = Path("src/frontend/src/styles/theme.css")
 
 
@@ -253,7 +254,7 @@ class TestProTables:
         assert dict(re.findall(pairs, dark)) == PRO_NEUTRALS["dark"]
 
     def test_themes_ts_accents_match_python(self):
-        src = THEMES_TS.read_text(encoding="utf-8")
+        src = PRO_TOKENS_TS.read_text(encoding="utf-8")
         body = src[src.index("export const PRO_ACCENTS") :]
         body = body[: body.index("\n}\n")]
         pairs = r"'([a-z-]+)': '([^']+)'"

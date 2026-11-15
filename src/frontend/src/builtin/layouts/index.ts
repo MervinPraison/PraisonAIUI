@@ -20,7 +20,7 @@
 import { LayoutTemplate } from 'lucide-react'
 import { LAYOUT_STORAGE_KEY, parseLayoutChoice } from '@/sdk/layouts'
 import { CLASSIC_LAYOUT_ID, type ShellLayoutSpec, type ShellLayouts } from '@/sdk/manifest'
-import { proThemePresets } from '@/themes'
+import { proThemePresets } from '@/proTokens'
 import type { BuiltinPlugin, BuiltinSdk } from '../types'
 import { chatCanvasLayout } from './chat-canvas'
 import { commandLayout } from './command'

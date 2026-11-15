@@ -45,7 +45,7 @@ import {
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
 import { notify } from '@/sdk/notify'
 import '@/styles/pro.css'
-import { setTokenSystem } from '@/themes'
+import { setTokenSystem } from '@/proTokens'
 import { buildLayoutNav, MAIN_ID } from './layoutNav'
 import type { ActiveLayout } from './layoutSelect'
 import { siteLogo, siteTitle, type NavGroupsConfig } from './nav'
