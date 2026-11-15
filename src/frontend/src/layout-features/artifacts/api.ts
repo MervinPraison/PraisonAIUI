@@ -44,6 +44,15 @@ export function artifactsServerEnabled(manifest: ShellManifest | null = getManif
   return recordOn(ARTIFACTS_RECORD, ARTIFACTS_PAGE, manifest)
 }
 
+/**
+ * True when the manifest lists the `artifacts` page, so a share link
+ * (`/artifacts?session=…`) opens something. Without it Share is hidden and a
+ * card is a button, not a link: the link would land on "Page not found".
+ */
+export function artifactsPageListed(manifest: ShellManifest | null = getManifest()): boolean {
+  return !!manifest?.pages?.some((p) => p.id === ARTIFACTS_PAGE)
+}
+
 /** True when the server can run code (`builtin.code-studio` is on: its `code-studio` page is listed). */
 export function codeRunAvailable(manifest: ShellManifest | null = getManifest()): boolean {
   return recordOn(CODE_RECORD, CODE_PAGE, manifest)

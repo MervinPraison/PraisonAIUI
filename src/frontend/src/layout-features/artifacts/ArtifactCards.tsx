@@ -4,8 +4,9 @@
  * Table · 3 rows · v2 · edited by Researcher · In canvas". A card opens the
  * artifact in the canvas (ArtifactsStore.open, which also dispatches
  * `aiui:artifact-open` so the frame can bring its canvas up, e.g. the phone
- * switch); its link is the share link, so a modified click opens the
- * artifacts page in a new tab. Nothing renders for a reply without artifacts.
+ * switch); while the `artifacts` page is listed its link is the share link,
+ * so a modified click opens that page in a new tab (otherwise it is a
+ * button). Nothing renders for a reply without artifacts.
  *
  *   turnFooter: () => import('@/layout-features/artifacts/ArtifactCards')
  */
@@ -16,7 +17,7 @@ import { cn } from '@/lib/utils'
 import type { DerivedArtifact } from './derive'
 import { artifactsStore } from './feed'
 import { cardMeta, shareUrl } from './format'
-import { useArtifacts, useCanRun } from './hooks'
+import { canShare, useArtifacts, useCanRun } from './hooks'
 import { KindIcon } from './viewers/Viewer'
 
 const plainClick = (e: MouseEvent) => e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
@@ -29,7 +30,7 @@ export function ArtifactCard({ artifact: a, latest, touch, onOpen }: {
   onOpen(): void
 }): JSX.Element {
   const file = a.kind === 'code' && a.key === a.title
-  const href = a.sessionId ? shareUrl(a, '') : undefined
+  const href = a.sessionId && canShare() ? shareUrl(a, '') : undefined
   const runnable = useCanRun(a.kind === 'code' ? a.language : undefined)
   const newer = latest && latest.version > a.version ? latest.version : null
   return (

@@ -7,6 +7,8 @@ import assert from 'node:assert/strict'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { provideLayoutData } from '@/sdk/layouts'
+import type { ShellManifest } from '@/sdk/manifest'
+import { activateShell, resetServicesForTests } from '@/sdk/services'
 import type { ChatFeed, ChatMessageView, ChatState } from '@/sdk/layoutTypes'
 import ArtifactCards from './ArtifactCards'
 import ArtifactsPage from './ArtifactsPage'
@@ -49,6 +51,16 @@ const chatFeed: ChatFeed = {
 
 const html = (el: ReturnType<typeof createElement>) => renderToStaticMarkup(el)
 
+/** Render while the manifest lists the `artifacts` page (the share links' target). */
+function withArtifactsPage<T>(fn: () => T): T {
+  activateShell({ sdk: 1, version: '0', style: 'app', site: {}, layout: {}, blocks: [], toolRenderers: [], plugins: [], legacy: { customJs: null, viewsBase: '' }, pages: [{ id: 'artifacts', title: 'Artifacts', kind: 'react' }] } as unknown as ShellManifest)
+  try {
+    return fn()
+  } finally {
+    resetServicesForTests()
+  }
+}
+
 before(async () => {
   provideLayoutData('chat', chatFeed)
   await artifactsStore().ensure('s1')
@@ -69,7 +81,10 @@ test('CanvasPanel: tabs, the newest artifact with its versions and actions, the 
   assert.match(out, /<h2[^>]*>Comparison table<\/h2>/)
   assert.match(out, /Table · 3 rows · from the reply at \d\d:\d\d/)
   assert.match(out, /aria-label="Version 2 of 2\. Show another version"/)
-  for (const label of ['Copy', 'Download', 'Share']) assert.match(out, new RegExp(`</svg>${label}</button>`))
+  for (const label of ['Copy', 'Download']) assert.match(out, new RegExp(`</svg>${label}</button>`))
+  assert.doesNotMatch(out, /<\/svg>Share<\/button>/, 'no artifacts page listed: a share link would be Page not found')
+  const listed = withArtifactsPage(() => html(createElement(CanvasPanel, { sessionId: 's1', viewport: 'desktop', reportBadge: () => {} })))
+  assert.match(listed, /<\/svg>Share<\/button>/, 'Share once the artifacts page is listed')
   assert.doesNotMatch(out, />Run</, 'no Run: code_execution is not on')
   assert.match(out, /<aside aria-label="History"/)
   assert.match(out, /Researcher added the Stable column/)
@@ -112,7 +127,10 @@ test('ArtifactCards: one card per artifact a reply made; older versions say so; 
   const cards = [...first.matchAll(/data-artifact-card="([^"]+)"/g)].map((m) => m[1])
   assert.deepEqual(cards, ['table:algorithm|average|worst', 'sort_demo.py'])
   assert.match(first, /Table · 3 rows · v2 is newer/)
-  assert.match(first, /href="\/artifacts\?session=s1&amp;artifact=sort_demo\.py&amp;v=1"/)
+  assert.doesNotMatch(first, /href=/, 'no artifacts page listed: cards are buttons, not dead links')
+  assert.match(first, /role="button" tabindex="0"/)
+  const linked = withArtifactsPage(() => html(createElement(ArtifactCards, { sessionId: 's1', messageId: 'h_1', viewport: 'desktop', reportBadge: () => {} })))
+  assert.match(linked, /href="\/artifacts\?session=s1&amp;artifact=sort_demo\.py&amp;v=1"/)
   assert.match(first, /aria-label="Open sort_demo\.py in the canvas"/)
   assert.match(first, /In canvas/)
   const second = html(createElement(ArtifactCards, { sessionId: 's1', messageId: 'h_3', viewport: 'phone', reportBadge: () => {} }))

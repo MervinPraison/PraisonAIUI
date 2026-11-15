@@ -11,7 +11,7 @@ import { Kbd } from '@/components/ui/kbd'
 import { cn } from '@/lib/utils'
 import type { DerivedArtifact } from './derive'
 import { canDownload, clockTime, copyText, kindLine } from './format'
-import { copyArtifact, downloadArtifact, shareArtifact, useCanRun, useRun } from './hooks'
+import { canShare, copyArtifact, downloadArtifact, shareArtifact, useCanRun, useRun } from './hooks'
 import { HistoryList, VersionMenu } from './Versions'
 import { Viewer } from './viewers/Viewer'
 
@@ -75,10 +75,12 @@ export function ArtifactView({ artifact: a, versions, onShow, onRestore, compact
               Download
             </Button>
           )}
-          <Button variant="ghost" onClick={() => void shareArtifact(a)}>
-            <Share />
-            Share
-          </Button>
+          {canShare() && (
+            <Button variant="ghost" onClick={() => void shareArtifact(a)}>
+              <Share />
+              Share
+            </Button>
+          )}
           {canRun && (
             <Button variant="secondary" onClick={run.run} disabled={run.running} className="bg-accent-soft text-link" aria-keyshortcuts={isMac() ? 'Meta+Enter' : 'Control+Enter'}>
               <Play className="fill-current" />

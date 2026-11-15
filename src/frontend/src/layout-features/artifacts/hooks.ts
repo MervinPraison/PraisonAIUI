@@ -4,7 +4,7 @@
  */
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { notify } from '@/sdk/notify'
-import { codeLanguages, codeRunAvailable, runCode, type CodeRunResult } from './api'
+import { artifactsPageListed, codeLanguages, codeRunAvailable, runCode, type CodeRunResult } from './api'
 import { resolveLang, type DerivedArtifact } from './derive'
 import { artifactsStore } from './feed'
 import { copyText, downloadOf, shareUrl } from './format'
@@ -89,7 +89,11 @@ export function downloadArtifact(a: DerivedArtifact): void {
   if (objectUrl) setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
 }
 
+/** Whether Share (and a card's link) can point anywhere: the `artifacts` page is listed. */
+export const canShare = (): boolean => artifactsPageListed()
+
 export async function shareArtifact(a: DerivedArtifact): Promise<void> {
+  if (!canShare()) return
   if (!a.sessionId) {
     notify('Send a message first: a new chat has no link yet', { type: 'info' })
     return

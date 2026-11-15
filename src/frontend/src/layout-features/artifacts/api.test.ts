@@ -10,6 +10,7 @@ import path from 'node:path'
 import type { ShellManifest } from '@/sdk/manifest'
 import {
   ARTIFACT_KINDS,
+  artifactsPageListed,
   artifactsServerEnabled,
   codeLanguages,
   codeRunAvailable,
@@ -63,6 +64,13 @@ test('record checks: a built-in is on while its page is listed (or its record is
   assert.equal(artifactsServerEnabled(manifest([{ name: 'builtin.artifacts', status: 'disabled' }])), false)
   assert.equal(artifactsServerEnabled(manifest([{ name: 'builtin.artifacts', status: 'ok' }])), true)
   assert.equal(codeRunAvailable(manifest([{ name: 'builtin.code-studio', status: 'ok' }])), true)
+})
+
+test('share links need the artifacts page: listed in the manifest, not just the record on', () => {
+  assert.equal(artifactsPageListed(null), false)
+  assert.equal(artifactsPageListed(manifest([], ['chat', 'artifacts'])), true)
+  assert.equal(artifactsPageListed(manifest([], ['chat', 'code-studio'])), false, 'the record on without its page: /artifacts is Page not found')
+  assert.equal(artifactsPageListed(manifest([{ name: 'builtin.artifacts', status: 'ok' }], ['chat'])), false)
 })
 
 test('contract: the records own the pages the checks look for (builtin/catalog.py)', () => {
