@@ -39,16 +39,19 @@ screen: the frame shows every pending approval itself.
   oldest pending approval ("Coder needs your approval to continue", the exact call, its risk, how
   long it has waited, how many more wait) with Review, Deny and Approve. When nothing is listed in
   `/api/approvals` but a run is paused on a gate in the open chat, the banner shows that gate on
-  the other pages with Open chat.
+  the other pages with Open chat. The banner is a region named by its title, and only the title
+  is live: a screen reader announces it when an approval appears, not each tick of the timer.
 - **Nav badge and bell**: the number of pending approvals.
 - **Agent card**: an agent with a pending approval (listed, or a gate in the open chat) shows as
   "Waiting for approval" with the call and a waiting timer, and is listed first.
 - **Overview**: one request card per pending approval ("Needs approval · Coder wants to run a
-  command", the call, the reason, Approve / Deny).
+  command", the call, the reason, Deny / Approve, in the banner's order).
 - **Thread**: the chat draws gates as approval cards (`meta.chat.approvals: 'card'`).
 
 <kbd>⌘</kbd>/<kbd>Ctrl</kbd> <kbd>J</kbd> moves focus to the banner's Approve button;
-<kbd>⌘</kbd>/<kbd>Ctrl</kbd> <kbd>N</kbd> starts a new chat.
+<kbd>⌘</kbd>/<kbd>Ctrl</kbd> <kbd>N</kbd> starts a new chat. In a browser tab most browsers keep
+<kbd>⌘</kbd>/<kbd>Ctrl</kbd> <kbd>N</kbd> for a new window and the page never sees it; use the
+ops column's New chat button there (the shortcut works in an installed app window).
 
 ### Run timeline
 
@@ -76,7 +79,7 @@ See [layout data](../layout-data.md) for the run ledger's routes and gating: it 
 | `sessions` | `frame` (the ops column draws the agent's sessions) |
 | `thread` | `dense` |
 | `approvals` | `card` |
-| `turnHeader` | the run timeline (`layout-features/mission-board/RunTimeline`) |
+| `turnHeader` | the run timeline (`RunTimeline`, from the mission board's entry) |
 
 ## Code and chunks
 
@@ -84,10 +87,12 @@ See [layout data](../layout-data.md) for the run ledger's routes and gating: it 
 |---|---|---|---|
 | Descriptor | `src/frontend/src/builtin/layouts/mission.ts` | boot (a few lines) | always (registers the layout; downloads nothing) |
 | Frame | `src/frontend/src/app-layouts/mission/` | `layout-mission` | when Mission is on screen |
-| Mission board | `src/frontend/src/layout-features/mission-board/` | `lf-mission-board` | with `import()` when the frame shows a board part: the run feed, the ops column, the overview, the banner, the run timeline |
+| Mission board | `src/frontend/src/layout-features/mission-board/` | `lf-mission-board` (one chunk) | with `import()` the first time the frame shows a board part (the run feed, the ops column, the overview, the banner or the run timeline); cached after that |
 
 The frame imports only the SDK, `components/ui`, `lib` and the layout kit, and the board only with
-`import()` (R17). Every board part sits behind its own error boundary: a part that fails to load
+`import()` of its one entry, `mission-board/index.ts` (R17), so the board builds as a single chunk:
+one request, not one per part. Budgets (`.size-limit.mjs`, gzip): `layout-mission` 10.5 kB,
+`lf-mission-board` 11.8 kB. Every board part sits behind its own error boundary: a part that fails to load
 or render disappears and the frame keeps working.
 
 ## The ops overview page

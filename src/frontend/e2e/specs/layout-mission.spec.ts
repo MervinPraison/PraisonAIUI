@@ -16,8 +16,16 @@
  *   - with the run ledger and the approvals API answering 404 the frame
  *     shows empty states and never crashes.
  *
- * Runs as the `layout-mission` project of e2e/playwright.config.ts against
- * the app-shell server (`AIUI_SHELL=app`, mock_server.py).
+ * It needs no server of its own: it runs against the app-shell server of
+ * e2e/playwright.config.ts (PORTS.app: `--shell app -- --plugin --custom-js`,
+ * AIUI_LAYOUT=classic; the suite previews Mission with ?layout=mission).
+ * That config has no project for this file yet, so CI does not run it until
+ * one is added there:
+ *
+ *   { name: 'layout-mission', testMatch: /[\\/]layout-mission\.spec\.ts$/,
+ *     use: { ...chromium, baseURL: url(PORTS.app) } }
+ *
+ * Until then, run it with a config that adds that project.
  */
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
