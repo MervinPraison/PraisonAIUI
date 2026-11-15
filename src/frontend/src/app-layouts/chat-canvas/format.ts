@@ -67,6 +67,14 @@ export function lastAgent(messages: readonly ChatMessageView[] | null | undefine
 }
 
 /** The top bar's second line on the chat page: agent · n artifacts · edited …; empty parts are left out. */
+/** The connection word after the agent: "connected", or what it is doing instead; '' while unknown. */
+export function connectionWord(connection: 'connecting' | 'open' | 'closed' | undefined): { word: string; tone: 'ok' | 'pending' } | null {
+  if (connection === 'open') return { word: 'connected', tone: 'ok' }
+  if (connection === 'connecting') return { word: 'connecting', tone: 'pending' }
+  if (connection === 'closed') return { word: 'reconnecting', tone: 'pending' }
+  return null
+}
+
 export function chatSubtitle(
   parts: { agent?: string; artifacts?: number; editedAt?: number; running?: boolean },
   now = Date.now(),

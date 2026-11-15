@@ -18,7 +18,7 @@ import {
 import type { Artifact, ArtifactsFeed, ChatFeed, ChatState, Feed, SessionsFeed, SessionsState } from '@/sdk/layoutTypes'
 import Frame from './Frame'
 import { toArtifactsFeed } from './data'
-import { chatSubtitle, lastAgent, relativeTime, summarizeArtifacts } from './format'
+import { chatSubtitle, connectionWord, lastAgent, relativeTime, summarizeArtifacts } from './format'
 import { frameKeyAction, optionVars } from './frameLogic'
 import { iconFor } from './iconMap'
 
@@ -262,7 +262,8 @@ test('desktop top bar on the chat page: the open chat, "Researcher · 2 artifact
   provideChat()
   const out = render(props())
   assert.match(out, /<h1[^>]*data-cc-title="">Compare sorting algorithms<\/h1>/)
-  assert.match(out, /data-cc-subtitle="">Researcher · 2 artifacts · edited just now</)
+  // The agent, then the artifacts line (the connection dot sits between them once the feed reports one).
+  assert.match(out, /data-cc-subtitle=""><span class="truncate">Researcher<\/span><span aria-hidden="true">·<\/span><span class="truncate">2 artifacts · edited just now</)
   assert.match(out, /aria-label="Search or run a command"/)
   assert.match(out, /data-cc-share=""/)
   assert.match(out, /aria-label="Switch to (dark|light) theme"/)
@@ -295,4 +296,11 @@ test('without any feed (chat and artifacts built-ins off) the frame still render
   assert.doesNotMatch(out, /data-cc-new-chat/)
   assert.doesNotMatch(out, /data-cc-subtitle/)
   assert.match(out, /data-outlet="">the page</)
+})
+
+test('connectionWord: the top bar says connected, connecting or reconnecting next to the agent', () => {
+  assert.deepEqual(connectionWord('open'), { word: 'connected', tone: 'ok' })
+  assert.deepEqual(connectionWord('connecting'), { word: 'connecting', tone: 'pending' })
+  assert.deepEqual(connectionWord('closed'), { word: 'reconnecting', tone: 'pending' })
+  assert.equal(connectionWord(undefined), null)
 })

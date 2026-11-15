@@ -132,6 +132,8 @@ export interface ChatState {
   messages: readonly ChatMessageView[]
   isRunning: boolean
   activeRunId?: string
+  /** The live chat connection (absent until the chat transport reports one). 'closed' with an HTTP fallback still sends. */
+  connection?: 'connecting' | 'open' | 'closed'
 }
 
 export interface ChatFeed extends Feed<ChatState> {

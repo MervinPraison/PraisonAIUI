@@ -179,6 +179,29 @@ test('a dropped socket rejects the in-flight send with a disconnect error and re
   t.close()
 })
 
+test('reconnect() opens the socket now instead of waiting out the backoff; it is a no-op while open', async () => {
+  mock.timers.enable({ apis: ['setTimeout', 'setInterval'] })
+  const t = makeWs({ minBackoffMs: 5_000, maxBackoffMs: 10_000 })
+  const release = t.retain!()
+  await flush()
+  assert.equal(t.status, 'open')
+  t.reconnect!()
+  assert.equal(FakeWebSocket.instances.length, 1, 'open: nothing to do')
+  FakeWebSocket.autoOpen = false
+  last().drop()
+  await flush()
+  assert.equal(t.status, 'closed')
+  t.reconnect!()
+  assert.equal(FakeWebSocket.instances.length, 2, 'a Retry press does not wait 5 s')
+  assert.equal(t.status, 'connecting')
+  last().open()
+  assert.equal(t.status, 'open')
+  mock.timers.tick(5_000)
+  assert.equal(FakeWebSocket.instances.length, 2, 'the cancelled backoff timer does not open a second socket')
+  release()
+  t.close()
+})
+
 test('jitter keeps each delay between half and the full step', async () => {
   mock.timers.enable({ apis: ['setTimeout', 'setInterval'] })
   const t = makeWs({ minBackoffMs: 1000, maxBackoffMs: 10_000, random: () => 0 })

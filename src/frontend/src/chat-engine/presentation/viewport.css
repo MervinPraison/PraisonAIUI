@@ -10,3 +10,16 @@
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 20px);
   mask-image: linear-gradient(to bottom, transparent 0, #000 20px);
 }
+
+/* The chat page's own title row inside a layout: the frame names the chat
+   and shows the connection, so the row steps aside (visually hidden, its
+   heading and status stay for screen readers) unless it holds a control,
+   such as the agent picker or the canvas toggle. */
+[data-aiui-chat]:has([data-variant]) > section > header:not(:has(select, button)) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

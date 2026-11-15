@@ -77,6 +77,8 @@ export interface AiuiTransport {
   watch?(sessionId: string, onEvent: (ev: WireEvent) => void): () => void
   /** Keep the live connection (and its reconnect loop) up while a view needs it. Returns release(). */
   retain?(): () => void
+  /** Try the live connection again now instead of waiting out the backoff (a "Retry" button). */
+  reconnect?(): void
   /** Is this run still alive on the server? `undefined` when the server cannot say. */
   runStatus?(runId: string): Promise<boolean | undefined>
   /** Whether `regenerate` replaces the last answer server-side (WS); otherwise it is a plain resend. */
@@ -816,6 +818,11 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
         scheduleIdleCheck()
       }
     },
+    reconnect() {
+      if (sock || opening) return
+      attempt = 0
+      openSocket()
+    },
     retain() {
       retainCount += 1
       if (idleTimer !== undefined) clearTimeout(idleTimer)
@@ -907,5 +914,6 @@ export function createAutoTransport(options: AutoTransportOptions = {}): AiuiTra
     onReconnect: (fn) => ws.onReconnect!(fn),
     watch: (sessionId, fn) => ws.watch!(sessionId, fn),
     retain: () => ws.retain!(),
+    reconnect: () => ws.reconnect!(),
   }
 }

@@ -1,7 +1,7 @@
 // The composer's key hint inside a layout retires after three live sends.
 import { afterEach, beforeEach, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { HINT_KEY, HINT_SENDS, hintOff, isLiveSend, noteSend, readSends } from './composerHint'
+import { HINT_KEY, HINT_SENDS, hintOff, isSendGesture, noteSend, readSends } from './composerHint'
 
 const store = new Map<string, string>()
 beforeEach(() => {
@@ -15,14 +15,15 @@ afterEach(() => {
   delete (globalThis as { localStorage?: unknown }).localStorage
 })
 
-test('a live send is one more user message while running or with the user message last', () => {
-  assert.equal(isLiveSend(2, 3, true), true)
-  assert.equal(isLiveSend(2, 3, false, true), true)
-  assert.equal(isLiveSend(2, 3, false, false), false, 'a history page that ends with an answer')
-  assert.equal(isLiveSend(0, 4, true), false, 'a history load is not a send')
-  assert.equal(isLiveSend(3, 3, true), false)
+test('a send is Enter with text (not Shift+Enter, not composing) or an enabled Send press', () => {
+  assert.equal(isSendGesture({ type: 'keydown', key: 'Enter' }, 'hi', false), true)
+  assert.equal(isSendGesture({ type: 'keydown', key: 'Enter', shiftKey: true }, 'hi', false), false)
+  assert.equal(isSendGesture({ type: 'keydown', key: 'Enter', isComposing: true }, 'hi', false), false)
+  assert.equal(isSendGesture({ type: 'keydown', key: 'Enter' }, '  ', false), false, 'nothing to send')
+  assert.equal(isSendGesture({ type: 'keydown', key: 'a' }, 'hi', false), false)
+  assert.equal(isSendGesture({ type: 'click' }, '', true), true)
+  assert.equal(isSendGesture({ type: 'click' }, 'hi', false), false)
 })
-
 test('three sends retire the hint; storage failures keep it', () => {
   assert.equal(readSends(), 0)
   for (let i = 1; i <= HINT_SENDS; i++) assert.equal(noteSend(), i)

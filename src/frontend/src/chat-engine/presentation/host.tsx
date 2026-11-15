@@ -35,6 +35,7 @@ import { useRegionProps } from './regionState'
 import type { ThreadVariant } from './TurnMeta'
 import { ComposerModel } from './ComposerModel'
 import { useComposerHint } from './composerHint'
+import { ConnectionBanner } from './ConnectionBanner'
 import './composer.css'
 import './viewport.css'
 
@@ -104,12 +105,14 @@ function PinnedGate({ presentation, children }: { presentation: { chat: ChatPres
  * The composer's footer in a layout: the place above the composer that
  * pinned gates go to (nothing for a thread that pins none), the model
  * button the composer row gets (a portal, drawn after mount), and the send
- * count that retires the composer's key hint (./composerHint).
+ * count that retires the composer's key hint (./composerHint), and the
+ * banner shown while the live connection is down (./ConnectionBanner).
  */
 export function Pinned({ presentation }: { presentation: { chat: ChatPresentation } }): JSX.Element | null {
   useComposerHint()
   return (
     <>
+      <ConnectionBanner />
       <ComposerModel />
       {pinsGates(presentation.chat) && (
         <div ref={pinnedSlotRef} className="flex flex-col gap-2 pb-3 empty:hidden sm:pb-4" data-chat-pinned aria-label="Waiting for your OK" role="region" />

@@ -88,7 +88,7 @@ export function createChatFeed({ show, transport: transportOpt }: FeedOptions = 
       const sid = activeId()
       const thread = threadStore.get(sid)
       if (cache?.sid !== sid || cache.thread !== thread) {
-        cache = { sid, thread, state: { sessionId: sid, messages: thread.messages, isRunning: thread.isRunning, activeRunId: thread.activeRunId } }
+        cache = { sid, thread, state: { sessionId: sid, messages: thread.messages, isRunning: thread.isRunning, activeRunId: thread.activeRunId, ...(thread.signals.connection ? { connection: thread.signals.connection } : {}) } }
       }
       return cache.state
     },

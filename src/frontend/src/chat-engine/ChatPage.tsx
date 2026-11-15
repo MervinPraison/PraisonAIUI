@@ -98,12 +98,13 @@ function readUrlState(): { session: string | null; agent: string | null } {
   }
 }
 
-function ConnectionBadge({ status, transport }: { status?: ConnectionStatus; transport: AiuiTransport }) {
+/** `quiet`: inside a layout the badge is for screen readers only (the frame shows the state; a drop is a banner). */
+function ConnectionBadge({ status, transport, quiet }: { status?: ConnectionStatus; transport: AiuiTransport; quiet?: boolean }) {
   if (!status) return null
   const { label, short, tone } = connectionLabel(status, transport)
   return (
     <span
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-xs text-muted-foreground"
+      className={cn('inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-xs text-muted-foreground', quiet && 'sr-only')}
       data-connection={status}
       role="status"
       aria-label={`Connection: ${label}`}
@@ -378,7 +379,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
           <div className={cn('mx-auto flex w-full max-w-[760px] min-w-0 items-center gap-1.5', ownRail && 'pl-7 @[54rem]:pl-0')} data-chat-header-column>
             <Heading className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" data-chat-title>{heading}</Heading>
             <AgentPicker agents={agents} value={agent} onChange={setAgent} />
-            <ConnectionBadge status={thread.signals.connection} transport={transport} />
+            <ConnectionBadge status={thread.signals.connection} transport={transport} quiet={!!chat} />
             {chat?.aside && <span className="contents" ref={setAsideSlot} />}
           </div>
         </header>

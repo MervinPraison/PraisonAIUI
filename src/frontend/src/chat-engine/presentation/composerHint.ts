@@ -4,13 +4,12 @@
  * never shown again (composer.css hides it on data-composer-hint="off"; until
  * then it shows only while the composer is focused and empty).
  *
- * A send is a live turn starting: the thread's user messages grow by one
- * while it runs or with a user message last (a history load does neither).
+ * A send is Enter (without Shift, not while composing) in a layout composer
+ * that holds text, or a press of its Send button while enabled.
  * The count is a per-viewer convenience in localStorage; without storage the
  * hint simply keeps its focused-and-empty rule.
  */
-import { useEffect, useRef } from 'react'
-import { useAuiState } from '@assistant-ui/react'
+import { useEffect } from 'react'
 
 export const HINT_KEY = 'aiui-composer-sends'
 export const HINT_SENDS = 3
@@ -37,25 +36,43 @@ export function noteSend(): number {
 
 export const hintOff = (sends: number) => sends >= HINT_SENDS
 
-/** True when the user-message count moved from `prev` to `next` by one live send. */
-export function isLiveSend(prev: number, next: number, running: boolean, lastIsUser = false): boolean {
-  return next === prev + 1 && (running || lastIsUser)
+/** True when this key or click sends the layout composer's text. */
+export function isSendGesture(
+  e: { type: string; key?: string; shiftKey?: boolean; isComposing?: boolean },
+  text: string,
+  onSendButton: boolean,
+): boolean {
+  if (e.type === 'click') return onSendButton
+  return e.type === 'keydown' && e.key === 'Enter' && !e.shiftKey && !e.isComposing && text.trim() !== ''
 }
 
-function threadRoot(): HTMLElement | null {
-  return document.querySelector<HTMLElement>('[data-aiui-thread]')?.closest<HTMLElement>('[data-variant]') ?? null
+const COMPOSER = '[data-variant] form'
+
+function markOff(): void {
+  for (const el of document.querySelectorAll<HTMLElement>('[data-variant]')) el.setAttribute('data-composer-hint', 'off')
 }
 
 /** Mounted once per layout thread (host `Pinned`): marks the thread when the hint has had its three sends. */
 export function useComposerHint(): void {
-  const users = useAuiState((s) => s.thread.messages.filter((m) => m.role === 'user').length)
-  const running = useAuiState((s) => s.thread.isRunning)
-  const lastIsUser = useAuiState((s) => s.thread.messages.at(-1)?.role === 'user')
-  const prev = useRef(users)
   useEffect(() => {
-    const sent = isLiveSend(prev.current, users, running, lastIsUser)
-    prev.current = users
-    const total = sent ? noteSend() : readSends()
-    if (hintOff(total)) threadRoot()?.setAttribute('data-composer-hint', 'off')
-  }, [users, running, lastIsUser])
+    if (hintOff(readSends())) {
+      markOff()
+      return
+    }
+    const onEvent = (e: Event) => {
+      const target = e.target as HTMLElement | null
+      const form = target?.closest?.(COMPOSER)
+      if (!form) return
+      const send = target?.closest?.<HTMLButtonElement>('button[aria-label="Send"]')
+      const text = form.querySelector('textarea')?.value ?? ''
+      if (!isSendGesture(e as KeyboardEvent, text, !!send && !send.disabled)) return
+      if (hintOff(noteSend())) markOff()
+    }
+    document.addEventListener('keydown', onEvent, true)
+    document.addEventListener('click', onEvent, true)
+    return () => {
+      document.removeEventListener('keydown', onEvent, true)
+      document.removeEventListener('click', onEvent, true)
+    }
+  }, [])
 }
