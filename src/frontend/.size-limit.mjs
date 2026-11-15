@@ -39,14 +39,19 @@ const legacyJs = filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks
 // The `lf-*` features do not exist yet: their entries are the ADR caps, for
 // the track that lands each one to set from its measurement. Every group in
 // the build must have a budget here.
+//
+// Track W (kit v2: page icons, session times, ConnectionStatus, Brand, feed
+// hooks) measured the kit at 6.62 kB, each stub frame at 6.1 kB (a layout's
+// closure includes the kit) and the Workbench frame at 8.49 kB: each limit is
+// that plus 10%.
 const LAYOUT_BUDGETS = {
-  'layout-chat-canvas': '4.6 kB',
-  'layout-workbench': '4.6 kB',
-  'layout-command': '4.6 kB',
-  'layout-guided': '4.6 kB',
-  'layout-mission': '4.6 kB',
+  'layout-chat-canvas': '6.7 kB',
+  'layout-workbench': '9.4 kB',
+  'layout-command': '6.7 kB',
+  'layout-guided': '6.7 kB',
+  'layout-mission': '6.7 kB',
 }
-const KIT_BUDGET = '5 kB'
+const KIT_BUDGET = '7.3 kB'
 const FEATURE_BUDGETS = {
   'lf-artifacts': '30 kB',
   'lf-run-inspector': '14 kB',
@@ -54,6 +59,25 @@ const FEATURE_BUDGETS = {
   'lf-step-tracker': '6 kB',
   'lf-mission-board': '22 kB',
 }
+// ADR 0003 §1.4 caps: a budget may be raised up to its cap, never past it.
+const CAPS = {
+  layout: 24,
+  'layout-mission': 28,
+  'layout-kit': 10,
+  'lf-artifacts': 30,
+  'lf-run-inspector': 14,
+  'lf-command-bar': 6,
+  'lf-step-tracker': 6,
+  'lf-mission-board': 22,
+}
+const kB = (limit) => Number.parseFloat(limit)
+for (const [group, limit] of [...Object.entries(LAYOUT_BUDGETS), ['layout-kit', KIT_BUDGET], ...Object.entries(FEATURE_BUDGETS)]) {
+  const cap = CAPS[group] ?? (group.startsWith('layout-') ? CAPS.layout : undefined)
+  if (cap === undefined || !limit.endsWith(' kB') || kB(limit) > cap) {
+    throw new Error(`.size-limit.mjs: budget ${limit} for ${group} is not in kB under its ADR cap (${cap ?? 'none'} kB)`)
+  }
+}
+
 /** The app shell's default layout (style `app`): its /chat first screen has its own budget. */
 const DEFAULT_LAYOUT = 'layout-chat-canvas'
 
