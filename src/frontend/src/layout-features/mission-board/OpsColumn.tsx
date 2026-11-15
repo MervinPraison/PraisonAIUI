@@ -60,7 +60,7 @@ export default function OpsColumn({ openChat, className }: OpsColumnProps) {
       <div className="flex flex-col gap-1.5">
         <div className="flex h-7 items-center gap-2">
           <h2 className="m-0 text-[13px] font-semibold tracking-wide text-muted-foreground">Agents</h2>
-          {views.length > 0 && <span className="truncate font-mono text-xs text-tier-3">{agentCountsLabel(views)}</span>}
+          {views.length > 0 && <span className="truncate text-xs text-tier-3 tabular-nums">{agentCountsLabel(views)}</span>}
         </div>
         {views.length === 0 && status === 'loading' ? (
           <div role="status" aria-label="Loading agents" className="flex flex-col gap-1.5">
@@ -129,7 +129,7 @@ export default function OpsColumn({ openChat, className }: OpsColumnProps) {
                       )}
                     >
                       <span className="min-w-0 flex-1 truncate">{s.title}</span>
-                      <span className="shrink-0 font-mono text-xs font-normal text-tier-3">
+                      <span className="shrink-0 text-xs font-normal text-tier-3 tabular-nums">
                         {running ? 'live' : s.updatedAt ? formatAgo(s.updatedAt, now) : ''}
                       </span>
                     </button>

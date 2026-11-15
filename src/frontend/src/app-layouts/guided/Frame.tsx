@@ -337,7 +337,7 @@ export default function GuidedFrame(props: LayoutProps) {
 
   return (
     <div data-aiui-layout-frame="guided" data-viewport={viewport} className="flex min-h-0 min-w-0 flex-1 bg-background text-base">
-      <nav aria-label="Main" className="flex w-72 shrink-0 flex-col gap-5 overflow-y-auto *:shrink-0 border-r border-sidebar-border bg-sidebar px-4 py-4 text-sidebar-foreground">
+      <nav aria-label="Main" className="flex w-72 shrink-0 flex-col gap-4 overflow-y-auto *:shrink-0 border-r border-sidebar-border bg-sidebar px-4 py-4 text-sidebar-foreground">
         <Brand chrome={chrome} />
         {sessions && (
           <Button variant="outline" className="h-12 w-full rounded-2xl bg-card text-lg font-bold shadow-sm" onClick={newChat} aria-keyshortcuts="Meta+N Control+N">

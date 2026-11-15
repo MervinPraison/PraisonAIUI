@@ -74,11 +74,12 @@ export function sessionsOf(sessions: readonly SessionSummary[], agent: string | 
 
 /**
  * A run row's title: its chat's title (the question that started it), else
- * "<agent> run", so six runs of one agent are not six identical rows.
+ * "<agent> run <first 6 of its id>", so six runs of one agent are not six
+ * identical rows.
  */
-export function runTitle(run: Pick<RunSummary, 'sessionId' | 'agent'>, sessionTitles: ReadonlyMap<string, string>): string {
+export function runTitle(run: Pick<RunSummary, 'id' | 'sessionId' | 'agent'>, sessionTitles: ReadonlyMap<string, string>): string {
   const t = run.sessionId ? sessionTitles.get(run.sessionId)?.trim() : undefined
-  return t || `${run.agent ?? 'Agent'} run`
+  return t || `${run.agent ?? 'Agent'} run ${run.id.slice(0, 6)}`
 }
 
 /** The agent the column shows first: the open chat's, else the first that waits or runs, else the first. */

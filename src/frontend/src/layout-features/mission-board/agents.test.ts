@@ -139,9 +139,9 @@ test('the banner: listed approvals first, the chat gate off the chat page, none 
   assert.equal(attention([pip, older], [], on('logs'))?.item.id, 'old')
 })
 
-test('runTitle: the run\'s chat title, else "<agent> run"', () => {
+test('runTitle: the run\'s chat title, else "<agent> run <id>"', () => {
   const titles = new Map([['s1', 'Compare sorting algorithms']])
-  assert.equal(runTitle({ sessionId: 's1', agent: 'Researcher' }, titles), 'Compare sorting algorithms')
-  assert.equal(runTitle({ sessionId: 'gone', agent: 'Researcher' }, titles), 'Researcher run')
-  assert.equal(runTitle({}, titles), 'Agent run')
+  assert.equal(runTitle({ id: 'r1', sessionId: 's1', agent: 'Researcher' }, titles), 'Compare sorting algorithms')
+  assert.equal(runTitle({ id: '99bc1b30', sessionId: 'gone', agent: 'Researcher' }, titles), 'Researcher run 99bc1b')
+  assert.equal(runTitle({ id: 'abc' }, titles), 'Agent run abc')
 })
