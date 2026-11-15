@@ -20,7 +20,7 @@
  * this folder (app-layouts/isolation.test.ts).
  */
 import { useMemo, useState } from 'react'
-import { Bot, Ellipsis, Menu, PanelLeft, Plus, Search, Share, SquarePen, SunMoon } from 'lucide-react'
+import { Bot, Menu, PanelLeft, Plus, Search, Share, SquarePen, SunMoon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { LayoutProps } from '@/sdk/layouts'
 import { notify } from '@/sdk/notify'
@@ -283,7 +283,12 @@ export default function WorkbenchFrame(props: LayoutProps) {
           <chrome.Slot name="header:actions" className="flex items-center gap-1" />
           <ShareButton />
           <Button variant="ghost" size="icon-sm" aria-label="More: search pages and commands" onClick={() => chrome.openPalette()}>
-            <Ellipsis />
+            {/* Drawn here: lucide's Ellipsis is shared with the chat route's lazy chunks. */}
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <circle cx="5" cy="12" r="1.5" />
+              <circle cx="12" cy="12" r="1.5" />
+              <circle cx="19" cy="12" r="1.5" />
+            </svg>
           </Button>
         </header>
         {main}

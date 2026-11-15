@@ -7,7 +7,6 @@
  */
 import { useMemo } from 'react'
 import { useSessions } from '@/app-layouts/kit'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import type { LayoutViewport } from '@/sdk/layouts'
 import type { AgentStatus, RunStatus, RunSummary } from '@/sdk/layoutTypes'
@@ -16,6 +15,13 @@ import { formatCost, formatCount, formatDuration, formatTime } from './format'
 import { useApprovals, useFeed, useNow, useRuns, useRunsStatus } from './hooks'
 import { RequestCard } from './RequestCard'
 import { AgentCard, KpiStrip, StateChip, type ChipState } from './widgets'
+
+// The recent-runs table, drawn here with components/ui/table's classes: that
+// module is shared with the chat route's lazy chunks, and importing it here
+// would split it into a chunk of its own the chat route then lists.
+const ROW = 'hover:bg-muted/50 border-b transition-colors'
+const TH = 'text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap'
+const TD = 'p-2 align-middle whitespace-nowrap'
 
 export interface OpsOverviewProps {
   viewport: LayoutViewport
@@ -128,40 +134,40 @@ export default function OpsOverview({ viewport, openChat, environment }: OpsOver
               <p className="m-0 text-sm text-muted-foreground">No runs yet today.</p>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-border">
-                <Table data-aiui-recent-runs="">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Started</TableHead>
-                      <TableHead>Agent</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Steps</TableHead>
-                      <TableHead className="text-right">Duration</TableHead>
-                      <TableHead className="text-right">Tokens</TableHead>
-                      <TableHead className="text-right">Cost</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <table data-aiui-recent-runs="" className="w-full caption-bottom text-sm">
+                  <thead className="[&_tr]:border-b">
+                    <tr className={ROW}>
+                      <th className={TH}>Started</th>
+                      <th className={TH}>Agent</th>
+                      <th className={TH}>Status</th>
+                      <th className={cn(TH, "text-right")}>Steps</th>
+                      <th className={cn(TH, "text-right")}>Duration</th>
+                      <th className={cn(TH, "text-right")}>Tokens</th>
+                      <th className={cn(TH, "text-right")}>Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody className="[&_tr:last-child]:border-0">
                     {recent.map((r) => {
                       const st = RUN_STATE[r.status] ?? RUN_STATE.completed
                       return (
-                        <TableRow key={r.id} data-aiui-run={r.id}>
-                          <TableCell className="font-mono text-xs">{formatTime(r.startedAt)}</TableCell>
-                          <TableCell className="font-medium">{r.agent ?? '—'}</TableCell>
-                          <TableCell>
+                        <tr className={ROW} key={r.id} data-aiui-run={r.id}>
+                          <td className={cn(TD, "font-mono text-xs")}>{formatTime(r.startedAt)}</td>
+                          <td className={cn(TD, "font-medium")}>{r.agent ?? '—'}</td>
+                          <td className={TD}>
                             <StateChip state={st.state} label={st.label} />
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">{r.stepCount ?? '—'}</TableCell>
-                          <TableCell className="text-right font-mono text-xs">{formatDuration((r.endedAt ?? now) - r.startedAt)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{r.tokens === undefined ? '—' : formatCount(r.tokens)}</TableCell>
-                          <TableCell className="text-right font-mono text-xs">
+                          </td>
+                          <td className={cn(TD, "text-right tabular-nums")}>{r.stepCount ?? '—'}</td>
+                          <td className={cn(TD, "text-right font-mono text-xs")}>{formatDuration((r.endedAt ?? now) - r.startedAt)}</td>
+                          <td className={cn(TD, "text-right tabular-nums")}>{r.tokens === undefined ? '—' : formatCount(r.tokens)}</td>
+                          <td className={cn(TD, "text-right font-mono text-xs")}>
                             {formatCost(r.cost)}
                             {r.approximate && <span title="Joined by time window, not by run id"> ≈</span>}
-                          </TableCell>
-                        </TableRow>
+                          </td>
+                        </tr>
                       )
                     })}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
             )}
           </section>

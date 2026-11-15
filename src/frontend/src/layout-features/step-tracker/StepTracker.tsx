@@ -11,7 +11,7 @@
  * assistant turn is on screen.
  */
 import { useId, useMemo, useState, useSyncExternalStore, type JSX } from 'react'
-import { Check, ChevronDown, Hand, Minus, SquareTerminal } from 'lucide-react'
+import { Check, Hand, Minus, SquareTerminal } from 'lucide-react'
 import { Spinner } from '@/components/ui/spinner'
 import { useLayoutData, type TurnRegionProps } from '@/sdk/layouts'
 import type { ChatMessageView, ChatState } from '@/sdk/layoutTypes'
@@ -119,7 +119,19 @@ export default function StepTracker({ messageId, viewport }: TurnRegionProps): J
       )}
     >
       {open ? 'Hide details' : 'Show details'}
-      <ChevronDown aria-hidden="true" className={cn('size-4 motion-safe:transition-transform', open && 'rotate-180')} />
+      {/* Drawn here: lucide's ChevronDown is shared with the chat route's lazy chunks. */}
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        className={cn('size-4 motion-safe:transition-transform', open && 'rotate-180')}
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
     </button>
   )
   return (
