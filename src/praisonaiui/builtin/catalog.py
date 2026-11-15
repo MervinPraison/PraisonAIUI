@@ -803,3 +803,28 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
         ),
     ),
 )
+
+
+# ── Layout data (ADR 0003, Track D) ──────────────────────────────────
+# Data APIs only the selectable layouts read. Each record names the layouts
+# that need it (``for_layouts``) and mounts only while one of them is
+# available or the record is listed in ``extensions.enabled``; otherwise it
+# is ``disabled`` ("no layout needs it"), its feature module is never
+# imported and its routes answer 404. See docs/features/layout-data.md.
+BUILTIN_PLUGINS = BUILTIN_PLUGINS + (
+    # The shell-only ``artifacts`` page (layouts=("chat-canvas",)) is added
+    # with the React page that renders it (track A), not before: the shell
+    # would list a page nothing renders (as for the layout records above).
+    BuiltinPlugin(
+        "artifacts",
+        "Code, tables and files from chats, with user-edited versions",
+        feature_refs=(feature(".artifacts", "ArtifactsFeature"),),
+        for_layouts=("chat-canvas",),
+    ),
+    BuiltinPlugin(
+        "run-ledger",
+        "Per-run steps, tokens and cost; run KPIs and agent status",
+        feature_refs=(feature(".run_ledger", "RunLedgerFeature"),),
+        for_layouts=("command", "mission"),
+    ),
+)

@@ -168,6 +168,7 @@ def test_page_navigation_does_not_resolve_layouts_without_shell_only_pages(monke
     # Records that declare a shell-only page (a later track's) are switched off.
     owners = [f"builtin.{p.name}" for p in BUILTIN_PLUGINS if p.shell_pages()]
     _client(extensions={"disabled": owners}) if owners else _client()
+    calls.clear()  # create_app resolves them once to gate for_layouts records
     nav = {"type": "http", "method": "GET", "path": "/chat", "headers": [(b"sec-fetch-mode", b"navigate")]}
     assert srv._is_page_navigation(nav)
     assert calls == []

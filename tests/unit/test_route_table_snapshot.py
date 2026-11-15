@@ -5,6 +5,10 @@ one domain at a time. A move must not add, drop or change a route: every
 (kind, path, methods) row of the default app equals the snapshot in
 ``fixtures/route_table_snapshot.json``. Mount order may change, so rows are
 compared as a sorted list; the order that matters is checked separately.
+``style: app`` serves the same table plus the rows in
+``fixtures/route_table_snapshot_app.json``: the data routes of the built-ins
+that only serve layouts (ADR 0003 ``for_layouts``), which mount only where a
+layout is on offer.
 
 Regenerate (only for an intended route change, with the reason in the PR)::
 
@@ -24,6 +28,12 @@ import praisonaiui.features as features
 import praisonaiui.server as srv
 
 SNAPSHOT = Path(__file__).parent / "fixtures" / "route_table_snapshot.json"
+APP_EXTRA = Path(__file__).parent / "fixtures" / "route_table_snapshot_app.json"
+
+
+def _write_rows(path: Path, rows: list[list]) -> None:
+    body = ",\n".join(" " + json.dumps(r) for r in rows)
+    path.write_text(f"[\n{body}\n]\n", encoding="utf-8")
 
 
 @pytest.fixture(autouse=True)
@@ -54,10 +64,14 @@ def route_rows(app) -> list[list]:
 def test_default_route_table_matches_the_snapshot(style):
     srv.set_style(style)
     rows = sorted(route_rows(srv.create_app()))
-    if os.environ.get("AIUI_REGEN_ROUTE_SNAPSHOT") and style == "dashboard":
-        body = ",\n".join(" " + json.dumps(r) for r in rows)
-        SNAPSHOT.write_text(f"[\n{body}\n]\n", encoding="utf-8")
-    expected = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
+    regen = os.environ.get("AIUI_REGEN_ROUTE_SNAPSHOT")
+    if regen and style == "dashboard":
+        _write_rows(SNAPSHOT, rows)
+    base = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
+    if regen and style == "app":
+        _write_rows(APP_EXTRA, [r for r in rows if r not in base])
+    extra = json.loads(APP_EXTRA.read_text(encoding="utf-8")) if style == "app" else []
+    expected = sorted(base + extra)
     missing = [r for r in expected if r not in rows]
     added = [r for r in rows if r not in expected]
     assert (missing, added) == ([], [])
