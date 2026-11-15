@@ -59,7 +59,8 @@ provider's `health()` payload are merged with the normalised fields below.
   "provider": "PraisonAIProvider",
   "type": "PraisonAIProvider",
   "agents": 5,
-  "detail": "ok"
+  "detail": "ok",
+  "api_key": "set"
 }
 ```
 
@@ -69,6 +70,7 @@ provider's `health()` payload are merged with the normalised fields below.
 | `type` | string | Provider type (from `provider` field, falls back to class name). |
 | `agents` | integer | Count of agents reported by the provider. |
 | `detail` | string | Human-readable detail; `"ok"` for healthy providers. |
+| `api_key` | string | Built-in `PraisonAIProvider` only: `"set"` when a model key is in the environment (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, …), a local base URL is set (`OLLAMA_HOST`, `OPENAI_BASE_URL`, …) or a key is saved in Settings; `"missing"` otherwise. Absent for other providers (unknown). The app shell shows "Add an API key to start" above the composer when it is `"missing"`. |
 
 > **Note:** Any unmatched `/api/*` path returns a JSON `404` (never the SPA
 > HTML shell), so API clients can rely on parsing the response body.
