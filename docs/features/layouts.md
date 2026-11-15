@@ -13,23 +13,27 @@ affected and renders exactly as before.
 
 | Id | Title | What it is for | Opens on | Primary nav |
 |---|---|---|---|---|
-| `chat-canvas` (default) | Chat and Canvas | Chat beside a canvas of the artifacts the agent makes | `chat` | chat, artifacts, agents, cron, knowledge, sessions, config |
-| `workbench` | Quiet Workbench | A quiet sidebar with your chats, and the page beside it | `chat` | chat, agents, knowledge, runs, config |
-| `command` | Command Deck | Keyboard first: a command bar, session tabs and a run inspector | `chat` | chat, runs, agents, jobs, config |
-| `guided` | Guided Studio | Plain language and large buttons; every step explained | `chat` (`start` **(planned, G)**) | start, chat, agents, templates |
-| `mission` | Mission Control | Agents, runs and approvals at a glance | `overview` | overview, agents, approvals, chat, runs, sessions |
+| `chat-canvas` (default) | [Chat and Canvas](layouts/chat-canvas.md) | Chat beside a canvas of the artifacts the agent makes | `chat` | chat, artifacts, agents, cron, knowledge, sessions, config |
+| `workbench` | [Quiet Workbench](layouts/workbench.md) | A quiet sidebar with your chats, and the page beside it | `chat` | chat, agents, knowledge, runs, config |
+| `command` | [Command Deck](layouts/command.md) | Keyboard first: a command bar, session tabs and a run inspector | `chat` | chat, runs, agents, jobs, config |
+| `guided` | [Guided Studio](layouts/guided.md) | Plain language and large buttons; every step explained | `start` | start, chat, agents, templates |
+| `mission` | [Mission Control](layouts/mission.md) | Agents, runs and approvals at a glance | `overview` | overview, agents, approvals, chat, runs, sessions |
 
 `classic` is not a layout. It is the core's own frame (the sidebar and header
 the app shell had before layouts): always available, and the fallback.
 
-A primary nav may name a page that is not there yet (`start`, `templates`);
-the shell keeps only the ids the manifest carries.
+A primary nav may name a page that is not there (a disabled record's page,
+for example); the shell keeps only the ids the manifest carries.
 
-Today the five built-in frames are placeholders on the shared layout kit
-(`src/frontend/src/app-layouts/kit/`): a sidebar with the layout's primary
-pages, the other pages under "More", the session list, and a phone menu
-sheet. Each layout's own design (the canvas, the run inspector, the step
-tracker, the mission board) is **(planned)** in its own track of the ADR.
+Each built-in frame is its own design, built on the shared layout kit
+(`src/frontend/src/app-layouts/kit/`: nav and session lists, page icons,
+the connection line, phone sheet and tabs). Its page above has the regions,
+keys, phone frame and the data it reads. The features only one layout uses
+are lazy chunks of their own: the run inspector and command bar (Command
+Deck), the step tracker (Guided Studio) and the mission board (Mission
+Control). The Chat and Canvas frame shows the canvas of artifacts once the
+artifacts feature (`layout-features/artifacts`, ADR track A) is in the
+build; without it the canvas stays empty.
 
 Each built-in layout is its own lazy chunk (`layout-<id>`), with the kit in
 `layout-kit`. The browser downloads only the chunks of the layout on screen;
