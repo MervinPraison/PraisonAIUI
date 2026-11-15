@@ -39,19 +39,28 @@ const legacyJs = filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks
 // The `lf-*` features do not exist yet: their entries are the ADR caps, for
 // the track that lands each one to set from its measurement. Every group in
 // the build must have a budget here.
+//
+// Every layout's closure holds the kit chunks, so a frame that uses a
+// different part of the kit splits it for all of them. Guided's frame uses no
+// BasicFrame and its Home page only useSessions, so Rollup splits the kit into
+// three chunks plus the phone sheet: the kit went from 4.53 to 5.2 kB and each
+// stub frame from 4.14 to 4.83 kB. Guided (frame, phone tabs, chat regions,
+// Home and Templates pages, every chunk of the group) measures 15.25 kB.
+// Each budget is its measurement plus about 10%.
 const LAYOUT_BUDGETS = {
-  'layout-chat-canvas': '4.6 kB',
-  'layout-workbench': '4.6 kB',
-  'layout-command': '4.6 kB',
-  'layout-guided': '4.6 kB',
-  'layout-mission': '4.6 kB',
+  'layout-chat-canvas': '5.3 kB',
+  'layout-workbench': '5.3 kB',
+  'layout-command': '5.3 kB',
+  'layout-guided': '16.8 kB',
+  'layout-mission': '5.3 kB',
 }
-const KIT_BUDGET = '5 kB'
+const KIT_BUDGET = '5.7 kB'
 const FEATURE_BUDGETS = {
   'lf-artifacts': '30 kB',
   'lf-run-inspector': '14 kB',
   'lf-command-bar': '6 kB',
-  'lf-step-tracker': '6 kB',
+  // Measured at 5.08 kB (StepTracker and its labels, one chunk); ADR cap 6 kB.
+  'lf-step-tracker': '5.6 kB',
   'lf-mission-board': '22 kB',
 }
 /** The app shell's default layout (style `app`): its /chat first screen has its own budget. */
