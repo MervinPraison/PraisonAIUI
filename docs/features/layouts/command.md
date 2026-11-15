@@ -115,7 +115,7 @@ Budgets (gzip, `npm run size`, measured plus 10%): `layout-command` 15.2 kB
 The frame uses only part of the kit (not `BasicFrame` or `ShortcutHint`), so
 Rollup splits the kit into chunks by which frames use which pieces (seven
 with all five frames in the build); each frame's closure holds the ones it
-imports. The kit's budget is 7.3 kB.
+imports. The kit's budget is 8.3 kB.
 
 The tests are `app-layouts/command/*.test.ts(x)` (the frame model, the
 render and the data helpers), `layout-features/run-inspector/*.test.ts(x)`

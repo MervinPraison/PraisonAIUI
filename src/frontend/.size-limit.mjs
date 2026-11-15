@@ -50,7 +50,10 @@ const legacyJs = filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks
 // and the mission board shares useSessions with the frames).
 const LAYOUT_BUDGETS = {
   // The Chat + Canvas frame (track CC), measured at 8.34 kB + 10%.
-  'layout-chat-canvas': '9.2 kB',
+  // Design fixes round 2 (the connection dot in the top bar, one-line chat
+  // rows with compact times, Share on the chat only, the brand tile):
+  // 9.74 kB + 10%.
+  'layout-chat-canvas': '10.8 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
   'layout-workbench': '10.4 kB',
@@ -70,7 +73,9 @@ const LAYOUT_BUDGETS = {
   // lf-mission-board.
   'layout-mission': '13.2 kB',
 }
-const KIT_BUDGET = '7.3 kB'
+// Design fixes round 2 (BrandTile with the single-colour glyph, the chat
+// list's search toggle, NavSection's title-row action): 7.51 kB + 10%.
+const KIT_BUDGET = '8.3 kB'
 const FEATURE_BUDGETS = {
   'lf-artifacts': '30 kB',
   // Track K, measured at 8.34 kB and 1.46 kB, + 10%.
@@ -146,7 +151,12 @@ export default [
   // with the chat's lazy children, so Rollup splits two of them (x, pause)
   // into chunks of their own: 140.15 kB and 250.4 kB measured. The chat's
   // own code grew by a few bytes ("Connected" at every width).
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '140.5 kB', gzip: true },
+  // +0.5 kB (140.72 kB measured), design fixes round 2: the inline approval
+  // always shows the exact command before Approve (a safety fix, with the
+  // small presentation/command module), the tool row's risk chip, the
+  // card-merged row, the transport's reconnect() for Retry, and the
+  // connection field on the chat feed.
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141 kB', gzip: true },
   { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '251 kB', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
