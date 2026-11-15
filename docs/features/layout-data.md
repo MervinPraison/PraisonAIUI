@@ -20,10 +20,14 @@ its own feature module and mounts only while a layout that needs it is on offer:
 - `extensions.enabled: [builtin.run-ledger]` mounts a record whatever the layouts are.
 - `extensions.disabled` always wins.
 
-Neither record adds a page yet. An `artifacts` index page (`shell_only`, `layouts: [chat-canvas]`)
-is **(planned)**: it joins `builtin.artifacts` together with the React page that renders it, so the
-shell never lists a page that nothing can draw. Like every `shell_only` page, it will reach the app
-shell manifest only, never `/api/pages` or the dashboard.
+`builtin.artifacts` owns one page, `artifacts` (`shell_only`, `kind: native`,
+`layouts: [chat-canvas]`): every chat's artifacts, newest first, with their versions. The React
+page is `layout-features/artifacts/ArtifactsPage` (chunk `lf-artifacts`), registered lazily by the
+browser built-in `builtin.artifacts` (`src/frontend/src/builtin/artifacts.ts`) only while the
+manifest lists the page. The shell shows it in the nav while Chat and Canvas is the frame, and its
+URL (where Share links land, `/artifacts?session=…&artifact=…&v=…`) renders under any layout. Like
+every `shell_only` page it reaches the app shell manifest only, never `/api/pages` or the
+dashboard. `builtin.run-ledger` adds no page.
 
 Every route is authenticated in all three auth modes, like any other `/api/*` route. None is
 public.

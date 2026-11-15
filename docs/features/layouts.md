@@ -165,6 +165,11 @@ Guided's `start` and `templates` (track G) and Mission's `ops-overview`, which
 replaces `overview` (track M), arrive with the frames that render them
 **(planned)**. Until then the layout records add no page to the manifest.
 
+The one layout page shipped today is `artifacts` (`layouts: [chat-canvas]`),
+owned by the data record `builtin.artifacts` rather than a layout record: the
+index of every chat's artifacts, where the canvas's Share links land. See
+[Layout data](layout-data.md).
+
 ## Data that only some layouts need
 
 A first-party record can declare `for_layouts=("command", "mission")`. It is

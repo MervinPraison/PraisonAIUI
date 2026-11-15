@@ -24,6 +24,9 @@ FIXTURES = Path(__file__).parent / "fixtures"
 SNAPSHOT = json.loads((FIXTURES / "builtin_pages_snapshot.json").read_text(encoding="utf-8"))
 LAYOUT_IDS = ["chat-canvas", "workbench", "command", "guided", "mission"]
 LAYOUT_RECORDS = [f"builtin.layout-{i}" for i in LAYOUT_IDS]
+#: Shell-only pages that name a layout: page id -> (owning record, layouts).
+#: Each arrives with the React page that renders it.
+LAYOUT_PAGES = {"artifacts": ("builtin.artifacts", ["chat-canvas"])}
 
 
 @pytest.fixture(autouse=True)
@@ -66,7 +69,13 @@ def test_layout_records_add_no_page_to_the_app_shell(layout, monkeypatch):
     if layout:
         monkeypatch.setenv("AIUI_LAYOUT", layout)
     with_layouts = _manifest(_client())
-    assert _page_ids(with_layouts) == without
+    # Every other page is as it was; the layout pages each name their layout,
+    # so the shell lists them only while that layout is the frame.
+    assert [p["id"] for p in with_layouts["pages"] if not p.get("layouts")] == without
+    owned = {p["id"]: p for p in with_layouts["pages"] if p.get("layouts")}
+    assert sorted(owned) == sorted(LAYOUT_PAGES)
+    for pid, (record, layouts) in LAYOUT_PAGES.items():
+        assert (owned[pid]["source"], owned[pid]["layouts"], owned[pid]["kind"]) == (record, layouts, "native")
     assert [s["id"] for s in with_layouts["layouts"]["available"]] == LAYOUT_IDS
     order0 = [p["id"] for p in with_layouts["pages"] if p.get("order") == 0]
     assert not {"start", "templates", "ops-overview"} & set(_page_ids(with_layouts)), order0

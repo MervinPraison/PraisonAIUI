@@ -10,6 +10,7 @@ import path from 'node:path'
 import type { ShellManifest } from '@/sdk/manifest'
 import {
   ARTIFACT_KINDS,
+  ARTIFACTS_PAGE,
   artifactsPageListed,
   artifactsServerEnabled,
   codeLanguages,
@@ -77,7 +78,24 @@ test('share links need the artifacts page: listed in the manifest, not just the 
 test('contract: the records own the pages the checks look for (builtin/catalog.py)', () => {
   const py = readFileSync(path.resolve(process.cwd(), '../praisonaiui/builtin/catalog.py'), 'utf8')
   assert.match(py, /BuiltinPlugin\(\s*"code-studio",[\s\S]*?page\(\s*"code-studio",/, 'builtin.code-studio owns the code-studio page')
-  assert.match(py, /BuiltinPlugin\(\s*"artifacts",/, 'the builtin.artifacts record exists')
+  // The record owns the page, so a build with the record on lists /artifacts:
+  // the store syncs and Share has somewhere to land.
+  const record = /BuiltinPlugin\(\s*"artifacts",([\s\S]*?)\n {4}\),\n/.exec(py)?.[1] ?? ''
+  assert.ok(record, 'the builtin.artifacts record exists')
+  const pageSpec = /page\(\s*"artifacts",([\s\S]*?)\n {12}\),/.exec(record)?.[1] ?? ''
+  assert.ok(pageSpec, 'builtin.artifacts owns the artifacts page')
+  assert.match(pageSpec, /kind="native"/, 'rendered by a React page')
+  assert.match(pageSpec, /shell_only=True/, 'never in /api/pages or the dashboard (R6)')
+  assert.match(pageSpec, /layouts=\("chat-canvas",\)/, 'listed while Chat and Canvas is on offer')
+  assert.match(record, /for_layouts=\("chat-canvas",\)/)
+})
+
+test('contract: the browser built-in of that record registers ArtifactsPage for the page', () => {
+  const ts = readFileSync(path.resolve(process.cwd(), 'src/builtin/artifacts.ts'), 'utf8')
+  assert.match(ts, /name: 'builtin\.artifacts'/)
+  assert.match(ts, new RegExp(`ARTIFACTS_PAGE_ID = '${ARTIFACTS_PAGE}'`))
+  assert.match(ts, /import\('@\/layout-features\/artifacts\/ArtifactsPage'\)/, 'lazily, so lf-artifacts stays off the boot path')
+  assert.match(readFileSync(path.resolve(process.cwd(), 'src/builtin/index.ts'), 'utf8'), /\bartifactsBuiltin,/, 'listed in BUILTIN_PLUGINS')
 })
 
 test('index, session, put, delete: URLs, methods, bodies', async () => {
