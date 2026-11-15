@@ -36,6 +36,7 @@ import type { ThreadVariant } from './TurnMeta'
 import { ComposerModel } from './ComposerModel'
 import { useComposerHint } from './composerHint'
 import './composer.css'
+import './viewport.css'
 
 const ApprovalCard = lazy(() => import('./ApprovalCard'))
 const KeyboardGate = lazy(() => import('./KeyboardGate'))

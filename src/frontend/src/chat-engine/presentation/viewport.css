@@ -1,0 +1,12 @@
+/*
+ * The thread's scroll viewport inside a layout (every layout thread carries
+ * data-variant). Content scrolling up under the frame's header fades out over
+ * the top 20px instead of being cut through mid-glyph, and the first message
+ * starts below that fade. Loaded with the presentation host; no colour, so
+ * it is the same in light and dark.
+ */
+[data-variant] [data-aiui-thread] {
+  padding-top: 12px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 20px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 20px);
+}
