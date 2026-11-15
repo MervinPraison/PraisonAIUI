@@ -36,7 +36,7 @@ sets it for the whole server.
   `layout.primary` in YAML replaces the list (at most 7 are shown, and only
   pages the server has);
 - **Search and more** (⌘K), the one command palette;
-- **More (n)**, folded: every other page, so nothing is out of reach;
+- every other page through **Search and more ⌘K** (the palette), so nothing is out of reach and no bare "More (n)" row sits in the sidebar;
 - **Chats**: a search box and your chats, newest first, each with when it
   was last active (Now, 2h, Yesterday, Mon, Jan 5). A chat with a reply in
   progress says *Running*; one with an approval waiting says *Waiting*;

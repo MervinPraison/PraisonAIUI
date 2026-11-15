@@ -153,7 +153,8 @@ test('desktop: sidebar with brand, New chat ⌘N, primary pages, More, Chats; to
   // primary pages in order, with their icons; the current one marked
   for (const id of ['chat', 'agents', 'knowledge', 'runs', 'config']) assert.match(out, new RegExp(`data-aiui-nav-item="${id}"`))
   assert.match(out, /<a href="\/chat" aria-current="page" data-aiui-nav-item="chat"[^>]*>.*?lucide-message-square/)
-  assert.match(out, /<details[^>]*><summary[^>]*>More \(1\)<\/summary>/)
+  // The pages beyond the primary ones are in "Search and more ⌘K" (the palette), not an orphaned "More (n)" row.
+  assert.doesNotMatch(out, /More \(\d+\)/)
   assert.match(out, /<h2[^>]*>Chats<\/h2>/)
   assert.match(out, /aria-current="true" data-aiui-session="sort"/)
   assert.match(out, /role="status" data-aiui-connection="online"/)

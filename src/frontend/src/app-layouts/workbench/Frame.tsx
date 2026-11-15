@@ -4,7 +4,7 @@
  *
  *   desktop / tablet  a 256 px sidebar (brand and collapse ⌘B, New chat ⌘N,
  *                     the layout's primary pages and Search and more ⌘K,
- *                     the rest folded under More, "Chats" with search,
+ *                     (every other page is in the palette), "Chats" with search,
  *                     times and Waiting, the connection line, theme) beside a 56 px top bar (title ·
  *                     agent · model, the `header:actions` slot, Share, More)
  *                     and the routed page
@@ -30,7 +30,6 @@ import {
   ConnectionStatus,
   NavList,
   navRowClass,
-  NavSection,
   PhoneSheet,
   preloadPhoneSheet,
   SessionList,
@@ -58,7 +57,6 @@ function SidebarBody({ nav, chrome, size, chatPage, onNavigate }: SidebarProps) 
   const pending = approvals?.state.pending
   const waiting = useMemo(() => waitingSessionIds(pending ?? []), [pending])
   const touch = size === 'touch'
-  const more = nav.groups.flatMap((g) => g.items)
   const openChat = () => {
     if (nav.activeId !== chatPage) nav.go(chatPage)
     onNavigate?.()
@@ -97,13 +95,6 @@ function SidebarBody({ nav, chrome, size, chatPage, onNavigate }: SidebarProps) 
           {!touch && <ShortcutHint combo="mod+k" />}
         </button>
       </div>
-      {more.length > 0 && (
-        <NavSection title={`More (${more.length})`} folded size={size}>
-          <div className="max-h-64 overflow-y-auto">
-            <NavList items={more} go={nav.go} onNavigate={onNavigate} size={size} aria-label="More pages" />
-          </div>
-        </NavSection>
-      )}
       <SessionList
         title="Chats"
         search

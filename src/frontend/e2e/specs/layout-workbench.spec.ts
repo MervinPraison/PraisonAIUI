@@ -153,9 +153,12 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
       const seen = await (await page.request.get('/__e2e/approval-posts')).json()
       expect(seen.posts).toContain('POST /api/approvals/ap_ok/approve')
 
-      // A non-chat page renders in the same frame; the chat list stays.
-      await nav.getByText(/^More \(\d+\)$/).click()
-      await nav.locator('[data-aiui-nav-item="logs"]').click()
+      // A non-chat page renders in the same frame; the chat list stays. Pages
+      // beyond the primary ones are in "Search and more" (the palette).
+      await expect(nav.getByText(/^More \(\d+\)$/)).toHaveCount(0)
+      await nav.getByRole('button', { name: /Search and more/ }).click()
+      await page.getByRole('combobox', { name: 'Search pages and commands' }).fill('Logs')
+      await page.getByRole('option', { name: /^Logs/ }).first().click()
       await expect(page).toHaveURL(/\/logs(\?|$)/)
       await expect(page.locator('#aiui-main [data-aiui-page="logs"]')).toBeVisible()
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('Logs')
