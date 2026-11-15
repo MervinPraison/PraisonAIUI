@@ -693,22 +693,43 @@ def test_layout_data_records_name_their_layouts_and_features():
     assert [r.load() for r in art.feature_refs] == [ArtifactsFeature]
     assert [r.load() for r in ledger.feature_refs] == [RunLedgerFeature]
     assert not art.required and not ledger.required
-    # No page yet: the shell-only artifacts page comes with the React page
-    # that renders it (track A); until then /artifacts would show raw JSON.
-    assert art.pages() == [] and art.shell_pages() == []
+    # The artifacts index (layout-features/artifacts/ArtifactsPage): shell
+    # only and native, listed while Chat and Canvas is on offer.
+    assert art.pages() == []
+    [index] = art.shell_pages()
+    assert (index.id, index.kind, index.shell_only, index.layouts) == ("artifacts", "native", True, ("chat-canvas",))
     assert ledger.pages() == [] and ledger.shell_pages() == []
 
 
-def test_the_records_add_no_page_to_the_shell_manifest_or_the_page_table():
+def test_the_artifacts_page_is_in_the_shell_manifest_only():
     import praisonaiui.server as srv
 
     srv.reset_state()
     try:
         client = _app_client()
         assert client.get("/api/artifacts").status_code == 200  # mounted under style app
-        sources = {p["source"] for p in client.get("/api/shell/manifest").json()["pages"]}
-        assert not sources & {"builtin.artifacts", "builtin.run-ledger"}
+        pages = client.get("/api/shell/manifest").json()["pages"]
+        assert [p["id"] for p in pages if p["source"] in ("builtin.artifacts", "builtin.run-ledger")] == ["artifacts"]
         assert "artifacts" not in {p["id"] for p in client.get("/api/pages").json()["pages"]}
+        # Share links land on /artifacts: a page navigation gets the shell's HTML.
+        nav = client.get("/artifacts?session=s1&artifact=k", headers={"accept": "text/html"})
+        assert nav.status_code == 200 and nav.headers["content-type"].startswith("text/html")
+    finally:
+        srv.reset_state()
+
+
+def test_the_artifacts_page_leaves_the_shell_with_its_record_or_its_layout():
+    import praisonaiui as aiui
+    import praisonaiui.server as srv
+
+    srv.reset_state()
+    try:
+        off = _app_client(extensions={"disabled": ["builtin.artifacts"]})
+        assert "artifacts" not in {p["id"] for p in off.get("/api/shell/manifest").json()["pages"]}
+        srv.reset_state()
+        aiui.set_layout(available=["workbench"])
+        other = _app_client()
+        assert "artifacts" not in {p["id"] for p in other.get("/api/shell/manifest").json()["pages"]}
     finally:
         srv.reset_state()
 
