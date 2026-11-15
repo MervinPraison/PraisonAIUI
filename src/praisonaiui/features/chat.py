@@ -40,6 +40,41 @@ current_run_id: "contextvars.ContextVar[Optional[str]]" = contextvars.ContextVar
     "aiui_current_run_id", default=None
 )
 
+#: Follow-up prompts ``suggest()`` attached to a run, sent on its ``run_completed``.
+_run_suggestions: Dict[str, List[str]] = {}
+#: At most this many suggestions, each at most this many characters.
+MAX_SUGGESTIONS = 8
+MAX_SUGGESTION_CHARS = 200
+
+
+def suggest(prompts: "List[str] | tuple[str, ...]") -> None:
+    """Offer follow-up prompts for the reply being written (ADR 0003 layouts).
+
+    Call it from your reply handler while a chat run is in progress; the
+    prompts go out on that run's ``run_completed`` frame as ``suggestions``,
+    and a layout that shows follow-up chips (Guided) renders them. A later
+    call replaces the earlier list; ``suggest([])`` clears it. Blank entries
+    are dropped, each prompt is trimmed to 200 characters, at most 8 are kept.
+    Outside a run it does nothing (with a debug log)::
+
+        @aiui.reply
+        async def on_message(message):
+            await aiui.say("Done.")
+            aiui.suggest(["Show me a benchmark", "Explain timsort"])
+    """
+    run_id = current_run_id.get()
+    if not run_id:
+        logger.debug("aiui.suggest() outside a chat run: ignored")
+        return
+    if isinstance(prompts, str):
+        prompts = [prompts]
+    cleaned = [str(p).strip()[:MAX_SUGGESTION_CHARS] for p in prompts or () if isinstance(p, str) and p.strip()]
+    if cleaned:
+        _run_suggestions[run_id] = cleaned[:MAX_SUGGESTIONS]
+    else:
+        _run_suggestions.pop(run_id, None)
+
+
 #: ``fn(session_id, event)``: sees every chat event (see ``add_event_observer``).
 EventObserver = Callable[[str, Dict[str, Any]], None]
 _event_observers: List[EventObserver] = []
@@ -1035,6 +1070,9 @@ async def _run_and_broadcast(
                 payload["content"] = content
                 if content:
                     full_response = content
+                suggestions = _run_suggestions.pop(run_id, None)
+                if suggestions:
+                    payload["suggestions"] = suggestions
             elif event.type == RunEventType.RUN_ERROR:
                 payload["error"] = event.error or "Unknown error"
             elif event.type == RunEventType.TOOL_CALL_STARTED:
@@ -1213,6 +1251,7 @@ async def _run_and_broadcast(
         mgr._active_runs.pop(run_id, None)
         mgr._run_sessions.pop(run_id, None)
         mgr._run_owner.pop(run_id, None)
+        _run_suggestions.pop(run_id, None)
         current_run_id.reset(run_token)
         if _event_observers:
             status = "cancelled" if cancelled else ("failed" if run_error is not None else "completed")

@@ -173,6 +173,26 @@ mounted only while one of those layouts is offered, or while
 lists it as `disabled` with the reason `no layout needs it`, its routes answer
 404 and its feature module is never imported.
 
+## Follow-up suggestions
+
+A reply handler can offer follow-up prompts for the answer it is writing.
+They go out on the run's `run_completed` frame as `suggestions` (an optional
+field; clients that do not know it ignore it), and a layout that shows
+follow-up chips renders them **(planned: the Guided frame, track G)**:
+
+```python
+import praisonaiui as aiui
+
+@aiui.reply
+async def on_message(message):
+    await aiui.say("Here is the comparison.")
+    aiui.suggest(["Show me a benchmark", "Explain timsort"])
+```
+
+A later call replaces the list and `aiui.suggest([])` clears it. Blank
+entries are dropped, each prompt is cut to 200 characters and at most 8 are
+kept. Outside a chat run the call does nothing.
+
 ## Plugin layouts
 
 A plugin adds a layout with the same SDK call the built-ins use,

@@ -161,6 +161,7 @@ def __getattr__(name: str):
         "on_shared_view",
     }
     _usage_attrs = {"get_token_usage"}
+    _chat_attrs = {"suggest"}
     _layouts_attrs = {"set_layout"}
     _plugin_registry_attrs = {
         "register_plugin",
@@ -361,6 +362,10 @@ def __getattr__(name: str):
         from praisonaiui.features import usage
 
         return getattr(usage, name)
+    if name in _chat_attrs:
+        from praisonaiui.features import chat
+
+        return getattr(chat, name)
     if name in _plugin_registry_attrs:
         from praisonaiui import plugin_registry
 
@@ -631,6 +636,7 @@ __all__ = [
     "get_plugin_settings",
     # Selectable app shell layouts (ADR 0003)
     "set_layout",
+    "suggest",
     "LayoutSpec",
     # ── PraisonAIUI-native, non-developer-friendly names ────────────
     # Shorter, plain-English aliases for the symbols above.  Use these
