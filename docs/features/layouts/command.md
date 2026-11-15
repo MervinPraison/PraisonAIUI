@@ -108,6 +108,15 @@ No other layout's code is downloaded. The features never import the kit:
 the frame passes them its typing check and platform. A feature that
 imported the kit would split the kit into one more chunk for every layout.
 
+Budgets (gzip, `npm run size`, measured plus 10%): `layout-command` 13.1 kB
+(its closure minus boot, with the kit pieces it imports; ADR cap 24 kB),
+`lf-run-inspector` 9.2 kB (cap 14 kB), `lf-command-bar` 1.6 kB (cap 6 kB).
+
+The frame uses only part of the kit (not `BasicFrame` or `ShortcutHint`), so
+Rollup emits the kit as two eager chunks: the pieces every layout uses, and
+the pieces only the stub frames use (plus the lazy sheet). That costs each
+stub frame about 60 B of gzip for the second file.
+
 The tests are `app-layouts/command/*.test.ts(x)` (the frame model, the
 render and the data helpers), `layout-features/run-inspector/*.test.ts(x)`
 (steps, files, formats, the panel and the peek),

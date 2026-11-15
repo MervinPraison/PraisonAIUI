@@ -42,15 +42,18 @@ const legacyJs = filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks
 const LAYOUT_BUDGETS = {
   'layout-chat-canvas': '4.6 kB',
   'layout-workbench': '4.6 kB',
-  'layout-command': '4.6 kB',
+  // The Command Deck frame (track K): rail, session tabs, status bar, phone
+  // frame and shortcut sheet, plus the kit pieces it imports. 11.84 kB + 10%.
+  'layout-command': '13.1 kB',
   'layout-guided': '4.6 kB',
   'layout-mission': '4.6 kB',
 }
 const KIT_BUDGET = '5 kB'
 const FEATURE_BUDGETS = {
   'lf-artifacts': '30 kB',
-  'lf-run-inspector': '14 kB',
-  'lf-command-bar': '6 kB',
+  // Track K, measured at 8.34 kB and 1.46 kB, + 10%.
+  'lf-run-inspector': '9.2 kB',
+  'lf-command-bar': '1.6 kB',
   'lf-step-tracker': '6 kB',
   'lf-mission-board': '22 kB',
 }
