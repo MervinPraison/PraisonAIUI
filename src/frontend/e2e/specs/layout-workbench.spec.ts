@@ -133,7 +133,9 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
       // The sorting conversation: listed and titled in the frame.
       const QUESTION = question(mode)
       await send(page, QUESTION)
-      const row = nav.locator('[data-aiui-session]', { hasText: QUESTION })
+      // The server may capitalise the title it derives. A retry sends the same
+      // question to the same server, so the newest row (listed first) is this run's.
+      const row = nav.locator('[data-aiui-session]', { hasText: new RegExp(QUESTION, 'i') }).first()
       await expect(row).toHaveAttribute('aria-current', 'true')
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(titled(QUESTION))
       await expect(page.locator('[data-aiui-chat-meta]')).toContainText('Mock')
@@ -155,8 +157,13 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
       // and the risk is a chip in the row header next to "Needs approval".
       // The gated web_search: what it will search for, word for word.
       await expect(reply.locator('[data-gate-command]')).toHaveText(new RegExp(`^Query:${QUESTION}$`))
-      const [cmd, btn] = [await reply.locator('[data-gate-command]').boundingBox(), await approve.boundingBox()]
-      expect(cmd && btn && cmd.y <= btn.y, 'the command is not below the buttons').toBe(true)
+      // Measured once the reply has settled (the code block collapses after it renders).
+      await expect
+        .poll(async () => {
+          const [cmd, btn] = [await reply.locator('[data-gate-command]').boundingBox(), await approve.boundingBox()]
+          return !!(cmd && btn && cmd.y <= btn.y)
+        }, { message: 'the command is not below the buttons' })
+        .toBe(true)
       await expect(reply.locator('[data-tool] > button [data-tool-risk]')).toHaveText('high risk')
       expect(await fontSize(reply.locator('p').first())).toBeGreaterThanOrEqual(14)
       await attachShot(page, `workbench-desktop-chat-${mode}`)
