@@ -13,7 +13,10 @@ import { LogViewerBlock } from './blocks/LogViewerBlock'
 import { CodeView, Editor, FileTree } from './Editor'
 import { Gallery } from './Gallery'
 import { ListDetail, ListPagination } from './ListDetail'
-import { Facts } from './parts'
+import { Facts, TemplateSearch } from './parts'
+import { createElement } from 'react'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { LogViewer } from './LogViewer'
 
 /** Markup without React's text separators, so assertions read like the page. */
@@ -305,4 +308,14 @@ test('the core block set renders the template types (lazily)', async () => {
     assert.ok(CORE_BLOCK_TYPES.includes(type), `${type} is a core block`)
     assert.equal(typeof getCoreBlock(type), 'function', `${type} has a renderer`)
   }
+})
+
+test('TemplateSearch: a "/" shortcut is a key chip at the end of the box, not typed-looking placeholder text', () => {
+  const html = renderMarkup(createElement(TemplateSearch, { label: 'Search sessions', value: '', onChange: () => {}, shortcut: '/' }))
+  assert.match(html, /data-shortcut=""/)
+  assert.match(html, /placeholder="Search sessions"/)
+  assert.match(html, /aria-keyshortcuts="\/"/)
+  assert.match(html, /<kbd[^>]*data-slot="kbd"[^>]*>\/<\/kbd>/)
+  const css = readFileSync(path.join(process.cwd(), 'src/components/page/page.css'), 'utf8')
+  assert.match(css, /\.aiui-tpl-search:focus-within > kbd,\s*\.aiui-tpl-search:has\(> input:not\(:placeholder-shown\)\) > kbd \{\s*display: none;/)
 })

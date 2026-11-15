@@ -144,7 +144,7 @@ function SettingsPage(_: AppPageProps) {
                 </BreadcrumbList>
               </Breadcrumb>
               <div ref={searchRef} className="w-full sm:w-64">
-                <TemplateSearch label="Search settings" value={query} onChange={setQuery} placeholder="Search settings  /" />
+                <TemplateSearch label="Search settings" value={query} onChange={setQuery} placeholder="Search settings" shortcut="/" />
               </div>
             </div>
             {visible.length === 0 && <p className="m-0 text-sm text-muted-foreground">No setting matches “{query}”.</p>}

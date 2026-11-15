@@ -61,6 +61,20 @@
 .aiui-tpl-search > input {
   padding-inline-start: 30px;
 }
+.aiui-tpl-search[data-shortcut] > input {
+  padding-inline-end: 32px;
+}
+.aiui-tpl-search > kbd {
+  position: absolute;
+  inset-inline-end: 8px;
+  top: 50%;
+  translate: 0 -50%;
+}
+/* The key chip is a hint for an empty box: it steps aside once the box has focus or text. */
+.aiui-tpl-search:focus-within > kbd,
+.aiui-tpl-search:has(> input:not(:placeholder-shown)) > kbd {
+  display: none;
+}
 .aiui-tpl-search > svg {
   position: absolute;
   inset-inline-start: 10px;

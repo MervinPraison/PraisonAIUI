@@ -6,6 +6,7 @@
 import type { ReactNode } from 'react'
 import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Kbd } from '@/components/ui/kbd'
 import './page.css'
 
 const GLYPHS = {
@@ -37,17 +38,21 @@ export function TemplateSearch({
   value,
   onChange,
   placeholder,
+  shortcut,
 }: {
   label: string
   value: string
   onChange: (value: string) => void
   placeholder?: string
+  /** The key that focuses the box ("/"), drawn as a key chip at its end while it is empty and not focused. */
+  shortcut?: string
 }) {
   return (
-    <label className="aiui-tpl-search">
+    <label className="aiui-tpl-search" data-shortcut={shortcut ? '' : undefined}>
       <span className="aiui-tpl-sr">{label}</span>
       <Search aria-hidden />
-      <Input type="search" value={value} placeholder={placeholder ?? label} onChange={(e) => onChange(e.target.value)} />
+      <Input type="search" value={value} placeholder={placeholder ?? label} onChange={(e) => onChange(e.target.value)} aria-keyshortcuts={shortcut} />
+      {shortcut && <Kbd aria-hidden>{shortcut}</Kbd>}
     </label>
   )
 }

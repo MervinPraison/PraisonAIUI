@@ -214,7 +214,7 @@ function SessionsPage(_: AppPageProps) {
   const toolbar = (
     <>
       <div ref={searchRef} className="min-w-[12rem] flex-1 sm:max-w-xs">
-        <TemplateSearch label="Search sessions" value={query} onChange={setQuery} placeholder="Search sessions  /" />
+        <TemplateSearch label="Search sessions" value={query} onChange={setQuery} placeholder="Search sessions" shortcut="/" />
       </div>
       <div role="group" aria-label="Status" className="flex items-center gap-1">
         {STATUS_CHIPS.map((c) => (
