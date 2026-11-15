@@ -21,6 +21,7 @@ import { gateMermaidSource, isAutoLoadImage, isExternalHref } from './urlPolicy'
 import { continueSplitLists } from './listNumbering'
 import { fenced } from './fence'
 import { CHAT_CONTROLS, COPY_FAILED, DOCS_CONTROLS, reportCopyError } from './controls'
+import { hastTextLength } from './chatComponents'
 
 const chat = (md: string, streaming = false) => renderToStaticMarkup(<Markdown variant="chat" streaming={streaming}>{md}</Markdown>)
 const docs = (md: string) => renderToStaticMarkup(<Markdown variant="docs">{preprocessMkdocsMarkdown(md)}</Markdown>)
@@ -723,4 +724,17 @@ test('chat: a short fence is not collapsed but still offers wrap; inline code an
     assert.match(html, /data-streamdown="inline-code"/)
     const d = docs('```python\n' + Array.from({ length: 20 }, () => 'x').join('\n') + '\n```')
     assert.doesNotMatch(d, /aiui-code/)
+})
+
+test('chat tables mark short cells data-short (one line in a layout chat); a long prose cell may wrap', () => {
+  const md = '| Algorithm | Average | Note |\n|---|---|---|\n| Quicksort | O(n log n) | ' + 'fast in practice but quadratic on sorted input' + ' |\n'
+  const html = renderToStaticMarkup(<Markdown variant="chat">{md}</Markdown>)
+  assert.match(html, /<th[^>]*data-short="true"[^>]*>Algorithm/)
+  assert.match(html, /<td[^>]*data-short="true"[^>]*>O\(n log n\)/)
+  assert.match(html, /<td(?![^>]*data-short)[^>]*>fast in practice/)
+})
+
+test('hastTextLength counts the trimmed text of nested nodes', () => {
+  assert.equal(hastTextLength({ type: 'element', children: [{ type: 'text', value: ' O(n ' }, { type: 'element', children: [{ type: 'text', value: 'log n)' }] }] }), 9)
+  assert.equal(hastTextLength(undefined), 0)
 })

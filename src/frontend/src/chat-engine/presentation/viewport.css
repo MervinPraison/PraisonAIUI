@@ -23,3 +23,37 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* Tables in a layout chat: a short cell ("O(n log n)", markdown/chatComponents
+   marks it data-short) stays on one line, so on a phone the table scrolls
+   sideways instead of squeezing columns until values break. While it can
+   scroll further right, its right edge fades (a scroll-driven animation;
+   without support the table still scrolls, just without the cue). */
+[data-variant] .aiui-markdown-chat :is(td, th)[data-short] {
+  white-space: nowrap;
+}
+
+@property --aiui-table-fade {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes aiui-table-fade {
+  from,
+  92% {
+    --aiui-table-fade: 32px;
+  }
+  to {
+    --aiui-table-fade: 0px;
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  [data-variant] .aiui-markdown-chat [data-streamdown='table-wrapper'] > .border-collapse {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--aiui-table-fade)), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - var(--aiui-table-fade)), transparent);
+    animation: aiui-table-fade linear both;
+    animation-timeline: scroll(self inline);
+  }
+}

@@ -25,3 +25,10 @@ test('composer.css: muted disabled Send, the key hint only while focused and emp
     if (rule.trim()) assert.match(rule, /\[data-variant\]|\[data-composer-model\]|@media/, 'every rule is layout-scoped')
   }
 })
+
+test('viewport.css: short table cells keep to one line and the table fades at its right edge while it scrolls', () => {
+  const css = read('viewport.css')
+  assert.match(css, /\[data-variant\] \.aiui-markdown-chat :is\(td, th\)\[data-short\] \{\s*white-space: nowrap;/)
+  assert.match(css, /animation-timeline: scroll\(self inline\)/)
+  assert.match(css, /@property --aiui-table-fade/)
+})

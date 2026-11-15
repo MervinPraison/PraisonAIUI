@@ -139,3 +139,26 @@ export const ChatH1 = chatHeading(1, 'mt-5 mb-2 text-xl font-semibold tracking-t
 export const ChatH2 = chatHeading(2, 'mt-5 mb-2 text-lg font-semibold tracking-tight')
 export const ChatH3 = chatHeading(3, 'mt-4 mb-1.5 text-base font-semibold')
 export const ChatH4 = chatHeading(4, 'mt-4 mb-1.5 text-base font-semibold')
+
+/** A table cell whose text is at most this long keeps to one line (layout chats, see markdown.css). */
+export const SHORT_CELL = 24
+
+type HastLike = { type?: string; value?: unknown; children?: HastLike[] }
+
+/** The text length of a hast node (cells are small: a direct walk). */
+export function hastTextLength(node: HastLike | undefined): number {
+    if (!node) return 0
+    if (node.type === 'text') return typeof node.value === 'string' ? node.value.trim().length : 0
+    return (node.children ?? []).reduce((n, c) => n + hastTextLength(c), 0)
+}
+
+const DefaultTd = defaultComponents.td
+const DefaultTh = defaultComponents.th
+
+/** Cells marked `data-short` so a phone keeps "O(n log n)" on one line and scrolls the table instead. */
+export function ChatTd(props: Props<'td'>) {
+    return <DefaultTd {...props} data-short={hastTextLength(props.node as HastLike) <= SHORT_CELL || undefined} />
+}
+export function ChatTh(props: Props<'th'>) {
+    return <DefaultTh {...props} data-short={hastTextLength(props.node as HastLike) <= SHORT_CELL || undefined} />
+}
