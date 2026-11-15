@@ -18,9 +18,16 @@ from praisonaiui.themes import (
     NEUTRAL_TINTS,
     PRESET_ACCENT_LIGHT,
     PRESET_NAMES,
+    PRO_ACCENT_KEYS,
+    PRO_ACCENT_ROLES,
+    PRO_ACCENTS,
+    PRO_DEFAULT_ACCENT,
+    PRO_NEUTRALS,
+    get_pro_seed_css,
     get_seed_theme_css,
     inject_theme_css,
     preset_accents,
+    pro_accent,
 )
 
 THEMES_TS = Path("src/frontend/src/themes.ts")
@@ -195,3 +202,295 @@ class TestLegacyHslValidator:
     def test_validate_config_clean_css_has_no_warning(self):
         config = Config(site=SiteConfig(title="T", custom_css=":root { --seed-accent: #2563eb; }"))
         assert validate_config(config).warnings == []
+
+
+# ── PraisonAI Pro token system (ADR 0003 F4) ─────────────────────────────
+
+PRO_CSS = Path("src/frontend/src/styles/pro.css")
+INDEX_CSS = Path("src/frontend/src/index.css")
+PRO_SCOPE = 'html[data-aiui-shell="react"][data-aiui-tokens="pro"]'
+
+
+def _pro_rules() -> list[tuple[str, str]]:
+    """(selector, body) for every rule inside pro.css's @layer base."""
+    css = re.sub(r"/\*.*?\*/", "", PRO_CSS.read_text(encoding="utf-8"), flags=re.S)
+    inner = css[css.index("@layer base") :]
+    inner = inner[inner.index("{") + 1 : inner.rindex("}")]
+    return [(s.strip(), b) for s, b in re.findall(r"([^{}]+)\{([^{}]*)\}", inner)]
+
+
+def _pro_decls(body: str) -> dict[str, str]:
+    return {k: " ".join(v.split()) for k, v in re.findall(r"(--[a-z0-9-]+):\s*([^;]+);", body)}
+
+
+def _pro_palette(mode: str) -> dict[str, str]:
+    """The P0 `--pro-*` palette of one mode, read from pro.css."""
+    body = _pro_rules()[0 if mode == "light" else 1][1]
+    palette = {k[len("--pro-") :]: v for k, v in _pro_decls(body).items() if k.startswith("--pro-")}
+    return {k: v for k, v in palette.items() if k not in PRO_ACCENT_ROLES}
+
+
+class TestProTables:
+    """pro.css, themes.ts and themes.py hold one Pro palette."""
+
+    @pytest.mark.parametrize("mode", ["light", "dark"])
+    def test_pro_css_palette_matches_python(self, mode):
+        assert _pro_palette(mode) == PRO_NEUTRALS[mode]
+
+    def test_pro_css_default_accent_seeds_are_the_default_swatch(self):
+        d = _pro_decls(_pro_rules()[0][1])
+        for mode in ("light", "dark"):
+            for role in PRO_ACCENT_ROLES:
+                assert d[f"--seed-pro-{role}-{mode}"] == PRO_ACCENTS[PRO_DEFAULT_ACCENT][mode][role]
+
+    def test_themes_ts_neutrals_match_python(self):
+        src = THEMES_TS.read_text(encoding="utf-8")
+        body = src[src.index("export const PRO_NEUTRALS") :]
+        body = body[: body.index("\n}\n")]
+        light, dark = body.split("    dark: {")
+        pairs = r"'([a-z-]+)': '([^']+)'"
+        assert dict(re.findall(pairs, light)) == PRO_NEUTRALS["light"]
+        assert dict(re.findall(pairs, dark)) == PRO_NEUTRALS["dark"]
+
+    def test_themes_ts_accents_match_python(self):
+        src = THEMES_TS.read_text(encoding="utf-8")
+        body = src[src.index("export const PRO_ACCENTS") :]
+        body = body[: body.index("\n}\n")]
+        pairs = r"'([a-z-]+)': '([^']+)'"
+        ts = {
+            name: {"light": dict(re.findall(pairs, light)), "dark": dict(re.findall(pairs, dark))}
+            for name, light, dark in re.findall(
+                r"(\w+): \{\s*light: \{([^}]*)\},\s*dark: \{([^}]*)\},", body
+            )
+        }
+        assert ts == PRO_ACCENTS
+        assert f"PRO_DEFAULT_ACCENT: ProAccentName = '{PRO_DEFAULT_ACCENT}'" in src
+        roles = "', '".join(PRO_ACCENT_ROLES)
+        assert f"export const PRO_ACCENT_ROLES = ['{roles}'] as const" in src
+
+    def test_swatch_keys_are_the_design_accent_options(self):
+        # ProChat.dc.html data-props: accent options
+        assert list(PRO_ACCENT_KEYS) == ["#4f46e5", "#2563eb", "#0f766e", "#18181b"]
+
+
+class TestProScope:
+    """pro.css can only paint a document that switched the Pro system on."""
+
+    def test_every_rule_is_scoped_to_the_pro_app_shell(self):
+        rules = _pro_rules()
+        assert len(rules) >= 4
+        for selector, _ in rules:
+            for part in selector.split(","):
+                assert part.strip().startswith(PRO_SCOPE), part
+
+    def test_everything_is_inside_layer_base(self):
+        css = re.sub(r"/\*.*?\*/", "", PRO_CSS.read_text(encoding="utf-8"), flags=re.S).strip()
+        assert css.startswith("@layer base {") and css.endswith("}")
+        assert css.count("@layer") == 1
+
+    def test_not_loaded_by_index_css_and_classic_layer_untouched(self):
+        assert "pro.css" not in INDEX_CSS.read_text(encoding="utf-8")
+        theme = THEME_CSS.read_text(encoding="utf-8")
+        assert "data-aiui-tokens" not in theme
+        assert "--pro-" not in theme and "--seed-pro-" not in theme
+
+    def test_seed_defaults_are_declared_on_html_only(self):
+        # A descendant that re-declared the layered --seed-pro-* defaults would
+        # hide the server's unlayered :root seeds (set_brand_color) below it.
+        seeded = [
+            selector
+            for selector, body in _pro_rules()
+            if any(name.startswith("--seed-pro-") for name in _pro_decls(body))
+        ]
+        assert seeded
+        for selector in seeded:
+            assert [part.strip() for part in selector.split(",")] == [PRO_SCOPE]
+
+    def test_palette_lives_on_html_and_dark_subtrees_like_classic_seeds(self):
+        allowed = {PRO_SCOPE, f"{PRO_SCOPE}.dark", f"{PRO_SCOPE} .dark"}
+        for selector, body in _pro_rules():
+            if any(name.startswith("--pro-") for name in _pro_decls(body)):
+                assert {part.strip() for part in selector.split(",")} <= allowed, selector
+
+    def test_mapping_recomputes_in_scopes_and_dark_subtrees(self):
+        selector, body = _pro_rules()[2]
+        parts = {part.strip() for part in selector.split(",")}
+        assert parts == {PRO_SCOPE, f"{PRO_SCOPE} [data-aiui-scope]", f"{PRO_SCOPE} .dark"}
+        assert "--primary" in _pro_decls(body)
+
+    def test_wiring_is_stated_as_planned_until_something_imports_pro_css(self):
+        # R16: the header and setTokenSystem must not describe the F3 wiring
+        # as done while no module imports pro.css.
+        imports = re.compile(r"""import\s+['"][^'"]*styles/pro\.css['"]""")
+        importers = [
+            p
+            for p in Path("src/frontend/src").rglob("*.ts*")
+            if imports.search(p.read_text(encoding="utf-8"))
+        ]
+        if importers:
+            pytest.skip(f"pro.css is imported by {importers[0]}")
+        header = PRO_CSS.read_text(encoding="utf-8").split("*/", 1)[0]
+        assert "(planned" in header and "imported by the shell chunk" not in header
+        ts = THEMES_TS.read_text(encoding="utf-8")
+        doc = ts[: ts.index("export function setTokenSystem")].rsplit("/**", 1)[1]
+        assert "(planned" in doc and "The shell calls this" not in doc
+
+    def test_accent_roles_read_runtime_seed_then_mode_seed(self):
+        rules = _pro_rules()
+        mapping = _pro_decls(rules[2][1])
+        assert mapping["--primary"] == "var(--seed-pro-accent, var(--pro-accent))"
+        assert mapping["--primary-foreground"] == "var(--seed-pro-accent-fg, var(--pro-accent-fg))"
+        assert mapping["--ui-accent-soft"] == "var(--seed-pro-soft, var(--pro-soft))"
+        assert mapping["--ui-link"] == "var(--seed-pro-link, var(--pro-link))"
+        assert mapping["--ring"] == "var(--seed-pro-ring, var(--pro-ring))"
+        light, dark = _pro_decls(rules[0][1]), _pro_decls(rules[1][1])
+        for role in PRO_ACCENT_ROLES:
+            assert light[f"--pro-{role}"] == f"var(--seed-pro-{role}-light)"
+            assert dark[f"--pro-{role}"] == f"var(--seed-pro-{role}-dark)"
+
+    def test_fonts_are_geist(self):
+        mapping = _pro_decls(_pro_rules()[2][1])
+        assert mapping["--aiui-font-sans"].startswith('"Geist", ui-sans-serif')
+        assert mapping["--aiui-font-mono"].startswith('"Geist Mono", ui-monospace')
+
+
+class TestProSeedCss:
+    @pytest.mark.parametrize(
+        "preset,accent",
+        [
+            (None, None),
+            ("zinc", None),
+            ("indigo", None),
+            ("slate", None),
+            ("ocean", None),
+            ("zinc", PRESET_COLORS["zinc"]["accent"]),
+            ("indigo", PRESET_COLORS["indigo"]["accent"]),
+            ("zinc", "#4F46E5"),
+        ],
+    )
+    def test_default_emits_nothing(self, preset, accent):
+        assert get_pro_seed_css(preset, accent) == ""
+
+    @pytest.mark.parametrize("preset", ["blue", "teal"])
+    def test_presets_with_a_swatch(self, preset):
+        d = _decls(get_pro_seed_css(preset))
+        assert len(d) == 2 * len(PRO_ACCENT_ROLES)
+        for mode in ("light", "dark"):
+            for role in PRO_ACCENT_ROLES:
+                assert d[f"--seed-pro-{role}-{mode}"] == PRO_ACCENTS[preset][mode][role]
+
+    @pytest.mark.parametrize("key,swatch", sorted(PRO_ACCENT_KEYS.items()))
+    def test_accent_key_hex_selects_its_swatch(self, key, swatch):
+        assert pro_accent("zinc", key.upper()) is PRO_ACCENTS[swatch]
+
+    def test_graphite_through_brand_colour(self):
+        assert _decls(get_pro_seed_css("zinc", "#18181b"))["--seed-pro-ring-light"] == "#52525b"
+
+    def test_other_colour_presets_derive_from_their_600_500_pair(self):
+        d = _decls(get_pro_seed_css("rose"))
+        assert d["--seed-pro-accent-light"] == PRESET_ACCENT_LIGHT["rose"]
+        assert d["--seed-pro-accent-dark"] == PRESET_COLORS["rose"]["accent"]
+        assert d["--seed-pro-soft-light"] == PRESET_ACCENT_LIGHT["rose"] + "14"
+        assert d["--seed-pro-soft-dark"] == PRESET_COLORS["rose"]["accent"] + "29"
+
+    def test_custom_short_hex_is_expanded(self):
+        assert _decls(get_pro_seed_css("zinc", "#f60"))["--seed-pro-accent-light"] == "#ff6600"
+
+    def test_functional_accent_uses_css_expressions(self):
+        d = _decls(get_pro_seed_css("zinc", "oklch(0.6 0.2 250)"))
+        assert d["--seed-pro-accent-light"] == "oklch(0.6 0.2 250)"
+        assert d["--seed-pro-soft-light"].startswith("color-mix(")
+
+    @pytest.mark.parametrize("bad", ["red;}body{color:red", "url(x)", "</style><script>", "#12"])
+    def test_invalid_accent_is_ignored(self, bad, caplog):
+        assert get_pro_seed_css("blue", accent=bad) == get_pro_seed_css("blue")
+        assert "invalid theme accent" in caplog.text
+
+    @pytest.mark.parametrize("preset", sorted(PRESET_NAMES))
+    def test_only_pro_seeds_are_emitted(self, preset):
+        css = get_pro_seed_css(preset, "#0077b6")
+        assert set(_decls(css)) == {
+            f"--seed-pro-{role}-{mode}" for mode in ("light", "dark") for role in PRO_ACCENT_ROLES
+        }
+        assert "</" not in css and ".dark" not in css and "--primary" not in css
+
+
+class TestProServerTag:
+    """style app: the configured accent reaches Pro through its own seed tag."""
+
+    PRO_TAG = re.compile(r'<style id="aiui-server-pro-theme">(.*?)</style>', re.S)
+
+    @pytest.fixture(autouse=True)
+    def _server(self, tmp_path, monkeypatch):
+        import praisonaiui.config_store as config_store
+        import praisonaiui.server as srv
+
+        monkeypatch.setenv("AIUI_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr(config_store, "_config_store", None)
+        config_store.init_config_store(tmp_path / "config.yaml")
+        srv.reset_state()
+        yield srv
+        srv.reset_state()
+
+    def test_default_app_has_no_pro_tag(self, _server):
+        _server.set_style("app")
+        assert "aiui-server-pro-theme" not in _server._build_html("app")
+
+    def test_preset_with_a_swatch(self, _server):
+        _server.set_style("app")
+        _server.set_theme(preset="blue")
+        tag = self.PRO_TAG.search(_server._build_html("app")).group(1)
+        assert tag == get_pro_seed_css("blue")
+        assert _decls(tag)["--seed-pro-link-light"] == PRO_ACCENTS["blue"]["light"]["link"]
+
+    def test_brand_colour_key_selects_teal(self, _server):
+        _server.set_style("app")
+        _server.set_brand_color("#0f766e")
+        tag = self.PRO_TAG.search(_server._build_html("app")).group(1)
+        assert _decls(tag)["--seed-pro-accent-dark"] == PRO_ACCENTS["teal"]["dark"]["accent"]
+        # the classic seed tag still carries the brand colour for the classic frame
+        assert "--seed-accent: #0f766e;" in _server._build_html("app")
+
+    def test_dashboard_style_never_gets_pro_seeds(self, _server):
+        _server.set_theme(preset="blue")
+        _server.set_brand_color("#ff0000")
+        assert "--seed-pro-" not in _server._build_html("dashboard")
+
+
+class TestDesignDocBundle:
+    """DESIGN.md is a Tailwind class source (R13).
+
+    Tailwind compiles every utility it finds in the file, and every `@theme`
+    variable named as `--name`, into assets/index.css, which the dashboard
+    links too. So the doc may only name what the committed bundle already
+    ships; anything else changes the bundle with no source change in sight.
+    This approximates Tailwind's scanner; `npm run check:bundle` is exact.
+    """
+
+    DESIGN_MD = Path("src/frontend/DESIGN.md")
+    BUNDLE_CSS = Path("src/praisonaiui/templates/frontend/assets/index.css")
+    UTILITY = re.compile(
+        r"`((?:bg|text|shadow|font|rounded|border|ring|fill|stroke)-[a-z0-9]+(?:-[a-z0-9]+)*)`"
+    )
+
+    def _theme_vars(self) -> set[str]:
+        theme = THEME_CSS.read_text(encoding="utf-8")
+        names: set[str] = set()
+        for block in re.findall(r"@theme[^{]*\{(.*?)\n\}", theme, re.S):
+            names |= set(re.findall(r"(--[a-z0-9-]+)\s*:", block))
+        return names
+
+    def test_named_utilities_are_in_the_bundle(self):
+        bundle = self.BUNDLE_CSS.read_text(encoding="utf-8")
+        named = set(self.UTILITY.findall(self.DESIGN_MD.read_text(encoding="utf-8")))
+        assert {"text-tier-2", "bg-accent-soft", "shadow-sm"} <= named  # the scan works
+        missing = sorted(u for u in named if not re.search(rf"\.{re.escape(u)}[{{:,\s]", bundle))
+        assert missing == []
+
+    def test_named_theme_variables_are_in_the_bundle(self):
+        bundle = self.BUNDLE_CSS.read_text(encoding="utf-8")
+        theme_vars = self._theme_vars()
+        assert "--color-background" in theme_vars  # the parse works
+        doc = self.DESIGN_MD.read_text(encoding="utf-8")
+        named = set(re.findall(r"(?<![\w-])(--[a-z][a-z0-9-]*[a-z0-9])", doc)) & theme_vars
+        assert sorted(v for v in named if f"{v}:" not in bundle) == []
