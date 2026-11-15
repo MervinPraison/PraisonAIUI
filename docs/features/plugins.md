@@ -95,10 +95,11 @@ Every member except `name` is optional:
 | `settings()` | `SettingsSectionSpec` or dicts | Sections of the shell's settings dialog ([below](#settings-nav-groups-and-theme-presets)) |
 | `nav_groups()` | `NavGroupSpec` or dicts | The sidebar groups your pages use, with their position |
 | `themes()` | `ThemeSpec` or dicts | Theme presets made of seed tokens |
+| `layouts()` | `LayoutSpec` or dicts | App shell frames (ADR 0003) the viewer can pick ([below](#layouts)) |
 
 `PageSpec`, `BlockSpec`, `ToolRendererSpec`, `SettingsSectionSpec`,
-`SettingsField`, `NavGroupSpec`, `ThemeSpec` and `get_plugin_settings` are
-importable from `praisonaiui` (or `praisonaiui.plugin_registry`). Dicts with
+`SettingsField`, `NavGroupSpec`, `ThemeSpec`, `LayoutSpec` and
+`get_plugin_settings` are importable from `praisonaiui` (or `praisonaiui.plugin_registry`). Dicts with
 the same field names work too.
 
 ### Page kinds
@@ -448,20 +449,37 @@ saved in this browser, only when the server allows a user choice), the server
 default, the classic frame. A layout the server does not offer is never
 chosen.
 
-**Declare it in Python** **(planned, ADR 0003 F2)**: a `layouts()` hook
-returns the layout's id, title and module, like `pages()`. A relative
-`module` resolves into `static_dir()`:
+**Declare it in Python** with a `layouts()` hook, which returns
+`LayoutSpec`s (or dicts with the same field names), like `pages()`:
 
 ```python
+from praisonaiui import LayoutSpec
+
 class AuroraPlugin:
     name = "layoutfx"
 
     def layouts(self):
-        return [{"id": "aurora", "title": "Aurora", "module": "aurora.js", "order": 90}]
+        return [LayoutSpec(id="aurora", title="Aurora", module="aurora.js", order=90)]
 
     def static_dir(self):
         return Path(__file__).parent / "static"  # /_plugins/layoutfx/aurora.js
 ```
+
+| `LayoutSpec` field | Meaning |
+|---|---|
+| `id` | Lower-case letters, digits and `-`, starting with a letter, at most 40 characters; `classic` is reserved |
+| `title`, `description` | Shown in the picker (palette and Settings → Appearance) |
+| `order` | Picker position (default `100`; the built-ins use 10 to 50) |
+| `module` | **Required** for a plugin layout: the ESM file that registers the frame. A relative path resolves into `static_dir()` (`/_plugins/<name>/<file>`) and gets an SRI `integrity` hash |
+| `css` | Optional stylesheet, resolved the same way, added when the layout first loads |
+| `home` | The page `/` opens while this layout is on screen |
+| `primary` | Page ids of the primary nav, in order (at most 7 shown; YAML `layout.primary` wins) |
+
+The first plugin (or built-in) to declare an id keeps it; a later one is
+ignored with a warning, as is a malformed or `classic` id. On a remote or
+auth-enforced server an entry-point plugin's layouts follow the same
+default-deny rule as its pages. Configuration (which layouts are offered,
+the default) is in [Layouts → Plugin layouts](./layouts.md#plugin-layouts).
 
 **Register the frame in the browser.** The shell imports the module only
 when the layout is first rendered, never with the other plugin modules, so an
