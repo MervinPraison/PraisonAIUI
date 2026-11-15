@@ -31,7 +31,7 @@ export default function ApprovalCard(p: GateProps): JSX.Element {
       role="group"
       aria-labelledby={`${id}-h`}
       aria-describedby={`${id}-d`}
-      className="flex flex-col gap-3 rounded-xl border border-warning/40 bg-card p-4 text-sm text-foreground"
+      className="flex flex-col gap-3 rounded-xl border border-[var(--ui-warning-line)] bg-card p-4 text-sm text-foreground"
       data-approval-gate
       data-approval-card
       data-risk={p.risk || undefined}

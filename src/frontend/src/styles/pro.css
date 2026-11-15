@@ -99,10 +99,12 @@
     --pro-success: #34b27b;
     --pro-success-fg: #04210f;
     --pro-success-soft: #0f2a1e;
-    --pro-warning: #e3a008;
+    /* Dark warning: amber-300 text, amber-500 at 10% (fill) and 35% (line)
+       over the page, never the light amber at low lightness (olive-brown). */
+    --pro-warning: #fcd34d;
     --pro-warning-fg: #1f1300;
-    --pro-warning-soft: #2b2110;
-    --pro-warning-line: #5a4419;
+    --pro-warning-soft: #251c10;
+    --pro-warning-line: #5f400f;
     --pro-danger: #f05252;
     --pro-danger-fg: #1f0505;
     --pro-danger-soft: #2e1416;

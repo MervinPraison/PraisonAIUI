@@ -45,7 +45,7 @@ export function RequestCard({ item, feed, now, touch }: RequestCardProps) {
       className={cn('flex flex-col gap-2.5 rounded-lg border border-[var(--ui-warning-line)] bg-card px-3.5 py-3 text-card-foreground', touch && 'rounded-xl')}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex h-5 shrink-0 items-center gap-1.5 rounded-xs bg-warning px-1.5 text-xs font-semibold text-warning-foreground">
+        <span className="inline-flex h-5 shrink-0 items-center gap-1.5 rounded-xs border border-[var(--ui-warning-line)] bg-warning-soft text-warning px-1.5 text-xs font-medium">
           <TriangleAlert aria-hidden className="size-2.5" />
           Needs approval
         </span>

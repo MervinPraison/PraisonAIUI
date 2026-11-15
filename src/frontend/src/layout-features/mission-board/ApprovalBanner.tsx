@@ -68,7 +68,7 @@ export function ApprovalBanner({ item, more, decide: send, reviewLabel = 'Review
       )}
     >
       <div className={cn('flex min-w-0 gap-2.5', !touch && 'flex-[1_1_260px]')}>
-        <span aria-hidden="true" className={cn('flex shrink-0 items-center justify-center rounded-md bg-warning text-warning-foreground', touch ? 'size-8' : 'size-7')}>
+        <span aria-hidden="true" className={cn('flex shrink-0 items-center justify-center rounded-md bg-card text-warning ring-1 ring-inset ring-[var(--ui-warning-line)]', touch ? 'size-8' : 'size-7')}>
           <TriangleAlert className="size-4" />
         </span>
         <div className="flex min-w-0 flex-col gap-px">

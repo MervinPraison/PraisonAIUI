@@ -21,7 +21,7 @@ export type ChipState = AgentState | 'done' | 'failed'
 
 const CHIP: Record<ChipState, { label: string; className: string }> = {
   running: { label: 'Running', className: 'bg-success text-success-foreground' },
-  waiting: { label: 'Waiting for approval', className: 'bg-warning text-warning-foreground' },
+  waiting: { label: 'Waiting for approval', className: 'border border-[var(--ui-warning-line)] bg-warning-soft text-warning' },
   idle: { label: 'Idle', className: 'border border-border text-muted-foreground font-medium' },
   done: { label: 'Succeeded', className: 'bg-success-soft text-success' },
   failed: { label: 'Failed', className: 'bg-danger-soft text-destructive' },

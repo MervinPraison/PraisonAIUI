@@ -38,7 +38,7 @@ export function ApprovalCard({ item, onApprove, onDeny, size = 'default', classN
       role="group"
       aria-labelledby={headingId}
       data-aiui-approval={item.id}
-      className={cn('flex flex-col gap-3 rounded-xl border border-warning/40 bg-card p-3.5 text-card-foreground', className)}
+      className={cn('flex flex-col gap-3 rounded-xl border border-[var(--ui-warning-line)] bg-card p-3.5 text-card-foreground', className)}
     >
       <div className="flex items-center gap-2.5">
         <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-warning-soft text-warning">

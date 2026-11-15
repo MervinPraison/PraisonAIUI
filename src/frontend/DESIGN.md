@@ -401,7 +401,7 @@ Like the classic mode seeds, P0 and the P1 defaults are declared on `<html>`
 | `input` | `#d4d4d8` | `#3a3a42` | `--input`, `--ui-stroke-1` |
 | `code-bg` | `#fafafa` | `#121216` | `--ui-code-bg` |
 | `success` / `-fg` / `-soft` | `#15803d` `#ffffff` `#ecfdf3` | `#34b27b` `#04210f` `#0f2a1e` | `--success(-foreground)`, `--ui-success-soft` |
-| `warning` / `-fg` / `-soft` / `-line` | `#b45309` `#ffffff` `#fffbeb` `#f3d9a8` | `#e3a008` `#1f1300` `#2b2110` `#5a4419` | `--warning(-foreground)`, `--ui-warning-soft`, `--ui-warning-line` |
+| `warning` / `-fg` / `-soft` / `-line` | `#b45309` `#ffffff` `#fffbeb` `#f3d9a8` | `#fcd34d` `#1f1300` `#251c10` `#5f400f` | `--warning(-foreground)`, `--ui-warning-soft`, `--ui-warning-line` |
 | `danger` / `-fg` / `-soft` / `-line` | `#dc2626` `#ffffff` `#fff5f5` `#f7c9c9` | `#f05252` `#1f0505` `#2e1416` `#5c2328` | `--destructive(-foreground)`, `--ui-danger-soft`, `--ui-danger-line` |
 | `info` / `-soft` | `#2563eb` `#eff6ff` | `#4f8cf7` `#13213a` | `--info` (on it: the page colour), `--ui-info-soft`, `--ui-syntax-number` |
 | `shadow-sm` / `-float` / `-overlay` | ink at 5–24% | black at 50–70% | `--ui-shadow-xs/-sm/-float/-overlay`, so `shadow-sm`, `shadow-md`, `shadow-lg` |
