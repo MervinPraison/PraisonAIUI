@@ -189,4 +189,12 @@ test('while someone listens, a finished turn refreshes the list once, shortly af
   await threadStore.cancel(f.t, 'S')
   await new Promise((r) => setTimeout(r, SETTLE_REFRESH_MS + 50))
   assert.equal(lists(), 1, 'no listener, no refresh')
+  // A listener that comes back watches turns again.
+  const again = sessionsStore.subscribe(() => undefined)
+  void threadStore.send(f.t, 'S', 'four')
+  await tick()
+  await threadStore.cancel(f.t, 'S')
+  await new Promise((r) => setTimeout(r, SETTLE_REFRESH_MS + 50))
+  assert.equal(lists(), 2, 'watching again')
+  again()
 })

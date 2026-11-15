@@ -60,22 +60,17 @@ function emit() {
   for (const fn of [...listeners]) fn()
 }
 
-/** Refresh shortly after a turn ends, while anyone is listening. */
-function watchSettled() {
-  offSettled = threadStore.onSettled(() => {
-    if (settleTimer !== undefined) clearTimeout(settleTimer)
-    settleTimer = setTimeout(() => {
-      settleTimer = undefined
-      void sessionsStore.refresh()
-    }, SETTLE_REFRESH_MS)
-  })
+/** A turn ended: refresh shortly after it settles (debounced). */
+function settled() {
+  clearTimeout(settleTimer)
+  settleTimer = setTimeout(() => void sessionsStore.refresh(), SETTLE_REFRESH_MS)
 }
 
+/** The last listener left: stop watching turns. */
 function unwatchSettled() {
   offSettled?.()
   offSettled = null
-  if (settleTimer !== undefined) clearTimeout(settleTimer)
-  settleTimer = undefined
+  clearTimeout(settleTimer)
 }
 
 /** One WebSocket for every chat view and feed; streams outlive the page component. */
@@ -91,10 +86,11 @@ export const sessionsStore = {
 
   subscribe(fn: () => void): () => void {
     listeners.add(fn)
-    if (listeners.size === 1 && !offSettled) watchSettled()
+    // While anyone listens, a finished turn (a new or retitled chat) refreshes the list.
+    offSettled ??= threadStore.onSettled(settled)
     return () => {
       listeners.delete(fn)
-      if (listeners.size === 0) unwatchSettled()
+      if (!listeners.size) unwatchSettled()
     }
   },
 
