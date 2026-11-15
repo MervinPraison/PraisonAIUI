@@ -1,6 +1,8 @@
 # ADR 0003: Selectable layouts, a first-party plugin kind
 
-- **Status:** Accepted (Nov 2026). The browser contract (F1) is frozen; the rest is **(planned)** and marked so below.
+- **Status:** Accepted (Nov 2026). The browser contract (F1) is frozen. The foundation (F2 Python config and
+  records, F3 shell host and gates, F4 Pro tokens, C chat presentation and feeds, D artifacts and run ledger
+  APIs) is shipped; the five layouts' own designs (wave 2) are **(planned)** and marked so below.
 - **Date:** 2026-11-14
 - **Extends:** [ADR 0002](0002-react-app-shell-and-plugin-sdk.md). It adds one registration kind, which R3 allows through an ADR. It supersedes nothing.
 - **Scope:** `src/frontend/src/{sdk,shell,builtin,app-layouts,layout-features,chat-engine}`,
@@ -30,10 +32,10 @@
 1. **A layout owns the frame; a page owns its content.** The frame is everything around the routed
    page: navigation, session list, top bar, side panels, status bar and phone chrome. Every manifest
    page renders inside every layout through the `Outlet` the shell passes in. The current frame becomes
-   the core's own **classic frame** (`shell/ClassicFrame.tsx`, **(planned)**). It has no layout id, it
+   the core's own **classic frame** (`shell/ClassicFrame.tsx`). It has no layout id, it
    is the fallback whenever no layout is selected, registered or able to load, and `classic` is the
    reserved id that selects it.
-2. **Each built-in layout is three things** **(planned)**:
+2. **Each built-in layout is three things**:
    - a Python `BuiltinPlugin` record `builtin.layout-<id>`, which `extensions.disabled` can switch off;
    - a tiny eager browser descriptor (`builtin/layouts/<id>.ts`, meta plus a loader);
    - a lazy frame chunk (`app-layouts/<id>/`).
@@ -41,13 +43,16 @@
    A third-party layout makes the same SDK call. Its Python plugin declares it with a new `layouts()`
    hook, and its ESM module is imported only while that layout is active.
 3. **Isolation is a hard rule:** R17, below.
-4. **Layout-specific backend data lives in separate feature modules** **(planned)**:
+4. **Layout-specific backend data lives in separate feature modules**:
    `features/artifacts.py` and `features/run_ledger.py`, each with its own catalog record declaring
    `for_layouts=(...)`. Such a record mounts only when one of those layouts is available, or when it is
    named in `extensions.enabled`. Nothing goes in `server.py` (R11).
-5. **Pages a layout owns are ordinary catalog pages** with `shell_only=True` and `layouts=(...)`
-   **(planned)**. `shell_only` keeps them out of `/api/pages` and the dashboard (R6). The manifest
-   carries `layouts` and `replaces` as data, so the core never compares page or layout ids (R1).
+5. **Pages a layout owns are ordinary catalog pages** with `shell_only=True` and `layouts=(...)`.
+   `shell_only` keeps them out of `/api/pages` and the dashboard (R6). The manifest carries `layouts`
+   and `replaces` as data, so the core never compares page or layout ids (R1). A page owned by a
+   layout record carries the source `builtin.layout-<id>` (`builtin.<name>` for a data record such as
+   `builtin.artifacts`). Guided's `start` and `templates` and Mission's `ops-overview` arrive with
+   their frames **(planned, wave 2)**.
 6. **Switching is live.** `setLayout` remounts the frame and the page without a reload. Chat state
    survives because the thread store is module state.
 
@@ -130,17 +135,19 @@ and `slots.dispose`. Types for plugin authors are in `sdk/aiui-sdk.d.ts`.
      and the light chat-engine modules (`store`, `api`, `protocol`, `sessionList`, `feeds`).
    - They never import `Thread`, `ChatPage`, `useAiuiRuntime` or `@assistant-ui`.
 3. **The core never names a layout.** `shell/`, `sdk/`, `legacy/` and `blocks/` contain no layout id
-   literal and import neither folder. The F1 SDK holds to this already, and `shell/core-purity.test.ts`
-   extends to it **(planned, F3)**.
+   literal and import neither folder (`shell/core-purity.test.ts`).
 4. **An inactive layout's code is never downloaded.** A static gate
-   (`scripts/check-layout-isolation.mjs`) and a network e2e enforce this **(planned, F3)**.
+   (`scripts/check-layout-isolation.mjs`, part of `npm run check:closure`) and a network e2e
+   (`e2e/specs/layouts-host.spec.ts`) enforce this.
 5. **Data features gate on layouts.** A record with `for_layouts` mounts only when a listed layout is
-   available, or when it is explicitly enabled **(planned, F2)**.
+   available, or when it is explicitly enabled (`builtin.artifacts` for `chat-canvas`,
+   `builtin.run-ledger` for `command` and `mission`). Otherwise its status is `disabled` with the
+   reason "no layout needs it".
 
 *Check:* `app-layouts/isolation.test.ts`, `shell/core-purity.test.ts`, `check-layout-isolation.mjs`,
-`e2e/specs/layouts-isolation.spec.ts`, and `tests/unit/test_layout_gating.py` **(planned)**.
+`e2e/specs/layouts-host.spec.ts`, and `tests/unit/test_layout_gating.py`.
 
-## Configuration surface (planned, F2 and F3)
+## Configuration surface
 
 - **YAML.** `LayoutConfig` gains `default`, `available`, `user_choice` (alias `userChoice`, default
   true), `primary` and `options` (keyed by layout id). `mode`, `width` and `height` are unchanged. A
@@ -172,7 +179,7 @@ and `slots.dispose`. Types for plugin authors are in `sdk/aiui-sdk.d.ts`.
   - `golden_dashboard_html.txt` and `builtin_pages_snapshot.json` do not change;
   - layout pages are `shell_only`;
   - the `layouts` key appears only in the shell manifest.
-- **The `style: app` default is `chat-canvas`** (owner decision, **planned**). Apps that already opt in
+- **The `style: app` default is `chat-canvas`** (owner decision). Apps that already opt in
   to `style: app` get the chat-canvas frame and a changelog entry; `layout: classic` restores today's
   frame. `AIUI_SHELL=legacy` remains the kill switch, and a layout is then ignored with a warning.
 - **The classic frame** is the fallback whenever:
@@ -181,7 +188,7 @@ and `slots.dispose`. Types for plugin authors are in `sdk/aiui-sdk.d.ts`.
   - the layout is not registered once plugins have settled (with a console warning);
   - the frame throws, which also raises one toast and fires `aiui:plugin-error` (R4).
 
-## Budgets (gzip, planned in `.size-limit.mjs`)
+## Budgets (gzip caps; the measured limits are in `.size-limit.mjs`)
 
 | Budget | Cap |
 |---|---|
