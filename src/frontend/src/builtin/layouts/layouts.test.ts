@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { sdkApi } from '@/sdk/install'
 import { getLayoutComponent, getLayouts, resetLayoutsForTests } from '@/sdk/layouts'
 import type { ShellLayouts } from '@/sdk/manifest'
-import { getSettingsSections } from '@/sdk/contributions'
+import { getSettingsSections, getThemePresets } from '@/sdk/contributions'
 import { getCommands, resetServicesForTests } from '@/sdk/services'
 import { activateLayouts, APPEARANCE_SECTION_ID, BUILTIN_LAYOUTS, currentChoice, isBuiltinLayout, layoutChoices, layoutsBuiltin } from './index'
 
@@ -29,6 +29,11 @@ const sdk: typeof sdkApi = Object.freeze({
   ...sdkApi,
   registerSettingsSection: (s: Parameters<typeof sdkApi.registerSettingsSection>[0]) => {
     const off = sdkApi.registerSettingsSection(s)
+    removers.push(off)
+    return off
+  },
+  registerThemePreset: (p: Parameters<typeof sdkApi.registerThemePreset>[0]) => {
+    const off = sdkApi.registerThemePreset(p)
     removers.push(off)
     return off
   },
@@ -115,4 +120,24 @@ test('without a user choice there is no Appearance section (the server decides)'
   activateLayouts(sdk, offered({ userChoice: false }))
   assert.equal(getSettingsSections().some((s) => s.id === APPEARANCE_SECTION_ID), false)
   assert.ok(getCommands().some((c) => c.group === 'Layout'), 'the tab-only switch stays in the palette')
+})
+
+test('the Pro accents are offered as theme presets that set only Pro seeds', () => {
+  activateLayouts(sdk, offered())
+  const pro = getThemePresets().filter((p) => p.id.startsWith('pro.'))
+  assert.deepEqual(
+    pro.map((p) => p.label),
+    ['Pro Indigo', 'Pro Blue', 'Pro Teal', 'Pro Graphite'],
+  )
+  for (const p of pro) {
+    for (const k of [...Object.keys(p.light), ...Object.keys(p.dark)]) assert.match(k, /^--seed-pro-/)
+  }
+})
+
+test('no layout on offer, no Pro presets; an older shell without theme presets is skipped', () => {
+  activateLayouts(sdk, offered({ available: [] }))
+  assert.equal(getThemePresets().some((p) => p.id.startsWith('pro.')), false)
+  const older = Object.freeze({ ...sdk, SDK_FEATURES: sdk.SDK_FEATURES.filter((f) => f !== 'theme-presets') }) as unknown as typeof sdk
+  activateLayouts(older, offered())
+  assert.equal(getThemePresets().some((p) => p.id.startsWith('pro.')), false)
 })

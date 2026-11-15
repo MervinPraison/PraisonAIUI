@@ -7,7 +7,11 @@
  *   - "Switch layout: …" palette commands (group "Layout") for every offered
  *     layout, plugin layouts included, and the classic frame;
  *   - Settings → Appearance: a select of the same, saved in this browser
- *     (`localStorage['aiui-layout']`), when the server allows a user choice.
+ *     (`localStorage['aiui-layout']`), when the server allows a user choice;
+ *   - the four Pro accents (Pro Indigo, Blue, Teal, Graphite) as theme
+ *     presets, when the shell has theme presets: they set only the
+ *     `--seed-pro-*` seeds, so they recolour layouts and never the classic
+ *     frame.
  *
  * A layout's Python record (`builtin.layout-<id>`) decides whether it is
  * offered; switching one off with `extensions.disabled` removes it from the
@@ -16,6 +20,7 @@
 import { LayoutTemplate } from 'lucide-react'
 import { LAYOUT_STORAGE_KEY, parseLayoutChoice } from '@/sdk/layouts'
 import { CLASSIC_LAYOUT_ID, type ShellLayoutSpec, type ShellLayouts } from '@/sdk/manifest'
+import { proThemePresets } from '@/themes'
 import type { BuiltinPlugin, BuiltinSdk } from '../types'
 import { chatCanvasLayout } from './chat-canvas'
 import { commandLayout } from './command'
@@ -120,6 +125,9 @@ export function activateLayouts(sdk: BuiltinSdk, layouts: ShellLayouts | undefin
     registered.push(d.id)
   }
   registerPicker(sdk, layouts)
+  if (sdk.SDK_FEATURES.includes('theme-presets')) {
+    for (const preset of proThemePresets()) sdk.registerThemePreset(preset)
+  }
   return registered
 }
 

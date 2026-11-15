@@ -375,10 +375,10 @@ custom rule: the colour itself, a soft fill at hex alpha `14` (light) / `29`
 (dark) pair. The server writes the result into
 `<style id="aiui-server-pro-theme">`, which a default app does not get.
 
-A viewer can also choose a swatch in the palette:
-`proThemePresets()` returns the four as `registerThemePreset` inputs (ids
-`pro.<name>`) that set only `--seed-pro-*` **(planned: registered by the
-layouts built-in)**.
+A viewer can also choose a swatch as a theme preset: `builtin.layouts`
+registers `proThemePresets()` (Pro Indigo, Blue, Teal and Graphite, ids
+`pro.<name>`) through `registerThemePreset` whenever a layout is on offer.
+They set only `--seed-pro-*`, so the classic frame is unaffected.
 
 ### Type, spacing, radius
 
