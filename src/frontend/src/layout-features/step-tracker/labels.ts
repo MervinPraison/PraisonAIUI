@@ -216,7 +216,8 @@ export function deriveSteps(message: ChatMessageView): PlainStep[] {
         text = { id: p.id, kind: 'text', label: 'Writing the answer', status: 'done' }
         steps.push(text)
       }
-      text.status = running && i === parts.length - 1 ? 'running' : 'done'
+      // While a gate waits, the text so far is written, not being written.
+      text.status = message.status?.type === 'running' && i === parts.length - 1 ? 'running' : 'done'
     }
   }
   if (message.status?.type === 'incomplete') {

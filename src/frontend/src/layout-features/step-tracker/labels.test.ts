@@ -139,6 +139,14 @@ test('deriveSteps: an open gate waits for your OK; a refused one is skipped; an 
   })
   assert.deepEqual([gate[0].label, gate[0].status, gate[0].meta], ['Waiting for your OK', 'waiting', 'Running a command'])
   assert.equal(stepMeta(gate[0]), 'Needs your OK · Running a command')
+  const gateAfterText = deriveSteps({
+    id: 'm',
+    role: 'assistant',
+    createdAt: 0,
+    status: { type: 'requires-action', reason: 'interrupt' },
+    parts: [tool('shell', { approval: { id: 'ap_2' } }), { type: 'text', id: 't', text: 'So far…' }],
+  })
+  assert.deepEqual(gateAfterText.map((s) => s.status), ['waiting', 'done'], 'nothing is being written while it waits')
   const refused = deriveSteps({ id: 'm', role: 'assistant', createdAt: 0, status: { type: 'complete' }, parts: [tool('shell', { approval: { id: 'a', approved: false } })] })
   assert.deepEqual([refused[0].label, refused[0].status], ['Running a command', 'skipped'])
   const failed = deriveSteps({ id: 'm', role: 'assistant', createdAt: 0, status: { type: 'complete' }, parts: [tool('shell', { isError: true, result: 'command not found: foo' })] })

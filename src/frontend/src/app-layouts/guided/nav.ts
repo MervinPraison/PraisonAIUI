@@ -44,7 +44,7 @@ export interface GuidedNav {
   settings: LayoutNavItem | null
   more: { name: string; items: LayoutNavItem[] }[]
   tabs: GuidedItem[]
-  /** Every page the frame can go to, by id (main, settings and more). */
+  /** Every page the frame can go to, by id, with Guided's plain titles. */
   byId: ReadonlyMap<string, LayoutNavItem>
 }
 
@@ -65,7 +65,7 @@ export function helpAddress(v: unknown): string | undefined {
 export function guidedNav(nav: LayoutNav, opts: { helpUrl?: string } = {}): GuidedNav {
   const byId = new Map<string, LayoutNavItem>()
   const add = (i: LayoutNavItem) => {
-    if (!byId.has(i.id)) byId.set(i.id, i)
+    if (!byId.has(i.id)) byId.set(i.id, plain(i))
   }
   nav.primary.forEach(add)
   nav.groups.forEach((g) => g.items.forEach(add))
@@ -79,10 +79,9 @@ export function guidedNav(nav: LayoutNav, opts: { helpUrl?: string } = {}): Guid
     active: false,
     ...(opts.helpUrl ? { external: opts.helpUrl } : {}),
   }
-  const main: GuidedItem[] = [...nav.primary.filter((i) => i.id !== PAGE.settings).map(plain), help]
+  const main: GuidedItem[] = [...nav.primary.filter((i) => i.id !== PAGE.settings).map((i) => byId.get(i.id)!), help]
   const shown = new Set(main.map((i) => i.id))
-  const settingsItem = byId.get(PAGE.settings)
-  const settings = settingsItem ? plain(settingsItem) : null
+  const settings = byId.get(PAGE.settings) ?? null
   if (settings) shown.add(settings.id)
 
   const more = [
@@ -92,7 +91,7 @@ export function guidedNav(nav: LayoutNav, opts: { helpUrl?: string } = {}): Guid
 
   const tabOrder = [PAGE.home, PAGE.chat, PAGE.agents]
   const tabs: GuidedItem[] = [
-    ...tabOrder.map((id) => byId.get(id)).filter((i): i is LayoutNavItem => !!i).map(plain),
+    ...tabOrder.map((id) => byId.get(id)).filter((i): i is LayoutNavItem => !!i),
     help,
   ]
   return { main, settings, more, tabs, byId }

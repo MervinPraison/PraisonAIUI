@@ -91,7 +91,7 @@ function RecentChats({ limit, seeAll, onOpen }: { limit?: number; seeAll?: () =>
   const { feed, state } = sessions
   const shown = limit ? state.sessions.slice(0, limit) : state.sessions
   return (
-    <section aria-labelledby="aiui-guided-recent" className="flex min-h-0 flex-col gap-2.5" data-aiui-session-list="">
+    <section aria-labelledby="aiui-guided-recent" className="flex flex-col gap-2.5" data-aiui-session-list="">
       <div className="flex items-baseline justify-between px-1.5">
         <h2 id="aiui-guided-recent" className="m-0 text-[15px] font-bold text-muted-foreground">Your recent chats</h2>
         {seeAll && state.sessions.length > (limit ?? Infinity) && (
@@ -231,10 +231,12 @@ export default function GuidedFrame(props: LayoutProps) {
   const pageTitle = (page && g.byId.get(page.id)?.title) ?? page?.title ?? chrome.siteTitle
   const title = onChat ? (session?.title ?? 'New chat') : pageTitle
   const who = agent ?? 'your assistant'
+  const waiting = chat.messages.at(-1)?.status?.type === 'requires-action'
+  const doing = waiting ? 'waiting for your OK' : chat.isRunning ? 'working on it' : 'ready to help'
   const subtitle: ReactNode = onChat ? (
     <>
-      <span aria-hidden="true" className={cn('inline-block size-2 shrink-0 rounded-full', chat.isRunning ? 'bg-warning' : 'bg-success')} />
-      {phone ? `with ${who}` : `Chatting with ${who} · ${chat.isRunning ? 'working on it' : 'ready to help'}`}
+      <span aria-hidden="true" className={cn('inline-block size-2 shrink-0 rounded-full', waiting || chat.isRunning ? 'bg-warning' : 'bg-success')} />
+      {phone ? `with ${who}` : `Chatting with ${who} · ${doing}`}
     </>
   ) : (
     page?.description
@@ -326,7 +328,7 @@ export default function GuidedFrame(props: LayoutProps) {
 
   return (
     <div data-aiui-layout-frame="guided" data-viewport={viewport} className="flex min-h-0 min-w-0 flex-1 bg-background text-base">
-      <nav aria-label="Main" className="flex w-[280px] shrink-0 flex-col gap-5 overflow-y-auto border-r border-sidebar-border bg-sidebar px-4 py-5 text-sidebar-foreground">
+      <nav aria-label="Main" className="flex w-[280px] shrink-0 flex-col gap-5 overflow-y-auto *:shrink-0 border-r border-sidebar-border bg-sidebar px-4 py-5 text-sidebar-foreground">
         <Brand chrome={chrome} />
         {sessions && (
           <Button className="h-[52px] w-full rounded-2xl text-[17px] font-bold shadow-sm" onClick={newChat} aria-keyshortcuts="Meta+N Control+N">

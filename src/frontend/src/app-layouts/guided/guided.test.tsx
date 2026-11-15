@@ -50,6 +50,7 @@ test('guidedNav: plain titles, Help after the primary pages, Settings on its own
   assert.deepEqual(n.more.map((g) => [g.name, g.items.map((i) => i.id)]), [['Control', ['logs', 'sessions']], ['Other', ['auth']]])
   assert.deepEqual(n.tabs.map((t) => t.title), ['Home', 'Chat', 'My agents', 'Help'])
   assert.ok(n.main.length <= 7)
+  assert.equal(n.byId.get('agents')?.title, 'My agents', 'the header names a page the way the nav does')
 })
 
 test('guidedNav: pages the server does not list are left out; Help takes the configured address', () => {
@@ -234,6 +235,9 @@ test('phone frame: 60 px header with the chat and new chat, four bottom tabs, 44
   const tabs = [...out.matchAll(/data-aiui-tab="([^"]+)"/g)].map((m) => m[1])
   assert.deepEqual(tabs, ['start', 'chat', 'agents', 'help'])
   assert.match(out, /aria-current="page" data-aiui-tab="chat"/)
+  resetLayoutsForTests()
+  provideLayoutData('chat', chatFeed([turn('g', { agentName: 'Researcher', status: { type: 'requires-action', reason: 'interrupt' } })]))
+  assert.match(renderToStaticMarkup(createElement(GuidedFrame, frameProps('desktop'))), /Chatting with Researcher · waiting for your OK/)
   assert.doesNotMatch(out, /w-\[280px\]/, 'no sidebar on a phone')
   assert.match(out, /size-11/)
 })
