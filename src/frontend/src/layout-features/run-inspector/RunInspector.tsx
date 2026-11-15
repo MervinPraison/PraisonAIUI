@@ -91,7 +91,8 @@ function StatusPill({ run }: { run: InspectorRun }) {
   return <span className={cn('shrink-0 rounded-xs px-1.5 text-2xs font-medium leading-5', TONE[s.tone])} data-run-status={run.status}>{s.text}</span>
 }
 
-const shortId = (id: string | undefined) => (id && id.length > 14 ? id.slice(0, 10) : id)
+/** A run id as six characters (the full id is in the title and copied on click). */
+const shortId = (id: string | undefined) => (id && id.length > 6 ? id.slice(0, 6) : id)
 
 /*
  * Drawn here rather than imported from lucide-react: the chat route uses
@@ -237,24 +238,36 @@ function ApprovalBlock({ approval, run, d, touch }: { approval: InspectorApprova
 
 // ── metrics, steps, files ────────────────────────────────────────────
 
+/** A metric the server did not report. */
+const UNTRACKED = '—'
+
 function Metrics({ run, tokens, tokensSub, cost, model }: { run: InspectorRun; tokens: string; tokensSub: string; cost: string; model: string }) {
   const waiting = run.steps.filter((s) => s.state === 'waiting').length
+  // Tokens and cost the server does not track (no run ledger) are not drawn as empty tiles.
+  const tracked = tokens !== UNTRACKED || cost !== UNTRACKED
   const items = [
     { label: 'Elapsed', value: formatDuration(run.elapsedMs), sub: run.approval ? `+${formatDuration(run.waitingMs, true)} wait` : run.status === 'running' ? 'live' : statusLabel(run.status).text },
-    { label: 'Tokens', value: tokens, sub: tokensSub },
-    { label: 'Cost', value: cost, sub: model },
+    ...(tracked
+      ? [
+          { label: 'Tokens', value: tokens, sub: tokensSub },
+          { label: 'Cost', value: cost, sub: model },
+        ]
+      : []),
     { label: 'Steps', value: `${run.doneSteps}/${run.steps.length}`, sub: waiting ? `${waiting} waiting` : '' },
   ]
   return (
-    <dl className="m-0 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border @[19rem]:grid-cols-4" data-run-metrics>
-      {items.map((m) => (
-        <div key={m.label} className="min-w-0 bg-card px-2.5 py-2">
-          <dt className="text-2xs text-tier-3">{m.label}</dt>
-          <dd className="m-0 mt-0.5 truncate font-mono text-sm font-medium tabular-nums">{m.value}</dd>
-          <dd className="m-0 font-mono text-[11px] leading-tight break-words text-tier-3">{m.sub || ' '}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className="flex flex-col gap-1">
+      <dl className={cn('m-0 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border', tracked && '@[19rem]:grid-cols-4')} data-run-metrics>
+        {items.map((m) => (
+          <div key={m.label} className="min-w-0 bg-card px-2.5 py-2">
+            <dt className="text-2xs text-tier-3">{m.label}</dt>
+            <dd className="m-0 mt-0.5 truncate text-sm font-medium tabular-nums">{m.value}</dd>
+            <dd className="m-0 text-[11px] leading-tight break-words text-tier-3 tabular-nums">{m.sub || ' '}</dd>
+          </div>
+        ))}
+      </dl>
+      {!tracked && <p className="m-0 px-0.5 text-xs text-tier-3" data-run-untracked>Tokens and cost: not tracked on this server.</p>}
+    </div>
   )
 }
 
@@ -399,9 +412,9 @@ export default function RunInspector({ variant = 'panel', keys = true, isTypingT
     return () => window.removeEventListener('keydown', onKey)
   }, [sheet, keys, isTypingTarget])
 
-  const tokens = formatTokens(detail?.tokens) ?? '—'
+  const tokens = formatTokens(detail?.tokens) ?? UNTRACKED
   const tokensSub = detail?.tokensIn !== undefined && detail.tokensOut !== undefined ? `${formatTokens(detail.tokensIn)} in · ${formatTokens(detail.tokensOut)} out` : ''
-  const cost = formatCost(detail?.cost) ?? '—'
+  const cost = formatCost(detail?.cost) ?? UNTRACKED
   const model = detail?.model ?? (detail?.approximate ? 'approximate' : '')
   const stop = run && isLive && chat ? () => void chat.cancel() : null
 
@@ -511,7 +524,18 @@ export default function RunInspector({ variant = 'panel', keys = true, isTypingT
     <aside aria-label="Run inspector" data-run-inspector="panel" className={cn('flex min-h-0 min-w-0 flex-col bg-sidebar', className)}>
       <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border pr-2.5 pl-4">
         <h2 className="m-0 text-sm font-semibold">Run</h2>
-        {run?.runId && <span className="min-w-0 truncate font-mono text-2xs text-tier-3">{shortId(run.runId)}</span>}
+        {run?.runId && (
+          <button
+            type="button"
+            title={`Copy run id ${run.runId}`}
+            aria-label={`Copy run id ${run.runId}`}
+            onClick={() => void navigator.clipboard?.writeText(run.runId!).catch(() => undefined)}
+            className="min-w-0 truncate rounded-xs font-mono text-2xs text-tier-3 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            data-run-id=""
+          >
+            {shortId(run.runId)}
+          </button>
+        )}
         {run && <StatusPill run={run} />}
         {stop && (
           <Button variant="ghost" size="sm" className="ml-auto text-muted-foreground" aria-keyshortcuts="Control+C" onClick={stop} data-run-stop>
@@ -532,11 +556,11 @@ export default function RunInspector({ variant = 'panel', keys = true, isTypingT
           body
         )}
       </div>
-      <div className="hidden shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-border px-4 py-2 text-2xs text-tier-3 [@media(hover:hover)]:flex" aria-hidden>
+      {/* One line: the keys, the words only where they fit. */}
+      <div className="hidden shrink-0 flex-nowrap items-center gap-x-2.5 overflow-hidden border-t border-border px-4 py-2 text-2xs whitespace-nowrap text-tier-3 [@media(hover:hover)]:flex" aria-hidden data-run-keys>
         <span className="flex items-center gap-1"><Kbd>J</Kbd><Kbd>K</Kbd> step</span>
-        <span className="flex items-center gap-1"><Kbd>↵</Kbd> expand</span>
-        <span className="flex items-center gap-1"><Kbd>A</Kbd> approve</span>
-        <span className="flex items-center gap-1"><Kbd>D</Kbd> deny</span>
+        <span className="flex items-center gap-1"><Kbd>↵</Kbd> open</span>
+        <span className="flex items-center gap-1"><Kbd>A</Kbd><Kbd>D</Kbd> decide</span>
         <span className="flex items-center gap-1"><Kbd>F</Kbd> files</span>
       </div>
     </aside>

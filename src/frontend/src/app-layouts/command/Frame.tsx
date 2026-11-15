@@ -53,7 +53,6 @@ import {
   railItems,
   sessionTabs,
   shortcutRows,
-  shortSessionId,
   todayUsage,
   type RailItem,
   type SessionTab,
@@ -94,6 +93,16 @@ function ItemIcon({ item, className }: { item: LayoutNavItem; className?: string
 // 56 px wide (the design), growing to 64 px of the 68 px rail for a longer
 // title ("Inspector", "Knowledge") before it truncates.
 const railButton = 'group relative flex min-w-14 max-w-16 flex-col px-0.5 items-center gap-0.5 rounded-md pt-1.5 pb-1 text-muted-foreground outline-none hover:bg-card hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
+
+/** A keyboard (lucide's, drawn here so the rail shares no icon chunk with the chat route). */
+function KeyboardGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="size-4.5">
+      <rect width="20" height="16" x="2" y="4" rx="2" />
+      <path d="M10 8h.01M12 12h.01M14 8h.01M16 12h.01M18 8h.01M6 8h.01M7 16h10M8 12h.01" />
+    </svg>
+  )
+}
 
 function RailTip({ text, keys }: { text: string; keys?: string }) {
   return (
@@ -167,14 +176,10 @@ function Rail({
       </button>
       <span className="flex-1" />
       {footer.map(link)}
-      <button
-        type="button"
-        aria-label="Keyboard shortcuts"
-        aria-keyshortcuts="Meta+/ Control+/"
-        onClick={onShortcuts}
-        className="mt-1 h-9 w-11 shrink-0 rounded-md border border-input bg-card font-mono text-xs font-semibold text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {isMacPlatform() ? '⌘/' : '^/'}
+      <button type="button" className={railButton} onClick={onShortcuts} aria-label="Keyboard shortcuts" aria-keyshortcuts="Meta+/ Control+/" data-command-shortcuts="">
+        <KeyboardGlyph />
+        <span className="text-2xs font-medium">Shortcuts</span>
+        <RailTip text="All keyboard shortcuts" keys={isMacPlatform() ? '⌘/' : 'Ctrl /'} />
       </button>
     </nav>
   )
@@ -254,7 +259,6 @@ function SessionTabs({
       </button>
       <span className="min-w-0 flex-1" />
       <div className="flex shrink-0 items-center gap-2 border-l border-border px-3 text-2xs whitespace-nowrap text-tier-3">
-        {activeId && <span className="font-mono" title={activeId}>{shortSessionId(activeId)}</span>}
         <Button
           variant="outline"
           size="sm"
@@ -293,7 +297,7 @@ function StatusBar({
   return (
     <footer
       data-command-status=""
-      className="flex min-h-7 shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-t border-border bg-background px-3.5 py-1 font-mono text-2xs text-tier-3"
+      className="flex min-h-7 shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-t border-border bg-background px-3.5 py-1 text-2xs text-tier-3 tabular-nums"
     >
       <span className="flex items-center gap-1.5" role="status">
         <span aria-hidden className={cn('size-1.5 rounded-full', online ? 'bg-success' : 'bg-destructive')} />

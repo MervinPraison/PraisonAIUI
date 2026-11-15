@@ -79,7 +79,13 @@ test('the paused run: header, approval with A / D and Always allow, metrics, ste
   assert.match(out, /aria-keyshortcuts="A"/)
   assert.match(out, /aria-keyshortcuts="D"/)
   assert.match(out, /<dt[^>]*>Elapsed<\/dt>/)
-  assert.match(out, /<dt[^>]*>Tokens<\/dt><dd[^>]*>—<\/dd>/, 'no ledger: tokens unknown')
+  // No ledger: no empty Tokens / Cost tiles, one muted line instead.
+  assert.doesNotMatch(out, /<dt[^>]*>Tokens<\/dt>/, 'no ledger: no empty tokens tile')
+  assert.match(out, /data-run-untracked[^>]*>Tokens and cost: not tracked on this server\.</)
+  // The run id: six characters, the full id in the title (copied on click).
+  assert.match(out, /title="Copy run id run_3c7e19"[^>]*data-run-id="">run_3c</)
+  // The key legend is one line.
+  assert.match(out, /flex-nowrap[^"]*whitespace-nowrap[^"]*"[^>]*data-run-keys/)
   assert.match(out, />3\/4</, 'three of four steps done')
   assert.deepEqual([...out.matchAll(/data-run-step="(\d+)" data-state="(\w+)"/g)].map((m) => `${m[1]}:${m[2]}`), ['01:done', '02:done', '03:done', '04:waiting'])
   assert.match(out, /No files touched/)

@@ -80,6 +80,11 @@ test('desktop chat: command bar, rail with G keys, session tabs, outlet, status 
   assert.match(out, />G R</, 'the Runs tooltip names its key')
   assert.match(out, /aria-label="1 active run">1</, 'Runs counts active runs')
   assert.match(out, /aria-label="Keyboard shortcuts"/)
+  // The rail's shortcuts button is labelled like the other rail items, not a cryptic "⌘/".
+  assert.match(out, /data-command-shortcuts=""><svg[^>]*>.*?<\/svg><span[^>]*>Shortcuts<\/span>/)
+  // No raw session id beside the Run panel toggle; the status bar is sans with tabular numbers.
+  assert.doesNotMatch(out, /title="[0-9a-f-]{20,}"[^>]*class="font-mono"/)
+  assert.match(out, /data-command-status=""[^>]*class="(?![^"]*font-mono)[^"]*tabular-nums/)
   assert.match(out, /role="tablist" aria-label="Open sessions"/)
   assert.match(out, /role="tab" aria-selected="true" aria-controls="aiui-main" tabindex="0"[^>]*data-session-tab="s1"/)
   assert.match(out, /data-session-tab="s1"[^>]*><span aria-hidden="true" class="[^"]*bg-warning/, 'the waiting session has the amber dot')

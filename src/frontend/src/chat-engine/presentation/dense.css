@@ -1,7 +1,7 @@
 /*
  * Thread variant `dense` (Command Deck): tighter turns, the question as a
  * prompt line (›), a monospace meta line on each answer (TurnMeta) and
- * monospace tool rows.
+ * monospace tool names.
  * Lazy: loaded only when a layout picks this variant. Tokens only.
  */
 [data-variant='dense'] [data-role] {
@@ -35,7 +35,8 @@
   border-radius: 0.375rem;
 }
 
-/* The tool row itself in monospace; its gate keeps the body font. */
-[data-variant='dense'] [data-tool] > button {
+/* The tool's name in monospace (an id); its status badges and gate keep the
+   body font, as in every other layout. */
+[data-variant='dense'] [data-tool] > button [data-tool-name] {
   font-family: var(--aiui-font-mono);
 }
