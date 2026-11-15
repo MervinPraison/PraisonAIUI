@@ -5,6 +5,7 @@ import { beforeEach, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { ICON_BY_NAME } from '@/lib/pageIcons'
 import { provideLayoutData, resetLayoutsForTests, type LayoutNavItem } from '@/sdk/layouts'
 import type { SessionsFeed, SessionsState } from '@/sdk/layoutTypes'
 import {
@@ -182,6 +183,13 @@ test('NavIcon: a lucide icon for navIcon, else the emoji, else the first letter'
   assert.match(html(createElement(NavIcon, { item: { title: 'Fun', icon: '🎉' } })), />🎉</)
   assert.match(html(createElement(NavIcon, { item: { title: 'weather' } })), />W</)
   assert.equal(iconForNavItem({ navIcon: 'no-such-icon' }), undefined)
+})
+
+test('iconForNavItem reads the one shared table (lib/pageIcons), the same as the shell sidebar', () => {
+  for (const [name, icon] of Object.entries(ICON_BY_NAME)) {
+    assert.equal(iconForNavItem({ navIcon: name }), icon, name)
+    assert.equal(iconForNavItem({ icon: ` ${name.toUpperCase()} ` }), icon, `${name} in icon`)
+  }
 })
 
 test('NavList draws page icons by default, the active one in the accent', () => {
