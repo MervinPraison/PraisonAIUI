@@ -268,6 +268,55 @@ it extends tailwind-merge with the theme's `shadow-float/overlay` and
   `overrides` entry pinning mermaid's `marked` to 18 is pending a mermaid smoke
   test (LIBMD-8).
 
+## Page templates
+
+Every page has a template: a layout pattern from the Pro page designs
+(`ProList`, `ProBoard`, `ProLogs`, `ProEditor`, `ProGallery`, `ProOverview`,
+`ProSettings` `.dc.html`). The template is data. Built-in pages get it from
+`praisonaiui/builtin/page_types.py` (`PAGE_TYPE_BY_ID`; `catalog.py` does not
+change). A plugin page declares `page_type`. It travels as `pageType` in the
+shell manifest, never in `/api/pages`, and the shell puts it on the page root
+as `data-aiui-page-type`. Styles key off the template and never off a page id
+(ARCHITECTURE R1).
+
+| Template | Built-in pages | Shape |
+| --- | --- | --- |
+| `list` | sessions, runs, agents, skills, memory, knowledge, approvals, jobs, cron, channels, mcp, nodes, guardrails, feedback, eval, training, replay, inbox, api, inspector, artifacts | Toolbar on a hairline (search, filters, sort, primary action). Dense table: 36px header on the sunken fill (12px/500, muted), 40px rows, tabular numbers. Selected row on the accent soft fill. Optional detail panel (360px+, facts grid, actions). Pagination "1–8 of 42" with ↑/↓ and Enter hints |
+| `board` | kanban, jobs-board, work | Columns 232–340px on the sunken fill, 12px radius, 8px padding. Title 14/600 with a count. Optional WIP limit, which turns warning when over. Cards on the card surface, 10px radius, 12px padding, small shadow. Keyboard moves (Space, arrows, Esc) with a live status bar |
+| `log` | logs, debug, traces | Level toggles with counts (an off level is dashed and struck through). Search with "n of m" and previous/next match, plus "Only matching lines". Grid time 100px · level 64px · source 220px · message. Mono 12.5/20 rows that expand to their detail |
+| `editor` | code-studio | Full height. File tree 200–240px, tabs 40px, run bar 44px, code with a 56px gutter, output panel 188px, aside 288–320px, status bar 28px. Panes meet at hairlines; bars and trees on the sunken fill |
+| `gallery` | marketplace, theme-picker, templates | Category tabs (ink underline), search row, optional featured slot (16px radius). Auto-fill 220px tiles with 16px gaps: monogram or image, type tag, two-line description, stats, action, error line. Details drawer that pushes the grid |
+| `overview` | overview, ops-overview, start, usage, telemetry, security | Centred 1200px measure. Joined KPI strip (hairline separators, 24/600 value, −0.02em). Panels on the card surface |
+| `settings` | config, auth | Section cards (12px radius). One row per field, label 14/500 on the left, control (up to 340px) on the right. The YAML mode uses the editor's code surface |
+| `chat` | chat, chat-canvas, canvas | The chat engine owns the page; no template styles |
+
+**React and blocks.** `components/page/` holds the templates as components:
+`ListDetail` (+ `ListPagination`), `Board`, `LogViewer`, `Editor` (+ `CodeView`,
+`FileTree`) and `Gallery`. Their pure logic lives in `model.ts`, and `parts.tsx`
+holds the toolbar search, the facts grid and the `Glyph` close and chevron
+icons. Glyphs are drawn locally on purpose: importing lucide's from these
+chunks would split them out of the chat route. Styles are plain token CSS
+(`page.css`, classes `aiui-tpl-*`) in the templates' own lazy chunks, so
+`index.css` does not grow. A template imports no block layer, shell, chat
+engine or layout (`components/page/isolation.test.ts`). The blocks `board`
+and `gallery` (`aiui.board()`, `aiui.gallery()` props) and the new
+`list_detail`, `log_viewer` and `code_editor` render through the adapters in
+`components/page/blocks/`. `blocks/coreBlocks.tsx` registers each adapter
+lazily, so a template's chunk is fetched only when a page shows it.
+
+**Legacy views.** `legacy/page-types.css` dresses the vanilla views in their
+template. Every rule starts with
+`html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type=…]`,
+so the styles apply under the selectable layouts only. The classic frame
+(`layout: classic`) and the dashboard keep today's look. Rules name the
+views' own classes and never an id or a page id. They use tokens only;
+colours that arrive in inline styles are matched without their `#`.
+`!important` is used only against inline styles. Under a layout, legacy
+controls use the Pro accent: the primary clamped to a mid tone, so the white
+text the views paint on it stays readable. `legacy/page-types.test.ts`
+enforces the scoping, the template names (read from `page_types.py`) and the
+token rule.
+
 ## Theming pipeline
 
 ```
