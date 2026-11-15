@@ -178,9 +178,10 @@ def test_example_entry_point_matches_pyproject():
 
 
 def test_example_page_icons_are_mapped_by_the_shell(hello_site):
-    """Icon names a plugin passes must be in the shell's static lucide map
-    (src/frontend/src/shell/icons.ts ICON_BY_NAME), else they show FileText."""
-    icons_ts = ROOT / "src" / "frontend" / "src" / "shell" / "icons.ts"
+    """Icon names a plugin passes must be in the static lucide map the shell
+    and the layout kit share (src/frontend/src/lib/pageIcons.ts ICON_BY_NAME),
+    else they show FileText."""
+    icons_ts = ROOT / "src" / "frontend" / "src" / "lib" / "pageIcons.ts"
     if not icons_ts.exists():
         pytest.skip("React shell (WP6) not present")
     src = icons_ts.read_text(encoding="utf-8")
