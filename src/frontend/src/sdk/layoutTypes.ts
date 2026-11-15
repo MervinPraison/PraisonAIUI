@@ -137,6 +137,11 @@ export interface ChatState {
 export interface ChatFeed extends Feed<ChatState> {
   /** Put `text` in the composer (it is not sent). */
   prefill(text: string): void
+  /**
+   * Send `text` in the open chat (a new chat when none is open) and bring the
+   * chat page on screen. Optional: a provider without it only prefills.
+   */
+  send?(text: string, opts?: { agentName?: string }): Promise<void>
   /** Stop the running reply. */
   cancel(): Promise<void>
   /**

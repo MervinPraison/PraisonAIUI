@@ -18,7 +18,7 @@ the palette command "Switch layout: Command Deck".
 
 | Region | What it does |
 |---|---|
-| Command bar | "Ask or run a command". Enter puts the text in the chat composer (it is not sent: press Enter there). Typing `/` or `>` first opens the command palette with the rest typed in. ⌘K in the bar opens the palette with the bar's text. `/` anywhere outside a text field focuses the bar. The `@Agent` chip names the agent of the open chat. |
+| Command bar | "Ask or run a command". Enter sends the text in the open chat (a new chat when none is open) and opens the chat page; a chat feed without `send` puts it in the composer instead. Typing `/` or `>` first opens the command palette with the rest typed in. ⌘K in the bar opens the palette with the bar's text. `/` anywhere outside a text field focuses the bar. The `@Agent` chip names the agent of the open chat. |
 | Approvals button | "n approvals waiting", while any are pending. It opens the session the approval waits in, with the run panel. The layout shows approvals itself, so no approval toasts appear. |
 | Icon rail | The layout's primary pages (at most seven; YAML `layout.primary` overrides them), each with a G-prefix key shown in its tooltip. "More" opens the palette for every other page. ⌘/ lists all shortcuts. The Runs item shows a count of active runs. |
 | Session tabs (chat page) | The newest nine sessions, with the open one always included. An amber dot means the session waits for an approval; a blue dot means it is running. `+` starts a new chat. The right end shows the session id and the Run panel toggle. |
@@ -137,7 +137,5 @@ npx playwright test -c e2e/fixtures/layout-plugin/playwright.config.ts
 
 - **A Files destination.** The design's rail has one, but no files page
   exists. Files touched still appear in the inspector.
-- **Send from the bar.** Enter in the bar fills the composer; it does not
-  send. Sending needs a `send` action on the chat feed **(planned)**.
 - **Per-step tokens.** The ledger records tokens per run, not per step, so
   the answer step shows a word count instead.

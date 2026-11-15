@@ -201,6 +201,42 @@ test('chat: resolveApproval passes always through to the gate decision', async (
   await threadStore.cancel(f.t, 's')
 })
 
+test('chat: send starts a turn in the open chat, or in a new chat it lists and selects; blank text and a running chat do nothing', async () => {
+  const f = fakeTransport()
+  const sent: SendArgs[] = []
+  const t: AiuiTransport = { ...f.t, send: (args) => (sent.push(args), f.t.send(args)) }
+  const shown: number[] = []
+  const feed = createChatFeed({ show: () => shown.push(1), transport: t })
+  assert.equal(typeof feed.send, 'function')
+
+  // No chat open: a new one, listed under its first message and selected.
+  const first = feed.send!('Compare sorting algorithms', { agentName: 'Coder' })
+  await tick()
+  const sid = sessionsStore.get().activeId
+  assert.ok(sid, 'a new chat is selected')
+  assert.equal(sent.length, 1)
+  assert.equal(sent[0].sessionId, sid)
+  assert.equal(sent[0].text, 'Compare sorting algorithms')
+  assert.equal(sent[0].agentName, 'Coder')
+  assert.ok(sessionsStore.get().sessions.some((s) => s.id === sid && s.title === 'Compare sorting algorithms'))
+  assert.equal(shown.length, 1)
+  assert.equal(feed.get().isRunning, true)
+
+  // While it runs, and for blank text: nothing is sent.
+  await feed.send!('again')
+  await feed.send!('   ')
+  assert.equal(sent.length, 1)
+  await threadStore.cancel(t, sid!)
+  await first
+
+  // The open chat: the same session.
+  void feed.send!('next')
+  await tick()
+  assert.equal(sent.length, 2)
+  assert.equal(sent[1].sessionId, sid)
+  await threadStore.cancel(t, sid!)
+})
+
 test('chat: prefill opens the chat and hands the text to the composer by the window event', () => {
   const shown: number[] = []
   const got: unknown[] = []

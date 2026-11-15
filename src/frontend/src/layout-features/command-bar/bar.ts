@@ -4,7 +4,7 @@
  *
  *   `/…` or `>…`   run a command: the one cmdk palette, opened with the rest
  *                  typed in (the stack has a single palette)
- *   anything else  ask: the text goes to the chat composer
+ *   anything else  ask: the text goes to the chat (sent; the frame decides)
  */
 export type BarIntent = { kind: 'none' } | { kind: 'palette'; query: string } | { kind: 'ask'; text: string }
 

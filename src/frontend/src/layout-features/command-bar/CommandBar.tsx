@@ -3,7 +3,7 @@
  * run a command…". A launcher, not a second palette:
  *   - typing `/` (or `>`) first opens the one cmdk palette, with what follows
  *     typed in; ⌘K in the bar opens it with the bar's text;
- *   - Enter asks: the text goes to the chat composer (onAsk);
+ *   - Enter asks: the text goes to the chat (onAsk; the frame sends it);
  *   - `/` anywhere outside a text field focuses the bar.
  * A lazy chunk (`lf-command-bar`): the frame imports it with import(). The
  * frame hands it the platform and its typing check (the kit's): a feature

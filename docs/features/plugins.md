@@ -536,7 +536,11 @@ classic frame), `setLayout(id, { persist }?)` switches live (`''` or
 ones. `meta.chat` tells the chat page how to present itself in your frame
 (who draws the session list, the thread style, lazy regions); see the ADR.
 Frames read data such as the session list with `useLayoutData('sessions')`,
-which returns null while nothing provides it: render without it.
+which returns null while nothing provides it: render without it. The `chat`
+feed (`builtin.chat`) also acts on the open chat: `prefill(text)` fills the
+composer, `send?(text)` sends (optional: check for it, and fall back to
+`prefill`), `cancel()` stops the reply, and
+`resolveApproval(id, approved, { always? })` decides a gate in the thread.
 
 **Failure.** A layout whose module fails to import, or whose frame throws,
 is replaced by the classic frame with one toast and an `aiui:plugin-error`

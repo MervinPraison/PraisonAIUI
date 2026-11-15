@@ -530,6 +530,7 @@ declare module '@aiui/sdk' {
   }
   export interface ChatFeed extends Feed<ChatState> {
     prefill(text: string): void
+    send?(text: string, options?: { agentName?: string }): Promise<void>
     cancel(): Promise<void>
     resolveApproval(
       approvalId: string,

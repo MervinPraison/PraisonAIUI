@@ -467,7 +467,9 @@ export default function CommandFrame(props: LayoutProps) {
   }, [onChat, inspectorOpen, nav, chatPage])
   const ask = useCallback(
     (text: string) => {
-      if (chat.feed) chat.feed.prefill(text)
+      // Enter in the bar sends; a chat feed without send only fills the composer.
+      if (chat.feed?.send) void chat.feed.send(text)
+      else if (chat.feed) chat.feed.prefill(text)
       else chrome.openPalette({ query: text })
     },
     [chat.feed, chrome],

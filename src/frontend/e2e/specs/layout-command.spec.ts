@@ -133,14 +133,14 @@ test('a run paused for approval: the inspector follows it, A approves it once, t
   await openDeck(page)
   await expect(inspector(page).locator('[data-run-empty]')).toBeVisible()
 
-  // The bar asks: Enter puts the question in the composer.
+  // The bar asks: Enter sends the question (a new chat), the composer stays empty.
   await focusPage(page)
   await page.keyboard.press('/')
   await expect(bar(page)).toBeFocused()
   await bar(page).fill('Compare sorting algorithms apok')
   await bar(page).press('Enter')
-  await expect(composer(page)).toHaveValue('Compare sorting algorithms apok')
-  await composer(page).press('Enter')
+  await expect(bar(page)).toHaveValue('')
+  await expect(composer(page)).toHaveValue('')
 
   await expect(inspector(page).locator('[data-run-status="waiting"]')).toBeVisible()
   await expect(inspector(page).getByRole('heading', { name: 'Approval needed' })).toBeVisible()

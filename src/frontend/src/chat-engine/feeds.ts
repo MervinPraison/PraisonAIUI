@@ -2,7 +2,8 @@
  * chat-engine/feeds.ts — the chat's layout data feeds (ADR 0003 §1.1):
  *
  *   createSessionsFeed()  SessionsFeed over ./sessionsStore (+ running ids)
- *   createChatFeed()      ChatFeed over ./store for the open session
+ *   createChatFeed()      ChatFeed over ./store for the open session (send,
+ *                         prefill, cancel, approvals)
  *
  * builtin.chat provides them lazily (`provideLayoutData('sessions', () =>
  * import('@/chat-engine/feeds').then(...))`), so this module loads only when
@@ -14,14 +15,21 @@
  * the shell's router.
  */
 import type { ChatFeed, ChatState, SessionsFeed, SessionsState } from '@/sdk/layoutTypes'
+import type { AiuiTransport } from './transports'
 import { chatTransport, sessionsStore } from './sessionsStore'
 import { threadStore } from './store'
 
 export const PREFILL_EVENT = 'aiui:prefill-composer'
 
+/** A client-minted session id (useAiuiRuntime mints the same kind; both /run and the WS accept it). */
+const newSessionId = (): string =>
+  globalThis.crypto?.randomUUID?.() ?? `s_${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`
+
 export interface FeedOptions {
   /** Bring the chat page on screen (navigate to it when it is not). */
   show?: () => void
+  /** The chat transport (default: the shared one, ./sessionsStore chatTransport). */
+  transport?: AiuiTransport
 }
 
 /** The session list, the open session and the sessions with a live run. */
@@ -67,7 +75,8 @@ export function createSessionsFeed({ show }: FeedOptions = {}): SessionsFeed {
 }
 
 /** The open session's messages and run state, and the actions a frame may take on them. */
-export function createChatFeed({ show }: FeedOptions = {}): ChatFeed {
+export function createChatFeed({ show, transport: transportOpt }: FeedOptions = {}): ChatFeed {
+  const transport = () => transportOpt ?? chatTransport()
   let cache: { sid: string | null; thread: ReturnType<typeof threadStore.get>; state: ChatState } | null = null
   const activeId = () => sessionsStore.get().activeId
   /** The persisted history of a session a frame shows before the chat page has. */
@@ -108,14 +117,26 @@ export function createChatFeed({ show }: FeedOptions = {}): ChatFeed {
       // The chat page fills its composer; ./register keeps it while the page loads.
       window.dispatchEvent(new CustomEvent(PREFILL_EVENT, { detail: { text } }))
     },
+    async send(text, opts = {}) {
+      if (typeof text !== 'string' || !text.trim()) return
+      let sid = activeId()
+      if (sid && threadStore.get(sid).isRunning) return // the composer is disabled while a reply runs
+      const created = !sid
+      // A new chat gets a client-minted id, as the chat page's own composer does.
+      if (!sid) sid = newSessionId()
+      const sent = threadStore.send(transport(), sid, text, { agentName: opts.agentName })
+      if (created) sessionsStore.noteCreated(sid)
+      show?.()
+      await sent
+    },
     async cancel() {
       const sid = activeId()
-      if (sid && threadStore.get(sid).isRunning) await threadStore.cancel(chatTransport(), sid)
+      if (sid && threadStore.get(sid).isRunning) await threadStore.cancel(transport(), sid)
     },
     async resolveApproval(approvalId, approved, opts = {}) {
       const sid = activeId()
       if (!sid || !threadStore.findApproval(sid, approvalId)) throw new Error('This approval is not in the open chat')
-      await threadStore.respondApproval(chatTransport(), sid, approvalId, {
+      await threadStore.respondApproval(transport(), sid, approvalId, {
         approved,
         text: opts.text,
         optionId: opts.optionId,
