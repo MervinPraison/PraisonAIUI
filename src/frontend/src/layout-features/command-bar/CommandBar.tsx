@@ -5,13 +5,14 @@
  *     typed in; ⌘K in the bar opens it with the bar's text;
  *   - Enter asks: the text goes to the chat composer (onAsk);
  *   - `/` anywhere outside a text field focuses the bar.
- * A lazy chunk (`lf-command-bar`): the frame imports it with import().
+ * A lazy chunk (`lf-command-bar`): the frame imports it with import(). The
+ * frame hands it the platform and its typing check (the kit's): a feature
+ * that imported the kit itself would split the kit into one more chunk for
+ * every layout.
  */
 import { useEffect, useId, useRef, useState, type JSX, type KeyboardEvent } from 'react'
-import { SquareTerminal } from 'lucide-react'
 import { Kbd } from '@/components/ui/kbd'
 import { cn } from '@/lib/utils'
-import { isMacPlatform, isTypingTarget } from '@/app-layouts/kit'
 import { barIntent } from './bar'
 
 export interface CommandBarProps {
@@ -22,15 +23,18 @@ export interface CommandBarProps {
   /** The agent the bar talks to (the chip); none hides it. */
   agent?: string
   size?: 'default' | 'touch'
+  /** Apple keys (⌘) rather than Ctrl. */
+  mac: boolean
+  /** True for a target the viewer types in (the `/` key is theirs there). */
+  isTypingTarget(target: EventTarget | null): boolean
   className?: string
 }
 
-export default function CommandBar({ openPalette, onAsk, agent, size = 'default', className }: CommandBarProps): JSX.Element {
+export default function CommandBar({ openPalette, onAsk, agent, size = 'default', mac, isTypingTarget, className }: CommandBarProps): JSX.Element {
   const [value, setValue] = useState('')
   const input = useRef<HTMLInputElement>(null)
   const id = useId()
   const touch = size === 'touch'
-  const mac = isMacPlatform()
 
   // `/` outside a text field focuses the bar (the key is not typed).
   useEffect(() => {
@@ -42,7 +46,7 @@ export default function CommandBar({ openPalette, onAsk, agent, size = 'default'
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [isTypingTarget])
 
   const toPalette = (query: string) => {
     setValue('')
@@ -91,7 +95,11 @@ export default function CommandBar({ openPalette, onAsk, agent, size = 'default'
         className,
       )}
     >
-      <SquareTerminal aria-hidden className="size-4 shrink-0 text-tier-3" />
+      {/* The terminal prompt glyph, drawn here: the chat route's lucide Terminal would become a shared chunk. */}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden className="size-4 shrink-0 text-tier-3">
+        <polyline points="4 17 10 11 4 5" />
+        <line x1="12" x2="20" y1="19" y2="19" />
+      </svg>
       {agent && !touch && (
         <span className="max-w-40 shrink-0 truncate rounded-xs bg-accent-soft px-1.5 font-mono text-2xs leading-5 font-medium text-link" data-command-bar-agent>
           @{agent}

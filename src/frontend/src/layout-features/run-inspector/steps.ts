@@ -12,7 +12,6 @@
  * runs from the end of the step before it to the message's completedAt.
  */
 import type { ChatMessageView, ChatPartView, ChatToolPartView } from '@/sdk/layoutTypes'
-import { describeCall } from '@/app-layouts/kit'
 
 export type InspectorRunStatus = 'running' | 'waiting' | 'completed' | 'failed' | 'cancelled'
 export type InspectorStepState = 'running' | 'done' | 'waiting' | 'error'
@@ -189,7 +188,10 @@ function toolTitle(p: ChatToolPartView): { title: string; isCommand: boolean } {
   const cmd = commandOf(p.args)
   if (cmd) return { title: `$ ${cmd.length > 200 ? `${cmd.slice(0, 199)}…` : cmd}`, isCommand: true }
   const label = typeof p.artifact.label === 'string' && p.artifact.label ? p.artifact.label : ''
-  return { title: label || describeCall({ toolName: p.toolName, args: p.args }), isCommand: false }
+  // Not the kit's describeCall: a module the frame shares would land in the frame's chunk.
+  const values = Object.values(p.args)
+  const call = values.length === 1 && typeof values[0] === 'string' ? values[0] : `${p.toolName}(${values.length ? JSON.stringify(p.args) : ''})`
+  return { title: label || (call.length > 200 ? `${call.slice(0, 199)}…` : call), isCommand: false }
 }
 
 const isPendingApproval = (p: ChatPartView): p is ChatToolPartView & { approval: NonNullable<ChatToolPartView['approval']> } =>

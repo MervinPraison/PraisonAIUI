@@ -17,7 +17,7 @@ test('barIntent: commands, questions and nothing', () => {
 })
 
 test('the bar: a search landmark, a labelled input, the agent chip on desktop only', () => {
-  const props = { openPalette: () => {}, onAsk: () => {}, agent: 'Researcher' }
+  const props = { openPalette: () => {}, onAsk: () => {}, agent: 'Researcher', mac: true, isTypingTarget: () => false }
   const desk = renderToStaticMarkup(createElement(CommandBar, props))
   assert.match(desk, /role="search"/)
   assert.match(desk, /<label for="([^"]+)" class="sr-only">Ask or run a command<\/label><input[^>]*id="\1"/)

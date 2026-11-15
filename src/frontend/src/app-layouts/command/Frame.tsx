@@ -21,8 +21,8 @@
  * provider is off. A layout imports only the SDK, components/ui, lib and the
  * kit (app-layouts/isolation.test.ts); its features load with import().
  */
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { Ellipsis, Menu, PanelRight, Plus, SquarePen, SquareTerminal, SunMoon } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { Menu, PanelRight, Plus, SquarePen, SunMoon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import type { LayoutNavItem, LayoutProps } from '@/sdk/layouts'
@@ -30,7 +30,6 @@ import type { ApprovalItem } from '@/sdk/layoutTypes'
 import { registerCommand, useManifest } from '@/sdk/services'
 import { cn } from '@/lib/utils'
 import {
-  ApprovalCard,
   describeCall,
   isMacPlatform,
   isPlainLeftClick,
@@ -58,8 +57,8 @@ import {
   type SessionTab,
   type TodayUsage,
 } from './model'
+import ShortcutSheet from './ShortcutSheet'
 
-const ShortcutSheet = lazy(() => import('./ShortcutSheet'))
 
 const isDialogTarget = (t: EventTarget | null) =>
   !!(t as Element | null)?.closest?.('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]')
@@ -74,7 +73,7 @@ function Brand({ chrome, compact = false }: Pick<LayoutProps, 'chrome'> & { comp
         <img src={logo.value} alt="" className="size-6.5 shrink-0 rounded-sm" />
       ) : (
         <span aria-hidden className="flex size-6.5 shrink-0 items-center justify-center rounded-sm bg-primary text-xs font-semibold text-primary-foreground">
-          {logo?.value ? logo.value.slice(0, 2) : <SquareTerminal className="size-4" />}
+          {(logo?.value ?? chrome.siteTitle).slice(0, logo ? 2 : 1)}
         </span>
       )}
       {!compact && <span className="truncate text-base font-semibold tracking-tight">{chrome.siteTitle}</span>}
@@ -156,7 +155,12 @@ function Rail({
     <nav aria-label="Main" data-command-rail="" className="relative z-10 flex w-17 shrink-0 flex-col items-center gap-1 overflow-y-auto border-r border-border bg-sidebar py-2.5">
       {items.map(link)}
       <button type="button" className={railButton} onClick={onMore} aria-label="More pages and commands" aria-keyshortcuts="Meta+K Control+K">
-        <Ellipsis aria-hidden className="size-4.5" />
+        {/* Drawn here: lucide's Ellipsis is shared with the chat route's lazy chunks. */}
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="size-4.5">
+          <circle cx="5" cy="12" r="1.5" />
+          <circle cx="12" cy="12" r="1.5" />
+          <circle cx="19" cy="12" r="1.5" />
+        </svg>
         <span className="text-2xs font-medium">More</span>
         <RailTip text="All pages and commands" keys={isMacPlatform() ? '⌘K' : 'Ctrl K'} />
       </button>
@@ -306,6 +310,53 @@ function StatusBar({
         </button>
       </span>
     </footer>
+  )
+}
+
+/**
+ * The phone's approval list (the sheet's "Waiting for you"): each call with
+ * Deny and Approve, 44 px targets. Not the kit's ApprovalCard: its icon is
+ * one the chat route shares, and a shared icon becomes a chunk of its own.
+ */
+function PendingApprovals({ items, decide }: { items: readonly ApprovalItem[]; decide(item: ApprovalItem, approved: boolean): Promise<void> }) {
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const act = (item: ApprovalItem, approved: boolean) => async () => {
+    setBusy(item.id)
+    setError(null)
+    try {
+      await decide(item, approved)
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'The decision did not reach the server.')
+    } finally {
+      setBusy(null)
+    }
+  }
+  return (
+    <ul className="m-0 flex list-none flex-col gap-2 p-0" data-command-pending="">
+      {items.map((a) => (
+        <li key={a.id} data-aiui-approval={a.id} className="flex flex-col gap-2 rounded-lg border bg-card p-2.5 [border-color:var(--ui-warning-line)]">
+          <span className="text-xs text-tier-3">
+            {a.agentName || 'The agent'} wants to use {a.toolName || 'a tool'}
+            {a.riskLevel ? ` · ${a.riskLevel} risk` : ''}
+          </span>
+          <code className="font-mono text-sm break-all">{describeCall(a)}</code>
+          <span className="flex gap-2">
+            <Button variant="outline" className="h-11 flex-1 text-base" disabled={busy === a.id} onClick={act(a, false)}>
+              Deny
+            </Button>
+            <Button className="h-11 flex-1 text-base" disabled={busy === a.id} onClick={act(a, true)}>
+              Approve
+            </Button>
+          </span>
+        </li>
+      ))}
+      {error && (
+        <li role="alert" className="text-xs text-destructive">
+          {error}
+        </li>
+      )}
+    </ul>
   )
 }
 
@@ -492,14 +543,18 @@ export default function CommandFrame(props: LayoutProps) {
   }, [running, chat.feed, gate, decide])
 
   const shortcutSections = useMemo(() => shortcutRows(rail, isMacPlatform()), [rail])
-  const shortcutDialog = shortcutsRequested && (
-    <Suspense fallback={null}>
-      <ShortcutSheet open={shortcutsOpen} onOpenChange={setShortcutsOpen} sections={shortcutSections} />
-    </Suspense>
-  )
+  const shortcutDialog = shortcutsRequested && <ShortcutSheet open={shortcutsOpen} onOpenChange={setShortcutsOpen} sections={shortcutSections} />
   const bar = (touch: boolean) => (
     <Feature name="command bar" fallback={<BarFallback touch={touch} />}>
-      <CommandBar openPalette={chrome.openPalette} onAsk={ask} agent={agent} size={touch ? 'touch' : 'default'} className="flex-1" />
+      <CommandBar
+        openPalette={chrome.openPalette}
+        onAsk={ask}
+        agent={agent}
+        size={touch ? 'touch' : 'default'}
+        mac={isMacPlatform()}
+        isTypingTarget={isTypingTarget}
+        className="flex-1"
+      />
     </Feature>
   )
   const main = (
@@ -558,17 +613,13 @@ export default function CommandFrame(props: LayoutProps) {
         {main}
         {onChat && (
           <Feature name="run inspector">
-            <RunInspector variant="sheet" />
+            <RunInspector variant="sheet" isTypingTarget={isTypingTarget} />
           </Feature>
         )}
         <PhoneSheet open={menuOpen} onOpenChange={setMenuOpen} title="Menu and sessions" header={<Brand chrome={chrome} />}>
           {pending.length > 0 && (
             <NavSection title="Waiting for you" size="touch">
-              <div className="flex flex-col gap-2">
-                {pending.map((a) => (
-                  <ApprovalCard key={a.id} item={a} size="touch" onApprove={() => decide(a, true)} onDeny={() => decide(a, false)} />
-                ))}
-              </div>
+              <PendingApprovals items={pending} decide={decide} />
             </NavSection>
           )}
           <NavList items={rail} go={nav.go} onNavigate={() => setMenuOpen(false)} size="touch" aria-label="Primary" renderIcon={(i) => <ItemIcon item={i} className="text-muted-foreground" />} />
@@ -648,7 +699,7 @@ export default function CommandFrame(props: LayoutProps) {
             {main}
             {onChat && inspectorOpen && (
               <Feature name="run inspector">
-                <RunInspector variant="panel" className="w-90 shrink-0 border-l border-border" />
+                <RunInspector variant="panel" isTypingTarget={isTypingTarget} className="w-90 shrink-0 border-l border-border" />
               </Feature>
             )}
           </div>

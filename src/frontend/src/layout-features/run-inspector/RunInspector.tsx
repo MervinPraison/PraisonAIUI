@@ -15,14 +15,13 @@
  * A lazy chunk (`lf-run-inspector`): the frame imports it with import().
  */
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type JSX } from 'react'
-import { ChevronUp, FileText, ShieldAlert, Square } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { useLayoutData } from '@/sdk/layouts'
 import type { ChatFeed, ChatState } from '@/sdk/layoutTypes'
 import { useManifest } from '@/sdk/services'
 import { cn } from '@/lib/utils'
-import { isTypingTarget } from '@/app-layouts/kit'
 import { hasRunLedger, useRunDetail } from './api'
 import {
   deriveRun,
@@ -40,6 +39,12 @@ export interface RunInspectorProps {
   variant?: 'panel' | 'sheet'
   /** Panel only: its keys (J K ↵ A D F ⌃C) are live while it is on screen. Default true. */
   keys?: boolean
+  /**
+   * True for a target the viewer types in, where the panel's keys stay off.
+   * The frame passes the kit's (a feature that imported the kit itself would
+   * split the kit into one more chunk for every layout).
+   */
+  isTypingTarget?(target: EventTarget | null): boolean
   className?: string
 }
 
@@ -80,6 +85,30 @@ function StatusPill({ run }: { run: InspectorRun }) {
 }
 
 const shortId = (id: string | undefined) => (id && id.length > 14 ? id.slice(0, 10) : id)
+
+/*
+ * Drawn here rather than imported from lucide-react: the chat route uses
+ * those icons too, and an icon both share becomes a chunk of its own,
+ * which adds to the chat route's budget.
+ */
+const glyph = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true } as const
+const StopGlyph = () => (
+  <svg {...glyph} className="size-3.5">
+    <rect width="14" height="14" x="5" y="5" rx="2" />
+  </svg>
+)
+const ChevronGlyph = ({ className }: { className?: string }) => (
+  <svg {...glyph} className={className}>
+    <path d="m18 15-6-6-6 6" />
+  </svg>
+)
+const ShieldGlyph = () => (
+  <svg {...glyph} className="size-4 shrink-0 text-warning">
+    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+    <path d="M12 8v4" />
+    <path d="M12 16h.01" />
+  </svg>
+)
 
 // ── decisions ────────────────────────────────────────────────────────
 
@@ -131,7 +160,7 @@ function ApprovalBlock({ approval, run, d, touch }: { approval: InspectorApprova
       className="flex flex-col gap-2.5 rounded-lg border bg-card p-3 [border-color:var(--ui-warning-line)]"
     >
       <div className="flex items-center gap-2">
-        <ShieldAlert aria-hidden className="size-4 shrink-0 text-warning" />
+        <ShieldGlyph />
         <h3 id={headingId} className="m-0 text-sm font-semibold">Approval needed</h3>
         <span className="ml-auto font-mono text-2xs text-tier-3" aria-label={`Waiting ${formatDuration(run.waitingMs, true)}`}>
           waiting {formatDuration(run.waitingMs, true)}
@@ -273,15 +302,19 @@ const SectionTitle = ({ id, children, aside }: { id: string; children: string; a
 
 // ── the inspector ────────────────────────────────────────────────────
 
+/** Fields and editors, when the frame passes no check of its own. */
+const FIELDS = 'input, textarea, select, [contenteditable=""], [contenteditable="true"]'
+const inField = (t: EventTarget | null) => !!(t as Element | null)?.closest?.(FIELDS)
+
 /** Keys that belong to something else: typing, a dialog or menu, a modifier. */
-function foreignKey(e: KeyboardEvent): boolean {
+function foreignKey(e: KeyboardEvent, typing: (t: EventTarget | null) => boolean): boolean {
   if (e.defaultPrevented || e.isComposing || e.metaKey || e.altKey) return true
-  if (isTypingTarget(e.target)) return true
+  if (typing(e.target)) return true
   const t = e.target as Element | null
   return !!t?.closest?.('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]')
 }
 
-export default function RunInspector({ variant = 'panel', keys = true, className }: RunInspectorProps): JSX.Element | null {
+export default function RunInspector({ variant = 'panel', keys = true, isTypingTarget = inField, className }: RunInspectorProps): JSX.Element | null {
   const { feed: chat, state } = useChat()
   const seen = useRef(new Map<string, number>()).current
   const [live, setLive] = useState(false)
@@ -319,7 +352,7 @@ export default function RunInspector({ variant = 'panel', keys = true, className
         void c.cancel()
         return
       }
-      if (e.ctrlKey || e.shiftKey || foreignKey(e)) return
+      if (e.ctrlKey || e.shiftKey || foreignKey(e, isTypingTarget)) return
       if (key === 'j' || key === 'k') {
         const rows = [...(stepsRef.current?.querySelectorAll<HTMLButtonElement>('[data-run-step]') ?? [])]
         if (!rows.length) return
@@ -337,7 +370,7 @@ export default function RunInspector({ variant = 'panel', keys = true, className
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [sheet, keys])
+  }, [sheet, keys, isTypingTarget])
 
   const tokens = formatTokens(detail?.tokens) ?? '—'
   const tokensSub = detail?.tokensIn !== undefined && detail.tokensOut !== undefined ? `${formatTokens(detail.tokensIn)} in · ${formatTokens(detail.tokensOut)} out` : ''
@@ -421,7 +454,7 @@ export default function RunInspector({ variant = 'panel', keys = true, className
             <span className="ml-auto font-mono text-2xs text-muted-foreground">
               {run.doneSteps}/{run.steps.length}{cost !== '—' ? ` · ${cost}` : ''}
             </span>
-            <ChevronUp aria-hidden className={cn('size-4 text-muted-foreground transition-transform', open && 'rotate-180')} />
+            <ChevronGlyph className={cn('size-4 text-muted-foreground transition-transform', open && 'rotate-180')} />
           </span>
         </button>
         {run.approval && (
@@ -455,7 +488,7 @@ export default function RunInspector({ variant = 'panel', keys = true, className
         {run && <StatusPill run={run} />}
         {stop && (
           <Button variant="ghost" size="sm" className="ml-auto text-muted-foreground" aria-keyshortcuts="Control+C" onClick={stop} data-run-stop>
-            <Square aria-hidden />
+            <StopGlyph />
             Stop <Kbd>⌃C</Kbd>
           </Button>
         )}
