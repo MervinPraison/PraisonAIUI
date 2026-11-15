@@ -50,9 +50,9 @@ class LayoutFixturePlugin:
     sdk = 1
 
     def layouts(self):
-        # LayoutSpec arrives with ADR 0003 F2; dicts with its field names work too.
+        # LayoutSpec (ADR 0003); on an aiui without it, dicts with its field names.
         try:
-            from praisonaiui.plugin_registry import LayoutSpec  # type: ignore[attr-defined]
+            from praisonaiui.plugin_registry import LayoutSpec
         except ImportError:
             return [dict(spec) for spec in LAYOUTS]
         return [LayoutSpec(**spec) for spec in LAYOUTS]
