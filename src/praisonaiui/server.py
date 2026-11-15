@@ -942,9 +942,13 @@ def _build_html(style: str, request: Optional[Request] = None) -> str:
     html_open = '<html lang="en">'
     shell_head = ""
     if style == "app":
+        from praisonaiui.layouts import default_layout  # ADR 0003: Pro tokens on first paint
+
+        layout = default_layout(style, restricted=_plugin_js_restricted(getattr(request, "scope", None)))
+        tokens = ' data-aiui-tokens="pro"' if layout else ""
         html_open = (
             '<html lang="en" data-aiui-shell="react" '
-            f'data-aiui-theme-default="{_shell_default_theme()}">'
+            f'data-aiui-theme-default="{_shell_default_theme()}"{tokens}>'
         )
         theme_vars_tag = _shell_theme_tag()
         shell_head = _shell_head(cache_bust, request) + _shell_modulepreload_tags(request)

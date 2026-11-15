@@ -244,9 +244,10 @@ a feature. Put new APIs in a `features/*.py` class owned by a catalog record, or
 in a plugin's `routes()`; put config in YAML (`schema/models.py`). `server.py` is
 about 4,600 lines with about 120 top-level functions today (gap G6), and the
 routes left in `create_app` are core (pinned by `test_route_table_snapshot.py`);
-a PR may move code out, never in. Accepted exception: ADR 0003 added three
+a PR may move code out, never in. Accepted exception: ADR 0003 added a few
 lines (the manifest `layouts` key from `praisonaiui.layouts.layouts_manifest`,
-and the shell-only layout pages in `_page_records`); the logic lives in
+the shell-only layout pages in `_page_records`, and `data-aiui-tokens="pro"`
+on the app shell's `<html>` from `layouts.default_layout`); the logic lives in
 `layouts.py` and `builtin/page_sources.py`.
 *Check:* the diff of `server.py` adds no `Route(` and no `create_app` parameter;
 line count does not rise without a stated reason.

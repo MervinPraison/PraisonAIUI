@@ -319,6 +319,20 @@ def available_layout_ids(
     return set(resolve(registry, style, builtins=builtins).ids)
 
 
+def default_layout(style: Optional[str] = None, *, restricted: bool = True) -> str:
+    """The server's default layout id ('' = classic), for the first paint.
+
+    ``_build_html`` marks ``<html data-aiui-tokens="pro">`` when it is a
+    layout, so the page paints with the Pro tokens before the shell boots
+    (the shell's layout host then keeps or clears the attribute). Never
+    raises: a broken selection paints classic.
+    """
+    try:
+        return resolve(None, style, restricted=restricted).default
+    except Exception:  # noqa: BLE001 - first paint only; the manifest reports it
+        return ""
+
+
 def layouts_manifest(registry: Any = None, style: Optional[str] = None, *, restricted: bool = True) -> dict[str, Any]:
     """The shell manifest's ``layouts`` key (``ShellLayouts`` in sdk/manifest.ts)."""
     sel = resolve(registry, style, restricted=restricted)
@@ -341,6 +355,7 @@ __all__ = [
     "LayoutSelection",
     "available_layout_ids",
     "check_layout_id",
+    "default_layout",
     "layouts_manifest",
     "reset",
     "resolve",
