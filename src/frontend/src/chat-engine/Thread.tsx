@@ -47,7 +47,7 @@ import type { ChatPresentation } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
 import { LazyBoundary } from './parts/LazyBoundary'
 import { useDecision, type InlineGateProps } from './presentation/decision'
-import { commandLabel, commandOf } from './presentation/gateText'
+import { commandOf } from './presentation/command'
 import { APPROVAL_ERROR, APPROVAL_PENDING, PENDING_APPROVAL } from './protocol'
 import { formatDuration, safeUrl } from './util'
 
@@ -185,7 +185,8 @@ function ApprovalGate(p: InlineGateProps & { args?: Readonly<Record<string, unkn
   const [busy, error, act] = useDecision(p)
   const high = risk === 'high' || risk === 'critical'
   const command = commandOf(args)
-  const label = commandLabel(args)
+  // "Run: pip install numpy" for a command; "Details:" for any other arguments.
+  const label = args && ['command', 'cmd', 'code', 'script'].some((k) => k in args) ? 'Run' : 'Details'
   return (
     <div className="border-t border-border px-3 py-2.5" data-approval-gate>
       <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end">
@@ -195,10 +196,12 @@ function ApprovalGate(p: InlineGateProps & { args?: Readonly<Record<string, unkn
             <p className="text-sm break-words text-foreground">{prompt}</p>
             {command && (
               <p className="flex min-w-0 items-baseline gap-1.5 text-sm" data-gate-command>
-                <span className="shrink-0 text-muted-foreground">{label === 'Command' ? 'Run' : label}:</span>
+                <span className="shrink-0 text-muted-foreground">{label}:</span>
                 <code className="min-w-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs break-all text-foreground">{command}</code>
               </p>
             )}
+            {/* A phone row has no room for the header's risk chip: it is said here. */}
+            {risk && <p className={cn('text-xs sm:hidden', high ? 'text-destructive' : 'text-muted-foreground')}>{risk} risk</p>}
           </div>
         </div>
         <div className="flex shrink-0 gap-2 pl-6 sm:pl-0">
@@ -281,7 +284,7 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
         {description && <span className="min-w-0 truncate text-muted-foreground">{description}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2">
           {state === 'approval' && risk && (
-            <span className={cn('rounded px-1.5 py-0.5 text-xs', risk === 'high' || risk === 'critical' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground')} data-tool-risk>
+            <span className={cn('hidden rounded px-1.5 py-0.5 text-xs sm:inline', risk === 'high' || risk === 'critical' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground')} data-tool-risk>
               {risk} risk
             </span>
           )}
