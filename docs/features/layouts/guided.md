@@ -36,8 +36,8 @@ Or set `AIUI_LAYOUT=guided`, or preview it in one tab with `?layout=guided`.
 The header names the open chat and who it is with: "Chatting with
 Researcher · ready to help", or "working on it" and "waiting for your OK"
 while a reply runs or waits. **Search ⌘K** opens the command palette.
-**Change agent** opens the chat's agent picker, or My agents when the server
-has a single agent.
+**Change agent** opens the chat's agent picker, or My agents when the chat
+offers no choice of agent.
 
 **Phone** (narrower than 768 px). A 60 px header holds a menu button (your
 chats, the other pages, Settings), the chat's title and a **Start a new chat**
