@@ -57,7 +57,7 @@ def test_app_style_defaults_to_chat_canvas_with_every_builtin_layout():
     assert got["userChoice"] is True
     assert _ids(got) == BUILTIN_ORDER
     by_id = {s["id"]: s for s in got["available"]}
-    assert by_id["guided"]["home"] == "chat"  # "start" comes with the Guided frame (track G)
+    assert by_id["guided"]["home"] == "start"  # Guided's own Home page
     assert by_id["mission"]["home"] == "overview"
     assert by_id["chat-canvas"]["title"] == "Chat and Canvas"
     for spec in got["available"]:

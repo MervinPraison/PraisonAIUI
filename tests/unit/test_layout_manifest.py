@@ -24,6 +24,8 @@ FIXTURES = Path(__file__).parent / "fixtures"
 SNAPSHOT = json.loads((FIXTURES / "builtin_pages_snapshot.json").read_text(encoding="utf-8"))
 LAYOUT_IDS = ["chat-canvas", "workbench", "command", "guided", "mission"]
 LAYOUT_RECORDS = [f"builtin.layout-{i}" for i in LAYOUT_IDS]
+#: The layout records that own pages: those whose frame ships the React page.
+SHIPPED_LAYOUT_PAGES = {"guided": ("start", "templates")}
 
 
 @pytest.fixture(autouse=True)
@@ -57,19 +59,32 @@ def _page_ids(manifest: dict) -> list[str]:
 
 
 @pytest.mark.parametrize("layout", [None, "classic", "guided", "mission"])
-def test_layout_records_add_no_page_to_the_app_shell(layout, monkeypatch):
+def test_layout_records_add_only_their_shipped_pages_to_the_app_shell(layout, monkeypatch):
     # Regression: Guided start/templates and Mission ops-overview reached the
     # nav under every layout (start became the landing page) and nothing
-    # rendered them. Pages join a layout record with the frame that draws them.
+    # rendered them. Pages join a layout record with the frame that draws them
+    # (SHIPPED_LAYOUT_PAGES), and each names its layout, so the shell lists it
+    # only while that layout is the frame and never lands on it otherwise.
     without = _page_ids(_manifest(_client(extensions={"disabled": LAYOUT_RECORDS})))
     srv.reset_state()
     if layout:
         monkeypatch.setenv("AIUI_LAYOUT", layout)
     with_layouts = _manifest(_client())
-    assert _page_ids(with_layouts) == without
+    assert [p["id"] for p in with_layouts["pages"] if not p.get("layouts")] == without
+    owned = {p["id"]: p for p in with_layouts["pages"] if p.get("layouts")}
+    assert sorted(owned) == sorted(i for ids in SHIPPED_LAYOUT_PAGES.values() for i in ids)
+    for lid, ids in SHIPPED_LAYOUT_PAGES.items():
+        for pid in ids:
+            assert owned[pid]["layouts"] == [lid] and owned[pid]["kind"] == "native", pid
+            assert owned[pid]["source"] == f"builtin.layout-{lid}", pid
     assert [s["id"] for s in with_layouts["layouts"]["available"]] == LAYOUT_IDS
-    order0 = [p["id"] for p in with_layouts["pages"] if p.get("order") == 0]
-    assert not {"start", "templates", "ops-overview"} & set(_page_ids(with_layouts)), order0
+    assert "ops-overview" not in owned  # arrives with the Mission frame
+
+
+def test_a_layouts_pages_leave_the_manifest_with_the_layout():
+    m = _manifest(_client(extensions={"disabled": ["builtin.layout-guided"]}))
+    assert not set(SHIPPED_LAYOUT_PAGES["guided"]) & set(_page_ids(m))
+    assert "guided" not in [s["id"] for s in m["layouts"]["available"]]
 
 
 def test_every_layout_home_is_a_manifest_page():

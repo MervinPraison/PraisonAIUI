@@ -5,10 +5,9 @@ declares one :class:`LayoutSpec`. Third-party plugins use the same hook.
 Pages gain ``shell_only``, ``layouts`` and ``replaces``: a ``shell_only``
 page never enters the page table, ``/api/pages`` or the dashboard (R6).
 
-No layout record owns a page yet. A layout's own pages (Guided ``start`` and
-``templates``, Mission ``ops-overview``) arrive with the track that ships
-their React page; listing them earlier gave the shell nav items it could
-not render.
+A layout's own pages (Guided ``start`` and ``templates``; Mission
+``ops-overview`` later) arrive with the track that ships their React page;
+listing them earlier gave the shell nav items it could not render.
 """
 
 from __future__ import annotations
@@ -29,6 +28,8 @@ from praisonaiui.plugin_registry import LayoutSpec, PageSpec, get_plugin_registr
 FIXTURES = Path(__file__).parent / "fixtures"
 SNAPSHOT = json.loads((FIXTURES / "builtin_pages_snapshot.json").read_text(encoding="utf-8"))
 LAYOUT_IDS = ["chat-canvas", "workbench", "command", "guided", "mission"]
+#: The layout records that own pages: those whose frame ships the React page.
+SHIPPED_LAYOUT_PAGES = {"guided": ("start", "templates")}
 
 
 @pytest.fixture(autouse=True)
@@ -67,16 +68,27 @@ def test_one_record_per_builtin_layout():
 
 
 def test_no_layout_record_owns_a_page_before_its_frame_ships():
-    # A page here reaches the app shell nav at once, under every layout, and
-    # nothing in the bundle renders it yet (the regression this guards).
+    # A page here reaches the app shell manifest at once, and before the
+    # frame's track ships its React page nothing in the bundle renders it
+    # (the regression this guards). A shipped page is shell-only, native and
+    # names only its own layout, so the page table and the dashboard (R6) and
+    # every other layout's nav stay as they were.
     for plugin in BUILTIN_PLUGINS:
-        if plugin.name.startswith("layout-"):
-            assert plugin.shell_pages() == [] and plugin.pages() == [], plugin.name
+        if not plugin.name.startswith("layout-"):
+            continue
+        lid = plugin.name.removeprefix("layout-")
+        assert plugin.pages() == [], plugin.name
+        shell = plugin.shell_pages()
+        assert [s.id for s in shell] == list(SHIPPED_LAYOUT_PAGES.get(lid, ())), plugin.name
+        for spec in shell:
+            assert spec.shell_only and spec.kind == "native" and spec.layouts == (lid,), spec.id
 
 
 def test_every_builtin_layout_opens_on_a_page_that_exists():
-    pages = set(SNAPSHOT["insertion_order"])
-    for spec in _registry().layout_specs():
+    # Home may be one of the layout's own (shell-only) pages, e.g. Guided's start.
+    reg = _registry()
+    pages = set(SNAPSHOT["insertion_order"]) | {s.id for s in reg.shell_pages(LAYOUT_IDS)}
+    for spec in reg.layout_specs():
         assert spec.home in pages, (spec.id, spec.home)
         assert spec.primary and 1 <= len(spec.primary) <= 7
         assert spec.primary[0] in pages or spec.home in spec.primary

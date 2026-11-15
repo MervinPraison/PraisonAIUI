@@ -38,7 +38,7 @@ test('built-in names are unique, namespaced and each one owns a page or is a ser
 
 test('the built-in layouts and their picker ship in the list (otherwise Rollup drops them)', () => {
   const names = BUILTIN_PLUGINS.map((b) => b.name)
-  assert.deepEqual(names, ['builtin.chat', 'builtin.approvals', 'builtin.layouts'])
+  assert.deepEqual(names, ['builtin.chat', 'builtin.approvals', 'builtin.layouts', 'builtin.layout-guided'])
 })
 
 const page = (id: string, extra: Partial<ShellPage> = {}): ShellPage => ({
@@ -173,4 +173,18 @@ test('installBuiltins queues on onActivate: nothing registers until the shell ha
   assert.equal(newChat.group, 'Actions')
   assert.doesNotMatch(renderPage('chat', m), /Page not found/)
   assert.deepEqual(activateBuiltins(m), [], 'already active')
+})
+
+test("a layout's own pages activate only while the manifest lists them (the server lists them while that layout is offered)", () => {
+  resetBuiltinsForTests()
+  const guided = BUILTIN_PLUGINS.filter((b) => b.name === 'builtin.layout-guided')
+  const registered: string[] = []
+  const sdk = { ...sdkApi, registerPage: (id: string) => void registered.push(id) } as typeof sdkApi
+  assert.deepEqual(activateBuiltins(manifest([page('chat')]), sdk, guided), [], 'Guided off: nothing registers')
+  assert.deepEqual(
+    activateBuiltins(manifest([page('chat'), page('start', { kind: 'native', layouts: ['guided'] }), page('templates', { kind: 'native', layouts: ['guided'] })]), sdk, guided),
+    ['builtin.layout-guided'],
+  )
+  assert.deepEqual(registered, ['start', 'templates'])
+  resetBuiltinsForTests()
 })

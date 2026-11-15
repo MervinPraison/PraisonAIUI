@@ -775,15 +775,43 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
     BuiltinPlugin(
         "layout-guided",
         "Guided Studio layout: plain-language steps for newcomers",
+        # Guided's own pages, rendered by app-layouts/guided (registered by
+        # guidedPagesBuiltin in src/frontend/src/builtin/layouts/guided.ts).
+        # The shell lists them only while Guided is the frame; their URLs
+        # render under any layout.
+        (
+            page(
+                "start",
+                "Home",
+                "🏠",
+                "Agent",
+                "A welcome, popular templates and your recent chats",
+                0,
+                kind="native",
+                nav_icon="house",
+                shell_only=True,
+                layouts=("guided",),
+            ),
+            page(
+                "templates",
+                "Templates",
+                "🧩",
+                "Agent",
+                "Ready-made chats to start from, by category",
+                3,
+                kind="native",
+                nav_icon="layout-template",
+                shell_only=True,
+                layouts=("guided",),
+            ),
+        ),
         layout_specs=(
             layout_spec(
                 "guided",
                 "Guided Studio",
                 "For newcomers: templates to start from and each step explained in plain words",
                 40,
-                # The start and templates pages arrive with the Guided frame
-                # (track G); until then its home is the chat.
-                home="chat",
+                home="start",
                 primary=("start", "chat", "agents", "templates"),
             ),
         ),
