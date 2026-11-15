@@ -170,6 +170,23 @@ and `templates`. Mission's `ops-overview`, which replaces `overview`, arrives
 with the Mission frame **(planned)**. A layout record adds a page only with
 the frame that renders it.
 
+### React pages inside every layout
+
+Four built-in pages have a React page in the Pro design that renders inside
+any layout frame (`src/frontend/src/app-pages/`, one lazy chunk each,
+registered by `builtin.overview`, `builtin.sessions`, `builtin.logs` and
+`builtin.config` with the usual `registerPage`):
+
+| Page | Design | What it shows |
+|---|---|---|
+| `overview` | ProOverview | A greeting and one sentence, "Today at a glance" tiles with sparklines, what needs your approval (the approvals feed plus the open chat's gates), agents, recent runs or chats, the model provider, a collapsible feature health list |
+| `sessions` | ProList | Search (`/`), status chips, an agent filter, a sortable table (title, agent, messages, tokens, relative time, status), a detail panel, a labelled row menu, Delete with a confirmation |
+| `logs` | ProLogs | Level toggles with counts, search with match navigation, Pause, Download, Clear with a confirmation |
+| `config` | ProSettings | A section list, a breadcrumb, shadcn Select / Switch / Input with help for each field, a masked API key with a show toggle, Test connection, a sticky "Unsaved changes" bar |
+
+In the classic frame (`layout: classic`) these pages render their legacy
+view exactly as before, and the default `dashboard` style never loads them.
+
 ## Data that only some layouts need
 
 A first-party record can declare `for_layouts=("command", "mission")`. It is

@@ -159,7 +159,8 @@ test('LogViewer: level toggles with counts, the grid and expandable rows', () =>
   assert.match(html, /data-aiui-template="log"/)
   assert.match(html, /role="group" aria-label="Levels"/)
   assert.match(html, /data-level="warn" aria-pressed="true"[^>]*>Warn<span class="aiui-tpl-count">1<\/span>/)
-  assert.match(html, /data-level="debug" aria-pressed="true"[^>]*>Debug<span class="aiui-tpl-count">0<\/span>/)
+  // A zero count is marked, so the error badge is red only when there are errors.
+  assert.match(html, /data-level="debug" aria-pressed="true"[^>]*>Debug<span class="aiui-tpl-count" data-zero="true">0<\/span>/)
   assert.match(html, /role="log" aria-live="off"/)
   assert.match(html, /<span class="aiui-tpl-lvl" data-level="error">ERROR<\/span>/)
   assert.match(html, /aria-expanded="false"/, 'a row with detail is a disclosure')

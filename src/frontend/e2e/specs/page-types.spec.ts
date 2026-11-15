@@ -54,11 +54,18 @@ const MAX_DIFF = 0.01
  * far), and the code editor canvas (Monaco loads from a CDN, or the textarea
  * fallback paints when it cannot).
  */
-const VOLATILE = ['.aiui-logs-content', '.aiui-logs-count', '#cs-editor', '#cs-history']
+const VOLATILE = ['.aiui-logs-content', '.aiui-logs-count', '.aiui-tpl-log-lines', '.aiui-tpl-count', '#cs-editor', '#cs-history']
+
+/**
+ * Pages the app shell draws as React pages inside a layout (src/app-pages);
+ * the classic frame keeps their legacy view.
+ */
+const APP_PAGES = new Set(['overview', 'sessions', 'logs', 'config'])
 
 async function open(page: Page, id: string, layout: string) {
   await page.goto(`/${id}?layout=${layout}`)
-  await page.locator(`[data-aiui-page="${id}"] .aiui-legacy-host[data-status="ready"]`).waitFor({ timeout: 15_000 })
+  const ready = APP_PAGES.has(id) && layout !== 'classic' ? '[data-aiui-app-page]' : '.aiui-legacy-host[data-status="ready"]'
+  await page.locator(`[data-aiui-page="${id}"] ${ready}`).waitFor({ timeout: 15_000 })
 }
 
 const style = (page: Page, sel: string, prop: string) =>
@@ -89,14 +96,22 @@ for (const [id, type] of Object.entries(TEMPLATES)) {
 test('templates dress legacy views under a layout, not in the classic frame', async ({ page }) => {
   await open(page, 'kanban', 'chat-canvas')
   expect(await style(page, '.aiui-board-column', 'border-top-left-radius')).toBe('12px')
-  await open(page, 'logs', 'chat-canvas')
-  await page.locator('.aiui-logs-toolbar').waitFor()
-  expect(await style(page, '.aiui-logs-toolbar', 'border-bottom-style')).toBe('solid')
-  await open(page, 'config', 'chat-canvas')
-  expect(await style(page, '.aiui-config-field', 'flex-direction')).toBe('row')
 
   await open(page, 'config', 'classic')
   expect(await style(page, '.aiui-config-field', 'flex-direction')).toBe('column')
+})
+
+test('under a layout, logs, sessions and config are React pages on their templates; the classic frame keeps the legacy views', async ({ page }) => {
+  await open(page, 'logs', 'chat-canvas')
+  await expect(page.locator('[data-aiui-page="logs"] [data-aiui-template="log"]')).toBeVisible()
+  await expect(page.locator('[data-aiui-page="logs"] .aiui-legacy-host')).toHaveCount(0)
+  await open(page, 'sessions', 'chat-canvas')
+  await expect(page.locator('[data-aiui-page="sessions"] [data-aiui-template="list"]')).toBeVisible()
+  await open(page, 'config', 'chat-canvas')
+  await expect(page.getByRole('navigation', { name: 'Settings sections' })).toBeVisible()
+  await expect(page.locator('[data-aiui-page="config"] select')).toHaveCount(0)
+  await open(page, 'logs', 'classic')
+  await expect(page.locator('[data-aiui-page="logs"] [data-aiui-app-page]')).toHaveCount(0)
 })
 
 test('the template CSS loads with the legacy host, never at boot', async ({ page }) => {

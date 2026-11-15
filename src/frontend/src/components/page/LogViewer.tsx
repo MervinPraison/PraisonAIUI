@@ -123,7 +123,7 @@ export function LogViewer({ label, entries, initialLevels, actions, follow = tru
               onClick={() => toggle(lvl)}
             >
               {LEVEL_LABEL[lvl]}
-              <span className="aiui-tpl-count">{counts[lvl].toLocaleString()}</span>
+              <span className="aiui-tpl-count" data-zero={counts[lvl] === 0 || undefined}>{counts[lvl].toLocaleString()}</span>
             </Button>
           ))}
         </div>

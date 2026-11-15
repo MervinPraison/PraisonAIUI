@@ -38,7 +38,7 @@ test('built-in names are unique, namespaced and each one owns a page or is a ser
 
 test('the built-in layouts and their picker ship in the list (otherwise Rollup drops them)', () => {
   const names = BUILTIN_PLUGINS.map((b) => b.name)
-  assert.deepEqual(names, ['builtin.chat', 'builtin.approvals', 'builtin.layouts', 'builtin.layout-guided'])
+  assert.deepEqual(names, ['builtin.chat', 'builtin.approvals', 'builtin.layouts', 'builtin.layout-guided', 'builtin.overview', 'builtin.sessions', 'builtin.logs', 'builtin.config'])
 })
 
 const page = (id: string, extra: Partial<ShellPage> = {}): ShellPage => ({
@@ -143,7 +143,8 @@ test('a built-in page hidden by set_pages is not registered and renders "Page no
   resetBuiltinsForTests()
   resetServicesForTests()
   const hidden = manifest([page('overview'), page('logs')])
-  assert.deepEqual(activateBuiltins(hidden), ['builtin.approvals', 'builtin.layouts'], 'only the always-on services')
+  // The always-on services, and the React pages of the two pages it lists.
+  assert.deepEqual(activateBuiltins(hidden), ['builtin.approvals', 'builtin.layouts', 'builtin.overview', 'builtin.logs'])
   assert.equal(getPage('chat'), undefined)
   assert.equal(getCommands().find((c) => c.id === 'chat.new'), undefined, 'no "New chat" without the chat page')
   const html = renderPage('chat', hidden)

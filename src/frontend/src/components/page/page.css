@@ -426,7 +426,7 @@
 .aiui-tpl-level .aiui-tpl-count {
   height: 20px;
 }
-.aiui-tpl-level[data-level='error'] .aiui-tpl-count:not(:empty) {
+.aiui-tpl-level[data-level='error'] .aiui-tpl-count:not(:empty):not([data-zero]) {
   background: var(--destructive);
   color: var(--destructive-foreground);
 }

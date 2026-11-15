@@ -1,0 +1,10 @@
+/*
+ * The app shell's React pages (src/app-pages), loaded with them; tokens only.
+ * A row's action menu shows on hover, keyboard focus and selection with a
+ * pointer; touch screens always see it.
+ */
+@media (hover: hover) {
+  [data-aiui-app-page] tr:not(:hover):not(:focus-within):not([aria-selected='true']) .aiui-row-menu:not([aria-expanded='true']) {
+    opacity: 0;
+  }
+}
