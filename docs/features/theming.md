@@ -14,6 +14,16 @@ site:
     darkMode: true
 ```
 
+### The docs site look
+
+A docs site (`style: docs`, the default for `aiui build`) uses the
+PraisonAI Pro design: the same colours, type, radii and hairlines as the app
+shell's layouts. The preset picks the accent: a neutral preset (`zinc`,
+`slate`, `stone`, `gray`, `neutral`) or `indigo` gives the indigo accent,
+`blue` and `teal` their Pro swatches, and any other colour its own accent,
+derived so links and focus rings keep AA contrast. `site.custom_css` still
+overrides everything. Details: `src/frontend/DESIGN.md`, "Docs style".
+
 ### Available Presets
 
 **Neutral Tones**

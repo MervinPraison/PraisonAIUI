@@ -1,4 +1,4 @@
-import { Moon, Sun } from "lucide-react"
+import { Laptop, Moon, Sun } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,
@@ -22,10 +22,9 @@ export function ThemeToggle({ onThemeChange }: ThemeToggleProps) {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
+                <Button variant="ghost" size="icon-sm" aria-label="Toggle theme">
                     <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                     <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                    <span className="sr-only">Toggle theme</span>
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -38,7 +37,7 @@ export function ThemeToggle({ onThemeChange }: ThemeToggleProps) {
                     Dark
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTheme("system")}>
-                    <span className="mr-2">💻</span>
+                    <Laptop className="mr-2 h-4 w-4" />
                     System
                 </DropdownMenuItem>
             </DropdownMenuContent>

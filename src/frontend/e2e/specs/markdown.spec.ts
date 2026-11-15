@@ -86,6 +86,8 @@ test('navigating between docs pages keeps the app loaded once', async ({ page })
   await page.goto('/docs')
   await page.getByRole('link', { name: 'Markdown sample' }).first().click()
   await expect(page).toHaveURL(/\/docs\/markdown$/)
+  // Diagrams render when they scroll into view.
+  await page.locator('#main-content').getByRole('heading', { name: 'Diagram' }).scrollIntoViewIfNeeded()
   await expect(page.locator('#main-content svg[aria-roledescription^="flowchart"]')).toBeVisible({ timeout: 30_000 })
   // The entry is one module URL: a chunk importing "./index.js" would run it twice.
   expect(entryLoads).toHaveLength(1)

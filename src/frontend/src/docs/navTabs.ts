@@ -25,40 +25,45 @@ function pathMatchesPage(docPath: string, page: string): boolean {
     return normalizedPath.endsWith(suffix) || normalizedPath.endsWith(`${suffix}/index`)
 }
 
-/** Whether a sidebar group belongs to the given navigation tab (from topnav plugin logic). */
-export function navItemBelongsToTab(item: NavItem, tab: NavTabConfig): boolean {
-    if (!tab.groups?.length) return false
+/** Index of the first group of `tab` a sidebar item belongs to, or -1 (from topnav plugin logic). */
+export function navItemTabGroupIndex(item: NavItem, tab: NavTabConfig): number {
+    if (!tab.groups?.length) return -1
 
     const header = sectionTitle(item)
     const paths = collectPaths(item)
 
-    for (const grp of tab.groups) {
+    for (const [index, grp] of tab.groups.entries()) {
         const groupName = grp.group.toLowerCase()
-        if (header === groupName) return true
+        if (header === groupName) return index
 
         if (grp.prefix) {
             const prefix = grp.prefix.toLowerCase()
-            if (header === prefix || header === prefix.replace(/-/g, ' ')) return true
+            if (header === prefix || header === prefix.replace(/-/g, ' ')) return index
 
             const prefixPath = `/docs/${prefix}`
             if (paths.some((path) => path === prefixPath || path.startsWith(`${prefixPath}/`))) {
-                return true
+                return index
             }
         }
 
         if (grp.pages?.some((page) => paths.some((path) => pathMatchesPage(path, page)))) {
-            return true
+            return index
         }
 
         if (!item.children?.length && grp.pages?.some((page) => {
             const slug = page.split('/').pop()?.replace(/-/g, ' ') ?? ''
             return header === slug || header === page.toLowerCase()
         })) {
-            return true
+            return index
         }
     }
 
-    return false
+    return -1
+}
+
+/** Whether a sidebar group belongs to the given navigation tab. */
+export function navItemBelongsToTab(item: NavItem, tab: NavTabConfig): boolean {
+    return navItemTabGroupIndex(item, tab) >= 0
 }
 
 /** Pick the active tab index from the current URL path. */
@@ -83,7 +88,12 @@ export function detectActiveTabIndex(tabs: NavTabConfig[], path: string): number
     return 0
 }
 
+/** The sidebar items of one tab, in the order the tab lists its groups (stable within a group). */
 export function filterNavByTab(items: NavItem[], tab: NavTabConfig | undefined): NavItem[] {
     if (!tab) return items
-    return items.filter((item) => navItemBelongsToTab(item, tab))
+    return items
+        .map((item, i) => ({ item, i, group: navItemTabGroupIndex(item, tab) }))
+        .filter((entry) => entry.group >= 0)
+        .sort((a, b) => a.group - b.group || a.i - b.i)
+        .map((entry) => entry.item)
 }

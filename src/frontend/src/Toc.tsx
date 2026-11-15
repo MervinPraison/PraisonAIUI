@@ -1,6 +1,7 @@
-// Table of Contents & right sidebar component
+// "On this page": the right-hand table of contents and its folded phone version.
+// Styles: docs/docs.css (.aiui-docs-toc*, .aiui-docs-mtoc), Pro tokens.
 import { useCallback, useEffect, useState } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, ChevronUp, TextAlignStart } from 'lucide-react'
 import type { NavItem, ZonesConfig } from './types'
 import { ZoneWidgets } from './Widgets'
 
@@ -21,6 +22,25 @@ function collectHeadings(): TocHeading[] {
     }))
 }
 
+/** The heading the reader is in: the last one whose top has passed the header line. */
+function currentHeading(headings: TocHeading[]): string {
+    // A heading becomes current once it rises into the top quarter of the window.
+    const line = Math.max(96, window.innerHeight * 0.25)
+    let current = headings[0]?.id ?? ''
+    for (const heading of headings) {
+        const el = document.getElementById(heading.id)
+        if (!el) continue
+        if (el.getBoundingClientRect().top - line <= 0) current = heading.id
+        else break
+    }
+    // At the very bottom the last section is current, however short it is.
+    const doc = document.documentElement
+    if (headings.length && window.innerHeight + window.scrollY >= doc.scrollHeight - 2) {
+        current = headings[headings.length - 1].id
+    }
+    return current
+}
+
 function usePageHeadings(selectedItem: NavItem | null) {
     const [headings, setHeadings] = useState<TocHeading[]>([])
     const [activeId, setActiveId] = useState('')
@@ -33,65 +53,55 @@ function usePageHeadings(selectedItem: NavItem | null) {
         refreshHeadings()
         const timer = window.setTimeout(refreshHeadings, 100)
         const timer2 = window.setTimeout(refreshHeadings, 500)
+        // The article renders after its markdown arrives.
+        window.addEventListener('aiui:content-loaded', refreshHeadings)
         return () => {
             window.clearTimeout(timer)
             window.clearTimeout(timer2)
+            window.removeEventListener('aiui:content-loaded', refreshHeadings)
         }
     }, [selectedItem, refreshHeadings])
 
     useEffect(() => {
         if (!headings.length) return
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                const visible = entries
-                    .filter((entry) => entry.isIntersecting)
-                    .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
-                if (visible[0]?.target.id) {
-                    setActiveId(visible[0].target.id)
-                }
-            },
-            { rootMargin: '-20% 0px -70% 0px', threshold: 0 },
-        )
-
-        for (const heading of headings) {
-            const el = document.getElementById(heading.id)
-            if (el) observer.observe(el)
+        let frame = 0
+        const update = () => {
+            cancelAnimationFrame(frame)
+            frame = requestAnimationFrame(() => setActiveId(currentHeading(headings)))
         }
-
-        return () => observer.disconnect()
+        update()
+        window.addEventListener('scroll', update, { passive: true })
+        window.addEventListener('resize', update)
+        return () => {
+            cancelAnimationFrame(frame)
+            window.removeEventListener('scroll', update)
+            window.removeEventListener('resize', update)
+        }
     }, [headings])
 
-    return { headings, activeId }
+    // Until the reader scrolls (or after the page changes) the first section is current.
+    const current = headings.some((h) => h.id === activeId) ? activeId : (headings[0]?.id ?? '')
+    return { headings, activeId: current }
 }
 
 function TocLinks({ headings, activeId }: { headings: TocHeading[]; activeId: string }) {
     if (headings.length === 0) {
-        return <p className="text-sm text-muted-foreground">No sections on this page.</p>
+        return <p className="aiui-docs-toc-empty">No sections on this page.</p>
     }
 
     return (
-        <div className="space-y-2.5">
-            {headings.map((heading) => {
-                const isActive = heading.id === activeId
-                return (
-                    <a
-                        key={heading.id}
-                        href={`#${heading.id}`}
-                        className={`flex items-start gap-2 text-[13px] leading-snug transition-colors ${heading.level === 3 ? 'pl-3' : heading.level === 4 ? 'pl-5' : ''
-                            } ${isActive
-                                ? 'text-primary font-medium'
-                                : 'text-muted-foreground hover:text-foreground'
-                            }`}
-                    >
-                        <span
-                            className={`mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full ${isActive ? 'bg-primary' : 'bg-muted-foreground/30'
-                                }`}
-                        />
-                        <span>{heading.text}</span>
-                    </a>
-                )
-            })}
+        <div className="aiui-docs-toc-list">
+            {headings.map((heading) => (
+                <a
+                    key={heading.id}
+                    href={`#${heading.id}`}
+                    className="aiui-docs-toc-link"
+                    aria-current={heading.id === activeId ? 'location' : undefined}
+                    style={{ '--indent': Math.max(0, heading.level - 2) } as React.CSSProperties}
+                >
+                    {heading.text}
+                </a>
+            ))}
         </div>
     )
 }
@@ -101,12 +111,12 @@ export function MobileToc({ selectedItem }: { selectedItem: NavItem | null }) {
     if (!selectedItem || headings.length === 0) return null
 
     return (
-        <details className="group/toc lg:hidden border border-border/60 rounded-lg mb-6 px-4 py-3 bg-muted/20">
-            <summary className="flex list-none items-center gap-1.5 text-sm font-medium cursor-pointer [&::-webkit-details-marker]:hidden">
-                <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground motion-safe:transition-transform motion-safe:duration-[120ms] group-open/toc:rotate-90" />
+        <details className="aiui-docs-mtoc">
+            <summary>
+                <ChevronRight aria-hidden="true" />
                 On this page
             </summary>
-            <nav className="mt-3" data-aiui-toc="react">
+            <nav data-aiui-toc="react" aria-label="On this page">
                 <TocLinks headings={headings} activeId={activeId} />
             </nav>
         </details>
@@ -123,30 +133,44 @@ export function Toc({
     showToc?: boolean
 }) {
     const { headings, activeId } = usePageHeadings(selectedItem)
-    const rightSidebarWidgets = zones?.rightSidebar || []
+    const widgets = (zones?.rightSidebar || []).filter((w) => w.type !== 'Toc')
 
-    if (!showToc && rightSidebarWidgets.filter((w) => w.type !== 'Toc').length === 0) {
+    if (!showToc && widgets.length === 0) {
         return null
     }
 
     return (
-        <aside className="docs-toc w-[16rem] min-w-[16rem] shrink-0 hidden lg:block">
-            <div className="sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto px-4 py-6">
+        <aside className="aiui-docs-toc docs-toc">
+            <div className="aiui-docs-toc-inner">
                 {showToc && (
                     <div>
-                        <h4 className="text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider mb-4">
+                        <p className="aiui-docs-toc-title">
+                            <TextAlignStart aria-hidden="true" />
                             On this page
-                        </h4>
+                        </p>
                         {/* data-aiui-toc: the legacy toc.js plugin leaves a React-managed TOC alone. */}
-                        <nav data-aiui-toc="react">
+                        <nav data-aiui-toc="react" aria-label="On this page">
                             <TocLinks headings={headings} activeId={activeId} />
                         </nav>
+                        {headings.length > 3 && (
+                            <a
+                                href="#main-content"
+                                className="aiui-docs-toc-top"
+                                onClick={(event) => {
+                                    event.preventDefault()
+                                    window.scrollTo({ top: 0 })
+                                }}
+                            >
+                                <ChevronUp aria-hidden="true" />
+                                Back to top
+                            </a>
+                        )}
                     </div>
                 )}
 
-                {rightSidebarWidgets.filter((w) => w.type !== 'Toc').length > 0 && (
-                    <div className="pt-4 mt-4 border-t border-border/40">
-                        <ZoneWidgets widgets={rightSidebarWidgets.filter((w) => w.type !== 'Toc')} />
+                {widgets.length > 0 && (
+                    <div className={showToc ? 'aiui-docs-toc-widgets' : undefined}>
+                        <ZoneWidgets widgets={widgets} />
                     </div>
                 )}
             </div>

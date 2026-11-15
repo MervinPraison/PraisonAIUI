@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { applyTheme, applyStoredThemePreference } from './themes'
 import type { UIConfig, DocsNav, RouteManifest, NavItem } from './types'
 import { Header } from './Header'
@@ -12,6 +12,36 @@ import { LocaleProvider } from './i18n'
 import { resolveTemplate, shouldShowToc } from './resolver'
 import { normalizeDocPath } from './pathUtils'
 import { detectActiveTabIndex, filterNavByTab } from './docs/navTabs'
+import { docSearchGroups } from './docs/docNav'
+import { Spinner } from '@/components/ui/spinner'
+import './docs/docs.css'
+
+const DocsSearch = lazy(() => import('./docs/DocsSearch'))
+
+/** Styles that render the docs chrome (header, nav, article, footer). */
+const DOCS_CHROME_STYLES = new Set(['docs', 'custom'])
+
+/**
+ * The docs site draws in the PraisonAI Pro tokens: <html data-aiui-docs
+ * data-aiui-tokens="pro"> switches styles/pro.css on (imported through
+ * docs/docs.css). The chat, agents and playground styles keep the classic
+ * tokens.
+ */
+function useDocsTokens(active: boolean) {
+    useEffect(() => {
+        if (!active) return
+        const html = document.documentElement
+        // The attribute proTokens.setTokenSystem('pro') writes. Not imported:
+        // proTokens.ts lives in the shell's boot chunk, and a module the
+        // legacy App shared with it would move into a shared boot chunk.
+        html.setAttribute('data-aiui-docs', '')
+        html.setAttribute('data-aiui-tokens', 'pro')
+        return () => {
+            html.removeAttribute('data-aiui-docs')
+            html.removeAttribute('data-aiui-tokens')
+        }
+    }, [active])
+}
 
 function SkipLink({ enabled }: { enabled?: boolean }) {
   if (!enabled) return null
@@ -36,8 +66,33 @@ export default function App() {
   const [currentPath, setCurrentPath] = useState(() => normalizeDocPath(window.location.pathname))
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [activeTabIndex, setActiveTabIndex] = useState(0)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchMounted, setSearchMounted] = useState(false)
 
   const navTabs = config.navigation?.tabs ?? []
+  const docsStyle = !loading && !error && DOCS_CHROME_STYLES.has(config.style || 'docs')
+  useDocsTokens(docsStyle)
+  const searchEnabled = docsStyle && config.search?.enabled !== false && (nav.items?.length ?? 0) > 0
+
+  // "Search docs" and ⌘K / Ctrl+K: a page listening for `aiui:search-open`
+  // (custom JS with its own search) can call preventDefault to take over.
+  const openSearch = () => {
+    const event = new CustomEvent('aiui:search-open', { cancelable: true })
+    if (!window.dispatchEvent(event)) return
+    setSearchMounted(true)
+    setSearchOpen(true)
+  }
+  useEffect(() => {
+    if (!searchEnabled) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey) && !event.altKey) {
+        event.preventDefault()
+        openSearch()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
   const filteredNav = useMemo<DocsNav>(() => {
     if (!navTabs.length) return nav
     return { items: filterNavByTab(nav.items ?? [], navTabs[activeTabIndex]) }
@@ -363,6 +418,11 @@ export default function App() {
         activeItem={activeItemPath}
         onItemClick={handleItemClick}
         title={config.site?.title || 'Navigation'}
+        config={config}
+        templateKey={activeTemplateKey}
+        navTabs={navTabs}
+        activeTabIndex={activeTabIndex}
+        onTabChange={setActiveTabIndex}
       />
       <Header
         config={config}
@@ -371,14 +431,20 @@ export default function App() {
         navTabs={navTabs}
         activeTabIndex={activeTabIndex}
         onTabChange={setActiveTabIndex}
+        onSearchClick={searchEnabled ? openSearch : undefined}
       />
+      {searchMounted && (
+        <Suspense fallback={null}>
+          <DocsSearch open={searchOpen} onOpenChange={setSearchOpen} groups={docSearchGroups(nav)} onSelect={handleItemClick} />
+        </Suspense>
+      )}
     </>
   )
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <span className="text-muted-foreground">Loading...</span>
+        <Spinner tone="muted" />
       </div>
     )
   }
@@ -462,9 +528,16 @@ export default function App() {
       case 'ThreeColumnLayout':
       default:
         return (
-          <div className="docs-shell flex w-full min-h-[calc(100vh-3.5rem)]">
+          <div className="aiui-docs-shell docs-shell">
             <Sidebar nav={filteredNav} activeItem={activeItemPath} onItemClick={handleItemClick} />
-            <Content config={config} routes={routes} selectedItem={selectedItem} currentPath={currentPath} />
+            <Content
+              config={config}
+              routes={routes}
+              selectedItem={selectedItem}
+              currentPath={currentPath}
+              nav={filteredNav}
+              onNavigate={handleItemClick}
+            />
             {showToc && <Toc selectedItem={selectedItem} zones={zones} showToc={showToc} />}
           </div>
         )
@@ -505,7 +578,7 @@ export default function App() {
       case 'custom':
         if (config.chat?.enabled) {
           return (
-            <div className="min-h-screen bg-background text-foreground">
+            <div className="aiui-docs">
               <SkipLink enabled={config.a11y?.skipToContent} />
               {docsChrome}
               {renderLayout()}
@@ -515,7 +588,7 @@ export default function App() {
           )
         }
         return (
-          <div className="min-h-screen bg-background text-foreground">
+          <div className="aiui-docs">
             <SkipLink enabled={config.a11y?.skipToContent} />
             {docsChrome}
             {renderLayout()}
@@ -528,7 +601,7 @@ export default function App() {
           const layoutMode = config.layout?.mode
           if (layoutMode && ['bottom-right', 'bottom-left', 'top-right', 'top-left'].includes(layoutMode)) {
             return (
-              <div className="min-h-screen bg-background text-foreground">
+              <div className="aiui-docs">
                 <SkipLink enabled={config.a11y?.skipToContent} />
                 {docsChrome}
                 {renderLayout()}
@@ -539,7 +612,7 @@ export default function App() {
           }
         }
         return (
-          <div className="min-h-screen bg-background text-foreground">
+          <div className="aiui-docs">
             <SkipLink enabled={config.a11y?.skipToContent} />
             {docsChrome}
             {renderLayout()}

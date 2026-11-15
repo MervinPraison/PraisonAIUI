@@ -1,9 +1,12 @@
-// Header component — Mintlify-style docs chrome
+// Docs header: brand, section tabs, links, search, call to action, theme.
+// Styles: docs/docs.css (.aiui-docs-header*), Pro tokens.
 import { Github, Menu, Search } from 'lucide-react'
 import type { NavTabConfig, UIConfig } from './types'
 import { LocaleSwitcher } from './i18n'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { BrandMark } from './docs/BrandMark'
+import { docsChromeModel, isExternal } from './docs/chrome'
 
 interface HeaderProps {
     config: UIConfig
@@ -12,6 +15,8 @@ interface HeaderProps {
     navTabs?: NavTabConfig[]
     activeTabIndex?: number
     onTabChange?: (index: number) => void
+    /** Shows the search button; App.tsx passes it when search is on. */
+    onSearchClick?: () => void
 }
 
 export function Header({
@@ -21,90 +26,52 @@ export function Header({
     navTabs,
     activeTabIndex = 0,
     onTabChange,
+    onSearchClick,
 }: HeaderProps) {
-    const headerSlot = config.templates?.[templateKey]?.slots?.header
-    const headerRef = headerSlot?.ref
-    const headerComponent = headerRef
-        ? config.components?.[headerRef]
-        : config.components?.header
-    const header = (headerComponent?.props || headerSlot?.props) as {
-        logoText?: string
-        logoImage?: string
-        links?: { label: string; href: string }[]
-        cta?: { label: string; href: string }
-    } | undefined
-
-    const logoConfig = config.logo
-    const isDarkMode = document.documentElement.classList.contains('dark')
-    const logoSrc = header?.logoImage || (logoConfig ? (isDarkMode ? (logoConfig.dark || logoConfig.light) : (logoConfig.light || logoConfig.dark)) : null)
-    const logoHref = logoConfig?.href || '/'
-    const logoText = header?.logoText || config.site?.title || 'PraisonAIUI'
-
+    const { logoSrc, logoHref, logoText, links, primary } = docsChromeModel(config, templateKey)
     const tabs = navTabs ?? config.navigation?.tabs ?? []
-    const navbar = config.navbar
-    const navbarLinks = navbar?.links ?? header?.links ?? []
-    const primary = navbar?.primary ?? (header?.cta ? { type: 'button' as const, label: header.cta.label, href: header.cta.href } : undefined)
-    const showMintlifyNav = tabs.length > 0
+    const hasTabs = tabs.length > 0
+    const searchEnabled = Boolean(onSearchClick)
 
     const onLogoClick = (event: React.MouseEvent) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
         event.preventDefault()
         window.history.pushState({}, '', logoHref)
         window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path: logoHref } }))
     }
 
-    const onSearchClick = () => {
-        window.dispatchEvent(new CustomEvent('aiui:search-open'))
-    }
+    const openSearch = () => onSearchClick?.()
 
     return (
-        <header
-            className="sticky top-0 z-50 border-b border-border/40 bg-background/90 backdrop-blur-xl supports-[backdrop-filter]:bg-background/75"
-            data-aiui-header-tabs={showMintlifyNav ? 'true' : undefined}
-        >
-            <div className="flex h-14 items-center gap-4 px-4 lg:px-6">
+        <header className="aiui-docs-header" data-aiui-header-tabs={hasTabs ? 'true' : undefined}>
+            <div className="aiui-docs-header-inner">
                 {onMenuClick && (
                     <Button
                         type="button"
                         variant="ghost"
-                        size="icon"
-                        className="md:hidden shrink-0 -ml-1"
+                        size="icon-sm"
+                        className="md:hidden -ml-1"
                         onClick={onMenuClick}
                         aria-label="Open navigation menu"
                     >
-                        <Menu className="h-5 w-5" />
+                        <Menu />
                     </Button>
                 )}
 
-                <a
-                    href={logoHref}
-                    className="flex items-center gap-2.5 group cursor-pointer shrink-0 min-w-0"
-                    onClick={onLogoClick}
-                >
-                    {logoSrc ? (
-                        <img
-                            src={logoSrc}
-                            alt="Logo"
-                            className="h-7 w-7 rounded-md object-contain"
-                        />
-                    ) : (
-                        <div className="h-7 w-7 rounded-md bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center">
-                            <span className="text-primary-foreground text-[10px] font-bold">AI</span>
-                        </div>
-                    )}
-                    <span className="font-semibold text-[15px] tracking-tight truncate max-w-[50vw] sm:max-w-none">{logoText}</span>
+                <a href={logoHref} className="aiui-docs-brand" onClick={onLogoClick}>
+                    <BrandMark name={logoText} src={logoSrc} />
+                    <span>{logoText}</span>
                 </a>
 
-                {showMintlifyNav && (
-                    <nav className="hidden md:flex items-center gap-1 ml-2" aria-label="Primary docs sections">
+                {hasTabs && (
+                    <nav className="aiui-docs-tabs" aria-label="Documentation sections">
                         {tabs.map((tab, index) => (
                             <button
                                 key={tab.tab}
                                 type="button"
+                                className="aiui-docs-tab"
+                                aria-pressed={index === activeTabIndex}
                                 onClick={() => onTabChange?.(index)}
-                                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${index === activeTabIndex
-                                    ? 'text-foreground font-medium'
-                                    : 'text-muted-foreground hover:text-foreground'
-                                    }`}
                             >
                                 {tab.tab}
                             </button>
@@ -112,14 +79,10 @@ export function Header({
                     </nav>
                 )}
 
-                {!showMintlifyNav && (
-                    <nav className="hidden md:flex items-center gap-1 flex-1 ml-2">
-                        {navbarLinks.map((link) => (
-                            <a
-                                key={link.href}
-                                href={link.href}
-                                className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted/50"
-                            >
+                {!hasTabs && links.length > 0 && (
+                    <nav className="aiui-docs-links" aria-label="Site">
+                        {links.map((link) => (
+                            <a key={link.href} href={link.href} className="aiui-docs-navlink">
                                 {link.label}
                             </a>
                         ))}
@@ -128,40 +91,55 @@ export function Header({
 
                 <div className="flex-1 min-w-0" />
 
-                {config.search?.enabled !== false && showMintlifyNav && (
-                    <button
-                        type="button"
-                        onClick={onSearchClick}
-                        className="hidden sm:flex items-center gap-2 h-9 w-full max-w-[220px] px-3 text-sm text-muted-foreground border border-border/60 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                        aria-label="Search documentation"
-                    >
-                        <Search className="h-4 w-4 shrink-0" />
-                        <span className="flex-1 text-left truncate">Search...</span>
-                        <kbd className="hidden lg:inline text-[10px] font-medium text-muted-foreground/80 border border-border/60 rounded px-1.5 py-0.5">⌘K</kbd>
+                {searchEnabled && (
+                    <button type="button" className="aiui-docs-search" onClick={openSearch} aria-label="Search documentation">
+                        <Search aria-hidden="true" />
+                        <span>Search docs</span>
+                        <kbd className="aiui-docs-kbd">⌘K</kbd>
                     </button>
                 )}
 
-                <div className="flex items-center gap-1.5 shrink-0">
-                    {showMintlifyNav && navbarLinks.map((link) => (
-                        <a
-                            key={link.href}
-                            href={link.href}
-                            className="hidden lg:inline-flex px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                <div className="aiui-docs-actions">
+                    {hasTabs && links.length > 0 && (
+                        <nav className="aiui-docs-links" aria-label="Site">
+                            {links.map((link) => (
+                                <a
+                                    key={link.href}
+                                    href={link.href}
+                                    className="aiui-docs-navlink"
+                                    target={isExternal(link.href) ? '_blank' : undefined}
+                                    rel={isExternal(link.href) ? 'noopener noreferrer' : undefined}
+                                >
+                                    {link.label}
+                                </a>
+                            ))}
+                        </nav>
+                    )}
+
+                    {searchEnabled && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="aiui-docs-search-icon"
+                            onClick={openSearch}
+                            aria-label="Search documentation"
                         >
-                            {link.label}
-                        </a>
-                    ))}
+                            <Search />
+                        </Button>
+                    )}
 
                     {primary && (
-                        <a
-                            href={primary.href}
-                            target={primary.href.startsWith('http') ? '_blank' : undefined}
-                            rel={primary.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium bg-primary text-primary-foreground h-9 px-3.5 hover:bg-primary/90 transition-colors"
-                        >
-                            {primary.type === 'github' && <Github className="h-4 w-4" />}
-                            {primary.label ?? (primary.type === 'github' ? 'GitHub' : 'Get started')}
-                        </a>
+                        <Button asChild size="sm" className="aiui-docs-cta">
+                            <a
+                                href={primary.href}
+                                target={isExternal(primary.href) ? '_blank' : undefined}
+                                rel={isExternal(primary.href) ? 'noopener noreferrer' : undefined}
+                            >
+                                {primary.type === 'github' && <Github />}
+                                {primary.label ?? (primary.type === 'github' ? 'GitHub' : 'Get started')}
+                            </a>
+                        </Button>
                     )}
 
                     <ThemeToggle />

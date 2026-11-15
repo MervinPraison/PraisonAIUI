@@ -157,7 +157,11 @@ export default [
   // card-merged row, the transport's reconnect() for Retry, and the
   // connection field on the chat feed.
   { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141 kB', gzip: true },
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '251 kB', gzip: true },
+  // +0.5 kB (251.04 kB measured): the entry's preload map lists every file the
+  // lazy legacy App chunk needs, and the docs style (Pro restyle) gave that
+  // chunk its own stylesheet (docs/docs.css) and the Spinner chunk, two more
+  // paths in index.js. Neither the shell boot nor the chat route grew.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '251.5 kB', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives

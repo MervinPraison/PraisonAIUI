@@ -10,7 +10,7 @@
  *   dashboard-legacy   default style (vanilla dashboard)        legacy-parity, legacy-dashboard
  *   app-shell          AIUI_SHELL=app + the example plugin      shell-sweep, chat, plugins
  *   chat-style         style chat, presets zinc and rose        theme-presets
- *   docs               `aiui build` output on `aiui serve`      markdown
+ *   docs               `aiui build` output on `aiui serve`      markdown, docs-chrome
  *   page-reload-*      the dashboard and app-shell servers      page-reload
  *   layouts-host       app shell + the layout-plugin fixture    layouts-host, layout-<id>
  *                      (fixtures/layout-plugin/serve.py)
@@ -143,7 +143,7 @@ export default defineConfig({
     },
     {
       name: 'docs',
-      testMatch: /[\\/]markdown\.spec\.ts$/,
+      testMatch: /[\\/](markdown|docs-chrome)\.spec\.ts$/,
       use: { ...chromium, baseURL: url(PORTS.docs) },
     },
     // One spec against both page styles (the servers above, no new ones).
