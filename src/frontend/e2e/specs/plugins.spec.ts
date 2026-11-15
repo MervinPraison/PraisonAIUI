@@ -136,10 +136,11 @@ test("the plugin's settings section renders in the settings dialog and its value
     await page.goto('/hello-blocks')
     await page.getByRole('button', { name: 'Plugin settings' }).click()
     const dialog = page.getByRole('dialog', { name: 'Plugin settings' })
+    // builtin.layouts' Appearance section (order 10) comes first; pick the plugin's.
+    const sectionButton = dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Hello plugin' })
+    await sectionButton.click()
     await expect(dialog.getByRole('heading', { name: 'Hello plugin' })).toBeVisible()
-    await expect(
-      dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Hello plugin' }),
-    ).toHaveAttribute('aria-current', 'true')
+    await expect(sectionButton).toHaveAttribute('aria-current', 'true')
     const greeting = dialog.getByLabel('Greeting')
     await expect(greeting).toHaveValue('Hello')
     await expect(dialog.getByRole('combobox', { name: 'Tone' })).toContainText('Plain')
@@ -153,7 +154,9 @@ test("the plugin's settings section renders in the settings dialog and its value
     // The saved value is read back when the dialog opens again (after a reload).
     await page.reload()
     await page.getByRole('button', { name: 'Plugin settings' }).click()
-    await expect(page.getByRole('dialog', { name: 'Plugin settings' }).getByLabel('Greeting')).toHaveValue('Howdy')
+    const reopened = page.getByRole('dialog', { name: 'Plugin settings' })
+    await reopened.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Hello plugin' }).click()
+    await expect(reopened.getByLabel('Greeting')).toHaveValue('Howdy')
     await page.keyboard.press('Escape')
 
     // The plugin's Python code uses it.

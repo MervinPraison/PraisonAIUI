@@ -20,7 +20,7 @@ never read or written.
 | Project | Server | Specs |
 |---|---|---|
 | `dashboard-legacy` | default style (vanilla dashboard) | `legacy-parity`, `legacy-dashboard` |
-| `app-shell` | `AIUI_SHELL=app` + the example plugin | `shell-sweep`, `chat`, `plugins` |
+| `app-shell` | `AIUI_SHELL=app` + the example plugin, `AIUI_LAYOUT=classic` (the classic frame) | `shell-sweep`, `chat`, `plugins` |
 | `chat-style` | `style: chat`, presets `zinc` and `rose` (two servers) | `theme-presets` |
 | `docs` | `aiui build` of `fixtures/docs-site`, served by `aiui serve` | `markdown` |
 | `page-reload-dashboard`, `page-reload-app` | the `dashboard-legacy` and `app-shell` servers | `page-reload` |

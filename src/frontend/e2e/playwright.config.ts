@@ -98,7 +98,10 @@ export default defineConfig({
   },
   webServer: [
     server(PORTS.legacy, ''),
-    server(PORTS.app, '--shell app -- --plugin --custom-js'),
+    // The classic frame (ADR 0003 `layout: classic`): these suites and their
+    // baselines pin the app shell's own sidebar and header. The layouts have
+    // their own server below.
+    { ...server(PORTS.app, '--shell app -- --plugin --custom-js'), env: { AIUI_LAYOUT: 'classic' } },
     server(PORTS.chatZinc, '-- --style chat --preset zinc'),
     server(PORTS.chatRose, '-- --style chat --preset rose'),
     server(PORTS.docs, '--docs'),
