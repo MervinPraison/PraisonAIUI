@@ -107,7 +107,8 @@ export default function CanvasPanel({ sessionId, viewport, reportBadge }: ChatRe
       data-aiui-canvas
       data-expanded={expanded || undefined}
       data-touch={phone || undefined}
-      className={cn('flex min-h-0 flex-1 flex-col overflow-hidden bg-card', !phone && 'm-3 rounded-xl border border-hairline shadow-sm', expanded && 'm-0')}
+      // The frame draws the card around its aside (chat-canvas: a raised card); the canvas only fills it.
+      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[inherit] bg-card"
     >
       {count === 0 ? (
         <Empty />

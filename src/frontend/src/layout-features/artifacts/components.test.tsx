@@ -74,6 +74,8 @@ test('CanvasPanel: tabs, the newest artifact with its versions and actions, the 
   const badges: number[] = []
   const out = html(createElement(CanvasPanel, { sessionId: 's1', viewport: 'desktop', reportBadge: (n: number) => badges.push(n) }))
   assert.match(out, /<section aria-label="Canvas" data-aiui-canvas="true"/)
+  const section = /<section aria-label="Canvas"[^>]*>/.exec(out)?.[0] ?? ''
+  assert.doesNotMatch(section, /shadow|border|\bm-3\b/, 'one card: the frame draws it around the aside, not the canvas inside it')
   assert.match(out, /role="tablist" aria-label="Canvas artifacts"/)
   const tabs = [...out.matchAll(/role="tab"[^>]*aria-selected="(true|false)"[^>]*>.*?<span class="truncate">([^<]+)<\/span>/g)].map((m) => `${m[2]}:${m[1]}`)
   assert.deepEqual(tabs, ['Comparison table:true', 'sort_demo.py:false'])
