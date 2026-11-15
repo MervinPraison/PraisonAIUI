@@ -153,7 +153,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   const [transport] = useState(() => transportProp ?? chatTransport())
   // `at`: the store's selection counter when the page mounted.
   const [initial] = useState(() => ({ ...readUrlState(), at: sessionsStore.get().selection }))
-  const sessions = useSyncExternalStore(sessionsStore.subscribe, sessionsStore.get)
+  const sessions = useSyncExternalStore(sessionsStore.subscribe, sessionsStore.get, sessionsStore.get)
   // ?session= wins over the session kept from the last visit. It is applied
   // to the store before paint, and read from `initial` until the store's
   // selection has moved on from `at`.
@@ -178,7 +178,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
     setNoticeFor(sessionId)
     setNotice(null)
   }
-  const running = useSyncExternalStore(threadStore.subscribeRunning, threadStore.runningSessions)
+  const running = useSyncExternalStore(threadStore.subscribeRunning, threadStore.runningSessions, threadStore.runningSessions)
   // The shell header owns the page <h1>; with it hidden (layout.pageHeader: false) the chat title is the h1.
   const manifest = useManifest()
   const Heading = manifest?.layout.pageHeader === false ? 'h1' : 'h2'

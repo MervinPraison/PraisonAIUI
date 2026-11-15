@@ -96,9 +96,11 @@ export function useAiuiRuntime(opts: UseAiuiRuntimeOptions) {
     optsRef.current = opts
   })
 
+  const getThread = () => threadStore.get(sid)
   const thread: SessionThread = useSyncExternalStore(
     useCallback((fn: () => void) => threadStore.subscribe(sid, fn), [sid]),
-    () => threadStore.get(sid),
+    getThread,
+    getThread, // server snapshot: the same module state (lets react-dom/static render ChatPage in tests)
   )
 
   useEffect(() => {

@@ -5,8 +5,8 @@
 // thread as before. The aside's phone switch and desktop panel are rendered
 // on their own. Rendered to HTML with react-dom/static, which waits for the
 // lazy chunks (variant headers, the approval card, the keyboard strip,
-// regions). The page itself (its rail, the header toggle) is covered by
-// e2e: useAiuiRuntime has no server snapshot, so it cannot render here.
+// regions). ChatPage itself renders too (its stores pass server snapshots);
+// its interactions (the rail, the header toggle) are covered by e2e.
 import { afterEach, beforeEach, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createElement, type ReactNode } from 'react'
@@ -307,4 +307,13 @@ test('before the host chunk has loaded the thread renders as without a layout', 
   assert.match(out, /data-variant="bubbles"/)
   assert.match(out, /data-approval-gate/)
   assert.doesNotMatch(out, /data-approval-card|data-turn-meta|data-test-tracker/)
+})
+
+test('ChatPage itself renders under react-dom/static (server snapshots of the thread and session stores)', async () => {
+  const page = { id: 'chat', title: 'Chat', kind: 'native' } as unknown as import('@/sdk/manifest').ShellPage
+  const ChatPage = (await import('./ChatPage')).default
+  const out = await html(createElement(ChatPage, { page, transport: session.t }))
+  assert.match(out, /data-aiui-chat="true"/)
+  assert.match(out, /aria-label="Chats"/, 'the session rail (sessions: page, no layout)')
+  assert.match(out, /aria-label="New chat"/)
 })
