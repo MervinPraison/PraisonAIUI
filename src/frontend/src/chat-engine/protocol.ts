@@ -335,7 +335,7 @@ const stampDone = (m: AiuiMessage): AiuiMessage => (m.completedAt ? m : { ...m, 
  * Non-empty strings only, trimmed, at most 8; none leaves `custom` as it was.
  */
 function withSuggestions(m: AiuiMessage, raw: unknown): AiuiMessage {
-  const suggestions = Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string' && !!x.trim()).map((x) => x.trim()).slice(0, 8) : []
+  const suggestions = Array.isArray(raw) ? raw.map((x) => (typeof x === 'string' ? x.trim() : '')).filter(Boolean).slice(0, 8) : []
   return suggestions.length ? { ...m, custom: { ...m.custom, suggestions } } : m
 }
 
