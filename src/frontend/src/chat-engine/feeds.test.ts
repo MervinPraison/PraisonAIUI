@@ -299,3 +299,20 @@ test('feeds import no assistant-ui, Thread, ChatPage, runtime hook or stylesheet
   assert.ok(rel.every((f) => !f.startsWith('chat-engine/presentation/')), 'no presentation chunk')
   assert.deepEqual([...packages].filter((p) => p.startsWith('@assistant-ui') || p.endsWith('.css')), [])
 })
+
+test('chat: the live connection reaches the feed for a new chat too (no session), and notifies on change', () => {
+  const feed = createChatFeed()
+  let n = 0
+  const off = feed.subscribe(() => n++)
+  threadStore.setConnection('open')
+  assert.equal(feed.get().sessionId, null)
+  assert.equal(feed.get().connection, 'open')
+  assert.ok(n > 0, 'subscribers hear the change')
+  threadStore.setConnection('closed')
+  assert.equal(feed.get().connection, 'closed')
+  off()
+  const seen = n
+  threadStore.setConnection('open')
+  assert.equal(n, seen, 'no calls after unsubscribe')
+  threadStore.setConnection(undefined)
+})

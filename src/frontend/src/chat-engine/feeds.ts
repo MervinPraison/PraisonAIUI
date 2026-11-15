@@ -77,7 +77,7 @@ export function createSessionsFeed({ show }: FeedOptions = {}): SessionsFeed {
 /** The open session's messages and run state, and the actions a frame may take on them. */
 export function createChatFeed({ show, transport: transportOpt }: FeedOptions = {}): ChatFeed {
   const transport = () => transportOpt ?? chatTransport()
-  let cache: { sid: string | null; thread: ReturnType<typeof threadStore.get>; state: ChatState } | null = null
+  let cache: { sid: string | null; thread: ReturnType<typeof threadStore.get>; conn: ChatState['connection']; state: ChatState } | null = null
   const activeId = () => sessionsStore.get().activeId
   /** The persisted history of a session a frame shows before the chat page has. */
   const ensureLoaded = (sid: string | null) => {
@@ -87,8 +87,10 @@ export function createChatFeed({ show, transport: transportOpt }: FeedOptions = 
     get() {
       const sid = activeId()
       const thread = threadStore.get(sid)
-      if (cache?.sid !== sid || cache.thread !== thread) {
-        cache = { sid, thread, state: { sessionId: sid, messages: thread.messages, isRunning: thread.isRunning, activeRunId: thread.activeRunId, ...(thread.signals.connection ? { connection: thread.signals.connection } : {}) } }
+      // A new chat has no thread entry: the connection comes from the store itself.
+      const conn = thread.signals.connection ?? threadStore.connection()
+      if (cache?.sid !== sid || cache.thread !== thread || cache.conn !== conn) {
+        cache = { sid, thread, conn, state: { sessionId: sid, messages: thread.messages, isRunning: thread.isRunning, activeRunId: thread.activeRunId, ...(conn ? { connection: conn } : {}) } }
       }
       return cache.state
     },
@@ -96,6 +98,7 @@ export function createChatFeed({ show, transport: transportOpt }: FeedOptions = 
       let sid = activeId()
       let offThread = threadStore.subscribe(sid, fn)
       ensureLoaded(sid)
+      const offConnection = threadStore.subscribeConnection(fn)
       const offSessions = sessionsStore.subscribe(() => {
         const next = activeId()
         if (next !== sid) {
@@ -108,6 +111,7 @@ export function createChatFeed({ show, transport: transportOpt }: FeedOptions = 
       })
       return () => {
         offSessions()
+        offConnection()
         offThread()
       }
     },

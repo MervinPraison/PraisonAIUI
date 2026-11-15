@@ -149,6 +149,7 @@ let historyUrlFor = (sid: string) => `/api/chat/history/${encodeURIComponent(sid
 let watchdogMs = RECONNECT_WATCHDOG_MS
 let settleReloadMs = SETTLE_RELOAD_MS
 const settledFns = new Set<(sid: string) => void>()
+const connectionFns = new Set<() => void>()
 const reconnectBindings = new WeakMap<AiuiTransport, () => void>()
 
 const EMPTY: SessionThread = { sessionId: '', messages: [], isRunning: false, isLoading: false, loaded: true, signals: {} }
@@ -550,6 +551,20 @@ export const threadStore = {
       notify(e, false)
     }
     flush()
+    for (const fn of [...connectionFns]) fn()
+  },
+
+  /** The live transport's state, also while no session is open (a new chat). */
+  connection(): ConnectionStatus | undefined {
+    return connection
+  },
+
+  /** Called when the live transport's state changes. */
+  subscribeConnection(fn: () => void): () => void {
+    connectionFns.add(fn)
+    return () => {
+      connectionFns.delete(fn)
+    }
   },
 
   /** Session ids with a live turn. Stable identity until the set changes. */
