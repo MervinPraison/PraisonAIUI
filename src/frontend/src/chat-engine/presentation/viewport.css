@@ -57,3 +57,17 @@
     animation-timeline: scroll(self inline);
   }
 }
+
+/* A new chat in a layout: the hero, the starters and the composer sit
+   together in the middle of the thread (./EmptyHero), not the starters at
+   the bottom of an empty page. */
+[data-variant] [data-aiui-thread]:has([data-chat-hero]) {
+  justify-content: center;
+}
+
+[data-variant] [data-thread-empty]:has([data-chat-hero]) {
+  flex: 0 0 auto;
+  justify-content: center;
+  gap: 2rem;
+  padding-block: 2rem 1.5rem;
+}

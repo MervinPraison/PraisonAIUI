@@ -32,3 +32,9 @@ test('viewport.css: short table cells keep to one line and the table fades at it
   assert.match(css, /animation-timeline: scroll\(self inline\)/)
   assert.match(css, /@property --aiui-table-fade/)
 })
+
+test('viewport.css: a new chat centres the hero, starters and composer', () => {
+  const css = read('viewport.css')
+  assert.match(css, /\[data-aiui-thread\]:has\(\[data-chat-hero\]\) \{\s*justify-content: center;/)
+  assert.match(read('host.tsx'), /<EmptyHero>/)
+})

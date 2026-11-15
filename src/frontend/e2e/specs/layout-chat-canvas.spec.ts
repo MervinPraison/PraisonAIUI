@@ -127,6 +127,17 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     await expect(page.getByRole('button', { name: /Switch to (dark|light) theme/ })).toBeVisible()
     await expect(page.locator('main#aiui-main [data-aiui-page="chat"]')).toBeVisible()
     await expect(title(page)).toHaveText('New chat')
+    // A new chat is the brand moment: the wordmark and promise, the starters, and the
+    // composer together in the middle of the thread (not pinned to the bottom).
+    await expect(page.locator('[data-chat-hero] h2')).toBeVisible()
+    {
+      const [hero, box, thread] = [
+        await page.locator('[data-chat-hero]').boundingBox(),
+        await page.getByRole('textbox', { name: 'Message' }).boundingBox(),
+        await page.locator('[data-aiui-thread]').boundingBox(),
+      ]
+      expect(hero && box && thread && hero.y > thread.y + 40 && box.y + box.height < thread.y + thread.height - 40, 'hero and composer centred').toBe(true)
+    }
     expect(await unnamedIconButtons(page)).toEqual([])
     const bodySize = await title(page).evaluate(() => parseFloat(getComputedStyle(document.querySelector('[data-aiui-chat]') ?? document.body).fontSize))
     expect(bodySize).toBeGreaterThanOrEqual(14)

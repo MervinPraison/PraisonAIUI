@@ -700,6 +700,12 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
   const parts = usePartComponents()
   const chat = presentation?.chat
   const host = presentation?.host
+  const heading = (
+    <div>
+      <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title ?? 'How can I help you today?'}</h2>
+      {subtitle && <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>}
+    </div>
+  )
   // The starters of an empty thread; a layout's `empty` region replaces them.
   const starters = (
     <div className="grid w-full gap-2 text-left sm:grid-cols-2">
@@ -739,11 +745,14 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
         ) : (
           <ThreadPrimitive.Empty>
             <div className={cn(COLUMN, 'flex flex-1 flex-col items-center justify-end gap-6 pt-10 pb-[12vh] text-center')} data-thread-empty>
-              <div>
-                <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title ?? 'How can I help you today?'}</h2>
-                {subtitle && <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>}
-              </div>
-              {host ? <host.Empty presentation={presentation}>{starters}</host.Empty> : starters}
+              {host ? (
+                <host.Empty presentation={presentation} heading={heading}>{starters}</host.Empty>
+              ) : (
+                <>
+                  {heading}
+                  {starters}
+                </>
+              )}
             </div>
           </ThreadPrimitive.Empty>
         )}

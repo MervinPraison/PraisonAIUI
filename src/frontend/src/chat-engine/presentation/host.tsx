@@ -11,7 +11,8 @@
  *   Turn          one assistant turn: the variant's turn header (./TurnMeta)
  *                 and stylesheet (./quiet.css, ./bubbles.css…), and the
  *                 layout's turnHeader / turnFooter regions around it
- *   Empty         an empty thread: the layout's `empty` region or the starters
+ *   Empty         an empty thread: the layout's `empty` region, or the new-chat
+ *                 hero (./EmptyHero) and the starters
  *   Region        a layout region (turnHeader, turnFooter, empty) via ../LazyRegion
  *   Aside         the side panel / phone switch for `aside` (./Aside)
  *
@@ -34,6 +35,8 @@ import type { ThreadVariant } from './TurnMeta'
 import { ComposerModel } from './ComposerModel'
 import { useComposerHint } from './composerHint'
 import { ConnectionBanner } from './ConnectionBanner'
+import { EmptyHero } from './EmptyHero'
+import { SetupBanner } from './SetupBanner'
 import './composer.css'
 import './viewport.css'
 
@@ -93,7 +96,8 @@ export function Gate({ presentation, part, description, expand, children }: {
 
 /**
  * The composer's footer in a layout (the Thread mounts it above the
- * composer): the banner shown while the live connection is down
+ * composer): the setup banner when no model key is configured
+ * (./SetupBanner), the banner shown while the live connection is down
  * (./ConnectionBanner), the model button the composer row gets (a portal,
  * drawn after mount), and the send count that retires the composer's key
  * hint (./composerHint).
@@ -102,19 +106,31 @@ export function Pinned(_props: { presentation: { chat: ChatPresentation } }): JS
   useComposerHint()
   return (
     <>
+      <SetupBanner />
       <ConnectionBanner />
       <ComposerModel />
     </>
   )
 }
 
-/** An empty thread: the layout's `empty` region, else `children` (the starters). */
-export function Empty({ presentation, children }: {
+/**
+ * An empty thread: the layout's `empty` region under the thread's `heading`,
+ * else the new-chat hero (./EmptyHero) over `children` (the starters).
+ */
+export function Empty({ presentation, heading, children }: {
   presentation: { chat: ChatPresentation; sessionId: string | null }
+  heading?: ReactNode
   children: ReactNode
 }): JSX.Element {
   const { chat, sessionId } = presentation
-  return chat.empty ? <Region loader={chat.empty} name="empty" sessionId={sessionId} /> : <>{children}</>
+  return chat.empty ? (
+    <>
+      {heading}
+      <Region loader={chat.empty} name="empty" sessionId={sessionId} />
+    </>
+  ) : (
+    <EmptyHero>{children}</EmptyHero>
+  )
 }
 
 /**
