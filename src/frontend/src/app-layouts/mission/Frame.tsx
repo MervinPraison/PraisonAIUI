@@ -41,9 +41,11 @@ import {
 import { iconFor } from './icons'
 import { BrandMark, ChatHeader, CountBadge, EnvBadge, HealthDot, MorePagesButton, NavRows, TopBar } from './parts'
 
-const OpsColumn = lazy(() => import('@/layout-features/mission-board/OpsColumn'))
-const OpsOverview = lazy(() => import('@/layout-features/mission-board/OpsOverview'))
-const AttentionBanner = lazy(() => import('@/layout-features/mission-board/ApprovalBanner'))
+// The board is one chunk (layout-features/mission-board/index.ts): every part comes from that one import().
+const board = () => import('@/layout-features/mission-board')
+const OpsColumn = lazy(() => board().then((m) => ({ default: m.OpsColumn })))
+const OpsOverview = lazy(() => board().then((m) => ({ default: m.OpsOverview })))
+const AttentionBanner = lazy(() => board().then((m) => ({ default: m.AttentionBanner })))
 
 /** A board part that fails to load or render disappears on its own (logged); the frame keeps working (R4). */
 class PartBoundary extends Component<{ name: string; fallback?: ReactNode; children: ReactNode }, { failed: boolean }> {

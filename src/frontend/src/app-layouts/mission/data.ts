@@ -34,7 +34,7 @@ export function useChatState(): { cancel?: () => Promise<void>; state: ChatState
 
 let fallbackRuns: Promise<RunsFeed | null> | null = null
 const loadFallbackRuns = () =>
-  (fallbackRuns ??= import('@/layout-features/mission-board/runsFeed')
+  (fallbackRuns ??= import('@/layout-features/mission-board')
     .then((m) => m.missionRuns() as RunsFeed)
     .catch((err: unknown) => {
       fallbackRuns = null

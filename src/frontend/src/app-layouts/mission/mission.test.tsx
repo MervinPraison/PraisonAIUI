@@ -3,6 +3,8 @@
 // markup on desktop and phone.
 import { beforeEach, test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { matchesShortcut } from '@/app-layouts/kit'
@@ -156,4 +158,18 @@ test('phone: header with 44 px controls, four tabs and More', () => {
   assert.match(out, /class="[^"]*size-11" aria-label="Search"/)
   assert.match(out, /aria-label="Approvals, 1 waiting"[^>]*data-aiui-approvals-bell="1"/)
   assert.doesNotMatch(out, /data-aiui-ops-column/, 'no ops column on a phone')
+})
+
+test('the board is imported only through its one entry, so it builds as one chunk', async () => {
+  // runs with cwd = src/frontend (scripts/run-tests.mjs)
+  const sources = ['src/app-layouts/mission/Frame.tsx', 'src/app-layouts/mission/data.ts', 'src/builtin/layouts/mission.ts']
+  const specs = sources.flatMap((f) =>
+    [...readFileSync(path.resolve(process.cwd(), f), 'utf8').matchAll(/import\(\s*'(@\/layout-features\/mission-board[^']*)'\s*\)/g)].map((m) => m[1]),
+  )
+  assert.ok(specs.length >= 3, 'the frame, its data and the descriptor load the board')
+  assert.deepEqual([...new Set(specs)], ['@/layout-features/mission-board'])
+  const board = await import('@/layout-features/mission-board')
+  for (const name of ['AttentionBanner', 'OpsColumn', 'OpsOverview', 'RunTimeline', 'missionRuns'] as const) {
+    assert.equal(typeof board[name], 'function', name)
+  }
 })

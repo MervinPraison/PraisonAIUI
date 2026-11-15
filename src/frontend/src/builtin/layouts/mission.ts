@@ -29,7 +29,7 @@ export const missionLayout: LayoutDescriptor = {
       sessions: 'frame',
       thread: 'dense',
       approvals: 'card',
-      turnHeader: () => import('@/layout-features/mission-board/RunTimeline'),
+      turnHeader: () => import('@/layout-features/mission-board').then((m) => ({ default: m.RunTimeline })),
     },
   },
   load: () => import('@/app-layouts/mission/Frame'),

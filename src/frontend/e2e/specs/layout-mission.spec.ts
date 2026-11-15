@@ -45,6 +45,15 @@ function trackScripts(page: Page): string[] {
   })
   return seen
 }
+/** Every dist file a script request fetched (/assets/…), so a group's chunk count can be checked. */
+function trackScriptFiles(page: Page): Set<string> {
+  const seen = new Set<string>()
+  page.on('request', (req: Request) => {
+    const { pathname } = new URL(req.url())
+    if (req.resourceType() === 'script' && pathname.startsWith('/assets/')) seen.add(pathname.slice(1))
+  })
+  return seen
+}
 const groups = (scripts: string[]) => [...new Set(scripts.filter((s) => /^(layout|lf)-/.test(s)))].sort()
 
 const frame = (page: Page) => page.locator('[data-aiui-layout-frame="mission"]')
@@ -160,6 +169,7 @@ test.describe('desktop', () => {
 
   test('isolation: Mission downloads only its own chunks, and switching away leaks nothing', async ({ page }) => {
     const scripts = trackScripts(page)
+    const files = trackScriptFiles(page)
     for (const p of ['chat', 'logs', 'overview']) {
       await page.goto(`/${p}?layout=mission`)
       await expect(frame(page)).toBeVisible()
@@ -168,6 +178,8 @@ test.describe('desktop', () => {
     const loaded = groups(scripts)
     expect(loaded.filter((g) => g.startsWith('layout-')).sort()).toEqual(['layout-kit', 'layout-mission'])
     expect(loaded.filter((g) => g.startsWith('lf-'))).toEqual(['lf-mission-board'])
+    // The board is one chunk (mission-board/index.ts): one file, whichever part a page shows.
+    expect([...files].filter((f) => CHUNK_NAMES.get(f) === 'lf-mission-board')).toHaveLength(1)
     for (const id of OTHER_LAYOUTS) expect(scripts).not.toContain(`layout-${id}`)
 
     // Round trip to the classic frame and back, twice; the second must leave nothing behind.
