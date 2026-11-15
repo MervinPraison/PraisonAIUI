@@ -5,7 +5,8 @@
  * under a layout, the classic frame keeps today's look, and the template
  * CSS is not part of the boot download.
  *
- * Runs in the `layouts-host` project (style app, default layout chat-canvas).
+ * Runs in the `page-types` project: the layouts-host server (style app, default
+ * layout chat-canvas) on a fresh instance of its own.
  *
  * Baselines: six representative pages x {chat-canvas, workbench} x
  * {light, dark} at 1440x900, and the same pages under chat-canvas at a
@@ -13,7 +14,7 @@
  * page region within the viewport is captured (the template is what this
  * suite owns; each layout's frame has its own suite). A platform without baselines skips the
  * comparison (see e2e/README.md); capture them with
- * `npx playwright test -c e2e/playwright.config.ts --project layouts-host page-types --update-snapshots`.
+ * `npx playwright test -c e2e/playwright.config.ts --project page-types --update-snapshots`.
  */
 import { existsSync } from 'node:fs'
 import path from 'node:path'

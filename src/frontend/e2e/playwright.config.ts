@@ -12,12 +12,13 @@
  *   chat-style         style chat, presets zinc and rose        theme-presets
  *   docs               `aiui build` output on `aiui serve`      markdown
  *   page-reload-*      the dashboard and app-shell servers      page-reload
- *   layouts-host       app shell + the layout-plugin fixture    layouts-host, layout-<id>, page-types
+ *   layouts-host       app shell + the layout-plugin fixture    layouts-host, layout-<id>
  *                      (fixtures/layout-plugin/serve.py)
+ *   page-types         the same, on a server of its own         page-types
  *   legacy-baseline    the v0.3.153 tree (opt-in, see below)    legacy-parity
  *
  * Environment:
- *   AIUI_E2E_PORT          first of seven consecutive ports (default 8720)
+ *   AIUI_E2E_PORT          first of eight consecutive ports (default 8720)
  *   AIUI_E2E_PYTHON        Python interpreter (default python3, then python)
  *   AIUI_E2E_REUSE=1       reuse servers that are already listening
  *   AIUI_E2E_BASELINE_SRC  a checkout of v0.3.153 (git worktree of 6bdf6f0);
@@ -47,6 +48,7 @@ const PORTS = {
   docs: BASE_PORT + 4,
   baseline: BASE_PORT + 5,
   layouts: BASE_PORT + 6,
+  pageTypes: BASE_PORT + 7,
 }
 const url = (port: number) => `http://127.0.0.1:${port}`
 
@@ -58,6 +60,17 @@ const START = `node "${path.join(HERE, 'fixtures', 'start-server.mjs')}"`
 function server(port: number, args: string) {
   return {
     command: `${START} --port ${port} ${args}`.trim(),
+    url: `${url(port)}/`,
+    reuseExistingServer: REUSE,
+    timeout: 120_000,
+    stdout: 'ignore' as const,
+    stderr: 'pipe' as const,
+  }
+}
+
+function layoutServer(port: number) {
+  return {
+    command: `${PYTHON} "${path.join(HERE, 'fixtures', 'layout-plugin', 'serve.py')}" --port ${port}`,
     url: `${url(port)}/`,
     reuseExistingServer: REUSE,
     timeout: 120_000,
@@ -106,14 +119,10 @@ export default defineConfig({
     server(PORTS.chatRose, '-- --style chat --preset rose'),
     server(PORTS.docs, '--docs'),
     // The layout host suite: its own server, with a third-party layout plugin.
-    {
-      command: `${PYTHON} "${path.join(HERE, 'fixtures', 'layout-plugin', 'serve.py')}" --port ${PORTS.layouts}`,
-      url: `${url(PORTS.layouts)}/`,
-      reuseExistingServer: REUSE,
-      timeout: 120_000,
-      stdout: 'ignore' as const,
-      stderr: 'pipe' as const,
-    },
+    layoutServer(PORTS.layouts),
+    // The page-template baselines: the same server, fresh, so the chats the
+    // layout suites start never show in their screenshots (sessions page).
+    layoutServer(PORTS.pageTypes),
     ...(BASELINE_SRC ? [server(PORTS.baseline, `--src "${BASELINE_SRC}"`)] : []),
   ],
   projects: [
@@ -150,10 +159,14 @@ export default defineConfig({
     },
     {
       name: 'layouts-host',
-      // The host suite, every layout's own suite (layout-<id>.spec.ts) and
-      // the page templates suite.
-      testMatch: /[\\/](layouts-host|layout-[a-z][a-z0-9-]*|page-types)\.spec\.ts$/,
+      // The host suite and every layout's own suite (layout-<id>.spec.ts).
+      testMatch: /[\\/](layouts-host|layout-[a-z][a-z0-9-]*)\.spec\.ts$/,
       use: { ...chromium, baseURL: url(PORTS.layouts) },
+    },
+    {
+      name: 'page-types',
+      testMatch: /[\\/]page-types\.spec\.ts$/,
+      use: { ...chromium, baseURL: url(PORTS.pageTypes) },
     },
     ...(BASELINE_SRC
       ? [

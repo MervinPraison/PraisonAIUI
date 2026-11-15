@@ -24,7 +24,8 @@ never read or written.
 | `chat-style` | `style: chat`, presets `zinc` and `rose` (two servers) | `theme-presets` |
 | `docs` | `aiui build` of `fixtures/docs-site`, served by `aiui serve` | `markdown` |
 | `page-reload-dashboard`, `page-reload-app` | the `dashboard-legacy` and `app-shell` servers | `page-reload` |
-| `layouts-host` | `AIUI_SHELL=app` + the third-party layout plugin (`fixtures/layout-plugin/serve.py`) | `layouts-host`, `layout-<id>`, `page-types` |
+| `layouts-host` | `AIUI_SHELL=app` + the third-party layout plugin (`fixtures/layout-plugin/serve.py`) | `layouts-host`, `layout-<id>` |
+| `page-types` | the same server, its own instance (the layout suites' chats stay out of its baselines) | `page-types` |
 | `legacy-baseline` | the v0.3.153 tree (only with `AIUI_E2E_BASELINE_SRC`) | `legacy-parity` |
 
 ## What each suite checks
@@ -103,7 +104,7 @@ To enforce the comparison in CI, run the same commands inside the CI image
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `AIUI_E2E_PORT` | `8720` | first of seven consecutive ports |
+| `AIUI_E2E_PORT` | `8720` | first of eight consecutive ports |
 | `AIUI_E2E_PYTHON` | `python3`, then `python` | interpreter (≥ 3.10) with the package's dependencies |
 | `AIUI_E2E_REUSE` | unset | `1` reuses servers already listening on the ports |
 | `AIUI_E2E_BASELINE_SRC` | unset | a v0.3.153 checkout; enables `legacy-baseline` |
