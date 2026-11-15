@@ -108,7 +108,7 @@ export function Pinned({ presentation }: { presentation: { chat: ChatPresentatio
     <>
       <ComposerModel />
       {pinsGates(presentation.chat) && (
-        <div ref={pinnedSlotRef} className="flex flex-col gap-2 pb-2 empty:hidden" data-chat-pinned aria-label="Waiting for your OK" role="region" />
+        <div ref={pinnedSlotRef} className="flex flex-col gap-2 pb-3 empty:hidden sm:pb-4" data-chat-pinned aria-label="Waiting for your OK" role="region" />
       )}
     </>
   )

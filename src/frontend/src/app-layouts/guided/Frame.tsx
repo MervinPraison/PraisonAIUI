@@ -26,6 +26,7 @@ import { guidedNav, HELP_ID, helpAddress, PAGE, type GuidedItem } from './nav'
 import { agentOf, useChat } from './chat'
 import { PAGE_ICONS } from './icons'
 import { ChatCard } from './parts'
+import './guided.css'
 
 const RECENT = 5
 

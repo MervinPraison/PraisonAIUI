@@ -1,0 +1,25 @@
+/*
+ * Guided Studio (chunk layout-guided): loaded with the frame, so it applies
+ * only while this layout is on screen. Tokens only.
+ *
+ * The header already says "Chatting with X · ready to help" under the
+ * chat's title, so the chat page's own title and connection row steps
+ * aside (its heading stays for screen readers); an agent picker keeps it.
+ */
+[data-aiui-layout-frame='guided'] [data-aiui-chat] > section > header:not(:has(select)),
+[data-aiui-layout-frame='guided'] [data-chat-title] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+[data-aiui-layout-frame='guided'] [data-chat-header-column] {
+  justify-content: flex-end;
+}
+
+[data-aiui-layout-frame='guided'] [data-aiui-chat] [data-connection] {
+  display: none;
+}

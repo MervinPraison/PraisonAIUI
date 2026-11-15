@@ -2,6 +2,8 @@
 // the frame on desktop and phone, and the descriptor with its pages.
 import { beforeEach, test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { createElement, type ComponentType } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { provideLayoutData, resetLayoutsForTests, type LayoutNav, type LayoutNavItem, type LayoutProps, type LayoutViewport } from '@/sdk/layouts'
@@ -264,4 +266,12 @@ test('guidedPagesBuiltin registers only the pages the manifest lists, lazily', (
   assert.deepEqual(registered.map(([id]) => id), ['start'])
   assert.equal(typeof registered[0][1], 'function')
   assert.equal((registered[0][1] as () => unknown).length, 0, 'a loader, not a component')
+})
+
+test('the chat page title and connection row step aside under Guided; the pinned approval keeps room above the composer', () => {
+  const css = readFileSync(path.join(process.cwd(), 'src/app-layouts/guided/guided.css'), 'utf8')
+  assert.match(css, /\[data-aiui-layout-frame='guided'\] \[data-aiui-chat\] > section > header:not\(:has\(select\)\)/)
+  const host = readFileSync(path.join(process.cwd(), 'src/chat-engine/presentation/host.tsx'), 'utf8')
+  assert.match(host, /data-chat-pinned/)
+  assert.match(host, /pb-3 empty:hidden sm:pb-4" data-chat-pinned/)
 })
