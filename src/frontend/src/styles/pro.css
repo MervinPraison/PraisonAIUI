@@ -5,9 +5,9 @@
  * themes.ts setTokenSystem('pro') sets the attribute and setTokenSystem(null)
  * removes it. Without the attribute this file matches nothing, so the classic
  * frame, the dashboard and every other style render exactly as before.
- * (planned: the F3 layout host imports this file in the shell chunk, never
- * from index.css, and switches the attribute on while a layout frame is
- * mounted and off for the classic frame. Until then nothing imports it.)
+ * shell/LayoutHost.tsx imports this file (so it ships in the shell chunk,
+ * never in index.css) and switches the attribute on while a layout frame is
+ * mounted and off for the classic frame.
  *
  * LAYERS. Everything sits in @layer base, after styles/theme.css, with a more
  * specific selector, so it beats the classic defaults while unlayered CSS

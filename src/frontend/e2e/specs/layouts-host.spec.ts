@@ -130,6 +130,8 @@ test('the app shell opens in the default layout and downloads only its chunks', 
   await expect(page).toHaveURL(/\/chat$/)
   await expect(frame(page, 'chat-canvas')).toBeVisible()
   await expect(shellRoot(page)).toHaveAttribute('data-aiui-layout', 'chat-canvas')
+  // A layout frame paints with the PraisonAI Pro tokens (styles/pro.css).
+  await expect(page.locator('html')).toHaveAttribute('data-aiui-tokens', 'pro')
   await expect(page.locator('#aiui-main [data-aiui-page="chat"]')).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
   expect(layoutGroups(scripts)).toEqual(['layout-chat-canvas', 'layout-kit'])
@@ -162,6 +164,8 @@ test('?layout=classic previews the classic frame for this tab, across navigation
   await expect(page.locator('[data-aiui-shell-header]')).toBeVisible()
   await expect(shellRoot(page)).not.toHaveAttribute('data-aiui-layout', /.+/)
   await expect(page.locator('[data-aiui-layout-frame]')).toHaveCount(0)
+  // The classic frame keeps the classic tokens, whatever the server set for first paint.
+  await expect(page.locator('html')).not.toHaveAttribute('data-aiui-tokens', /.+/)
   expect(layoutGroups(scripts)).toEqual([])
 
   await page.locator('[data-aiui-shell-sidebar] a[data-page-id="logs"]').click()
@@ -249,6 +253,7 @@ test('a frame that throws falls back to the classic frame with one toast and aiu
   await expect(page.locator('[data-aiui-shell-header]')).toBeVisible()
   await expect(page.locator('#aiui-main [data-aiui-page="chat"]')).toBeVisible()
   await expect(page.getByText('The “Broken” layout failed to load')).toHaveCount(1)
+  await expect(page.locator('html')).not.toHaveAttribute('data-aiui-tokens', /.+/)
   const detail = await page.evaluate(() => (window as unknown as { __pluginErrors: { layout?: string; plugin?: string }[] }).__pluginErrors)
   expect(detail).toEqual([expect.objectContaining({ layout: 'broken', plugin: 'layoutfx' })])
   expect(errors.pageErrors).toEqual([])

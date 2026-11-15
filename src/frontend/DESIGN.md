@@ -303,9 +303,9 @@ layer above: same utilities, same primitives, different values.
 **When it applies.** `styles/pro.css` is scoped to
 `html[data-aiui-shell="react"][data-aiui-tokens="pro"]`. `setTokenSystem('pro')`
 (`themes.ts`) sets the attribute and `setTokenSystem(null)` removes it. The
-shell is meant to switch Pro on while a layout frame is mounted and off for
-the classic frame **(planned: the F3 layout host calls it and imports
-`pro.css` in the shell chunk)**. Without the attribute nothing in `pro.css`
+shell's layout host (`shell/LayoutHost.tsx`, which imports `pro.css` in the
+shell chunk) switches Pro on while a layout frame is mounted and off for the
+classic frame and the fallback. Without the attribute nothing in `pro.css`
 matches, so the classic frame (`layout: classic`), the dashboard and every
 other style render exactly as before. `theme.css` and `index.css` do not
 mention Pro.

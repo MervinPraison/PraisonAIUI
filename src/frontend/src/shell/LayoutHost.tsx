@@ -12,6 +12,12 @@
  *   props       LayoutProps: the Outlet (PageView), the nav model
  *               (shell/layoutNav.ts), chrome, viewport, the layout switcher
  *
+ *   tokens      a layout frame paints with the PraisonAI Pro tokens
+ *               (styles/pro.css, imported here so it ships in the shell
+ *               chunk, never in index.css): setTokenSystem('pro') while a
+ *               frame is mounted, setTokenSystem(null) for the classic frame
+ *               and the fallback
+ *
  * The host names no layout: ids come from the manifest and the registry.
  */
 import {
@@ -19,6 +25,7 @@ import {
   createContext,
   Suspense,
   useContext,
+  useLayoutEffect,
   useMemo,
   useSyncExternalStore,
   type ErrorInfo,
@@ -37,6 +44,8 @@ import {
 } from '@/sdk/layouts'
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
 import { notify } from '@/sdk/notify'
+import '@/styles/pro.css'
+import { setTokenSystem } from '@/themes'
 import { buildLayoutNav, MAIN_ID } from './layoutNav'
 import type { ActiveLayout } from './layoutSelect'
 import { siteLogo, siteTitle, type NavGroupsConfig } from './nav'
@@ -120,6 +129,22 @@ export function FrameSkeleton() {
   )
 }
 
+// ── token system ─────────────────────────────────────────────────────
+
+/** Pro tokens while a layout frame is mounted (the server may already have set them for first paint). */
+function useProTokens(): void {
+  useLayoutEffect(() => {
+    setTokenSystem('pro')
+    return () => setTokenSystem(null)
+  }, [])
+}
+
+/** The classic frame paints with the classic tokens, whatever the server guessed for first paint. */
+function ClassicTokens({ children }: { children: ReactNode }) {
+  useLayoutEffect(() => setTokenSystem(null), [])
+  return <>{children}</>
+}
+
 // ── error boundary ───────────────────────────────────────────────────
 
 interface BoundaryProps {
@@ -183,6 +208,7 @@ export interface LayoutHostProps {
 }
 
 function LayoutFrame({ active, manifest, groups, routeId, page, fullBleed, Frame }: LayoutHostProps & { Frame: LayoutComponent }) {
+  useProTokens()
   const viewport = useViewport()
   const { resolvedTheme, setTheme } = useTheme()
   const spec = useMemo(
@@ -230,7 +256,7 @@ export function LayoutHost(props: LayoutHostProps) {
     [routeId, page, pluginsSettled, fullBleed, firstPage],
   )
   if (active.render === 'classic' || !active.component) {
-    return active.render === 'pending' ? <FrameSkeleton /> : <>{classic}</>
+    return active.render === 'pending' ? <FrameSkeleton /> : <ClassicTokens>{classic}</ClassicTokens>
   }
   const spec = active.spec
   return (
@@ -239,7 +265,7 @@ export function LayoutHost(props: LayoutHostProps) {
       id={active.selected}
       title={spec?.title ?? active.selected}
       source={spec?.source ?? ''}
-      fallback={classic}
+      fallback={<ClassicTokens>{classic}</ClassicTokens>}
     >
       <Suspense fallback={<FrameSkeleton />}>
         <OutletContext.Provider value={outlet}>
