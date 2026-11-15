@@ -16,9 +16,13 @@
  * source does not have (the artifacts page showing another chat) shows the
  * stored versions instead of deriving them.
  *
- * Version numbers are the order in time of every version of a key, derived
- * and user-made together, so a restore followed by a new reply reads
- * v1, v2 (restored), v3.
+ * Version numbers never depend on clocks. A user version keeps the number
+ * it was given (the server's, once stored); derived versions take the
+ * numbers the server stored for the same content, and the free numbers
+ * around the user versions otherwise, in turn order. So a restore followed
+ * by a new reply reads v1, v2, v3 (restored), v4, and a reload (whose
+ * history has no message ids or times) shows and stores the same numbers:
+ * a derived version is never PUT over a stored one with other content.
  *
  * The thread source and backend are injected (tests); ./feed wires the
  * `chat` layout feed and ./api.
@@ -106,35 +110,78 @@ export function measure(a: Artifact): DerivedArtifact {
   return out
 }
 
+/** What the server would keep of a version's payload: its text (within the limit), else its URL. */
+function payload(a: Pick<DerivedArtifact, 'kind' | 'content' | 'url'>): string | null {
+  const b = putBody(a, true)
+  return b.content ?? b.url ?? null
+}
+
 /**
- * Derived and user versions of every key, in time order and numbered 1..n
- * per key; `mentions` re-pointed at the numbered objects. Pure.
+ * Whether a stored derived version is this derived one: the same reply
+ * (message id), or the same payload. A history reload gives messages new
+ * ids (h_0…), so the payload decides there.
+ */
+export function sameVersion(stored: Pick<DerivedArtifact, 'kind' | 'content' | 'url' | 'messageId'>, d: Pick<DerivedArtifact, 'kind' | 'content' | 'url' | 'messageId'>): boolean {
+  return (!!stored.messageId && stored.messageId === d.messageId) || payload(stored) === payload(d)
+}
+
+/**
+ * Derived and user versions of every key, numbered; `mentions` re-pointed
+ * at the numbered objects. Pure.
+ *
+ * - A user version keeps its `version` (the server assigned it, or restore
+ *   did locally until the server answers).
+ * - A derived version takes the number of the stored derived version that
+ *   is the same (sameVersion), the next one after its predecessor's;
+ *   otherwise the first number after its predecessor that no user version,
+ *   stored version or earlier derived version holds.
+ * Timestamps play no part: after a reload every history message has the
+ * same `createdAt`, and the order of turns is all that is known.
  */
 export function mergeVersions(
   derived: readonly DerivedArtifact[],
   user: readonly DerivedArtifact[],
   mentions: Record<string, DerivedArtifact[]>,
+  stored: readonly DerivedArtifact[] = [],
 ): { versions: DerivedArtifact[]; mentions: Record<string, DerivedArtifact[]> } {
-  if (!user.length) return { versions: [...derived], mentions }
+  if (!user.length && !stored.length) return { versions: [...derived], mentions }
   const order: string[] = []
-  const groups = new Map<string, DerivedArtifact[]>()
-  for (const a of [...derived, ...user]) {
-    if (!groups.has(a.key)) {
-      groups.set(a.key, [])
-      order.push(a.key)
+  const group = <T>(list: readonly T[], keyOf: (a: T) => string, track: boolean) => {
+    const m = new Map<string, T[]>()
+    for (const a of list) {
+      const k = keyOf(a)
+      if (!m.has(k)) {
+        m.set(k, [])
+        if (track && !order.includes(k)) order.push(k)
+      }
+      m.get(k)!.push(a)
     }
-    groups.get(a.key)!.push(a)
+    return m
   }
+  const derivedBy = group(derived, (a) => a.key, true)
+  const userBy = group(user, (a) => a.key, true)
+  const storedBy = group(stored.filter((a) => !a.edited), (a) => a.key, false)
   const renamed = new Map<DerivedArtifact, DerivedArtifact>()
   const versions: DerivedArtifact[] = []
   for (const key of order) {
-    // Stable sort: derived versions keep their order; a user version goes after everything older.
-    const list = [...groups.get(key)!].map((a, i) => ({ a, i })).sort((x, y) => (x.a.updatedAt ?? 0) - (y.a.updatedAt ?? 0) || x.i - y.i)
-    list.forEach(({ a }, n) => {
-      const v = a.version === n + 1 ? a : { ...a, version: n + 1 }
+    const mine = userBy.get(key) ?? []
+    const anchors = [...(storedBy.get(key) ?? [])].sort((x, y) => x.version - y.version)
+    const held = new Set<number>([...mine.map((u) => u.version), ...anchors.map((a) => a.version)])
+    const userNums = new Set(mine.map((u) => u.version))
+    const used = new Set<number>()
+    const out: DerivedArtifact[] = [...mine]
+    let prev = 0
+    for (const a of derivedBy.get(key) ?? []) {
+      const match = anchors.find((s) => s.version > prev && !used.has(s.version) && !userNums.has(s.version) && sameVersion(s, a))
+      let n = match?.version ?? prev + 1
+      if (!match) while (held.has(n) || used.has(n)) n++
+      used.add(n)
+      prev = n
+      const v = a.version === n ? a : { ...a, version: n }
       renamed.set(a, v)
-      versions.push(v)
-    })
+      out.push(v)
+    }
+    versions.push(...out.sort((x, y) => x.version - y.version))
   }
   const re: Record<string, DerivedArtifact[]> = {}
   for (const [id, list] of Object.entries(mentions)) re[id] = list.map((a) => renamed.get(a) ?? a)
@@ -160,14 +207,16 @@ interface SessionState {
   selection: (Selection & { seen: number }) | null
   split: string | null
   server: ServerState
-  /** `key@version@messageId` the server already has. */
-  known: Set<string>
+  /** `key@version` → the derived version the server has under that number. */
+  known: Map<string, DerivedArtifact>
   inflight: Set<string>
   /** PUTs that failed: not retried until the page reloads. */
   failed: Set<string>
   listeners: Set<() => void>
   unsubscribe: (() => void) | null
   syncTimer: ReturnType<typeof setTimeout> | null
+  /** Every PUT runs in this chain, one at a time, so a restore is stored after the derived versions before it. */
+  queue: Promise<void>
   /** Derived versions as the server stored them (shown when the chat is not here). */
   stored: DerivedArtifact[]
   loading: Promise<void> | null
@@ -176,6 +225,7 @@ interface SessionState {
 }
 
 const syncId = (a: Pick<DerivedArtifact, 'key' | 'version' | 'messageId'>) => `${a.key}@${a.version}@${a.messageId}`
+const slot = (a: Pick<DerivedArtifact, 'key' | 'version'>) => `${a.key}@${a.version}`
 
 export interface StoreOptions {
   threads: ThreadSource
@@ -200,7 +250,7 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
         selection: null,
         split: null,
         server: 'off',
-        known: new Set(),
+        known: new Map(),
         inflight: new Set(),
         failed: new Set(),
         stored: [],
@@ -208,6 +258,7 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
         listeners: new Set(),
         unsubscribe: null,
         syncTimer: null,
+        queue: Promise.resolve(),
         memo: null,
         feed: null,
       }
@@ -227,7 +278,7 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
     const fromChat = deriveArtifacts(thread.messages, s.sid, derive)
     // No chat for this session here (another chat on the artifacts page): what the server stored.
     const d = fromChat.versions.length || !s.stored.length ? fromChat : { versions: s.stored, mentions: {} }
-    const { versions, mentions } = mergeVersions(d.versions, s.user, d.mentions)
+    const { versions, mentions } = mergeVersions(d.versions, s.user, d.mentions, s.stored)
     const latest = latestOf(versions)
     // A new version while a reply runs is the agent showing something: follow it.
     if (s.selection && thread.isRunning && versions.length > s.selection.seen) s.selection = null
@@ -261,8 +312,8 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
     notify(s)
     try {
       const stored = await backend!.fetchSession(s.sid!)
-      s.known = new Set(stored.filter((a) => !a.edited).map(syncId))
       s.stored = stored.filter((a) => !a.edited).map(measure)
+      s.known = new Map(s.stored.map((a) => [slot(a), a]))
       const local = s.user.filter((u) => !u.persisted)
       s.user = [...stored.filter((a) => a.edited).map((a) => ({ ...measure(a), persisted: true })), ...local]
       s.server = 'ready'
@@ -278,8 +329,13 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
     if (s.server !== 'ready' || s.syncTimer) return
     s.syncTimer = setTimeout(() => {
       s.syncTimer = null
-      void sync(s)
+      void enqueue(s, () => sync(s))
     }, 0)
+  }
+
+  function enqueue(s: SessionState, job: () => Promise<void>): Promise<void> {
+    s.queue = s.queue.then(job, job).catch((err: unknown) => console.debug('[aiui artifacts] sync failed', err))
+    return s.queue
   }
 
   async function sync(s: SessionState) {
@@ -288,12 +344,14 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
     if (snap.running) return
     for (const v of snap.versions) {
       if (v.edited) continue
+      const has = s.known.get(slot(v))
+      if (has && sameVersion(has, v)) continue
       const id = syncId(v)
-      if (s.known.has(id) || s.inflight.has(id) || s.failed.has(id)) continue
+      if (s.inflight.has(id) || s.failed.has(id)) continue
       s.inflight.add(id)
       try {
         await backend!.put(s.sid!, v.key, putBody(v, true))
-        s.known.add(id)
+        s.known.set(slot(v), v)
       } catch (err) {
         s.failed.add(id) // never retried in this tab, so a reload cannot loop
         if ((err as { status?: number }).status === 409) {
@@ -364,11 +422,13 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
       const s = state(sid)
       const from = compute(s).versions.find((v) => v.key === key && v.version === version)
       if (!from) return null
-      const latest = compute(s).latest.find((a) => a.key === key)
+      const snap = compute(s)
+      // After every number shown or stored for this key (the server picks its own: adopted below).
+      const top = Math.max(0, ...snap.versions.filter((a) => a.key === key).map((a) => a.version), ...s.stored.filter((a) => a.key === key).map((a) => a.version))
+      const latest = snap.latest.find((a) => a.key === key)
       const v: DerivedArtifact & { persisted?: boolean } = {
         ...from,
-        // Numbered by mergeVersions; after everything else in time.
-        version: (latest?.version ?? version) + 1,
+        version: top + 1,
         edited: true,
         restoredFrom: version,
         updatedAt: Math.max(now(), (latest?.updatedAt ?? 0) + 1),
@@ -378,12 +438,19 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
       s.selection = { key, seen: compute(s).versions.length }
       notify(s)
       if (serverOn(s)) {
-        backend!.put(s.sid!, key, putBody(v, true)).then(
-          () => {
-            v.persisted = true
-          },
-          (err: unknown) => console.debug('[aiui artifacts] could not store the restored version', err),
-        )
+        // The derived versions before it first, so the server numbers it after them.
+        void enqueue(s, () => sync(s))
+        void enqueue(s, async () => {
+          try {
+            const saved = await backend!.put(s.sid!, key, putBody(v, true))
+            const n = saved?.version
+            const kept: DerivedArtifact & { persisted?: boolean } = { ...v, persisted: true, ...(typeof n === 'number' && Number.isInteger(n) && n >= 1 ? { version: n } : {}) }
+            s.user = s.user.map((u) => (u === v ? kept : u))
+            notify(s)
+          } catch (err) {
+            console.debug('[aiui artifacts] could not store the restored version', err)
+          }
+        })
       }
       return compute(s).versions.find((a) => a.key === key && a.edited && a.updatedAt === v.updatedAt) ?? null
     },

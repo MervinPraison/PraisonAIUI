@@ -264,19 +264,131 @@ test('a chat that is not here (another chat on the artifacts page) shows what th
   assert.deepEqual(b.puts, [], 'nothing to store: the server has it')
 })
 
-test('mergeVersions and measure', () => {
-  const d = (key: string, version: number, updatedAt: number): DerivedArtifact => ({ key, kind: 'code', title: key, version, sessionId: 's', messageId: `m${updatedAt}`, updatedAt })
+/**
+ * An in-memory copy of features/artifacts.py's PUT rules: a body with a
+ * `version` replaces that version (409 if the user edited it); `edited: true`
+ * (or no version) appends max + 1. GET returns every version with content.
+ */
+function fakeServer() {
+  const rows: Artifact[] = []
+  const log: string[] = []
+  let clock = T0 + 10_000_000
+  const b: ArtifactsBackend & { rows: Artifact[]; log: string[] } = {
+    rows,
+    log,
+    enabled: () => true,
+    async fetchSession(sid) {
+      return rows.filter((r) => r.sessionId === sid).map((r) => ({ ...r }))
+    },
+    async put(sid, key, body) {
+      const mine = rows.filter((r) => r.sessionId === sid && r.key === key)
+      const item: Artifact = { ...body, key, sessionId: sid, title: body.title ?? key, messageId: body.messageId ?? '', version: 0, updatedAt: ++clock }
+      if (body.version === undefined || body.edited) {
+        item.version = Math.max(0, ...mine.map((r) => r.version)) + 1
+        log.push(`PUT ${key} edited -> v${item.version}`)
+        rows.push(item)
+      } else {
+        const same = mine.find((r) => r.version === body.version)
+        log.push(`PUT ${key} v${body.version}${same?.edited ? ' 409' : ''}`)
+        if (same?.edited) throw Object.assign(new Error('that version was edited by the user'), { status: 409 })
+        item.version = body.version
+        delete item.edited
+        if (same) rows.splice(rows.indexOf(same), 1, item)
+        else rows.push(item)
+      }
+      return { ...item }
+    },
+  }
+  return b
+}
+
+const TABLE = 'table:algorithm|average|worst'
+const tableRows = (b: ReturnType<typeof fakeServer>) =>
+  b.rows.filter((r) => r.key === TABLE).sort((x, y) => x.version - y.version).map((r) => `v${r.version}${r.edited ? ' edited' : ''} ${/Stable/.test(r.content ?? '') ? 'B' : 'A'}`)
+
+/** The chat as /api/chat/history gives it back: {role, content} only, so ids h_i and one createdAt for all. */
+function fromHistory(msgs: readonly DeriveMessage[], at: number): DeriveMessage[] {
+  return msgs.map((m, i) => ({ id: `h_${i}`, role: m.role, createdAt: at, parts: m.parts }))
+}
+
+test('restore, then a reload whose history has no ids or times: the stored versions are shown and kept as they are', async () => {
+  const server = fakeServer()
+  const msgs = sortingConversation()
+  // The live chat: both replies stored, then Restore v1.
+  const live = createArtifactsStore({ threads: threads({ s1: msgs }), backend: server, now: () => T0 + 500_000 })
+  const off = live.session('s1').subscribe(() => {})
+  await tick()
+  assert.deepEqual(tableRows(server), ['v1 A', 'v2 B'])
+  assert.equal(live.restore('s1', TABLE, 1)?.version, 3)
+  await tick()
+  assert.deepEqual(tableRows(server), ['v1 A', 'v2 B', 'v3 edited A'])
+  off()
+
+  // Reload: every history message is newer than the restore, and the ids differ.
+  server.log.length = 0
+  const t = threads({ s1: fromHistory(msgs, T0 + 9_000_000) })
+  const reloaded = createArtifactsStore({ threads: t, backend: server })
+  const off2 = reloaded.session('s1').subscribe(() => {})
+  await tick()
+  await tick()
+  const snap = reloaded.session('s1').get()
+  assert.equal(snap.server, 'ready')
+  const shown = snap.versions.filter((v) => v.key === TABLE)
+  assert.deepEqual(shown.map((v) => `v${v.version}${v.edited ? ' edited' : ''} ${/Stable/.test(v.content ?? '') ? 'B' : 'A'}`), ['v1 A', 'v2 B', 'v3 edited A'])
+  assert.deepEqual(server.log, [], 'nothing to store: no PUT over v2, no 409')
+  assert.deepEqual(tableRows(server), ['v1 A', 'v2 B', 'v3 edited A'], 'the real v2 is still on the server')
+
+  // A new reply after the reload is v4, after the restored v3.
+  const next = reply('| Algorithm | Average | Worst |\n|---|---|---|\n| Heapsort | n log n | n log n |\n| Bubble | n² | n² |', T0 + 9_100_000)
+  t.set('s1', { messages: [...fromHistory(msgs, T0 + 9_000_000), next] })
+  await tick()
+  assert.deepEqual(server.log, ['PUT table:algorithm|average|worst v4'])
+  assert.deepEqual(reloaded.session('s1').get().versions.filter((v) => v.key === TABLE).map((v) => v.version), [1, 2, 3, 4])
+  off2()
+})
+
+test('restore before a derived version was stored: the derived one goes first, and the server\'s number is adopted', async () => {
+  const server = fakeServer()
+  const msgs = sortingConversation()
+  const store = createArtifactsStore({ threads: threads({ s1: msgs }), backend: server })
+  const off = store.session('s1').subscribe(() => {})
+  // Restore at once, before the scheduled sync has run.
+  store.restore('s1', TABLE, 1)
+  await tick()
+  assert.deepEqual(tableRows(server), ['v1 A', 'v2 B', 'v3 edited A'])
+  assert.deepEqual(store.session('s1').get().versions.filter((v) => v.key === TABLE).map((v) => `${v.version}${v.edited ? 'e' : ''}`), ['1', '2', '3e'])
+  // The server numbered a user version differently (an edit made in another tab): its number wins.
+  server.rows.push({ ...server.rows.find((r) => r.edited)!, version: 4, updatedAt: T0 })
+  store.restore('s1', TABLE, 2)
+  await tick()
+  const mine = store.session('s1').get().versions.filter((v) => v.key === TABLE && v.edited)
+  assert.deepEqual(mine.map((v) => v.version), [3, 5], 'the second restore is stored as v5, as the server says')
+  off()
+})
+
+test('mergeVersions: user versions keep their numbers, derived ones fill around them by turn order, matched to stored ones', () => {
+  const d = (key: string, version: number, updatedAt: number, content = `c${version}`): DerivedArtifact => ({ key, kind: 'code', title: key, version, sessionId: 's', messageId: `m${updatedAt}`, updatedAt, content })
   const a1 = d('a', 1, 10)
   const a2 = d('a', 2, 30)
-  const u = { ...d('a', 9, 20), edited: true }
+  // Timestamps do not order anything: the user version is newer than both, yet it is v2.
+  const u = { ...d('a', 2, 99, 'c1'), edited: true }
   const out = mergeVersions([a1, a2], [u], { m30: [a2] })
   assert.deepEqual(out.versions.map((v) => [v.version, v.updatedAt, !!v.edited]), [
     [1, 10, false],
-    [2, 20, true],
+    [2, 99, true],
     [3, 30, false],
   ])
   assert.equal(out.mentions.m30[0].version, 3, 'mentions follow the renumbering')
   assert.equal(mergeVersions([a1], [], {}).versions[0], a1)
+  // Stored derived versions anchor the numbers: matched by payload when the ids changed (h_i after a reload).
+  const h1 = { ...a1, messageId: 'h_1' }
+  const h2 = { ...a2, messageId: 'h_3' }
+  const stored = [a1, { ...a2, version: 2 }]
+  assert.deepEqual(mergeVersions([h1, h2], [{ ...u, version: 3 }], {}, stored).versions.map((v) => `${v.version}${v.edited ? 'e' : ''}`), ['1', '2', '3e'])
+  // A history missing the first reply: its second version keeps number 2, not 1.
+  assert.deepEqual(mergeVersions([h2], [], {}, stored).versions.map((v) => v.version), [2])
+  // A derived version unlike any stored one never takes a stored number.
+  assert.deepEqual(mergeVersions([d('a', 1, 50, 'new')], [], {}, stored).versions.map((v) => v.version), [3])
   const t = measure({ key: 't', kind: 'table', title: 't', version: 1, sessionId: 's', messageId: '', content: '| a | b |\n|---|---|\n| 1 | 2 |' })
   assert.deepEqual([t.rows, t.columns], [1, ['a', 'b']])
 })
