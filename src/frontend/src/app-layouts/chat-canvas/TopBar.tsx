@@ -5,6 +5,7 @@
  * `header:actions` slot. Phone (CanvasPhone.dc.html): menu, the centred
  * title and line, New chat; 44 px targets.
  */
+import type { ReactNode } from 'react'
 import { Menu, Moon, PanelLeftOpen, Search, Share, SquarePen, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { preloadPhoneSheet, ShortcutHint } from '@/app-layouts/kit'
@@ -15,7 +16,8 @@ import { copyLink } from './share'
 
 export interface TitleLine {
   title: string
-  subtitle?: string
+  /** The second line (on the chat page, a ChatLine: it renders its own paragraph, or nothing). */
+  subtitle?: ReactNode
 }
 
 function ThemeButton({ chrome, className }: { chrome: Pick<LayoutChrome, 'toggleColorMode'>; className?: string }) {
@@ -64,11 +66,7 @@ export function TopBar({
         <h1 className="m-0 truncate text-xl leading-tight font-semibold tracking-tight" data-cc-title="">
           {line.title}
         </h1>
-        {line.subtitle && (
-          <p className="m-0 truncate text-[13px] text-muted-foreground" data-cc-subtitle="">
-            {line.subtitle}
-          </p>
-        )}
+        {line.subtitle}
       </div>
       <Button
         variant="outline"
@@ -109,7 +107,7 @@ export function PhoneTopBar({
         variant="ghost"
         size="icon"
         className="size-11 rounded-xl text-foreground"
-        aria-label="Open navigation and chats"
+        aria-label="Open menu and chats"
         aria-haspopup="dialog"
         onPointerEnter={preloadPhoneSheet}
         onFocus={preloadPhoneSheet}
@@ -121,11 +119,7 @@ export function PhoneTopBar({
         <h1 className="m-0 truncate text-lg leading-tight font-semibold tracking-tight" data-cc-title="">
           {line.title}
         </h1>
-        {line.subtitle && (
-          <p className="m-0 truncate text-[13px] text-muted-foreground" data-cc-subtitle="">
-            {line.subtitle}
-          </p>
-        )}
+        {line.subtitle}
       </div>
       {canCreate ? (
         <Button variant="ghost" size="icon" className="size-11 rounded-xl text-foreground" aria-label="New chat" onClick={onNewChat}>

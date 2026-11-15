@@ -5,7 +5,7 @@
  * (the kit's useSessions), so it renders nothing while builtin.chat is off.
  */
 import { useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { Search, X } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -66,7 +66,7 @@ export function ChatList({ size = 'default', limit = 30, onOpen, className, now 
           aria-expanded={searching}
           onClick={toggleSearch}
         >
-          {searching ? <X /> : <Search />}
+          <Search />
         </Button>
       </div>
       {searching && (

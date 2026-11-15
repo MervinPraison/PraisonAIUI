@@ -28,11 +28,16 @@
   box-shadow: var(--ui-shadow-sm);
 }
 
+/* The resize handle is a quiet gap between the thread and the card; it shows on hover and focus. */
+[data-aiui-layout-frame='chat-canvas'] [data-aiui-chat] > [role='separator']:not(:hover):not(:focus-visible) {
+  background: transparent;
+}
+
 /* While the canvas is there, a long code block or table does not push the
    answer away: it keeps `collapseLines` lines (`collapseRows` rows) and
    scrolls inside; the whole artifact is one tap away in the canvas. */
 [data-aiui-layout-frame='chat-canvas'] [data-aiui-chat]:has([data-chat-aside]) [data-role='assistant'] .aiui-markdown pre {
-  max-height: calc(var(--cc-collapse-lines, 12) * 1.7em + 1.5rem);
+  max-height: calc(var(--cc-collapse-lines, 12) * 1.54em + 1.5rem);
   overflow: auto;
 }
 

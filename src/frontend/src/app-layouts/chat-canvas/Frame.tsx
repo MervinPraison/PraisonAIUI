@@ -24,8 +24,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PhoneSheet, useSessions } from '@/app-layouts/kit'
 import type { LayoutProps } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
-import { useArtifactTotal, useChat, useProvideArtifacts, useSessionArtifacts } from './data'
-import { chatSubtitle, lastAgent, summarizeArtifacts } from './format'
+import { ChatLine } from './ChatLine'
+import { useArtifactTotal, useProvideArtifacts } from './data'
 import { frameKeyAction, optionVars } from './frameLogic'
 import { ARTIFACTS_PAGE, Brand, SidebarBody } from './Sidebar'
 import { PhoneTopBar, TopBar, type TitleLine } from './TopBar'
@@ -36,22 +36,20 @@ import './chat-canvas.css'
 const DEFAULT_CHAT_PAGE = 'chat'
 const SIDEBAR_KEY = 'aiui-chat-canvas-sidebar-hidden'
 
-/** The top bar's title and line: the open chat on the chat page, else the page. */
+/**
+ * The top bar's title and line: the open chat and its ChatLine on the chat
+ * page, else the page's title. The line is a component of its own so the
+ * chat and artifacts feeds (and the artifacts chunk) load only on the chat page.
+ */
 function useTitleLine(onChat: boolean, pageTitle: string): TitleLine {
   const sessions = useSessions()
-  const chat = useChat()
-  const activeId = sessions?.state.activeId ?? null
-  const artifacts = summarizeArtifacts(useSessionArtifacts(onChat ? activeId : null))
   if (!onChat) return { title: pageTitle }
+  const activeId = sessions?.state.activeId ?? null
   const current = activeId ? sessions?.state.sessions.find((s) => s.id === activeId) : undefined
-  const title = current?.title ?? (activeId ? 'Chat' : 'New chat')
-  const subtitle = chatSubtitle({
-    agent: chat?.sessionId === activeId ? lastAgent(chat?.messages) : undefined,
-    running: !!activeId && !!sessions?.state.runningIds.has(activeId),
-    artifacts: artifacts.count,
-    editedAt: artifacts.updatedAt,
-  })
-  return { title, subtitle: subtitle || undefined }
+  return {
+    title: current?.title ?? (activeId ? 'Chat' : 'New chat'),
+    subtitle: <ChatLine sessionId={activeId} running={!!activeId && !!sessions?.state.runningIds.has(activeId)} />,
+  }
 }
 
 export default function ChatCanvasFrame(props: LayoutProps) {
@@ -135,7 +133,7 @@ export default function ChatCanvasFrame(props: LayoutProps) {
         </main>
       </div>
       {phone && (
-        <PhoneSheet open={menuOpen} onOpenChange={setMenuOpen} title="Navigation and chats" header={<Brand chrome={chrome} size="touch" />}>
+        <PhoneSheet open={menuOpen} onOpenChange={setMenuOpen} title="Menu and chats" header={<Brand chrome={chrome} size="touch" />}>
           <SidebarBody
             nav={nav}
             chrome={chrome}

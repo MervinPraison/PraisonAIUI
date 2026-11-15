@@ -283,7 +283,7 @@ test('phone frame: a header with 44 px menu and New chat, no sidebar; the menu s
   const out = render(props({ viewport: 'phone' }))
   assert.match(out, /data-viewport="phone"/)
   assert.doesNotMatch(out, /<nav aria-label="Main"/)
-  assert.match(out, /aria-label="Open navigation and chats" aria-haspopup="dialog"/)
+  assert.match(out, /aria-label="Open menu and chats" aria-haspopup="dialog"/)
   assert.match(out, /class="[^"]*size-11[^"]*" aria-label="New chat"/)
   assert.match(out, /data-cc-title="">Compare sorting algorithms</)
   assert.doesNotMatch(out, /data-aiui-session=/, 'the chats are in the sheet, not mounted yet')

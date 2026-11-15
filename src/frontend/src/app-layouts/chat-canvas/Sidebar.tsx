@@ -5,7 +5,7 @@
  * other page) and the theme switch. The same body fills the phone menu sheet
  * with 44 px rows.
  */
-import { MoreHorizontal, PanelLeftClose, SquarePen, SunMoon } from 'lucide-react'
+import { CircleEllipsis, PanelLeftClose, SquarePen, SunMoon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { isPlainLeftClick, ShortcutHint, useSessions, type KitSize } from '@/app-layouts/kit'
 import type { LayoutChrome, LayoutNav, LayoutNavItem } from '@/sdk/layouts'
@@ -163,7 +163,7 @@ export function SidebarBody({ nav, chrome, size, chatPage, artifactTotal, onColl
           }}
           data-cc-more=""
         >
-          <MoreHorizontal aria-hidden="true" className="size-4 shrink-0" />
+          <CircleEllipsis aria-hidden="true" className="size-4 shrink-0" />
           <span className="flex-1">More</span>
           {!touch && <ShortcutHint combo="mod+k" />}
         </button>
