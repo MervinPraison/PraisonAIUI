@@ -24,6 +24,7 @@ import {
   shortcutLabels,
   useApprovals,
   useChat,
+  useMinuteClock,
 } from '@/app-layouts/kit'
 
 const html = (el: ReturnType<typeof createElement>) => renderToStaticMarkup(el)
@@ -221,6 +222,18 @@ test('ConnectionStatus says Connected while the browser is online', () => {
 test('Brand: the logo image, else the title’s first letter', () => {
   assert.match(html(createElement(Brand, { chrome: { siteTitle: 'PraisonAI', siteLogo: null } })), />P<\/span><span[^>]*>PraisonAI</)
   assert.match(html(createElement(Brand, { chrome: { siteTitle: 'X', siteLogo: { kind: 'img', value: '/logo.svg' } } })), /<img src="\/logo.svg" alt=""/)
+})
+
+test('useMinuteClock reads the real time and stays stable between ticks', () => {
+  const seen: number[] = []
+  function Probe() {
+    seen.push(useMinuteClock(), useMinuteClock())
+    return null
+  }
+  const before = Date.now()
+  html(createElement(Probe))
+  assert.equal(seen[0], seen[1])
+  assert.ok(seen[0] >= before - 60_000 && seen[0] <= Date.now())
 })
 
 test('useChat / useApprovals are null while nothing provides the feed', () => {

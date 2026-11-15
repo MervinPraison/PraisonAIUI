@@ -19,7 +19,7 @@
  * Isolation (R17): imports only the SDK, components/ui, lib, the kit and
  * this folder (app-layouts/isolation.test.ts).
  */
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Bot, Ellipsis, Menu, PanelLeft, Plus, Search, Share, SquarePen, SunMoon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { LayoutProps } from '@/sdk/layouts'
@@ -193,19 +193,18 @@ export default function WorkbenchFrame(props: LayoutProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = frameTitle({ pageId, page, chatPage, sessions: sessions?.state ?? null, siteTitle: chrome.siteTitle })
 
-  const newChat = useCallback(() => {
+  // useShortcut always calls the latest handler, so these need no memo.
+  const newChat = () => {
     sessions?.feed.create()
     if (nav.activeId !== chatPage) nav.go(chatPage)
-  }, [sessions, nav, chatPage])
-  const toggleSidebar = useCallback(() => {
-    setCollapsed((c) => {
-      writeCollapsed(!c)
-      return !c
-    })
-  }, [])
+  }
+  const toggleSidebar = () => {
+    writeCollapsed(!collapsed)
+    setCollapsed(!collapsed)
+  }
   useShortcut(sessions ? SHORTCUTS.newChat : null, newChat, { allowInInputs: true })
   useShortcut(phone ? null : SHORTCUTS.toggleSidebar, toggleSidebar)
-  const closeMenu = useCallback(() => setMenuOpen(false), [])
+  const closeMenu = () => setMenuOpen(false)
 
   const main = (
     <main

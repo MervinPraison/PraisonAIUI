@@ -8,6 +8,7 @@ import { CirclePause, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { useMinuteClock } from './clock'
 import { relativeTime } from './format'
 import { NavSection } from './NavList'
 import { navRowClass, type KitSize } from './rows'
@@ -24,7 +25,7 @@ export interface SessionListProps {
   onOpen?(sessionId: string): void
   /** Each row ends with when the chat was last active (Now, 2h, Yesterday…). */
   showTime?: boolean
-  /** Clock for `showTime` (tests). Default Date.now() at render. */
+  /** Clock for `showTime` (tests). Default: now, refreshed every minute. */
   now?: number
   /** Sessions with an approval waiting: a "Waiting" label instead of the time. */
   waitingIds?: ReadonlySet<string>
@@ -43,6 +44,7 @@ export function SessionList({
   className,
 }: SessionListProps) {
   const sessions = useSessions()
+  const minute = useMinuteClock()
   const [query, setQuery] = useState('')
   const shown = useMemo(() => {
     const all = sessions?.state.sessions ?? []
@@ -53,7 +55,7 @@ export function SessionList({
   if (!sessions) return null
   const { feed, state } = sessions
   const touch = size === 'touch'
-  const clock = now ?? Date.now()
+  const clock = now ?? minute
 
   return (
     <div className={cn('flex min-h-0 flex-col gap-2', className)} data-aiui-session-list="">
