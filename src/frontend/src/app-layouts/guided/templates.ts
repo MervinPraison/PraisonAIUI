@@ -6,7 +6,7 @@
  * composer, ready to edit and send (nothing is sent for the visitor).
  *
  * Pure apart from loadTemplates() (one GET, cached for the tab); tested in
- * guided.test.ts.
+ * guided.test.tsx.
  */
 
 export interface GuidedTemplate {

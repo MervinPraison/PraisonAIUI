@@ -78,7 +78,8 @@ Each step gets a plain label. The first rule that matches wins:
 Thinking is "Understanding your question" ("thought for 2s"). The answer is
 "Writing the answer". An approval the agent waits on is "Waiting for your
 OK". A step's short result is the first line of what it returned, cut at 40
-characters.
+characters. Machine output (JSON) is said as a count, such as "2 hits", or
+left out; **Show details** still has the raw result.
 
 ### Follow-up suggestions
 

@@ -14,7 +14,8 @@
  *   text        "Writing the answer" (all of the turn's text is one step)
  *   a gate      "Waiting for your OK" until it is decided
  *
- * A step's meta is the first line of its result, at most 40 characters.
+ * A step's meta is the first line of its result, at most 40 characters;
+ * machine output (JSON) is said as a count ("2 hits") or left out.
  */
 import type { ChatMessageView, ChatPartView, ChatToolPartView } from '@/sdk/layoutTypes'
 
@@ -128,6 +129,34 @@ export function firstLine(result: unknown): string {
   return line ?? ''
 }
 
+/** A single count (`{"hits": 2}`) said as words: "2 hits"; else ''. */
+function countPhrase(rec: Record<string, unknown>): string {
+  const entries = Object.entries(rec)
+  if (entries.length !== 1) return ''
+  const [key, value] = entries[0]
+  if (typeof value !== 'number' || !Number.isFinite(value)) return ''
+  return `${value} ${humanize(key).toLowerCase()}`
+}
+
+/**
+ * A step's meta in plain words: the result's first line (firstLine), except
+ * that machine output (a JSON object or array, as data or as text) is said
+ * as a count ("2 hits") or not at all; Show details still has it.
+ */
+export function plainResult(result: unknown): string {
+  let data = result
+  if (typeof result === 'string' && /^\s*[[{]/.test(result)) {
+    try {
+      data = JSON.parse(result)
+    } catch {
+      return firstLine(result)
+    }
+  }
+  const line = firstLine(data)
+  if (!/^[[{]/.test(line)) return line
+  return data && typeof data === 'object' && !Array.isArray(data) ? countPhrase(data as Record<string, unknown>) : ''
+}
+
 /** What a tool was given, on one line (`python3 --version`), for the details list. */
 export function toolInput(args: Readonly<Record<string, unknown>> = {}): string {
   for (const k of INPUT_KEYS) {
@@ -178,7 +207,7 @@ function toolStep(p: ChatToolPartView, turnRunning: boolean): PlainStep {
   if (approval && approval.approved === false) {
     return { id: p.id, kind: 'tool', label, status: 'skipped', meta: 'you said not now', detail }
   }
-  const out = firstLine(p.result)
+  const out = plainResult(p.result)
   if (p.isError) return { id: p.id, kind: 'tool', label, status: 'error', meta: out ? clip(out) : "it didn't work", durationMs, detail }
   if (p.result === undefined && !p.timing?.completedAt) {
     return { id: p.id, kind: 'tool', label, status: turnRunning ? 'running' : 'done', durationMs, detail }

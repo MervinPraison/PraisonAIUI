@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { ChatMessageView, ChatToolPartView } from '@/sdk/layoutTypes'
-import { clip, deriveSteps, firstLine, formatSeconds, hasWork, humanize, spokenDuration, stepMeta, summarize, toolInput, toolLabel } from './labels'
+import { clip, deriveSteps, firstLine, formatSeconds, hasWork, humanize, plainResult, spokenDuration, stepMeta, summarize, toolInput, toolLabel } from './labels'
 
 const tool = (toolName: string, extra: Partial<ChatToolPartView> = {}): ChatToolPartView => ({
   type: 'tool-call',
@@ -74,6 +74,16 @@ test('humanize, clip and the meta line are short', () => {
   assert.equal(firstLine([]), 'no results')
   assert.equal(firstLine(null), '')
   assert.equal(firstLine(42), '42')
+  // The meta says machine output in words, or not at all (the raw result stays in Show details).
+  assert.equal(plainResult({ hits: 2 }), '2 hits')
+  assert.equal(plainResult('{"hits": 2}'), '2 hits')
+  assert.equal(plainResult({ total_rows: 12 }), '12 total rows')
+  assert.equal(plainResult({ a: 1, b: 2 }), '')
+  assert.equal(plainResult('{\n  "a": 1,\n  "b": [2]\n}'), '')
+  assert.equal(plainResult('["x", "y"]'), '2 results')
+  assert.equal(plainResult('{"stdout": "Python 3.12.4"}'), 'Python 3.12.4')
+  assert.equal(plainResult('{not json'), '{not json')
+  assert.equal(plainResult('Python 3.12.4'), 'Python 3.12.4')
   assert.equal(toolInput({ command: 'python3 --version' }), 'python3 --version')
   assert.equal(toolInput({ cmd: ['pip', 'install', 'numpy'] }), 'pip install numpy')
   assert.equal(toolInput({ city: 'Paris' }), '{"city":"Paris"}')
@@ -187,4 +197,17 @@ test('summarize: done, running, waiting, stopped and failed turns', () => {
   assert.deepEqual(summarize(waiting, []), { title: 'Here is what Researcher did so far', status: 'Waiting for your OK', state: 'waiting' })
   assert.equal(summarize(sortingTurn({ status: { type: 'incomplete', reason: 'cancelled' } }), []).status, 'You stopped it')
   assert.equal(summarize(sortingTurn({ status: { type: 'incomplete', reason: 'error' } }), []).state, 'error')
+})
+
+test('deriveSteps: a JSON result is said in words in the meta, and kept as is in the details', () => {
+  const turn: ChatMessageView = {
+    id: 'm2',
+    role: 'assistant',
+    createdAt: 0,
+    status: { type: 'complete' },
+    parts: [tool('web_search', { args: { query: 'sorting' }, result: '{"hits":2}', timing: { startedAt: 0, completedAt: 100 } })],
+  }
+  const [step] = deriveSteps(turn)
+  assert.equal(stepMeta(step), 'Done · 2 hits')
+  assert.equal(step.detail?.output, '{"hits":2}')
 })

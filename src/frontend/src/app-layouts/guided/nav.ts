@@ -1,6 +1,6 @@
 /**
  * Guided Studio's navigation model, from the LayoutNav the shell hands the
- * frame (pure: no React, no DOM; nav.test.ts).
+ * frame (pure: no React, no DOM; guided.test.tsx).
  *
  *   main      the layout's primary pages (Home, Chat, My agents, Templates)
  *             with plain titles, then Help
