@@ -1,0 +1,47 @@
+/*
+ * Chat and Canvas: how the chat page sits inside this frame. Loaded with the
+ * frame chunk only, every rule scoped to [data-aiui-layout-frame='chat-canvas'],
+ * tokens only (the Pro tokens while a layout is on screen).
+ */
+
+/* The frame's top bar names the open chat; the page's own heading stays for
+   screen readers, and its toolbar (agent, connection, Canvas) moves right. */
+[data-aiui-layout-frame='chat-canvas'] [data-chat-title] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+[data-aiui-layout-frame='chat-canvas'] [data-chat-header-column] {
+  justify-content: flex-end;
+}
+
+/* The canvas is a raised card beside the thread (desktop and tablet). */
+[data-aiui-layout-frame='chat-canvas']:not([data-viewport='phone']) [data-chat-aside] {
+  margin: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--ui-shadow-sm);
+}
+
+/* The resize handle is a quiet gap between the thread and the card; it shows on hover and focus. */
+[data-aiui-layout-frame='chat-canvas'] [data-aiui-chat] > [role='separator']:not(:hover):not(:focus-visible) {
+  background: transparent;
+}
+
+/* While the canvas is there, a long code block or table does not push the
+   answer away: it keeps `collapseLines` lines (`collapseRows` rows) and
+   scrolls inside; the whole artifact is one tap away in the canvas. */
+[data-aiui-layout-frame='chat-canvas'] [data-aiui-chat]:has([data-chat-aside]) [data-role='assistant'] .aiui-markdown pre {
+  max-height: calc(var(--cc-collapse-lines, 12) * 1.54em + 1.5rem);
+  overflow: auto;
+}
+
+[data-aiui-layout-frame='chat-canvas'] [data-aiui-chat]:has([data-chat-aside]) [data-role='assistant'] .aiui-markdown div:has(> table) {
+  max-height: calc((var(--cc-collapse-rows, 6) + 1) * 2.6rem);
+  overflow: auto;
+}

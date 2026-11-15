@@ -48,7 +48,8 @@ const legacyJs = filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks
 // Deck uses no BasicFrame or ShortcutHint, so Rollup moves those two into a
 // kit chunk of their own that only the stub frames import).
 const LAYOUT_BUDGETS = {
-  'layout-chat-canvas': '6.7 kB',
+  // The Chat + Canvas frame (track CC), measured at 8.34 kB + 10%.
+  'layout-chat-canvas': '9.2 kB',
   'layout-workbench': '9.4 kB',
   // The Command Deck frame (track K): rail, session tabs, status bar, phone
   // frame and shortcut sheet, plus the kit pieces it imports. 11.84 kB + 10%.
