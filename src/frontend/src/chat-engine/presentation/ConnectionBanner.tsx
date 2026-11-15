@@ -26,6 +26,7 @@ export interface BannerText {
  * What the banner says, or null for none. `wasDown`: the connection dropped
  * since the page opened (the first handshake shows nothing).
  */
+// eslint-disable-next-line react-refresh/only-export-components -- shared with tests and sibling modules
 export function bannerFor(status: ConnectionStatus | undefined, wasDown: boolean, httpFallback: boolean): BannerText | null {
   if (!status || status === 'open' || !wasDown) return null
   if (status === 'connecting') return { text: 'Reconnecting…', retry: false, busy: true }

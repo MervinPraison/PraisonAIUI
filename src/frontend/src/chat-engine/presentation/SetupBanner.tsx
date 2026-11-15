@@ -19,6 +19,7 @@ export interface ProviderHealth {
 
 let health: Promise<ProviderHealth | null> | null = null
 
+// eslint-disable-next-line react-refresh/only-export-components -- shared with tests and sibling modules
 export function loadProviderHealth(): Promise<ProviderHealth | null> {
   health ??= fetch('/api/provider/health', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
     .then((r) => (r.ok ? (r.json() as Promise<ProviderHealth>) : null))
@@ -27,11 +28,13 @@ export function loadProviderHealth(): Promise<ProviderHealth | null> {
 }
 
 /** Test hook. */
+// eslint-disable-next-line react-refresh/only-export-components -- shared with tests and sibling modules
 export function resetProviderHealthForTests(): void {
   health = null
 }
 
 /** What the banner says, or null for none. */
+// eslint-disable-next-line react-refresh/only-export-components -- shared with tests and sibling modules
 export function setupNotice(h: ProviderHealth | null): { kind: 'key' | 'down'; text: string } | null {
   if (!h) return null
   if (h.api_key === 'missing') return { kind: 'key', text: 'Add an API key to start chatting.' }

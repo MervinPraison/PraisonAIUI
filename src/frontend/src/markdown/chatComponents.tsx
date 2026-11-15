@@ -146,6 +146,7 @@ export const SHORT_CELL = 24
 type HastLike = { type?: string; value?: unknown; children?: HastLike[] }
 
 /** The text length of a hast node (cells are small: a direct walk). */
+// eslint-disable-next-line react-refresh/only-export-components -- shared with tests and sibling modules
 export function hastTextLength(node: HastLike | undefined): number {
     if (!node) return 0
     if (node.type === 'text') return typeof node.value === 'string' ? node.value.trim().length : 0

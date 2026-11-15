@@ -26,12 +26,14 @@ const read = (url: string, key: string) =>
     .catch(() => null)
 
 /** The configured model name, fetched once per page view. */
+// eslint-disable-next-line react-refresh/only-export-components -- shared with tests and sibling modules
 export function loadModelName(): Promise<string | null> {
   model ??= read('/api/config/runtime', 'config').then((n) => n ?? read('/api/config/defaults', 'defaults'))
   return model
 }
 
 /** Test hook. */
+// eslint-disable-next-line react-refresh/only-export-components -- shared with tests and sibling modules
 export function resetModelNameForTests(): void {
   model = null
 }
@@ -68,6 +70,7 @@ export function ComposerModel(): JSX.Element | null {
   const [row, setRow] = useState<HTMLElement | null>(null)
   useEffect(() => {
     let alive = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the DOM (or a lazy module) after mount; one update, no loop
     setRow(composerRow())
     void loadModelName().then((n) => alive && setName(n))
     return () => {

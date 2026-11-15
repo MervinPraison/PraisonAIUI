@@ -13,6 +13,7 @@ import { useManifest } from '@/sdk/services'
 export const HERO_PROMISE = 'Ask anything. Your agents show each step and check with you before anything risky.'
 
 /** The hero's mark: an image URL, plain text letters, or the PraisonAI glyph (no logo, or an emoji). */
+// eslint-disable-next-line react-refresh/only-export-components -- shared with tests and sibling modules
 export function heroMark(logo: unknown): { kind: 'img'; src: string } | { kind: 'text'; text: string } | { kind: 'glyph' } {
   if (typeof logo !== 'string' || !logo.trim()) return { kind: 'glyph' }
   const v = logo.trim()
