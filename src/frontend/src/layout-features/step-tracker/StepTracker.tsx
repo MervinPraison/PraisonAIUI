@@ -43,8 +43,8 @@ function useTurn(messageId: string): ChatMessageView | null {
 }
 
 function StepIcon({ status, small }: { status: PlainStep['status']; small: boolean }) {
-  const box = cn('flex shrink-0 items-center justify-center rounded-full', small ? 'size-[26px]' : 'size-7')
-  const icon = small ? 'size-[15px]' : 'size-4'
+  const box = cn('flex shrink-0 items-center justify-center rounded-full', small ? 'size-7' : 'size-7')
+  const icon = small ? 'size-4' : 'size-4'
   if (status === 'running') {
     return (
       <span className={cn(box, 'bg-accent-soft text-link')}>
@@ -83,7 +83,7 @@ function Details({ steps }: { steps: readonly PlainStep[] }) {
         }
         if (s.kind === 'text') return null
         return (
-          <li key={s.id} className="flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-xl bg-muted px-3 py-2.5 font-mono text-[13px]">
+          <li key={s.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-muted px-3 py-2.5 font-mono text-[13px]">
             <SquareTerminal aria-hidden="true" className="size-4 shrink-0" />
             <span>{s.detail?.tool}</span>
             {s.detail?.input && <span className="min-w-0 break-all text-foreground">{s.detail.input}</span>}
@@ -115,7 +115,7 @@ export default function StepTracker({ messageId, viewport }: TurnRegionProps): J
       onClick={() => setOpen((v) => !v)}
       className={cn(
         'flex items-center gap-1.5 rounded-lg border-0 bg-transparent text-sm font-bold text-link outline-none hover:bg-accent-soft focus-visible:ring-2 focus-visible:ring-ring',
-        phone ? 'min-h-11 px-1' : '-ml-2.5 min-h-9 self-start px-2.5',
+        phone ? 'min-h-11 px-1' : '-ml-2 min-h-11 self-start px-2.5',
       )}
     >
       {open ? 'Hide details' : 'Show details'}
@@ -126,15 +126,15 @@ export default function StepTracker({ messageId, viewport }: TurnRegionProps): J
     <section
       aria-label={summary.title.replace(/^Here is what/, 'What')}
       data-step-tracker={summary.state}
-      className={cn('mb-4 flex flex-col rounded-[18px] border border-border bg-card text-card-foreground shadow-sm', phone ? 'gap-2 px-3.5 pt-3 pb-1.5' : 'gap-3 px-[18px] py-4')}
+      className={cn('mb-4 flex flex-col rounded-2xl border border-border bg-card text-card-foreground shadow-sm', phone ? 'gap-2 px-3.5 pt-3 pb-2' : 'gap-3 px-4 py-4')}
     >
       {!phone && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="m-0 text-[15px] font-bold text-muted-foreground">{summary.title}</h3>
-          <span className="text-sm text-tier-3" role="status">{summary.status}</span>
+          <span className="text-sm text-muted-foreground" role="status">{summary.status}</span>
         </div>
       )}
-      <ol className={cn('m-0 flex list-none p-0', phone ? 'flex-col gap-2' : 'flex-wrap gap-x-[22px] gap-y-2.5')}>
+      <ol className={cn('m-0 flex list-none p-0', phone ? 'flex-col gap-2' : 'flex-wrap gap-x-6 gap-y-3')}>
         {steps.map((s, i) => (
           <li
             key={s.id}
@@ -146,18 +146,18 @@ export default function StepTracker({ messageId, viewport }: TurnRegionProps): J
             {phone ? (
               <>
                 <span className="min-w-0 flex-1 text-[15px] font-bold">
-                  <span className="text-tier-3">{i + 1} </span>
+                  <span className="text-muted-foreground">{i + 1} </span>
                   {s.label}
                 </span>
-                <span className="max-w-[45%] shrink-0 truncate text-[13px] text-tier-3">{s.meta ?? stepMeta(s)}</span>
+                <span className="min-w-0 truncate text-[13px] text-muted-foreground">{s.meta ?? stepMeta(s)}</span>
               </>
             ) : (
-              <span className="flex min-w-0 flex-col leading-[1.3]">
+              <span className="flex min-w-0 flex-col leading-snug">
                 <span className="text-[15px] font-bold break-words">
-                  <span className="text-tier-3">{i + 1} </span>
+                  <span className="text-muted-foreground">{i + 1} </span>
                   {s.label}
                 </span>
-                <span className="truncate text-[13px] text-tier-3">{stepMeta(s)}</span>
+                <span className="truncate text-[13px] text-muted-foreground">{stepMeta(s)}</span>
               </span>
             )}
           </li>
@@ -170,7 +170,7 @@ export default function StepTracker({ messageId, viewport }: TurnRegionProps): J
       )}
       {phone ? (
         <div className="flex items-center justify-between">
-          <span className="text-[13px] text-tier-3" role="status">{summary.status}</span>
+          <span className="text-[13px] text-muted-foreground" role="status">{summary.status}</span>
           {toggle}
         </div>
       ) : (

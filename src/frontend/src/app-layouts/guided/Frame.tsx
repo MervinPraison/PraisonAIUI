@@ -42,17 +42,17 @@ function PageIcon({ id, className, fallback }: { id: string; className?: string;
 
 function Brand({ chrome, size = 'lg' }: Pick<LayoutProps, 'chrome'> & { size?: 'lg' | 'sm' }) {
   const logo = chrome.siteLogo
-  const tile = size === 'lg' ? 'size-10 rounded-xl' : 'size-8 rounded-[10px]'
+  const tile = size === 'lg' ? 'size-10 rounded-xl' : 'size-8 rounded-lg'
   return (
     <span className="flex min-w-0 items-center gap-3 px-2 text-foreground">
       {logo?.kind === 'img' ? (
         <img src={logo.value} alt="" className={cn(tile, 'shrink-0 object-cover')} />
       ) : (
         <span aria-hidden="true" className={cn(tile, 'flex shrink-0 items-center justify-center bg-primary text-primary-foreground')}>
-          {logo?.value ? <span className="text-base font-extrabold">{logo.value}</span> : <Sparkles className="size-[22px]" />}
+          {logo?.value ? <span className="text-base font-extrabold">{logo.value}</span> : <Sparkles className="size-6" />}
         </span>
       )}
-      <span className={cn('truncate font-extrabold tracking-[-0.01em]', size === 'lg' ? 'text-xl' : 'text-lg')}>{chrome.siteTitle}</span>
+      <span className={cn('truncate font-extrabold tracking-tight', size === 'lg' ? 'text-xl' : 'text-lg')}>{chrome.siteTitle}</span>
     </span>
   )
 }
@@ -72,13 +72,13 @@ function DestRow({ item, onGo }: { item: GuidedItem; onGo(item: GuidedItem): voi
           onGo(item)
         }}
         className={cn(
-          'flex min-h-[50px] items-center gap-3.5 rounded-[14px] px-3.5 text-[17px] no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+          'flex min-h-12 items-center gap-3 rounded-xl px-3.5 text-lg outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
           item.active ? 'bg-accent-soft font-bold text-link' : 'font-semibold text-sidebar-foreground hover:bg-sidebar-accent/70',
         )}
       >
-        <PageIcon id={item.id} fallback={item.icon ?? item.title.slice(0, 1)} className="size-[22px] w-[22px] shrink-0" />
+        <PageIcon id={item.id} fallback={item.icon ?? item.title.slice(0, 1)} className="size-6 shrink-0" />
         <span className="min-w-0 flex-1 truncate">{item.title}</span>
-        {item.badge ? <span className="text-sm text-tier-3 tabular-nums" aria-label={`${item.badge} new`}>{item.badge}</span> : null}
+        {item.badge ? <span className="text-sm text-muted-foreground tabular-nums" aria-label={`${item.badge} new`}>{item.badge}</span> : null}
       </a>
     </li>
   )
@@ -101,9 +101,9 @@ function RecentChats({ limit, seeAll, onOpen }: { limit?: number; seeAll?: () =>
         )}
       </div>
       {state.loading && state.sessions.length === 0 ? (
-        <p role="status" className="m-0 px-1.5 text-sm text-tier-3">Loading your chats…</p>
+        <p role="status" className="m-0 px-1.5 text-sm text-muted-foreground">Loading your chats…</p>
       ) : shown.length === 0 ? (
-        <p className="m-0 px-1.5 text-sm text-tier-3">No chats yet. Start one above.</p>
+        <p className="m-0 px-1.5 text-sm text-muted-foreground">No chats yet. Start one above.</p>
       ) : (
         <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {shown.map((s) => (
@@ -132,7 +132,7 @@ function MoreTools({ more, go, onNavigate, size }: { more: ReturnType<typeof gui
       <div className="flex flex-col gap-2 pt-1">
         {more.map((g) => (
           <div key={g.name} className="flex flex-col gap-0.5">
-            {more.length > 1 && <span className="px-2 text-xs font-medium text-tier-3">{g.name}</span>}
+            {more.length > 1 && <span className="px-2 text-xs font-medium text-muted-foreground">{g.name}</span>}
             <NavList items={g.items} go={go} onNavigate={onNavigate} size={size} />
           </div>
         ))}
@@ -141,7 +141,7 @@ function MoreTools({ more, go, onNavigate, size }: { more: ReturnType<typeof gui
   )
 }
 
-function SettingsRow({ item, go, toggleColorMode, touch }: { item: LayoutNavItem | null; go(id: string): void; toggleColorMode(): void; touch?: boolean }) {
+function SettingsRow({ item, go, toggleColorMode }: { item: LayoutNavItem | null; go(id: string): void; toggleColorMode(): void }) {
   return (
     <div className="mt-auto flex items-center gap-1">
       {item && (
@@ -155,7 +155,7 @@ function SettingsRow({ item, go, toggleColorMode, touch }: { item: LayoutNavItem
             go(item.id)
           }}
           className={cn(
-            'flex min-h-12 flex-1 items-center gap-3 rounded-[14px] px-3.5 text-[15px] font-semibold no-underline outline-none hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-ring',
+            'flex min-h-12 flex-1 items-center gap-3 rounded-xl px-3.5 text-[15px] font-semibold outline-none hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-ring',
             item.active ? 'bg-accent-soft text-link' : 'text-sidebar-foreground',
           )}
         >
@@ -163,7 +163,7 @@ function SettingsRow({ item, go, toggleColorMode, touch }: { item: LayoutNavItem
           {item.title}
         </a>
       )}
-      <Button variant="ghost" size="icon" className={cn('ml-auto shrink-0 rounded-[14px]', touch ? 'size-11' : 'size-12')} aria-label="Switch light or dark theme" onClick={toggleColorMode}>
+      <Button variant="ghost" size="icon" className="ml-auto size-11 shrink-0 rounded-xl" aria-label="Switch light or dark theme" onClick={toggleColorMode}>
         <SunMoon className="size-5" />
       </Button>
     </div>
@@ -213,7 +213,7 @@ export default function GuidedFrame(props: LayoutProps) {
     setSheetOpen(false)
     if (chatPage) nav.go(chatPage)
   }
-  /** The chat page's own agent picker, else the agents page. */
+  /** The chat page's own agent picker, else the agents page, else the palette. */
   const changeAgent = () => {
     const picker = mainRef.current?.querySelector<HTMLSelectElement>('[data-aiui-chat] select[aria-label="Agent"]')
     if (picker) {
@@ -226,6 +226,7 @@ export default function GuidedFrame(props: LayoutProps) {
       return
     }
     if (has(PAGE.agents)) nav.go(PAGE.agents)
+    else chrome.openPalette({ query: 'agent' })
   }
 
   const pageTitle = (page && g.byId.get(page.id)?.title) ?? page?.title ?? chrome.siteTitle
@@ -263,7 +264,7 @@ export default function GuidedFrame(props: LayoutProps) {
   if (phone) {
     return (
       <div data-aiui-layout-frame="guided" data-viewport={viewport} className="flex min-h-0 min-w-0 flex-1 flex-col bg-background text-base">
-        <header className="flex h-[60px] shrink-0 items-center gap-1.5 border-b border-border bg-background px-2">
+        <header className="flex h-15 shrink-0 items-center gap-1.5 border-b border-border bg-background px-2">
           <Button
             variant="ghost"
             size="icon"
@@ -277,17 +278,17 @@ export default function GuidedFrame(props: LayoutProps) {
             <Menu className="size-6" />
           </Button>
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <span aria-hidden="true" className="flex size-[34px] shrink-0 items-center justify-center rounded-full bg-accent-soft text-link">
-              {headIcon('size-[18px]')}
+            <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-link">
+              {headIcon('size-4')}
             </span>
-            <div className="min-w-0 leading-tight">
+            <div className="min-w-0 leading-snug">
               <h1 className="m-0 truncate text-base font-extrabold">{title}</h1>
-              {subtitle && <p className="m-0 flex items-center gap-1.5 truncate text-[13px] text-tier-3">{subtitle}</p>}
+              {subtitle && <p className="m-0 flex items-center gap-1.5 truncate text-[13px] text-muted-foreground">{subtitle}</p>}
             </div>
           </div>
           {sessions && (
-            <Button size="icon" className="size-11 shrink-0 rounded-[14px]" aria-label="Start a new chat" onClick={newChat}>
-              <Plus className="size-[22px]" strokeWidth={2.25} />
+            <Button size="icon" className="size-11 shrink-0 rounded-xl" aria-label="Start a new chat" onClick={newChat}>
+              <Plus className="size-6" strokeWidth={2.25} />
             </Button>
           )}
         </header>
@@ -318,7 +319,7 @@ export default function GuidedFrame(props: LayoutProps) {
               ))}
             </ul>
             <MoreTools more={g.more} go={goId} size="touch" />
-            <SettingsRow item={g.settings} go={goId} toggleColorMode={chrome.toggleColorMode} touch />
+            <SettingsRow item={g.settings} go={goId} toggleColorMode={chrome.toggleColorMode} />
             <chrome.Slot name="sidebar:footer" />
           </div>
         </PhoneSheet>
@@ -328,11 +329,11 @@ export default function GuidedFrame(props: LayoutProps) {
 
   return (
     <div data-aiui-layout-frame="guided" data-viewport={viewport} className="flex min-h-0 min-w-0 flex-1 bg-background text-base">
-      <nav aria-label="Main" className="flex w-[280px] shrink-0 flex-col gap-5 overflow-y-auto *:shrink-0 border-r border-sidebar-border bg-sidebar px-4 py-5 text-sidebar-foreground">
+      <nav aria-label="Main" className="flex w-72 shrink-0 flex-col gap-5 overflow-y-auto *:shrink-0 border-r border-sidebar-border bg-sidebar px-4 py-4 text-sidebar-foreground">
         <Brand chrome={chrome} />
         {sessions && (
-          <Button className="h-[52px] w-full rounded-2xl text-[17px] font-bold shadow-sm" onClick={newChat} aria-keyshortcuts="Meta+N Control+N">
-            <Plus className="size-[22px]" strokeWidth={2.25} />
+          <Button className="h-12 w-full rounded-2xl text-lg font-bold shadow-sm" onClick={newChat} aria-keyshortcuts="Meta+N Control+N">
+            <Plus className="size-6" strokeWidth={2.25} />
             Start a new chat
           </Button>
         )}
@@ -347,26 +348,26 @@ export default function GuidedFrame(props: LayoutProps) {
         <chrome.Slot name="sidebar:footer" />
       </nav>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-background px-7 py-3.5">
-          <div className="flex min-w-0 items-center gap-3.5">
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-background px-6 py-3">
+          <div className="flex min-w-0 items-center gap-3">
             <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-link">
-              {headIcon('size-[22px]')}
+              {headIcon('size-6')}
             </span>
             <div className="min-w-0">
-              <h1 className="m-0 truncate text-[19px] leading-[1.3] font-extrabold">{title}</h1>
-              {subtitle && <p className="m-0 flex items-center gap-1.5 truncate text-sm text-tier-3">{subtitle}</p>}
+              <h1 className="m-0 truncate text-xl leading-snug font-extrabold">{title}</h1>
+              {subtitle && <p className="m-0 flex items-center gap-1.5 truncate text-sm text-muted-foreground">{subtitle}</p>}
             </div>
           </div>
           <div className="flex items-center gap-2">
             <chrome.Slot name="header:actions" className="flex items-center gap-1" />
-            <Button variant="outline" className="h-[42px] rounded-xl px-3.5 text-[15px] font-semibold" onClick={() => chrome.openPalette()} aria-keyshortcuts="Meta+K Control+K">
-              <Search className="size-[18px]" />
+            <Button variant="outline" className="h-11 rounded-xl px-3.5 text-[15px] font-semibold" onClick={() => chrome.openPalette()} aria-keyshortcuts="Meta+K Control+K">
+              <Search className="size-4" />
               Search
               <ShortcutHint combo="mod+k" className="ml-1" />
             </Button>
             {onChat && (
-              <Button variant="outline" className="h-[42px] rounded-xl px-3.5 text-[15px] font-semibold" onClick={changeAgent}>
-                <Bot className="size-[18px]" />
+              <Button variant="outline" className="h-11 rounded-xl px-3.5 text-[15px] font-semibold" onClick={changeAgent}>
+                <Bot className="size-4" />
                 Change agent
               </Button>
             )}

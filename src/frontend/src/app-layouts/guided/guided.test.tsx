@@ -144,8 +144,8 @@ test('follow-ups: only under the latest finished answer, only when the server su
   const out = render('desktop')
   assert.match(out, /aria-label="You could ask next"/)
   assert.match(out, />Show a mergesort example</)
-  assert.match(out, /min-h-\[42px\]/)
-  assert.match(render('phone'), /min-h-11/, '44 px chips on a phone')
+  assert.match(out, /min-h-11/, "44 px chips")
+  assert.match(render('phone'), /min-h-11/, '44 px chips on a phone too')
 })
 
 test('agentOf: the last reply’s agent, else the session’s', () => {
@@ -227,7 +227,7 @@ test('phone frame: 60 px header with the chat and new chat, four bottom tabs, 44
   withChat()
   const out = renderToStaticMarkup(createElement(GuidedFrame, frameProps('phone')))
   assert.match(out, /data-viewport="phone"/)
-  assert.match(out, /h-\[60px\]/)
+  assert.match(out, /h-15 /, "a 60 px header")
   assert.match(out, /aria-label="Your chats and more"[^>]*aria-haspopup="dialog"/)
   assert.match(out, /aria-label="Start a new chat"/)
   assert.match(out, />with Researcher</)

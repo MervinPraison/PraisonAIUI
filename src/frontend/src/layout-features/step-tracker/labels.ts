@@ -198,7 +198,7 @@ export function deriveSteps(message: ChatMessageView): PlainStep[] {
     const p = parts[i]
     if (p.type === 'reasoning') {
       const ms = elapsed(p.timing)
-      const status: StepStatus = p.done || !running ? 'done' : 'running'
+      const status: StepStatus = p.done || running === false ? 'done' : 'running'
       steps.push({
         id: p.id,
         kind: 'reasoning',

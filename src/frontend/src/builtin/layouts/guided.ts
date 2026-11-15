@@ -13,10 +13,14 @@
  *                Python record builtin.layout-guided: registered only when the
  *                manifest lists them (guidedPagesBuiltin), lazily
  *
- * Eager and tiny: every import below is import().
+ * Eager and tiny: everything below is behind import(); the regions and
+ * pages behind a single one (app-layouts/guided/lazy), so the boot chunk
+ * carries one preload list for them, not five.
  */
 import type { BuiltinPlugin } from '../types'
 import type { LayoutDescriptor } from './types'
+
+const parts = () => import('@/app-layouts/guided/lazy')
 
 export const guidedLayout: LayoutDescriptor = {
   id: 'guided',
@@ -27,9 +31,9 @@ export const guidedLayout: LayoutDescriptor = {
       sessions: 'frame',
       thread: 'steps',
       approvals: 'card',
-      turnHeader: () => import('@/layout-features/step-tracker/StepTracker'),
-      turnFooter: () => import('@/app-layouts/guided/FollowUps'),
-      empty: () => import('@/app-layouts/guided/TemplatesEmpty'),
+      turnHeader: () => parts().then((m) => m.stepTracker()),
+      turnFooter: () => parts().then((m) => m.followUps()),
+      empty: () => parts().then((m) => m.templatesEmpty()),
     },
   },
   load: () => import('@/app-layouts/guided/Frame'),
@@ -37,8 +41,8 @@ export const guidedLayout: LayoutDescriptor = {
 
 /** Guided's own pages and their lazy React components. */
 export const GUIDED_PAGES = Object.freeze({
-  start: () => import('@/app-layouts/guided/StartPage'),
-  templates: () => import('@/app-layouts/guided/TemplatesPage'),
+  start: () => parts().then((m) => m.startPage()),
+  templates: () => parts().then((m) => m.templatesPage()),
 })
 
 /**

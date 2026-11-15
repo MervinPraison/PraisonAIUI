@@ -54,21 +54,21 @@ export default function StartPage({ page }: { page: ShellPage }): JSX.Element {
     ) : null
 
   return (
-    <div className="mx-auto flex w-full max-w-[47.5rem] flex-col gap-9 px-4 py-8 text-base sm:px-7" data-guided-page={page.id}>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-8 text-base sm:px-6" data-guided-page={page.id}>
       <section className="flex flex-col gap-3">
-        <h2 className="m-0 text-[28px] leading-tight font-extrabold tracking-[-0.01em]">
+        <h2 className="m-0 text-2xl leading-snug font-extrabold tracking-tight">
           {site ? `Welcome to ${site}` : 'Welcome'}. What would you like to do today?
         </h2>
-        <p className="m-0 text-[17px] text-muted-foreground">Ask in your own words, or start from a template. Every step is explained as it happens.</p>
+        <p className="m-0 text-lg text-muted-foreground">Ask in your own words, or start from a template. Every step is explained as it happens.</p>
         <div className="mt-2 flex flex-wrap gap-3">
           {sessions && listed(PAGE.chat) && (
-            <Button className="h-[52px] rounded-2xl px-6 text-[17px] font-bold shadow-sm" onClick={newChat}>
-              <Plus className="size-[22px]" strokeWidth={2.25} />
+            <Button className="h-12 rounded-2xl px-6 text-lg font-bold shadow-sm" onClick={newChat}>
+              <Plus className="size-6" strokeWidth={2.25} />
               Start a new chat
             </Button>
           )}
           {listed(PAGE.templates) && (
-            <Button variant="outline" className="h-[52px] rounded-2xl px-6 text-[17px] font-bold" onClick={() => navigate(PAGE.templates)}>
+            <Button variant="outline" className="h-12 rounded-2xl px-6 text-lg font-bold" onClick={() => navigate(PAGE.templates)}>
               Browse templates
             </Button>
           )}
@@ -87,7 +87,7 @@ export default function StartPage({ page }: { page: ShellPage }): JSX.Element {
         <Section title="Pick up where you left off" action={link(PAGE.sessions, 'See all')}>
           <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
             {recent.map((s) => (
-              <li key={s.id} className="rounded-[14px] border border-border bg-card">
+              <li key={s.id} className="rounded-xl border border-border bg-card">
                 <ChatCard
                   s={s}
                   active={false}

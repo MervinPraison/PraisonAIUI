@@ -36,20 +36,20 @@ export default function TemplatesPage({ page }: { page: ShellPage }): JSX.Elemen
   )
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 text-base sm:px-7" data-guided-page={page.id}>
-      <p className="m-0 max-w-[40rem] text-[17px] text-muted-foreground">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8 text-base sm:px-6" data-guided-page={page.id}>
+      <p className="m-0 max-w-2xl text-lg text-muted-foreground">
         Pick a template to start a new chat with it filled in. You can change the words before you send.
       </p>
       <div className="flex flex-col gap-3">
         <div className="relative max-w-md">
-          <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-tier-3" />
+          <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search templates"
             aria-label="Search templates"
-            className="h-12 rounded-2xl pl-11 text-base"
+            className="h-12 rounded-2xl pl-10 text-base"
           />
         </div>
         {categories.length > 1 && (
@@ -60,14 +60,14 @@ export default function TemplatesPage({ page }: { page: ShellPage }): JSX.Elemen
         )}
       </div>
       {shown.length === 0 ? (
-        <p role="status" className="m-0 rounded-2xl bg-muted p-5 text-muted-foreground">
+        <p role="status" className="m-0 rounded-2xl bg-muted p-4 text-muted-foreground">
           No templates match. Try other words, or start a new chat and ask in your own words.
         </p>
       ) : (
         shown.map((g, i) => (
           <section key={g.name} aria-labelledby={`aiui-tpl-${i}`} className="flex flex-col gap-3">
             <h2 id={`aiui-tpl-${i}`} className="m-0 text-lg font-extrabold">{g.name}</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               {g.items.map((t) => (
                 <TemplateCard key={t.id} t={t} onUse={start} />
               ))}
