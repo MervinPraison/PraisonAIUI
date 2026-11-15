@@ -69,8 +69,9 @@ function SidebarBody({ nav, chrome, size, chatPage, onNavigate }: SidebarProps) 
       {sessions && (
         <Button
           size="lg"
+          variant="outline"
           data-aiui-new-chat=""
-          className={cn('w-full justify-start shadow-sm', touch && 'h-11 text-[15px]')}
+          className={cn('w-full justify-start bg-card shadow-sm', touch && 'h-11 text-[15px]')}
           onClick={() => {
             sessions.feed.create()
             openChat()
@@ -78,7 +79,7 @@ function SidebarBody({ nav, chrome, size, chatPage, onNavigate }: SidebarProps) 
         >
           <Plus />
           <span className="flex-1 text-left">New chat</span>
-          {!touch && <ShortcutHint combo={SHORTCUTS.newChat} tone="on-accent" />}
+          {!touch && <ShortcutHint combo={SHORTCUTS.newChat} />}
         </Button>
       )}
       <div className="flex flex-col gap-0.5">

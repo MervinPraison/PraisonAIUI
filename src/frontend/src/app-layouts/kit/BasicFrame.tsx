@@ -45,7 +45,8 @@ function SidebarBody({
     <>
       {sessions && (
         <Button
-          className={cn('w-full justify-start', size === 'touch' && 'h-11')}
+          variant="outline"
+          className={cn('w-full justify-start bg-card', size === 'touch' && 'h-11')}
           onClick={() => {
             sessions.feed.create()
             openChat()

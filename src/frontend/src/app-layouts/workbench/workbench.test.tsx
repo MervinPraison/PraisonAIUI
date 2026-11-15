@@ -3,6 +3,8 @@
 // desktop and a phone, with and without the chat and approvals feeds.
 import { beforeEach, test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { createElement, type ComponentType } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { provideLayoutData, resetLayoutsForTests, type LayoutNavItem, type LayoutProps, type LayoutViewport } from '@/sdk/layouts'
@@ -203,4 +205,16 @@ test('phone: a 56 px header with 44 px menu and New chat, the title and agent li
   assert.doesNotMatch(out, /data-aiui-workbench-sidebar/, 'the sidebar lives in the sheet')
   assert.doesNotMatch(out, /data-aiui-phone-sheet/, 'the sheet mounts on first open')
   assert.match(out, /<main id="aiui-main"/)
+})
+
+test('the sidebar New chat is an outline button: the filled accent is kept for Approve and Send', () => {
+  const src = readFileSync(path.join(process.cwd(), 'src/app-layouts/workbench/Frame.tsx'), 'utf8')
+  assert.match(src, /variant="outline"\n\s*data-aiui-new-chat=""/)
+  for (const f of ['kit/BasicFrame.tsx', 'guided/Frame.tsx']) {
+    const code = readFileSync(path.join(process.cwd(), 'src/app-layouts', f), 'utf8')
+    // Each <Plus> button: the opening tag from the nearest <Button before it.
+    const buttons = [...code.matchAll(/<Plus\b/g)].map((m) => code.slice(code.lastIndexOf('<Button', m.index), m.index))
+    assert.ok(buttons.length > 0, f)
+    for (const b of buttons) assert.match(b, /variant="outline"/, `${f}: ${b.slice(0, 80)}`)
+  }
 })

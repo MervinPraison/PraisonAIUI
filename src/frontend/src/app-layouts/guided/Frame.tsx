@@ -287,7 +287,7 @@ export default function GuidedFrame(props: LayoutProps) {
             </div>
           </div>
           {sessions && (
-            <Button size="icon" className="size-11 shrink-0 rounded-xl" aria-label="Start a new chat" onClick={newChat}>
+            <Button size="icon" variant="outline" className="size-11 shrink-0 rounded-xl bg-card" aria-label="Start a new chat" onClick={newChat}>
               <Plus className="size-6" strokeWidth={2.25} />
             </Button>
           )}
@@ -307,7 +307,7 @@ export default function GuidedFrame(props: LayoutProps) {
         <PhoneSheet open={sheetOpen} onOpenChange={setSheetOpen} title="Your chats and more" header={<Brand chrome={chrome} size="sm" />}>
           <div className="flex min-h-0 flex-col gap-5">
             {sessions && (
-              <Button className="h-12 w-full rounded-2xl text-base font-bold" onClick={newChat}>
+              <Button variant="outline" className="h-12 w-full rounded-2xl bg-card text-base font-bold" onClick={newChat}>
                 <Plus className="size-5" />
                 Start a new chat
               </Button>
@@ -332,7 +332,7 @@ export default function GuidedFrame(props: LayoutProps) {
       <nav aria-label="Main" className="flex w-72 shrink-0 flex-col gap-5 overflow-y-auto *:shrink-0 border-r border-sidebar-border bg-sidebar px-4 py-4 text-sidebar-foreground">
         <Brand chrome={chrome} />
         {sessions && (
-          <Button className="h-12 w-full rounded-2xl text-lg font-bold shadow-sm" onClick={newChat} aria-keyshortcuts="Meta+N Control+N">
+          <Button variant="outline" className="h-12 w-full rounded-2xl bg-card text-lg font-bold shadow-sm" onClick={newChat} aria-keyshortcuts="Meta+N Control+N">
             <Plus className="size-6" strokeWidth={2.25} />
             Start a new chat
           </Button>
