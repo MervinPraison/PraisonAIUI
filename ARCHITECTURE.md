@@ -113,8 +113,8 @@ APIs below. Legacy adapters keep working (R7) but get no new capabilities.
 
 | Kind | Supported (new code) | Legacy adapters (keep, do not extend) |
 |---|---|---|
-| Python page, feature, route, static, CLI | plugin object: entry point `praisonaiui.plugins` or `aiui.register_plugin(obj)`; hooks `pages() blocks() tool_renderers() routes() static_dir() features() cli_commands() settings() nav_groups() themes() setup(ctx)`; first-party: `builtin/catalog.py` | `aiui.register_page()` / `@aiui.page`, `register_page_action`, `register_feature()`, dashboard-plugin folders (`manifest.json`) |
-| Browser page, block, tool renderer, slot, command, settings section, nav group, theme preset | `@aiui/sdk`: `registerPage`, `registerBlock`, `registerToolRenderer`, `registerSlot(slot, C, {id, order})`, `registerCommand`, `registerSettingsSection`, `registerNavGroup`, `registerThemePreset`, `onActivate`; first-party: `src/builtin` | `registerView` / `custom.js` (`set_custom_js`), legacy `plugins/views/*.js` |
+| Python page, feature, route, static, CLI | plugin object: entry point `praisonaiui.plugins` or `aiui.register_plugin(obj)`; hooks `pages() blocks() tool_renderers() routes() static_dir() features() cli_commands() settings() nav_groups() themes() layouts() setup(ctx)`; first-party: `builtin/catalog.py` | `aiui.register_page()` / `@aiui.page`, `register_page_action`, `register_feature()`, dashboard-plugin folders (`manifest.json`) |
+| Browser page, block, tool renderer, slot, command, settings section, nav group, theme preset, layout | `@aiui/sdk`: `registerPage`, `registerBlock`, `registerToolRenderer`, `registerSlot(slot, C, {id, order})`, `registerCommand`, `registerSettingsSection`, `registerNavGroup`, `registerThemePreset`, `registerLayout` (R17), `onActivate`; first-party: `src/builtin` | `registerView` / `custom.js` (`set_custom_js`), legacy `plugins/views/*.js` |
 | Visibility | `extensions.enabled/disabled` (`ExtensionPolicy`) | `set_pages`, `remove_page`, `pages.enabled/disabled` |
 | Theme | seeds: `get_seed_theme_css`, tokens in `styles/theme.css`; plugin presets of seed tokens (`themes()` / `registerThemePreset`) | `set_theme`, `set_brand_color`, `register_theme`, `set_custom_css` HSL triples |
 
@@ -164,9 +164,10 @@ in the PR description.
 **R7. Public APIs stay backwards compatible.** These keep their names,
 signatures and behaviour: `register_page`, `@aiui.page`, `register_page_action`,
 `set_pages`, `remove_page`, `set_custom_js`, `set_custom_css`, `set_theme`,
-`set_brand_color`, `register_theme`, `set_style`, `register_feature`,
+`set_brand_color`, `register_theme`, `set_style`, `set_layout`, `register_feature`,
 `register_plugin`, `set_extensions`, `create_app(config, static_dir,
-require_auth, config_path)`, the YAML schema (`schema/models.py`), every
+require_auth, config_path)`, the YAML schema (`schema/models.py`, including
+`layout.default/available/user_choice/primary/options`), every
 `/api/*` path and wire event, and the window events `aiui:page-change`,
 `aiui:session-select`, `aiui:prefill-composer`, `aiui:approval-required`.
 Re-export moved Python names from their old module.
@@ -243,7 +244,10 @@ a feature. Put new APIs in a `features/*.py` class owned by a catalog record, or
 in a plugin's `routes()`; put config in YAML (`schema/models.py`). `server.py` is
 about 4,600 lines with about 120 top-level functions today (gap G6), and the
 routes left in `create_app` are core (pinned by `test_route_table_snapshot.py`);
-a PR may move code out, never in.
+a PR may move code out, never in. Accepted exception: ADR 0003 added three
+lines (the manifest `layouts` key from `praisonaiui.layouts.layouts_manifest`,
+and the shell-only layout pages in `_page_records`); the logic lives in
+`layouts.py` and `builtin/page_sources.py`.
 *Check:* the diff of `server.py` adds no `Route(` and no `create_app` parameter;
 line count does not rise without a stated reason.
 
@@ -307,7 +311,12 @@ register through `builtin.layouts` with `registerLayout`, the call a
 third-party plugin uses. The boot path downloads no layout or feature chunk,
 and the browser downloads only the chunks of the layout on screen. A layout
 that fails to load or render falls back to the classic frame with one toast
-and `aiui:plugin-error` (R4).
+and `aiui:plugin-error` (R4). Layout data features gate on layouts: a
+catalog record with `for_layouts=(...)` (`builtin.artifacts`,
+`builtin.run-ledger`) is mounted only while one of those layouts is offered or
+while `extensions.enabled` names it; otherwise its status is `disabled` ("no
+layout needs it"), its routes answer 404 and its module is not imported
+(`tests/unit/test_layout_gating.py`).
 *Check:* `app-layouts/isolation.test.ts` and `shell/core-purity.test.ts`
 (`npm test`); `scripts/check-layout-isolation.mjs` (part of
 `npm run check:closure`, cases in `scripts/gates.test.mjs`);
