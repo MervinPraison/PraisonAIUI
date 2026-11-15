@@ -4,7 +4,7 @@
  * header (the approval banner is the mission board's, loaded lazily). Tokens and primitives only.
  */
 import { Bell, CircleStop, Search, SunMoon, TriangleAlert } from 'lucide-react'
-import { isPlainLeftClick, ShortcutHint } from '@/app-layouts/kit'
+import { BrandTile, isPlainLeftClick, ShortcutHint } from '@/app-layouts/kit'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { LayoutChrome, LayoutNavItem } from '@/sdk/layouts'
@@ -24,13 +24,7 @@ export function NavIcon({ item, className }: { item: LayoutNavItem; className?: 
 }
 
 export function BrandMark({ chrome, className }: { chrome: LayoutChrome; className?: string }) {
-  const logo = chrome.siteLogo
-  if (logo?.kind === 'img') return <img src={logo.value} alt="" className={cn('shrink-0 rounded-md', className)} />
-  return (
-    <span aria-hidden="true" className={cn('flex shrink-0 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-foreground', className)}>
-      {logo?.value ?? chrome.siteTitle.slice(0, 1)}
-    </span>
-  )
+  return <BrandTile chrome={chrome} className={cn('rounded-md text-xs', className)} />
 }
 
 export function EnvBadge({ env }: { env: string }) {

@@ -21,7 +21,7 @@ import { Bot, Menu, Plus, Search, Sparkles, SunMoon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { LayoutNavItem, LayoutProps } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
-import { isPlainLeftClick, NavList, NavSection, PhoneSheet, PhoneTabs, preloadPhoneSheet, ShortcutHint, useSessions, useShortcut } from '@/app-layouts/kit'
+import { BrandTile, isPlainLeftClick, NavList, NavSection, PhoneSheet, PhoneTabs, preloadPhoneSheet, ShortcutHint, useSessions, useShortcut } from '@/app-layouts/kit'
 import { guidedNav, HELP_ID, helpAddress, PAGE, type GuidedItem } from './nav'
 import { agentOf, useChat } from './chat'
 import { PAGE_ICONS } from './icons'
@@ -42,17 +42,10 @@ function PageIcon({ id, className, fallback }: { id: string; className?: string;
 }
 
 function Brand({ chrome, size = 'lg' }: Pick<LayoutProps, 'chrome'> & { size?: 'lg' | 'sm' }) {
-  const logo = chrome.siteLogo
   const tile = size === 'lg' ? 'size-10 rounded-xl' : 'size-8 rounded-lg'
   return (
     <span className="flex min-w-0 items-center gap-3 px-2 text-foreground">
-      {logo?.kind === 'img' ? (
-        <img src={logo.value} alt="" className={cn(tile, 'shrink-0 object-cover')} />
-      ) : (
-        <span aria-hidden="true" className={cn(tile, 'flex shrink-0 items-center justify-center bg-primary text-primary-foreground')}>
-          {logo?.value ? <span className="text-base font-extrabold">{logo.value}</span> : <Sparkles className="size-6" />}
-        </span>
-      )}
+      <BrandTile chrome={chrome} className={cn(tile, 'text-base font-extrabold')} glyphClassName="size-6" />
       <span className={cn('truncate font-extrabold tracking-tight', size === 'lg' ? 'text-xl' : 'text-lg')}>{chrome.siteTitle}</span>
     </span>
   )

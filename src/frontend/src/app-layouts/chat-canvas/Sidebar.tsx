@@ -7,7 +7,7 @@
  */
 import { CircleEllipsis, PanelLeftClose, SquarePen, SunMoon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { isPlainLeftClick, ShortcutHint, useSessions, type KitSize } from '@/app-layouts/kit'
+import { BrandTile, isPlainLeftClick, ShortcutHint, useSessions, type KitSize } from '@/app-layouts/kit'
 import type { LayoutChrome, LayoutNav, LayoutNavItem } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
 import { ChatList } from './ChatList'
@@ -17,19 +17,9 @@ import { NavIcon } from './icons'
 export const ARTIFACTS_PAGE = 'artifacts'
 
 export function Brand({ chrome, size = 'default' }: { chrome: Pick<LayoutChrome, 'siteTitle' | 'siteLogo'>; size?: KitSize }) {
-  const logo = chrome.siteLogo
   return (
     <span className="flex min-w-0 items-center gap-2.5 text-foreground">
-      {logo?.kind === 'img' ? (
-        <img src={logo.value} alt="" className="size-[26px] shrink-0 rounded-[7px]" />
-      ) : (
-        <span
-          aria-hidden="true"
-          className="flex size-[26px] shrink-0 items-center justify-center rounded-[7px] bg-primary text-sm font-semibold text-primary-foreground"
-        >
-          {logo?.value ?? (chrome.siteTitle.slice(0, 1).toUpperCase() || 'A')}
-        </span>
-      )}
+      <BrandTile chrome={chrome} className="size-[26px] rounded-[7px] text-sm" />
       <span className={cn('truncate font-semibold tracking-tight', size === 'touch' ? 'text-lg' : 'text-[17px]')}>{chrome.siteTitle}</span>
     </span>
   )

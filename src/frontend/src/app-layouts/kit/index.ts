@@ -10,6 +10,7 @@
 export { ApprovalCard, type ApprovalCardProps } from './ApprovalCard'
 export { BasicFrame, type BasicFrameProps } from './BasicFrame'
 export { Brand } from './Brand'
+export { BrandTile, brandGlyph, PraisonGlyph } from './BrandTile'
 export { useMinuteClock } from './clock'
 export { ConnectionStatus } from './ConnectionStatus'
 export { describeCall, relativeTime } from './format'

@@ -30,6 +30,7 @@ import type { ApprovalItem } from '@/sdk/layoutTypes'
 import { registerCommand, useManifest } from '@/sdk/services'
 import { cn } from '@/lib/utils'
 import {
+  BrandTile,
   describeCall,
   isMacPlatform,
   isPlainLeftClick,
@@ -70,16 +71,9 @@ const isDialogTarget = (t: EventTarget | null) =>
 // ── pieces ───────────────────────────────────────────────────────────
 
 function Brand({ chrome, compact = false }: Pick<LayoutProps, 'chrome'> & { compact?: boolean }) {
-  const logo = chrome.siteLogo
   return (
     <span className="flex min-w-0 items-center gap-2 text-foreground">
-      {logo?.kind === 'img' ? (
-        <img src={logo.value} alt="" className="size-6.5 shrink-0 rounded-sm" />
-      ) : (
-        <span aria-hidden className="flex size-6.5 shrink-0 items-center justify-center rounded-sm bg-primary text-xs font-semibold text-primary-foreground">
-          {(logo?.value ?? chrome.siteTitle).slice(0, logo ? 2 : 1)}
-        </span>
-      )}
+      <BrandTile chrome={chrome} className="size-6.5 rounded-sm text-xs" />
       {!compact && <span className="truncate text-base font-semibold tracking-tight">{chrome.siteTitle}</span>}
     </span>
   )

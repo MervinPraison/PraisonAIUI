@@ -9,6 +9,8 @@ import { ICON_BY_NAME } from '@/lib/pageIcons'
 import { provideLayoutData, resetLayoutsForTests, type LayoutNavItem } from '@/sdk/layouts'
 import type { SessionsFeed, SessionsState } from '@/sdk/layoutTypes'
 import {
+  BrandTile,
+  brandGlyph,
   ApprovalCard,
   Brand,
   ConnectionStatus,
@@ -272,4 +274,16 @@ test('the brand tile is the accent with a white mark in both themes (it never fl
   const out = renderToStaticMarkup(createElement(Brand, { chrome: { siteTitle: 'PraisonAI', siteLogo: null } }))
   assert.match(out, /class="[^"]*bg-primary[^"]*text-primary-foreground[^"]*">P</)
   assert.doesNotMatch(out, /bg-foreground/)
+})
+
+test('BrandTile: an emoji logo becomes the single-colour glyph; images and text logos stay; no logo is the initial', () => {
+  const chrome = (logo: { kind: 'img' | 'text'; value: string } | null, siteTitle = 'PraisonAI') => ({ siteTitle, siteLogo: logo })
+  assert.deepEqual(brandGlyph(chrome({ kind: 'text', value: '\u{1F99E}' })), { kind: 'glyph' })
+  assert.deepEqual(brandGlyph(chrome({ kind: 'img', value: '/logo.svg' })), { kind: 'img', src: '/logo.svg' })
+  assert.deepEqual(brandGlyph(chrome({ kind: 'text', value: 'AI' })), { kind: 'text', text: 'AI' })
+  assert.deepEqual(brandGlyph(chrome(null, 'acme')), { kind: 'text', text: 'A' })
+  const html = renderToStaticMarkup(createElement(BrandTile, { chrome: chrome({ kind: 'text', value: '\u{1F99E}' }), className: 'size-6' }))
+  assert.match(html, /data-brand-tile=""[^>]*bg-primary[^>]*text-primary-foreground/)
+  assert.match(html, /<svg[^>]*stroke="currentColor"[^>]*data-brand-glyph/)
+  assert.doesNotMatch(html, /\p{Extended_Pictographic}/u)
 })
