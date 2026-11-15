@@ -214,7 +214,8 @@ test.describe('desktop', () => {
 
   test('with the run ledger and the approvals API off, panels show empty states and nothing crashes', async ({ page }) => {
     const errors = collectPageErrors(page)
-    await page.route('**/api/runs/**', (route) => route.fulfill({ status: 404, json: { error: 'Not Found' } }))
+    // Every ledger route, the run list (/api/runs?…) included: an unmounted ledger answers 404 on all of them.
+    await page.route(/\/api\/runs(?:[/?]|$)/, (route) => route.fulfill({ status: 404, json: { error: 'Not Found' } }))
     await page.route('**/api/approvals/**', (route) => route.fulfill({ status: 404, json: { error: 'Not Found' } }))
     await page.goto('/overview?layout=mission')
     await expect(page.locator('[data-aiui-kpis="off"]')).toContainText('Run history is off')
