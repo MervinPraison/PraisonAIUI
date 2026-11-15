@@ -1,0 +1,927 @@
+/*
+ * Page templates for legacy views (ADR 0003, track T). Imported by
+ * bridge.css, so it ships with the legacy host chunk only, never in
+ * index.css; the legacy dashboard (style `dashboard`) never loads it.
+ *
+ * Each built-in page names a PraisonAI Pro template in the manifest
+ * (`pageType`, from praisonaiui/builtin/page_types.py); the shell puts it on
+ * the page root as data-aiui-page-type. These rules dress the vanilla views
+ * (plugins/views/*.js) in that template: list, board, log, editor, gallery,
+ * overview, settings. DESIGN.md "Page templates" lists what each one sets.
+ *
+ * Rules (keep them):
+ * - Keyed by template, never by page id (ARCHITECTURE R1): selectors name a
+ *   [data-aiui-page-type] value plus the view's own classes; never an id,
+ *   never a page id. page-types.test.ts checks this.
+ * - Pro only: every rule starts with
+ *   html[data-aiui-shell='react'][data-aiui-tokens='pro'], which the layout
+ *   host sets while a layout frame is on screen. The classic frame
+ *   (`layout: classic`) and the dashboard keep their look.
+ * - Tokens only, no hex and no rgb(). Legacy colours that arrive in inline
+ *   styles are matched without their '#' and re-pointed at tokens.
+ * - !important only against inline styles the views write.
+ */
+
+/* ── Every template ──────────────────────────────────────────────── */
+
+/* The Pro accent for legacy controls: the shell's primary, kept mid-tone so
+   the white text legacy paints on it stays readable in dark mode (bridge.css
+   clamps the classic seed the same way). Re-declared on the page root: the
+   bridge's --db-p-* aliases resolve on <html> and would keep the old value. */
+@supports (color: oklch(from red l c h)) {
+  html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] {
+    --db-accent: oklch(from var(--primary) clamp(0.45, l, 0.56) c h);
+    --db-accent-glow: color-mix(in oklab, var(--db-accent) 15%, transparent);
+    --db-p-accent: var(--db-accent);
+    --db-p-accent-glow: var(--db-accent-glow);
+    --db-p-accent-soft: color-mix(in oklab, var(--db-accent) 18%, transparent);
+    --db-p-accent-strong: var(--db-accent);
+  }
+}
+
+/* Help and promo banners (an indigo-tinted box the views style inline):
+   a quiet dashed note, as in the Pro templates. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount div[style*='99,102,241' i] {
+  border: 1px dashed var(--input) !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  color: var(--ui-text-3, var(--muted-foreground));
+  font-size: 13px;
+}
+
+/* Toolbars: one row of controls on a hairline (Pro "toolbar"). */
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount .db-page-toolbar {
+  min-height: 32px;
+  margin-bottom: 0 !important;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount .db-page-toolbar + * {
+  margin-top: 16px;
+}
+
+/* Controls: 32px, 8px radius, the input outline, the Pro focus ring. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type]
+  .aiui-legacy-mount
+  :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']), select) {
+  min-height: 32px;
+  border: 1px solid var(--input) !important;
+  border-radius: 8px !important;
+  background-color: var(--card) !important;
+  font-size: 14px;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount textarea {
+  border-color: var(--input) !important;
+  border-radius: 8px !important;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type]
+  .aiui-legacy-mount
+  :is(input, select, textarea):focus-visible {
+  outline: none;
+  border-color: var(--ring) !important;
+  box-shadow: 0 0 0 3px var(--ui-ring-soft, color-mix(in oklab, var(--ring) 25%, transparent));
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount :is(.aiui-btn, .db-btn) {
+  min-height: 32px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount .db-filter-chip {
+  min-height: 32px;
+  border-color: var(--input) !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+}
+
+/* Empty states: the designed one (dashed outline, quiet text). */
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount [class$='-empty'] {
+  padding: 20px 24px;
+  border: 1px dashed var(--input);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+
+/* Stat cards (a .db-columns row of titled .db-card tiles): one KPI strip,
+   hairline separators, the value at 24px (ProOverview). */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type]
+  .aiui-legacy-mount
+  :is(.db-columns, .db-metric-grid):has(> .db-card > .db-card-title) {
+  gap: 1px !important;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--border);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type]
+  .aiui-legacy-mount
+  :is(.db-columns, .db-metric-grid):has(> .db-card > .db-card-title)
+  > .db-card {
+  min-width: 0;
+  padding: 16px 20px;
+  border: 0;
+  border-radius: 0;
+  background: var(--card);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount .db-card-value {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount .db-card-footer {
+  color: var(--ui-text-3, var(--muted-foreground));
+  font-size: 12px;
+}
+
+/* Tables: the Pro dense table (36px header on the sunken fill, 40px rows). */
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount .db-viewer:has(> table) {
+  overflow: auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--background);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount table {
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount th {
+  height: 36px;
+  padding-block: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  background: var(--ui-code-bg, var(--muted));
+  color: var(--muted-foreground) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  text-align: start;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  white-space: nowrap;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount td {
+  height: 40px;
+  border-bottom: 1px solid var(--border) !important;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount tbody tr:hover {
+  background: var(--ui-row-hover, var(--muted));
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount tr:last-child > td {
+  border-bottom: 0 !important;
+}
+
+/* Status colours the views write inline as hex: Pro status tokens. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount [style*='eab308' i] {
+  color: var(--warning) !important;
+}
+
+/* ── list: list + detail (ProList) ───────────────────────────────── */
+
+/* The toolbar sits right under the header, like the template's. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='list'],
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='board'],
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] {
+  padding-top: 12px;
+}
+
+/* Records drawn as a grid or stack of cards become rows of one list:
+   hairline separators, no card surface, a hover fill (the template's table). */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  :is([class$='-list'], [class$='-grid']):has(> [class*='-card']) {
+  display: flex !important;
+  flex-direction: column;
+  gap: 0 !important;
+  border-top: 1px solid var(--border);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  :is([class$='-list'], [class$='-grid'])
+  > [class*='-card'] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  min-height: 52px;
+  margin: 0;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  :is([class$='-list'], [class$='-grid'])
+  > [class*='-card']:hover {
+  background: var(--ui-row-hover, var(--muted));
+  border-color: var(--border);
+}
+/* The toolbar's hairline is the list's top edge. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  .db-page-toolbar
+  + :is([class$='-list'], [class$='-grid'], .db-columns) {
+  margin-top: 0;
+  border-top: 0;
+}
+/* A card's header row dissolves into the row: icon, name, description,
+   footer, and the actions last, as in the template's table. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  :is([class$='-list'], [class$='-grid'])
+  > [class*='-card']
+  > [class$='-header'] {
+  display: contents;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  :is([class$='-list'], [class$='-grid'])
+  > [class*='-card']
+  [class$='-actions'] {
+  order: 10;
+  display: flex;
+  gap: 2px;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  :is([class$='-list'], [class$='-grid'])
+  > [class*='-card']
+  [class$='-icon']:not(button) {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  [class*='-card']
+  [class$='-info'] {
+  flex: 1 1 220px;
+  min-width: 0;
+  margin: 0;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  [class*='-card']
+  > [class$='-description'] {
+  flex: 1 1 200px;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  [class*='-card']
+  > :is([class$='-footer'], [class$='-actions']) {
+  flex: none;
+  margin: 0;
+  gap: 8px;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  [class*='-card']
+  :is([class$='-name'], [class$='-id']) {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 500;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  [class*='-card']
+  [class$='-meta'] {
+  color: var(--ui-text-3, var(--muted-foreground));
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+/* Row actions: quiet 28px icon buttons. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  [class*='-card']
+  :is(.aiui-btn-icon, .aiui-btn-sm) {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  [class*='-card']
+  :is(.aiui-btn-icon, .aiui-btn-sm):hover {
+  background: var(--accent);
+}
+/* Status words as Pro chips: shape and fill carry the meaning. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  :is([class$='-status'], [class*='-status ']) {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  :is([class$='-status'], [class*='-status ']).active {
+  border: 1px solid transparent;
+  background: var(--ui-success-soft, var(--muted));
+  color: var(--success);
+}
+/* Card grids of toggles (skills, guardrails): same rows. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  .db-columns:not(:has(> .db-card > .db-card-title)):has(> .db-card) {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0 !important;
+  border-top: 1px solid var(--border);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  .db-columns:not(:has(> .db-card > .db-card-title))
+  > .db-card {
+  min-height: 52px;
+  padding: 8px 12px !important;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0 !important;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='list']
+  .aiui-legacy-mount
+  .db-columns:not(:has(> .db-card > .db-card-title))
+  > .db-card:hover {
+  background: var(--ui-row-hover, var(--muted));
+}
+
+/* ── board (ProBoard) ────────────────────────────────────────────── */
+
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='board'] .aiui-legacy-mount .aiui-board-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin: 0;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='board'] .aiui-legacy-mount .aiui-board-toolbar:empty {
+  display: none;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='board'] .aiui-legacy-mount .aiui-board-columns {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 0 24px;
+  overflow-x: auto;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='board'] .aiui-legacy-mount .aiui-board-column {
+  flex: 1 0 min(232px, 100%);
+  max-width: 340px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--ui-code-bg, var(--muted));
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='board']
+  .aiui-legacy-mount
+  .aiui-board-column.aiui-board-drop-target {
+  border-color: var(--ring);
+  background: var(--ui-accent-soft, var(--muted));
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='board'] .aiui-legacy-mount .aiui-board-column-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  margin: 0;
+  padding: 0 0 0 6px;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: capitalize;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='board'] .aiui-legacy-mount .aiui-board-column-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 8px;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='board'] .aiui-legacy-mount .aiui-board-card {
+  margin: 0;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='board'] .aiui-legacy-mount .aiui-board-card .db-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: var(--ui-shadow-sm, none);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='board']
+  .aiui-legacy-mount
+  .aiui-board-card:is(.aiui-board-dragging, .aiui-board-card-selected)
+  .db-card {
+  border-color: var(--ring);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='board'] .aiui-legacy-mount .aiui-board-card-head {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 18px;
+  color: var(--ui-text-3, var(--muted-foreground));
+  font-size: 12px;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='board'] .aiui-legacy-mount .aiui-board-card-id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ui-text-3, var(--muted-foreground));
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='board'] .aiui-legacy-mount .aiui-board-card-name {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  text-overflow: clip;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='board']
+  .aiui-legacy-mount
+  :is(.aiui-board-card-foot, .aiui-board-card-age, .aiui-board-priority) {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='board'] .aiui-legacy-mount .aiui-board-trash {
+  border: 1px dashed var(--input);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ui-text-3, var(--muted-foreground));
+  font-size: 13px;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='board']
+  .aiui-legacy-mount
+  :is(.aiui-board-drawer, .aiui-board-drawer-overlay + *) {
+  background: var(--popover);
+}
+
+/* ── log: log viewer (ProLogs) ───────────────────────────────────── */
+
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-logs-header {
+  margin-bottom: 0;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-logs-status {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-logs-status.connected {
+  background: var(--ui-success-soft, var(--muted));
+  color: var(--success);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-logs-count {
+  color: var(--ui-text-3, var(--muted-foreground));
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-logs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-level-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+/* Level toggles: outlined; the chosen one in the accent's soft fill. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='log']
+  .aiui-legacy-mount
+  :is(.aiui-level-btn, .aiui-pause-btn, .aiui-clear-btn) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border: 1px solid var(--input);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-level-btn.active {
+  border-color: var(--ring);
+  background: var(--ui-accent-soft, var(--muted));
+  color: var(--ui-link, var(--foreground));
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-logs-search {
+  flex: 0 1 380px;
+  min-width: 200px;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-logs-search input {
+  width: 100%;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-logs-content {
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--background);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 20px;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-log-entry {
+  display: grid;
+  grid-template-columns: 100px 64px minmax(0, 220px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  min-height: 30px;
+  margin: 0;
+  padding: 5px 12px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+  line-height: 20px;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-log-entry:hover {
+  background: var(--ui-row-hover, var(--muted));
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-log-time {
+  color: var(--ui-text-3, var(--muted-foreground));
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-log-level {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-log-logger {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-log-message {
+  min-width: 0;
+  color: var(--foreground);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 767px) {
+  html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-log-entry {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    gap: 4px 12px;
+  }
+  html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-log-logger {
+    display: none;
+  }  /* The view stacks its toolbar on phones: a flex basis would become a height. */
+  html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='log'] .aiui-legacy-mount .aiui-logs-search {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+}
+
+/* ── editor (ProEditor) ──────────────────────────────────────────── */
+
+/* The workspace fills the page; panes meet at hairlines, no floating boxes. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='editor'] .aiui-legacy-mount .cs-root {
+  flex: 1 1 0%;
+  gap: 0 !important;
+  height: auto !important;
+  min-height: 480px !important;
+  border-top: 1px solid var(--border);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='editor'] .aiui-legacy-mount .cs-root > div {
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='editor'] .aiui-legacy-mount .cs-root > div + div {
+  padding: 12px !important;
+  border-inline-start: 1px solid var(--border) !important;
+  background: var(--background);
+}
+/* Run bar: the sunken fill the template gives tabs and bars (the view paints
+   it near-black inline). */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='editor']
+  .aiui-legacy-mount
+  .cs-root
+  [style*='background:' i][style*='18181b' i] {
+  min-height: 44px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--border) !important;
+  background: var(--ui-code-bg, var(--muted)) !important;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='editor']
+  .aiui-legacy-mount
+  .cs-root
+  :is(input, select) {
+  min-height: 30px;
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
+}
+/* Run: the one primary action (the view paints it green inline). */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='editor']
+  .aiui-legacy-mount
+  .cs-root
+  button[style*='background:' i][style*='22c55e' i] {
+  min-height: 30px;
+  border-radius: 8px !important;
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  font-weight: 500;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='editor']
+  .aiui-legacy-mount
+  .cs-root
+  button[style*='background:transparent' i]:not([class]) {
+  min-height: 30px;
+  border-color: var(--input) !important;
+  border-radius: 8px !important;
+  color: var(--foreground) !important;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='editor'] .aiui-legacy-mount .cs-tab-panel {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 20px;
+}
+
+/* ── gallery (ProGallery) ────────────────────────────────────────── */
+
+/* Item grids (cards without a stat title): auto-fill 220px tiles, 16px gaps. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='gallery']
+  .aiui-legacy-mount
+  .db-columns:not(:has(> .db-card > .db-card-title)) {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)) !important;
+  gap: 16px !important;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='gallery']
+  .aiui-legacy-mount
+  .db-columns:not(:has(> .db-card > .db-card-title))
+  > .db-card {
+  gap: 12px !important;
+  padding: 16px !important;
+  border: 1px solid var(--border);
+  border-radius: 12px !important;
+  background: var(--card);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='gallery']
+  .aiui-legacy-mount
+  .db-columns:not(:has(> .db-card > .db-card-title))
+  > .db-card:hover {
+  border-color: var(--input);
+}
+/* Tile buttons: 28px outline; the install action in the accent. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='gallery']
+  .aiui-legacy-mount
+  .db-card
+  button {
+  min-height: 28px;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  font-weight: 500;
+}
+/* Category and filter chips: the template's tabs (selected = ink underline
+   would need markup; a soft fill marks the chosen chip instead). */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='gallery']
+  .aiui-legacy-mount
+  .db-filter-chip[style*='background:var(--db-accent' i] {
+  border-color: var(--ring) !important;
+  background: var(--ui-accent-soft, var(--muted)) !important;
+  color: var(--ui-link, var(--foreground)) !important;
+}
+/* Swatch pickers (theme presets): a grid of tiles on the card surface. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='gallery'] .aiui-legacy-mount [class$='-section'] {
+  margin-block: 24px 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='gallery'] .aiui-legacy-mount [class$='-section'] > h3 {
+  margin: 0 0 12px;
+  color: var(--ui-text-3, var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='gallery'] .aiui-legacy-mount [class$='-swatches'] {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 12px;
+}
+
+/* ── overview (ProOverview) ──────────────────────────────────────── */
+
+/* A centred 1200px measure, 32px between sections. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='overview'] .aiui-legacy-mount {
+  max-width: 1200px !important;
+  margin-inline: auto !important;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='overview'] .aiui-legacy-mount h3 {
+  color: var(--foreground);
+  font-size: 15px !important;
+  font-weight: 600 !important;
+}
+/* Panels on the overview stand on the card surface (the template's cards). */
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='overview']
+  .aiui-legacy-mount
+  .db-card:not(:is(.db-columns, .db-metric-grid) > .db-card) {
+  border-radius: 12px;
+  background: var(--card);
+}
+
+/* ── settings (ProSettings) ──────────────────────────────────────── */
+
+/* Sections are cards; each field is a row with its label above the control,
+   at the template's 760px form measure. */
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='settings'] .aiui-legacy-mount .aiui-config-section {
+  margin-bottom: 24px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='settings']
+  .aiui-legacy-mount
+  .aiui-config-section-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='settings']
+  .aiui-legacy-mount
+  .aiui-config-section-header
+  h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='settings'] .aiui-legacy-mount .aiui-config-section-body {
+  padding: 0;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='settings'] .aiui-legacy-mount .aiui-config-field {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 32px;
+  margin: 0;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='settings']
+  .aiui-legacy-mount
+  .aiui-config-field:first-child {
+  border-top: 0;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='settings']
+  .aiui-legacy-mount
+  .aiui-config-field
+  > label {
+  flex: 1 1 200px;
+  margin: 0;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 500;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='settings']
+  .aiui-legacy-mount
+  .aiui-config-field
+  > :is(input, select, textarea) {
+  flex: 0 1 340px;
+  width: auto;
+  min-width: 0;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='settings'] .aiui-legacy-mount .aiui-config-view-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--muted);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='settings']
+  .aiui-legacy-mount
+  .aiui-config-view-toggle
+  button {
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type='settings']
+  .aiui-legacy-mount
+  .aiui-config-view-toggle
+  button.active {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: var(--ui-shadow-sm, none);
+}
+/* The YAML mode is a code surface (the editor template's). */
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='settings'] .aiui-legacy-mount .aiui-config-yaml textarea {
+  background: var(--ui-code-bg, var(--muted)) !important;
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 20px;
+}
