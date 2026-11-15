@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { deriveArtifacts, type DerivedArtifact } from './derive'
 import { sortingConversation } from './fixtures'
-import { cardMeta, clockTime, copyText, describeVersion, downloadOf, kindLine, lineDiff, parseShareQuery, relativeTime, shareUrl } from './format'
+import { canDownload, cardMeta, clockTime, copyText, describeVersion, downloadOf, kindLine, lineDiff, parseShareQuery, relativeTime, shareUrl } from './format'
 
 const [t1, t2, code] = deriveArtifacts(sortingConversation(), 's1').versions
 
@@ -55,6 +55,21 @@ test('download: CSV for tables, the file name for named code, a slug otherwise, 
   })
   assert.equal(copyText(t2), t2.content)
   assert.equal(copyText({ ...code, content: undefined, url: '/x' }), '/x')
+})
+
+test('download and copy: a media URL from agent output goes through the viewers\' URL policy', () => {
+  const file = (url: string): DerivedArtifact => ({ ...code, kind: 'file', key: 'file:report.txt', title: 'report.txt', url, content: undefined, mimeType: undefined })
+  for (const bad of ["javascript:document.title='PWNED'", ' JavaScript:alert(1)', 'data:text/html,<script>alert(1)</script>', 'vbscript:x', '']) {
+    assert.equal(downloadOf(file(bad)).url, undefined, `no download URL for ${JSON.stringify(bad)}`)
+    assert.equal(canDownload(file(bad)), false, `Download hidden for ${JSON.stringify(bad)}`)
+    assert.equal(copyText(file(bad)), '', `Copy hidden for ${JSON.stringify(bad)}`)
+  }
+  for (const ok of ['/files/r.txt', 'https://example.com/r.txt', 'blob:http://app.test/1', 'data:image/png;base64,AAAA']) {
+    assert.equal(downloadOf(file(ok)).url, ok)
+    assert.equal(canDownload(file(ok)), true)
+    assert.equal(copyText(file(ok)), ok)
+  }
+  assert.equal(canDownload(t2), true, 'text artifacts always download')
 })
 
 test('share links round-trip', () => {

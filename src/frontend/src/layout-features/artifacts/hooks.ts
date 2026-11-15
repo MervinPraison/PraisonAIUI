@@ -63,21 +63,25 @@ async function writeClipboard(text: string): Promise<boolean> {
 }
 
 export async function copyArtifact(a: DerivedArtifact): Promise<void> {
-  const ok = await writeClipboard(copyText(a))
+  const text = copyText(a)
+  if (!text) return
+  const ok = await writeClipboard(text)
   notify(ok ? 'Copied' : 'Could not copy: the browser blocked the clipboard', { type: ok ? 'success' : 'error' })
 }
 
+/** Saves the text as a Blob, or fetches a media URL that passed safeUrl (downloadOf); anything else does nothing. */
 export function downloadArtifact(a: DerivedArtifact): void {
   const d = downloadOf(a)
+  if (d.text === undefined && !d.url) return
   const link = document.createElement('a')
   let objectUrl: string | null = null
   if (d.text !== undefined) {
     objectUrl = URL.createObjectURL(new Blob([d.text], { type: `${d.mime};charset=utf-8` }))
     link.href = objectUrl
-  } else if (d.url) {
-    link.href = d.url
+  } else {
+    link.href = d.url!
     link.rel = 'noopener'
-  } else return
+  }
   link.download = d.filename
   document.body.appendChild(link)
   link.click()

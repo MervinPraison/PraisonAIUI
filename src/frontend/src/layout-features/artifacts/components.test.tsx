@@ -10,6 +10,9 @@ import { provideLayoutData } from '@/sdk/layouts'
 import type { ChatFeed, ChatMessageView, ChatState } from '@/sdk/layoutTypes'
 import ArtifactCards from './ArtifactCards'
 import ArtifactsPage from './ArtifactsPage'
+import { ArtifactView } from './ArtifactView'
+import type { DerivedArtifact } from './derive'
+import { downloadArtifact } from './hooks'
 import CanvasPanel from './CanvasPanel'
 import { artifactsStore } from './feed'
 import { sortingConversation } from './fixtures'
@@ -139,6 +142,36 @@ test('ArtifactsPage opened from a share link shows that artifact and version', (
     assert.match(out, /aria-label="Version 1 of 2/)
   } finally {
     ;(win.location as Record<string, string>).search = ''
+  }
+})
+
+test('an unsafe media URL from agent output: no Copy or Download, and downloadArtifact never follows it', () => {
+  const bad: DerivedArtifact = {
+    key: 'file:report.txt', kind: 'file', title: 'report.txt', version: 1, sessionId: 's1', messageId: 'h_1', url: "javascript:document.title='PWNED'",
+  }
+  const out = html(createElement(ArtifactView, { artifact: bad, versions: [bad], onShow: () => {}, onRestore: () => {} }))
+  assert.match(out, /unsupported link/)
+  assert.doesNotMatch(out, /<\/svg>Copy<\/button>/)
+  assert.doesNotMatch(out, /<\/svg>Download<\/button>/)
+  const safe = html(createElement(ArtifactView, { artifact: { ...bad, url: '/files/report.txt' }, versions: [bad], onShow: () => {}, onRestore: () => {} }))
+  assert.match(safe, /<\/svg>Download<\/button>/)
+
+  const made: string[] = []
+  const previous = g.document
+  g.document = {
+    createElement: () => {
+      made.push('a')
+      return { click: () => made.push('click'), remove: () => {} }
+    },
+    body: { appendChild: () => {} },
+  }
+  try {
+    for (const url of [bad.url!, 'data:text/html,<script>alert(1)</script>']) downloadArtifact({ ...bad, url })
+    assert.deepEqual(made, [], 'no link is even made for an unsafe URL')
+    downloadArtifact({ ...bad, url: '/files/report.txt' })
+    assert.deepEqual(made, ['a', 'click'])
+  } finally {
+    g.document = previous
   }
 })
 

@@ -3,6 +3,7 @@
  * what Copy and Download hand over. Pure (no React, no DOM).
  */
 import { LANG_EXT, languageName, parseTable, plainText, tableToCsv, type DerivedArtifact } from './derive'
+import { safeUrl } from './viewers/urls'
 
 const KIND_NAMES: Record<string, string> = {
   table: 'Table', markdown: 'Document', file: 'File', image: 'Image', pdf: 'PDF', video: 'Video', a2ui: 'Interactive view',
@@ -111,7 +112,13 @@ const slug = (s: string) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 60) || 'artifact'
 
-/** What Download saves: a file name, a MIME type and the text (or, for media, the URL to fetch). */
+/**
+ * What Download saves: a file name, a MIME type and the text (or, for media,
+ * the URL to fetch). A media URL goes through the viewers' policy (safeUrl):
+ * the URL comes from agent output, and a `javascript:` or `data:text/html`
+ * link clicked as a download would run in the app's origin, so an unsafe one
+ * gives no `url` (and canDownload is false).
+ */
 export function downloadOf(a: DerivedArtifact): { filename: string; mime: string; text?: string; url?: string } {
   const named = !/^(table|code|markdown|a2ui|url|file):/.test(a.key) ? a.key.split('/').pop() : undefined
   switch (a.kind) {
@@ -124,13 +131,19 @@ export function downloadOf(a: DerivedArtifact): { filename: string; mime: string
     case 'a2ui':
       return { filename: `${slug(a.title)}.json`, mime: 'application/json', text: a.content ?? '[]' }
     default:
-      return { filename: a.key.startsWith('file:') ? a.key.slice(5) : a.title, mime: a.mimeType ?? 'application/octet-stream', url: a.url }
+      return { filename: a.key.startsWith('file:') ? a.key.slice(5) : a.title, mime: a.mimeType ?? 'application/octet-stream', url: safeUrl(a.url) }
   }
 }
 
-/** What Copy puts on the clipboard: the text (a table as markdown), else the URL. */
+/** Whether Download has something to save (text, or a media URL the policy allows). */
+export function canDownload(a: DerivedArtifact): boolean {
+  const d = downloadOf(a)
+  return d.text !== undefined || !!d.url
+}
+
+/** What Copy puts on the clipboard: the text (a table as markdown), else the URL when the policy allows it; '' hides Copy. */
 export function copyText(a: DerivedArtifact): string {
-  return a.content ?? a.url ?? ''
+  return a.content ?? safeUrl(a.url) ?? ''
 }
 
 /**

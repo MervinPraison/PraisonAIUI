@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { cn } from '@/lib/utils'
 import type { DerivedArtifact } from './derive'
-import { clockTime, kindLine } from './format'
+import { canDownload, clockTime, copyText, kindLine } from './format'
 import { copyArtifact, downloadArtifact, shareArtifact, useCanRun, useRun } from './hooks'
 import { HistoryList, VersionMenu } from './Versions'
 import { Viewer } from './viewers/Viewer'
@@ -62,14 +62,19 @@ export function ArtifactView({ artifact: a, versions, onShow, onRestore, compact
         </div>
         <div className="flex flex-wrap items-center gap-1">
           {versions.length > 1 && <VersionMenu versions={versions} shown={a} onShow={onShow} />}
-          <Button variant="ghost" onClick={() => void copyArtifact(a)}>
-            <CopyGlyph />
-            Copy
-          </Button>
-          <Button variant="ghost" onClick={() => downloadArtifact(a)}>
-            <Download />
-            Download
-          </Button>
+          {/* An unsafe media URL (javascript:, data:text/html) has nothing to copy or save. */}
+          {copyText(a) !== '' && (
+            <Button variant="ghost" onClick={() => void copyArtifact(a)}>
+              <CopyGlyph />
+              Copy
+            </Button>
+          )}
+          {canDownload(a) && (
+            <Button variant="ghost" onClick={() => downloadArtifact(a)}>
+              <Download />
+              Download
+            </Button>
+          )}
           <Button variant="ghost" onClick={() => void shareArtifact(a)}>
             <Share />
             Share

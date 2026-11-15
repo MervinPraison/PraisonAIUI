@@ -15,7 +15,7 @@ import type { ChatRegionProps } from '@/sdk/layouts'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { DerivedArtifact } from './derive'
-import { cardMeta, PANEL_ID as panelId, tabId } from './format'
+import { canDownload, cardMeta, copyText, PANEL_ID as panelId, tabId } from './format'
 import { artifactsStore } from './feed'
 import { copyArtifact, downloadArtifact, useArtifacts, useCanRun, useRun } from './hooks'
 import { ArtifactView } from './ArtifactView'
@@ -36,12 +36,16 @@ function SplitPane({ artifact: a, onClose }: { artifact: DerivedArtifact; onClos
         </span>
         <span className="text-xs text-tier-3">{cardMeta(a, { compact: true })}</span>
         <div className="ml-auto flex items-center gap-0.5">
-          <Button variant="ghost" size="icon-sm" aria-label="Copy" onClick={() => void copyArtifact(a)}>
-            <CopyGlyph />
-          </Button>
-          <Button variant="ghost" size="icon-sm" aria-label={`Download ${a.title}`} onClick={() => downloadArtifact(a)}>
-            <Download />
-          </Button>
+          {copyText(a) !== '' && (
+            <Button variant="ghost" size="icon-sm" aria-label="Copy" onClick={() => void copyArtifact(a)}>
+              <CopyGlyph />
+            </Button>
+          )}
+          {canDownload(a) && (
+            <Button variant="ghost" size="icon-sm" aria-label={`Download ${a.title}`} onClick={() => downloadArtifact(a)}>
+              <Download />
+            </Button>
+          )}
           {canRun && (
             <Button variant="secondary" size="sm" className="ml-1 bg-accent-soft text-link" onClick={run.run} disabled={run.running}>
               <Play className="fill-current" />
