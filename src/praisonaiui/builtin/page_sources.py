@@ -22,6 +22,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Optional
 
+from praisonaiui.builtin.page_types import shell_row_fields
 from praisonaiui.plugin_registry import PageSpec
 
 _log = logging.getLogger("praisonaiui.server")
@@ -85,6 +86,7 @@ def table_page(
             entry["navIcon"] = spec.nav_icon
         if spec.shell_layout:
             entry["layout"] = spec.shell_layout
+        entry.update(shell_row_fields(spec))
     if has_action:
         entry["actionEndpoint"] = f"/api/pages/{row['id']}/action"
     record = spec or PageSpec(
@@ -146,6 +148,7 @@ def shell_page(spec: PageSpec) -> PageRecord:
         entry["layouts"] = list(spec.layouts)
     if spec.replaces:
         entry["replaces"] = spec.replaces
+    entry.update(shell_row_fields(spec))
     return PageRecord(spec, entry, None)
 
 

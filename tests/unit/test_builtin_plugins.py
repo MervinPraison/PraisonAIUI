@@ -68,8 +68,8 @@ SHELL_ONLY_LAYOUT = {"code-studio"}
 
 
 def _without_shell_presentation(entry: dict) -> dict:
-    """A manifest row minus what only the app shell reads (navIcon, shell layout)."""
-    out = {k: v for k, v in entry.items() if k != "navIcon"}
+    """A manifest row minus what only the app shell reads (navIcon, pageType, shell layout)."""
+    out = {k: v for k, v in entry.items() if k not in ("navIcon", "pageType")}
     if out["id"] in SHELL_ONLY_LAYOUT:
         out.pop("layout", None)
     return out

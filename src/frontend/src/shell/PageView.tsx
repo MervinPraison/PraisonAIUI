@@ -215,6 +215,8 @@ export function PageView({
     <PageErrorBoundary key={pageId} pageTitle={title}>
       <div
         data-aiui-page={pageId}
+        // The page template (manifest data): legacy/page-types.css styles by it, never by id.
+        data-aiui-page-type={page?.pageType || undefined}
         className={cn(
           'w-full min-w-0',
           fullBleed ? 'flex min-h-0 flex-1 flex-col' : 'px-4 py-4 md:px-8 md:py-6 lg:px-10 lg:py-8',

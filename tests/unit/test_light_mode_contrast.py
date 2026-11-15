@@ -406,6 +406,169 @@ class TestProContrast:
         assert ring >= 3.0, f"focus ring: {ring:.2f}"
 
 
+# ── page templates (components/page/page.css, legacy/page-types.css) ────
+# Both stylesheets use tokens only (page-types.test.ts, templates.test.tsx).
+# These checks map each token to its Pro role and compute the ratios, so a
+# template that puts a text role on a surface where it drops below AA, or a
+# legacy view whose hard-coded dark surface survives into light mode under a
+# light text token (Code Studio's output pane did), fails here.
+
+TEMPLATE_CSS = (
+    Path("src/frontend/src/components/page/page.css"),
+    Path("src/frontend/src/legacy/page-types.css"),
+)
+CODE_STUDIO_JS = Path("src/praisonaiui/templates/frontend/plugins/views/code-studio.js")
+
+# token -> PRO_NEUTRALS role (pro.css maps each token to that --pro-* value)
+_TPL_TEXT = {
+    "foreground": "foreground",
+    "muted-foreground": "muted-fg",
+    "ui-text-2": "muted-fg",
+    "ui-text-3": "subtle",
+    "sidebar-foreground": "sidebar-fg",
+}
+_TPL_SEMANTIC = {"success": "success", "warning": "warning", "destructive": "danger", "info": "info"}
+# on-colours, only ever paired with their own fill (accent and semantic fill tests cover them)
+_TPL_ON_FILL = {"primary-foreground": "primary", "warning-foreground": "warning", "destructive-foreground": "destructive"}
+_TPL_SURFACE = {
+    "background": "background",
+    "card": "card",
+    "popover": "card",
+    "muted": "muted",
+    "accent": "muted",
+    "ui-row-hover": "muted",
+    "ui-code-bg": "code-bg",
+    "sidebar-accent": "sidebar-accent",
+    "ui-success-soft": "success-soft",
+    "ui-warning-soft": "warning-soft",
+    "ui-danger-soft": "danger-soft",
+    "ui-accent-soft": "accent-soft",
+}
+# solid fills: text on them is the matching on-colour, or none (dividers, dots)
+_TPL_FILLS = {"primary", "warning", "destructive", "border"}
+_TPL_KEYWORDS = {"inherit", "currentcolor", "transparent", "none"}
+
+
+def _template_blocks(path: Path) -> list[tuple[str, dict[str, str]]]:
+    """(selector, {property: value}) for every innermost rule, local vars resolved."""
+    css = re.sub(r"/\*.*?\*/", "", path.read_text(encoding="utf-8"), flags=re.S)
+    local = dict(re.findall(r"--(tpl-[\w-]+)\s*:\s*([^;]+);", css))
+    for name, value in local.items():
+        css = css.replace(f"var(--{name})", value.strip())
+    out = []
+    for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        decls = {}
+        for decl in body.split(";"):
+            if ":" in decl:
+                k, v = decl.split(":", 1)
+                decls[k.strip().lower()] = v.replace("!important", "").strip()
+        out.append((" ".join(sel.split()), decls))
+    return out
+
+
+def _token(value: str) -> str:
+    """The first token a colour value names (``var(--x, …)`` -> ``x``), or the keyword."""
+    m = re.match(r"var\(--([\w-]+)", value)
+    return m.group(1) if m else value.lower()
+
+
+def _template_decls(prop_re: str):
+    for path in TEMPLATE_CSS:
+        for sel, decls in _template_blocks(path):
+            for k, v in decls.items():
+                if re.fullmatch(prop_re, k):
+                    yield path.name, sel, decls, _token(v)
+
+
+def _accent_softs(n: dict, dark: bool):
+    from praisonaiui.themes import PRO_ACCENTS
+
+    for sw in PRO_ACCENTS.values():
+        yield _pro_rgb(sw["dark" if dark else "light"]["soft"], n["background"])
+
+
+class TestTemplateCss:
+    def test_the_stylesheets_were_parsed(self):
+        for path in TEMPLATE_CSS:
+            assert len(_template_blocks(path)) > 40, path
+
+    def test_text_colours_are_pro_text_roles(self):
+        known = set(_TPL_TEXT) | set(_TPL_SEMANTIC) | set(_TPL_ON_FILL) | {"ui-link"} | _TPL_KEYWORDS
+        bad = [f"{f}: {sel} -> {tok}" for f, sel, _, tok in _template_decls("color") if tok not in known]
+        assert bad == []
+
+    def test_backgrounds_are_pro_surfaces(self):
+        known = set(_TPL_SURFACE) | _TPL_FILLS | _TPL_KEYWORDS
+        bad = [
+            f"{f}: {sel} -> {tok}"
+            for f, sel, _, tok in _template_decls("background(-color)?")
+            if tok not in known
+        ]
+        assert bad == []
+
+    def test_on_colours_sit_on_their_own_fill(self):
+        for f, sel, decls, tok in _template_decls("color"):
+            if tok in _TPL_ON_FILL:
+                bg = decls.get("background") or decls.get("background-color") or ""
+                assert _token(bg) == _TPL_ON_FILL[tok], f"{f}: {sel}"
+
+    @pytest.mark.parametrize("dark", [False, True], ids=["light", "dark"])
+    def test_every_text_role_passes_aa_on_every_template_surface(self, dark):
+        from praisonaiui.themes import PRO_NEUTRALS
+
+        n = PRO_NEUTRALS["dark" if dark else "light"]
+        texts = {_TPL_TEXT[t] for *_, t in _template_decls("color") if t in _TPL_TEXT}
+        surfaces = {_TPL_SURFACE[t] for *_, t in _template_decls("background(-color)?") if t in _TPL_SURFACE}
+        assert {"foreground", "subtle", "muted-fg"} <= texts and "code-bg" in surfaces
+        for role in sorted(texts):
+            fg = _hex(n[role])
+            for surface in sorted(surfaces):
+                bgs = list(_accent_softs(n, dark)) if surface == "accent-soft" else [_hex(n[surface])]
+                for bg in bgs:
+                    ratio = _contrast(fg, bg)
+                    assert ratio >= 4.5, f"{role} on {surface}: {ratio:.2f}"
+
+    @pytest.mark.parametrize("dark", [False, True], ids=["light", "dark"])
+    def test_semantic_text_passes_aa_on_its_rule_surface(self, dark):
+        from praisonaiui.themes import PRO_NEUTRALS
+
+        n = PRO_NEUTRALS["dark" if dark else "light"]
+        for f, sel, decls, tok in _template_decls("color"):
+            if tok not in _TPL_SEMANTIC:
+                continue
+            bg = _token(decls.get("background") or decls.get("background-color") or "transparent")
+            # a rule without its own surface sits on the page or a card
+            surfaces = ["background", "card"] if bg in _TPL_KEYWORDS else [_TPL_SURFACE[bg]]
+            for surface in surfaces:
+                ratio = _contrast(_hex(n[_TPL_SEMANTIC[tok]]), _hex(n[surface]))
+                assert ratio >= 4.5, f"{f}: {sel}: {tok} on {surface}: {ratio:.2f}"
+
+    def test_code_studio_dark_inline_surfaces_follow_the_scheme(self):
+        """Every near-black surface Code Studio paints inline is re-pointed at a
+        Pro surface by the editor template, so its theme-following text (the
+        output tabs: --db-text, --db-text-dim) stays readable in light mode."""
+        js = CODE_STUDIO_JS.read_text(encoding="utf-8")
+        # Monaco's own canvas (and the textarea fallback with its own light text)
+        # is dark in both schemes by design.
+        assert "theme: 'vs-dark'" in js
+        exempt = {"1e1e1e"}
+        dark = {
+            h.lower()
+            for h in re.findall(r"background:\s*#([0-9a-fA-F]{6})", js)
+            if _luminance(_hex(h)) < 0.05 and h.lower() not in exempt
+        }
+        assert {"0d1117", "18181b"} <= dark
+        editor = [
+            (sel, decls)
+            for sel, decls in _template_blocks(TEMPLATE_CSS[1])
+            if "[data-aiui-page-type='editor']" in sel
+        ]
+        for h in sorted(dark):
+            rules = [d for sel, d in editor if f"'{h}'" in sel.lower() and "background:" in sel.lower()]
+            assert rules, f"#{h} is not re-pointed under the editor template"
+            assert all(_token(d.get("background", "")) in _TPL_SURFACE for d in rules), h
+
+
 # ── legacy docs plugins (unchanged guardrails) ───────────────────────────
 
 
