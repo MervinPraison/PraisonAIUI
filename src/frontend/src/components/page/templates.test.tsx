@@ -2,11 +2,17 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { renderToStaticMarkup as renderMarkup } from 'react-dom/server'
-import { Board, BoardBlock } from './Board'
-import { CodeEditorBlock, CodeView, Editor, FileTree } from './Editor'
-import { Gallery, GalleryBlock } from './Gallery'
-import { Facts, ListDetail, ListDetailBlock, ListPagination } from './ListDetail'
-import { LogViewer, LogViewerBlock } from './LogViewer'
+import { Board } from './Board'
+import { BoardBlock } from './blocks/BoardBlock'
+import { CodeEditorBlock } from './blocks/CodeEditorBlock'
+import { GalleryBlock } from './blocks/GalleryBlock'
+import { ListDetailBlock } from './blocks/ListDetailBlock'
+import { LogViewerBlock } from './blocks/LogViewerBlock'
+import { CodeView, Editor, FileTree } from './Editor'
+import { Gallery } from './Gallery'
+import { ListDetail, ListPagination } from './ListDetail'
+import { Facts } from './parts'
+import { LogViewer } from './LogViewer'
 
 /** Markup without React's text separators, so assertions read like the page. */
 const renderToStaticMarkup = (el: Parameters<typeof renderMarkup>[0]) => renderMarkup(el).split('<!-- -->').join('')

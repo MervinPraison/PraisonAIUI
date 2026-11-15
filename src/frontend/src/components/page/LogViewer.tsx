@@ -8,11 +8,8 @@
  * (LogViewerBlock below, registered lazily by blocks/coreBlocks.tsx).
  */
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { arr, display, isRecord, str } from '@/blocks/normalize'
-import type { BlockNode } from '@/sdk/registry'
-import { TemplateSearch } from './parts'
+import { Glyph, TemplateSearch } from './parts'
 import {
   countLevels,
   entryMatches,
@@ -141,10 +138,10 @@ export function LogViewer({ label, entries, initialLevels, actions, follow = tru
             </span>
           )}
           <Button type="button" variant="ghost" size="icon" aria-label="Previous match" disabled={!matches.length} onClick={() => step(-1)}>
-            <ChevronUp aria-hidden />
+            <Glyph name="up" />
           </Button>
           <Button type="button" variant="ghost" size="icon" aria-label="Next match" disabled={!matches.length} onClick={() => step(1)}>
-            <ChevronDown aria-hidden />
+            <Glyph name="down" />
           </Button>
         </div>
         <label className="aiui-tpl-check">
@@ -215,31 +212,6 @@ export function LogViewer({ label, entries, initialLevels, actions, follow = tru
       )}
     </div>
   )
-}
-
-// ── `log_viewer` block ───────────────────────────────────────────────
-
-/**
- * `{type: "log_viewer", title, entries: [{ts | time, level, source | logger,
- *   message, detail}]}`; `detail` may be a string or a dict (shown as JSON).
- */
-export function LogViewerBlock({ node }: { node: BlockNode }) {
-  const p = node.props ?? {}
-  const entries = useMemo<LogEntry[]>(
-    () =>
-      arr(p.entries ?? p.lines)
-        .filter(isRecord)
-        .map((e, i) => ({
-          id: str(e.id, String(i)),
-          ts: str(e.ts ?? e.time ?? e.timestamp),
-          level: str(e.level, 'info'),
-          source: e.source != null || e.logger != null ? str(e.source ?? e.logger) : undefined,
-          message: display(e.message ?? e.msg ?? ''),
-          detail: e.detail == null ? undefined : typeof e.detail === 'string' ? e.detail : JSON.stringify(e.detail, null, 2),
-        })),
-    [p.entries, p.lines],
-  )
-  return <LogViewer label={str(p.title ?? p.label, 'Log lines')} entries={entries} />
 }
 
 export default LogViewer

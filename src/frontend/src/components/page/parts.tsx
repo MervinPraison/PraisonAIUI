@@ -8,6 +8,29 @@ import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import './page.css'
 
+const GLYPHS = {
+  close: ['M18 6 6 18', 'm6 6 12 12'],
+  up: ['m18 15-6-6-6 6'],
+  down: ['m6 9 6 6 6-6'],
+  left: ['m15 18-6-6 6-6'],
+  right: ['m9 18 6-6-6-6'],
+} as const
+
+/**
+ * The few line glyphs the templates draw (lucide's x and chevrons). Drawn
+ * here, not imported: lucide modules shared with the chat route's lazy
+ * children would split into chunks of their own and grow its preload list.
+ */
+export function Glyph({ name }: { name: keyof typeof GLYPHS }) {
+  return (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {GLYPHS[name].map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  )
+}
+
 /** The labelled search field of a template toolbar. */
 export function TemplateSearch({
   label,

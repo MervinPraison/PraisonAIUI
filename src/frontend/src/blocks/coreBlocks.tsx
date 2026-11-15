@@ -1004,16 +1004,16 @@ function templateBlock(load: () => Promise<{ default: CoreBlock }>): CoreBlock {
   return retryableLazy<CoreBlockProps>(load)
 }
 
-const BoardTemplate = templateBlock(() => import('@/components/page/Board').then((m) => ({ default: m.BoardBlock })))
-const GalleryTemplate = templateBlock(() => import('@/components/page/Gallery').then((m) => ({ default: m.GalleryBlock })))
+const BoardTemplate = templateBlock(() => import('@/components/page/blocks/BoardBlock').then((m) => ({ default: m.BoardBlock })))
+const GalleryTemplate = templateBlock(() => import('@/components/page/blocks/GalleryBlock').then((m) => ({ default: m.GalleryBlock })))
 const ListDetailTemplate = templateBlock(() =>
-  import('@/components/page/ListDetail').then((m) => ({ default: m.ListDetailBlock })),
+  import('@/components/page/blocks/ListDetailBlock').then((m) => ({ default: m.ListDetailBlock })),
 )
 const LogViewerTemplate = templateBlock(() =>
-  import('@/components/page/LogViewer').then((m) => ({ default: m.LogViewerBlock })),
+  import('@/components/page/blocks/LogViewerBlock').then((m) => ({ default: m.LogViewerBlock })),
 )
 const CodeEditorTemplate = templateBlock(() =>
-  import('@/components/page/Editor').then((m) => ({ default: m.CodeEditorBlock })),
+  import('@/components/page/blocks/CodeEditorBlock').then((m) => ({ default: m.CodeEditorBlock })),
 )
 
 /** Block type → renderer. Aliases share a component. */

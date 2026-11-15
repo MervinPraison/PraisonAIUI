@@ -7,10 +7,8 @@
  * Used by React pages directly, and by the `board` block (BoardBlock below,
  * registered lazily by blocks/coreBlocks.tsx; same props as `aiui.board()`).
  */
-import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useState, type KeyboardEvent, type ReactNode } from 'react'
 import { TriangleAlert } from 'lucide-react'
-import { arr, display, isRecord, str } from '@/blocks/normalize'
-import type { BlockNode } from '@/sdk/registry'
 import { findCard, stepGrab, type GrabState } from './model'
 import './page.css'
 
@@ -170,42 +168,6 @@ export function Board({ label, columns, onMove, toolbar, className }: BoardProps
       )}
     </div>
   )
-}
-
-// ── `board` block (aiui.board) ───────────────────────────────────────
-
-function blockCard(raw: unknown, i: number): BoardCard | null {
-  if (!isRecord(raw)) return null
-  const p = isRecord(raw.props) ? { ...raw, ...raw.props } : raw
-  const title = str(p.title ?? p.name ?? p.label, 'Card')
-  return {
-    id: str(p.id, `${i}-${title}`),
-    title,
-    ref: p.ref != null ? str(p.ref) : undefined,
-    meta: p.priority != null ? display(p.priority) : undefined,
-    body: p.value != null ? display(p.value) : p.description != null ? display(p.description) : undefined,
-    footer: display(p.footer ?? p.assignee ?? p.status ?? '') || undefined,
-  }
-}
-
-/** `{type: "board", columns: [{id, title, cards: [card() | {title, value, footer}]}]}` */
-export function BoardBlock({ node }: { node: BlockNode }) {
-  const p = node.props ?? {}
-  const columns = useMemo<BoardColumn[]>(
-    () =>
-      arr(p.columns)
-        .filter(isRecord)
-        .map((c, i) => ({
-          id: str(c.id, String(i)),
-          title: str(c.title ?? c.id, 'Column'),
-          limit: typeof c.limit === 'number' ? c.limit : undefined,
-          cards: arr(c.cards)
-            .map(blockCard)
-            .filter((k): k is BoardCard => !!k),
-        })),
-    [p.columns],
-  )
-  return <Board label={str(p.title ?? p.label, 'Board')} columns={columns} />
 }
 
 export default Board
