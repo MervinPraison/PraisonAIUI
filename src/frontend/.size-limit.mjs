@@ -51,16 +51,22 @@ const legacyJs = filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks
 const LAYOUT_BUDGETS = {
   // The Chat + Canvas frame (track CC), measured at 8.34 kB + 10%.
   'layout-chat-canvas': '9.2 kB',
-  'layout-workbench': '9.4 kB',
+  // Integrated (all five frames, kit v2, the shared page-icon table in
+  // lib/): 9.42 kB + 10%.
+  'layout-workbench': '10.4 kB',
   // The Command Deck frame (track K): rail, session tabs, status bar, phone
-  // frame and shortcut sheet, plus the kit pieces it imports. 11.84 kB + 10%.
-  'layout-command': '13.1 kB',
+  // frame and shortcut sheet, plus the kit pieces it imports. 11.84 kB on
+  // its branch; integrated with kit v2 (which every frame's closure holds,
+  // split into seven chunks across the five frames) 13.85 kB + 10%.
+  'layout-command': '15.2 kB',
   // Guided (frame, phone tabs, chat regions, Home and Templates pages, every
   // chunk of the group) measured 15.25 kB + 10%.
   'layout-guided': '16.8 kB',
   // Mission (frame, top bar, nav counts, phone tabs, data hooks) measured
-  // 9.52 kB + 10%. describeCall ships in lf-mission-board.
-  'layout-mission': '10.5 kB',
+  // 9.52 kB on its branch; integrated with kit v2 (5.85 kB of kit chunks in
+  // its closure, up from 3.05) 12.01 kB + 10%. describeCall ships in
+  // lf-mission-board.
+  'layout-mission': '13.2 kB',
 }
 const KIT_BUDGET = '7.3 kB'
 const FEATURE_BUDGETS = {
