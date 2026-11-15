@@ -232,6 +232,26 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     expect(await title.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(15)
     expect(await hasHorizontalOverflow(page)).toBe(false)
 
+    // The menu while the approval waits: "Waiting for you" keeps its full
+    // height above the nav (it is not squeezed to its heading with the
+    // Deny / Approve card drawn over the links), and so does the session list.
+    await menu.click()
+    const openSheet = page.locator('[data-aiui-phone-sheet]')
+    await expect(openSheet).toBeVisible()
+    const pendingList = openSheet.locator('[data-command-pending]')
+    await expect(pendingList.getByRole('button', { name: 'Approve' })).toBeVisible()
+    const firstLink = openSheet.locator('a[data-aiui-nav-item]').first()
+    const [listBox, linkBox] = [await pendingList.boundingBox(), await firstLink.boundingBox()]
+    expect(listBox && linkBox, 'the approval list and the nav are laid out').toBeTruthy()
+    expect(listBox!.y + listBox!.height, 'the approval list ends above the first nav link').toBeLessThanOrEqual(linkBox!.y + 0.5)
+    for (const section of [openSheet.locator('[data-command-waiting] > section'), openSheet.locator('[data-aiui-session-list] > section')]) {
+      const { client, scroll } = await section.evaluate((el) => ({ client: el.clientHeight, scroll: el.scrollHeight }))
+      expect(client, 'a sheet section shows all of its content (the sheet scrolls, not the section)').toBeGreaterThanOrEqual(scroll)
+    }
+    await expect(openSheet.locator('[data-aiui-session-list] [data-aiui-session]').first()).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(openSheet).toBeHidden()
+
     // Expanded, the peek is the whole inspector.
     await peek(page).getByRole('button', { name: 'Expand run panel' }).click()
     await expect(peek(page).locator('[data-run-metrics]')).toBeVisible()

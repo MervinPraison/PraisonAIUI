@@ -623,11 +623,19 @@ export default function CommandFrame(props: LayoutProps) {
             <RunInspector variant="sheet" isTypingTarget={isTypingTarget} />
           </Feature>
         )}
+        {/*
+          The sheet's body is a scrolling flex column. Its sections keep their
+          full height (shrink-0) and the body scrolls; a section that may shrink
+          (the kit's NavSection and SessionList are min-h-0) is squeezed to its
+          heading and draws its content over the links below it.
+        */}
         <PhoneSheet open={menuOpen} onOpenChange={setMenuOpen} title="Menu and sessions" header={<Brand chrome={chrome} />}>
           {pending.length > 0 && (
-            <NavSection title="Waiting for you" size="touch">
-              <PendingApprovals items={pending} decide={decide} />
-            </NavSection>
+            <div className="shrink-0" data-command-waiting="">
+              <NavSection title="Waiting for you" size="touch">
+                <PendingApprovals items={pending} decide={decide} />
+              </NavSection>
+            </div>
           )}
           <NavList items={rail} go={nav.go} onNavigate={() => setMenuOpen(false)} size="touch" aria-label="Primary" renderIcon={(i) => <ItemIcon item={i} className="text-muted-foreground" />} />
           {nav.groups.map((g) => (
@@ -635,7 +643,7 @@ export default function CommandFrame(props: LayoutProps) {
               <NavList items={g.items} go={nav.go} onNavigate={() => setMenuOpen(false)} size="touch" />
             </NavSection>
           ))}
-          <SessionList title="Sessions" size="touch" limit={20} onOpen={() => {
+          <SessionList title="Sessions" size="touch" limit={20} className="shrink-0" onOpen={() => {
             nav.go(chatPage)
             setMenuOpen(false)
           }} />
