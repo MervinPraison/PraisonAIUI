@@ -5,7 +5,7 @@
  *
  *   - the frame's regions and landmarks: sidebar (New chat, at most 7
  *     primary pages, the chats), top bar (the open chat and its line,
- *     search, Share, theme), the main landmark with the routed page;
+ *     search, Share once the chat has a message, theme), the main landmark with the routed page;
  *   - a conversation with a table, a code block and an approval: the
  *     thread uses the bubbles variant, the approval card decides the gate,
  *     the chat shows up in the sidebar and in the top bar;
@@ -123,7 +123,8 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     await expect(sidebar.locator('[data-aiui-nav-item="chat"]')).toHaveAttribute('aria-current', 'page')
     await expect(sidebar.getByRole('heading', { name: 'Chats' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Search or run a command' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Share' })).toBeVisible()
+    // A new chat has nothing to share yet: Share comes with the first message.
+    await expect(page.getByRole('button', { name: 'Share' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: /Switch to (dark|light) theme/ })).toBeVisible()
     await expect(page.locator('main#aiui-main [data-aiui-page="chat"]')).toBeVisible()
     await expect(title(page)).toHaveText('New chat')
@@ -166,6 +167,7 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     expect(seen.posts).toContain('POST /api/approvals/ap_ok/approve')
     await waitForRunEnd(page)
 
+    await expect(page.getByRole('button', { name: 'Share' })).toBeVisible()
     // The chat is the open one in the sidebar, and the top bar names it and its agent.
     const open = sidebar.locator('[data-aiui-session][aria-current="true"]')
     await expect(open).toContainText(/markdown apok/i)

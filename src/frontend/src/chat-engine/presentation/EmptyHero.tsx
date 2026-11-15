@@ -34,7 +34,7 @@ export function EmptyHero({ children }: { children: ReactNode }): JSX.Element {
           )}
           <h2 className="m-0 text-[44px] leading-none font-semibold tracking-tight text-foreground">{title}</h2>
         </div>
-        <p className="m-0 max-w-md text-base text-muted-foreground">{HERO_PROMISE}</p>
+        <p className="m-0 max-w-xl text-base text-balance text-muted-foreground">{HERO_PROMISE}</p>
       </div>
       {children}
     </>
