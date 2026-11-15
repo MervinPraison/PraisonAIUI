@@ -34,6 +34,7 @@ import { pinsGates, pinnedSlotRef, usePinnedSlot } from './pinned'
 import { useRegionProps } from './regionState'
 import type { ThreadVariant } from './TurnMeta'
 import { ComposerModel } from './ComposerModel'
+import { useComposerHint } from './composerHint'
 import './composer.css'
 
 const ApprovalCard = lazy(() => import('./ApprovalCard'))
@@ -100,10 +101,12 @@ function PinnedGate({ presentation, children }: { presentation: { chat: ChatPres
 
 /**
  * The composer's footer in a layout: the place above the composer that
- * pinned gates go to (nothing for a thread that pins none), and the model
- * button the composer row gets (a portal, drawn after mount).
+ * pinned gates go to (nothing for a thread that pins none), the model
+ * button the composer row gets (a portal, drawn after mount), and the send
+ * count that retires the composer's key hint (./composerHint).
  */
 export function Pinned({ presentation }: { presentation: { chat: ChatPresentation } }): JSX.Element | null {
+  useComposerHint()
   return (
     <>
       <ComposerModel />

@@ -66,3 +66,32 @@
     display: none;
   }
 }
+
+/* Send with nothing to send: the muted fill, not the accent at half opacity
+   (a washed-out accent reads as broken). */
+[data-variant] form [aria-label='Send']:disabled {
+  background: var(--muted);
+  color: var(--muted-foreground);
+  opacity: 1;
+}
+
+/* The "Enter to send" line is a hint for a first-time user, not chrome: it
+   shows only while the composer is focused and empty, and never again after
+   three sends (./composerHint sets data-composer-hint="off"). */
+[data-variant] form:has(textarea[aria-label='Message']) + p {
+  display: none;
+}
+
+[data-variant] form:has(textarea[aria-label='Message']:focus:placeholder-shown) + p {
+  display: flex;
+}
+
+@media (max-width: 639.98px) {
+  [data-variant] form:has(textarea[aria-label='Message']:focus:placeholder-shown) + p {
+    display: none;
+  }
+}
+
+[data-variant][data-composer-hint='off'] form:has(textarea[aria-label='Message']) + p {
+  display: none;
+}
