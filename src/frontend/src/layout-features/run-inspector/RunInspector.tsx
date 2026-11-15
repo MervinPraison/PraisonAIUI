@@ -221,7 +221,7 @@ function ApprovalBlock({ approval, run, d, touch }: { approval: InspectorApprova
 function Metrics({ run, tokens, tokensSub, cost, model }: { run: InspectorRun; tokens: string; tokensSub: string; cost: string; model: string }) {
   const waiting = run.steps.filter((s) => s.state === 'waiting').length
   const items = [
-    { label: 'Elapsed', value: formatDuration(run.elapsedMs), sub: run.approval ? `+${formatDuration(run.waitingMs, true)} waiting` : run.endedAt ? 'finished' : 'live' },
+    { label: 'Elapsed', value: formatDuration(run.elapsedMs), sub: run.approval ? `+${formatDuration(run.waitingMs, true)} waiting` : run.status === 'running' ? 'live' : statusLabel(run.status).text },
     { label: 'Tokens', value: tokens, sub: tokensSub },
     { label: 'Cost', value: cost, sub: model },
     { label: 'Steps', value: `${run.doneSteps}/${run.steps.length}`, sub: waiting ? `${waiting} waiting` : '' },
