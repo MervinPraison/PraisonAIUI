@@ -207,7 +207,7 @@ wheels = [
 
 [[package]]
 name = "aiui"
-version = "0.3.158"
+version = "0.3.159"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
