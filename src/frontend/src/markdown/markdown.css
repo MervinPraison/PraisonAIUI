@@ -176,10 +176,16 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.aiui-code [data-streamdown='code-block-actions'] {
+  border-color: transparent;
+  background: transparent;
+  backdrop-filter: none;
+}
+/* Just left of the copy / download bar (70px wide, 9px from the edge). */
 .aiui-code-wrap {
   position: absolute;
-  top: 4px;
-  right: 74px;
+  top: 5px;
+  right: 82px;
   z-index: 2;
   display: inline-flex;
   width: 24px;
