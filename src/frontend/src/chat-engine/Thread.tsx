@@ -277,7 +277,7 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
         <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground" aria-hidden>
           {toolIcon(toolName)}
         </span>
-        <span className="shrink-0 font-medium text-foreground">{toolName}</span>
+        <span className="min-w-0 truncate font-medium text-foreground">{toolName}</span>
         {description && <span className="min-w-0 truncate text-muted-foreground">{description}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2">
           {state === 'approval' && risk && (

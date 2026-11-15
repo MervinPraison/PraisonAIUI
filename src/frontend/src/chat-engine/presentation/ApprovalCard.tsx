@@ -14,6 +14,9 @@ import { useDecision, type GateProps } from './decision'
 import { commandLabel, commandOf, gateTitle, isHighRisk, whyAsked } from './gateText'
 import './approvals.css'
 
+/** "medium" → "Medium" (only the first letter: "Medium risk", not "Medium Risk"). */
+const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+
 export default function ApprovalCard(p: GateProps): JSX.Element {
   const [busy, error, act] = useDecision(p)
   const [why, setWhy] = useState(false)
@@ -50,7 +53,7 @@ export default function ApprovalCard(p: GateProps): JSX.Element {
           {p.risk && (
             <>
               <span aria-hidden>·</span>
-              <span className={cn('shrink-0 capitalize', high && 'text-destructive')}>{p.risk} risk</span>
+              <span className={cn('shrink-0', high && 'text-destructive')}>{sentence(p.risk)} risk</span>
             </>
           )}
           <span className="ml-auto shrink-0">{p.expand.open ? 'Hide details' : 'Details'}</span>

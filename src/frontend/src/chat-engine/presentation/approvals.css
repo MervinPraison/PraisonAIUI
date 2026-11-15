@@ -3,8 +3,10 @@
  * either). They carry their own surface, so the tool row around them drops
  * its frame (one hairline, no shadow). Tokens only.
  */
-[data-tool]:has(> [data-approval-card], > [data-approval-keys]) {
+[data-tool]:has(> [data-approval-card], > [data-approval-keys]),
+[data-variant] [data-tool]:has(> [data-approval-card], > [data-approval-keys]) {
   border-color: transparent;
+  background: transparent;
   box-shadow: none;
 }
 
