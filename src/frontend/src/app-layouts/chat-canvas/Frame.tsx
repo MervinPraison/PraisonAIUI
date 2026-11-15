@@ -1,12 +1,151 @@
 /**
- * The Chat and Canvas layout frame (chunk `layout-chat-canvas`). Stub: the kit's
- * BasicFrame until Track CC builds this layout's own frame from its design.
- * A layout imports only the SDK, components/ui, lib and the kit, never another
- * layout or the shell (app-layouts/isolation.test.ts).
+ * The Chat and Canvas layout frame (chunk `layout-chat-canvas`): the app
+ * shell's default layout. Design: Canvas.dc.html (desktop) and
+ * CanvasPhone.dc.html (phone), drawn with the PraisonAI Pro tokens.
+ *
+ *   desktop  sidebar (brand, New chat ⌘N, primary pages, chats, footer
+ *            pages, More ⌘K), collapsible with ⌘B; a top bar with the
+ *            chat's title and "agent · n artifacts · edited …", search,
+ *            Share and the theme; the routed page
+ *   tablet   the same; the chat page starts with its canvas closed
+ *   phone    a header (menu, title, New chat); the menu opens a sheet with
+ *            the sidebar; the chat page's own "Chat | Canvas (n)" switch
+ *
+ * The chat page itself draws the thread, the canvas aside and the artifact
+ * cards (meta.chat in builtin/layouts/chat-canvas.ts); this frame provides
+ * the `artifacts` feed while it is on screen and styles what the page shows
+ * inside it (./chat-canvas.css).
+ *
+ * A layout imports only the SDK, components/ui, lib, the kit and the light
+ * chat-engine modules, never another layout or the shell, and features only
+ * with import() (app-layouts/isolation.test.ts).
  */
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { PhoneSheet, useSessions } from '@/app-layouts/kit'
 import type { LayoutProps } from '@/sdk/layouts'
-import { BasicFrame } from '@/app-layouts/kit'
+import { cn } from '@/lib/utils'
+import { useArtifactTotal, useChat, useProvideArtifacts, useSessionArtifacts } from './data'
+import { chatSubtitle, lastAgent, summarizeArtifacts } from './format'
+import { frameKeyAction, optionVars } from './frameLogic'
+import { ARTIFACTS_PAGE, Brand, SidebarBody } from './Sidebar'
+import { PhoneTopBar, TopBar, type TitleLine } from './TopBar'
+import { useStoredFlag } from './useStoredFlag'
+import './chat-canvas.css'
+
+/** The page New chat and the chat rows open when the layout spec names no home. */
+const DEFAULT_CHAT_PAGE = 'chat'
+const SIDEBAR_KEY = 'aiui-chat-canvas-sidebar-hidden'
+
+/** The top bar's title and line: the open chat on the chat page, else the page. */
+function useTitleLine(onChat: boolean, pageTitle: string): TitleLine {
+  const sessions = useSessions()
+  const chat = useChat()
+  const activeId = sessions?.state.activeId ?? null
+  const artifacts = summarizeArtifacts(useSessionArtifacts(onChat ? activeId : null))
+  if (!onChat) return { title: pageTitle }
+  const current = activeId ? sessions?.state.sessions.find((s) => s.id === activeId) : undefined
+  const title = current?.title ?? (activeId ? 'Chat' : 'New chat')
+  const subtitle = chatSubtitle({
+    agent: chat?.sessionId === activeId ? lastAgent(chat?.messages) : undefined,
+    running: !!activeId && !!sessions?.state.runningIds.has(activeId),
+    artifacts: artifacts.count,
+    editedAt: artifacts.updatedAt,
+  })
+  return { title, subtitle: subtitle || undefined }
+}
 
 export default function ChatCanvasFrame(props: LayoutProps) {
-  return <BasicFrame {...props} name="chat-canvas" chatPage="chat" />
+  const { Outlet, nav, chrome, viewport, page, pageId, fullBleed, layout } = props
+  const phone = viewport === 'phone'
+  const spec = layout.available.find((s) => s.id === layout.id)
+  const chatPage = spec?.home ?? DEFAULT_CHAT_PAGE
+  const onChat = pageId === chatPage || page?.id === chatPage
+  const sessions = useSessions()
+  const [hidden, setHidden] = useStoredFlag(SIDEBAR_KEY)
+  const [menuOpen, setMenuOpen] = useState(false)
+  useProvideArtifacts()
+
+  const hasArtifactsPage = nav.primary.some((i) => i.id === ARTIFACTS_PAGE) || nav.groups.some((g) => g.items.some((i) => i.id === ARTIFACTS_PAGE))
+  // A finished run may have made artifacts: the running set changing refreshes the count.
+  const runningKey = sessions ? [...sessions.state.runningIds].sort().join(',') : ''
+  const artifactTotal = useArtifactTotal(hasArtifactsPage, runningKey)
+  const line = useTitleLine(onChat, page?.title ?? chrome.siteTitle)
+
+  const newChat = useCallback(() => {
+    if (!sessions) return
+    sessions.feed.create()
+    if (nav.activeId !== chatPage) nav.go(chatPage)
+  }, [sessions, nav, chatPage])
+  const toggleSidebar = useCallback(() => setHidden((h) => !h), [setHidden])
+  const actions = useRef({ newChat, toggleSidebar })
+  useEffect(() => {
+    actions.current = { newChat, toggleSidebar }
+  })
+  const canCreate = !!sessions
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.isComposing) return
+      const action = frameKeyAction(e, { phone, canCreate })
+      if (!action) return
+      e.preventDefault()
+      if (action === 'new-chat') actions.current.newChat()
+      else actions.current.toggleSidebar()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [phone, canCreate])
+  const style = useMemo(() => optionVars(spec?.options), [spec?.options])
+
+  const collapsed = !phone && hidden
+  return (
+    <div
+      data-aiui-layout-frame="chat-canvas"
+      data-viewport={viewport}
+      data-chat-page={onChat || undefined}
+      className="flex min-h-0 min-w-0 flex-1 bg-background text-foreground"
+      style={style}
+    >
+      {!phone && !collapsed && (
+        <nav
+          aria-label="Main"
+          className="flex w-60 shrink-0 flex-col gap-4 overflow-y-auto border-r border-sidebar-border bg-sidebar px-3 py-3.5 text-sidebar-foreground"
+        >
+          <SidebarBody
+            nav={nav}
+            chrome={chrome}
+            size="default"
+            chatPage={chatPage}
+            artifactTotal={artifactTotal}
+            onCollapse={toggleSidebar}
+          />
+        </nav>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {phone ? (
+          <PhoneTopBar line={line} canCreate={canCreate} onMenu={() => setMenuOpen(true)} onNewChat={newChat} />
+        ) : (
+          <TopBar line={line} chrome={chrome} collapsed={collapsed} onExpand={toggleSidebar} />
+        )}
+        <main
+          id={chrome.mainId}
+          tabIndex={-1}
+          className={cn('min-h-0 min-w-0 flex-1 outline-none', fullBleed ? 'flex flex-col overflow-hidden' : 'overflow-y-auto')}
+        >
+          <Outlet />
+        </main>
+      </div>
+      {phone && (
+        <PhoneSheet open={menuOpen} onOpenChange={setMenuOpen} title="Navigation and chats" header={<Brand chrome={chrome} size="touch" />}>
+          <SidebarBody
+            nav={nav}
+            chrome={chrome}
+            size="touch"
+            chatPage={chatPage}
+            artifactTotal={artifactTotal}
+            onNavigate={() => setMenuOpen(false)}
+          />
+        </PhoneSheet>
+      )}
+    </div>
+  )
 }
