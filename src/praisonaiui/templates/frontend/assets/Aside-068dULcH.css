@@ -1,0 +1,1 @@
+[data-aiui-chat]:has(>[data-chat-aside-switch]){flex-direction:column}[data-aiui-chat]:has(>[data-chat-aside-switch][data-tab=aside])>section{display:none}

@@ -1,0 +1,1 @@
+import{j as t}from"./vendor-react-SCdx8Lck.js";import"./skeleton-Bja1JQqA.js";import{B as r}from"./layout-kit-C8MLKJzm.js";import"./preload-helper-BXl3LOEh.js";import"./mount-DQUQ8P57.js";import"./notify-KiJzb5wq.js";function n(a){return t.jsx(r,{...a,name:"chat-canvas",chatPage:"chat"})}export{n as default};
