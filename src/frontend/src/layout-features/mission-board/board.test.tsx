@@ -7,7 +7,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { provideLayoutData, resetLayoutsForTests } from '@/sdk/layouts'
 import type { AgentStatus, ApprovalItem, ApprovalsFeed, ChatFeed, ChatState, Feed, RunKpis, RunsFeed, RunSummary } from '@/sdk/layoutTypes'
-import ApprovalBanner from './ApprovalBanner'
+import AttentionBanner, { ApprovalBanner } from './ApprovalBanner'
 import OpsColumn from './OpsColumn'
 import OpsOverview from './OpsOverview'
 import RunTimeline from './RunTimeline'
@@ -31,12 +31,13 @@ const pip: ApprovalItem = { id: 'ap_1', agentName: 'Coder', toolName: 'shell', a
 const kpis: RunKpis = { window: 'today', runs: 42, runsDelta: 6, successRate: 41 / 42, cost: 1.84, budget: 10, p50Ms: 2100, p95Ms: 6800 }
 
 test('approval banner: who asks, the call, Review / Deny / Approve', () => {
-  const out = html(createElement(ApprovalBanner, { item: pip, more: 2, feed: approvals([pip]), onReview: () => {} }))
+  const decide = async () => {}
+  const out = html(createElement(ApprovalBanner, { item: pip, more: 2, decide, onReview: () => {} }))
   assert.match(out, /role="alert" data-aiui-approval-banner="ap_1"/)
   assert.match(out, /Coder needs your approval to continue/)
   assert.match(out, /<code[^>]*>pip install numpy<\/code> · high risk · 2 more waiting/)
   assert.deepEqual([...out.matchAll(/<button[^>]*>([^<]+)<\/button>/g)].map((m) => m[1]), ['Review', 'Deny', 'Approve'])
-  const phone = html(createElement(ApprovalBanner, { item: pip, more: 0, feed: approvals([pip]), touch: true, onReview: () => {} }))
+  const phone = html(createElement(ApprovalBanner, { item: pip, more: 0, decide, touch: true, onReview: () => {} }))
   assert.doesNotMatch(phone, />Review</, 'the phone has the approvals tab instead')
   assert.equal((phone.match(/h-11 flex-1/g) ?? []).length, 2, '44 px decision buttons')
 })
@@ -132,4 +133,39 @@ test('ops overview: approvals first on a phone, then KPIs and agents; recent run
   assert.match(desk, /data-aiui-run="r1"/)
   assert.match(desk, /Succeeded/)
   assert.match(desk, /\$0.004/)
+})
+
+function chatWithGate(): ChatFeed {
+  const state: ChatState = {
+    sessionId: 's1',
+    isRunning: true,
+    messages: [
+      {
+        id: 'm1',
+        role: 'assistant',
+        agentName: 'Mock',
+        createdAt: 5,
+        status: { type: 'requires-action', reason: 'interrupt' },
+        parts: [{ type: 'tool-call', id: 'tc', toolName: 'shell', args: { cmd: 'ls' }, artifact: { risk_level: 'high' }, approval: { id: 'ap_ok' } }],
+      },
+    ],
+  }
+  return { ...still(state), prefill: () => {}, cancel: async () => {}, resolveApproval: async () => {} }
+}
+
+test('attention banner: a listed approval first; a gate of the open chat off the chat page; nothing else', () => {
+  const where = { approvalsPage: 'approvals', chatPage: 'chat', go: () => {}, canReview: true }
+  assert.equal(html(createElement(AttentionBanner, { ...where, pageId: 'logs' })), '', 'no feeds: no banner')
+  provideLayoutData('chat', chatWithGate())
+  const gate = html(createElement(AttentionBanner, { ...where, pageId: 'logs' }))
+  assert.match(gate, /data-aiui-approval-banner="ap_ok"/)
+  assert.match(gate, /Mock needs your approval/)
+  assert.match(gate, />Open chat</)
+  assert.equal(html(createElement(AttentionBanner, { ...where, pageId: 'chat' })), '', 'the thread shows its own gate')
+  provideLayoutData('approvals', approvals([pip]))
+  const listed = html(createElement(AttentionBanner, { ...where, pageId: 'chat' }))
+  assert.match(listed, /data-aiui-approval-banner="ap_1"/)
+  assert.match(listed, />Review</)
+  assert.match(html(createElement(AttentionBanner, { ...where, pageId: 'logs' })), /data-aiui-approval-banner="ap_1"[\s\S]*1 more waiting/)
+  assert.match(html(createElement(AttentionBanner, { ...where, pageId: 'approvals' })), /data-aiui-approval-banner="ap_ok"/)
 })

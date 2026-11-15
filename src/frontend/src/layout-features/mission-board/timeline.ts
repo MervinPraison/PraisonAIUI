@@ -87,6 +87,15 @@ export function timelineSteps(message: ChatMessageView | undefined): TimelineSte
     else if (!live) s.endedAt = Math.max(message.completedAt ?? s.startedAt, s.startedAt)
     s.status = s.endedAt === undefined ? 'running' : 'done'
   }
+  // While the turn waits on a gate, only the gate counts up.
+  if (message.status?.type === 'requires-action') {
+    const gate = steps.find((s) => s.status === 'waiting')
+    for (const s of steps) {
+      if (s.status !== 'running') continue
+      s.status = 'done'
+      s.endedAt = Math.max(s.startedAt, gate?.startedAt ?? s.startedAt)
+    }
+  }
   if (!live) {
     for (const s of steps) {
       if (s.status === 'running') {

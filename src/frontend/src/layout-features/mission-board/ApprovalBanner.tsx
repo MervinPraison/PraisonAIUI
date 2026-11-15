@@ -2,7 +2,11 @@
  * The approval banner Mission shows on every page while an approval waits
  * (Mission.dc.html "Coder needs your approval to continue this run"): who
  * asks, the exact call, how long it has waited, Review / Deny / Approve.
- * The frame loads it with import() only while something is pending.
+ *
+ * The default export (AttentionBanner) picks what to show: the oldest
+ * pending approval of the approvals feed (not on the approvals page), else
+ * a gate waiting in the open chat's thread (not on the chat page, where the
+ * thread shows it). The frame loads it with import().
  */
 import { useState, type Ref } from 'react'
 import { TriangleAlert } from 'lucide-react'
@@ -11,17 +15,21 @@ import { TriangleAlert } from 'lucide-react'
 import { describeCall } from '@/app-layouts/kit/format'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { ApprovalItem, ApprovalsFeed } from '@/sdk/layoutTypes'
+import type { ApprovalItem } from '@/sdk/layoutTypes'
 import { notify } from '@/sdk/notify'
+import { attention } from './agents'
 import { approvalTitle } from './cards'
 import { formatClock } from './format'
-import { useNow } from './hooks'
+import { useApprovals, useChat, useNow } from './hooks'
 
 export interface ApprovalBannerProps {
   item: ApprovalItem
   /** How many others wait behind this one. */
   more: number
-  feed: ApprovalsFeed
+  /** Send the decision (the approvals feed, or the open chat for a gate in its thread). */
+  decide(approved: boolean): Promise<void>
+  /** Label of the review link ("Review", "Open chat"). */
+  reviewLabel?: string
   touch?: boolean
   /** Open the approvals page (absent: no Review link). */
   onReview?(): void
@@ -30,13 +38,13 @@ export interface ApprovalBannerProps {
   className?: string
 }
 
-export default function ApprovalBanner({ item, more, feed, touch, onReview, approveRef, className }: ApprovalBannerProps) {
+export function ApprovalBanner({ item, more, decide: send, reviewLabel = 'Review', touch, onReview, approveRef, className }: ApprovalBannerProps) {
   const [busy, setBusy] = useState(false)
   const now = useNow(!!item.createdAt)
   const decide = (approved: boolean) => async () => {
     setBusy(true)
     try {
-      await (approved ? feed.approve(item.id) : feed.deny(item.id))
+      await send(approved)
     } catch (err) {
       void notify(err instanceof Error ? err.message : 'Could not send the decision', { type: 'error' })
     } finally {
@@ -55,7 +63,7 @@ export default function ApprovalBanner({ item, more, feed, touch, onReview, appr
         className,
       )}
     >
-      <div className="flex min-w-0 flex-[1_1_260px] gap-2.5">
+      <div className={cn('flex min-w-0 gap-2.5', !touch && 'flex-[1_1_260px]')}>
         <span aria-hidden="true" className={cn('flex shrink-0 items-center justify-center rounded-md bg-warning text-warning-foreground', touch ? 'size-8' : 'size-7')}>
           <TriangleAlert className="size-4" />
         </span>
@@ -77,7 +85,7 @@ export default function ApprovalBanner({ item, more, feed, touch, onReview, appr
       <div className={cn('flex items-center gap-1.5', touch && 'gap-2')}>
         {onReview && !touch && (
           <Button variant="link" size="sm" onClick={onReview}>
-            Review
+            {reviewLabel}
           </Button>
         )}
         <Button
@@ -94,5 +102,43 @@ export default function ApprovalBanner({ item, more, feed, touch, onReview, appr
         </Button>
       </div>
     </div>
+  )
+}
+
+export interface AttentionBannerProps {
+  /** The routed page (no banner for what that page already shows). */
+  pageId: string
+  approvalsPage: string
+  chatPage: string
+  touch?: boolean
+  /** Open a page (Review: the approvals page; a chat gate: the chat). */
+  go(pageId: string): void
+  /** Whether the approvals page is listed (otherwise no Review link). */
+  canReview: boolean
+  approveRef?: Ref<HTMLButtonElement>
+  className?: string
+}
+
+export default function AttentionBanner({ pageId, approvalsPage, chatPage, touch, go, canReview, approveRef, className }: AttentionBannerProps) {
+  const approvals = useApprovals()
+  const chat = useChat()
+  const pick = attention(approvals.feed ? approvals.pending : [], chat.state.messages, { onApprovals: pageId === approvalsPage, onChat: pageId === chatPage })
+  if (!pick) return null
+  const { item, source, more } = pick
+  const decide =
+    source === 'chat'
+      ? (approved: boolean) => chat.feed!.resolveApproval(item.id, approved)
+      : (approved: boolean) => (approved ? approvals.feed!.approve(item.id) : approvals.feed!.deny(item.id))
+  return (
+    <ApprovalBanner
+      item={item}
+      more={more}
+      decide={decide}
+      touch={touch}
+      reviewLabel={source === 'chat' ? 'Open chat' : 'Review'}
+      onReview={source === 'chat' ? () => go(chatPage) : canReview ? () => go(approvalsPage) : undefined}
+      approveRef={approveRef}
+      className={className}
+    />
   )
 }

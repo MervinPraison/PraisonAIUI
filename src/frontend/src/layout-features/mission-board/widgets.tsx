@@ -13,7 +13,8 @@ import { agentDoing, agentMeta, agentTimer, kpiCells, type KpiCell } from './car
 import type { RunsStatus } from './runsFeed'
 import { stepWeight, type TimelineStep } from './timeline'
 
-export type BoardSize = 'default' | 'touch'
+/** `compact`: the narrow ops column (short labels); `touch`: a phone. */
+export type BoardSize = 'default' | 'compact' | 'touch'
 
 /** An agent's state, or a finished run's outcome. */
 export type ChipState = AgentState | 'done' | 'failed'
@@ -71,10 +72,10 @@ export function KpiStrip({ kpis, status, size = 'default' }: { kpis: RunKpis | n
       className={cn('grid grid-cols-4 rounded-lg border border-border bg-card text-card-foreground', touch && 'rounded-xl')}
     >
       {(cells ?? SKELETON_CELLS).map((c, i) => (
-        <div key={c.id} role="listitem" className={cn('flex min-w-0 flex-col gap-0.5', touch ? 'p-2' : 'px-2.5 pt-2.5 pb-2', i > 0 && 'border-l border-hairline')}>
+        <div key={c.id} role="listitem" className={cn('flex min-w-0 flex-col gap-0.5', touch ? 'p-2' : size === 'compact' ? 'px-2 pt-2.5 pb-2' : 'px-2.5 pt-2.5 pb-2', i > 0 && 'border-l border-hairline')}>
           {cells ? (
             <>
-              <span className="truncate text-xs text-tier-3">{touch ? (c.shortLabel ?? c.label) : c.label}</span>
+              <span className="truncate text-xs text-tier-3">{size === 'default' ? c.label : (c.shortLabel ?? c.label)}</span>
               <span className={cn('font-semibold tracking-tight tabular-nums', touch ? 'text-lg' : 'text-xl')}>{c.value}</span>
               {!touch && c.sub && (
                 <span className={cn('truncate font-mono text-xs', c.tone === 'success' ? 'text-success' : c.tone === 'warning' ? 'text-warning' : 'text-tier-3')}>

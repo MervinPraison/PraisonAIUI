@@ -24,9 +24,9 @@ export function kpiCells(k: RunKpis): KpiCell[] {
   const over = k.budget !== undefined && k.cost !== undefined && k.cost > k.budget
   const rated = k.successRate !== undefined
   return [
-    { id: 'runs', label: 'Runs today', value: formatCount(k.runs), sub: formatDelta(k.runsDelta) || undefined },
-    { id: 'success', label: 'Success', value: formatPercent(k.successRate), sub: rated ? 'of finished runs' : 'no finished runs', tone: rated ? 'success' : undefined },
-    { id: 'cost', label: 'Cost today', value: formatCost(k.cost), sub: k.budget === undefined ? undefined : `of ${formatCost(k.budget)}`, tone: over ? 'warning' : undefined },
+    { id: 'runs', label: 'Runs today', shortLabel: 'Runs', value: formatCount(k.runs), sub: formatDelta(k.runsDelta) || undefined },
+    { id: 'success', label: 'Success', value: formatPercent(k.successRate), sub: rated ? 'finished' : 'none finished', tone: rated ? 'success' : undefined },
+    { id: 'cost', label: 'Cost today', shortLabel: 'Cost', value: formatCost(k.cost), sub: k.budget === undefined ? undefined : `of ${formatCost(k.budget)}`, tone: over ? 'warning' : undefined },
     { id: 'latency', label: 'p50 latency', shortLabel: 'p50', value: formatDuration(k.p50Ms), sub: k.p95Ms === undefined ? undefined : `p95 ${formatDuration(k.p95Ms)}` },
   ]
 }

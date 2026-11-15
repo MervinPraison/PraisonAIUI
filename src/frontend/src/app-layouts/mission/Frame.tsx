@@ -27,7 +27,6 @@ import type { LayoutProps } from '@/sdk/layouts'
 import { useApprovals, useChatState, useHealth, useRunCounts, useRunsFeed } from './data'
 import {
   APPROVALS_PAGE,
-  bannerApproval,
   CHAT_PAGE,
   DEFAULT_HOME,
   environmentOf,
@@ -44,7 +43,7 @@ import { BrandMark, ChatHeader, CountBadge, EnvBadge, HealthDot, MorePagesButton
 
 const OpsColumn = lazy(() => import('@/layout-features/mission-board/OpsColumn'))
 const OpsOverview = lazy(() => import('@/layout-features/mission-board/OpsOverview'))
-const ApprovalBanner = lazy(() => import('@/layout-features/mission-board/ApprovalBanner'))
+const AttentionBanner = lazy(() => import('@/layout-features/mission-board/ApprovalBanner'))
 
 /** A board part that fails to load or render disappears on its own (logged); the frame keeps working (R4). */
 class PartBoundary extends Component<{ name: string; fallback?: ReactNode; children: ReactNode }, { failed: boolean }> {
@@ -84,7 +83,6 @@ export default function MissionFrame(props: LayoutProps) {
   const health = useHealth()
   const sessions = useSessions()
   const chat = useChatState()
-  const banner = approvals.feed ? bannerApproval(approvals.pending, pageId) : null
   const approveRef = useRef<HTMLButtonElement>(null)
   const [moreOpen, setMoreOpen] = useState(false)
 
@@ -95,25 +93,25 @@ export default function MissionFrame(props: LayoutProps) {
     sessions?.feed.create()
     openChat()
   }, { allowInInputs: true })
-  useShortcut(banner ? SHORTCUTS.approval : null, () => approveRef.current?.focus(), { allowInInputs: true })
+  useShortcut(SHORTCUTS.approval, () => approveRef.current?.focus(), { allowInInputs: true })
 
-  const bannerEl = (cls?: string) =>
-    banner &&
-    approvals.feed && (
-      <PartBoundary name="approval banner">
-        <Suspense fallback={null}>
-          <ApprovalBanner
-            item={banner}
-            more={approvals.pending.length - 1}
-            feed={approvals.feed}
-            touch={phone}
-            onReview={review}
-            approveRef={approveRef}
-            className={cls}
-          />
-        </Suspense>
-      </PartBoundary>
-    )
+  // The banner decides itself whether anything waits (an approval, or a gate in the open chat).
+  const bannerEl = (cls?: string) => (
+    <PartBoundary name="approval banner">
+      <Suspense fallback={null}>
+        <AttentionBanner
+          pageId={page?.id ?? pageId}
+          approvalsPage={APPROVALS_PAGE}
+          chatPage={CHAT_PAGE}
+          touch={phone}
+          go={nav.go}
+          canReview={canReview}
+          approveRef={approveRef}
+          className={cls}
+        />
+      </Suspense>
+    </PartBoundary>
+  )
 
   const overview = (
     <PartBoundary name="ops overview" fallback={<Outlet />}>
@@ -229,7 +227,8 @@ export default function MissionFrame(props: LayoutProps) {
   const activeSession = sessions?.state.sessions.find((s) => s.id === sessions.state.activeId)
   const lastTurn = [...chat.state.messages].reverse().find((m) => m.role === 'assistant')
   const chatState = lastTurn?.status?.type === 'requires-action' ? 'waiting' : chat.state.isRunning ? 'running' : 'idle'
-  const chatMeta = [lastTurn?.agentName, chat.state.activeRunId ?? lastTurn?.runId, lastTurn ? `started ${clock(lastTurn.createdAt)}` : undefined]
+  const runId = chat.state.activeRunId ?? lastTurn?.runId
+  const chatMeta = [lastTurn?.agentName, runId && `run ${runId.slice(0, 8)}`, lastTurn ? `started ${clock(lastTurn.createdAt)}` : undefined]
     .filter(Boolean)
     .join(' · ')
 
@@ -260,7 +259,7 @@ export default function MissionFrame(props: LayoutProps) {
                 <HealthDot state={health.state} />
                 {health.state === 'ok' ? 'Gateway healthy' : health.label}
               </span>
-              {health.agents !== undefined && <span className="font-mono">{health.agents} agents configured</span>}
+              {!!health.agents && <span className="font-mono">{health.agents} agents configured</span>}
             </div>
             <chrome.Slot name="sidebar:footer" />
           </div>
@@ -277,7 +276,7 @@ export default function MissionFrame(props: LayoutProps) {
             )}
             <section aria-label="Chat" className="flex min-h-0 min-w-0 flex-1 flex-col bg-card">
               <ChatHeader
-                title={activeSession?.title ?? page?.title ?? 'Chat'}
+                title={activeSession?.title ?? 'New chat'}
                 state={chatState}
                 meta={chatMeta}
                 onStop={chat.state.isRunning && chat.cancel ? () => void chat.cancel!() : undefined}
@@ -289,8 +288,18 @@ export default function MissionFrame(props: LayoutProps) {
           </div>
         ) : (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            {bannerEl('mx-4 mt-3')}
-            {main(content === 'ops' ? overview : <Outlet />)}
+            {content === 'ops' ? (
+              // The overview lists every pending approval itself.
+              main(overview)
+            ) : (
+              <>
+                <div className="flex h-12 shrink-0 items-center border-b border-hairline px-6">
+                  <h1 className="m-0 min-w-0 truncate text-[15px] font-semibold tracking-tight">{page?.title ?? pageId}</h1>
+                </div>
+                {bannerEl('mx-4 mt-3')}
+                {main(<Outlet />)}
+              </>
+            )}
           </div>
         )}
       </div>

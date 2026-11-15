@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { AgentStatus } from '@/sdk/layoutTypes'
 import { cn } from '@/lib/utils'
-import { agentCountsLabel, agentViews, defaultAgent, sessionsOf } from './agents'
+import { agentCountsLabel, agentViews, defaultAgent, sessionsOf, withChatGates } from './agents'
 import { formatAgo } from './format'
 import { useApprovals, useChat, useFeed, useNow, useRuns, useRunsStatus } from './hooks'
 import { lastAssistant, timelineSteps } from './timeline'
@@ -33,7 +33,7 @@ export default function OpsColumn({ openChat, className }: OpsColumnProps) {
   const { pending } = useApprovals()
   const sessions = useSessions()
   const chat = useChat()
-  const views = useMemo(() => agentViews(ledgerAgents, pending), [ledgerAgents, pending])
+  const views = useMemo(() => agentViews(ledgerAgents, withChatGates(pending, chat.state.messages)), [ledgerAgents, pending, chat.state.messages])
   const turn = lastAssistant(chat.state.messages)
   const steps = useMemo(() => timelineSteps(turn), [turn])
   const now = useNow(views.some((a) => a.state !== 'idle') || chat.state.isRunning)
@@ -51,7 +51,7 @@ export default function OpsColumn({ openChat, className }: OpsColumnProps) {
       data-aiui-ops-column=""
       className={cn('flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto border-r border-border bg-background p-4', className)}
     >
-      <KpiStrip kpis={kpis} status={status} />
+      <KpiStrip kpis={kpis} status={status} size="compact" />
 
       <div className="flex flex-col gap-1.5">
         <div className="flex h-7 items-center gap-2">

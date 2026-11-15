@@ -107,3 +107,13 @@ test('user messages and missing turns have no timeline; weights keep short steps
   assert.equal(lastAssistant(msgs)?.id, 'm1')
   assert.equal(lastAssistant([]), undefined)
 })
+
+test('while a turn waits on a gate, only the gate counts up', () => {
+  const steps = timelineSteps(turn([think, gate, answer], { status: { type: 'requires-action', reason: 'interrupt' } }))
+  assert.deepEqual(steps.map((s) => [s.kind, s.status]), [
+    ['think', 'done'],
+    ['approval', 'waiting'],
+    ['answer', 'done'],
+  ])
+  assert.equal(steps.filter((s) => s.endedAt === undefined).length, 1)
+})

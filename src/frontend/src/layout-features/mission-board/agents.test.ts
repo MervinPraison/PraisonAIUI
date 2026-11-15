@@ -2,8 +2,8 @@
 // strip say (cards.ts).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import type { AgentStatus, ApprovalItem, RunKpis, SessionSummary } from '@/sdk/layoutTypes'
-import { agentCountsLabel, agentViews, defaultAgent, sessionsOf } from './agents'
+import type { AgentStatus, ApprovalItem, ChatMessageView, RunKpis, SessionSummary } from '@/sdk/layoutTypes'
+import { agentCountsLabel, agentViews, attention, chatGates, defaultAgent, sessionsOf, withChatGates } from './agents'
 import { agentDoing, agentMeta, agentTimer, approvalTitle, kpiCells, requestTitle } from './cards'
 
 const NOW = 50_000_000
@@ -76,7 +76,7 @@ test('KPI cells like the design: Runs today +6, Success 97.6%, Cost $1.84 of $10
     kpiCells(k).map((c) => [c.label, c.value, c.sub ?? '', c.tone ?? '']),
     [
       ['Runs today', '42', '+6', ''],
-      ['Success', '97.6%', 'of finished runs', 'success'],
+      ['Success', '97.6%', 'finished', 'success'],
       ['Cost today', '$1.84', 'of $10.00', ''],
       ['p50 latency', '2.1s', 'p95 6.8s', ''],
     ],
@@ -86,7 +86,7 @@ test('KPI cells like the design: Runs today +6, Success 97.6%, Cost $1.84 of $10
     empty.map((c) => [c.value, c.sub ?? '', c.tone ?? '']),
     [
       ['0', '', ''],
-      ['—', 'no finished runs', ''],
+      ['—', 'none finished', ''],
       ['$12.00', 'of $10.00', 'warning'],
       ['—', '', ''],
     ],
@@ -102,4 +102,39 @@ test('a request card says what the agent wants to do', () => {
   assert.equal(requestTitle({ agentName: 'Coder', toolName: 'shell' }), 'Coder wants to run a command')
   assert.equal(requestTitle({ agentName: 'Coder' }), 'Coder wants to run a command')
   assert.equal(requestTitle({ toolName: 'web_search' }), 'An agent wants to use web_search')
+})
+
+const gated: ChatMessageView[] = [
+  { id: 'u', role: 'user', createdAt: 1, parts: [{ type: 'text', id: 't', text: 'go' }] },
+  {
+    id: 'm',
+    role: 'assistant',
+    agentName: 'Coder',
+    createdAt: 2,
+    parts: [
+      { type: 'tool-call', id: 'a', toolName: 'shell', args: { cmd: 'ls' }, artifact: { risk_level: 'high' }, timing: { startedAt: 3 }, approval: { id: 'g1', prompt: 'List files?' } },
+      { type: 'tool-call', id: 'b', toolName: 'shell', args: {}, artifact: {}, approval: { id: 'g0', approved: true } },
+    ],
+  },
+]
+
+test('gates waiting in the open chat count as approvals (once, by id)', () => {
+  assert.deepEqual(chatGates(gated), [
+    { id: 'g1', toolName: 'shell', agentName: 'Coder', args: { cmd: 'ls' }, description: 'List files?', riskLevel: 'high', createdAt: 3 },
+  ])
+  assert.deepEqual(withChatGates([pip], gated).map((p) => p.id), ['ap_1', 'g1'])
+  assert.deepEqual(withChatGates([{ id: 'g1' }], gated).map((p) => p.id), ['g1'])
+  assert.equal(agentViews([], withChatGates([], gated))[0].state, 'waiting')
+})
+
+test('the banner: listed approvals first, the chat gate off the chat page, none where the page shows it', () => {
+  const on = (page: string) => ({ onApprovals: page === 'approvals', onChat: page === 'chat' })
+  assert.deepEqual(attention([pip], gated, on('logs')), { item: pip, source: 'approvals', more: 1 })
+  assert.deepEqual(attention([pip], gated, on('chat')), { item: pip, source: 'approvals', more: 1 })
+  assert.equal(attention([pip], gated, on('approvals'))?.source, 'chat')
+  assert.equal(attention([], gated, on('chat')), null)
+  assert.equal(attention([pip], [], on('approvals')), null)
+  assert.equal(attention([], [], on('logs')), null)
+  const older = { id: 'old', createdAt: 1 }
+  assert.equal(attention([pip, older], [], on('logs'))?.item.id, 'old')
 })

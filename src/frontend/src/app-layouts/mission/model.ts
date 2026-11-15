@@ -4,7 +4,6 @@
  */
 import type { LayoutNav, LayoutNavItem } from '@/sdk/layouts'
 import type { ShellLayoutSpec, ShellPage } from '@/sdk/manifest'
-import type { ApprovalItem } from '@/sdk/layoutTypes'
 
 /** The chat page the ops column sits beside, and New chat opens. */
 export const CHAT_PAGE = 'chat'
@@ -76,12 +75,6 @@ export function phoneNav(nav: Pick<LayoutNav, 'primary' | 'groups' | 'footer'>):
 /** Whether any nav list holds `pageId`. */
 export function hasPage(nav: Pick<LayoutNav, 'primary' | 'groups' | 'footer'>, pageId: string): boolean {
   return [...nav.primary, ...nav.footer, ...nav.groups.flatMap((g) => g.items)].some((i) => i.id === pageId)
-}
-
-/** The approval the banner shows: the oldest pending one; none on the approvals page itself. */
-export function bannerApproval(pending: readonly ApprovalItem[], pageId: string): ApprovalItem | null {
-  if (pageId === APPROVALS_PAGE || pending.length === 0) return null
-  return [...pending].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0))[0]
 }
 
 export type HealthState = 'ok' | 'degraded' | 'unknown'

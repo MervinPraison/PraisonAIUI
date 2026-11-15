@@ -10,7 +10,6 @@ import { provideLayoutData, resetLayoutsForTests, type LayoutNav, type LayoutNav
 import type { ApprovalItem, ApprovalsFeed } from '@/sdk/layoutTypes'
 import MissionFrame from './Frame'
 import {
-  bannerApproval,
   environmentOf,
   frameContent,
   hasPage,
@@ -71,14 +70,6 @@ test('phone tabs: the first four primary pages, then More with the rest', () => 
   assert.equal(pn.groups[0].items[0].id, 'logs')
   assert.equal(hasPage(nav('chat'), 'logs'), true)
   assert.equal(hasPage(nav('chat'), 'nope'), false)
-})
-
-test('the banner shows the oldest pending approval, never on the approvals page', () => {
-  const a: ApprovalItem = { id: 'a', createdAt: 20 }
-  const b: ApprovalItem = { id: 'b', createdAt: 10, agentName: 'Coder' }
-  assert.equal(bannerApproval([a, b], 'chat')?.id, 'b')
-  assert.equal(bannerApproval([a, b], 'approvals'), null)
-  assert.equal(bannerApproval([], 'chat'), null)
 })
 
 test('environment option and provider health', () => {

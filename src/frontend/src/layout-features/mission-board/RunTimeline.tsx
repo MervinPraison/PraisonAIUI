@@ -26,7 +26,7 @@ export default function RunTimeline({ messageId }: TurnRegionProps) {
         const waiting = s.status === 'waiting'
         const time = waiting ? formatClock(ms) : formatDuration(ms)
         return (
-          <li key={s.id} data-step-kind={s.kind} data-step-status={s.status} style={{ flexGrow: stepWeight(s, now) }} className="flex min-w-[88px] basis-0 flex-col gap-1">
+          <li key={s.id} data-step-kind={s.kind} data-step-status={s.status} style={{ flexGrow: stepWeight(s, now) }} className="flex min-w-fit basis-0 flex-col gap-1">
             <span
               aria-hidden="true"
               className={cn(
@@ -48,7 +48,7 @@ export default function RunTimeline({ messageId }: TurnRegionProps) {
               ) : s.status === 'done' ? (
                 <Check aria-hidden className="size-3" />
               ) : null}
-              <span className="truncate">{s.label}</span>
+              <span>{s.label}</span>
               <span className={cn('font-mono', !waiting && 'text-tier-3')}>{time}</span>
               {s.status === 'running' && <span className="sr-only">(running)</span>}
             </span>

@@ -4,7 +4,7 @@
  * shows as waiting even before the ledger's next poll, and approvals are
  * listed first ("approvals everywhere").
  */
-import type { AgentStatus, ApprovalItem, SessionSummary } from '@/sdk/layoutTypes'
+import type { AgentStatus, ApprovalItem, ChatMessageView, SessionSummary } from '@/sdk/layoutTypes'
 
 export type AgentState = AgentStatus['state']
 
@@ -80,4 +80,56 @@ export function defaultAgent(views: readonly AgentView[], openChatAgent: string 
     if (hit) return hit.name
   }
   return views.find((a) => a.state !== 'idle')?.name ?? views[0]?.name ?? null
+}
+
+/**
+ * Gates waiting in a chat thread (tool calls with an undecided approval),
+ * as approval items: the provider may pause a run in the thread without
+ * listing it in /api/approvals, and Mission still shows it everywhere.
+ */
+export function chatGates(messages: readonly ChatMessageView[]): ApprovalItem[] {
+  const out: ApprovalItem[] = []
+  for (const m of messages) {
+    if (m.role !== 'assistant') continue
+    for (const p of m.parts) {
+      if (p.type !== 'tool-call' || !p.approval || p.approval.approved !== undefined) continue
+      const risk = p.artifact?.risk_level
+      out.push({
+        id: p.approval.id,
+        toolName: p.toolName,
+        agentName: m.agentName,
+        args: p.args,
+        description: p.approval.prompt,
+        riskLevel: typeof risk === 'string' ? risk : undefined,
+        createdAt: p.timing?.startedAt ?? m.createdAt,
+      })
+    }
+  }
+  return out
+}
+
+/** Pending approvals plus the open chat's gates the feed does not list (by id). */
+export function withChatGates(pending: readonly ApprovalItem[], messages: readonly ChatMessageView[]): ApprovalItem[] {
+  const ids = new Set(pending.map((p) => p.id))
+  return [...pending, ...chatGates(messages).filter((g) => !ids.has(g.id))]
+}
+
+const oldest = (items: readonly ApprovalItem[]) => [...items].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0))[0]
+
+/**
+ * What the banner shows: the oldest listed approval (not on the approvals
+ * page), else the open chat's oldest gate (not on the chat page, whose
+ * thread shows it); `more` counts the others.
+ */
+export function attention(
+  pending: readonly ApprovalItem[],
+  messages: readonly ChatMessageView[],
+  where: { onApprovals: boolean; onChat: boolean },
+): { item: ApprovalItem; source: 'approvals' | 'chat'; more: number } | null {
+  const ids = new Set(pending.map((p) => p.id))
+  const gates = chatGates(messages).filter((g) => !ids.has(g.id))
+  const total = pending.length + gates.length
+  if (!where.onApprovals && pending.length) return { item: oldest(pending), source: 'approvals', more: total - 1 }
+  if (!where.onChat && gates.length) return { item: oldest(gates), source: 'chat', more: total - 1 }
+  return null
 }
