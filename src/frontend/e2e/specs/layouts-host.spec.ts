@@ -32,6 +32,16 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 const DIST = path.resolve(HERE, '..', '..', 'dist')
 
 const BUILTIN_IDS = ['chat-canvas', 'workbench', 'command', 'guided', 'mission']
+/**
+ * The layout features (`lf-*` chunks) each built-in layout loads on /chat and
+ * /logs: exactly these, never another layout's (ADR 0003 §5: no unused
+ * `lf-*` chunk). A layout not listed loads none.
+ */
+const OWN_FEATURES: Record<string, string[]> = {
+  // The command bar on every page; the run inspector on /chat only
+  // (layout-command.spec.ts checks the per-page split).
+  command: ['lf-command-bar', 'lf-run-inspector'],
+}
 const FALLBACK_LAYOUTS = {
   default: 'chat-canvas',
   userChoice: true,
@@ -91,6 +101,7 @@ function trackScripts(page: Page): string[] {
 }
 
 const layoutGroups = (scripts: string[]) => [...new Set(scripts.filter((s) => /^layout-/.test(s)))].sort()
+const featureGroups = (scripts: string[]) => [...new Set(scripts.filter((s) => /^lf-/.test(s)))].sort()
 
 const frame = (page: Page, id: string) => page.locator(`[data-aiui-layout-frame="${id}"]`)
 const shellRoot = (page: Page) => page.locator('[data-aiui-shell-root]')
@@ -146,7 +157,7 @@ test('the app shell opens in the default layout and downloads only its chunks', 
 })
 
 for (const id of BUILTIN_IDS) {
-  test(`network isolation: ${id} downloads its own chunks and the kit, nothing of another layout`, async ({ page }) => {
+  test(`network isolation: ${id} downloads its own chunks, its own features and the kit, nothing of another layout`, async ({ page }) => {
     const scripts = trackScripts(page)
     for (const pageId of ['chat', 'logs']) {
       await page.goto(`/${pageId}?layout=${id}`)
@@ -154,7 +165,8 @@ for (const id of BUILTIN_IDS) {
       await expect(page.locator(`#aiui-main [data-aiui-page="${pageId}"]`)).toBeVisible()
     }
     expect(layoutGroups(scripts)).toEqual([`layout-${id}`, 'layout-kit'].sort())
-    expect(scripts.filter((s) => /^lf-/.test(s) || s.startsWith('/_plugins/layoutfx/'))).toEqual([])
+    expect(featureGroups(scripts)).toEqual([...(OWN_FEATURES[id] ?? [])].sort())
+    expect(scripts.filter((s) => s.startsWith('/_plugins/layoutfx/'))).toEqual([])
   })
 }
 

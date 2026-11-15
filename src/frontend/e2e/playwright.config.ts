@@ -12,7 +12,7 @@
  *   chat-style         style chat, presets zinc and rose        theme-presets
  *   docs               `aiui build` output on `aiui serve`      markdown
  *   page-reload-*      the dashboard and app-shell servers      page-reload
- *   layouts-host       app shell + the layout-plugin fixture    layouts-host
+ *   layouts-host       app shell + the layout-plugin fixture    layouts-host, layout-<id>
  *                      (fixtures/layout-plugin/serve.py)
  *   legacy-baseline    the v0.3.153 tree (opt-in, see below)    legacy-parity
  *
@@ -150,7 +150,8 @@ export default defineConfig({
     },
     {
       name: 'layouts-host',
-      testMatch: /[\\/]layouts-host\.spec\.ts$/,
+      // The host suite and every layout's own suite (layout-<id>.spec.ts).
+      testMatch: /[\\/](layouts-host|layout-[a-z][a-z0-9-]*)\.spec\.ts$/,
       use: { ...chromium, baseURL: url(PORTS.layouts) },
     },
     ...(BASELINE_SRC

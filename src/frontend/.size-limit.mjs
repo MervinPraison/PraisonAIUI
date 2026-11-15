@@ -43,19 +43,25 @@ const legacyJs = filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks
 // Track W (kit v2: page icons, session times, ConnectionStatus, Brand, feed
 // hooks) measured the kit at 6.62 kB, each stub frame at 6.1 kB (a layout's
 // closure includes the kit) and the Workbench frame at 8.49 kB: each limit is
-// that plus 10%.
+// that plus 10%. Every layout's closure holds the kit chunks, so a frame that
+// uses a different part of the kit splits it for all of them (the Command
+// Deck uses no BasicFrame or ShortcutHint, so Rollup moves those two into a
+// kit chunk of their own that only the stub frames import).
 const LAYOUT_BUDGETS = {
   'layout-chat-canvas': '6.7 kB',
   'layout-workbench': '9.4 kB',
-  'layout-command': '6.7 kB',
+  // The Command Deck frame (track K): rail, session tabs, status bar, phone
+  // frame and shortcut sheet, plus the kit pieces it imports. 11.84 kB + 10%.
+  'layout-command': '13.1 kB',
   'layout-guided': '6.7 kB',
   'layout-mission': '6.7 kB',
 }
 const KIT_BUDGET = '7.3 kB'
 const FEATURE_BUDGETS = {
   'lf-artifacts': '30 kB',
-  'lf-run-inspector': '14 kB',
-  'lf-command-bar': '6 kB',
+  // Track K, measured at 8.34 kB and 1.46 kB, + 10%.
+  'lf-run-inspector': '9.2 kB',
+  'lf-command-bar': '1.6 kB',
   'lf-step-tracker': '6 kB',
   'lf-mission-board': '22 kB',
 }
