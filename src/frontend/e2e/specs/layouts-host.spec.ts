@@ -174,6 +174,26 @@ test('?layout=classic previews the classic frame for this tab, across navigation
   expect(await page.evaluate(() => localStorage.getItem('aiui-layout'))).toBeNull()
 })
 
+/**
+ * Switch to the plugin layout, use its nav (chat, then logs), and switch back
+ * to the default layout, ending on /logs.
+ */
+async function auroraRoundTrip(page: Page): Promise<void> {
+  await runPaletteCommand(page, 'Switch layout: Aurora')
+  await expect(frame(page, 'aurora')).toBeVisible()
+  await expect(frame(page, 'aurora')).toHaveAttribute('data-active-layout', 'aurora')
+  await expect(page.locator('#aiui-main [data-aiui-page="logs"]')).toBeVisible()
+  // Its nav drives the router; the page renders in its outlet.
+  await page.locator('[data-aurora-link="chat"]').click()
+  await expect(page).toHaveURL(/\/chat$/)
+  await expect(page.locator('#aiui-main [data-aiui-page="chat"]')).toBeVisible()
+  await page.locator('[data-aurora-link="logs"]').click()
+  await expect(page.locator('#aiui-main [data-aiui-page="logs"]')).toBeVisible()
+  await runPaletteCommand(page, 'Switch layout: Chat + Canvas')
+  await expect(frame(page, 'chat-canvas')).toBeVisible()
+  await expect(page.locator('#aiui-main [data-aiui-page="logs"]')).toBeVisible()
+}
+
 test('the plugin layout loads only when picked, persists, and switching leaks nothing', async ({ page }) => {
   const errors = collectPageErrors(page)
   const scripts = trackScripts(page)
@@ -181,34 +201,31 @@ test('the plugin layout loads only when picked, persists, and switching leaks no
   await expect(frame(page, 'chat-canvas')).toBeVisible()
   await expect(page.locator('#aiui-main [data-aiui-page="logs"]')).toBeVisible()
   expect(scripts.filter((s) => s.includes('aurora'))).toEqual([])
-  const before = await leakSnapshot(page)
 
-  await runPaletteCommand(page, 'Switch layout: Aurora')
-  await expect(frame(page, 'aurora')).toBeVisible()
-  await expect(frame(page, 'aurora')).toHaveAttribute('data-active-layout', 'aurora')
-  await expect(page.locator('#aiui-main [data-aiui-page="logs"]')).toBeVisible()
+  // First round trip: the plugin module loads when picked, and the choice is stored.
+  const fetchedBefore = scripts.length
+  await auroraRoundTrip(page)
   expect(scripts.filter((s) => s.startsWith('/_plugins/layoutfx/'))).toEqual(['/_plugins/layoutfx/aurora.js'])
-  expect(await page.evaluate(() => localStorage.getItem('aiui-layout'))).toBe('aurora')
+  // Back to the default: its chunks are cached, so no layout chunk but the plugin's was fetched.
+  expect(layoutGroups(scripts.slice(fetchedBefore))).toEqual([])
 
-  // Its nav drives the router; the page renders in its outlet.
-  await page.locator('[data-aurora-link="chat"]').click()
-  await expect(page).toHaveURL(/\/chat$/)
-  await expect(page.locator('#aiui-main [data-aiui-page="chat"]')).toBeVisible()
-  await page.locator('[data-aurora-link="logs"]').click()
-  await expect(page.locator('#aiui-main [data-aiui-page="logs"]')).toBeVisible()
-
-  // Back to the default: its chunks are cached, nothing new is fetched.
+  // Second round trip: nothing new is fetched, and nothing is left behind. The
+  // first trip is the baseline because what a tab opens once (the legacy
+  // runtime's approval stream, the chat connection) opens asynchronously
+  // during it, not on every switch.
+  await page.waitForTimeout(500)
   const fetched = scripts.length
-  await runPaletteCommand(page, 'Switch layout: Chat + Canvas')
-  await expect(frame(page, 'chat-canvas')).toBeVisible()
-  await expect(page.locator('#aiui-main [data-aiui-page="logs"]')).toBeVisible()
-  expect(layoutGroups(scripts.slice(fetched))).toEqual([])
+  const before = await leakSnapshot(page)
+  await auroraRoundTrip(page)
+  await page.waitForTimeout(500)
+  expect(scripts.slice(fetched).filter((s) => /^layout-/.test(s) || s.startsWith('/_plugins/'))).toEqual([])
   const delta = leakDelta(before, await leakSnapshot(page))
   for (const key of ['ws', 'es', 'intervals', 'windowListeners'] as const) expect(delta[key] ?? 0, key).toBeLessThanOrEqual(0)
 
   // The choice persists across a reload, and is the viewer's own.
   await runPaletteCommand(page, 'Switch layout: Aurora')
   await expect(frame(page, 'aurora')).toBeVisible()
+  expect(await page.evaluate(() => localStorage.getItem('aiui-layout'))).toBe('aurora')
   await page.reload()
   await expect(frame(page, 'aurora')).toBeVisible()
   expect(errors.pageErrors).toEqual([])
