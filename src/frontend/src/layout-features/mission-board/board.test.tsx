@@ -33,8 +33,15 @@ const kpis: RunKpis = { window: 'today', runs: 42, runsDelta: 6, successRate: 41
 test('approval banner: who asks, the call, Review / Deny / Approve', () => {
   const decide = async () => {}
   const out = html(createElement(ApprovalBanner, { item: pip, more: 2, decide, onReview: () => {} }))
-  assert.match(out, /role="alert" data-aiui-approval-banner="ap_1"/)
-  assert.match(out, /Coder needs your approval to continue/)
+  assert.match(out, /^<section aria-labelledby="([^"]+)" data-aiui-approval-banner="ap_1"/)
+  // Only the title is live: the banner is a region named by it, and nothing else is an alert.
+  const titleId = out.match(/aria-labelledby="([^"]+)"/)![1]
+  assert.match(out, new RegExp(`<span id="${titleId}" role="alert"[^>]*>Coder needs your approval to continue[^<]*</span>`))
+  assert.equal((out.match(/role="(alert|status)"|aria-live=/g) ?? []).length, 1, 'one live region')
+  const timed = html(createElement(ApprovalBanner, { item: { ...pip, createdAt: Date.now() - 65_000 }, more: 0, decide }))
+  const live = timed.match(/<span[^>]*role="alert"[^>]*>([\s\S]*?)<\/span>/)![1]
+  assert.match(timed, /waiting <span class="font-mono">1:0\d<\/span>/)
+  assert.doesNotMatch(live, /waiting/, 'the ticking clock is outside the live region')
   assert.match(out, /<code[^>]*>pip install numpy<\/code> · high risk · 2 more waiting/)
   assert.deepEqual([...out.matchAll(/<button[^>]*>([^<]+)<\/button>/g)].map((m) => m[1]), ['Review', 'Deny', 'Approve'])
   const phone = html(createElement(ApprovalBanner, { item: pip, more: 0, decide, touch: true, onReview: () => {} }))

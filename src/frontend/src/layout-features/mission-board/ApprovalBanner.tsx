@@ -8,7 +8,7 @@
  * a gate waiting in the open chat's thread (not on the chat page, where the
  * thread shows it). The frame loads it with import().
  */
-import { useState, type Ref } from 'react'
+import { useId, useState, type Ref } from 'react'
 import { TriangleAlert } from 'lucide-react'
 // The kit's own module, not its index: only this board uses it, so it ships in
 // lf-mission-board and the kit chunk every layout loads stays as it is.
@@ -51,11 +51,15 @@ export function ApprovalBanner({ item, more, decide: send, reviewLabel = 'Review
       setBusy(false)
     }
   }
+  const titleId = useId()
   const call = describeCall(item)
   const waiting = item.createdAt ? formatClock(now - item.createdAt) : null
+  // A named region; only the title is live (an alert, announced when the
+  // banner or its approval appears). The waiting clock ticks every second,
+  // so it stays out of the live region and is never re-announced.
   return (
-    <div
-      role="alert"
+    <section
+      aria-labelledby={titleId}
       data-aiui-approval-banner={item.id}
       className={cn(
         'flex flex-wrap items-center gap-3 rounded-lg border border-[var(--ui-warning-line)] bg-warning-soft px-3 py-2.5',
@@ -68,7 +72,9 @@ export function ApprovalBanner({ item, more, decide: send, reviewLabel = 'Review
           <TriangleAlert className="size-4" />
         </span>
         <div className="flex min-w-0 flex-col gap-px">
-          <span className={cn('font-semibold text-foreground', touch ? 'text-[15px]' : 'text-sm')}>{approvalTitle(item)}</span>
+          <span id={titleId} role="alert" className={cn('font-semibold text-foreground', touch ? 'text-[15px]' : 'text-sm')}>
+            {approvalTitle(item)}
+          </span>
           <span className="min-w-0 text-[13px] text-muted-foreground">
             Wants to run <code className="font-mono break-all text-foreground">{call.length > 120 ? `${call.slice(0, 119)}…` : call}</code>
             {item.riskLevel && ` · ${item.riskLevel} risk`}
@@ -101,7 +107,7 @@ export function ApprovalBanner({ item, more, decide: send, reviewLabel = 'Review
           Approve
         </Button>
       </div>
-    </div>
+    </section>
   )
 }
 
