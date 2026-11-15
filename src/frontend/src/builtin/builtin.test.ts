@@ -36,6 +36,11 @@ test('built-in names are unique, namespaced and each one owns a page or is a ser
   assert.equal(new Set(ids).size, ids.length, 'no page id is claimed twice')
 })
 
+test('the built-in layouts and their picker ship in the list (otherwise Rollup drops them)', () => {
+  const names = BUILTIN_PLUGINS.map((b) => b.name)
+  assert.deepEqual(names, ['builtin.chat', 'builtin.approvals', 'builtin.layouts', 'builtin.layout-guided', 'builtin.overview', 'builtin.sessions', 'builtin.logs', 'builtin.config'])
+})
+
 const page = (id: string, extra: Partial<ShellPage> = {}): ShellPage => ({
   id,
   title: id,
@@ -138,7 +143,8 @@ test('a built-in page hidden by set_pages is not registered and renders "Page no
   resetBuiltinsForTests()
   resetServicesForTests()
   const hidden = manifest([page('overview'), page('logs')])
-  assert.deepEqual(activateBuiltins(hidden), ['builtin.approvals'], 'only the always-on service')
+  // The always-on services, and the React pages of the two pages it lists.
+  assert.deepEqual(activateBuiltins(hidden), ['builtin.approvals', 'builtin.layouts', 'builtin.overview', 'builtin.logs'])
   assert.equal(getPage('chat'), undefined)
   assert.equal(getCommands().find((c) => c.id === 'chat.new'), undefined, 'no "New chat" without the chat page')
   const html = renderPage('chat', hidden)
@@ -149,7 +155,7 @@ test('a built-in page hidden by set_pages is not registered and renders "Page no
 test('an app page that reuses the id keeps its own renderer', () => {
   resetBuiltinsForTests()
   const own = manifest([page('chat', { source: 'app', kind: 'blocks' })])
-  assert.deepEqual(activateBuiltins(own), ['builtin.approvals'])
+  assert.deepEqual(activateBuiltins(own), ['builtin.approvals', 'builtin.layouts'])
   assert.equal(getPage('chat'), undefined, 'the React chat does not shadow the app page')
 })
 
@@ -168,4 +174,18 @@ test('installBuiltins queues on onActivate: nothing registers until the shell ha
   assert.equal(newChat.group, 'Actions')
   assert.doesNotMatch(renderPage('chat', m), /Page not found/)
   assert.deepEqual(activateBuiltins(m), [], 'already active')
+})
+
+test("a layout's own pages activate only while the manifest lists them (the server lists them while that layout is offered)", () => {
+  resetBuiltinsForTests()
+  const guided = BUILTIN_PLUGINS.filter((b) => b.name === 'builtin.layout-guided')
+  const registered: string[] = []
+  const sdk = { ...sdkApi, registerPage: (id: string) => void registered.push(id) } as typeof sdkApi
+  assert.deepEqual(activateBuiltins(manifest([page('chat')]), sdk, guided), [], 'Guided off: nothing registers')
+  assert.deepEqual(
+    activateBuiltins(manifest([page('chat'), page('start', { kind: 'native', layouts: ['guided'] }), page('templates', { kind: 'native', layouts: ['guided'] })]), sdk, guided),
+    ['builtin.layout-guided'],
+  )
+  assert.deepEqual(registered, ['start', 'templates'])
+  resetBuiltinsForTests()
 })

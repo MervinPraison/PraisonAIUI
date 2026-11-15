@@ -21,7 +21,10 @@
     "notify.dismiss",
     "settings",
     "nav-groups",
-    "theme-presets"
+    "theme-presets",
+    "layouts",
+    "layout-data",
+    "slots.dispose"
   ],
   "react": "19.2.4",
   "modules": {
@@ -124,7 +127,13 @@
       "dismiss",
       "registerSettingsSection",
       "registerNavGroup",
-      "registerThemePreset"
+      "registerThemePreset",
+      "registerLayout",
+      "getLayouts",
+      "useLayout",
+      "setLayout",
+      "provideLayoutData",
+      "useLayoutData"
     ]
   }
 }

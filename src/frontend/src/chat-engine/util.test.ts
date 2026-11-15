@@ -60,6 +60,10 @@ test('regenerate targets only the last answer (an earlier answer is never turned
   assert.equal(isLastReply([{ id: 'u1', role: 'user' }, { id: 'u2', role: 'user' }], 'u1'), false, 'no answer to regenerate')
 })
 
+test('an open socket says Connected at every width (one word for it in every layout)', () => {
+  assert.deepEqual(connectionLabel('open', { kind: 'ws' }), { label: 'Connected', short: 'Connected', tone: 'ok' })
+})
+
 test('a closed socket with the HTTP fallback reads "Using HTTP", not a red "Offline" (G7)', () => {
   assert.deepEqual(connectionLabel('closed', { kind: 'ws', httpFallback: true }), { label: 'Using HTTP', short: 'HTTP', tone: 'pending' })
   assert.equal(connectionLabel('closed', { kind: 'sse' }).label, 'Using HTTP')

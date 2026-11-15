@@ -21,6 +21,7 @@ import { gateMermaidSource, isAutoLoadImage, isExternalHref } from './urlPolicy'
 import { continueSplitLists } from './listNumbering'
 import { fenced } from './fence'
 import { CHAT_CONTROLS, COPY_FAILED, DOCS_CONTROLS, reportCopyError } from './controls'
+import { hastTextLength } from './chatComponents'
 
 const chat = (md: string, streaming = false) => renderToStaticMarkup(<Markdown variant="chat" streaming={streaming}>{md}</Markdown>)
 const docs = (md: string) => renderToStaticMarkup(<Markdown variant="docs">{preprocessMkdocsMarkdown(md)}</Markdown>)
@@ -700,4 +701,40 @@ test('an Arabic paragraph renders right to left; English stays left to right', (
         assert.match(html, new RegExp(`dir="rtl"[^>]*>(?:<[^>]+>)*${arabic}`))
         assert.doesNotMatch(html, /dir="rtl"[^>]*>(?:<[^>]+>)*Hello/)
     }
+})
+
+// ── chat code blocks: collapse, wrap toggle (./CodeBlock) ──
+test('chat: a fence over 12 lines collapses with a "Show all N lines" toggle', async () => {
+    const { codeLineCount, CODE_COLLAPSE_LINES } = await import('./CodeBlock')
+    assert.equal(CODE_COLLAPSE_LINES, 12)
+    assert.equal(codeLineCount('a\nb\n'), 2)
+    assert.equal(codeLineCount(''), 0)
+    const long = Array.from({ length: 20 }, (_, i) => `x${i} = ${i}`).join('\n')
+    const html = chat('```python\n' + long + '\n```')
+    assert.match(html, /class="aiui-code"[^>]*data-collapsed=""/)
+    assert.match(html, /aria-expanded="false"[^>]*>Show all 20 lines</)
+    assert.match(html, /aria-label="Wrap long lines"/)
+})
+
+test('chat: a short fence is not collapsed but still offers wrap; inline code and docs are untouched', () => {
+    const html = chat('```python\nprint(1)\nprint(2)\n```\n\nsee `x`')
+    assert.match(html, /class="aiui-code"/)
+    assert.doesNotMatch(html, /data-collapsed/)
+    assert.doesNotMatch(html, /Show all/)
+    assert.match(html, /data-streamdown="inline-code"/)
+    const d = docs('```python\n' + Array.from({ length: 20 }, () => 'x').join('\n') + '\n```')
+    assert.doesNotMatch(d, /aiui-code/)
+})
+
+test('chat tables mark short cells data-short (one line in a layout chat); a long prose cell may wrap', () => {
+  const md = '| Algorithm | Average | Note |\n|---|---|---|\n| Quicksort | O(n log n) | ' + 'fast in practice but quadratic on sorted input' + ' |\n'
+  const html = renderToStaticMarkup(<Markdown variant="chat">{md}</Markdown>)
+  assert.match(html, /<th[^>]*data-short="true"[^>]*>Algorithm/)
+  assert.match(html, /<td[^>]*data-short="true"[^>]*>O\(n log n\)/)
+  assert.match(html, /<td(?![^>]*data-short)[^>]*>fast in practice/)
+})
+
+test('hastTextLength counts the trimmed text of nested nodes', () => {
+  assert.equal(hastTextLength({ type: 'element', children: [{ type: 'text', value: ' O(n ' }, { type: 'element', children: [{ type: 'text', value: 'log n)' }] }] }), 9)
+  assert.equal(hastTextLength(undefined), 0)
 })

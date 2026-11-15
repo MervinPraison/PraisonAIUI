@@ -18,7 +18,7 @@
     "size": "size-limit",
     "sync": "node scripts/sync-templates.mjs",
     "check:bundle": "node scripts/check-bundle-sync.mjs",
-    "check:closure": "node scripts/check-entry-closure.mjs"
+    "check:closure": "node scripts/check-entry-closure.mjs && node scripts/check-layout-isolation.mjs"
   },
   "keywords": [
     "react",

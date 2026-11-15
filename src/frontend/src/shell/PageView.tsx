@@ -132,12 +132,20 @@ export function PageView({
   pluginsSettled,
   fullBleed,
   firstPage,
+  className,
 }: {
+  /**
+   * The page to render. Under a layout this may be a page whose `replaces`
+   * names the URL's page (resolved from manifest data by the host,
+   * shell/layoutNav.ts resolveRoutePage), never by id here.
+   */
   pageId: string
   page: ShellPage | undefined
   pluginsSettled: boolean
   fullBleed: boolean
   firstPage?: ShellPage
+  /** Extra classes on the page's root element (a layout frame's Outlet). */
+  className?: string
 }) {
   // Late registerPage() calls (plugins) re-render the resolution.
   useRegistryVersion()
@@ -207,9 +215,12 @@ export function PageView({
     <PageErrorBoundary key={pageId} pageTitle={title}>
       <div
         data-aiui-page={pageId}
+        // The page template (manifest data): legacy/page-types.css styles by it, never by id.
+        data-aiui-page-type={page?.pageType || undefined}
         className={cn(
           'w-full min-w-0',
           fullBleed ? 'flex min-h-0 flex-1 flex-col' : 'px-4 py-4 md:px-8 md:py-6 lg:px-10 lg:py-8',
+          className,
         )}
       >
         {page && (

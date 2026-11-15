@@ -271,6 +271,14 @@ test('approval: no network and other HTTP errors are reported on the part; a lat
   assert.deepEqual(calls[2].body, { reason: 'no' })
 })
 
+test('approval: always sends always: true, so the server remembers the decision for the tool', async () => {
+  const f = await gated()
+  const calls = stubFetch(200)
+  await threadStore.respondApproval(f.t, 'S', 'ap1', { approved: true, always: true })
+  assert.deepEqual(calls, [{ url: '/api/approvals/ap1/approve', body: { reason: '', always: true } }])
+  assert.equal(threadStore.findApproval('S', 'ap1')?.approval?.approved, true)
+})
+
 test('approval: a gate the stream resolved while the POST was in flight is not reopened by a late failure', async () => {
   const f = await gated()
   let release!: () => void

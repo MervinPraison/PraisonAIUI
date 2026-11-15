@@ -95,10 +95,11 @@ Every member except `name` is optional:
 | `settings()` | `SettingsSectionSpec` or dicts | Sections of the shell's settings dialog ([below](#settings-nav-groups-and-theme-presets)) |
 | `nav_groups()` | `NavGroupSpec` or dicts | The sidebar groups your pages use, with their position |
 | `themes()` | `ThemeSpec` or dicts | Theme presets made of seed tokens |
+| `layouts()` | `LayoutSpec` or dicts | App shell frames (ADR 0003) the viewer can pick ([below](#layouts)) |
 
 `PageSpec`, `BlockSpec`, `ToolRendererSpec`, `SettingsSectionSpec`,
-`SettingsField`, `NavGroupSpec`, `ThemeSpec` and `get_plugin_settings` are
-importable from `praisonaiui` (or `praisonaiui.plugin_registry`). Dicts with
+`SettingsField`, `NavGroupSpec`, `ThemeSpec`, `LayoutSpec` and
+`get_plugin_settings` are importable from `praisonaiui` (or `praisonaiui.plugin_registry`). Dicts with
 the same field names work too.
 
 ### Page kinds
@@ -327,6 +328,7 @@ Registration:
 | `registerSettingsSection(section)` | Add a section to the shell's settings dialog: `{ id, title, description?, order?, fields, load(), save(values) }`, fields as in [`settings()`](#settings-nav-groups-and-theme-presets). A `save` rejection whose error has `body.fields` shows those messages next to the fields. Returns a remover |
 | `registerNavGroup(name, { order, folded }?)` | Declare the sidebar group your pages use, like [`nav_groups()`](#settings-nav-groups-and-theme-presets). Returns a remover |
 | `registerThemePreset({ id, label, light?, dark? })` | Offer a seed-token theme preset, like [`themes()`](#settings-nav-groups-and-theme-presets). Returns a remover |
+| `registerLayout(id, meta, Frame \| loader)` | Add a [layout](#layouts) (the frame around every page). `getLayouts()`, `useLayout()`, `setLayout(id)`, `provideLayoutData(kind, feed)` and `useLayoutData(kind)` go with it. Returns a remover |
 | `onActivate(fn)` | Run `fn({ manifest })` once the app is ready |
 | `getPage`, `getBlock`, `getSlot`, `getToolRenderers` | Registry lookups |
 | `subscribe(fn)`, `useRegistryVersion()` | React to later registrations |
@@ -429,6 +431,125 @@ registerSlot('header:actions', HelloAction, { id: 'hello', order: 50 })
   removed and logged; the others and the shell stay.
 - A slot nobody contributes to renders nothing.
 
+### Layouts
+
+A layout owns the frame of the app shell: the navigation, the session list,
+the top bar, side panels and the phone chrome. The page stays the page: every
+page renders inside every layout, in the outlet the shell hands the frame
+([ADR 0003](../adr/0003-selectable-layouts.md)). aiui ships five layouts
+(`chat-canvas`, the app shell's default, plus `workbench`, `command`, `guided`
+and `mission`); the core's own frame is called `classic`. A plugin adds a
+layout with the same call the built-ins use.
+
+**Which layout is on screen.** The server's manifest lists the layouts it
+offers (`layouts.available`) and its default. The browser takes the first of:
+a `?layout=<id>` preview (kept for the tab, never saved), the viewer's own
+choice (the palette's "Switch layout: …" commands or Settings → Appearance,
+saved in this browser, only when the server allows a user choice), the server
+default, the classic frame. A layout the server does not offer is never
+chosen.
+
+**Declare it in Python** with a `layouts()` hook, which returns
+`LayoutSpec`s (or dicts with the same field names), like `pages()`:
+
+```python
+from praisonaiui import LayoutSpec
+
+class AuroraPlugin:
+    name = "layoutfx"
+
+    def layouts(self):
+        return [LayoutSpec(id="aurora", title="Aurora", module="aurora.js", order=90)]
+
+    def static_dir(self):
+        return Path(__file__).parent / "static"  # /_plugins/layoutfx/aurora.js
+```
+
+| `LayoutSpec` field | Meaning |
+|---|---|
+| `id` | Lower-case letters, digits and `-`, starting with a letter, at most 40 characters; `classic` is reserved |
+| `title`, `description` | Shown in the picker (palette and Settings → Appearance) |
+| `order` | Picker position (default `100`; the built-ins use 10 to 50) |
+| `module` | **Required** for a plugin layout: the ESM file that registers the frame. A relative path resolves into `static_dir()` (`/_plugins/<name>/<file>`) and gets an SRI `integrity` hash |
+| `css` | Optional stylesheet, resolved the same way, added when the layout first loads |
+| `home` | The page `/` opens while this layout is on screen |
+| `primary` | Page ids of the primary nav, in order (at most 7 shown; YAML `layout.primary` wins) |
+
+The first plugin (or built-in) to declare an id keeps it; a later one is
+ignored with a warning, as is a malformed or `classic` id. On a remote or
+auth-enforced server an entry-point plugin's layouts follow the same
+default-deny rule as its pages. Configuration (which layouts are offered,
+the default) is in [Layouts → Plugin layouts](./layouts.md#plugin-layouts).
+
+**Register the frame in the browser.** The shell imports the module only
+when the layout is first rendered, never with the other plugin modules, so an
+inactive layout costs nothing. The module either calls `registerLayout(id,
+meta, Frame)` while it is evaluated (its `meta` then replaces the manifest's
+title and description) or default-exports the frame:
+
+```js
+import { jsx, jsxs } from 'react/jsx-runtime'
+import { registerLayout } from '@aiui/sdk'
+
+function AuroraFrame({ Outlet, nav, chrome, page, fullBleed }) {
+  const items = [...nav.primary, ...nav.groups.flatMap((g) => g.items), ...nav.footer]
+  return jsxs('div', {
+    style: { display: 'flex', flex: '1 1 0%', minWidth: 0 },
+    children: [
+      jsx('nav', {
+        'aria-label': 'Main',
+        children: items.map((item) =>
+          jsx('a', {
+            href: item.href,
+            'aria-current': item.active ? 'page' : undefined,
+            onClick: (e) => { e.preventDefault(); nav.go(item.id) },
+            children: item.title,
+          }, item.id),
+        ),
+      }),
+      jsx('main', { id: chrome.mainId, tabIndex: -1, style: { flex: '1 1 0%', overflowY: fullBleed ? 'hidden' : 'auto' },
+        children: jsx(Outlet, {}) }),
+    ],
+  })
+}
+
+registerLayout('aurora', { title: 'Aurora', description: 'A slim rail and the page' }, AuroraFrame)
+```
+
+The complete example is `src/frontend/e2e/fixtures/layout-plugin/` (the
+suite `e2e/specs/layouts-host.spec.ts` runs it).
+
+What the frame receives (`LayoutProps`):
+
+| Prop | What it is |
+|---|---|
+| `Outlet` | The routed page, with its error boundary, toolbar slot and loading state. Render it once, inside your `main` |
+| `pageId`, `page`, `fullBleed` | The page on screen, its manifest entry, and whether it asked for no padding (chat, iframes): then give the outlet the full height and no scroll |
+| `nav` | `primary` (at most 7, the layout's own list), `groups` (every other page, by sidebar group, with `folded`), `footer`, `activeId`, `go(pageId)`. Items carry `id`, `title`, `href`, `active`, `navIcon`, `icon`, `group` |
+| `chrome` | `siteTitle`, `siteLogo`, `openPalette({ query? })` (the one command palette, optionally prefilled), `toggleColorMode()`, `Slot` (the shell's slot host: `<chrome.Slot name="header:actions" />`), `mainId` (give your `main` this id: the skip link and the palette focus it) |
+| `viewport` | `'phone'` (< 768 px), `'tablet'` (< 1024 px) or `'desktop'`; draw your phone frame from it |
+| `layout` | `id`, `available` (the offered layouts), `switchTo(id)` |
+
+`useLayout()` returns `{ id, meta }` of the layout on screen (null for the
+classic frame), `setLayout(id, { persist }?)` switches live (`''` or
+`'classic'` is the classic frame), and `getLayouts()` lists the registered
+ones. `meta.chat` tells the chat page how to present itself in your frame
+(who draws the session list, the thread style, lazy regions); see the ADR.
+Frames read data such as the session list with `useLayoutData('sessions')`,
+which returns null while nothing provides it: render without it. The `chat`
+feed (`builtin.chat`) also acts on the open chat: `prefill(text)` fills the
+composer, `send?(text)` sends (optional: check for it, and fall back to
+`prefill`), `cancel()` stops the reply, and
+`resolveApproval(id, approved, { always? })` decides a gate in the thread.
+
+**Failure.** A layout whose module fails to import, or whose frame throws,
+is replaced by the classic frame with one toast and an `aiui:plugin-error`
+event (`detail.layout` is its id). Other layouts are not affected.
+
+Keep a frame self-contained: import React and `@aiui/sdk` only, style with
+the theme's CSS variables, give icon-only buttons an `aria-label`, and make
+phone touch targets at least 44 px.
+
 ### Feature detection
 
 The SDK grows without a new major version, so `SDK_VERSION` stays `1`. A named
@@ -449,8 +570,11 @@ Feature names: `pages`, `blocks`, `tool-renderers`, `slots`, `views`,
 `activate`, `slots.multi` (the `{ id, order }` options and the slot hosts),
 `blocks.fallback`, `page-id` (`getPageId`, `usePageId`), `theme-mode`
 (`useThemeMode`), `notify.dismiss`, `settings` (`registerSettingsSection` and
-the `settings()` hook), `nav-groups` (`registerNavGroup`, `nav_groups()`) and
-`theme-presets` (`registerThemePreset`, `themes()`). A shell older than the
+the `settings()` hook), `nav-groups` (`registerNavGroup`, `nav_groups()`),
+`theme-presets` (`registerThemePreset`, `themes()`), `layouts`
+(`registerLayout`, `getLayouts`, `useLayout`, `setLayout`, manifest
+`layouts`), `layout-data` (`provideLayoutData`, `useLayoutData`) and
+`slots.dispose` (`registerSlot` returns a remover). A shell older than the
 services has no `SDK_FEATURES`.
 
 ### Types

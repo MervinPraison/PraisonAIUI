@@ -16,6 +16,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import type { ShellPage } from '../sdk/manifest'
 // Also imported by runtime.ts (overlays before the first mount); Vite dedupes.
 import './bridge.css'
+// Page templates (data-aiui-page-type, Pro layouts): with the host, never at boot.
+import './page-types.css'
 import { ensureLegacyRuntime } from './runtime'
 
 export interface LegacyViewHostProps {

@@ -113,7 +113,7 @@ function looksLikeLoader(c: unknown): boolean {
   return typeof c === 'function' && c.length === 0 && !('prototype' in c && c.prototype)
 }
 
-function lazyPage(load: () => unknown, fallbackComponent: PageComponent): PageComponent {
+function lazyComponent(kind: string, load: () => unknown, fallbackComponent: AnyComponent): AnyComponent {
   // Retryable: a failed chunk load is imported again on the next mount.
   return retryableLazy(async () => {
     let result: unknown
@@ -130,9 +130,25 @@ function lazyPage(load: () => unknown, fallbackComponent: PageComponent): PageCo
       typeof mod === 'object' && mod !== null && 'default' in mod
         ? (mod as { default: unknown }).default
         : mod
-    requireComponent('registerPage', '<loader result>', c)
-    return { default: c as PageComponent }
-  }) as unknown as PageComponent
+    requireComponent(kind, '<loader result>', c)
+    return { default: c as AnyComponent }
+  })
+}
+
+/**
+ * What to render for `c`: `c` itself, or, when it looks like a loader (a
+ * zero-argument arrow returning `import()`), a retryable lazy component that
+ * calls it on first render, never before. Throws a TypeError naming
+ * `kind('name')` when `c` is neither. Shared by registerPage and
+ * registerLayout (sdk/layouts.ts).
+ */
+export function toComponent<C extends AnyComponent>(
+  kind: string,
+  name: string,
+  c: C | (() => Promise<{ default: C }>),
+): C {
+  requireComponent(kind, name, c)
+  return (looksLikeLoader(c) ? lazyComponent(kind, c as () => unknown, c as AnyComponent) : c) as C
 }
 
 /**
@@ -143,9 +159,7 @@ function lazyPage(load: () => unknown, fallbackComponent: PageComponent): PageCo
  */
 export function registerPage(id: string, c: PageComponent | PageLoader): void {
   const name = requireName('registerPage', id)
-  requireComponent('registerPage', name, c)
-  const component = looksLikeLoader(c) ? lazyPage(c as () => unknown, c as PageComponent) : (c as PageComponent)
-  setEntry(pages, 'registerPage', name, component)
+  setEntry(pages, 'registerPage', name, toComponent<PageComponent>('registerPage', name, c))
 }
 
 /** Options of registerBlock(). */
@@ -208,8 +222,13 @@ export function registerToolRenderer(toolName: string, c: AnyComponent): void {
  * `registerSlot(slot, C)` sets the slot's default contribution and replaces
  * an earlier default. `registerSlot(slot, C, { id, order })` adds a separate
  * contribution, so several plugins can share a slot.
+ *
+ * Returns a disposer that removes this contribution (feature
+ * `slots.dispose`). Once a later call has replaced the contribution the
+ * disposer removes nothing, so an unmounting frame never takes away a
+ * contribution someone else made.
  */
-export function registerSlot(slot: string, c: AnyComponent, opts: SlotOptions = {}): void {
+export function registerSlot(slot: string, c: AnyComponent, opts: SlotOptions = {}): () => void {
   const name = requireName('registerSlot', slot)
   requireComponent('registerSlot', name, c)
   if (typeof opts !== 'object' || opts === null) {
@@ -226,14 +245,23 @@ export function registerSlot(slot: string, c: AnyComponent, opts: SlotOptions = 
   let entries = slots.get(name)
   if (!entries) slots.set(name, (entries = new Map()))
   const prev = entries.get(id)
-  if (prev && prev.component === c && prev.order === order) return
+  const disposer = (entry: SlotEntry) => () => {
+    const current = slots.get(name)
+    if (current?.get(id) !== entry) return
+    current.delete(id)
+    if (current.size === 0) slots.delete(name)
+    emit()
+  }
+  if (prev && prev.component === c && prev.order === order) return disposer(prev)
   if (prev && prev.component !== c) {
     const which = id === DEFAULT_SLOT_ID ? '' : `, { id: '${id}' }`
     console.warn(`[aiui sdk] registerSlot('${name}'${which}) replaces an earlier registration`)
   }
   // A replacement keeps its place among contributions of the same order.
-  entries.set(id, { id, order, component: c, seq: prev ? prev.seq : (slotSeq += 1) })
+  const entry: SlotEntry = { id, order, component: c, seq: prev ? prev.seq : (slotSeq += 1) }
+  entries.set(id, entry)
   emit()
+  return disposer(entry)
 }
 
 export function getPage(id: string): PageComponent | undefined {

@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import logging
+import os
 import sys
 import uuid
 from typing import Any, AsyncIterator, Dict, List, Optional
@@ -369,6 +370,38 @@ _LEGACY_MAP: Dict[str, RunEventType] = {
     "error": RunEventType.RUN_ERROR,
     "cancelled": RunEventType.RUN_CANCELLED,
 }
+
+
+# Provider keys an agent reads from the environment, and base URLs that point
+# at a local or self-hosted model (no key needed).
+_API_KEY_ENV = (
+    "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
+    "GROQ_API_KEY", "MISTRAL_API_KEY", "OPENROUTER_API_KEY", "DEEPSEEK_API_KEY",
+    "XAI_API_KEY", "AZURE_OPENAI_API_KEY", "AZURE_API_KEY", "COHERE_API_KEY",
+    "TOGETHER_API_KEY", "TOGETHERAI_API_KEY", "FIREWORKS_API_KEY", "PERPLEXITYAI_API_KEY",
+)
+_LOCAL_MODEL_ENV = ("OLLAMA_HOST", "OLLAMA_BASE_URL", "OLLAMA_API_BASE", "OPENAI_BASE_URL", "OPENAI_API_BASE")
+
+
+def api_key_state(environ: Optional[Dict[str, str]] = None, runtime_key: Optional[str] = None) -> str:
+    """``"set"`` when the built-in provider has a model key (an env key, a
+    local base URL, or one saved in Settings), else ``"missing"``.
+
+    Reported by ``/api/provider/health`` so the UI can say "Add an API key to
+    start" before the first message fails. Additive: other providers report
+    nothing, which the UI reads as unknown.
+    """
+    env = os.environ if environ is None else environ
+    if any((env.get(k) or "").strip() for k in _API_KEY_ENV + _LOCAL_MODEL_ENV):
+        return "set"
+    if runtime_key is None:
+        try:
+            from praisonaiui.features.config_runtime import _runtime_config
+
+            runtime_key = ((_runtime_config.get("provider") or {}).get("api_key") or "").strip()
+        except Exception:  # noqa: BLE001 - the feature may be off; the env decides then
+            runtime_key = ""
+    return "set" if runtime_key else "missing"
 
 
 class PraisonAIProvider(BaseProvider):
@@ -1158,6 +1191,7 @@ class PraisonAIProvider(BaseProvider):
 
         # Auto-track usage for analytics (Gap 8 — bridges to usage feature)
         try:
+            from praisonaiui.features.chat import current_run_id
             from praisonaiui.features.usage import track_usage
 
             agent_model = getattr(agent, "llm", "unknown")
@@ -1181,6 +1215,7 @@ class PraisonAIProvider(BaseProvider):
                 output_tokens=output_tokens,
                 session_id=session_id or "unknown",
                 agent_name=getattr(agent, "name", agent_name or "unknown"),
+                run_id=current_run_id.get(),
             )
         except (ImportError, Exception):
             pass  # Usage tracking failures should not break chat
@@ -1209,6 +1244,7 @@ class PraisonAIProvider(BaseProvider):
         info: Dict[str, Any] = {
             "status": "ok",
             "provider": "PraisonAIProvider",
+            "api_key": api_key_state(),
         }
         try:
             import praisonaiagents

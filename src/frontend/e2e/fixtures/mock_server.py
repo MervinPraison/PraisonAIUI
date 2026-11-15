@@ -18,8 +18,17 @@ Keywords in the user's message select what the scripted run does:
     plain     reply with text only (no reasoning, tool, element or references)
     weather   call the get_weather tool (the example plugin renders it)
 
+The exact message ``Compare sorting algorithms`` (or one containing
+``sortdemo``) runs the layouts' design fixture (ADR 0003 plan §5.1): 2 s of
+reasoning, the ``python3 --version`` tool (0.3 s), a comparison table, a
+code block titled ``sort_demo.py``, an approval gate on ``pip install numpy``
+(``ap_numpy``, answered 200) and follow-up suggestions.
+
 Without a keyword the run emits reasoning, one tool call with an image
 element, references and a short markdown answer.
+
+``AIUI_E2E_SEED=design`` also seeds the chats the layout designs list
+beside the sorting one (``DESIGN_SESSIONS``) before the server starts.
 """
 
 from __future__ import annotations
@@ -78,9 +87,134 @@ flowchart LR
 """
 
 
+SORTING_PROMPT = "Compare sorting algorithms"
+
+SORTING_INTRO = (
+    "Here is how the three common general-purpose sorts compare. All three "
+    "average O(n log n); they differ in the worst case, memory and stability.\n\n"
+)
+
+SORTING_TABLE = """| Algorithm | Average | Worst | Memory | Stable |
+|---|---|---|---|---|
+| Quicksort | O(n log n) | O(n²) | O(log n) | No |
+| Mergesort | O(n log n) | O(n log n) | O(n) | Yes |
+| Timsort | O(n log n) | O(n log n) | O(n) | Yes |
+
+"""
+
+SORTING_CODE = """A small script to time them on your machine:
+
+```python title=sort_demo.py
+import random
+import time
+
+
+def quicksort(xs):
+    if len(xs) <= 1:
+        return xs
+    pivot, *rest = xs
+    return quicksort([x for x in rest if x < pivot]) + [pivot] + quicksort([x for x in rest if x >= pivot])
+
+
+def mergesort(xs):
+    if len(xs) <= 1:
+        return xs
+    mid = len(xs) // 2
+    left, right = mergesort(xs[:mid]), mergesort(xs[mid:])
+    out = []
+    while left and right:
+        out.append(left.pop(0) if left[0] <= right[0] else right.pop(0))
+    return out + left + right
+
+
+data = [random.random() for _ in range(10_000)]
+for name, fn in (("quicksort", quicksort), ("mergesort", mergesort), ("timsort", sorted)):
+    t0 = time.perf_counter()
+    fn(list(data))
+    print(f"{name:10s} {time.perf_counter() - t0:.3f}s")
+```
+
+To benchmark on a million items I would like to install numpy.
+"""
+
+SORTING_SUGGESTIONS = [
+    "Benchmark them on 1M items",
+    "Explain why timsort is stable",
+    "Add heapsort to the table",
+]
+
+#: The chats the layout designs list beside "Compare sorting algorithms".
+DESIGN_SESSIONS = [
+    ("Quick: summarise release notes", "Summarise the release notes for 0.3.154", "Three changes stand out: layouts, page templates and the run ledger."),
+    ("Quick: draft a reply to Sam", "Draft a short reply to Sam about Friday", "Hi Sam, Friday works for me. Shall we say 10:00?"),
+    ("Quick: weekly metrics", "Show the weekly metrics", "| Metric | This week | Last week |\n|---|---|---|\n| Runs | 412 | 380 |\n| Success | 97% | 95% |"),
+]
+
+
+def _is_sorting_demo(text: str) -> bool:
+    return text.strip() == SORTING_PROMPT or "sortdemo" in text
+
+
+async def sorting_demo(agent: str = "Researcher"):
+    """The design fixture: reasoning, a tool, a table, code, a gate, suggestions."""
+    yield RunEvent(type=RunEventType.RUN_STARTED, agent_name=agent)
+    yield RunEvent(type=RunEventType.REASONING_STARTED)
+    for step in (
+        "The user wants a comparison of sorting algorithms",
+        "Check the Python version before suggesting a benchmark",
+    ):
+        yield RunEvent(type=RunEventType.REASONING_STEP, step=step)
+        await asyncio.sleep(1.0)
+    yield RunEvent(type=RunEventType.REASONING_COMPLETED)
+    args = {"command": "python3 --version"}
+    yield RunEvent(type=RunEventType.TOOL_CALL_STARTED, name="execute_command", args=args, tool_call_id="tc_py")
+    await asyncio.sleep(0.3)
+    yield RunEvent(
+        type=RunEventType.TOOL_CALL_COMPLETED,
+        name="execute_command",
+        args=args,
+        tool_call_id="tc_py",
+        result="Python 3.12.4",
+    )
+    final = SORTING_INTRO + SORTING_TABLE + SORTING_CODE
+    for i in range(0, len(final), 32):
+        yield RunEvent(type=RunEventType.RUN_CONTENT, token=final[i : i + 32], agent_name=agent)
+        await asyncio.sleep(0.01)
+    aiui.suggest(SORTING_SUGGESTIONS)
+    yield RunEvent(
+        type=RunEventType.RUN_PAUSED,
+        extra_data={
+            "type": "approval_required",
+            "id": "ap_numpy",
+            "tool_name": "execute_command",
+            "arguments": {"command": "pip install numpy"},
+            "risk_level": "medium",
+            "description": "To benchmark on 1M items, numpy is needed. It installs one package into this Python.",
+            "agent_name": agent,
+            "tool_call_id": "tc_pip",
+        },
+    )
+    yield RunEvent(type=RunEventType.RUN_COMPLETED, content=final)
+
+
+async def seed_design_sessions() -> None:
+    """Store the design's other chats (title, a question and an answer each)."""
+    store = srv.get_datastore()
+    for title, question, answer in DESIGN_SESSIONS:
+        session = await store.create_session()
+        sid = session["id"]
+        await store.add_message(sid, {"role": "user", "content": question})
+        await store.add_message(sid, {"role": "assistant", "content": answer})
+        await store.update_session(sid, title=title)
+
+
 class MockProvider(BaseProvider):
     async def run(self, message, *, session_id=None, agent_name=None, **kw):
         text = str(message)
+        if _is_sorting_demo(text):
+            async for event in sorting_demo():
+                yield event
+            return
         yield RunEvent(type=RunEventType.RUN_STARTED, agent_name="Mock")
 
         if "plain" not in text:
@@ -177,7 +311,7 @@ class MockProvider(BaseProvider):
 
 
 class ApprovalMock:
-    """Answer the two scripted approval ids; everything else reaches the app.
+    """Answer the scripted approval ids; everything else reaches the app.
 
     ``GET /__e2e/approval-posts`` lists the approval requests seen so far.
     """
@@ -193,7 +327,7 @@ class ApprovalMock:
                 return await self._json(send, 200, {"posts": self.posts})
             if path.startswith("/api/approvals/ap_"):
                 self.posts.append(f"{scope['method']} {path}")
-            if path.startswith("/api/approvals/ap_ok/"):
+            if path.startswith(("/api/approvals/ap_ok/", "/api/approvals/ap_numpy/")):
                 await asyncio.sleep(0.3)
                 return await self._json(send, 200, {"ok": True})
             if path.startswith("/api/approvals/ap_500/"):
@@ -256,6 +390,8 @@ def main() -> None:
 
     srv.set_provider(MockProvider())
     use_in_memory_stores()
+    if os.environ.get("AIUI_E2E_SEED") == "design":
+        asyncio.run(seed_design_sessions())
     if args.style:
         aiui.set_style(args.style)
     if args.preset:

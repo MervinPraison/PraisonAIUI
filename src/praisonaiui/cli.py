@@ -3627,11 +3627,15 @@ def _builtin_pages_by_id(records: list) -> dict[str, str]:
     """Page id -> the ``builtin.<name>`` record that contributes it."""
     out: dict[str, str] = {}
     for rec in records:
-        hook = getattr(rec.plugin, "pages", None)
-        try:
-            specs = list(hook() or ()) if callable(hook) else []
-        except Exception:  # noqa: BLE001 - diagnostics only
-            specs = []
+        specs: list = []
+        # pages() is the page table; shell_pages() the app-shell-only layout
+        # pages (ADR 0003), so `aiui plugins` shows their owning record too.
+        for name in ("pages", "shell_pages"):
+            hook = getattr(rec.plugin, name, None)
+            try:
+                specs += list(hook() or ()) if callable(hook) else []
+            except Exception:  # noqa: BLE001 - diagnostics only
+                pass
         for spec in specs:
             pid = _spec_get(spec, "id")
             if pid:

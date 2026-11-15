@@ -520,3 +520,89 @@ export function applyTheme(
     upgradeLegacyCustomCss()
     document.documentElement.dataset.theme = preset
 }
+
+// ── PraisonAI Pro token system (selectable layouts, ADR 0003 F4) ─────────
+// The palette of the Pro design files. styles/pro.css holds it as `--pro-*`
+// defaults under html[data-aiui-shell="react"][data-aiui-tokens="pro"];
+// Python themes.PRO_NEUTRALS / PRO_ACCENTS hold the same tables
+// (tests/unit/test_seed_theme.py keeps all three equal).
+
+/** The design's neutral and semantic palette, per mode (P0 `--pro-<name>`). */
+export const PRO_NEUTRALS: Record<'light' | 'dark', Readonly<Record<string, string>>> = {
+    light: {
+        'background': '#ffffff',
+        'foreground': '#18181b',
+        'sidebar': '#f7f7f8',
+        'sidebar-fg': '#3f3f46',
+        'sidebar-accent': '#ebebee',
+        'card': '#ffffff',
+        'muted': '#f4f4f5',
+        'muted-fg': '#52525b',
+        'subtle': '#66666e',
+        'border': '#e4e4e7',
+        'input': '#d4d4d8',
+        'code-bg': '#fafafa',
+        'success': '#15803d',
+        'success-fg': '#ffffff',
+        'success-soft': '#ecfdf3',
+        'warning': '#b45309',
+        'warning-fg': '#ffffff',
+        'warning-soft': '#fffbeb',
+        'warning-line': '#f3d9a8',
+        'danger': '#dc2626',
+        'danger-fg': '#ffffff',
+        'danger-soft': '#fff5f5', // design #fef2f2: danger text on it is 4.41:1
+        'danger-line': '#f7c9c9',
+        'info': '#2563eb',
+        'info-soft': '#eff6ff',
+        'shadow-sm': '0 1px 2px rgba(24,24,27,0.05)',
+        'shadow-float': '0 1px 2px rgba(24,24,27,0.06), 0 8px 24px -6px rgba(24,24,27,0.14)',
+        'shadow-overlay': '0 2px 4px rgba(24,24,27,0.06), 0 24px 48px -12px rgba(24,24,27,0.24)',
+        'scrim': 'rgba(24,24,27,0.36)',
+    },
+    dark: {
+        'background': '#0e0e11',
+        'foreground': '#ededf0',
+        'sidebar': '#09090b',
+        'sidebar-fg': '#c4c4cc',
+        'sidebar-accent': '#1f1f25',
+        'card': '#16161a',
+        'muted': '#1d1d22',
+        'muted-fg': '#b4b4bd',
+        'subtle': '#8e8e98',
+        'border': '#27272d',
+        'input': '#3a3a42',
+        'code-bg': '#121216',
+        'success': '#34b27b',
+        'success-fg': '#04210f',
+        'success-soft': '#0f2a1e',
+        'warning': '#fcd34d',
+        'warning-fg': '#1f1300',
+        'warning-soft': '#251c10',
+        'warning-line': '#5f400f',
+        'danger': '#f05252',
+        'danger-fg': '#1f0505',
+        'danger-soft': '#2e1416',
+        'danger-line': '#5c2328',
+        'info': '#4f8cf7',
+        'info-soft': '#13213a',
+        'shadow-sm': '0 1px 2px rgba(0,0,0,0.5)',
+        'shadow-float': '0 1px 2px rgba(0,0,0,0.5), 0 12px 32px -8px rgba(0,0,0,0.6)',
+        'shadow-overlay': '0 2px 4px rgba(0,0,0,0.5), 0 32px 64px -16px rgba(0,0,0,0.7)',
+        'scrim': 'rgba(0,0,0,0.6)',
+    },
+}
+
+// Accent swatches, the token-system switch and the swatch presets live in
+// proTokens.ts (no imports, so the shell can load them alone).
+export {
+    PRO_ACCENT_ROLES,
+    PRO_ACCENTS,
+    PRO_DEFAULT_ACCENT,
+    TOKEN_SYSTEM_ATTR,
+    getTokenSystem,
+    proAccentSeeds,
+    proThemePresets,
+    setTokenSystem,
+} from './proTokens'
+export type { ProAccentName, ProAccentRole, TokenSystem } from './proTokens'

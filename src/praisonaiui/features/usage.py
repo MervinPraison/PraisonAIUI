@@ -13,12 +13,13 @@ Architecture:
 from __future__ import annotations
 
 import json
+import sys
 import time
 from abc import ABC, abstractmethod
 from collections import deque
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -154,6 +155,7 @@ def _ingest_from_usage_sink() -> None:
             output_tokens=int(rec.get("output_tokens", 0)),
             session_id=(rec.get("metadata") or {}).get("session_id", "unknown"),
             agent_name=rec.get("agent_name", "unknown"),
+            run_id=(rec.get("metadata") or {}).get("run_id"),
         )
 
 
@@ -177,11 +179,19 @@ def track_usage(
     output_tokens: int = 0,
     session_id: str = "unknown",
     agent_name: str = "unknown",
+    run_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Track a usage event with cost calculation.
 
+    *run_id* ties the record to one chat run (``run_started.run_id``). When it
+    is not given, the run the calling task is serving is used, if any (see
+    ``praisonaiui.features.chat.current_run_id``). Records outside a run carry
+    no ``run_id`` key, as before.
+
     Returns the recorded usage entry.
     """
+    if run_id is None:
+        run_id = _current_run_id()
     timestamp = time.time()
     total_tokens = input_tokens + output_tokens
     cost = _calculate_cost(model, input_tokens, output_tokens)
@@ -198,6 +208,8 @@ def track_usage(
         "session_id": session_id,
         "agent_name": agent_name,
     }
+    if run_id:
+        record["run_id"] = str(run_id)
 
     # Add to ring buffer
     _usage_records.append(record)
@@ -265,6 +277,18 @@ def track_usage(
         _save_data()
 
     return record
+
+
+def _current_run_id() -> Optional[str]:
+    # Read without importing the chat feature: no chat module, no run.
+    chat = sys.modules.get("praisonaiui.features.chat")
+    var = getattr(chat, "current_run_id", None)
+    return var.get() if var is not None else None
+
+
+def get_usage_records(*, since: float = 0.0) -> List[Dict[str, Any]]:
+    """A snapshot of the recent usage records (newest last), from *since* on."""
+    return [r for r in list(_usage_records) if r.get("timestamp", 0) >= since]
 
 
 def _save_data() -> None:
@@ -548,6 +572,7 @@ class UsageFeature(BaseFeatureProtocol):
             output_tokens=body.get("output_tokens", 0),
             session_id=body.get("session_id", "unknown"),
             agent_name=body.get("agent_name", "unknown"),
+            run_id=body.get("run_id") if isinstance(body.get("run_id"), str) else None,
         )
         return JSONResponse(record, status_code=201)
 

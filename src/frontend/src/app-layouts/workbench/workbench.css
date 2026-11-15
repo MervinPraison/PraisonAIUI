@@ -1,0 +1,36 @@
+/*
+ * Quiet Workbench (chunk layout-workbench): loaded with the frame, so it
+ * applies only while this layout is on screen. Tokens only.
+ *
+ * The top bar already names the open chat and the sidebar says Connected,
+ * so the chat page's own title row is quiet here:
+ *   - its heading stays for screen readers only;
+ *   - the whole row steps aside while it would show nothing else (no agent
+ *     picker, the socket open); a reconnecting or offline badge, or an
+ *     agent picker, brings it back.
+ */
+[data-aiui-layout-frame='workbench'] [data-chat-title] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+[data-aiui-layout-frame='workbench'] [data-chat-header-column] {
+  justify-content: flex-end;
+}
+
+/* :has() does not nest, so: hide while the socket is open … */
+[data-aiui-layout-frame='workbench'] [data-aiui-chat] header:has(> [data-chat-header-column] > [data-connection='open']) {
+  display: none;
+}
+
+/* … unless the row carries the agent picker (two :has() for the specificity). */
+[data-aiui-layout-frame='workbench'] [data-aiui-chat] header:has(> [data-chat-header-column] select):has(> [data-chat-header-column]) {
+  display: flex;
+}

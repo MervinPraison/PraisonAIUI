@@ -1,0 +1,44 @@
+/*
+ * Command Deck (chunk layout-command): loaded with the frame, so it applies
+ * only while this layout is on screen. Tokens only.
+ *
+ * - The session tab names the open chat and the status bar says Connected,
+ *   so the chat page's own title row steps aside (its heading stays for
+ *   screen readers).
+ * - The run panel holds the full approval (Approve A / Deny D / Always
+ *   allow): while it is open the thread's paused strip is one quiet line
+ *   with no buttons. On a phone the Run sheet shows the approval, so the
+ *   strip is not drawn at all.
+ */
+[data-aiui-layout-frame='command'] [data-aiui-chat] > section > header:not(:has(select)),
+[data-aiui-layout-frame='command'] [data-chat-title] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* With an agent picker the row stays for it alone. */
+[data-aiui-layout-frame='command'] [data-chat-header-column] {
+  justify-content: flex-end;
+}
+
+[data-aiui-layout-frame='command'] [data-aiui-chat] [data-connection] {
+  display: none;
+}
+
+[data-aiui-layout-frame='command'][data-run-panel='open'] [data-approval-keys] [data-gate-actions] {
+  display: none;
+}
+
+[data-aiui-layout-frame='command'][data-run-panel='open'] [data-approval-keys] [data-gate-text] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-aiui-layout-frame='command'][data-viewport='phone'] [data-tool]:has(> [data-approval-keys]) > [data-approval-keys] {
+  display: none;
+}

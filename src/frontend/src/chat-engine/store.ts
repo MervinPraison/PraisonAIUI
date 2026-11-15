@@ -149,6 +149,7 @@ let historyUrlFor = (sid: string) => `/api/chat/history/${encodeURIComponent(sid
 let watchdogMs = RECONNECT_WATCHDOG_MS
 let settleReloadMs = SETTLE_RELOAD_MS
 const settledFns = new Set<(sid: string) => void>()
+const connectionFns = new Set<() => void>()
 const reconnectBindings = new WeakMap<AiuiTransport, () => void>()
 
 const EMPTY: SessionThread = { sessionId: '', messages: [], isRunning: false, isLoading: false, loaded: true, signals: {} }
@@ -419,15 +420,19 @@ function approvalUrl(approvalId: string, approved: boolean): string {
   return `/api/approvals/${encodeURIComponent(approvalId)}/${approved ? 'approve' : 'deny'}`
 }
 
-/** Send an approve/deny decision. Resolves when the server accepted it; rejects with the message to show. */
-async function postDecision(approvalId: string, approved: boolean, reason: string): Promise<void> {
+/**
+ * Send an approve/deny decision. `always` asks the server to remember it for
+ * this tool ("Always allow" / "Always deny"). Resolves when the server
+ * accepted it; rejects with the message to show.
+ */
+async function postDecision(approvalId: string, approved: boolean, reason: string, always = false): Promise<void> {
   let res: Response
   try {
     res = await fetch(approvalUrl(approvalId, approved), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify(always ? { reason, always: true } : { reason }),
     })
   } catch {
     throw new Error('Could not reach the server; try again')
@@ -439,6 +444,8 @@ export interface ApprovalDecision {
   approved: boolean
   text?: string
   optionId?: string
+  /** Remember the decision for this tool (approval gates only; ignored for asks). */
+  always?: boolean
 }
 
 export interface SendOptions {
@@ -544,6 +551,20 @@ export const threadStore = {
       notify(e, false)
     }
     flush()
+    for (const fn of [...connectionFns]) fn()
+  },
+
+  /** The live transport's state, also while no session is open (a new chat). */
+  connection(): ConnectionStatus | undefined {
+    return connection
+  },
+
+  /** Called when the live transport's state changes. */
+  subscribeConnection(fn: () => void): () => void {
+    connectionFns.add(fn)
+    return () => {
+      connectionFns.delete(fn)
+    }
   },
 
   /** Session ids with a live turn. Stable identity until the set changes. */
@@ -727,7 +748,7 @@ export const threadStore = {
     patchApprovalPart(sid, approvalId, (p) => ({ ...p, artifact: { ...withoutDecisionState(p.artifact), [APPROVAL_PENDING]: pending } }))
     try {
       if (ask) await transport.respondAsk(sid, str(part.artifact.run_id), answer ?? '')
-      else await postDecision(approvalId, d.approved, d.text ?? '')
+      else await postDecision(approvalId, d.approved, d.text ?? '', d.always === true)
     } catch (err) {
       throw fail(errorText(err))
     }

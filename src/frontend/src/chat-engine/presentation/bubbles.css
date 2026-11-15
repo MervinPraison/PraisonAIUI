@@ -1,0 +1,16 @@
+/*
+ * Thread variant `bubbles` (Chat + Canvas): the question is a tinted bubble
+ * with a tail corner, each answer has an avatar header (TurnMeta), and tool
+ * rows are always framed cards.
+ * Lazy: loaded only when a layout picks this variant. Tokens only.
+ */
+[data-variant='bubbles'] [data-user-bubble] {
+  border-radius: 1rem 1rem 0.25rem 1rem;
+  background: var(--ui-bubble-user);
+}
+
+[data-variant='bubbles'] [data-tool] {
+  border: 1px solid var(--ui-hairline);
+  border-radius: 0.625rem;
+  background: var(--card);
+}

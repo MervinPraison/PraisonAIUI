@@ -21,7 +21,7 @@ import {
   type PluginLoadFailure,
   type PluginLoadReport,
 } from '@/sdk/loadPlugins'
-import { normalizeManifest, SDK_EXPORTS, SHELL_EXTERNALS, type ShellManifest, type ShellPage } from '@/sdk/manifest'
+import { normalizeManifest, SDK_EXPORTS, SDK_FEATURES, SHELL_EXTERNALS, type ShellManifest, type ShellPage } from '@/sdk/manifest'
 import {
   getBlock,
   getPage,
@@ -59,6 +59,17 @@ test('sdkApi keys equal the frozen SDK_EXPORTS list (what the server shim re-exp
   for (const name of SDK_EXPORTS) assert.notEqual(sdkApi[name], undefined, `${name} is undefined`)
   assert.equal(sdkApi.SDK_VERSION, 1)
   assert.ok(Object.isFrozen(sdkApi))
+})
+
+test('the layout exports and features are appended, earlier names keep their place', () => {
+  const layoutNames = ['registerLayout', 'getLayouts', 'useLayout', 'setLayout', 'provideLayoutData', 'useLayoutData']
+  const at = SDK_EXPORTS.indexOf('registerThemePreset')
+  assert.deepEqual(SDK_EXPORTS.slice(at + 1, at + 1 + layoutNames.length), layoutNames)
+  assert.equal(SDK_EXPORTS[12], 'Markdown', 'the original names keep their place')
+  for (const name of layoutNames) assert.equal(typeof sdkApi[name as keyof typeof sdkApi], 'function', name)
+  const features = SDK_FEATURES as readonly string[]
+  const f = features.indexOf('theme-presets')
+  assert.deepEqual(features.slice(f + 1, f + 4), ['layouts', 'layout-data', 'slots.dispose'])
 })
 
 test('installSdk publishes window.__AIUI_SDK__ once (idempotent)', () => {

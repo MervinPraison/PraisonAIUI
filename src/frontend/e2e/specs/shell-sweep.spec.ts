@@ -15,6 +15,8 @@ interface ManifestPage {
   title: string
   kind: string
   apiEndpoint?: string | null
+  /** A layout's own page (ADR 0003): only that layout's frame lists it. */
+  layouts?: string[]
 }
 
 /** A path no page owns: the shell shows "Page not found" and mounts no view. */
@@ -175,9 +177,15 @@ test('every manifest page renders with no errors and no leaks', async ({ page },
   })
 
   let before = await leakSnapshot(page)
-  for (const { id, title, kind, apiEndpoint } of pages) {
+  for (const { id, title, kind, apiEndpoint, layouts } of pages) {
     const errorsBefore = errors.pageErrors.length
     const link = await sidebarLink(page, id)
+    // This suite runs on the classic frame, which never lists a layout's own
+    // page; its URL still renders (the deep-link test below opens it).
+    if (layouts?.length) {
+      if ((await link.count()) !== 0) failures.push(`${id}: the classic frame lists a page of ${layouts.join(', ')}`)
+      continue
+    }
     if ((await link.count()) !== 1) {
       failures.push(`${id}: no sidebar link`)
       continue

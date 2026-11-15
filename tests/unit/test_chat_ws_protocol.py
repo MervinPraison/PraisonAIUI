@@ -1508,3 +1508,53 @@ def test_posting_into_a_session_does_not_grant_control_of_its_run(monkeypatch):
             assert rest.status_code == 403
             victim.send_json({"type": "chat_abort", "run_id": run2})
             _read_until(victim, lambda f: f.get("type") == "chat_abort_result")
+
+
+# ── run_completed.suggestions (aiui.suggest) ─────────────────────────
+
+
+class SuggestingProvider(BaseProvider):
+    """A reply handler that offers follow-up prompts while it runs."""
+
+    def __init__(self, prompts: Any) -> None:
+        self.prompts = prompts
+
+    async def run(self, message, *, session_id=None, agent_name=None, **kw):
+        import praisonaiui as aiui
+
+        yield RunEvent(type=RunEventType.RUN_STARTED)
+        aiui.suggest(["replaced"])
+        aiui.suggest(self.prompts)
+        yield RunEvent(type=RunEventType.RUN_CONTENT, token="Sorted.")
+        yield RunEvent(type=RunEventType.RUN_COMPLETED, content="Sorted.")
+
+
+def test_suggest_sends_suggestions_on_run_completed(monkeypatch):
+    prompts = ["  Show me a benchmark ", "", 7, "x" * 300, *[f"p{i}" for i in range(10)]]
+    _use_provider(monkeypatch, SuggestingProvider(prompts))
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        ws.send_json({"type": "chat", "content": "sort", "session_id": "s-sugg"})
+        frames = _read_until(ws, _turn_done("s-sugg"))
+    done = frames[-1]
+    assert done["type"] == "run_completed"
+    # Trimmed, blanks and non-strings dropped, each at most 200 chars, at most 8; the last call wins.
+    assert done["suggestions"] == ["Show me a benchmark", "x" * 200, "p0", "p1", "p2", "p3", "p4", "p5"]
+    from praisonaiui.features import chat as chat_mod
+
+    assert chat_mod._run_suggestions == {}, "nothing is kept after the run"
+
+
+def test_no_suggest_means_no_suggestions_key(monkeypatch):
+    _use_provider(monkeypatch, SuggestingProvider([]))
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        ws.send_json({"type": "chat", "content": "sort", "session_id": "s-nosugg"})
+        frames = _read_until(ws, _turn_done("s-nosugg"))
+    assert "suggestions" not in frames[-1]
+
+
+def test_suggest_outside_a_run_is_a_no_op():
+    import praisonaiui as aiui
+    from praisonaiui.features import chat as chat_mod
+
+    aiui.suggest(["nothing to attach to"])
+    assert chat_mod._run_suggestions == {}

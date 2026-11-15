@@ -942,9 +942,13 @@ def _build_html(style: str, request: Optional[Request] = None) -> str:
     html_open = '<html lang="en">'
     shell_head = ""
     if style == "app":
+        from praisonaiui.layouts import default_layout  # ADR 0003: Pro tokens on first paint
+
+        layout = default_layout(style, restricted=_plugin_js_restricted(getattr(request, "scope", None)))
+        tokens = ' data-aiui-tokens="pro"' if layout else ""
         html_open = (
             '<html lang="en" data-aiui-shell="react" '
-            f'data-aiui-theme-default="{_shell_default_theme()}">'
+            f'data-aiui-theme-default="{_shell_default_theme()}"{tokens}>'
         )
         theme_vars_tag = _shell_theme_tag()
         shell_head = _shell_head(cache_bust, request) + _shell_modulepreload_tags(request)
@@ -1216,6 +1220,8 @@ _FALLBACK_EXTERNALS: dict[str, list[str]] = {
         "SDK_FEATURES", "navigate", "notify", "fetchJson", "useManifest",
         "registerCommand", "onActivate", "getPageId", "usePageId", "useThemeMode",
         "dismiss", "registerSettingsSection", "registerNavGroup", "registerThemePreset",
+        "registerLayout", "getLayouts", "useLayout", "setLayout", "provideLayoutData",
+        "useLayoutData",
     ],
 }
 
@@ -1430,7 +1436,8 @@ def _page_records(
         )
         for p in _pages.values()
     ]
-    plugins = [ps.plugin_page(s) for s in reg.pages(restricted=restricted)]
+    plugins = [*ps.shell_pages(reg, _effective_style, restricted=restricted),  # ADR 0003
+               *(ps.plugin_page(s) for s in reg.pages(restricted=restricted))]
     folders = ps.folder_pages(
         discover_dashboard_plugins(extra_dirs, _dashboard_plugin_allowlist())
     )
@@ -1448,6 +1455,7 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
     plugin > dashboard-plugin folder. A shadowed page logs a warning.
     """
     from praisonaiui.builtin.catalog import NAV_GROUPS
+    from praisonaiui.layouts import layouts_manifest
     from praisonaiui.plugin_registry import SDK_API_VERSION, get_plugin_registry
 
     reg = get_plugin_registry()
@@ -1478,6 +1486,7 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
         "blocks": [b.to_dict() for b in reg.blocks(restricted=restricted)],
         "toolRenderers": [t.to_dict() for t in reg.tool_renderers(restricted=restricted)],
         "plugins": reg.records_for_manifest(restricted=restricted, include_errors=include_errors),
+        "layouts": layouts_manifest(reg, _effective_style, restricted=restricted),  # ADR 0003
         "legacy": {
             "customJs": "/custom.js" if _custom_js is not None else None,
             "viewsBase": "/plugins/views/",
@@ -1611,7 +1620,7 @@ def _shell_theme_tag() -> str:
     """
     try:
         from praisonaiui.features.theme import PRESET_COLORS, get_theme_manager
-        from praisonaiui.themes import get_radius_value, get_seed_theme_css
+        from praisonaiui.themes import get_pro_seed_css, get_radius_value, get_seed_theme_css
 
         mgr = get_theme_manager()
         preset = mgr.get_theme()
@@ -1629,13 +1638,16 @@ def _shell_theme_tag() -> str:
             accent=accent,
             density=_shell_theme_extra.get("density"),
         )
+        # Pro accent seeds (layouts, styles/pro.css); "" for the Pro default.
+        pro = get_pro_seed_css(preset, accent).replace("</", "<\\/")
     except Exception as exc:  # noqa: BLE001
         logging.getLogger(__name__).debug("seed theme css unavailable: %s", exc)
         return ""
+    pro_tag = f'<style id="aiui-server-pro-theme">{pro}</style>' if pro else ""
     if not css:
-        return ""
+        return pro_tag
     css = css.replace("</", "<\\/")  # never close the <style> early
-    return f'<style id="aiui-server-theme">{css}</style>'
+    return f'<style id="aiui-server-theme">{css}</style>{pro_tag}'
 
 
 async def api_shell_manifest(request: Request) -> JSONResponse:

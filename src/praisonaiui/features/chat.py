@@ -14,6 +14,7 @@ Config-driven:
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import json
 import logging
 import time
@@ -21,7 +22,7 @@ import uuid
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Dict, Iterable, List, Optional
+from typing import Any, AsyncIterator, Callable, Dict, Iterable, List, Optional
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -31,6 +32,84 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from ._base import BaseFeatureProtocol
 
 logger = logging.getLogger(__name__)
+
+#: The run the current task is serving. ``_run_and_broadcast`` sets it for the
+#: whole turn, so code the provider calls (usage tracking) can tag what it
+#: records with the run, without the run id being threaded through.
+current_run_id: "contextvars.ContextVar[Optional[str]]" = contextvars.ContextVar(
+    "aiui_current_run_id", default=None
+)
+
+#: Follow-up prompts ``suggest()`` attached to a run, sent on its ``run_completed``.
+_run_suggestions: Dict[str, List[str]] = {}
+#: At most this many suggestions, each at most this many characters.
+MAX_SUGGESTIONS = 8
+MAX_SUGGESTION_CHARS = 200
+
+
+def suggest(prompts: "List[str] | tuple[str, ...]") -> None:
+    """Offer follow-up prompts for the reply being written (ADR 0003 layouts).
+
+    Call it from your reply handler while a chat run is in progress; the
+    prompts go out on that run's ``run_completed`` frame as ``suggestions``,
+    and a layout that shows follow-up chips (Guided) renders them. A later
+    call replaces the earlier list; ``suggest([])`` clears it. Blank entries
+    are dropped, each prompt is trimmed to 200 characters, at most 8 are kept.
+    Outside a run it does nothing (with a debug log)::
+
+        @aiui.reply
+        async def on_message(message):
+            await aiui.say("Done.")
+            aiui.suggest(["Show me a benchmark", "Explain timsort"])
+    """
+    run_id = current_run_id.get()
+    if not run_id:
+        logger.debug("aiui.suggest() outside a chat run: ignored")
+        return
+    if isinstance(prompts, str):
+        prompts = [prompts]
+    cleaned = [str(p).strip()[:MAX_SUGGESTION_CHARS] for p in prompts or () if isinstance(p, str) and p.strip()]
+    if cleaned:
+        _run_suggestions[run_id] = cleaned[:MAX_SUGGESTIONS]
+    else:
+        _run_suggestions.pop(run_id, None)
+
+
+#: ``fn(session_id, event)``: sees every chat event (see ``add_event_observer``).
+EventObserver = Callable[[str, Dict[str, Any]], None]
+_event_observers: List[EventObserver] = []
+
+
+def add_event_observer(fn: EventObserver) -> Callable[[], None]:
+    """Call ``fn(session_id, event)`` for every chat event; returns a remover.
+
+    ``ChatManager.broadcast`` is the one place every run event passes, so an
+    observer sees the same stream WebSocket clients get, whether or not any
+    client is connected. After each run it also gets one
+    ``{"type": "run_closed", "run_id", "session_id", "status"}`` that clients
+    never see: by then the provider has finished (usage is tracked).
+
+    Observers run inline on the event loop, so they must be quick and must
+    treat ``event`` as read-only. One that raises is logged and skipped.
+    Adding the same function twice registers it once. Observers belong to the
+    process, not to a manager, so ``set_chat_manager`` keeps them.
+    """
+    if fn not in _event_observers:
+        _event_observers.append(fn)
+
+    def remove() -> None:
+        if fn in _event_observers:
+            _event_observers.remove(fn)
+
+    return remove
+
+
+def _notify_observers(session_id: str, event: Dict[str, Any]) -> None:
+    for fn in list(_event_observers):
+        try:
+            fn(session_id, event)
+        except Exception:  # noqa: BLE001 - an observer never breaks the chat
+            logger.warning("Chat event observer %r failed", fn, exc_info=True)
 
 
 def _collect_element(collected: List[Dict[str, Any]], element: Dict[str, Any]) -> None:
@@ -592,6 +671,11 @@ class ChatManager(ChatProtocol):
             return True  # legacy client: unchanged fan-out of every session
         return self.client_owns_session(client_id, session_id)
 
+    @staticmethod
+    def add_event_observer(fn: EventObserver) -> Callable[[], None]:
+        """Observe every broadcast event (see the module-level function)."""
+        return add_event_observer(fn)
+
     def session_for_run(self, run_id: str) -> Optional[str]:
         """Return the session a running ``run_id`` belongs to, if known."""
         if not isinstance(run_id, str):
@@ -615,6 +699,8 @@ class ChatManager(ChatProtocol):
         ``ws.send_text()``.
         """
         data = json.dumps(event)
+        if _event_observers:
+            _notify_observers(session_id, event)
         dead = []
         for cid, ws in list(self._ws_clients.items()):  # snapshot — mutation-safe
             if not self._delivers_to(cid, session_id):
@@ -856,6 +942,8 @@ async def _run_and_broadcast(
     mgr._run_owner[run_id] = owner_client_id
 
     first_event: Optional["asyncio.Future[Any]"] = None
+    # Code the provider runs inherits the run id (tasks copy the context).
+    run_token = current_run_id.set(run_id)
 
     async def _emit(event: Dict[str, Any]) -> None:
         # Every event of the run names the sender's turn, so a client with
@@ -982,6 +1070,9 @@ async def _run_and_broadcast(
                 payload["content"] = content
                 if content:
                     full_response = content
+                suggestions = _run_suggestions.pop(run_id, None)
+                if suggestions:
+                    payload["suggestions"] = suggestions
             elif event.type == RunEventType.RUN_ERROR:
                 payload["error"] = event.error or "Unknown error"
             elif event.type == RunEventType.TOOL_CALL_STARTED:
@@ -1160,6 +1251,14 @@ async def _run_and_broadcast(
         mgr._active_runs.pop(run_id, None)
         mgr._run_sessions.pop(run_id, None)
         mgr._run_owner.pop(run_id, None)
+        _run_suggestions.pop(run_id, None)
+        current_run_id.reset(run_token)
+        if _event_observers:
+            status = "cancelled" if cancelled else ("failed" if run_error is not None else "completed")
+            _notify_observers(
+                session_id,
+                {"type": "run_closed", "session_id": session_id, "run_id": run_id, "status": status},
+            )
 
     # Save assistant response
     if full_response or collected_elements:

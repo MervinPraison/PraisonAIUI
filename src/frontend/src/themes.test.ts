@@ -12,7 +12,17 @@ import {
     presetSeedVars,
     seedCss,
     upgradeLegacyCss,
+    PRO_ACCENT_ROLES,
+    PRO_ACCENTS,
+    PRO_DEFAULT_ACCENT,
+    PRO_NEUTRALS,
+    TOKEN_SYSTEM_ATTR,
+    getTokenSystem,
+    proAccentSeeds,
+    proThemePresets,
+    setTokenSystem,
 } from '@/themes'
+import { registerThemePreset } from '@/sdk/contributions'
 
 test('neutral presets are monochrome: the accent follows the ink', () => {
     for (const name of Object.keys(NEUTRAL_TINTS)) {
@@ -121,4 +131,48 @@ test('seedCss drops unsafe names and values', () => {
         seedCss({ '--seed-accent': '#fff', '--x;y': 'red', '--seed-ink': 'red;} body{color:red' }),
         ':root { --seed-accent: #fff; }',
     )
+})
+
+test('setTokenSystem toggles <html data-aiui-tokens> and getTokenSystem reads it', () => {
+    const attrs: Record<string, string> = {}
+    const root = {
+        setAttribute: (k: string, v: string) => void (attrs[k] = v),
+        removeAttribute: (k: string) => void delete attrs[k],
+        getAttribute: (k: string) => attrs[k] ?? null,
+    } as unknown as HTMLElement
+    assert.equal(getTokenSystem(root), null)
+    setTokenSystem('pro', root)
+    assert.equal(attrs[TOKEN_SYSTEM_ATTR], 'pro')
+    assert.equal(getTokenSystem(root), 'pro')
+    setTokenSystem(null, root)
+    assert.ok(!(TOKEN_SYSTEM_ATTR in attrs))
+    assert.equal(getTokenSystem(root), null)
+})
+
+test('every Pro swatch has the five roles in both modes', () => {
+    assert.deepEqual(Object.keys(PRO_ACCENTS), ['indigo', 'blue', 'teal', 'graphite'])
+    assert.ok(PRO_DEFAULT_ACCENT in PRO_ACCENTS)
+    for (const swatch of Object.values(PRO_ACCENTS)) {
+        for (const mode of ['light', 'dark'] as const) {
+            assert.deepEqual(Object.keys(swatch[mode]), [...PRO_ACCENT_ROLES])
+        }
+    }
+    assert.deepEqual(Object.keys(PRO_NEUTRALS.light), Object.keys(PRO_NEUTRALS.dark))
+})
+
+test('Pro theme presets carry only --seed-pro-* seeds and pass registerThemePreset', () => {
+    const presets = proThemePresets()
+    assert.deepEqual(presets.map((p) => p.id), ['pro.indigo', 'pro.blue', 'pro.teal', 'pro.graphite'])
+    assert.deepEqual(proAccentSeeds('teal').light, {
+        '--seed-pro-accent': '#0f766e',
+        '--seed-pro-accent-fg': '#ffffff',
+        '--seed-pro-soft': '#e6f4f1',
+        '--seed-pro-link': '#115e59',
+        '--seed-pro-ring': '#0f766e',
+    })
+    for (const p of presets) {
+        for (const k of [...Object.keys(p.light), ...Object.keys(p.dark)]) assert.match(k, /^--seed-pro-/)
+        const dispose = registerThemePreset(p) // throws on a token or value it would refuse
+        dispose()
+    }
 })

@@ -106,6 +106,13 @@ nav:
     - Theme System: features/theme-system.md
     - Plugins: features/plugins.md
     - React App Shell: features/react-shell.md
+    - Layouts:
+      - Overview: features/layouts.md
+      - Chat and Canvas: features/layouts/chat-canvas.md
+      - Quiet Workbench: features/layouts/workbench.md
+      - Command Deck: features/layouts/command.md
+      - Guided Studio: features/layouts/guided.md
+      - Mission Control: features/layouts/mission.md
     - CSS Architecture: features/css-architecture.md
     - Model Fallback: features/model-fallback.md
     - Subagent Tree: features/subagent-tree.md

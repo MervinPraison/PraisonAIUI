@@ -123,12 +123,33 @@ def test_dashboard_served_html_unchanged(monkeypatch):
 # ── app host HTML ────────────────────────────────────────────────────
 
 
+def test_app_html_classic_layout_keeps_classic_tokens(monkeypatch):
+    """`layout: classic` (or no layout on offer) paints the classic frame's tokens."""
+    import praisonaiui.layouts as layouts
+
+    srv.set_style("app")
+    monkeypatch.setenv("AIUI_LAYOUT", "classic")
+    text = _client().get("/").text
+    assert 'data-aiui-shell="react"' in text
+    assert "data-aiui-tokens" not in text.split("<head>", 1)[0]
+    monkeypatch.delenv("AIUI_LAYOUT")
+    layouts.set_layout("command")
+    assert ' data-aiui-tokens="pro">' in _client().get("/").text.split("<head>", 1)[0]
+
+
+def test_dashboard_html_never_carries_pro_tokens():
+    srv.set_style("dashboard")
+    assert "data-aiui-tokens" not in _client().get("/").text
+
+
 def test_app_html_structure():
     srv.set_style("app")
     client = _client()
     text = client.get("/").text
+    # The default layout (chat-canvas) paints with the Pro tokens from the first byte.
     assert text.startswith(
-        '<!doctype html><html lang="en" data-aiui-shell="react" data-aiui-theme-default="system">'
+        '<!doctype html><html lang="en" data-aiui-shell="react" data-aiui-theme-default="system"'
+        ' data-aiui-tokens="pro">'
     )
     scripts = _scripts(text)
     types = [s.get("type") for s in scripts]

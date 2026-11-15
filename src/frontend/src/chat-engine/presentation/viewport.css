@@ -1,0 +1,73 @@
+/*
+ * The thread's scroll viewport inside a layout (every layout thread carries
+ * data-variant). Content scrolling up under the frame's header fades out over
+ * the top 20px instead of being cut through mid-glyph, and the first message
+ * starts below that fade. Loaded with the presentation host; no colour, so
+ * it is the same in light and dark.
+ */
+[data-variant] [data-aiui-thread] {
+  padding-top: 12px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 20px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 20px);
+}
+
+/* The chat page's own title row inside a layout: the frame names the chat
+   and shows the connection, so the row steps aside (visually hidden, its
+   heading and status stay for screen readers) unless it holds a control,
+   such as the agent picker or the canvas toggle. */
+[data-aiui-chat]:has([data-variant]) > section > header:not(:has(select, button)) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Tables in a layout chat: a short cell ("O(n log n)", markdown/chatComponents
+   marks it data-short) stays on one line, so on a phone the table scrolls
+   sideways instead of squeezing columns until values break. While it can
+   scroll further right, its right edge fades (a scroll-driven animation;
+   without support the table still scrolls, just without the cue). */
+[data-variant] .aiui-markdown-chat :is(td, th)[data-short] {
+  white-space: nowrap;
+}
+
+@property --aiui-table-fade {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes aiui-table-fade {
+  from,
+  92% {
+    --aiui-table-fade: 32px;
+  }
+  to {
+    --aiui-table-fade: 0px;
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  [data-variant] .aiui-markdown-chat [data-streamdown='table-wrapper'] > .border-collapse {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--aiui-table-fade)), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - var(--aiui-table-fade)), transparent);
+    animation: aiui-table-fade linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+
+/* A new chat in a layout: the hero, the starters and the composer sit
+   together in the middle of the thread (./EmptyHero), not the starters at
+   the bottom of an empty page. */
+[data-variant] [data-aiui-thread]:has([data-chat-hero]) {
+  justify-content: center;
+}
+
+[data-variant] [data-thread-empty]:has([data-chat-hero]) {
+  flex: 0 0 auto;
+  justify-content: center;
+  gap: 2rem;
+  padding-block: 2rem 1.5rem;
+}

@@ -25,12 +25,19 @@ Where things live:
 | What | File |
 | --- | --- |
 | Token layer (seeds, tiers, shadcn vars, `@theme` utilities) | `src/styles/theme.css` |
+| PraisonAI Pro tokens (the layouts' system, see [below](#praisonai-pro-tokens)) | `src/styles/pro.css` |
 | Entry stylesheet (imports, class sources, prose rules) | `src/index.css` |
 | Runtime theme API (presets → seeds, legacy HSL upgrade) | `src/themes.ts` |
 | Primitives (shadcn on unified `radix-ui`) | `src/components/ui/*` |
 | Server/build seed emitter | `src/praisonaiui/themes.py` `get_seed_theme_css()` |
 | Legacy `--db-*` bridge (app shell only) | `src/legacy/bridge.css` |
 | Visual harness | `dev/design-dev.html` (`npm run dev`, open `/dev/design-dev.html`) |
+
+Tailwind scans this file as a class source, so a utility or a `@theme`
+variable named here (as a class, or as `var(--name)`) is compiled into
+`index.css`, which the dashboard links too. Name only what the bundle already
+ships, or a family (`text-tier-1..4`, `bg-{danger,success}-soft`);
+`test_seed_theme.py` checks it, and `npm run check:bundle` catches the rest.
 
 ## Principles
 
@@ -255,24 +262,85 @@ it extends tailwind-merge with the theme's `shadow-float/overlay` and
   message visible.
 - Markdown renders through the one `<Markdown variant="chat"|"docs">` (Streamdown)
   with these tokens; never style markdown elements ad hoc.
+- Code blocks (chat, `markdown/CodeBlock.tsx`): a solid `bg-muted` header
+  with a hairline under it, so code never shows through; a fence longer than
+  12 lines (a layout may set `--aiui-code-lines`) shows 12 with a 24px fade
+  and a "Show all N lines" pill; a line past the right edge fades there and
+  the body scrolls sideways with a thin scrollbar; a wrap toggle sits next to
+  copy and download, on by default below 640px.
 - Known bundle cost: two copies of `marked` ship, 16.4.2 (through mermaid) and
   18.2.0 (through streamdown). Only the lazy diagram chunks load the mermaid
   copy, so the chat route and the docs first screen do not pay for it. An npm
   `overrides` entry pinning mermaid's `marked` to 18 is pending a mermaid smoke
   test (LIBMD-8).
 
+## Page templates
+
+Every page has a template: a layout pattern from the Pro page designs
+(`ProList`, `ProBoard`, `ProLogs`, `ProEditor`, `ProGallery`, `ProOverview`,
+`ProSettings` `.dc.html`). The template is data. Built-in pages get it from
+`praisonaiui/builtin/page_types.py` (`PAGE_TYPE_BY_ID`; `catalog.py` does not
+change). A plugin page declares `page_type`. It travels as `pageType` in the
+shell manifest, never in `/api/pages`, and the shell puts it on the page root
+as `data-aiui-page-type`. Styles key off the template and never off a page id
+(ARCHITECTURE R1).
+
+| Template | Built-in pages | Shape |
+| --- | --- | --- |
+| `list` | sessions, runs, agents, skills, memory, knowledge, approvals, jobs, cron, channels, mcp, nodes, guardrails, feedback, eval, training, replay, inbox, api, inspector, artifacts | Toolbar on a hairline (search, filters, sort, primary action). Dense table: 36px header on the sunken fill (12px/500, muted), 40px rows, tabular numbers. Selected row on the accent soft fill. Optional detail panel (360px+, facts grid, actions); on a phone it stacks under the table, and a tap scrolls it into view and focuses it (Esc or Close returns focus to the row). Pagination "1–8 of 42" with ↑/↓ and Enter hints |
+| `board` | kanban, jobs-board, work | Columns 232–340px on the sunken fill, 12px radius, 8px padding. Title 14/600 with a count. Optional WIP limit, which turns warning when over. Cards on the card surface, 10px radius, 12px padding, small shadow. Keyboard moves (Space, arrows, Esc) with a live status bar |
+| `log` | logs, debug, traces | Level toggles with counts (an off level is dashed and struck through). Search with "n of m" and previous/next match, plus "Only matching lines". Grid time 100px · level 64px · source 220px · message. The time cell is a time of day (`HH:MM:SS.mmm`, local): ISO 8601 stamps and epoch seconds/ms are converted (`model.logTime`), the full value is the cell's title, and anything longer is clipped with an ellipsis, never drawn over Level. Mono 12.5/20 rows that expand to their detail |
+| `editor` | code-studio | Full height. File tree 200–240px, tabs 40px, run bar 44px, code with a 56px gutter, output panel 188px, aside 288–320px, status bar 28px. Panes meet at hairlines; bars and trees on the sunken fill |
+| `gallery` | marketplace, theme-picker, templates | Category tabs (ink underline), search row, optional featured slot (16px radius). Auto-fill 220px tiles with 16px gaps: monogram or image, type tag, two-line description, stats, action, error line. Details drawer that pushes the grid |
+| `overview` | overview, ops-overview, start, usage, telemetry, security | Centred 1200px measure. Joined KPI strip (hairline separators, 24/600 value, −0.02em). Panels on the card surface |
+| `settings` | config, auth | Section cards (12px radius). One row per field, label 14/500 on the left, control (up to 340px) on the right. The YAML mode uses the editor's code surface |
+| `chat` | chat, chat-canvas, canvas | The chat engine owns the page; no template styles |
+
+**React and blocks.** `components/page/` holds the templates as components:
+`ListDetail` (+ `ListPagination`), `Board`, `LogViewer`, `Editor` (+ `CodeView`,
+`FileTree`) and `Gallery`. Their pure logic lives in `model.ts`, and `parts.tsx`
+holds the toolbar search, the facts grid and the `Glyph` close and chevron
+icons. Glyphs are drawn locally on purpose: importing lucide's from these
+chunks would split them out of the chat route. Styles are plain token CSS
+(`page.css`, classes `aiui-tpl-*`) in the templates' own lazy chunks, so
+`index.css` does not grow. A template imports no block layer, shell, chat
+engine or layout (`components/page/isolation.test.ts`). The blocks `board`
+and `gallery` (`aiui.board()`, `aiui.gallery()` props) and the new
+`list_detail`, `log_viewer` and `code_editor` render through the adapters in
+`components/page/blocks/`; a board card that is another block (text, badge,
+metric…) renders as that block, as the dashboard's board does. `blocks/coreBlocks.tsx` registers each adapter
+lazily, so a template's chunk is fetched only when a page shows it.
+
+**Legacy views.** `legacy/page-types.css` dresses the vanilla views in their
+template. `legacy/LegacyViewHost.tsx` imports it, so it arrives with the lazy
+legacy host chunk and never at boot (`bridge.css` is in the shell boot through
+`runtime.ts`, so it cannot carry it). Every rule starts with
+`html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type=…]`,
+so the styles apply under the selectable layouts only. The classic frame
+(`layout: classic`) and the dashboard keep today's look. Rules name the
+views' own classes and never an id or a page id. They use tokens only;
+colours that arrive in inline styles are matched without their `#`.
+`!important` is used only against inline styles. Under a layout, legacy
+controls use the Pro accent: the primary clamped to a mid tone, so the white
+text the views paint on it stays readable. `legacy/page-types.test.ts`
+enforces the scoping, the template names (read from `page_types.py`) and the
+token rule.
+
 ## Theming pipeline
 
 ```
 YAML site.theme / set_theme / set_brand_color
   └─ Python themes.get_seed_theme_css(preset, radius, accent, density)
-       ├─ server: <style id="aiui-server-theme">   (app style)
-       └─ compiler: assets/theme.css                (aiui build)
+  │    ├─ server: <style id="aiui-server-theme">   (app style)
+  │    └─ compiler: assets/theme.css                (aiui build)
+  └─ Python themes.get_pro_seed_css(preset, accent)
+       └─ server: <style id="aiui-server-pro-theme"> (app style, non-default accent only)
 runtime themes.ts
   ├─ applyTheme(preset)       → seeds at :where(:root) (server/build seeds win)
   ├─ applyNamedTheme(soft…)   → seeds at html:root     (beats server seeds)
   └─ upgradeLegacyCustomCss() → rewrites HSL triples in #aiui-custom-css
 styles/theme.css: seeds → tiers → shadcn vars → @theme utilities
+styles/pro.css:   (html[data-aiui-tokens=pro] only) Pro palette + --seed-pro-* → the same vars
 ```
 
 - The preset tables (`NEUTRAL_TINTS`, the 600/500 accent pairs) exist in both
@@ -282,6 +350,148 @@ styles/theme.css: seeds → tiers → shadcn vars → @theme utilities
   set the seed: `--seed-accent: #2563eb`. `aiui validate` warns (code 5001) when
   `site.custom_css` sets a triple, and the React UI rewrites such CSS at
   runtime where it can.
+
+## PraisonAI Pro tokens
+
+Pro is the visual system of the selectable layouts (ADR 0003). Its spec is
+the Pro design files (`.claude/ui-reset/design/canvas/project/Pro*.dc.html`,
+the `renderVals()` palette, identical in all nine). It reuses the token
+layer above: same utilities, same primitives, different values.
+
+**When it applies.** `styles/pro.css` is scoped to
+`html[data-aiui-shell="react"][data-aiui-tokens="pro"]`. `setTokenSystem('pro')`
+(`proTokens.ts`, re-exported by `themes.ts`) sets the attribute and `setTokenSystem(null)` removes it. The
+shell's layout host (`shell/LayoutHost.tsx`, which imports `pro.css` in the
+shell chunk) switches Pro on while a layout frame is mounted and off for the
+classic frame and the fallback. Without the attribute nothing in `pro.css`
+matches, so the classic frame (`layout: classic`), the dashboard and every
+other style render exactly as before. `theme.css` and `index.css` do not
+mention Pro.
+
+**Layers.** Everything is in `@layer base`, after `theme.css`, with a more
+specific selector. So Pro beats the classic defaults, and unlayered CSS (the
+server seed tags, plugin theme presets, `set_custom_css`) still beats Pro.
+
+| Level | Names | Set by |
+| --- | --- | --- |
+| P0 palette | `--pro-<name>` (table below) | `pro.css` only. Mirrors `themes.py` `PRO_NEUTRALS` and `themes.ts`, kept equal by `test_seed_theme.py` |
+| P1 accent seeds | `--seed-pro-{accent,accent-fg,soft,link,ring}`, unsuffixed, or with `-light` / `-dark` | the server (`-light`/`-dark`, from the theme config) and theme presets (unsuffixed, per mode). Default: indigo |
+| mapped | the classic seeds, the `--ui-*` tiers and every shadcn variable | `pro.css`, from P0 and P1 |
+
+Like the classic mode seeds, P0 and the P1 defaults are declared on `<html>`
+(and the dark palette on `.dark` subtrees) only, so the server's unlayered
+`:root` seeds reach every descendant. The mapping is declared again on
+`[data-aiui-scope]` and `.dark`, so re-seed a scope with the unsuffixed
+`--seed-pro-<role>`.
+
+### Palette
+
+| `--pro-*` | Light | Dark | Becomes |
+| --- | --- | --- | --- |
+| `background` | `#ffffff` | `#0e0e11` | `--background`, `--seed-paper`, `--ui-bg-app` |
+| `foreground` | `#18181b` | `#ededf0` | `--foreground` and every `*-foreground` on a neutral surface, `--seed-ink` |
+| `card` | `#ffffff` | `#16161a` | `--card`, `--popover`, `--seed-raised` |
+| `sidebar` | `#f7f7f8` | `#09090b` | `--sidebar`, `--seed-sunken` |
+| `sidebar-fg` | `#3f3f46` | `#c4c4cc` | `--sidebar-foreground` |
+| `sidebar-accent` | `#ebebee` | `#1f1f25` | `--sidebar-accent`, `--ui-row-active` (active nav and list row) |
+| `muted` | `#f4f4f5` | `#1d1d22` | `--muted`, `--secondary`, `--accent` (hover), `--ui-bubble-user` |
+| `muted-fg` | `#52525b` | `#b4b4bd` | `--muted-foreground`, `--ui-text-2` |
+| `subtle` | `#66666e` | `#8e8e98` | `--ui-text-3` (meta: times, counts, hints) |
+| `border` | `#e4e4e7` | `#27272d` | `--border`, `--sidebar-border`, `--ui-hairline`, `--ui-stroke-2` |
+| `input` | `#d4d4d8` | `#3a3a42` | `--input`, `--ui-stroke-1` |
+| `code-bg` | `#fafafa` | `#121216` | `--ui-code-bg` |
+| `success` / `-fg` / `-soft` | `#15803d` `#ffffff` `#ecfdf3` | `#34b27b` `#04210f` `#0f2a1e` | `--success(-foreground)`, `--ui-success-soft` |
+| `warning` / `-fg` / `-soft` / `-line` | `#b45309` `#ffffff` `#fffbeb` `#f3d9a8` | `#fcd34d` `#1f1300` `#251c10` `#5f400f` | `--warning(-foreground)`, `--ui-warning-soft`, `--ui-warning-line` |
+| `danger` / `-fg` / `-soft` / `-line` | `#dc2626` `#ffffff` `#fff5f5` `#f7c9c9` | `#f05252` `#1f0505` `#2e1416` `#5c2328` | `--destructive(-foreground)`, `--ui-danger-soft`, `--ui-danger-line` |
+| `info` / `-soft` | `#2563eb` `#eff6ff` | `#4f8cf7` `#13213a` | `--info` (on it: the page colour), `--ui-info-soft`, `--ui-syntax-number` |
+| `shadow-sm` / `-float` / `-overlay` | ink at 5–24% | black at 50–70% | `--ui-shadow-xs/-sm/-float/-overlay`, so `shadow-sm`, `shadow-md`, `shadow-lg` |
+| `scrim` | ink at 36% | black at 60% | `--ui-scrim` (behind sheets and dialogs) |
+
+One deliberate change from the design: light `danger-soft` is `#fff5f5`, not
+`#fef2f2`. The design's "Failed" chip puts danger text on that fill, which
+is 4.41:1; `#fff5f5` makes it 4.52:1. Do not put danger text on `bg-muted`
+(4.39:1 in light mode); use the danger soft fill or the page.
+
+### Accent
+
+| Swatch | Light accent / link / ring | Dark accent / link / ring | Picked by |
+| --- | --- | --- | --- |
+| indigo (default) | `#4f46e5` / `#4338ca` / `#4f46e5` | `#5b5ef0` / `#a5b4fc` / `#818cf8` | no preset, a neutral preset (zinc is the default), `indigo`, or accent `#4f46e5` |
+| blue | `#2563eb` / `#1d4ed8` / `#2563eb` | `#60a5fa` / `#93c5fd` / `#60a5fa` | preset `blue` or accent `#2563eb` |
+| teal | `#0f766e` / `#115e59` / `#0f766e` | `#2dd4bf` / `#5eead4` / `#2dd4bf` | preset `teal` or accent `#0f766e` |
+| graphite | `#18181b` / `#18181b` / `#52525b` | `#ededf0` / `#ededf0` / `#a1a1aa` | accent `#18181b` |
+
+Each swatch also sets the on-accent text (`#ffffff` light, `#0e0e11` dark) and
+the soft fill (`--ui-accent-soft`, for selected chips and avatar tiles).
+One deliberate change from the design: the default indigo's dark accent is
+`#5b5ef0` with white text (4.88:1; 3.95:1 against the page), not the
+design's pale `#818cf8` with dark text, which made every filled button the
+brightest thing on a dark screen. Its dark ring stays `#818cf8`. The
+accent keys are the design's own picker values, so `theme.accent`,
+`set_brand_color()` and `register_theme()` pick a swatch by its hex.
+
+Any other accent is derived (`themes.py` `pro_accent`) by the design's
+custom rule: the colour itself, a soft fill at hex alpha `14` (light) / `29`
+(dark), and a link and ring moved toward the ink until they reach 4.6:1 and
+3:1. Other colour presets (red … rose) derive from their 600 (light) / 500
+(dark) pair. The server writes the result into
+`<style id="aiui-server-pro-theme">`, which a default app does not get.
+
+A viewer can also choose a swatch as a theme preset: `builtin.layouts`
+registers `proThemePresets()` (Pro Indigo, Blue, Teal and Graphite, ids
+`pro.<name>`) through `registerThemePreset` whenever a layout is on offer.
+They set only `--seed-pro-*`, so the classic frame is unaffected.
+
+### Type, spacing, radius
+
+- Sans `"Geist"`, mono `"Geist Mono"`, each followed by the system stack
+  (`--aiui-font-sans` / `--aiui-font-mono`). The font files are not bundled
+  yet, so viewers without Geist installed get the system font
+  **(planned: self-hosted Geist woff2)**.
+- Scale: the classic scale already matches the design: 12 `text-2xs` (kbd,
+  counts), 13 `text-xs` (meta), 14 `text-sm` (chrome, nav, buttons), 15
+  `text-base` (body), 17 `text-lg` (section titles), 20 `text-xl` (page
+  titles), 24 `text-2xl` (KPI numerals). The design's 12.5px inline mono maps
+  to `text-xs`. Body line height is 1.6 in Pro (`.aiui-app`; classic 1.55);
+  the design's code blocks use 1.7.
+  Weights 400 / 500 (labels, active nav) / 600 (titles, names). Titles use
+  `-0.01em` tracking and KPI numerals `-0.02em`.
+- Spacing: the 4px grid of the density scale. Controls are 32px (`default`),
+  28px (`sm`, icon buttons in the sidebar) and 36px (`lg`, the New chat
+  block). Gaps are 4 / 8 / 12 / 16 / 24.
+- Layout: 256px sidebar (`--ui-sidebar-w` is `16rem` in Pro), 48px header,
+  760px reading column.
+- Radius: the classic ladder at the default `--radius` (8px) is the design's:
+  `rounded-xs` 4 (kbd, inline code), `sm` 6 (avatar tiles), `md` 8
+  (controls, nav rows), `lg` 10, `xl` 12 (cards, panels), `2xl` 16 (composer,
+  user bubble), `full` (pills, dots). YAML `radius` still scales it.
+
+### Porting a `.dc.html` design
+
+The design files use shadcn names directly, so most `var(--x)` carry over
+as the matching utility (`var(--muted)` → `bg-muted`). The others:
+
+| Design | Use |
+| --- | --- |
+| `var(--ui-text-3)` | `text-tier-1..4` (tier 3) |
+| `var(--ui-link)`, `var(--ui-accent-soft)`, `var(--ui-code-bg)` | `text-link`, `bg-accent-soft`, `bg-code` |
+| `var(--ui-{success,warning,danger,info}-soft)` | `bg-{success,warning,danger,info}-soft` |
+| `var(--ui-warning-line)`, `var(--ui-danger-line)`, `var(--ui-ring-soft)` | `var(--ui-…)` (Pro only; no utility yet) |
+| `var(--syntax-fn)`, `var(--syntax-number)`, `var(--scrim)` | `var(--ui-syntax-fn)`, `var(--ui-syntax-number)`, `var(--ui-scrim)` |
+| the design's small, float and overlay shadow variables | `shadow-sm`, `shadow-md` (float), `shadow-lg` (overlay) |
+| the design's sans and mono font variables | `font-sans`, `font-mono` |
+| inline `style` sizes | the variants and the scale above, never `px` at the call site |
+
+### Guarantees
+
+`tests/unit/test_light_mode_contrast.py` (`TestProContrast`) recomputes, in
+both modes: foreground, `muted-fg`, `subtle` and `sidebar-fg` at 4.5:1 on
+the page, card, sidebar, muted and active-row surfaces; semantic text on the
+page, card and its own soft fill; every on-colour; and for every swatch,
+every preset and a set of extreme custom accents, the on-accent text, the
+link on every surface and on the soft fill, and a 3:1 focus ring.
+`tests/unit/test_seed_theme.py` keeps `pro.css`, `themes.ts` (and `proTokens.ts`) and `themes.py`
+equal and checks that every `pro.css` rule is scoped and layered.
 
 ## Legacy dashboard isolation
 

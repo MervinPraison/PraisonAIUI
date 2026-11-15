@@ -11,6 +11,11 @@
  *   only for non-empty text, so the renderer chunk is not fetched before the
  *   first text arrives.
  * - Element, ask and A2UI parts are lazy chunks.
+ * - A layout's presentation (ADR 0003 §1.3: `variant`, `approvals`,
+ *   `regions`) is data on the root plus pieces of the lazy presentation
+ *   host (./presentation/host) the chat page loads for a layout; without
+ *   a layout nothing of it is downloaded and the thread is as before.
+ *   The 'steps' variant pins an open approval above the composer.
  */
 import { createContext, lazy, memo, useContext, useId, useMemo, useState, type ComponentType, type FC, type MouseEvent, type ReactElement } from 'react'
 import {
@@ -38,14 +43,30 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Markdown } from '@/markdown/LazyMarkdown'
 import { getToolRenderers, useRegistryVersion, type AnyComponent } from '@/sdk/registry'
+import type { ChatPresentation } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
 import { LazyBoundary } from './parts/LazyBoundary'
+import { useDecision, type InlineGateProps } from './presentation/decision'
+import { commandLabel, commandOf } from './presentation/command'
 import { APPROVAL_ERROR, APPROVAL_PENDING, PENDING_APPROVAL } from './protocol'
 import { formatDuration, safeUrl } from './util'
 
 const AskToolLazy = lazy(() => import('./parts/AskTool'))
 const ElementPartLazy = lazy(() => import('./parts/ElementPart'))
 const A2uiPartLazy = lazy(() => import('./parts/A2uiPart'))
+
+/** The lazy presentation host (./presentation/host), loaded by the chat page for a layout. */
+export type PresentationHost = typeof import('./presentation/host')
+
+/** How a layout presents the thread (`meta.chat`), and the host that draws it. Absent: the default thread. */
+export interface ThreadPresentation {
+  chat: ChatPresentation
+  /** Until it has loaded, the thread renders as without a layout. */
+  host: PresentationHost | null
+  /** The open session for the layout's regions (null: a new chat). */
+  sessionId: string | null
+}
+const PresentationContext = createContext<ThreadPresentation | undefined>(undefined)
 
 /** The thread's session id, for parts that post back to the server (A2UI surface actions). */
 const SessionIdContext = createContext<string | undefined>(undefined)
@@ -154,46 +175,35 @@ function toolState(p: ToolCallMessagePartProps): ToolState {
 }
 
 /**
- * Approve/Deny. The decision in flight (`pending`) and a rejected one (`error`)
- * come from the tool part, so they survive the gate remounting; the local
- * state only covers the moment between the click and the store update.
+ * Approve/Deny inline (the default; ./presentation/decision holds the
+ * decision state). The exact command or arguments are always shown above
+ * the buttons ("Run: pip install numpy"): nothing is approved unseen. The
+ * risk level is a chip in the tool row's header.
  */
-function ApprovalGate({ prompt, risk, pending, error: partError, respond }: {
-  prompt: string
-  risk?: string
-  pending?: string
-  error?: string
-  respond: (approved: boolean) => Promise<void>
-}) {
-  const [clicked, setClicked] = useState<null | 'approve' | 'deny'>(null)
-  const [localError, setLocalError] = useState<string | null>(null)
-  const busy = pending === 'approve' || pending === 'deny' ? pending : clicked
-  const error = partError ?? localError
-  const act = async (approved: boolean) => {
-    setClicked(approved ? 'approve' : 'deny')
-    setLocalError(null)
-    try {
-      await respond(approved)
-    } catch (err) {
-      setLocalError(err instanceof Error ? err.message : 'The decision could not be sent')
-    } finally {
-      setClicked(null)
-    }
-  }
+function ApprovalGate(p: InlineGateProps & { args?: Readonly<Record<string, unknown>> }) {
+  const { prompt, risk, args } = p
+  const [busy, error, act] = useDecision(p)
   const high = risk === 'high' || risk === 'critical'
+  const command = commandOf(args)
+  // "Run: pip install numpy", "Query: …", "Address: …", "File: …", else "Details: …".
+  const named = commandLabel(args)
+  const label = named === 'Command' ? 'Run' : named
   return (
     <div className="border-t border-border px-3 py-2.5" data-approval-gate>
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end">
         <div className="flex min-w-0 flex-1 items-start gap-2">
           <ShieldAlert className={cn('mt-0.5 size-4 shrink-0', high ? 'text-destructive' : 'text-muted-foreground')} aria-hidden />
-          <p className="min-w-0 text-sm break-words text-foreground">
-            {prompt}
-            {risk && (
-              <span className={cn('ml-2 inline-block rounded px-1.5 text-xs', high ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground')}>
-                {risk} risk
-              </span>
+          <div className="min-w-0 space-y-1.5">
+            <p className="text-sm break-words text-foreground">{prompt}</p>
+            {command && (
+              <p className="flex min-w-0 items-baseline gap-1.5 text-sm" data-gate-command>
+                <span className="shrink-0 text-muted-foreground">{label}:</span>
+                <code className="min-w-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs break-all text-foreground">{command}</code>
+              </p>
             )}
-          </p>
+            {/* A phone row has no room for the header's risk chip: it is said here. */}
+            {risk && <p className={cn('text-xs sm:hidden', high ? 'text-destructive' : 'text-muted-foreground')}>{risk} risk</p>}
+          </div>
         </div>
         <div className="flex shrink-0 gap-2 pl-6 sm:pl-0">
           <Button type="button" size="sm" disabled={busy !== null} onClick={() => void act(true)}>
@@ -225,6 +235,8 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
   const [open, setOpen] = useState(false)
   const panelId = useId()
   const sessionId = useContext(SessionIdContext)
+  const pres = useContext(PresentationContext)
+  const host = pres?.host
   const a = (artifact ?? {}) as Record<string, unknown>
   const state = toolState(props)
   const pill = PILL[state]
@@ -235,8 +247,23 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
   const took = timing?.completedAt ? formatDuration(timing.completedAt - timing.startedAt) : ''
   const hasArgs = args && Object.keys(args).length > 0
   const a2ui = Array.isArray(a.a2ui) && a.a2ui.length ? (a.a2ui as Record<string, unknown>[]) : null
+  const risk = typeof a.risk_level === 'string' && a.risk_level ? a.risk_level : undefined
+  // A layout's explained card carries the tool name, risk and the expand
+  // toggle in its own header: the row is not drawn twice while it waits.
+  const merged = state === 'approval' && !!host && pres?.chat.approvals === 'card'
   // Flat row; a hairline only once it holds something (expanded, a gate, a surface).
   const framed = open || state === 'approval' || a2ui !== null
+  const toggle = () => setOpen((v) => !v)
+  const gate = approval && approval.approved === undefined && (
+    <ApprovalGate
+      prompt={approval.prompt ?? `Allow ${toolName}?`}
+      args={args}
+      risk={risk}
+      pending={typeof a[APPROVAL_PENDING] === 'string' ? a[APPROVAL_PENDING] : undefined}
+      error={typeof a[APPROVAL_ERROR] === 'string' ? a[APPROVAL_ERROR] : undefined}
+      respond={(approved) => respondToApproval({ approved })}
+    />
+  )
   return (
     <div
       className={cn('my-1.5 min-w-0 rounded-md', framed && 'border border-border', state === 'approval' && 'shadow-sm')}
@@ -244,9 +271,9 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
       data-state={state}
       data-open={open || undefined}
     >
-      <button
+      {!merged && <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         className="flex h-8 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
@@ -254,9 +281,14 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
         <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground" aria-hidden>
           {toolIcon(toolName)}
         </span>
-        <span className="shrink-0 font-medium text-foreground">{toolName}</span>
+        <span className="min-w-0 truncate font-medium text-foreground" data-tool-name>{toolName}</span>
         {description && <span className="min-w-0 truncate text-muted-foreground">{description}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2">
+          {state === 'approval' && risk && (
+            <span className={cn('hidden rounded px-1.5 py-0.5 text-xs sm:inline', risk === 'high' || risk === 'critical' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground')} data-tool-risk>
+              {risk} risk
+            </span>
+          )}
           <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs', pill.className)}>
             {state === 'running' && <Spinner className="size-3" />}
             {pill.label}
@@ -264,16 +296,12 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
           {took && <span className="hidden text-xs tabular-nums text-muted-foreground sm:inline">{took}</span>}
           <ChevronRight className={cn('size-3.5 text-muted-foreground motion-safe:transition-transform motion-safe:duration-[120ms]', open && 'rotate-90')} aria-hidden />
         </span>
-      </button>
-      {approval && approval.approved === undefined && (
-        <ApprovalGate
-          prompt={approval.prompt ?? `Allow ${toolName}?`}
-          risk={typeof a.risk_level === 'string' ? a.risk_level : undefined}
-          pending={typeof a[APPROVAL_PENDING] === 'string' ? a[APPROVAL_PENDING] : undefined}
-          error={typeof a[APPROVAL_ERROR] === 'string' ? a[APPROVAL_ERROR] : undefined}
-          respond={(approved) => respondToApproval({ approved })}
-        />
-      )}
+      </button>}
+      {gate && (host ? (
+        <host.Gate presentation={pres} part={props} description={description} expand={{ open, toggle, panelId }}>
+          {gate}
+        </host.Gate>
+      ) : gate)}
       {open && (
         <div id={panelId} className="space-y-3 px-3 pt-1 pb-3">
           {description && <p className="text-xs break-words text-muted-foreground sm:hidden">{description}</p>}
@@ -451,11 +479,12 @@ const REVEAL_ON_HOVER =
 
 const AssistantMessage: FC = () => {
   const components = useContext(PartsContext)
+  const pres = useContext(PresentationContext)
   const agent = useAuiState((s) => (s.message.metadata.custom as { agentName?: string }).agentName)
   const isLast = useAuiState((s) => s.message.isLast)
-  return (
-    <MessagePrimitive.Root className={cn(COLUMN, 'group/msg min-w-0 py-3')} data-role="assistant">
-      {agent && <div className="mb-1 text-xs font-medium text-muted-foreground">{agent}</div>}
+  const agentLine = agent ? <div className="mb-1 text-xs font-medium text-muted-foreground">{agent}</div> : null
+  const turn = (
+    <>
       <div className="min-w-0 text-base leading-[1.55] break-words text-foreground">
         <MessagePrimitive.Parts components={components} />
       </div>
@@ -493,6 +522,12 @@ const AssistantMessage: FC = () => {
           </ActionBarPrimitive.FeedbackNegative>
         </AuiIf>
       </ActionBarPrimitive.Root>
+    </>
+  )
+  return (
+    <MessagePrimitive.Root className={cn(COLUMN, 'group/msg min-w-0 py-3')} data-role="assistant">
+      {/* A layout's turn header, regions and variant styles wrap the turn (lazy host). */}
+      {pres?.host ? <pres.host.Turn presentation={pres} agentLine={agentLine}>{turn}</pres.host.Turn> : <>{agentLine}{turn}</>}
     </MessagePrimitive.Root>
   )
 }
@@ -511,7 +546,7 @@ const UserMessage: FC = () => (
     <div className="flex max-w-full flex-wrap justify-end gap-1.5 empty:hidden">
       <MessagePrimitive.Attachments>{() => <MessageAttachment />}</MessagePrimitive.Attachments>
     </div>
-    <div className="max-w-[85%] min-w-0 rounded-2xl bg-muted px-4 py-2.5 text-base leading-[1.55] whitespace-pre-wrap break-words text-foreground">
+    <div className="max-w-[85%] min-w-0 rounded-2xl bg-muted px-4 py-2.5 text-base leading-[1.55] whitespace-pre-wrap break-words text-foreground" data-user-bubble>
       <MessagePrimitive.Parts />
     </div>
   </MessagePrimitive.Root>
@@ -617,6 +652,8 @@ export interface ThreadProps {
   sessionId?: string
   /** Suggestion prompts that go into the composer to be finished, instead of being sent. */
   fillPrompts?: ReadonlySet<string>
+  /** A layout's presentation of the thread (ChatPage passes `meta.chat` and the host). */
+  presentation?: ThreadPresentation
 }
 
 const ThreadSkeleton: FC = () => (
@@ -663,43 +700,63 @@ function focusComposerEnd(from: HTMLElement) {
   })
 }
 
-export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loading, notice, sessionId, fillPrompts }) => {
+export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loading, notice, sessionId, fillPrompts, presentation }) => {
   const parts = usePartComponents()
+  const chat = presentation?.chat
+  const host = presentation?.host
+  const heading = (
+    <div>
+      <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title ?? 'How can I help you today?'}</h2>
+      {subtitle && <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>}
+    </div>
+  )
+  // The starters of an empty thread; a layout's `empty` region replaces them.
+  const starters = (
+    <div className="grid w-full gap-2 text-left sm:grid-cols-2">
+      <ThreadPrimitive.Suggestions>
+        {({ suggestion }) => {
+          const fill = fillPrompts?.has(suggestion.prompt) ?? false
+          return (
+            <SuggestionPrimitive.Trigger send={!fill} asChild>
+              <button
+                type="button"
+                onClick={fill ? (e) => focusComposerEnd(e.currentTarget) : undefined}
+                className="min-w-0 rounded-xl border border-border px-4 py-3 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="truncate font-medium text-foreground">{suggestion.title ?? suggestion.prompt}</div>
+                {suggestion.label && <div className="mt-0.5 truncate text-muted-foreground">{suggestion.label}</div>}
+              </button>
+            </SuggestionPrimitive.Trigger>
+          )
+        }}
+      </ThreadPrimitive.Suggestions>
+    </div>
+  )
   return (
     <SessionIdContext.Provider value={sessionId}>
     <PartsContext.Provider value={parts}>
+    <PresentationContext.Provider value={presentation}>
     {/* A file dropped anywhere on the thread is attached (same adapter, 10 MB check, notice). */}
     <ComposerPrimitive.AttachmentDropzone asChild>
-    <ThreadPrimitive.Root className="group/drop flex h-full min-h-0 min-w-0 flex-col bg-background text-foreground" data-aiui-dropzone>
+    <ThreadPrimitive.Root
+      className="group/drop flex h-full min-h-0 min-w-0 flex-col bg-background text-foreground"
+      data-aiui-dropzone
+      data-variant={chat?.thread}
+    >
       <ThreadPrimitive.Viewport autoScroll className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-4 sm:px-6" data-aiui-thread>
         {loading ? (
           <ThreadSkeleton />
         ) : (
           <ThreadPrimitive.Empty>
             <div className={cn(COLUMN, 'flex flex-1 flex-col items-center justify-end gap-6 pt-10 pb-[12vh] text-center')} data-thread-empty>
-              <div>
-                <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title ?? 'How can I help you today?'}</h2>
-                {subtitle && <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>}
-              </div>
-              <div className="grid w-full gap-2 text-left sm:grid-cols-2">
-                <ThreadPrimitive.Suggestions>
-                  {({ suggestion }) => {
-                    const fill = fillPrompts?.has(suggestion.prompt) ?? false
-                    return (
-                      <SuggestionPrimitive.Trigger send={!fill} asChild>
-                        <button
-                          type="button"
-                          onClick={fill ? (e) => focusComposerEnd(e.currentTarget) : undefined}
-                          className="min-w-0 rounded-xl border border-border px-4 py-3 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          <div className="truncate font-medium text-foreground">{suggestion.title ?? suggestion.prompt}</div>
-                          {suggestion.label && <div className="mt-0.5 truncate text-muted-foreground">{suggestion.label}</div>}
-                        </button>
-                      </SuggestionPrimitive.Trigger>
-                    )
-                  }}
-                </ThreadPrimitive.Suggestions>
-              </div>
+              {host ? (
+                <host.Empty presentation={presentation} heading={heading}>{starters}</host.Empty>
+              ) : (
+                <>
+                  {heading}
+                  {starters}
+                </>
+              )}
             </div>
           </ThreadPrimitive.Empty>
         )}
@@ -734,11 +791,14 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
               </Button>
             </ThreadPrimitive.ScrollToBottom>
           </div>
+          {/* A layout that pins open approvals puts them here, above the composer. */}
+          {presentation?.host && <presentation.host.Pinned presentation={presentation} />}
           <Composer placeholder={placeholder} notice={notice} />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
     </ComposerPrimitive.AttachmentDropzone>
+    </PresentationContext.Provider>
     </PartsContext.Provider>
     </SessionIdContext.Provider>
   )

@@ -13,6 +13,8 @@ import { PAGE_CHANGE_EVENT } from './router'
 
 let open = false
 let requested = false
+/** Text the next open starts with (openCommandPalette({ query })); '' otherwise. */
+let query = ''
 const listeners = new Set<() => void>()
 
 function emit() {
@@ -30,11 +32,37 @@ export function setCommandPaletteOpen(next: boolean): void {
   if (next) requested = true
   if (open === next) return
   open = next
+  // Ctrl+K and every other open start empty; only openCommandPalette({query}) prefills.
+  if (!next) query = ''
   emit()
 }
 
-export function openCommandPalette(): void {
+export interface OpenPaletteOptions {
+  /** Type this into the search box (a layout's command bar). */
+  query?: string
+}
+
+/**
+ * Open the one command palette. `query` prefills its search; the palette
+ * already open takes the new query. Legacy callers pass nothing (or an
+ * event, ignored).
+ */
+export function openCommandPalette(opts?: OpenPaletteOptions | object): void {
+  const q = typeof (opts as OpenPaletteOptions | undefined)?.query === 'string' ? (opts as OpenPaletteOptions).query! : ''
+  if (open && q !== query) {
+    query = q
+    emit()
+    return
+  }
+  query = q
   setCommandPaletteOpen(true)
+}
+
+const getQuery = () => query
+
+/** The query the palette was opened with ('' for a plain open). */
+export function useCommandPaletteQuery(): string {
+  return useSyncExternalStore(subscribe, getQuery, getQuery)
 }
 
 export function closeCommandPalette(): void {

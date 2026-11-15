@@ -122,3 +122,106 @@
   background-color: var(--color-code);
   color: inherit;
 }
+
+/*
+ * Chat code blocks (./CodeBlock.tsx). The header is a solid bar with a
+ * hairline under it, so code never shows through; a fence longer than 12
+ * lines shows 12 with the last 24 px faded and a "Show all N lines" toggle;
+ * a line that runs past the right edge fades there while the body scrolls
+ * sideways (thin scrollbar); the wrap toggle sits in the header next to copy
+ * and download.
+ */
+.aiui-code {
+  position: relative;
+  margin-block: calc(var(--spacing) * 4);
+}
+.aiui-code > [data-streamdown='code-block'] {
+  margin-block: 0;
+  overflow: hidden;
+}
+.aiui-code [data-streamdown='code-block-header'] {
+  position: relative;
+  z-index: 1;
+  background: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.aiui-code [data-streamdown='code-block'] > .absolute {
+  z-index: 2;
+}
+.aiui-code [data-streamdown='code-block-body'] {
+  padding-top: calc(var(--spacing) * 3);
+  scrollbar-width: thin;
+}
+.aiui-code[data-collapsed] [data-streamdown='code-block-body'] {
+  max-height: calc(var(--aiui-code-lines, 12) * 1.25rem + calc(var(--spacing) * 6));
+  overflow-y: hidden;
+}
+.aiui-code[data-long]:not([data-collapsed]) [data-streamdown='code-block-body'] {
+  padding-bottom: calc(var(--spacing) * 11);
+}
+.aiui-code[data-collapsed] [data-streamdown='code-block-body'],
+.aiui-code[data-more-right] [data-streamdown='code-block-body'] {
+  --aiui-fade-x: linear-gradient(#000, #000);
+  --aiui-fade-y: linear-gradient(#000, #000);
+  mask-image: var(--aiui-fade-x), var(--aiui-fade-y);
+  mask-composite: intersect;
+}
+.aiui-code[data-more-right] [data-streamdown='code-block-body'] {
+  --aiui-fade-x: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+}
+.aiui-code[data-collapsed] [data-streamdown='code-block-body'] {
+  --aiui-fade-y: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+}
+.aiui-code[data-wrap='on'] [data-streamdown='code-block-body'] pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.aiui-code [data-streamdown='code-block-actions'] {
+  border-color: transparent;
+  background: transparent;
+  backdrop-filter: none;
+}
+/* Just left of the copy / download bar (70px wide, 9px from the edge). */
+.aiui-code-wrap {
+  position: absolute;
+  top: 5px;
+  right: 82px;
+  z-index: 2;
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm, 4px);
+  color: var(--muted-foreground);
+}
+.aiui-code-wrap:hover,
+.aiui-code-wrap[aria-pressed='true'] {
+  color: var(--foreground);
+  background: var(--background);
+}
+.aiui-code-more {
+  position: absolute;
+  bottom: calc(var(--spacing) * 2);
+  left: 50%;
+  z-index: 2;
+  transform: translateX(-50%);
+  height: 28px;
+  padding-inline: calc(var(--spacing) * 3);
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background: var(--background);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgb(0 0 0 / 0.05));
+  font-size: var(--text-xs, 12px);
+  font-weight: 500;
+  color: var(--foreground);
+  white-space: nowrap;
+}
+.aiui-code-more:hover {
+  background: var(--muted);
+}
+.aiui-code-wrap:focus-visible,
+.aiui-code-more:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}

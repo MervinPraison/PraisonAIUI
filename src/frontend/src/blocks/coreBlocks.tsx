@@ -1,8 +1,12 @@
 /**
  * Core block renderers: React + design tokens for the `_components` types
  * page handlers use most (praisonaiui/ui.py; dashboard.js renderComponent*).
- * Types not listed here (chart, board, gallery, pagination, dialog, popover,
- * html_embed, a2ui_surface, ...) render through LegacyBlockFallback.
+ * Types not listed here (chart, pagination, dialog, popover, html_embed,
+ * a2ui_surface, ...) render through LegacyBlockFallback.
+ *
+ * The page-template types (`board`, `gallery`, `list_detail`, `log_viewer`,
+ * `code_editor`) render with components/page. Each is a lazy chunk, fetched
+ * only when a page shows that block, so this chunk stays small.
  *
  * These are first-party contributions to the SDK block registry, not a
  * private table: the module registers every type with
@@ -31,6 +35,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
+import { retryableLazy } from '@/lib/retryableLazy'
 import { cn } from '@/lib/utils'
 import { Markdown } from '@/markdown/LazyMarkdown'
 import { fenced } from '@/markdown/fence'
@@ -992,6 +997,25 @@ function SliderInputBlock({ node }: CoreBlockProps) {
   )
 }
 
+// ── page templates (components/page, DESIGN.md "Page templates") ─────
+
+/** A template block: its own chunk, imported on first render (BlockRenderer suspends). */
+function templateBlock(load: () => Promise<{ default: CoreBlock }>): CoreBlock {
+  return retryableLazy<CoreBlockProps>(load)
+}
+
+const BoardTemplate = templateBlock(() => import('@/components/page/blocks/BoardBlock').then((m) => ({ default: m.BoardBlock })))
+const GalleryTemplate = templateBlock(() => import('@/components/page/blocks/GalleryBlock').then((m) => ({ default: m.GalleryBlock })))
+const ListDetailTemplate = templateBlock(() =>
+  import('@/components/page/blocks/ListDetailBlock').then((m) => ({ default: m.ListDetailBlock })),
+)
+const LogViewerTemplate = templateBlock(() =>
+  import('@/components/page/blocks/LogViewerBlock').then((m) => ({ default: m.LogViewerBlock })),
+)
+const CodeEditorTemplate = templateBlock(() =>
+  import('@/components/page/blocks/CodeEditorBlock').then((m) => ({ default: m.CodeEditorBlock })),
+)
+
 /** Block type → renderer. Aliases share a component. */
 const CORE: Record<string, CoreBlock> = {
   text: TextBlock,
@@ -1047,6 +1071,11 @@ const CORE: Record<string, CoreBlock> = {
   switch_input: SwitchInputBlock,
   radio_input: RadioInputBlock,
   slider_input: SliderInputBlock,
+  board: BoardTemplate,
+  gallery: GalleryTemplate,
+  list_detail: ListDetailTemplate,
+  log_viewer: LogViewerTemplate,
+  code_editor: CodeEditorTemplate,
 }
 
 /** Own-property lookup (a type named "constructor" must not hit Object.prototype). */

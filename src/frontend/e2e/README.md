@@ -20,10 +20,12 @@ never read or written.
 | Project | Server | Specs |
 |---|---|---|
 | `dashboard-legacy` | default style (vanilla dashboard) | `legacy-parity`, `legacy-dashboard` |
-| `app-shell` | `AIUI_SHELL=app` + the example plugin | `shell-sweep`, `chat`, `plugins` |
+| `app-shell` | `AIUI_SHELL=app` + the example plugin, `AIUI_LAYOUT=classic` (the classic frame) | `shell-sweep`, `chat`, `plugins` |
 | `chat-style` | `style: chat`, presets `zinc` and `rose` (two servers) | `theme-presets` |
 | `docs` | `aiui build` of `fixtures/docs-site`, served by `aiui serve` | `markdown` |
 | `page-reload-dashboard`, `page-reload-app` | the `dashboard-legacy` and `app-shell` servers | `page-reload` |
+| `layouts-host` | `AIUI_SHELL=app` + the third-party layout plugin (`fixtures/layout-plugin/serve.py`) | `layouts-host`, `layout-<id>` |
+| `page-types` | the same server, its own instance (the layout suites' chats stay out of its baselines) | `page-types` |
 | `legacy-baseline` | the v0.3.153 tree (only with `AIUI_E2E_BASELINE_SRC`) | `legacy-parity` |
 
 ## What each suite checks
@@ -56,6 +58,12 @@ never read or written.
   reload, and light mode reaches the log panel and form fields.
 - **theme-presets**: `zinc` vs `rose` paint different `--primary` colours,
   and primary, body and muted text reach 4.5:1 in light and dark.
+- **layouts-host**: the layout host (ADR 0003): the default layout downloads
+  only its own chunks and the kit (network isolation for each built-in
+  layout), `?layout=classic` previews the classic frame, the plugin layout is
+  in the palette and Settings → Appearance and loads only when picked,
+  switching leaks no socket, timer or listener, a frame that throws falls back
+  to the classic frame, and the phone menu sheet.
 - **plugins**: the example plugin's React page, blocks page, block type, tool
   renderer and the error toast when its module fails to load.
 - **page-reload**: in the default dashboard and in the app shell, opening and
@@ -96,7 +104,7 @@ To enforce the comparison in CI, run the same commands inside the CI image
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `AIUI_E2E_PORT` | `8720` | first of six consecutive ports |
+| `AIUI_E2E_PORT` | `8720` | first of eight consecutive ports |
 | `AIUI_E2E_PYTHON` | `python3`, then `python` | interpreter (≥ 3.10) with the package's dependencies |
 | `AIUI_E2E_REUSE` | unset | `1` reuses servers already listening on the ports |
 | `AIUI_E2E_BASELINE_SRC` | unset | a v0.3.153 checkout; enables `legacy-baseline` |

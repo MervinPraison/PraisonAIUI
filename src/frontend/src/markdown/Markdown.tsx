@@ -17,7 +17,8 @@ import { Streamdown, defaultRehypePlugins, type PluginConfig, type StreamdownPro
 import { cn } from '@/lib/utils'
 import { SHIKI_THEMES, chatMermaidPlugin, ensureMathPlugin, getMathPlugin, lazyCodePlugin, lazyMermaidPlugin, needsMath } from './streamdownPlugins'
 import { normalizeTexDelimiters } from './texDelimiters'
-import { ChatH1, ChatH2, ChatH3, ChatH4, ImageGate, ListOl, ListUl, MarkdownImage, PolicyLink } from './chatComponents'
+import { ChatH1, ChatH2, ChatH3, ChatH4, ChatTd, ChatTh, ImageGate, ListOl, ListUl, MarkdownImage, PolicyLink } from './chatComponents'
+import { ChatCode } from './CodeBlock'
 import { DocsH1, DocsH2, DocsH3, DocsH4, DocsLink, DocsUl } from './docsComponents'
 import { Admonition, MkdocsTab, MkdocsTabs } from './MkdocsBlocks'
 import { IMAGE_GATE_TAG, rehypeImageGate } from './urlPolicy'
@@ -39,6 +40,9 @@ const CHAT_COMPONENTS = {
     h2: ChatH2,
     h3: ChatH3,
     h4: ChatH4,
+    code: ChatCode, // long fences collapse; wrap and sideways-scroll cues (./CodeBlock)
+    td: ChatTd, // short cells marked for one-line layout tables
+    th: ChatTh,
     [IMAGE_GATE_TAG]: ImageGate,
 } as unknown as Components
 
@@ -220,7 +224,8 @@ export const Markdown = memo(function Markdown({
             components={merged}
             linkSafety={LINKS_AS_ANCHORS}
             lineNumbers={false}
-            codeBlockMaxHeight={isDocs ? 0 : undefined}
+            // Chat: no inner scroll box; a long fence collapses instead (./CodeBlock).
+            codeBlockMaxHeight={0}
             tableMaxHeight={isDocs ? 0 : undefined}
             controls={isDocs ? DOCS_CONTROLS : CHAT_CONTROLS}
         >
