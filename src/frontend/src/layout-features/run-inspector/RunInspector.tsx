@@ -221,7 +221,7 @@ function Metrics({ run, tokens, tokensSub, cost, model }: { run: InspectorRun; t
     { label: 'Steps', value: `${run.doneSteps}/${run.steps.length}`, sub: waiting ? `${waiting} waiting` : '' },
   ]
   return (
-    <dl className="m-0 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border @[22rem]:grid-cols-4" data-run-metrics>
+    <dl className="m-0 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border @[19rem]:grid-cols-4" data-run-metrics>
       {items.map((m) => (
         <div key={m.label} className="min-w-0 bg-card px-2.5 py-2">
           <dt className="text-2xs text-tier-3">{m.label}</dt>

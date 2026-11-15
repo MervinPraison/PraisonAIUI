@@ -167,3 +167,37 @@ test('formats: durations, cost and tokens as the design writes them', () => {
   assert.equal(formatTokens(1432), '1,432')
   assert.equal(formatTokens(undefined), null)
 })
+
+test('an approval shows the exact call even when the step has a label; a quick thought says <1s', () => {
+  const m: ChatMessageView = {
+    id: 'a', role: 'assistant', createdAt: T0, status: { type: 'requires-action', reason: 'interrupt' },
+    parts: [
+      { type: 'reasoning', id: 'r', text: 'x', done: true, timing: { startedAt: T0, completedAt: T0 + 40 } },
+      { type: 'text', id: 't', text: 'Searching first.' },
+      {
+        type: 'tool-call', id: 'tc', toolName: 'web_search', args: { query: 'sorting algorithms' },
+        artifact: { label: 'Searching the web' }, result: { hits: 2 }, timing: { startedAt: T0 + 100, completedAt: T0 + 200 },
+        approval: { id: 'ap' },
+      },
+    ],
+  }
+  const run = deriveRun([m], T0 + 5000, new Map([['ap', T0 + 1000]]))!
+  assert.equal(run.steps[0].title, 'Thought for <1s')
+  assert.equal(run.steps.find((s) => s.kind === 'tool')?.title, 'Searching the web')
+  assert.equal(run.approval?.call, 'sorting algorithms')
+  assert.equal(run.approval?.isCommand, false)
+  assert.equal(formatDuration(run.waitingMs, true), '0:04')
+})
+
+test('paused after its text: the answer ends when the pause was first seen, not now', () => {
+  const m: ChatMessageView = {
+    id: 'a', role: 'assistant', createdAt: T0, status: { type: 'requires-action', reason: 'interrupt' },
+    parts: [
+      { type: 'tool-call', id: 'tc', toolName: 'shell', args: { cmd: 'ls' }, artifact: {}, result: 'ok', timing: { startedAt: T0, completedAt: T0 + 1000 }, approval: { id: 'ap' } },
+      { type: 'text', id: 't', text: 'Listed.' },
+    ],
+  }
+  const run = deriveRun([m], T0 + 60_000, new Map([['ap', T0 + 3000]]))!
+  const answer = run.steps.find((s) => s.kind === 'response')!
+  assert.equal(formatDuration(answer.durationMs), '2.0s')
+})

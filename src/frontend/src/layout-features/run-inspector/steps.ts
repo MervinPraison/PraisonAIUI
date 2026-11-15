@@ -184,14 +184,22 @@ function answerShape(text: string): string {
 
 const words = (text: string) => text.trim().split(/\s+/).filter(Boolean).length
 
-function toolTitle(p: ChatToolPartView): { title: string; isCommand: boolean } {
+const clip = (s: string) => (s.length > 200 ? `${s.slice(0, 199)}…` : s)
+
+/** The exact call: a shell command, a single string argument, else `tool({...})`. */
+function callOf(p: ChatToolPartView): { call: string; isCommand: boolean } {
   const cmd = commandOf(p.args)
-  if (cmd) return { title: `$ ${cmd.length > 200 ? `${cmd.slice(0, 199)}…` : cmd}`, isCommand: true }
-  const label = typeof p.artifact.label === 'string' && p.artifact.label ? p.artifact.label : ''
+  if (cmd) return { call: clip(cmd), isCommand: true }
   // Not the kit's describeCall: a module the frame shares would land in the frame's chunk.
   const values = Object.values(p.args)
-  const call = values.length === 1 && typeof values[0] === 'string' ? values[0] : `${p.toolName}(${values.length ? JSON.stringify(p.args) : ''})`
-  return { title: label || (call.length > 200 ? `${call.slice(0, 199)}…` : call), isCommand: false }
+  return { call: clip(values.length === 1 && typeof values[0] === 'string' ? values[0] : `${p.toolName}(${values.length ? JSON.stringify(p.args) : ''})`), isCommand: false }
+}
+
+/** A step's title: `$ command`, else the server's label, else the call. */
+function toolTitle(p: ChatToolPartView): string {
+  const { call, isCommand } = callOf(p)
+  if (isCommand) return `$ ${call}`
+  return typeof p.artifact.label === 'string' && p.artifact.label ? p.artifact.label : call
 }
 
 const isPendingApproval = (p: ChatPartView): p is ChatToolPartView & { approval: NonNullable<ChatToolPartView['approval']> } =>
@@ -230,12 +238,12 @@ export function deriveRun(messages: readonly ChatMessageView[], now: number, see
   if (pending && status === 'waiting') {
     const since = seen.get(pending.approval.id) ?? now
     seen.set(pending.approval.id, since)
-    const { title, isCommand } = toolTitle(pending)
+    const { call, isCommand } = callOf(pending)
     const description = typeof pending.artifact.description === 'string' && pending.artifact.description
       ? pending.artifact.description
       : pending.approval.prompt
     const risk = typeof pending.artifact.risk_level === 'string' ? pending.artifact.risk_level : undefined
-    approval = { id: pending.approval.id, toolName: pending.toolName, call: isCommand ? title.slice(2) : title, isCommand, description, risk, since }
+    approval = { id: pending.approval.id, toolName: pending.toolName, call, isCommand, description, risk, since }
   }
 
   const raw: Omit<InspectorStep, 'n' | 'x' | 'w'>[] = []
@@ -256,7 +264,7 @@ export function deriveRun(messages: readonly ChatMessageView[], now: number, see
       const dur = (e ?? end) - s
       raw.push({
         id: p.id, kind: 'reasoning', kindLabel: 'reasoning',
-        title: e !== undefined ? `Thought for ${Math.max(1, Math.round(dur / 1000))}s` : 'Thinking…',
+        title: e === undefined ? 'Thinking…' : dur < 1000 ? 'Thought for <1s' : `Thought for ${Math.round(dur / 1000)}s`,
         detail: firstLine(p.text), state: e !== undefined ? 'done' : 'running',
         startedAt: s, endedAt: e, durationMs: dur, body: bodyOf(p.text),
       })
@@ -265,7 +273,7 @@ export function deriveRun(messages: readonly ChatMessageView[], now: number, see
       const s = p.timing?.startedAt ?? cursor
       const waiting = isPendingApproval(p) && status === 'waiting'
       const e = waiting ? undefined : (p.timing?.completedAt ?? (p.result !== undefined ? s : undefined))
-      const { title } = toolTitle(p)
+      const title = toolTitle(p)
       const waitStart = waiting ? (seen.get(p.approval!.id) ?? now) : s
       const state: InspectorStepState = waiting ? 'waiting' : p.isError || p.approval?.approved === false ? 'error' : e !== undefined ? 'done' : status === 'running' ? 'running' : 'done'
       const result = p.result !== undefined ? firstLine(p.result) : ''
@@ -281,7 +289,8 @@ export function deriveRun(messages: readonly ChatMessageView[], now: number, see
         startedAt: s, endedAt: e, durationMs: waiting ? now - waitStart : (e ?? end) - s,
         body: bodyOf(p.result),
       })
-      if (e !== undefined) cursor = Math.max(cursor, e)
+      const doneAt = p.timing?.completedAt ?? e
+      if (doneAt !== undefined) cursor = Math.max(cursor, doneAt)
     }
   }
   if (answerAt >= 0) {
@@ -289,7 +298,8 @@ export function deriveRun(messages: readonly ChatMessageView[], now: number, see
     // It ends where the next step starts (a tool after the text), else with the run.
     const next = raw[answerAt]
     const answerDone = !!next || status !== 'running'
-    const e = next ? Math.max(s, next.startedAt) : end
+    // Paused on an approval, the text was written before the pause.
+    const e = next ? Math.max(s, next.startedAt) : approval ? Math.max(s, Math.min(end, approval.since)) : end
     raw.splice(answerAt, 0, {
       id: `${m.id}-answer`, kind: 'response', kindLabel: 'response', title: answerShape(text),
       detail: `${words(text)} words`, state: answerDone ? 'done' : 'running',
