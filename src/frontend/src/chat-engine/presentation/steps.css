@@ -2,8 +2,9 @@
  * Thread variant `steps` (Guided): larger type, a labelled question bubble,
  * an avatar header on each answer (TurnMeta). Where the layout's turnHeader
  * region (the step tracker) is on a turn, it owns that turn's steps, so the
- * thread's own reasoning and tool rows are hidden; an open approval stays
- * visible.
+ * thread's own reasoning and tool rows are hidden, the gated one too once
+ * its approval is pinned above the composer (host Pinned); a gate still in
+ * its row keeps the row.
  * Lazy: loaded only when a layout picks this variant. Tokens only.
  */
 [data-variant='steps'] {
@@ -26,6 +27,11 @@
 }
 
 [data-variant='steps'] [data-role='assistant']:has(> [data-chat-region='turnHeader']) [data-part='reasoning'],
-[data-variant='steps'] [data-role='assistant']:has(> [data-chat-region='turnHeader']) [data-tool]:not([data-state='approval']) {
+[data-variant='steps'] [data-role='assistant']:has(> [data-chat-region='turnHeader']) [data-tool]:not(:has([data-approval-gate])) {
   display: none;
+}
+
+/* Approvals pinned above the composer (host Pinned): the card's own surface, a little lift. */
+[data-variant='steps'] [data-chat-pinned] > [data-approval-gate] {
+  box-shadow: var(--shadow-md);
 }

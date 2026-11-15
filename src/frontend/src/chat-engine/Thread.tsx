@@ -15,6 +15,7 @@
  *   `regions`) is data on the root plus pieces of the lazy presentation
  *   host (./presentation/host) the chat page loads for a layout; without
  *   a layout nothing of it is downloaded and the thread is as before.
+ *   The 'steps' variant pins an open approval above the composer.
  */
 import { createContext, lazy, memo, useContext, useId, useMemo, useState, type ComponentType, type FC, type MouseEvent, type ReactElement } from 'react'
 import {
@@ -753,6 +754,8 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
               </Button>
             </ThreadPrimitive.ScrollToBottom>
           </div>
+          {/* A layout that pins open approvals puts them here, above the composer. */}
+          {presentation?.host && <presentation.host.Pinned presentation={presentation} />}
           <Composer placeholder={placeholder} notice={notice} />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>

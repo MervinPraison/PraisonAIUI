@@ -54,7 +54,7 @@ Guided changes how the chat page presents itself, not what it does.
 | Part | What you see |
 |---|---|
 | Step tracker | Above each answer: "Here is what Researcher did", numbered steps in plain words, a short result for each step, and "All done in 3 seconds". **Show details** lists the raw calls: the tool, what it ran, what came back, and how long it took. |
-| Approvals | The explained approval card: what the agent wants to do, what it will run, the risk, **Why am I asked?**, and **Not now** / **Approve**. |
+| Approvals | The explained approval card, pinned right above the message box (desktop and phone) instead of inside the answer: what the agent wants to do, what it will run, the risk, **Why am I asked?**, and **Not now** / **Approve**. The tool's own row stays hidden; the step tracker shows the step as "Waiting for your OK". |
 | Follow-up chips | Under the latest finished answer, "You could ask next" offers the run's suggestions. A chip puts its text in the message box, ready to send. |
 | Empty chat | "Pick a template to get started" and four templates. |
 | Thread | Larger type, a labelled "You" bubble, and an avatar on each answer. |

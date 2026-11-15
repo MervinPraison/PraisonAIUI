@@ -9,7 +9,8 @@
  *   - a turn: the plain-language step tracker (its chunk loads with the
  *     first answer), Show details, follow-up chips from
  *     run_completed.suggestions that fill the composer;
- *   - an approval: the explained card with "Why am I asked?", Approve;
+ *   - an approval: the explained card pinned above the composer (desktop and
+ *     phone), the gated tool's raw row hidden, "Why am I asked?", Approve;
  *   - templates on an empty chat, the Home (`start`) and Templates pages,
  *     `/` opening on Home, a non-chat page (logs) in the outlet;
  *   - phone: four bottom tabs, a chats sheet, 44 px targets, 15 px text;
@@ -206,24 +207,40 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
   })
 }
 
-test('an approval is the explained card, and Approve decides it', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await openGuided(page)
-  await send(page, 'apok please')
-  const card = lastTurn(page).locator('[data-approval-card]')
-  await expect(card).toBeVisible()
-  await expect(card.getByRole('heading')).toContainText(/^Allow .+ to use .+\?$/)
-  await expect(lastTurn(page).locator('[data-step-tracker]')).toHaveAttribute('data-step-tracker', 'waiting')
-  await expect(lastTurn(page).locator('[data-step-tracker]')).toContainText('Waiting for your OK')
-  await expect(frame(page).getByText(/Chatting with .+ · waiting for your OK/)).toBeVisible()
-  await card.getByRole('button', { name: 'Why am I asked?' }).click()
-  await expect(card.locator('[data-why]')).toContainText('Nothing runs until you decide.')
-  await shot(page, 'desktop-approval-light')
-  await card.getByRole('button', { name: 'Approve' }).click()
-  await expect(card).toHaveCount(0)
-  const seen = await (await page.request.get('/__e2e/approval-posts')).json()
-  expect(seen.posts).toContain('POST /api/approvals/ap_ok/approve')
-})
+for (const [name, viewport] of [
+  ['desktop', { width: 1440, height: 900 }],
+  ['phone', { width: 390, height: 844 }],
+] as const) {
+  test(`${name}: an approval is the explained card, pinned above the composer, and Approve decides it`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    await openGuided(page)
+    await send(page, 'apok please')
+    // Guided.dc.html / GuidedPhone.dc.html: the card sits right above the composer, out of the turn.
+    const card = page.locator('[data-chat-pinned] [data-approval-card]')
+    await expect(card).toBeVisible()
+    await expect(lastTurn(page).locator('[data-approval-card]')).toHaveCount(0)
+    const [c, m] = [await card.boundingBox(), await composer(page).boundingBox()]
+    expect(c && m && c.y + c.height <= m.y && m.y - (c.y + c.height) < 48, 'directly above the composer').toBe(true)
+    // The step tracker owns the steps: the gated tool's raw row is not shown.
+    await expect(lastTurn(page).locator('[data-tool]')).toBeHidden()
+    await expect(card.getByRole('heading')).toContainText(/^Allow .+ to use .+\?$/)
+    await expect(lastTurn(page).locator('[data-step-tracker]')).toHaveAttribute('data-step-tracker', 'waiting')
+    await expect(lastTurn(page).locator('[data-step-tracker]')).toContainText('Waiting for your OK')
+    if (name === 'desktop') await expect(frame(page).getByText(/Chatting with .+ · waiting for your OK/)).toBeVisible()
+    await card.getByRole('button', { name: 'Why am I asked?' }).click()
+    await expect(card.locator('[data-why]')).toContainText('Nothing runs until you decide.')
+    if (name === 'phone') {
+      for (const b of await card.getByRole('button').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height))) expect(b).toBeGreaterThanOrEqual(44)
+      expect(await hasHorizontalOverflow(page)).toBe(false)
+    }
+    await shot(page, `${name}-approval-light`)
+    await card.getByRole('button', { name: 'Approve' }).click()
+    await expect(card).toHaveCount(0)
+    await expect(page.locator('[data-chat-pinned]')).toBeHidden()
+    const seen = await (await page.request.get('/__e2e/approval-posts')).json()
+    expect(seen.posts).toContain('POST /api/approvals/ap_ok/approve')
+  })
+}
 
 test('templates: an empty chat, the Templates page and Home start a chat with the prompt filled in', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })

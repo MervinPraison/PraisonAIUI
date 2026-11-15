@@ -80,7 +80,8 @@ and `slots.dispose`. Types for plugin authors are in `sdk/aiui-sdk.d.ts`.
   dropped with a warning, so the default applies.
 - `ChatPresentation`:
   - `sessions`: `page` (default), `frame`, `tabs` or `none`;
-  - `thread`: `bubbles`, `quiet`, `steps` or `dense`;
+  - `thread`: `bubbles`, `quiet`, `steps` or `dense` (`steps` pins an open approval above the composer,
+    since its turn header owns the turn's steps);
   - `approvals`: `inline`, `card` or `keyboard`;
   - the lazy regions `aside`, `turnHeader`, `turnFooter` and `empty` (a `RegionLoader` each), plus `asideLabel`.
 
