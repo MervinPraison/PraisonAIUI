@@ -105,6 +105,11 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     expect(items).toBeLessThanOrEqual(7)
     await expect(rail.locator('a[data-aiui-nav-item="chat"]')).toHaveAttribute('aria-current', 'page')
     await expect(page.getByRole('button', { name: 'Keyboard shortcuts' })).toBeVisible()
+    // Rail labels, the footer's longer ones ("Inspector") included, are whole words.
+    const clipped = await rail.locator('a[data-aiui-nav-item] span.truncate').evaluateAll((els) =>
+      els.filter((el) => el.scrollWidth > el.clientWidth).map((el) => el.textContent),
+    )
+    expect(clipped, 'no rail label is cut off').toEqual([])
     await expect(page.getByRole('tablist', { name: 'Open sessions' })).toBeVisible()
     await expect(page.locator('[data-command-run-toggle]')).toHaveAttribute('aria-pressed', 'true')
     await expect(inspector(page)).toBeVisible()

@@ -95,7 +95,9 @@ function ItemIcon({ item, className }: { item: LayoutNavItem; className?: string
   )
 }
 
-const railButton = 'group relative flex w-14 flex-col items-center gap-0.5 rounded-md pt-1.5 pb-1 text-muted-foreground outline-none hover:bg-card hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
+// 56 px wide (the design), growing to 64 px of the 68 px rail for a longer
+// title ("Inspector", "Knowledge") before it truncates.
+const railButton = 'group relative flex min-w-14 max-w-16 flex-col px-0.5 items-center gap-0.5 rounded-md pt-1.5 pb-1 text-muted-foreground outline-none hover:bg-card hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
 
 function RailTip({ text, keys }: { text: string; keys?: string }) {
   return (
@@ -141,7 +143,7 @@ function Rail({
         className={cn(railButton, item.active && 'bg-accent-soft text-link hover:bg-accent-soft hover:text-link')}
       >
         <ItemIcon item={item} />
-        <span className={cn('max-w-full truncate px-0.5 text-2xs', item.active ? 'font-semibold' : 'font-medium')}>{item.title}</span>
+        <span className={cn('max-w-full truncate text-2xs tracking-tight', item.active ? 'font-semibold' : 'font-medium')}>{item.title}</span>
         {badge > 0 && (
           <span
             className="absolute top-0.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-mono text-[10px] font-semibold text-primary-foreground"
