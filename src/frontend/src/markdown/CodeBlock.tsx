@@ -31,6 +31,7 @@ function codeText(children: ReactNode): string {
 }
 
 /** Lines in a fence, ignoring the trailing newline Streamdown also trims. */
+// eslint-disable-next-line react-refresh/only-export-components -- shared with tests and sibling modules
 export function codeLineCount(text: string): number {
     const trimmed = text.replace(/\n+$/, '')
     return trimmed ? trimmed.split('\n').length : 0
@@ -64,6 +65,7 @@ function CollapsibleCode(props: Props) {
     useEffect(() => {
         const el = root.current
         const v = el ? Number.parseInt(getComputedStyle(el).getPropertyValue('--aiui-code-lines'), 10) : NaN
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the DOM (or a lazy module) after mount; one update, no loop
         if (v > 0) setLimit(v)
         try {
             const mq = window.matchMedia(PHONE)

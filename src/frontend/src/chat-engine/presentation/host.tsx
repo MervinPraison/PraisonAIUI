@@ -102,6 +102,7 @@ export function Gate({ presentation, part, description, expand, children }: {
  * drawn after mount), and the send count that retires the composer's key
  * hint (./composerHint).
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- the presentation host passes these props to every region
 export function Pinned(_props: { presentation: { chat: ChatPresentation } }): JSX.Element | null {
   useComposerHint()
   return (

@@ -12,6 +12,7 @@ import { useManifest } from '@/sdk/services'
 export const HERO_PROMISE = 'Ask anything. Your agents show each step and check with you before anything risky.'
 
 /** The hero's mark: an image URL, a text mascot, or none. */
+// eslint-disable-next-line react-refresh/only-export-components -- shared with tests and sibling modules
 export function heroMark(logo: unknown): { kind: 'img'; src: string } | { kind: 'text'; text: string } | null {
   if (typeof logo !== 'string' || !logo.trim()) return null
   const v = logo.trim()
