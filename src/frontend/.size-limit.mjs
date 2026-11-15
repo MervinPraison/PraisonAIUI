@@ -36,8 +36,8 @@ const legacyJs = filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks
 // closure minus what boot already loaded. Budgets: measured at F3 (stub
 // frames) plus 10%, never above the ADR caps (layouts 24 kB, Mission 28 kB;
 // kit 10 kB). A layout track raises its own up to the cap, with the reason.
-// The `lf-*` features do not exist yet: their entries are the ADR caps, for
-// the track that lands each one to set from its measurement. Every group in
+// An `lf-*` feature that has not landed yet keeps the ADR cap as its entry,
+// for the track that lands it to set from its measurement. Every group in
 // the build must have a budget here.
 //
 // Track W (kit v2: page icons, session times, ConnectionStatus, Brand, feed
@@ -46,7 +46,8 @@ const legacyJs = filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks
 // that plus 10%. Every layout's closure holds the kit chunks, so a frame that
 // uses a different part of the kit splits it for all of them (the Command
 // Deck uses no BasicFrame or ShortcutHint; Guided's frame uses no BasicFrame
-// and its Home page only useSessions, so Rollup splits the kit further).
+// and its Home page only useSessions; Mission is the first to use PhoneTabs,
+// and the mission board shares useSessions with the frames).
 const LAYOUT_BUDGETS = {
   // The Chat + Canvas frame (track CC), measured at 8.34 kB + 10%.
   'layout-chat-canvas': '9.2 kB',
@@ -57,7 +58,9 @@ const LAYOUT_BUDGETS = {
   // Guided (frame, phone tabs, chat regions, Home and Templates pages, every
   // chunk of the group) measured 15.25 kB + 10%.
   'layout-guided': '16.8 kB',
-  'layout-mission': '6.7 kB',
+  // Mission (frame, top bar, nav counts, phone tabs, data hooks) measured
+  // 9.52 kB + 10%. describeCall ships in lf-mission-board.
+  'layout-mission': '10.5 kB',
 }
 const KIT_BUDGET = '7.3 kB'
 const FEATURE_BUDGETS = {
@@ -67,7 +70,8 @@ const FEATURE_BUDGETS = {
   'lf-command-bar': '1.6 kB',
   // Measured at 5.08 kB (StepTracker and its labels, one chunk); ADR cap 6 kB.
   'lf-step-tracker': '5.6 kB',
-  'lf-mission-board': '22 kB',
+  // Measured at 10.75 kB (one chunk, mission-board/index.ts) plus 10%; ADR cap 22 kB.
+  'lf-mission-board': '11.8 kB',
 }
 // ADR 0003 §1.4 caps: a budget may be raised up to its cap, never past it.
 const CAPS = {

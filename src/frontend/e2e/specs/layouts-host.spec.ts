@@ -41,6 +41,7 @@ const OWN_FEATURES: Record<string, string[]> = {
   // The command bar on every page; the run inspector on /chat only
   // (layout-command.spec.ts checks the per-page split).
   command: ['lf-command-bar', 'lf-run-inspector'],
+  mission: ['lf-mission-board'],
 }
 const FALLBACK_LAYOUTS = {
   default: 'chat-canvas',
