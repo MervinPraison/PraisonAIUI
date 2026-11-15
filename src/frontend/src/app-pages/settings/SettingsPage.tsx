@@ -23,12 +23,16 @@ import { fetchJson } from '@/sdk/services'
 import { inLayoutOnly, StatusDot, useJson, type AppPageProps, type Tone } from '../shared'
 import { changedPaths, matchField, setPath, settingsSections, valueOf, type Config, type SettingsField } from './model'
 
-type Health = { status?: string; provider?: string; detail?: string }
+type Health = { status?: string; provider?: string; detail?: string; api_key?: string }
 
-function SettingsPage(_: AppPageProps) {
+function SettingsPage({ page }: AppPageProps) {
+  // One name everywhere: the page's own title (the nav and the top bar say the same).
+  const pageName = page.title || 'Settings'
   const schema = useJson<{ schema?: unknown }>('/api/config/schema')
   const runtime = useJson<{ config?: Config }>('/api/config/runtime')
   const defaults = useJson<{ defaults?: Config }>('/api/config/defaults')
+  // The same source as Overview's provider card and the chat's setup banner.
+  const health = useJson<Health>('/api/provider/health')
   const sections = useMemo(() => settingsSections(schema.data?.schema), [schema.data])
   const defs = useMemo(() => defaults.data?.defaults ?? {}, [defaults.data])
 
@@ -102,8 +106,9 @@ function SettingsPage(_: AppPageProps) {
   }
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-aiui-app-page="settings">
+    <div className="flex min-h-full min-w-0 flex-1 flex-col" data-aiui-app-page="settings">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
+        {/* The section nav runs the full height, so its divider does too. */}
         <nav aria-label="Settings sections" className="shrink-0 border-b border-border md:w-56 md:border-r md:border-b-0">
           <ul className="m-0 flex list-none gap-1 overflow-x-auto p-2 md:flex-col md:p-3">
             {sections.map((s) => {
@@ -132,11 +137,11 @@ function SettingsPage(_: AppPageProps) {
           </ul>
         </nav>
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-5 sm:px-8 sm:py-6">
+          <div className="flex w-full max-w-3xl flex-col gap-6 px-4 py-5 sm:px-8 sm:py-6">
             <div className="flex flex-wrap items-center gap-3">
               <Breadcrumb className="min-w-0 flex-1">
                 <BreadcrumbList>
-                  <BreadcrumbItem>Settings</BreadcrumbItem>
+                  <BreadcrumbItem>{pageName}</BreadcrumbItem>
                   <BreadcrumbSeparator />
                   <BreadcrumbItem>
                     <BreadcrumbPage>{searching ? 'Search' : section?.title}</BreadcrumbPage>
@@ -154,6 +159,9 @@ function SettingsPage(_: AppPageProps) {
                   {s.title}
                 </h2>
                 {s.description && <p className="m-0 mb-3 text-sm text-muted-foreground">{s.description}</p>}
+                {s.id === 'provider' && providerNote(health.data) && (
+                  <p className="m-0 mb-3 text-sm text-muted-foreground" data-aiui-provider-note="">{providerNote(health.data)}</p>
+                )}
                 <div className="divide-y divide-border rounded-xl border border-border bg-card">
                   {s.fields.map((f) => (
                     <FieldRow
@@ -161,6 +169,7 @@ function SettingsPage(_: AppPageProps) {
                       field={f}
                       value={valueOf(draft, defs, f)}
                       dirty={changed.includes(f.path)}
+                      envKey={f.path === 'provider.api_key' && health.data?.api_key === 'set'}
                       onChange={(v) => setDraft((d) => setPath(d, f.path, v))}
                     />
                   ))}
@@ -194,7 +203,18 @@ function SettingsPage(_: AppPageProps) {
   )
 }
 
-function FieldRow({ field: f, value, dirty, onChange }: { field: SettingsField; value: unknown; dirty: boolean; onChange(v: unknown): void }) {
+/**
+ * Under the provider heading when chats are answered by another provider
+ * (a custom gateway): these settings configure the built-in one only, so
+ * Overview and Settings do not seem to disagree.
+ */
+export function providerNote(h: Health | null | undefined): string {
+  const name = h?.provider
+  return name && name !== 'PraisonAIProvider' ? `Chats are answered by ${name}. These settings apply to the built-in PraisonAI provider.` : ''
+}
+
+/** `envKey`: no key is saved here, but the server has one in its environment. */
+function FieldRow({ field: f, value, dirty, envKey, onChange }: { field: SettingsField; value: unknown; dirty: boolean; envKey?: boolean; onChange(v: unknown): void }) {
   const id = `setting-${f.path.replace(/\./g, '-')}`
   const helpId = `${id}-help`
   const [shown, setShown] = useState(false)
@@ -243,7 +263,7 @@ function FieldRow({ field: f, value, dirty, onChange }: { field: SettingsField; 
             spellCheck={false}
             aria-describedby={`${f.help ? helpId : ''} ${id}-status`.trim()}
             className="pr-9 font-mono"
-            placeholder="Not set"
+            placeholder="sk-…"
             value={typeof value === 'string' ? value : ''}
             onChange={(e) => onChange(e.target.value)}
           />
@@ -260,7 +280,7 @@ function FieldRow({ field: f, value, dirty, onChange }: { field: SettingsField; 
           </Button>
         </div>
         <span id={`${id}-status`}>
-          <StatusDot tone={set ? 'ok' : 'idle'}>{set ? 'Set' : 'Not set'}</StatusDot>
+          <StatusDot tone={set || envKey ? 'ok' : 'idle'}>{set ? 'Saved here' : envKey ? 'From the environment' : 'Not set'}</StatusDot>
         </span>
       </div>
     )

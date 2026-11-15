@@ -14,11 +14,11 @@ import { appPageBuiltins } from '@/builtin/appPages'
 import { ago, toMs } from './shared'
 import { filterRows, sessionRows, sortRows } from './sessions/model'
 import { logEntries, logsAsText } from './logs/model'
-import { changedPaths, getPath, matchField, setPath, settingsSections, valueOf } from './settings/model'
+import { changedPaths, getPath, matchField, sentenceCase, setPath, settingsSections, valueOf } from './settings/model'
 import { attentionLabel, featureHealth, formatCost, greeting, providerLine, series, sparkPath, summary } from './overview/model'
 import SessionsPage from './sessions/SessionsPage'
 import LogsPage from './logs/LogsPage'
-import SettingsPage from './settings/SettingsPage'
+import SettingsPage, { providerNote } from './settings/SettingsPage'
 import OverviewPage from './overview/OverviewPage'
 
 const NOW = Date.parse('2026-11-15T12:00:00Z')
@@ -92,6 +92,18 @@ test('settings: schema sections become a section list of fields with controls an
   for (const s of sections) for (const f of s.fields) assert.ok(f.help, `${f.path} has help`)
   assert.ok(matchField(sections[1].fields[0], 'temp'))
   assert.ok(!matchField(sections[1].fields[0], 'zzz'))
+  // Labels in sentence case; acronyms keep their capitals.
+  assert.deepEqual(sections[0].fields.map((f) => f.title), ['Provider name', 'API key'])
+  assert.equal(sections[2].fields[0].title, 'Debug mode')
+  assert.equal(sentenceCase('API Base URL'), 'API base URL')
+  assert.equal(sentenceCase('Max Tokens'), 'Max tokens')
+  assert.equal(sentenceCase('GPT4 Model'), 'GPT4 model')
+})
+
+test('settings: a custom gateway is named under the provider heading; the built-in provider is not', () => {
+  assert.match(providerNote({ provider: 'MockProvider' }), /^Chats are answered by MockProvider\. These settings apply to the built-in PraisonAI provider\.$/)
+  assert.equal(providerNote({ provider: 'PraisonAIProvider' }), '')
+  assert.equal(providerNote(null), '')
 })
 
 test('settings: values by path, defaults, and what changed', () => {

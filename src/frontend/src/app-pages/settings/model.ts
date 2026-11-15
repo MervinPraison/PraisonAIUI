@@ -60,6 +60,18 @@ const SECTION_HELP: Record<string, string> = {
   logging: 'What the server writes to its log.',
 }
 
+/**
+ * Labels in sentence case, as the rest of the shell writes them: "Provider
+ * Name" → "Provider name"; an acronym ("API Base URL") or a word with a digit
+ * keeps its capitals.
+ */
+export function sentenceCase(title: string): string {
+  return title
+    .split(' ')
+    .map((w, i) => (i === 0 || /^[A-Z0-9]{2,}$/.test(w) || /\d/.test(w) ? w : w.toLowerCase()))
+    .join(' ')
+}
+
 const humanize = (k: string) => k.replace(/[_-]+/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
 
 function kindOf(s: FieldSchema): SettingsField['kind'] {
@@ -87,7 +99,7 @@ export function settingsSections(schema: unknown): SettingsSection[] {
         return {
           path,
           key,
-          title: s.title || humanize(key),
+          title: sentenceCase(s.title || humanize(key)),
           help: s.description || HELP[path] || '',
           kind: kindOf(s),
           options: Array.isArray(s.enum) ? s.enum.map(String) : [],
