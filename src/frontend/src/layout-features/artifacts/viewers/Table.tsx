@@ -3,7 +3,8 @@
  * the first column as row headers, numbers sorted as numbers.
  */
 import { useMemo, useState, type JSX } from 'react'
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, X } from 'lucide-react'
+import { ArrowUpDown, Check } from 'lucide-react'
+import { ArrowDownGlyph, ArrowUpGlyph, CloseGlyph } from './glyphs'
 import { cn } from '@/lib/utils'
 import { parseTable, plainText } from '../derive'
 import { nextSort, sortRows, sortSummary, type SortState } from './sort'
@@ -24,7 +25,7 @@ function Cell({ md }: { md: string }): JSX.Element {
   if (NO.test(text)) {
     return (
       <span className="inline-flex items-center gap-1.5 text-tier-2">
-        <X className="size-3.5" strokeWidth={2.25} aria-hidden />
+        <CloseGlyph className="size-3.5" strokeWidth={2.25} />
         {/^(yes|no|true|false)$/i.test(text) ? text : 'No'}
       </span>
     )
@@ -46,7 +47,7 @@ export default function TableViewer({ content, label }: { content: string; label
             <tr className="bg-sidebar">
               {header.map((h, c) => {
                 const active = sort?.col === c
-                const Icon = !active ? ArrowUpDown : sort.dir === 'asc' ? ArrowUp : ArrowDown
+                const Icon = !active ? ArrowUpDown : sort.dir === 'asc' ? ArrowUpGlyph : ArrowDownGlyph
                 return (
                   <th
                     key={c}

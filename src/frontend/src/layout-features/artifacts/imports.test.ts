@@ -28,7 +28,8 @@ function staticImports(code: string): string[] {
 }
 
 const LAZY_ONLY = [
-  /^@\/chat-engine\/store$/,
+  // Shared with the chat route: importing them would split them out of its chunk (viewers/urls.ts, glyphs.tsx).
+  /^@\/chat-engine\/(store|util|sessionsStore)$/,
   /^@\/chat-engine\/(protocol|transports|Thread|ChatPage|useAiuiRuntime)$/,
   /^@\/chat-engine\/parts\//,
   /^@\/chat\//,
@@ -47,6 +48,16 @@ test('the feature imports heavy or shared-chat modules only with import()', () =
     for (const spec of staticImports(readFileSync(f, 'utf8'))) {
       if (LAZY_ONLY.some((re) => re.test(spec))) bad.push(`${path.relative(DIR, f)} imports '${spec}'`)
     }
+  }
+  assert.deepEqual(bad, [])
+})
+
+test("lucide's Copy, X, ArrowUp and ArrowDown (also in the chat route) are drawn locally", () => {
+  const bad: string[] = []
+  for (const f of sources(DIR)) {
+    const m = /import\s*\{([^}]*)\}\s*from\s*'lucide-react'/.exec(readFileSync(f, 'utf8'))
+    const names = (m?.[1] ?? '').split(',').map((s) => s.trim().split(/\s+as\s+/)[0])
+    for (const n of names) if (['Copy', 'X', 'ArrowUp', 'ArrowDown'].includes(n)) bad.push(`${path.relative(DIR, f)}: ${n}`)
   }
   assert.deepEqual(bad, [])
 })

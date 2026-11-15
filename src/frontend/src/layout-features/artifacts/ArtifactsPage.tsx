@@ -5,9 +5,9 @@
  * here (`/artifacts?session=…&artifact=…&v=…`).
  *
  * The list comes from the server index while the record is on; without it
- * (client only) it lists the chats this tab has opened. Opening an artifact
- * loads that chat's history and derives it again, so the text never has to
- * be stored on the server.
+ * (client only) it lists the chats this tab has seen. Opening an artifact
+ * reads the open chat when it is that one, else the versions the server
+ * stored for that chat.
  *
  *   registerPage('artifacts', () => import('@/layout-features/artifacts/ArtifactsPage'))
  */
@@ -136,7 +136,7 @@ function Detail({ target, title, onBack }: { target: Target; title?: string; onB
           />
         ) : (
           <p className="m-0 px-5 py-8 text-sm text-tier-3" aria-live="polite">
-            {loading ? 'Loading the chat…' : 'This artifact is no longer in that chat.'}
+            {loading ? 'Loading…' : 'This artifact is not available here. Open the chat to see it.'}
           </p>
         )}
       </div>

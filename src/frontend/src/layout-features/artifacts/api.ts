@@ -67,8 +67,7 @@ export type ArtifactPut = Pick<Artifact, 'kind'> & Partial<Pick<Artifact, 'title
 /**
  * The PUT body for a version: only the fields the server takes, each within
  * its limit (a value over a limit is dropped rather than failing the PUT).
- * `withContent` false leaves the text out: derived versions live in the chat
- * history already, so only user versions store their text.
+ * `withContent` false leaves the text out (an index-only upsert).
  */
 export function putBody(a: ArtifactPut, withContent: boolean): ArtifactPut {
   const out: ArtifactPut = { kind: a.kind }

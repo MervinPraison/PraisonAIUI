@@ -4,7 +4,8 @@
  * server can run, ⌘↵), the viewer, and History with Restore.
  */
 import { type JSX, type KeyboardEvent, type ReactNode } from 'react'
-import { Copy, Download, Play, Share } from 'lucide-react'
+import { Download, Play, Share } from 'lucide-react'
+import { CopyGlyph } from './viewers/glyphs'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { cn } from '@/lib/utils'
@@ -62,7 +63,7 @@ export function ArtifactView({ artifact: a, versions, onShow, onRestore, compact
         <div className="flex flex-wrap items-center gap-1">
           {versions.length > 1 && <VersionMenu versions={versions} shown={a} onShow={onShow} />}
           <Button variant="ghost" onClick={() => void copyArtifact(a)}>
-            <Copy />
+            <CopyGlyph />
             Copy
           </Button>
           <Button variant="ghost" onClick={() => downloadArtifact(a)}>

@@ -5,7 +5,7 @@
  */
 import { useState, type JSX } from 'react'
 import { ExternalLink, ImageOff } from 'lucide-react'
-import { hostOf, isTrustedImageUrl, safeUrl } from '@/chat-engine/util'
+import { hostOf, isTrustedUrl as isTrustedImageUrl, safeUrl } from './urls'
 import { ClickToLoad } from './ClickToLoad'
 
 export default function ImageViewer({ url, alt }: { url: string; alt: string }): JSX.Element {

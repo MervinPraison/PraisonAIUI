@@ -1,15 +1,18 @@
 // The canvas, the cards, the page and the viewers, rendered to static markup
-// from the sorting conversation loaded as chat history (client only: no
-// manifest, so builtin.artifacts is off and nothing but the history is fetched).
+// from the sorting conversation as the `chat` layout feed shows it after a
+// history load (ids h_0…). Client only: no manifest, so builtin.artifacts is
+// off and nothing may be fetched.
 import { before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { provideLayoutData } from '@/sdk/layouts'
+import type { ChatFeed, ChatMessageView, ChatState } from '@/sdk/layoutTypes'
 import ArtifactCards from './ArtifactCards'
 import ArtifactsPage from './ArtifactsPage'
 import CanvasPanel from './CanvasPanel'
 import { artifactsStore } from './feed'
-import { CODE, T0, TABLE_V1, TABLE_V2 } from './fixtures'
+import { sortingConversation } from './fixtures'
 import TableViewer from './viewers/Table'
 import CodeViewer from './viewers/Code'
 import ImageViewer from './viewers/Image'
@@ -25,28 +28,31 @@ g.location = win.location
 const requests: string[] = []
 g.fetch = async (url: string) => {
   requests.push(url)
-  if (url === '/api/chat/history/s1') {
-    const at = (min: number) => new Date(T0 + min * 60_000).toISOString()
-    return Response.json({
-      messages: [
-        { role: 'user', content: 'Compare quicksort, mergesort and timsort, with a code sample', timestamp: at(0) },
-        { role: 'assistant', agent_name: 'Researcher', content: `Here is how they compare.\n\n${TABLE_V1}\n\n${CODE}`, timestamp: at(1) },
-        { role: 'user', content: 'Add whether each one is stable', timestamp: at(1.5) },
-        { role: 'assistant', agent_name: 'Researcher', content: `I added the Stable column.\n\n${TABLE_V2}`, timestamp: at(2) },
-      ],
-    })
-  }
-  return Response.json({ messages: [] })
+  return Response.json({})
+}
+
+const chatState: ChatState = {
+  sessionId: 's1',
+  messages: sortingConversation().map((m, i) => ({ ...m, id: `h_${i}` }) as unknown as ChatMessageView),
+  isRunning: false,
+}
+const chatFeed: ChatFeed = {
+  get: () => chatState,
+  subscribe: () => () => {},
+  prefill: () => {},
+  cancel: async () => {},
+  resolveApproval: async () => {},
 }
 
 const html = (el: ReturnType<typeof createElement>) => renderToStaticMarkup(el)
 
 before(async () => {
+  provideLayoutData('chat', chatFeed)
   await artifactsStore().ensure('s1')
 })
 
-test('only the chat history was fetched (client only: no artifacts or code API calls)', () => {
-  assert.deepEqual(requests, ['/api/chat/history/s1'])
+test('client only: nothing is fetched (no artifacts, code or history calls)', () => {
+  assert.deepEqual(requests, [])
 })
 
 test('CanvasPanel: tabs, the newest artifact with its versions and actions, the badge', () => {

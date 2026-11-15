@@ -4,7 +4,7 @@
  * another host waits for a click (see ./ClickToLoad); a file is only a link.
  */
 import { lazy, Suspense, type JSX } from 'react'
-import { hostOf, isTrustedImageUrl, safeUrl } from '@/chat-engine/util'
+import { hostOf, isTrustedUrl as isTrustedImageUrl, safeUrl } from './urls'
 import type { ArtifactKind } from '@/sdk/layoutTypes'
 import { ClickToLoad } from './ClickToLoad'
 

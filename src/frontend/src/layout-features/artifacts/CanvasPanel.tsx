@@ -9,7 +9,8 @@
  *   aside: () => import('@/layout-features/artifacts/CanvasPanel')
  */
 import { useEffect, useState, type JSX } from 'react'
-import { Columns2, Copy, Download, Layers, Maximize2, Minimize2, Play, Rows2, X } from 'lucide-react'
+import { Columns2, Download, Layers, Maximize2, Minimize2, Play, Rows2 } from 'lucide-react'
+import { CloseGlyph, CopyGlyph } from './viewers/glyphs'
 import type { ChatRegionProps } from '@/sdk/layouts'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -36,7 +37,7 @@ function SplitPane({ artifact: a, onClose }: { artifact: DerivedArtifact; onClos
         <span className="text-xs text-tier-3">{cardMeta(a, { compact: true })}</span>
         <div className="ml-auto flex items-center gap-0.5">
           <Button variant="ghost" size="icon-sm" aria-label="Copy" onClick={() => void copyArtifact(a)}>
-            <Copy />
+            <CopyGlyph />
           </Button>
           <Button variant="ghost" size="icon-sm" aria-label={`Download ${a.title}`} onClick={() => downloadArtifact(a)}>
             <Download />
@@ -48,7 +49,7 @@ function SplitPane({ artifact: a, onClose }: { artifact: DerivedArtifact; onClos
             </Button>
           )}
           <Button variant="ghost" size="icon-sm" aria-label="Close the split view" onClick={onClose}>
-            <X />
+            <CloseGlyph />
           </Button>
         </div>
       </div>

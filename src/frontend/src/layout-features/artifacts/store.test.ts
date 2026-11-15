@@ -168,7 +168,7 @@ test('client only: no backend, or a backend that is off, makes no request', asyn
   off()
 })
 
-test('server on: loads stored versions once, PUTs derived versions without text, skips what it has', async () => {
+test('server on: loads stored versions once, PUTs derived versions with their text, skips what it has', async () => {
   const msgs = sortingConversation()
   const stored: Artifact[] = [
     // Already on the server: the first table version.
@@ -191,8 +191,8 @@ test('server on: loads stored versions once, PUTs derived versions without text,
   assert.deepEqual(
     b.puts.map((p) => [p.key, p.body]),
     [
-      ['table:algorithm|average|worst', { kind: 'table', title: 'Comparison table', messageId: msgs[3].id, version: 2 }],
-      ['sort_demo.py', { kind: 'code', title: 'sort_demo.py', messageId: msgs[1].id, language: 'python', version: 1 }],
+      ['table:algorithm|average|worst', { kind: 'table', title: 'Comparison table', messageId: msgs[3].id, version: 2, content: snap.versions[1].content }],
+      ['sort_demo.py', { kind: 'code', title: 'sort_demo.py', messageId: msgs[1].id, language: 'python', version: 1, content: snap.versions[2].content }],
     ],
   )
   // A running reply is not stored until it completes; then only the new version is.
@@ -244,6 +244,24 @@ test('ensure loads history; knownSessions lists sessions with artifacts', async 
   store.session('s1').get()
   store.session('s2').get()
   assert.deepEqual(store.knownSessions(), ['s1'])
+})
+
+test('a chat that is not here (another chat on the artifacts page) shows what the server stored', async () => {
+  const stored: Artifact[] = [
+    { key: 'table:a|b', kind: 'table', title: 'Plan', version: 1, sessionId: 'other', messageId: 'h_1', content: '| a | b |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |', updatedAt: T0 },
+    { key: 'table:a|b', kind: 'table', title: 'Plan', version: 2, sessionId: 'other', messageId: 'h_3', content: '| a | b | c |\n|---|---|---|\n| 1 | 2 | 3 |\n| 3 | 4 | 5 |', updatedAt: T0 + 1 },
+  ]
+  const b = backend(stored)
+  const store = createArtifactsStore({ threads: threads(), backend: b })
+  await store.ensure('other')
+  const snap = store.session('other').get()
+  assert.equal(snap.server, 'ready')
+  assert.deepEqual(titles(snap.versions), ['Plan v1', 'Plan v2'])
+  assert.deepEqual(snap.selected?.columns, ['a', 'b', 'c'], 'measured from the stored text')
+  await store.ensure('other')
+  assert.deepEqual(b.fetches, ['other'], 'loaded once')
+  await tick()
+  assert.deepEqual(b.puts, [], 'nothing to store: the server has it')
 })
 
 test('mergeVersions and measure', () => {

@@ -7,20 +7,21 @@
  *   open(sid, key, v?)        show an artifact (and tell the frame: onOpen, DOM event)
  *   select / setSplit         canvas state
  *   restore(sid, key, v)      a user version with that version's content
- *   ensure(sid)               load a session's history (the artifacts page)
+ *   ensure(sid)               load a session (its history, its stored versions)
  *
  * Client-only by default. With a backend (the `builtin.artifacts` record is
- * on) it also keeps the server's index current: it loads the session's
- * stored versions once (user versions come back with their text), and PUTs
- * each derived version without its text (the chat history has it) once its
- * reply is complete, and each user version with its text.
+ * on) it also keeps the server's copy current: it loads the session's
+ * stored versions once, and PUTs each derived version once its reply is
+ * complete, and each user version as it is made. A session the thread
+ * source does not have (the artifacts page showing another chat) shows the
+ * stored versions instead of deriving them.
  *
  * Version numbers are the order in time of every version of a key, derived
  * and user-made together, so a restore followed by a new reply reads
  * v1, v2 (restored), v3.
  *
- * The thread source and backend are injected (tests); ./feed wires the chat
- * store and ./api.
+ * The thread source and backend are injected (tests); ./feed wires the
+ * `chat` layout feed and ./api.
  */
 import type { Artifact, Feed } from '@/sdk/layoutTypes'
 import type { ArtifactPut } from './api'
@@ -167,7 +168,10 @@ interface SessionState {
   listeners: Set<() => void>
   unsubscribe: (() => void) | null
   syncTimer: ReturnType<typeof setTimeout> | null
-  memo: { messages: readonly DeriveMessage[]; user: unknown; selection: unknown; split: unknown; server: ServerState; running: boolean; snap: SessionArtifacts } | null
+  /** Derived versions as the server stored them (shown when the chat is not here). */
+  stored: DerivedArtifact[]
+  loading: Promise<void> | null
+  memo: { messages: readonly DeriveMessage[]; user: unknown; stored: unknown; selection: unknown; split: unknown; server: ServerState; running: boolean; snap: SessionArtifacts } | null
   feed: Feed<SessionArtifacts> | null
 }
 
@@ -199,6 +203,8 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
         known: new Set(),
         inflight: new Set(),
         failed: new Set(),
+        stored: [],
+        loading: null,
         listeners: new Set(),
         unsubscribe: null,
         syncTimer: null,
@@ -215,10 +221,12 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
   function compute(s: SessionState): SessionArtifacts {
     const thread = threads.get(s.sid)
     const m = s.memo
-    if (m && m.messages === thread.messages && m.user === s.user && m.selection === s.selection && m.split === s.split && m.server === s.server && m.running === thread.isRunning) {
+    if (m && m.messages === thread.messages && m.user === s.user && m.stored === s.stored && m.selection === s.selection && m.split === s.split && m.server === s.server && m.running === thread.isRunning) {
       return m.snap
     }
-    const d = deriveArtifacts(thread.messages, s.sid, derive)
+    const fromChat = deriveArtifacts(thread.messages, s.sid, derive)
+    // No chat for this session here (another chat on the artifacts page): what the server stored.
+    const d = fromChat.versions.length || !s.stored.length ? fromChat : { versions: s.stored, mentions: {} }
     const { versions, mentions } = mergeVersions(d.versions, s.user, d.mentions)
     const latest = latestOf(versions)
     // A new version while a reply runs is the agent showing something: follow it.
@@ -232,7 +240,7 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
     selected ??= newest(latest)
     const split = s.split ? (latest.find((a) => a.key === s.split && a.key !== selected?.key) ?? null) : null
     const snap: SessionArtifacts = { sessionId: s.sid, versions, latest, mentions, selected, split, running: thread.isRunning, server: s.server }
-    s.memo = { messages: thread.messages, user: s.user, selection: s.selection, split: s.split, server: s.server, running: thread.isRunning, snap }
+    s.memo = { messages: thread.messages, user: s.user, stored: s.stored, selection: s.selection, split: s.split, server: s.server, running: thread.isRunning, snap }
     return snap
   }
 
@@ -242,13 +250,19 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
 
   // ── server sync ──────────────────────────────────────────────────
 
-  async function loadServer(s: SessionState) {
-    if (!serverOn(s) || s.server === 'loading') return
+  function loadServer(s: SessionState): Promise<void> {
+    if (!serverOn(s)) return Promise.resolve()
+    if (s.server !== 'loading' || !s.loading) s.loading = fetchServer(s)
+    return s.loading
+  }
+
+  async function fetchServer(s: SessionState) {
     s.server = 'loading'
     notify(s)
     try {
       const stored = await backend!.fetchSession(s.sid!)
       s.known = new Set(stored.filter((a) => !a.edited).map(syncId))
+      s.stored = stored.filter((a) => !a.edited).map(measure)
       const local = s.user.filter((u) => !u.persisted)
       s.user = [...stored.filter((a) => a.edited).map((a) => ({ ...measure(a), persisted: true })), ...local]
       s.server = 'ready'
@@ -278,7 +292,7 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
       if (s.known.has(id) || s.inflight.has(id) || s.failed.has(id)) continue
       s.inflight.add(id)
       try {
-        await backend!.put(s.sid!, v.key, putBody(v, false))
+        await backend!.put(s.sid!, v.key, putBody(v, true))
         s.known.add(id)
       } catch (err) {
         s.failed.add(id) // never retried in this tab, so a reload cannot loop
@@ -374,7 +388,8 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
       return compute(s).versions.find((a) => a.key === key && a.edited && a.updatedAt === v.updatedAt) ?? null
     },
     async ensure(sid) {
-      await threads.load?.(sid)
+      const s = state(sid)
+      await Promise.all([threads.load?.(sid), serverOn(s) && (s.server === 'off' || s.server === 'error') ? loadServer(s) : null])
     },
     onOpen(fn) {
       openFns.add(fn)

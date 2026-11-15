@@ -1,8 +1,8 @@
 /**
  * The artifacts feature's entry for a layout (chunk `lf-artifacts`): the one
  * store the canvas, the cards, the page and the `artifacts` layout feed
- * share, wired to the chat store and to the server when `builtin.artifacts`
- * is on. A layout descriptor provides the feed lazily, so none of this
+ * share, wired to the `chat` layout feed and to the server when
+ * `builtin.artifacts` is on. A layout descriptor provides the feed lazily, so none of this
  * loads before a frame or region needs it:
  *
  *   provideLayoutData('artifacts', () =>
@@ -13,6 +13,7 @@
  *   registerPage('artifacts', () => import('@/layout-features/artifacts/ArtifactsPage'))
  */
 import type { Artifact, ArtifactsFeed, Feed } from '@/sdk/layoutTypes'
+import { getLayoutData, loadLayoutData } from '@/sdk/layouts'
 import { artifactsServerEnabled, fetchSessionArtifacts, putArtifact } from './api'
 import type { DeriveOptions } from './derive'
 import { createArtifactsStore, type ArtifactsStore, type SessionArtifacts, type ThreadSource, type ThreadView } from './store'
@@ -27,45 +28,32 @@ export function configureArtifacts(opts: DeriveOptions): void {
   options = next
 }
 
-// The chat store is imported, not bundled in: the chat page has it in memory
-// already (the canvas and cards render inside it), and the artifacts page
-// gets it on first use, so this feature's chunk does not carry it.
-type ChatThreads = typeof import('@/chat-engine/store').threadStore
-let chat: ChatThreads | null = null
-let chatLoading: Promise<ChatThreads> | null = null
+// The chat comes through the `chat` layout feed (builtin.chat provides it),
+// not from chat-engine internals: the feature reads the same frozen contract
+// as any frame, and its chunk neither carries the chat store nor splits it
+// out of the chat route. The feed is the open session's; other sessions'
+// artifacts come from the server (./store), so the artifacts page works
+// without loading those chats.
 const NO_THREAD: ThreadView = Object.freeze({ messages: Object.freeze([]) as readonly never[], isRunning: false })
 
-function loadChat(): Promise<ChatThreads> {
-  chatLoading ??= import('@/chat-engine/store').then(
-    (m) => (chat = m.threadStore),
-    (err: unknown) => {
-      chatLoading = null
-      throw err
-    },
-  )
-  return chatLoading
-}
-
 const threads: ThreadSource = {
-  get: (sid) => chat?.get(sid) ?? NO_THREAD,
-  subscribe(sid, fn) {
-    if (chat) return chat.subscribe(sid, fn)
+  get(sid) {
+    const state = getLayoutData('chat')?.get()
+    return state && state.sessionId === sid ? state : NO_THREAD
+  },
+  subscribe(_sid, fn) {
     let off: (() => void) | null = null
     let live = true
-    loadChat().then(
-      (t) => {
-        if (!live) return
-        off = t.subscribe(sid, fn)
-        fn()
-      },
-      (err: unknown) => console.warn('[aiui artifacts] the chat store did not load', err),
-    )
+    void loadLayoutData('chat').then((feed) => {
+      if (!live || !feed) return
+      off = feed.subscribe(fn)
+      fn()
+    })
     return () => {
       live = false
       off?.()
     }
   },
-  load: async (sid) => (await loadChat()).load(sid),
 }
 
 /** The shared store (created on first use). */
