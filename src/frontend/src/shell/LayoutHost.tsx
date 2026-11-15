@@ -25,8 +25,10 @@ import {
   createContext,
   Suspense,
   useContext,
+  useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useSyncExternalStore,
   type ErrorInfo,
   type ReactNode,
@@ -75,7 +77,19 @@ const readViewport = (): LayoutViewport => layoutViewport(window.innerWidth)
 const serverViewport = (): LayoutViewport => 'desktop'
 
 function useViewport(): LayoutViewport {
-  return useSyncExternalStore(subscribeViewport, readViewport, serverViewport)
+  const viewport = useSyncExternalStore(subscribeViewport, readViewport, serverViewport)
+  // The window's resize event reaches the page while the old frame is still
+  // drawn (a desktop sidebar beside a phone-width column): content that
+  // measures itself on that event, like the composer's auto-height, measured
+  // a sliver. Once the frame for the new viewport is drawn, ask again.
+  const seen = useRef(viewport)
+  useEffect(() => {
+    if (seen.current === viewport) return
+    seen.current = viewport
+    const id = requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
+    return () => cancelAnimationFrame(id)
+  }, [viewport])
+  return viewport
 }
 
 // ── outlet and slots (stable components; the routed page comes from context) ──
