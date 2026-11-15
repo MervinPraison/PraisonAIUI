@@ -65,3 +65,11 @@
 - `@aiui/sdk` exports `getPageId`, `usePageId`, `useThemeMode` and `dismiss`.
 - The shell manifest reports `site.feedbackEnabled`, so the chat hides
   feedback buttons when feedback is switched off.
+
+### Fixed
+
+- The `chat` style (the default of `aiui run`) and the other React styles
+  follow the OS colour scheme, live, when neither the app (`set_theme`, YAML
+  `site.theme`) nor the viewer chose a mode. They used to read only the
+  filled-in `darkMode: true` and render dark on a light OS. See
+  [Dark mode](docs/features/dark-mode.md#colour-mode-order).

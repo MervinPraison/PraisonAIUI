@@ -13,6 +13,8 @@ export interface ThemeConfig {
     preset?: string
     radius?: string
     darkMode?: boolean
+    /** The app's colour mode (live server only): set_theme / YAML, else 'system' (follow the OS). */
+    mode?: 'light' | 'dark' | 'system'
 }
 
 export interface SiteConfig {
