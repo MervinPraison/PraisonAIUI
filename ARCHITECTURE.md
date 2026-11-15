@@ -218,9 +218,10 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Streamdown renderer chunk | 147 kB (145 kB with `gzip -9`) |
 | shikiPlugin chunk | 55 kB |
 | Legacy App path (entry + legacy-app-entry closure) | 250 kB |
-| Each built-in layout `layout-<id>` (closure minus boot; stub frames today, ADR cap 24 kB, Mission 28 kB) | 4.6 kB |
-| Layout kit `layout-kit` (ADR cap 10 kB) | 5 kB |
-| Layout features `lf-artifacts` / `lf-run-inspector` / `lf-command-bar` / `lf-step-tracker` / `lf-mission-board` **(planned)** | 30 / 14 / 6 / 6 / 22 kB |
+| Each built-in layout `layout-<id>` (closure minus boot; ADR cap 24 kB, Mission 28 kB): `layout-guided`; the stub frames | 16.8 kB; 5.3 kB |
+| Layout kit `layout-kit` (ADR cap 10 kB) | 5.7 kB |
+| Layout feature `lf-step-tracker` (ADR cap 6 kB) | 5.6 kB |
+| Layout features `lf-artifacts` / `lf-run-inspector` / `lf-command-bar` / `lf-mission-board` **(planned)** | 30 / 14 / 6 / 22 kB |
 | `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 270 kB |
 | Wheel: all of `dist/assets` (uncompressed) | 9 MB |
 

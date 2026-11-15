@@ -45,8 +45,8 @@ const legacyJs = filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks
 // closure includes the kit) and the Workbench frame at 8.49 kB: each limit is
 // that plus 10%. Every layout's closure holds the kit chunks, so a frame that
 // uses a different part of the kit splits it for all of them (the Command
-// Deck uses no BasicFrame or ShortcutHint, so Rollup moves those two into a
-// kit chunk of their own that only the stub frames import).
+// Deck uses no BasicFrame or ShortcutHint; Guided's frame uses no BasicFrame
+// and its Home page only useSessions, so Rollup splits the kit further).
 const LAYOUT_BUDGETS = {
   // The Chat + Canvas frame (track CC), measured at 8.34 kB + 10%.
   'layout-chat-canvas': '9.2 kB',
@@ -54,7 +54,9 @@ const LAYOUT_BUDGETS = {
   // The Command Deck frame (track K): rail, session tabs, status bar, phone
   // frame and shortcut sheet, plus the kit pieces it imports. 11.84 kB + 10%.
   'layout-command': '13.1 kB',
-  'layout-guided': '6.7 kB',
+  // Guided (frame, phone tabs, chat regions, Home and Templates pages, every
+  // chunk of the group) measured 15.25 kB + 10%.
+  'layout-guided': '16.8 kB',
   'layout-mission': '6.7 kB',
 }
 const KIT_BUDGET = '7.3 kB'
@@ -63,7 +65,8 @@ const FEATURE_BUDGETS = {
   // Track K, measured at 8.34 kB and 1.46 kB, + 10%.
   'lf-run-inspector': '9.2 kB',
   'lf-command-bar': '1.6 kB',
-  'lf-step-tracker': '6 kB',
+  // Measured at 5.08 kB (StepTracker and its labels, one chunk); ADR cap 6 kB.
+  'lf-step-tracker': '5.6 kB',
   'lf-mission-board': '22 kB',
 }
 // ADR 0003 §1.4 caps: a budget may be raised up to its cap, never past it.

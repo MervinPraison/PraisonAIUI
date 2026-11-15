@@ -4,7 +4,9 @@
  * small wrappers the Thread and the page render; each feature behind them
  * is its own lazy chunk again, fetched only when the layout asks for it:
  *
- *   Gate          approvals 'card' (./ApprovalCard) or 'keyboard' (./KeyboardGate)
+ *   Gate          approvals 'card' (./ApprovalCard) or 'keyboard' (./KeyboardGate);
+ *                 in the 'steps' thread it is pinned above the composer
+ *   Pinned        that place above the composer (./pinned)
  *   Turn          one assistant turn: the variant's turn header (./TurnMeta)
  *                 and stylesheet (./quiet.css, ./bubbles.css…), and the
  *                 layout's turnHeader / turnFooter regions around it
@@ -20,12 +22,14 @@
  * (R10) to the chat itself: it carries only the calls into this module.
  */
 import { lazy, useEffect, useMemo, type JSX, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuiState, type ToolCallMessagePartProps } from '@assistant-ui/react'
 import type { ChatPresentation, RegionLoader, TurnRegionProps } from '@/sdk/layouts'
 import { APPROVAL_ERROR, APPROVAL_PENDING } from '../protocol'
 import LazyRegion from '../LazyRegion'
 import { LazyBoundary } from '../parts/LazyBoundary'
 import type { GateProps } from './decision'
+import { pinsGates, pinnedSlotRef, usePinnedSlot } from './pinned'
 import { useRegionProps } from './regionState'
 import type { ThreadVariant } from './TurnMeta'
 
@@ -72,10 +76,29 @@ export function Gate({ presentation, part, description, children }: {
   }
   const C = mode === 'card' ? ApprovalCard : KeyboardGate
   return (
-    <LazyBoundary fallback={children} failed={children}>
-      <C {...p} />
-    </LazyBoundary>
+    <PinnedGate presentation={presentation}>
+      <LazyBoundary fallback={children} failed={children}>
+        <C {...p} />
+      </LazyBoundary>
+    </PinnedGate>
   )
+}
+
+/**
+ * An open gate in the 'steps' thread: the turn's steps are the layout's
+ * (its turnHeader), so the decision moves out of the turn to just above the
+ * composer, where it is seen without scrolling. Elsewhere, or until that
+ * place is mounted, it stays in the turn.
+ */
+function PinnedGate({ presentation, children }: { presentation: { chat: ChatPresentation }; children: ReactNode }): JSX.Element {
+  const slot = usePinnedSlot()
+  return slot && pinsGates(presentation.chat) ? createPortal(children, slot) : <>{children}</>
+}
+
+/** The place above the composer that pinned gates go to (nothing for a thread that pins none). */
+export function Pinned({ presentation }: { presentation: { chat: ChatPresentation } }): JSX.Element | null {
+  if (!pinsGates(presentation.chat)) return null
+  return <div ref={pinnedSlotRef} className="flex flex-col gap-2 pb-2 empty:hidden" data-chat-pinned aria-label="Waiting for your OK" role="region" />
 }
 
 /** An empty thread: the layout's `empty` region, else `children` (the starters). */

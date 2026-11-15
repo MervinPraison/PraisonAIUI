@@ -161,9 +161,10 @@ active), and its `source` is the owning record, for example
 `builtin.layout-guided`. The shell's nav shows such a page only while one of
 its layouts is on screen; its URL renders under any layout.
 
-Guided's `start` and `templates` (track G) and Mission's `ops-overview`, which
-replaces `overview` (track M), arrive with the frames that render them
-**(planned)**. Until then the layout records add no page to the manifest.
+Guided owns `start` (its Home, where `/` opens while Guided is the layout)
+and `templates`. Mission's `ops-overview`, which replaces `overview`, arrives
+with the Mission frame **(planned)**. A layout record adds a page only with
+the frame that renders it.
 
 ## Data that only some layouts need
 
@@ -178,7 +179,7 @@ lists it as `disabled` with the reason `no layout needs it`, its routes answer
 A reply handler can offer follow-up prompts for the answer it is writing.
 They go out on the run's `run_completed` frame as `suggestions` (an optional
 field; clients that do not know it ignore it), and a layout that shows
-follow-up chips renders them **(planned: the Guided frame, track G)**:
+follow-up chips (Guided) renders them:
 
 ```python
 import praisonaiui as aiui
