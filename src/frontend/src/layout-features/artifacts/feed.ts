@@ -13,10 +13,9 @@
  *   registerPage('artifacts', () => import('@/layout-features/artifacts/ArtifactsPage'))
  */
 import type { Artifact, ArtifactsFeed, Feed } from '@/sdk/layoutTypes'
-import { threadStore } from '@/chat-engine/store'
 import { artifactsServerEnabled, fetchSessionArtifacts, putArtifact } from './api'
 import type { DeriveOptions } from './derive'
-import { createArtifactsStore, type ArtifactsStore, type SessionArtifacts } from './store'
+import { createArtifactsStore, type ArtifactsStore, type SessionArtifacts, type ThreadSource, type ThreadView } from './store'
 
 let store: ArtifactsStore | null = null
 let options: DeriveOptions = {}
@@ -28,14 +27,51 @@ export function configureArtifacts(opts: DeriveOptions): void {
   options = next
 }
 
+// The chat store is imported, not bundled in: the chat page has it in memory
+// already (the canvas and cards render inside it), and the artifacts page
+// gets it on first use, so this feature's chunk does not carry it.
+type ChatThreads = typeof import('@/chat-engine/store').threadStore
+let chat: ChatThreads | null = null
+let chatLoading: Promise<ChatThreads> | null = null
+const NO_THREAD: ThreadView = Object.freeze({ messages: Object.freeze([]) as readonly never[], isRunning: false })
+
+function loadChat(): Promise<ChatThreads> {
+  chatLoading ??= import('@/chat-engine/store').then(
+    (m) => (chat = m.threadStore),
+    (err: unknown) => {
+      chatLoading = null
+      throw err
+    },
+  )
+  return chatLoading
+}
+
+const threads: ThreadSource = {
+  get: (sid) => chat?.get(sid) ?? NO_THREAD,
+  subscribe(sid, fn) {
+    if (chat) return chat.subscribe(sid, fn)
+    let off: (() => void) | null = null
+    let live = true
+    loadChat().then(
+      (t) => {
+        if (!live) return
+        off = t.subscribe(sid, fn)
+        fn()
+      },
+      (err: unknown) => console.warn('[aiui artifacts] the chat store did not load', err),
+    )
+    return () => {
+      live = false
+      off?.()
+    }
+  },
+  load: async (sid) => (await loadChat()).load(sid),
+}
+
 /** The shared store (created on first use). */
 export function artifactsStore(): ArtifactsStore {
   store ??= createArtifactsStore({
-    threads: {
-      get: (sid) => threadStore.get(sid),
-      subscribe: (sid, fn) => threadStore.subscribe(sid, fn),
-      load: (sid) => threadStore.load(sid),
-    },
+    threads,
     backend: {
       enabled: () => artifactsServerEnabled(),
       fetchSession: fetchSessionArtifacts,

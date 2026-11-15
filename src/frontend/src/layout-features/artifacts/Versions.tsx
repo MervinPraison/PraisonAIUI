@@ -3,17 +3,9 @@
  * ("v2 · edited by Researcher") and the History list beside the viewer, with
  * Restore on every version that is not the latest.
  */
-import type { JSX } from 'react'
+import { useEffect, useId, useRef, useState, type JSX, type KeyboardEvent } from 'react'
 import { ChevronDown, History } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import type { DerivedArtifact } from './derive'
 import { clockTime, describeVersion } from './format'
@@ -28,33 +20,81 @@ export interface VersionsProps {
   onRestore(version: number): void
 }
 
+/**
+ * The version button and its list: a disclosure (not a Radix menu, whose
+ * popper and focus scope would triple this feature's size). Escape, a click
+ * outside or a choice closes it and gives focus back to the button.
+ */
 export function VersionMenu({ versions, shown, onShow }: Omit<VersionsProps, 'onRestore'>): JSX.Element {
   const latest = versions[versions.length - 1]
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+  const button = useRef<HTMLButtonElement>(null)
+  const listId = useId()
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => !root.current?.contains(e.target as Node) && setOpen(false)
+    document.addEventListener('pointerdown', onDown)
+    return () => document.removeEventListener('pointerdown', onDown)
+  }, [open])
+  const close = () => {
+    setOpen(false)
+    button.current?.focus()
+  }
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && open) {
+      e.stopPropagation()
+      close()
+    } else if (open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault()
+      const items = [...(root.current?.querySelectorAll<HTMLButtonElement>('[data-version-item]') ?? [])]
+      const i = items.indexOf(document.activeElement as HTMLButtonElement)
+      items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus()
+    }
+  }
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" aria-label={`Version ${shown.version} of ${versions.length}. Show another version`}>
-          <History className="text-tier-2" />
-          <span className="font-semibold">v{shown.version}</span>
-          <span className="hidden text-tier-3 sm:inline">· {byLine(shown)}</span>
-          <ChevronDown className="size-3.5 text-tier-3" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-56">
-        <DropdownMenuLabel>Versions</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={String(shown.version)} onValueChange={(v) => onShow(Number(v))}>
+    <div ref={root} className="relative" onKeyDown={onKeyDown}>
+      <Button
+        ref={button}
+        variant="outline"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        aria-label={`Version ${shown.version} of ${versions.length}. Show another version`}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <History className="text-tier-2" />
+        <span className="font-semibold">v{shown.version}</span>
+        <span className="hidden text-tier-3 sm:inline">· {byLine(shown)}</span>
+        <ChevronDown className="size-3.5 text-tier-3" />
+      </Button>
+      {open && (
+        <ul id={listId} aria-label="Versions" className="absolute top-full right-0 z-20 m-0 mt-1 flex min-w-52 list-none flex-col rounded-lg border border-border bg-popover p-1 shadow-md">
           {[...versions].reverse().map((v) => (
-            <DropdownMenuRadioItem key={v.version} value={String(v.version)}>
-              <span className="font-semibold">v{v.version}</span>
-              <span className="text-tier-3">
-                {v === latest ? 'Current · ' : ''}
-                {clockTime(v.updatedAt)}
-              </span>
-            </DropdownMenuRadioItem>
+            <li key={v.version}>
+              <button
+                type="button"
+                data-version-item
+                aria-current={v === shown ? 'true' : undefined}
+                onClick={() => {
+                  onShow(v.version)
+                  close()
+                }}
+                className={cn(
+                  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent',
+                  v === shown && 'bg-row-active',
+                )}
+              >
+                <span className="font-semibold">v{v.version}</span>
+                <span className="text-tier-3">
+                  {v === latest ? 'Current · ' : ''}
+                  {clockTime(v.updatedAt)}
+                </span>
+              </button>
+            </li>
           ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </ul>
+      )}
+    </div>
   )
 }
 
