@@ -750,6 +750,25 @@ html[data-aiui-shell='react'][data-aiui-tokens='pro']
   span[style*='71717a' i] {
   color: var(--ui-text-3, var(--muted-foreground)) !important;
 }
+/* Phone: the view keeps a fixed 240px side column, which squeezes the code and
+   output panes to ~150px and clips the output tabs. Stack the aside under the
+   workspace instead (ProEditor phone: one pane at a time, full width). */
+@media (max-width: 767px) {
+  html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='editor'] .aiui-legacy-mount .cs-root {
+    flex-direction: column;
+  }
+  html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='editor'] .aiui-legacy-mount .cs-root > div {
+    min-height: 0;
+  }
+  html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='editor'] .aiui-legacy-mount .cs-root > div:first-child {
+    min-height: 560px;
+  }
+  html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='editor'] .aiui-legacy-mount .cs-root > div + div {
+    width: auto !important;
+    border-inline-start: 0 !important;
+    border-top: 1px solid var(--border);
+  }
+}
 html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type='editor'] .aiui-legacy-mount .cs-tab-panel {
   font-family: var(--font-mono);
   font-size: 12.5px;
