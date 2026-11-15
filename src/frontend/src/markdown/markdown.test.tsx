@@ -701,3 +701,26 @@ test('an Arabic paragraph renders right to left; English stays left to right', (
         assert.doesNotMatch(html, /dir="rtl"[^>]*>(?:<[^>]+>)*Hello/)
     }
 })
+
+// ── chat code blocks: collapse, wrap toggle (./CodeBlock) ──
+test('chat: a fence over 12 lines collapses with a "Show all N lines" toggle', async () => {
+    const { codeLineCount, CODE_COLLAPSE_LINES } = await import('./CodeBlock')
+    assert.equal(CODE_COLLAPSE_LINES, 12)
+    assert.equal(codeLineCount('a\nb\n'), 2)
+    assert.equal(codeLineCount(''), 0)
+    const long = Array.from({ length: 20 }, (_, i) => `x${i} = ${i}`).join('\n')
+    const html = chat('```python\n' + long + '\n```')
+    assert.match(html, /class="aiui-code"[^>]*data-collapsed=""/)
+    assert.match(html, /aria-expanded="false"[^>]*>Show all 20 lines</)
+    assert.match(html, /aria-label="Wrap long lines"/)
+})
+
+test('chat: a short fence is not collapsed but still offers wrap; inline code and docs are untouched', () => {
+    const html = chat('```python\nprint(1)\nprint(2)\n```\n\nsee `x`')
+    assert.match(html, /class="aiui-code"/)
+    assert.doesNotMatch(html, /data-collapsed/)
+    assert.doesNotMatch(html, /Show all/)
+    assert.match(html, /data-streamdown="inline-code"/)
+    const d = docs('```python\n' + Array.from({ length: 20 }, () => 'x').join('\n') + '\n```')
+    assert.doesNotMatch(d, /aiui-code/)
+})

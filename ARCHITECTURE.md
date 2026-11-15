@@ -215,7 +215,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Chat route (added by `/chat`) | 140 kB |
 | `/chat` first-screen JS (boot + chat route) | 250 kB |
 | `index.css` | 26 kB |
-| Streamdown renderer chunk | 147 kB (145 kB with `gzip -9`) |
+| Streamdown renderer chunk (collapsible chat code blocks included) | 148 kB (146 kB with `gzip -9`) |
 | shikiPlugin chunk | 55 kB |
 | Legacy App path (entry + legacy-app-entry closure) | 250 kB |
 | Each built-in layout `layout-<id>` (closure minus boot, kit included; ADR cap 24 kB, Mission 28 kB): `chat-canvas` / `workbench` / `command` / `guided` / `mission` | 9.2 / 10.4 / 15.2 / 16.8 / 13.2 kB |

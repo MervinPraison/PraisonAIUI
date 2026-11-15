@@ -262,6 +262,12 @@ it extends tailwind-merge with the theme's `shadow-float/overlay` and
   message visible.
 - Markdown renders through the one `<Markdown variant="chat"|"docs">` (Streamdown)
   with these tokens; never style markdown elements ad hoc.
+- Code blocks (chat, `markdown/CodeBlock.tsx`): a solid `bg-muted` header
+  with a hairline under it, so code never shows through; a fence longer than
+  12 lines (a layout may set `--aiui-code-lines`) shows 12 with a 24px fade
+  and a "Show all N lines" pill; a line past the right edge fades there and
+  the body scrolls sideways with a thin scrollbar; a wrap toggle sits next to
+  copy and download, on by default below 640px.
 - Known bundle cost: two copies of `marked` ship, 16.4.2 (through mermaid) and
   18.2.0 (through streamdown). Only the lazy diagram chunks load the mermaid
   copy, so the chat route and the docs first screen do not pay for it. An npm

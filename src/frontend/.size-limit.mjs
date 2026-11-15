@@ -146,8 +146,10 @@ export default [
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
   // 144.8 kB for this chunk. size-limit compresses with Node's zlib (Chromium's
-  // fork), which gives 146.6 kB for the same bytes: 147 kB is that budget here.
-  { name: 'Streamdown renderer chunk', path: abs([manifest[chunks.streamdown].file]), limit: '147 kB', gzip: true },
+  // fork), which gives 146.6 kB for the same bytes: 147 kB was that budget.
+  // +1 kB for the chat's collapsible code blocks (markdown/CodeBlock.tsx:
+  // 12-line collapse, wrap toggle, sideways-scroll fade), 147.4 kB measured.
+  { name: 'Streamdown renderer chunk', path: abs([manifest[chunks.streamdown].file]), limit: '148 kB', gzip: true },
   { name: 'shikiPlugin chunk', path: abs([manifest[chunks.shikiPlugin].file]), limit: '55 kB', gzip: true },
   { name: 'legacy App path (entry + legacy-app-entry closure)', path: abs(legacyJs), limit: '250 kB', gzip: true },
   ...layoutEntries,
