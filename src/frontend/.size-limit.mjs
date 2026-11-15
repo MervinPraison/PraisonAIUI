@@ -39,16 +39,24 @@ const legacyJs = filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks
 // The `lf-*` features do not exist yet: their entries are the ADR caps, for
 // the track that lands each one to set from its measurement. Every group in
 // the build must have a budget here.
+//
+// Every layout's closure holds the kit chunks, so a frame that uses a
+// different part of the kit splits it for all of them. The Command Deck's
+// frame uses no BasicFrame or ShortcutHint, so Rollup moves those two into a
+// kit chunk of their own that only the stub frames import: the kit went from
+// 4.53 to 5.03 kB and each stub frame to 4.66 kB (one more chunk and its
+// import). Each budget is its measurement plus about 10%, the same figures
+// the mission and guided tracks set for the same split.
 const LAYOUT_BUDGETS = {
-  'layout-chat-canvas': '4.6 kB',
-  'layout-workbench': '4.6 kB',
+  'layout-chat-canvas': '5.3 kB',
+  'layout-workbench': '5.3 kB',
   // The Command Deck frame (track K): rail, session tabs, status bar, phone
   // frame and shortcut sheet, plus the kit pieces it imports. 11.84 kB + 10%.
   'layout-command': '13.1 kB',
-  'layout-guided': '4.6 kB',
-  'layout-mission': '4.6 kB',
+  'layout-guided': '5.3 kB',
+  'layout-mission': '5.3 kB',
 }
-const KIT_BUDGET = '5 kB'
+const KIT_BUDGET = '5.7 kB'
 const FEATURE_BUDGETS = {
   'lf-artifacts': '30 kB',
   // Track K, measured at 8.34 kB and 1.46 kB, + 10%.
