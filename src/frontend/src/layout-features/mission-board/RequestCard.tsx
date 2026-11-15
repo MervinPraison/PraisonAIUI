@@ -60,12 +60,13 @@ export function RequestCard({ item, feed, now, touch }: RequestCardProps) {
       {(item.description || item.riskLevel) && (
         <p className="m-0 text-[13px] text-muted-foreground">{[item.description, item.riskLevel && `${item.riskLevel} risk`].filter(Boolean).join(' · ')}</p>
       )}
+      {/* Deny, then Approve: the order of MissionPhone.dc.html and of the banner. */}
       <div className="flex gap-2">
-        <Button size={size} className={cn(touch && 'h-11 flex-1 text-[15px]')} disabled={busy} onClick={decide(true)}>
-          Approve
-        </Button>
         <Button variant="outline" size={size} className={cn(touch && 'h-11 flex-1 text-[15px]')} disabled={busy} onClick={decide(false)}>
           Deny
+        </Button>
+        <Button size={size} className={cn(touch && 'h-11 flex-1 text-[15px]')} disabled={busy} onClick={decide(true)}>
+          Approve
         </Button>
       </div>
     </section>

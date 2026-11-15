@@ -10,6 +10,7 @@ import type { AgentStatus, ApprovalItem, ApprovalsFeed, ChatFeed, ChatState, Fee
 import AttentionBanner, { ApprovalBanner } from './ApprovalBanner'
 import OpsColumn from './OpsColumn'
 import OpsOverview from './OpsOverview'
+import { RequestCard } from './RequestCard'
 import RunTimeline from './RunTimeline'
 import { AgentCard, KpiStrip } from './widgets'
 
@@ -175,4 +176,11 @@ test('attention banner: a listed approval first; a gate of the open chat off the
   assert.match(listed, />Review</)
   assert.match(html(createElement(AttentionBanner, { ...where, pageId: 'logs' })), /data-aiui-approval-banner="ap_1"[\s\S]*1 more waiting/)
   assert.match(html(createElement(AttentionBanner, { ...where, pageId: 'approvals' })), /data-aiui-approval-banner="ap_ok"/)
+})
+
+test('request card: Deny then Approve, like the banner and MissionPhone.dc.html', () => {
+  for (const touch of [false, true]) {
+    const out = html(createElement(RequestCard, { item: pip, feed: approvals([pip]), now: Date.now(), touch }))
+    assert.deepEqual([...out.matchAll(/<button[^>]*>([^<]+)<\/button>/g)].map((m) => m[1]), ['Deny', 'Approve'], touch ? 'phone' : 'desktop')
+  }
 })
