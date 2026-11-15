@@ -36,23 +36,31 @@ const legacyJs = filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks
 // closure minus what boot already loaded. Budgets: measured at F3 (stub
 // frames) plus 10%, never above the ADR caps (layouts 24 kB, Mission 28 kB;
 // kit 10 kB). A layout track raises its own up to the cap, with the reason.
-// The `lf-*` features do not exist yet: their entries are the ADR caps, for
-// the track that lands each one to set from its measurement. Every group in
+// An `lf-*` feature that has not landed yet keeps the ADR cap as its entry,
+// for the track that lands it to set from its measurement. Every group in
 // the build must have a budget here.
+//
+// Every layout's closure holds the kit chunks, so kit code that one layout
+// starts to use is paid for by all of them. Mission is the first to use
+// PhoneTabs and describeCall, and the mission board shares useSessions with
+// the frames: the kit went from 4.53 to 5.22 kB and each stub frame from 4.14
+// to 4.86 kB. Mission (frame, top bar, nav counts, phone tabs, data hooks)
+// measures 9.52 kB. Each budget is its measurement plus about 10%.
 const LAYOUT_BUDGETS = {
-  'layout-chat-canvas': '4.6 kB',
-  'layout-workbench': '4.6 kB',
-  'layout-command': '4.6 kB',
-  'layout-guided': '4.6 kB',
-  'layout-mission': '4.6 kB',
+  'layout-chat-canvas': '5.3 kB',
+  'layout-workbench': '5.3 kB',
+  'layout-command': '5.3 kB',
+  'layout-guided': '5.3 kB',
+  'layout-mission': '10.5 kB',
 }
-const KIT_BUDGET = '5 kB'
+const KIT_BUDGET = '5.7 kB'
 const FEATURE_BUDGETS = {
   'lf-artifacts': '30 kB',
   'lf-run-inspector': '14 kB',
   'lf-command-bar': '6 kB',
   'lf-step-tracker': '6 kB',
-  'lf-mission-board': '22 kB',
+  // Measured at 10.75 kB (one chunk, mission-board/index.ts) plus 10%; ADR cap 22 kB.
+  'lf-mission-board': '11.8 kB',
 }
 /** The app shell's default layout (style `app`): its /chat first screen has its own budget. */
 const DEFAULT_LAYOUT = 'layout-chat-canvas'
