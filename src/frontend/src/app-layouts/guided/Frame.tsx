@@ -77,7 +77,7 @@ function DestRow({ item, onGo }: { item: GuidedItem; onGo(item: GuidedItem): voi
           item.active ? 'bg-accent-soft font-bold text-link' : 'font-semibold text-sidebar-foreground hover:bg-sidebar-accent/70',
         )}
       >
-        <PageIcon id={item.id} fallback={item.icon ?? item.title.slice(0, 1)} className="size-6 shrink-0" />
+        <PageIcon id={item.id} fallback={item.title.slice(0, 1)} className="size-6 shrink-0" />
         <span className="min-w-0 flex-1 truncate">{item.title}</span>
         {item.badge ? <span className="text-sm text-muted-foreground tabular-nums" aria-label={`${item.badge} new`}>{item.badge}</span> : null}
       </a>

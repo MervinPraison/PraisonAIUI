@@ -2,6 +2,7 @@
 import {
   BookOpen,
   Bot,
+  Bug,
   Clock,
   Columns2,
   History,
@@ -30,6 +31,7 @@ const BY_NAME: Readonly<Record<string, LucideIcon>> = {
   settings: Settings,
   config: Settings,
   'columns-2': Columns2,
+  bug: Bug,
 }
 
 /** The lucide icon for a nav item: its `navIcon`, a name in `icon`, else its page id. */

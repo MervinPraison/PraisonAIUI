@@ -178,10 +178,12 @@ test('relativeTime: Now, minutes, hours today, Yesterday, a weekday, then a date
   assert.equal(relativeTime(new Date(2025, 11, 31).getTime(), now), 'Dec 31, 2025')
 })
 
-test('NavIcon: a lucide icon for navIcon, else the emoji, else the first letter', () => {
+test('NavIcon: a lucide icon for navIcon, else the first letter, never the emoji', () => {
   assert.match(html(createElement(NavIcon, { item: { title: 'Chat', navIcon: 'message-square' } })), /<svg[^>]*lucide-message-square/)
   assert.match(html(createElement(NavIcon, { item: { title: 'Mine', icon: 'bot' } })), /lucide-bot/, 'a name in icon works too')
-  assert.match(html(createElement(NavIcon, { item: { title: 'Fun', icon: '🎉' } })), />🎉</)
+  const fun = html(createElement(NavIcon, { item: { title: 'Fun', icon: '\u{1F389}' } }))
+  assert.match(fun, />F</)
+  assert.doesNotMatch(fun, /\p{Extended_Pictographic}/u)
   assert.match(html(createElement(NavIcon, { item: { title: 'weather' } })), />W</)
   assert.equal(iconForNavItem({ navIcon: 'no-such-icon' }), undefined)
 })

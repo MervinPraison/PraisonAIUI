@@ -4,7 +4,7 @@
  * with createElement so no component is made during render.
  */
 import { createElement, type ComponentType, type ReactElement } from 'react'
-import { Activity, Bot, ClipboardCheck, History, LayoutDashboard, MessageSquare, MessagesSquare, Settings, ShieldCheck } from 'lucide-react'
+import { Activity, Bot, Bug, ClipboardCheck, History, LayoutDashboard, MessageSquare, MessagesSquare, Settings, ShieldCheck } from 'lucide-react'
 import type { LayoutNavItem } from '@/sdk/layouts'
 
 export type IconComponent = ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
@@ -20,6 +20,7 @@ const ICONS: Readonly<Record<string, IconComponent>> = Object.freeze({
   activity: Activity,
   history: History,
   settings: Settings,
+  bug: Bug,
 })
 
 /** The icon component for a nav item, or undefined (PhoneTabs takes the component). */
