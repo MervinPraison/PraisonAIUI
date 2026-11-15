@@ -23,10 +23,22 @@ import type { LayoutNavItem, LayoutProps } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
 import { isPlainLeftClick, NavList, NavSection, PhoneSheet, PhoneTabs, preloadPhoneSheet, ShortcutHint, useSessions, useShortcut } from '@/app-layouts/kit'
 import { guidedNav, HELP_ID, helpAddress, PAGE, type GuidedItem } from './nav'
-import { agentOf, PAGE_ICONS, useChat } from './chat'
-import { ChatCard, PageIcon } from './parts'
+import { agentOf, useChat } from './chat'
+import { PAGE_ICONS } from './icons'
+import { ChatCard } from './parts'
 
 const RECENT = 5
+
+/** A page's icon (`fallback` text, else its first letters, for a page Guided has no icon for). */
+function PageIcon({ id, className, fallback }: { id: string; className?: string; fallback?: string }) {
+  const Icon = PAGE_ICONS[id]
+  if (Icon) return <Icon aria-hidden className={className} />
+  return (
+    <span aria-hidden="true" className={cn('inline-flex shrink-0 items-center justify-center', className)}>
+      {(fallback ?? id).slice(0, 2)}
+    </span>
+  )
+}
 
 function Brand({ chrome, size = 'lg' }: Pick<LayoutProps, 'chrome'> & { size?: 'lg' | 'sm' }) {
   const logo = chrome.siteLogo

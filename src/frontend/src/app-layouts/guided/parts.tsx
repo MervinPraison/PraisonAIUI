@@ -1,26 +1,14 @@
 /**
- * Components the Guided frame, its pages and its chat regions share: page
- * icons, chat cards and template cards. Guided look (Guided.dc.html on the
+ * Components the Guided frame, its pages and its chat regions share: chat
+ * cards and template cards. Guided look (Guided.dc.html on the
  * Pro tokens): large type, 14-18 px radii, 44 px or larger targets, plain
  * words.
  */
 import { ChartColumn, Code, Lightbulb, ListChecks, PenLine, Sparkles } from 'lucide-react'
 import type { SessionSummary } from '@/sdk/layoutTypes'
 import { cn } from '@/lib/utils'
-import { PAGE_ICONS } from './chat'
 import { whenLabel } from './nav'
 import type { GuidedTemplate } from './templates'
-
-/** A page's icon (`fallback` text, else its first letters, for a page Guided has no icon for). */
-export function PageIcon({ id, className, fallback }: { id: string; className?: string; fallback?: string }) {
-  const Icon = PAGE_ICONS[id]
-  if (Icon) return <Icon aria-hidden className={className} />
-  return (
-    <span aria-hidden="true" className={cn('inline-flex shrink-0 items-center justify-center', className)}>
-      {(fallback ?? id).slice(0, 2)}
-    </span>
-  )
-}
 
 const CATEGORY_ICONS = {
   write: PenLine,

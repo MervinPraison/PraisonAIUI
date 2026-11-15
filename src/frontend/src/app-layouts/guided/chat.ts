@@ -1,27 +1,11 @@
 /**
- * Guided's reads of the chat (over the `chat` and `sessions` layout feeds)
- * and its page icons: shared by the frame, the pages and the chat regions.
+ * Guided's reads of the chat (over the `chat` and `sessions` layout feeds),
+ * shared by the frame, the pages and the chat regions.
  */
-import { useCallback, useSyncExternalStore, type ComponentType } from 'react'
-import { Bot, CircleHelp, House, LayoutTemplate, MessageCircle, MessagesSquare, Settings } from 'lucide-react'
+import { useCallback, useSyncExternalStore } from 'react'
 import { useLayoutData } from '@/sdk/layouts'
 import type { ChatMessageView, ChatState, SessionSummary } from '@/sdk/layoutTypes'
-import { useSessions } from '@/app-layouts/kit'
-import { HELP_ID, PAGE } from './nav'
 import type { GuidedTemplate } from './templates'
-
-export type IconComponent = ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
-
-/** Icons of the pages Guided knows; others show the manifest's mark. */
-export const PAGE_ICONS: Readonly<Record<string, IconComponent>> = Object.freeze({
-  [PAGE.home]: House,
-  [PAGE.chat]: MessageCircle,
-  [PAGE.agents]: Bot,
-  [PAGE.templates]: LayoutTemplate,
-  [PAGE.sessions]: MessagesSquare,
-  [PAGE.settings]: Settings,
-  [HELP_ID]: CircleHelp,
-})
 
 const EMPTY_CHAT: ChatState = Object.freeze({ sessionId: null, messages: [], isRunning: false })
 const noSubscribe = () => () => {}
@@ -64,7 +48,7 @@ export function followUpsFor(messages: readonly ChatMessageView[], messageId: st
  * empty chat itself) with the prompt in its composer.
  */
 export function useStartFromTemplate(inPlace = false): (t: GuidedTemplate) => void {
-  const sessions = useSessions()?.feed
+  const sessions = useLayoutData('sessions')
   const { feed } = useChat()
   return useCallback(
     (t: GuidedTemplate) => {

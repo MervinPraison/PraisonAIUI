@@ -11,12 +11,24 @@
  * assistant turn is on screen.
  */
 import { useId, useMemo, useState, useSyncExternalStore, type JSX } from 'react'
-import { Check, ChevronDown, Hand, Minus, SquareTerminal, X } from 'lucide-react'
+import { Check, ChevronDown, Hand, Minus, SquareTerminal } from 'lucide-react'
 import { Spinner } from '@/components/ui/spinner'
 import { useLayoutData, type TurnRegionProps } from '@/sdk/layouts'
 import type { ChatMessageView, ChatState } from '@/sdk/layoutTypes'
 import { cn } from '@/lib/utils'
 import { deriveSteps, formatSeconds, hasWork, stepMeta, summarize, type PlainStep } from './labels'
+
+/**
+ * A cross mark, drawn here rather than imported: lucide's X is in the chat
+ * route, and sharing it would split it into a chunk of its own there.
+ */
+function Cross({ className, strokeWidth = 2 }: { className?: string; strokeWidth?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  )
+}
 
 const EMPTY: ChatState = Object.freeze({ sessionId: null, messages: [], isRunning: false })
 const noSubscribe = () => () => {}
@@ -43,7 +55,7 @@ function StepIcon({ status, small }: { status: PlainStep['status']; small: boole
   const look =
     status === 'done' ? ['bg-primary text-primary-foreground', Check]
       : status === 'waiting' ? ['bg-warning-soft text-warning', Hand]
-        : status === 'error' ? ['bg-danger-soft text-destructive', X]
+        : status === 'error' ? ['bg-danger-soft text-destructive', Cross]
           : ['bg-muted text-muted-foreground', Minus]
   const [tone, Icon] = look as [string, typeof Check]
   return (
