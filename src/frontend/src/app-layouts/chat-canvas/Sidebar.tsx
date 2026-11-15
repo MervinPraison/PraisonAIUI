@@ -146,16 +146,15 @@ export function SidebarBody({ nav, chrome, size, chatPage, artifactTotal, onColl
             'hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-ring',
             touch ? 'h-11 text-[15px]' : 'h-8 text-sm',
           )}
-          aria-keyshortcuts="Meta+K Control+K"
           onClick={() => {
             onNavigate?.()
             chrome.openPalette()
           }}
           data-cc-more=""
         >
+          {/* The header's search owns ⌘K; this row is the way to the pages not listed above. */}
           <CircleEllipsis aria-hidden="true" className="size-4 shrink-0" />
-          <span className="flex-1">More</span>
-          {!touch && <ShortcutHint combo="mod+k" />}
+          <span className="flex-1">More pages</span>
         </button>
         {touch && (
           <button

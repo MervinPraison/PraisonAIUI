@@ -122,7 +122,7 @@ export default function ChatCanvasFrame(props: LayoutProps) {
         {phone ? (
           <PhoneTopBar line={line} canCreate={canCreate} onMenu={() => setMenuOpen(true)} onNewChat={newChat} />
         ) : (
-          <TopBar line={line} chrome={chrome} collapsed={collapsed} onExpand={toggleSidebar} />
+          <TopBar line={line} chrome={chrome} collapsed={collapsed} onExpand={toggleSidebar} share={onChat} />
         )}
         <main
           id={chrome.mainId}

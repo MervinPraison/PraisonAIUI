@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSessions, type KitSize } from '@/app-layouts/kit'
 import { cn } from '@/lib/utils'
-import { relativeTime } from './format'
+import { shortTime } from './format'
 
 // The rows' times, to the minute, as of the last render (no timer of its own).
 const noSubscribe = () => () => {}
@@ -95,7 +95,7 @@ export function ChatList({ size = 'default', limit = 30, onOpen, className, now 
           {shown.map((s) => {
             const active = s.id === state.activeId
             const running = state.runningIds.has(s.id)
-            const meta = running ? 'Working…' : relativeTime(s.updatedAt, clock)
+            const meta = running ? 'Working…' : shortTime(s.updatedAt, clock)
             return (
               <li key={s.id}>
                 <button
@@ -103,19 +103,20 @@ export function ChatList({ size = 'default', limit = 30, onOpen, className, now 
                   aria-current={active ? 'true' : undefined}
                   data-aiui-session={s.id}
                   className={cn(
-                    'flex w-full min-w-0 flex-col items-start rounded-lg px-2.5 text-left outline-none transition-colors',
+                    'flex w-full min-w-0 items-center gap-2 rounded-lg px-2.5 text-left outline-none transition-colors',
                     'hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-ring',
-                    touch ? 'min-h-11 py-2' : 'py-1.5',
-                    active ? 'bg-card text-foreground shadow-xs' : 'text-sidebar-foreground',
+                    touch ? 'min-h-11' : 'h-8',
+                    // The open chat: the accent fill and a 2px primary edge, visible on the grey sidebar in light mode too.
+                    active ? 'bg-sidebar-accent text-foreground shadow-[inset_2px_0_0_var(--primary)]' : 'text-sidebar-foreground',
                   )}
                   onClick={() => {
                     feed.select(s.id)
                     onOpen?.(s.id)
                   }}
                 >
-                  <span className={cn('w-full truncate', touch ? 'text-[15px]' : 'text-sm', active && 'font-semibold')}>{s.title}</span>
+                  <span className={cn('min-w-0 flex-1 truncate', touch ? 'text-[15px]' : 'text-sm', active && 'font-medium')}>{s.title}</span>
                   {meta && (
-                    <span className={cn('text-[13px]', running ? 'font-medium text-warning' : 'text-muted-foreground')}>{meta}</span>
+                    <span className={cn('shrink-0 text-xs tabular-nums', running ? 'font-medium text-warning' : 'text-muted-foreground')}>{meta}</span>
                   )}
                 </button>
               </li>

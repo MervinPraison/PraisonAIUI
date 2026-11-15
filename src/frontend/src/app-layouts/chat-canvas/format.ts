@@ -35,6 +35,14 @@ export function relativeTime(at: number | undefined, now = Date.now()): string |
   return `${d.getDate()} ${MONTHS[d.getMonth()]}`
 }
 
+/** The chat list's right-aligned time: "now", "4m", "3h", "Yesterday", "Tue", "3 Nov". */
+export function shortTime(at: number | undefined, now = Date.now()): string | undefined {
+  const rel = relativeTime(at, now)
+  if (!rel) return undefined
+  const m = /^(\d+) (min|h) ago$/.exec(rel)
+  return m ? `${m[1]}${m[2] === 'min' ? 'm' : 'h'}` : rel
+}
+
 /** "edited 2 min ago" wording: `edited now` reads oddly, so `edited just now`. */
 function editedPhrase(at: number | undefined, now: number): string | undefined {
   const rel = relativeTime(at, now)

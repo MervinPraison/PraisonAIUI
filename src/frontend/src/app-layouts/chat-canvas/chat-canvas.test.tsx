@@ -18,7 +18,7 @@ import {
 import type { Artifact, ArtifactsFeed, ChatFeed, ChatState, Feed, SessionsFeed, SessionsState } from '@/sdk/layoutTypes'
 import Frame from './Frame'
 import { toArtifactsFeed } from './data'
-import { chatSubtitle, connectionWord, lastAgent, relativeTime, summarizeArtifacts } from './format'
+import { chatSubtitle, connectionWord, lastAgent, relativeTime, shortTime, summarizeArtifacts } from './format'
 import { frameKeyAction, optionVars } from './frameLogic'
 import { iconFor } from './iconMap'
 
@@ -63,6 +63,14 @@ test('with the artifacts feature the canvas is the aside (phone: Chat | Canvas) 
 // ── format ───────────────────────────────────────────────────────────
 
 const NOW = new Date(2026, 10, 15, 12, 0, 0).getTime() // a Sunday, local time
+
+test('shortTime: the chat list time is compact (now, 5m, 2h, Yesterday)', () => {
+  assert.equal(shortTime(NOW - 20_000, NOW), 'now')
+  assert.equal(shortTime(NOW - 5 * 60_000, NOW), '5m')
+  assert.equal(shortTime(NOW - 2 * 3_600_000, NOW), '2h')
+  assert.equal(shortTime(new Date(2026, 10, 14, 18).getTime(), NOW), 'Yesterday')
+  assert.equal(shortTime(undefined, NOW), undefined)
+})
 
 test('relativeTime: now, minutes, hours, yesterday, weekday, date; nothing for none or the future', () => {
   assert.equal(relativeTime(NOW - 20_000, NOW), 'now')
@@ -253,7 +261,11 @@ test('desktop frame: sidebar landmark, New chat, at most 7 primary pages, chats,
   assert.doesNotMatch(primary, /logs/, 'the other pages are under More (the palette), not in the primary list')
   assert.match(out, />Chats</)
   assert.match(out, /aria-current="true" data-aiui-session="s1"/)
-  assert.match(out, /data-cc-more=""/)
+  // One line per chat, the time right-aligned; the open one has the accent fill and a primary edge.
+  assert.match(out, /aria-current="true" data-aiui-session="s1" class="[^"]*h-8[^"]*bg-sidebar-accent[^"]*inset_2px_0_0_var\(--primary\)/)
+  // The footer row is "More pages" with no second ⌘K (the header search owns it).
+  assert.match(out, /data-cc-more=""[^>]*>.*?<span class="flex-1">More pages<\/span><\/button>/)
+  assert.doesNotMatch(out, /data-cc-more=""[^>]*aria-keyshortcuts/)
   assert.match(out, /<main id="aiui-main" tabindex="-1"/)
   assert.match(out, /data-outlet="">the page</)
 })
@@ -275,6 +287,7 @@ test('another page: its title, no chat line; the frame still lists the chats', (
   const out = render(props({ pageId: 'logs', page: { id: 'logs', title: 'Logs', kind: 'legacy' } as LayoutProps['page'], fullBleed: false }))
   assert.match(out, /data-cc-title="">Logs<\/h1>/)
   assert.doesNotMatch(out, /data-cc-subtitle/)
+  assert.doesNotMatch(out, /data-cc-share/, 'Share is for the chat page only')
   assert.match(out, /data-aiui-session="s1"/)
   assert.match(out, /<main[^>]*class="[^"]*overflow-y-auto/)
 })

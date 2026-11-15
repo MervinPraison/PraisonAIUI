@@ -1,7 +1,7 @@
 /**
  * The Chat and Canvas top bars. Desktop (Canvas.dc.html): the title over
- * "Researcher · 3 artifacts · edited 2 min ago", Search or run a command
- * (⌘K), Share (copies the link) and the theme switch, then the shell's
+ * "Researcher · connected · 3 artifacts · edited 2 min ago", Search or run
+ * a command (⌘K), Share (copies the link; the chat page only) and the theme switch, then the shell's
  * `header:actions` slot. Phone (CanvasPhone.dc.html): menu, the centred
  * title and line, New chat; 44 px targets.
  */
@@ -40,9 +40,12 @@ export function TopBar({
   chrome,
   collapsed,
   onExpand,
+  share = true,
 }: {
   line: TitleLine
   chrome: LayoutChrome
+  /** Share the link: on the chat page only (a dashboard page has nothing to share; pages add their own actions in header:actions). */
+  share?: boolean
   /** The sidebar is hidden: show the button that brings it back. */
   collapsed: boolean
   onExpand(): void
@@ -79,10 +82,12 @@ export function TopBar({
         <span className="flex-1 text-left max-lg:sr-only">Search or run a command</span>
         <ShortcutHint combo="mod+k" className="max-lg:hidden" />
       </Button>
-      <Button variant="outline" className="h-[34px] text-foreground" onClick={() => void copyLink()} data-cc-share="">
-        <Share />
-        Share
-      </Button>
+      {share && (
+        <Button variant="outline" className="h-[34px] text-foreground" onClick={() => void copyLink()} data-cc-share="">
+          <Share />
+          Share
+        </Button>
+      )}
       <ThemeButton chrome={chrome} className="size-[34px]" />
       <chrome.Slot name="header:actions" className="flex items-center gap-1" />
     </header>
