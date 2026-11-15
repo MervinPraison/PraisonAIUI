@@ -8,6 +8,6 @@ import type { LayoutDescriptor } from './types'
 
 export const chatCanvasLayout: LayoutDescriptor = {
   id: 'chat-canvas',
-  meta: { title: 'Chat + Canvas', description: 'Chat beside a canvas of the artifacts the agent makes.' },
+  meta: { title: 'Chat and Canvas', description: 'Chat beside a canvas of the artifacts the agent makes.' },
   load: () => import('@/app-layouts/chat-canvas/Frame'),
 }

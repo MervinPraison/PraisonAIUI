@@ -7,6 +7,6 @@ import type { LayoutDescriptor } from './types'
 
 export const workbenchLayout: LayoutDescriptor = {
   id: 'workbench',
-  meta: { title: 'Workbench', description: 'A quiet sidebar with your chats, and the page beside it.' },
+  meta: { title: 'Quiet Workbench', description: 'A quiet sidebar with your chats, and the page beside it.' },
   load: () => import('@/app-layouts/workbench/Frame'),
 }

@@ -7,6 +7,6 @@ import type { LayoutDescriptor } from './types'
 
 export const guidedLayout: LayoutDescriptor = {
   id: 'guided',
-  meta: { title: 'Guided', description: 'Plain language and large buttons; every step explained.' },
+  meta: { title: 'Guided Studio', description: 'Plain language and large buttons; every step explained.' },
   load: () => import('@/app-layouts/guided/Frame'),
 }

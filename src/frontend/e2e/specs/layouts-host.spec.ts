@@ -36,10 +36,10 @@ const FALLBACK_LAYOUTS = {
   default: 'chat-canvas',
   userChoice: true,
   available: [
-    { id: 'chat-canvas', title: 'Chat + Canvas', source: 'builtin.layout-chat-canvas', order: 10, home: 'chat' },
-    { id: 'workbench', title: 'Workbench', source: 'builtin.layout-workbench', order: 20, home: 'chat' },
+    { id: 'chat-canvas', title: 'Chat and Canvas', source: 'builtin.layout-chat-canvas', order: 10, home: 'chat' },
+    { id: 'workbench', title: 'Quiet Workbench', source: 'builtin.layout-workbench', order: 20, home: 'chat' },
     { id: 'command', title: 'Command Deck', source: 'builtin.layout-command', order: 30, home: 'chat' },
-    { id: 'guided', title: 'Guided', source: 'builtin.layout-guided', order: 40, home: 'chat' },
+    { id: 'guided', title: 'Guided Studio', source: 'builtin.layout-guided', order: 40, home: 'chat' },
     { id: 'mission', title: 'Mission Control', source: 'builtin.layout-mission', order: 50, home: 'chat' },
     { id: 'aurora', title: 'Aurora', source: 'plugin:layoutfx', module: '/_plugins/layoutfx/aurora.js', order: 90 },
     { id: 'broken', title: 'Broken', source: 'plugin:layoutfx', module: '/_plugins/layoutfx/broken.js', order: 95 },
@@ -189,7 +189,7 @@ async function auroraRoundTrip(page: Page): Promise<void> {
   await expect(page.locator('#aiui-main [data-aiui-page="chat"]')).toBeVisible()
   await page.locator('[data-aurora-link="logs"]').click()
   await expect(page.locator('#aiui-main [data-aiui-page="logs"]')).toBeVisible()
-  await runPaletteCommand(page, 'Switch layout: Chat + Canvas')
+  await runPaletteCommand(page, 'Switch layout: Chat and Canvas')
   await expect(frame(page, 'chat-canvas')).toBeVisible()
   await expect(page.locator('#aiui-main [data-aiui-page="logs"]')).toBeVisible()
 }
@@ -238,7 +238,7 @@ test('Settings → Appearance lists every offered layout and the classic frame',
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByText('Appearance', { exact: true }).first()).toBeVisible()
   await dialog.getByRole('combobox', { name: 'Layout' }).click()
-  for (const title of ['Chat + Canvas', 'Workbench', 'Aurora', 'Classic']) {
+  for (const title of ['Chat and Canvas', 'Quiet Workbench', 'Aurora', 'Classic']) {
     await expect(page.getByRole('option', { name: title, exact: true })).toBeVisible()
   }
 })
