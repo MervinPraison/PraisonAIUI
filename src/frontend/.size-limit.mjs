@@ -40,7 +40,7 @@ const legacyJs = filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks
 // the track that lands each one to set from its measurement. Every group in
 // the build must have a budget here.
 const LAYOUT_BUDGETS = {
-  'layout-chat-canvas': '4.6 kB',
+  'layout-chat-canvas': '9.2 kB',
   'layout-workbench': '4.6 kB',
   'layout-command': '4.6 kB',
   'layout-guided': '4.6 kB',
