@@ -11,7 +11,7 @@
  * rename/remove through the same store the frame's list reads).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Archive, ExternalLink, MessageCirclePlus, MoreHorizontal, PenLine, RotateCcw, Trash } from 'lucide-react'
+import { Archive, ExternalLink, MoreHorizontal, PenLine, RotateCcw, SquarePen, Trash } from 'lucide-react'
 import { ListDetail, ListPagination, type ListColumn, type ListSort } from '@/components/page/ListDetail'
 import { Facts, TemplateSearch } from '@/components/page/parts'
 import { Button } from '@/components/ui/button'
@@ -249,7 +249,7 @@ function SessionsPage(_: AppPageProps) {
       )}
       <span className="flex-1" />
       <Button size="sm" onClick={newChat}>
-        <MessageCirclePlus aria-hidden />
+        <SquarePen aria-hidden />
         New chat
       </Button>
     </>
@@ -326,7 +326,7 @@ function EmptySessions() {
       <p className="m-0 text-base font-medium text-foreground">No sessions yet: start a chat</p>
       <p className="m-0 text-sm text-muted-foreground">Every conversation with an agent is kept here.</p>
       <Button size="sm" onClick={newChat}>
-        <MessageCirclePlus aria-hidden />
+        <SquarePen aria-hidden />
         New chat
       </Button>
     </div>

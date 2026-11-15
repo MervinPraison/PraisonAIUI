@@ -15,7 +15,7 @@ import { ago, toMs } from './shared'
 import { filterRows, sessionRows, sortRows } from './sessions/model'
 import { logEntries, logsAsText } from './logs/model'
 import { changedPaths, getPath, matchField, setPath, settingsSections, valueOf } from './settings/model'
-import { featureHealth, formatCost, greeting, series, sparkPath, summary } from './overview/model'
+import { attentionLabel, featureHealth, formatCost, greeting, providerLine, series, sparkPath, summary } from './overview/model'
 import SessionsPage from './sessions/SessionsPage'
 import LogsPage from './logs/LogsPage'
 import SettingsPage from './settings/SettingsPage'
@@ -112,11 +112,25 @@ test('overview: greeting, the one-sentence summary, sparklines and feature healt
   assert.equal(greeting(new Date(2026, 10, 15, 20)), 'Good evening')
   assert.equal(summary({ waiting: 1, running: 1, agentWaiting: 'Researcher' }), '1 run is working, and Researcher needs your approval.')
   assert.match(summary({ waiting: 0, running: 0 }), /^Everything is quiet/)
+  // Quiet is only said when nothing needs a look.
+  assert.equal(summary({ waiting: 0, running: 0, attention: 1 }), '1 thing needs a look: see Feature health.')
+  assert.equal(summary({ waiting: 0, running: 0, attention: 2 }), '2 things need a look: see Feature health.')
+  assert.equal(summary({ waiting: 0, running: 0, attention: 1, keyMissing: true }), 'Add an API key in Settings to start chatting.')
+  assert.equal(attentionLabel(1), '1 needs attention')
+  assert.equal(attentionLabel(3), '3 need attention')
   assert.deepEqual(series({ timeseries: [{ tokens: 1 }, { tokens: 'x' }, {}] }), [1, 0, 0])
   assert.equal(sparkPath([1, 1, 1], 72, 20), '', 'a flat line draws nothing')
   assert.equal(sparkPath([0, 10], 72, 20), '0.0,19.0 72.0,1.0')
   assert.equal(formatCost(0), '$0.00')
   assert.deepEqual(featureHealth({ features: [{ name: 'chat', health: { status: 'ok' } }, { name: 'agui', health: { status: 'degraded' } }] }).map((f) => f.name), ['agui', 'chat'])
+})
+
+test('overview: the provider line follows /api/provider/health, as Settings and the chat banner do', () => {
+  assert.deepEqual(providerLine({ status: 'ok', api_key: 'missing' }), { tone: 'warn', text: 'Not configured', addKey: true })
+  assert.deepEqual(providerLine({ status: 'ok', api_key: 'set' }), { tone: 'ok', text: 'Connected' })
+  assert.deepEqual(providerLine({ status: 'ok' }), { tone: 'ok', text: 'Connected' })
+  assert.deepEqual(providerLine({ status: 'error', detail: 'refused' }), { tone: 'warn', text: 'refused' })
+  assert.deepEqual(providerLine(null, 'HTTP 500'), { tone: 'warn', text: 'HTTP 500' })
 })
 
 // ── registration and the classic fallback ──

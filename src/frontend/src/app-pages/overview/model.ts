@@ -6,8 +6,12 @@ export function greeting(now: Date): string {
   return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
 }
 
-/** One plain sentence about what waits and what runs. */
-export function summary(p: { waiting: number; running: number; agentWaiting?: string }): string {
+/**
+ * One plain sentence about what waits and what runs; with nothing running or
+ * waiting, what still needs a look (no model key, unhealthy features) before
+ * "Everything is quiet".
+ */
+export function summary(p: { waiting: number; running: number; agentWaiting?: string; attention?: number; keyMissing?: boolean }): string {
   const parts: string[] = []
   if (p.running) parts.push(`${p.running} ${p.running === 1 ? 'run is' : 'runs are'} working`)
   if (p.waiting) {
@@ -17,9 +21,25 @@ export function summary(p: { waiting: number; running: number; agentWaiting?: st
         : `${p.waiting} ${p.waiting === 1 ? 'approval waits' : 'approvals wait'} for you`,
     )
   }
-  if (!parts.length) return 'Everything is quiet. Start a chat or pick up where you left off.'
+  if (!parts.length) {
+    if (p.keyMissing) return 'Add an API key in Settings to start chatting.'
+    if (p.attention) return `${p.attention === 1 ? '1 thing needs' : `${p.attention} things need`} a look: see Feature health.`
+    return 'Everything is quiet. Start a chat or pick up where you left off.'
+  }
   const text = `${parts.join(', and ')}.`
   return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+/** "1 needs attention", "3 need attention". */
+export function attentionLabel(n: number): string {
+  return `${n} ${n === 1 ? 'needs' : 'need'} attention`
+}
+
+/** The provider card's line: connected, not configured (no model key), or the provider's own words. */
+export function providerLine(h: { status?: string; detail?: string; api_key?: string } | null | undefined, error?: string | null): { tone: 'ok' | 'warn'; text: string; addKey?: boolean } {
+  if (h?.api_key === 'missing') return { tone: 'warn', text: 'Not configured', addKey: true }
+  if (/^(ok|healthy)$/i.test(h?.status ?? '')) return { tone: 'ok', text: 'Connected' }
+  return { tone: 'warn', text: h?.detail || error || 'Not reachable' }
 }
 
 /** One value per hour of /api/usage/timeseries (oldest first). */

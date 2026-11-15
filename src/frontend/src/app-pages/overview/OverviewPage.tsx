@@ -3,14 +3,15 @@
  * a layout: a greeting with one plain sentence, "Today at a glance" (96px
  * tiles: 12px label, 28px tabular number, a 12px delta or sparkline), the
  * agents beside what needs your approval, the recent runs (or chats)
- * beside the model provider, and a collapsible feature health list.
+ * beside the model provider with the collapsible feature health list under
+ * it. A zero KPI is muted, its line saying what to do.
  *
  * Bound to the same stores the chat and the layouts read: the approvals feed
  * plus the open chat's gates, the sessions feed, and the runs feed when the
  * run ledger is on (else usage totals). Status is a dot and a label.
  */
 import { useMemo, useState, useSyncExternalStore } from 'react'
-import { Bot, ChevronRight, MessageCirclePlus, Settings2, ShieldQuestion } from 'lucide-react'
+import { Bot, ChevronRight, Settings2, ShieldQuestion, SquarePen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { chatGates, withChatGates } from '@/lib/chatGates'
 import { cn } from '@/lib/utils'
@@ -18,7 +19,7 @@ import { useLayoutData } from '@/sdk/layouts'
 import type { ApprovalItem, Feed, RunKpis, RunSummary, AgentStatus } from '@/sdk/layoutTypes'
 import { navigate, useManifest } from '@/sdk/services'
 import { ago, inLayoutOnly, PageBody, Pill, Section, StatusDot, toMs, useJson, useNow, type AppPageProps, type Tone } from '../shared'
-import { featureHealth, formatCost, formatCount, formatMs, greeting, series, sparkPath, summary } from './model'
+import { attentionLabel, featureHealth, formatCost, formatCount, formatMs, greeting, providerLine, series, sparkPath, summary } from './model'
 
 const NOTHING = { get: () => null, subscribe: () => () => {} }
 
@@ -55,13 +56,14 @@ function Spark({ values, label }: { values: readonly number[]; label: string }) 
   )
 }
 
-function Tile({ label, value, sub, spark, tone }: { label: string; value: string; sub?: string; spark?: { values: readonly number[]; label: string }; tone?: 'warn' }) {
+/** A KPI tile. `empty`: the value is zero, so it is muted and the line under it says what to do. */
+function Tile({ label, value, sub, spark, tone, empty }: { label: string; value: string; sub?: string; spark?: { values: readonly number[]; label: string }; tone?: 'warn'; empty?: boolean }) {
   return (
-    <div className={cn('flex h-24 min-w-0 flex-col justify-between rounded-xl border bg-card px-4 py-3', tone === 'warn' ? '[border-color:var(--ui-warning-line)]' : 'border-border')} data-aiui-tile="">
+    <div className={cn('flex h-24 min-w-0 flex-col justify-between rounded-xl border bg-card px-4 py-3', tone === 'warn' ? '[border-color:var(--ui-warning-line)]' : 'border-border')} data-aiui-tile="" data-empty={empty || undefined}>
       <span className="truncate text-xs text-muted-foreground">{label}</span>
       <span className="flex items-end justify-between gap-2">
-        <span className="text-[28px] leading-none font-semibold tracking-[-0.02em] tabular-nums">{value}</span>
-        {spark && <Spark {...spark} />}
+        <span className={cn('text-[28px] leading-none tracking-[-0.02em] tabular-nums', empty ? 'font-medium text-tier-3' : 'font-semibold')}>{value}</span>
+        {spark && !empty && <Spark {...spark} />}
       </span>
       <span className="truncate text-xs text-tier-3">{sub || ' '}</span>
     </div>
@@ -135,7 +137,7 @@ function OverviewPage(_: AppPageProps) {
 
   const usage = useJson<{ total_tokens?: number; total_cost_usd?: number }>('/api/usage/summary', 30_000)
   const timeseries = useJson<unknown>('/api/usage/timeseries?hours=24', 60_000)
-  const health = useJson<{ status?: string; provider?: string; detail?: string }>('/api/provider/health', 30_000)
+  const health = useJson<{ status?: string; provider?: string; detail?: string; api_key?: string }>('/api/provider/health', 30_000)
   const features = useJson<unknown>('/api/features')
   const tokens = series(timeseries.data, 'tokens')
   const requests = series(timeseries.data, 'requests')
@@ -146,7 +148,8 @@ function OverviewPage(_: AppPageProps) {
     else if (approvalsFeed) await (approved ? approvalsFeed.approve(item.id) : approvalsFeed.deny(item.id))
   }
 
-  const providerOk = /^(ok|healthy)$/i.test(health.data?.status ?? '')
+  const provider = providerLine(health.data, health.error)
+  const keyMissing = provider.addKey === true
   const healthList = featureHealth(features.data)
   const unhealthy = healthList.filter((f) => !f.ok)
 
@@ -157,11 +160,12 @@ function OverviewPage(_: AppPageProps) {
           <div className="min-w-0 flex-1">
             <h2 className="m-0 text-2xl font-semibold tracking-tight">{greeting(new Date(now))}</h2>
             <p className="m-0 mt-1 text-sm text-muted-foreground">
-              {summary({ waiting: pending.length, running, agentWaiting: pending[0]?.agentName })}
+              {summary({ waiting: pending.length, running, agentWaiting: pending[0]?.agentName, attention: unhealthy.length, keyMissing })}
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => navigate('chat')}>
-            <MessageCirclePlus aria-hidden />
+          {/* Page-level New chat: the same small primary button with the sidebar's pencil, on every page that has one. */}
+          <Button size="sm" onClick={() => navigate('chat')}>
+            <SquarePen aria-hidden />
             New chat
           </Button>
         </div>
@@ -171,14 +175,14 @@ function OverviewPage(_: AppPageProps) {
             {kpis ? (
               <Tile label="Runs today" value={formatCount(kpis.runs)} sub={kpis.runsDelta ? `${kpis.runsDelta > 0 ? '+' : ''}${kpis.runsDelta} vs yesterday` : 'same as yesterday'} spark={{ values: requests, label: 'Requests per hour, last 24 hours' }} />
             ) : (
-              <Tile label="Chats" value={formatCount(sessions.sessions.length)} sub={running ? `${running} running now` : 'none running'} />
+              <Tile label="Chats" value={formatCount(sessions.sessions.length)} sub={sessions.sessions.length ? (running ? `${running} running now` : 'none running') : 'No chats yet · start one'} empty={sessions.sessions.length === 0} />
             )}
-            <Tile label="Waiting for you" value={String(pending.length)} sub={pending.length ? `oldest ${ago(pending[0]?.createdAt ?? Number.NaN, now) || 'just now'}` : 'nothing to approve'} tone={pending.length ? 'warn' : undefined} />
-            <Tile label="Tokens today" value={formatCount(usage.data?.total_tokens ?? 0)} sub="last 24 hours" spark={{ values: tokens, label: 'Tokens per hour, last 24 hours' }} />
+            <Tile label="Waiting for you" value={String(pending.length)} sub={pending.length ? `oldest ${ago(pending[0]?.createdAt ?? Number.NaN, now) || 'just now'}` : 'nothing to approve'} tone={pending.length ? 'warn' : undefined} empty={pending.length === 0} />
+            <Tile label="Tokens today" value={formatCount(usage.data?.total_tokens ?? 0)} sub={usage.data?.total_tokens ? 'last 24 hours' : 'none used yet today'} spark={{ values: tokens, label: 'Tokens per hour, last 24 hours' }} empty={!usage.data?.total_tokens} />
             {kpis?.p50Ms !== undefined ? (
               <Tile label="p50 response time" value={formatMs(kpis.p50Ms)} sub={kpis.p95Ms !== undefined ? `p95 ${formatMs(kpis.p95Ms)}` : undefined} />
             ) : (
-              <Tile label="Cost today" value={formatCost(usage.data?.total_cost_usd ?? 0)} sub="estimated" />
+              <Tile label="Cost today" value={formatCost(usage.data?.total_cost_usd ?? 0)} sub={usage.data?.total_cost_usd ? 'estimated' : 'nothing spent yet'} empty={!usage.data?.total_cost_usd} />
             )}
           </div>
         </Section>
@@ -306,38 +310,45 @@ function OverviewPage(_: AppPageProps) {
               )}
             </Section>
           )}
-          <Section title="Model provider" action={hasPage('config') ? (
-            <Button variant="ghost" size="icon-sm" aria-label="Open settings" onClick={() => navigate('config')}>
-              <Settings2 aria-hidden />
-            </Button>
-          ) : undefined}>
-            <div className="flex flex-col gap-2 rounded-xl border border-border bg-card px-4 py-3">
-              <span className="text-sm font-medium">{health.data?.provider ?? 'Provider'}</span>
-              <StatusDot tone={health.loading ? 'idle' : providerOk ? 'ok' : 'warn'}>
-                {health.loading ? 'Checking…' : providerOk ? 'Connected' : health.data?.detail || health.error || 'Not reachable'}
-              </StatusDot>
-            </div>
-          </Section>
+          <div className="flex min-w-0 flex-col gap-6">
+            <Section title="Model provider" action={hasPage('config') ? (
+              <Button variant="ghost" size="icon-sm" aria-label="Open settings" onClick={() => navigate('config')}>
+                <Settings2 aria-hidden />
+              </Button>
+            ) : undefined}>
+              {/* The same source the Settings page and the chat's setup banner read (/api/provider/health). */}
+              <div className="flex flex-col gap-2 rounded-xl border border-border bg-card px-4 py-3" data-aiui-provider="">
+                <span className="text-sm font-medium">{health.data?.provider ?? 'Provider'}</span>
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <StatusDot tone={health.loading ? 'idle' : provider.tone}>{health.loading ? 'Checking…' : provider.text}</StatusDot>
+                  {provider.addKey && hasPage('config') && (
+                    <Button variant="link" size="sm" className="h-auto px-0" onClick={() => navigate('config')}>
+                      Add key
+                    </Button>
+                  )}
+                </span>
+              </div>
+            </Section>
+            {healthList.length > 0 && (
+              <details className="group/fh rounded-xl border border-border bg-card" data-aiui-feature-health="">
+                <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                  <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground transition-transform group-open/fh:rotate-90" />
+                  Feature health
+                  <span className="flex-1" />
+                  <StatusDot tone={unhealthy.length ? 'warn' : 'ok'}>{unhealthy.length ? attentionLabel(unhealthy.length) : `all ${healthList.length} healthy`}</StatusDot>
+                </summary>
+                <ul className="m-0 grid list-none gap-y-1.5 border-t border-border p-4">
+                  {healthList.map((f) => (
+                    <li key={f.name} className="flex min-w-0 items-center justify-between gap-2">
+                      <span className="truncate text-xs">{f.name}</span>
+                      <StatusDot tone={f.ok ? 'ok' : 'warn'}>{f.status}</StatusDot>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
         </div>
-
-        {healthList.length > 0 && (
-          <details className="group/fh rounded-xl border border-border bg-card" data-aiui-feature-health="">
-            <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-              <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground transition-transform group-open/fh:rotate-90" />
-              Feature health
-              <span className="flex-1" />
-              <StatusDot tone={unhealthy.length ? 'warn' : 'ok'}>{unhealthy.length ? `${unhealthy.length} need attention` : `all ${healthList.length} healthy`}</StatusDot>
-            </summary>
-            <ul className="m-0 grid list-none gap-x-6 gap-y-1.5 border-t border-border p-4 sm:grid-cols-2 lg:grid-cols-3">
-              {healthList.map((f) => (
-                <li key={f.name} className="flex min-w-0 items-center justify-between gap-2">
-                  <span className="truncate font-mono text-xs">{f.name}</span>
-                  <StatusDot tone={f.ok ? 'ok' : 'warn'}>{f.status}</StatusDot>
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
       </PageBody>
     </div>
   )
