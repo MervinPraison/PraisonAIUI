@@ -1,1 +1,0 @@
-[data-tool]:has(>[data-approval-card],>[data-approval-keys]){border-color:transparent;box-shadow:none}[data-tool]>[data-approval-card],[data-tool]>[data-approval-keys]{margin-top:.375rem}@media(max-width:767.98px){[data-approval-card] button,[data-approval-keys] button{min-height:44px}}

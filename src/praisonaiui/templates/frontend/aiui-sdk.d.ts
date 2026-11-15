@@ -527,6 +527,7 @@ declare module '@aiui/sdk' {
     messages: readonly ChatMessageView[]
     isRunning: boolean
     activeRunId?: string
+    connection?: 'connecting' | 'open' | 'closed'
   }
   export interface ChatFeed extends Feed<ChatState> {
     prefill(text: string): void
