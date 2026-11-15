@@ -46,6 +46,7 @@ import { chatGates, fetchRecentRuns, hasRunLedger, latestAgent, useApprovals, us
 import { CommandBar, Feature, RunInspector } from './features'
 import { RAIL_ICONS } from './icons'
 import {
+  activeRunIds,
   activityText,
   createGoSequence,
   railItems,
@@ -419,6 +420,8 @@ export default function CommandFrame(props: LayoutProps) {
   const activeId = sessions?.state.activeId ?? chat.state.sessionId
   const runningIds = sessions?.state.runningIds ?? NO_IDS
   const waitingIds = useMemo(() => new Set(pending.map((a) => a.sessionId).filter((s): s is string => !!s)), [pending])
+  // A run paused at a gate is still active (the status bar and the Runs badge count it).
+  const activeRuns = useMemo(() => activeRunIds(runningIds, waitingIds).size, [runningIds, waitingIds])
   const tabs = useMemo(
     () => sessionTabs(sessions?.state.sessions ?? [], activeId, runningIds, waitingIds),
     [sessions?.state.sessions, activeId, runningIds, waitingIds],
@@ -426,7 +429,7 @@ export default function CommandFrame(props: LayoutProps) {
   const agent = latestAgent(chat.state.messages) ?? sessions?.state.sessions.find((s) => s.id === activeId)?.agent
   const rail = useMemo(() => railItems(nav.primary), [nav.primary])
   const manifest = useManifest()
-  const usage = useTodayUsage(hasRunLedger(manifest), runningIds.size)
+  const usage = useTodayUsage(hasRunLedger(manifest), activeRuns)
   const online = useOnline()
 
   const [inspectorChoice, setInspectorChoice] = useState<boolean | null>(null)
@@ -697,7 +700,7 @@ export default function CommandFrame(props: LayoutProps) {
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
-        <Rail items={rail} footer={nav.footer} go={nav.go} runBadge={runningIds.size} onMore={() => chrome.openPalette()} onShortcuts={openShortcuts} />
+        <Rail items={rail} footer={nav.footer} go={nav.go} runBadge={activeRuns} onMore={() => chrome.openPalette()} onShortcuts={openShortcuts} />
         <div className="flex min-w-0 flex-1 flex-col">
           {onChat && sessions && (
             <SessionTabs
@@ -722,7 +725,7 @@ export default function CommandFrame(props: LayoutProps) {
       </div>
       <StatusBar
         agent={agent}
-        activeRuns={runningIds.size}
+        activeRuns={activeRuns}
         approvals={pending.length}
         usage={usage}
         online={online}

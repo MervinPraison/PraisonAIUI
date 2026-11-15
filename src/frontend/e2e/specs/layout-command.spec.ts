@@ -141,6 +141,9 @@ test('a run paused for approval: the inspector follows it, A approves it once, t
   await expect(inspector(page).getByRole('heading', { name: 'Approval needed' })).toBeVisible()
   await expect(inspector(page).locator('[data-run-step][data-state="waiting"]')).toHaveCount(1)
   await expect(page.locator('[data-command-approvals]')).toContainText('1 approval waiting')
+  // The paused run is still an active run (the design: "1 run active · 1 approval").
+  await expect(page.locator('[data-command-status]')).toContainText('1 run active · 1 approval')
+  await expect(page.locator('[data-command-rail] a[data-aiui-nav-item="runs"] [aria-label="1 active run"]')).toHaveText('1')
   await expect(page.locator('[role="tab"][aria-selected="true"]')).toContainText('Compare sorting algorithms apok')
 
   const before = (await approvalPosts(page)).filter((p) => p.includes('ap_ok')).length

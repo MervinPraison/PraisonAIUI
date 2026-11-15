@@ -143,6 +143,17 @@ export function todayUsage(runs: readonly Pick<RunSummary, 'startedAt' | 'tokens
   }
 }
 
+/**
+ * Sessions with an active run: those streaming a turn, and those whose run is
+ * paused at an approval gate (the run waits for you; it has not ended, though
+ * the thread store no longer counts it as streaming).
+ */
+export function activeRunIds(running: ReadonlySet<string>, waiting: ReadonlySet<string>): ReadonlySet<string> {
+  if (waiting.size === 0) return running
+  if (running.size === 0) return waiting
+  return new Set([...running, ...waiting])
+}
+
 /** `1 run active · 2 approvals`. */
 export function activityText(activeRuns: number, approvals: number): string {
   const runs = `${activeRuns} ${activeRuns === 1 ? 'run' : 'runs'} active`

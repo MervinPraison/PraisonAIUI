@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import type { LayoutNavItem } from '@/sdk/layouts'
 import type { ChatMessageView } from '@/sdk/layoutTypes'
 import { chatGates, latestAgent, mergePending } from './data'
-import { activityText, createGoSequence, GO_TIMEOUT_MS, MAX_TABS, railItems, sessionTabs, shortcutRows, shortSessionId, todayUsage } from './model'
+import { activeRunIds, activityText, createGoSequence, GO_TIMEOUT_MS, MAX_TABS, railItems, sessionTabs, shortcutRows, shortSessionId, todayUsage } from './model'
 
 const item = (id: string, title = id[0].toUpperCase() + id.slice(1)): LayoutNavItem => ({ id, title, group: 'Main', href: `/${id}`, active: false })
 
@@ -68,6 +68,15 @@ test('today’s usage counts runs since local midnight', () => {
   assert.equal(activityText(1, 1), '1 run active · 1 approval')
   assert.equal(activityText(0, 0), '0 runs active')
   assert.equal(activityText(2, 3), '2 runs active · 3 approvals')
+})
+
+test('active runs: a run paused at an approval gate is still active, and counts once', () => {
+  const none: ReadonlySet<string> = new Set()
+  assert.equal(activeRunIds(none, new Set(['s1'])).size, 1, 'paused at a gate: 1 run active, not 0')
+  assert.deepEqual([...activeRunIds(new Set(['s1', 's2']), new Set(['s2', 's3']))].sort(), ['s1', 's2', 's3'])
+  const running = new Set(['s1'])
+  assert.equal(activeRunIds(running, none), running, 'no gate: the running set itself (stable identity)')
+  assert.equal(activeRunIds(none, none).size, 0)
 })
 
 test('the shortcut sheet lists the frame, the G keys and the run panel keys', () => {

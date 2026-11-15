@@ -91,6 +91,15 @@ test('desktop chat: command bar, rail with G keys, session tabs, outlet, status 
   assert.match(out, /data-slot="header:actions"/)
 })
 
+test('a run paused at an approval gate counts as active: the status bar and the Runs badge', () => {
+  // The thread store stops counting a turn as running once it pauses at a gate.
+  provideLayoutData('sessions', sessionsFeed({ sessions: [{ id: 's1', title: 'Compare sorting algorithms' }], activeId: 's1', runningIds: new Set() }))
+  provideLayoutData('approvals', approvals(1))
+  const out = html(props('chat'))
+  assert.match(out, /1 run active · 1 approval/)
+  assert.match(out, /aria-label="1 active run">1</)
+})
+
 test('a non-chat page: no tabs and no inspector, the page in the outlet', () => {
   provideLayoutData('sessions', sessionsFeed({ sessions: [{ id: 's1', title: 'A' }], activeId: 's1' }))
   const out = html(props('logs'))
