@@ -115,7 +115,12 @@ export function createChatFeed({ show }: FeedOptions = {}): ChatFeed {
     async resolveApproval(approvalId, approved, opts = {}) {
       const sid = activeId()
       if (!sid || !threadStore.findApproval(sid, approvalId)) throw new Error('This approval is not in the open chat')
-      await threadStore.respondApproval(chatTransport(), sid, approvalId, { approved, text: opts.text, optionId: opts.optionId })
+      await threadStore.respondApproval(chatTransport(), sid, approvalId, {
+        approved,
+        text: opts.text,
+        optionId: opts.optionId,
+        always: opts.always === true,
+      })
     },
   }
 }

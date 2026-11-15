@@ -186,6 +186,21 @@ test('chat: resolveApproval decides a gate of the open chat; one that is not the
   await threadStore.cancel(f.t, 's')
 })
 
+test('chat: resolveApproval passes always through to the gate decision', async () => {
+  const f = fakeTransport()
+  sessionsStore.select('s')
+  const feed = createChatFeed()
+  void threadStore.send(f.t, 's', 'install')
+  await tick()
+  f.emit({ type: 'run_paused', extra_data: { type: 'approval_required', id: 'ap2', tool_name: 'terminal', arguments: { command: 'pip install numpy' } } })
+  threadStore.flush()
+  await feed.resolveApproval('ap2', true, { always: true })
+  const post = calls.find((c) => c.url === '/api/approvals/ap2/approve' && c.method === 'POST')
+  assert.ok(post, 'the decision went out')
+  assert.equal(JSON.parse(post.body ?? '{}').always, true)
+  await threadStore.cancel(f.t, 's')
+})
+
 test('chat: prefill opens the chat and hands the text to the composer by the window event', () => {
   const shown: number[] = []
   const got: unknown[] = []

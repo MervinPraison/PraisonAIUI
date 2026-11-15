@@ -139,11 +139,14 @@ export interface ChatFeed extends Feed<ChatState> {
   prefill(text: string): void
   /** Stop the running reply. */
   cancel(): Promise<void>
-  /** Decide an approval gate shown in the thread. */
+  /**
+   * Decide an approval gate shown in the thread. `always` asks the server to
+   * remember an approval for this tool (approval gates only).
+   */
   resolveApproval(
     approvalId: string,
     approved: boolean,
-    opts?: { text?: string; optionId?: string },
+    opts?: { text?: string; optionId?: string; always?: boolean },
   ): Promise<void>
 }
 

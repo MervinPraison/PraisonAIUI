@@ -9,8 +9,9 @@
  *   variant 'sheet'  the phone peek above the page: run status and the
  *                    approval row, expanding to the whole inspector
  *
- * Data: the `chat` feed (steps, approval), the `approvals` feed (Always
- * allow), and the run ledger for tokens and cost (./api). Without the chat
+ * Data: the `chat` feed (steps, approval; a decision, "Always allow" too,
+ * goes through the thread's gate), the `approvals` feed (a gate that is not
+ * in the open chat), and the run ledger for tokens and cost (./api). Without the chat
  * feed it shows an empty state; without the ledger tokens and cost read "—".
  * A lazy chunk (`lf-run-inspector`): the frame imports it with import().
  */
@@ -19,7 +20,7 @@ import { FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { useLayoutData } from '@/sdk/layouts'
-import type { ChatFeed, ChatState } from '@/sdk/layoutTypes'
+import type { ApprovalsFeed, ChatFeed, ChatState } from '@/sdk/layoutTypes'
 import { useManifest } from '@/sdk/services'
 import { cn } from '@/lib/utils'
 import { hasRunLedger, useRunDetail } from './api'
@@ -118,6 +119,33 @@ const ShieldGlyph = () => (
 
 // ── decisions ────────────────────────────────────────────────────────
 
+/**
+ * Where a decision goes: the open chat's gate first (with `always` when
+ * asked), else the approvals feed (a gate of another tab or session).
+ */
+export async function routeDecision(
+  chat: ChatFeed | null,
+  approvals: ApprovalsFeed | null,
+  id: string,
+  approved: boolean,
+  always: boolean,
+): Promise<void> {
+  const remember = approved && always
+  if (chat) {
+    try {
+      await chat.resolveApproval(id, approved, remember ? { always: true } : undefined)
+      return
+    } catch (err) {
+      // Not in the open chat (another tab's gate): decide it through the approvals feed.
+      if (!approvals) throw err
+    }
+  }
+  if (!approvals) return
+  if (!approved) await approvals.deny(id)
+  else if (remember) await approvals.approve(id, { always: true })
+  else await approvals.approve(id)
+}
+
 function useDecide(chat: ChatFeed | null, approval: InspectorApproval | undefined) {
   const approvals = useLayoutData('approvals')
   const [busy, setBusy] = useState<'approve' | 'deny' | null>(null)
@@ -136,23 +164,14 @@ function useDecide(chat: ChatFeed | null, approval: InspectorApproval | undefine
     setBusy(approved ? 'approve' : 'deny')
     setError(null)
     try {
-      if (approved && always && approvals) await approvals.approve(id, { always: true })
-      else if (chat) {
-        try {
-          await chat.resolveApproval(id, approved)
-        } catch (err) {
-          // Not in the open chat (another tab's gate): decide it through the approvals feed.
-          if (!approvals) throw err
-          await (approved ? approvals.approve(id) : approvals.deny(id))
-        }
-      } else if (approvals) await (approved ? approvals.approve(id) : approvals.deny(id))
+      await routeDecision(chat, approvals, id, approved, always)
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : 'The decision did not reach the server.')
     } finally {
       setBusy(null)
     }
   }
-  return { busy, error, always, setAlways, canAlways: !!approvals, decide }
+  return { busy, error, always, setAlways, canAlways: !!(chat || approvals), decide }
 }
 
 type Decide = ReturnType<typeof useDecide>

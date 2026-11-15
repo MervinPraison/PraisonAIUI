@@ -7,7 +7,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { provideLayoutData, resetLayoutsForTests } from '@/sdk/layouts'
 import type { ApprovalsFeed, ChatFeed, ChatMessageView, ChatState } from '@/sdk/layoutTypes'
-import RunInspector from './RunInspector'
+import RunInspector, { routeDecision } from './RunInspector'
 import { hasRunLedger, normalizeRunDetail } from './api'
 
 const T0 = Date.now() - 5000
@@ -86,9 +86,40 @@ test('the paused run: header, approval with A / D and Always allow, metrics, ste
   assert.match(out, /<span class="flex items-center gap-1"><kbd[^>]*>J<\/kbd>/, 'the key legend')
 })
 
-test('without the approvals feed there is no "Always allow"', () => {
+test('without the approvals feed "Always allow" still shows: it decides through the thread gate', () => {
   provideLayoutData('chat', chatFeed(paused))
-  assert.doesNotMatch(html(), /Always allow/)
+  assert.match(html(), /Always allow/)
+})
+
+test('routeDecision: the open chat\'s gate first (with always), else the approvals feed', async () => {
+  const log: string[] = []
+  const chat = (inChat: boolean): ChatFeed => ({
+    ...chatFeed(paused),
+    resolveApproval: async (id, approved, opts) => {
+      if (!inChat) throw new Error('This approval is not in the open chat')
+      log.push(`chat ${id} ${approved} ${JSON.stringify(opts ?? null)}`)
+    },
+  })
+  const approvals: ApprovalsFeed = {
+    ...approvalsFeed,
+    approve: async (id, opts) => void log.push(`feed approve ${id} ${JSON.stringify(opts ?? null)}`),
+    deny: async (id) => void log.push(`feed deny ${id}`),
+  }
+  await routeDecision(chat(true), approvals, 'ap_1', true, true)
+  await routeDecision(chat(true), approvals, 'ap_1', true, false)
+  await routeDecision(chat(true), approvals, 'ap_1', false, true)
+  await routeDecision(chat(false), approvals, 'ap_2', true, true)
+  await routeDecision(chat(false), approvals, 'ap_2', true, false)
+  await routeDecision(null, approvals, 'ap_3', false, false)
+  assert.deepEqual(log, [
+    'chat ap_1 true {"always":true}',
+    'chat ap_1 true null',
+    'chat ap_1 false null',
+    'feed approve ap_2 {"always":true}',
+    'feed approve ap_2 null',
+    'feed deny ap_3',
+  ])
+  await assert.rejects(routeDecision(chat(false), null, 'ap_4', true, false), /not in the open chat/)
 })
 
 test('the phone peek: run status, steps and the approval row with 44 px buttons', () => {
