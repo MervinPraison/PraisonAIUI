@@ -10,7 +10,7 @@
  * run ledger is on (else usage totals). Status is a dot and a label.
  */
 import { useMemo, useState, useSyncExternalStore } from 'react'
-import { Bot, ChevronRight, MessageSquarePlus, Settings2, ShieldAlert } from 'lucide-react'
+import { Bot, ChevronRight, MessageCirclePlus, Settings2, ShieldQuestion } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { chatGates, withChatGates } from '@/lib/chatGates'
 import { cn } from '@/lib/utils'
@@ -84,7 +84,7 @@ function ApprovalCard({ item, decide }: { item: ApprovalItem; decide(item: Appro
   return (
     <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 [border-color:var(--ui-warning-line)]" data-aiui-approval={item.id}>
       <div className="flex items-start gap-3">
-        <ShieldAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
+        <ShieldQuestion aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
         <div className="min-w-0 flex-1">
           <p className="m-0 text-sm font-medium text-foreground">
             {item.agentName || 'An agent'} wants to use {item.toolName || 'a tool'}
@@ -161,7 +161,7 @@ function OverviewPage(_: AppPageProps) {
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => navigate('chat')}>
-            <MessageSquarePlus aria-hidden />
+            <MessageCirclePlus aria-hidden />
             New chat
           </Button>
         </div>

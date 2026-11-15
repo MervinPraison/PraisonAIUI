@@ -212,13 +212,13 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Budget | Limit |
 |---|---|
 | Shell boot (JS + CSS before first paint) | 150 kB |
-| Chat route (added by `/chat`) | 140 kB |
-| `/chat` first-screen JS (boot + chat route) | 250 kB |
+| Chat route (added by `/chat`) | 140.5 kB |
+| `/chat` first-screen JS (boot + chat route) | 251 kB |
 | `index.css` | 26 kB |
 | Streamdown renderer chunk (collapsible chat code blocks included) | 148 kB (146 kB with `gzip -9`) |
 | shikiPlugin chunk | 55 kB |
 | Legacy App path (entry + legacy-app-entry closure) | 250 kB |
-| Each built-in layout `layout-<id>` (closure minus boot, kit included; ADR cap 24 kB, Mission 28 kB): `chat-canvas` / `workbench` / `command` / `guided` / `mission` | 9.2 / 10.4 / 15.2 / 16.8 / 13.2 kB |
+| Each built-in layout `layout-<id>` (closure minus boot, kit included; ADR cap 24 kB, Mission 28 kB): `chat-canvas` / `workbench` / `command` / `guided` / `mission` | 9.2 / 10.4 / 15.2 / 18.6 / 13.2 kB |
 | Layout kit `layout-kit` (ADR cap 10 kB) | 7.3 kB |
 | Layout features `lf-run-inspector` / `lf-command-bar` / `lf-step-tracker` / `lf-mission-board` (ADR caps 14 / 6 / 6 / 22 kB) | 9.2 / 1.6 / 5.6 / 11.8 kB |
 | Layout feature `lf-artifacts` **(planned, track A)** | 30 kB |

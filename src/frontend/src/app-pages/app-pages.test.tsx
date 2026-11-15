@@ -7,6 +7,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { createElement, type ComponentType } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { prerender } from 'react-dom/static'
 import { activateLayout, registerLayout, resetLayoutsForTests } from '@/sdk/layouts'
 import type { ShellPage } from '@/sdk/manifest'
 import { appPageBuiltins } from '@/builtin/appPages'
@@ -140,9 +141,11 @@ afterEach(() => resetLayoutsForTests())
 
 const html = (C: ComponentType<{ page: ShellPage }>, id: string) => renderToStaticMarkup(createElement(C, { page: page(id) }))
 
-test('the classic frame keeps the legacy view (no layout on screen)', () => {
+test('the classic frame keeps the legacy view (no layout on screen)', async () => {
   for (const [C, id] of [[SessionsPage, 'sessions'], [LogsPage, 'logs'], [SettingsPage, 'config'], [OverviewPage, 'overview']] as const) {
-    const out = html(C, id)
+    // The legacy host is the shell's own lazy chunk: render through Suspense.
+    const { prelude } = await prerender(createElement(C, { page: page(id) }))
+    const out = await new Response(prelude).text()
     assert.match(out, /aiui-legacy-host/, id)
     assert.doesNotMatch(out, /data-aiui-app-page/, id)
   }

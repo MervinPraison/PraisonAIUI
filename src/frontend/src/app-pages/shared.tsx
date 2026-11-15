@@ -8,8 +8,7 @@
  * renders the legacy view exactly as before, so the classic frame keeps
  * its look; the default `dashboard` style never loads this code (R6).
  */
-import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
-import { LegacyViewHost } from '@/legacy/LegacyViewHost'
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { useLayout } from '@/sdk/layouts'
 import type { ShellPage } from '@/sdk/manifest'
@@ -20,11 +19,22 @@ export interface AppPageProps {
   page: ShellPage
 }
 
+// The same lazy chunk the shell's PageView loads for legacy pages: imported
+// statically here it would regroup that chunk's modules (and their icons)
+// into chunks of their own on the chat route's path.
+const LegacyViewHost = lazy(() => import('@/legacy/LegacyViewHost').then((m) => ({ default: m.LegacyViewHost })))
+
 /** The React page inside a layout frame, the legacy view in the classic frame. */
 export function inLayoutOnly(Page: ComponentType<AppPageProps>): ComponentType<AppPageProps> {
   function AppPage({ page }: AppPageProps) {
     const layout = useLayout()
-    if (!layout) return <LegacyViewHost pageId={page.id} page={page} />
+    if (!layout) {
+      return (
+        <Suspense fallback={null}>
+          <LegacyViewHost pageId={page.id} page={page} />
+        </Suspense>
+      )
+    }
     return <Page page={page} />
   }
   AppPage.displayName = `AppPage(${Page.displayName ?? Page.name ?? 'page'})`

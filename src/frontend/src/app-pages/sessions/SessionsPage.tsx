@@ -11,11 +11,10 @@
  * rename/remove through the same store the frame's list reads).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Archive, ExternalLink, MessageSquarePlus, MoreHorizontal, PenLine, RotateCcw, Trash2 } from 'lucide-react'
+import { Archive, ExternalLink, MessageCirclePlus, MoreHorizontal, PenLine, RotateCcw, Trash } from 'lucide-react'
 import { ListDetail, ListPagination, type ListColumn, type ListSort } from '@/components/page/ListDetail'
 import { Facts, TemplateSearch } from '@/components/page/parts'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -23,6 +22,7 @@ import { cn } from '@/lib/utils'
 import { useLayoutData } from '@/sdk/layouts'
 import { fetchJson, navigate } from '@/sdk/services'
 import { ago, fullTime, inLayoutOnly, Pill, useJson, useNow, type AppPageProps } from '../shared'
+import { Modal, ModalActions } from '../Modal'
 import { sessionRows, sortRows, filterRows, type SessionRow, type StatusFilter } from './model'
 
 const PAGE_SIZE = 20
@@ -171,7 +171,7 @@ function SessionsPage(_: AppPageProps) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-destructive focus:text-destructive [&_svg]:!text-destructive" onSelect={() => setDeleting(row)}>
-          <Trash2 aria-hidden />
+          <Trash aria-hidden />
           Delete
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -249,7 +249,7 @@ function SessionsPage(_: AppPageProps) {
       )}
       <span className="flex-1" />
       <Button size="sm" onClick={newChat}>
-        <MessageSquarePlus aria-hidden />
+        <MessageCirclePlus aria-hidden />
         New chat
       </Button>
     </>
@@ -286,39 +286,36 @@ function SessionsPage(_: AppPageProps) {
         footer={shown.length > 0 ? <ListPagination page={page} pageSize={PAGE_SIZE} total={shown.length} onPage={setPage} /> : undefined}
       />
       <RenameDialog row={renaming} onClose={() => setRenaming(null)} onSave={(r, t) => void rename(r, t)} />
-      <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete this session?</DialogTitle>
-            <DialogDescription>
-              “{deleting?.title}” and its {deleting?.messages ?? 0} messages are removed for good. Compact its history instead to keep a summary.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleting(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (deleting) void compact(deleting)
-                setDeleting(null)
-              }}
-            >
-              Compact instead
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (deleting) void remove(deleting)
-                setDeleting(null)
-              }}
-            >
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Modal
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        title="Delete this session?"
+        description={`“${deleting?.title ?? ''}” and its ${deleting?.messages ?? 0} messages are removed for good. Compact its history instead to keep a summary.`}
+      >
+        <ModalActions>
+          <Button variant="outline" onClick={() => setDeleting(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (deleting) void compact(deleting)
+              setDeleting(null)
+            }}
+          >
+            Compact instead
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              if (deleting) void remove(deleting)
+              setDeleting(null)
+            }}
+          >
+            Delete
+          </Button>
+        </ModalActions>
+      </Modal>
     </div>
   )
 }
@@ -329,7 +326,7 @@ function EmptySessions() {
       <p className="m-0 text-base font-medium text-foreground">No sessions yet: start a chat</p>
       <p className="m-0 text-sm text-muted-foreground">Every conversation with an agent is kept here.</p>
       <Button size="sm" onClick={newChat}>
-        <MessageSquarePlus aria-hidden />
+        <MessageCirclePlus aria-hidden />
         New chat
       </Button>
     </div>
@@ -375,32 +372,26 @@ function RenameDialog({ row, onClose, onSave }: { row: SessionRow | null; onClos
   const [title, setTitle] = useState('')
   useEffect(() => setTitle(row?.title ?? ''), [row])
   return (
-    <Dialog open={!!row} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (row && title.trim()) onSave(row, title.trim())
-            onClose()
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>Rename session</DialogTitle>
-            <DialogDescription>The new name shows in the chat list and here.</DialogDescription>
-          </DialogHeader>
-          <Input aria-label="Session name" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!title.trim()}>
-              Save
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <Modal open={!!row} onOpenChange={(o) => !o && onClose()} title="Rename session" description="The new name shows in the chat list and here.">
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (row && title.trim()) onSave(row, title.trim())
+          onClose()
+        }}
+      >
+        <Input aria-label="Session name" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
+        <ModalActions>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={!title.trim()}>
+            Save
+          </Button>
+        </ModalActions>
+      </form>
+    </Modal>
   )
 }
 

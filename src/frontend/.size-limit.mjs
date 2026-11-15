@@ -61,7 +61,9 @@ const LAYOUT_BUDGETS = {
   'layout-command': '15.2 kB',
   // Guided (frame, phone tabs, chat regions, Home and Templates pages, every
   // chunk of the group) measured 15.25 kB + 10%.
-  'layout-guided': '16.8 kB',
+  // Design fixes (kit group headers with a chevron, outline New chat, the
+  // chat header rules in guided.css): 16.92 kB + 10%.
+  'layout-guided': '18.6 kB',
   // Mission (frame, top bar, nav counts, phone tabs, data hooks) measured
   // 9.52 kB on its branch; integrated with kit v2 (5.85 kB of kit chunks in
   // its closure, up from 3.05) 12.01 kB + 10%. describeCall ships in
@@ -140,8 +142,12 @@ const allAssets = readdirSync(path.join(DIST, 'assets'), { recursive: true, with
 
 export default [
   { name: 'shell boot (JS + CSS before first paint)', path: abs(bootAll), limit: '150 kB', gzip: true },
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '140 kB', gzip: true },
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '250 kB', gzip: true },
+  // +0.5 kB / +1 kB: the app pages (src/app-pages, lazy) share icon modules
+  // with the chat's lazy children, so Rollup splits two of them (x, pause)
+  // into chunks of their own: 140.15 kB and 250.4 kB measured. The chat's
+  // own code grew by a few bytes ("Connected" at every width).
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '140.5 kB', gzip: true },
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '251 kB', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
