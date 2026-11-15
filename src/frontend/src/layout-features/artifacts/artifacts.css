@@ -1,0 +1,21 @@
+/*
+ * The artifacts feature's few styles that are not utilities (lazy: this file
+ * ships with the lf-artifacts chunk, never in index.css).
+ */
+
+/* Code: the design's 13.5px / 22px mono, and Shiki's dark-theme colours. */
+[data-aiui-art-code] {
+  font-size: 13.5px;
+  line-height: 22px;
+}
+.dark [data-aiui-art-code] code span[style] {
+  color: var(--shiki-dark, inherit) !important;
+}
+
+/* The expanded canvas covers the page (Escape or the button restores it). */
+[data-aiui-canvas][data-expanded] {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  border-radius: 0;
+}

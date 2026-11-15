@@ -8,13 +8,25 @@ const KIND_NAMES: Record<string, string> = {
   table: 'Table', markdown: 'Document', file: 'File', image: 'Image', pdf: 'PDF', video: 'Video', a2ui: 'Interactive view',
 }
 
-const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
+/** DOM ids of the canvas tabs and their panel. */
+export const tabId = (key: string) => `aiui-art-tab-${key.replace(/[^A-Za-z0-9_-]/g, '_')}`
+export const PANEL_ID = 'aiui-art-panel'
+
+const plural =(n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
 
 /** `Table · 3 rows`, `Python · 5 lines`, `Image`. */
 export function kindLine(a: DerivedArtifact): string {
-  if (a.kind === 'table') return `Table · ${plural(a.rows ?? parseTable(a.content ?? '').rows.length, 'row')}`
-  if (a.kind === 'code') return `${languageName(a.language)} · ${plural(a.lines ?? lineCount(a.content), 'line')}`
-  if (a.kind === 'markdown') return `Document · ${plural(a.lines ?? lineCount(a.content), 'line')}`
+  // An index row from the server has no text, so no counts.
+  const known = a.content !== undefined
+  if (a.kind === 'table') {
+    const rows = a.rows ?? (known ? parseTable(a.content ?? '').rows.length : undefined)
+    return rows === undefined ? 'Table' : `Table · ${plural(rows, 'row')}`
+  }
+  if (a.kind === 'code' || a.kind === 'markdown') {
+    const name = a.kind === 'code' ? languageName(a.language) : 'Document'
+    const lines = a.lines ?? (known ? lineCount(a.content) : undefined)
+    return lines === undefined ? name : `${name} · ${plural(lines, 'line')}`
+  }
   return KIND_NAMES[a.kind] ?? 'File'
 }
 
