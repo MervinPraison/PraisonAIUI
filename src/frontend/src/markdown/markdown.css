@@ -152,8 +152,9 @@
   padding-top: calc(var(--spacing) * 3);
   scrollbar-width: thin;
 }
+/* Collapsed: the pill gets its own 44px strip; the code fades out above it, never under it. */
 .aiui-code[data-collapsed] [data-streamdown='code-block-body'] {
-  max-height: calc(var(--aiui-code-lines, 12) * 1.25rem + calc(var(--spacing) * 6));
+  max-height: calc(var(--aiui-code-lines, 12) * 1.25rem + calc(var(--spacing) * 17));
   overflow-y: hidden;
 }
 .aiui-code[data-long]:not([data-collapsed]) [data-streamdown='code-block-body'] {
@@ -170,7 +171,7 @@
   --aiui-fade-x: linear-gradient(to right, #000 calc(100% - 32px), transparent);
 }
 .aiui-code[data-collapsed] [data-streamdown='code-block-body'] {
-  --aiui-fade-y: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+  --aiui-fade-y: linear-gradient(to bottom, #000 calc(100% - 76px), transparent calc(100% - 44px));
 }
 .aiui-code[data-wrap='on'] [data-streamdown='code-block-body'] pre {
   white-space: pre-wrap;

@@ -1,0 +1,38 @@
+/*
+ * The artifacts feature's few styles that are not utilities (lazy: this file
+ * ships with the lf-artifacts chunk, never in index.css).
+ */
+
+/* Code: the design's 13.5px / 22px mono, and Shiki's dark-theme colours. */
+[data-aiui-art-code] {
+  font-size: 13.5px;
+  line-height: 22px;
+}
+.dark [data-aiui-art-code] code span[style] {
+  color: var(--shiki-dark, inherit) !important;
+}
+
+/* The expanded canvas covers the page (Escape or the button restores it). */
+[data-aiui-canvas][data-expanded] {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  border-radius: 0;
+}
+
+/* Phone: every control in the canvas is at least 44px tall (ADR 0003 §1.5). */
+[data-aiui-canvas][data-touch] button,
+[data-aiui-canvas][data-touch] [role='tab'] {
+  min-height: 44px;
+}
+
+/* The artifacts page (index and detail, with its viewer and History) on a
+   touch screen or a phone-width window: the same 44px rule. */
+@media (pointer: coarse), (max-width: 639px) {
+  [data-artifacts-page] :is(button, input, select, a, [role='tab'], [role='menuitem'], [role='option']) {
+    min-height: 44px;
+  }
+  [data-artifacts-page] button:has(> svg:only-child) {
+    min-width: 44px;
+  }
+}

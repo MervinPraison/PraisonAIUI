@@ -9,6 +9,7 @@ import { sdkApi } from '@/sdk/install'
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
 import { approvalsBuiltin } from './approvals'
 import { appPageBuiltins } from './appPages'
+import { artifactsBuiltin } from './artifacts'
 import { chatBuiltin } from './chat'
 import { layoutsBuiltin } from './layouts'
 import { guidedPagesBuiltin } from './layouts/guided'
@@ -25,6 +26,9 @@ export const BUILTIN_PLUGINS: readonly BuiltinPlugin[] = Object.freeze([
   guidedPagesBuiltin,
   // React pages for overview, sessions, logs and config inside a layout.
   ...appPageBuiltins,
+  // The artifacts index (Chat and Canvas): the server lists its page only
+  // while builtin.artifacts is on, so this activates only then.
+  artifactsBuiltin,
 ])
 
 const activated = new Set<string>()

@@ -167,7 +167,7 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     expect(seen.posts).toContain('POST /api/approvals/ap_ok/approve')
     await waitForRunEnd(page)
 
-    await expect(page.getByRole('button', { name: 'Share' })).toBeVisible()
+    await expect(page.locator('[data-cc-share]')).toBeVisible()
     // The chat is the open one in the sidebar, and the top bar names it and its agent.
     const open = sidebar.locator('[data-aiui-session][aria-current="true"]')
     await expect(open).toContainText(/markdown apok/i)
