@@ -328,6 +328,8 @@ interface Found {
   label?: string
   /** Kind+index keys are numbered per session after the fact. */
   counter?: string
+  /** A2UI: this message's messages for the surface (versions are cumulative). */
+  a2ui?: unknown[]
 }
 
 const ELEMENT_KINDS: Record<string, ArtifactKind> = { image: 'image', pdf: 'pdf', video: 'video', code: 'code', file: 'file', audio: 'file' }
@@ -393,23 +395,15 @@ function decodeURIComponentSafe(s: string): string {
   }
 }
 
-/** Everything one message shows, in order (A2UI messages are collected per surface). */
-function scanMessage(m: DeriveMessage, opts: Required<DeriveOptions>, surfaces: Map<string, unknown[]>): Found[] {
+/** Everything one message shows, in order; an A2UI entry holds this message's messages for its surface. */
+function scanMessage(m: DeriveMessage, opts: Required<DeriveOptions>): Found[] {
   const found: Found[] = []
   const surface = (id: string, messages: unknown) => {
     const list = Array.isArray(messages) ? messages : []
     if (!list.length) return
-    const all = [...(surfaces.get(id) ?? []), ...list]
-    surfaces.set(id, all)
-    const at = found.findIndex((f) => f.key === `a2ui:${id}`)
-    const f: Found = {
-      key: `a2ui:${id}`,
-      kind: 'a2ui',
-      title: id === 'main' ? 'Interactive view' : `Interactive view: ${id}`,
-      content: JSON.stringify(all),
-    }
-    if (at >= 0) found[at] = f
-    else found.push(f)
+    const prev = found.find((f) => f.key === `a2ui:${id}`)
+    if (prev) prev.a2ui = [...(prev.a2ui ?? []), ...list]
+    else found.push({ key: `a2ui:${id}`, kind: 'a2ui', title: id === 'main' ? 'Interactive view' : `Interactive view: ${id}`, a2ui: list })
   }
   for (const p of m.parts) {
     if (p.type === 'text' && 'text' in p) {
@@ -427,6 +421,20 @@ function scanMessage(m: DeriveMessage, opts: Required<DeriveOptions>, surfaces: 
       surface(str(p.artifact.surface_id) ?? 'main', p.artifact.a2ui)
     }
   }
+  return found
+}
+
+// Messages are immutable (the chat store replaces a message when it changes),
+// so a message's scan is kept until it changes: a streaming frame rescans
+// only the live message.
+const scans = new WeakMap<object, { opts: string; found: Found[] }>()
+
+function scanCached(m: DeriveMessage, opts: Required<DeriveOptions>): Found[] {
+  const key = `${opts.minLines}/${opts.minRows}`
+  const hit = scans.get(m)
+  if (hit && hit.opts === key) return hit.found
+  const found = scanMessage(m, opts)
+  scans.set(m, { opts: key, found })
   return found
 }
 
@@ -472,7 +480,13 @@ export function deriveArtifacts(messages: readonly DeriveMessage[], sessionId: s
   for (const m of messages) {
     if (m.role !== 'assistant') continue
     const shown: DerivedArtifact[] = []
-    for (const f of scanMessage(m, opts, surfaces)) {
+    for (const found of scanCached(m, opts)) {
+      let f = found
+      if (f.a2ui) {
+        const all = [...(surfaces.get(f.key) ?? []), ...f.a2ui]
+        surfaces.set(f.key, all)
+        f = { ...f, content: JSON.stringify(all) }
+      }
       let key = f.key
       if (f.kind === 'table') key = continuesTable(f, keys) ?? f.key
       else if (!key && f.counter) {
