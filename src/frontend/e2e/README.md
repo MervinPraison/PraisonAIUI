@@ -21,7 +21,7 @@ never read or written.
 |---|---|---|
 | `dashboard-legacy` | default style (vanilla dashboard) | `legacy-parity`, `legacy-dashboard` |
 | `app-shell` | `AIUI_SHELL=app` + the example plugin, `AIUI_LAYOUT=classic` (the classic frame) | `shell-sweep`, `chat`, `plugins` |
-| `chat-style` | `style: chat`, presets `zinc` and `rose` (two servers) | `theme-presets` |
+| `chat-style` | `style: chat`, presets `zinc` and `rose`, and one with no `set_theme()` (three servers) | `theme-presets`, `chat-os-theme` |
 | `docs` | `aiui build` of `fixtures/docs-site`, served by `aiui serve` | `markdown` |
 | `page-reload-dashboard`, `page-reload-app` | the `dashboard-legacy` and `app-shell` servers | `page-reload` |
 | `layouts-host` | `AIUI_SHELL=app` + the third-party layout plugin (`fixtures/layout-plugin/serve.py`) | `layouts-host`, `layout-<id>` |
@@ -58,6 +58,10 @@ never read or written.
   reload, and light mode reaches the log panel and form fields.
 - **theme-presets**: `zinc` vs `rose` paint different `--primary` colours,
   and primary, body and muted text reach 4.5:1 in light and dark.
+- **chat-os-theme**: the chat style of an app that sets no theme renders
+  light on a light OS and dark on a dark one, and follows the OS when it
+  changes; a stored viewer choice and an app mode (`set_theme()`) win over
+  the OS.
 - **layouts-host**: the layout host (ADR 0003): the default layout downloads
   only its own chunks and the kit (network isolation for each built-in
   layout), `?layout=classic` previews the classic frame, the plugin layout is
@@ -104,7 +108,7 @@ To enforce the comparison in CI, run the same commands inside the CI image
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `AIUI_E2E_PORT` | `8720` | first of eight consecutive ports |
+| `AIUI_E2E_PORT` | `8720` | first of nine consecutive ports |
 | `AIUI_E2E_PYTHON` | `python3`, then `python` | interpreter (≥ 3.10) with the package's dependencies |
 | `AIUI_E2E_REUSE` | unset | `1` reuses servers already listening on the ports |
 | `AIUI_E2E_BASELINE_SRC` | unset | a v0.3.153 checkout; enables `legacy-baseline` |

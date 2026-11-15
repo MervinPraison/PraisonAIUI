@@ -21,6 +21,22 @@ When `darkMode: true`, the runtime:
 3. Persists user preference in localStorage
 4. Applies `data-theme="dark"` to the HTML element
 
+## Colour mode order
+
+The React styles served by `aiui run` (`chat`, the default, plus `agents`,
+`playground`) and the app shell (`style: app`) pick the colour mode in this
+order:
+
+1. the viewer's choice, stored under `aiui-theme-preference` (`light`, `dark`
+   or `system`);
+2. the app's: `aiui.set_theme(dark_mode=True|False)`, else YAML
+   `site.theme.mode` (`light`, `dark`, `system`) or `site.theme.darkMode`;
+3. the OS (`prefers-color-scheme`) when neither chose one. The page follows the
+   OS when it changes.
+
+A static `aiui build` site has no server to report the app's choice, so it
+uses `site.theme.darkMode` (dark by default) unless the viewer picked a mode.
+
 ## CSS Variables
 
 Override dark mode colors in your CSS:
