@@ -232,8 +232,8 @@ test('ConnectionStatus says Connected while the browser is online', () => {
   assert.match(out, /· <!-- -->local|· local/)
 })
 
-test('Brand: the logo image, else the title’s first letter', () => {
-  assert.match(html(createElement(Brand, { chrome: { siteTitle: 'PraisonAI', siteLogo: null } })), />P<\/span><span[^>]*>PraisonAI</)
+test('Brand: the logo image, else the PraisonAI glyph', () => {
+  assert.match(html(createElement(Brand, { chrome: { siteTitle: 'PraisonAI', siteLogo: null } })), /data-brand-glyph=""[^]*<\/svg><\/span><span[^>]*>PraisonAI</)
   assert.match(html(createElement(Brand, { chrome: { siteTitle: 'X', siteLogo: { kind: 'img', value: '/logo.svg' } } })), /<img src="\/logo.svg" alt=""/)
 })
 
@@ -272,17 +272,18 @@ test('a folded nav section is a group header, not a link: 11px uppercase muted, 
 
 test('the brand tile is the accent with a white mark in both themes (it never flips from ink to paper)', () => {
   const out = renderToStaticMarkup(createElement(Brand, { chrome: { siteTitle: 'PraisonAI', siteLogo: null } }))
-  assert.match(out, /class="[^"]*bg-primary[^"]*text-primary-foreground[^"]*">P</)
+  assert.match(out, /class="[^"]*bg-primary[^"]*text-primary-foreground[^"]*"><svg[^>]*stroke="currentColor"[^>]*data-brand-glyph/)
   assert.doesNotMatch(out, /bg-foreground/)
 })
 
-test('BrandTile: an emoji logo becomes the single-colour glyph; images and text logos stay; no logo is the initial', () => {
+test('BrandTile: no logo or an emoji logo is the single-colour glyph; images and text logos stay', () => {
   const chrome = (logo: { kind: 'img' | 'text'; value: string } | null, siteTitle = 'PraisonAI') => ({ siteTitle, siteLogo: logo })
-  assert.deepEqual(brandGlyph(chrome({ kind: 'text', value: '\u{1F99E}' })), { kind: 'glyph' })
+  assert.deepEqual(brandGlyph(chrome({ kind: 'text', value: '\u{1F680}' })), { kind: 'glyph' })
   assert.deepEqual(brandGlyph(chrome({ kind: 'img', value: '/logo.svg' })), { kind: 'img', src: '/logo.svg' })
   assert.deepEqual(brandGlyph(chrome({ kind: 'text', value: 'AI' })), { kind: 'text', text: 'AI' })
-  assert.deepEqual(brandGlyph(chrome(null, 'acme')), { kind: 'text', text: 'A' })
-  const html = renderToStaticMarkup(createElement(BrandTile, { chrome: chrome({ kind: 'text', value: '\u{1F99E}' }), className: 'size-6' }))
+  assert.deepEqual(brandGlyph(chrome(null)), { kind: 'glyph' })
+  assert.deepEqual(brandGlyph(chrome(null, 'acme')), { kind: 'glyph' })
+  const html = renderToStaticMarkup(createElement(BrandTile, { chrome: chrome({ kind: 'text', value: '\u{1F680}' }), className: 'size-6' }))
   assert.match(html, /data-brand-tile=""[^>]*bg-primary[^>]*text-primary-foreground/)
   assert.match(html, /<svg[^>]*stroke="currentColor"[^>]*data-brand-glyph/)
   assert.doesNotMatch(html, /\p{Extended_Pictographic}/u)

@@ -160,7 +160,7 @@ export function DashboardLayout({ config, layout: _layout, title, logo }: Dashbo
                     </button>
                     {!navCollapsed && (
                         <div>
-                            <div className="text-sm font-bold tracking-wider">{title || 'PraisonAI'} {logo || '🦞'}</div>
+                            <div className="text-sm font-bold tracking-wider">{title || 'PraisonAI'}{logo ? ` ${logo}` : ''}</div>
                         </div>
                     )}
                 </div>

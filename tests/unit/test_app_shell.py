@@ -653,6 +653,22 @@ def test_shell_manifest_site_title_matches_host_html(_isolated):
     assert "<title>From YAML Dashboard</title>" in client.get("/").text
 
 
+def test_default_branding_has_no_logo_so_every_ui_draws_the_brand_glyph(_isolated):
+    """No default emoji logo: the shell manifest and /ui-config.json send an
+    empty logo (the UIs draw the PraisonAI glyph); an explicit one still wins."""
+    srv.set_style("app")
+    assert _client().get("/api/shell/manifest").json()["site"]["logo"] == ""
+    assert _client().get("/ui-config.json").json()["site"]["logo"] == ""
+    srv.set_branding(title="Acme", logo="/static/logo.svg")
+    assert _client().get("/api/shell/manifest").json()["site"]["logo"] == "/static/logo.svg"
+    assert _client().get("/ui-config.json").json()["site"]["logo"] == "/static/logo.svg"
+    dashboard_js = (
+        Path(srv.__file__).parent / "templates" / "frontend" / "plugins" / "dashboard.js"
+    ).read_text(encoding="utf-8")
+    assert "\U0001f99e" not in dashboard_js
+    assert "brandLogoEl(cfg.site?.logo)" in dashboard_js
+
+
 def test_shell_manifest_respects_set_pages():
     srv.set_style("app")
     srv.set_pages(["chat", "sessions"])

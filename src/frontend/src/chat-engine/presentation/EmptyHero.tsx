@@ -39,8 +39,7 @@ export function EmptyHero({ children }: { children: ReactNode }): JSX.Element {
             <span aria-hidden="true" data-brand-tile="" className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               {/* The PraisonAI glyph (as in the layout kit's BrandTile; inlined so the chat engine keeps layout-kit out of its chunk). */}
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-7" data-brand-glyph="">
-                <path d="M8 19V5h5a4.5 4.5 0 0 1 0 9H8" />
-                <circle cx="17.25" cy="18.25" r="1.25" fill="currentColor" stroke="none" />
+                <path d="M8 19V5h5a4.5 4.5 0 0 1 0 9H8M17.25 18.25h0" />
               </svg>
             </span>
           )}

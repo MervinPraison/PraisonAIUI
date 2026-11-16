@@ -18,7 +18,7 @@ test('heroMark: an image path or URL, plain text letters, else the PraisonAI gly
   assert.deepEqual(heroMark('AI'), { kind: 'text', text: 'AI' })
   assert.deepEqual(heroMark(''), { kind: 'glyph' })
   assert.deepEqual(heroMark(undefined), { kind: 'glyph' })
-  assert.deepEqual(heroMark('\u{1F99E}'), { kind: 'glyph' })
+  assert.deepEqual(heroMark('\u{1F680}'), { kind: 'glyph' })
 })
 
 test('the hero: a 44px wordmark, the promise line, then the starters', () => {
