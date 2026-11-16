@@ -165,11 +165,13 @@ def _next_cron_run(cron_expr: str, after: float) -> Optional[float]:
     """The first time a cron expression matches after ``after`` (epoch seconds, UTC).
 
     croniter is a core dependency; it is imported here so ``import praisonaiui``
-    does not pay for it. A malformed expression gives None (logged), never raises.
+    does not pay for it. A malformed expression (or a stale install without
+    croniter) gives None (logged), never raises — so one cron job cannot break
+    the scheduler tick for interval jobs.
     """
-    from croniter import croniter
-
     try:
+        from croniter import croniter
+
         return croniter(cron_expr, after).get_next(float)
     except Exception as e:
         logger.warning("Invalid cron expression %r: %s", cron_expr, e)

@@ -356,6 +356,7 @@ Versions from `src/frontend/package.json` (resolved in `package-lock.json`) and
 | Pydantic v2 | >=2.0 | Config schema (`schema/models.py`) | `model_config = ConfigDict(...)`, never `class Config` |
 | Typer | >=0.9 | CLI (`cli.py`), plugin `cli_commands()` | Plugin commands are loaded lazily |
 | PyYAML | >=6.0 | YAML config | Through `config_store` / `schema`, not ad-hoc loaders |
+| croniter | >=2.0 | Cron due-check and `next_run_at` (`features/schedules.py` `_next_cron_run`) | Import inside `_next_cron_run` only; a bad expression or missing module returns `None` |
 | httpx | dev extra only (>=0.24) | `jobs_proxy.py`, `oauth_providers.py`, tests | Not a runtime dependency: import inside the function that needs it |
 
 **Exists, do not use for new code:** the vanilla views and DOM plugins in

@@ -56,3 +56,12 @@ def test_stop_disables_the_job_and_stats_give_the_next_cron_run(client):
     assert stopped.json()["status"] == "stopped"
     assert isinstance(stopped.json()["stopped_at"], float)
     assert client.get(f"/api/schedules/{jid}").json()["enabled"] is False
+
+
+def test_missing_croniter_does_not_break_the_scheduler_tick(monkeypatch):
+    import sys
+
+    monkeypatch.setitem(sys.modules, "croniter", None)  # import raises ImportError
+    assert schedules._next_cron_run("0 9 * * *", utc(2026, 11, 15)) is None
+    cron = {"enabled": True, "schedule": {"cron_expr": "0 9 * * *"}, "created_at": 0}
+    assert not schedules._is_job_due(cron)
