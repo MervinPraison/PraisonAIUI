@@ -9,13 +9,14 @@ the installed version.
 ```bash
 aiui run app.py                      # a Python app with @aiui.reply / @aiui.page
 aiui run chat.yaml                   # a YAML-defined agent (needs praisonaiagents)
-aiui run app.py --style app          # the opt-in React app shell
+aiui run app.py --style chat         # the classic chat instead of the app shell
 aiui run app.py --port 3000 --reload # another port, restart on file changes
 aiui run app.py --datastore json     # keep sessions as JSON under ~/.praisonaiui
 ```
 
-Without `--style`, the style comes from `aiui.set_style()` in the app or is
-detected from its callbacks; see [UI Styles](../features/styles.md).
+Without `--style`, the style comes from `aiui.set_style()` or is detected from
+the callbacks; a plain chat app opens the React app shell in its `chat`
+layout. See [UI Styles](../features/styles.md).
 
 ## Build a docs site
 

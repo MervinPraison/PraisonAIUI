@@ -23,23 +23,27 @@ aiui run APP_FILE [OPTIONS]
 | `--port, -p` | `8000` | Port. If it is taken, the next free port (up to 10 further) is used and printed |
 | `--host` | `127.0.0.1` | Address to bind to |
 | `--reload, -r` | off | Restart when files change |
-| `--style, -s` | `chat` | `chat`, `docs`, `agents`, `playground`, `dashboard`, `custom` or `app` (the React app shell, opt-in) |
+| `--style, -s` | detected | `app` (the React app shell), `chat` (the classic chat), `docs`, `agents`, `playground`, `dashboard` or `custom` |
 | `--backend, -b` | `standalone` | `standalone`, or `praisonai` to use the PraisonAI WebSocket gateway |
 | `--datastore, -d` | `sdk` | Session storage: `sdk` (shared with PraisonAI Agents), `sdk:/path`, `json`, `json:/path` or `memory` |
 | `--config, -c` | none | A docs-site YAML to build before serving (optional) |
 | `--output, -o` | `aiui` | Folder the UI files are written to; by default next to `APP_FILE` |
 
-Style: when `--style` is left at its default, `aiui run` uses the style set
-by `aiui.set_style()` in the app, otherwise it detects one (`@aiui.profiles`
-plus registered agents gives `agents`, `@aiui.page` gives `dashboard`, anything
-else `chat`). See [UI Styles](../features/styles.md).
+Style: for a Python app `--style` wins, then `aiui.set_style()`; for a YAML
+app its `style:` key wins over `--style`. Without any of them `aiui run`
+detects one: `@aiui.profiles` plus
+registered agents gives `agents`, `@aiui.page` gives `dashboard`, anything else
+`app`. In `app`, `aiui run` opens the `chat` layout (the chat without a
+canvas) unless `AIUI_LAYOUT`, `aiui.set_layout()` or YAML `layout:` picks
+another. See [UI Styles](../features/styles.md) and
+[Layouts](../features/layouts.md).
 
 `aiui run` loads `~/.praisonai/.env` and then `./.env` before starting,
 without overriding variables that are already set.
 
 ```bash
-aiui run app.py                         # style detected from the callbacks
-aiui run app.py --style app             # React app shell
+aiui run app.py                         # style detected; a chat app opens the app shell
+aiui run app.py --style chat            # the classic chat style
 aiui run app.py --port 3000 --reload
 aiui run app.py --datastore json        # sessions under ~/.praisonaiui
 aiui run chat.yaml                      # YAML-defined agent (needs praisonaiagents)

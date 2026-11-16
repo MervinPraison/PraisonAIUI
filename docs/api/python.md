@@ -12,15 +12,15 @@ Set the UI style.
 
 | Parameter | Type | Values |
 |-----------|------|--------|
-| `style` | `str` | `"chat"`, `"dashboard"`, `"agents"`, `"playground"`, `"docs"`, `"custom"`, `"app"` (the opt-in React app shell) |
+| `style` | `str` | `"app"` (the React app shell), `"chat"` (the classic chat), `"dashboard"`, `"agents"`, `"playground"`, `"docs"`, `"custom"` |
 
 ```python
 aiui.set_style("dashboard")
 ```
 
-Priority: an explicit CLI `--style` wins, then `set_style()`, then
-auto-detection. `--style chat` is the CLI default, so it cannot override
-`set_style()`. See [UI Styles](../features/styles.md).
+Priority under `aiui run`: CLI `--style`, then `set_style()`, then
+auto-detection (a plain chat app gets `app`). See
+[UI Styles](../features/styles.md).
 
 ---
 

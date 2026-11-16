@@ -1,6 +1,6 @@
 # Quick Start
 
-Run a chat app, connect it to a model, then try the other UI styles.
+Run a chat app, connect it to a model, then try the other UI styles and layouts.
 
 ## Install
 
@@ -32,8 +32,9 @@ aiui run app.py
 Open http://127.0.0.1:8000 and send a message. If port 8000 is taken, `aiui run`
 picks the next free port and prints the URL it used.
 
-An app that only has a `@aiui.reply` callback opens in the `chat` style. The
-same app is
+An app that only has a `@aiui.reply` callback opens in the React app shell
+(`style: app`) in its `chat` layout: the chat, with your conversations and the
+other pages in the sidebar. The same app is
 [`examples/python/01-chat`](https://github.com/MervinPraison/PraisonAIUI/blob/main/examples/python/01-chat/app.py).
 
 ## 2. Reply with a model
@@ -65,16 +66,19 @@ async def on_message(message: str):
 [`examples/python/03-chat-with-ai`](https://github.com/MervinPraison/PraisonAIUI/blob/main/examples/python/03-chat-with-ai/app.py)
 adds conversation history, a welcome message and starters.
 
-## 3. Try the React app shell
+## 3. Other layouts and the classic chat
+
+The app shell has selectable layouts. Pick one per run with `AIUI_LAYOUT`, or
+in the app with `aiui.set_layout()`:
 
 ```bash
-aiui run app.py --style app
+AIUI_LAYOUT=chat-canvas aiui run app.py   # the chat beside a canvas of artifacts
+AIUI_LAYOUT=workbench aiui run app.py     # a quiet sidebar of chats
+aiui run app.py --style chat              # the classic chat style instead of the app shell
 ```
 
-`app` is the opt-in React app shell: the same callbacks, with a sidebar, a
-command palette and selectable layouts (`chat-canvas` by default). See
-[React app shell](../features/react-shell.md) and
-[Layouts](../features/layouts.md).
+See [React app shell](../features/react-shell.md) and
+[Layouts](../features/layouts.md) for every layout.
 
 ## 4. Add a dashboard page
 
@@ -101,11 +105,11 @@ async def metrics():
     ])
 ```
 
-How the style is chosen: `aiui run` detects it from the callbacks you
-registered (`@aiui.reply` only gives `chat`, `@aiui.page` gives `dashboard`,
-`@aiui.profiles` plus registered agents gives `agents`). `aiui.set_style()` in
-the app overrides the detection, and `--style` on the command line overrides
-both. See [UI Styles](../features/styles.md).
+How the style is chosen: `--style` on the command line wins, then
+`aiui.set_style()` in the app. Without either, `aiui run` looks at the
+callbacks: `@aiui.page` gives `dashboard`, `@aiui.profiles` plus registered
+agents gives `agents`, and anything else the app shell. See
+[UI Styles](../features/styles.md).
 
 ## 5. A chat agent from YAML
 
