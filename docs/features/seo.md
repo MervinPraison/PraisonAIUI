@@ -18,7 +18,9 @@ seo:
     handle: "@yourhandle"
 ```
 
-`siteUrl` is required for absolute canonical URLs, sitemap, and social tags.
+`siteUrl` is needed for absolute canonical URLs, `sitemap.xml`, `llms.txt` and
+`llms-full.txt`. Without it the build falls back to a `CNAME` file next to the
+config (or in `docs/`), and without either those files are skipped.
 
 ## Build outputs
 
@@ -33,7 +35,9 @@ seo:
 | `docs/**/*.html` | Per-route HTML with meta tags + crawl nav |
 | `.nojekyll` | GitHub Pages Jekyll bypass |
 
-No extra flags are needed — SEO files are emitted whenever `content.docs` is configured.
+No extra flags are needed: the files are written whenever `content.docs` is
+configured (the site-URL ones only when a site URL is known, see above). Pages
+with `noindex: true` are left out of the sitemap and the `llms` files.
 
 ## Page-level overrides
 
@@ -69,7 +73,7 @@ When users navigate via the sidebar, React updates title, canonical, OG, Twitter
 
 ## Deploy
 
-GitHub Pages deploy runs via the **Deploy Docs** workflow on every push to `main`. Submit your sitemap in [Google Search Console](https://search.google.com/search-console):
+See [GitHub Pages](../getting-started/github-pages.md) for publishing the build. Submit your sitemap in [Google Search Console](https://search.google.com/search-console):
 
 ```
 https://your-domain.com/sitemap.xml

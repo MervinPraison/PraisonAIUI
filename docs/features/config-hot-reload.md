@@ -1,89 +1,82 @@
 # Config Hot-Reload
 
-Live configuration reloading — watch YAML config files for changes and apply updates **without restarting the server**.
+A running server can reload its runtime config file without a restart. The
+server keeps the state of its CRUD features (agents, skills, channels and
+others) in one YAML file, `config.yaml` in the data directory
+(`AIUI_DATA_DIR`, default `~/.praisonaiui/`). The config watcher polls that
+file and, when it changes, reloads it.
+
+The watcher is created with the server but does not start on its own.
 
 ## Quick Start
 
 ```bash
 # Start the watcher
-curl -X POST http://localhost:8083/api/config/watcher \
-  -H "Content-Type: application/json" \
-  -d '{"action": "start"}'
+curl -X POST http://localhost:8000/api/config/watcher/start
 
-# Edit your YAML config file — changes apply automatically
+# Edit ~/.praisonaiui/config.yaml; the change applies within a few seconds
 
-# Check watcher status
-curl http://localhost:8083/api/config/watcher
+# Watcher status
+curl http://localhost:8000/api/config/watcher
 ```
 
 ## How It Works
 
-```mermaid
-graph LR
-    A["config.yaml"] --> B["ConfigWatcher"]
-    B --> C{"File hash changed?"}
-    C -->|Yes| D["Trigger callbacks"]
-    C -->|No| E["Wait poll_interval"]
-    D --> F["Reload configuration"]
-    D --> G["Notify connected clients"]
-    E --> C
-```
+1. The watcher reads the file every 3 seconds and compares its MD5 hash with
+   the previous one.
+2. On a change it reloads the config store, makes the agent registry and the
+   skills re-read it, and reloads the channels.
 
-1. **ConfigWatcher** polls the config file at a configurable interval (default: 2 seconds)
-2. On each poll, it computes the file's SHA-256 hash
-3. If the hash differs from the previous check, it triggers all registered reload callbacks
-4. Callbacks can update feature settings, re-register agents, or reload themes
+A YAML site config (`aiui.template.yaml`) or `app.py` is not watched; for those
+see [Hot Reload](hot-reload.md).
 
-## Configuration
+## Your own watcher
+
+`ConfigWatcher` watches any file and calls your callbacks (sync or async, with
+no arguments) when it changes. `start()` must run inside an asyncio event loop,
+for example in an `@aiui.on_startup` handler:
 
 ```python
+from pathlib import Path
+
+import praisonaiui as aiui
 from praisonaiui.features.config_hot_reload import ConfigWatcher
 
-watcher = ConfigWatcher(
-    config_path=Path("./config.yaml"),  # File to watch
-    poll_interval=2.0,                   # Seconds between polls
-)
+watcher = ConfigWatcher(config_path=Path("./settings.yaml"), poll_interval=2.0)
 
-# Register a callback
-@watcher.on_reload
-def handle_reload(new_config):
-    print(f"Config reloaded: {new_config}")
+def handle_reload():
+    print("settings.yaml changed")
 
-# Start watching
-watcher.start()
+watcher.on_reload(handle_reload)
+
+@aiui.on_startup
+async def start_watcher():
+    watcher.start()
 ```
 
 ## REST API
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/config/watcher` | GET | Get watcher status |
-| `/api/config/watcher` | POST | Start/stop the watcher |
-| `/api/config/reload` | POST | Force a manual reload |
+| `/api/config/watcher` | GET | Watcher status |
+| `/api/config/watcher/start` | POST | Start the watcher |
+| `/api/config/watcher/stop` | POST | Stop the watcher |
+| `/api/config/reload` | POST | Reload on the next poll, even if the file did not change |
 
 ### Watcher Status
-
-```bash
-curl http://localhost:8083/api/config/watcher
-```
 
 ```json
 {
   "watching": true,
-  "config_path": "/path/to/config.yaml",
-  "poll_interval": 2.0,
+  "config_path": "/home/me/.praisonaiui/config.yaml",
+  "poll_interval": 3.0,
   "last_reload": 1709734400.0,
-  "reload_count": 3
+  "reload_count": 3,
+  "last_hash": "9e107d9d372bb6826bd81d3542a419d6"
 }
-```
-
-### Force Reload
-
-```bash
-curl -X POST http://localhost:8083/api/config/reload
 ```
 
 ## Related
 
-- [YAML Configuration](../concepts/configuration.md) — Config file format (incl. unified runtime persistence)
-- [Protocols](protocols.md) — Feature protocol system
+- [YAML Configuration](../concepts/configuration.md): config file format, including runtime persistence
+- [Protocols](protocols.md): the feature protocol system

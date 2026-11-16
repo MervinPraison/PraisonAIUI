@@ -1,6 +1,7 @@
 # Content Sources
 
-Configure where PraisonAIUI discovers your documentation content.
+`content.docs` tells `aiui build` where your Markdown lives. Each file becomes a
+page under `site.routeBaseDocs` (default `/docs`).
 
 ## Docs Directory
 
@@ -10,65 +11,64 @@ content:
     dir: "./docs"
 ```
 
-## Include/Exclude Patterns
+The path is relative to the config file.
 
-Control which files are processed:
+## Include/Exclude Patterns
 
 ```yaml
 content:
   docs:
     dir: "./docs"
-    include:
+    include:            # default: ["**/*.md", "**/*.mdx"]
       - "**/*.md"
-      - "**/*.mdx"
     exclude:
-      - "**/drafts/**"
+      - "drafts/**"
       - "_*.md"
 ```
 
+`include` patterns are globs relative to `dir`. An `exclude` pattern matches
+either the path relative to `dir` or the bare file name.
+
 ## Index Files
 
-Files treated as directory index:
-
-```yaml
-content:
-  docs:
-    indexFiles:
-      - "index.md"
-      - "README.md"
-```
+`index.md` and `README.md` (any case) are the page of their folder:
+`guides/index.md` is served at `/docs/guides`. `indexFiles` is accepted in the
+config, but other file names are not treated as index pages yet.
 
 ## Frontmatter
-
-Control page metadata with YAML frontmatter:
 
 ```markdown
 ---
 title: "Custom Title"
 order: 1
+description: "One sentence for search results."
 ---
 
 # Page Content
 ```
 
-### Supported Fields
-
 | Field | Description |
 |-------|-------------|
-| `title` | Page title (overrides heading) |
-| `order` | Sort order in navigation |
-| `hidden` | Hide from navigation |
-| `description` | SEO meta description |
+| `title` | Page title in the navigation; default: the first `#` heading, then the slug |
+| `order` | Sort order within the folder (lower first); `0` or missing falls back to a number prefix |
+| `description` | Meta description; default: the first paragraph of 20 or more characters, cut at 160 |
+| `noindex` | `true` adds `robots: noindex, nofollow` and leaves the page out of the sitemap |
+
+The frontmatter block is not shown on the page.
 
 ## Numbered Prefixes
 
-Files with numbered prefixes are auto-sorted:
-
 ```
 docs/
-├── 01-introduction.md   # order: 1
-├── 02-installation.md   # order: 2
-└── 03-quickstart.md     # order: 3
+├── 01-introduction.md   # order 1, served at /docs/introduction
+├── 02-installation.md   # order 2
+└── 03-quickstart.md     # order 3
 ```
 
-The prefix is stripped from the URL slug.
+A leading number gives the order when the frontmatter sets none, and the
+`NN-` prefix is stripped from the URL.
+
+## Related
+
+- [Navigation](navigation.md): how pages become the sidebar
+- [SEO](seo.md): meta tags, sitemap and `robots.txt`

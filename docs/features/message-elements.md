@@ -1,6 +1,46 @@
 # Message Elements
 
-PraisonAIUI supports rich inline message elements for displaying images, PDFs, videos, audio, files, and code blocks within chat messages.
+A message can carry elements: images, PDFs, videos, audio, files and code
+blocks shown with the message text. Each element is a dict with a `type`, the
+fields below, and an optional `name` and `display`.
+
+## Sending elements
+
+These reach the chat as `message_element` events:
+
+```python
+import praisonaiui as aiui
+from praisonaiui import Message
+
+@aiui.reply
+async def on_message(message):
+    # One media item per call
+    await aiui.image("https://example.com/chart.png", alt="Monthly sales")
+    await aiui.file("https://example.com/data.csv", name="Data Export")
+
+    # Or elements as dicts on a Message
+    msg = Message("Check out this chart:")
+    msg.elements = [
+        {"type": "image", "url": "https://example.com/chart.png", "name": "Sales Chart"},
+    ]
+    await msg.send()
+```
+
+`aiui.audio(url)` and `aiui.video(url)` work the same way.
+
+!!! warning "`Message.add_*()` elements are dropped in the chat"
+    `msg.add_image()`, `add_pdf()`, `add_video()`, `add_audio()`, `add_file()`
+    and `add_code()` validate their arguments and append typed elements
+    (`ImageElement` and the others in `praisonaiui.schema.models`). On the
+    current release the reply bridge forwards only dict elements, so typed
+    ones never reach the browser. Use dicts (or `aiui.image()` and the other
+    helpers) until that is fixed; the `add_*()` methods are still useful to
+    validate input, for example `ImageElement(...).model_dump(exclude_none=True)`
+    gives the dict.
+
+The sections below list each element's fields. Their examples use the
+`add_*()` methods, which take the same fields but, as the warning says, do not
+render in the chat yet; pass the same fields in a dict instead.
 
 ## Element Types
 
@@ -134,48 +174,24 @@ All elements support three display modes:
 
 ## Size Limits
 
-- **File elements**: Maximum 100MB per file
-- **Code elements**: Maximum 1MB per code block
-- **Images**: No size limit (browser-dependent)
+`add_file()` raises `ValueError` when `size` is over 100 MB and `add_code()`
+when `content` is over 1 MB. Dict elements are not checked.
 
-## Accessibility Features
+## Typed models
 
-- **Images**: Alt text support, keyboard navigation for zoom
-- **PDFs**: Proper ARIA labels and roles
-- **Videos/Audio**: Native browser accessibility
-- **Files**: Icon-based file type recognition
-- **Code**: Copy button with keyboard support
-
-## Low-Level API
-
-For advanced use cases, you can use the low-level element API:
+`praisonaiui.schema.models` has a model per type (`ImageElement`, `PdfElement`,
+`VideoElement`, `AudioElement`, `FileElement`, `CodeElement`) that validates the
+fields above:
 
 ```python
 from praisonaiui.schema.models import ImageElement
 
-# Create typed element
-element = ImageElement(
-    url="https://example.com/image.png",
-    alt="Description",
-    display="inline"
-)
-
-# Add to message
-msg.elements.append(element)
+element = ImageElement(url="https://example.com/image.png", alt="Description")
+msg.elements.append(element.model_dump(exclude_none=True))
 ```
-
-## Legacy Support
-
-The new element system maintains backward compatibility with existing message properties:
-
-- `message.images` (still supported)
-- `message.files` (still supported)
-- New `message.elements` takes precedence when both are present
-
-This ensures existing code continues to work while providing a migration path to the new standardized element system.
 
 ## Agent-generated images (streaming)
 
 When an agent or tool **creates** an image during a chat run, the UI receives `message_element` events over WebSocket/SSE and renders them inline. This uses the same element dict shape as above but is driven by the [RunEvent protocol](../concepts/providers.md), not only `Message.send()`.
 
-See **[Image Preview in Chat](./image-preview-chat.md)** for the full architecture: detection (`media_utils`), provider bridge, persistence, and swappable backends.
+See **[Image Preview in Chat](image-preview-chat.md)** for the full architecture: detection (`media_utils`), provider bridge, persistence, and swappable backends.

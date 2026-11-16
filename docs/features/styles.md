@@ -1,42 +1,45 @@
 # UI Styles
 
-PraisonAIUI supports 6 distinct UI styles that control how your application looks and behaves. Styles are **auto-detected** from your code — you usually don't need to set them manually.
+The style decides which frontend serves your app. `aiui run` picks one from your
+code when you do not name it.
 
 ## Available Styles
 
-| Style | Layout | Description |
-|-------|--------|-------------|
-| `chat` | `ChatLayout` | Conversational AI interface with sessions, streaming, profiles |
-| `agents` | `AgentUILayout` | Multi-agent playground with tabbed agent/session sidebar |
-| `playground` | `PlaygroundLayout` | Side-by-side input/output panels for prompt testing |
-| `dashboard` | `DashboardLayout` | Admin panel with custom pages |
-| `docs` | `ThreeColumnLayout` | Documentation site with sidebar + TOC |
-| `custom` | User-defined | Full control over layout |
+| Style | What it renders |
+|-------|-----------------|
+| `chat` | React chat interface: sessions, streaming, starters, profiles |
+| `agents` | React multi-agent view with a tabbed agent/session sidebar |
+| `playground` | React side-by-side input and output panels for prompt testing |
+| `dashboard` | Vanilla-JS admin dashboard with built-in and custom pages |
+| `docs` | React documentation site (sidebar, table of contents, search) |
+| `custom` | React site built from your YAML templates and components, with an optional floating chat widget |
+| `app` | The React app shell with selectable layouts (the `aiui run` default) |
+
+`app` is what `aiui run` opens when nothing else picks a style; it starts in
+the `chat` layout (no canvas) unless the app, its YAML or `AIUI_LAYOUT` picks
+another. See [React app shell](react-shell.md) for what it contains and
+[Layouts](layouts.md) for its layouts.
 
 ## Auto-Detection
 
-PraisonAIUI automatically detects the best style from your Python code — no flags needed:
-
 ```bash
-aiui run app.py    # style is inferred automatically
+aiui run app.py    # style is inferred from app.py
 ```
 
-### How It Works
+After loading `app.py`, the CLI looks at the callbacks and agents it registered
+(`server.detect_style`):
 
-After loading your `app.py`, the CLI inspects which callbacks and agents you registered:
+| Your code registers | Detected style |
+|---------------------|----------------|
+| `@aiui.profiles` and at least one `aiui.register_agent()` | `agents` |
+| one or more `@aiui.page(...)` callbacks | `dashboard` |
+| anything else, such as `@aiui.reply` only | `app` (the React app shell, `chat` layout) |
 
-| Your Code Uses | Detected Style |
-|---------------|----------------|
-| `@profiles` + `register_agent()` | `agents` |
-| `@page` decorators | `dashboard` |
-| `@reply` only | `app` (the React app shell, `chat` layout) |
-
-### Example: Auto-Detected as `agents`
+### Example: detected as `agents`
 
 ```python
 import praisonaiui as aiui
 
-# These two signals trigger auto-detection of "agents" style
 aiui.register_agent("Coder", {"name": "Coder", "instructions": "..."})
 
 @aiui.profiles
@@ -53,60 +56,38 @@ async def on_message(message):
 
 ```bash
 aiui run app.py
-# Output: ℹ️ Auto-detected style: agents
+# ℹ️ Auto-detected style: agents
 ```
 
-## Explicit Style Setting
+## Setting the Style
 
 ### From the CLI
 
-Override auto-detection with `--style`:
-
 ```bash
-aiui run app.py --style chat          # the classic chat style (the app shell is the default)
-aiui run app.py --style agents        # force agents layout
-aiui run app.py --style playground    # force playground layout
+aiui run app.py --style chat         # the classic chat style
+aiui run app.py --style agents
+aiui run app.py --style playground
 ```
 
-### From Python Code
+`--style` has no default value, so any style you name, `chat` included, wins over
+`aiui.set_style()` and detection.
 
-Use `aiui.set_style()` for styles that can't be auto-detected (e.g., `playground`):
+### From Python
 
 ```python
 import praisonaiui as aiui
 
-aiui.set_style("playground")  # takes priority over auto-detection
+aiui.set_style("playground")  # wins over auto-detection
 
 @aiui.reply
 async def on_message(message):
     await aiui.say(f"Echo: {message}")
 ```
 
-## Priority Order
+### From YAML
 
-When multiple sources specify a style, this priority chain applies:
-
-1. **CLI `--style`** flag (highest — always wins)
-2. **`aiui.set_style()`** in Python code
-3. **Auto-detection** from registered callbacks/agents
-4. **Default:** `chat`
-
-## Chat Layout Modes
-
-The `chat` style supports additional layout modes for embedding:
-
-| Mode | Description |
-|------|-------------|
-| `fullscreen` | Full-page chat (default) |
-| `sidebar` | Fixed right-side panel |
-| `bottom-right` | Floating widget (bottom-right corner) |
-| `bottom-left` | Floating widget (bottom-left) |
-| `top-right` | Floating widget (top-right) |
-| `top-left` | Floating widget (top-left) |
-
-## YAML Configuration
-
-For YAML-based apps, set the style in your config:
+A YAML chat app (`aiui run chat.yaml`) reads `style:` and applies it through
+`aiui.set_style()`:
 
 ```yaml
 name: My App
@@ -122,5 +103,38 @@ profiles:
 ```
 
 ```bash
-aiui run chat.yaml    # reads style from YAML
+aiui run chat.yaml
 ```
+
+### Environment
+
+`AIUI_SHELL=app` turns the `dashboard` style into `app`; `AIUI_SHELL=legacy`
+turns `app` back into `dashboard` (the kill switch). It has no effect on the
+other styles.
+
+## Priority Order
+
+1. `style:` in a YAML chat app
+2. CLI `--style`
+3. `aiui.set_style()` in Python
+4. Auto-detection (`agents` or `dashboard`)
+5. Default: `app`
+
+## Chat Positioning
+
+`layout.mode` in a YAML site config places the React chat on the page instead of
+filling it:
+
+| `layout.mode` | Description |
+|---------------|-------------|
+| `fullscreen` | Full-page chat (default) |
+| `sidebar` | Fixed right-side panel |
+| `bottom-right` | Floating widget, bottom-right corner |
+| `bottom-left` | Floating widget, bottom-left corner |
+| `top-right` | Floating widget, top-right corner |
+| `top-left` | Floating widget, top-left corner |
+
+In the `docs` and `custom` styles, `chat.enabled: true` with one of the four
+corner modes adds the floating chat widget on top of the site. In the
+`dashboard` style the equivalent is
+`aiui.set_chat_mode("fullpage" | "floating" | "sidebar")`.

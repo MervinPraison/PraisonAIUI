@@ -1,6 +1,7 @@
 # Theming
 
-Customize the look and feel of your site with YAML configuration.
+Set the colour preset, corner radius and colour mode in YAML (`site.theme`) or
+from Python (`aiui.set_theme()`).
 
 ## Theme Presets
 
@@ -13,6 +14,18 @@ site:
     radius: "md"       # none | sm | md | lg | xl
     darkMode: true
 ```
+
+The same settings from Python, which win over YAML:
+
+```python
+import praisonaiui as aiui
+
+aiui.set_theme(preset="blue", dark_mode=True, radius="lg")
+```
+
+Two more keys apply to the React app shell (`style: app`) only: `accent` (any
+CSS colour, overrides the preset's accent) and `density` (`compact`,
+`comfortable` or `spacious`).
 
 ### The docs site look
 
@@ -98,15 +111,15 @@ site:
 
 ## Dark Mode
 
-Enable or disable dark mode:
-
 ```yaml
 site:
   theme:
     darkMode: true   # true | false
 ```
 
-The frontend includes a ThemeToggle component for light/dark/system modes.
+The React styles served by `aiui run` also read `site.theme.mode` (`light`,
+`dark` or `system`), and a viewer's own choice in the theme toggle wins over
+both. The full order is in [Dark Mode](dark-mode.md#colour-mode-order).
 
 ## Theme Toggle Component
 
@@ -133,7 +146,8 @@ A plugin page in the app shell (`--style app`) reads the current mode with
 
 ## Custom CSS Variables
 
-Theme presets generate CSS variables you can override:
+Presets set CSS variables you can override with `site.custom_css` or
+`aiui.set_custom_css()`. Each variable holds a complete CSS colour:
 
 ```css
 :root {
@@ -143,6 +157,11 @@ Theme presets generate CSS variables you can override:
   --radius: 0.5rem;
 }
 ```
+
+A bare HSL triple such as `--primary: 221 83% 53%` no longer works (`aiui
+validate` warns, code 5001). In the app shell, set the seed instead
+(`--seed-accent: hsl(221 83% 53%)`) and the derived colours follow in both
+modes; see [React app shell: theme seeds](react-shell.md#theme-seeds-migration).
 
 ## Advanced: Custom Frontend
 

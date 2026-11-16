@@ -1,6 +1,16 @@
 # Steps / Chain-of-Thought
 
-Visualize agent reasoning and tool calls as collapsible, nested steps in the chat interface.
+`aiui.Step` wraps a piece of work (a tool call, a reasoning pass, a sub-agent)
+in a named step with streamed content, nesting and timing.
+
+!!! warning "Steps from `@aiui.reply` do not render yet"
+    On the current release the chat's WebSocket path forwards the
+    `reasoning_started`, `reasoning_step` and `reasoning_completed` events of an
+    `aiui.Step` as empty content events, so the step name and its streamed text
+    do not reach the browser. Until that is fixed, send reasoning text with
+    `await aiui.think("...")`, which arrives as a `reasoning_step` event and is
+    shown in the chat's thinking area. Agent runs through the PraisonAI provider
+    show their own reasoning and tool calls.
 
 ## Basic Usage
 
@@ -18,8 +28,9 @@ async def agent_response(message):
     # Reasoning step  
     async with aiui.Step(name="🧠 Reasoning: Synthesizing results", type="reasoning") as step:
         await step.stream_token("I see three major async runtimes...")
-    
-    return "Rust's async ecosystem in 2026 is dominated by..."
+
+    # The reply itself: a callback's return value is not sent
+    await aiui.say("Rust's async ecosystem in 2026 is dominated by...")
 ```
 
 ## Nested Steps
@@ -65,15 +76,6 @@ async with aiui.Step(name="⚡ Custom: Data processing", type="custom") as step:
     await step.stream_token("Processing large dataset...")
 ```
 
-## Frontend Visualization
-
-Steps appear in the chat as collapsible panels showing:
-
-- **Icons** indicating step type (🔧 🧠 🤖 📚 ⚡)
-- **Expandable content** with input/output details
-- **Nested hierarchy** for complex reasoning chains
-- **Real-time updates** as steps stream content
-
 ## API Reference
 
 ### `aiui.Step(name, type="reasoning", parent=None, metadata={})`
@@ -104,9 +106,14 @@ async def web_search(query: str):
     return result
 ```
 
-### Events Emitted
+### Events
 
-Steps emit these `RunEventType` events:
-- `REASONING_STARTED`: Step begins (includes `step_type`, `parent_id`, `metadata`)
-- `REASONING_STEP`: Content streamed (includes `step_type`)
-- `REASONING_COMPLETED`: Step finishes (includes `step_type`, `duration`, `error`, `metadata`)
+A step puts these events on the reply's stream; each carries `step_id`,
+`name` (start and end) and `step_type`:
+
+- `reasoning_started`: the step begins (`parent_id`, `metadata`)
+- `reasoning_step`: streamed content (`step`)
+- `reasoning_completed`: the step ends (`duration` in seconds, `error` if the
+  block raised, `metadata`)
+
+A step created outside a reply callback has no stream and emits nothing.

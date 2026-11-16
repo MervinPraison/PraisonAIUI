@@ -1,19 +1,19 @@
 # Widget Zones
 
-WordPress-style widget areas for placing UI components in layout zones via YAML configuration.
+Widget zones place small built-in widgets (stats cards, links, banners) around
+the page content of a docs site (`aiui build`, `style: docs` or `custom`),
+configured per template in YAML.
 
 ## Zone Layout
 
+`FlexibleLayout` renders these zones:
+
 ```
 ┌─────────────────────────────────────────┐
-│              HEADER                     │
-├─────────────────────────────────────────┤
-│              TOP NAV                    │
-├─────────────────────────────────────────┤
 │              HERO                       │
 ├─────────┬───────────────────┬───────────┤
 │  LEFT   │                   │   RIGHT   │
-│ SIDEBAR │      MAIN         │  SIDEBAR  │
+│ SIDEBAR │   page content    │  SIDEBAR  │
 ├─────────┴───────────────────┴───────────┤
 │            BOTTOM NAV                   │
 ├─────────────────────────────────────────┤
@@ -39,7 +39,6 @@ templates:
             ctaHref: "/docs/quickstart"
       
       rightSidebar:
-        - type: "Toc"
         - type: "StatsCard"
           props:
             title: "Active Users"
@@ -73,16 +72,20 @@ templates:
 
 ## Available Zones
 
-| Zone | Location | Description |
-|------|----------|-------------|
-| `header` | Top | Site header area |
-| `topNav` | Below header | Secondary navigation |
-| `hero` | Above main | Hero banners, announcements |
-| `leftSidebar` | Left column | Navigation, filters |
-| `main` | Center | Primary content |
-| `rightSidebar` | Right column | TOC, widgets |
-| `bottomNav` | Below main | Pagination, related |
-| `footer` | Bottom | Footer widgets |
+| Zone | Location | Notes |
+|------|----------|-------|
+| `hero` | Above the content | Banners, announcements |
+| `leftSidebar` | Left column | Replaces the docs navigation when set |
+| `rightSidebar` | Right column | Below the table of contents |
+| `bottomNav` | Below the content | Related links |
+| `footer` | Bottom | Footer widgets, above the site footer |
+| `header`, `topNav`, `main` | | Accepted by the schema; no layout renders them yet |
+
+A `Toc` entry in `rightSidebar` is skipped: the table of contents is always
+drawn there when the page has headings. When the config defines a component
+named `sidebar`, `header` or `footer` and a template leaves the matching zone
+(`leftSidebar`, `header`, `footer`) empty, the build fills the zone with that
+component.
 
 ## Built-in Widgets
 
@@ -152,16 +155,26 @@ Copyright notice.
     text: "© 2024 Company Name"
 ```
 
+### Other widgets
+
+| Widget | Props |
+|--------|-------|
+| `Progress` | `label`, `value` (0 to 100), `showPercent` (default true) |
+| `Announcement` | `title`, `message`, `type` (`info`, `warning`, `success`) |
+| `RecentPosts` | `title`, `posts` (list of `title`, `href`, `date`) |
+| `BadgeList` | `title`, `badges` (list of strings) |
+
 ## Layouts Supporting Zones
 
-| Layout | Supported Zones |
-|--------|-----------------|
-| `FlexibleLayout` | All 8 zones |
-| `ThreeColumnLayout` | rightSidebar only |
-| `CenteredLayout` | hero only |
-| `FullWidthLayout` | hero only |
+| Layout | Zones rendered |
+|--------|----------------|
+| `FlexibleLayout` | `hero`, `leftSidebar`, `rightSidebar`, `bottomNav`, `footer` |
+| `ThreeColumnLayout` (default) | `rightSidebar` |
+| `CenteredLayout` | `hero` |
+| `FullWidthLayout` | `hero` |
+| `TwoColumnLayout` | none |
 
-## Example: Corporate Dashboard
+## Example
 
 ```yaml
 templates:
@@ -169,7 +182,6 @@ templates:
     layout: "FlexibleLayout"
     zones:
       rightSidebar:
-        - type: "Toc"
         - type: "StatsCard"
           props: { title: "Users", value: "15k" }
         - type: "StatsCard"

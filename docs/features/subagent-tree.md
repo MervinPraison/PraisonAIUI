@@ -8,10 +8,10 @@ Visualize **agent hierarchies** — see which agents spawn subagents, track thei
 
 ```bash
 # Get the subagent tree for a session
-curl http://localhost:8083/api/subagents/my-session
+curl http://localhost:8000/api/subagents/my-session
 
 # List all spawns across sessions
-curl http://localhost:8083/api/subagents
+curl http://localhost:8000/api/subagents
 ```
 
 ## How It Works
@@ -25,19 +25,26 @@ graph TD
     C --> F["Editor"]
 ```
 
-When agents spawn subagents during execution, each spawn is registered with the `SubagentManager`:
+Each spawn is a record of parent agent, child agent and session in the
+server's `SubagentManager`:
 
-1. **Parent agent** spawns a **child agent**
-2. The spawn is recorded with session ID, timestamp, and status
-3. A tree structure is built from spawn records
-4. The tree can be queried per-session via the REST API
+1. When `praisonaiagents` is installed, the manager subscribes to its `handoff`
+   hook, so every agent handoff is recorded (parent, child and session id come
+   from the hook payload; missing values become `parent`, `child` and
+   `default`).
+2. Your own code can record spawns with `register_spawn()`.
+3. The tree for a session is built from its spawn records; an agent that is
+   never a child is a root.
+
+Records are kept in memory and cleared on restart. Every record has
+`status: "running"`; completion is not tracked yet.
 
 ## Configuration
 
 ```python
-from praisonaiui.features.subagents import SubagentManager
+from praisonaiui.features.subagents import get_subagent_manager
 
-mgr = SubagentManager()
+mgr = get_subagent_manager()  # the instance the REST API reads
 
 # Register a spawn event
 spawn_id = mgr.register_spawn(
@@ -59,13 +66,13 @@ tree = mgr.get_tree("my-session")
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/subagents` | GET | List all spawn events |
+| `/api/subagents` | GET | All spawn records (`{"spawns": [...]}`) |
 | `/api/subagents/{session_id}` | GET | Get tree for a session |
 
 ### Get Tree
 
 ```bash
-curl http://localhost:8083/api/subagents/my-session
+curl http://localhost:8000/api/subagents/my-session
 ```
 
 ```json
@@ -88,5 +95,5 @@ curl http://localhost:8083/api/subagents/my-session
 
 ## Related
 
-- [Gateway Chat](gateway-chat.md) — Chat triggers agent execution
-- [Protocols](protocols.md) — Feature protocol system
+- [Gateway Chat](gateway-chat.md): chat triggers agent execution
+- [Protocols](protocols.md): the feature protocol system

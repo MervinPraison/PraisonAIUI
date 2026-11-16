@@ -5,20 +5,24 @@ PraisonAIUI provides full session management for chat conversations — create, 
 ## Quick Start
 
 ```bash
-# Start server with persistent sessions
-aiui run app.py --datastore json
+# Sessions persist by default (the praisonaiagents session store)
+aiui run app.py
 
-# Sessions persist to ~/.praisonaiui/sessions/
+# Plain JSON files in ~/.praisonaiui/sessions/
+aiui run app.py --datastore json
 ```
 
 ## Data Persistence Options
 
-| Mode | Flag | Persists? | Best For |
-|------|------|-----------|----------|
-| Memory | `--datastore memory` (default) | ❌ Lost on restart | Development, testing |
-| JSON Files | `--datastore json` | ✅ `~/.praisonaiui/sessions/` | Single-user, local |
-| JSON (custom path) | `--datastore json:/path/to/dir` | ✅ Custom directory | Custom setups |
-| Custom DB | Implement `BaseDataStore` | ✅ Your database | Production |
+| Mode | Flag | Where |
+|------|------|-------|
+| SDK (default) | `--datastore sdk` | The praisonaiagents session store, shared with PraisonAI agents; falls back to `json` when `praisonaiagents` is not installed |
+| SDK (custom path) | `--datastore sdk:/path/to/dir` | That directory |
+| JSON files | `--datastore json` | `$AIUI_DATA_DIR/sessions/` (default `~/.praisonaiui/sessions/`) |
+| JSON (custom path) | `--datastore json:/path/to/dir` | That directory |
+| Memory | `--datastore memory` | Lost on restart; for tests |
+| SQL | `aiui.set_datastore(aiui.SQLAlchemyDataStore(url))` | SQLite (`~/.praisonaiui/aiui.db` by default) or PostgreSQL; install `aiui[sql]` or `aiui[postgres]` |
+| Your own | Implement `BaseDataStore` | Your database |
 
 ## REST API
 
@@ -80,6 +84,8 @@ Implement `BaseDataStore` for any database (SQLite, PostgreSQL, Redis, MongoDB, 
 from praisonaiui.datastore import BaseDataStore
 
 class PostgresDataStore(BaseDataStore):
+    # The six session/message methods are abstract; update_session, close
+    # and the feedback methods have defaults.
     def __init__(self, dsn: str):
         self.dsn = dsn
         # ... set up connection pool
@@ -117,18 +123,15 @@ Register before the server starts:
 
 ```python
 # In your app.py:
-from praisonaiui.server import set_datastore
+import praisonaiui as aiui
 
 store = PostgresDataStore("postgresql://user:pass@localhost/db")
-set_datastore(store)
+aiui.set_datastore(store)
 ```
 
 ## Backend Modes
 
-| Mode | Command | Transport | Session Source |
-|------|---------|-----------|---------------|
-| Standalone (default) | `aiui run app.py` | SSE over HTTP | DataStore |
-| PraisonAI | `aiui run app.py --backend praisonai` | WebSocket | WebSocketGateway |
-
-In **standalone** mode, sessions are managed by the configurable DataStore.
-In **praisonai** mode, sessions are managed by the `WebSocketGateway` from the praisonai package.
+| Mode | Command | Session source |
+|------|---------|----------------|
+| Standalone (default) | `aiui run app.py` | The datastore above |
+| PraisonAI | `aiui run app.py --backend praisonai` | The `WebSocketGateway` of the praisonai package |
