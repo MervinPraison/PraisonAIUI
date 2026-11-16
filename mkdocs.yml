@@ -109,6 +109,7 @@ nav:
     - Layouts:
       - Overview: features/layouts.md
       - Chat and Canvas: features/layouts/chat-canvas.md
+      - Canvas from Python and agent tools: features/canvas-api.md
       - Quiet Workbench: features/layouts/workbench.md
       - Command Deck: features/layouts/command.md
       - Guided Studio: features/layouts/guided.md

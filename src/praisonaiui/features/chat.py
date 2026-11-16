@@ -944,6 +944,11 @@ async def _run_and_broadcast(
     first_event: Optional["asyncio.Future[Any]"] = None
     # Code the provider runs inherits the run id (tasks copy the context).
     run_token = current_run_id.set(run_id)
+    # ... and the canvas channel: aiui.canvas.write() from the provider, the
+    # reply callback or an agent's tool thread lands in this run.
+    from praisonaiui import canvas as _canvas
+
+    canvas_channel, canvas_token = _canvas.bind(session_id)
 
     async def _emit(event: Dict[str, Any]) -> None:
         # Every event of the run names the sender's turn, so a client with
@@ -952,6 +957,14 @@ async def _run_and_broadcast(
         if client_turn_id:
             event["client_turn_id"] = client_turn_id
         await mgr.broadcast(session_id, event)
+
+    async def _flush_canvas() -> None:
+        # Sent before the provider's next event, in the order written.
+        for element in canvas_channel.drain():
+            _collect_element(collected_elements, element)
+            await _emit(
+                {"type": "message_element", "session_id": session_id, "run_id": run_id, "element": element}
+            )
 
     try:
         # Name the agent on the single ``run_started`` (the provider's own
@@ -1017,6 +1030,7 @@ async def _run_and_broadcast(
         provider_agent: Optional[str] = None
 
         async for event in _provider_stream():
+            await _flush_canvas()
             # Build broadcast payload
             payload: Dict[str, Any] = {
                 "type": event.type.value,
@@ -1222,6 +1236,7 @@ async def _run_and_broadcast(
                 payload["agent_name"] = event.agent_name
 
             await _emit(payload)
+        await _flush_canvas()  # written after the provider's last event
 
     except asyncio.CancelledError:
         cancelled = True
@@ -1253,6 +1268,7 @@ async def _run_and_broadcast(
         mgr._run_owner.pop(run_id, None)
         _run_suggestions.pop(run_id, None)
         current_run_id.reset(run_token)
+        _canvas.unbind(canvas_token)
         if _event_observers:
             status = "cancelled" if cancelled else ("failed" if run_error is not None else "completed")
             _notify_observers(

@@ -18,6 +18,10 @@ from praisonaiui.schema.models import (
 # Lazy import callbacks to avoid circular imports
 def __getattr__(name: str):
     """Lazy import for callback decorators and functions."""
+    if name == "canvas":  # aiui.canvas.write(...), the module itself
+        import importlib
+
+        return importlib.import_module("praisonaiui.canvas")
     _callback_attrs = {
         "welcome",
         "reply",
@@ -449,6 +453,7 @@ def __getattr__(name: str):
 
 __all__ = [
     "__version__",
+    "canvas",
     "Config",
     "SiteConfig",
     "ContentConfig",

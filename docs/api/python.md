@@ -648,6 +648,21 @@ Async functions for sending messages to the user. Call inside callback handlers.
 | `await aiui.action_buttons(buttons)` | Show buttons; handle clicks with `@aiui.button(name)` |
 | `await aiui.tool(name, args=None, result=None)` | Show a tool call and its result |
 
+### `aiui.canvas`
+
+Write the Chat and Canvas layout's canvas by name (plain functions, safe from
+any thread; they act on the chat run in progress). The same key again is the
+next version. Details: [Canvas from Python and agent tools](../features/canvas-api.md).
+
+| Function | Purpose |
+|----------|---------|
+| `aiui.canvas.write(key, content=None, *, kind=None, title=None, language=None, url=None, mime_type=None, session_id=None)` | Show and store an artifact; returns the stored version |
+| `aiui.canvas.update(key, content, **fields)` | A new version with the same kind and title |
+| `aiui.canvas.open(key)` | Show an artifact in the canvas |
+| `aiui.canvas.read(key, *, version=None)` | The latest version with content (user edits included), or `None` |
+| `aiui.canvas.artifacts()` | The chat's artifacts, without content |
+| `aiui.canvas.tools()` | `canvas_write`, `canvas_update`, `canvas_read`, `canvas_list` for an LLM agent |
+
 ---
 
 ## UI Components

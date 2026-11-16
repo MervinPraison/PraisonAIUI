@@ -56,6 +56,11 @@ layout:
     chat-canvas: {collapseLines: 20, collapseRows: 10}
 ```
 
+App code and agents can also write the canvas by name, so an update does not
+depend on the model repeating a file name or a table header:
+`aiui.canvas.write("sorting", table)` and the agent tools from
+`aiui.canvas.tools()`. See [Canvas from Python and agent tools](../canvas-api.md).
+
 ## Turning parts off
 
 - `extensions.disabled: [builtin.artifacts]`: no canvas, no Artifacts page;
