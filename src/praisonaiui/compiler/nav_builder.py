@@ -16,6 +16,7 @@ class NavItem:
     path: str
     description: str = ""
     noindex: bool = False
+    page_title: str = ""  # the page's own title when the sidebar shows a shorter `nav_title`
     children: list["NavItem"] = field(default_factory=list)
 
 
@@ -104,7 +105,13 @@ class NavBuilder:
         def page_item(page: DocPage) -> NavItem:
             title = str(page.frontmatter.get("nav_title") or page.title)
             path = f"{self.base_path}/{page.slug}".rstrip("/")
-            return NavItem(title=title, path=path, description=page.description, noindex=page.noindex)
+            return NavItem(
+                title=title,
+                path=path,
+                description=page.description,
+                noindex=page.noindex,
+                page_title=page.title if title != page.title else "",
+            )
 
         def lookup(name: str) -> DocPage | None:
             key = name.strip().strip("/")
@@ -141,6 +148,8 @@ class NavBuilder:
             result["description"] = item.description
         if item.noindex:
             result["noindex"] = True
+        if item.page_title:
+            result["pageTitle"] = item.page_title
         if item.children:
             result["children"] = [self._item_to_dict(child) for child in item.children]
         return result

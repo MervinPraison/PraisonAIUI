@@ -9,7 +9,7 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { normalizeDocPath } from './pathUtils'
+import { canonicalDocPath } from './docs/docSource'
 import type { DocsNav, NavItem, NavTabConfig, UIConfig } from './types'
 import { BrandMark } from './docs/BrandMark'
 import { docsChromeModel, isExternal } from './docs/chrome'
@@ -35,7 +35,7 @@ export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
         }
 
         const isActive = (item.path || item.title) === activeItem
-        const href = normalizeDocPath(item.path || '/')
+        const href = canonicalDocPath(item.path || '/')
         return (
             <a
                 key={key}

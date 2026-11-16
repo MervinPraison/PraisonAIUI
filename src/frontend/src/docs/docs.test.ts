@@ -6,6 +6,7 @@ import { docNeighbours, docPages, docSearchGroups, docSection } from './docNav'
 import { scoreDocMatch } from './searchRank'
 import { detectActiveTabIndex, filterNavByTab, navItemTabGroupIndex } from './navTabs'
 import type { DocsNav } from '../types'
+import { canonicalDocPath } from './docSource'
 
 test('frontmatter is metadata, never page text', () => {
     assert.equal(stripFrontmatter('---\ntitle: A\ndescription: B\n---\n# A\n'), '# A\n')
@@ -124,6 +125,9 @@ test('page links name routes the way aiui build names pages', () => {
     const page = '/docs/adr/index'
     assert.equal(resolveDocTarget('0003-selectable-layouts.md', page), '/docs/adr/selectable-layouts')
     assert.equal(resolveDocTarget('../typescript/index.md', page), '/docs/typescript')
+    // The docs home page is the site root.
+    assert.equal(resolveDocTarget('../index.md', page), '/')
+    assert.equal(resolveDocTarget('../index.md#install', page), '/#install')
     assert.equal(resolveDocTarget('../protocols/adp/README.md#scope', page), '/docs/protocols/adp#scope')
     assert.equal(resolveDocTarget('../reports/ui-reset-2026-11.md', page), '/docs/reports/ui-reset-2026-11')
     // Not a page: kept as is.
@@ -170,4 +174,11 @@ test('manual nav sections (no path) group pages and name the section', () => {
     assert.equal(docSection(nav, '/docs/features/layouts'), 'Layouts')
     const tab = { tab: 'Guides', groups: [{ group: 'Guides', pages: ['features/layouts'] }] }
     assert.deepEqual(filterNavByTab(nav.items ?? [], tab).map((i) => i.title), ['Guides'])
+})
+
+test('the docs home page has one URL, the site root', () => {
+    for (const p of ['/', '/docs', '/docs/', '/docs/index', '/docs/index/']) assert.equal(canonicalDocPath(p), '/')
+    assert.equal(canonicalDocPath('/docs/guide'), '/docs/guide')
+    assert.equal(canonicalDocPath('/docs/guide/index'), '/docs/guide/index')
+    assert.equal(canonicalDocPath('/handbook/index', '/handbook'), '/')
 })

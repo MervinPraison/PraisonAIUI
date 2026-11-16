@@ -2,6 +2,8 @@
 
 export interface NavItem {
     title: string
+    /** The page's own title, when the sidebar shows a shorter frontmatter `nav_title`. */
+    pageTitle?: string
     href?: string
     path?: string
     description?: string

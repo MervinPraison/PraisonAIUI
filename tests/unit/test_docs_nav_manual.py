@@ -94,3 +94,12 @@ def test_auto_nav_is_unchanged(tmp_path: Path) -> None:
     items = _nav(tmp_path, "auto")["items"]
     assert all("path" in item for item in items)
     assert {"title": "Home", "path": "/docs/index"} in items
+
+
+def test_nav_title_is_for_the_sidebar_only(tmp_path: Path) -> None:
+    items = _nav(tmp_path, "manual")["items"]
+    chat = items[1]["children"][0]["children"][1]
+    assert chat == {"title": "Chat layout", "path": "/docs/guide/layouts/chat", "pageTitle": "Chat and Canvas"}
+    # The page's <title> and the crawl / llms files keep the page's own title.
+    html = (tmp_path / "site" / "docs" / "guide" / "layouts" / "chat.html").read_text()
+    assert "<title>Chat and Canvas | T</title>" in html

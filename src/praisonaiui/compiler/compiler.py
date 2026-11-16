@@ -754,7 +754,8 @@ class Compiler:
                     pages.append(
                         {
                             "path": item["path"],
-                            "title": item.get("title", ""),
+                            # The page's own title (the sidebar may show a shorter nav_title)
+                            "title": item.get("pageTitle") or item.get("title", ""),
                             "description": item.get("description", ""),
                             "noindex": bool(item.get("noindex")),
                         }
@@ -775,7 +776,16 @@ class Compiler:
                     return f"https://{domain.rstrip('/')}"
         return None
 
+    def _public_path(self, path: str) -> str:
+        """The URL a page is published at: the docs home (`/docs`, `/docs/index`) is the site root."""
+        base = self.config.site.route_base_docs.rstrip("/")
+        trimmed = path.rstrip("/") or "/"
+        if trimmed in (base, f"{base}/index"):
+            return "/"
+        return path
+
     def _absolute_url(self, path: str) -> str:
+        path = self._public_path(path)
         site = self._site_url()
         if not site:
             return path
@@ -796,6 +806,8 @@ class Compiler:
             if page.get("noindex"):
                 continue
             path = page["path"].rstrip("/") or "/"
+            if self._public_path(path) == "/":
+                continue  # the docs home is the site root, listed above
             loc = self._absolute_url(path)
             lastmod = self._format_lastmod(self._resolve_md_source(path))
             urls.append(self._sitemap_url_entry(loc, lastmod))

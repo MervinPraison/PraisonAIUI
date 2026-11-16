@@ -13,6 +13,7 @@ import { docSourcePath, prepareDocSource } from './docs/docSource'
 import { docSection } from './docs/docNav'
 import { DocsPager } from './docs/DocsPager'
 import { DocsHome } from './docs/DocsHome'
+import { DocsNotFound } from './docs/DocsNotFound'
 
 interface ContentProps {
     config: UIConfig
@@ -22,6 +23,8 @@ interface ContentProps {
     /** The nav in reading order: adds the section eyebrow and previous / next links. */
     nav?: DocsNav
     onNavigate?: (item: NavItem) => void
+    /** Opens the docs search (the "Page not found" view offers it). */
+    onSearch?: () => void
 }
 
 /** The docs home page: the only page whose frontmatter `layout: home` draws a hero. */
@@ -33,7 +36,7 @@ function navigateTo(href: string) {
     window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path: href.split(/[?#]/)[0] } }))
 }
 
-export function Content({ config, routes, selectedItem, currentPath, nav, onNavigate }: ContentProps) {
+export function Content({ config, routes, selectedItem, currentPath, nav, onNavigate, onSearch }: ContentProps) {
     const [markdown, setMarkdown] = useState<string>('')
     const [loadedPath, setLoadedPath] = useState('')
     const [loadingContent, setLoadingContent] = useState(false)
@@ -148,13 +151,25 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                         </article>
                     )}
                     {contentReady && nav && onNavigate && (
-                        <DocsPager nav={nav} path={currentPath} onNavigate={onNavigate} />
+                        <DocsPager nav={nav} path={shownPath ?? currentPath} onNavigate={onNavigate} />
                     )}
                     {!loadingContent && !contentReady && loadedPath === normalizeDocPath(currentPath) && (
                         <p className="aiui-docs-notice">
                             Content for <strong>{selectedItem.title}</strong> would be displayed here.
                         </p>
                     )}
+                </div>
+            </main>
+        )
+    }
+
+    // No page at this URL: "Page not found" (or the site name at a root with no
+    // home page). The developer view of the config is for `debug: true` only.
+    if (!config.debug) {
+        return (
+            <main id="main-content" className="aiui-docs-main docs-main">
+                <div className="aiui-docs-column docs-main-inner">
+                    <DocsNotFound config={config} path={normalizeDocPath(currentPath)} onSearch={onSearch} />
                 </div>
             </main>
         )

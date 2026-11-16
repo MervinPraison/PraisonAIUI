@@ -121,11 +121,11 @@ opens the page at its URL.
 
 | File | Why |
 |------|-----|
-| `index.html` | The site root; it shows `docs/index.md` (the docs home page) |
+| `index.html` | The site root; it shows `docs/index.md` (the docs home page). `/docs` and `/docs/index` open the same page and move to `/`, the home page's one URL (also in the sitemap, `llms.txt` and canonical links) |
 | `docs/<page>.html` | `/docs/<page>` on hosts that map a path to `<path>.html` (GitHub Pages, Netlify, Cloudflare Pages) |
 | `docs/<page>/index.html` | `/docs/<page>/` on hosts that do not (S3, `python -m http.server`); the page drops the trailing slash |
 | `docs/<page>.md` | The markdown the page loads, also for index pages (`guides/index.md` → `docs/guides.md`) and numbered files |
-| `404.html` | Any other path loads the site, which opens the page the URL means: `/guides/setup` opens `/docs/guides/setup` |
+| `404.html` | Any other path loads the site, which opens the page the URL means (`/guides/setup` opens `/docs/guides/setup`) or shows "Page not found" with links home and to search |
 
 ## Related
 

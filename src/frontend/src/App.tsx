@@ -13,7 +13,7 @@ import { resolveTemplate, shouldShowToc } from './resolver'
 import { normalizeDocPath } from './pathUtils'
 import { detectActiveTabIndex, filterNavByTab } from './docs/navTabs'
 import { docSearchGroups } from './docs/docNav'
-import { docPathAliases } from './docs/docSource'
+import { canonicalDocPath, docPathAliases } from './docs/docSource'
 import { Spinner } from '@/components/ui/spinner'
 import './docs/docs.css'
 
@@ -64,7 +64,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [selectedItem, setSelectedItem] = useState<NavItem | null>(null)
   const [activeItemPath, setActiveItemPath] = useState<string>('')
-  const [currentPath, setCurrentPath] = useState(() => normalizeDocPath(window.location.pathname))
+  const [currentPath, setCurrentPath] = useState(() => canonicalDocPath(window.location.pathname))
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [activeTabIndex, setActiveTabIndex] = useState(0)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -156,8 +156,9 @@ export default function App() {
     noindex?: boolean,
   ) => {
     const cfg = configOverride ?? config
-    const canonicalPath = normalizeDocPath(path)
-    const formattedTitle = formatSeoTitle(title, cfg)
+    const canonicalPath = canonicalDocPath(path)
+    // The home page (the site root) is titled by the site name alone, as the built index.html is.
+    const formattedTitle = canonicalPath === '/' && cfg.site?.title ? cfg.site.title : formatSeoTitle(title, cfg)
     const metaDescription = description || `${title} - ${cfg.site?.description || ''}`
     const absoluteUrl = `${seoOrigin(cfg)}${canonicalPath}`
 
@@ -282,17 +283,17 @@ export default function App() {
   }
 
   const selectNavItem = (item: NavItem) => {
-    const path = normalizeDocPath(item.path || '/')
+    const path = canonicalDocPath(item.path || '/')
     setSelectedItem(item)
     setActiveItemPath(item.path || item.title)
-    updateSEO(item.title, path, item.description, undefined, item.noindex)
+    updateSEO(item.pageTitle ?? item.title, path, item.description, undefined, item.noindex)
   }
 
   // Keep React nav state in sync when plugins perform SPA navigation
   useEffect(() => {
     const onPluginNavigate = (event: Event) => {
       const detail = (event as CustomEvent<{ path?: string }>).detail
-      const path = normalizeDocPath(detail?.path ?? window.location.pathname)
+      const path = canonicalDocPath(detail?.path ?? window.location.pathname)
       setCurrentPath(path)
       setMobileNavOpen(false)
 
@@ -345,7 +346,7 @@ export default function App() {
         applyStoredThemePreference(mode)
 
         // Handle initial URL path for SPA routing
-        const initialPath = normalizeDocPath(window.location.pathname)
+        const initialPath = canonicalDocPath(window.location.pathname)
         setCurrentPath(initialPath)
         if (initialPath !== window.location.pathname) {
           window.history.replaceState(null, '', initialPath + window.location.search + window.location.hash)
@@ -354,21 +355,21 @@ export default function App() {
           const found = findNavItemByPath(navData, initialPath)
           if (found) {
             // A URL found under the docs base moves to the page's own path.
-            const foundPath = normalizeDocPath(found.path || initialPath)
+            const foundPath = canonicalDocPath(found.path || initialPath)
             if (foundPath !== initialPath) {
               setCurrentPath(foundPath)
               window.history.replaceState(null, '', foundPath + window.location.search + window.location.hash)
             }
             setSelectedItem(found)
             setActiveItemPath(found.path || found.title)
-            updateSEO(found.title, foundPath, found.description, configData, found.noindex)
+            updateSEO(found.pageTitle ?? found.title, foundPath, found.description, configData, found.noindex)
           }
         } else {
           const docsHome = findNavItemByPath(navData, '/docs/index')
           if (docsHome) {
             setSelectedItem(docsHome)
             setActiveItemPath(docsHome.path || docsHome.title)
-            updateSEO(docsHome.title, normalizeDocPath(docsHome.path || '/docs/index'), docsHome.description, configData, docsHome.noindex)
+            updateSEO(docsHome.pageTitle ?? docsHome.title, canonicalDocPath(docsHome.path || '/docs/index'), docsHome.description, configData, docsHome.noindex)
           }
         }
       } catch (err) {
@@ -384,7 +385,7 @@ export default function App() {
   // Handle browser back/forward navigation in a separate effect
   useEffect(() => {
     const handlePopState = () => {
-      const path = normalizeDocPath(window.location.pathname)
+      const path = canonicalDocPath(window.location.pathname)
       setCurrentPath(path)
       const found = findNavItemByPath(nav, path)
       
@@ -407,7 +408,7 @@ export default function App() {
   }, [nav, config])
 
   const handleItemClick = (item: NavItem) => {
-    const path = normalizeDocPath(item.path || `/${item.title.toLowerCase().replace(/\s+/g, '-')}`)
+    const path = canonicalDocPath(item.path || `/${item.title.toLowerCase().replace(/\s+/g, '-')}`)
     window.history.pushState({ path }, item.title, path)
     window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path } }))
   }
@@ -552,6 +553,7 @@ export default function App() {
               currentPath={currentPath}
               nav={filteredNav}
               onNavigate={handleItemClick}
+              onSearch={searchEnabled ? openSearch : undefined}
             />
             {showToc && <Toc selectedItem={selectedItem} zones={zones} showToc={showToc} />}
           </div>

@@ -10,9 +10,13 @@ permissions:
   pages: write
   id-token: write
 
+# One deploy at a time. A running deploy finishes; of the runs queued behind
+# it only the newest starts (GitHub drops older pending runs in the group), so
+# a busy merge day still publishes, instead of every merge cancelling the
+# deploy before it.
 concurrency:
   group: deploy-docs
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:

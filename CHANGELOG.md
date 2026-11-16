@@ -102,6 +102,13 @@
 
 ### Fixed
 
+- Docs sites: the home page has one URL, the site root. `/docs`, `/docs/`
+  and `/docs/index` open it and move to `/`; sidebar, previous / next and
+  `index.md` links point to `/`; the sitemap, `llms.txt`, `llms-full.txt`
+  and canonical links name `/`. A URL with no page shows "Page not found"
+  with links home and to search, instead of the developer view of the
+  config (now only with `debug: true`).
+
 - Docs sites (`aiui build`): the site root shows `docs/index.md` instead of an
   empty page; pages work on any static host (each page also has
   `docs/<page>/index.html`, and index pages and numbered files have their
