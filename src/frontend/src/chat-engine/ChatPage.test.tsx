@@ -14,7 +14,7 @@ import { prerenderToNodeStream } from 'react-dom/static'
 import { AssistantRuntimeProvider, useExternalStoreRuntime } from '@assistant-ui/react'
 import type { ChatPresentation, ChatRegionProps, TurnRegionProps } from '@/sdk/layouts'
 import { convertMessage } from './convert'
-import ChatAside from './presentation/Aside'
+import ChatAside, { clampRatio, ratioBounds } from './presentation/Aside'
 import * as host from './presentation/host'
 import { reportBadge } from './presentation/regionState'
 import { Thread } from './Thread'
@@ -264,6 +264,27 @@ test('aside on a desktop: an open, resizable panel with the region once it has s
     assert.doesNotMatch(out, HIDDEN_ASIDE)
     assert.match(out, new RegExp(`data-test-canvas="${SID}"`))
     assert.doesNotMatch(out, /data-chat-aside-switch/)
+  } finally {
+    reportBadge(0)
+  }
+})
+
+test('aside width: a share of the page; the thread keeps 420 px, the aside 320 px while it fits', () => {
+  assert.deepEqual(ratioBounds(1200), { min: 320 / 1200, max: 0.65 })
+  assert.equal(clampRatio(0.58, 1200), 0.58, 'the default leaves the canvas the main surface')
+  assert.equal(clampRatio(0.9, 1200), 0.65)
+  assert.equal(clampRatio(0.1, 1200), 320 / 1200)
+  assert.equal(ratioBounds(1000).max, 0.58)
+  assert.deepEqual(ratioBounds(600), { min: 0.3, max: 0.3 }, 'a narrow page gives the thread its minimum first')
+  assert.deepEqual(ratioBounds(0), { min: 0.2, max: 0.8 })
+})
+
+test('aside on a desktop: open, its share of the page as the flex basis, capped so the thread keeps its minimum', async () => {
+  reportBadge(1)
+  try {
+    const out = await html(createElement(ChatAside, asideProps))
+    assert.match(out, /<aside[^>]*style="flex-basis:58(\.0)?%;min-width:min\(320px, max\(0px, 100% - 420px\)\);max-width:max\(0px, 100% - 420px\)"/)
+    assert.match(out, /aria-valuenow="58"/)
   } finally {
     reportBadge(0)
   }

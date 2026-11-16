@@ -384,29 +384,139 @@ html[data-aiui-shell='react']
   outline-offset: 2px;
 }
 
-/* Work hub: the kanban board is the work, so it takes the flexible width
-   (the view fixes it at 300px and gives the rest to the card detail). Below
-   1025px the view stacks its panes itself. */
-html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub-p1 {
+@property --aiui-board-fade-start {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@property --aiui-board-fade-end {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* Work hub: the kanban board is the work. It takes the flexible width (the
+   view fixes it at 300px and gives the rest to the card detail), its lanes
+   run the full height with their own scroll and the delete zone below them,
+   and the board scrolls sideways inside itself with a visible scrollbar.
+   The detail pane stays closed until a card is selected. Below 1025px the
+   view stacks its panes itself. Selectors carry the .work-hub chain so they
+   outrank the board template (page-types.css). */
+html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p2:has(> [class$='-empty']:only-child) {
+  display: none;
+}
+html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p1 {
+  display: flex;
+  flex-direction: column;
   padding-inline: 16px;
+  overflow: hidden;
+}
+html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p1 > div,
+html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p1 .aiui-board-host,
+html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p1 .aiui-board {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p1 .aiui-board > .aiui-board-columns {
+  flex: 1 1 auto;
+  align-items: stretch;
+  min-height: 0;
+  padding-bottom: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--input) transparent;
+  /* Overlay scrollbars (macOS) show nothing until a scroll, so the board's
+     edges fade where more lanes are: the right while there is more to the
+     right, the left once scrolled. A scroll-driven animation moves the fades;
+     without one (or with nothing to scroll) there is none. */
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--aiui-board-fade-start),
+    black calc(100% - var(--aiui-board-fade-end)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--aiui-board-fade-start),
+    black calc(100% - var(--aiui-board-fade-end)),
+    transparent
+  );
+}
+@supports (animation-timeline: scroll()) {
+  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p1 .aiui-board > .aiui-board-columns {
+    animation: aiui-board-edges linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+@keyframes aiui-board-edges {
+  0% {
+    --aiui-board-fade-start: 0px;
+    --aiui-board-fade-end: 56px;
+  }
+  4%,
+  96% {
+    --aiui-board-fade-start: 32px;
+    --aiui-board-fade-end: 56px;
+  }
+  100% {
+    --aiui-board-fade-start: 32px;
+    --aiui-board-fade-end: 0px;
+  }
+}
+html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p1 .aiui-board > .aiui-board-columns > .aiui-board-column {
+  min-height: 0;
+  max-height: none;
+}
+html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p1 .aiui-board-column > :not(.aiui-board-column-cards) {
+  flex: none;
+}
+html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p1 .aiui-board-column > .aiui-board-column-cards {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p1 .aiui-board > .aiui-board-trash {
+  flex: none;
+  margin-bottom: 16px;
 }
 @media (min-width: 1025px) {
-  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub-p1 {
+  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p1 {
     flex: 1 1 0%;
     width: auto;
     min-width: 0;
   }
-  /* The detail pane: narrow while it only asks for a card, wider with one. */
-  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub-p2 {
+  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p2 {
     flex: 0 1 420px;
     min-width: 320px;
   }
-  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub-p2:has(> [class$='-empty']:only-child) {
-    flex-basis: 320px;
-  }
-  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub-p3 {
+  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p3 {
     width: 280px;
     min-width: 0;
+  }
+}
+/* Stacked (tablet, phone): the board keeps a usable height of its own, the
+   other panes their natural height, and the hub scrolls. */
+@media (max-width: 1024px) {
+  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub {
+    overflow-y: auto;
+  }
+  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-pane {
+    flex: none;
+    overflow: visible;
+  }
+  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p1 {
+    height: min(560px, 70vh);
+    overflow: hidden;
+  }
+  /* The last pane takes what is left (the hub's 1px-gap colour stays a hairline). */
+  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub > .work-hub-p3 {
+    flex: 1 0 auto;
   }
 }
 

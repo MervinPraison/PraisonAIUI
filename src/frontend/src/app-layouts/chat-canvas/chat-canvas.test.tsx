@@ -19,7 +19,7 @@ import type { Artifact, ArtifactsFeed, ChatFeed, ChatState, Feed, SessionsFeed, 
 import Frame from './Frame'
 import { toArtifactsFeed } from './data'
 import { chatSubtitle, connectionWord, lastAgent, relativeTime, shortTime, summarizeArtifacts } from './format'
-import { frameKeyAction, optionVars } from './frameLogic'
+import { artifactsInChat, frameKeyAction, optionVars } from './frameLogic'
 import { iconFor } from './iconMap'
 
 beforeEach(() => resetLayoutsForTests())
@@ -120,6 +120,12 @@ test('optionVars maps layout.options.chat-canvas collapse thresholds to CSS vari
   assert.deepEqual(optionVars({ collapseLines: 20, collapseRows: 8 }), { '--cc-collapse-lines': '20', '--cc-collapse-rows': '8' })
   assert.deepEqual(optionVars({ collapseLines: -1, collapseRows: 'x' }), {})
   assert.deepEqual(optionVars(undefined), {})
+})
+
+test('artifactsInChat: the card (the design) unless layout.options says inline', () => {
+  assert.equal(artifactsInChat(undefined), 'card')
+  assert.equal(artifactsInChat({ artifactsInChat: 'inline' }), 'inline')
+  assert.equal(artifactsInChat({ artifactsInChat: 'junk' }), 'card')
 })
 
 const key = (k: string, mods: Partial<Record<'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey', boolean>> = {}) => ({

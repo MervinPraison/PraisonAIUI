@@ -116,13 +116,15 @@ test('restore adds a user version after the others; a later reply numbers after 
   assert.equal(store.restore('s1', key, 42), null)
 })
 
-test('open: selects, tells listeners and dispatches the DOM event', () => {
+test('open: selects, tells listeners and dispatches the DOM events (the aside opens)', () => {
   const g = globalThis as unknown as Record<string, unknown>
   const events: unknown[] = []
   const previous = g.window
   g.window = new EventTarget()
   const onEvent = (e: Event) => events.push((e as CustomEvent).detail)
   window.addEventListener('aiui:artifact-open', onEvent)
+  const asides: unknown[] = []
+  window.addEventListener('aiui:chat-aside', (e) => asides.push((e as CustomEvent).detail))
   try {
     const store = createArtifactsStore({ threads: threads({ s1: sortingConversation() }) })
     const got: unknown[] = []
@@ -133,6 +135,7 @@ test('open: selects, tells listeners and dispatches the DOM event', () => {
     assert.deepEqual(got, [{ sessionId: 's1', key: 'sort_demo.py' }])
     assert.deepEqual(events, [{ sessionId: 's1', key: 'sort_demo.py' }, { sessionId: 's1', key: 'table:algorithm|average|worst', version: 1 }])
     assert.equal(store.session('s1').get().selected?.version, 1)
+    assert.deepEqual(asides, [{ open: true }, { open: true }])
   } finally {
     window.removeEventListener('aiui:artifact-open', onEvent)
     g.window = previous

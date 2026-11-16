@@ -291,7 +291,7 @@ function KnowledgePage() {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 text-xs text-tier-3" aria-live="polite">
         <span>{`${search.rows.length} ${search.rows.length === 1 ? 'result' : 'results'} for “${search.q}”${search.mode ? ` · ${SEARCH_MODE[search.mode] ?? search.mode}` : ''}`}</span>
         {search.loading && <Spinner size="sm" tone="muted" />}
-        {search.warning && <span className="text-warning">{search.warning}</span>}
+        {search.warning && !status.warnings.includes(search.warning) && <span className="text-warning">{search.warning}</span>}
         <Button variant="link" size="xs" onClick={() => setQuery('')}>Clear search</Button>
       </div>
     )
@@ -322,7 +322,7 @@ function KnowledgePage() {
         mode={adding}
         onMode={setAdding}
         onClose={() => { setAdding(null); uploads.clear() }}
-        onAdded={(id) => { refresh(); if (id) setSelected(id); void notify('Knowledge added', { type: 'success' }) }}
+        onAdded={(id, warning) => { refresh(); if (id) setSelected(id); void notify(warning ?? 'Knowledge added', { type: warning ? 'warning' : 'success' }) }}
         jobs={uploads.jobs}
         onFiles={uploads.add}
         allFiles={/sdk/i.test(statusReq.data?.backend ?? '')}
@@ -363,7 +363,7 @@ function KnowledgeDetail({ row, now, query, narrow, onBack, onDelete }: { row: K
   )
 }
 
-function AddDialog({ mode, onMode, onClose, onAdded, jobs, onFiles, allFiles }: { mode: AddMode | null; onMode(mode: AddMode): void; onClose(): void; onAdded(id?: string): void; jobs: readonly Job[]; onFiles(files: Iterable<File>): void; allFiles: boolean }) {
+function AddDialog({ mode, onMode, onClose, onAdded, jobs, onFiles, allFiles }: { mode: AddMode | null; onMode(mode: AddMode): void; onClose(): void; onAdded(id?: string, warning?: string): void; jobs: readonly Job[]; onFiles(files: Iterable<File>): void; allFiles: boolean }) {
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
@@ -381,8 +381,9 @@ function AddDialog({ mode, onMode, onClose, onAdded, jobs, onFiles, allFiles }: 
     setBusy(true)
     setError(null)
     try {
-      const entry = await fetchJson<{ id?: string }>('/api/knowledge', { body: { text: text.trim(), metadata: { source: 'manual', ...(title.trim() ? { title: title.trim() } : {}) } } })
-      onAdded(entry?.id)
+      const entry = await fetchJson<{ id?: string; warning?: string }>('/api/knowledge', { body: { text: text.trim(), metadata: { source: 'manual', ...(title.trim() ? { title: title.trim() } : {}) } } })
+      // A store that kept the entry only in memory says why (`warning`).
+      onAdded(entry?.id, entry?.warning)
       onClose()
     } catch (e) {
       setError(message(e))

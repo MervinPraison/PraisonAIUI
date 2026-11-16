@@ -84,6 +84,8 @@ export interface OpenRequest {
 
 /** Dispatched on window by open(): a frame shows its canvas (e.g. the phone switch). */
 export const OPEN_EVENT = 'aiui:artifact-open'
+/** The chat's aside event (chat-engine/presentation/Aside ASIDE_EVENT): open() also brings the canvas up. */
+export const ASIDE_EVENT = 'aiui:chat-aside'
 
 export interface ArtifactsStore {
   session(sessionId: string | null): Feed<SessionArtifacts>
@@ -411,6 +413,7 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
       for (const fn of [...openFns]) fn(req)
       if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
         window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: req }))
+        window.dispatchEvent(new CustomEvent(ASIDE_EVENT, { detail: { open: true } }))
       }
     },
     setSplit(sid, key) {

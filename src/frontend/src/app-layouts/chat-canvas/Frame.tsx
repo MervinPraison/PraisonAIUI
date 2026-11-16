@@ -27,7 +27,7 @@ import type { LayoutProps } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
 import { ChatLine } from './ChatLine'
 import { useArtifactTotal, useProvideArtifacts } from './data'
-import { frameKeyAction, optionVars } from './frameLogic'
+import { artifactsInChat, frameKeyAction, optionVars } from './frameLogic'
 import { ARTIFACTS_PAGE, Brand, SidebarBody } from './Sidebar'
 import { PhoneTopBar, TopBar, type TitleLine } from './TopBar'
 import { useStoredFlag } from './useStoredFlag'
@@ -107,6 +107,7 @@ export default function ChatCanvasFrame(props: LayoutProps) {
       data-aiui-layout-frame="chat-canvas"
       data-viewport={viewport}
       data-chat-page={onChat || undefined}
+      data-cc-artifacts={artifactsInChat(spec?.options)}
       className="flex min-h-0 min-w-0 flex-1 bg-background text-foreground"
       style={style}
     >

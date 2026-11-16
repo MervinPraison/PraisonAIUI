@@ -6,11 +6,13 @@
  * `aiui:artifact-open` so the frame can bring its canvas up, e.g. the phone
  * switch); while the `artifacts` page is listed its link is the share link,
  * so a modified click opens that page in a new tab (otherwise it is a
- * button). Nothing renders for a reply without artifacts.
+ * button). Nothing renders for a reply without artifacts. The reply's own
+ * blocks that are these artifacts are marked for the layout to hide
+ * (./inChat), so an artifact shows once: as its card here, in full in the canvas.
  *
  *   turnFooter: () => import('@/layout-features/artifacts/ArtifactCards')
  */
-import type { JSX, MouseEvent } from 'react'
+import { useRef, type JSX, type MouseEvent } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { TurnRegionProps } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
@@ -18,6 +20,7 @@ import type { DerivedArtifact } from './derive'
 import { artifactsStore } from './feed'
 import { cardMeta, shareUrl } from './format'
 import { canShare, useArtifacts, useCanRun } from './hooks'
+import { useMarkInCanvas } from './inChat'
 import { KindIcon } from './viewers/Viewer'
 
 const plainClick = (e: MouseEvent) => e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
@@ -77,10 +80,12 @@ export function ArtifactCard({ artifact: a, latest, touch, onOpen }: {
 export default function ArtifactCards({ sessionId, messageId, viewport }: TurnRegionProps): JSX.Element | null {
   const snap = useArtifacts(sessionId)
   const shown = snap.mentions[messageId]
+  const ref = useRef<HTMLDivElement>(null)
+  useMarkInCanvas(ref, shown, snap.running)
   if (!shown?.length) return null
   const store = artifactsStore()
   return (
-    <div className="my-1 flex flex-col gap-2" data-artifact-cards>
+    <div ref={ref} className="my-1 flex flex-col gap-2" data-artifact-cards>
       {shown.map((a) => {
         const latest = snap.latest.find((l) => l.key === a.key)
         // An older reply's card opens the version it made; the latest one is not pinned.
