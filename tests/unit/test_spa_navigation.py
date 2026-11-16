@@ -113,8 +113,8 @@ class TestSpaNavigation:
         content = Path("src/frontend/src/Content.tsx").read_text(encoding="utf-8")
         assert "MermaidDiagram" not in content
         assert '<Markdown variant="docs">' in content
-        assert "docs-main flex-1 min-w-0" in content
-        assert "max-w-[720px]" in content
+        assert "aiui-docs-main docs-main" in content
+        assert "aiui-docs-column docs-main-inner" in content
         assert not Path("src/frontend/src/markdown/mermaidThemes.ts").exists()
         assert not Path("src/frontend/src/markdown/MermaidDiagram.tsx").exists()
         plugins = Path("src/frontend/src/markdown/streamdownPlugins.ts").read_text(encoding="utf-8")
@@ -136,7 +136,10 @@ class TestSpaNavigation:
         assert "docs-shell" in app
         assert "filterNavByTab" in app
         assert 'data-aiui-header-tabs' in header
-        assert "max-w-[720px]" in content
+        # The reading column (about 70ch) lives in the docs stylesheet (DESIGN.md "Docs style").
+        assert "aiui-docs-column" in content
+        docs_css = Path("src/frontend/src/docs/docs.css").read_text(encoding="utf-8")
+        assert "max-width: calc(70ch + 3rem)" in docs_css
         assert "On this page" in toc
         assert "docs-toc" in toc
 

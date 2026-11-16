@@ -35,10 +35,11 @@ export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
         }
 
         const isActive = (item.path || item.title) === activeItem
+        const href = normalizeDocPath(item.path || '/')
         return (
             <a
                 key={key}
-                href={normalizeDocPath(item.path || '/')}
+                href={href}
                 data-nav-path={item.path || ''}
                 aria-current={isActive ? 'page' : undefined}
                 className="aiui-docs-navitem"
