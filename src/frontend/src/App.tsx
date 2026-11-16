@@ -13,6 +13,7 @@ import { resolveTemplate, shouldShowToc } from './resolver'
 import { normalizeDocPath } from './pathUtils'
 import { detectActiveTabIndex, filterNavByTab } from './docs/navTabs'
 import { docSearchGroups } from './docs/docNav'
+import { docPathAliases } from './docs/docSource'
 import { Spinner } from '@/components/ui/spinner'
 import './docs/docs.css'
 
@@ -108,21 +109,28 @@ export default function App() {
   const findNavItemByPath = (navData: DocsNav, path: string): NavItem | null => {
     const normalizedPath = normalizeDocPath(path)
 
-    const findItem = (items: NavItem[]): NavItem | null => {
+    const findItem = (items: NavItem[], target: string): NavItem | null => {
       for (const item of items) {
         const itemPath = normalizeDocPath(item.path ?? '')
-        if (itemPath === normalizedPath) {
+        if (itemPath === target) {
           return item
         }
         if (item.children) {
-          const found = findItem(item.children)
+          const found = findItem(item.children, target)
           if (found) return found
         }
       }
       return null
     }
 
-    return navData.items ? findItem(navData.items) : null
+    if (!navData.items) return null
+    // Else a URL that names the page another way: by its file (`/docs/adr/0001-x`,
+    // `/docs/guide/index`) or without the docs base (`/getting-started/x`).
+    for (const target of [normalizedPath, ...docPathAliases(normalizedPath)]) {
+      const found = findItem(navData.items, target)
+      if (found) return found
+    }
+    return null
   }
 
   const seoOrigin = (cfg: UIConfig) => (cfg.seo?.siteUrl || window.location.origin).replace(/\/+$/, '')
@@ -345,9 +353,15 @@ export default function App() {
         if (initialPath !== '/') {
           const found = findNavItemByPath(navData, initialPath)
           if (found) {
+            // A URL found under the docs base moves to the page's own path.
+            const foundPath = normalizeDocPath(found.path || initialPath)
+            if (foundPath !== initialPath) {
+              setCurrentPath(foundPath)
+              window.history.replaceState(null, '', foundPath + window.location.search + window.location.hash)
+            }
             setSelectedItem(found)
             setActiveItemPath(found.path || found.title)
-            updateSEO(found.title, initialPath, found.description, configData, found.noindex)
+            updateSEO(found.title, foundPath, found.description, configData, found.noindex)
           }
         } else {
           const docsHome = findNavItemByPath(navData, '/docs/index')

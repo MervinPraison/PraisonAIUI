@@ -1,7 +1,7 @@
 // Docs style helpers: page source fixes (docSource.ts) and reading order (docNav.ts).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { prepareDocSource, resolveDocTarget, resolveDocUrls, stripFrontmatter } from './docSource'
+import { docSourcePath, pageRoute, prepareDocSource, resolveDocTarget, resolveDocUrls, stripFrontmatter, docPathAliases } from './docSource'
 import { docNeighbours, docPages, docSearchGroups, docSection } from './docNav'
 import { scoreDocMatch } from './searchRank'
 import { filterNavByTab, navItemTabGroupIndex } from './navTabs'
@@ -118,4 +118,30 @@ test('a tab lists its sidebar groups in the order the YAML gives them', () => {
     assert.deepEqual(filterNavByTab(items, tab).map((i) => i.title), ['Getting Started', 'Home', 'Concepts'])
     assert.equal(navItemTabGroupIndex(items[3], tab), -1)
     assert.equal(filterNavByTab(items, undefined), items)
+})
+
+test('page links name routes the way aiui build names pages', () => {
+    const page = '/docs/adr/index'
+    assert.equal(resolveDocTarget('0003-selectable-layouts.md', page), '/docs/adr/selectable-layouts')
+    assert.equal(resolveDocTarget('../typescript/index.md', page), '/docs/typescript')
+    assert.equal(resolveDocTarget('../protocols/adp/README.md#scope', page), '/docs/protocols/adp#scope')
+    assert.equal(resolveDocTarget('../reports/ui-reset-2026-11.md', page), '/docs/reports/ui-reset-2026-11')
+    // Not a page: kept as is.
+    assert.equal(resolveDocTarget('../images/01-chat.png', page), '/docs/images/01-chat.png')
+    assert.equal(pageRoute('/docs/02-guides/01-intro.md'), '/docs/guides/intro')
+})
+
+test('the site root shows the docs home page', () => {
+    assert.equal(docSourcePath('/', '/docs/index'), '/docs/index')
+    assert.equal(docSourcePath('/', null), null)
+    assert.equal(docSourcePath('/docs/a/b/', '/docs/index'), '/docs/a/b')
+})
+
+test('a URL that names a page another way maps to its route', () => {
+    assert.deepEqual(docPathAliases('/getting-started/quickstart'), ['/docs/getting-started/quickstart'])
+    assert.deepEqual(docPathAliases('/docs/adr/0003-selectable-layouts'), ['/docs/adr/selectable-layouts'])
+    assert.deepEqual(docPathAliases('/docs/typescript/index/'), ['/docs/typescript'])
+    assert.deepEqual(docPathAliases('/adr/0001-x'), ['/adr/x', '/docs/adr/0001-x', '/docs/adr/x'])
+    assert.deepEqual(docPathAliases('/docs/getting-started/quickstart'), [])
+    assert.deepEqual(docPathAliases('/'), [])
 })

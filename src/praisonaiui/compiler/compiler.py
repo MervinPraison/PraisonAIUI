@@ -634,7 +634,8 @@ class Compiler:
         For each page in the docs navigation, creates a flat HTML file at
         the route path (e.g. _site/docs/concepts/configuration.html).
         GitHub Pages serves /docs/concepts/configuration from that file
-        without appending a trailing slash.
+        without appending a trailing slash. A copy at
+        <route>/index.html serves hosts without that mapping.
         Each file is a copy of the SPA shell with page-specific:
           - <title> tag
           - <meta name="description">
@@ -709,6 +710,14 @@ class Compiler:
 
             page_file.write_text(html, encoding="utf-8")
             files.append(f"{relative}.html")
+            # Hosts that do not map /x to x.html (S3, `python -m http.server`)
+            # serve /x/ from x/index.html; the canonical-URL script then drops
+            # the slash. GitHub Pages and Netlify still answer /x with x.html.
+            dir_index = output_dir / relative / "index.html"
+            if not dir_index.exists():
+                dir_index.parent.mkdir(parents=True, exist_ok=True)
+                dir_index.write_text(html, encoding="utf-8")
+                files.append(f"{relative}/index.html")
 
         return files
 
@@ -1165,6 +1174,23 @@ class Compiler:
 
         # Copy the entire docs directory
         shutil.copytree(docs_dir, docs_output)
+
+        # The client fetches a page's markdown at `<route>.md`. A page whose
+        # route differs from its file (`typescript/index.md` -> /docs/typescript,
+        # `adr/0001-x.md` -> /docs/adr/x) also gets a copy at its route, so a
+        # static host with no server logic finds it.
+        route_dir = output_dir / self.config.site.route_base_docs.strip("/")
+        scanner = DocsScanner(
+            docs_dir=docs_dir,
+            include=docs_config.include,
+            exclude=docs_config.exclude,
+            index_files=docs_config.index_files,
+        )
+        for page in scanner.scan():
+            target = route_dir / f"{page.slug}.md"
+            if not target.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(page.path, target)
 
         # Return list of copied files (simplified)
         return ["docs/"]

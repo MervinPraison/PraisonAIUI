@@ -639,7 +639,11 @@ class TestCompilerUtf8Writes:
 
         page = tmp_path / "output" / "docs" / "index.html"
         assert page.exists()
-        assert not (tmp_path / "output" / "docs" / "index").is_dir()
+        # The flat file is the canonical page (GitHub Pages answers /docs/index
+        # with it, no redirect); the copy in docs/index/ serves hosts without
+        # that mapping. GitHub Pages already serves x.html beside an x/ folder
+        # (/docs/features/layouts next to docs/features/layouts/).
+        assert (tmp_path / "output" / "docs" / "index" / "index.html").read_bytes() == page.read_bytes()
         raw = page.read_bytes()
         assert self.SPARKLE in raw.decode("utf-8")
         assert b"\xe2\x9c\xa8" in raw

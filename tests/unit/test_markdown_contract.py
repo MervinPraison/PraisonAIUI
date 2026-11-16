@@ -71,7 +71,7 @@ class TestDocsContent:
 
     def test_content_awaits_preloads_and_honours_abort(self):
         source = _read(SRC / "Content.tsx")
-        block = source.split("preprocessMkdocsMarkdown(prepareDocSource(await response.text(), urlPath))")[1].split(
+        block = source.split("preprocessMkdocsMarkdown(prepareDocSource(await response.text(), sourcePath))")[1].split(
             "setMarkdown(content)"
         )[0]
         assert "await Promise.all([preloadMarkdown(), preloadMarkdownPlugins(content)])" in block
