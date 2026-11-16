@@ -21,7 +21,6 @@ export async function render(container) {
   // Shell: status chips on theme colours, sentence case, the designed empty state, no promo banner.
   const shell = inAppShell();
   const L = (dash, sentence) => (shell ? sentence : dash);
-  const chip = (on, onText, offText) => statusChip(on ? onText : offText, on ? 'success' : 'neutral');
   const gwBadge = shell
     ? statusChip(statusData.gateway_connected ? 'Connected' : 'Not connected', statusData.gateway_connected ? 'success' : 'danger')
     : statusData.gateway_connected
@@ -42,8 +41,8 @@ export async function render(container) {
           <div style="font-size:1.8rem;font-weight:700">${statusData.total_spans || 0}</div>
         </div>
         <div class="db-card" style="padding:16px;border-radius:12px">
-          <div style="font-size:.8rem;opacity:.6">${L('Trace SDK', 'Collectors')}</div>
-          ${shell ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${chip(statusData.trace_available, 'Tracing on', 'Tracing off')}${chip(statusData.obs_available, 'Observability on', 'Observability off')}</div>` : `<div style="font-size:.85rem;margin-top:4px">${statusData.trace_available ? '✅' : '❌'} Trace</div>
+          <div style="font-size:.8rem;opacity:.6">${L('Trace SDK', 'Status')}</div>
+          ${shell ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${statusChip(statusData.status === 'ok' ? 'Recording' : humanize(statusData.status || 'unknown'), statusData.status === 'ok' ? 'success' : 'warning')}</div>` : `<div style="font-size:.85rem;margin-top:4px">${statusData.trace_available ? '✅' : '❌'} Trace</div>
           <div style="font-size:.85rem">${statusData.obs_available ? '✅' : '❌'} Obs</div>`}
         </div>
         <div class="db-card" style="padding:16px;border-radius:12px">

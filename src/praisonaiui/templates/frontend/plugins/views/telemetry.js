@@ -46,8 +46,8 @@ export async function render(container) {
           <div style="font-size:1.8rem;font-weight:700">${(overview.total_tokens || 0).toLocaleString()}</div>
         </div>
         <div class="db-card" style="padding:16px;border-radius:12px">
-          <div style="font-size:.8rem;opacity:.6">${L('Telemetry SDK', 'Collectors')}</div>
-          ${shell ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${statusChip(statusData.telemetry_available ? 'Telemetry on' : 'Telemetry off', statusData.telemetry_available ? 'success' : 'neutral')}${statusChip(statusData.profiling_available ? 'Profiling on' : 'Profiling off', statusData.profiling_available ? 'success' : 'neutral')}</div>` : `<div style="font-size:.85rem;margin-top:4px">${statusData.telemetry_available ? '✅' : '❌'} Telemetry</div>
+          <div style="font-size:.8rem;opacity:.6">${L('Telemetry SDK', 'SDK')}</div>
+          ${shell ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${statusData.telemetry_available === undefined && statusData.profiling_available === undefined ? statusChip('Built-in collector', 'neutral') : statusChip(statusData.telemetry_available ? 'Telemetry available' : 'Telemetry not installed', statusData.telemetry_available ? 'success' : 'neutral') + statusChip(statusData.profiling_available ? 'Profiling available' : 'Profiling not installed', statusData.profiling_available ? 'success' : 'neutral')}</div>` : `<div style="font-size:.85rem;margin-top:4px">${statusData.telemetry_available ? '✅' : '❌'} Telemetry</div>
           <div style="font-size:.85rem">${statusData.profiling_available ? '✅' : '❌'} Profiling</div>`}
         </div>
         <div class="db-card" style="padding:16px;border-radius:12px">

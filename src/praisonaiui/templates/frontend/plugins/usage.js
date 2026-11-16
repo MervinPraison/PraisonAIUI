@@ -98,7 +98,7 @@ const SHELL_LABELS = { 'Total Cost': 'Total cost', 'Total Tokens': 'Total tokens
 // Shell: an empty state for a day with no usage, and axis labels in HTML so
 // they keep their size however wide the chart is drawn.
 function shellTimeseriesChart(data) {
-  if (!data.some(d => d.tokens || d.cost)) {
+  if (!data.some(d => d.requests || d.tokens || d.cost)) {
     return `<div style="margin-bottom:1.5rem">${emptyState({ iconName: 'chart', title: 'No usage in the last 24 hours', body: 'Tokens and cost show up here once agents answer in chat.' })}</div>`;
   }
   const maxTokens = Math.max(...data.map(d => d.tokens), 1);

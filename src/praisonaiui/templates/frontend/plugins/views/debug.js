@@ -68,7 +68,7 @@ export async function render(container) {
       <div class="db-card">
         <div class="db-card-title">Server</div>
         <div style="font-size:20px;font-weight:700;margin:6px 0;color:${shell ? tone(serverStatus === 'healthy') : serverStatus === 'healthy' ? '#22c55e' : '#ef4444'}">${serverStatus === 'healthy' ? '● Healthy' : '○ ' + serverStatus}</div>
-        <div style="font-size:11px;color:var(--db-text-dim)">${shell && !health.uptime ? 'Responding' : `Uptime: ${health.uptime ? formatUptime(health.uptime) : uptime}`}</div>
+        <div style="font-size:11px;color:var(--db-text-dim)">${shell && !health.uptime ? (health.status === 'unreachable' ? 'No response' : 'Responding') : `Uptime: ${health.uptime ? formatUptime(health.uptime) : uptime}`}</div>
       </div>
       <div class="db-card">
         <div class="db-card-title">Gateway</div>

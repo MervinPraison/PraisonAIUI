@@ -42,6 +42,8 @@ export async function render(container) {
   // Shell: icons, not emoji; a zero count stays neutral; no card around the empty state.
   const shell = inAppShell();
   const tone = (n, hex, token) => (shell ? (n > 0 ? token : 'var(--db-text)') : hex);
+  // Shell: glyph() icons are aria-hidden, so ratings carry visually hidden text.
+  const sr = (t) => (shell ? `<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">${t}</span>` : '');
   const recentEmpty = shell && feedback.length === 0;
 
   container.innerHTML = `
@@ -98,8 +100,8 @@ export async function render(container) {
               <div style="font-size:11px;color:var(--db-text-muted)">${sessTotal} feedback${sessTotal === 1 ? '' : 's'}</div>
             </div>
             <div style="display:flex;gap:8px;font-size:12px">
-              <span style="color:${tone(sess.positive, '#22c55e', 'var(--db-success)')}">${glyph('👍')} ${sess.positive} (${posRate}%)</span>
-              <span style="color:${tone(sess.negative, '#ef4444', 'var(--db-error)')}">${glyph('👎')} ${sess.negative} (${negRate}%)</span>
+              <span style="color:${tone(sess.positive, '#22c55e', 'var(--db-success)')}">${glyph('👍')}${sr('Positive:')} ${sess.positive} (${posRate}%)</span>
+              <span style="color:${tone(sess.negative, '#ef4444', 'var(--db-error)')}">${glyph('👎')}${sr('Negative:')} ${sess.negative} (${negRate}%)</span>
             </div>
           </div>
           `;
@@ -121,7 +123,7 @@ export async function render(container) {
         <div style="max-height:400px;overflow-y:auto">
           ${feedback.slice(0, 20).map(item => {
             const value = item.value || 0;
-            const emoji = glyph(value > 0 ? '👍' : value < 0 ? '👎' : '😐');
+            const emoji = glyph(value > 0 ? '👍' : value < 0 ? '👎' : '😐') + sr(value > 0 ? 'Positive' : value < 0 ? 'Negative' : 'Neutral');
             const color = shell ? (value > 0 ? 'var(--db-success)' : value < 0 ? 'var(--db-error)' : 'var(--db-text-muted)') : value > 0 ? '#22c55e' : value < 0 ? '#ef4444' : 'var(--db-text-muted)';
             const date = item.created_at ? new Date(item.created_at).toLocaleString() : 'Unknown';
             
