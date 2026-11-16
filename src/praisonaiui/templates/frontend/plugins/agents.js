@@ -4,7 +4,7 @@
  * Provides full CRUD for agent management with an editor interface.
  */
 import { showConfirm } from './toast.js';
-import { pageToolbar } from './views/_helpers.js';
+import { pageToolbar, inAppShell, emptyState, shellButton, icon, monogram, glyph } from './views/_helpers.js';
 
 let agentsData = null;
 let modelsData = null;
@@ -180,23 +180,23 @@ function renderAgentCard(agent) {
   return `
     <div class="aiui-agent-card ${statusClass}" data-agent-id="${agent.id}">
       <div class="aiui-agent-header">
-        <div class="aiui-agent-icon">${agent.icon || '🤖'}</div>
+        ${inAppShell() ? monogram(agent.name, 40) : `<div class="aiui-agent-icon">${agent.icon || '🤖'}</div>`}
         <div class="aiui-agent-info">
           <h4 class="aiui-agent-name">${agent.name}</h4>
           <span class="aiui-agent-model">${agent.model || 'gpt-4o-mini'}</span>
         </div>
         <div class="aiui-agent-actions">
           <button class="aiui-btn aiui-btn-sm" onclick="window.aiuiEditAgent('${agent.id}')" title="Edit">
-            ✏️
+            ${glyph('✏️', 'pencil')}
           </button>
           <button class="aiui-btn aiui-btn-sm" onclick="window.aiuiDuplicateAgent('${agent.id}')" title="Duplicate">
-            📋
+            ${glyph('📋', 'copy')}
           </button>
           <button class="aiui-btn aiui-btn-sm" onclick="window.aiuiViewTraining('${agent.id}')" title="View training history">
-            🧪
+            ${glyph('🧪', 'flask')}
           </button>
           <button class="aiui-btn aiui-btn-sm aiui-btn-danger" onclick="window.aiuiDeleteAgent('${agent.id}', '${agent.name}')" title="Delete">
-            🗑️
+            ${glyph('🗑️', 'trash')}
           </button>
         </div>
       </div>
@@ -283,6 +283,15 @@ function renderAgentsUI() {
     return;
   }
 
+  if ((!agentsData || agentsData.agents.length === 0) && inAppShell()) {
+    container.innerHTML = emptyState({
+      iconName: 'bot',
+      title: 'No agents yet',
+      body: 'Create an agent with its own instructions, model and tools.',
+      actionHtml: shellButton(`${icon('plus')}Create agent`, 'onclick="window.aiuiCreateAgent()"'),
+    });
+    return;
+  }
   if (!agentsData || agentsData.agents.length === 0) {
     container.innerHTML = `
       ${pageToolbar('Agents', '<button class="aiui-btn aiui-btn-primary" onclick="window.aiuiCreateAgent()">+ New Agent</button>')}

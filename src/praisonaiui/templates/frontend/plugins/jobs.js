@@ -5,6 +5,7 @@
  * Shows job status, progress, results with real-time SSE updates.
  */
 import { showConfirm } from './toast.js';
+import { inAppShell, emptyState } from './views/_helpers.js';
 
 let jobsData = null;
 let refreshInterval = null;
@@ -284,6 +285,14 @@ function renderJobsUI() {
   const container = document.querySelector('[data-aiui-jobs]');
   if (!container) return;
 
+  if ((!jobsData || jobsData.jobs.length === 0) && inAppShell()) {
+    container.innerHTML = emptyState({
+      iconName: 'list',
+      title: 'No jobs yet',
+      body: 'Jobs appear here when your app or an agent runs work in the background.',
+    });
+    return;
+  }
   if (!jobsData || jobsData.jobs.length === 0) {
     container.innerHTML = `
       <div class="aiui-jobs-empty">

@@ -22,6 +22,7 @@ export function inAppShell() {
 
 // Lucide paths (24px grid, stroke currentColor), for shell-mode chrome.
 const ICON_PATHS = {
+  alert: '<path d="m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3"/><path d="M12 9v4M12 17h.01"/>',
   activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
   bot: '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/>',
   book: '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
@@ -29,6 +30,7 @@ const ICON_PATHS = {
   chart: '<path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
   clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
   code: '<path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/>',
   database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>',
   dollar: '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
@@ -45,6 +47,7 @@ const ICON_PATHS = {
   minus: '<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/>',
   moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
   package: '<path d="m7.5 4.3 9 5.2M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7Z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/>',
+  pencil: '<path d="M21.2 6.8a2.8 2.8 0 0 0-4-4L3.8 16.2a2 2 0 0 0-.5.8l-1.3 4.4a.5.5 0 0 0 .6.6l4.4-1.3a2 2 0 0 0 .8-.5Z"/><path d="m15 5 4 4"/>',
   play: '<path d="M6 3l14 9-14 9Z"/>',
   plug: '<path d="M12 22v-5M9 8V2M15 8V2M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
   plus: '<path d="M5 12h14M12 5v14"/>',
@@ -72,8 +75,8 @@ const EMOJI_ICONS = {
   '🗑': 'trash', '🗑️': 'trash', '👍': 'thumbsUp', '👎': 'thumbsDown', '😐': 'minus', '🔍': 'search',
   '➕': 'plus', '📄': 'file', '⏱️': 'clock', '⏰': 'clock', '📋': 'list', '💰': 'dollar', '📊': 'chart',
   '📨': 'send', '📈': 'activity', '🌙': 'moon', '☀️': 'sun', '🧪': 'flask', '✅': 'check', '❌': 'x',
-  '🖼️': 'image', '💬': 'message', '⛔': 'x', '✋': 'user', '⚙️': 'wrench', '▶️': 'play', '🛡️': 'shield',
-  '🔒': 'lock',
+  '🖼️': 'image', '💬': 'message', '⛔': 'x', '✋': 'user', '✏️': 'pencil', '⚙️': 'wrench', '▶️': 'play', '🛡️': 'shield',
+  '🔒': 'lock', '⚠️': 'alert',
 };
 
 /**
@@ -698,12 +701,15 @@ export function formatDuration(ms) {
  * @param {string} opts.title        - Headline.
  * @param {string} [opts.body]       - Secondary line.
  * @param {string} [opts.actionHtml] - Optional trailing action markup.
+ * @param {string} [opts.iconName]   - Shell: icon name (else the emoji's icon).
+ * @param {boolean} [opts.bare]      - Shell: no outline (prompts inside a pane).
  * @returns {string}
  */
-export function emptyState({ icon = '', iconName = '', title, body = '', actionHtml = '' }) {
+export function emptyState({ icon = '', iconName = '', title, body = '', actionHtml = '', bare = false }) {
   if (inAppShell()) {
+    // bare: no outline, for a prompt inside a pane ("Select a row").
     const svg = ICON_PATHS[iconName] ? iconName : EMOJI_ICONS[icon] || 'inbox';
-    return `<section class="db-empty-state aiui-empty-state" style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:24px 20px;border:1px dashed var(--input, var(--db-border));border-radius:12px">
+    return `<section class="db-empty-state aiui-empty-state" style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;${bare ? 'padding:40px 20px' : 'padding:24px 20px;border:1px dashed var(--input, var(--db-border));border-radius:12px'}">
     <span aria-hidden="true" style="width:40px;height:40px;border-radius:10px;background:var(--db-muted);color:var(--db-text-dim);display:flex;align-items:center;justify-content:center">${_svg(svg, 18)}</span>
     <h3 style="margin:4px 0 0;font-size:14px;font-weight:600;color:var(--db-text)">${esc(title)}</h3>
     ${body ? `<p style="margin:0;max-width:360px;font-size:13px;line-height:1.5;color:var(--db-text-dim)">${esc(body)}</p>` : ''}

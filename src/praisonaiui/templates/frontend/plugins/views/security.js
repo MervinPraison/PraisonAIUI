@@ -3,7 +3,11 @@
  * Shows security status, audit entries, agent security config.
  * API: /api/security, /api/security/status, /api/security/audit, /api/security/config
  */
-import { helpBanner } from '/plugins/views/_helpers.js';
+import { helpBanner, inAppShell, statusChip, glyph, emptyState } from '/plugins/views/_helpers.js';
+
+// Shell: a status chip and a sentence-case label; dashboard: the original text.
+const flag = (on, onText, offText) => (inAppShell() ? statusChip(on ? onText : offText, on ? 'success' : 'neutral') : `${on ? '✅' : '❌'} ${on ? onText : offText}`);
+const lbl = (text) => (inAppShell() ? text.charAt(0) + text.slice(1).toLowerCase().replace(/\bsdk\b/, 'SDK') : text);
 
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
@@ -22,29 +26,29 @@ export async function render(container) {
   const agents = overview.agent_security || [];
   const entries = auditData.entries || [];
 
-  const gwBadge = statusData.gateway_connected
+  const gwBadge = inAppShell() ? flag(statusData.gateway_connected, 'Connected', 'Not connected') : statusData.gateway_connected
     ? '<span style="color:#22c55e">● Connected</span>'
     : '<span style="color:#ef4444">● Not Connected</span>';
 
   container.innerHTML = `
     <div style="padding:24px;max-width:1200px;margin:0 auto">
-      <h2 style="margin:0 0 20px;font-size:1.5rem">🔒 Security</h2>
+      <h2 style="margin:0 0 20px;font-size:1.5rem">${inAppShell() ? '' : '🔒 '}Security</h2>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px">
         <div class="db-card" style="padding:16px;border-radius:12px">
-          <div style="font-size:.8rem;opacity:.6">Injection Defense</div>
-          <div style="font-size:1.4rem;font-weight:700;margin-top:4px">${cfg.injection_defense ? '✅ Active' : '❌ Off'}</div>
+          <div style="font-size:.8rem;opacity:.6">${lbl('Injection Defense')}</div>
+          <div style="font-size:1.4rem;font-weight:700;margin-top:4px">${flag(cfg.injection_defense, 'Active', 'Off')}</div>
         </div>
         <div class="db-card" style="padding:16px;border-radius:12px">
-          <div style="font-size:.8rem;opacity:.6">Audit Logging</div>
-          <div style="font-size:1.4rem;font-weight:700;margin-top:4px">${cfg.audit_logging ? '✅ Active' : '❌ Off'}</div>
+          <div style="font-size:.8rem;opacity:.6">${lbl('Audit Logging')}</div>
+          <div style="font-size:1.4rem;font-weight:700;margin-top:4px">${flag(cfg.audit_logging, 'Active', 'Off')}</div>
         </div>
         <div class="db-card" style="padding:16px;border-radius:12px">
-          <div style="font-size:.8rem;opacity:.6">Audit Entries</div>
+          <div style="font-size:.8rem;opacity:.6">${lbl('Audit Entries')}</div>
           <div style="font-size:1.8rem;font-weight:700">${statusData.audit_entries || 0}</div>
         </div>
         <div class="db-card" style="padding:16px;border-radius:12px">
           <div style="font-size:.8rem;opacity:.6">Security SDK</div>
-          <div style="font-size:.85rem;margin-top:4px">${statusData.security_available ? '✅ Available' : '❌ Not Found'}</div>
+          <div style="font-size:.85rem;margin-top:4px">${flag(statusData.security_available, 'Available', inAppShell() ? 'Not installed' : 'Not Found')}</div>
         </div>
         <div class="db-card" style="padding:16px;border-radius:12px">
           <div style="font-size:.8rem;opacity:.6">Gateway</div>
@@ -66,15 +70,15 @@ export async function render(container) {
             <tbody>${agents.map(a => `
               <tr style="border-bottom:1px solid rgba(128,128,128,.1)">
                 <td style="padding:10px 14px;font-size:.85rem">${a.name}</td>
-                <td style="padding:10px 14px;text-align:center">${a.has_guardrail ? '🛡️' : '—'}</td>
-                <td style="padding:10px 14px;text-align:center">${a.has_tools ? '🔧' : '—'}</td>
+                <td style="padding:10px 14px;text-align:center">${a.has_guardrail ? glyph('🛡️', 'shield') : '—'}</td>
+                <td style="padding:10px 14px;text-align:center">${a.has_tools ? glyph('🔧') : '—'}</td>
                 <td style="padding:10px 14px;text-align:center">${a.tool_count}</td>
               </tr>`).join('')}
             </tbody></table>
         </div>` : ''}
 
-      <h3 style="margin:0 0 12px;font-size:1.1rem">Audit Log</h3>
-      <div class="db-card" style="border-radius:12px;overflow:hidden">
+      <h3 style="margin:0 0 12px;font-size:1.1rem">${lbl('Audit Log')}</h3>
+      ${entries.length === 0 && inAppShell() ? emptyState({ iconName: 'shield', title: 'No audit events yet', body: 'Security events from agents connected to the gateway appear here.' }) : `<div class="db-card" style="border-radius:12px;overflow:hidden">
         ${entries.length === 0
           ? '<div style="padding:24px;text-align:center;opacity:.5">No audit entries. Enable audit logging or connect agents via gateway.</div>'
           : `<table style="width:100%;border-collapse:collapse">
@@ -90,12 +94,12 @@ export async function render(container) {
                   <td style="padding:10px 14px;font-size:.75rem;opacity:.6">${new Date(e.timestamp*1000).toLocaleTimeString()}</td>
                   <td style="padding:10px 14px;font-size:.85rem;font-family:monospace">${e.event_type}</td>
                   <td style="padding:10px 14px;font-size:.85rem">${e.agent_id || '—'}</td>
-                  <td style="padding:10px 14px"><span style="padding:2px 8px;border-radius:6px;font-size:.75rem;background:${e.severity==='error'?'rgba(239,68,68,.15)':e.severity==='warning'?'rgba(245,158,11,.15)':'rgba(59,130,246,.1)'}">${e.severity}</span></td>
+                  <td style="padding:10px 14px">${inAppShell() ? statusChip(e.severity, e.severity === 'error' ? 'danger' : e.severity === 'warning' ? 'warning' : 'info') : `<span style="padding:2px 8px;border-radius:6px;font-size:.75rem;background:${e.severity==='error'?'rgba(239,68,68,.15)':e.severity==='warning'?'rgba(245,158,11,.15)':'rgba(59,130,246,.1)'}">${e.severity}</span>`}</td>
                   <td style="padding:10px 14px;font-size:.75rem;font-family:monospace;max-width:200px;overflow:hidden;text-overflow:ellipsis">${JSON.stringify(e.data).substring(0,60)}</td>
                 </tr>`).join('')}
               </tbody></table>`
         }
-      </div>
+      </div>`}
       ${helpBanner({
         title: 'Security',
         what: 'This page shows the security status of your AI agents — whether safety guardrails are active, and a log of security-related events.',

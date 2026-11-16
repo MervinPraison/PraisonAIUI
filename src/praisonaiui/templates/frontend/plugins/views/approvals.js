@@ -6,7 +6,7 @@
  * optional preset options / custom answer / confidence copy — surfaced only when
  * the API supplies them, so the card stays a plain approve/deny prompt otherwise.
  */
-import { isSkillApproval, esc, emptyState } from '/plugins/views/_helpers.js';
+import { isSkillApproval, esc, emptyState, inAppShell, statusChip } from '/plugins/views/_helpers.js';
 
 const RISK = {
   low: { icon: '✅', color: '#22c55e' },
@@ -96,20 +96,22 @@ export async function render(container) {
   try { const r = await fetch('/api/approvals/policies'); policies = await r.json(); } catch(e) {}
 
   const models = pending.map(toApprovalModel);
+  const shell = inAppShell();
+  const t = (dashboard, sentence) => (shell ? sentence : dashboard);
 
   container.innerHTML = `
     <div class="db-columns" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px">
-      <div class="db-card"><div class="db-card-title">Pending</div><div class="db-card-value" style="color:#eab308">${models.length}</div></div>
-      <div class="db-card"><div class="db-card-title">Risk Threshold</div><div class="db-card-value" style="font-size:18px">${esc(policies.risk_threshold || 'high')}</div></div>
-      <div class="db-card"><div class="db-card-title">Auto-Approve Tools</div><div class="db-card-value" style="font-size:18px">${(policies.auto_approve_tools || []).length}</div></div>
+      <div class="db-card"><div class="db-card-title">Pending</div><div class="db-card-value" style="color:${shell ? (models.length ? 'var(--db-warning)' : 'inherit') : '#eab308'}">${models.length}</div></div>
+      <div class="db-card"><div class="db-card-title">${t('Risk Threshold', 'Risk threshold')}</div><div class="db-card-value" style="font-size:18px">${esc(policies.risk_threshold || 'high')}</div></div>
+      <div class="db-card"><div class="db-card-title">${t('Auto-Approve Tools', 'Auto-approve tools')}</div><div class="db-card-value" style="font-size:18px">${(policies.auto_approve_tools || []).length}</div></div>
     </div>
 
-    <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">Pending Approvals</h3>
+    <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">${t('Pending Approvals', 'Pending approvals')}</h3>
     <div id="approv-pending" style="margin-bottom:28px">
       ${models.length === 0 ? emptyState({ icon: '✅', title: 'No pending approvals', body: 'All clear — nothing needs your decision.' }) : models.map(approvalCard).join('')}
     </div>
 
-    <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">Recent History</h3>
+    <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">${t('Recent History', 'Recent history')}</h3>
     <div id="approv-history"></div>
   `;
 
@@ -148,8 +150,8 @@ export async function render(container) {
     const div = document.createElement('div');
     div.style.cssText = 'padding:8px 0;border-bottom:1px solid var(--db-border);font-size:13px;display:flex;justify-content:space-between';
     const approved = h.status === 'approved' || h.approved;
-    div.innerHTML = `<span>${esc(h.tool_name || h.action || '?')} — ${esc(h.agent_name || '')}</span><span style="color:${approved ? '#22c55e' : '#ef4444'}">${approved ? '✓ approved' : '✗ denied'}</span>`;
+    div.innerHTML = `<span>${esc(h.tool_name || h.action || '?')} — ${esc(h.agent_name || '')}</span>${shell ? statusChip(approved ? 'Approved' : 'Denied', approved ? 'success' : 'danger') : `<span style="color:${approved ? '#22c55e' : '#ef4444'}">${approved ? '✓ approved' : '✗ denied'}</span>`}`;
     historyEl.appendChild(div);
   });
-  if (!history.length) historyEl.innerHTML = '<div style="font-size:13px;color:var(--db-text-dim)">No history</div>';
+  if (!history.length) historyEl.innerHTML = `<div style="font-size:13px;color:var(--db-text-dim)">${shell ? 'No decisions yet' : 'No history'}</div>`;
 }

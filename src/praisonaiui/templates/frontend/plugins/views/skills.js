@@ -7,7 +7,14 @@
  *
  * Reuses existing /api/approvals and /api/skills endpoints; no new backend.
  */
-import { esc, timeAgo, diffLines, renderMarkdownPreview, isSkillApproval } from '/plugins/views/_helpers.js';
+import {
+  esc, timeAgo, diffLines, renderMarkdownPreview, isSkillApproval,
+  inAppShell, icon as svgIcon, glyph, statusChip, emptyState, humanize,
+} from '/plugins/views/_helpers.js';
+
+// Shell: a tool's category icon in a neutral tile instead of its emoji.
+const CATEGORY_ICONS = { search: 'search', crawl: 'link', file: 'file', code: 'code', shell: 'terminal', memory: 'database', schedule: 'clock' };
+const toolTile = (t) => `<span aria-hidden="true" style="flex:none;width:32px;height:32px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;background:var(--db-muted);color:var(--db-text-dim)">${svgIcon(CATEGORY_ICONS[t.category] || 'wrench')}</span>`;
 
 const RISK_ICONS = { low: '✅', medium: '⚠️', high: '🟠', critical: '🔴' };
 
@@ -95,7 +102,7 @@ function diffOverlayHtml(a, skills) {
           <div>
             <div style="font-size:16px;font-weight:600">${esc(name)}
               <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--db-card-bg);border:1px solid var(--db-border);margin-left:6px">${changeType(a)}</span>
-              ${dupe ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(234,179,8,.15);color:#eab308;margin-left:4px">Name collision</span>' : ''}
+              ${dupe ? (inAppShell() ? statusChip('Name collision', 'warning') : '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(234,179,8,.15);color:#eab308;margin-left:4px">Name collision</span>') : ''}
             </div>
             <div style="font-size:12px;color:var(--db-text-dim);margin-top:4px">${RISK_ICONS[a.risk_level] || ''} ${esc(a.agent_name || '')} · +${adds} −${dels}</div>
           </div>
@@ -181,17 +188,20 @@ function pendingCard(a, skills) {
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;font-size:14px">${esc(name.slice(0, 40))}
           <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--db-card-bg);border:1px solid var(--db-border);margin-left:6px">${changeType(a)}</span>
-          ${dupe ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(234,179,8,.15);color:#eab308;margin-left:4px">Name collision</span>' : ''}
+          ${dupe ? (inAppShell() ? statusChip('Name collision', 'warning') : '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(234,179,8,.15);color:#eab308;margin-left:4px">Name collision</span>') : ''}
         </div>
-        <div style="font-size:12px;color:var(--db-text-dim);margin-top:4px">🤖 ${esc(a.agent_name || '—')} · ${esc((a.metadata && a.metadata.source) || 'self_improve')} · ${esc(timeAgo(a.created_at))}</div>
+        <div style="font-size:12px;color:var(--db-text-dim);margin-top:4px">${inAppShell() ? `${esc(a.agent_name || '—')} · ${esc(humanize((a.metadata && a.metadata.source) || 'self_improve'))}` : `🤖 ${esc(a.agent_name || '—')} · ${esc((a.metadata && a.metadata.source) || 'self_improve')}`} · ${esc(timeAgo(a.created_at))}</div>
       </div>
-      <div style="font-size:12px">${RISK_ICONS[a.risk_level] || ''}</div>
+      <div style="font-size:12px">${inAppShell() ? (a.risk_level ? statusChip(`${humanize(a.risk_level)} risk`, { medium: 'warning', high: 'danger', critical: 'danger' }[a.risk_level] || 'neutral') : '') : RISK_ICONS[a.risk_level] || ''}</div>
     </div>
     ${preview ? `<pre style="margin:10px 0 0;font-size:11px;color:var(--db-text-dim);white-space:pre-wrap;max-height:44px;overflow:hidden">${esc(preview)}</pre>` : ''}
   </div>`;
 }
 
 function pendingTab(pending, skills) {
+  if (pending.length === 0 && inAppShell()) {
+    return emptyState({ iconName: 'sparkles', title: 'No skill changes to review', body: 'When an agent proposes a new or changed skill, it waits here for your approval.' });
+  }
   if (pending.length === 0) {
     return `<div class="db-card" style="text-align:center;padding:2.5rem 1.5rem;color:var(--db-text-dim)">
       <div style="font-size:2.5rem;opacity:.4;margin-bottom:.75rem">📖</div>
@@ -205,25 +215,29 @@ function pendingTab(pending, skills) {
 function installedTab(tools, pendingNames) {
   const grouped = {};
   tools.forEach((t) => { const c = t.category || 'other'; (grouped[c] = grouped[c] || []).push(t); });
-  if (tools.length === 0) return '<div class="db-viewer"><pre>No skills/tools available</pre></div>';
+  if (tools.length === 0) {
+    return inAppShell()
+      ? emptyState({ iconName: 'wrench', title: 'No tools installed', body: 'Install PraisonAI tools to give your agents skills like web search and file access.' })
+      : '<div class="db-viewer"><pre>No skills/tools available</pre></div>';
+  }
   return Object.entries(grouped).map(([category, catTools]) => {
     const cards = catTools.map((t) => {
       const enabled = t.enabled !== false;
       const icon = t.icon || '🔧';
-      const keyStatus = t.api_key_set ? '🔑' : '';
+      const keyStatus = t.api_key_set ? glyph('🔑') : '';
       const hasPending = pendingNames.has(t.name || t.id);
       return `<div class="db-card" style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between">
         <div style="display:flex;align-items:center;gap:10px;flex:1">
-          <span style="font-size:20px">${icon}</span>
+          ${inAppShell() ? toolTile(t) : `<span style="font-size:20px">${icon}</span>`}
           <div>
-            <div style="font-size:13px;font-weight:500">${esc(t.name || t.id)} ${keyStatus}${hasPending ? ' <span title="Pending change" style="color:#eab308">●</span>' : ''}</div>
+            <div style="font-size:13px;font-weight:500">${esc(t.name || t.id)} ${keyStatus}${hasPending ? ` <span title="Pending change" style="color:${inAppShell() ? 'var(--db-warning)' : '#eab308'}">●</span>` : ''}</div>
             <div style="font-size:11px;color:var(--db-text-dim)">${esc(t.description || '')}</div>
           </div>
         </div>
         <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer">
           <input type="checkbox" class="skill-toggle" data-id="${esc(t.id || t.name)}" ${enabled ? 'checked' : ''} style="opacity:0;width:0;height:0">
           <span style="position:absolute;inset:0;background:${enabled ? 'var(--db-accent)' : 'var(--db-border)'};border-radius:22px;transition:0.3s"></span>
-          <span style="position:absolute;top:2px;left:${enabled ? '20px' : '2px'};width:18px;height:18px;background:#fff;border-radius:50%;transition:0.3s"></span>
+          <span style="position:absolute;top:2px;left:${enabled ? '20px' : '2px'};width:18px;height:18px;background:${inAppShell() ? 'var(--background)' : '#fff'};border-radius:50%;transition:0.3s"></span>
         </label>
       </div>`;
     }).join('');
@@ -241,7 +255,7 @@ function historyTab(history) {
     const approved = h.status === 'approved' || h.approved;
     return `<div style="padding:8px 0;border-bottom:1px solid var(--db-border);font-size:13px;display:flex;justify-content:space-between;gap:10px">
       <span>${esc(skillName(h))} — ${esc(h.agent_name || '')}</span>
-      <span style="color:${approved ? '#22c55e' : '#ef4444'}">${approved ? '✓ approved' : '✗ denied'} · ${esc(timeAgo(h.resolved_at || h.created_at))}</span>
+      ${inAppShell() ? `<span>${statusChip(approved ? 'Approved' : 'Denied', approved ? 'success' : 'danger')} ${esc(timeAgo(h.resolved_at || h.created_at))}</span>` : `<span style="color:${approved ? '#22c55e' : '#ef4444'}">${approved ? '✓ approved' : '✗ denied'} · ${esc(timeAgo(h.resolved_at || h.created_at))}</span>`}
     </div>`;
   }).join('');
 }
@@ -260,7 +274,7 @@ function shell(data) {
   const catCount = new Set(tools.map((t) => t.category || 'other')).size;
   const tabBtn = (id, label, badge) => {
     const on = tab === id;
-    return `<button class="ss-tab" data-tab="${id}" style="padding:8px 16px;border:none;border-bottom:2px solid ${on ? 'var(--db-accent)' : 'transparent'};background:none;color:${on ? 'var(--db-text)' : 'var(--db-text-dim)'};font-size:13px;font-weight:${on ? '600' : '400'};cursor:pointer">${label}${badge ? ` <span style="background:rgba(234,179,8,.2);color:#eab308;padding:1px 7px;border-radius:10px;font-size:11px;margin-left:4px">${badge}</span>` : ''}</button>`;
+    return `<button class="ss-tab" data-tab="${id}" style="padding:8px 16px;border:none;border-bottom:2px solid ${on ? 'var(--db-accent)' : 'transparent'};background:none;color:${on ? 'var(--db-text)' : 'var(--db-text-dim)'};font-size:13px;font-weight:${on ? '600' : '400'};cursor:pointer">${label}${badge ? ` <span style="${inAppShell() ? 'background:var(--db-muted);color:var(--db-text-dim)' : 'background:rgba(234,179,8,.2);color:#eab308'};padding:1px 7px;border-radius:10px;font-size:11px;margin-left:4px">${badge}</span>` : ''}</button>`;
   };
   let body = '';
   if (tab === 'installed') body = installedTab(tools, data.pendingNames);
@@ -270,11 +284,11 @@ function shell(data) {
   return `${STUDIO_STYLE}
     <div style="margin-bottom:8px">
       <h2 style="margin:0;font-size:1.1rem;font-weight:600">Skills Studio</h2>
-      <div style="font-size:13px;color:var(--db-text-dim)">Review self_improve proposals</div>
+      <div style="font-size:13px;color:var(--db-text-dim)">${inAppShell() ? 'Review the skills your agents propose, then manage installed tools' : 'Review self_improve proposals'}</div>
     </div>
     <div class="db-columns" style="grid-template-columns:repeat(3,1fr);margin:16px 0 20px">
-      <div class="db-card"><div class="db-card-title">Pending</div><div class="db-card-value" style="color:#eab308">${pending.length}</div></div>
-      <div class="db-card"><div class="db-card-title">Enabled</div><div class="db-card-value" style="color:#22c55e">${enabledCount}</div></div>
+      <div class="db-card"><div class="db-card-title">Pending</div><div class="db-card-value" style="color:${inAppShell() ? (pending.length ? 'var(--db-warning)' : 'inherit') : '#eab308'}">${pending.length}</div></div>
+      <div class="db-card"><div class="db-card-title">Enabled</div><div class="db-card-value" style="color:${inAppShell() ? 'inherit' : '#22c55e'}">${enabledCount}</div></div>
       <div class="db-card"><div class="db-card-title">Categories</div><div class="db-card-value">${catCount}</div></div>
     </div>
     <div style="display:flex;gap:4px;border-bottom:1px solid var(--db-border);margin-bottom:16px">
