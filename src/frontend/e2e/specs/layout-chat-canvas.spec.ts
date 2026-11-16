@@ -256,6 +256,8 @@ test('the canvas is the main surface: wider than the thread, resizable by keyboa
   // The table and sort_demo.py are in the canvas; the reply shows their cards only.
   await expect(reply.locator('table')).toBeHidden()
   await expect(reply.locator('[data-in-canvas]')).toHaveCount(2)
+  for (const el of await reply.locator('[data-in-canvas]').all()) await expect(el).toBeHidden()
+  await expect(reply.locator('[data-aiui-code]')).toBeHidden()
   await expect(reply.getByText('Here is how the three common')).toBeVisible()
 
   const width = async (sel: string) => (await page.locator(sel).boundingBox())?.width ?? 0

@@ -36,9 +36,10 @@
 /* One copy of each artifact: the reply shows its card, the canvas the
    artifact. The artifacts feature marks the reply's artifact blocks
    (data-in-canvas); `artifactsInChat: inline` keeps them. Without the
-   canvas (the `chat` layout, the feature off) nothing is marked. */
+   canvas (the `chat` layout, the feature off) nothing is marked.
+   !important: the renderer's block wrappers carry an inline display. */
 [data-aiui-layout-frame='chat-canvas'][data-cc-artifacts='card'] [data-aiui-chat]:has([data-chat-aside]) [data-role='assistant'] [data-in-canvas] {
-  display: none;
+  display: none !important;
 }
 
 /* A long code block keeps `collapseLines` lines (the chat's collapsed
