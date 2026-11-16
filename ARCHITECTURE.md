@@ -223,6 +223,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Layout features `lf-run-inspector` / `lf-command-bar` / `lf-step-tracker` / `lf-mission-board` (ADR caps 14 / 6 / 6 / 22 kB) | 9.2 / 1.6 / 5.6 / 11.8 kB |
 | Layout feature `lf-artifacts` **(planned, track A)** | 30 kB |
 | `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 270 kB |
+| Pro fonts: Geist + Geist Mono latin woff2 (as served; fetched only by Pro pages) | 58 kB |
 | Wheel: all of `dist/assets` (uncompressed) | 9 MB |
 
 Streamdown, Shiki, Mermaid, KaTeX and `@assistant-ui` never enter the static

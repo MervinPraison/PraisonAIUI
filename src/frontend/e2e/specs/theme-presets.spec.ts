@@ -113,3 +113,17 @@ test('the chat style renders a stored reply as markdown', async ({ page, request
   await expect(page.locator('svg[aria-roledescription^="flowchart"]')).toBeVisible({ timeout: 30_000 })
   expect(errors.pageErrors).toEqual([])
 })
+
+test('the chat style keeps the classic tokens and type: no Pro attribute, no Geist download', async ({ page }) => {
+  const fonts: string[] = []
+  page.on('request', (r) => {
+    if (r.resourceType() === 'font') fonts.push(r.url())
+  })
+  await page.goto('/')
+  await page.waitForLoadState('networkidle')
+  await expect(page.locator('html')).not.toHaveAttribute('data-aiui-tokens', 'pro')
+  await expect(page.locator('html')).not.toHaveAttribute('data-aiui-docs', '')
+  const family = await page.evaluate(() => getComputedStyle(document.body).fontFamily)
+  expect(family).not.toMatch(/Geist/)
+  expect(fonts.filter((url) => /geist/i.test(url))).toEqual([])
+})

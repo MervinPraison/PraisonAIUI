@@ -26,6 +26,7 @@ Where things live:
 | --- | --- |
 | Token layer (seeds, tiers, shadcn vars, `@theme` utilities) | `src/styles/theme.css` |
 | PraisonAI Pro tokens (the layouts' system, see [below](#praisonai-pro-tokens)) | `src/styles/pro.css` |
+| Pro fonts (self-hosted Geist and Geist Mono) | `src/styles/fonts.css` |
 | Docs style chrome and article (see [below](#docs-style)) | `src/docs/docs.css` |
 | Entry stylesheet (imports, class sources, prose rules) | `src/index.css` |
 | Runtime theme API (presets → seeds, legacy HSL upgrade) | `src/themes.ts` |
@@ -447,9 +448,18 @@ They set only `--seed-pro-*`, so the classic frame is unaffected.
 ### Type, spacing, radius
 
 - Sans `"Geist"`, mono `"Geist Mono"`, each followed by the system stack
-  (`--aiui-font-sans` / `--aiui-font-mono`). The font files are not bundled
-  yet, so viewers without Geist installed get the system font
-  **(planned: self-hosted Geist woff2)**.
+  (`--aiui-font-sans` / `--aiui-font-mono`). Self-hosted in
+  `src/styles/fonts.css`: the variable fonts from `@fontsource-variable/geist`
+  and `@fontsource-variable/geist-mono` (SIL OFL 1.1, 5.3.0), latin subset
+  only, one woff2 each (29.4 kB sans, 23.1 kB mono; the "Pro fonts" budget in
+  `.size-limit.mjs`), `font-display: swap`, no preload and no CDN. They are
+  build assets, so `npm run sync`, the wheel and `aiui build` output carry
+  them (the OFL text: `templates/frontend/LICENSE-fonts.txt`). `shell/LayoutHost.tsx` and `docs/docs.css` import `fonts.css` next
+  to `pro.css`; a face downloads only when something is drawn in it, and
+  only `pro.css` names these families, so the classic frame, the dashboard
+  and the chat, agents and playground styles keep the system stack. Text
+  outside the latin range falls back to the system stack, and italic is
+  synthesised.
 - Scale: the classic scale already matches the design: 12 `text-2xs` (kbd,
   counts), 13 `text-xs` (meta), 14 `text-sm` (chrome, nav, buttons), 15
   `text-base` (body), 17 `text-lg` (section titles), 20 `text-xl` (page

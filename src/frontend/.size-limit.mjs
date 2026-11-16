@@ -140,6 +140,17 @@ const defaultLayoutFirstScreen = [
   },
 ]
 
+// The Pro type (styles/fonts.css): Geist and Geist Mono from
+// @fontsource-variable (OFL-1.1), latin woff2 only, fetched by the Pro pages
+// (layouts, docs site) on first paint and by nothing else. woff2 is already
+// compressed, so the budget is the served bytes: 52.53 kB measured + 10%.
+const PRO_FONTS = Object.keys(manifest)
+  .filter((key) => /@fontsource-variable\/geist(-mono)?\/files\/[\w-]+\.woff2$/.test(key))
+  .map((key) => manifest[key].file)
+if (PRO_FONTS.length !== 2) {
+  throw new Error(`.size-limit.mjs: expected the two Geist woff2 files in the build, found ${PRO_FONTS.length}`)
+}
+
 // Everything under dist/assets ships in the Python wheel.
 const allAssets = readdirSync(path.join(DIST, 'assets'), { recursive: true, withFileTypes: true })
   .filter((entry) => entry.isFile())
@@ -177,6 +188,7 @@ export default [
   { name: 'legacy App path (entry + legacy-app-entry closure)', path: abs(legacyJs), limit: '250 kB', gzip: true },
   ...layoutEntries,
   ...defaultLayoutFirstScreen,
+  { name: 'Pro fonts (Geist + Geist Mono, latin woff2, as served)', path: abs(PRO_FONTS), limit: '58 kB', brotli: false },
   // Uncompressed: this is what the wheel carries.
   { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9 MB', brotli: false },
 ]

@@ -33,6 +33,29 @@ test('the docs site draws in the Pro tokens, light and dark', async ({ page }) =
   expect(errors.pageErrors).toEqual([])
 })
 
+test('the docs site draws in self-hosted Geist (latin woff2, same origin)', async ({ page, baseURL }) => {
+  const fonts: string[] = []
+  page.on('request', (r) => {
+    if (r.resourceType() === 'font') fonts.push(r.url())
+  })
+  await page.goto('/docs/markdown')
+  await expect(page.getByRole('heading', { name: 'Markdown sample', level: 1 })).toBeVisible()
+  const family = await page.locator('.aiui-docs').evaluate((el) => getComputedStyle(el).fontFamily)
+  expect(family).toMatch(/^"?Geist"?,/)
+  const mono = await page.locator('#main-content [data-streamdown="inline-code"]').first().evaluate((el) => getComputedStyle(el).fontFamily)
+  expect(mono).toMatch(/^"?Geist Mono"?,/)
+  expect(await page.evaluate(async () => {
+    await document.fonts.ready
+    return document.fonts.check('16px Geist') && document.fonts.check('13px "Geist Mono"')
+  })).toBe(true)
+  const geist = fonts.filter((url) => /geist/i.test(url))
+  expect(geist.length).toBeGreaterThan(0)
+  for (const url of geist) {
+    expect(url.startsWith(baseURL!)).toBe(true)
+    expect(url).toMatch(/\/assets\/geist(-mono)?-latin-wght-normal-[\w-]+\.woff2$/)
+  }
+})
+
 test('sidebar, section, frontmatter, relative links and previous / next', async ({ page }) => {
   const errors = collectPageErrors(page)
   await page.goto('/docs/guide/first')

@@ -65,6 +65,14 @@
 - `@aiui/sdk` exports `getPageId`, `usePageId`, `useThemeMode` and `dismiss`.
 - The shell manifest reports `site.feedbackEnabled`, so the chat hides
   feedback buttons when feedback is switched off.
+- Docs sites (`style: docs`, `aiui build`) use the PraisonAI Pro design: the
+  app shell's colours, type, radii and hairlines, a working search
+  (⌘K / Ctrl+K), previous / next links, the YAML footer columns and a phone
+  drawer with the section tabs. Frontmatter no longer shows as text, and
+  relative links and images resolve against the page's folder.
+- The Pro type is self-hosted: Geist and Geist Mono (SIL OFL 1.1, latin
+  woff2, about 53 kB) ship in the wheel and load only on Pro pages (the
+  layouts and the docs site). No font CDN.
 
 ### Fixed
 

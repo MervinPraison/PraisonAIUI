@@ -13,8 +13,9 @@
  *               (shell/layoutNav.ts), chrome, viewport, the layout switcher
  *
  *   tokens      a layout frame paints with the PraisonAI Pro tokens
- *               (styles/pro.css, imported here so it ships in the shell
- *               chunk, never in index.css): setTokenSystem('pro') while a
+ *               (styles/pro.css and its Geist faces, styles/fonts.css,
+ *               imported here so they ship in the shell chunk, never in
+ *               index.css): setTokenSystem('pro') while a
  *               frame is mounted, setTokenSystem(null) for the classic frame
  *               and the fallback
  *
@@ -47,6 +48,7 @@ import {
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
 import { notify } from '@/sdk/notify'
 import '@/styles/pro.css'
+import '@/styles/fonts.css'
 import { setTokenSystem } from '@/proTokens'
 import { buildLayoutNav, MAIN_ID } from './layoutNav'
 import type { ActiveLayout } from './layoutSelect'

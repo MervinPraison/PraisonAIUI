@@ -16,6 +16,7 @@
  * colour rules, which are unlayered and `!important` too.
  */
 @import '../styles/pro.css';
+@import '../styles/fonts.css';
 
 /* ── Root ──────────────────────────────────────────────────────────────── */
 .aiui-docs {
