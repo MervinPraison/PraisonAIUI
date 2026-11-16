@@ -13,7 +13,7 @@ import { useJson, useNow } from '../shared'
 import { Modal, ModalActions } from '../Modal'
 import { clock, DAY_NAMES, describeSchedule, draftSchedule, NEW_DRAFT, nextRuns, parseCron, scheduleDraft, until, type Draft, type JobRow, type Repeat, type Schedule } from './model'
 
-export type ScheduleInput = { name: string; message: string; agent_name: string | null; schedule: Schedule }
+export type ScheduleInput = { name: string; message: string; agent_name: string | null; agent_id: null; schedule: Schedule }
 
 const REPEATS: readonly [Repeat, string][] = [['minutes', 'Every few minutes'], ['hours', 'Every few hours'], ['daily', 'Every day'], ['weekly', 'On certain days'], ['custom', 'Custom (cron)']]
 const DEFAULT_AGENT = '__default__'
@@ -64,11 +64,13 @@ export function ScheduleForm({ job, onClose, onSave }: { job: JobRow | null; onC
   const [name, setName] = useState(job?.name ?? '')
   const [message, setMessage] = useState(job?.message ?? '')
   const [agent, setAgent] = useState(job?.agent ?? DEFAULT_AGENT)
-  const [draft, setDraft] = useState<Draft>(() => (job ? scheduleDraft(job.schedule) : NEW_DRAFT))
+  const [initial] = useState<Draft>(() => (job ? scheduleDraft(job.schedule) : NEW_DRAFT))
+  const [draft, setDraft] = useState(initial)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const names = [...new Set([...(agents.data?.agents ?? []).map((a) => a.name ?? ''), job?.agent ?? ''])].filter(Boolean)
-  const built = draftSchedule(draft)
+  // Untouched timing keeps the stored schedule as is (the builder has no seconds: 90 s would become 2 min).
+  const built = job && draft === initial ? { schedule: job.schedule, error: undefined } : draftSchedule(draft)
   const now = useNow()
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }))
 
@@ -76,7 +78,7 @@ export function ScheduleForm({ job, onClose, onSave }: { job: JobRow | null; onC
     if (!name.trim() || !message.trim()) return setError('Give the schedule a name and a prompt.')
     if (!built.schedule) return setError(built.error)
     setSaving(true)
-    const input = { name: name.trim(), message: message.trim(), agent_name: agent === DEFAULT_AGENT ? null : agent, schedule: built.schedule }
+    const input = { name: name.trim(), message: message.trim(), agent_name: agent === DEFAULT_AGENT ? null : agent, agent_id: null, schedule: built.schedule }
     await onSave(input).then(onClose, (e: unknown) => setError(e instanceof Error ? e.message : String(e)))
     setSaving(false)
   }

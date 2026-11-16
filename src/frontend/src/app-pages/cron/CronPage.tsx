@@ -71,6 +71,7 @@ function CronPage() {
 
   const view = rows.map((r) => ({ ...r, enabled: flips[r.id] ?? r.enabled, lastStatus: r.lastStatus ?? runs.find((h) => h.jobId === r.id)?.status ?? null }))
   const shown = sortRows(filterRows(view, query, status), sort, now)
+  const page_ = Math.min(page, Math.max(1, Math.ceil(shown.length / PAGE_SIZE))) // a delete may empty the last page
   const current = view.find((r) => r.id === selected) ?? null
 
   /** Call the API, say what failed, then read the list again. */
@@ -173,7 +174,7 @@ function CronPage() {
       <ListDetail<JobRow>
         label="Schedules"
         columns={columns}
-        rows={shown.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)}
+        rows={shown.slice((page_ - 1) * PAGE_SIZE, page_ * PAGE_SIZE)}
         selectedId={selected}
         onSelect={setSelected}
         onOpen={(id) => setForm({ job: view.find((r) => r.id === id) ?? null })}
@@ -183,7 +184,7 @@ function CronPage() {
         detailTitle={current?.name}
         detail={current && <JobDetail row={current} runs={runs.filter((h) => h.jobId === current.id)} now={now} busy={busy === current.id} onRun={() => runNow(current)} onEdit={() => setForm({ job: current })} onDelete={() => setDeleting(current)} onBack={() => setSelected(null)} />}
         empty={empty}
-        footer={shown.length > 0 ? <ListPagination page={page} pageSize={PAGE_SIZE} total={shown.length} onPage={setPage} /> : undefined}
+        footer={shown.length > 0 ? <ListPagination page={page_} pageSize={PAGE_SIZE} total={shown.length} onPage={setPage} /> : undefined}
       />
       {form && <ScheduleForm key={form.job?.id ?? 'new'} job={form.job} onClose={() => setForm(null)} onSave={(input) => save(form.job, input)} />}
       <Modal open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)} title="Delete this schedule?" description={`“${deleting?.name ?? ''}” stops running and is removed. Pause it instead to keep it.`}>

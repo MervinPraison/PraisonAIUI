@@ -219,6 +219,8 @@ test('cron: the parser rejects bad fields and finds the next runs in UTC, as cro
   assert.deepEqual(next('0 0 * * 7', '2026-11-15T12:00:00Z', 1), ['2026-11-22T00:00'], '7 is Sunday')
   assert.deepEqual(next('0 0 1 * 1', '2026-11-25T00:00:00Z'), ['2026-11-30T00:00', '2026-12-01T00:00'], 'both day fields: either matches')
   assert.deepEqual(next('0 0 29 2 *', '2026-11-15T00:00:00Z', 1), ['2028-02-29T00:00'])
+  assert.deepEqual(next('0 9 */2 * *', '2026-11-15T12:00:00Z'), ['2026-11-17T09:00', '2026-11-19T09:00'], 'a stepped day of month is a restriction')
+  assert.deepEqual(next('0 0 * * */2', '2026-11-15T12:00:00Z'), ['2026-11-17T00:00', '2026-11-19T00:00'], 'a stepped weekday is a restriction')
 })
 
 test('cron: the next run counts from the last run, is due when past, and is none when paused', () => {

@@ -67,7 +67,9 @@ export function parseCron(expr: string): { spec: CronSpec; error?: undefined } |
   const fields = f.map((src, i) => parseField(src, FIELDS[i]))
   const bad = fields.findIndex((s) => !s)
   if (bad >= 0) return { error: `The ${FIELDS[bad][3]} field “${f[bad]}” is not valid.` }
-  return { spec: { fields: fields as Set<number>[], domAny: f[2].startsWith('*'), dowAny: f[4].startsWith('*') } }
+  // A day field is unrestricted when it covers its whole domain (as croniter): */2 is not.
+  const [dom, dow] = [fields[2] as Set<number>, fields[4] as Set<number>]
+  return { spec: { fields: fields as Set<number>[], domAny: dom.size === 31, dowAny: dow.size === 7 } }
 }
 
 /** The next `count` run times (epoch ms, UTC) strictly after `from`. */

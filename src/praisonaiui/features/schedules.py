@@ -868,9 +868,11 @@ class SchedulesFeature(BaseFeatureProtocol):
         duration = round(time.time() - started_at, 2)
         if isinstance(job, dict):
             # Persist the run on the job (the store reloads from disk on read).
-            runs = job.get("run_count", 0) + 1
-            job.update(last_run_at=started_at, run_count=runs, last_status=status)
-            store.update(job)
+            # Reload first: an edit or pause made during the run must not be undone.
+            fresh = store.get(job_id) or job
+            runs = fresh.get("run_count", 0) + 1
+            fresh.update(last_run_at=started_at, run_count=runs, last_status=status)
+            store.update(fresh)
 
         # Store run in history
         history_entry = {

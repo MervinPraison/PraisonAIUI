@@ -43,3 +43,22 @@ def test_create_edit_and_run_now(client):
     assert (run["status"], job["last_run_at"]) == ("succeeded", run["last_run_at"])
     assert (job["run_count"], job["last_status"]) == (1, "succeeded")
     assert client.get("/api/schedules/history").json()["history"][0]["job_id"] == jid
+
+
+def test_run_now_keeps_an_edit_made_while_it_runs(client, monkeypatch):
+    body = {"name": "Brief", "message": "hi", "schedule": "0 9 * * *"}
+    jid = client.post("/api/schedules", json=body).json()["id"]
+
+    def chat(message):  # the user pauses and renames the job mid-run, as PUT does
+        store = schedules._schedule_store
+        edited = {**store.get(jid), "enabled": False, "name": "Renamed"}
+        store.update(edited)
+        return "done"
+
+    agent = SimpleNamespace(chat=chat)
+    monkeypatch.setattr(
+        schedules, "_get_agent_for_execution", AsyncMock(return_value=(agent, None, None))
+    )
+    client.post(f"/api/schedules/{jid}/run")
+    job = client.get(f"/api/schedules/{jid}").json()
+    assert (job["enabled"], job["name"], job["run_count"]) == (False, "Renamed", 1)
