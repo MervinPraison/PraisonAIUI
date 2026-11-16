@@ -9,7 +9,7 @@
  *   project            server                                   specs
  *   dashboard-legacy   default style (vanilla dashboard)        legacy-parity, legacy-dashboard
  *   app-shell          AIUI_SHELL=app + the example plugin      shell-sweep, chat, plugins
- *   chat-style         style chat, presets zinc and rose, and   theme-presets, chat-os-theme
+ *   chat-style         style chat, presets zinc and rose, and   theme-presets, chat-os-theme, chat-reply
  *                      one with no set_theme() (follows the OS)
  *   docs               `aiui build` output on `aiui serve`      markdown, docs-chrome
  *   page-reload-*      the dashboard and app-shell servers      page-reload
@@ -143,7 +143,7 @@ export default defineConfig({
     },
     {
       name: 'chat-style',
-      testMatch: /[\\/](theme-presets|chat-os-theme)\.spec\.ts$/,
+      testMatch: /[\\/](theme-presets|chat-os-theme|chat-reply)\.spec\.ts$/,
       use: { ...chromium, baseURL: url(PORTS.chatZinc) },
     },
     {

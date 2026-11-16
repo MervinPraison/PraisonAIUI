@@ -16,7 +16,8 @@ import {
 interface UseSSEOptions {
   externalSessionId?: string | null
   onSessionId?: (sessionId: string) => void
-  onEnd?: () => void
+  /** Called when a stream ends, with the session id it ended for (the server's id when it sent one). */
+  onEnd?: (sessionId: string) => void
 }
 
 interface UseSSEReturn {
@@ -55,12 +56,16 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
       // Allow null session ID — server will create a new session and return it
       // via the 'session' SSE event. Use a temp key until then.
       const sid = externalSessionId ?? `new-${Date.now()}`
+      // The callbacks outlive this render: report the id the stream resolved to,
+      // not the one captured here (null for a new conversation).
+      let resolvedId = sid
       startStream(sid, message, agentName, {
         onSessionId: (newId) => {
           // The server returned a real session ID. Notify parent.
+          resolvedId = newId
           options.onSessionId?.(newId)
         },
-        onEnd: options.onEnd,
+        onEnd: () => options.onEnd?.(resolvedId),
       })
     },
     [externalSessionId, options.onSessionId, options.onEnd],
