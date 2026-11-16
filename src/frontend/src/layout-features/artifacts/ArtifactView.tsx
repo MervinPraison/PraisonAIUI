@@ -21,7 +21,7 @@ export interface ArtifactViewProps {
   versions: readonly DerivedArtifact[]
   onShow(version: number): void
   onRestore(version: number): void
-  /** Phone: History goes under the viewer. */
+  /** Phone: History folds under the viewer. */
   compact?: boolean
   /** The reply is still streaming. */
   streaming?: boolean
@@ -60,23 +60,23 @@ export function ArtifactView({ artifact: a, versions, onShow, onRestore, compact
             {kindLine(a)} · {provenance(a)}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex flex-wrap items-center gap-0.5">
           {versions.length > 1 && <VersionMenu versions={versions} shown={a} onShow={onShow} />}
           {/* An unsafe media URL (javascript:, data:text/html) has nothing to copy or save. */}
           {copyText(a) !== '' && (
-            <Button variant="ghost" onClick={() => void copyArtifact(a)}>
+            <Button variant="ghost" className="text-tier-2" onClick={() => void copyArtifact(a)}>
               <CopyGlyph />
               Copy
             </Button>
           )}
           {canDownload(a) && (
-            <Button variant="ghost" onClick={() => downloadArtifact(a)}>
+            <Button variant="ghost" className="text-tier-2" onClick={() => downloadArtifact(a)}>
               <Download />
               Download
             </Button>
           )}
           {canShare() && (
-            <Button variant="ghost" onClick={() => void shareArtifact(a)}>
+            <Button variant="ghost" className="text-tier-2" onClick={() => void shareArtifact(a)}>
               <Share />
               Share
             </Button>
@@ -95,15 +95,16 @@ export function ArtifactView({ artifact: a, versions, onShow, onRestore, compact
         <div className="min-w-0 flex-1 basis-90">
           <Viewer artifact={a} run={canRun ? run : undefined} streaming={streaming} />
         </div>
-        {versions.length > 1 && (
-          <HistoryList
-            versions={versions}
-            shown={a}
-            onShow={onShow}
-            onRestore={onRestore}
-            className={compact ? 'w-full border-t border-hairline pt-3' : 'min-w-45 shrink basis-52'}
-          />
-        )}
+        {versions.length > 1 &&
+          (compact ? (
+            // A phone: History folds under the viewer.
+            <details className="w-full border-t border-hairline pt-3" data-history-fold>
+              <summary className="cursor-pointer text-xs font-semibold text-tier-3">History · {versions.length} versions</summary>
+              <HistoryList versions={versions} shown={a} onShow={onShow} onRestore={onRestore} className="pt-2.5" />
+            </details>
+          ) : (
+            <HistoryList versions={versions} shown={a} onShow={onShow} onRestore={onRestore} className="max-w-60 min-w-45 shrink basis-52" />
+          ))}
       </div>
     </div>
   )

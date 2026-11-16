@@ -92,8 +92,13 @@ test('CanvasPanel: tabs, the newest artifact with its versions and actions, the 
   assert.match(out, /Researcher added the Stable column/)
   assert.match(out, /Researcher created the table/)
   assert.match(out, /aria-label="Restore version 1"/)
-  assert.match(out, /aria-label="Split: show another artifact below"/)
+  // The design's default: the code docks below the table, Run and its output there.
+  assert.match(out, /aria-label="sort_demo\.py \(split view\)"/)
+  assert.match(out, /Python · v1 · by Researcher/)
+  assert.match(out, /aria-label="Close the split view"/)
+  assert.match(out, /aria-label="Open another artifact"/)
   assert.match(out, /aria-label="Expand the canvas"/)
+  assert.match(out, /aria-label="Close the canvas"/)
   // The sortable table.
   assert.equal((out.match(/<th scope="col" aria-sort="none"/g) ?? []).length, 4)
   assert.match(out, /<th scope="row"[^>]*><span class="">Quicksort<\/span><\/th>/)
@@ -101,21 +106,22 @@ test('CanvasPanel: tabs, the newest artifact with its versions and actions, the 
   assert.deepEqual(badges, [], 'effects do not run in static markup')
 })
 
-test('CanvasPanel on a phone: no split or expand, History under the viewer', () => {
+test('CanvasPanel on a phone: no split, expand, + or close; History folds under the viewer', () => {
   const out = html(createElement(CanvasPanel, { sessionId: 's1', viewport: 'phone', reportBadge: () => {} }))
   assert.match(out, /data-touch="true"/, "phone: 44 px controls (artifacts.css)")
   assert.doesNotMatch(out, /Split: show another/)
-  assert.doesNotMatch(out, /Expand the canvas/)
-  assert.match(out, /aria-label="History" class="flex flex-col gap-2\.5 w-full border-t/)
+  assert.doesNotMatch(out, /Expand the canvas|Close the canvas|Open another artifact|split view/)
+  assert.match(out, /<details[^>]*data-history-fold[^>]*><summary[^>]*>History · 2 versions<\/summary><aside aria-label="History"/)
 })
 
-test('CanvasPanel: the split pane, and the empty canvas', () => {
+test('CanvasPanel: the split pane closed stays closed; and the empty canvas', () => {
   const store = artifactsStore()
-  store.setSplit('s1', 'sort_demo.py')
   const out = html(createElement(CanvasPanel, { sessionId: 's1', viewport: 'desktop', reportBadge: () => {} }))
   store.setSplit('s1', null)
+  const closed = html(createElement(CanvasPanel, { sessionId: 's1', viewport: 'desktop', reportBadge: () => {} }))
+  assert.doesNotMatch(closed, /split view\)/)
+  assert.match(closed, /aria-label="Split: show another artifact below"/)
   assert.match(out, /aria-label="sort_demo\.py \(split view\)"/)
-  assert.match(out, /Python · 5 lines/)
   assert.match(out, />split<\/span>/)
   assert.match(out, /aria-label="Close the split view"/)
   assert.match(out, /data-aiui-art-code="true"/)
@@ -139,6 +145,8 @@ test('ArtifactCards: one card per artifact a reply made; older versions say so; 
   assert.match(second, /Comparison table/)
   assert.match(second, /Table · 3 rows · v2</, 'phone: the compact meta line')
   assert.match(second, /min-h-14/, 'phone: 56 px cards')
+  assert.doesNotMatch(second, /In canvas/, 'phone: a chevron row that leads to the Canvas side')
+  assert.match(second, /<path d="m9 18 6-6-6-6"><\/path><\/svg><\/a>/)
   assert.equal(html(createElement(ArtifactCards, { sessionId: 's1', messageId: 'h_0', viewport: 'desktop', reportBadge: () => {} })), '')
 })
 

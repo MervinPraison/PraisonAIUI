@@ -287,6 +287,44 @@ test('the canvas is the main surface: wider than the thread, resizable by keyboa
   expect(errors.pageErrors).toEqual([])
 })
 
+test('the canvas panel as designed: tabs with split, + and close; the code docked below the table', async ({ page }) => {
+  test.skip(!HAS_CANVAS, 'the artifacts feature is not in this build')
+  const errors = collectPageErrors(page)
+  await page.setViewportSize(DESKTOP)
+  await page.goto('/chat')
+  await send(page, 'Compare sorting algorithms')
+  const canvas = page.getByRole('complementary', { name: 'Canvas' })
+  await expect(canvas.getByRole('tab', { name: /Algorithm table/ })).toHaveAttribute('aria-selected', 'true')
+  await expect(canvas.getByRole('tab', { name: /sort_demo\.py/ })).toContainText('split')
+  const split = canvas.locator('[data-artifact-split="sort_demo.py"]')
+  await expect(split).toBeVisible()
+  await expect(split).toContainText('Python · v1 · by Researcher')
+  await expect(split.locator('[data-aiui-art-code]')).toBeVisible()
+  await expect(canvas.getByRole('columnheader', { name: /Algorithm/ })).toBeVisible()
+  await expect(canvas.getByText('Select a column header to sort.')).toBeVisible()
+
+  // "+": a disclosure list; Escape closes it.
+  const plus = canvas.getByRole('button', { name: 'Open another artifact' })
+  const menu = canvas.getByRole('list', { name: 'Open an artifact' })
+  await plus.click()
+  await expect(menu).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(menu).toHaveCount(0)
+  await expect(plus).toBeFocused()
+
+  // The split closed stays closed; "+" docks the code below again.
+  await split.getByRole('button', { name: 'Close the split view' }).click()
+  await expect(split).toHaveCount(0)
+  await plus.click()
+  await menu.getByRole('button', { name: /sort_demo\.py/ }).click()
+  await expect(split).toBeVisible()
+
+  await canvas.getByRole('button', { name: 'Close the canvas' }).click()
+  await expect(canvas).toBeHidden()
+  await expect(page.locator('[data-chat-aside-toggle]')).toHaveAttribute('aria-pressed', 'false')
+  expect(errors.pageErrors).toEqual([])
+})
+
 test('a non-chat page renders in the outlet with its title and downloads no feature chunk', async ({ page }) => {
   const scripts = trackScripts(page)
   await page.setViewportSize(DESKTOP)

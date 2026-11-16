@@ -40,6 +40,10 @@ export function cardMeta(a: DerivedArtifact, opts: { runnable?: boolean; compact
   return parts.join(' · ')
 }
 
+/** Who made a version: `edited by Researcher`, `by Researcher`, `edited by you`. */
+export const byLine = (a: DerivedArtifact): string =>
+  a.edited ? 'edited by you' : a.version > 1 ? `edited by ${a.agent ?? 'the agent'}` : `by ${a.agent ?? 'the agent'}`
+
 export function lineCount(text: string | undefined): number {
   return text ? text.split('\n').length : 0
 }

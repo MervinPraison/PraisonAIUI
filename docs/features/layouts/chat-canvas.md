@@ -47,6 +47,16 @@ come from the artifacts feature (`layout-features/artifacts`, record
 works without it: with the feature missing from the build, or switched off,
 the chat page has no canvas and everything else stays.
 
+The canvas (Canvas.dc.html): a tab per artifact with its kind icon, then
+the split toggle, **+** (open another of this chat's artifacts below the
+shown one, or All artifacts), expand and close. The shown artifact has its
+title, kind and time, the version menu ("v2 · edited by Researcher"), Copy,
+Download and Share; a table sorts by any column header; History (each
+version, who made it, what changed, Restore) sits on the right, and folds
+under the viewer on a phone. When the chat has code next to a table or a
+document, the code docks below it (Run ⌘↵ and its Output strip, "Ran 1 min
+ago · 0.02s", when the server can run it) until you close the split.
+
 Each artifact shows once. While the canvas is there, a code block or table
 that is an artifact (3+ lines of code, a table with 2+ rows)
 leaves the reply: the reply shows its card ("Comparison table · Table ·
