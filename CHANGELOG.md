@@ -69,6 +69,11 @@
   cron, next and last run, an enabled switch, Run now, and a schedule builder.
 - `style: app` (opt-in React shell); see
   [React app shell](docs/features/react-shell.md).
+- App shell: Knowledge is a React page inside a layout (ProList): a stat
+  strip with the store's status in plain words, search with marked snippets
+  and relevance, Add knowledge for text or files (drag and drop, per-file
+  progress), a detail panel with Delete; the classic frame keeps the legacy
+  view. See [Layouts](docs/features/layouts.md#react-pages-inside-every-layout).
 - App shell: built-in sidebar icons and group order come from the manifest
   (`navIcon` on each page, `layout.groups`); `set_dashboard(groups=...)` or
   YAML `dashboard.groups` overrides the group order and folding.

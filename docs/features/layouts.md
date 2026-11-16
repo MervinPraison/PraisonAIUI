@@ -175,16 +175,17 @@ the frame that renders it.
 
 ### React pages inside every layout
 
-Five built-in pages have a React page in the Pro design that renders inside
+Six built-in pages have a React page in the Pro design that renders inside
 any layout frame (`src/frontend/src/app-pages/`, one lazy chunk each,
 registered by `builtin.overview`, `builtin.sessions`, `builtin.agents`,
-`builtin.logs`, `builtin.config` and `builtin.cron` with the usual `registerPage`):
+`builtin.knowledge`, `builtin.logs`, `builtin.config` and `builtin.cron` with the usual `registerPage`):
 
 | Page | Design | What it shows |
 |---|---|---|
 | `overview` | ProOverview | A greeting and one sentence, "Today at a glance" tiles with sparklines, what needs your approval (the approvals feed plus the open chat's gates), agents, recent runs or chats, the model provider, a collapsible feature health list |
 | `sessions` | ProList | Search (`/`), status chips, an agent filter, a sortable table (title, agent, messages, tokens, relative time, status), a detail panel, a labelled row menu, Delete with a confirmation |
 | `agents` | ProList | Search (`/`), a model filter, one New agent button, a sortable table (monogram, name, description, model, tools, updated, status), a detail panel (temperature, tools, instructions, system prompt, Training history), Edit and New agent in that panel (name, description, model from `/api/agents/models`, temperature, instructions, system prompt), Duplicate, Delete with a confirmation, a skeleton while loading and Try again on an error; agents the app registers in code are read-only; on a phone the panel replaces the list |
+| `knowledge` | ProList | A joined stat strip (entries, files, semantic or keyword search, the store with a status chip in plain words), search (`/`) with marked snippets and the relevance the store reports, "Add knowledge" for text or files (drop zone, drag and drop onto the page, per-file progress and errors), a table (name, type, size, added), a detail panel (facts, content, Copy, Delete with a confirmation), Clear all; on a phone the detail replaces the list |
 | `logs` | ProLogs | Level toggles with counts, search with match navigation, Pause, Download, Clear with a confirmation |
 | `cron` | ProList | Search, status chips, New schedule, a table (schedule in words and as cron, in UTC; next and last run; an enabled switch), a detail panel with recent runs, Run now, Edit and Delete, a builder (every N minutes or hours, daily, weekly, custom cron with the next runs) |
 | `config` | ProSettings | A section list, a breadcrumb, shadcn Select / Switch / Input with help for each field, a masked API key with a show toggle, Test connection, a sticky "Unsaved changes" bar |
