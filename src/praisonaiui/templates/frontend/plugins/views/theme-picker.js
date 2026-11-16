@@ -121,9 +121,17 @@ function safeColor(value, fallback = DEFAULT_ACCENT) {
 // --db-accent-rgb is an "r,g,b" triple used inside rgba(...).
 const RGB_TRIPLE = /^\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*$/;
 
+// Same switch as _helpers.js inAppShell(); not imported, so this module still
+// loads on its own (tests import it standalone).
 function inReactShell() {
   return document.documentElement.getAttribute('data-aiui-shell') === 'react';
 }
+
+// App shell copy: sentence case, no developer jargon (the dashboard keeps its own).
+const SHELL_COPY = {
+  'Color Presets': 'Accent colour', 'Mode': 'Mode', 'Border Radius': 'Corner radius',
+  'Register Custom Theme': 'Custom accent', 'Theme Name': 'Name', 'Accent Color': 'Colour', '+ Add Theme': 'Add accent',
+};
 
 // The React shell (style `app`) derives every --db-* variable from its theme
 // seeds (legacy/bridge.css). Inline --db-* values on <html> would beat that
@@ -330,8 +338,25 @@ function paint() {
     'purple','fuchsia','pink','rose'
   ];
   const customPresets = Object.keys(presets).filter(n => !builtinPresets.includes(n));
+  const shell = inReactShell();
+  const t = (label) => (shell && SHELL_COPY[label]) || label;
+  const h3 = shell ? ' style="text-transform:none;letter-spacing:0;color:var(--db-text)"' : '';
+  // Under the Pro tokens a neutral preset leaves the app on its own accent, so
+  // the shell shows the accent actually in use rather than claim the preset.
+  const proDefault = shell && document.documentElement.getAttribute('data-aiui-tokens') === 'pro'
+    && NEUTRAL_PRESETS.includes(currentPreset);
+  const preview = shell ? `
+    <div class="tp-preview">
+      <div class="tp-preview-chip" style="background-color:var(--primary)"></div>
+      <div class="tp-preview-info">
+        <strong>${proDefault ? 'Default accent' : esc(currentPreset.charAt(0).toUpperCase() + currentPreset.slice(1))}</strong> · ${esc(currentMode)} mode · ${esc(currentRadius)} radius
+      </div>
+    </div>` : '';
 
-  container.innerHTML = `
+  container.innerHTML = `${shell ? `
+    <h2>Theme</h2>
+    <p class="tp-subtitle">Choose the accent colour, light or dark mode, and corner radius.</p>
+    ${preview}` : `
     <h2>🎨 Theme Picker</h2>
     <p class="tp-subtitle">Protocol-driven theme system — choose a preset, mode, and radius. Custom themes supported via API or SDK.</p>
 
@@ -343,14 +368,14 @@ function paint() {
         <span style="font-family:monospace; font-size:11px">${esc(vars['--db-accent'] || '')}</span>
       </div>
     </div>
-
+`}
     <!-- Color Presets -->
     <div class="tp-section">
-      <h3>Color Presets</h3>
+      <h3${h3}>${t('Color Presets')}</h3>
       <div class="tp-swatches">
         ${Object.entries(presets).map(([name, p]) => `
           <div style="text-align:center">
-            <div class="tp-swatch ${name === currentPreset ? 'active' : ''}"
+            <div class="tp-swatch ${name === currentPreset && !proDefault ? 'active' : ''}"
                  style="background:${esc(safeColor(p && p.accent))}" data-preset="${esc(name)}" title="${esc(name)}">
               <span class="tp-check">✓</span>
             </div>
@@ -362,11 +387,11 @@ function paint() {
 
     <!-- Mode Toggle -->
     <div class="tp-section">
-      <h3>Mode</h3>
+      <h3${h3}>Mode</h3>
       <div class="tp-mode-group">
         ${modes.map(m => `
           <button class="tp-mode-btn ${m === currentMode ? 'active' : ''}" data-mode="${esc(m)}">
-            ${m === 'dark' ? '🌙' : '☀️'} ${esc(String(m).charAt(0).toUpperCase() + String(m).slice(1))}
+            ${shell ? '' : m === 'dark' ? '🌙' : '☀️'} ${esc(String(m).charAt(0).toUpperCase() + String(m).slice(1))}
           </button>
         `).join('')}
       </div>
@@ -374,7 +399,7 @@ function paint() {
 
     <!-- Radius Selector -->
     <div class="tp-section">
-      <h3>Border Radius</h3>
+      <h3${h3}>${t('Border Radius')}</h3>
       <div class="tp-radius-group">
         ${radii.map(r => `
           <button class="tp-radius-btn ${r === currentRadius ? 'active' : ''}" data-radius="${esc(r)}">
@@ -386,17 +411,17 @@ function paint() {
 
     <!-- Custom Theme Registration -->
     <div class="tp-section">
-      <h3>Register Custom Theme</h3>
+      <h3${h3}>${t('Register Custom Theme')}</h3>
       <div class="tp-custom-form">
         <div>
-          <label>Theme Name</label>
+          <label>${t('Theme Name')}</label>
           <input type="text" id="tp-custom-name" placeholder="e.g. ocean">
         </div>
         <div>
-          <label>Accent Color</label>
+          <label>${t('Accent Color')}</label>
           <input type="color" id="tp-custom-color" value="#0077b6">
         </div>
-        <button class="tp-add-btn" id="tp-register-btn">+ Add Theme</button>
+        <button class="tp-add-btn" id="tp-register-btn">${t('+ Add Theme')}</button>
       </div>
       ${customPresets.length > 0 ? `
         <div class="tp-custom-list">
@@ -411,7 +436,7 @@ function paint() {
       ` : ''}
     </div>
 
-    <!-- API Reference -->
+    ${shell ? '' : `<!-- API Reference -->
     <div class="tp-section">
       <h3>API Reference</h3>
       <div style="font-size:12px; color:var(--db-text-dim); font-family:monospace; background:var(--db-card-bg);
@@ -426,7 +451,7 @@ function paint() {
         <div>POST /api/theme/register  → {name, accent}</div>
         <div>DELETE /api/theme/{name}  → delete custom theme</div>
       </div>
-    </div>
+    </div>`}
   `;
 
   // Bind events

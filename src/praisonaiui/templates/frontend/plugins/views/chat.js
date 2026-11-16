@@ -11,6 +11,27 @@
 
 import { showToast } from '../toast.js';
 
+// App shell only (the legacy host is an ancestor): the page's chrome emoji
+// become icons and the context ring uses theme colours. The helpers are
+// imported only there, so the dashboard markup and this module's standalone
+// tests are untouched.
+const shellChatSwaps = (icon) => [
+  ['<h3>💬 Chat</h3>', '<h3>Chat</h3>'],
+  ['title="Memory inspector">🧠<', `title="Memory inspector" aria-label="Memory inspector">${icon('sparkles')}<`],
+  ['<h4>🧠 Agent Memories</h4>', '<h4>Agent memories</h4>'],
+  ['<div class="icon">🤖</div>', `<div class="icon">${icon('bot', 32)}</div>`],
+  ['title="Attach file (PDF, image)">📎<', `title="Attach file (PDF, image)" aria-label="Attach file">${icon('file')}<`],
+  ['aria-label="Send message">➤<', `aria-label="Send message">${icon('send')}<`],
+];
+const SHELL_CHAT_STYLE = '<style>.chat-ring-healthy .chat-ring-arc{stroke:var(--db-text-muted)}'
+  + '.chat-ring-warning .chat-ring-arc,.chat-ring-critical .chat-ring-arc{stroke:var(--db-warning)}'
+  + '.chat-ring-over .chat-ring-arc{stroke:var(--db-error)}</style>';
+async function shellChatFor(container) {
+  if (!(container && container.closest && container.closest('.aiui-legacy-host'))) return (html) => html;
+  const { icon } = await import('/plugins/views/_helpers.js');
+  return (html) => SHELL_CHAT_STYLE + shellChatSwaps(icon).reduce((h, [a, b]) => h.split(a).join(b), html);
+}
+
 // ── State ────────────────────────────────────────────────────────
 let ws = null;
 // Pending WebSocket reconnect (setTimeout id); cleanup() cancels it.
@@ -919,7 +940,8 @@ export async function render(container) {
     }, 500);
   }
 
-  container.innerHTML = `
+  const shellChat = await shellChatFor(container);
+  container.innerHTML = shellChat(`
     <div class="chat-root" id="chat-root">
       <div class="chat-sidebar-panel">
         <div class="chat-sidebar-head">
@@ -999,7 +1021,7 @@ export async function render(container) {
         </div>
       </div>
     </div>
-  `;
+  `);
 
   // Bind events
   const input = document.getElementById('chat-input');

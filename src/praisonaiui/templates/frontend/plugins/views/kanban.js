@@ -2,6 +2,7 @@
  * Kanban view — full interactive board backed by /api/kanban.
  */
 import { createInteractiveBoard } from '../board.js';
+import { inAppShell } from '/plugins/views/_helpers.js';
 
 export async function render(container) {
   container.setAttribute('data-page', 'kanban');
@@ -10,7 +11,7 @@ export async function render(container) {
 
   const header = document.createElement('div');
   header.className = 'aiui-board-page-header';
-  header.innerHTML = '<h2 style="margin:0 0 12px">Kanban</h2>'
+  header.innerHTML = inAppShell() ? '<h2 style="margin:0 0 12px">Kanban</h2>' : '<h2 style="margin:0 0 12px">Kanban</h2>'
     + '<div style="margin:0 0 12px;padding:8px 12px;border:1px solid rgba(99,102,241,.3);'
     + 'border-radius:8px;background:rgba(99,102,241,.06);font-size:13px">'
     + 'Try the new <a href="/work" style="color:var(--db-accent,#6366f1);font-weight:600">Work Hub</a>'

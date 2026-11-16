@@ -74,6 +74,13 @@
     const textarea = el('textarea', { spellcheck: 'false' });
     const issuesList = el('ul', { className: 'vs-issues' });
     editorCol.append(textarea, issuesList);
+    // App shell (mounted in the legacy host): a labelled editor.
+    const inShell = !!(container.closest && container.closest('.aiui-legacy-host'));
+    if (inShell) {
+      textarea.id = 'vs-scene-yaml';
+      textarea.placeholder = 'Pick or create a project to edit its scene.';
+      editorCol.insertBefore(el('label', { className: 'vs-section-label', for: 'vs-scene-yaml', text: 'Scene (YAML)' }), textarea);
+    }
 
     const previewCol = el('div', { className: 'vs-preview' });
     previewCol.append(el('p', { className: 'vs-section-label', text: 'Your video' }));
@@ -417,7 +424,15 @@
 
     await loadProjects();
     const health = await api('/api/video/health').catch(() => ({}));
-    if (health.engine && health.engine.status === 'unavailable') {
+    if (inShell && !(health.engine && health.engine.status !== 'unavailable')) {
+      // Engine down (or health unknown): its actions cannot work, so they are
+      // off, and the start command sits behind a short hint.
+      [btnLint, btnTest, btnRender, btnReset, btnPreview].forEach((b) => { if (b) b.disabled = true; });
+      pathLabel.textContent = '';
+      const hint = el('details', { className: 'vs-hint' });
+      hint.append(el('summary', { text: 'The video engine is not running' }), el('code', { text: 'praisonai-video serve' }));
+      pathLabel.append(hint);
+    } else if (health.engine && health.engine.status === 'unavailable') {
       pathLabel.textContent =
         'Video engine not running. Start with: praisonai-video serve';
     }

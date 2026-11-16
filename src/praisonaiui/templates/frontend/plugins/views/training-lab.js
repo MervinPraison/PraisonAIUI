@@ -5,6 +5,12 @@
  *      /api/training/sessions/{id}/apply
  */
 
+import { inAppShell, statusChip, emptyState as shellEmpty, shellButton } from '/plugins/views/_helpers.js';
+
+// Theme tokens in the app shell, the original literals in the dashboard.
+const SHELL_TONES = { '#22c55e': 'var(--db-success)', '#f59e0b': 'var(--db-warning)', '#ef4444': 'var(--db-error)', '#94a3b8': 'var(--db-text-muted)', '#6366f1': 'var(--db-accent)' };
+const C = (hex) => (inAppShell() && SHELL_TONES[hex]) || hex;
+
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -23,10 +29,10 @@ function relTime(iso) {
 }
 
 function scoreColor(score) {
-  if (score == null) return '#94a3b8';
-  if (score >= 9) return '#22c55e';
-  if (score >= 7) return '#f59e0b';
-  return '#ef4444';
+  if (score == null) return C('#94a3b8');
+  if (score >= 9) return C('#22c55e');
+  if (score >= 7) return C('#f59e0b');
+  return C('#ef4444');
 }
 
 function fmtScore(s) {
@@ -50,17 +56,17 @@ function scoreChart(iterations) {
     const cx = xFor(p.x).toFixed(1), cy = yFor(p.score).toFixed(1);
     const c = scoreColor(p.score);
     const star = p.best
-      ? `<text x="${cx}" y="${(yFor(p.score) - 12).toFixed(1)}" text-anchor="middle" font-size="14" fill="#6366f1">Best: #${p.x} (${fmtScore(p.score)})</text>`
+      ? `<text x="${cx}" y="${(yFor(p.score) - 12).toFixed(1)}" text-anchor="middle" font-size="14" fill="${C('#6366f1')}">Best: #${p.x} (${fmtScore(p.score)})</text>`
       : '';
     return `<circle cx="${cx}" cy="${cy}" r="${p.best ? 6 : 4}" fill="${c}"><title>Iteration ${p.x} — ${fmtScore(p.score)}/10</title></circle>${star}`;
   }).join('');
-  const yTicks = [0, 5, 10].map((t) => `<text x="${pad - 8}" y="${(yFor(t) + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="#94a3b8">${t}</text>`).join('');
+  const yTicks = [0, 5, 10].map((t) => `<text x="${pad - 8}" y="${(yFor(t) + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="${C('#94a3b8')}">${t}</text>`).join('');
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px">
     <line x1="${pad}" y1="${H - pad}" x2="${W - pad}" y2="${H - pad}" stroke="rgba(128,128,128,.3)"/>
     <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${H - pad}" stroke="rgba(128,128,128,.3)"/>
-    <line x1="${pad}" y1="${thresholdY}" x2="${W - pad}" y2="${thresholdY}" stroke="#6366f1" stroke-dasharray="4 4" opacity=".6"><title>Early-stop threshold 9.5</title></line>
+    <line x1="${pad}" y1="${thresholdY}" x2="${W - pad}" y2="${thresholdY}" stroke="${C('#6366f1')}" stroke-dasharray="4 4" opacity=".6"><title>Early-stop threshold 9.5</title></line>
     ${yTicks}
-    <path d="${line}" fill="none" stroke="#6366f1" stroke-width="2"/>
+    <path d="${line}" fill="none" stroke="${C('#6366f1')}" stroke-width="2"/>
     ${dots}
   </svg>`;
 }
@@ -68,8 +74,8 @@ function scoreChart(iterations) {
 function iterationCard(it, idx) {
   const num = it.iteration_num != null ? it.iteration_num : idx + 1;
   const suggestions = it.suggestions || [];
-  const bestTag = it.is_best ? '<span style="color:#6366f1;font-weight:600">* Best</span>' : '';
-  const border = it.is_best ? 'border-left:3px solid #6366f1;' : '';
+  const bestTag = it.is_best ? `<span style="color:${C('#6366f1')};font-weight:600">* Best</span>` : '';
+  const border = it.is_best ? `border-left:3px solid ${C('#6366f1')};` : '';
   return `<div class="db-card" style="padding:14px;border-radius:10px;margin-bottom:10px;${border}">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
       <span style="font-family:monospace">[#${num}]</span>
@@ -101,7 +107,15 @@ export async function render(container) {
 
   if (!selectedId && sessions.length) selectedId = sessions[0].session_id;
 
-  const statusStrip = `
+  const shell = inAppShell();
+  const statusStrip = shell ? `
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;margin-bottom:16px" class="db-card">
+      ${status.train_package_available
+        ? statusChip(`Trainer ${status.train_package_version || 'installed'}`, 'success')
+        : statusChip('Trainer not installed', 'neutral')}
+      <span style="font-size:.8rem;color:var(--db-text-dim)" title="${esc(status.storage_dir || '')}">${status.session_count || 0} session${status.session_count === 1 ? '' : 's'}</span>
+      <button class="db-btn tl-refresh" type="button" style="margin-left:auto;font-size:.8rem">Refresh</button>
+    </div>` : `
     <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;margin-bottom:16px" class="db-card">
       <span style="font-size:.8rem">${status.train_package_available
         ? `<span style="color:#22c55e">● praisonai-train ${esc(status.train_package_version || '')}</span>`
@@ -112,7 +126,12 @@ export async function render(container) {
       <button class="db-btn" style="margin-left:auto;font-size:.8rem" onclick="location.reload()">Refresh</button>
     </div>`;
 
-  const emptyState = `
+  const emptyState = shell ? shellEmpty({
+    iconName: 'activity',
+    title: 'No training sessions yet',
+    body: 'Train an agent from the command line and its sessions appear here.',
+    actionHtml: '<code style="padding:6px 10px;border-radius:8px;background:var(--db-muted);color:var(--db-text);font-size:12px">praisonai-train agents --input "…" --iterations 3</code>',
+  }) : `
     <div class="db-card" style="padding:32px;border-radius:12px;text-align:center">
       <div style="font-size:1.1rem;margin-bottom:10px">No training sessions yet</div>
       <div style="opacity:.7;font-size:.85rem;margin-bottom:12px">Run a training session from the CLI:</div>
@@ -122,6 +141,7 @@ export async function render(container) {
   if (!sessions.length) {
     container.innerHTML = `<div style="padding:24px;max-width:1200px;margin:0 auto">
       <h2 style="margin:0 0 16px;font-size:1.5rem">Training Lab</h2>${statusStrip}${emptyState}</div>`;
+    bindRefresh(container);
     return;
   }
 
@@ -130,7 +150,7 @@ export async function render(container) {
     const early = s.early_stopped
       ? `<span style="font-size:.7rem;padding:1px 6px;border-radius:6px;background:rgba(245,158,11,.2);color:#f59e0b">${s.completed_iterations}/${s.requested_iterations}</span>` : '';
     const incomplete = s.completed_iterations === 0 ? 'opacity:.5;' : '';
-    return `<div class="db-card training-session" data-session="${esc(s.session_id)}" style="padding:10px 12px;border-radius:8px;margin-bottom:8px;cursor:pointer;${incomplete}${active ? 'outline:2px solid #6366f1;' : ''}">
+    return `<div class="db-card training-session" data-session="${esc(s.session_id)}" style="padding:10px 12px;border-radius:8px;margin-bottom:8px;cursor:pointer;${incomplete}${active ? `outline:2px solid ${C('#6366f1')};` : ''}">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
         <span style="font-family:monospace;font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.session_id)}</span>
         <span style="margin-left:auto;font-weight:700;color:${scoreColor(s.avg_score)}">${fmtScore(s.avg_score)}</span>
@@ -155,6 +175,7 @@ export async function render(container) {
     </div>
     <style>@media (max-width:768px){.training-grid{grid-template-columns:1fr !important}}</style>`;
 
+  bindRefresh(container);
   const detailEl = container.querySelector('#training-detail');
 
   async function loadDetail(sessionId) {
@@ -248,7 +269,7 @@ export async function render(container) {
     el.addEventListener('click', () => {
       selectedId = el.getAttribute('data-session');
       container.querySelectorAll('.training-session').forEach((n) => { n.style.outline = 'none'; });
-      el.style.outline = '2px solid #6366f1';
+      el.style.outline = `2px solid ${C('#6366f1')}`;
       const u = new URL(window.location.href);
       u.searchParams.set('session', selectedId);
       history.replaceState(null, '', u.toString());
@@ -257,4 +278,10 @@ export async function render(container) {
   });
 
   if (selectedId) await loadDetail(selectedId);
+}
+
+// Shell only: Refresh re-renders the page instead of reloading the whole app.
+function bindRefresh(container) {
+  const btn = container.querySelector('.tl-refresh');
+  if (btn) btn.addEventListener('click', () => render(container));
 }
