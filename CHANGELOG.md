@@ -67,6 +67,17 @@
 
 - App shell: a React Cron page inside the layouts: schedules in words and as
   cron, next and last run, an enabled switch, Run now, and a schedule builder.
+- Docs sites: frontmatter `layout: home` on `docs/index.md` draws a hero
+  (name, headline, tagline, call-to-action buttons, a light and a dark image)
+  and a feature grid above the page, in the VitePress shape. See
+  [Content sources → Home page layout](docs/features/content-sources.md#home-page-layout).
+
+- Docs sites: `content.docs.nav.mode: manual` builds the sidebar from the YAML
+  tab groups, in the listed order, with nested groups and a frontmatter
+  `nav_title` for short sidebar titles; pages it does not list stay built and
+  searchable. The default (`auto`, one section per folder) is unchanged. See
+  [Navigation](docs/features/navigation.md#a-sidebar-you-list-mode-manual).
+
 - `style: app` (opt-in React shell); see
   [React app shell](docs/features/react-shell.md).
 - App shell: Knowledge is a React page inside a layout (ProList): a stat

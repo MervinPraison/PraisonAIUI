@@ -1,3 +1,7 @@
+---
+nav_title: Knowledge embeddings
+---
+
 # Knowledge Embedding Model Configuration
 
 Knowledge / RAG search uses vector **embeddings**. The default embedding model is

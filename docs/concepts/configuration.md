@@ -1,3 +1,7 @@
+---
+nav_title: YAML configuration
+---
+
 # YAML Configuration
 
 The `aiui.template.yaml` schema: what `aiui validate` checks and `aiui build`

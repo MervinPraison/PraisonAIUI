@@ -1,3 +1,7 @@
+---
+nav_title: Health endpoints
+---
+
 # Health Endpoints Guide
 
 ## Overview

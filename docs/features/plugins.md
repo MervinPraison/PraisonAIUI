@@ -7,7 +7,7 @@ to the React app shell (`style: app`, or
 it through the `praisonaiui.plugins` entry point.
 
 The smallest complete plugin lives in
-[`examples/plugins/aiui-hello-plugin`](../../examples/plugins/aiui-hello-plugin/).
+[`examples/plugins/aiui-hello-plugin`](https://github.com/MervinPraison/PraisonAIUI/blob/main/examples/plugins/aiui-hello-plugin/).
 
 ```bash
 pip install -e examples/plugins/aiui-hello-plugin
@@ -213,7 +213,7 @@ to the default.
 tokens per colour mode: `--seed-*` (`--seed-accent`, `--seed-tint`,
 `--seed-paper`, `--seed-ink` …), `--radius`, `--tint-mix` and `--accent-mix`.
 Every surface, text and accent colour is derived from the seeds (see
-[DESIGN.md](../../src/frontend/DESIGN.md)), so a preset never names a shadcn
+[DESIGN.md](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/frontend/DESIGN.md)), so a preset never names a shadcn
 variable. Values are plain CSS values; anything else (another property, `;`,
 braces, `url(...)`) is rejected. The viewer picks a preset in the command
 palette ("Sunrise theme", "Default theme"); the choice is kept per browser.

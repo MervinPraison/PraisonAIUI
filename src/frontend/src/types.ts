@@ -136,10 +136,40 @@ export interface UIConfig {
     navigation?: NavigationConfig
     navbar?: NavbarConfig
     search?: SearchConfig
+    /** Hero and features of the docs home page (frontmatter `layout: home`). */
+    docsHome?: DocsHomeConfig
     footer?: {
         socials?: Record<string, string>
         links?: { header: string; items: NavbarLinkConfig[] }[]
     }
+}
+
+/** Docs home page layout (frontmatter `layout: home` on docs/index.md; compiler/docs_home.py). */
+export interface DocsHomeAction {
+    text: string
+    link: string
+    theme?: 'brand' | 'alt'
+}
+
+export interface DocsHomeFeature {
+    title: string
+    details?: string
+    icon?: string
+    link?: string
+    linkText?: string
+}
+
+export interface DocsHomeConfig {
+    hero?: {
+        name?: string
+        text?: string
+        tagline?: string
+        image?: string
+        imageDark?: string
+        imageAlt?: string
+        actions?: DocsHomeAction[]
+    }
+    features?: DocsHomeFeature[]
 }
 
 export interface DocsNav {

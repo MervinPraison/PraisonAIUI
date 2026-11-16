@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
@@ -227,12 +227,28 @@ class LogoConfig(BaseModel):
 
 
 class NavGroupConfig(BaseModel):
-    """A navigation group within a tab."""
+    """A navigation group within a tab.
+
+    ``pages`` lists page slugs (``getting-started/quickstart``, ``index``); an
+    entry may also be a nested group (``{group: Layouts, pages: [...]}``). With
+    ``content.docs.nav.mode: manual`` the sidebar is built from these lists, in
+    this order; otherwise they only assign folders to tabs.
+    """
 
     group: str
     icon: Optional[str] = None
     prefix: Optional[str] = None
-    pages: list[str] = Field(default_factory=list)
+    pages: list[Union[str, "NavGroupConfig"]] = Field(default_factory=list)
+
+    def page_slugs(self) -> list[str]:
+        """Every page entry, nested groups flattened, in order."""
+        out: list[str] = []
+        for entry in self.pages:
+            out.extend([entry] if isinstance(entry, str) else entry.page_slugs())
+        return out
+
+
+NavGroupConfig.model_rebuild()
 
 
 class NavTabConfig(BaseModel):

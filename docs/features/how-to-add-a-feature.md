@@ -1,3 +1,7 @@
+---
+nav_title: Add a feature
+---
+
 # How to Add a Feature to PraisonAIUI
 
 This guide explains every way a user can extend PraisonAIUI — and which approach fits your use case.

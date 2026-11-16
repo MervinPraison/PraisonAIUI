@@ -1,3 +1,7 @@
+---
+nav_title: Python API
+---
+
 # Python SDK API
 
 Reference for `import praisonaiui as aiui`.

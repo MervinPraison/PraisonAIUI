@@ -1,3 +1,7 @@
+---
+nav_title: Architecture
+---
+
 # Architecture
 
 ## Overview
