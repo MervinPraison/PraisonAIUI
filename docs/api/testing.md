@@ -321,7 +321,7 @@ aiui test all --server http://127.0.0.1:8082
 |---------|---------------|
 | `aiui test endpoints` | API endpoint availability (/health, /api/features, /api/sessions, /api/chat) |
 | `aiui test chat` | Message sending, session history isolation, context recall |
-| `aiui test memory` | Cross-session persistent memory (store + recall facts) |
+| `aiui test memory` | Cross-session persistent memory: the fact reaches `/api/memory`, then recall in a new session (recall is skipped, not failed, when the fact is stored but the model does not use it) |
 | `aiui test sessions` | Session file persistence (survives server restarts) |
 | `aiui test all` | Runs all of the above in sequence |
 
