@@ -60,7 +60,7 @@ their schemas without `praisonaiui` importing the SDK:
 |---|---|---|
 | `canvas_write` | `name, content, kind="", language="", title=""` | "Saved 'name' to the canvas (table, version 2)…" or "Error: …" |
 | `canvas_update` | `name, content` | the same; keeps the kind and title |
-| `canvas_read` | `name` | `name:`, `kind:`, `title:`, `version:` (and "edited by the user"), `---`, then the content |
+| `canvas_read` | `name` | "Artifact 'name' (table, version 2, edited by the user), titled '…'. Its full content is everything after this line:" and the raw content |
 | `canvas_list` | | one artifact per line, newest first |
 
 ```python

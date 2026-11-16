@@ -44,7 +44,6 @@ from __future__ import annotations
 
 import collections
 import contextvars
-import json
 import re
 from typing import Any, Callable, Dict, List, Optional
 
@@ -231,8 +230,8 @@ def artifact_element(
     if content is not None and len(content.encode("utf-8")) > MAX_CONTENT:
         raise CanvasError(f"content is larger than {MAX_CONTENT} bytes")
     if content is not None and "\n" not in content and "\\n" in content and "|" in content:
-        # A model that copied canvas_read's JSON may send a table with its
-        # newlines still escaped: a one-line "table" can only mean that.
+        # A model may send a table with its newlines escaped (as in JSON):
+        # a one-line "table" can only mean that.
         unescaped = content.replace("\\n", "\n")
         if (kind in (None, "", "table", "markdown")) and _is_table(unescaped):
             content = unescaped
@@ -435,26 +434,22 @@ def canvas_read(name: str) -> str:
         name: The artifact's name (see canvas_list).
 
     Returns:
-        JSON with name, kind, title, version, edited_by_user and content (or url), or an error.
+        One line naming the artifact (kind, version, who wrote it), then its full content; or an error.
     """
     a = read(name)
     if a is None:
         names = ", ".join(x["key"] for x in artifacts()[:20]) or "none"
         return f"Error: no artifact named '{name}' in this chat's canvas. Artifacts: {names}."
-    out = {
-        "name": a["key"],
-        "kind": a.get("kind"),
-        "title": a.get("title"),
-        "version": a.get("version"),
-        "edited_by_user": bool(a.get("edited")),
-    }
+    # The content goes last and raw (JSON made models send it back with its
+    # newlines escaped); a sentence, not a separator, introduces it.
+    facts = [str(a.get("kind")), f"version {a.get('version')}"]
     if a.get("language"):
-        out["language"] = a["language"]
-    if a.get("content") is not None:
-        out["content"] = a["content"]
-    else:
-        out["url"] = a.get("url", "")
-    return json.dumps(out, ensure_ascii=False)
+        facts.append(a["language"])
+    facts.append("edited by the user" if a.get("edited") else "written by the agent")
+    head = f"Artifact '{a['key']}' ({', '.join(facts)}), titled '{a.get('title')}'."
+    if a.get("content") is None:
+        return f"{head} Its URL: {a.get('url', '')}"
+    return f"{head} Its full content is everything after this line:\n{a['content']}"
 
 
 def canvas_list() -> str:

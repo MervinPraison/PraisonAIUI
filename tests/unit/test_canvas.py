@@ -70,7 +70,7 @@ def test_element_shape_and_kind_inference():
     # A "markdown table" is a table; a document with a table in it stays a document.
     assert canvas.artifact_element("t", TABLE_V1, kind="markdown")["kind"] == "table"
     assert canvas.artifact_element("d", "# Doc\n\n" + TABLE_V1, kind="markdown")["kind"] == "markdown"
-    # A table whose newlines a model left escaped (copied from canvas_read's JSON).
+    # A table whose newlines a model left escaped (as in JSON).
     escaped = TABLE_V1.replace("\n", "\\n")
     assert canvas.artifact_element("t", escaped, kind="table")["content"] == TABLE_V1
     assert canvas.artifact_element("t", escaped)["kind"] == "table"
@@ -169,7 +169,7 @@ def test_read_sees_the_users_edit_and_the_agent_builds_on_it(store, channel):
     edited = TABLE_V1.replace("Bubble", "Bubble sort")
     store.put("s1", "sorting", {"kind": "table", "content": edited, "edited": True})
     assert canvas.read("sorting")["content"] == edited
-    assert json.loads(canvas.canvas_read("sorting"))["edited_by_user"] is True
+    assert "edited by the user" in canvas.canvas_read("sorting").splitlines()[0]
     # The agent's next version is numbered after the edit, like the canvas does.
     assert canvas.update("sorting", TABLE_V2)["version"] == 3
 
@@ -193,14 +193,10 @@ def test_tools_are_plain_functions_that_never_raise(store, channel):
     )
     assert canvas.canvas_write("t", "oops", kind="table").startswith("Error: table content")
     assert "version 2" in canvas.canvas_update("sorting", TABLE_V2)
-    assert json.loads(canvas.canvas_read("sorting")) == {
-        "name": "sorting",
-        "kind": "table",
-        "title": "Sorting",
-        "version": 2,
-        "edited_by_user": False,
-        "content": TABLE_V2,
-    }
+    assert canvas.canvas_read("sorting") == (
+        "Artifact 'sorting' (table, version 2, written by the agent), titled 'Sorting'. "
+        "Its full content is everything after this line:\n" + TABLE_V2
+    )
     assert canvas.canvas_list() == "- sorting (table, v2): Sorting"
 
 
