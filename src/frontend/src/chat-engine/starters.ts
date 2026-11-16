@@ -17,3 +17,8 @@ export const DEFAULT_STARTERS: AiuiStarter[] = [
 export function fillPrompts(starters: readonly AiuiStarter[] | undefined): ReadonlySet<string> {
   return new Set((starters ?? []).filter((s) => s.fill).map((s) => s.prompt))
 }
+
+/** The app's starter icons by prompt (the suggestions the thread renders carry no icon). */
+export function starterIcons(starters: readonly AiuiStarter[] | undefined): ReadonlyMap<string, string> {
+  return new Map((starters ?? []).filter((s) => s.icon).map((s) => [s.prompt, s.icon as string]))
+}

@@ -18,7 +18,7 @@ export function StarterMessages({ starters, onStarterClick }: StarterMessagesPro
                         className="flex items-center gap-3 p-4 rounded-lg border bg-card hover:bg-accent text-left transition-colors"
                     >
                         {starter.icon && (
-                            <span className="text-2xl">{starter.icon}</span>
+                            <span aria-hidden="true" className="w-5 shrink-0 text-center text-base leading-none">{starter.icon}</span>
                         )}
                         <span className="text-sm font-medium">{starter.label}</span>
                     </button>

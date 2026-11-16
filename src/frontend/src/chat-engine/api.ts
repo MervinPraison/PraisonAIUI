@@ -121,7 +121,7 @@ export async function fetchStarters(): Promise<AiuiStarter[]> {
       if (!prompt) return null
       const label = str(s.label) ?? str(s.title)
       const icon = str(s.icon)
-      return { title: [icon, label ?? prompt].filter(Boolean).join(' '), label: label && label !== prompt ? prompt : undefined, prompt }
+      return { title: label ?? prompt, label: label && label !== prompt ? prompt : undefined, prompt, ...(icon ? { icon } : {}) }
     })
     .filter((s): s is AiuiStarter => s !== null)
 }

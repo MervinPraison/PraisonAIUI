@@ -652,6 +652,8 @@ export interface ThreadProps {
   sessionId?: string
   /** Suggestion prompts that go into the composer to be finished, instead of being sent. */
   fillPrompts?: ReadonlySet<string>
+  /** The app's icon per starter prompt, drawn small before the title. */
+  starterIcons?: ReadonlyMap<string, string>
   /** A layout's presentation of the thread (ChatPage passes `meta.chat` and the host). */
   presentation?: ThreadPresentation
 }
@@ -700,7 +702,7 @@ function focusComposerEnd(from: HTMLElement) {
   })
 }
 
-export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loading, notice, sessionId, fillPrompts, presentation }) => {
+export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loading, notice, sessionId, fillPrompts, starterIcons, presentation }) => {
   const parts = usePartComponents()
   const chat = presentation?.chat
   const host = presentation?.host
@@ -716,6 +718,7 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
       <ThreadPrimitive.Suggestions>
         {({ suggestion }) => {
           const fill = fillPrompts?.has(suggestion.prompt) ?? false
+          const icon = starterIcons?.get(suggestion.prompt)
           return (
             <SuggestionPrimitive.Trigger send={!fill} asChild>
               <button
@@ -723,7 +726,14 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
                 onClick={fill ? (e) => focusComposerEnd(e.currentTarget) : undefined}
                 className="min-w-0 rounded-xl border border-border px-4 py-3 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <div className="truncate font-medium text-foreground">{suggestion.title ?? suggestion.prompt}</div>
+                <div className="flex min-w-0 items-center gap-2 font-medium text-foreground">
+                  {icon && (
+                    <span aria-hidden="true" className="w-4 shrink-0 text-center leading-none">
+                      {icon}
+                    </span>
+                  )}
+                  <span className="truncate">{suggestion.title ?? suggestion.prompt}</span>
+                </div>
                 {suggestion.label && <div className="mt-0.5 truncate text-muted-foreground">{suggestion.label}</div>}
               </button>
             </SuggestionPrimitive.Trigger>

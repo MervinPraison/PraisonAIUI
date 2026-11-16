@@ -127,7 +127,8 @@ A layout the server does not offer is never chosen, whatever is stored.
 
 **The viewer** switches with the command palette ("Switch layout: …", group
 "Layout"; one command per offered layout, named after its manifest title, and
-Classic) or with **Settings → Appearance** (a select of the same list, shown
+Classic; the group is listed after the pages, with Preferences and Theme,
+until a query ranks it higher) or with **Settings → Appearance** (a select of the same list, shown
 only when the server allows a user choice). The choice is saved in this
 browser and applies at once, without a reload: the frame and the page
 remount, and chat state is kept. When the server does not allow a choice,

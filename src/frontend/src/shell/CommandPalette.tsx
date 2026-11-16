@@ -32,6 +32,15 @@ import { setThemePreset, useThemePresetChoice } from './themePresets'
 
 const DEFAULT_COMMAND_GROUP = 'Commands'
 
+/**
+ * Registered command groups listed after the pages, with the palette's own
+ * Preferences and Theme sections (commands in those two groups join them).
+ * How the app looks is not what most opens of the palette are for: six
+ * "Switch layout" rows used to fill the first screen ahead of every page.
+ * A query still ranks every section by its best match (rankSections).
+ */
+const TRAILING_COMMAND_GROUPS: ReadonlySet<string> = new Set(['Preferences', 'Layout', 'Theme'])
+
 /** Registered commands by palette heading, in registration order. */
 function groupCommands(commands: readonly ShellCommand[]): { name: string; commands: ShellCommand[] }[] {
   const groups = new Map<string, ShellCommand[]>()
@@ -117,6 +126,50 @@ export default function CommandPalette({
     onOpenChange(false)
     action()
   }
+  const commandItem = (c: ShellCommand) => ({
+    key: c.id,
+    value: `${c.title} ${c.id}`,
+    keywords: c.keywords ? [...c.keywords] : undefined,
+    node: (
+      <CommandItem
+        key={c.id}
+        value={`${c.title} ${c.id}`}
+        keywords={c.keywords ? [...c.keywords] : undefined}
+        data-command-id={c.id}
+        onSelect={() => run(() => runCommand(c))}
+      >
+        {c.icon ? <c.icon /> : <span aria-hidden="true" className="size-4 shrink-0" />}
+        <span className="truncate">{c.title}</span>
+      </CommandItem>
+    ),
+  })
+  const commandSection = (group: { name: string; commands: ShellCommand[] }) => ({
+    key: `commands:${group.name}`,
+    heading: group.name,
+    items: group.commands.map(commandItem),
+  })
+  const registeredByGroup = new Map(commandGroups.map((g) => [g.name, g.commands]))
+  // Registered groups that follow the pages, except the two merged into the palette's own sections.
+  const trailingGroups = commandGroups.filter((g) => TRAILING_COMMAND_GROUPS.has(g.name) && g.name !== 'Preferences' && g.name !== 'Theme')
+  const settingsKeywords = ['settings', 'preferences', 'options', ...settingsSections.map((x) => x.title)]
+  const preferenceItems = [
+    ...(registeredByGroup.get('Preferences') ?? []).map(commandItem),
+    ...(settingsSections.length
+      ? [
+          {
+            key: 'plugin-settings',
+            value: 'Plugin settings',
+            keywords: settingsKeywords,
+            node: (
+              <CommandItem key="plugin-settings" value="Plugin settings" keywords={settingsKeywords} onSelect={() => run(() => openSettingsDialog())}>
+                <SlidersHorizontal />
+                <span>Plugin settings</span>
+              </CommandItem>
+            ),
+          },
+        ]
+      : []),
+  ]
   const goTo = (pageId: string) => {
     if (pageId !== activeId) focus.toMain()
     run(() => navigate(pageId))
@@ -145,27 +198,7 @@ export default function CommandPalette({
         <CommandEmpty>No matching pages or commands.</CommandEmpty>
         {rankSections(
           [
-            ...commandGroups.map((group) => ({
-              key: `commands:${group.name}`,
-              heading: group.name,
-              items: group.commands.map((c) => ({
-                key: c.id,
-                value: `${c.title} ${c.id}`,
-                keywords: c.keywords ? [...c.keywords] : undefined,
-                node: (
-                  <CommandItem
-                    key={c.id}
-                    value={`${c.title} ${c.id}`}
-                    keywords={c.keywords ? [...c.keywords] : undefined}
-                    data-command-id={c.id}
-                    onSelect={() => run(() => runCommand(c))}
-                  >
-                    {c.icon ? <c.icon /> : <span aria-hidden="true" className="size-4 shrink-0" />}
-                    <span className="truncate">{c.title}</span>
-                  </CommandItem>
-                ),
-              })),
-            })),
+            ...commandGroups.filter((g) => !TRAILING_COMMAND_GROUPS.has(g.name)).map(commandSection),
             ...groups.map((group) => ({
               key: group.name,
               heading: group.name,
@@ -189,36 +222,13 @@ export default function CommandPalette({
                 }
               }),
             })),
-            ...(settingsSections.length
-              ? [
-                  {
-                    key: 'preferences',
-                    heading: 'Preferences',
-                    items: [
-                      {
-                        key: 'plugin-settings',
-                        value: 'Plugin settings',
-                        keywords: ['settings', 'preferences', 'options', ...settingsSections.map((x) => x.title)],
-                        node: (
-                          <CommandItem
-                            key="plugin-settings"
-                            value="Plugin settings"
-                            keywords={['settings', 'preferences', 'options', ...settingsSections.map((x) => x.title)]}
-                            onSelect={() => run(() => openSettingsDialog())}
-                          >
-                            <SlidersHorizontal />
-                            <span>Plugin settings</span>
-                          </CommandItem>
-                        ),
-                      },
-                    ],
-                  },
-                ]
-              : []),
+            ...(preferenceItems.length ? [{ key: 'preferences', heading: 'Preferences', items: preferenceItems }] : []),
+            ...trailingGroups.map(commandSection),
             {
               key: 'theme',
               heading: 'Theme',
               items: [
+                ...(registeredByGroup.get('Theme') ?? []).map(commandItem),
                 ...presetItems.map((p) => ({
                   key: `preset:${p.id ?? ''}`,
                   value: `${p.label} theme`,

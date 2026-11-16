@@ -13,12 +13,12 @@
  */
 import { useEffect, useMemo, useState, useSyncExternalStore, type JSX } from 'react'
 import { ArrowLeft, Layers, MessageSquare, RefreshCw, Search } from 'lucide-react'
-import type { ShellPage } from '@/sdk/manifest'
 import type { SessionsFeed, SessionsState } from '@/sdk/layoutTypes'
 import { useLayoutData } from '@/sdk/layouts'
 import { navigate } from '@/sdk/services'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import { artifactsServerEnabled, fetchArtifactIndex } from './api'
 import type { DerivedArtifact } from './derive'
 import { artifactsStore } from './feed'
@@ -144,7 +144,7 @@ function Detail({ target, title, onBack }: { target: Target; title?: string; onB
   )
 }
 
-export default function ArtifactsPage({ page }: { page?: ShellPage }): JSX.Element {
+export default function ArtifactsPage(): JSX.Element {
   const [target, setTarget] = useState<Target | null>(() => (typeof window === 'undefined' ? null : parseShareQuery(window.location.search)))
   const [q, setQ] = useState('')
   const titles = useSessionTitles()
@@ -170,7 +170,7 @@ export default function ArtifactsPage({ page }: { page?: ShellPage }): JSX.Eleme
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-6 sm:px-6" data-artifacts-page="">
+    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-4 px-4 py-5 sm:px-6 sm:py-6" data-artifacts-page="">
       {target ? (
         <Detail
           key={`${target.sessionId}\n${target.key}`}
@@ -184,24 +184,28 @@ export default function ArtifactsPage({ page }: { page?: ShellPage }): JSX.Eleme
         />
       ) : (
         <>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-0 flex-1">
-              <h1 className="m-0 text-xl font-semibold tracking-tight">{page?.title ?? 'Artifacts'}</h1>
-              <p className="m-0 text-sm text-tier-3">
-                {index.server ? 'Tables, code and files from every chat.' : 'Tables, code and files from the chats opened in this tab.'}
-              </p>
+          {/* The frame's header already names the page: one line of context, then search and refresh on one row. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <p className="m-0 min-w-0 flex-1 basis-60 text-sm text-tier-3">
+              {index.server ? 'Tables, code and files from every chat.' : 'Tables, code and files from the chats opened in this tab.'}
+            </p>
+            <div className="flex w-full items-center gap-1 sm:w-auto">
+              <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
+                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-tier-3" aria-hidden />
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search artifacts" aria-label="Search artifacts" className="pl-8" />
+              </div>
+              <Button variant="ghost" size="icon" aria-label="Refresh" title="Refresh" onClick={index.refresh}>
+                <RefreshCw />
+              </Button>
             </div>
-            <div className="relative w-full sm:w-64">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-tier-3" aria-hidden />
-              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search artifacts" aria-label="Search artifacts" className="pl-8" />
-            </div>
-            <Button variant="ghost" size="icon" aria-label="Refresh" onClick={index.refresh}>
-              <RefreshCw />
-            </Button>
           </div>
           {index.error && <p className="m-0 text-sm text-destructive">{index.error}</p>}
           {index.loading ? (
-            <p className="m-0 text-sm text-tier-3">Loading…</p>
+            <div role="status" aria-label="Loading artifacts" className="flex flex-col gap-2">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-11 w-full rounded-xl" />
+              ))}
+            </div>
           ) : groups.length === 0 ? (
             <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-6 py-12 text-center">
               <Layers className="size-6 text-tier-3" aria-hidden />

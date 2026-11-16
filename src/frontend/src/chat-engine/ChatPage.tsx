@@ -38,7 +38,7 @@ import { chatTransport, sessionsStore } from './sessionsStore'
 import { threadStore } from './store'
 import { Thread, type PresentationHost, type ThreadPresentation } from './Thread'
 import type { AiuiTransport } from './transports'
-import { DEFAULT_STARTERS, fillPrompts } from './starters'
+import { DEFAULT_STARTERS, fillPrompts, starterIcons } from './starters'
 import { connectionLabel } from './util'
 import { useAiuiRuntime, type AiuiStarter } from './useAiuiRuntime'
 
@@ -309,6 +309,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   }, [setComposerText, select])
 
   const fill = useMemo(() => fillPrompts(starters), [starters])
+  const icons = useMemo(() => starterIcons(starters), [starters])
 
   const current = sessionId ? sessions.sessions.find((s) => s.id === sessionId) : undefined
   const heading = current?.title ?? (sessionId ? 'Chat' : 'New chat')
@@ -391,6 +392,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
               subtitle={agent ? `Chatting with ${agent}` : agents.length ? 'Default agent' : undefined}
               notice={notice ? { text: notice, onDismiss: clearNotice } : null}
               fillPrompts={fill}
+              starterIcons={icons}
               presentation={presentation}
             />
           </AssistantRuntimeProvider>

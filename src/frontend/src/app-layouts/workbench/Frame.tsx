@@ -273,7 +273,8 @@ export default function WorkbenchFrame(props: LayoutProps) {
           {onChat && <ChatMeta phone={false} />}
           <span className="flex-1" />
           <chrome.Slot name="header:actions" className="flex items-center gap-1" />
-          <ShareButton />
+          {/* Share copies the chat's link; other pages have nothing to share (chat-canvas does the same). */}
+          {onChat && <ShareButton />}
           <Button variant="ghost" size="icon-sm" aria-label="More: search pages and commands" onClick={() => chrome.openPalette()}>
             {/* Drawn here: lucide's Ellipsis is shared with the chat route's lazy chunks. */}
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
