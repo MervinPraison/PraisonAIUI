@@ -29,6 +29,7 @@ dependencies = [
     "uvicorn[standard]>=0.29",
     "starlette>=0.37",
     "pypdf>=4.0",
+    "croniter>=2.0",
 ]
 
 [project.optional-dependencies]

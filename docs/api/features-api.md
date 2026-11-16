@@ -178,7 +178,7 @@ Toggle job enabled/disabled.
 Trigger job immediately.
 
 ### POST /api/schedules/{id}/stop
-Stop a running scheduled job. Attempts to cancel via `AgentScheduler` if available.
+Stop a running scheduled job: it is disabled (kept on disk) and the reply carries `stopped_at`. Attempts to cancel via `AgentScheduler` if available.
 
 ```json
 // Response

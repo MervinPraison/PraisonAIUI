@@ -84,6 +84,10 @@
 
 ### Fixed
 
+- Schedules: daily, weekly and custom cron schedules never ran unless
+  `croniter` happened to be installed. It is now a core dependency (MIT), and
+  `GET /api/schedules/{id}/stats` gives a cron job's `next_run_at`.
+  `POST /api/schedules/{id}/stop` no longer fails with a `KeyError`.
 - The `chat` style (the default of `aiui run`) and the other React styles
   follow the OS colour scheme, live, when neither the app (`set_theme`, YAML
   `site.theme`) nor the viewer chose a mode. They used to read only the
