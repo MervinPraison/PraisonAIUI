@@ -1,43 +1,111 @@
-# PraisonAI 🦞
+# PraisonAIUI 🦅
 
-[![Python Tests](https://github.com/MervinPraison/PraisonAIUI/actions/workflows/ci.yml/badge.svg)](https://github.com/MervinPraison/PraisonAIUI/actions)
-[![PyPI version](https://badge.fury.io/py/aiui.svg)](https://badge.fury.io/py/aiui)
+[![CI](https://github.com/MervinPraison/PraisonAIUI/actions/workflows/ci.yml/badge.svg)](https://github.com/MervinPraison/PraisonAIUI/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/aiui.svg)](https://pypi.org/project/aiui/)
+[![Python](https://img.shields.io/pypi/pyversions/aiui.svg)](https://pypi.org/project/aiui/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](#license)
+[![Docs](https://img.shields.io/badge/docs-ui.praison.ai-4f46e5.svg)](https://ui.praison.ai)
 
-> **AI Dashboard & Multi-Agent Platform** — deploy agents with one Python file
+**A web UI for your AI agents from one Python file:** streaming chat, selectable
+layouts, an artifacts canvas, admin pages, plugins and documentation sites.
 
-PraisonAIUI gives you a full-featured AI dashboard with multi-agent chat, memory, skills, sessions, and 19 admin pages — all from a single `app.py`. It also supports YAML-driven chat bots and static documentation sites.
+![PraisonAIUI app shell: the Chat layout with a streamed answer](docs/images/aiui-app-chat.webp)
 
-## Quick Start
-
-### 1. Install
+## Quick start
 
 ```bash
 pip install aiui
 ```
 
-### 2. Create `app.py`
+Create `app.py`:
 
 ```python
 import praisonaiui as aiui
 
-aiui.set_style("dashboard")
-
 @aiui.reply
-async def on_reply(message):
-    return f"You said: {message.content}"
+async def on_message(message: str):
+    await aiui.say(f"You said: {message}")
 ```
 
-### 3. Run
+Run it:
 
 ```bash
 aiui run app.py
 ```
 
-Open **http://localhost:8000** — your AI dashboard is live.
+Open <http://localhost:8000>. A chat app opens in the React app shell (`style: app`)
+in the **Chat** layout. For a real model, see
+[`examples/python/03-chat-with-ai`](examples/python/03-chat-with-ai/app.py)
+(OpenAI, token streaming with `aiui.stream_token()`).
 
-## YAML Chat Mode
+## What you get
 
-No Python needed — define your agent in YAML:
+- **React app shell**: one sidebar for every page, a command palette (⌘K / Ctrl+K),
+  light and dark themes, and phone layouts.
+- **Streaming chat** over WebSocket (Server-Sent Events fallback): tool calls,
+  reasoning, inline approvals and questions, attachments, Stop, history and
+  starters.
+- **Six layouts** for the app shell, from a plain chat to a mission-control board.
+  Each is its own lazy chunk, so only the one on screen is downloaded.
+- **Artifacts canvas**: in the Chat and Canvas layout, code, tables and documents the
+  agent produces open in a side canvas, with an artifacts index page.
+- **React pages** for Overview, Sessions, Agents, Logs and Config inside the layouts;
+  every other built-in page (memory, skills, cron, knowledge, usage, approvals and more)
+  runs inside the shell as a hosted dashboard view. React Cron and Knowledge pages
+  are **(planned)**.
+- **Your own pages** from Python (`@aiui.page`, `aiui.register_page`) or React
+  (`registerPage` from `@aiui/sdk`, shipped as a plugin).
+- **YAML chat**: a complete agent chat from a YAML file, no Python.
+- **Documentation sites**: `aiui build` turns Markdown into a static site.
+- **Secure defaults**: same-origin only, a Host check against DNS rebinding,
+  single-use WebSocket tickets, and auth that covers every route and socket when
+  you turn it on.
+
+## Layouts
+
+Layouts apply to the app shell (`style: app`). Pick one with
+`aiui.set_layout("command")`, YAML `layout: command`, `AIUI_LAYOUT=command`, or
+preview one with `?layout=<id>` in the URL.
+
+| Id | Title | For |
+|---|---|---|
+| `chat` | Chat | The Chat and Canvas frame without the canvas. What `aiui run` opens for a chat app |
+| `chat-canvas` | Chat and Canvas | Chat beside a canvas of the artifacts the agent makes. The app shell default for `create_app()` and PraisonAI |
+| `workbench` | Quiet Workbench | A quiet sidebar with your chats, and the page beside it |
+| `command` | Command Deck | Keyboard first: a command bar, session tabs and a run inspector |
+| `guided` | Guided Studio | Plain language and large buttons; every step explained |
+| `mission` | Mission Control | Agents, runs and approvals at a glance |
+
+`?layout=classic` shows the shell's own frame (sidebar and header), which is
+always available. See [Layouts](docs/features/layouts.md).
+
+## UI styles
+
+The style decides which frontend serves the app. Set it with `--style`,
+`aiui.set_style()` or YAML `style:`; otherwise `aiui run` detects it from your code.
+
+| Style | What it renders | When it is used |
+|---|---|---|
+| `app` | The React app shell with selectable layouts | `aiui run` default for a chat app (`@aiui.reply`) |
+| `chat` | The classic React chat (fullscreen, sidebar or floating) | `--style chat` |
+| `dashboard` | The vanilla-JS admin dashboard with built-in and custom pages | `create_app()` default; detected when the app registers `@aiui.page` |
+| `docs` | A documentation site (sidebar, table of contents, search) | `aiui build` and `--style docs` |
+| `agents` | A tabbed multi-agent view | Detected for `@aiui.profiles` with registered agents |
+| `playground` | Side-by-side input and output panels for prompt testing | `--style playground` |
+| `custom` | A site built from your YAML templates and components | `--style custom` |
+
+```bash
+aiui run app.py                  # app shell, Chat layout
+aiui run app.py --style chat     # classic chat
+aiui run app.py --style dashboard
+```
+
+See [UI styles](docs/features/styles.md) and [React app shell](docs/features/react-shell.md).
+
+## YAML chat
+
+Define an agent in YAML and run it without writing Python (needs
+`pip install praisonai` and a model key such as `OPENAI_API_KEY`):
 
 ```yaml
 # chat.yaml
@@ -46,16 +114,11 @@ instructions: You are a helpful assistant.
 model: gpt-4o-mini
 welcome: "Hi! How can I help?"
 starters:
-  - label: "What can you do?"
-    message: "Tell me about your capabilities"
-profiles:
-  - name: Expert
-    description: Expert mode
-    icon: 🎓
+  - label: What can you do?
+    message: Tell me about your capabilities
 tools:
   - web_search
   - calculate
-features: true
 datastore: json
 ```
 
@@ -63,328 +126,86 @@ datastore: json
 aiui run chat.yaml
 ```
 
-## Documentation Mode
+More in [`examples/yaml/`](examples/yaml/).
 
-Generate a static documentation site from Markdown:
-
-```bash
-aiui init
-aiui build
-aiui serve
-```
-
-## UI Styles
-
-Seven distinct UI styles, selectable via `--style` or `aiui.set_style()`:
-
-| Style | Flag | Description | Best For |
-|-------|------|-------------|----------|
-| **Dashboard** | `--style dashboard` | Multi-page admin panel with sidebar | Agent management, admin dashboards |
-| **Chat** | `--style chat` | The classic fullscreen/sidebar/floating chat | Conversational AI, customer support |
-| **Agents** | `--style agents` | Tabbed multi-agent playground | Agent experimentation |
-| **Playground** | `--style playground` | Input/output side-by-side panels | Prompt testing, comparison |
-| **Docs** | `--style docs` | Three-column documentation layout | Documentation sites, knowledge bases |
-| **Custom** | `--style custom` | User-defined layout | Full control |
-| **App** | `--style app` | The React app shell: one sidebar for every page, React chat, plugin pages. The default of `aiui run` for a chat app, in the `chat` layout (no canvas) | Every new app |
+## Documentation sites
 
 ```bash
-aiui run app.py --style dashboard
-aiui run app.py --style chat
-aiui run chat.yaml --style agents
+aiui init --template docs                      # writes aiui.template.yaml
+mkdir docs && echo "# Hello" > docs/index.md   # your Markdown pages
+aiui build                                     # static site in ./aiui
+aiui serve                                     # build and serve on http://localhost:8000
 ```
 
-## Python SDK API
+Docs sites use the PraisonAI Pro design: the app shell's colours and type
+(Geist and Geist Mono, self-hosted), search (⌘K / Ctrl+K), previous and next
+links, footer columns and a phone drawer. See
+[Getting started](docs/getting-started/quickstart.md) and the
+[CLI reference](docs/getting-started/cli.md).
 
-Write `app.py` using `import praisonaiui as aiui`:
+## Extending
 
-### Configuration
+| I want to… | Use |
+|---|---|
+| Add a page from Python | `@aiui.page("metrics", title="Metrics")` or `aiui.register_page(...)` |
+| Add a React page, block, tool renderer, settings section or layout | A UI plugin: a Python package with a `praisonaiui.plugins` entry point and its own built JS against `@aiui/sdk` |
+| Choose which pages show | `aiui.set_pages([...])` or YAML `extensions:` / `pages:` |
+| Brand it | `aiui.set_branding(title="Acme", logo="/static/logo.svg")`, `aiui.set_theme(...)`, `aiui.set_brand_color(...)` |
+| Inject JS or CSS | `aiui.set_custom_js(path)`, `aiui.set_custom_css(css)` |
 
-| Function | Purpose | Example |
-|----------|---------|---------|
-| `aiui.set_style(style)` | Set UI style | `aiui.set_style("dashboard")` |
-| `aiui.set_pages(ids)` | Whitelist sidebar pages | `aiui.set_pages(["chat", "agents", "memory"])` |
-| `aiui.set_branding(title, logo)` | Configure branding | `aiui.set_branding("MyApp", "🚀")` |
-| `aiui.set_datastore(store)` | Set persistence backend | `aiui.set_datastore(aiui.JSONFileDataStore())` |
-| `aiui.set_provider(provider)` | Set AI provider | `aiui.set_provider(aiui.get_provider())` |
-| `aiui.register_agent(config)` | Register an agent | `aiui.register_agent({"agent_id": "bot", ...})` |
-| `aiui.remove_page(id)` | Remove a page | `aiui.remove_page("debug")` |
+Start from [`examples/plugins/aiui-hello-plugin`](examples/plugins/aiui-hello-plugin/)
+and [UI plugins](docs/features/plugins.md); `aiui plugins list` and
+`aiui plugins doctor` show what is installed and why a plugin failed to load.
 
-### Callback Decorators
+## Configuration
 
-| Decorator | Purpose |
-|-----------|---------|
-| `@aiui.reply` | Handle chat messages |
-| `@aiui.welcome` | Welcome message on connect |
-| `@aiui.goodbye` | Cleanup on disconnect |
-| `@aiui.starters` | Suggest conversation starters |
-| `@aiui.profiles` | Define chat profiles |
-| `@aiui.page(slug, ...)` | Register a custom dashboard page |
-| `@aiui.on(event)` | Listen for server events |
-| `@aiui.login` | Handle authentication |
-| `@aiui.settings` | User settings handler |
-| `@aiui.resume` | Resume interrupted sessions |
+| Setting | Where |
+|---|---|
+| Style, layout, branding, theme, pages | `app.py` (`aiui.set_*`) or `config.yaml`. See [Configuration](docs/concepts/configuration.md) |
+| Auth | `create_app(require_auth=True)`, YAML `auth.requireAuth`, or `AUTH_ENFORCE=true`. See [Deployment](docs/features/deployment.md) |
+| Another site calling the server | `AIUI_ALLOWED_ORIGINS=https://app.example.com` |
+| A reverse proxy forwarding a public host name to a local server | `AIUI_ALLOWED_HOSTS=aiui.example.com` |
+| Data directory | `AIUI_DATA_DIR` (default `~/.praisonaiui`) |
+| Layout for one run | `AIUI_LAYOUT=<id>` |
+| Persistence | `aiui run app.py --datastore json` (also `memory`, `sdk`, `json:/path`) |
 
-### Message Functions
+The CLI has management commands for a running server (`sessions`, `memory`,
+`skills`, `schedule`, `approval`, `config`, `eval`, `traces`, `pages`, `plugins`,
+`doctor`, `health`). Run `aiui --help` for the list.
 
-| Function | Purpose |
-|----------|---------|
-| `await aiui.say(text)` | Send a message |
-| `await aiui.stream(text)` | Stream a response |
-| `await aiui.stream_token(token)` | Stream token-by-token |
-| `await aiui.ask(question)` | Ask user a question |
-| `await aiui.image(url)` | Send an image |
-| `await aiui.audio(url)` | Send audio |
-| `await aiui.action_buttons(buttons)` | Show action buttons |
+## Documentation
 
-### UI Components
+Full documentation: **<https://ui.praison.ai>**
 
-| Function | Purpose |
-|----------|---------|
-| `aiui.layout(children)` | Page layout container |
-| `aiui.card(title, content)` | Card component |
-| `aiui.chart(data, type)` | Chart (bar, line, pie) |
-| `aiui.table(headers, rows)` | Data table |
-| `aiui.columns(cols)` | Multi-column layout |
-| `aiui.text(content)` | Text block |
-
-## Full `app.py` Example
-
-```python
-"""Dashboard with three agents and a custom page."""
-import os
-import praisonaiui as aiui
-
-# ── Style & pages ─────────────────────────────────────────────
-aiui.set_style("dashboard")
-aiui.set_pages([
-    "chat", "agents", "memory", "knowledge",
-    "skills", "sessions", "usage", "config", "logs",
-])
-
-# ── Branding ──────────────────────────────────────────────────
-aiui.set_branding(title="PraisonAI", logo="🦞")
-
-# ── Agents ────────────────────────────────────────────────────
-aiui.register_agent({
-    "agent_id": "researcher",
-    "name": "Researcher",
-    "description": "Finds and summarizes information",
-    "instructions": "You are a research assistant.",
-    "model": os.getenv("PRAISONAI_MODEL", "gpt-4o-mini"),
-    "icon": "🔬",
-})
-
-aiui.register_agent({
-    "agent_id": "coder",
-    "name": "Coder",
-    "description": "Writes clean, well-commented code",
-    "instructions": "You are a coding assistant.",
-    "model": os.getenv("PRAISONAI_MODEL", "gpt-4o-mini"),
-    "icon": "💻",
-})
-
-# ── Custom page ───────────────────────────────────────────────
-@aiui.page("explorer", title="Explorer", icon="🔬", group="Control", order=55)
-async def explorer_page():
-    return aiui.layout([aiui.text("Custom page content here.")])
-```
-
-```bash
-aiui run app.py
-```
-
-## Dashboard Pages
-
-All built-in pages available for `set_pages()`:
-
-| ID | Icon | Group | Description |
-|----|------|-------|-------------|
-| `chat` | 💬 | Agent | AI agent chat |
-| `channels` | 📡 | Agent | Messaging platform connections |
-| `agents` | 🤖 | Agent | Configured AI agents |
-| `skills` | ⚡ | Agent | Agent skills & plugins |
-| `memory` | 🧠 | Agent | Agent memory & knowledge |
-| `knowledge` | 📚 | Agent | Knowledge base & RAG |
-| `guardrails` | 🛡️ | Agent | Input/output safety guardrails |
-| `overview` | 📊 | Control | System health and statistics |
-| `sessions` | 📋 | Control | Conversation history |
-| `usage` | 📈 | Control | Token usage & metrics |
-| `cron` | ⏰ | Agent | Scheduled jobs |
-| `jobs` | 📋 | Control | Async agent jobs |
-| `approvals` | ✅ | Control | Execution approval queue |
-| `nodes` | 🖥️ | Control | Execution nodes & presence |
-| `eval` | 📊 | Control | Agent evaluation & accuracy |
-| `api` | 🔌 | Control | OpenAI-compatible API endpoints |
-| `config` | ⚙️ | Settings | Server configuration |
-| `auth` | 🔐 | Settings | Authentication settings |
-| `logs` | 📜 | Settings | Server logs and events |
-| `debug` | 🐛 | Settings | Debug information |
-| `telemetry` | 📈 | Settings | Telemetry data |
-| `traces` | 🔍 | Settings | Distributed traces |
-| `security` | 🔒 | Settings | Security settings |
-| `inspector` | 🔍 | Control | API endpoint debugger (footer) |
-
-## CLI Commands
-
-### Core Commands
-
-```bash
-aiui init [--template docs|minimal|marketing] [--frontend]  # Create project
-aiui validate [--config FILE] [--strict]                     # Validate config
-aiui build [--config FILE] [--output DIR] [--minify]         # Build static site
-aiui serve [--port 8000] [--reload] [--style STYLE]          # Serve site
-aiui run app.py [--port 8000] [--reload] [--style STYLE]     # Run AI server
-aiui run chat.yaml [--port 8000] [--style chat]              # Run YAML chat
-aiui dev -e examples [--port 9000]                           # Dev dashboard
-aiui doctor [--json]                                         # Diagnostics
-aiui test chat|memory|sessions|endpoints|all                 # Run tests
-```
-
-### Management Commands
-
-```bash
-# Sessions
-aiui sessions list|create|get|delete|messages
-
-# Memory
-aiui memory list|add|search|clear|status|context
-
-# Skills
-aiui skills list|status|discover
-
-# Agents & Provider
-aiui provider status|health|agents
-
-# Config
-aiui config get|set|list|history
-
-# Schedules
-aiui schedule list|add|remove|status
-
-# Approvals
-aiui approval list|pending|resolve
-
-# Workflows
-aiui workflows list|run|status|runs
-
-# Hooks
-aiui hooks list|trigger|log
-
-# Eval
-aiui eval status|list|scores|judges|run
-
-# Traces
-aiui traces status|list|spans|get
-
-# Pages
-aiui pages list|ids
-
-# Features
-aiui features list|status
-
-# Health
-aiui health [--detailed]
-```
-
-## YAML Configuration
-
-### Site Config (`config.yaml` in `~/.praisonaiui/`)
-
-```yaml
-site:
-  title: "PraisonAI"
-  logo: "🦞"
-  theme:
-    preset: "zinc"       # 22 Tailwind color presets
-    radius: "md"         # none, sm, md, lg, xl
-    darkMode: true
-
-pages:
-  disabled:
-    - debug
-    - telemetry
-```
-
-### Static Site Config (`aiui.template.yaml`)
-
-```yaml
-schemaVersion: 1
-
-site:
-  title: "My Docs"
-  theme:
-    preset: "blue"
-    darkMode: true
-
-content:
-  docs:
-    dir: "./docs"
-
-templates:
-  docs:
-    layout: "ThreeColumnLayout"
-```
-
-## Theme Presets
-
-22 Tailwind color presets with automatic dark/light mode:
-
-`zinc` `slate` `stone` `gray` `neutral` `red` `orange` `amber` `yellow` `lime` `green` `emerald` `teal` `cyan` `sky` `blue` `indigo` `violet` `purple` `fuchsia` `pink` `rose`
-
-## Environment Variables
-
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `OPENAI_API_KEY` | OpenAI API key | — |
-| `PRAISONAI_MODEL` | Default model | `gpt-4o-mini` |
-| `AIUI_DATA_DIR` | Data directory | `~/.praisonaiui` |
-| `AIUI_CONFIG` | Config file path | `aiui.template.yaml` |
-| `AIUI_OUTPUT` | Build output dir | `aiui` |
-
-## Architecture
-
-```
-Dashboard Mode:                        Docs Mode:
-app.py  →  aiui run  →  Server         aiui.template.yaml  →  aiui build  →  aiui/
-               ↓                                                                ├── index.html
-         http://localhost:8000                                                  ├── docs/*.md
-         ├── /api/chat/ws (WebSocket)                                           ├── ui-config.json
-         ├── /api/pages                                                         └── assets/
-         ├── /api/agents
-         ├── /sessions
-         └── /ui-config.json
-```
+- [Installation](docs/getting-started/installation.md) and [Quick start](docs/getting-started/quickstart.md)
+- [Layouts](docs/features/layouts.md), [UI styles](docs/features/styles.md), [React app shell](docs/features/react-shell.md)
+- [UI plugins](docs/features/plugins.md), [Python API](docs/api/python.md), [CLI](docs/getting-started/cli.md)
+- [Deployment and security](docs/features/deployment.md)
+- [Changelog](CHANGELOG.md)
 
 ## Development
 
 ```bash
 git clone https://github.com/MervinPraison/PraisonAIUI.git
 cd PraisonAIUI
-pip install -e .[dev]
-pytest tests -v
+pip install -e ".[dev]"
+pytest tests/unit tests/integration
 ```
 
-### Repository map
+The React source is in `src/frontend/` and its build is committed under
+`src/praisonaiui/templates/frontend/` (`cd src/frontend && npm ci && npm run build && npm run sync`).
+Contributors read [ARCHITECTURE.md](ARCHITECTURE.md) (rules and PR checklist) and
+[AGENTS.md](AGENTS.md) (commands and layout of the repository).
 
 | Path | What it is |
 |---|---|
-| `app.py` | The default demo app (`aiui run app.py`; also what the Docker image runs) |
-| `aiui.template.yaml` | Reference config for the static docs site (`aiui build`) |
-| `examples/` | Runnable examples: `python/`, `yaml/`, `plugins/` (start here) |
-| `src/praisonaiui/` | The Python package (server, CLI, features, plugin registry) |
-| `src/frontend/` | React source for the app shell, chat and docs UI (built into `src/praisonaiui/templates/frontend/`) |
+| `src/praisonaiui/` | The Python package: server, CLI, features, plugin registry |
+| `src/frontend/` | React source for the app shell, chat, layouts and docs UI |
+| `examples/` | Runnable examples: `python/`, `yaml/`, `plugins/` |
 | `docs/` | User documentation (served at [ui.praison.ai](https://ui.praison.ai)) |
-| `tests/` | Unit and integration tests (`pytest tests`) |
-| `scripts/` | Maintenance scripts: `docs_hooks.py` (mkdocs), `dev/` (manual checks) |
-| `ARCHITECTURE.md` | Rules, stack and PR checklist for contributors |
-| `AGENTS.md` | Quick context and commands for AI coding agents |
-| `prd.md` | Product requirements |
-| `CHANGELOG.md`, `SECURITY.md` | Release notes; how to report a vulnerability |
+| `tests/` | Unit and integration tests |
 
 ## License
 
-MIT © [Praison Limited](https://praison.ai)
-
-Third-party vendored source is documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-See the [BeautifulUI upgrade playbook](docs/frontend/beautifului.md) for how BeautifulUI
-primitives are vendored and pinned.
+MIT © [Praison Limited](https://praison.ai). Third-party vendored source is listed in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
