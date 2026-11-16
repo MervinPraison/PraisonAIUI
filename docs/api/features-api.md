@@ -160,13 +160,13 @@ Add a scheduled job.
 ```
 
 ### GET /api/schedules
-List all scheduled jobs.
+List all scheduled jobs: `schedules`, `count`, and `cron_available` (false when the server lacks `croniter`, so cron schedules never run).
 
 ### GET /api/schedules/{id}
 Get job details.
 
 ### PUT /api/schedules/{id}
-Update schedule configuration. Body fields: `name`, `message`, `schedule`, `enabled`.
+Update schedule configuration. Body fields: `name`, `message`, `schedule`, `agent_name`, `enabled`.
 
 ### DELETE /api/schedules/{id}
 Remove a job.
@@ -175,7 +175,7 @@ Remove a job.
 Toggle job enabled/disabled.
 
 ### POST /api/schedules/{id}/run
-Trigger job immediately.
+Trigger job immediately; the job keeps `last_run_at`, `run_count` and `last_status`, and `GET /api/schedules/history` lists recent runs (in memory).
 
 ### POST /api/schedules/{id}/stop
 Stop a running scheduled job: it is disabled (kept on disk) and the reply carries `stopped_at`. Attempts to cancel via `AgentScheduler` if available.

@@ -17,7 +17,7 @@
   border: 0;
 }
 
-/* A drill-in page (Agents) on a phone: an open panel replaces the toolbar and list; Close goes back. */
+/* A drill-in page (Agents, Cron) on a phone: an open panel replaces the toolbar and list; Close goes back. */
 @media (max-width: 767px) {
   [data-aiui-app-page][data-drill-in] .aiui-tpl-list:has(.aiui-tpl-detail) :is(.aiui-tpl-toolbar, .aiui-tpl-list-main) {
     display: none;

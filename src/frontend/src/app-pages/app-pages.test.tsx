@@ -22,6 +22,8 @@ import AgentsPage from './agents/AgentsPage'
 import LogsPage from './logs/LogsPage'
 import SettingsPage, { providerNote } from './settings/SettingsPage'
 import OverviewPage from './overview/OverviewPage'
+import CronPage from './cron/CronPage'
+import { describeSchedule, draftSchedule, filterRows as filterJobs, jobRows, nextRun, nextRuns, parseCron, runHistory, scheduleDraft, until, type Draft } from './cron/model'
 
 const NOW = Date.parse('2026-11-15T12:00:00Z')
 
@@ -191,6 +193,57 @@ test('overview: the provider line follows /api/provider/health, as Settings and 
   assert.deepEqual(providerLine(null, 'HTTP 500'), { tone: 'warn', text: 'HTTP 500' })
 })
 
+// ── cron ──
+const at = (iso: string) => Date.parse(iso)
+
+test('cron: rows and run history from the schedules API, the toolbar filters', () => {
+  const rows = jobRows({ schedules: [{ id: 'a', name: 'Brief', agent_name: 'Writer', schedule: { kind: 'cron', cron_expr: '0 9 * * *' }, enabled: false, last_run_at: NOW / 1000, run_count: 2 }, { name: 'no id' }] })
+  assert.deepEqual(rows.map((r) => [r.id, r.agent, r.enabled, r.lastRun, r.runs]), [['a', 'Writer', false, NOW, 2]])
+  assert.deepEqual(runHistory({ history: [{ job_id: 'a', status: 'failed', result: 'boom', timestamp: NOW / 1000, duration: 1.5 }, {}] }), [{ jobId: 'a', status: 'failed', result: 'boom', at: NOW, duration: 1.5 }])
+  assert.deepEqual([filterJobs(rows, 'writ', 'paused').length, filterJobs(rows, '', 'enabled').length], [1, 0])
+})
+
+test('cron: a schedule in words', () => {
+  const cases: [string, string | number][] = [['Every 15 minutes', 900], ['Every hour', 3600], ['Every 2 days', 172800], ['Every 5 minutes', '*/5 * * * *'], ['Every hour at :30', '30 * * * *'], ['Every day at 09:00 UTC', '0 9 * * *'], ['Weekdays at 08:30 UTC', '30 8 * * 1-5'], ['Weekends at 10:00 UTC', '0 10 * * sat,sun'], ['Every Monday at 09:00 UTC', '0 9 * * 1'], ['Mon, Wed and Fri at 09:00 UTC', '0 9 * * 1,3,5'], ['Monthly on day 1 at 09:00 UTC', '0 9 1 * *'], ['Custom schedule', '0 9 1 1 *'], ['Custom schedule', 'nope']]
+  for (const [words, s] of cases) assert.equal(describeSchedule(typeof s === 'number' ? { kind: 'every', every_seconds: s } : { kind: 'cron', cron_expr: s }), words)
+})
+
+test('cron: the parser rejects bad fields and finds the next runs in UTC, as croniter', () => {
+  assert.match(parseCron('* * *').error ?? '', /five fields/)
+  assert.match(parseCron('61 * * * *').error ?? '', /minute field “61”/)
+  assert.match(parseCron('0 9 * * 8').error ?? '', /weekday/)
+  const next = (expr: string, from: string, n = 2) => nextRuns(parseCron(expr).spec!, at(from), n).map((t) => new Date(t).toISOString().slice(0, 16))
+  assert.deepEqual(next('0 9 * * *', '2026-11-15T09:00:00Z'), ['2026-11-16T09:00', '2026-11-17T09:00'])
+  assert.deepEqual(next('*/20 * * * *', '2026-11-15T09:05:00Z', 3), ['2026-11-15T09:20', '2026-11-15T09:40', '2026-11-15T10:00'])
+  assert.deepEqual(next('30 8 * * mon-fri', '2026-11-13T12:00:00Z'), ['2026-11-16T08:30', '2026-11-17T08:30'])
+  assert.deepEqual(next('0 0 * * 7', '2026-11-15T12:00:00Z', 1), ['2026-11-22T00:00'], '7 is Sunday')
+  assert.deepEqual(next('0 0 1 * 1', '2026-11-25T00:00:00Z'), ['2026-11-30T00:00', '2026-12-01T00:00'], 'both day fields: either matches')
+  assert.deepEqual(next('0 0 29 2 *', '2026-11-15T00:00:00Z', 1), ['2028-02-29T00:00'])
+  assert.deepEqual(next('0 9 */2 * *', '2026-11-15T12:00:00Z'), ['2026-11-17T09:00', '2026-11-19T09:00'], 'a stepped day of month is a restriction')
+  assert.deepEqual(next('0 0 * * */2', '2026-11-15T12:00:00Z'), ['2026-11-17T00:00', '2026-11-19T00:00'], 'a stepped weekday is a restriction')
+})
+
+test('cron: the next run counts from the last run, is due when past, and is none when paused', () => {
+  const row = { schedule: { kind: 'every', every_seconds: 600 }, enabled: true, lastRun: NOW - 60_000, created: NOW - 3_600_000 }
+  assert.deepEqual(nextRun(row, NOW), { at: NOW + 540_000, due: false })
+  assert.deepEqual(nextRun({ ...row, lastRun: Number.NaN }, NOW), { at: NOW - 3_000_000, due: true })
+  assert.equal(nextRun({ ...row, enabled: false }, NOW), null)
+  assert.deepEqual(nextRun({ ...row, schedule: { kind: 'cron', cron_expr: '0 13 * * *' } }, NOW), { at: at('2026-11-15T13:00:00Z'), due: false })
+  assert.deepEqual([until(NOW + 5 * 60_000, NOW), until(NOW + 3 * 3_600_000, NOW)], ['in 5 min', 'in 3 h'])
+})
+
+test('cron: the builder makes a schedule, explains a bad one, and reads a stored one back', () => {
+  const d = (o: Partial<Draft>): Draft => ({ repeat: 'daily', every: 15, time: '09:00', days: [1], cron: '', ...o })
+  assert.deepEqual(draftSchedule(d({ repeat: 'weekly', days: [5, 1] })).schedule, { kind: 'cron', cron_expr: '0 9 * * 1,5' })
+  assert.deepEqual(draftSchedule(d({ repeat: 'custom', cron: ' 0  9 * * 1-5 ' })).schedule, { kind: 'cron', cron_expr: '0 9 * * 1-5' })
+  assert.match(draftSchedule(d({ repeat: 'minutes', every: 0 })).error ?? '', /1 to 1440/)
+  assert.match(draftSchedule(d({ repeat: 'weekly', days: [] })).error ?? '', /at least one day/)
+  assert.match(draftSchedule(d({ repeat: 'custom', cron: '0 25 * * *' })).error ?? '', /hour field/)
+  const stored = [{ kind: 'every', every_seconds: 900 }, { kind: 'every', every_seconds: 7200 }, { kind: 'cron', cron_expr: '5 7 * * *' }, { kind: 'cron', cron_expr: '0 9 * * 1,5' }, { kind: 'cron', cron_expr: '0 9 1 * *' }]
+  for (const s of stored) assert.deepEqual(draftSchedule(scheduleDraft(s)).schedule, s)
+  assert.deepEqual(stored.map((s) => scheduleDraft(s).repeat), ['minutes', 'hours', 'daily', 'weekly', 'custom'])
+})
+
 // ── registration and the classic fallback ──
 const page = (id: string): ShellPage => ({ id, title: id, kind: 'legacy' })
 
@@ -201,6 +254,7 @@ test('each page is the browser half of its record and registers only when listed
     ['builtin.agents', 'agents'],
     ['builtin.logs', 'logs'],
     ['builtin.config', 'config'],
+    ['builtin.cron', 'cron'],
   ])
   const registered: string[] = []
   const sdk = { registerPage: (id: string) => registered.push(id) } as never
@@ -215,7 +269,7 @@ afterEach(() => resetLayoutsForTests())
 const html = (C: ComponentType<{ page: ShellPage }>, id: string) => renderToStaticMarkup(createElement(C, { page: page(id) }))
 
 test('the classic frame keeps the legacy view (no layout on screen)', async () => {
-  for (const [C, id] of [[SessionsPage, 'sessions'], [AgentsPage, 'agents'], [LogsPage, 'logs'], [SettingsPage, 'config'], [OverviewPage, 'overview']] as const) {
+  for (const [C, id] of [[SessionsPage, 'sessions'], [AgentsPage, 'agents'], [LogsPage, 'logs'], [SettingsPage, 'config'], [OverviewPage, 'overview'], [CronPage, 'cron']] as const) {
     // The legacy host is the shell's own lazy chunk: render through Suspense.
     const { prelude } = await prerender(createElement(C, { page: page(id) }))
     const out = await new Response(prelude).text()
@@ -243,6 +297,10 @@ test('inside a layout each page draws its Pro template with no server data yet',
   assert.match(overview, /Today at a glance/)
   assert.equal((overview.match(/data-aiui-tile=""/g) ?? []).length, 4)
   assert.match(overview, /Nothing waits for you/)
+  const cron = html(CronPage, 'cron')
+  assert.match(cron, /data-aiui-app-page="cron"/)
+  assert.match(cron, /Search schedules[\s\S]*New schedule/)
+  assert.match(cron, /aria-busy="true"/, 'a skeleton while the list loads')
 })
 
 test('no native select and no emoji in the app pages', () => {
