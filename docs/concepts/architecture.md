@@ -10,8 +10,8 @@ Starlette + Uvicorn server and two frontends:
 | CLI (`aiui`) | `aiui run app.py` starts the server; `aiui build` compiles a YAML docs site into static JSON manifests |
 | Server (`server.py`, `features/`) | HTTP routes, the chat WebSocket, and one feature module per domain (sessions, agents, theme, attachments, ...) |
 | Providers | `@aiui.reply` callbacks or the PraisonAI provider turn a message into `RunEvent`s (see [Providers](providers.md)) |
-| `dashboard` style | The default: a vanilla-JS dashboard (`templates/frontend/plugins/`) |
-| React bundle | The `chat`, `agents`, `playground` and `docs` styles, and the opt-in app shell (`style: app`, see [React app shell](../features/react-shell.md)) |
+| `dashboard` style | The default of `create_app()` and of apps with `@aiui.page`: a vanilla-JS dashboard (`templates/frontend/plugins/`) |
+| React bundle | The app shell (`style: app`, what `aiui run` opens for a chat app; see [React app shell](../features/react-shell.md)) and the `chat`, `agents`, `playground` and `docs` styles |
 | Plugins | First-party pages and features are catalog records; third-party packages use the `praisonaiui.plugins` entry point (see [Plugins](../features/plugins.md)) |
 
 The data flow of a docs site is `YAML config → Pydantic models → compiler →
