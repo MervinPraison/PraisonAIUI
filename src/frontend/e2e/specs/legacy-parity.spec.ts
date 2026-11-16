@@ -1,9 +1,10 @@
 /**
  * The default style (the vanilla dashboard) must look the same as v0.3.153.
  *
- * Baselines live in e2e/__baseline__/<platform>/ and are captured from the
- * v0.3.153 tree itself by the `legacy-baseline` project (same spec, other
- * server): `npm run test:e2e:baseline`. A platform without baselines skips the
+ * Baselines live in e2e/__baseline__/<platform>/. They start from the v0.3.153
+ * tree (`legacy-baseline` project, `npm run test:e2e:baseline`) and are then
+ * re-captured from the current build for the intended changes listed in
+ * e2e/README.md (new logo, light mode). A platform without baselines skips the
  * screenshot comparisons (see e2e/README.md); the DOM checks always run.
  */
 import { existsSync } from 'node:fs'

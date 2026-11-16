@@ -91,13 +91,19 @@ baselines are committed so far. On a platform without baselines the
 screenshot tests are **skipped** and the DOM checks still run; this is why
 the screenshot comparison is not enforced in CI (Linux) yet.
 
-Exception: `darwin/logs-light.png` and `darwin/usage-light.png` were
-re-captured from the build that fixed the dashboard's light mode
-(`--update-snapshots`): v0.3.153 painted the log panel and the usage cards
-with their dark literals on a light page, which was the bug. Re-capturing
-from v0.3.153 would bring the dark panels back into those two baselines.
+The committed `darwin` baselines are snapshots of the current build
+(`--update-snapshots`), not of v0.3.153, for two intended changes:
 
-Baselines are captured from the v0.3.153 release itself, with the same spec:
+- the sidebar shows the PraisonAI glyph instead of the lobster logo (#404);
+- light mode reaches the log panel and the usage cards (`logs-light`,
+  `usage-light`); v0.3.153 painted them with their dark literals on a light
+  page, which was the bug.
+
+Re-capturing from v0.3.153 would bring both defects back. Apart from these
+two changes the shots match v0.3.153. A new platform's baselines start from
+the release (below); then re-capture them from the current build with
+`--update-snapshots` and check that only the logo and those two light shots
+changed:
 
 ```bash
 git worktree add /tmp/aiui-v0.3.153 6bdf6f0          # Release v0.3.153
