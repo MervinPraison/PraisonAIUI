@@ -339,17 +339,21 @@ def test_sessions(server: str = _SERVER_OPT) -> None:
     msgs = _wait_for_response(server, sid)
     r.check("Messages returned", len(msgs) >= 2, f"Expected ≥2, got {len(msgs)}")
 
-    # Check file on disk
-    session_file = Path.home() / ".praisonaiui" / "sessions" / f"{sid}.json"
-    r.check(f"Session file exists: {session_file.name}", session_file.exists())
-
-    if session_file.exists():
-        data = json.loads(session_file.read_text(encoding="utf-8"))
-        file_msgs = data.get("messages", [])
+    # Ask the server's datastore, not a guessed path: the default `sdk` store
+    # writes to ~/.praisonai/sessions/, `json` to $AIUI_DATA_DIR/sessions/, and
+    # the server may be remote. GET /sessions/{id} has no in-memory fallback.
+    try:
+        stored = _get(server, f"/sessions/{sid}")
+    except Exception as e:
+        stored = None
+        r.check("Session persisted in datastore", False, str(e))
+    if stored is not None:
+        r.check("Session persisted in datastore", stored.get("id") == sid)
+        stored_msgs = stored.get("messages", [])
         r.check(
-            "File contains messages",
-            len(file_msgs) >= 1,
-            f"Expected ≥1, got {len(file_msgs)}",
+            "Datastore contains messages",
+            len(stored_msgs) >= 1,
+            f"Expected ≥1, got {len(stored_msgs)}",
         )
 
     # Check via API
