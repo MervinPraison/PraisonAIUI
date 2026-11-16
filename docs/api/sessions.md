@@ -1,3 +1,7 @@
+---
+nav_title: Sessions API
+---
+
 # Sessions API Reference
 
 ## Endpoints

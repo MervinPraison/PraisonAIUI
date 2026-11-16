@@ -30,12 +30,12 @@ sequenceDiagram
 
 | Layer | Module | Backend-agnostic? |
 |-------|--------|-------------------|
-| **Detection** | [`media_utils.py`](../../src/praisonaiui/media_utils.py) | Yes — normalises OpenAI, URL, b64, element dicts |
-| **Protocol** | [`provider.py`](../../src/praisonaiui/provider.py) — `RunEventType.MESSAGE_ELEMENT` | Yes |
-| **Adapter** | [`providers/__init__.py`](../../src/praisonaiui/providers/__init__.py) — PraisonAI bridge only | No — maps SDK/callback queue → protocol |
-| **Transport** | [`chat.py`](../../src/praisonaiui/features/chat.py) — broadcast + persist | Yes |
-| **Storage** | [`attachments.py`](../../src/praisonaiui/features/attachments.py) — `GET /api/chat/media/{id}` | Yes — reuses attachment store for b64 |
-| **UI** | [`chat.js`](../../src/praisonaiui/templates/frontend/plugins/views/chat.js), [`ElementRenderer`](../../src/frontend/src/chat/MultimediaElements.tsx) | Yes — renders `{type, url, alt}` |
+| **Detection** | [`media_utils.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/media_utils.py) | Yes — normalises OpenAI, URL, b64, element dicts |
+| **Protocol** | [`provider.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/provider.py) — `RunEventType.MESSAGE_ELEMENT` | Yes |
+| **Adapter** | [`providers/__init__.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/providers/__init__.py) — PraisonAI bridge only | No — maps SDK/callback queue → protocol |
+| **Transport** | [`chat.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/features/chat.py) — broadcast + persist | Yes |
+| **Storage** | [`attachments.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/features/attachments.py) — `GET /api/chat/media/{id}` | Yes — reuses attachment store for b64 |
+| **UI** | [`chat.js`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/templates/frontend/plugins/views/chat.js), [`ElementRenderer`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/frontend/src/chat/MultimediaElements.tsx) | Yes — renders `{type, url, alt}` |
 
 Detection and UI do **not** import PraisonAI. Only the provider adapter knows ImageAgent / OpenAI `{data: [{url}]}` shapes.
 
@@ -50,7 +50,7 @@ session_id: "..."
 run_id: "..."
 ```
 
-Defined in Python as `RunEventType.MESSAGE_ELEMENT` and mirrored in [`types.ts`](../../src/frontend/src/types.ts).
+Defined in Python as `RunEventType.MESSAGE_ELEMENT` and mirrored in [`types.ts`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/frontend/src/types.ts).
 
 ### Helper (any provider)
 
@@ -88,7 +88,7 @@ class MyImageProvider(BaseProvider):
 aiui.set_provider(MyImageProvider())
 ```
 
-Example app: [`examples/python/30-image-preview/app.py`](../../examples/python/30-image-preview/app.py).
+Example app: [`examples/python/30-image-preview/app.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/examples/python/30-image-preview/app.py).
 
 ### 2. Callback handler (`@aiui.reply`)
 
@@ -107,7 +107,7 @@ async def on_message(msg):
 
 ### 3. Tool results (automatic detection)
 
-When a tool completes, `tool_completed_extra()` in [`a2ui_utils.py`](../../src/praisonaiui/a2ui_utils.py) calls `build_media_extra()` from `media_utils`. Supported shapes:
+When a tool completes, `tool_completed_extra()` in [`a2ui_utils.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/a2ui_utils.py) calls `build_media_extra()` from `media_utils`. Supported shapes:
 
 | Input shape | Example |
 |-------------|---------|

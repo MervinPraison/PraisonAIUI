@@ -1,3 +1,7 @@
+---
+nav_title: Chat and Canvas
+---
+
 # Chat and Canvas layout
 
 `chat-canvas` is the default layout of the React app shell (`style: app`).
@@ -5,6 +9,8 @@ The chat is on the left; the tables, code and files the agent makes sit on a
 canvas beside it, where you can sort, copy, download and compare versions.
 See [Layouts](../layouts.md) for how layouts are chosen, and
 [ADR 0003](../../adr/0003-selectable-layouts.md) for the design.
+
+![The Chat and Canvas layout in dark mode: the conversation on the left, the code the agent wrote open in the canvas on the right](../../images/app-shell-chat-canvas-dark.webp)
 
 ```yaml
 style: app

@@ -898,3 +898,129 @@ img.aiui-docs-mark {
 @media (prefers-reduced-motion: reduce) {
   .aiui-docs * { scroll-behavior: auto !important; }
 }
+
+/* ── Home page layout (frontmatter `layout: home`, docs/DocsHome.tsx) ──── */
+.aiui-docs-home {
+  margin: 0 0 2.5rem;
+}
+.aiui-docs-hero {
+  padding-top: 0.5rem;
+}
+.aiui-docs-hero-name {
+  margin: 0;
+  color: var(--ui-link);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.aiui-docs-hero-text {
+  margin: 0.5rem 0 0;
+  color: var(--foreground);
+  font-size: clamp(1.75rem, 1.2rem + 2.4vw, 2.5rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.aiui-docs-hero-tagline {
+  margin: 1rem 0 0;
+  max-width: 60ch;
+  color: var(--muted-foreground);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+.aiui-docs-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin-top: 1.5rem;
+}
+.aiui-docs-hero-actions a {
+  text-decoration: none;
+}
+.aiui-docs-hero-media {
+  margin-top: 2rem;
+}
+.aiui-docs-hero-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl, 12px);
+  box-shadow: var(--pro-shadow-float, none);
+}
+/* With a dark variant, each image shows in its own colour mode. */
+.aiui-docs-hero-image[data-theme='dark'],
+.dark .aiui-docs-hero-image[data-theme='light'] {
+  display: none;
+}
+.dark .aiui-docs-hero-image[data-theme='dark'] {
+  display: block;
+}
+.aiui-docs-features {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin: 2.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 640px) {
+  .aiui-docs-features { grid-template-columns: 1fr 1fr; }
+}
+.aiui-docs-feature {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 1rem 1.125rem 1.125rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl, 12px);
+  background: var(--card);
+}
+.aiui-docs-feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.375rem;
+  border-radius: var(--radius-md, 8px);
+  background: var(--muted);
+  color: var(--ui-link);
+}
+.aiui-docs-feature-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+.aiui-docs .aiui-docs-feature-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.aiui-docs-feature-details {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+.aiui-docs-feature-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: auto;
+  padding-top: 0.375rem;
+  color: var(--ui-link);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.aiui-docs-feature-link svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  transition: transform 120ms ease;
+}
+.aiui-docs-feature-link:hover svg {
+  transform: translateX(2px);
+}

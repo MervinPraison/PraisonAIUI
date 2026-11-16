@@ -98,22 +98,70 @@ html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiu
   font-size: 13px !important;
 }
 
-/* Empty states: the designed one (dashed outline, quiet text). */
-html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount [class$='-empty'] {
-  padding: 20px 24px;
-  border: 1px dashed var(--input);
-  border-radius: 12px;
+/* Empty states: centred like the shell's EmptyState, never a dashed box.
+   A text-only placeholder that ends its pane ("Select a card…", "No card
+   selected.") gets the icon tile above its line; one that brings its own
+   icon or action keeps them. The tile is ::before, its line icon ::after
+   (a CSS mask, so it needs no colour literal). */
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount :is(div, p, section)[class$='-empty'] {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 24px;
+  border: 0;
+  border-radius: 0;
   background: transparent;
   color: var(--muted-foreground);
   font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+  text-wrap: balance;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type]
+  .aiui-legacy-mount
+  :is(div, p, section)[class$='-empty']:last-child:not(:has(*)):not([class$='-tabbody'] > *)::before {
+  content: '';
+  flex: none;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 4px;
+  border-radius: 10px;
+  background: var(--muted);
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro']
+  [data-aiui-page-type]
+  .aiui-legacy-mount
+  :is(div, p, section)[class$='-empty']:last-child:not(:has(*)):not([class$='-tabbody'] > *)::after {
+  content: '';
+  position: absolute;
+  top: 42px;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  transform: translateX(-50%);
+  /* The placeholder's own (muted) text colour. */
+  background: currentColor;
+  -webkit-mask: var(--aiui-empty-icon) center / contain no-repeat;
+  mask: var(--aiui-empty-icon) center / contain no-repeat;
+}
+html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount {
+  /* lucide "inbox" */
+  --aiui-empty-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='22 12 16 12 14 15 10 15 8 12 2 12'/%3E%3Cpath d='M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'/%3E%3C/svg%3E");
 }
 
 /* Stat cards (a .db-columns row of titled .db-card tiles): one KPI strip,
-   hairline separators, the value at 24px (ProOverview). */
+   hairline separators, the value at 24px (ProOverview). The views fix the
+   column count inline (repeat(3|4, 1fr)); the strip fits as many 180px
+   tiles as the width allows, two a row on a phone. */
 html[data-aiui-shell='react'][data-aiui-tokens='pro']
   [data-aiui-page-type]
   .aiui-legacy-mount
   :is(.db-columns, .db-metric-grid):has(> .db-card > .db-card-title) {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)) !important;
   gap: 1px !important;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -130,6 +178,21 @@ html[data-aiui-shell='react'][data-aiui-tokens='pro']
   border: 0;
   border-radius: 0;
   background: var(--card);
+}
+@media (max-width: 767px) {
+  html[data-aiui-shell='react'][data-aiui-tokens='pro']
+    [data-aiui-page-type]
+    .aiui-legacy-mount
+    :is(.db-columns, .db-metric-grid):has(> .db-card > .db-card-title) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  html[data-aiui-shell='react'][data-aiui-tokens='pro']
+    [data-aiui-page-type]
+    .aiui-legacy-mount
+    :is(.db-columns, .db-metric-grid):has(> .db-card > .db-card-title)
+    > .db-card {
+    padding: 12px 16px;
+  }
 }
 html[data-aiui-shell='react'][data-aiui-tokens='pro'] [data-aiui-page-type] .aiui-legacy-mount .db-card-value {
   font-size: 24px;

@@ -3,6 +3,16 @@ import type { LogEntry } from '@/components/page/LogViewer'
 
 const str = (v: unknown) => (typeof v === 'string' ? v : v == null ? '' : String(v))
 
+/**
+ * The message without the "<logger> - " the server's log format puts in
+ * front: the source column already names the logger, and on a phone the
+ * repeated dotted name was what broke mid-word.
+ */
+function withoutSource(message: string, source: string): string {
+  const prefix = `${source} - `
+  return source && message.startsWith(prefix) ? message.slice(prefix.length) : message
+}
+
 /** `{ logs: [{ timestamp, level, logger, message }] }` → entries (oldest first). */
 export function logEntries(body: unknown): LogEntry[] {
   const list = body && typeof body === 'object' ? (body as { logs?: unknown }).logs : null
@@ -11,7 +21,8 @@ export function logEntries(body: unknown): LogEntry[] {
     if (!raw || typeof raw !== 'object') return []
     const l = raw as Record<string, unknown>
     const ts = typeof l.timestamp === 'number' ? l.timestamp : str(l.timestamp ?? l.time ?? l.ts)
-    return [{ id: `${i}:${str(ts)}`, ts, level: str(l.level) || 'info', source: str(l.logger ?? l.source) || undefined, message: str(l.message) }]
+    const source = str(l.logger ?? l.source)
+    return [{ id: `${i}:${str(ts)}`, ts, level: str(l.level) || 'info', source: source || undefined, message: withoutSource(str(l.message), source) }]
   })
 }
 

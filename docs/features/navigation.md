@@ -32,8 +32,58 @@ The generated tree looks like this:
 }
 ```
 
-`content.docs.nav` (`mode`, `sort`, `collapsible`, `maxDepth`) is accepted by
-the schema, but the build does not read it yet: the order above always applies.
+`content.docs.nav.mode` picks between this generated sidebar (`auto`, the
+default) and one you list in YAML (`manual`, below). `sort`, `collapsible` and
+`maxDepth` are accepted by the schema, but the build does not read them yet.
+
+## A Sidebar You List (`mode: manual`)
+
+With `content.docs.nav.mode: manual` the sidebar comes from the tab groups:
+each group is a section holding the pages it lists, in that order, whatever
+folder they live in. A `pages` entry may itself be a group, which nests a
+section (one level is the usual choice).
+
+```yaml
+content:
+  docs:
+    dir: "./docs"
+    nav:
+      mode: manual
+
+navigation:
+  tabs:
+    - tab: "Guides"
+      groups:
+        - group: "App"
+          pages:
+            - features/styles
+            - group: "Layouts"          # a nested section
+              pages:
+                - features/layouts
+                - features/layouts/chat-canvas
+        - group: "Deployment"
+          pages:
+            - features/deployment
+            - health-endpoints          # a page at the docs root
+    - tab: "Project"
+      groups:
+        - group: "Decisions"
+          pages:
+            - adr/index
+            - adr/0001-replay-view      # the file name works too
+```
+
+- A page is named by its URL path under the docs base (`features/layouts`),
+  its file path without `.md` (`adr/0001-replay-view`, `adr/index`) or
+  `index` for the home page. A name that matches no page is skipped.
+- A page listed twice appears once, where it is first listed.
+- Frontmatter `nav_title` gives a page a shorter sidebar title than its
+  heading (`nav_title: CLI` on a page titled "CLI API Reference").
+- Pages no group lists are still built, linked and found by search; they are
+  not in any tab's sidebar. Leave a page out of the site with
+  `content.docs.exclude` (see [Content Sources](content-sources.md#includeexclude-patterns)).
+- The active tab is the one whose groups list the page; for a page no group
+  lists, the folder `prefix` decides as in auto mode, then the first tab.
 
 ## Tabs
 
@@ -63,6 +113,7 @@ navigation:
 ```
 
 A section that no group of any tab claims is not shown while tabs are set.
+In manual mode the groups are the sections, so each one belongs to its tab.
 
 ## Header Links
 

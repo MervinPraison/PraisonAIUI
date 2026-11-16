@@ -13,9 +13,9 @@
  *                      one with no set_theme() (follows the OS)
  *   docs               `aiui build` output on `aiui serve`      markdown, docs-chrome
  *   page-reload-*      the dashboard and app-shell servers      page-reload
- *   layouts-host       app shell + the layout-plugin fixture    layouts-host, layout-<id>
+ *   layouts-host       app shell + the layout-plugin fixture    layouts-host, layout-<id>, app-<page>
  *                      (fixtures/layout-plugin/serve.py)
- *   page-types         the same, on a server of its own         page-types
+ *   page-types         the same, on a server of its own         page-types, knowledge-page
  *   app-pages          the same, on a server of its own         agents-page
  *   legacy-baseline    the v0.3.153 tree (opt-in, see below)    legacy-parity
  *
@@ -169,13 +169,13 @@ export default defineConfig({
     },
     {
       name: 'layouts-host',
-      // The host suite and every layout's own suite (layout-<id>.spec.ts).
-      testMatch: /[\\/](layouts-host|layout-[a-z][a-z0-9-]*)\.spec\.ts$/,
+      // The host suite, every layout's own suite (layout-<id>.spec.ts) and the React app pages' (app-<page>.spec.ts).
+      testMatch: /[\\/](layouts-host|layout-[a-z][a-z0-9-]*|app-[a-z]+)\.spec\.ts$/,
       use: { ...chromium, baseURL: url(PORTS.layouts) },
     },
     {
       name: 'page-types',
-      testMatch: /[\\/]page-types\.spec\.ts$/,
+      testMatch: /[\\/](page-types|knowledge-page)\.spec\.ts$/,
       use: { ...chromium, baseURL: url(PORTS.pageTypes) },
     },
     {

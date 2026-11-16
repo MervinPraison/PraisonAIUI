@@ -65,8 +65,26 @@
 
 ### New
 
+- App shell: a React Cron page inside the layouts: schedules in words and as
+  cron, next and last run, an enabled switch, Run now, and a schedule builder.
+- Docs sites: frontmatter `layout: home` on `docs/index.md` draws a hero
+  (name, headline, tagline, call-to-action buttons, a light and a dark image)
+  and a feature grid above the page, in the VitePress shape. See
+  [Content sources → Home page layout](docs/features/content-sources.md#home-page-layout).
+
+- Docs sites: `content.docs.nav.mode: manual` builds the sidebar from the YAML
+  tab groups, in the listed order, with nested groups and a frontmatter
+  `nav_title` for short sidebar titles; pages it does not list stay built and
+  searchable. The default (`auto`, one section per folder) is unchanged. See
+  [Navigation](docs/features/navigation.md#a-sidebar-you-list-mode-manual).
+
 - `style: app` (opt-in React shell); see
   [React app shell](docs/features/react-shell.md).
+- App shell: Knowledge is a React page inside a layout (ProList): a stat
+  strip with the store's status in plain words, search with marked snippets
+  and relevance, Add knowledge for text or files (drag and drop, per-file
+  progress), a detail panel with Delete; the classic frame keeps the legacy
+  view. See [Layouts](docs/features/layouts.md#react-pages-inside-every-layout).
 - App shell: built-in sidebar icons and group order come from the manifest
   (`navIcon` on each page, `layout.groups`); `set_dashboard(groups=...)` or
   YAML `dashboard.groups` overrides the group order and folding.
@@ -110,6 +128,8 @@
   the Chroma adapter's `SearchResult` and show only this run's in-memory
   copies, matched by keyword. A stored entry now takes the vector store's
   document ID, so list, search, `GET` and `DELETE` address one entry (#398).
+- Schedules: `PUT /api/schedules/{id}` now changes `schedule` and `agent_name`,
+  create keeps `agent_name`, and Run now records the run on the stored job.
 - The `chat` style (the default of `aiui run`) and the other React styles
   follow the OS colour scheme, live, when neither the app (`set_theme`, YAML
   `site.theme`) nor the viewer chose a mode. They used to read only the

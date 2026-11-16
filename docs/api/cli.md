@@ -1,3 +1,7 @@
+---
+nav_title: CLI
+---
+
 # CLI Reference
 
 Every `aiui` command and option. `aiui <command> --help` prints the same

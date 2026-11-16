@@ -1,3 +1,7 @@
+---
+nav_title: CLI tour
+---
+
 # CLI Usage
 
 The commands you will use most. Every command and option is in the

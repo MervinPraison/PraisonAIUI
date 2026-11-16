@@ -12,6 +12,7 @@ import type { DocsNav, UIConfig, NavItem, RouteManifest } from './types'
 import { docSourcePath, prepareDocSource } from './docs/docSource'
 import { docSection } from './docs/docNav'
 import { DocsPager } from './docs/DocsPager'
+import { DocsHome } from './docs/DocsHome'
 
 interface ContentProps {
     config: UIConfig
@@ -21,6 +22,15 @@ interface ContentProps {
     /** The nav in reading order: adds the section eyebrow and previous / next links. */
     nav?: DocsNav
     onNavigate?: (item: NavItem) => void
+}
+
+/** The docs home page: the only page whose frontmatter `layout: home` draws a hero. */
+const DOCS_HOME_PATH = '/docs/index'
+
+/** SPA navigation to an internal href (the same event the sidebar sends). */
+function navigateTo(href: string) {
+    window.history.pushState({ path: href }, '', href)
+    window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path: href.split(/[?#]/)[0] } }))
 }
 
 export function Content({ config, routes, selectedItem, currentPath, nav, onNavigate }: ContentProps) {
@@ -104,7 +114,10 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
     const contentReady = loadedPath === normalizeDocPath(currentPath) && markdown.length > 0
 
     if (selectedItem) {
-        const section = nav ? docSection(nav, currentPath) : null
+        const shownPath = docSourcePath(normalizeDocPath(currentPath), selectedItem.path)
+        // The docs home page with frontmatter `layout: home`: hero and features above its markdown.
+        const home = config.docsHome && shownPath === DOCS_HOME_PATH ? config.docsHome : null
+        const section = nav && !home ? docSection(nav, currentPath) : null
         return (
             <main id="main-content" className="aiui-docs-main docs-main">
                 <div className="aiui-docs-column docs-main-inner">
@@ -117,6 +130,9 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                             <Skeleton className="h-4 w-11/12" />
                             <Skeleton className="h-4 w-4/5" />
                         </div>
+                    )}
+                    {contentReady && home && (
+                        <DocsHome home={home} homePath={DOCS_HOME_PATH} onNavigate={navigateTo} />
                     )}
                     {contentReady && (
                         // `prose` is not styling here (the Markdown root is not-prose): the

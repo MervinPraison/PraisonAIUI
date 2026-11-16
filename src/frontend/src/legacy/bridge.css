@@ -374,3 +374,95 @@ html[data-aiui-shell='react'] .aiui-legacy-host [style*='22c55e' i] {
 html[data-aiui-shell='react'] .aiui-legacy-host [style*='ef4444' i] {
   color: var(--destructive) !important;
 }
+
+/* Focus: legacy buttons, links and tabs get the shell's 2px ring (their own
+   CSS leaves the browser's 1px outline, or none). Inputs keep theirs. */
+html[data-aiui-shell='react']
+  .aiui-legacy-host
+  :is(button, a[href], summary, [role='button'], [role='tab'], [role='link'], [tabindex]:not([tabindex='-1'], input, select, textarea)):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Work hub: the kanban board is the work, so it takes the flexible width
+   (the view fixes it at 300px and gives the rest to the card detail). Below
+   1025px the view stacks its panes itself. */
+html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub-p1 {
+  padding-inline: 16px;
+}
+@media (min-width: 1025px) {
+  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub-p1 {
+    flex: 1 1 0%;
+    width: auto;
+    min-width: 0;
+  }
+  /* The detail pane: narrow while it only asks for a card, wider with one. */
+  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub-p2 {
+    flex: 0 1 420px;
+    min-width: 320px;
+  }
+  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub-p2:has(> [class$='-empty']:only-child) {
+    flex-basis: 320px;
+  }
+  html[data-aiui-shell='react'] .aiui-legacy-mount .work-hub-p3 {
+    width: 280px;
+    min-width: 0;
+  }
+}
+
+/* Replay in the full content area: the recorder (sized in vh for the
+   dashboard) fills the height, and its frame gives way to the page's. */
+html[data-aiui-shell='react'] .aiui-legacy-host.db-fill .rp-root {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+}
+html[data-aiui-shell='react'] .aiui-legacy-host.db-fill .rp-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+html[data-aiui-shell='react'] .aiui-legacy-host.db-fill .rp-runs {
+  max-height: none;
+}
+
+/* Phones: legacy views were laid out for a desktop, and nothing in them may
+   push the page sideways. Grid and flex children shrink below their content,
+   long words wrap, and preformatted text and tables scroll inside their own
+   box (a fixed-layout table keeps readable columns instead of one letter a
+   line). */
+@media (max-width: 767px) {
+  html[data-aiui-shell='react'] .aiui-legacy-mount {
+    overflow-wrap: break-word;
+  }
+  /* Zero specificity: a view's own min-width (a flex-wrap tile) still wins. */
+  :where(html[data-aiui-shell='react'] .aiui-legacy-mount) :where(div, section, article, header, footer, form, li, label, details, p, span, a, h1, h2, h3, h4) {
+    min-width: 0;
+  }
+  /* Usage tiles: one a row (two squeezed the values mid-number). */
+  html[data-aiui-shell='react'] .aiui-legacy-mount .aiui-usage-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-aiui-shell='react'] .aiui-legacy-mount pre {
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: auto;
+  }
+  html[data-aiui-shell='react'] .aiui-legacy-mount :where(div, section):has(> table) {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  html[data-aiui-shell='react'] .aiui-legacy-mount table {
+    table-layout: auto !important;
+  }
+  html[data-aiui-shell='react'] .aiui-legacy-mount :is(th, td) {
+    min-width: 5rem;
+    overflow-wrap: normal;
+  }
+  /* A cell that breaks anywhere (route lists) keeps a readable width. */
+  html[data-aiui-shell='react'] .aiui-legacy-mount td[style*='break-all' i] {
+    min-width: 10rem;
+  }
+}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from praisonaiui.compiler.docs_scanner import DocPage
 
@@ -80,9 +81,62 @@ class NavBuilder:
         items = self.build()
         return {"items": [self._item_to_dict(item) for item in items]}
 
+    def to_dict_grouped(self, groups: list, docs_dir: Path | None = None) -> dict:
+        """Navigation from the YAML tab groups (``content.docs.nav.mode: manual``).
+
+        Each group becomes a section holding its pages (and nested groups) in
+        the listed order. A page is named by its slug (``guide/setup``), its
+        file path without ``.md`` (``adr/0001-x``) or ``index``. Pages no group
+        lists stay routable and searchable as top-level items that no tab
+        shows in its sidebar. A page listed twice appears once (the first).
+        """
+        by_name: dict[str, DocPage] = {}
+        for page in self.pages:
+            by_name.setdefault(page.slug, page)
+            if docs_dir is not None:
+                try:
+                    rel = page.path.relative_to(docs_dir).with_suffix("").as_posix()
+                except ValueError:
+                    continue
+                by_name.setdefault(rel, page)
+        used: set[str] = set()
+
+        def page_item(page: DocPage) -> NavItem:
+            title = str(page.frontmatter.get("nav_title") or page.title)
+            path = f"{self.base_path}/{page.slug}".rstrip("/")
+            return NavItem(title=title, path=path, description=page.description, noindex=page.noindex)
+
+        def lookup(name: str) -> DocPage | None:
+            key = name.strip().strip("/")
+            key = key[:-3] if key.endswith(".md") else key
+            base = self.base_path.strip("/")
+            if base and key.startswith(base + "/"):
+                key = key[len(base) + 1 :]
+            return by_name.get(key)
+
+        def section(group) -> NavItem:
+            children: list[NavItem] = []
+            for entry in group.pages:
+                if isinstance(entry, str):
+                    page = lookup(entry)
+                    if page is not None and page.slug not in used:
+                        used.add(page.slug)
+                        children.append(page_item(page))
+                else:
+                    sub = section(entry)
+                    if sub.children:
+                        children.append(sub)
+            return NavItem(title=group.group, path="", children=children)
+
+        items = [s for s in (section(g) for g in groups) if s.children]
+        items += [page_item(p) for p in self.pages if p.slug not in used]
+        return {"items": [self._item_to_dict(item) for item in items]}
+
     def _item_to_dict(self, item: NavItem) -> dict:
-        """Convert a NavItem to dictionary."""
-        result = {"title": item.title, "path": item.path}
+        """Convert a NavItem to dictionary (a section has no path)."""
+        result: dict = {"title": item.title}
+        if item.path:
+            result["path"] = item.path
         if item.description:
             result["description"] = item.description
         if item.noindex:

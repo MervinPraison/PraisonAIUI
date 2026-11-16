@@ -1,9 +1,15 @@
+---
+nav_title: Quiet Workbench
+---
+
 # Quiet Workbench layout
 
 A calm sidebar with your chats, a focused top bar and the page beside it. It
 suits people who live in one conversation at a time and want nothing else on
 screen. It is one of the [layouts](../layouts.md) of the React app shell
 (`style: app`); the default `dashboard` style is not affected.
+
+![The Quiet Workbench layout: the chats in a quiet sidebar and the conversation beside it](../../images/app-shell-workbench-light.webp)
 
 ```yaml
 style: app

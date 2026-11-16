@@ -51,6 +51,7 @@ def _replay_pages() -> tuple[PageSpec, ...]:
             icon_svg=REPLAY_MARK_SVG,
             api_endpoint="/api/replay/runs",
             nav_icon="rotate-ccw",
+            shell_layout="full-bleed",
         ),
     )
 
@@ -200,6 +201,7 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
                 "Unified multi-channel conversation triage",
                 6,
                 nav_icon="inbox",
+                shell_layout="full-bleed",
             ),
         ),
         feature_refs=(feature(".channels", "ChannelsFeature"),),
@@ -227,6 +229,7 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
                 22,
                 api_endpoint="/api/sessions",
                 nav_icon="activity",
+                shell_layout="full-bleed",
             ),
         ),
         feature_refs=(feature(".sessions_ext", "SessionsFeature", required=True),),
@@ -305,6 +308,7 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
                 "Unified kanban, card detail, chat and job log",
                 9,
                 nav_icon="layout-dashboard",
+                shell_layout="full-bleed",
             ),
             page(
                 "jobs-board",

@@ -1,3 +1,7 @@
+---
+nav_title: 0003 Selectable layouts
+---
+
 # ADR 0003: Selectable layouts, a first-party plugin kind
 
 - **Status:** Accepted (Nov 2026). The browser contract (F1) is frozen. The foundation (F2 Python config and

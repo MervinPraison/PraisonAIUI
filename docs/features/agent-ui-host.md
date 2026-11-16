@@ -1,3 +1,7 @@
+---
+nav_title: Agent UI host
+---
+
 # Agent UI host — modular dashboard shell
 
 PraisonAIUI can host any AI agent backend behind a **modular dashboard shell**: pages, views, layout components, optional plugins, and branding — without forking the frontend.
@@ -48,7 +52,7 @@ async def tasks_page():
 app = create_app()
 ```
 
-See [`examples/python/external-agent-dashboard/app.py`](../../examples/python/external-agent-dashboard/app.py).
+See [`examples/python/external-agent-dashboard/app.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/examples/python/external-agent-dashboard/app.py).
 
 ## `window.aiui` extension API
 
@@ -76,7 +80,7 @@ Register only what you need; omit slots you do not use.
 
 ## Layout components (Python → JS)
 
-Define pages with `@aiui.page()` returning `aiui.layout([...])`. Types are implemented once in [`ui.py`](../../src/praisonaiui/ui.py) and [`dashboard.js`](../../src/praisonaiui/templates/frontend/plugins/dashboard.js).
+Define pages with `@aiui.page()` returning `aiui.layout([...])`. Types are implemented once in [`ui.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/ui.py) and [`dashboard.js`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/templates/frontend/plugins/dashboard.js).
 
 **Kanban / board:** use `aiui.board(columns=[...])`. Columns contain `id`, `title`, and `cards` (from `aiui.card()` or dicts). The shell renders via `renderBoard`, composing existing card renderers (DRY).
 
@@ -100,7 +104,7 @@ async def agent_canvas():
 
 Or use `@aiui.surface_action("main")` for button callbacks.
 
-**Full guide:** [A2UI canvas](a2ui-canvas.md) — chat-canvas split view, `send_a2ui_messages`, HTTP/CLI, `coerce_a2ui_tool_messages`, troubleshooting. Example: [`examples/python/30-a2ui-canvas/`](../../examples/python/30-a2ui-canvas/app.py).
+**Full guide:** [A2UI canvas](a2ui-canvas.md) — chat-canvas split view, `send_a2ui_messages`, HTTP/CLI, `coerce_a2ui_tool_messages`, troubleshooting. Example: [`examples/python/30-a2ui-canvas/`](https://github.com/MervinPraison/PraisonAIUI/blob/main/examples/python/30-a2ui-canvas/app.py).
 
 ## Optional dashboard modules
 
@@ -151,7 +155,7 @@ window.aiui.registerView('my-board', async (container) => {
 });
 ```
 
-Sample: [`sample-board`](../../src/praisonaiui/templates/frontend/dashboard-plugins/sample-board/).
+Sample: [`sample-board`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/templates/frontend/dashboard-plugins/sample-board/).
 
 ## Agent plugins vs dashboard plugins
 
@@ -217,7 +221,7 @@ CLI: `aiui pages ids` lists built-in page ids for whitelists.
 | File | Role |
 |------|------|
 | [`praisonai-package-integration.md`](praisonai-package-integration.md) | Praison backend wiring |
-| [`server.py`](../../src/praisonaiui/server.py) | Pages API, `set_dashboard`, plugin chain |
-| [`dashboard_plugins.py`](../../src/praisonaiui/dashboard_plugins.py) | Manifest discovery and static routes |
-| [`dashboard.js`](../../src/praisonaiui/templates/frontend/plugins/dashboard.js) | Shell, registries, renderers |
-| [`schema/models.py`](../../src/praisonaiui/schema/models.py) | `DashboardConfig.modules`, `plugin_dirs` |
+| [`server.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/server.py) | Pages API, `set_dashboard`, plugin chain |
+| [`dashboard_plugins.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/dashboard_plugins.py) | Manifest discovery and static routes |
+| [`dashboard.js`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/templates/frontend/plugins/dashboard.js) | Shell, registries, renderers |
+| [`schema/models.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/schema/models.py) | `DashboardConfig.modules`, `plugin_dirs` |

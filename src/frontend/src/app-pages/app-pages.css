@@ -17,10 +17,18 @@
   border: 0;
 }
 
-/* A drill-in page (Agents) on a phone: an open panel replaces the toolbar and list; Close goes back. */
+/* On a phone: a drill-in page (Agents, Cron) lets an open panel replace the toolbar and list (Close goes
+   back); a list + detail page (Knowledge, data-drill) lets the selected row's detail replace the
+   strip, toolbar and list, with a back control. */
 @media (max-width: 767px) {
   [data-aiui-app-page][data-drill-in] .aiui-tpl-list:has(.aiui-tpl-detail) :is(.aiui-tpl-toolbar, .aiui-tpl-list-main) {
     display: none;
   }
   [data-aiui-app-page][data-drill-in] .aiui-tpl-detail { border-top: 0; }
+  [data-aiui-app-page][data-drill] :is([data-aiui-strip], .aiui-tpl-toolbar, .aiui-tpl-list-main) {
+    display: none;
+  }
+  [data-aiui-app-page][data-drill] .aiui-tpl-detail {
+    border-top: 0;
+  }
 }
