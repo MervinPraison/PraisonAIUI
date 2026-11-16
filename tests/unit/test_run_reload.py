@@ -58,7 +58,7 @@ def test_reload_passes_the_factory_import_string(tmp_path, monkeypatch):
     spec = json.loads(os.environ[_run_factory.SPEC_ENV])
     assert spec["app_file"] == str(app_file.resolve())
     assert spec["datastore"] == "memory"
-    assert spec["style"] == "chat"
+    assert spec["style"] == "app"  # aiui run's default: the app shell
 
 
 def test_without_reload_the_app_object_is_passed(tmp_path, monkeypatch):
@@ -102,3 +102,35 @@ def test_factory_rebuilds_the_app(tmp_path, monkeypatch):
 def test_factory_without_spec_explains_itself():
     with pytest.raises(RuntimeError, match="aiui run --reload"):
         _run_factory.create()
+
+
+def test_aiui_run_defaults_to_the_app_shell_and_the_chat_layout(tmp_path, monkeypatch):
+    """A plain chat app: `aiui run` serves the app shell, opening the chat without a canvas."""
+    from starlette.testclient import TestClient
+
+    app_file = tmp_path / "app.py"
+    app_file.write_text(APP)
+    served = []
+
+    import uvicorn
+
+    monkeypatch.delenv("AIUI_LAYOUT", raising=False)
+    monkeypatch.setattr(uvicorn, "run", lambda target, **kw: served.append(target))
+    result = CliRunner().invoke(cli_app, ["run", str(app_file), "--datastore", "memory", "--port", "8204"])
+    assert result.exit_code == 0, result.output
+    manifest = TestClient(served[-1]).get("/api/shell/manifest").json()
+    assert manifest["layouts"]["default"] == "chat"
+    assert "chat-canvas" in [s["id"] for s in manifest["layouts"]["available"]]  # still a choice
+
+
+def test_an_explicit_style_chat_keeps_the_classic_chat(tmp_path, monkeypatch):
+    app_file = tmp_path / "app.py"
+    app_file.write_text(APP)
+    import uvicorn
+
+    monkeypatch.setattr(uvicorn, "run", lambda *a, **k: None)
+    result = CliRunner().invoke(
+        cli_app, ["run", str(app_file), "--style", "chat", "--datastore", "memory", "--port", "8205"]
+    )
+    assert result.exit_code == 0, result.output
+    assert srv.get_style() == "chat"

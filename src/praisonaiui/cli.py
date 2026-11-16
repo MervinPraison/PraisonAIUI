@@ -1715,11 +1715,11 @@ def run(
         "-d",
         help="Data persistence: 'sdk' (unified with praisonai-agents, default), 'json', 'memory', 'json:/path', or 'sdk:/path'",
     ),
-    style: str = typer.Option(
-        "chat",
+    style: Optional[str] = typer.Option(
+        None,
         "--style",
         "-s",
-        help="UI style: 'chat' (default), 'docs', 'agents' (tabbed multi-agent), 'playground' (input/output panels), 'dashboard', 'custom', 'app' (React app shell, opt-in)",
+        help="UI style: 'app' (default: the React app shell, Chat layout), 'chat' (classic chat), 'docs', 'agents' (tabbed multi-agent), 'playground' (input/output panels), 'dashboard', 'custom'",
     ),
 ) -> None:
     """Run the AI chat server with your app.py or config.yaml file.
@@ -1734,7 +1734,7 @@ def run(
     """
     import os
 
-    if style not in UI_STYLES:
+    if style is not None and style not in UI_STYLES:
         console.print(f"[red]Error:[/red] Unknown --style {style!r}. Choose one of: {', '.join(UI_STYLES)}")
         raise typer.Exit(code=2)
 
@@ -1814,11 +1814,12 @@ def run(
                         pass
 
     # ── Resolve final style ──────────────────────────────────────
-    # Priority: CLI explicit --style > aiui.set_style() > auto-detect
-    # Only auto-detect when CLI used the default value ("chat")
+    # Priority: CLI --style > YAML style > aiui.set_style() > auto-detect >
+    # the app shell. Auto-detect only picks a style an app clearly asks for
+    # (agents, dashboard pages); a plain chat app gets the app shell.
     from praisonaiui.server import detect_style, get_style
 
-    if style == "chat":
+    if style is None:
         explicit = get_style()
         if explicit:
             style = explicit
@@ -1826,7 +1827,16 @@ def run(
             detected = detect_style()
             if detected != "chat":
                 console.print(f"[cyan]ℹ️[/cyan] Auto-detected style: [bold]{detected}[/bold]")
-            style = detected
+                style = detected
+            else:
+                style = "app"
+    if style == "app":
+        # `aiui run` opens the chat without a canvas unless the app, its YAML
+        # or AIUI_LAYOUT picks a layout.
+        from praisonaiui.builtin.catalog import RUN_DEFAULT_LAYOUT
+        from praisonaiui.layouts import set_run_default
+
+        set_run_default(RUN_DEFAULT_LAYOUT)
 
     if os.environ.get("AIUI_SHELL", "").strip().lower() in ("app", "react") and style not in (
         "app",

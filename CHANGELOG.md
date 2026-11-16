@@ -4,6 +4,14 @@
 
 ### Breaking changes
 
+- **`aiui run app.py` opens the React app shell.** A plain chat app (a
+  `@reply`, no `--style`, no `set_style()`, no YAML `style:`) now runs in
+  `style: app` with the new `chat` layout: the Chat and Canvas frame without
+  the canvas. `--style chat` (or `aiui.set_style("chat")`) keeps the classic
+  chat. Apps that auto-detect as `agents` or `dashboard` are unchanged, and
+  `create_app()` and PraisonAI keep Chat and Canvas as the app shell default.
+  See [Layouts](docs/features/layouts.md).
+
 - **Theme variables are complete colours, not bare HSL triples.** shadcn
   variables such as `--primary` used to hold `221 83% 53%`, which the
   stylesheet wrapped in `hsl()`. They now hold any CSS colour:

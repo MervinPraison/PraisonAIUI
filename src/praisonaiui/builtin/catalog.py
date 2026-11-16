@@ -31,6 +31,10 @@ NAV_GROUPS: dict[str, object] = {
 #: ``style: app`` draws layouts; ``layout: classic`` restores its own frame.
 STYLE_DEFAULT_LAYOUT: dict[str, str] = {"app": "chat-canvas"}
 
+#: The layout ``aiui run`` opens with in ``style: app`` (the chat, no canvas),
+#: below every explicit choice (``AIUI_LAYOUT``, ``set_layout``, YAML).
+RUN_DEFAULT_LAYOUT = "chat"
+
 
 def _replay_pages() -> tuple[PageSpec, ...]:
     # The brand mark lives with the feature; import it only when the page is on.
@@ -741,6 +745,20 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
                 10,
                 home="chat",
                 primary=("chat", "artifacts", "agents", "cron", "knowledge", "sessions", "config"),
+            ),
+        ),
+    ),
+    BuiltinPlugin(
+        "layout-chat",
+        "Chat layout: the Chat and Canvas frame without the canvas",
+        layout_specs=(
+            layout_spec(
+                "chat",
+                "Chat",
+                "A clean chat with your chats in the sidebar, and no canvas",
+                15,
+                home="chat",
+                primary=("chat", "agents", "cron", "knowledge", "sessions", "config"),
             ),
         ),
     ),

@@ -88,9 +88,10 @@ const FEED_LOADER = feedModule()
 /**
  * Provide the `artifacts` feed while this frame is mounted, lazily (the
  * feature chunk loads the first time a region reads it). Nothing when the
- * feature is not in the build. `load` is for tests.
+ * feature is not in the build or `load` is null (a layout without a canvas).
+ * `undefined` uses the build's feed module; a function is for tests.
  */
-export function useProvideArtifacts(load: (() => Promise<unknown>) | undefined = FEED_LOADER): void {
+export function useProvideArtifacts(load: (() => Promise<unknown>) | null | undefined = FEED_LOADER): void {
   useEffect(() => {
     if (!load) return
     return provideLayoutData('artifacts', () => load().then(toArtifactsFeed))

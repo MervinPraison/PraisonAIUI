@@ -22,7 +22,7 @@ from praisonaiui.plugin_registry import LayoutSpec, get_plugin_registry
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SNAPSHOT = json.loads((FIXTURES / "builtin_pages_snapshot.json").read_text(encoding="utf-8"))
-LAYOUT_IDS = ["chat-canvas", "workbench", "command", "guided", "mission"]
+LAYOUT_IDS = ["chat-canvas", "chat", "workbench", "command", "guided", "mission"]
 LAYOUT_RECORDS = [f"builtin.layout-{i}" for i in LAYOUT_IDS]
 #: The layout records that own pages: those whose frame ships the React page.
 SHIPPED_LAYOUT_PAGES = {"guided": ("start", "templates")}
@@ -113,7 +113,7 @@ def test_disabling_a_layout_removes_it_from_the_manifest():
 
 def test_disabling_the_default_layout_falls_back_to_the_next():
     m = _manifest(_client(extensions={"disabled": ["builtin.layout-chat-canvas"]}))
-    assert m["layouts"]["default"] == "workbench"
+    assert m["layouts"]["default"] == "chat"  # the next by order
 
 
 def test_a_plugin_layout_can_be_the_default():

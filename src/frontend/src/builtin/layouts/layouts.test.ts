@@ -48,7 +48,7 @@ beforeEach(() => {
 test('the five built-in layouts each have a descriptor with a lazy loader', () => {
   assert.deepEqual(
     BUILTIN_LAYOUTS.map((d) => d.id),
-    ['chat-canvas', 'workbench', 'command', 'guided', 'mission'],
+    ['chat-canvas', 'chat', 'workbench', 'command', 'guided', 'mission'],
   )
   for (const d of BUILTIN_LAYOUTS) {
     assert.ok(d.meta.title)

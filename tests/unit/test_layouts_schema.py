@@ -102,7 +102,7 @@ def _codes(cfg: dict) -> list[int]:
 
 
 def test_builtin_layout_ids_come_from_the_catalog():
-    assert builtin_layout_ids() == ["chat-canvas", "workbench", "command", "guided", "mission"]
+    assert builtin_layout_ids() == ["chat-canvas", "chat", "workbench", "command", "guided", "mission"]
 
 
 def test_validate_warns_5101_on_an_unknown_layout_id():

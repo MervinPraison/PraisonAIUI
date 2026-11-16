@@ -27,7 +27,7 @@ from praisonaiui.plugin_registry import LayoutSpec, PageSpec, get_plugin_registr
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SNAPSHOT = json.loads((FIXTURES / "builtin_pages_snapshot.json").read_text(encoding="utf-8"))
-LAYOUT_IDS = ["chat-canvas", "workbench", "command", "guided", "mission"]
+LAYOUT_IDS = ["chat-canvas", "chat", "workbench", "command", "guided", "mission"]
 #: The layout records that own pages: those whose frame ships the React page.
 SHIPPED_LAYOUT_PAGES = {"guided": ("start", "templates")}
 

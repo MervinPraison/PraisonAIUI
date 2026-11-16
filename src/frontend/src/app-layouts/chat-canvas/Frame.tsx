@@ -1,6 +1,7 @@
 /**
  * The Chat and Canvas layout frame (chunk `layout-chat-canvas`): the app
- * shell's default layout. Design: Canvas.dc.html (desktop) and
+ * shell's default layout, and the `chat` layout (`aiui run`'s default),
+ * which is this frame with no canvas. Design: Canvas.dc.html (desktop) and
  * CanvasPhone.dc.html (phone), drawn with the PraisonAI Pro tokens.
  *
  *   desktop  sidebar (brand, New chat ⌘N, primary pages, chats, footer
@@ -32,6 +33,12 @@ import { PhoneTopBar, TopBar, type TitleLine } from './TopBar'
 import { useStoredFlag } from './useStoredFlag'
 import './chat-canvas.css'
 
+/**
+ * Layouts this frame draws without a canvas (builtin/layouts/chat.ts): no
+ * artifacts feed, so the artifacts feature chunk never loads.
+ */
+const NO_CANVAS_LAYOUTS: ReadonlySet<string> = new Set(['chat'])
+
 /** The page New chat and the chat rows open when the layout spec names no home. */
 const DEFAULT_CHAT_PAGE = 'chat'
 const SIDEBAR_KEY = 'aiui-chat-canvas-sidebar-hidden'
@@ -61,7 +68,7 @@ export default function ChatCanvasFrame(props: LayoutProps) {
   const sessions = useSessions()
   const [hidden, setHidden] = useStoredFlag(SIDEBAR_KEY)
   const [menuOpen, setMenuOpen] = useState(false)
-  useProvideArtifacts()
+  useProvideArtifacts(NO_CANVAS_LAYOUTS.has(layout.id) ? null : undefined)
 
   const hasArtifactsPage = nav.primary.some((i) => i.id === ARTIFACTS_PAGE) || nav.groups.some((g) => g.items.some((i) => i.id === ARTIFACTS_PAGE))
   // A finished run may have made artifacts: the running set changing refreshes the count.

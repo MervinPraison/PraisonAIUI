@@ -64,6 +64,11 @@ def create() -> Any:
     store, _label = _make_datastore(spec.get("datastore") or "sdk")
     set_datastore(store)
     set_style(spec["style"])
+    if spec["style"] == "app":
+        from praisonaiui.builtin.catalog import RUN_DEFAULT_LAYOUT
+        from praisonaiui.layouts import set_run_default
+
+        set_run_default(RUN_DEFAULT_LAYOUT)
 
     static_dir = Path(spec["static_dir"]) if spec.get("static_dir") else None
     config_path = Path(spec["config_path"]) if spec.get("config_path") else None
