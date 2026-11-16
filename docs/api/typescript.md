@@ -1,89 +1,72 @@
 # TypeScript SDK Reference
 
-Complete API reference for the TypeScript/React runtime.
+Two TypeScript surfaces exist, for different jobs:
 
-## Installation
+| You want to | Use |
+|-------------|-----|
+| Add a page, block or layout to the UI that `aiui run` serves | `@aiui/sdk`, provided by the React app shell at runtime. Nothing to install; see [UI plugins](../features/plugins.md) |
+| Render an `aiui build` site inside your own React or Next.js app | The optional `praisonaiui` package in `src/praisonaiui-ts`; see [TypeScript SDK](../typescript/index.md) |
 
-```bash
-npm install praisonaiui
-```
+The UI that ships with the Python package (`src/frontend`) is private and not
+published to npm.
 
-## Core Functions
+## `praisonaiui` package
 
-### createAIUI
+Built from the repository (`src/praisonaiui-ts`, version 0.2.0, not
+published; npm has an older 0.1.0). Signatures from its source:
 
-Initialize the runtime with manifests.
-
-```typescript
-import { createAIUI } from 'praisonaiui/runtime';
-
-const aiui = createAIUI({
-  manifestPath: './aiui',
-  basePath: '/docs'
-});
-```
-
-### resolveTemplate
-
-Match a route to a template.
+### Runtime
 
 ```typescript
-import { resolveTemplate } from 'praisonaiui/runtime';
+import { createAIUI, resolveTemplate, SlotRegistry } from 'praisonaiui/runtime';
 
-const template = resolveTemplate('/docs/getting-started', routeManifest);
-// { layout: "ThreeColumnLayout", slots: {...} }
+createAIUI(options: { configPath: string }): {
+  config: UIConfig | null;
+  nav: NavTree | null;
+  routes: RouteManifest | null;
+  load(): Promise<void>;          // fetches the three manifests from configPath
+};
+
+resolveTemplate(
+  path: string,
+  manifest: RouteManifest,
+  templates: Record<string, TemplateConfig>,
+): { template: string; layout: string; slots: Record<string, SlotRef | null>;
+     slotOverrides?: Record<string, SlotRef | null> } | null;
+
+SlotRegistry.register(type: string, component: React.ComponentType<any>): void;
+SlotRegistry.get(type: string): React.ComponentType<any> | undefined;
+SlotRegistry.has(type: string): boolean;
+SlotRegistry.clear(): void;
 ```
 
-## SlotRegistry
+Details: [Runtime](../typescript/runtime.md).
 
-Register custom components for slots.
+### Next.js adapter
 
 ```typescript
-import { SlotRegistry } from 'praisonaiui/runtime';
+import { withAIUI, getDocsPageProps } from 'praisonaiui/next';
 
-// Register a custom header
-SlotRegistry.register('Header', MyCustomHeader);
+withAIUI(nextConfig?: NextConfig, aiuiConfig?: { configPath?: string }): NextConfig;
+// adds the webpack alias '@aiui' -> configPath (default './aiui') and md/mdx page extensions
 
-// Get registered component
-const Header = SlotRegistry.get('Header');
+getDocsPageProps(params: { slug?: string[] }): Promise<{ props: { path: string; slug: string } }>;
 ```
 
-## Next.js Adapter
+Details: [Next.js Adapter](../typescript/nextjs.md).
 
-### withAIUI
+### Components
 
-Wrap your Next.js config:
+`ThreeColumnLayout`, `DefaultLayout`, `Header`, `Footer`, `DocsSidebar`,
+`Toc`, `DocContent` from `praisonaiui/components`. Props:
+[Components](../typescript/components.md).
+
+### Types
 
 ```typescript
-// next.config.ts
-import { withAIUI } from 'praisonaiui/next';
-
-export default withAIUI({
-  // your Next.js config
-});
+import type { Config, UIConfig, NavTree, RouteManifest } from 'praisonaiui';
 ```
 
-### getDocsPageProps
-
-Get props for docs pages:
-
-```typescript
-import { getDocsPageProps } from 'praisonaiui/next';
-
-export async function getStaticProps({ params }) {
-  return getDocsPageProps(params.slug);
-}
-```
-
-## Types
-
-```typescript
-import type {
-  Config,
-  SiteConfig,
-  TemplateConfig,
-  RouteConfig,
-  NavItem,
-  DocPage,
-} from 'praisonaiui';
-```
+Other interfaces (`SiteConfig`, `TemplateConfig`, `RouteConfig`, `NavItem`,
+`SlotRef` and more) are declared in `src/types/index.ts` but not exported from
+the package entry.
