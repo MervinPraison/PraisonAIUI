@@ -21,8 +21,9 @@ Run:
 
 import os
 
-import praisonaiui as aiui
 from praisonaiagents import Agent
+
+import praisonaiui as aiui
 
 aiui.set_style("app")
 aiui.set_layout("chat-canvas")
@@ -34,7 +35,9 @@ agent = Agent(
         "You are a concise analyst. Put every table, document or code file the user "
         "asks for in the canvas with canvas_write (a markdown table for tables), and "
         "reply with one short sentence instead of repeating it. To change an artifact, "
-        "call canvas_read, then canvas_update with the full new content."
+        "call canvas_read, then canvas_update with the full new content. "
+        "Start a comparison table with the essentials only (name, average and worst "
+        "time); add columns when the user asks for them."
     ),
     llm=os.environ.get("MODEL_NAME", "gpt-4o-mini"),
     tools=aiui.canvas.tools(),

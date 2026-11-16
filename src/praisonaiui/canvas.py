@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import collections
 import contextvars
+import json
 import re
 from typing import Any, Callable, Dict, List, Optional
 
@@ -166,6 +167,11 @@ def _is_table(content: str) -> bool:
     return len(lines) >= 2 and "|" in lines[0] and "-" in lines[1] and bool(_TABLE_DELIM.match(lines[1]))
 
 
+def _only_table(content: str) -> bool:
+    """Nothing but one markdown table (blank lines aside)."""
+    return _is_table(content) and all("|" in ln for ln in content.strip().splitlines() if ln.strip())
+
+
 def _has_table(content: str) -> bool:
     lines = content.splitlines()
     return any(
@@ -224,10 +230,18 @@ def artifact_element(
         raise CanvasError("content must be a string")
     if content is not None and len(content.encode("utf-8")) > MAX_CONTENT:
         raise CanvasError(f"content is larger than {MAX_CONTENT} bytes")
+    if content is not None and "\n" not in content and "\\n" in content and "|" in content:
+        # A model that copied canvas_read's JSON may send a table with its
+        # newlines still escaped: a one-line "table" can only mean that.
+        unescaped = content.replace("\\n", "\n")
+        if (kind in (None, "", "table", "markdown")) and _is_table(unescaped):
+            content = unescaped
     language = _text("language", language, MAX_LANGUAGE)
     mime_type = _text("mime_type", mime_type, 128)
     url = _text("url", url, 4096)
     kind = (kind or "").strip().lower() or _infer_kind(key, content, language, url, mime_type)
+    if kind == "markdown" and content is not None and _only_table(content):
+        kind = "table"  # a "markdown table" is a table (what models often pass)
     if kind not in KINDS:
         raise CanvasError(f"kind must be one of {', '.join(KINDS)}")
     if kind in TEXT_KINDS:
@@ -385,7 +399,7 @@ def canvas_write(name: str, content: str, kind: str = "", language: str = "", ti
     Args:
         name: Stable name of the artifact, e.g. "sorting-comparison" or "app.py". Reuse it to change the artifact.
         content: The full content: a markdown table (header row, then |---|) for a table, markdown for a document, source code for code.
-        kind: "table", "markdown" or "code"; inferred from the content when empty.
+        kind: "table" (a markdown table), "markdown" (a document) or "code"; best left empty: it is inferred from the content.
         language: The programming language of code, e.g. "python".
         title: A short title for the canvas tab; defaults to the name.
 
@@ -421,18 +435,26 @@ def canvas_read(name: str) -> str:
         name: The artifact's name (see canvas_list).
 
     Returns:
-        A header (name, kind, version) and the content, or an error.
+        JSON with name, kind, title, version, edited_by_user and content (or url), or an error.
     """
     a = read(name)
     if a is None:
         names = ", ".join(x["key"] for x in artifacts()[:20]) or "none"
         return f"Error: no artifact named '{name}' in this chat's canvas. Artifacts: {names}."
-    by = " (edited by the user)" if a.get("edited") else ""
-    head = f"name: {a['key']}\nkind: {a.get('kind')}\ntitle: {a.get('title')}\nversion: {a.get('version')}{by}"
+    out = {
+        "name": a["key"],
+        "kind": a.get("kind"),
+        "title": a.get("title"),
+        "version": a.get("version"),
+        "edited_by_user": bool(a.get("edited")),
+    }
     if a.get("language"):
-        head += f"\nlanguage: {a['language']}"
-    body = a.get("content") if a.get("content") is not None else f"url: {a.get('url', '')}"
-    return f"{head}\n---\n{body}"
+        out["language"] = a["language"]
+    if a.get("content") is not None:
+        out["content"] = a["content"]
+    else:
+        out["url"] = a.get("url", "")
+    return json.dumps(out, ensure_ascii=False)
 
 
 def canvas_list() -> str:

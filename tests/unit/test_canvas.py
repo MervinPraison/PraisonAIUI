@@ -67,6 +67,15 @@ def test_element_shape_and_kind_inference():
     assert canvas.artifact_element("x", "print(1)", language="python")["language"] == "python"
     assert canvas.artifact_element("notes.md", "# Notes\n\n| a | b |\n|---|---|")["kind"] == "markdown"
     assert canvas.artifact_element("plan", "Just text")["kind"] == "markdown"
+    # A "markdown table" is a table; a document with a table in it stays a document.
+    assert canvas.artifact_element("t", TABLE_V1, kind="markdown")["kind"] == "table"
+    assert canvas.artifact_element("d", "# Doc\n\n" + TABLE_V1, kind="markdown")["kind"] == "markdown"
+    # A table whose newlines a model left escaped (copied from canvas_read's JSON).
+    escaped = TABLE_V1.replace("\n", "\\n")
+    assert canvas.artifact_element("t", escaped, kind="table")["content"] == TABLE_V1
+    assert canvas.artifact_element("t", escaped)["kind"] == "table"
+    # One line of code with a "\n" in it stays as it is.
+    assert canvas.artifact_element("a.py", 'print("a\\nb")')["content"] == 'print("a\\nb")'
     el = canvas.artifact_element("chart", url="/files/c.png", mime_type="image/png")
     assert (el["kind"], el["url"], el["mimeType"]) == ("image", "/files/c.png", "image/png")
     assert "content" not in el
@@ -160,7 +169,7 @@ def test_read_sees_the_users_edit_and_the_agent_builds_on_it(store, channel):
     edited = TABLE_V1.replace("Bubble", "Bubble sort")
     store.put("s1", "sorting", {"kind": "table", "content": edited, "edited": True})
     assert canvas.read("sorting")["content"] == edited
-    assert "(edited by the user)" in canvas.canvas_read("sorting")
+    assert json.loads(canvas.canvas_read("sorting"))["edited_by_user"] is True
     # The agent's next version is numbered after the edit, like the canvas does.
     assert canvas.update("sorting", TABLE_V2)["version"] == 3
 
@@ -184,9 +193,14 @@ def test_tools_are_plain_functions_that_never_raise(store, channel):
     )
     assert canvas.canvas_write("t", "oops", kind="table").startswith("Error: table content")
     assert "version 2" in canvas.canvas_update("sorting", TABLE_V2)
-    read = canvas.canvas_read("sorting")
-    assert read.startswith("name: sorting\nkind: table\ntitle: Sorting\nversion: 2\n---\n")
-    assert read.endswith(TABLE_V2)
+    assert json.loads(canvas.canvas_read("sorting")) == {
+        "name": "sorting",
+        "kind": "table",
+        "title": "Sorting",
+        "version": 2,
+        "edited_by_user": False,
+        "content": TABLE_V2,
+    }
     assert canvas.canvas_list() == "- sorting (table, v2): Sorting"
 
 
