@@ -3,6 +3,7 @@
  * API: GET /api/mcp/servers, POST /api/mcp/connect, POST /api/mcp/disconnect/{name}
  */
 import { showToast, showConfirm } from '../toast.js';
+import { inAppShell, glyph, statusChip, humanize, emptyState, shellButton } from '/plugins/views/_helpers.js';
 
 const STATUS_STYLE = {
   connected: 'background:rgba(34,197,94,0.15);color:#22c55e',
@@ -33,19 +34,22 @@ export async function render(container) {
 
   const connected = servers.filter((s) => s.status === 'connected').length;
   const totalTools = servers.reduce((n, s) => n + ((s.tools && s.tools.length) || 0), 0);
+  // Shell: auto-fit stats, no health % without servers, chips, the designed empty state.
+  const shell = inAppShell();
+  const toneOf = { connected: 'success', connecting: 'warning', error: 'danger' };
 
   container.innerHTML = `
-    <div class="db-columns" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px">
+    <div class="db-columns" style="grid-template-columns:${shell ? 'repeat(auto-fit,minmax(160px,1fr))' : 'repeat(3,1fr)'};margin-bottom:24px">
       <div class="db-card"><div class="db-card-title">Servers</div><div class="db-card-value">${servers.length}</div><div class="db-card-footer">${connected} connected</div></div>
       <div class="db-card"><div class="db-card-title">Tools</div><div class="db-card-value">${totalTools}</div></div>
-      <div class="db-card"><div class="db-card-title">Health</div><div class="db-card-value">${servers.length ? Math.round((connected / servers.length) * 100) : 0}%</div></div>
+      <div class="db-card"><div class="db-card-title">Health</div><div class="db-card-value">${shell && !servers.length ? '—' : `${servers.length ? Math.round((connected / servers.length) * 100) : 0}%`}</div>${shell && !servers.length ? '<div class="db-card-footer">No servers yet</div>' : ''}</div>
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <h3 style="margin:0;font-size:15px;font-weight:600">MCP Servers</h3>
-      <button id="mcp-add" class="db-btn db-btn-primary">+ Connect Server</button>
+      <h3 style="margin:0;font-size:15px;font-weight:600">${shell ? 'MCP servers' : 'MCP Servers'}</h3>
+      <button id="mcp-add" class="db-btn db-btn-primary">${shell ? '+ Connect server' : '+ Connect Server'}</button>
     </div>
-    ${loadError ? `<div class="db-alert db-alert-warning"><span>⚠️</span><span>${esc(loadError)}</span></div>` : ''}
+    ${loadError ? `<div class="db-alert db-alert-warning"><span>${glyph('⚠️', 'info')}</span><span>${esc(loadError)}</span></div>` : ''}
     <div id="mcp-list"></div>
     <div id="mcp-form-host"></div>
   `;
@@ -61,18 +65,18 @@ export async function render(container) {
     card.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
         <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
-          <span style="font-size:20px">🔌</span>
+          <span style="font-size:20px">${glyph('🔌', 'plug')}</span>
           <div style="min-width:0">
             <div style="font-weight:500;font-size:14px">${esc(s.name)}</div>
             <div style="font-size:12px;color:var(--db-text-dim)">${esc(s.transport || '')} · ${tools.length} tool${tools.length !== 1 ? 's' : ''}</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-size:11px;padding:3px 10px;border-radius:12px;${statusStyle}">${esc(s.status || 'unknown')}</span>
+          ${shell ? statusChip(humanize(s.status || 'unknown'), toneOf[s.status] || 'neutral') : `<span style="font-size:11px;padding:3px 10px;border-radius:12px;${statusStyle}">${esc(s.status || 'unknown')}</span>`}
           ${isConnected ? `<button class="mcp-disconnect db-btn db-btn-destructive" data-name="${esc(s.name)}" style="padding:4px 12px;font-size:11px">Disconnect</button>` : ''}
         </div>
       </div>
-      ${s.last_error ? `<div style="font-size:12px;color:#ef4444;margin-top:8px">${esc(s.last_error)}</div>` : ''}
+      ${s.last_error ? `<div style="font-size:12px;color:${shell ? 'var(--db-error)' : '#ef4444'};margin-top:8px">${esc(s.last_error)}</div>` : ''}
       ${tools.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:var(--db-text-dim)">Tools (${tools.length})</summary><div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">${tools
         .map(
           (t) =>
@@ -82,7 +86,10 @@ export async function render(container) {
     `;
     list.appendChild(card);
   });
-  if (servers.length === 0 && !loadError) {
+  if (servers.length === 0 && !loadError && shell) {
+    list.innerHTML = emptyState({ iconName: 'plug', title: 'No MCP servers yet', body: 'Connect a Model Context Protocol server to give your agents its tools.', actionHtml: shellButton('Connect server', 'data-mcp-empty-add') });
+    list.querySelector('[data-mcp-empty-add]').addEventListener('click', () => container.querySelector('#mcp-add')?.click());
+  } else if (servers.length === 0 && !loadError) {
     list.innerHTML = '<div class="db-viewer"><pre>No MCP servers connected. Click "Connect Server" to add one.</pre></div>';
   }
 

@@ -4,7 +4,16 @@
  * API: /api/memory, /api/memory/search, /api/memory/status, /api/memory/context
  */
 import { showToast, showConfirm } from '../toast.js';
-import { searchInput } from './_helpers.js';
+import { searchInput, inAppShell, glyph, statusChip, emptyState, shellButton, humanize } from './_helpers.js';
+
+/** Shell: a product name for the backend class (SDKMemoryManager → PraisonAI SDK). */
+export function providerLabel(name) {
+  const n = String(name || '');
+  if (!n || n === 'unknown') return 'Not configured';
+  if (/^SDK/.test(n)) return 'PraisonAI SDK';
+  if (/^Simple/.test(n)) return 'Built-in';
+  return humanize(n.replace(/Manager$/, ''));
+}
 
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
@@ -16,10 +25,12 @@ export async function render(container) {
   const totalCount = Array.isArray(memories) ? memories.length : 0;
   const shortCount = memories.filter(m => m.memory_type === 'short').length;
   const longCount = memories.filter(m => m.memory_type === 'long').length;
+  const shell = inAppShell();
+  const provider = status.provider || status.backend || 'unknown';
 
   container.innerHTML = `
     <!-- Stats -->
-    <div class="db-columns" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
+    <div class="db-columns" style="grid-template-columns:${shell ? 'repeat(auto-fit,minmax(160px,1fr))' : 'repeat(4,1fr)'};margin-bottom:24px">
       <div class="db-card">
         <div class="db-card-title">Memories</div>
         <div class="db-card-value">${totalCount}</div>
@@ -27,8 +38,8 @@ export async function render(container) {
       </div>
       <div class="db-card">
         <div class="db-card-title">Provider</div>
-        <div class="db-card-value" style="font-size:16px">${status.provider || status.backend || 'unknown'}</div>
-        <div class="db-card-footer">${status.status === 'ok' ? '● active' : '○ ' + (status.status || 'unknown')}</div>
+        <div class="db-card-value" style="font-size:16px">${shell ? providerLabel(provider) : provider}</div>
+        <div class="db-card-footer">${shell ? (status.status === 'ok' ? statusChip('Active', 'success') : statusChip(status.status === 'degraded' ? 'Limited' : humanize(status.status || 'unknown'), 'neutral')) : status.status === 'ok' ? '● active' : '○ ' + (status.status || 'unknown')}</div>
       </div>
       <div class="db-card">
         <div class="db-card-title">Short-term</div>
@@ -45,31 +56,33 @@ export async function render(container) {
     <!-- Search + Actions -->
     <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center">
       <div style="flex:1">${searchInput('Search memory…', 'mem-search')}</div>
-      <button id="mem-search-btn" style="padding:8px 18px;background:var(--db-accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">🔍 Search</button>
-      <button id="mem-store-btn" style="padding:8px 18px;border:1px solid var(--db-border);background:transparent;color:var(--db-text);border-radius:8px;cursor:pointer;font-size:12px">+ Store</button>
-      <button id="mem-clear-btn" style="padding:8px 18px;border:1px solid #ef4444;background:transparent;color:#ef4444;border-radius:8px;cursor:pointer;font-size:12px" title="Clear all memories">🗑 Clear All</button>
+      <button id="mem-search-btn" style="${shell ? 'display:inline-flex;align-items:center;gap:6px;' : ''}padding:8px 18px;background:var(--db-accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">${glyph('🔍')} Search</button>
+      <button id="mem-store-btn" style="padding:8px 18px;border:1px solid var(--db-border);background:transparent;color:var(--db-text);border-radius:8px;cursor:pointer;font-size:12px">${shell ? '+ Add memory' : '+ Store'}</button>
+      ${shell
+        ? `<button id="mem-clear-btn" style="display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border:1px solid var(--db-border);background:transparent;color:var(--db-error);border-radius:8px;cursor:pointer;font-size:12px${totalCount === 0 ? ';opacity:.5;cursor:not-allowed' : ''}"${totalCount === 0 ? ' disabled aria-disabled="true"' : ''} title="Clear all memories">${glyph('🗑')} Clear all</button>`
+        : '<button id="mem-clear-btn" style="padding:8px 18px;border:1px solid #ef4444;background:transparent;color:#ef4444;border-radius:8px;cursor:pointer;font-size:12px" title="Clear all memories">🗑 Clear All</button>'}
     </div>
 
     <!-- Results -->
     <div id="mem-results">
-      <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">Recent Memories</h3>
-      ${totalCount === 0 ? '<div style="padding:40px;text-align:center;color:var(--db-text-dim)">No memories stored yet. Use the chat to interact with agents and build memory.</div>' : ''}
-      <div class="db-viewer">
+      <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">${shell ? 'Recent memories' : 'Recent Memories'}</h3>
+      ${totalCount === 0 ? shell ? emptyState({ iconName: 'database', title: 'No memories yet', body: 'Agents keep what they learn from chats here. You can also add one yourself.', actionHtml: shellButton('Add memory', 'data-mem-add') }) : '<div style="padding:40px;text-align:center;color:var(--db-text-dim)">No memories stored yet. Use the chat to interact with agents and build memory.</div>' : ''}
+      <div class="db-viewer"${shell && totalCount === 0 ? ' hidden' : ''}>
         <table style="width:100%;border-collapse:collapse;font-size:13px">
           ${memories.slice(0, 50).map((m, i) => {
             const key = m.key || m.id || m.memory_id || i;
             const value = typeof m === 'string' ? m : m.value || m.content || m.text || JSON.stringify(m).substring(0, 120);
             const mtype = m.memory_type || '';
-            const typeBadge = mtype === 'short'
+            const typeBadge = shell ? (mtype === 'short' ? statusChip('Short-term', 'info') : mtype === 'long' ? statusChip('Long-term', 'neutral') : '') : mtype === 'short'
               ? '<span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600">SHORT</span>'
               : mtype === 'long'
               ? '<span style="background:#8b5cf6;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600">LONG</span>'
               : '';
-            return `<tr style="transition:background .1s" onmouseenter="this.style.background='rgba(99,102,241,.05)'" onmouseleave="this.style.background=''">
+            return `<tr style="transition:background .1s" onmouseenter="this.style.background='${shell ? 'var(--db-hover)' : 'rgba(99,102,241,.05)'}'" onmouseleave="this.style.background=''">
               <td style="padding:8px 12px;border-bottom:1px solid var(--db-border);width:60px">${typeBadge}</td>
               <td style="padding:8px 12px;border-bottom:1px solid var(--db-border)">${String(value).substring(0, 200)}</td>
               <td style="padding:8px 12px;border-bottom:1px solid var(--db-border);width:40px;text-align:center">
-                <button class="mem-delete-btn" data-id="${String(key)}" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:4px;opacity:0.5;transition:opacity .15s" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.5'" title="Delete this memory">✕</button>
+                <button class="mem-delete-btn" data-id="${String(key)}"${shell ? ' aria-label="Delete this memory"' : ''} style="background:none;border:none;color:${shell ? 'var(--db-text-dim)' : '#ef4444'};cursor:pointer;font-size:14px;padding:4px;opacity:0.5;transition:opacity .15s" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.5'" title="Delete this memory">✕</button>
               </td>
             </tr>`;
           }).join('')}
@@ -77,6 +90,8 @@ export async function render(container) {
       </div>
     </div>
   `;
+
+  container.querySelector('[data-mem-add]')?.addEventListener('click', () => container.querySelector('#mem-store-btn')?.click());
 
   // Delete handlers
   container.querySelectorAll('.mem-delete-btn').forEach(btn => {

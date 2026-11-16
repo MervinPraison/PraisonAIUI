@@ -680,3 +680,28 @@ test('overview says when its data failed to load, with a retry', async ({ page }
   await expect(area).not.toContainText('No agents registered yet')
 })
 
+
+test('observability views show real status in the shell, not emoji or SDK class names', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  // /api/traces/status has no SDK flags: the shell shows the backend's health.
+  await page.goto('/traces')
+  const traces = page.locator('[data-aiui-page="traces"]')
+  await expect(traces.locator('.aiui-chip', { hasText: 'Recording' })).toBeVisible()
+  await expect(traces).not.toContainText(/Tracing off|✅|❌|Flight Recorder/)
+
+  // Telemetry flags are SDK availability, not collection on/off.
+  await page.goto('/telemetry')
+  const telemetry = page.locator('[data-aiui-page="telemetry"]')
+  await expect(telemetry.locator('.aiui-chip').first()).toBeVisible()
+  await expect(telemetry).not.toContainText(/Telemetry off|Telemetry on|✅|❌/)
+
+  // Memory: friendly provider name; Clear all is disabled while there is nothing to clear.
+  await page.goto('/memory')
+  const memory = page.locator('[data-aiui-page="memory"]')
+  await expect(memory.getByRole('button', { name: /Add memory/ }).first()).toBeVisible()
+  await expect(memory).not.toContainText('SDKMemoryManager')
+  const listed = await (await page.request.get('/api/memory')).json().catch(() => ({}))
+  const memories = listed.memories || listed.items || listed
+  if (!Array.isArray(memories) || memories.length === 0) await expect(memory.locator('#mem-clear-btn')).toBeDisabled()
+  expect(errors.pageErrors).toEqual([])
+})

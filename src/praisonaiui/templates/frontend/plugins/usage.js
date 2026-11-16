@@ -5,6 +5,8 @@
  * and per-model/session breakdowns.
  */
 
+import { inAppShell, glyph, emptyState } from '/plugins/views/_helpers.js';
+
 let usageData = null;
 let timeseriesData = null;
 let modelsData = null;
@@ -30,6 +32,7 @@ async function fetchUsageData() {
 }
 
 function formatCost(cost) {
+  if (cost === 0 && inAppShell()) return '$0.00';
   if (cost < 0.01) return `$${cost.toFixed(4)}`;
   if (cost < 1) return `$${cost.toFixed(3)}`;
   return `$${cost.toFixed(2)}`;
@@ -75,23 +78,56 @@ function renderSummaryCards() {
     },
   ];
   
+  const shell = inAppShell();
   return cards.map(card => `
     <div class="aiui-usage-card">
       <div class="aiui-usage-card-icon" style="background: ${card.soft}; color: ${card.color}">
-        ${card.icon}
+        ${glyph(card.icon)}
       </div>
       <div class="aiui-usage-card-content">
         <div class="aiui-usage-card-value">${card.value}</div>
-        <div class="aiui-usage-card-label">${card.label}</div>
+        <div class="aiui-usage-card-label">${shell ? SHELL_LABELS[card.label] || card.label : card.label}</div>
       </div>
     </div>
   `).join('');
+}
+
+// Shell: sentence-case card labels.
+const SHELL_LABELS = { 'Total Cost': 'Total cost', 'Total Tokens': 'Total tokens', 'Avg Cost/Request': 'Avg cost per request' };
+
+// Shell: an empty state for a day with no usage, and axis labels in HTML so
+// they keep their size however wide the chart is drawn.
+function shellTimeseriesChart(data) {
+  if (!data.some(d => d.requests || d.tokens || d.cost)) {
+    return `<div style="margin-bottom:1.5rem">${emptyState({ iconName: 'chart', title: 'No usage in the last 24 hours', body: 'Tokens and cost show up here once agents answer in chat.' })}</div>`;
+  }
+  const maxTokens = Math.max(...data.map(d => d.tokens), 1);
+  const maxCost = Math.max(...data.map(d => d.cost), 0.001);
+  const pts = (key, max) => data.map((d, i) => `${(i / Math.max(data.length - 1, 1)) * 100},${100 - (d[key] / max) * 100}`).join(' ');
+  const hours = data.filter((_, i) => i % 4 === 0).map(d => `<span>${d.hour}</span>`).join('');
+  return `
+    <div class="aiui-usage-chart-container">
+      <h3>Usage over time (24h)</h3>
+      <div class="aiui-chart-legend">
+        <span class="aiui-legend-item"><span class="aiui-legend-dot" style="background: var(--db-p-chart-1, #3b82f6)"></span> Tokens</span>
+        <span class="aiui-legend-item"><span class="aiui-legend-dot" style="background: var(--db-p-chart-2, #22c55e)"></span> Cost</span>
+      </div>
+      <div class="aiui-chart-label-row"><span>${formatTokens(maxTokens)} tokens</span></div>
+      <svg class="aiui-usage-chart" viewBox="0 0 100 100" preserveAspectRatio="none" style="height:180px">
+        <polyline points="0,100 100,100" fill="none" style="stroke: var(--db-p-border, rgba(148,163,184,0.2))" vector-effect="non-scaling-stroke" />
+        <polyline points="${pts('tokens', maxTokens)}" fill="none" style="stroke: var(--db-p-chart-1, #3b82f6)" stroke-width="2" vector-effect="non-scaling-stroke" />
+        <polyline points="${pts('cost', maxCost)}" fill="none" style="stroke: var(--db-p-chart-2, #22c55e)" stroke-width="2" stroke-dasharray="4,2" vector-effect="non-scaling-stroke" />
+      </svg>
+      <div class="aiui-chart-label-row" style="justify-content:space-between">${hours}</div>
+    </div>
+  `;
 }
 
 function renderTimeseriesChart() {
   if (!timeseriesData || !timeseriesData.timeseries) return '';
   
   const data = timeseriesData.timeseries;
+  if (inAppShell()) return shellTimeseriesChart(data);
   const maxTokens = Math.max(...data.map(d => d.tokens), 1);
   const maxCost = Math.max(...data.map(d => d.cost), 0.001);
   
@@ -153,6 +189,7 @@ function renderTimeseriesChart() {
 
 function renderModelsTable() {
   if (!modelsData || !modelsData.models || modelsData.models.length === 0) {
+    if (inAppShell()) return ''; // the chart's empty state already says so
     return '<p class="aiui-usage-empty">No model usage data yet</p>';
   }
   
@@ -168,7 +205,7 @@ function renderModelsTable() {
   
   return `
     <div class="aiui-usage-table-container">
-      <h3>Cost by Model</h3>
+      <h3>${inAppShell() ? 'Cost by model' : 'Cost by Model'}</h3>
       <table class="aiui-usage-table">
         <thead>
           <tr>
@@ -210,7 +247,7 @@ function renderModelsBarchart() {
   
   return `
     <div class="aiui-usage-barchart">
-      <h3>Top Models by Cost</h3>
+      <h3>${inAppShell() ? 'Top models by cost' : 'Top Models by Cost'}</h3>
       ${bars}
     </div>
   `;
@@ -220,6 +257,10 @@ function renderUsageUI() {
   const container = document.querySelector('[data-aiui-usage]');
   if (!container) return;
 
+  if (!usageData && inAppShell()) {
+    container.innerHTML = emptyState({ iconName: 'chart', title: 'No usage yet', body: 'Tokens, requests and cost show up here once agents answer in chat.' });
+    return;
+  }
   if (!usageData) {
     container.innerHTML = `
       <div class="aiui-usage-empty">
@@ -495,9 +536,23 @@ function injectStyles() {
         grid-template-columns: repeat(2, 1fr);
       }
     }
-  `;
+  ` + (inAppShell() ? SHELL_CSS : '');
   document.head.appendChild(style);
 }
+
+// Shell only: sentence case (no uppercase labels) and HTML chart axis labels.
+const SHELL_CSS = `
+    .aiui-usage-card-label, .aiui-usage-table th { text-transform: none; letter-spacing: 0; font-size: 0.75rem; }
+    .aiui-usage-card-icon { font-size: 1rem; }
+    .aiui-chart-label-row { display: flex; gap: 0.5rem; font-size: 11px; color: var(--db-p-text-muted, #64748b); margin: 0.25rem 0; }
+    .aiui-usage-card { min-width: 0; }
+    @media (max-width: 768px) {
+      .aiui-usage-cards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; }
+      .aiui-usage-card { padding: 1rem; gap: 0.75rem; }
+      .aiui-usage-card-icon { width: 36px; height: 36px; flex: none; }
+      .aiui-usage-card-value { font-size: 1.25rem; }
+    }
+`;
 
 function checkForUsagePage(root) {
   const usageSection = root.querySelector('[data-page="usage"]') ||
