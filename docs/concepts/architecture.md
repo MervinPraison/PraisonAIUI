@@ -1,8 +1,30 @@
-# Architecture: AG-UI Protocol vs Gateway Integration
+# Architecture
 
-PraisonAIUI has **two complementary integration layers** with the praisonai backend. They solve different problems and run side-by-side.
+## Overview
 
-## Protocol Stack
+PraisonAIUI is a Python package (PyPI `aiui`, import `praisonaiui`) with a
+Starlette + Uvicorn server and two frontends:
+
+| Part | What it is |
+|------|------------|
+| CLI (`aiui`) | `aiui run app.py` starts the server; `aiui build` compiles a YAML docs site into static JSON manifests |
+| Server (`server.py`, `features/`) | HTTP routes, the chat WebSocket, and one feature module per domain (sessions, agents, theme, attachments, ...) |
+| Providers | `@aiui.reply` callbacks or the PraisonAI provider turn a message into `RunEvent`s (see [Providers](providers.md)) |
+| `dashboard` style | The default of `create_app()` and of apps with `@aiui.page`: a vanilla-JS dashboard (`templates/frontend/plugins/`) |
+| React bundle | The app shell (`style: app`, what `aiui run` opens for a chat app; see [React app shell](../features/react-shell.md)) and the `chat`, `agents`, `playground` and `docs` styles |
+| Plugins | First-party pages and features are catalog records; third-party packages use the `praisonaiui.plugins` entry point (see [Plugins](../features/plugins.md)) |
+
+The data flow of a docs site is `YAML config → Pydantic models → compiler →
+JSON manifests → React`. The layer map, the numbered rules and the review
+checklist are in
+[ARCHITECTURE.md](https://github.com/MervinPraison/PraisonAIUI/blob/main/ARCHITECTURE.md).
+
+## AG-UI Protocol vs Gateway Integration
+
+With the praisonai backend, PraisonAIUI has **two complementary integration
+layers**. They solve different problems and run side-by-side.
+
+### Protocol Stack
 
 ```mermaid
 graph TD
@@ -30,7 +52,7 @@ AG-UI sits alongside MCP and A2A in the agentic protocol stack:
 | **AG-UI** | Agent-to-user-interface (streaming) |
 | **Gateway** | Infrastructure management (channels, nodes, instances) |
 
-## AG-UI — The Conversation Layer
+### AG-UI — The Conversation Layer
 
 [AG-UI](https://ag-ui.com/) is an **open, event-based protocol** by CopilotKit that standardizes how agent backends stream events to frontends. PraisonAI implements it at `praisonaiagents/ui/agui/`.
 
@@ -38,7 +60,7 @@ AG-UI sits alongside MCP and A2A in the agentic protocol stack:
 
 **Who uses it:** LangGraph, CrewAI, Google ADK, Microsoft Agent Framework, AWS Strands, Mastra, Pydantic AI, LlamaIndex, AG2, and PraisonAI.
 
-### Usage
+#### Usage
 
 ```python
 from praisonaiagents import Agent
@@ -56,13 +78,13 @@ app.include_router(agui.get_router())
 
 **Frontend compatibility:** CopilotKit, or any AG-UI-compatible client.
 
-## Gateway Integration — The Operations Layer
+### Gateway Integration — The Operations Layer
 
 The gateway integration connects PraisonAIUI's dashboard features to the live `WebSocketGateway` backend for infrastructure management.
 
 **What it does:** CRUD for channels, nodes, instances; live bot status; heartbeat monitoring.
 
-### How It Works
+#### How It Works
 
 ```mermaid
 sequenceDiagram
@@ -83,7 +105,7 @@ sequenceDiagram
     G-->>N: Agent/session counts
 ```
 
-### Key Files
+#### Key Files
 
 | File | Purpose |
 |------|---------|
@@ -93,7 +115,7 @@ sequenceDiagram
 | `integration.py` | Calls `set_gateway()` on start, clears on stop |
 | `config_store.py` | Unified `~/.praisonaiui/config.yaml` — single source of truth for all feature state |
 
-### API Endpoints
+#### API Endpoints
 
 | Endpoint | Methods | Description |
 |----------|---------|-------------|
@@ -101,6 +123,8 @@ sequenceDiagram
 | `/api/channels/{id}` | GET, PUT, DELETE | Channel CRUD |
 | `/api/channels/{id}/toggle` | POST | Enable/disable |
 | `/api/channels/{id}/status` | GET | Live running status |
+| `/api/channels/{id}/restart` | POST | Restart a channel bot |
+| `/api/channels/{id}/test` | POST | Test connectivity of a channel bot |
 | `/api/channels/platforms` | GET | Supported platforms |
 | `/api/nodes` | GET, POST | List/register nodes |
 | `/api/nodes/{id}` | GET, PUT, DELETE | Node CRUD |
@@ -109,7 +133,7 @@ sequenceDiagram
 | `/api/instances` | GET | Connected instances |
 | `/api/instances/heartbeat` | POST | Presence heartbeat |
 
-## Using Both Together
+### Using Both Together
 
 `AIUIGateway.start()` in `integration.py` mounts the gateway and dashboard REST API on one server. Chat uses the built-in WebSocket/SSE `RunEvent` protocol; AG-UI is mounted separately via `AguiFeature` when enabled:
 
@@ -130,7 +154,7 @@ await gateway.start()
 # A2UI:  GET/POST /api/surfaces/*      → Agent-driven surfaces (SurfaceFeature)
 ```
 
-## Summary
+### Summary
 
 | | AG-UI (`/agui`) | Gateway (`/api/*`) |
 |---|---|---|

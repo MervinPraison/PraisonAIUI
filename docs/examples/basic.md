@@ -4,37 +4,44 @@ Simple examples to get started with PraisonAIUI.
 
 ## Python Examples Reference
 
-Each example teaches exactly **one new concept** — no overlap.
+The apps live in [`examples/python/`](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python).
+Each one adds one concept; run it from its folder.
 
-| # | Name | Unique Concept | Run |
-|---|---|---|---|
-| 01 | chat | `@reply` + `aiui.say()` — minimal hello-world | `aiui run app.py` |
-| 02 | chat-app | Full lifecycle callbacks (`@welcome`, `@button`, `@profiles`, `@starters`, `@goodbye`) | `aiui run app.py` |
-| 03 | chat-with-ai | OpenAI streaming via `stream_token()` | `aiui run app.py` |
-| 04 | chat-with-praisonai | PraisonAI Agent, `asyncio.to_thread()`, `stream=False` | `aiui run app.py` |
-| 05 | agent-playground | Multi-agent `@profiles` switching | `aiui run app.py` |
-| 06 | dashboard | `@page` decorator, `@on("event")` syntax | `aiui run app.py` |
-| 07 | provider-praisonai | Custom `BaseProvider` subclass, `RunEvent` protocol | `aiui run app.py` |
-| 08 | streaming | PraisonAI Agent streaming via `stream_emitter` | `aiui run app.py` |
-| 09 | widget | Copilot/sidebar mode | `aiui run app.py` |
-| 10 | feature-showcase | All protocol features seeded, `create_app()` | `python app.py` |
-| 11 | ui-integration | Gradio ASGI mount, Streamlit iframe, REST embedding | `python app.py` |
-| 12 | agent-dashboard | OpenClaw-style rendered HTML admin panel | `python app.py` |
-| 13 | real-dashboard | Production dashboard with seeded data | `python app.py` |
-| 14 | all-features | Comprehensive 16-feature API test suite | `python app.py` |
-| 15 | dashboard-test | Dashboard component rendering tests | `aiui run app.py` |
-| 16 | gateway-integration | Gateway WebSocket integration | `aiui run app.py` |
-| 17 | three-column-demo | Three-column layout with sidebar + TOC | `aiui run app.py` |
-| 18 | full-chat | Full-featured chat with all options enabled | `aiui run app.py` |
-| 19 | components-showcase | All 48 UI components demonstrated | `aiui run app.py` |
-| 20 | email-channel | Email channel integration | `aiui run app.py` |
-| 21 | agentmail-bot | Agentmail bot integration | `aiui run app.py` |
-| 22 | agentmail-channel | Agentmail channel setup | `aiui run app.py` |
-| 23 | e2e-components-test | End-to-end component testing | `aiui run app.py` |
-| 24 | custom-design | Custom CSS design system with `set_custom_css()` | `aiui run app.py` |
-| 25 | clean-chat | Clean chat UI — `sidebar=False`, `page_header=False`, blue theme | `aiui run app.py` |
-| 26 | custom-theme-chat | Custom theme registration via `register_theme()` | `aiui run app.py` |
-| 27 | multica-style | Floating chat window, collapsible sidebar, indigo theme | `aiui run app.py` |
+| Example | Concept | Run |
+|---|---|---|
+| [01-chat](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/01-chat) | `@aiui.reply` + `aiui.say()`: the minimal chat | `aiui run app.py` |
+| [02-chat-app](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/02-chat-app) | Lifecycle callbacks (`@welcome`, `@button`, `@profiles`, `@starters`, `@goodbye`) | `aiui run app.py` |
+| [03-chat-with-ai](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/03-chat-with-ai) | OpenAI streaming with `aiui.stream_token()` | `aiui run app.py` |
+| [04-chat-with-praisonai](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/04-chat-with-praisonai) | A PraisonAI agent behind `@aiui.reply` | `aiui run app.py` |
+| [05-agent-playground](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/05-agent-playground) | Several agents with `@aiui.profiles` switching | `aiui run app.py` |
+| [06-dashboard](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/06-dashboard) | Custom pages with `@aiui.page` | `aiui run app.py --style dashboard` |
+| [07-provider-praisonai](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/07-provider-praisonai) | A custom `BaseProvider` and the `RunEvent` protocol | `aiui run app.py` |
+| [08-streaming](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/08-streaming) | PraisonAI agent token streaming | `aiui run app.py` |
+| [09-widget](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/09-widget) | Chat as a floating widget or sidebar | `aiui run app.py` |
+| [10-feature-showcase](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/10-feature-showcase) | Every built-in dashboard page, with `create_app()` | `python app.py` |
+| [11-ui-integration](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/11-ui-integration) | PraisonAIUI next to Gradio and Streamlit | `python app.py` |
+| [13-real-dashboard](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/13-real-dashboard) | Dashboard with real PraisonAI agents | `aiui run app.py --style dashboard` |
+| [14-all-features](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/14-all-features) | API test suite over the features (Starlette `TestClient`) | `python app.py` |
+| [15-dashboard-test](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/15-dashboard-test) | Dashboard component rendering | `python app.py` |
+| [16-gateway-integration](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/16-gateway-integration) | `AIUIGateway` with execution and streaming | `python app.py` |
+| [17-three-column-demo](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/17-three-column-demo) | Three-column feature explorer on the gateway | `python app.py` |
+| [18-full-chat](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/18-full-chat) | Chat-focused dashboard with `aiui.set_pages()` | `python app.py` |
+| [19-components-showcase](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/19-components-showcase) | The dashboard UI components | `aiui run app.py --style dashboard` |
+| [20-email-bot](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/20-email-bot) | An agent on an email inbox | `python app.py` |
+| [21-email-channel](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/21-email-channel) | Email as a dashboard channel | `aiui run app.py` |
+| [22-agentmail-bot](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/22-agentmail-bot) | AgentMail bot with programmatic inboxes | `python app.py` |
+| [23-agentmail-channel](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/23-agentmail-channel) | AgentMail as a dashboard channel | `python app.py` |
+| [24-e2e-components-test](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/24-e2e-components-test) | Components, docs and chat in one app (end-to-end test) | `python app.py` |
+| [25-custom-design](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/25-custom-design) | A fully themed chat with `set_custom_css()` | `aiui run app.py` |
+| [26-clean-chat](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/26-clean-chat) | Dashboard chat without the sidebar | `aiui run app.py` |
+| [27-custom-theme-chat](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/27-custom-theme-chat) | A custom theme with `register_theme()` | `aiui run app.py` |
+| [28-multica-style](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/28-multica-style) | Floating chat window, collapsible sidebar, brand colour | `aiui run app.py --style dashboard` |
+| [29-full-extensibility](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/29-full-extensibility) | Every extension point in one app | `python app.py` |
+| [30-a2ui-canvas](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/30-a2ui-canvas) | A2UI canvas surfaces | `python app.py` |
+| [31-image-preview](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/31-image-preview) | Agent-generated images in chat | `aiui run app.py` |
+
+YAML chat apps (`aiui run chat.yaml`) are in
+[`examples/yaml/`](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/yaml).
 
 ## Minimal Docs Site
 
@@ -94,7 +101,7 @@ templates:
     layout: "ThreeColumnLayout"
     slots:
       header: { ref: "header" }
-      left: { type: "DocsSidebar", props: { source: "docs-nav" } }
+      left: { type: "DocsSidebar" }
       main: { type: "DocContent" }
       right: { type: "Toc" }
       footer: { ref: "footer" }
@@ -116,5 +123,10 @@ my-docs/
 │   │   └── quickstart.md
 │   └── guides/
 │       └── configuration.md
-└── package.json
+```
+
+```bash
+aiui validate
+aiui build      # writes ./aiui
+aiui serve      # builds and serves on http://127.0.0.1:8000
 ```

@@ -1,10 +1,10 @@
 # Slots & Components
 
-Understanding the slot system and built-in components.
+A template names a component for each slot of its layout. In the docs site that
+`aiui build` produces, the React renderer reads three slots; the others are
+validated and compiled into the manifest but do not change the page.
 
 ## Slot System
-
-Slots are named insertion points in layouts. Each template assigns components to slots:
 
 ```yaml
 templates:
@@ -18,11 +18,19 @@ templates:
       footer: { ref: "main_footer" }
 ```
 
+| Slot | Effect in the docs site |
+|------|-------------------------|
+| `header` | Its component's props (`logoText`, `logoImage`, `links`, `cta`) fill the header. YAML `navbar` links and CTA win over `links`/`cta`, but `logoImage` wins over YAML `logo.light`/`logo.dark` |
+| `footer` | Its component's props (`text`, `links`) fill the footer bottom row, next to YAML `footer` |
+| `right` | `null` hides the table of contents; any other value shows it |
+| `left`, `main` | No effect: the sidebar is always the generated navigation and the main area the page's Markdown |
+
+Without a `header` or `footer` slot, the components named `header` and
+`footer` are used. `aiui validate` checks that every `ref` names a component.
+
 ## Built-in Components
 
 ### Header
-
-Site header with logo, navigation, and CTA.
 
 ```yaml
 components:
@@ -30,7 +38,7 @@ components:
     type: "Header"
     props:
       logoText: "My Site"
-      logoHref: "/"
+      logoImage: "/logo.svg"
       links:
         - label: "Docs"
           href: "/docs"
@@ -43,8 +51,6 @@ components:
 
 ### Footer
 
-Site footer with links and copyright.
-
 ```yaml
 components:
   my_footer:
@@ -56,44 +62,22 @@ components:
           href: "https://github.com"
 ```
 
-### DocsSidebar
+### DocsSidebar, DocContent, Toc
 
-Documentation navigation sidebar.
-
-```yaml
-components:
-  sidebar:
-    type: "DocsSidebar"
-    props:
-      source: "docs-nav"    # Uses generated navigation
-      collapsible: true
-      searchable: true
-```
-
-### Toc
-
-Table of contents for the current page.
+These name the generated navigation, the page content and the table of
+contents. They take no props the renderer reads.
 
 ```yaml
 slots:
-  right: { type: "Toc" }
-```
-
-### DocContent
-
-Renders the markdown content for the current page.
-
-```yaml
-slots:
+  left: { type: "DocsSidebar" }
   main: { type: "DocContent" }
+  right: { type: "Toc" }
 ```
 
 ## Custom Components
 
-Override built-in components using the TypeScript SDK:
-
-```typescript
-import { SlotRegistry } from 'praisonaiui/runtime';
-
-SlotRegistry.register('Header', MyCustomHeader);
-```
+The docs site renderer has no hook for your own slot components. The separate
+TypeScript runtime in the repository (`src/praisonaiui-ts`, see
+[TypeScript](../typescript/index.md)) has a `SlotRegistry` for apps that render
+the manifests themselves. Pages in the React app shell are added with plugins
+instead (see [Plugins](../features/plugins.md)).
