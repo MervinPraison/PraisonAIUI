@@ -84,6 +84,15 @@
 
 ### Fixed
 
+- Docs sites (`aiui build`): the site root shows `docs/index.md` instead of an
+  empty page; pages work on any static host (each page also has
+  `docs/<page>/index.html`, and index pages and numbered files have their
+  markdown at the URL the page loads, so `/docs/typescript` and ADR pages no
+  longer say "not found"); a URL without the `/docs` base or naming a file
+  (`/docs/adr/0001-x`) opens its page; digits inside a file name are no longer
+  cut out of its URL. See
+  [Content sources → Static hosting](docs/features/content-sources.md#static-hosting).
+
 - Schedules: daily, weekly and custom cron schedules never ran unless
   `croniter` happened to be installed. It is now a core dependency (MIT), and
   `GET /api/schedules/{id}/stats` gives a cron job's `next_run_at`.

@@ -154,8 +154,9 @@ class DocsScanner:
         # Join and normalize
         slug = "/".join(slug_parts)
 
-        # Remove number prefixes (e.g., "01-" -> "")
-        slug = re.sub(r"/?\d+-", "/", slug).strip("/")
+        # Remove a number prefix from each path segment ("01-intro" -> "intro").
+        # Digits inside a name stay: "ui-reset-2026-11" keeps its slug.
+        slug = re.sub(r"(^|/)\d+-", r"\1", slug).strip("/")
 
         return slug or "index"
 

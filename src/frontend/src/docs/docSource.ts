@@ -34,9 +34,54 @@ export function resolveDocTarget(target: string, docPath: string): string {
     } catch {
         return target
     }
-    // A link to another page drops `.md`, as the SPA routes have no suffix.
-    const path = url.pathname.replace(/\.md$/i, '')
-    return path + url.search + url.hash
+    return pageRoute(url.pathname) + url.search + url.hash
+}
+
+/**
+ * The route of a page link, as `aiui build` names pages (docs_scanner.py
+ * `_path_to_slug`): `.md` dropped, `index` / `README` name their folder, and a
+ * number prefix at the start of a segment is dropped (`0001-x.md` -> `x`).
+ * Other targets (images, files) are returned unchanged.
+ */
+export function pageRoute(pathname: string): string {
+    if (!/\.md$/i.test(pathname)) return pathname
+    const route = pathname
+        .replace(/\.md$/i, '')
+        .replace(/\/(?:index|readme)$/i, '')
+        .replace(/(^|\/)\d+-/g, '$1')
+    return route || '/'
+}
+
+/**
+ * The docs page whose markdown a URL shows: the URL itself, or for the site
+ * root `/` the docs home page (the nav's `/docs/index` item), or null when the
+ * root has no home page.
+ */
+export function docSourcePath(currentPath: string, homePath?: string | null): string | null {
+    const path = currentPath.replace(/\/+$/, '') || '/'
+    if (path !== '/') return path
+    return homePath ? homePath.replace(/\/+$/, '') || null : null
+}
+
+/**
+ * Other nav paths a URL the nav does not list may mean: the page route of a
+ * file-named URL (`/docs/adr/0001-x` -> `/docs/adr/x`, `/docs/guide/index` ->
+ * `/docs/guide`), and the same under the docs base when the URL lacks it
+ * (`/getting-started/x` -> `/docs/getting-started/x`). Never the URL itself.
+ */
+export function docPathAliases(path: string, base = '/docs'): string[] {
+    const p = path.replace(/\/+$/, '')
+    if (!p || p === '/') return []
+    const out: string[] = []
+    const add = (candidate: string) => {
+        if (candidate && candidate !== p && !out.includes(candidate)) out.push(candidate)
+    }
+    add(pageRoute(`${p}.md`))
+    if (p !== base && !p.startsWith(`${base}/`)) {
+        add(`${base}${p}`)
+        add(pageRoute(`${base}${p}.md`))
+    }
+    return out
 }
 
 // [text](target "title") and ![alt](target): the target is the first token.

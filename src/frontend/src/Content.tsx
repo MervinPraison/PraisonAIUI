@@ -9,7 +9,7 @@ import { Markdown, preloadMarkdown, preloadMarkdownPlugins } from './markdown/La
 import { MobileToc } from './Toc'
 import { docPathToMarkdown, normalizeDocPath } from './pathUtils'
 import type { DocsNav, UIConfig, NavItem, RouteManifest } from './types'
-import { prepareDocSource } from './docs/docSource'
+import { docSourcePath, prepareDocSource } from './docs/docSource'
 import { docSection } from './docs/docNav'
 import { DocsPager } from './docs/DocsPager'
 
@@ -34,17 +34,17 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
     // Load markdown from URL path (source of truth) to avoid stale selectedItem races
     useEffect(() => {
         const urlPath = normalizeDocPath(currentPath)
-        if (urlPath === '/') {
+        // The site root shows the docs home page (docs/index.md) when the nav has one.
+        const sourcePath = docSourcePath(urlPath, selectedItem?.path)
+        if (!sourcePath) {
             setLoadingContent(false)
             setLoadedPath('')
-            if (!selectedItem?.path) {
-                setMarkdown('')
-            }
+            setMarkdown('')
             return
         }
 
-        const mdUrl = docPathToMarkdown(urlPath)
-        const pageTitle = urlPath.split('/').pop()?.replace(/-/g, ' ') ?? 'page'
+        const mdUrl = docPathToMarkdown(sourcePath)
+        const pageTitle = sourcePath.split('/').pop()?.replace(/-/g, ' ') ?? 'page'
         const controller = new AbortController()
 
         setMarkdown('')
@@ -57,7 +57,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                 const response = await fetch(mdUrl, { signal: controller.signal })
                 if (controller.signal.aborted) return
                 if (response.ok) {
-                    const content = preprocessMkdocsMarkdown(prepareDocSource(await response.text(), urlPath))
+                    const content = preprocessMkdocsMarkdown(prepareDocSource(await response.text(), sourcePath))
                     // Renderer + Shiki core + KaTeX before first paint (no raw-$$ or
                     // unstyled-code flash); grammars and mermaid stay lazy.
                     await Promise.all([preloadMarkdown(), preloadMarkdownPlugins(content)])
