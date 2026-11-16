@@ -4,6 +4,10 @@
  * Authentication management UI with API keys and session management.
  */
 import { showToast, showConfirm } from './toast.js';
+import { inAppShell, statusChip } from './views/_helpers.js';
+
+// The dashboard's wording, or the shell's (no emoji, sentence case).
+const t = (dashboard, shell) => (inAppShell() ? shell : dashboard);
 
 let authConfig = null;
 let apiKeys = [];
@@ -125,19 +129,19 @@ function renderAuthUI() {
     </div>
     
     <div class="aiui-auth-section">
-      <h3>Auth Mode</h3>
+      <h3>${t('Auth Mode', 'Auth mode')}</h3>
       <div class="aiui-auth-modes">
         <button class="${mode === 'none' ? 'active' : ''}" onclick="window.aiuiSetAuthMode('none')">
-          🔓 None
+          ${t('🔓 None', 'None')}
         </button>
         <button class="${mode === 'api_key' ? 'active' : ''}" onclick="window.aiuiSetAuthMode('api_key')">
-          🔑 API Key
+          ${t('🔑 API Key', 'API key')}
         </button>
         <button class="${mode === 'session' ? 'active' : ''}" onclick="window.aiuiSetAuthMode('session')">
-          🎫 Session
+          ${t('🎫 Session', 'Session')}
         </button>
         <button class="${mode === 'password' ? 'active' : ''}" onclick="window.aiuiSetAuthMode('password')">
-          🔐 Password
+          ${t('🔐 Password', 'Password')}
         </button>
       </div>
       <p class="aiui-auth-mode-desc">
@@ -152,19 +156,19 @@ function renderAuthUI() {
     <div class="aiui-auth-section">
       <h3>Password</h3>
       <p class="aiui-auth-status">
-        ${authConfig?.password_set ? '✓ Password is set' : '⚠️ No password set'}
+        ${inAppShell() ? statusChip(authConfig?.password_set ? 'Password set' : 'No password set', authConfig?.password_set ? 'success' : 'warning') : authConfig?.password_set ? '✓ Password is set' : '⚠️ No password set'}
       </p>
       <button class="aiui-btn-primary" onclick="window.aiuiSetPassword()">
-        ${authConfig?.password_set ? 'Change Password' : 'Set Password'}
+        ${authConfig?.password_set ? t('Change Password', 'Change password') : t('Set Password', 'Set password')}
       </button>
     </div>
     ` : ''}
     
     <div class="aiui-auth-section">
-      <h3>API Keys</h3>
+      <h3>${t('API Keys', 'API keys')}</h3>
       <div class="aiui-api-keys-list">
         ${apiKeys.length === 0 
-          ? '<p class="aiui-auth-empty">No API keys</p>'
+          ? `<p class="aiui-auth-empty">${t('No API keys', 'No API keys yet')}</p>`
           : apiKeys.map(key => `
             <div class="aiui-api-key-item">
               <div class="aiui-api-key-info">
@@ -180,11 +184,11 @@ function renderAuthUI() {
           `).join('')
         }
       </div>
-      <button class="aiui-btn-primary" onclick="window.aiuiCreateApiKey()">+ Create API Key</button>
+      <button class="aiui-btn-primary" onclick="window.aiuiCreateApiKey()">${t('+ Create API Key', 'Create API key')}</button>
     </div>
     
     <div class="aiui-auth-section">
-      <h3>Active Sessions</h3>
+      <h3>${t('Active Sessions', 'Active sessions')}</h3>
       <p class="aiui-auth-status">${authConfig?.sessions_count || 0} active sessions</p>
     </div>
   `;

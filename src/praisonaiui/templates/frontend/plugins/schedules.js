@@ -5,7 +5,7 @@
  * Shows job status, execution stats, and provides start/stop/run-now controls.
  */
 import { showConfirm } from './toast.js';
-import { pageToolbar } from './views/_helpers.js';
+import { pageToolbar, inAppShell, emptyState } from './views/_helpers.js';
 
 let schedulesData = null;
 let refreshInterval = null;
@@ -241,6 +241,14 @@ function renderSchedulesUI() {
   const container = document.querySelector('[data-aiui-schedules]');
   if (!container) return;
 
+  if ((!schedulesData || schedulesData.schedules.length === 0) && inAppShell()) {
+    container.innerHTML = emptyState({
+      iconName: 'calendar',
+      title: 'No scheduled runs yet',
+      body: 'Scheduled runs appear here once your app or an agent adds one, like a digest every Monday at 9 AM.',
+    });
+    return;
+  }
   if (!schedulesData || schedulesData.schedules.length === 0) {
     container.innerHTML = `
       <div class="aiui-schedules-empty">

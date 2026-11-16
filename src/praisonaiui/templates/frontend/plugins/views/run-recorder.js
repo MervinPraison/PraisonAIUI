@@ -15,6 +15,7 @@
 import {
   esc, timeAgo, filterChips, searchInput,
   formatDuration, emptyState, traceStatusBadge, timelineRow, helpBanner,
+  inAppShell, shellButton,
 } from '/plugins/views/_helpers.js';
 
 const MAX_EVENTS = 500;
@@ -277,12 +278,12 @@ function filteredSessions() {
 function renderSessionList() {
   const list = filteredSessions();
   if (list.length === 0) {
-    return emptyState({ icon: '📭', title: 'No sessions', body: _query ? 'Try a different search.' : 'Send a chat message to create one.' });
+    return emptyState({ icon: '📭', title: 'No sessions', body: _query ? 'Try a different search.' : 'Send a chat message to create one.', bare: true });
   }
   return list.slice(0, 200).map((s) => {
     const id = sessionId(s);
     const active = id === _selectedId;
-    const dot = s.is_active ? '#22c55e' : '#71717a';
+    const dot = inAppShell() ? (s.is_active ? 'var(--db-success)' : 'var(--db-text-muted)') : (s.is_active ? '#22c55e' : '#71717a');
     return `<div class="rr-session${active ? ' active' : ''}" data-session-id="${esc(id)}">
       <div style="display:flex;align-items:center;gap:8px">
         <span style="width:8px;height:8px;border-radius:50%;background:${dot};flex:0 0 auto"></span>
@@ -334,7 +335,7 @@ function summaryBar(session, preview, status, events) {
 
 function renderCenter(data) {
   if (!_selectedId) {
-    return emptyState({ icon: '🛫', title: 'Select a session to inspect its run', body: 'Pick a session on the left, or open /runs?session_id={id}.' });
+    return emptyState({ icon: '🛫', title: 'Select a session to inspect its run', body: inAppShell() ? 'Pick a session on the left to see its timeline.' : 'Pick a session on the left, or open /runs?session_id={id}.', bare: true });
   }
   if (!data) return skeleton();
   const { session, preview, status, events, errors } = data;
@@ -342,15 +343,15 @@ function renderCenter(data) {
   const sdkOff = status && !(status.trace_available || status.obs_available);
   let banner = '';
   if (status && status.gateway_connected === false) {
-    banner = `<div class="rr-banner" style="background:rgba(239,68,68,.1);color:#ef4444">Gateway disconnected — showing cached data. <button id="rr-retry" style="margin-left:8px;background:none;border:1px solid currentColor;color:inherit;border-radius:6px;padding:2px 8px;cursor:pointer">Retry</button></div>`;
+    banner = `<div class="rr-banner" style="${inAppShell() ? 'background:var(--db-error-bg);color:var(--db-error)' : 'background:rgba(239,68,68,.1);color:#ef4444'}">Gateway disconnected — showing cached data. <button id="rr-retry" style="margin-left:8px;background:none;border:1px solid currentColor;color:inherit;border-radius:6px;padding:2px 8px;cursor:pointer">Retry</button></div>`;
   } else if (sdkOff) {
-    banner = `<div class="rr-banner" style="background:rgba(234,179,8,.1);color:#eab308">Traces unavailable — showing chat and logs only.</div>`;
+    banner = `<div class="rr-banner" style="${inAppShell() ? 'background:var(--db-warning-bg);color:var(--db-warning)' : 'background:rgba(234,179,8,.1);color:#eab308'}">Traces unavailable — showing chat and logs only.</div>`;
   } else if (partial) {
-    banner = `<div class="rr-banner" style="background:rgba(234,179,8,.1);color:#eab308">Some sources unavailable — timeline may be incomplete.</div>`;
+    banner = `<div class="rr-banner" style="${inAppShell() ? 'background:var(--db-warning-bg);color:var(--db-warning)' : 'background:rgba(234,179,8,.1);color:#eab308'}">Some sources unavailable — timeline may be incomplete.</div>`;
   }
   let body;
   if (events.length === 0) {
-    body = emptyState({ icon: '🕳️', title: 'No events for this session', body: 'Send a chat message or run the agent to generate activity.' });
+    body = emptyState({ icon: '🕳️', title: 'No events for this session', body: 'Send a chat message or run the agent to generate activity.', bare: true });
   } else {
     const truncNote = events._truncated
       ? `<div style="padding:8px 12px;font-size:12px;color:var(--db-text-dim);text-align:center">Timeline truncated to latest ${MAX_EVENTS} events.</div>`
@@ -371,7 +372,7 @@ function renderDrawer(ev, data) {
   const host = _container?.querySelector('#rr-right');
   if (!host) return;
   if (!ev) {
-    host.innerHTML = `<div class="rr-head">Detail</div>${emptyState({ title: 'Select a timeline row', body: 'Details appear here.' })}`;
+    host.innerHTML = `<div class="rr-head">Detail</div>${emptyState({ title: 'Select a timeline row', body: 'Details appear here.', bare: true })}`;
     return;
   }
   const tabs = ['Summary', 'Span JSON', 'Logs', 'Debug'];
@@ -595,7 +596,7 @@ async function loadSessions() {
     if (listHost) {
       listHost.innerHTML = emptyState({
         icon: '⚠️', title: 'Could not load sessions',
-        actionHtml: '<button id="rr-sessions-retry" style="padding:8px 16px;background:var(--db-accent,#6366f1);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px">Retry</button>',
+        actionHtml: inAppShell() ? shellButton('Retry', 'id="rr-sessions-retry"') : '<button id="rr-sessions-retry" style="padding:8px 16px;background:var(--db-accent,#6366f1);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px">Retry</button>',
       });
       listHost.querySelector('#rr-sessions-retry')?.addEventListener('click', loadSessions);
     }

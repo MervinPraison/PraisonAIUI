@@ -4,7 +4,12 @@
  *      /api/marketplace/install, /api/marketplace/uninstall,
  *      /api/marketplace/plugins/{id}
  */
-import { helpBanner, pageToolbar, filterChips, searchInput } from './_helpers.js';
+import { helpBanner, pageToolbar, filterChips, searchInput, inAppShell, monogram, emptyState, glyph } from './_helpers.js';
+
+// Shell: danger and primary buttons on theme colours (the dashboard keeps its literals).
+const DANGER_BTN = 'border:1px solid var(--db-error);background:transparent;color:var(--db-error)';
+const PRIMARY_BTN = 'border:1px solid var(--primary);background:var(--primary);color:var(--primary-foreground)';
+const shellBtn = (style, look) => (inAppShell() ? style.replace(/border:[^;]*;background:[^;]*;color:[^;]*/, look) : style);
 import { showToast, showConfirm } from '../toast.js';
 
 const CATEGORY_ICONS = { tools: '🔧', memory: '🧠', all: '📦' };
@@ -72,19 +77,19 @@ export async function render(container) {
     return `
       <div class="db-card" data-plugin="${id}" style="padding:16px 18px;display:flex;flex-direction:column;gap:10px;cursor:pointer">
         <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-size:22px">${catIcon(p.category)}</span>
+          ${inAppShell() ? monogram(p.name || p.id, 36) : `<span style="font-size:22px">${catIcon(p.category)}</span>`}
           <div style="flex:1;min-width:0">
             <div style="font-size:14px;font-weight:600">${esc(p.name || p.id)}</div>
             <div style="font-size:11px;color:var(--db-text-dim)">${esc(p.category || 'plugin')} · v${esc(p.version || '1.0.0')}</div>
           </div>
-          ${installed ? '<span style="font-size:10px;font-weight:600;color:#22c55e;padding:2px 8px;border-radius:6px;background:rgba(34,197,94,.12)">Installed</span>' : ''}
+          ${installed ? (inAppShell() ? '<span style="font-size:12px;font-weight:500;color:var(--db-success);padding:2px 8px;border-radius:999px;background:var(--db-success-bg)">Installed</span>' : '<span style="font-size:10px;font-weight:600;color:#22c55e;padding:2px 8px;border-radius:6px;background:rgba(34,197,94,.12)">Installed</span>') : ''}
         </div>
         <div style="font-size:12px;color:var(--db-text-dim);line-height:1.5;min-height:34px">${esc(p.description || '')}</div>
         <div style="display:flex;gap:8px">
           <button type="button" class="mkt-open" data-plugin="${id}" style="flex:1;padding:6px 10px;border:1px solid var(--db-border);background:transparent;color:var(--db-text);border-radius:7px;cursor:pointer;font-size:12px">Details</button>
           ${installed
-            ? `<button type="button" class="mkt-uninstall" data-plugin="${id}" style="flex:1;padding:6px 10px;border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.08);color:#f87171;border-radius:7px;cursor:pointer;font-size:12px">Uninstall</button>`
-            : `<button type="button" class="mkt-install" data-plugin="${id}" style="flex:1;padding:6px 10px;border:1px solid var(--db-accent);background:var(--db-accent);color:#fff;border-radius:7px;cursor:pointer;font-size:12px">Install</button>`}
+            ? `<button type="button" class="mkt-uninstall" data-plugin="${id}" style="${shellBtn('flex:1;padding:6px 10px;border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.08);color:#f87171;border-radius:7px;cursor:pointer;font-size:12px', DANGER_BTN)}">Uninstall</button>`
+            : `<button type="button" class="mkt-install" data-plugin="${id}" style="${shellBtn('flex:1;padding:6px 10px;border:1px solid var(--db-accent);background:var(--db-accent);color:#fff;border-radius:7px;cursor:pointer;font-size:12px', PRIMARY_BTN)}">Install</button>`}
         </div>
       </div>`;
   }
@@ -109,7 +114,9 @@ export async function render(container) {
         <div style="display:flex;gap:6px;flex-wrap:wrap">${filterChips(categories, state.category, 'data-cat')}</div>
       </div>
       <div id="mkt-grid" class="db-columns" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">
-        ${list.map(cardHtml).join('') || '<div class="db-viewer"><pre>No plugins match your filters</pre></div>'}
+        ${list.map(cardHtml).join('') || (inAppShell()
+          ? `<div style="grid-column:1/-1">${emptyState({ iconName: 'package', title: state.tab === 'installed' ? 'No plugins installed yet' : 'No plugins match your filters', body: state.tab === 'installed' ? 'Install a plugin from Browse to add it here.' : 'Try another search or category.' })}</div>`
+          : '<div class="db-viewer"><pre>No plugins match your filters</pre></div>')}
       </div>
       <div id="mkt-drawer"></div>`;
 
@@ -124,7 +131,7 @@ export async function render(container) {
       <div class="mkt-drawer-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:120;display:flex;justify-content:flex-end">
         <div style="width:min(480px,100%);height:100%;background:var(--db-sidebar-bg);border-left:1px solid var(--db-border);overflow-y:auto;padding:24px;box-sizing:border-box">
           <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:16px">
-            <span style="font-size:32px">${catIcon(p.category)}</span>
+            ${inAppShell() ? monogram(p.name || p.id, 44) : `<span style="font-size:32px">${catIcon(p.category)}</span>`}
             <div style="flex:1">
               <div style="font-size:18px;font-weight:700">${esc(p.name || p.id)}</div>
               <div style="font-size:12px;color:var(--db-text-dim)">${esc(p.category || 'plugin')} · v${esc(p.version || '1.0.0')}</div>
@@ -132,15 +139,15 @@ export async function render(container) {
             <button type="button" class="mkt-close" style="background:transparent;border:none;color:var(--db-text-dim);font-size:22px;cursor:pointer;line-height:1">×</button>
           </div>
           <div style="font-size:13px;line-height:1.6;color:var(--db-text-dim);margin-bottom:20px">${esc(p.description || 'No description provided.')}</div>
-          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--db-text-dim);margin-bottom:8px">Permissions</div>
+          <div style="font-size:12px;font-weight:600;${inAppShell() ? '' : 'text-transform:uppercase;letter-spacing:.06em;'}color:var(--db-text-dim);margin-bottom:8px">Permissions</div>
           <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:24px">
             ${perms.length
-              ? perms.map((perm) => `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--db-border);border-radius:8px;font-size:12px"><span>🔐</span><code style="font-size:12px">${esc(perm)}</code></div>`).join('')
+              ? perms.map((perm) => `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--db-border);border-radius:8px;font-size:12px"><span${inAppShell() ? ' style="display:inline-flex;color:var(--db-text-dim)"' : ''}>${glyph('🔐')}</span><code style="font-size:12px">${esc(perm)}</code></div>`).join('')
               : '<div style="font-size:12px;color:var(--db-text-dim)">No special permissions requested.</div>'}
           </div>
           ${installed
-            ? `<button type="button" class="mkt-uninstall" data-plugin="${id}" style="width:100%;padding:11px;border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.08);color:#f87171;border-radius:9px;cursor:pointer;font-size:14px;font-weight:600">Uninstall</button>`
-            : `<button type="button" class="mkt-install" data-plugin="${id}" style="width:100%;padding:11px;border:1px solid var(--db-accent);background:var(--db-accent);color:#fff;border-radius:9px;cursor:pointer;font-size:14px;font-weight:600">Install ${perms.length ? '(' + perms.length + ' permissions)' : ''}</button>`}
+            ? `<button type="button" class="mkt-uninstall" data-plugin="${id}" style="${shellBtn('width:100%;padding:11px;border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.08);color:#f87171;border-radius:9px;cursor:pointer;font-size:14px;font-weight:600', DANGER_BTN)}">Uninstall</button>`
+            : `<button type="button" class="mkt-install" data-plugin="${id}" style="${shellBtn('width:100%;padding:11px;border:1px solid var(--db-accent);background:var(--db-accent);color:#fff;border-radius:9px;cursor:pointer;font-size:14px;font-weight:600', PRIMARY_BTN)}">Install ${perms.length ? '(' + perms.length + ' permissions)' : ''}</button>`}
         </div>
       </div>`;
   }

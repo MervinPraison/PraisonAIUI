@@ -11,6 +11,7 @@
  * API: /api/channels, /api/channels/platforms, /api/channels/{id}/{toggle,restart,test}
  */
 import { showToast, showConfirm } from '../toast.js';
+import { inAppShell, emptyState, shellButton, icon, monogram } from '/plugins/views/_helpers.js';
 
 const PLATFORM_META = {
   discord: { icon: '🎮', color: '#5865F2', fields: [{ key: 'bot_token', label: 'Bot Token', secret: true }] },
@@ -88,11 +89,12 @@ export async function render(container) {
       <div class="aiui-channels-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
         <div>
           <h2 style="margin:0;font-size:1.5rem">Messaging Channels</h2>
-          <div style="margin-top:4px;font-size:13px;color:var(--db-text-dim)">${online} Online · ${channels.length} Total</div>
+          <div style="margin-top:4px;font-size:13px;color:var(--db-text-dim)">${inAppShell() ? `${online} online · ${channels.length} total` : `${online} Online · ${channels.length} Total`}</div>
         </div>
         <div style="display:flex;align-items:center;gap:12px">
-          <a href="/inbox" style="font-size:.85rem;color:var(--db-accent,#6366f1);text-decoration:none">Open Inbox →</a>
-          <button id="ch-add" style="padding:8px 18px;background:var(--db-accent,#6366f1);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:.85rem">+ Add Channel</button>
+          ${inAppShell() ? `<a href="/inbox" style="font-size:14px;color:var(--db-text-dim);text-decoration:none">Open inbox</a>
+          ${shellButton(`${icon('plus')}Add channel`, 'id="ch-add"')}` : `<a href="/inbox" style="font-size:.85rem;color:var(--db-accent,#6366f1);text-decoration:none">Open Inbox →</a>
+          <button id="ch-add" style="padding:8px 18px;background:var(--db-accent,#6366f1);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:.85rem">+ Add Channel</button>`}
         </div>
       </div>
       <div id="ch-grid" class="db-columns" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px"></div>
@@ -101,7 +103,15 @@ export async function render(container) {
 
   const grid = container.querySelector('#ch-grid');
 
-  if (channels.length === 0) {
+  if (channels.length === 0 && inAppShell()) {
+    grid.innerHTML = `<div style="grid-column:1/-1">${emptyState({
+      iconName: 'radio',
+      title: 'No channels yet',
+      body: 'Connect Discord, Slack, Telegram or WhatsApp so people can reach your agents there.',
+      actionHtml: shellButton(`${icon('plus')}Add channel`, 'id="ch-add-empty"'),
+    })}</div>`;
+    grid.querySelector('#ch-add-empty')?.addEventListener('click', () => openAddModal(container, platforms));
+  } else if (channels.length === 0) {
     grid.innerHTML = `
       <div class="aiui-channels-empty" style="grid-column:1/-1;text-align:center;padding:3rem 2rem;color:var(--db-text-dim)">
         <div style="font-size:3rem;opacity:.5;margin-bottom:1rem">📡</div>
@@ -121,7 +131,7 @@ export async function render(container) {
       card.style.cssText = 'padding:16px;border-radius:12px';
       card.innerHTML = `
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-          <div style="width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;background:${meta.color}22">${meta.icon}</div>
+          ${inAppShell() ? monogram(platform || ch.name, 42) : `<div style="width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;background:${meta.color}22">${meta.icon}</div>`}
           <div style="flex:1;min-width:0">
             <div style="font-weight:600;font-size:15px">${esc(ch.name || ch.id || platform)}</div>
             <div style="font-size:12px;color:var(--db-text-dim);margin-top:1px;text-transform:capitalize">${esc(platform)}</div>
