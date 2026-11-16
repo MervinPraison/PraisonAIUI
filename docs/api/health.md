@@ -1,3 +1,7 @@
+---
+nav_title: Health API
+---
+
 # Health API Reference
 
 The AIUI health API provides endpoints to monitor server and provider health status.

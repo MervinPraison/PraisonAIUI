@@ -1,3 +1,7 @@
+---
+nav_title: Mission Control
+---
+
 # Mission Control layout
 
 Mission Control (`mission`) is the operations view of the app shell: every agent's status,

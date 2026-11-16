@@ -1,3 +1,7 @@
+---
+nav_title: Guided Studio
+---
+
 # Guided Studio layout
 
 Guided Studio (`guided`) is the app shell layout for people new to AI

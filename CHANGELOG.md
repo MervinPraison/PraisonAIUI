@@ -65,6 +65,11 @@
 
 ### New
 
+- Docs sites: frontmatter `layout: home` on `docs/index.md` draws a hero
+  (name, headline, tagline, call-to-action buttons, a light and a dark image)
+  and a feature grid above the page, in the VitePress shape. See
+  [Content sources → Home page layout](docs/features/content-sources.md#home-page-layout).
+
 - Docs sites: `content.docs.nav.mode: manual` builds the sidebar from the YAML
   tab groups, in the listed order, with nested groups and a frontmatter
   `nav_title` for short sidebar titles; pages it does not list stay built and

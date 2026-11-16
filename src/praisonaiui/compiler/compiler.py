@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
 from praisonaiui.compiler.docs_scanner import DocsScanner
 from praisonaiui.compiler.nav_builder import NavBuilder
 from praisonaiui.schema.validators import validate_config
@@ -275,6 +276,11 @@ class Compiler:
                 ],
             }
 
+        # Docs home page layout (frontmatter `layout: home` on the docs index)
+        docs_home = self._docs_home()
+        if docs_home is not None:
+            result["docsHome"] = docs_home
+
         # Logo
         if self.config.logo:
             result["logo"] = {
@@ -384,6 +390,19 @@ class Compiler:
 
         return result
 
+
+    def _docs_home(self) -> dict | None:
+        """The docs home page layout from docs/index.md (or README.md) frontmatter."""
+        if not self.config.content or not self.config.content.docs:
+            return None
+        docs_dir = self.base_path / self.config.content.docs.dir
+        for name in ("index.md", "README.md"):
+            index = docs_dir / name
+            if index.is_file():
+                scanner = DocsScanner(docs_dir=docs_dir)
+                text = index.read_text(encoding="utf-8")
+                return docs_home_from_frontmatter(scanner._extract_frontmatter(text))
+        return None
 
     def _generate_docs_nav(self) -> dict:
         """Generate docs-nav.json content."""

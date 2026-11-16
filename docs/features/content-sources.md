@@ -53,8 +53,52 @@ description: "One sentence for search results."
 | `order` | Sort order within the folder (lower first); `0` or missing falls back to a number prefix |
 | `description` | Meta description; default: the first paragraph of 20 or more characters, cut at 160 |
 | `noindex` | `true` adds `robots: noindex, nofollow` and leaves the page out of the sitemap |
+| `layout` | `home` on `docs/index.md` draws the [home page layout](#home-page-layout) |
 
 The frontmatter block is not shown on the page.
+
+## Home Page Layout
+
+Frontmatter `layout: home` on the docs home page (`docs/index.md`) puts a
+hero and a feature grid above the page's own Markdown, the way VitePress does:
+
+```markdown
+---
+title: Acme
+layout: home
+hero:
+  name: Acme                          # the page heading, in the accent colour
+  text: Ship your agent's UI today    # the large headline
+  tagline: One sentence that says what it is and who it is for.
+  image: images/app-light.webp        # optional, relative to this page
+  imageDark: images/app-dark.webp     # optional, shown in dark mode instead
+  imageAlt: The app with a conversation open
+  actions:
+    - text: Quick start
+      link: getting-started/quickstart.md
+    - text: GitHub
+      link: https://github.com/acme/acme
+      theme: alt                      # brand (default) or alt
+features:
+  - title: Chat
+    icon: message-square
+    details: Streaming replies, tool calls and approvals.
+    link: guides/chat.md
+    linkText: Chat guide
+---
+
+## Install
+
+The Markdown below the frontmatter renders under the hero.
+```
+
+- Links and images resolve against the home page like Markdown links, and
+  links to other sites open in a new tab.
+- `icon` is one of `message-square`, `panels-top-left`, `layout-dashboard`,
+  `book-open`, `plug`, `shield-check`, `code`, `terminal`, `bot`, `zap`,
+  `rocket` and `palette` (lucide line icons); any other name shows no icon.
+- Up to 4 actions and 12 features are kept. Every value is plain text.
+- Only the docs home page reads `layout: home`; on other pages it does nothing.
 
 ## Numbered Prefixes
 

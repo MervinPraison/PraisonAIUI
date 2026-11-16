@@ -1,3 +1,7 @@
+---
+nav_title: Overview
+---
+
 # Layouts
 
 A layout is the frame of the React app shell (`style: app`): the navigation,

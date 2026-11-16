@@ -1,3 +1,7 @@
+---
+nav_title: A2UI canvas
+---
+
 # A2UI canvas — agent-driven UI
 
 PraisonAIUI hosts **A2UI v0.9** surfaces: agents push structured UI messages to a live canvas while users chat in the same window or on a full-page workspace.
@@ -22,7 +26,7 @@ async def on_surface_action(action: dict):
     return {"received": action}
 ```
 
-Run the full example: [`examples/python/30-a2ui-canvas/app.py`](../../examples/python/30-a2ui-canvas/app.py).
+Run the full example: [`examples/python/30-a2ui-canvas/app.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/examples/python/30-a2ui-canvas/app.py).
 
 ## Dashboard pages
 
@@ -32,7 +36,7 @@ Run the full example: [`examples/python/30-a2ui-canvas/app.py`](../../examples/p
 | `chat` | `/chat` | Vanilla chat (unchanged) |
 | `canvas` | `/canvas` | Full-page surface workspace |
 
-Enable the split preview with [`set_chat_preview`](../api/python.md#set_chat_previewenabled-surface_id-width). Settings appear in `/ui-config.json` as `chat.preview: { enabled, surfaceId, width }`.
+Enable the split preview with [`set_chat_preview`](../api/python.md). Settings appear in `/ui-config.json` as `chat.preview: { enabled, surfaceId, width }`.
 
 ## Agent integration
 
@@ -68,7 +72,7 @@ def send_a2ui_messages(messages):
 - A single component dict (wrapped in `updateComponents`)
 - Missing `createSurface` (inserted automatically for the given `surface_id`)
 
-Tool results are detected by [`a2ui_utils`](../../src/praisonaiui/a2ui_utils.py) and ingested into the surface store; connected clients receive WebSocket `a2ui_surface` events.
+Tool results are detected by [`a2ui_utils`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/a2ui_utils.py) and ingested into the surface store; connected clients receive WebSocket `a2ui_surface` events.
 
 ## HTTP API
 
@@ -124,5 +128,5 @@ Override rendering: `window.aiui.registerSurfaceRenderer("main", fn)`.
 ## Related
 
 - [Agent UI host](agent-ui-host.md) — `registerSurfaceRenderer`, layout tiers
-- [Python API — `set_chat_preview`](../api/python.md#set_chat_previewenabled-surface_id-width)
+- [Python API — `set_chat_preview`](../api/python.md)
 - [Python API — `@aiui.surface_action`](../api/python.md#aiuisurface_actionsurface_id)
