@@ -21,9 +21,11 @@ layout: chat-canvas        # the default for style: app; this line is optional
 | Top bar | On the chat page: the open chat's title over "Researcher · 3 artifacts · edited 2 min ago" (the agent of the latest answer, the chat's artifacts, their latest change). On other pages: the page title. Then **Search or run a command** (⌘K), **Share** (copies the link; a chat's link opens that chat) and the light/dark switch. |
 | The page | Any page renders here. The chat page uses speech-bubble messages, explained approval cards (what the agent wants to run, "Why am I asked?", Approve and Not now) and, when the artifacts feature is installed, the **Canvas** panel on the right with a Canvas toggle (a panel icon, the label and the artifact count) in the chat's toolbar. A new chat starts with the canvas collapsed; it opens once the chat has an artifact, and the toggle opens or closes it at any time. The "Chat + Canvas" page (`/chat-canvas`) is the same React chat in the app shell. |
 
-On a tablet the canvas starts closed. Drag the gap between the chat and the
-canvas (or focus it and use the arrow keys) to resize it; the width is kept
-in this browser. Hiding the sidebar is kept in this browser too.
+Open, the canvas is the main surface: it takes about 58% of the chat page
+and the chat a narrower column (never under about 400 px); with the canvas
+closed the chat is a centred column. On a tablet the canvas starts closed.
+Drag the gap between the chat and the canvas (or focus it and use the arrow
+keys, Home and End) to resize it; the share is kept in this browser. Hiding the sidebar is kept in this browser too.
 
 **Phone**
 
@@ -39,16 +41,23 @@ come from the artifacts feature (`layout-features/artifacts`, record
 works without it: with the feature missing from the build, or switched off,
 the chat page has no canvas and everything else stays.
 
-While the canvas is there, a long code block in the thread keeps its first
-12 lines and a long table its first 6 rows; the rest scrolls inside the block,
-and the whole artifact is in the canvas. Change the limits per layout:
+Each artifact shows once. While the canvas is there, a code block or table
+that is an artifact (3+ lines of code, a table with 2+ rows)
+leaves the reply: the reply shows its card ("Comparison table · Table ·
+3 rows · v2 · edited by Researcher · In canvas"), and a card opens the
+artifact in the canvas (on a phone, the Canvas side). Shorter snippets stay
+in the reply. Choose `artifactsInChat: inline` to keep the blocks in the
+reply as well, a long code block cut to its first 12 lines and a long table
+to its first 6 rows (the rest scrolls inside the block):
 
 ```yaml
 layout:
   default: chat-canvas
   options:
-    chat-canvas: {collapseLines: 20, collapseRows: 10}
+    chat-canvas: {artifactsInChat: inline, collapseLines: 20, collapseRows: 10}
 ```
+
+The `chat` layout has no canvas and keeps every block in the reply.
 
 ## Turning parts off
 
@@ -71,6 +80,10 @@ layout:
   `[data-aiui-nav-item]` on nav rows.
 - The shell's `header:actions` slot is at the end of the top bar and
   `sidebar:footer` at the foot of the sidebar.
+- `[data-in-canvas]` marks a reply block that is shown as its card
+  (`data-cc-artifacts="card"` on the frame hides it); the window event
+  `aiui:chat-aside` (`{open: true}` / `{open: false}`) opens or closes the
+  chat's aside, as an artifact card does.
 - The artifacts feature plugs in through files the layout looks for:
   `layout-features/artifacts/CanvasPanel.tsx` (the canvas, a chat region),
   `ArtifactCards.tsx` (the cards under an answer, a turn region) and

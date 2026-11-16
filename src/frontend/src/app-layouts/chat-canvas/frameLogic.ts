@@ -18,6 +18,16 @@ export function optionVars(options: Record<string, unknown> | undefined): CSSPro
   return vars as CSSProperties
 }
 
+/**
+ * YAML `layout.options.chat-canvas.artifactsInChat`: `card` (the default,
+ * the design) shows an artifact the canvas holds as its card only; `inline`
+ * keeps the block in the reply too (collapsed to collapseLines /
+ * collapseRows) with the card under it.
+ */
+export function artifactsInChat(options: Record<string, unknown> | undefined): 'card' | 'inline' {
+  return options?.artifactsInChat === 'inline' ? 'inline' : 'card'
+}
+
 export type FrameAction = 'new-chat' | 'toggle-sidebar'
 
 /**

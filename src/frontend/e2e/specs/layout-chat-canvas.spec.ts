@@ -151,7 +151,14 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     expect(pillWidth, 'the chat page badge is for screen readers only').toBeLessThanOrEqual(1)
     await send(page, 'markdown apok')
     const reply = assistant(page).last()
-    await expect(reply.locator('table')).toBeVisible()
+    if (HAS_CANVAS) {
+      // The table is an artifact: the reply shows its card, the canvas the table.
+      await expect(reply.locator('[data-artifact-card]')).toBeVisible()
+      await expect(reply.locator('table')).toBeHidden()
+    } else {
+      await expect(reply.locator('table')).toBeVisible()
+    }
+    // A two-line snippet is no artifact: it stays in the reply.
     await expect(reply.locator('pre').first()).toBeVisible()
     await expect(page.locator('[data-variant="bubbles"]')).toHaveCount(1)
     const approve = reply.getByRole('button', { name: 'Approve' })
@@ -202,7 +209,7 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
 
     await expect(page.locator('[data-connection="open"]')).toBeVisible()
     await send(page, 'markdown phone')
-    await expect(assistant(page).last().locator('table')).toBeVisible()
+    await expect(assistant(page).last().locator(HAS_CANVAS ? '[data-artifact-card]' : 'table')).toBeVisible()
     await waitForRunEnd(page)
     await expect(title(page)).toContainText(/markdown phone/i)
 
@@ -211,6 +218,11 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
       await expect(toggle).toBeVisible()
       await toggle.getByRole('button', { name: /Canvas/ }).click()
       await expect(page.getByRole('complementary', { name: 'Canvas' })).toBeVisible()
+      await toggle.getByRole('button', { name: 'Chat', exact: true }).click()
+      // A card takes the phone to the canvas side.
+      await assistant(page).last().locator('[data-artifact-card]').first().click()
+      await expect(page.getByRole('complementary', { name: 'Canvas' })).toBeVisible()
+      await expect(toggle).toHaveAttribute('data-tab', 'aside')
       await toggle.getByRole('button', { name: 'Chat', exact: true }).click()
     } else {
       await expect(toggle).toHaveCount(0)
@@ -230,6 +242,44 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     expect(errors.pageErrors).toEqual([])
   })
 }
+
+test('the canvas is the main surface: wider than the thread, resizable by keyboard; one copy of each artifact', async ({ page }) => {
+  test.skip(!HAS_CANVAS, 'the artifacts feature is not in this build')
+  const errors = collectPageErrors(page)
+  await page.setViewportSize(DESKTOP)
+  await page.goto('/chat')
+  await send(page, 'Compare sorting algorithms')
+  const reply = assistant(page).last()
+  const canvas = page.getByRole('complementary', { name: 'Canvas' })
+  await expect(canvas).toBeVisible()
+  await expect(reply.locator('[data-artifact-card]')).toHaveCount(2)
+  // The table and sort_demo.py are in the canvas; the reply shows their cards only.
+  await expect(reply.locator('table')).toBeHidden()
+  await expect(reply.locator('[data-in-canvas]')).toHaveCount(2)
+  await expect(reply.getByText('Here is how the three common')).toBeVisible()
+
+  const width = async (sel: string) => (await page.locator(sel).boundingBox())?.width ?? 0
+  const [aside, thread] = [await width('[data-chat-aside]'), await width('[data-aiui-chat] > section')]
+  expect(aside, 'the canvas is wider than the chat').toBeGreaterThan(thread)
+  expect(thread, 'the chat keeps a readable column').toBeGreaterThanOrEqual(380)
+
+  const handle = page.getByRole('separator', { name: 'Resize Canvas' })
+  const before = Number(await handle.getAttribute('aria-valuenow'))
+  await handle.focus()
+  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('ArrowRight')
+  await expect.poll(async () => Number(await handle.getAttribute('aria-valuenow'))).toBeLessThan(before)
+  await page.keyboard.press('Home')
+  expect(await width('[data-aiui-chat] > section')).toBeGreaterThanOrEqual(380)
+
+  // Closed, a card brings the canvas back with that artifact.
+  await page.locator('[data-chat-aside-toggle]').click()
+  await expect(canvas).toBeHidden()
+  await reply.locator('[data-artifact-card="sort_demo.py"]').click()
+  await expect(canvas).toBeVisible()
+  await expect(canvas.getByRole('tab', { name: /sort_demo\.py/ })).toHaveAttribute('aria-selected', 'true')
+  expect(errors.pageErrors).toEqual([])
+})
 
 test('a non-chat page renders in the outlet with its title and downloads no feature chunk', async ({ page }) => {
   const scripts = trackScripts(page)

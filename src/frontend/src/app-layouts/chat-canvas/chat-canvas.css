@@ -33,6 +33,14 @@
   background: transparent;
 }
 
+/* One copy of each artifact: the reply shows its card, the canvas the
+   artifact. The artifacts feature marks the reply's artifact blocks
+   (data-in-canvas); `artifactsInChat: inline` keeps them. Without the
+   canvas (the `chat` layout, the feature off) nothing is marked. */
+[data-aiui-layout-frame='chat-canvas'][data-cc-artifacts='card'] [data-aiui-chat]:has([data-chat-aside]) [data-role='assistant'] [data-in-canvas] {
+  display: none;
+}
+
 /* A long code block keeps `collapseLines` lines (the chat's collapsed
    fence, markdown/CodeBlock.tsx, reads --aiui-code-lines); while the canvas
    is there a long table keeps `collapseRows` rows and scrolls inside; the

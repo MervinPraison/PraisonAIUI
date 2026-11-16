@@ -29,26 +29,52 @@ export interface ChatAsideProps {
   slot?: HTMLElement | null
 }
 
-const WIDTH_KEY = 'aiui-chat-aside-width'
-const MIN = 280
-const DEFAULT = 420
-const STEP = 16
+/**
+ * Dispatched on window to show or hide the aside: `{open: true}` (a phone
+ * flips to the aside's side), `{open: false}`. The artifacts feature sends
+ * it when a card opens an artifact; the canvas's own Close sends `false`.
+ */
+export const ASIDE_EVENT = 'aiui:chat-aside'
 
-const maxWidth = () => Math.max(MIN, Math.round(window.innerWidth * 0.6))
-const clampWidth = (w: number) => Math.min(Math.max(Math.round(w), MIN), maxWidth())
+/**
+ * Open, the aside is the page's main surface (Canvas.dc.html: the canvas
+ * takes ~58% of the chat page, the thread a narrower column). Its share is
+ * kept per browser; the thread never gets less than MIN_THREAD px (its
+ * column, the gap and the aside's margins) and the aside never less than
+ * MIN_ASIDE px while there is room.
+ */
+const RATIO_KEY = 'aiui-chat-aside-ratio'
+const DEFAULT_RATIO = 0.58
+const MIN_ASIDE = 320
+const MIN_THREAD = 420
+const STEP = 0.02
 
-function readWidth(): number {
+/** The share of `total` px the aside may take: the thread keeps MIN_THREAD, the aside MIN_ASIDE while it fits. */
+// eslint-disable-next-line react-refresh/only-export-components -- pure, shared with tests
+export function ratioBounds(total: number): { min: number; max: number } {
+  if (!(total > 0)) return { min: 0.2, max: 0.8 }
+  const max = Math.max(0, Math.min(0.8, (total - MIN_THREAD) / total))
+  return { min: Math.min(MIN_ASIDE / total, max), max }
+}
+
+// eslint-disable-next-line react-refresh/only-export-components -- pure, shared with tests
+export function clampRatio(r: number, total = 0): number {
+  const { min, max } = ratioBounds(total)
+  return Math.min(Math.max(r, min), max)
+}
+
+function readRatio(): number {
   try {
-    const v = Number(localStorage.getItem(WIDTH_KEY))
-    return v ? clampWidth(v) : DEFAULT
+    const v = Number(localStorage.getItem(RATIO_KEY))
+    return v > 0 && v < 1 ? v : DEFAULT_RATIO
   } catch {
-    return DEFAULT
+    return DEFAULT_RATIO
   }
 }
 
-function writeWidth(w: number) {
+function writeRatio(r: number) {
   try {
-    localStorage.setItem(WIDTH_KEY, String(w))
+    localStorage.setItem(RATIO_KEY, r.toFixed(3))
   } catch {
     /* per-viewer convenience only */
   }
@@ -94,41 +120,49 @@ export default function ChatAside({ loader, label, sessionId, slot }: ChatAsideP
   // page on a new chat); a tablet keeps it collapsed. The toggle always works.
   const [openChoice, setOpenChoice] = useState<boolean | null>(null)
   const open = openChoice ?? (viewport === 'desktop' && badge > 0)
-  const [width, setWidth] = useState(readWidth)
-  const drag = useRef<{ x: number; w: number } | null>(null)
+  const [ratio, setRatio] = useState(readRatio)
+  const drag = useRef<{ x: number; r: number; total: number } | null>(null)
 
-  const commit = useCallback((w: number) => {
-    const next = clampWidth(w)
-    setWidth(next)
-    writeWidth(next)
+  const commit = useCallback((r: number, total: number) => {
+    const next = clampRatio(r, total)
+    setRatio(next)
+    writeRatio(next)
   }, [])
 
-  // A smaller window may no longer fit the stored width.
+  // A card (or the canvas's Close) asks for the aside: open it, or on a phone show its side.
   useEffect(() => {
-    if (phone) return
-    const fit = () => setWidth((w) => clampWidth(w))
-    window.addEventListener('resize', fit)
-    return () => window.removeEventListener('resize', fit)
+    const onAside = (e: Event) => {
+      const want = (e as CustomEvent<{ open?: unknown }>).detail?.open !== false
+      if (phone) setTab(want ? 'aside' : 'chat')
+      else setOpenChoice(want)
+    }
+    window.addEventListener(ASIDE_EVENT, onAside)
+    return () => window.removeEventListener(ASIDE_EVENT, onAside)
   }, [phone])
 
+  const total = (el: Element) => el.parentElement?.getBoundingClientRect().width ?? 0
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    drag.current = { x: e.clientX, w: width }
+    drag.current = { x: e.clientX, r: ratio, total: total(e.currentTarget) }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     // The panel is on the right: dragging left widens it.
-    if (drag.current) setWidth(clampWidth(drag.current.w + drag.current.x - e.clientX))
+    const d = drag.current
+    if (d && d.total > 0) setRatio(clampRatio(d.r + (d.x - e.clientX) / d.total, d.total))
   }
   const onPointerUp = () => {
     if (!drag.current) return
+    const { total: t } = drag.current
     drag.current = null
-    commit(width)
+    commit(ratio, t)
   }
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const t = total(e.currentTarget)
+    const { min, max } = ratioBounds(t)
     const delta = e.key === 'ArrowLeft' ? STEP : e.key === 'ArrowRight' ? -STEP : 0
-    if (e.key === 'Home') commit(maxWidth())
-    else if (e.key === 'End') commit(MIN)
-    else if (delta) commit(width + delta)
+    if (e.key === 'Home') commit(max, t)
+    else if (e.key === 'End') commit(min, t)
+    else if (delta) commit(clampRatio(ratio, t) + delta, t)
     else return
     e.preventDefault()
   }
@@ -161,9 +195,10 @@ export default function ChatAside({ loader, label, sessionId, slot }: ChatAsideP
           role="separator"
           aria-orientation="vertical"
           aria-label={`Resize ${label}`}
-          aria-valuenow={width}
-          aria-valuemin={MIN}
-          aria-valuemax={maxWidth()}
+          aria-valuenow={Math.round(ratio * 100)}
+          aria-valuemin={20}
+          aria-valuemax={80}
+          aria-valuetext={`${label} ${Math.round(ratio * 100)}% of the page`}
           tabIndex={0}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -176,7 +211,7 @@ export default function ChatAside({ loader, label, sessionId, slot }: ChatAsideP
       <aside
         aria-label={label}
         className={cn('min-h-0 min-w-0 flex-col overflow-hidden bg-background', shown ? 'flex' : 'hidden', phone ? 'flex-1' : 'shrink-0')}
-        style={phone ? undefined : { width }}
+        style={phone ? undefined : { flexBasis: `${(ratio * 100).toFixed(1)}%`, minWidth: `min(${MIN_ASIDE}px, max(0px, 100% - ${MIN_THREAD}px))`, maxWidth: `max(0px, 100% - ${MIN_THREAD}px)` }}
         data-chat-aside
       >
         <LazyRegion loader={loader} props={region} name="aside" />
