@@ -13,7 +13,7 @@
  * the legacy view did.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { BookOpen, ChevronDown, ChevronLeft, CircleAlert, FileText, LetterText, MoreHorizontal, Plus, SearchX, Trash2, Upload } from 'lucide-react'
+import { BookOpen, ChevronDown, ChevronLeft, CircleAlert, FileText, LetterText, MoreHorizontal, Plus, SearchX, Trash, Upload } from 'lucide-react'
 import { ListDetail, ListPagination, type ListColumn, type ListSort } from '@/components/page/ListDetail'
 import { Facts, TemplateSearch } from '@/components/page/parts'
 import { Button } from '@/components/ui/button'
@@ -264,7 +264,7 @@ function KnowledgePage() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="More knowledge actions" className="text-muted-foreground"><MoreHorizontal aria-hidden /></Button></DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem disabled={rows.length === 0} className="text-destructive focus:text-destructive [&_svg]:!text-destructive" onSelect={askClear}><Trash2 aria-hidden />Clear all knowledge</DropdownMenuItem>
+          <DropdownMenuItem disabled={rows.length === 0} className="text-destructive focus:text-destructive [&_svg]:!text-destructive" onSelect={askClear}><Trash aria-hidden />Clear all knowledge</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </>
@@ -357,7 +357,7 @@ function KnowledgeDetail({ row, now, query, narrow, onBack, onDelete }: { row: K
         <h3 className="m-0 text-sm font-semibold text-foreground">Content</h3>
         <div className="max-h-96 overflow-auto rounded-lg bg-muted px-3 py-2.5 text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground">{row.text ? <Marked segments={marked(row.text, query)} /> : <span className="text-tier-3">No text.</span>}</div>
       </section>
-      <Button variant="destructive" size="sm" className="self-start" onClick={onDelete}><Trash2 aria-hidden />Delete</Button>
+      <Button variant="destructive" size="sm" className="self-start" onClick={onDelete}><Trash aria-hidden />Delete</Button>
       {pct == null && <p className="m-0 text-xs text-tier-3">ID {id}</p>}
     </div>
   )
