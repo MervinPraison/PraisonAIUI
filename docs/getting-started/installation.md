@@ -1,14 +1,16 @@
 # Installation
 
-Install PraisonAIUI to start building YAML-driven websites.
+PraisonAIUI is one Python package. The PyPI name is `aiui`, you import it as
+`praisonaiui`, and the command is `aiui`. The browser UI ships inside the
+wheel, so you do not need Node.js or npm to run an app or build a docs site.
 
 ## Requirements
 
-- Python 3.9 or higher
-- Node.js 18+ (for TypeScript runtime)
-- Next.js 14+ (optional, for React components)
+- Python 3.10 or higher
+- Node.js only if you change the React frontend in a clone of the repository
+  (version in `src/frontend/.nvmrc`)
 
-## Python Package (CLI)
+## Install
 
 === "pip"
 
@@ -28,51 +30,67 @@ Install PraisonAIUI to start building YAML-driven websites.
     pipx install aiui
     ```
 
-After installation, verify:
+Check the install:
 
 ```bash
 aiui --version
-# praisonaiui version 0.1.0
+# praisonaiui version 0.3.x
 ```
 
-## TypeScript Package (Runtime)
+The wheel installs two commands that do the same thing: `aiui` and `praisonaiui`.
 
-=== "npm"
+## Optional extras
 
-    ```bash
-    npm install praisonaiui
-    ```
+The base install runs the server, the chat UI and `aiui build`. Extras add
+integrations. Install one with `pip install "aiui[<extra>]"`.
 
-=== "pnpm"
+| Extra | Adds |
+|-------|------|
+| `praisonai` | PraisonAI Agents, the PraisonAI wrapper, gateway and bot dependencies, for `--backend praisonai`. A YAML chat app (`aiui run chat.yaml`) needs only `pip install praisonaiagents` |
+| `memory` | ChromaDB and LiteLLM for agent memory |
+| `knowledge` | mem0, ChromaDB, MarkItDown and Chonkie for the knowledge base |
+| `graph` | mem0 graph memory |
+| `sql` | SQLAlchemy (async) and aiosqlite for `SQLAlchemyDataStore` |
+| `postgres` | `sql` plus asyncpg |
+| `bot` | Telegram, Discord and Slack bot libraries |
+| `slack`, `discord`, `teams` | One channel's SDK only |
+| `mcp` | The MCP client SDK |
+| `a2ui` | PraisonAI Agents with A2UI support (agent canvas) |
+| `langchain`, `llama-index`, `semantic-kernel` | Framework integrations |
+| `all` | Every extra above |
+| `dev` | pytest, ruff, mypy and the test dependencies (for contributors) |
 
-    ```bash
-    pnpm add praisonaiui
-    ```
+The list is `[project.optional-dependencies]` in
+[`pyproject.toml`](https://github.com/MervinPraison/PraisonAIUI/blob/main/pyproject.toml).
 
-=== "yarn"
+## No npm package is needed
 
-    ```bash
-    yarn add praisonaiui
-    ```
+Nothing in this repository is published to npm for the current UI:
+`src/frontend/package.json` is private and its build is committed into the
+Python package. Plugins for the React app shell import `@aiui/sdk`, which the
+shell provides at runtime; see [UI plugins](../features/plugins.md).
+The older `praisonaiui` package on npm (0.1.0) is a separate docs-site runtime,
+described under [TypeScript SDK](../typescript/index.md); `aiui run` and
+`aiui build` do not use it.
 
-## Development Installation
+## Development install
 
-For contributing or local development:
+To work on PraisonAIUI itself:
 
 ```bash
-# Clone the repo
 git clone https://github.com/MervinPraison/PraisonAIUI.git
 cd PraisonAIUI
+pip install -e ".[dev]"
 
-# Install Python package in dev mode
-pip install -e .[dev]
-
-# Install TypeScript package
-cd src/praisonaiui-ts
-pnpm install
+# Only when you change src/frontend/src/**
+cd src/frontend
+npm ci
+npm run build && npm run sync   # rebuild and copy the bundle into the package
 ```
 
-## Next Steps
+See [Testing](../testing.md) for the test commands.
 
-- [Quick Start](quickstart.md) - Create your first project
-- [CLI Usage](cli.md) - Learn all CLI commands
+## Next steps
+
+- [Quick Start](quickstart.md): run your first app
+- [CLI Usage](cli.md): the commands you will use most

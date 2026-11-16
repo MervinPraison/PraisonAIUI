@@ -1,320 +1,59 @@
-# CLI Reference
+# CLI Usage
 
-Complete reference for the `aiui` command-line interface.
+The commands you will use most. Every command and option is in the
+[CLI Reference](../api/cli.md); `aiui <command> --help` prints the same from
+the installed version.
 
-## Core Commands
-
-### `aiui run`
-
-**The primary command** — run an AI server with your `app.py` or `chat.yaml`.
+## Run an app
 
 ```bash
-aiui run <FILE> [OPTIONS]
+aiui run app.py                      # a Python app with @aiui.reply / @aiui.page
+aiui run chat.yaml                   # a YAML-defined agent (needs praisonaiagents)
+aiui run app.py --style app          # the opt-in React app shell
+aiui run app.py --port 3000 --reload # another port, restart on file changes
+aiui run app.py --datastore json     # keep sessions as JSON under ~/.praisonaiui
 ```
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `FILE` | Python file (`app.py`) or YAML config (`chat.yaml`) | required |
-| `--port, -p` | Server port | `8000` |
-| `--host` | Bind address | `127.0.0.1` |
-| `--reload` | Auto-reload on file changes | `false` |
-| `--style, -s` | UI style: chat, dashboard, agents, playground, docs, custom | `chat` |
-| `--backend` | AI backend: `praisonai`, `default` | `default` |
-| `--workers` | Number of workers | `1` |
-| `--ssl-certfile` | SSL certificate for HTTPS | — |
-| `--ssl-keyfile` | SSL private key for HTTPS | — |
+Without `--style`, the style comes from `aiui.set_style()` in the app or is
+detected from its callbacks; see [UI Styles](../features/styles.md).
 
-**Examples:**
-```bash
-aiui run app.py                          # Chat mode on port 8000
-aiui run app.py --style dashboard        # Dashboard mode
-aiui run app.py --port 3000 --reload     # Custom port with hot-reload
-aiui run chat.yaml                       # YAML-defined chat agent
-aiui run app.py --backend praisonai      # Use PraisonAI WebSocketGateway
-```
-
----
-
-### `aiui init`
-
-Initialize a new PraisonAIUI project.
+## Build a docs site
 
 ```bash
-aiui init [OPTIONS]
+aiui init --template docs            # writes aiui.template.yaml
+aiui validate --strict               # check the configuration
+aiui build --output site --minify    # static site in ./site
+aiui serve --watch                   # build, serve on :8000, rebuild on change
 ```
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--template, -t` | Template: minimal, docs, marketing | `minimal` |
-| `--force, -f` | Overwrite existing files | `false` |
-| `--frontend` | Scaffold full Vite + React + shadcn project | `false` |
+See [Deploy to GitHub Pages](github-pages.md) to publish the build.
 
-**Examples:**
-```bash
-aiui init                        # Minimal project
-aiui init --template docs        # Documentation site template
-aiui init --frontend             # Full React frontend scaffold
-```
-
----
-
-### `aiui validate`
-
-Validate your configuration file.
+## Check a running server
 
 ```bash
-aiui validate [OPTIONS]
+aiui doctor                          # structured diagnostics
+aiui health --detailed               # per-feature health (alias of health-check)
+aiui test all --server http://127.0.0.1:8000
 ```
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--config, -c` | Path to config file | `aiui.template.yaml` |
-| `--strict` | Enable strict validation | `false` |
+`aiui test` defaults to `http://127.0.0.1:8082`, so pass `--server` for a
+server on another port. See [API Testing](../api/testing.md).
 
----
+## Manage a running server
 
-### `aiui build`
-
-Build manifests from configuration (for docs/static site mode).
+Management commands call the server's HTTP API. They default to
+`http://127.0.0.1:8000`; pass `--server URL` for another one.
 
 ```bash
-aiui build [OPTIONS]
+aiui sessions list
+aiui sessions messages SESSION_ID
+aiui memory search "dark mode"
+aiui pages ids                       # page ids for aiui.set_pages()
+aiui config set model gpt-4o-mini
+aiui approval list --status pending
 ```
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--config, -c` | Path to config file | `aiui.template.yaml` |
-| `--output, -o` | Output directory | `aiui` |
-| `--minify` | Minify JSON output | `false` |
-
----
-
-### `aiui serve`
-
-Serve the built site locally with a production-ready HTTP server.
-
-```bash
-aiui serve [OPTIONS]
-```
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--config, -c` | Path to config file | `aiui.template.yaml` |
-| `--port, -p` | Server port | `8000` |
-| `--host` | Bind address | `127.0.0.1` |
-| `--reload` | Watch for changes and rebuild | `false` |
-| `--style, -s` | UI style override | auto-detected |
-| `--ssl-certfile` | SSL certificate for HTTPS | — |
-| `--ssl-keyfile` | SSL private key for HTTPS | — |
-
----
-
-### `aiui dev`
-
-Development dashboard — switch between examples live.
-
-```bash
-aiui dev [OPTIONS]
-```
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--examples, -e` | Directory containing example projects | `examples` |
-| `--port, -p` | Port for dev server | `9000` |
-
----
-
-### `aiui doctor`
-
-Run structured diagnostics against a running AIUI server.
-
-```bash
-aiui doctor [OPTIONS]
-```
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--server, -s` | Server URL to diagnose | `http://127.0.0.1:8000` |
-| `--json` | Output results as JSON | `false` |
-
-Checks: health, provider, gateway, features, config, datastore, channels.
-
----
-
-### `aiui test`
-
-Run integration tests against a running server.
-
-```bash
-aiui test <SUITE>
-```
-
-| Suite | Description |
-|-------|-------------|
-| `chat` | Chat WebSocket send/receive |
-| `memory` | Memory CRUD operations |
-| `sessions` | Session management |
-| `endpoints` | API endpoint availability |
-| `all` | Run all test suites |
-
----
-
-## Management Commands
-
-All management commands connect to a running server (default `http://127.0.0.1:8000`). Use `--server URL` to target a different server.
-
-### `aiui sessions`
-
-```bash
-aiui sessions list                          # List all sessions
-aiui sessions create                        # Create new session
-aiui sessions get <SESSION_ID>              # Get session details
-aiui sessions delete <SESSION_ID>           # Delete session
-aiui sessions messages <SESSION_ID>         # Get message history
-```
-
-### `aiui memory`
-
-```bash
-aiui memory list [--type short|long|entity|all]   # List memories
-aiui memory add "Remember this" [--type long]     # Add memory
-aiui memory search "query" [--limit 10]           # Search memories
-aiui memory clear [--type all]                    # Clear memories
-aiui memory status                                # Memory backend status
-aiui memory context "query" [--limit 5]           # Get context for prompt
-```
-
-### `aiui skills`
-
-```bash
-aiui skills list        # List all skills
-aiui skills status      # Show skills status
-aiui skills discover    # Discover available skills
-```
-
-### `aiui provider`
-
-```bash
-aiui provider status    # Show active provider info
-aiui provider health    # Check provider health
-aiui provider agents    # List agents from provider
-```
-
-### `aiui config`
-
-```bash
-aiui config get [KEY]            # Get config (empty = show all)
-aiui config set KEY VALUE        # Set a config value
-aiui config list                 # List all config keys
-aiui config history [--limit 20] # Show change history
-```
-
-### `aiui schedule`
-
-```bash
-aiui schedule list                                     # List scheduled jobs
-aiui schedule add "job-name" "message" [--every 60]    # Add job (seconds)
-aiui schedule remove <JOB_ID>                          # Remove job
-aiui schedule status                                   # Scheduler status
-```
-
-### `aiui approval`
-
-```bash
-aiui approval list [--status pending|resolved|all]     # List approvals
-aiui approval pending                                  # Pending count
-aiui approval resolve <ID> [--approved|--denied] [--reason "..."]
-```
-
-### `aiui workflows`
-
-```bash
-aiui workflows list                # List workflows
-aiui workflows run <WORKFLOW_ID>   # Run a workflow
-aiui workflows status              # Workflow status
-aiui workflows runs                # Run history
-```
-
-### `aiui hooks`
-
-```bash
-aiui hooks list                    # List all hooks
-aiui hooks trigger <HOOK_ID>       # Trigger a hook
-aiui hooks log [--limit 20]        # Hook execution log
-```
-
-### `aiui eval`
-
-```bash
-aiui eval status                                         # Eval status
-aiui eval list [--limit 20] [--agent-id ID]              # List evaluations
-aiui eval scores                                         # Scores by agent
-aiui eval judges                                         # List judges
-aiui eval run --input "..." --output "..." [--expected "..."]  # Run eval
-```
-
-### `aiui traces`
-
-```bash
-aiui traces status                              # Tracing status
-aiui traces list [--limit 20]                   # List traces
-aiui traces spans [--limit 20] [--trace-id ID]  # List spans
-aiui traces get <TRACE_ID>                      # Get trace details
-```
-
-### `aiui pages`
-
-```bash
-aiui pages list    # List all sidebar pages (with groups, icons)
-aiui pages ids     # Print page IDs (useful for set_pages() whitelist)
-```
-
-### `aiui features`
-
-```bash
-aiui features list     # List all registered features
-aiui features status   # Feature health summary
-```
-
-### `aiui health-check`
-
-Check server health. Can also be invoked as `aiui health` for convenience.
-
-```bash
-aiui health-check [--detailed]    # Check server health
-aiui health [--detailed]          # Alias for health-check
-```
-
-### `aiui session-ext`
-
-Extended session operations:
-
-```bash
-aiui session-ext state <SESSION_ID>                          # Get session state
-aiui session-ext save-state <SESSION_ID> --key K --value V   # Save state
-aiui session-ext labels <SESSION_ID>                         # Get labels
-aiui session-ext usage <SESSION_ID>                          # Usage stats
-aiui session-ext compact <SESSION_ID>                        # Compact context
-aiui session-ext reset <SESSION_ID>                          # Reset state
-```
-
----
-
-## Exit Codes
-
-| Code | Meaning |
-|------|---------|
-| `0` | Success |
-| `1` | Configuration error |
-| `2` | File not found |
-| `3` | Build error |
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENAI_API_KEY` | OpenAI API key | — |
-| `PRAISONAI_MODEL` | Default model | `gpt-4o-mini` |
-| `AIUI_DATA_DIR` | Data directory | `~/.praisonaiui` |
-| `AIUI_CONFIG` | Config file path | `aiui.template.yaml` |
-| `AIUI_OUTPUT` | Build output dir | `aiui` |
+The full list (`sessions`, `session-ext`, `memory`, `provider`, `features`,
+`pages`, `config`, `approval`, `schedule`, `skills`, `hooks`, `workflows`,
+`eval`, `traces`, `surface`, `plugins`) is in the
+[CLI Reference](../api/cli.md#management-commands).
