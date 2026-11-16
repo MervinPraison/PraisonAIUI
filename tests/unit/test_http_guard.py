@@ -422,7 +422,10 @@ def test_token_redacted_from_uvicorn_logs(caplog):
     )
     text = caplog.text
     assert "pk_goodkey" not in text and "abc" not in text
-    assert "token=[redacted]" in text and "ticket=[redacted]" in text
+    # litellm, once any test imports it, adds its own scrubber to the uvicorn
+    # loggers; it may run first and write REDACTED for the token instead.
+    assert "token=[redacted]" in text or "REDACTED" in text
+    assert "ticket=[redacted]" in text
 
 
 def test_ws_route_walk_rejects_everything_without_credentials(monkeypatch, api_key):

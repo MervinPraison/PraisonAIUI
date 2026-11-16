@@ -13,6 +13,7 @@ Architecture:
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 import uuid
@@ -47,6 +48,26 @@ def _is_embedding_error(err_msg: str) -> bool:
 def _is_embedding_unavailable(err: BaseException) -> bool:
     """Detect an embedding model access / not-found failure from an exception."""
     return _is_embedding_error(str(err))
+
+
+def _embedding_model() -> str:
+    """The model praisonaiagents' knowledge adapters embed with (their own env var)."""
+    return os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+
+
+def _write_failure(result: Any) -> Optional[str]:
+    """Why an SDK ``store()`` did not write, or None when it did.
+
+    praisonaiagents reports a failed write as a value, not an exception:
+    ``AddResult(success=False, message=...)`` when the embedding fails, and
+    ``[]`` when ``store()`` caught an error itself.
+    """
+    if isinstance(result, list) and not result:
+        return "the vector store did not accept the entry"
+    get = result.get if isinstance(result, dict) else lambda k, d=None: getattr(result, k, d)
+    if get("success", True) is False:
+        return str(get("message") or get("error") or "the vector store did not accept the entry")
+    return None
 
 
 # ── Knowledge Protocol ───────────────────────────────────────────────
@@ -298,9 +319,34 @@ class SDKKnowledgeManager(KnowledgeProtocol):
                 else:
                     # Other errors (e.g. empty DB) are fine — SDK works
                     pass
+            if self._sdk_knowledge is not None and not self._embedding_unavailable:
+                self._probe_embedding()
 
         self._sdk_probed = True
         return self._sdk_knowledge
+
+    def _probe_embedding(self) -> None:
+        """Embed one word, as the SDK's adapters do: they log a failed
+        embedding and return no hits (search) or a failed result (store), so
+        the search probe above never sees it.
+
+        Skipped when the caller configured its own ``embedder``: the adapters
+        embed with that, not ``OPENAI_EMBEDDING_MODEL``, so probing OpenAI would
+        mark a working local embedder as down. A failed write still flags it.
+        """
+        if (self._config or {}).get("embedder"):
+            return
+        try:
+            from praisonaiagents.embedding import embedding
+
+            # Bounded: this runs under the init lock on the first knowledge call.
+            embedding("probe", model=_embedding_model(), timeout=10.0)
+        except ImportError:
+            return
+        except Exception as e:
+            self._embedding_unavailable = True
+            self._embedding_error = str(e)
+            logger.warning("Embedding model unavailable: %s", e)
 
     def last_search_meta(self) -> Dict[str, Any]:
         """Metadata for the most recent search: {"mode": ..., "error": ...}."""
@@ -325,20 +371,50 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         }
 
         sdk = self._get_sdk_knowledge()
+        failure: Optional[str] = "the vector store is not available"
         if sdk is not None:
             try:
-                sdk.store(
-                    text,
-                    user_id=user_id or "praisonaiui",
-                    agent_id=agent_id,
-                    metadata=metadata or {},
+                failure = _write_failure(
+                    sdk.store(
+                        text,
+                        user_id=user_id or "praisonaiui",
+                        agent_id=agent_id,
+                        metadata=metadata or {},
+                    )
                 )
-                entry["sdk_synced"] = True
             except Exception as e:
-                logger.warning("SDK knowledge store failed: %s", e)
+                failure = str(e)
+        entry["sdk_synced"] = entry["persisted"] = failure is None
+        if failure is None:
+            self._embedding_unavailable = False
+            self._embedding_error = None
+        else:
+            logger.warning("SDK knowledge store failed: %s", failure)
+            if _is_embedding_error(failure) or "embedding" in failure.lower():
+                self._embedding_unavailable = True
+                self._embedding_error = failure
+            entry["warning"] = self._not_persisted_reason(failure)
 
         self._local_index[entry_id] = entry
         return entry
+
+    def _not_persisted_reason(self, failure: str) -> str:
+        """The plain-language line for a write that stayed in memory."""
+        if self._embedding_unavailable:
+            return self._degraded_reason()
+        return (
+            f"Not saved to the vector store ({failure}). The entry is kept in memory "
+            "and won't persist across restarts."
+        )
+
+    def _degraded_reason(self) -> str:
+        """Plain words for the status and search warnings; the provider's raw
+        error stays in ``embedding.error`` and the log."""
+        return (
+            f"Embeddings unavailable: {_embedding_model()} is not accessible. Using "
+            "keyword search; new entries are kept in memory and won't persist across "
+            "restarts. Set OPENAI_EMBEDDING_MODEL to a model your provider project can access."
+        )
 
     def search(
         self,
@@ -378,17 +454,7 @@ class SDKKnowledgeManager(KnowledgeProtocol):
                 break
 
         if self._embedding_unavailable:
-            self._last_search_meta = {
-                "mode": "fallback",
-                "error": (
-                    "Vector search unavailable: "
-                    f"{self._embedding_error or 'embedding model not accessible'}. "
-                    "Set AIUI_EMBEDDING_MODEL=text-embedding-ada-002 or enable embedding "
-                    "models in your provider project."
-                ),
-            }
-        elif sdk is not None:
-            self._last_search_meta = {"mode": "vector", "error": None}
+            self._last_search_meta = {"mode": "fallback", "error": self._degraded_reason()}
         else:
             self._last_search_meta = {"mode": "local", "error": None}
         return results
@@ -401,6 +467,9 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         sdk = self._get_sdk_knowledge()
+        if sdk is not None and self._embedding_unavailable:
+            # The SDK would chunk the file and fail every embedding without saying so.
+            return {"status": "error", "file": file_path, "error": self._degraded_reason()}
         if sdk is not None:
             try:
                 result = sdk.add(
@@ -542,10 +611,7 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         embedding: Dict[str, Any] = {"available": embedding_available}
         if self._embedding_unavailable:
             embedding["error"] = self._embedding_error
-            warnings.append(
-                "Embedding model unavailable; knowledge search degraded to local text "
-                "matching. Set AIUI_EMBEDDING_MODEL to an accessible model."
-            )
+            warnings.append(self._degraded_reason())
         status = "ok"
         if not sdk_ok or self._embedding_unavailable:
             status = "degraded"
