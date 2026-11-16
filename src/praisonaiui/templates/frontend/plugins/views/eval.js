@@ -15,7 +15,12 @@
 import { showToast } from '../toast.js';
 import {
   esc, timeAgo, sparklineSVG, bucketByDay, detectRegression, trendArrow, regressionBadge,
+  inAppShell, statusChip, emptyState, shellButton,
 } from '/plugins/views/_helpers.js';
+
+// Status colours: theme tokens in the app shell, the original literals in the dashboard.
+const SHELL_TONES = { '#22c55e': 'var(--db-success)', '#f59e0b': 'var(--db-warning)', '#ef4444': 'var(--db-error)', '#71717a': 'var(--db-text-muted)' };
+const C = (hex) => (inAppShell() && SHELL_TONES[hex]) || hex;
 
 const HISTORY_LIMIT = 200;
 const BASELINE_ID_KEY = 'aiui_eval_baseline_id';
@@ -52,10 +57,10 @@ function passRateFor(s) {
 }
 
 function statusDot(rate) {
-  if (rate == null) return '<span style="color:#71717a">●</span>';
-  if (rate >= 0.9) return '<span style="color:#22c55e">●</span>';
-  if (rate >= 0.7) return '<span style="color:#f59e0b">●</span>';
-  return '<span style="color:#ef4444">●</span>';
+  if (rate == null) return `<span style="color:${C('#71717a')}">●</span>`;
+  if (rate >= 0.9) return `<span style="color:${C('#22c55e')}">●</span>`;
+  if (rate >= 0.7) return `<span style="color:${C('#f59e0b')}">●</span>`;
+  return `<span style="color:${C('#ef4444')}">●</span>`;
 }
 
 function statusLabel(rate) {
@@ -67,9 +72,9 @@ function statusLabel(rate) {
 
 function heroColor(rate) {
   if (rate == null) return undefined;
-  if (rate >= 0.9) return '#22c55e';
-  if (rate >= 0.7) return '#f59e0b';
-  return '#ef4444';
+  if (rate >= 0.9) return C('#22c55e');
+  if (rate >= 0.7) return C('#f59e0b');
+  return C('#ef4444');
 }
 
 export async function render(container) {
@@ -209,9 +214,11 @@ export async function render(container) {
   // ── History table rows (newest first) ──────────────────────────
   const ordered = [...evaluations].reverse();
   const historyRows = ordered.map((e, i) => {
-    const scoreColor = e.score == null ? 'inherit' : (e.score >= 0.8 ? '#22c55e' : e.score >= 0.5 ? '#f59e0b' : '#ef4444');
-    const passCell = e.passed === true ? '✅' : e.passed === false ? '❌' : '—';
-    const rowBorder = e.passed === false ? 'border-left:3px solid #ef4444;' : '';
+    const scoreColor = e.score == null ? 'inherit' : C(e.score >= 0.8 ? '#22c55e' : e.score >= 0.5 ? '#f59e0b' : '#ef4444');
+    const passCell = !inAppShell()
+      ? (e.passed === true ? '✅' : e.passed === false ? '❌' : '—')
+      : (e.passed === true ? statusChip('Passed', 'success') : e.passed === false ? statusChip('Failed', 'danger') : '—');
+    const rowBorder = e.passed === false ? `border-left:3px solid ${C('#ef4444')};` : '';
     let debugCta = '';
     if (e.passed === false) {
       debugCta = e.session_id
@@ -240,66 +247,77 @@ export async function render(container) {
       </tr>`;
   }).join('');
 
-  const gwBadge = gatewayConnected
-    ? '<span style="color:#22c55e">● Connected</span>'
-    : '<span style="color:#ef4444">● Not Connected</span>';
+  const shell = inAppShell();
+  const gwBadge = shell
+    ? statusChip(gatewayConnected ? 'Connected' : 'Not connected', gatewayConnected ? 'success' : 'neutral')
+    : gatewayConnected
+      ? '<span style="color:#22c55e">● Connected</span>'
+      : '<span style="color:#ef4444">● Not Connected</span>';
+  // In the shell, the run form is disabled with the button when evals cannot run.
+  const fieldOff = shell && runDisabled ? ' disabled' : '';
+  const sc = (title) => (shell ? title[0] + title.slice(1).toLowerCase() : title); // sentence case in the shell
 
   container.innerHTML = `
     <div style="padding:24px;max-width:1200px;margin:0 auto">
-      <h2 style="margin:0 0 16px;font-size:1.5rem">📊 Eval Quality Cockpit</h2>
+      <h2 style="margin:0 0 16px;font-size:1.5rem">${shell ? 'Eval' : '📊 Eval Quality Cockpit'}</h2>
 
-      ${partialError ? '<div style="margin-bottom:16px;padding:10px 14px;border-radius:8px;background:rgba(245,158,11,.1);color:#f59e0b;font-size:.85rem">⚠ Some data failed to load — showing partial results.</div>' : ''}
-      ${!sdkAvailable ? '<div style="margin-bottom:16px;padding:10px 14px;border-radius:8px;background:rgba(239,68,68,.08);color:#ef4444;font-size:.85rem">Eval SDK not available — run trigger disabled. Install <code>praisonaiagents[eval]</code> to enable in-UI runs.</div>' : ''}
+      ${partialError ? (shell ? '<div role="status" style="margin-bottom:16px;padding:10px 14px;border-radius:8px;background:var(--db-warning-bg);color:var(--db-text);font-size:.85rem">Some data did not load, so this page shows partial results.</div>' : '<div style="margin-bottom:16px;padding:10px 14px;border-radius:8px;background:rgba(245,158,11,.1);color:#f59e0b;font-size:.85rem">⚠ Some data failed to load — showing partial results.</div>') : ''}
+      ${!sdkAvailable ? (shell ? '<div style="margin-bottom:16px;padding:10px 14px;border-radius:8px;background:var(--db-muted);color:var(--db-text-dim);font-size:.85rem">Running evals from this page needs the eval extra: install <code>praisonaiagents[eval]</code>.</div>' : '<div style="margin-bottom:16px;padding:10px 14px;border-radius:8px;background:rgba(239,68,68,.08);color:#ef4444;font-size:.85rem">Eval SDK not available — run trigger disabled. Install <code>praisonaiagents[eval]</code> to enable in-UI runs.</div>') : ''}
 
       <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-bottom:20px;padding:10px 14px;border:1px solid var(--db-border,#333);border-radius:10px;font-size:.82rem">
-        <span>Eval SDK ${sdkAvailable ? '✅' : '❌'}</span>
+        <span>${shell ? `Evaluator ${statusChip(sdkAvailable ? 'Available' : 'Not installed', sdkAvailable ? 'success' : 'neutral')}` : `Eval SDK ${sdkAvailable ? '✅' : '❌'}`}</span>
         <span>Gateway ${gwBadge}</span>
         <span>${judges.length} judge${judges.length === 1 ? '' : 's'}</span>
         <span style="opacity:.7">Last run ${esc(lastRun)}</span>
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px">
-        ${heroCard('Pass Rate', passRate != null ? Math.round(passRate * 100) + '%' : '—', 'of scored cases', heroColor(passRate))}
-        ${heroCard('Avg Score', avgScore != null ? avgScore.toFixed(2) : '—', 'weighted by cases')}
-        ${heroCard('Regressions', String(regressionCount), 'vs baseline', regressionCount > 0 ? '#ef4444' : undefined)}
-        ${heroCard('Total Cases', String(totalCases), 'all time')}
+        ${heroCard(sc('Pass Rate'), passRate != null ? Math.round(passRate * 100) + '%' : '—', 'of scored cases', heroColor(passRate))}
+        ${heroCard(sc('Avg Score'), avgScore != null ? avgScore.toFixed(2) : '—', 'weighted by cases')}
+        ${heroCard(sc('Regressions'), String(regressionCount), 'vs baseline', regressionCount > 0 ? C('#ef4444') : undefined)}
+        ${heroCard(sc('Total Cases'), String(totalCases), 'all time')}
       </div>
 
-      ${scores.length === 0 ? `
+      ${scores.length === 0 && shell ? emptyState({
+        iconName: 'flask',
+        title: 'No evaluations yet',
+        body: sdkAvailable ? 'Score an agent answer with the form below to start tracking quality.' : 'Recorded evaluations appear here.',
+        actionHtml: sdkAvailable ? shellButton('Run an eval', `onclick="document.getElementById('ev-run-agent')?.focus()"`) : '',
+      }) + '<div style="height:24px"></div>' : scores.length === 0 ? `
         <div class="db-card" style="border-radius:12px;padding:40px;text-align:center">
           <div style="font-size:2rem;margin-bottom:8px">🧪</div>
           <div style="font-size:1.1rem;font-weight:600;margin-bottom:6px">No evaluations recorded yet</div>
           <div style="opacity:.6;font-size:.85rem;margin-bottom:16px">Run your first eval below or via the API to populate the cockpit.</div>
         </div>` : `
-        <h3 style="margin:0 0 12px;font-size:1.1rem">Suite Health</h3>
+        <h3 style="margin:0 0 12px;font-size:1.1rem">${sc('Suite Health')}</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:24px">
           ${suiteCards}
         </div>`}
 
       <div style="display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;margin-bottom:24px" class="ev-mid-grid">
         <div>
-          <h3 style="margin:0 0 12px;font-size:1.1rem">Baseline Compare</h3>
+          <h3 style="margin:0 0 12px;font-size:1.1rem">${sc('Baseline Compare')}</h3>
           <div class="db-card" style="border-radius:12px;overflow:hidden">${compareHtml}</div>
         </div>
         <div>
-          <h3 style="margin:0 0 12px;font-size:1.1rem">Run Eval</h3>
+          <h3 style="margin:0 0 12px;font-size:1.1rem">${sc('Run Eval')}</h3>
           <div class="db-card" style="border-radius:12px;padding:14px">
-            <select id="ev-run-agent" style="width:100%;padding:8px;margin-bottom:8px;background:var(--db-input-bg,#0d0d1a);color:var(--db-text,#e0e0e0);border:1px solid var(--db-border,#333);border-radius:6px">
+            <select id="ev-run-agent"${fieldOff} style="width:100%;padding:8px;margin-bottom:8px;background:var(--db-input-bg,#0d0d1a);color:var(--db-text,#e0e0e0);border:1px solid var(--db-border,#333);border-radius:6px">
               <option value="">Agent…</option>${agentOptions}
             </select>
-            <select id="ev-run-judge" style="width:100%;padding:8px;margin-bottom:8px;background:var(--db-input-bg,#0d0d1a);color:var(--db-text,#e0e0e0);border:1px solid var(--db-border,#333);border-radius:6px">
+            <select id="ev-run-judge"${fieldOff} style="width:100%;padding:8px;margin-bottom:8px;background:var(--db-input-bg,#0d0d1a);color:var(--db-text,#e0e0e0);border:1px solid var(--db-border,#333);border-radius:6px">
               <option value="">Judge…</option>${judgeOptions}
             </select>
-            <textarea id="ev-run-input" placeholder="Input prompt" rows="2" style="width:100%;padding:8px;margin-bottom:8px;box-sizing:border-box;background:var(--db-input-bg,#0d0d1a);color:var(--db-text,#e0e0e0);border:1px solid var(--db-border,#333);border-radius:6px"></textarea>
-            <textarea id="ev-run-output" placeholder="Agent output" rows="2" style="width:100%;padding:8px;margin-bottom:8px;box-sizing:border-box;background:var(--db-input-bg,#0d0d1a);color:var(--db-text,#e0e0e0);border:1px solid var(--db-border,#333);border-radius:6px"></textarea>
-            <textarea id="ev-run-expected" placeholder="Expected answer" rows="2" style="width:100%;padding:8px;margin-bottom:8px;box-sizing:border-box;background:var(--db-input-bg,#0d0d1a);color:var(--db-text,#e0e0e0);border:1px solid var(--db-border,#333);border-radius:6px"></textarea>
-            <div id="ev-run-error" style="display:none;color:#ef4444;font-size:.8rem;margin-bottom:8px"></div>
+            <textarea id="ev-run-input"${fieldOff} placeholder="Input prompt" rows="2" style="width:100%;padding:8px;margin-bottom:8px;box-sizing:border-box;background:var(--db-input-bg,#0d0d1a);color:var(--db-text,#e0e0e0);border:1px solid var(--db-border,#333);border-radius:6px"></textarea>
+            <textarea id="ev-run-output"${fieldOff} placeholder="Agent output" rows="2" style="width:100%;padding:8px;margin-bottom:8px;box-sizing:border-box;background:var(--db-input-bg,#0d0d1a);color:var(--db-text,#e0e0e0);border:1px solid var(--db-border,#333);border-radius:6px"></textarea>
+            <textarea id="ev-run-expected"${fieldOff} placeholder="Expected answer" rows="2" style="width:100%;padding:8px;margin-bottom:8px;box-sizing:border-box;background:var(--db-input-bg,#0d0d1a);color:var(--db-text,#e0e0e0);border:1px solid var(--db-border,#333);border-radius:6px"></textarea>
+            <div id="ev-run-error" style="display:none;color:${C('#ef4444')};font-size:.8rem;margin-bottom:8px"></div>
             <button id="ev-run-submit" ${runDisabled ? 'disabled' : ''} style="width:100%;padding:9px;background:${runDisabled ? 'rgba(168,85,247,.3)' : 'var(--db-accent,#a855f7)'};color:#fff;border:none;border-radius:8px;cursor:${runDisabled ? 'not-allowed' : 'pointer'};font-weight:600">Run eval</button>
           </div>
         </div>
       </div>
 
-      <h3 style="margin:0 0 12px;font-size:1.1rem">Run History${evaluations.length ? ` (${evaluations.length})` : ''}</h3>
+      <h3 style="margin:0 0 12px;font-size:1.1rem">${sc('Run History')}${evaluations.length ? ` (${evaluations.length})` : ''}</h3>
       <div class="db-card" style="border-radius:12px;overflow:hidden;overflow-x:auto">
         ${evaluations.length === 0
           ? '<div style="padding:24px;text-align:center;opacity:.5">No evaluations recorded yet.</div>'

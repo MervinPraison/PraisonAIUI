@@ -4,6 +4,8 @@
  * Displays OpenAI-compatible API endpoints and documentation.
  */
 
+import { inAppShell, statusChip } from '/plugins/views/_helpers.js';
+
 let apiData = null;
 
 async function fetchApiInfo() {
@@ -37,6 +39,10 @@ function renderApiUI() {
 
   const endpoints = apiData?.endpoints || [];
   const available = apiData?.capabilities_available;
+  if (inAppShell()) {
+    container.innerHTML = shellApiUI(endpoints, available);
+    return;
+  }
   
   container.innerHTML = `
     <div class="aiui-api-header">
@@ -74,6 +80,45 @@ response = client.chat.completions.create(
     
     <div class="aiui-api-footer">
       <p>This API is compatible with the OpenAI Python SDK and other OpenAI-compatible clients.</p>
+    </div>
+  `;
+}
+
+// App shell: no alarm pill on a page that works, stacked cards, sentence case.
+function shellApiUI(endpoints, available) {
+  const origin = window.location.origin;
+  return `
+    <style>[data-aiui-api] .aiui-info-card h4{text-transform:none;font-size:.8125rem;font-weight:500}</style>
+    <div class="aiui-api-header">
+      <h2>OpenAI-compatible API</h2>
+      ${available ? statusChip('Available', 'success') : ''}
+    </div>
+    <div class="aiui-api-info" style="grid-template-columns:minmax(0,1fr)">
+      <div class="aiui-info-card">
+        <h4>Base URL</h4>
+        <code>${origin}/v1</code>
+      </div>
+      <div class="aiui-info-card">
+        <h4>Python example</h4>
+        <pre>from openai import OpenAI
+
+client = OpenAI(
+    base_url="${origin}/v1",
+    api_key="your-api-key"
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Hello!"}]
+)</pre>
+      </div>
+    </div>
+    <h3>Endpoints</h3>
+    <div class="aiui-endpoints-list">
+      ${endpoints.map(renderEndpoint).join('')}
+    </div>
+    <div class="aiui-api-footer">
+      <p>Works with the OpenAI Python SDK and other OpenAI-compatible clients.</p>
     </div>
   `;
 }

@@ -30,6 +30,11 @@ const MIN_BLOCK = 6;
 
 let S = null; // the one mounted view's state
 
+// Mounted by the React app shell's legacy host (also works standalone, so no
+// import of the dashboard helpers): there an empty page is one designed empty
+// state instead of the three-column frame.
+const inAppShell = () => !!(S && S.container && S.container.closest && S.container.closest('.aiui-legacy-host'));
+
 // ── tiny DOM helpers (textContent only, never innerHTML with data) ─────
 
 function h(tag, attrs, ...kids) {
@@ -658,7 +663,15 @@ function renderAll(errorText) {
   renderRunList();
   renderBar();
   renderRunBox();
-  if (!S.solo && !S.runs.length && !S.runId) {
+  const empty = !S.solo && !S.runs.length && !S.runId;
+  if (inAppShell()) {
+    const bare = empty && !S.runner;
+    S.els.shell.classList.toggle('rp-solo', bare || !!(S.solo || S.pinned));
+    for (const k of ['runs', 'bar', 'narr', 'legend', 'scrub', 'drawer']) if (S.els[k]) S.els[k].hidden = bare;
+    S.els.root.style.border = bare ? '0' : '';
+    if (bare) S.els.stage.classList.add('rp-wide'); // no empty narration column
+  }
+  if (empty) {
     renderEmpty();
     return;
   }
@@ -681,6 +694,16 @@ function renderEmpty() {
     S.els.canvas.appendChild(h('div', { class: 'rp-empty' },
       h('h2', { text: 'Nothing has run yet' }),
       h('p', { text: 'Type an input above and press Run. Each step lights up on the map as it happens.' })));
+    return;
+  }
+  if (inAppShell()) {
+    const tile = h('span', { 'aria-hidden': 'true', style: 'width:40px;height:40px;border-radius:10px;background:var(--db-muted);color:var(--db-text-dim);display:flex;align-items:center;justify-content:center' });
+    tile.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l14 9-14 9Z"/></svg>';
+    S.els.canvas.appendChild(h('section', { style: 'display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:24px 20px;border:1px dashed var(--input, var(--db-border));border-radius:12px;background:var(--db-bg)' },
+      tile,
+      h('h3', { style: 'margin:4px 0 0;font-size:14px;font-weight:600;color:var(--db-text)', text: 'No recorded runs yet' }),
+      h('p', { style: 'margin:0;max-width:360px;font-size:13px;line-height:1.5;color:var(--db-text-dim)', text: 'Record a team run and replay who did what, when, why and at what cost.' }),
+      h('code', { style: 'margin-top:8px;padding:6px 10px;border-radius:8px;background:var(--db-muted);color:var(--db-text);font-size:12px', text: 'praisonai replay view agents.yaml' })));
     return;
   }
   S.els.canvas.appendChild(h('div', { class: 'rp-empty' },
@@ -750,7 +773,7 @@ function renderRunList() {
   const nav = S.els.runs;
   const key = focusKey();
   clear(nav);
-  nav.appendChild(h('h2', { id: 'rp-runs-h', text: 'Runs' }));
+  nav.appendChild(h('h2', { id: 'rp-runs-h', text: 'Runs', style: inAppShell() ? 'text-transform:none;letter-spacing:0;font-weight:600' : null }));
   if (!S.runs.length) {
     nav.appendChild(h('p', { class: 'rp-note', style: 'padding:0 14px', text: 'Nothing recorded yet.' }));
     return;

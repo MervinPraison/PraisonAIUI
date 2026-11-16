@@ -5,6 +5,16 @@
  * Reuses existing card/column CSS classes from dashboard.js (.aiui-board-*).
  */
 
+import { inAppShell, esc, icon } from '/plugins/views/_helpers.js';
+
+// App shell: status dots on theme colours (the dashboard keeps STATUS_COLOURS).
+const SHELL_STATUS = {
+  triage: 'var(--db-text-muted)', cancelled: 'var(--db-text-muted)', todo: 'var(--db-info)', queued: 'var(--db-info)',
+  review: 'var(--db-info)', ready: 'var(--db-accent)', running: 'var(--db-warning)', blocked: 'var(--db-error)',
+  failed: 'var(--db-error)', done: 'var(--db-success)', succeeded: 'var(--db-success)',
+};
+const statusColour = (id) => (inAppShell() ? SHELL_STATUS[id] : STATUS_COLOURS[id]);
+
 const STATUS_COLOURS = {
   triage: '#71717a',
   todo: '#3b82f6',
@@ -110,7 +120,7 @@ function cardElement(card, { selectable, selected, onSelect, onOpen }) {
     head.appendChild(box);
   }
   if (card.id) head.appendChild(el('span', { className: 'aiui-board-card-id', text: card.id }));
-  const colour = STATUS_COLOURS[card.status];
+  const colour = statusColour(card.status);
   if (card.status) {
     const dot = el('span', { className: 'aiui-board-status-dot', text: '●', title: card.status });
     if (colour) dot.style.color = colour;
@@ -129,7 +139,11 @@ function cardElement(card, { selectable, selected, onSelect, onOpen }) {
   if (card.assignee) foot.appendChild(el('span', { className: 'aiui-board-chip', text: String(card.assignee) }));
   const age = relativeTime(card.created_at);
   if (age) foot.appendChild(el('span', { className: 'aiui-board-card-age', text: age }));
-  if (card.comment_count) foot.appendChild(el('span', { className: 'aiui-board-card-count', text: `\uD83D\uDCAC ${card.comment_count}` }));
+  if (card.comment_count && inAppShell()) {
+    const count = el('span', { className: 'aiui-board-card-count', title: `${card.comment_count} comments` });
+    count.innerHTML = `${icon('message', 12)} ${Number(card.comment_count) || 0}`;
+    foot.appendChild(count);
+  } else if (card.comment_count) foot.appendChild(el('span', { className: 'aiui-board-card-count', text: `\uD83D\uDCAC ${card.comment_count}` }));
   if (card.progress && card.progress.total) {
     foot.appendChild(el('span', {
       className: 'aiui-board-progress',
@@ -159,9 +173,11 @@ function columnElement(col, cards, opts) {
     className: 'aiui-board-column',
     'data-column-id': col.id,
   });
-  const dot = STATUS_COLOURS[col.id] ? `color:${STATUS_COLOURS[col.id]}` : '';
+  const dot = statusColour(col.id) ? `color:${statusColour(col.id)}` : '';
   const title = el('div', { className: 'aiui-board-column-title' });
-  title.innerHTML = `<span style="${dot}">●</span> ${col.title || col.id} (${cards.length})`;
+  title.innerHTML = inAppShell()
+    ? `<span style="${dot}" aria-hidden="true">●</span> ${esc(col.title || col.id)} <span class="aiui-board-count" style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--db-muted);color:var(--db-text-dim);font-size:12px;font-weight:500">${cards.length}</span>`
+    : `<span style="${dot}">●</span> ${col.title || col.id} (${cards.length})`;
   colEl.appendChild(title);
 
   const cardsWrap = el('div', { className: 'aiui-board-column-cards' });
@@ -226,6 +242,13 @@ function renderBoardDOM(container, data, opts) {
       className: 'aiui-board-trash',
       text: '🗑 Drop to delete',
     });
+    if (inAppShell()) {
+      // Only a drag can use it, so it shows only while a card is dragged.
+      trash.innerHTML = `${icon('trash', 14)} Drop here to delete`;
+      trash.hidden = true;
+      wrap.addEventListener('dragstart', () => { trash.hidden = false; });
+      wrap.addEventListener('dragend', () => { trash.hidden = true; });
+    }
     trash.addEventListener('dragover', (e) => { e.preventDefault(); trash.classList.add('aiui-board-drop-target'); });
     trash.addEventListener('dragleave', () => trash.classList.remove('aiui-board-drop-target'));
     trash.addEventListener('drop', async (e) => {
@@ -483,7 +506,7 @@ export function createInteractiveBoard(root, opts = {}) {
       }));
     }
     if (opts.boardSwitcher && lastData?.boards) {
-      const sel = el('select', { className: 'aiui-board-board-select' });
+      const sel = el('select', { className: 'aiui-board-board-select', 'aria-label': inAppShell() ? 'Board' : null });
       const activeBoard = opts.boardState?.id || opts.currentBoard || 'default';
       (lastData.boards || []).forEach((b) => {
         const opt = el('option', { value: b.id, text: b.title || b.id });
@@ -495,7 +518,11 @@ export function createInteractiveBoard(root, opts = {}) {
         else opts.currentBoard = sel.value;
         refresh();
       });
-      toolbar.appendChild(sel);
+      if (inAppShell()) {
+        const label = el('label', { style: 'display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--db-text-dim)' }, ['Board']);
+        label.appendChild(sel);
+        toolbar.appendChild(label);
+      } else toolbar.appendChild(sel);
     }
   }
 

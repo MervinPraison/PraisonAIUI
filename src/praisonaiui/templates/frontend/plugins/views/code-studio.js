@@ -3,7 +3,30 @@
  * Write code, run in sandbox, view output, and send snippets to chat.
  * API: GET /api/code/languages, POST /api/code/execute
  */
-import { helpBanner } from '/plugins/views/_helpers.js';
+import { helpBanner, inAppShell, icon } from '/plugins/views/_helpers.js';
+
+// App shell only: the studio's dark-only literals become theme tokens, so it
+// follows light and dark there. The dashboard markup is returned untouched.
+const SHELL_SWAPS = [
+  ['background:#22c55e;color:#fff', 'background:var(--primary);color:var(--primary-foreground);display:inline-flex;align-items:center;gap:6px;white-space:nowrap'],
+  ['word-break:break-word;color:#22c55e', 'word-break:break-word;color:var(--db-text)'],
+  ['rgba(239,68,68,.12)', 'var(--db-error-bg)'], ['rgba(239,68,68,.3)', 'var(--db-border)'], ['rgba(239,68,68,.4)', 'var(--db-border)'],
+  ['rgba(255,255,255,.05)', 'var(--db-hover)'],
+  ['#1e1e1e', 'var(--ui-code-bg, var(--db-bg))'], ['#d4d4d4', 'var(--db-text)'], ['#18181b', 'var(--db-canvas)'],
+  ['#0d1117', 'var(--db-bg)'], ['#22c55e', 'var(--db-success)'], ['#ef4444', 'var(--db-error)'], ['#71717a', 'var(--db-text-muted)'],
+  ['>▶ Run<', `>${icon('play', 14)} Run<`], ['>→ Send to Agent<', '>Send to agent<'],
+];
+function T(html) {
+  if (!inAppShell()) return html;
+  return SHELL_SWAPS.reduce((h, [a, b]) => h.split(a).join(b), html);
+}
+
+// Monaco theme: the shell's light or dark mode, else the studio's dark theme.
+function monacoTheme() {
+  if (!inAppShell()) return 'vs-dark';
+  return document.documentElement.classList.contains('dark') ? 'vs-dark' : 'vs';
+}
+let themeObserver = null;
 
 const MONACO_CDN = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs';
 const HISTORY_MAX = 10;
@@ -76,11 +99,17 @@ async function loadMonaco(host, lang) {
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
   });
+  if (inAppShell()) monacoNs.editor.setTheme(monacoTheme());
+  if (inAppShell() && typeof MutationObserver === 'function') {
+    if (themeObserver) themeObserver.disconnect();
+    themeObserver = new MutationObserver(() => monacoNs.editor.setTheme(monacoTheme()));
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  }
 }
 
 function mountFallback(host, lang) {
-  host.innerHTML = `<textarea id="cs-fallback" spellcheck="false"
-    style="width:100%;height:100%;box-sizing:border-box;resize:none;border:0;outline:none;padding:12px;background:#1e1e1e;color:#d4d4d4;font-family:'JetBrains Mono','SF Mono',Monaco,Consolas,monospace;font-size:13px;line-height:1.5">${escapeHtml(DEFAULT_CODE[lang] || '')}</textarea>`;
+  host.innerHTML = T(`<textarea id="cs-fallback" spellcheck="false"
+    style="width:100%;height:100%;box-sizing:border-box;resize:none;border:0;outline:none;padding:12px;background:#1e1e1e;color:#d4d4d4;font-family:'JetBrains Mono','SF Mono',Monaco,Consolas,monospace;font-size:13px;line-height:1.5">${escapeHtml(DEFAULT_CODE[lang] || '')}</textarea>`);
 }
 
 function pickTab(container, tab) {
@@ -117,15 +146,15 @@ function renderOutput(container, result) {
 
   const o = truncate(out);
   const e = truncate(err);
-  container.querySelector('#cs-out-body').innerHTML =
+  container.querySelector('#cs-out-body').innerHTML = T(
     `<pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:#22c55e">${escapeHtml(o.text) || '<span style="color:#71717a">(no output)</span>'}</pre>` +
-    (o.truncated ? '<div style="color:#71717a;font-size:11px;margin-top:6px">Output truncated</div>' : '');
-  container.querySelector('#cs-err-body').innerHTML =
+    (o.truncated ? '<div style="color:#71717a;font-size:11px;margin-top:6px">Output truncated</div>' : ''));
+  container.querySelector('#cs-err-body').innerHTML = T(
     `<pre style="margin:0;white-space:pre-wrap;word-break:break-word;color:#ef4444">${escapeHtml(e.text) || '<span style="color:#71717a">(no errors)</span>'}</pre>` +
-    (e.truncated ? '<div style="color:#71717a;font-size:11px;margin-top:6px">Output truncated</div>' : '');
-  container.querySelector('#cs-art-body').innerHTML = artifacts.length
+    (e.truncated ? '<div style="color:#71717a;font-size:11px;margin-top:6px">Output truncated</div>' : ''));
+  container.querySelector('#cs-art-body').innerHTML = T(artifacts.length
     ? `<pre style="margin:0;white-space:pre-wrap">${escapeHtml(JSON.stringify(artifacts, null, 2))}</pre>`
-    : '<span style="color:#71717a">(no artifacts)</span>';
+    : '<span style="color:#71717a">(no artifacts)</span>');
 
   pickTab(container, failed && err ? 'errors' : 'output');
 }
@@ -133,16 +162,16 @@ function renderOutput(container, result) {
 function renderHistory(container) {
   const list = container.querySelector('#cs-history');
   if (!history.length) {
-    list.innerHTML = '<div style="color:#71717a;font-size:12px;padding:8px">No runs yet</div>';
+    list.innerHTML = T('<div style="color:#71717a;font-size:12px;padding:8px">No runs yet</div>');
     return;
   }
-  list.innerHTML = history.map((h, i) => {
+  list.innerHTML = T(history.map((h, i) => {
     const ok = !['error', 'failed', 'degraded', 'denied'].includes(h.result.status);
-    const icon = ok ? '<span style="color:#22c55e">●</span>' : '<span style="color:#ef4444">●</span>';
+    const dot = ok ? '<span style="color:#22c55e">●</span>' : '<span style="color:#ef4444">●</span>';
     const dur = h.duration != null ? `${(h.duration / 1000).toFixed(1)}s` : '';
     return `<div class="cs-history-row" data-idx="${i}" style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:6px;cursor:pointer;font-size:12px" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background='transparent'">
-      ${icon}<span style="flex:1">${escapeHtml(h.language)}</span><span style="color:#71717a">${dur}</span></div>`;
-  }).join('');
+      ${dot}<span style="flex:1">${escapeHtml(h.language)}</span><span style="color:#71717a">${dur}</span></div>`;
+  }).join(''));
   list.querySelectorAll('.cs-history-row').forEach((row) => {
     row.addEventListener('click', () => {
       const h = history[Number(row.dataset.idx)];
@@ -193,7 +222,7 @@ async function runCode(container) {
     clearInterval(timerId);
     timerId = null;
     runBtn.disabled = false;
-    runBtn.textContent = '▶ Run';
+    if (inAppShell()) runBtn.innerHTML = `${icon('play', 14)} Run`; else runBtn.textContent = '▶ Run';
   }
 
   const duration = result.duration_ms != null ? result.duration_ms : (Date.now() - start);
@@ -248,7 +277,7 @@ export async function render(container) {
     .map((l) => `<option value="${escapeHtml(l.id)}">${escapeHtml(l.name || l.id)}</option>`)
     .join('');
 
-  container.innerHTML = helpBanner({
+  container.innerHTML = T(helpBanner({
     title: 'Code Studio',
     what: 'Write code, run it in a sandbox, inspect output, and hand snippets to your agent.',
     howToUse: 'Pick a language, edit the code, then click Run. Use "Send to Agent" to continue in chat.',
@@ -294,7 +323,7 @@ export async function render(container) {
         <button id="cs-send-agent" style="padding:10px;background:var(--db-accent,#6366f1);color:#fff;border:0;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">→ Send to Agent</button>
       </div>
     </div>
-  `;
+  `);
 
   const editorHost = container.querySelector('#cs-editor');
   try {
@@ -326,6 +355,7 @@ export async function render(container) {
 }
 
 export function cleanup() {
+  if (themeObserver) { themeObserver.disconnect(); themeObserver = null; }
   if (timerId) { clearInterval(timerId); timerId = null; }
   if (editor && typeof editor.dispose === 'function') { try { editor.dispose(); } catch (e) {} }
   editor = null;

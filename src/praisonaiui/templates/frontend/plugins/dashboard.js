@@ -3477,9 +3477,20 @@ async function showTestPanel() {
   await renderTestPanel(main, { header: true });
 }
 
+// Host mounts (the React shell, header: false) get readable titles, status
+// chips and neutral zero counts; the legacy shell's markup is unchanged.
+let fiHost = false;
+const FI_WORDS = { api: 'API', openai: 'OpenAI', mcp: 'MCP', a2ui: 'A2UI', ui: 'UI', crud: '', ext: '(extended)' };
+const fiTitle = (name) => {
+  const t = String(name || '').split(/[_-]+/).map((w) => (Object.prototype.hasOwnProperty.call(FI_WORDS, w.toLowerCase()) ? FI_WORDS[w.toLowerCase()] : w.toLowerCase())).filter(Boolean).join(' ');
+  return fiHost && t ? t[0].toUpperCase() + t.slice(1) : name;
+};
+const fiBadge = (ok) => `<span style="font-size:12px;font-weight:500;padding:3px 8px;border-radius:999px;${ok ? 'background:var(--db-success-bg);color:var(--db-success)' : 'background:var(--db-error-bg);color:var(--db-error)'}">${ok ? 'Healthy' : 'Error'}</span>`;
+
 // The Inspector panel's body, rendered into `main`: the legacy shell's
 // content area, or a host-mode mount (the React shell header shows the title).
 async function renderTestPanel(main, { header }) {
+  fiHost = !header;
   main.innerHTML = `
     ${header ? `<div class="db-page-header">
       <h1 class="db-page-title">🔍 Inspector</h1>
@@ -3505,11 +3516,14 @@ async function renderTestPanel(main, { header }) {
 
     // Summary bar
     const healthy = features.filter(f => f.health?.status === 'ok').length;
+    const failing = features.length - healthy;
+    const okColor = fiHost ? (healthy ? 'var(--db-success)' : 'var(--db-text)') : '#22c55e';
+    const failColor = fiHost ? (failing ? 'var(--db-error)' : 'var(--db-text)') : (failing > 0 ? '#ef4444' : '#22c55e');
     container.innerHTML = `
       <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
         <div class="db-card" style="padding:12px 18px;flex:1;min-width:120px"><div class="db-card-title">Features</div><div class="db-card-value">${features.length}</div></div>
-        <div class="db-card" style="padding:12px 18px;flex:1;min-width:120px"><div class="db-card-title">Healthy</div><div class="db-card-value" style="color:#22c55e">${healthy}</div></div>
-        <div class="db-card" style="padding:12px 18px;flex:1;min-width:120px"><div class="db-card-title">Failing</div><div class="db-card-value" style="color:${features.length - healthy > 0 ? '#ef4444' : '#22c55e'}">${features.length - healthy}</div></div>
+        <div class="db-card" style="padding:12px 18px;flex:1;min-width:120px"><div class="db-card-title">Healthy</div><div class="db-card-value" style="color:${okColor}">${healthy}</div></div>
+        <div class="db-card" style="padding:12px 18px;flex:1;min-width:120px"><div class="db-card-title">Failing</div><div class="db-card-value" style="color:${failColor}">${failing}</div></div>
         <div class="db-card" style="padding:12px 18px;flex:1;min-width:120px"><div class="db-card-title">Total Routes</div><div class="db-card-value">${features.reduce((s, f) => s + (f.routes?.length || 0), 0)}</div></div>
       </div>
       <div id="fi-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px"></div>
@@ -3523,7 +3537,20 @@ async function renderTestPanel(main, { header }) {
       const card = document.createElement('div');
       card.className = 'db-card';
       card.style.cssText = 'padding:16px 20px;cursor:pointer;transition:border-color 0.2s,box-shadow 0.2s';
-      card.innerHTML = `
+      const stats = [
+        `${routes.length} route${routes.length !== 1 ? 's' : ''}`,
+        feature.health?.total_agents !== undefined ? `${feature.health.total_agents} agents` : '',
+        feature.health?.total_jobs !== undefined ? `${feature.health.total_jobs} jobs` : '',
+        feature.health?.total_requests !== undefined ? `${feature.health.total_requests} requests` : '',
+      ].filter(Boolean).join(' · ');
+      card.innerHTML = fiHost ? `
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:8px;margin-bottom:8px">
+          <div style="font-weight:600;font-size:14px">${escapeHtml(fiTitle(feature.name))}</div>
+          ${fiBadge(ok)}
+        </div>
+        <div style="font-size:12px;color:var(--db-text-dim);margin-bottom:10px">${escapeHtml(feature.description || '')}</div>
+        <div style="font-size:12px;color:var(--db-text-dim)">${stats}</div>
+      ` : `
         <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
           <div style="font-weight:600;font-size:14px">${feature.name}</div>
           <span style="font-size:11px;padding:3px 10px;border-radius:12px;${ok ? 'background:rgba(34,197,94,0.15);color:#22c55e' : 'background:rgba(239,68,68,0.15);color:#ef4444'}">${ok ? '● healthy' : '○ error'}</span>
@@ -3559,8 +3586,8 @@ async function showFeatureDetail(feature) {
   detail.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
       <button id="fi-back" style="background:transparent;border:1px solid var(--db-border);color:var(--db-text);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px">← Back</button>
-      <h2 style="margin:0;font-size:20px;font-weight:600">${feature.name}</h2>
-      <span style="font-size:11px;padding:3px 10px;border-radius:12px;${ok ? 'background:rgba(34,197,94,0.15);color:#22c55e' : 'background:rgba(239,68,68,0.15);color:#ef4444'}">${ok ? '● healthy' : '○ error'}</span>
+      <h2 style="margin:0;font-size:20px;font-weight:600">${fiHost ? escapeHtml(fiTitle(feature.name)) : feature.name}</h2>
+      ${fiHost ? fiBadge(ok) : `<span style="font-size:11px;padding:3px 10px;border-radius:12px;${ok ? 'background:rgba(34,197,94,0.15);color:#22c55e' : 'background:rgba(239,68,68,0.15);color:#ef4444'}">${ok ? '● healthy' : '○ error'}</span>`}
     </div>
     <p style="font-size:13px;color:var(--db-text-dim);margin:0 0 12px">${feature.description || ''}</p>
 

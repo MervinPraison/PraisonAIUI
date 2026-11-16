@@ -2,6 +2,7 @@
  * Shared A2UI surface helpers — render, load, WebSocket, actions.
  */
 import { a2uiMessagesToFragment } from './a2ui-mapper.js';
+import { inAppShell, emptyState, shellButton } from '/plugins/views/_helpers.js';
 
 let _previewWs = null;
 let _previewUnsubs = [];
@@ -81,6 +82,15 @@ export async function loadSurface(host, surfaceId) {
 }
 
 function renderEmptySurface(host) {
+  if (inAppShell()) {
+    host.innerHTML = emptyState({
+      iconName: 'image',
+      title: 'The canvas is empty',
+      body: 'Ask an agent to build a UI in chat and it appears here as it is made.',
+      actionHtml: shellButton('Open chat', `onclick="window.aiui && window.aiui.selectPage && window.aiui.selectPage('chat')"`, 'outline'),
+    });
+    return;
+  }
   host.innerHTML =
     '<div class="db-card" style="padding:20px;color:var(--db-text-dim);text-align:center">' +
       '<div style="font-size:28px;margin-bottom:8px">🖼️</div>' +
