@@ -152,21 +152,28 @@ def _is_job_due(job) -> bool:
     if every_seconds and every_seconds > 0:
         return (now - last_run) >= every_seconds
 
-    # Cron-based: cron_expr (requires croniter)
+    # Cron-based: cron_expr
     cron_expr = schedule.get("cron_expr")
     if cron_expr:
-        try:
-            from croniter import croniter
-
-            cron = croniter(cron_expr, last_run)
-            next_run = cron.get_next(float)
-            return now >= next_run
-        except ImportError:
-            logger.debug("croniter not installed — cron_expr scheduling unavailable")
-        except Exception as e:
-            logger.debug(f"Cron parse error for '{cron_expr}': {e}")
+        next_run = _next_cron_run(cron_expr, last_run)
+        return next_run is not None and now >= next_run
 
     return False
+
+
+def _next_cron_run(cron_expr: str, after: float) -> Optional[float]:
+    """The first time a cron expression matches after ``after`` (epoch seconds, UTC).
+
+    croniter is a core dependency; it is imported here so ``import praisonaiui``
+    does not pay for it. A malformed expression gives None (logged), never raises.
+    """
+    from croniter import croniter
+
+    try:
+        return croniter(cron_expr, after).get_next(float)
+    except Exception as e:
+        logger.warning("Invalid cron expression %r: %s", cron_expr, e)
+        return None
 
 
 async def _call_in_daemon_thread(fn, *args):
@@ -937,13 +944,14 @@ class SchedulesFeature(BaseFeatureProtocol):
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
 
-        # Mark as stopped
-        if hasattr(job, "enabled"):
+        # Mark as stopped, and keep it so (the dict store reloads from disk on read)
+        stopped_at = time.time()
+        if isinstance(job, dict):
+            job.update(enabled=False, stopped_at=stopped_at)
+        else:
             job.enabled = False
-            if hasattr(store, "update"):
-                store.update(job)
-        elif isinstance(job, dict):
-            job["enabled"] = False
+        if hasattr(store, "update"):
+            store.update(job)
 
         # Try to stop via AgentScheduler if connected
         scheduler = job.get("_scheduler") if isinstance(job, dict) else None
@@ -964,7 +972,7 @@ class SchedulesFeature(BaseFeatureProtocol):
             {
                 "id": job_id,
                 "status": "stopped",
-                "stopped_at": job["stopped_at"],
+                "stopped_at": stopped_at,
             }
         )
 
@@ -1017,9 +1025,11 @@ class SchedulesFeature(BaseFeatureProtocol):
             return None
         schedule = job.get("schedule", {})
         every_seconds = schedule.get("every_seconds")
+        last_run = job.get("last_run_at") or job.get("created_at", time.time())
         if every_seconds:
-            last_run = job.get("last_run_at") or job.get("created_at", time.time())
             return last_run + every_seconds
+        if schedule.get("cron_expr"):
+            return _next_cron_run(schedule["cron_expr"], last_run)
         return None
 
     # ── CLI handlers ─────────────────────────────────────────────────

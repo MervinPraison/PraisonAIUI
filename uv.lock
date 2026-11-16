@@ -210,6 +210,7 @@ name = "aiui"
 version = "0.3.164"
 source = { editable = "." }
 dependencies = [
+    { name = "croniter" },
     { name = "pydantic" },
     { name = "pypdf" },
     { name = "pyyaml" },
@@ -352,6 +353,7 @@ requires-dist = [
     { name = "chromadb", marker = "extra == 'graph'", specifier = ">=1.0.0" },
     { name = "chromadb", marker = "extra == 'knowledge'", specifier = ">=1.0.0" },
     { name = "chromadb", marker = "extra == 'memory'", specifier = ">=1.0.0" },
+    { name = "croniter", specifier = ">=2.0" },
     { name = "discord-py", extras = ["voice"], marker = "extra == 'bot'", specifier = ">=2.0.0" },
     { name = "discord-py", extras = ["voice"], marker = "extra == 'discord'", specifier = ">=2.0.0" },
     { name = "discord-py", extras = ["voice"], marker = "extra == 'praisonai'", specifier = ">=2.0.0" },
@@ -1471,6 +1473,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/07/96/7525bd2e1f8f2f2924f350b0432481d673c3fb43e4d60f7d151e4137b8a6/crawl4ai-0.8.6.tar.gz", hash = "sha256:2a2afab05ae021435fe025cfc5732f5dcebcefd7ff9a529e41050642ee954316", size = 578962, upload-time = "2026-03-24T15:07:51.706Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/76/e2/aa851e2f0248f0b19c63b0fe11f6bdc2ca64900924d399af368dc28f2a20/crawl4ai-0.8.6-py3-none-any.whl", hash = "sha256:57e127e8113640d8358705b231111d3cd9cc4ab05d44705e724cebc4a383e09c", size = 501931, upload-time = "2026-03-24T15:07:50.121Z" },
+]
+
+[[package]]
+name = "croniter"
+version = "7.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "python-dateutil" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/54/17/3c60d4cf8c8768f8a116328f94ddb2f205e64d5afbb1bcb85f315bfbbf42/croniter-7.0.0.tar.gz", hash = "sha256:a0b2568303c774f6a4ea2d4ce2e72b1ee911029c7070d64a1befe05cdb107f5a", size = 191123, upload-time = "2026-11-09T06:52:40.106Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4c/89/10f9987ebdef47dbe9db94e9c00dcbd91a6ff1aa46ad58bee5b50fa454c9/croniter-7.0.0-py3-none-any.whl", hash = "sha256:92090bce3cef195a037a46b78430c4cdd6250e90671d9d7dcd9e486147daaca4", size = 63225, upload-time = "2026-11-09T06:52:38.545Z" },
 ]
 
 [[package]]
