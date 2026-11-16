@@ -190,7 +190,7 @@ async def _upload_attachment(request: Request) -> JSONResponse:
                             "text/csv",
                         ):
                             text_content = data.decode("utf-8", errors="replace")
-                            k_mgr.store(
+                            stored = k_mgr.store(
                                 text=f"[File: {filename}]\n{text_content}",
                                 metadata={
                                     "filename": filename,
@@ -200,6 +200,8 @@ async def _upload_attachment(request: Request) -> JSONResponse:
                             )
                             meta["knowledge_indexed"] = True
                             meta["knowledge_method"] = "text_content"
+                            if stored.get("warning"):
+                                meta["knowledge_warning"] = stored["warning"]
                         else:
                             meta["knowledge_indexed"] = False
                             meta["knowledge_error"] = result.get(

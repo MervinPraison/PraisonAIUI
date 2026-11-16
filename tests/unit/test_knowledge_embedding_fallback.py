@@ -80,7 +80,8 @@ def test_search_reports_fallback_on_embedding_error():
     meta = mgr.last_search_meta()
     assert meta["mode"] == "fallback"
     assert meta["error"]
-    assert "AIUI_EMBEDDING_MODEL" in meta["error"]
+    # The variable the SDK's knowledge adapters read (AIUI_EMBEDDING_MODEL is /v1/embeddings only).
+    assert "OPENAI_EMBEDDING_MODEL" in meta["error"]
     assert results
 
 

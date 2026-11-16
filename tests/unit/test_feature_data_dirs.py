@@ -206,6 +206,9 @@ def test_knowledge_store_lives_in_the_data_dir(dirs, monkeypatch):
     mod = types.ModuleType("praisonaiagents.knowledge")
     mod.Knowledge = _Knowledge
     monkeypatch.setitem(sys.modules, "praisonaiagents.knowledge", mod)
+    embed = types.ModuleType("praisonaiagents.embedding")  # the init probe: no API call
+    embed.embedding = lambda *a, **k: None
+    monkeypatch.setitem(sys.modules, "praisonaiagents.embedding", embed)
 
     _use(monkeypatch, dirs["a"])
     SDKKnowledgeManager()._get_sdk_knowledge()
