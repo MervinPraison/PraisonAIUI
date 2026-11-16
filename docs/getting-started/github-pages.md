@@ -101,8 +101,8 @@ jobs:
       - name: Build
         run: |
           aiui build --output site --minify
-          # Preserve custom domain (if using one)
-          [ -f CNAME ] && cp CNAME site/CNAME
+          # Keep the custom domain, if there is one
+          if [ -f CNAME ]; then cp CNAME site/CNAME; fi
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
@@ -127,57 +127,70 @@ To use a custom domain (e.g., `docs.example.com`):
    docs.example.com
    ```
 2. Configure DNS — add a CNAME record pointing to `<username>.github.io`
-3. The workflow above automatically copies `CNAME` into the build output
+3. The workflow above copies `CNAME` into the build output. The build also
+   uses it as the site URL for the sitemap and canonical links.
 
 ## Migrating from MkDocs
-
-Already using MkDocs? The migration is simple:
 
 | MkDocs | AIUI |
 |--------|------|
 | `mkdocs.yml` | `aiui.template.yaml` |
 | `mkdocs build` → `./site/` | `aiui build --output site` → `./site/` |
-| `mkdocs serve` | `aiui serve` |
+| `mkdocs serve` | `aiui serve --watch` |
 | `pip install mkdocs-material` | `pip install aiui` |
 
-Your existing `docs/` folder works as-is — just swap the config and build command.
+What carries over from Material for MkDocs pages:
 
-### Migration Steps
+- Admonitions (`!!! note "Title"`, collapsible `???`), content tabs
+  (`=== "Tab"` with 4-space indented content) and fenced code blocks render.
+- `attr_list` (`{ .class }`) is not supported and shows as literal text;
+  `:material-*:` icon shortcodes do not render as icons; raw HTML blocks are not
+  styled. Remove them.
+- The `nav:` list in `mkdocs.yml` is not read. Pages are ordered by the
+  frontmatter `order` value, then a number prefix in the file name
+  (`01-intro.md`), then the file name. See [Navigation](../features/navigation.md).
 
-1. Create `aiui.template.yaml` (see example above)
-2. Replace `mkdocs build` with `aiui build --output site --minify` in your CI workflow
-3. Remove `mkdocs.yml` (optional — keep for reference)
-4. Push to `main`
+### Migration steps
 
-## Local Preview
+1. Create `aiui.template.yaml` (see the example above) and run
+   `aiui validate --strict`.
+2. Replace `mkdocs build` with `aiui build --output site --minify` in your CI workflow.
+3. Check the pages for the unsupported syntax listed above.
+4. Push to `main`.
 
-Preview your site before deploying:
+## Local preview
 
 ```bash
-# Build and serve locally
-aiui build
-aiui serve
-
-# Or use dev mode with hot reload
-aiui dev
+aiui serve --watch     # build, serve on http://127.0.0.1:8000, rebuild on change
 ```
 
-## Build Output
+`--watch` rebuilds the site; reload the page to see the change.
+
+## Build output
 
 `aiui build --output site` produces:
 
 ```
 site/
-├── index.html           # SPA entry point
-├── assets/              # JS + CSS bundles
-│   ├── index.js
-│   └── index.css
-├── ui-config.json       # Site configuration manifest
-├── docs-nav.json        # Navigation tree
-├── route-manifest.json  # Route definitions
-└── docs/                # Markdown content (copied)
-    ├── index.md
+├── index.html           # single-page app entry
+├── 404.html             # copy of index.html, so GitHub Pages serves deep links
+├── .nojekyll            # tells GitHub Pages not to run Jekyll
+├── assets/              # JS and CSS bundles
+├── aiui-manifest.json   # list of hashed bundle chunks
+├── ui-config.json       # site configuration manifest
+├── docs-nav.json        # navigation tree
+├── route-manifest.json  # route definitions
+├── robots.txt
+└── docs/
+    ├── index.html       # one pre-rendered page per document (title, description)
+    ├── index.md         # the Markdown source, loaded by the app
     └── ...
 ```
 
-Everything is static — no server required. GitHub Pages serves it directly.
+With a site URL (`seo.siteUrl`, or the `CNAME` file) the build also writes
+`sitemap.xml`, `llms.txt` and `llms-full.txt`; see [SEO](../features/seo.md).
+
+Everything is static, so GitHub Pages serves it directly.
+
+This site, https://ui.praison.ai, is built the same way: see
+[`.github/workflows/deploy-pages.yml`](https://github.com/MervinPraison/PraisonAIUI/blob/main/.github/workflows/deploy-pages.yml).

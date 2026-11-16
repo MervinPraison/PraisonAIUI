@@ -12,13 +12,15 @@ Set the UI style.
 
 | Parameter | Type | Values |
 |-----------|------|--------|
-| `style` | `str` | `"chat"`, `"dashboard"`, `"agents"`, `"playground"`, `"docs"`, `"custom"` |
+| `style` | `str` | `"app"` (the React app shell), `"chat"` (the classic chat), `"dashboard"`, `"agents"`, `"playground"`, `"docs"`, `"custom"` |
 
 ```python
 aiui.set_style("dashboard")
 ```
 
-Priority: `set_style()` → CLI `--style` flag → auto-detection.
+Priority under `aiui run`: CLI `--style`, then `set_style()`, then
+auto-detection (a plain chat app gets `app`). See
+[UI Styles](../features/styles.md).
 
 ---
 
@@ -64,12 +66,17 @@ site:
 Set the persistence backend for sessions and messages.
 
 ```python
-# JSON file store (default)
+# JSON files under ~/.praisonaiui (or AIUI_DATA_DIR)
 aiui.set_datastore(aiui.JSONFileDataStore())
 
 # In-memory (no persistence)
 aiui.set_datastore(aiui.MemoryDataStore())
 ```
+
+Without a call, the server uses the SDK store shared with PraisonAI Agents
+(`SDKFileDataStore`, from `praisonaiui.datastore_sdk`), falling back to
+`JSONFileDataStore`. `aiui run --datastore` sets the same thing from the
+command line.
 
 ---
 
@@ -83,20 +90,20 @@ aiui.set_provider(aiui.PraisonAIProvider())
 
 ---
 
-### `aiui.register_agent(config)`
+### `aiui.register_agent(name, agent)`
 
-Register an AI agent for the dashboard. Agents appear in the sidebar and can be selected for chat.
+Register an agent object (for example a PraisonAI Agents `Agent`) under a
+name. Together with an `@aiui.profiles` callback, registered agents make
+`aiui run` pick the `agents` style.
 
 ```python
-aiui.register_agent({
-    "agent_id": "researcher",
-    "name": "Researcher",
-    "description": "Research assistant",
-    "instructions": "You are a research assistant.",
-    "model": "gpt-4o-mini",
-    "icon": "🔬",
-})
+from praisonaiagents import Agent
+
+aiui.register_agent("researcher", Agent(name="Researcher", instructions="You research topics."))
 ```
+
+Agents created in the dashboard's Agents page are a separate store
+(`/api/agents/definitions`).
 
 ---
 
@@ -208,7 +215,7 @@ aiui.set_chat_features(
 
 ---
 
-### `aiui.set_dashboard(*, sidebar, page_header, modules, plugin_dirs, plugins)`
+### `aiui.set_dashboard(*, sidebar, page_header, modules, plugin_dirs, plugins, groups)`
 
 Configure dashboard layout options.
 
@@ -219,6 +226,7 @@ Configure dashboard layout options.
 | `modules` | `list[str] \| None` | `None` | Optional dashboard JS modules (`jobs`, `auth`, `api`) |
 | `plugin_dirs` | `list[str] \| None` | `None` | Extra directories to scan for dashboard plugins |
 | `plugins` | `list[str] \| None` | `None` | Allowlist of dashboard plugin names. `None` = all discovered (bundled, `~/.praisonai/dashboard-plugins`, `plugin_dirs`); `[]` = none |
+| `groups` | `dict \| None` | `None` | Sidebar group order and folding in the app shell (YAML `dashboard.groups`) |
 
 ```python
 import praisonaiui as aiui
@@ -251,6 +259,42 @@ aiui.set_pages(["chat-canvas", "chat", "canvas"])
 ```
 
 See [A2UI canvas](../features/a2ui-canvas.md).
+
+---
+
+### `aiui.set_theme(preset="zinc", dark_mode=True, radius="md")`
+
+Set the colour palette, colour mode and corner radius. Takes priority over
+YAML `site.theme`.
+
+| Parameter | Type | Values |
+|-----------|------|--------|
+| `preset` | `str` | `zinc`, `slate`, `stone`, `gray`, `neutral`, `red`, `orange`, `amber`, `yellow`, `lime`, `green`, `emerald`, `teal`, `cyan`, `sky`, `blue`, `indigo`, `violet`, `purple`, `fuchsia`, `pink`, `rose`, or a name from `register_theme()` |
+| `dark_mode` | `bool \| None` | `True` dark, `False` light, `None` leaves it to YAML or the viewer and the OS |
+| `radius` | `str` | `none`, `sm`, `md`, `lg`, `xl` |
+
+```python
+aiui.set_theme(preset="blue", dark_mode=None, radius="lg")
+```
+
+See [Theming](../features/theming.md).
+
+---
+
+### `aiui.set_custom_css(css)`
+
+Add a CSS string to the page as an inline `<style>` tag.
+
+```python
+aiui.set_custom_css(":root { --db-accent: #22c55e; }")
+```
+
+---
+
+### `aiui.set_layout(default=None, *, available=None, user_choice=None, primary=None, options=None)`
+
+Choose the React app shell's layout (`style: app`). See
+[Layouts](../features/layouts.md).
 
 ---
 
@@ -403,29 +447,30 @@ except Exception as exc:
 
 ### `aiui.configure(*, datastore=None, branding=None, theme=None, chat=None, custom_css=None, custom_js=None, style=None)`
 
-One-stop configuration function. Every keyword is optional, so you only
-set what you need. Replaces the dozen individual `set_*` setters for
-most common cases (the `set_*` functions remain for advanced control).
+One call for the common setters. Every keyword is optional; each one is
+forwarded to the matching `set_*` function, which you can still call directly.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `datastore` | `str` | Storage backend: `"memory"`, `"json"`, `"json:/path"`, `"sdk"`, `"sdk:/path"`. |
-| `branding`  | `dict` | Forwarded to `set_branding(...)`. Keys: `title`, `logo`, `subtitle`. |
-| `theme`     | `dict` | Forwarded to `set_theme(...)`. Keys: `preset`, `dark`/`dark_mode`, `radius`, `brand_color`. |
-| `chat`      | `dict` | Forwarded to `set_chat_features(...)`. Keys: `feedback`, `mode`, plus any chat-feature flag. |
-| `custom_css`| `str \| Path` | Path to a CSS file; same as `set_custom_css`. |
+| `branding`  | `dict` | Forwarded to `set_branding(...)`. Keys: `title`, `logo` (any other key raises `TypeError`). |
+| `theme`     | `dict` | Forwarded to `set_theme(...)`. Keys: `preset`, `dark`/`dark_mode`, `radius`; `brand_color` goes to `set_brand_color()`. |
+| `chat`      | `dict` | `feedback` goes to `set_feedback_enabled()`, `mode` to `set_chat_mode()`, other keys to `set_chat_features()`. |
+| `custom_css`| `str` | CSS text, passed to `set_custom_css()` unchanged. It is not read from a file: pass `Path("styles.css").read_text()` to use one. |
 | `custom_js` | `str \| Path` | Path to a JS file; same as `set_custom_js`. |
 | `style`     | `str` | UI style — `"chat"`, `"dashboard"`, etc. |
 
 ```python
 import praisonaiui as aiui
 
+from pathlib import Path
+
 aiui.configure(
     branding={"title": "My App", "logo": "🎨"},
-    theme={"preset": "ocean", "dark": True, "radius": "md"},
-    chat={"feedback": True, "mode": "single"},
+    theme={"preset": "blue", "dark": True, "radius": "md"},
+    chat={"feedback": True, "mode": "floating"},
     datastore="json",
-    custom_css="styles.css",
+    custom_css=Path("styles.css").read_text(),
     custom_js="plugin.js",
 )
 ```
@@ -433,7 +478,7 @@ aiui.configure(
 ```python
 import praisonaiui as aiui
 
-# In-memory (default, volatile)
+# In-memory (volatile)
 aiui.configure(datastore="memory")
 
 # JSON files at ~/.praisonaiui/sessions/
@@ -442,7 +487,7 @@ aiui.configure(datastore="json")
 # JSON files at custom path
 aiui.configure(datastore="json:/tmp/my-sessions")
 
-# SDK-backed store (unifies with praisonai-agents)
+# SDK-backed store shared with PraisonAI Agents (the default)
 aiui.configure(datastore="sdk")
 ```
 
@@ -457,15 +502,16 @@ Handle incoming chat messages. This is the core callback.
 ```python
 @aiui.reply
 async def on_reply(message):
-    await aiui.stream("Thinking...")
-    # Process message.content
-    await aiui.say("Here's the answer!")
+    await aiui.think("Thinking...")
+    await aiui.say(f"You said: {message.text}")
 ```
 
-The `message` object has:
-- `message.content` — user's text
-- `message.session_id` — session identifier
-- `message.images` — attached images (if any)
+Annotate the parameter as `str` (`async def on_reply(message: str)`) to get
+the text only. Otherwise the callback gets a `MessageContext` with:
+
+- `message.text` (alias `message.content`): the user's text
+- `message.session_id`: the session id
+- `message.agent_name`: the selected agent, if any
 
 ---
 
@@ -483,7 +529,7 @@ async def on_welcome():
 
 ### `@aiui.goodbye`
 
-Cleanup when a user disconnects.
+Registers a session-end handler. The server does not call it yet.
 
 ```python
 @aiui.goodbye
@@ -523,66 +569,43 @@ async def on_profiles():
 
 ---
 
-### `@aiui.page(slug, title, icon, group, order)`
+### `@aiui.page(id, *, title, icon="📄", group="Custom", description="", order=100)`
 
-Register a custom dashboard page.
+Register a custom dashboard page. The callback's return value is the page
+data (`GET /api/pages/<id>/data`); return UI components to render them. An app
+with pages opens in the `dashboard` style.
 
 ```python
 @aiui.page("analytics", title="Analytics", icon="📊", group="Control", order=60)
 async def analytics_page():
     return aiui.layout([
-        aiui.card("Revenue", aiui.chart(data, "line")),
-        aiui.card("Users", aiui.table(headers, rows)),
+        aiui.card("Revenue", value="$12,345"),
+        aiui.chart("Signups", data=[{"name": "Mon", "value": 4}, {"name": "Tue", "value": 7}], chart_type="line"),
     ])
 ```
+
+`aiui.register_page(id, *, title, ...)` registers a page without a decorator.
 
 ---
 
 ### `@aiui.on(event)`
 
-Listen for server events.
+Register a handler for a named event. The server dispatches `feedback`
+(a thumbs up or down on a message) to it:
 
 ```python
-@aiui.on("session_created")
-async def on_session(session):
-    print(f"New session: {session.id}")
+@aiui.on("feedback")
+async def on_feedback(event):
+    print(event["session_id"], event["message_id"], event["value"], event["comment"])
 ```
 
 ---
 
-### `@aiui.login`
+### `@aiui.login`, `@aiui.settings`, `@aiui.resume`
 
-Handle authentication.
-
-```python
-@aiui.login
-async def on_login(credentials):
-    return {"user_id": "123", "name": "Admin"}
-```
-
----
-
-### `@aiui.settings`
-
-Provide user settings.
-
-```python
-@aiui.settings
-async def on_settings():
-    return {"theme": "dark", "language": "en"}
-```
-
----
-
-### `@aiui.resume`
-
-Resume interrupted sessions.
-
-```python
-@aiui.resume
-async def on_resume(session_id):
-    await aiui.say("Welcome back! Resuming your session.")
-```
+These decorators register a handler, but the server does not call them yet,
+so do not rely on them. Sign-in is configured with YAML `auth:` or
+`create_app(require_auth=...)`; see [Deployment](../features/deployment.md).
 
 ---
 
@@ -605,17 +628,17 @@ Async functions for sending messages to the user. Call inside callback handlers.
 
 | Function | Purpose |
 |----------|---------|
-| `await aiui.say(text)` | Send a complete message |
-| `await aiui.stream(text)` | Stream a response progressively |
-| `await aiui.stream_token(token)` | Stream token-by-token |
-| `await aiui.think(text)` | Show a thinking indicator |
-| `await aiui.ask(question)` | Ask user a question (returns answer) |
-| `await aiui.image(url)` | Send an image |
+| `await aiui.say(content)` | Send a complete message |
+| `await aiui.stream_token(token)` | Append a token to the streaming reply |
+| `await aiui.stream(token)` | Same as `stream_token` |
+| `await aiui.think(step)` | Show a reasoning step |
+| `await aiui.ask(question, options=None, timeout=300.0)` | Ask the user and wait; returns the answer text |
+| `await aiui.image(url, alt="")` | Send an image |
 | `await aiui.audio(url)` | Send audio |
 | `await aiui.video(url)` | Send video |
-| `await aiui.file(url)` | Send a file |
-| `await aiui.action_buttons(buttons)` | Show action buttons |
-| `await aiui.tool(name, data)` | Show tool call result |
+| `await aiui.file(url, name="")` | Send a file |
+| `await aiui.action_buttons(buttons)` | Show buttons; handle clicks with `@aiui.button(name)` |
+| `await aiui.tool(name, args=None, result=None)` | Show a tool call and its result |
 
 ---
 
@@ -624,34 +647,29 @@ Async functions for sending messages to the user. Call inside callback handlers.
 Build custom page layouts with UI components.
 
 ```python
-@aiui.page("dashboard", title="My Dashboard", icon="📊")
+@aiui.page("my-dashboard", title="My Dashboard", icon="📊")
 async def my_dashboard():
     return aiui.layout([
         aiui.columns([
             aiui.card("Metric A", value="42"),
             aiui.card("Metric B", value="98%", footer="+5% this week"),
         ]),
-        aiui.card("Data", aiui.table(
-            headers=["Name", "Value"],
-            rows=[["Alpha", "100"], ["Beta", "200"]],
-        )),
-        aiui.card("Trend", aiui.chart(
-            data=[10, 20, 30, 40],
-            type="line",
-        )),
+        aiui.table(headers=["Name", "Value"], rows=[["Alpha", 100], ["Beta", 200]]),
+        aiui.chart("Trend", data=[{"name": "Q1", "value": 10}, {"name": "Q2", "value": 30}], chart_type="line"),
     ])
 ```
 
 | Component | Usage |
 |-----------|-------|
 | `aiui.layout(children)` | Root container for a page |
-| `aiui.card(title, *, value, footer)` | Metric/stat card with title, value, and optional footer |
+| `aiui.card(title, *, value=None, footer=None)` | Metric card |
 | `aiui.columns(children)` | Horizontal column layout |
-| `aiui.chart(data, type)` | Chart (line, bar, pie) |
-| `aiui.table(headers, rows)` | Data table |
+| `aiui.chart(title, *, data=None, chart_type="bar")` | Chart; `data` is a list of dicts |
+| `aiui.table(*, headers, rows, row_ids=None, actions=None)` | Data table |
 | `aiui.text(content)` | Text block |
 
-See [Component API Reference](components.md) for all 48 components.
+See the [Component API Reference](components.md) for the other builders
+(metrics, alerts, tabs, forms and more).
 
 ---
 
@@ -659,12 +677,13 @@ See [Component API Reference](components.md) for all 48 components.
 
 | Class | Purpose |
 |-------|---------|
-| `aiui.Message` | Incoming/outgoing message |
-| `aiui.AskUserMessage` | User response to `ask()` |
+| `aiui.Message` | Outgoing message with elements and actions |
+| `aiui.AskUserMessage` | Ask the user for text (older form of `aiui.prompt`) |
 | `aiui.Step` | Processing step indicator |
 | `aiui.BaseDataStore` | Abstract datastore interface |
 | `aiui.MemoryDataStore` | In-memory store |
 | `aiui.JSONFileDataStore` | Persistent JSON file store |
+| `aiui.SQLAlchemyDataStore` | SQL store (`pip install "aiui[sql]"`) |
 | `aiui.BaseProvider` | Abstract AI provider interface |
 | `aiui.PraisonAIProvider` | PraisonAI provider implementation |
 | `aiui.RunEvent` | Streaming event |

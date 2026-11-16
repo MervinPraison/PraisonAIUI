@@ -1,279 +1,303 @@
-# CLI API Reference
+# CLI Reference
 
-Complete reference for the `aiui` Python CLI.
+Every `aiui` command and option. `aiui <command> --help` prints the same
+information from the installed version. The wheel also installs the command
+as `praisonaiui`.
 
-## Commands
+For a short tour of the commands you will use most, see
+[CLI Usage](../getting-started/cli.md).
 
-### init
+## Run and build
 
-Initialize a new project.
+### `aiui run`
 
-```bash
-aiui init [OPTIONS]
-```
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `--template, -t` | string | `minimal` | Template: minimal, docs, marketing |
-| `--force, -f` | flag | `false` | Overwrite existing files |
-
-### validate
-
-Validate configuration file.
+Run the server for a Python app (`app.py`) or a YAML chat agent (`chat.yaml`).
 
 ```bash
-aiui validate [OPTIONS]
+aiui run APP_FILE [OPTIONS]
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `--config, -c` | path | `aiui.template.yaml` | Config file path |
-| `--strict` | flag | `false` | Strict validation mode |
+| Option | Default | Description |
+|--------|---------|-------------|
+| `APP_FILE` | required | A Python file that registers callbacks, or a `.yaml`/`.yml` chat config |
+| `--port, -p` | `8000` | Port. If it is taken, the next free port (up to 10 further) is used and printed |
+| `--host` | `127.0.0.1` | Address to bind to |
+| `--reload, -r` | off | Restart when files change |
+| `--style, -s` | detected | `app` (the React app shell), `chat` (the classic chat), `docs`, `agents`, `playground`, `dashboard` or `custom` |
+| `--backend, -b` | `standalone` | `standalone`, or `praisonai` to use the PraisonAI WebSocket gateway |
+| `--datastore, -d` | `sdk` | Session storage: `sdk` (shared with PraisonAI Agents), `sdk:/path`, `json`, `json:/path` or `memory` |
+| `--config, -c` | none | A docs-site YAML to build before serving (optional) |
+| `--output, -o` | `aiui` | Folder the UI files are written to; by default next to `APP_FILE` |
 
-### build
+Style: for a Python app `--style` wins, then `aiui.set_style()`; for a YAML
+app its `style:` key wins over `--style`. Without any of them `aiui run`
+detects one: `@aiui.profiles` plus
+registered agents gives `agents`, `@aiui.page` gives `dashboard`, anything else
+`app`. In `app`, `aiui run` opens the `chat` layout (the chat without a
+canvas) unless `AIUI_LAYOUT`, `aiui.set_layout()` or YAML `layout:` picks
+another. See [UI Styles](../features/styles.md) and
+[Layouts](../features/layouts.md).
 
-Build manifests from configuration.
+`aiui run` loads `~/.praisonai/.env` and then `./.env` before starting,
+without overriding variables that are already set.
 
 ```bash
-aiui build [OPTIONS]
+aiui run app.py                         # style detected; a chat app opens the app shell
+aiui run app.py --style chat            # the classic chat style
+aiui run app.py --port 3000 --reload
+aiui run app.py --datastore json        # sessions under ~/.praisonaiui
+aiui run chat.yaml                      # YAML-defined agent (needs praisonaiagents)
+aiui run app.py --backend praisonai
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `--config, -c` | path | `aiui.template.yaml` | Config file path |
-| `--output, -o` | path | `aiui` | Output directory |
-| `--minify` | flag | `false` | Minify JSON output |
+### `aiui init`
 
-### dev
+Write a starter `aiui.template.yaml` in the current folder.
 
-Start development mode with file watching.
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--template, -t` | `minimal` | `minimal`, `docs` or `marketing` |
+| `--force, -f` | off | Overwrite existing files |
+| `--frontend` | off | Also scaffold a Vite + React + shadcn frontend project |
+
+`init` writes only the YAML file. Create the folder it points to (for the
+`docs` template, `./docs` with at least one `.md` file) before `aiui build`.
+
+### `aiui validate`
+
+Check a docs-site configuration.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--config, -c` | `aiui.template.yaml` | Configuration file |
+| `--strict` | off | Unknown keys become errors |
+
+### `aiui build`
+
+Build a static docs site from the configuration.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--config, -c` | `aiui.template.yaml` | Configuration file |
+| `--output, -o` | `aiui` | Output folder |
+| `--minify` | off | Minify the JSON manifests |
+
+The output holds `index.html`, `404.html`, the UI bundle (`assets/`,
+`aiui-manifest.json`), the manifests (`ui-config.json`, `docs-nav.json`,
+`route-manifest.json`), one HTML file and the Markdown source per page,
+`robots.txt` and `.nojekyll`. `sitemap.xml`, `llms.txt` and `llms-full.txt`
+are added when the site URL is known (`seo.siteUrl`, or a `CNAME` file next to
+the configuration or in `docs/`).
+
+### `aiui serve`
+
+Build (unless `--no-build`) and serve a docs site.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--config, -c` | `aiui.template.yaml` | Configuration file |
+| `--output, -o` | `aiui` | Folder to serve |
+| `--port, -p` | `8000` | Port (next free port if taken) |
+| `--host` | `127.0.0.1` | Address to bind to |
+| `--no-build` | off | Serve the existing output without building |
+| `--watch, -w` | off | Rebuild when a file in the configuration's folder changes (reload the page yourself) |
+| `--cors-origins` | empty | Comma-separated allowed origins; empty means same-origin only |
+| `--ssl-certfile` | none | Certificate file for HTTPS |
+| `--ssl-keyfile` | none | Private key file for HTTPS |
+
+Paths without a file extension fall back to the single-page app. Paths that
+try to leave the output folder are refused.
+
+### `aiui dev`
+
+A local dashboard that lists the example projects in a folder and switches
+between them while they run.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--examples, -e` | `examples` | Folder that holds the example projects |
+| `--port, -p` | `9000` | Port |
+| `--host` | `127.0.0.1` | Address to bind to |
+
+## Diagnostics
+
+| Command | Options | Description |
+|---------|---------|-------------|
+| `aiui doctor` | `--server, -s` (default `http://127.0.0.1:8000`), `--json` | Structured diagnostics against a running server |
+| `aiui health-check` | `--server, -s`, `--detailed, -d` | Server health; `--detailed` shows each feature |
+| `aiui health` | same | Alias of `health-check` |
+| `aiui test <suite>` | `--server, -s` (default `http://127.0.0.1:8082`) | Integration tests against a running server: `chat`, `memory`, `sessions`, `endpoints`, `features`, `all`. See [API Testing](testing.md) |
+
+## Plugins
 
 ```bash
-aiui dev [OPTIONS]
+aiui plugins list [--json] [--config FILE]       # installed UI plugins, version, status, load error
+aiui plugins doctor [--config FILE] [--no-builtin]
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `--config, -c` | path | `aiui.template.yaml` | Config file path |
-| `--port, -p` | int | `3000` | Dev server port |
+`--config` applies the `extensions:` policy from that YAML. `doctor` checks the
+entry point, the SDK version gate, `static_dir` and SRI hashes, and (unless
+`--no-builtin`) page ids that a built-in page shadows. A plugin's own commands
+run as `aiui <plugin> ...` or `aiui plugins <plugin> ...`;
+`AIUI_DISABLE_PLUGIN_AUTOLOAD=1` turns that lookup off. See
+[UI plugins](../features/plugins.md).
 
-### run
+## Management commands
 
-Run the AI chat server with your app or config.
+These talk to a running server over HTTP. Every one takes
+`--server, -s URL` (default `http://127.0.0.1:8000`).
+
+### `sessions`
 
 ```bash
-aiui run <APP_FILE> [OPTIONS]
+aiui sessions list
+aiui sessions create
+aiui sessions get SESSION_ID
+aiui sessions delete SESSION_ID
+aiui sessions messages SESSION_ID
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `--port, -p` | int | `8000` | Server port |
-| `--host` | string | `127.0.0.1` | Host to bind to |
-| `--reload, -r` | flag | `false` | Auto-reload on file changes |
-| `--style, -s` | string | `chat` | UI style: `chat`, `docs`, `agents`, `playground`, `dashboard`, `custom` |
-| `--backend, -b` | string | `standalone` | Backend: `standalone` or `praisonai` |
-| `--datastore, -d` | string | `memory` | Data persistence: `memory`, `json`, `json:/path` |
-| `--output, -o` | path | `aiui` | Output directory for static files |
-
-**Style auto-detection:** When `--style` is not provided, the style is automatically detected from your code. See [Styles](../features/styles.md) for details.
+### `session-ext`
 
 ```bash
-# Auto-detects style from code
-aiui run app.py
-
-# Explicit style
-aiui run app.py --style agents
-
-# With persistence
-aiui run app.py --datastore json
-
-# YAML config
-aiui run chat.yaml
+aiui session-ext state SESSION_ID
+aiui session-ext save-state SESSION_ID --key K --value V
+aiui session-ext labels SESSION_ID
+aiui session-ext usage SESSION_ID
+aiui session-ext compact SESSION_ID
+aiui session-ext reset SESSION_ID
 ```
 
-## Python API
+### `memory`
 
-### Direct Usage
+```bash
+aiui memory list [--type short|long|entity|all]
+aiui memory add TEXT [--type long]
+aiui memory search QUERY [--limit 10]
+aiui memory context QUERY [--limit 5]    # memory text for prompt injection
+aiui memory clear [--type all]
+aiui memory status
+```
+
+### `provider`
+
+```bash
+aiui provider status     # active provider and its health
+aiui provider health
+aiui provider agents
+```
+
+### `features` and `pages`
+
+```bash
+aiui features list       # registered feature protocols
+aiui features status     # health summary
+aiui pages list          # sidebar pages with group and icon
+aiui pages ids           # page ids, for aiui.set_pages()
+```
+
+### `config`
+
+Runtime configuration (stored in `config.yaml` under the data directory).
+
+```bash
+aiui config get [KEY]          # all keys when KEY is omitted
+aiui config set KEY VALUE
+aiui config list
+aiui config history [--limit 20]
+```
+
+### `approval`
+
+```bash
+aiui approval list [--status all|pending|resolved]
+aiui approval pending
+aiui approval resolve APPROVAL_ID [--approved | --denied] [--reason TEXT]
+```
+
+### `schedule`
+
+```bash
+aiui schedule list
+aiui schedule add NAME MESSAGE [--every 60]    # interval in seconds
+aiui schedule remove JOB_ID
+aiui schedule status
+```
+
+### `skills`, `hooks`, `workflows`
+
+```bash
+aiui skills list | status | discover
+aiui hooks list
+aiui hooks trigger HOOK_ID
+aiui hooks log [--limit 20]
+aiui workflows list | status | runs
+aiui workflows run WORKFLOW_ID
+```
+
+### `eval` and `traces`
+
+```bash
+aiui eval status | scores | judges
+aiui eval list [--limit 20] [--agent-id ID]
+aiui eval run --input TEXT --output TEXT [--expected TEXT] [--agent-id cli]
+aiui traces status
+aiui traces list [--limit 20]
+aiui traces spans [--limit 20] [--trace-id ID]
+aiui traces get TRACE_ID
+```
+
+### `surface`
+
+A2UI surfaces for the agent canvas; see [A2UI canvas](../features/a2ui-canvas.md).
+
+```bash
+aiui surface list | status
+aiui surface get [SURFACE_ID] [--json]               # SURFACE_ID defaults to main
+aiui surface push [SURFACE_ID] --file messages.json [--replace]
+aiui surface clear [SURFACE_ID]
+```
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | Invalid configuration, failed request or other error |
+| `2` | File or folder not found, or an unknown `--style` |
+| `3` | Build failed |
+| `4` | No free port near the requested one |
+
+## Environment variables
+
+| Variable | Effect |
+|----------|--------|
+| `AIUI_DATA_DIR` | Data directory (default `~/.praisonaiui`): sessions, runtime `config.yaml`, plugin state |
+| `AIUI_SHELL` | `app` turns the `dashboard` style into the React app shell; `legacy` turns `app` back into `dashboard` |
+| `AIUI_LAYOUT` | Default app-shell layout id; see [Layouts](../features/layouts.md) |
+| `AIUI_TEMPLATES_DIR` | Serve or build with another frontend bundle folder |
+| `AIUI_ALLOWED_ORIGINS` | Origins allowed for cross-site requests and WebSockets (comma-separated, or `*`) |
+| `AIUI_ALLOWED_HOSTS` | Extra host names a loopback or private-address server answers |
+| `AIUI_REQUIRE_TOKEN` | Require the URL token on every request |
+| `AUTH_ENFORCE` | `true` gates every route and WebSocket behind auth |
+| `AIUI_DISABLE_PLUGIN_AUTOLOAD` | `1` stops loading plugin CLI commands |
+| `PRAISONAI_MODEL` | Default model for built-in agent features (default `gpt-4o-mini`) |
+| `OPENAI_API_KEY` | Used by agent features and examples that call OpenAI |
+
+The security variables are described in
+[Deployment](../features/deployment.md).
+
+## Python equivalent of `aiui build`
 
 ```python
-from praisonaiui import Config
+from pathlib import Path
+
+import yaml
+
 from praisonaiui.compiler import Compiler
+from praisonaiui.schema import Config
 
-# Load and validate config
-config = Config.from_yaml("aiui.template.yaml")
-
-# Build manifests
-compiler = Compiler(config)
-result = compiler.compile()
-
-# Access outputs
-print(result.ui_config)
-print(result.docs_nav)
-print(result.route_manifest)
-```
-
-### Schema Models
-
-```python
-from praisonaiui.schema import (
-    Config,
-    SiteConfig,
-    ContentConfig,
-    TemplateConfig,
-    RouteConfig,
-)
-```
-
----
-
-## Feature Commands
-
-All feature commands talk to a running PraisonAIUI server (default: `http://127.0.0.1:8000`). Use `--server` / `-s` to override.
-
-### features
-
-```bash
-aiui features list                    # List all registered protocol features
-```
-
-### approval
-
-```bash
-aiui approval list [--status pending|resolved|all]  # List approvals
-aiui approval pending                               # Show pending count
-aiui approval resolve <ID> [--approved/--denied] [--reason TEXT]
-```
-
-### schedule
-
-```bash
-aiui schedule list                    # List all jobs (shows delivery + agent info)
-aiui schedule add <NAME> <MESSAGE> [OPTIONS]  # Add a scheduled job
-aiui schedule remove <JOB_ID>        # Remove job
-aiui schedule status                  # Show scheduler status
-```
-
-**Schedule add options:**
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `--every` | int | `60` | Interval in seconds |
-| `--cron` | string | | Cron expression (e.g. `*/5 * * * *`) |
-| `--channel` | string | | Delivery channel (e.g. `telegram`, `slack`) |
-| `--channel-id` | string | | Delivery channel/room ID |
-| `--agent-id` | string | | Agent to handle the job |
-| `--session-target` | string | `isolated` | Session: `isolated` or `main` |
-
-```bash
-# Simple interval job
-aiui schedule add "Daily Report" "Generate summary" --every 86400
-
-# Cron job with delivery
-aiui schedule add "Slack Update" "Post metrics" \
-  --cron "0 9 * * 1-5" \
-  --channel slack --channel-id C123456 \
-  --agent-id analyst
-```
-
-### guardrails
-
-```bash
-aiui guardrails list                  # List all registered guardrails
-aiui guardrails add --description "Block profanity" [OPTIONS]  # Register guardrail
-aiui guardrails remove <GUARDRAIL_ID> # Remove a guardrail
-aiui guardrails status                # Show system status
-aiui guardrails violations [--limit 20]  # Show recent violations
-```
-
-**Guardrails add options:**
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `--description` | string | *required* | Natural language validation criteria |
-| `--type` | string | `llm` | Guardrail type: `llm` or `custom` |
-| `--agent-name` | string | | Target agent (all agents if empty) |
-| `--llm-model` | string | `gpt-4o-mini` | LLM model for evaluation |
-
-### knowledge
-
-```bash
-aiui knowledge list                   # List all knowledge entries
-aiui knowledge add <TEXT> [--agent-id ID] [--user-id ID]  # Store entry
-aiui knowledge search <QUERY> [--limit 10]  # Search knowledge base
-aiui knowledge remove <ENTRY_ID>      # Delete an entry
-aiui knowledge status                 # Show backend info + stats
-```
-
-### security
-
-```bash
-aiui security status                  # Show security posture
-aiui security audit [--limit 20]      # Show audit log entries
-aiui security config                  # Show security configuration
-```
-
-### telemetry
-
-```bash
-aiui telemetry status                 # Show telemetry status
-aiui telemetry metrics [--limit 20] [--agent-id ID]  # Show recent metrics
-aiui telemetry overview               # Aggregate stats with per-agent breakdown
-```
-
-### memory
-
-```bash
-aiui memory list [--type short|long|entity|all]  # List memories
-aiui memory add <TEXT> [--type long]             # Add memory
-aiui memory search <QUERY> [--limit 10]          # Search
-aiui memory clear [--type all]                   # Clear memories
-aiui memory status                               # Memory stats
-```
-
-### skills
-
-```bash
-aiui skills list                      # List all skills
-aiui skills status                    # Show skills count
-aiui skills discover                  # Discover available skills
-```
-
-### hooks
-
-```bash
-aiui hooks list                       # List all hooks
-aiui hooks trigger <HOOK_ID>          # Trigger a hook
-aiui hooks log [--limit 20]           # View execution log
-```
-
-### workflows
-
-```bash
-aiui workflows list                   # List all workflows
-aiui workflows run <WORKFLOW_ID>      # Run a workflow
-aiui workflows status                 # Show workflow count
-aiui workflows runs                   # List run history
-```
-
-### config
-
-```bash
-aiui config get [KEY]                 # Get config (all or single key)
-aiui config set <KEY> <VALUE>         # Set a config value
-aiui config list                      # List all config keys
-aiui config history [--limit 20]      # Show change history
-```
-
-### provider
-
-```bash
-aiui provider status                  # Show provider info + health
-aiui provider health                  # Check provider health
-aiui provider agents                  # List agents
-```
-
-### health-check
-
-```bash
-aiui health-check [--server URL]      # Check server health
+config = Config.model_validate(yaml.safe_load(Path("aiui.template.yaml").read_text()))
+result = Compiler(config, base_path=Path(".")).compile(output_dir=Path("aiui"), minify=False)
+print(result.success, result.files, result.error)
 ```
