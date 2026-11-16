@@ -15,7 +15,7 @@
 import { showToast } from '../toast.js';
 import {
   esc, timeAgo, sparklineSVG, bucketByDay, detectRegression, trendArrow, regressionBadge,
-  inAppShell, glyph, statusChip, emptyState, shellButton,
+  inAppShell, statusChip, emptyState, shellButton,
 } from '/plugins/views/_helpers.js';
 
 // Status colours: theme tokens in the app shell, the original literals in the dashboard.

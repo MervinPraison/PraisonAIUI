@@ -101,6 +101,7 @@ async function loadMonaco(host, lang) {
   });
   if (inAppShell()) monacoNs.editor.setTheme(monacoTheme());
   if (inAppShell() && typeof MutationObserver === 'function') {
+    if (themeObserver) themeObserver.disconnect();
     themeObserver = new MutationObserver(() => monacoNs.editor.setTheme(monacoTheme()));
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
   }

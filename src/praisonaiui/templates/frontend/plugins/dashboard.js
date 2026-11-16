@@ -3450,7 +3450,7 @@ async function showTestPanel() {
 let fiHost = false;
 const FI_WORDS = { api: 'API', openai: 'OpenAI', mcp: 'MCP', a2ui: 'A2UI', ui: 'UI', crud: '', ext: '(extended)' };
 const fiTitle = (name) => {
-  const t = String(name || '').split(/[_-]+/).map((w) => (w.toLowerCase() in FI_WORDS ? FI_WORDS[w.toLowerCase()] : w.toLowerCase())).filter(Boolean).join(' ');
+  const t = String(name || '').split(/[_-]+/).map((w) => (Object.prototype.hasOwnProperty.call(FI_WORDS, w.toLowerCase()) ? FI_WORDS[w.toLowerCase()] : w.toLowerCase())).filter(Boolean).join(' ');
   return fiHost && t ? t[0].toUpperCase() + t.slice(1) : name;
 };
 const fiBadge = (ok) => `<span style="font-size:12px;font-weight:500;padding:3px 8px;border-radius:999px;${ok ? 'background:var(--db-success-bg);color:var(--db-success)' : 'background:var(--db-error-bg);color:var(--db-error)'}">${ok ? 'Healthy' : 'Error'}</span>`;
