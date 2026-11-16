@@ -76,12 +76,8 @@ export function ScheduleForm({ job, onClose, onSave }: { job: JobRow | null; onC
     if (!name.trim() || !message.trim()) return setError('Give the schedule a name and a prompt.')
     if (!built.schedule) return setError(built.error)
     setSaving(true)
-    try {
-      await onSave({ name: name.trim(), message: message.trim(), agent_name: agent === DEFAULT_AGENT ? null : agent, schedule: built.schedule })
-      onClose()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    }
+    const input = { name: name.trim(), message: message.trim(), agent_name: agent === DEFAULT_AGENT ? null : agent, schedule: built.schedule }
+    await onSave(input).then(onClose, (e: unknown) => setError(e instanceof Error ? e.message : String(e)))
     setSaving(false)
   }
 

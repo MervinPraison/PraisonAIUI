@@ -26,9 +26,16 @@ test('cron: empty, create, list, detail, run, toggle and delete', async ({ page,
 
   const row = root.getByRole('row', { name: /Morning briefing/ })
   await expect(row).toContainText('Weekdays at 08:30 UTC')
-  await expect(row).toContainText('30 8 * * 1-5')
   const detail = root.getByRole('complementary', { name: 'Morning briefing' })
   await expect(detail).toContainText('Summarise yesterday')
+  await expect(detail).toContainText('30 8 * * 1-5')
+  // Beside the panel the table fits: its switch is inside the list's visible box.
+  const box = (await root.locator('.aiui-tpl-list-main').boundingBox())!
+  const sw = (await row.getByRole('switch').boundingBox())!
+  expect(sw.x + sw.width).toBeLessThanOrEqual(box.x + box.width)
+  await detail.getByRole('button', { name: 'Close details' }).click()
+  await expect(row).toContainText('30 8 * * 1-5')
+  await row.click()
 
   await detail.getByRole('button', { name: 'Run now' }).click()
   await expect(detail.getByRole('region', { name: 'Recent runs' }).getByRole('listitem')).toHaveCount(1)

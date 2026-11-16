@@ -75,11 +75,7 @@ function CronPage() {
 
   /** Call the API, say what failed, then read the list again. */
   const act = async (failed: string, fn: () => Promise<unknown>) => {
-    try {
-      await fn()
-    } catch (e) {
-      void notify(`${failed}: ${e instanceof Error ? e.message : String(e)}`, { type: 'error' })
-    }
+    await fn().catch((e: unknown) => void notify(`${failed}: ${e instanceof Error ? e.message : String(e)}`, { type: 'error' }))
     list.reload()
     history.reload()
   }
@@ -124,8 +120,9 @@ function CronPage() {
     { key: 'last', label: 'Last run', render: (r) => (Number.isFinite(r.lastRun) ? <StatusDot tone={result(r.lastStatus)[0]}>{`${ago(r.lastRun, now)}, ${result(r.lastStatus)[1].toLowerCase()}`}</StatusDot> : <span className="text-tier-3">Never</span>) },
     enabledCol,
   ]
-  // A phone row is the name over its schedule and next run; with the panel open, Agent and Last run move into it.
-  const phoneCol: ListColumn<JobRow> = {
+  // On a phone, and beside the open detail panel at any width, a row is the name over its
+  // schedule and next run, plus the switch: the table always fits (the panel has the rest).
+  const compactCol: ListColumn<JobRow> = {
     key: 'name',
     label: 'Schedule',
     render: (r) => (
@@ -137,7 +134,7 @@ function CronPage() {
       </span>
     ),
   }
-  const columns = phone ? [phoneCol, enabledCol] : current ? wide.filter((c) => c.key !== 'agent' && c.key !== 'last') : wide
+  const columns = phone || current ? [compactCol, enabledCol] : wide
 
   const newButton = <Button size="sm" onClick={() => setForm({ job: null })}><Plus aria-hidden />New schedule</Button>
   const toolbar = (
