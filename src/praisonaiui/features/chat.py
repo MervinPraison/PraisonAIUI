@@ -790,7 +790,7 @@ async def _chat_send(request: Request) -> JSONResponse:
             user_msg["attachments"] = refs
         await _datastore.add_message(session_id, user_msg)
     except Exception:
-        pass
+        logger.warning("datastore persist failed for session %s", session_id, exc_info=True)
 
     # Also run the provider and stream results to WS clients
     asyncio.create_task(_run_and_broadcast(content, session_id, agent_name, attachment_ids or None))
@@ -1303,7 +1303,7 @@ async def _run_and_broadcast(
                 msg_data["regenerates"] = True
             await _datastore.add_message(session_id, msg_data)
         except Exception:
-            pass
+            logger.warning("datastore persist failed for session %s", session_id, exc_info=True)
 
 
 DEFAULT_CONTEXT_LIMIT = 128000
@@ -1779,7 +1779,11 @@ async def _chat_ws(websocket: WebSocket) -> None:
                                 user_msg["attachments"] = refs
                             await _datastore.add_message(session_id, user_msg)
                         except Exception:
-                            pass
+                            logger.warning(
+                                "datastore persist failed for session %s",
+                                session_id,
+                                exc_info=True,
+                            )
                     # Run agent and broadcast
                     asyncio.create_task(
                         _run_and_broadcast(
