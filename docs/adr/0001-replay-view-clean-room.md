@@ -1,3 +1,7 @@
+---
+nav_title: 0001 Replay view
+---
+
 # ADR 0001: PraisonAI Replay view, a clean-room design
 
 - **Status:** accepted

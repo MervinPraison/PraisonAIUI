@@ -1,3 +1,7 @@
+---
+nav_title: 0002 App shell and plugin SDK
+---
+
 # ADR 0002: One React app shell and a plugin SDK, migrated from the vanilla dashboard by strangler
 
 - **Status:** Accepted (Nov 2026)

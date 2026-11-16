@@ -1,3 +1,7 @@
+---
+nav_title: Overview
+---
+
 # Application Design Protocol (ADP)
 
 Declarative UI design standard for describing application layout, navigation, components, and theming from YAML or JSON manifests.

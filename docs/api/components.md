@@ -1,3 +1,7 @@
+---
+nav_title: Components
+---
+
 # Component API Reference
 
 Python functions for building dashboard UIs. Each function returns a dict that the frontend renders as a real UI element — **36 components** organized into tiers.

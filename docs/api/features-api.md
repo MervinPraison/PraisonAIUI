@@ -1,3 +1,7 @@
+---
+nav_title: Features REST API
+---
+
 # Features REST API Reference
 
 Complete API reference for all **36** PraisonAIUI feature protocol endpoints.
