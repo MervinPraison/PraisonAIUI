@@ -8,3 +8,19 @@
     opacity: 0;
   }
 }
+
+/* A loading skeleton fills the list area itself, not the dashed empty box. */
+[data-aiui-app-page] .aiui-tpl-empty:has(> [data-aiui-skeleton]) {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* A drill-in page (Agents) on a phone: an open panel replaces the toolbar and list; Close goes back. */
+@media (max-width: 767px) {
+  [data-aiui-app-page][data-drill-in] .aiui-tpl-list:has(.aiui-tpl-detail) :is(.aiui-tpl-toolbar, .aiui-tpl-list-main) {
+    display: none;
+  }
+  [data-aiui-app-page][data-drill-in] .aiui-tpl-detail { border-top: 0; }
+}

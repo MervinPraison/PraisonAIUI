@@ -606,8 +606,10 @@ class AgentsCrudFeature(BaseFeatureProtocol):
         if not original:
             return JSONResponse({"error": "Agent not found"}, status_code=404)
 
-        # Copy all fields except id/timestamps, preserving any extra kwargs
-        skip_fields = {"id", "created_at", "updated_at"}
+        # Copy all fields except id/timestamps, preserving any extra kwargs.
+        # "source" is dropped too: a copy of an in-code (gateway) agent is a
+        # stored, editable definition.
+        skip_fields = {"id", "created_at", "updated_at", "source"}
         copy_kwargs = {k: v for k, v in original.items() if k not in skip_fields}
         copy_kwargs["name"] = f"{original['name']} (Copy)"
 

@@ -16,10 +16,11 @@
  *   layouts-host       app shell + the layout-plugin fixture    layouts-host, layout-<id>
  *                      (fixtures/layout-plugin/serve.py)
  *   page-types         the same, on a server of its own         page-types
+ *   app-pages          the same, on a server of its own         agents-page
  *   legacy-baseline    the v0.3.153 tree (opt-in, see below)    legacy-parity
  *
  * Environment:
- *   AIUI_E2E_PORT          first of nine consecutive ports (default 8720)
+ *   AIUI_E2E_PORT          first of ten consecutive ports (default 8720)
  *   AIUI_E2E_PYTHON        Python interpreter (default python3, then python)
  *   AIUI_E2E_REUSE=1       reuse servers that are already listening
  *   AIUI_E2E_BASELINE_SRC  a checkout of v0.3.153 (git worktree of 6bdf6f0);
@@ -51,6 +52,7 @@ const PORTS = {
   layouts: BASE_PORT + 6,
   pageTypes: BASE_PORT + 7,
   chatSystem: BASE_PORT + 8,
+  appPages: BASE_PORT + 9,
 }
 const url = (port: number) => `http://127.0.0.1:${port}`
 
@@ -128,6 +130,9 @@ export default defineConfig({
     // The page-template baselines: the same server, fresh, so the chats the
     // layout suites start never show in their screenshots (sessions page).
     layoutServer(PORTS.pageTypes),
+    // The React app pages that write data (agents): their own server, so what
+    // they create never shows in another suite's screenshots.
+    layoutServer(PORTS.appPages),
     ...(BASELINE_SRC ? [server(PORTS.baseline, `--src "${BASELINE_SRC}"`)] : []),
   ],
   projects: [
@@ -172,6 +177,11 @@ export default defineConfig({
       name: 'page-types',
       testMatch: /[\\/]page-types\.spec\.ts$/,
       use: { ...chromium, baseURL: url(PORTS.pageTypes) },
+    },
+    {
+      name: 'app-pages',
+      testMatch: /[\\/]agents-page\.spec\.ts$/,
+      use: { ...chromium, baseURL: url(PORTS.appPages) },
     },
     ...(BASELINE_SRC
       ? [
