@@ -80,12 +80,12 @@ Seven distinct UI styles, selectable via `--style` or `aiui.set_style()`:
 | Style | Flag | Description | Best For |
 |-------|------|-------------|----------|
 | **Dashboard** | `--style dashboard` | Multi-page admin panel with sidebar | Agent management, admin dashboards |
-| **Chat** | `--style chat` | Fullscreen/sidebar/floating chat | Conversational AI, customer support |
+| **Chat** | `--style chat` | The classic fullscreen/sidebar/floating chat | Conversational AI, customer support |
 | **Agents** | `--style agents` | Tabbed multi-agent playground | Agent experimentation |
 | **Playground** | `--style playground` | Input/output side-by-side panels | Prompt testing, comparison |
 | **Docs** | `--style docs` | Three-column documentation layout | Documentation sites, knowledge bases |
 | **Custom** | `--style custom` | User-defined layout | Full control |
-| **App (opt-in)** | `--style app` | The React app shell: one sidebar for every page, React chat, plugin pages | Trying the new UI before it becomes the default |
+| **App** | `--style app` | The React app shell: one sidebar for every page, React chat, plugin pages. The default of `aiui run` for a chat app, in the `chat` layout (no canvas) | Every new app |
 
 ```bash
 aiui run app.py --style dashboard

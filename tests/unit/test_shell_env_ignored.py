@@ -62,7 +62,7 @@ def test_aiui_run_banner_explains_the_ignored_env(monkeypatch, tmp_path):
 
     monkeypatch.setattr(uvicorn, "run", lambda *a, **k: None)
     result = CliRunner().invoke(
-        cli_app, ["run", str(app_file), "--datastore", "memory", "--port", "8207"]
+        cli_app, ["run", str(app_file), "--style", "chat", "--datastore", "memory", "--port", "8207"]
     )
     assert result.exit_code == 0, result.output
     assert "AIUI_SHELL=app is ignored" in result.output

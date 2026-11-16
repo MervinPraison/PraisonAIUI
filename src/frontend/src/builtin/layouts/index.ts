@@ -22,6 +22,7 @@ import { LAYOUT_STORAGE_KEY, parseLayoutChoice } from '@/sdk/layouts'
 import { CLASSIC_LAYOUT_ID, type ShellLayoutSpec, type ShellLayouts } from '@/sdk/manifest'
 import { proThemePresets } from '@/proTokens'
 import type { BuiltinPlugin, BuiltinSdk } from '../types'
+import { chatLayout } from './chat'
 import { chatCanvasLayout } from './chat-canvas'
 import { commandLayout } from './command'
 import { guidedLayout } from './guided'
@@ -33,6 +34,7 @@ export type { LayoutDescriptor } from './types'
 
 export const BUILTIN_LAYOUTS: readonly LayoutDescriptor[] = Object.freeze([
   chatCanvasLayout,
+  chatLayout,
   workbenchLayout,
   commandLayout,
   guidedLayout,

@@ -29,7 +29,7 @@ After loading your `app.py`, the CLI inspects which callbacks and agents you reg
 |---------------|----------------|
 | `@profiles` + `register_agent()` | `agents` |
 | `@page` decorators | `dashboard` |
-| `@reply` only | `chat` |
+| `@reply` only | `app` (the React app shell, `chat` layout) |
 
 ### Example: Auto-Detected as `agents`
 
@@ -63,7 +63,7 @@ aiui run app.py
 Override auto-detection with `--style`:
 
 ```bash
-aiui run app.py --style chat          # force chat layout
+aiui run app.py --style chat          # the classic chat style (the app shell is the default)
 aiui run app.py --style agents        # force agents layout
 aiui run app.py --style playground    # force playground layout
 ```

@@ -13,7 +13,8 @@ turns it into the shell manifest's ``layouts`` key::
     aiui.set_layout("command", available=["command", "chat-canvas"])
 
 The server default is resolved in this order: ``AIUI_LAYOUT`` (an id or
-``classic``), then :func:`set_layout`, then YAML ``layout:``, then the style
+``classic``), then :func:`set_layout`, then YAML ``layout:``, then the
+``aiui run`` default (``chat``: the chat without a canvas), then the style
 default (``chat-canvas`` for ``style: app``). ``classic`` means the shell's
 own frame. Layouts apply to ``style: app`` only: anywhere else they are
 ignored with one warning, and the style is never changed.
@@ -42,6 +43,7 @@ LAYOUT_STYLE = "app"
 
 _lock = threading.Lock()
 _code: dict[str, Any] = {}  # what set_layout() was given (only the keys passed)
+_run_default: Optional[str] = None  # set by `aiui run`, below every explicit choice
 _warned: set[str] = set()
 
 
@@ -122,11 +124,26 @@ def set_layout(
         _code.update(update)
 
 
+def set_run_default(layout_id: Optional[str]) -> None:
+    """The default layout of ``aiui run`` (internal; ``None`` clears it).
+
+    It ranks below ``AIUI_LAYOUT``, :func:`set_layout` and YAML ``layout:``
+    and above the style default, so an app or config that picks a layout
+    still gets it, and a server that is not ``aiui run`` never sees it.
+    """
+    global _run_default
+    value = None if layout_id is None else check_layout_id(layout_id)
+    with _lock:
+        _run_default = value
+
+
 def reset() -> None:
-    """Forget :func:`set_layout` and the warnings already logged (tests)."""
+    """Forget :func:`set_layout`, the run default and the warnings already logged (tests)."""
+    global _run_default
     with _lock:
         _code.clear()
         _warned.clear()
+        _run_default = None
 
 
 def _warn_once(key: str, msg: str, *args: Any) -> None:
@@ -288,7 +305,11 @@ def resolve(
     else:
         available = sorted(known, key=lambda s: s.order)  # stable: declaration order breaks ties
     ids = [s.id for s in available]
+    with _lock:
+        run_default = _run_default
     style_default = _style_default(style)
+    if run_default in ids:
+        style_default = run_default
     fallback = style_default if style_default in ids else (ids[0] if ids else "")
     default = chosen.get("default", fallback)
     if default == CLASSIC:

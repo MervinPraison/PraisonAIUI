@@ -31,7 +31,13 @@ import { collectPageErrors, hasHorizontalOverflow } from './support'
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const DIST = path.resolve(HERE, '..', '..', 'dist')
 
-const BUILTIN_IDS = ['chat-canvas', 'workbench', 'command', 'guided', 'mission']
+const BUILTIN_IDS = ['chat-canvas', 'chat', 'workbench', 'command', 'guided', 'mission']
+/**
+ * The frame (and its `layout-<id>` chunk) a layout draws with, when it
+ * borrows another's: `chat` is the Chat and Canvas frame without the canvas.
+ */
+const FRAME_OF: Record<string, string> = { chat: 'chat-canvas' }
+const frameOf = (id: string) => FRAME_OF[id] ?? id
 /**
  * The layout features (`lf-*` chunks) each built-in layout loads on /chat and
  * /logs: exactly these, never another layout's (ADR 0003 §5: no unused
@@ -40,6 +46,7 @@ const BUILTIN_IDS = ['chat-canvas', 'workbench', 'command', 'guided', 'mission']
 const OWN_FEATURES: Record<string, string[]> = {
   // The artifacts canvas (builtin.artifacts) beside the chat.
   'chat-canvas': ['lf-artifacts'],
+  // `chat` is the same frame with no canvas: no artifacts chunk at all.
   // The command bar on every page; the run inspector on /chat only
   // (layout-command.spec.ts checks the per-page split).
   command: ['lf-command-bar', 'lf-run-inspector'],
@@ -50,6 +57,7 @@ const FALLBACK_LAYOUTS = {
   userChoice: true,
   available: [
     { id: 'chat-canvas', title: 'Chat and Canvas', source: 'builtin.layout-chat-canvas', order: 10, home: 'chat' },
+    { id: 'chat', title: 'Chat', source: 'builtin.layout-chat', order: 15, home: 'chat' },
     { id: 'workbench', title: 'Quiet Workbench', source: 'builtin.layout-workbench', order: 20, home: 'chat' },
     { id: 'command', title: 'Command Deck', source: 'builtin.layout-command', order: 30, home: 'chat' },
     { id: 'guided', title: 'Guided Studio', source: 'builtin.layout-guided', order: 40, home: 'chat' },
@@ -164,10 +172,11 @@ for (const id of BUILTIN_IDS) {
     const scripts = trackScripts(page)
     for (const pageId of ['chat', 'logs']) {
       await page.goto(`/${pageId}?layout=${id}`)
-      await expect(frame(page, id)).toBeVisible()
+      await expect(frame(page, frameOf(id))).toBeVisible()
+      await expect(shellRoot(page)).toHaveAttribute('data-aiui-layout', id)
       await expect(page.locator(`#aiui-main [data-aiui-page="${pageId}"]`)).toBeVisible()
     }
-    expect(layoutGroups(scripts)).toEqual([`layout-${id}`, 'layout-kit'].sort())
+    expect(layoutGroups(scripts)).toEqual([`layout-${frameOf(id)}`, 'layout-kit'].sort())
     expect(featureGroups(scripts)).toEqual([...(OWN_FEATURES[id] ?? [])].sort())
     expect(scripts.filter((s) => s.startsWith('/_plugins/layoutfx/'))).toEqual([])
   })

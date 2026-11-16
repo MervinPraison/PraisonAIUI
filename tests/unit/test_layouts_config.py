@@ -20,7 +20,7 @@ import praisonaiui.server as srv
 from praisonaiui import layouts
 from praisonaiui.builtin.catalog import STYLE_DEFAULT_LAYOUT
 
-BUILTIN_ORDER = ["chat-canvas", "workbench", "command", "guided", "mission"]
+BUILTIN_ORDER = ["chat-canvas", "chat", "workbench", "command", "guided", "mission"]
 
 
 @pytest.fixture(autouse=True)
@@ -284,3 +284,28 @@ def test_available_layout_ids_is_the_set_on_offer():
     register_builtin_plugins(reg)
     assert layouts.available_layout_ids(reg, style="app") == set(BUILTIN_ORDER)
     assert layouts.available_layout_ids(reg, style="dashboard") == set()
+
+
+# ── the `aiui run` default ───────────────────────────────────────────
+
+
+def test_run_default_is_the_chat_layout_below_every_explicit_choice(monkeypatch):
+    """`aiui run` opens `chat` (no canvas); set_layout, YAML and AIUI_LAYOUT still win."""
+    from praisonaiui.builtin.catalog import RUN_DEFAULT_LAYOUT
+
+    assert RUN_DEFAULT_LAYOUT == "chat"
+    assert _layouts()["default"] == "chat-canvas"  # create_app alone: the style default
+    layouts.set_run_default(RUN_DEFAULT_LAYOUT)
+    assert _layouts()["default"] == "chat"
+    assert _layouts(layout="command")["default"] == "command"  # YAML wins
+    aiui.set_layout("workbench")
+    assert _layouts()["default"] == "workbench"  # set_layout wins
+    monkeypatch.setenv(layouts.LAYOUT_ENV, "mission")
+    assert _layouts()["default"] == "mission"  # AIUI_LAYOUT wins
+
+
+def test_run_default_rejects_a_bad_id():
+    from praisonaiui import layouts
+
+    with pytest.raises(ValueError):
+        layouts.set_run_default("Bad Id")
