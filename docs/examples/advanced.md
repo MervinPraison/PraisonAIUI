@@ -47,8 +47,9 @@ and [Widget Zones](../features/widget-zones.md).
 
 ## Route-Level Overrides
 
-A route's `slots` override its template's slots. The first matching route wins,
-so put the specific route first:
+A route's `slots` can override the `right` slot (the table of contents); header
+and footer always come from the template. The first matching route wins, so put
+the specific route first:
 
 ```yaml
 routes:
@@ -77,8 +78,8 @@ site:
     preset: "emerald"
     radius: "lg"
     darkMode: true
-  custom_css: |
-    :root { --primary: oklch(0.6 0.15 160); }
 ```
 
-Variables hold complete CSS colours; see [Theming](../features/theming.md#custom-css-variables).
+`site.custom_css` is applied by the runtime server (`aiui run`), not by the
+static docs output of `aiui build`/`aiui serve`; see
+[Theming](../features/theming.md#custom-css-variables).

@@ -35,7 +35,7 @@ Each one adds one concept; run it from its folder.
 | [25-custom-design](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/25-custom-design) | A fully themed chat with `set_custom_css()` | `aiui run app.py` |
 | [26-clean-chat](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/26-clean-chat) | Dashboard chat without the sidebar | `aiui run app.py` |
 | [27-custom-theme-chat](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/27-custom-theme-chat) | A custom theme with `register_theme()` | `aiui run app.py` |
-| [28-multica-style](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/28-multica-style) | Floating chat window, collapsible sidebar, brand colour | `python app.py` |
+| [28-multica-style](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/28-multica-style) | Floating chat window, collapsible sidebar, brand colour | `aiui run app.py --style dashboard` |
 | [29-full-extensibility](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/29-full-extensibility) | Every extension point in one app | `python app.py` |
 | [30-a2ui-canvas](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/30-a2ui-canvas) | A2UI canvas surfaces | `python app.py` |
 | [31-image-preview](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/31-image-preview) | Agent-generated images in chat | `aiui run app.py` |

@@ -181,7 +181,9 @@ Route matching uses glob patterns:
 - `**` - any number of segments
 
 The first matching route wins, so list specific routes before broad ones.
-A route's `slots` override the template's slots for that route.
+A route's `slots` can override only the `right` slot in the docs site
+(`right: null` hides the table of contents); header and footer are read from
+the template, so per-route overrides of them have no effect.
 
 ## Complete Example
 

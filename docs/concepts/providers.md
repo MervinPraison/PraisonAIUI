@@ -45,8 +45,11 @@ The provider protocol is the **only contract** between the frontend and any AI b
    (the default for the chat page and the app shell), or `POST /run` (SSE)
 2. The server calls `provider.run(message)` on the active provider
 3. The provider yields `RunEvent` objects (start, content, tool calls, reasoning, completion)
-4. The server sends each event as a WebSocket message or an SSE `data:` frame
-   (`RunEvent.to_dict()`) and stores the finished turn in the datastore
+4. The server sends each event as an SSE `data:` frame (`RunEvent.to_dict()`)
+   or as a WebSocket message, and stores the finished turn in the datastore.
+   The WebSocket adapter forwards only selected fields per event type (for
+   example, reasoning events carry `step` but not `action`, `confidence` or
+   `next_action`), so only SSE clients receive every serialized field
 5. The frontend renders the events as they arrive
 
 ## Built-in Provider: PraisonAI

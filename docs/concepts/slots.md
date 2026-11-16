@@ -20,7 +20,7 @@ templates:
 
 | Slot | Effect in the docs site |
 |------|-------------------------|
-| `header` | Its component's props (`logoText`, `logoImage`, `links`, `cta`) fill the header; YAML `navbar` and `logo` win when set |
+| `header` | Its component's props (`logoText`, `logoImage`, `links`, `cta`) fill the header. YAML `navbar` links and CTA win over `links`/`cta`, but `logoImage` wins over YAML `logo.light`/`logo.dark` |
 | `footer` | Its component's props (`text`, `links`) fill the footer bottom row, next to YAML `footer` |
 | `right` | `null` hides the table of contents; any other value shows it |
 | `left`, `main` | No effect: the sidebar is always the generated navigation and the main area the page's Markdown |
