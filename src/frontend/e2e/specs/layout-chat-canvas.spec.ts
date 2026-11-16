@@ -231,6 +231,37 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
   })
 }
 
+test('an agent writing the canvas by name: v1, then v2 of the same artifact, kept after a reload', async ({ page }) => {
+  test.skip(!HAS_CANVAS, 'the artifacts feature is not in this build')
+  const errors = collectPageErrors(page)
+  await page.setViewportSize(DESKTOP)
+  await page.goto('/chat')
+  const canvas = page.getByRole('complementary', { name: 'Canvas' })
+  const versionMenu = canvas.getByRole('button', { name: /^Version \d+ of \d+/ })
+
+  await send(page, 'canvasdemo')
+  await waitForRunEnd(page)
+  // The chat shows the table inline, and a card for it; the canvas has it as v1.
+  await expect(assistant(page).last().locator('[data-element="artifact"] table')).toBeVisible()
+  await expect(page.locator('[data-artifact-card="sorting"]')).toHaveCount(1)
+  await expect(canvas).toBeVisible()
+  await expect(canvas.getByText('Sorting algorithms').first()).toBeVisible()
+  await expect(canvas.getByText(/Table · 3 rows/).first()).toBeVisible()
+  await expect(versionMenu).toHaveCount(0) // one version: no version menu yet
+
+  // The same name again is its next version, whatever the reply text says.
+  await send(page, 'canvasdemo stable')
+  await waitForRunEnd(page)
+  await expect(versionMenu).toHaveAccessibleName(/^Version 2 of 2/)
+  await expect(canvas.locator('table th', { hasText: 'Stable' })).toBeVisible()
+  await expect(canvas.getByText(/Analyst/).first()).toBeVisible()
+
+  // A reload derives the same versions from the saved replies.
+  await page.reload()
+  await expect(versionMenu).toHaveAccessibleName(/^Version 2 of 2/)
+  expect(errors.pageErrors).toEqual([])
+})
+
 test('a non-chat page renders in the outlet with its title and downloads no feature chunk', async ({ page }) => {
   const scripts = trackScripts(page)
   await page.setViewportSize(DESKTOP)

@@ -17,6 +17,9 @@ Keywords in the user's message select what the scripted run does:
     ap500     pause for approval ``ap_500`` (this server answers 500)
     plain     reply with text only (no reasoning, tool, element or references)
     weather   call the get_weather tool (the example plugin renders it)
+    canvasdemo  write the "sorting" table to the canvas as an explicit
+              artifact (aiui.canvas's element); with ``stable`` its next
+              version, with a Stable column
 
 The exact message ``Compare sorting algorithms`` (or one containing
 ``sortdemo``) runs the layouts' design fixture (ADR 0003 plan §5.1): 2 s of
@@ -151,6 +154,31 @@ DESIGN_SESSIONS = [
 ]
 
 
+CANVAS_V1 = "| Algorithm | Average |\n|---|---|\n| Quicksort | O(n log n) |\n| Mergesort | O(n log n) |\n| Bubble sort | O(n^2) |"
+CANVAS_V2 = (
+    "| Algorithm | Average | Stable |\n|---|---|---|\n| Quicksort | O(n log n) | No |\n"
+    "| Mergesort | O(n log n) | Yes |\n| Bubble sort | O(n^2) | Yes |"
+)
+
+
+async def canvas_demo(text: str):
+    """An agent writing the canvas by name: the canvas_write tool, then its element."""
+    content = CANVAS_V2 if "stable" in text else CANVAS_V1
+    yield RunEvent(type=RunEventType.RUN_STARTED, agent_name="Analyst")
+    args = {"name": "sorting", "content": content}
+    yield RunEvent(type=RunEventType.TOOL_CALL_STARTED, name="canvas_write", args=args, tool_call_id="tc_canvas")
+    yield BaseProvider.message_element_event(
+        {"type": "artifact", "key": "sorting", "kind": "table", "title": "Sorting algorithms",
+         "content": content, "action": "upsert"}  # fmt: skip
+    )
+    yield RunEvent(
+        type=RunEventType.TOOL_CALL_COMPLETED, name="canvas_write", args=args, tool_call_id="tc_canvas",
+        result="Saved 'sorting' to the canvas.",
+    )  # fmt: skip
+    yield RunEvent(type=RunEventType.RUN_CONTENT, token="The table is in the canvas.", agent_name="Analyst")
+    yield RunEvent(type=RunEventType.RUN_COMPLETED, content="The table is in the canvas.")
+
+
 def _is_sorting_demo(text: str) -> bool:
     return text.strip() == SORTING_PROMPT or "sortdemo" in text
 
@@ -213,6 +241,10 @@ class MockProvider(BaseProvider):
         text = str(message)
         if _is_sorting_demo(text):
             async for event in sorting_demo():
+                yield event
+            return
+        if "canvasdemo" in text:
+            async for event in canvas_demo(text):
                 yield event
             return
         yield RunEvent(type=RunEventType.RUN_STARTED, agent_name="Mock")

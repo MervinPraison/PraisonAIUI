@@ -204,7 +204,10 @@ function newest(latest: readonly DerivedArtifact[]): DerivedArtifact | null {
 interface SessionState {
   sid: string | null
   user: (DerivedArtifact & { persisted?: boolean })[]
-  selection: (Selection & { seen: number }) | null
+  /** `seen`: the version count when chosen; `focus`: the agent's focus id then. */
+  selection: (Selection & { seen: number; focus?: string }) | null
+  /** The agent's latest explicit write or open (Derived.focus id), as last computed. */
+  focus?: string
   split: string | null
   server: ServerState
   /** `key@version` → the derived version the server has under that number. */
@@ -280,15 +283,18 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
     const d = fromChat.versions.length || !s.stored.length ? fromChat : { versions: s.stored, mentions: {} }
     const { versions, mentions } = mergeVersions(d.versions, s.user, d.mentions, s.stored)
     const latest = latestOf(versions)
-    // A new version while a reply runs is the agent showing something: follow it.
-    if (s.selection && thread.isRunning && versions.length > s.selection.seen) s.selection = null
+    // The agent pointed at an artifact (aiui.canvas write or open): it wins over "newest".
+    const focus = d === fromChat ? fromChat.focus : undefined
+    s.focus = focus?.id
+    // A new version, or a new focus, while a reply runs is the agent showing something: follow it.
+    if (s.selection && thread.isRunning && (versions.length > s.selection.seen || (!!focus && focus.id !== s.selection.focus))) s.selection = null
     let selected: DerivedArtifact | null = null
     if (s.selection) {
       const sel = s.selection
       const all = versions.filter((v) => v.key === sel.key)
       selected = (sel.version !== undefined ? all.find((v) => v.version === sel.version) : undefined) ?? all[all.length - 1] ?? null
     }
-    selected ??= newest(latest)
+    selected ??= (focus && latest.find((a) => a.key === focus.key)) || newest(latest)
     const split = s.split ? (latest.find((a) => a.key === s.split && a.key !== selected?.key) ?? null) : null
     const snap: SessionArtifacts = { sessionId: s.sid, versions, latest, mentions, selected, split, running: thread.isRunning, server: s.server }
     s.memo = { messages: thread.messages, user: s.user, stored: s.stored, selection: s.selection, split: s.split, server: s.server, running: thread.isRunning, snap }
@@ -398,7 +404,7 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
   function select(sid: string | null, key: string, version?: number) {
     const s = state(sid)
     const seen = compute(s).versions.length
-    s.selection = { key, version, seen }
+    s.selection = { key, version, seen, focus: s.focus }
     notify(s)
   }
 
@@ -435,7 +441,7 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
       }
       delete v.agent
       s.user = [...s.user, v]
-      s.selection = { key, seen: compute(s).versions.length }
+      s.selection = { key, seen: compute(s).versions.length, focus: s.focus }
       notify(s)
       if (serverOn(s)) {
         // The derived versions before it first, so the server numbers it after them.

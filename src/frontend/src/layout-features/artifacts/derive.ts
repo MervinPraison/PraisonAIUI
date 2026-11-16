@@ -9,6 +9,14 @@
  *                    `md`/`markdown` is a markdown document
  *   data parts       `element` (file, image, pdf, video, audio, code) and
  *                    `a2ui` surfaces; a tool's `artifact.a2ui` counts too
+ *   explicit         an `element` of type `artifact` (aiui.canvas.write and
+ *                    the agents' canvas tools): `{type: 'artifact', key, kind,
+ *                    title, content | url, language?, mimeType?, action}`,
+ *                    `action` 'upsert' (the default) or 'open'. No size
+ *                    threshold; the key is used as it is (bounded), a table
+ *                    keeps it (never re-keyed to another table, and a table
+ *                    in the text never joins it); 'open' adds no version and
+ *                    only points the canvas at the key (`focus`)
  *
  * Keys (stable within a session, so history reloads give the same ones):
  *   - a fence's file name: `title="x.py"` / `filename=` / `file=` in the
@@ -21,6 +29,7 @@
  *     in an earlier table's, keeps that table's key: adding a column is a
  *     new version, not a new table;
  *   - an element's name (`file:<name>`), else its URL; an A2UI surface id;
+ *   - an explicit artifact's `key`;
  *   - otherwise the kind and its count in the session (`code:python:2`).
  *
  * Versions: the first appearance of a key is v1; a later appearance with
@@ -78,6 +87,12 @@ export interface Derived {
   versions: DerivedArtifact[]
   /** messageId → the versions that message shows, in order (one per key). */
   mentions: Record<string, DerivedArtifact[]>
+  /**
+   * The artifact the agent last pointed at with an explicit write or open,
+   * unless a later reply made a new version of something else. `id` changes
+   * with every such event (the canvas follows it while a reply runs).
+   */
+  focus?: { key: string; id: string }
 }
 
 // ── markdown scanning ────────────────────────────────────────────────
@@ -330,6 +345,8 @@ interface Found {
   counter?: string
   /** A2UI: this message's messages for the surface (versions are cumulative). */
   a2ui?: unknown[]
+  /** An `artifact` element: keyed by its own key; `open` adds no version. */
+  explicit?: 'upsert' | 'open'
 }
 
 const ELEMENT_KINDS: Record<string, ArtifactKind> = { image: 'image', pdf: 'pdf', video: 'video', code: 'code', file: 'file', audio: 'file' }
@@ -382,7 +399,39 @@ function fromTable(b: TableBlock): Found {
   }
 }
 
+const EXPLICIT_KINDS = new Set<ArtifactKind>(['code', 'table', 'markdown', 'file', 'image', 'pdf', 'video'])
+const TEXT_KINDS = new Set<ArtifactKind>(['code', 'table', 'markdown'])
+
+/** An `artifact` element (aiui.canvas): the key, kind and content it states. */
+function fromArtifact(el: Record<string, unknown>): Found | null {
+  const key = str(el.key)
+  if (!key) return null
+  if (el.action === 'open') return { key, kind: 'file', title: key, explicit: 'open' }
+  const kind = str(el.kind) as ArtifactKind | undefined
+  if (!kind || !EXPLICIT_KINDS.has(kind)) return null
+  const text = TEXT_KINDS.has(kind)
+  const content = text && typeof el.content === 'string' ? el.content : undefined
+  const url = text ? undefined : str(el.url)
+  if (text ? content === undefined : !url) return null
+  const table = kind === 'table' && content !== undefined ? parseTable(content) : undefined
+  const language = kind === 'code' ? resolveLang(str(el.language)) || langFromFilename(key) : ''
+  return {
+    key,
+    kind,
+    title: str(el.title) ?? key,
+    explicit: 'upsert',
+    content,
+    url,
+    mimeType: str(el.mimeType),
+    language: language || undefined,
+    lines: content !== undefined && kind !== 'table' ? content.split('\n').length : undefined,
+    rows: table?.rows.length,
+    columns: table?.header.map(plainText),
+  }
+}
+
 function fromElement(el: Record<string, unknown>): Found | null {
+  if (el.type === 'artifact') return fromArtifact(el)
   const type = str(el.type) ?? 'file'
   const kind = ELEMENT_KINDS[type] ?? 'file'
   const name = str(el.name)
@@ -460,6 +509,8 @@ interface KeyState {
   label?: string
   first: string
   columns: Set<string>
+  /** Written explicitly (aiui.canvas): a table in the text never continues it. */
+  explicit?: boolean
 }
 
 /** An earlier table this one continues: same label, or same first column with nested column sets. */
@@ -469,7 +520,7 @@ function continuesTable(f: Found, keys: Map<string, KeyState>): string | undefin
   const set = new Set(cols)
   let match: string | undefined
   for (const [key, s] of keys) {
-    if (s.latest.kind !== 'table') continue
+    if (s.latest.kind !== 'table' || s.explicit) continue
     const sameLabel = !!f.label && !!s.label && f.label.toLowerCase() === s.label.toLowerCase()
     const nested = cols[0] === s.first && ([...set].every((c) => s.columns.has(c)) || [...s.columns].every((c) => set.has(c)))
     if (sameLabel || nested) match = key // the most recent match wins
@@ -493,19 +544,29 @@ export function deriveArtifacts(messages: readonly DeriveMessage[], sessionId: s
   const counters = new Map<string, number>()
   const surfaces = new Map<string, unknown[]>()
   const mentions: Record<string, DerivedArtifact[]> = {}
+  let focus: Derived['focus']
 
   for (const m of messages) {
     if (m.role !== 'assistant') continue
     const shown: DerivedArtifact[] = []
-    for (const found of scanCached(m, opts)) {
-      let f = found
+    const found = scanCached(m, opts)
+    for (let i = 0; i < found.length; i++) {
+      let f = found[i]
+      if (f.explicit === 'open') {
+        const key = boundKey(f.key)
+        const prev = keys.get(key)
+        if (!prev) continue // nothing to open (yet): ignored
+        focus = { key, id: `${m.id}:${i}` }
+        if (!shown.some((s) => s.key === key)) shown.push(prev.latest)
+        continue
+      }
       if (f.a2ui) {
         const all = [...(surfaces.get(f.key) ?? []), ...f.a2ui]
         surfaces.set(f.key, all)
         f = { ...f, content: JSON.stringify(all) }
       }
       let key = f.key
-      if (f.kind === 'table') key = continuesTable(f, keys) ?? f.key
+      if (f.kind === 'table' && !f.explicit) key = continuesTable(f, keys) ?? f.key
       else if (!key && f.counter) {
         const n = (counters.get(f.counter) ?? 0) + 1
         counters.set(f.counter, n)
@@ -520,7 +581,7 @@ export function deriveArtifacts(messages: readonly DeriveMessage[], sessionId: s
         v = {
           key,
           kind: f.kind,
-          title: f.kind === 'table' && prev && !f.label ? prev.latest.title : f.title,
+          title: f.kind === 'table' && prev && !f.label && !f.explicit ? prev.latest.title : f.title,
           version: (prev?.latest.version ?? 0) + 1,
           sessionId,
           messageId: m.id,
@@ -541,15 +602,18 @@ export function deriveArtifacts(messages: readonly DeriveMessage[], sessionId: s
           label: f.label ?? prev?.label,
           first: (f.columns?.[0] ?? '').toLowerCase(),
           columns: new Set((f.columns ?? []).map((c) => c.toLowerCase())),
+          explicit: !!f.explicit || prev?.explicit,
         })
+        if (!f.explicit) focus = undefined // the newest is something the text made
       }
+      if (f.explicit) focus = { key, id: `${m.id}:${i}` }
       const at = shown.findIndex((s) => s.key === key)
       if (at >= 0) shown[at] = v
       else shown.push(v)
     }
     if (shown.length) mentions[m.id] = shown
   }
-  return { versions: order.flatMap((k) => byKey.get(k) ?? []), mentions }
+  return { versions: order.flatMap((k) => byKey.get(k) ?? []), mentions, ...(focus ? { focus } : {}) }
 }
 
 /** Shown as a card with "Open in canvas" instead of inline (12+ lines, 6+ rows). */

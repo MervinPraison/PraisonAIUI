@@ -5,6 +5,11 @@
  * video, audio, pdf and file reuse chat/MultimediaElements.tsx (a second lazy
  * chunk).
  *
+ * An `artifact` element (aiui.canvas, the agents' canvas tools) renders as
+ * what it holds: code as code, a table or document through the chat
+ * Markdown renderer (sanitised), media and files as above; an `open`
+ * renders nothing (the canvas shows it).
+ *
  * Exfiltration guard: images, video, audio and PDFs load automatically only
  * from same-origin, data:image and blob: URLs. Any other URL renders a
  * click-to-load placeholder that shows its host, so a prompt-injected element
@@ -84,7 +89,27 @@ function ChatImage({ url, alt }: { url: string; alt: string }) {
 
 const MEDIA_LABEL: Record<string, string> = { image: 'Image', video: 'Video', audio: 'Audio', pdf: 'Document' }
 
+/** An `artifact` element: a table or document as markdown, else the element it holds. */
+function ArtifactElement({ data }: { data: Record<string, unknown> }) {
+  if (data.action === 'open') return null
+  const kind = typeof data.kind === 'string' ? data.kind : ''
+  if (kind === 'table' || kind === 'markdown') {
+    if (typeof data.content !== 'string') return null
+    return (
+      <div className="my-2 min-w-0 max-w-full" data-element="artifact">
+        <Markdown variant="chat" className="min-w-0 max-w-full">
+          {data.content}
+        </Markdown>
+      </div>
+    )
+  }
+  const name = typeof data.title === 'string' ? data.title : typeof data.key === 'string' ? data.key : undefined
+  // code, image, pdf, video, file: drawn as that element (any other kind as a file)
+  return <ElementPart data={{ ...data, type: ['code', 'image', 'pdf', 'video'].includes(kind) ? kind : 'file', name }} />
+}
+
 const ElementPart: FC<{ data: Record<string, unknown> }> = ({ data }) => {
+  if (data.type === 'artifact') return <ArtifactElement data={data} />
   const type = typeof data.type === 'string' ? data.type : 'file'
   const raw = typeof data.url === 'string' ? data.url : ''
   const url = safeUrl(raw) ?? ''

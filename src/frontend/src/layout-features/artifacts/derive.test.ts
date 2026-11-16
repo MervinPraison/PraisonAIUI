@@ -261,3 +261,71 @@ test('keys stay within the server\'s MAX_KEY: a wide table, a long URL, stable a
   assert.deepEqual(two.versions.map((v) => v.version), [1, 2])
   assert.equal(new Set(two.versions.map((v) => v.key)).size, 1)
 })
+
+// ── explicit artifacts (aiui.canvas, the agents' canvas tools) ───────
+
+const art = (data: Record<string, unknown>) => ({ type: 'data', name: 'element', data: { type: 'artifact', action: 'upsert', ...data } })
+const SORT_V1 = '| Algorithm | Average |\n|---|---|\n| Quicksort | O(n log n) |\n| Bubble | O(n^2) |'
+const SORT_V2 = '| Algorithm | Average | Stable |\n|---|---|---|\n| Quicksort | O(n log n) | No |\n| Bubble | O(n^2) | Yes |'
+const agentMsg = (id: string, parts: DeriveMessage['parts'], at = T0): DeriveMessage => ({ id, role: 'assistant', createdAt: at, agentName: 'Analyst', parts })
+
+test('explicit: the key is the identity; a new content is v+1 by the agent; no threshold', () => {
+  const msgs = [
+    agentMsg('a1', [art({ key: 'sorting', kind: 'table', title: 'Sorting algorithms', content: SORT_V1 }), { type: 'text', text: 'In the canvas.' }]),
+    agentMsg('a2', [art({ key: 'sorting', kind: 'table', title: 'Sorting algorithms', content: SORT_V2 })], T0 + 60_000),
+    agentMsg('a3', [art({ key: 'sorting', kind: 'table', content: SORT_V2 }), art({ key: 'tiny.py', kind: 'code', content: 'x = 1' })], T0 + 90_000),
+  ]
+  const { versions, mentions, focus } = deriveArtifacts(msgs, 's1')
+  assert.deepEqual(
+    versions.map((v) => [v.key, v.kind, v.title, v.version, v.agent, v.messageId]),
+    [
+      ['sorting', 'table', 'Sorting algorithms', 1, 'Analyst', 'a1'],
+      ['sorting', 'table', 'Sorting algorithms', 2, 'Analyst', 'a2'],
+      ['tiny.py', 'code', 'tiny.py', 1, 'Analyst', 'a3'],
+    ],
+  )
+  assert.equal(versions[0].rows, 2)
+  assert.deepEqual(versions[1].columns, ['Algorithm', 'Average', 'Stable'])
+  assert.equal(versions[2].language, 'python', 'from the key when no language is given')
+  assert.equal(versions[2].lines, 1, 'a one-line file is still an artifact')
+  // The same content again is a mention, not a version.
+  assert.deepEqual(mentions.a3.map((v) => `${v.key} v${v.version}`), ['sorting v2', 'tiny.py v1'])
+  assert.deepEqual(focus, { key: 'tiny.py', id: 'a3:1' })
+  // A reload gives the same result.
+  const again = deriveArtifacts(msgs.map((m, i) => ({ ...m, id: `h_${i}` })), 's1')
+  assert.deepEqual(again.versions.map((v) => [v.key, v.version, v.content]), versions.map((v) => [v.key, v.version, v.content]))
+})
+
+test('explicit: tables are never re-keyed, and a table in the text never joins one', () => {
+  const msgs = [
+    agentMsg('a1', [art({ key: 'sorting', kind: 'table', content: SORT_V1 })]),
+    // The model also printed the table, with a column more: its own artifact, not sorting v2.
+    agentMsg('a2', [{ type: 'text', text: SORT_V2 }]),
+    agentMsg('a3', [art({ key: 'other', kind: 'table', content: SORT_V1 })]),
+  ]
+  const { versions, focus } = deriveArtifacts(msgs, 's1')
+  assert.deepEqual(versions.map((v) => `${v.key} v${v.version}`), ['sorting v1', 'table:algorithm|average|stable v1', 'other v1'])
+  assert.deepEqual(focus, { key: 'other', id: 'a3:0' })
+  // A text-made version after an explicit write clears the focus.
+  assert.equal(deriveArtifacts(msgs.slice(0, 2), 's1').focus, undefined)
+})
+
+test('explicit: open points at an existing key and adds no version; bad elements are ignored', () => {
+  const msgs = [
+    agentMsg('a1', [art({ key: 'a', kind: 'markdown', content: '# A' }), art({ key: 'b', kind: 'markdown', content: '# B' })]),
+    agentMsg('a2', [art({ key: 'a', action: 'open' }), art({ key: 'nope', action: 'open' })]),
+    agentMsg('a3', [
+      art({ key: 'bad', kind: 'html', content: '<b>x</b>' }),
+      art({ key: 'empty', kind: 'code' }),
+      art({ key: 'img', kind: 'image' }),
+      art({ kind: 'code', content: 'x' }),
+      art({ key: 'pic', kind: 'image', url: '/files/p.png', mimeType: 'image/png', title: 'Picture' }),
+    ]),
+  ]
+  const { versions, mentions, focus } = deriveArtifacts(msgs.slice(0, 2), 's1')
+  assert.deepEqual(versions.map((v) => `${v.key} v${v.version}`), ['a v1', 'b v1'])
+  assert.deepEqual(mentions.a2.map((v) => v.key), ['a'])
+  assert.deepEqual(focus, { key: 'a', id: 'a2:0' })
+  const all = deriveArtifacts(msgs, 's1')
+  assert.deepEqual(all.versions.map((v) => [v.key, v.kind, v.title, v.url ?? null]).slice(2), [['pic', 'image', 'Picture', '/files/p.png']])
+})
