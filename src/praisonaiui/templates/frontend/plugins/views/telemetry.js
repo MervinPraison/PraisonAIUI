@@ -3,7 +3,7 @@
  * Shows LLM call latency, token throughput, profiling data.
  * API: /api/telemetry, /api/telemetry/status, /api/telemetry/metrics, /api/telemetry/performance
  */
-import { helpBanner } from '/plugins/views/_helpers.js';
+import { helpBanner, inAppShell, statusChip, emptyState } from '/plugins/views/_helpers.js';
 
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
@@ -18,7 +18,12 @@ export async function render(container) {
     metrics = (await mRes.json()).metrics || [];
   } catch(e) { statusData = { status: 'error' }; }
 
-  const gwBadge = statusData.gateway_connected
+  // Shell: status chips on theme colours, sentence case, the designed empty state.
+  const shell = inAppShell();
+  const L = (dash, sentence) => (shell ? sentence : dash);
+  const gwBadge = shell
+    ? statusChip(statusData.gateway_connected ? 'Connected' : 'Not connected', statusData.gateway_connected ? 'success' : 'danger')
+    : statusData.gateway_connected
     ? '<span style="color:#22c55e">● Connected</span>'
     : '<span style="color:#ef4444">● Not Connected</span>';
 
@@ -26,24 +31,24 @@ export async function render(container) {
 
   container.innerHTML = `
     <div style="padding:24px;max-width:1200px;margin:0 auto">
-      <h2 style="margin:0 0 20px;font-size:1.5rem">📈 Telemetry</h2>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px">
+      <h2 style="margin:0 0 20px;font-size:1.5rem">${L('📈 ', '')}Telemetry</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(${shell ? '150px' : '180px'},1fr));gap:16px;margin-bottom:24px">
         <div class="db-card" style="padding:16px;border-radius:12px">
-          <div style="font-size:.8rem;opacity:.6">Total Calls</div>
+          <div style="font-size:.8rem;opacity:.6">${L('Total Calls', 'Total calls')}</div>
           <div style="font-size:1.8rem;font-weight:700">${overview.total_calls || 0}</div>
         </div>
         <div class="db-card" style="padding:16px;border-radius:12px">
-          <div style="font-size:.8rem;opacity:.6">Avg Latency</div>
+          <div style="font-size:.8rem;opacity:.6">${L('Avg Latency', 'Avg latency')}</div>
           <div style="font-size:1.8rem;font-weight:700">${overview.avg_latency_ms !== null ? overview.avg_latency_ms?.toFixed(0) + 'ms' : '—'}</div>
         </div>
         <div class="db-card" style="padding:16px;border-radius:12px">
-          <div style="font-size:.8rem;opacity:.6">Total Tokens</div>
+          <div style="font-size:.8rem;opacity:.6">${L('Total Tokens', 'Total tokens')}</div>
           <div style="font-size:1.8rem;font-weight:700">${(overview.total_tokens || 0).toLocaleString()}</div>
         </div>
         <div class="db-card" style="padding:16px;border-radius:12px">
-          <div style="font-size:.8rem;opacity:.6">Telemetry SDK</div>
-          <div style="font-size:.85rem;margin-top:4px">${statusData.telemetry_available ? '✅' : '❌'} Telemetry</div>
-          <div style="font-size:.85rem">${statusData.profiling_available ? '✅' : '❌'} Profiling</div>
+          <div style="font-size:.8rem;opacity:.6">${L('Telemetry SDK', 'Collectors')}</div>
+          ${shell ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${statusChip(statusData.telemetry_available ? 'Telemetry on' : 'Telemetry off', statusData.telemetry_available ? 'success' : 'neutral')}${statusChip(statusData.profiling_available ? 'Profiling on' : 'Profiling off', statusData.profiling_available ? 'success' : 'neutral')}</div>` : `<div style="font-size:.85rem;margin-top:4px">${statusData.telemetry_available ? '✅' : '❌'} Telemetry</div>
+          <div style="font-size:.85rem">${statusData.profiling_available ? '✅' : '❌'} Profiling</div>`}
         </div>
         <div class="db-card" style="padding:16px;border-radius:12px">
           <div style="font-size:.8rem;opacity:.6">Gateway</div>
@@ -52,7 +57,7 @@ export async function render(container) {
       </div>
 
       ${agentRows.length > 0 ? `
-        <h3 style="margin:0 0 12px;font-size:1.1rem">By Agent</h3>
+        <h3 style="margin:0 0 12px;font-size:1.1rem">${L('By Agent', 'By agent')}</h3>
         <div class="db-card" style="border-radius:12px;overflow:hidden;margin-bottom:24px">
           <table style="width:100%;border-collapse:collapse">
             <thead><tr style="border-bottom:1px solid rgba(128,128,128,.2)">
@@ -71,10 +76,10 @@ export async function render(container) {
             </tbody></table>
         </div>` : ''}
 
-      <h3 style="margin:0 0 12px;font-size:1.1rem">Recent Metrics</h3>
-      <div class="db-card" style="border-radius:12px;overflow:hidden">
+      <h3 style="margin:0 0 12px;font-size:1.1rem">${L('Recent Metrics', 'Recent metrics')}</h3>
+      <div${shell && metrics.length === 0 ? '' : ' class="db-card"'} style="border-radius:12px;overflow:hidden">
         ${metrics.length === 0
-          ? '<div style="padding:24px;text-align:center;opacity:.5">No metrics recorded yet. Metrics flow in from gateway agent execution hooks.</div>'
+          ? shell ? emptyState({ iconName: 'activity', title: 'No metrics yet', body: 'Calls, latency and tokens show up here once agents answer in chat.' }) : '<div style="padding:24px;text-align:center;opacity:.5">No metrics recorded yet. Metrics flow in from gateway agent execution hooks.</div>'
           : `<table style="width:100%;border-collapse:collapse">
               <thead><tr style="border-bottom:1px solid rgba(128,128,128,.2)">
                 <th style="padding:10px 14px;text-align:left;font-size:.8rem;opacity:.6">Time</th>

@@ -3,7 +3,7 @@
  * Shows execution traces, spans, call trees.
  * API: /api/traces, /api/traces/status, /api/traces/spans
  */
-import { helpBanner } from '/plugins/views/_helpers.js';
+import { helpBanner, inAppShell, statusChip, emptyState, humanize } from '/plugins/views/_helpers.js';
 
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
@@ -18,27 +18,33 @@ export async function render(container) {
     spans = (await spRes.json()).spans || [];
   } catch(e) { statusData = { status: 'error' }; }
 
-  const gwBadge = statusData.gateway_connected
+  // Shell: status chips on theme colours, sentence case, the designed empty state, no promo banner.
+  const shell = inAppShell();
+  const L = (dash, sentence) => (shell ? sentence : dash);
+  const chip = (on, onText, offText) => statusChip(on ? onText : offText, on ? 'success' : 'neutral');
+  const gwBadge = shell
+    ? statusChip(statusData.gateway_connected ? 'Connected' : 'Not connected', statusData.gateway_connected ? 'success' : 'danger')
+    : statusData.gateway_connected
     ? '<span style="color:#22c55e">● Connected</span>'
     : '<span style="color:#ef4444">● Not Connected</span>';
 
   container.innerHTML = `
     <div style="padding:24px;max-width:1200px;margin:0 auto">
-      <h2 style="margin:0 0 12px;font-size:1.5rem">🔍 Traces</h2>
-      <a href="/runs" style="display:inline-flex;align-items:center;gap:8px;margin-bottom:20px;padding:10px 14px;border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.06);border-radius:10px;color:var(--db-accent,#6366f1);text-decoration:none;font-size:13px">⏱️ Try the Run Flight Recorder — unified per-session timeline →</a>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px">
+      <h2 style="margin:0 0 12px;font-size:1.5rem">${L('🔍 ', '')}Traces</h2>
+      ${shell ? '' : `<a href="/runs" style="display:inline-flex;align-items:center;gap:8px;margin-bottom:20px;padding:10px 14px;border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.06);border-radius:10px;color:var(--db-accent,#6366f1);text-decoration:none;font-size:13px">⏱️ Try the Run Flight Recorder — unified per-session timeline →</a>`}
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(${shell ? '150px' : '180px'},1fr));gap:16px;margin-bottom:24px">
         <div class="db-card" style="padding:16px;border-radius:12px">
-          <div style="font-size:.8rem;opacity:.6">Total Traces</div>
+          <div style="font-size:.8rem;opacity:.6">${L('Total Traces', 'Total traces')}</div>
           <div style="font-size:1.8rem;font-weight:700">${statusData.total_traces || 0}</div>
         </div>
         <div class="db-card" style="padding:16px;border-radius:12px">
-          <div style="font-size:.8rem;opacity:.6">Total Spans</div>
+          <div style="font-size:.8rem;opacity:.6">${L('Total Spans', 'Total spans')}</div>
           <div style="font-size:1.8rem;font-weight:700">${statusData.total_spans || 0}</div>
         </div>
         <div class="db-card" style="padding:16px;border-radius:12px">
-          <div style="font-size:.8rem;opacity:.6">Trace SDK</div>
-          <div style="font-size:.85rem;margin-top:4px">${statusData.trace_available ? '✅' : '❌'} Trace</div>
-          <div style="font-size:.85rem">${statusData.obs_available ? '✅' : '❌'} Obs</div>
+          <div style="font-size:.8rem;opacity:.6">${L('Trace SDK', 'Collectors')}</div>
+          ${shell ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${chip(statusData.trace_available, 'Tracing on', 'Tracing off')}${chip(statusData.obs_available, 'Observability on', 'Observability off')}</div>` : `<div style="font-size:.85rem;margin-top:4px">${statusData.trace_available ? '✅' : '❌'} Trace</div>
+          <div style="font-size:.85rem">${statusData.obs_available ? '✅' : '❌'} Obs</div>`}
         </div>
         <div class="db-card" style="padding:16px;border-radius:12px">
           <div style="font-size:.8rem;opacity:.6">Gateway</div>
@@ -46,10 +52,10 @@ export async function render(container) {
         </div>
       </div>
 
-      <h3 style="margin:0 0 12px;font-size:1.1rem">Recent Traces</h3>
-      <div class="db-card" style="border-radius:12px;overflow:hidden;margin-bottom:24px">
+      <h3 style="margin:0 0 12px;font-size:1.1rem">${L('Recent Traces', 'Recent traces')}</h3>
+      <div${shell && traces.length === 0 ? '' : ' class="db-card"'} style="border-radius:12px;overflow:hidden;margin-bottom:24px">
         ${traces.length === 0
-          ? '<div style="padding:24px;text-align:center;opacity:.5">No traces recorded. Traces will appear when agents execute via gateway.</div>'
+          ? shell ? emptyState({ iconName: 'activity', title: 'No traces yet', body: 'Each agent request is traced here, step by step, once agents answer in chat.', actionHtml: '<a href="/runs" style="display:inline-flex;align-items:center;height:32px;padding:0 12px;border:1px solid var(--input, var(--db-border));border-radius:8px;color:var(--db-text);font-size:14px;font-weight:500;text-decoration:none">Open run recorder</a>' }) : '<div style="padding:24px;text-align:center;opacity:.5">No traces recorded. Traces will appear when agents execute via gateway.</div>'
           : `<table style="width:100%;border-collapse:collapse">
               <thead><tr style="border-bottom:1px solid rgba(128,128,128,.2)">
                 <th style="padding:10px 14px;text-align:left;font-size:.8rem;opacity:.6">Trace ID</th>
@@ -64,7 +70,7 @@ export async function render(container) {
                   <td style="padding:10px 14px;font-size:.75rem;font-family:monospace;opacity:.7">${t.id?.substring(0,12)}…</td>
                   <td style="padding:10px 14px;font-size:.85rem">${t.agent_id}</td>
                   <td style="padding:10px 14px;font-size:.85rem">${t.name || '—'}</td>
-                  <td style="padding:10px 14px;text-align:center"><span style="padding:2px 8px;border-radius:6px;font-size:.75rem;background:${t.status==='completed'?'rgba(34,197,94,.15)':'rgba(245,158,11,.15)'}">${t.status}</span></td>
+                  <td style="padding:10px 14px;text-align:center">${shell ? statusChip(humanize(t.status), t.status === 'completed' ? 'success' : 'warning') : `<span style="padding:2px 8px;border-radius:6px;font-size:.75rem;background:${t.status==='completed'?'rgba(34,197,94,.15)':'rgba(245,158,11,.15)'}">${t.status}</span>`}</td>
                   <td style="padding:10px 14px;text-align:center">${t.duration_ms}ms</td>
                   <td style="padding:10px 14px;text-align:center">${t.span_count || 0}</td>
                 </tr>`).join('')}
@@ -72,7 +78,7 @@ export async function render(container) {
         }
       </div>
 
-      <h3 style="margin:0 0 12px;font-size:1.1rem">Recent Spans</h3>
+      ${shell && spans.length === 0 ? '' : `<h3 style="margin:0 0 12px;font-size:1.1rem">${L('Recent Spans', 'Recent spans')}</h3>
       <div class="db-card" style="border-radius:12px;overflow:hidden">
         ${spans.length === 0
           ? '<div style="padding:24px;text-align:center;opacity:.5">No spans recorded.</div>'
@@ -92,11 +98,11 @@ export async function render(container) {
                   <td style="padding:10px 14px;font-size:.85rem">${s.name}</td>
                   <td style="padding:10px 14px"><span style="padding:2px 8px;border-radius:6px;font-size:.75rem;background:rgba(99,102,241,.1)">${s.kind}</span></td>
                   <td style="padding:10px 14px;text-align:center">${s.duration_ms}ms</td>
-                  <td style="padding:10px 14px;text-align:center">${s.status === 'ok' ? '✅' : '⚠️'}</td>
+                  <td style="padding:10px 14px;text-align:center">${shell ? statusChip(s.status === 'ok' ? 'OK' : humanize(s.status || 'warning'), s.status === 'ok' ? 'success' : 'warning') : s.status === 'ok' ? '✅' : '⚠️'}</td>
                 </tr>`).join('')}
               </tbody></table>`
         }
-      </div>
+      </div>`}
       ${helpBanner({
         title: 'Traces',
         what: 'Traces show the step-by-step journey of each agent request — what happened, in what order, and how long each step took.',

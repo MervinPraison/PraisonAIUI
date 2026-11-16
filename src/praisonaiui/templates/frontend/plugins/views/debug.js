@@ -7,6 +7,10 @@
  * API: /api/features, /api/health, /api/config, /api/gateway/status
  */
 import { showToast } from '../toast.js';
+import { inAppShell, glyph, statusChip, humanize, esc } from '/plugins/views/_helpers.js';
+
+// Shell only: a feature is healthy when its health reports ok (as the inspector counts it).
+const featureOk = (f) => (f.health && typeof f.health === 'object' ? f.health.status === 'ok' : f.healthy !== false);
 
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
@@ -49,7 +53,10 @@ export async function render(container) {
   const gatewayAgents = gatewayData.agents || [];
 
   // Overview stats
-  const healthy = features.filter(f => typeof f === 'object' && f.healthy !== false).length;
+  const shell = inAppShell();
+  const L = (dash, sentence) => (shell ? sentence : dash);
+  const tone = (ok) => (ok ? 'var(--db-success)' : 'var(--db-error)');
+  const healthy = features.filter(f => typeof f === 'object' && (shell ? featureOk(f) : f.healthy !== false)).length;
   const total = features.length;
   const healthPct = total > 0 ? Math.round(healthy / total * 100) : 0;
   const uptimeMs = Date.now() - (window.__aiuiLoadTime || Date.now());
@@ -60,17 +67,17 @@ export async function render(container) {
     <div class="db-columns" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:24px">
       <div class="db-card">
         <div class="db-card-title">Server</div>
-        <div style="font-size:20px;font-weight:700;margin:6px 0;color:${serverStatus === 'healthy' ? '#22c55e' : '#ef4444'}">${serverStatus === 'healthy' ? '● Healthy' : '○ ' + serverStatus}</div>
-        <div style="font-size:11px;color:var(--db-text-dim)">Uptime: ${health.uptime ? formatUptime(health.uptime) : uptime}</div>
+        <div style="font-size:20px;font-weight:700;margin:6px 0;color:${shell ? tone(serverStatus === 'healthy') : serverStatus === 'healthy' ? '#22c55e' : '#ef4444'}">${serverStatus === 'healthy' ? '● Healthy' : '○ ' + serverStatus}</div>
+        <div style="font-size:11px;color:var(--db-text-dim)">${shell && !health.uptime ? 'Responding' : `Uptime: ${health.uptime ? formatUptime(health.uptime) : uptime}`}</div>
       </div>
       <div class="db-card">
         <div class="db-card-title">Gateway</div>
-        <div style="font-size:20px;font-weight:700;margin:6px 0;color:${gatewayConnected ? '#22c55e' : '#ef4444'}">${gatewayConnected ? '● Connected' : '○ ' + gatewayStatus}</div>
+        <div style="font-size:20px;font-weight:700;margin:6px 0;color:${shell ? tone(gatewayConnected) : gatewayConnected ? '#22c55e' : '#ef4444'}">${gatewayConnected ? '● Connected' : '○ ' + gatewayStatus}</div>
         <div style="font-size:11px;color:var(--db-text-dim)">${gatewayAgents.length} agent${gatewayAgents.length !== 1 ? 's' : ''} registered</div>
       </div>
       <div class="db-card">
         <div class="db-card-title">WebSocket</div>
-        <div style="font-size:20px;font-weight:700;margin:6px 0;color:${wsStatus === 'connected' ? '#22c55e' : '#ef4444'}">${wsStatus === 'connected' ? '● Connected' : '○ ' + wsStatus}</div>
+        <div style="font-size:20px;font-weight:700;margin:6px 0;color:${shell ? tone(wsStatus === 'connected') : wsStatus === 'connected' ? '#22c55e' : '#ef4444'}">${wsStatus === 'connected' ? '● Connected' : '○ ' + wsStatus}</div>
         <div style="font-size:11px;color:var(--db-text-dim)">${wsLatency != null ? wsLatency + 'ms latency' : 'Real-time channel'}</div>
       </div>
       <div class="db-card">
@@ -80,31 +87,37 @@ export async function render(container) {
       </div>
       <div class="db-card">
         <div class="db-card-title">Health</div>
-        <div style="font-size:20px;font-weight:700;margin:6px 0;color:${healthPct >= 80 ? '#22c55e' : healthPct >= 50 ? '#eab308' : '#ef4444'}">${healthPct}%</div>
-        <div style="font-size:11px;color:var(--db-text-dim)">${total - healthy} degraded</div>
+        <div style="font-size:20px;font-weight:700;margin:6px 0;color:${shell ? (healthy === total ? 'var(--db-text)' : 'var(--db-warning)') : healthPct >= 80 ? '#22c55e' : healthPct >= 50 ? '#eab308' : '#ef4444'}">${healthPct}%</div>
+        <div style="font-size:11px;color:var(--db-text-dim)">${shell ? `${total - healthy} not ready` : `${total - healthy} degraded`}</div>
       </div>
       <div class="db-card">
-        <div class="db-card-title">API Latency</div>
+        <div class="db-card-title">${L('API Latency', 'API latency')}</div>
         <div style="font-size:20px;font-weight:700;margin:6px 0">${apiLatency}ms</div>
-        <div style="font-size:11px;color:var(--db-text-dim)">/api/features</div>
+        <div style="font-size:11px;color:var(--db-text-dim)">${L('/api/features', 'Round trip')}</div>
       </div>
     </div>
 
     <!-- Feature Health Matrix -->
-    <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">Feature Health Matrix</h3>
-    <div class="db-viewer" style="margin-bottom:24px">
-      <table style="width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed">
+    <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">${L('Feature Health Matrix', 'Feature health')}</h3>
+    <div class="db-viewer" style="margin-bottom:24px${shell ? ';overflow-x:auto' : ''}">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;${shell ? 'table-layout:auto;min-width:560px' : 'table-layout:fixed'}">
         <tr>
-          <th style="width:160px;text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase">Feature</th>
-          <th style="width:80px;text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase">Status</th>
-          <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase">Routes</th>
-          <th style="width:200px;text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase">Description</th>
+          <th style="width:160px;text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;${shell ? '' : 'text-transform:uppercase'}">Feature</th>
+          <th style="width:80px;text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;${shell ? '' : 'text-transform:uppercase'}">Status</th>
+          <th style="${shell ? 'width:120px;' : ''}text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;${shell ? '' : 'text-transform:uppercase'}">Routes</th>
+          <th style="width:${shell ? '45%' : '200px'};text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;${shell ? '' : 'text-transform:uppercase'}">Description</th>
         </tr>
         ${features.map(f => {
           const name = typeof f === 'string' ? f : f.name || f.feature || 'unknown';
-          const status = typeof f === 'object' ? (f.healthy !== false ? 'healthy' : 'unhealthy') : 'unknown';
+          const status = typeof f === 'object' ? ((shell ? featureOk(f) : f.healthy !== false) ? 'healthy' : 'unhealthy') : 'unknown';
           const routes = typeof f === 'object' ? (f.routes || f.endpoints || 0) : '?';
           const desc = typeof f === 'object' ? (f.description || '') : '';
+          if (shell) {
+            const list = Array.isArray(routes) ? [...new Set(routes)] : [];
+            const routeCell = list.length ? `<details><summary style="cursor:pointer">${list.length} route${list.length === 1 ? '' : 's'}</summary><div style="margin-top:4px;font-family:var(--db-mono);font-size:11px;line-height:1.6">${list.map(esc).join('<br>')}</div></details>` : esc(routes || 'None');
+            const chip = status === 'healthy' ? statusChip('Healthy', 'success') : status === 'unhealthy' ? statusChip('Not ready', 'warning') : statusChip('Unknown', 'neutral');
+            return `<tr><td style="padding:8px 12px;border-bottom:1px solid var(--db-border);font-weight:500">${esc(humanize(name).replace(/\bapi\b/i, 'API').replace(/^Openai\b/, 'OpenAI'))}</td><td style="padding:8px 12px;border-bottom:1px solid var(--db-border)">${chip}</td><td style="padding:8px 12px;border-bottom:1px solid var(--db-border);font-size:12px;color:var(--db-text-dim)">${routeCell}</td><td style="padding:8px 12px;border-bottom:1px solid var(--db-border);font-size:12px;color:var(--db-text-dim)">${esc(desc)}</td></tr>`;
+          }
           return `<tr style="transition:background .1s" onmouseenter="this.style.background='rgba(var(--db-accent-rgb,100,100,255),.05)'" onmouseleave="this.style.background=''">
             <td style="padding:8px 12px;border-bottom:1px solid var(--db-border);font-weight:500">${name}</td>
             <td style="padding:8px 12px;border-bottom:1px solid var(--db-border)">
@@ -119,9 +132,9 @@ export async function render(container) {
 
     <!-- Environment Info -->
     <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">Environment</h3>
-    <div class="db-columns" style="grid-template-columns:1fr 1fr;margin-bottom:24px">
+    <div class="db-columns" style="grid-template-columns:${shell ? 'repeat(auto-fit,minmax(280px,1fr))' : '1fr 1fr'};margin-bottom:24px">
       <div class="db-card">
-        <div class="db-card-title">Server Configuration</div>
+        <div class="db-card-title">${L('Server Configuration', 'Server configuration')}</div>
         <div style="margin-top:8px;font-size:12px">
           ${Object.entries(config).slice(0, 15).map(([k, v]) => `
             <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--db-border)">
@@ -132,7 +145,7 @@ export async function render(container) {
         </div>
       </div>
       <div class="db-card">
-        <div class="db-card-title">Browser Info</div>
+        <div class="db-card-title">${L('Browser Info', 'Browser')}</div>
         <div style="margin-top:8px;font-size:12px">
           <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--db-border)"><span style="color:var(--db-text-dim)">User Agent</span><span style="font-family:monospace;font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${navigator.userAgent.substring(0,50)}…</span></div>
           <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--db-border)"><span style="color:var(--db-text-dim)">Protocol</span><span style="font-family:monospace;font-size:11px">${location.protocol}</span></div>
@@ -145,12 +158,12 @@ export async function render(container) {
 
     <!-- Gateway Agents -->
     ${gatewayAgents.length > 0 ? `
-      <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">Gateway Agents</h3>
+      <h3 style="margin:0 0 12px;font-size:15px;font-weight:600">${L('Gateway Agents', 'Gateway agents')}</h3>
       <div class="db-viewer" style="margin-bottom:24px">
         <table style="width:100%;border-collapse:collapse;font-size:13px">
           <tr>
-            <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase">ID</th>
-            <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;text-transform:uppercase">Name</th>
+            <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;${shell ? '' : 'text-transform:uppercase'}">ID</th>
+            <th style="text-align:left;padding:8px 12px;border-bottom:2px solid var(--db-border);color:var(--db-text-dim);font-weight:600;font-size:11px;${shell ? '' : 'text-transform:uppercase'}">Name</th>
           </tr>
           ${gatewayAgents.map(a => `<tr><td style="padding:8px 12px;border-bottom:1px solid var(--db-border);font-family:monospace;font-size:12px">${a.id}</td><td style="padding:8px 12px;border-bottom:1px solid var(--db-border);font-weight:500">${a.name}</td></tr>`).join('')}
         </table>
@@ -159,8 +172,8 @@ export async function render(container) {
 
     <!-- Actions -->
     <div style="display:flex;gap:8px">
-      <button id="debug-refresh" style="padding:6px 14px;background:var(--db-accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500">⟳ Refresh All</button>
-      <button id="debug-copy" style="padding:6px 14px;border:1px solid var(--db-border);background:transparent;color:var(--db-text);border-radius:6px;cursor:pointer;font-size:12px">📋 Copy Diagnostics</button>
+      <button id="debug-refresh" style="padding:6px 14px;background:var(--db-accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500">${L('⟳ Refresh All', 'Refresh')}</button>
+      <button id="debug-copy" style="padding:6px 14px;border:1px solid var(--db-border);background:transparent;color:var(--db-text);border-radius:6px;cursor:pointer;font-size:12px">${glyph('📋')} ${L('Copy Diagnostics', 'Copy diagnostics')}</button>
     </div>
   `;
 

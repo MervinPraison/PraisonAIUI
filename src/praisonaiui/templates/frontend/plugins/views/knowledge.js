@@ -11,6 +11,20 @@
  *   DELETE /api/knowledge/{id}     — delete entry
  */
 import { showToast, showConfirm } from '../toast.js';
+import { inAppShell, glyph, statusChip, emptyState, shellButton, humanize } from '/plugins/views/_helpers.js';
+
+// Shell only: sentence-case labels and theme colours over the rules below.
+const SHELL_CSS = `
+    .kb-stat-label { text-transform:none; letter-spacing:0; font-size:12px; }
+    .kb-btn:hover { background:var(--db-hover); }
+    .kb-btn-danger { color:var(--db-error); border-color:var(--db-border); }
+    .kb-btn-danger:hover, .kb-entry-del:hover { background:var(--db-error-bg); }
+    .kb-entry:hover { border-color:var(--db-border-light); }
+    .kb-entry-del { display:inline-flex; align-items:center; gap:4px; color:var(--db-text-dim); border-color:var(--db-border); }
+    .kb-add-textarea { background:var(--db-input-bg); }
+    .kb-upload-zone:hover, .kb-upload-zone.dragover { background:var(--db-hover); }
+`;
+const L = (dash, sentence) => (inAppShell() ? sentence : dash);
 // ── Styles ──────────────────────────────────────────────────────
 function injectStyles() {
   if (document.getElementById('knowledge-view-styles')) return;
@@ -58,7 +72,7 @@ function injectStyles() {
     .kb-upload-zone.open { display:block; }
     .kb-upload-zone:hover, .kb-upload-zone.dragover { border-color:var(--db-accent); background:rgba(99,102,241,.05); color:var(--db-text); }
     .kb-upload-zone input { display:none; }
-  `;
+  ` + (inAppShell() ? SHELL_CSS : '');
   document.head.appendChild(style);
 }
 
@@ -71,9 +85,9 @@ export async function render(container) {
       <div class="kb-stats" id="kb-stats"></div>
 
       <div class="kb-actions">
-        <button class="kb-btn kb-btn-primary" id="kb-add-btn">➕ Add Knowledge</button>
-        <button class="kb-btn" id="kb-upload-btn">📄 Upload File</button>
-        <button class="kb-btn kb-btn-danger" id="kb-clear-btn">🗑️ Clear All</button>
+        <button class="kb-btn kb-btn-primary" id="kb-add-btn">${glyph('➕')} ${L('Add Knowledge', 'Add knowledge')}</button>
+        <button class="kb-btn" id="kb-upload-btn">${glyph('📄')} ${L('Upload File', 'Upload file')}</button>
+        <button class="kb-btn kb-btn-danger" id="kb-clear-btn">${glyph('🗑️')} ${L('Clear All', 'Clear all')}</button>
       </div>
 
       <div class="kb-add-panel" id="kb-add-panel">
@@ -85,14 +99,14 @@ export async function render(container) {
       </div>
 
       <div class="kb-upload-zone" id="kb-upload-zone">
-        <div style="font-size:32px;margin-bottom:8px">📄</div>
+        <div style="font-size:32px;margin-bottom:8px">${glyph('📄')}</div>
         <div>Drop a file here or <strong>click to browse</strong></div>
         <div style="font-size:12px;margin-top:6px">Supports: TXT, CSV, JSON, Markdown, PDF (with SDK)</div>
         <input type="file" id="kb-file-input" accept=".txt,.csv,.json,.md,.pdf,.docx">
       </div>
 
       <div class="kb-search-row">
-        <input class="kb-search-input" id="kb-search" type="text" placeholder="🔍 Search knowledge base…">
+        <input class="kb-search-input" id="kb-search" type="text" placeholder="${L('🔍 Search knowledge base…', 'Search knowledge base…')}">
         <button class="kb-btn" id="kb-search-btn">Search</button>
       </div>
 
@@ -149,8 +163,8 @@ async function loadStatus() {
     el.innerHTML = `
       <div class="kb-stat"><div class="kb-stat-label">Entries</div><div class="kb-stat-value">${data.total || 0}</div></div>
       <div class="kb-stat"><div class="kb-stat-label">Files</div><div class="kb-stat-value">${data.files || 0}</div></div>
-      <div class="kb-stat"><div class="kb-stat-label">Backend</div><div class="kb-stat-value" style="font-size:14px">${data.backend || 'unknown'}</div></div>
-      <div class="kb-stat"><div class="kb-stat-label">Status</div><div class="kb-stat-value" style="font-size:14px;color:${data.status === 'ok' ? '#22c55e' : '#eab308'}">${data.status || '?'}</div></div>
+      <div class="kb-stat"><div class="kb-stat-label">Backend</div><div class="kb-stat-value" style="font-size:14px">${inAppShell() ? backendLabel(data.backend) : data.backend || 'unknown'}</div></div>
+      <div class="kb-stat"><div class="kb-stat-label">Status</div>${inAppShell() ? `<div style="margin-top:6px">${data.status === 'ok' ? statusChip('Ready', 'success') : statusChip(data.status === 'degraded' ? 'Limited' : humanize(data.status || 'unknown'), 'neutral')}</div>` : `<div class="kb-stat-value" style="font-size:14px;color:${data.status === 'ok' ? '#22c55e' : '#eab308'}">${data.status || '?'}</div>`}</div>
     `;
   } catch (e) {
     console.warn('[Knowledge] Status load failed:', e);
@@ -163,7 +177,7 @@ async function loadEntries() {
     const data = await res.json();
     const entries = data.entries || [];
     const label = document.getElementById('kb-entries-label');
-    label.textContent = `All entries (${entries.length})`;
+    label.textContent = inAppShell() && !entries.length ? '' : `All entries (${entries.length})`;
     renderEntries(entries);
   } catch (e) {
     console.warn('[Knowledge] Entries load failed:', e);
@@ -172,6 +186,11 @@ async function loadEntries() {
 
 function renderEntries(entries) {
   const el = document.getElementById('kb-entries');
+  if (entries.length === 0 && inAppShell()) {
+    el.innerHTML = emptyState({ iconName: 'book', title: 'No knowledge yet', body: 'Add text or upload a file, and agents can draw on it when they answer.', actionHtml: shellButton('Add knowledge', 'data-kb-add') });
+    el.querySelector('[data-kb-add]')?.addEventListener('click', () => document.getElementById('kb-add-btn')?.click());
+    return;
+  }
   if (entries.length === 0) {
     el.innerHTML = '<div class="kb-empty">No knowledge entries yet. Add text or upload a file to get started.</div>';
     return;
@@ -182,7 +201,7 @@ function renderEntries(entries) {
     div.className = 'kb-entry';
     const meta = entry.metadata || {};
     const source = meta.source ? ` · source: ${meta.source}` : '';
-    const filename = meta.filename ? ` · 📄 ${meta.filename}` : '';
+    const filename = meta.filename ? ` · ${glyph('📄')} ${meta.filename}` : '';
     div.innerHTML = `
       <div class="kb-entry-head">
         <span class="kb-entry-id">${entry.id || '?'}</span>
@@ -193,12 +212,20 @@ function renderEntries(entries) {
       </div>
       <div class="kb-entry-text">${escapeHtml(entry.text || '').substring(0, 500)}${(entry.text || '').length > 500 ? '…' : ''}</div>
       <div class="kb-entry-actions">
-        <button class="kb-entry-del" data-id="${entry.id}">🗑️ Delete</button>
+        <button class="kb-entry-del" data-id="${entry.id}">${glyph('🗑️')} Delete</button>
       </div>
     `;
     div.querySelector('.kb-entry-del').addEventListener('click', () => deleteEntry(entry.id));
     el.appendChild(div);
   });
+}
+
+/** Shell: a product name for the backend class (SDKKnowledgeManager → PraisonAI SDK). */
+function backendLabel(name) {
+  const n = String(name || '');
+  if (!n || n === 'unknown') return 'Not configured';
+  if (/^SDK/.test(n)) return 'PraisonAI SDK';
+  return humanize(n.replace(/Manager$/, ''));
 }
 
 function escapeHtml(str) {
