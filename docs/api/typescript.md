@@ -1,3 +1,7 @@
+---
+nav_title: TypeScript API
+---
+
 # TypeScript SDK Reference
 
 Two TypeScript surfaces exist, for different jobs:

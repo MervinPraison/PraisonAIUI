@@ -1,3 +1,7 @@
+---
+nav_title: Run ledger and artifacts
+---
+
 # Layout data: run ledger and artifacts
 
 Two built-in records serve data that only the selectable [layouts](layouts.md) read. Each lives in

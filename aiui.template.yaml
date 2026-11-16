@@ -1,8 +1,8 @@
 schemaVersion: 1
 
 site:
-  title: "PraisonAIUI Docs"
-  description: "Documentation for PraisonAIUI - YAML-driven website generator"
+  title: "PraisonAIUI"
+  description: "A web UI for AI agents in Python: streaming chat, an artifacts canvas, selectable layouts, a dashboard and docs sites."
   ui: "shadcn"
   theme:
     preset: "zinc"
@@ -17,95 +17,177 @@ seo:
     index: true
     follow: true
 
-# Mintlify-style navigation: few tabs, many groups per tab
+# The sidebar is built from these groups, in this order
+# (content.docs.nav.mode: manual). A page is named by its route
+# ("features/layouts") or its file path without .md ("adr/0001-...").
 navigation:
   tabs:
-    - tab: "Documentation"
+    - tab: "Get started"
       groups:
-        - group: "Getting Started"
-          icon: "rocket"
-          prefix: "getting-started"
+        - group: "Get started"
           pages:
             - index
             - getting-started/installation
             - getting-started/quickstart
             - getting-started/cli
             - getting-started/github-pages
-        - group: "Core Concepts"
-          icon: "lightbulb"
-          prefix: "concepts"
+        - group: "Examples"
           pages:
-            - concepts/architecture
-            - concepts/configuration
-            - concepts/templates
-            - concepts/slots
-            - concepts/providers
-        - group: "Features"
-          icon: "sparkles"
-          prefix: "features"
+            - examples/basic
+            - examples/advanced
+    - tab: "Guides"
+      groups:
+        - group: "App and layouts"
+          pages:
+            - features/styles
+            - features/react-shell
+            - group: "Layouts"
+              pages:
+                - features/layouts
+                - features/layouts/chat-canvas
+                - features/layouts/workbench
+                - features/layouts/command
+                - features/layouts/guided
+                - features/layouts/mission
+                - features/layout-data
+        - group: "Chat"
+          pages:
+            - features/gateway-chat
+            - features/sessions
+            - features/attachments
+            - features/message-elements
+            - features/image-preview-chat
+            - features/steps
+            - features/a2ui-canvas
+            - features/code-execution
+            - features/model-fallback
+            - features/subagent-tree
+            - features/tts
+            - features/media-analysis
+        - group: "Theming"
+          pages:
+            - features/theming
+            - features/theme-system
+            - features/dark-mode
+            - features/css-architecture
+        - group: "Plugins"
+          pages:
+            - features/plugins
+            - features/marketplace
+            - features/how-to-add-a-feature
+        - group: "Dashboard"
+          pages:
+            - features/dashboard
+            - features/agent-ui-host
+            - features/replay
+            - features/video-studio
+            - features/browser-automation
+            - features/channel-chat-bridge
+            - features/device-pairing
+            - features/pwa
+            - features/config-hot-reload
+            - features/knowledge-embeddings
+        - group: "Docs sites"
           pages:
             - features/content-sources
             - features/navigation
-            - features/theming
-            - features/dark-mode
+            - concepts/templates
+            - concepts/slots
+            - features/widget-zones
             - features/seo
+            - features/i18n
             - features/hot-reload
-            - features/protocols
+        - group: "Integrations"
+          pages:
+            - concepts/providers
+            - features/praisonai-package-integration
+            - features/standalone-vs-integrated
+            - features/backend-integration
+        - group: "Deployment and security"
+          pages:
+            - features/deployment
+            - health-endpoints
+    - tab: "Reference"
+      groups:
+        - group: "Reference"
+          pages:
+            - api/index
+            - api/cli
+            - api/python
+            - concepts/configuration
+            - api/components
+            - api/features-api
+            - api/sessions
+            - api/health
         - group: "TypeScript"
-          icon: "file-code"
-          prefix: "typescript"
           pages:
             - typescript/index
             - typescript/runtime
             - typescript/nextjs
             - typescript/components
-        - group: "Frontend"
-          icon: "layout"
-          prefix: "frontend"
-          pages:
-            - frontend/beautifului
-        - group: "Examples"
-          icon: "folder-open"
-          prefix: "examples"
-          pages:
-            - examples/basic
-            - examples/advanced
-    - tab: "API Reference"
-      groups:
-        - group: "API Reference"
-          icon: "code"
-          prefix: "api"
-          pages:
-            - api/cli
-            - api/features-api
-            - api/python
-            - api/sessions
             - api/typescript
+        - group: "Protocols"
+          pages:
+            - features/protocols
+            - features/protocol-architecture
+            - features/protocol-versioning
+            - group: "Application Design Protocol"
+              pages:
+                - protocols/adp/README
+                - protocols/adp/spec
+                - protocols/adp/validation-rules
+                - protocols/adp/aiui-mapping
+                - protocols/adp/implementation-status
+                - protocols/application-design-protocol-report
+    - tab: "Project"
+      groups:
+        - group: "Project"
+          pages:
+            - concepts/architecture
+            - concepts/bootstrap
+            - testing
+            - api/testing
+        - group: "Decisions"
+          pages:
+            - adr/index
+            - adr/0001-replay-view-clean-room
+            - adr/0002-react-app-shell-and-plugin-sdk
+            - adr/0003-selectable-layouts
 
 
 # Navbar actions
 navbar:
   primary:
     type: "button"
-    label: "Get started"
+    label: "Quick start"
     href: "/docs/getting-started/quickstart"
   links:
+    - label: "Changelog"
+      href: "https://github.com/MervinPraison/PraisonAIUI/blob/main/CHANGELOG.md"
     - label: "GitHub"
       href: "https://github.com/MervinPraison/PraisonAIUI"
 
 # Footer
 footer:
   socials:
-    github: "https://github.com/MervinPraison/PraisonAI"
+    github: "https://github.com/MervinPraison/PraisonAIUI"
     x: "https://x.com/MervinPraison"
     youtube: "https://youtube.com/@MervinPraison"
   links:
-    - header: "Resources"
+    - header: "PraisonAIUI"
       items:
         - label: "GitHub"
+          href: "https://github.com/MervinPraison/PraisonAIUI"
+        - label: "PyPI"
+          href: "https://pypi.org/project/aiui/"
+        - label: "Changelog"
+          href: "https://github.com/MervinPraison/PraisonAIUI/blob/main/CHANGELOG.md"
+    - header: "PraisonAI"
+      items:
+        - label: "PraisonAI docs"
+          href: "https://docs.praison.ai"
+        - label: "PraisonAI on GitHub"
           href: "https://github.com/MervinPraison/PraisonAI"
-        - label: "Documentation"
-          href: "https://docs.praisonai.com"
     - header: "Community"
       items:
         - label: "Twitter"
@@ -124,6 +206,19 @@ content:
     include:
       - "**/*.md"
       - "**/*.mdx"
+    # Internal analysis and working notes stay in the repository, off the site.
+    exclude:
+      - "features/gap-analysis.md"
+      - "features/comparison-openclaw.md"
+      - "features/standardization-verification.md"
+      - "features/integration-analysis.md"
+      - "features/feature-inventory.md"
+      - "features/differentiation.md"
+      - "features/beautifului-integration.md"
+      - "frontend/*"
+      - "reports/*"
+    nav:
+      mode: manual
 
 templates:
   docs:

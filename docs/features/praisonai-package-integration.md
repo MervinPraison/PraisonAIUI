@@ -196,6 +196,6 @@ After `praisonai claw` or `aiui run` with package bridges:
 - [Backend integration](backend-integration.md) — L1 backend injection
 - [Standalone vs integrated](standalone-vs-integrated.md) — SDK gaps and fallbacks
 - [PraisonAIUI repository](https://github.com/MervinPraison/PraisonAIUI)
-- [`integration.py`](../../src/praisonaiui/integration.py) — `AIUIGateway`
-- [`examples/python/praisonai-claw-board/`](../../examples/python/praisonai-claw-board/app.py) — board from jobs
-- [`examples/python/platform-board/`](../../examples/python/platform-board/app.py) — board from platform issues
+- [`integration.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/integration.py) — `AIUIGateway`
+- [`examples/python/praisonai-claw-board/`](https://github.com/MervinPraison/PraisonAIUI/blob/main/examples/python/praisonai-claw-board/app.py) — board from jobs
+- [`examples/python/platform-board/`](https://github.com/MervinPraison/PraisonAIUI/blob/main/examples/python/platform-board/app.py) — board from platform issues

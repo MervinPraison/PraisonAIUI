@@ -1,3 +1,7 @@
+---
+nav_title: Research report
+---
+
 # Application Design Protocol (ADP) — Research Report
 
 **Version:** 1.0 (draft)  
@@ -424,4 +428,4 @@ ADP is feasible and largely prefigured by PraisonAIUI's existing architecture. T
 
 **Status:** Research draft — see [adp/implementation-status.md](./adp/implementation-status.md) for implementation gaps.
 
-The draft spec, JSON Schema files, and example manifests are published alongside this report in [`docs/protocols/adp/`](./adp/).
+The draft spec, JSON Schema files, and example manifests are published alongside this report in [`docs/protocols/adp/`](adp/README.md).

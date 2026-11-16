@@ -1,3 +1,7 @@
+---
+nav_title: Protocol architecture
+---
+
 # Protocol Architecture Reference
 
 All feature modules in PraisonAIUI implement a **Protocol ABC** pattern for type-safe, swappable backends.

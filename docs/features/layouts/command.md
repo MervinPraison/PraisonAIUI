@@ -1,3 +1,7 @@
+---
+nav_title: Command Deck
+---
+
 # Command Deck layout
 
 The Command Deck (`command`) is the keyboard-first layout of the app shell
