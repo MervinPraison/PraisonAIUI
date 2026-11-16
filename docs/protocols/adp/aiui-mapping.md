@@ -1,3 +1,7 @@
+---
+nav_title: PraisonAIUI mapping
+---
+
 # PraisonAIUI → ADP Field Mapping
 
 Field-by-field mapping from current `aiui.template.yaml` (`Config` model in `src/praisonaiui/schema/models.py`) to ADP `Application` spec.

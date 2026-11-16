@@ -1,3 +1,7 @@
+---
+nav_title: Bootstrap
+---
+
 # Bootstrap
 
 `aiui run app.py` is the one entry point for an app. It imports `app.py` (under
