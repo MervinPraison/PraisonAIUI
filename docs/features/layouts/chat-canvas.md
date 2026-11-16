@@ -58,8 +58,7 @@ layout:
 
 App code and agents can also write the canvas by name, so an update does not
 depend on the model repeating a file name or a table header:
-`aiui.canvas.write("sorting", table)` and the agent tools from
-`aiui.canvas.tools()`. See [Canvas from Python and agent tools](../canvas-api.md).
+`aiui.canvas.write("sorting", table)`. See [Canvas from Python](../canvas-api.md).
 
 ## Turning parts off
 

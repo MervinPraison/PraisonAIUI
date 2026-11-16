@@ -652,7 +652,7 @@ Async functions for sending messages to the user. Call inside callback handlers.
 
 Write the Chat and Canvas layout's canvas by name (plain functions, safe from
 any thread; they act on the chat run in progress). The same key again is the
-next version. Details: [Canvas from Python and agent tools](../features/canvas-api.md).
+next version. Details: [Canvas from Python](../features/canvas-api.md).
 
 | Function | Purpose |
 |----------|---------|
@@ -661,7 +661,6 @@ next version. Details: [Canvas from Python and agent tools](../features/canvas-a
 | `aiui.canvas.open(key)` | Show an artifact in the canvas |
 | `aiui.canvas.read(key, *, version=None)` | The latest version with content (user edits included), or `None` |
 | `aiui.canvas.artifacts()` | The chat's artifacts, without content |
-| `aiui.canvas.tools()` | `canvas_write`, `canvas_update`, `canvas_read`, `canvas_list` for an LLM agent |
 
 ---
 

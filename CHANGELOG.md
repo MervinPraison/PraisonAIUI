@@ -69,11 +69,9 @@
   `update`, `open`, `read` and `artifacts()` put tables, documents, code and
   files in the Chat and Canvas layout's canvas from app code, callbacks and
   agent tools; the same key again is the next version, authored by the agent,
-  without relying on the model repeating a file name. `aiui.canvas.tools()`
-  gives an LLM agent `canvas_write`, `canvas_update`, `canvas_read` and
-  `canvas_list`, and `PraisonAIProvider(canvas_tools=True)` adds them to every
-  agent it runs. The wire event is a `message_element` of type `artifact`. See
-  [Canvas from Python and agent tools](docs/features/canvas-api.md).
+  without relying on the model repeating a file name. The wire event is a
+  `message_element` of type `artifact`. See
+  [Canvas from Python](docs/features/canvas-api.md).
 - App shell: a React Cron page inside the layouts: schedules in words and as
   cron, next and last run, an enabled switch, Run now, and a schedule builder.
 - Docs sites: frontmatter `layout: home` on `docs/index.md` draws a hero

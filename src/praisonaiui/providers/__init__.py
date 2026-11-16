@@ -424,18 +424,14 @@ class PraisonAIProvider(BaseProvider):
     # Name of a lazily created agent with no CRUD definition or ``name=``.
     DEFAULT_AGENT_NAME = "Assistant"
 
-    def __init__(self, agent=None, agents=None, *, canvas_tools: bool = False, **agent_kwargs):
+    def __init__(self, agent=None, agents=None, **agent_kwargs):
         """Initialize with optional pre-configured agent(s).
 
         Args:
             agent: Single pre-configured Agent instance.
             agents: List of Agent instances for multi-agent scenarios.
-            canvas_tools: Give every agent this provider runs the canvas
-                tools (``aiui.canvas.tools()``) while the server has a canvas
-                (``builtin.artifacts`` is on). Off by default.
             **agent_kwargs: Passed to Agent() if no agent provided.
         """
-        self._canvas_tools = canvas_tools
         self._agent = agent
         self._agents = agents or []
         self._agent_kwargs = agent_kwargs
@@ -868,10 +864,6 @@ class PraisonAIProvider(BaseProvider):
     ) -> AsyncIterator[RunEvent]:
         """Execute via PraisonAI Agent directly with streaming bridge."""
         agent = self._get_or_create_agent(agent_name, session_id)
-        if agent is not None and self._canvas_tools:
-            from praisonaiui import canvas
-
-            canvas.attach_tools(agent)
         if agent is None:
             # No praisonaiagents installed — echo fallback
             yield RunEvent(type=RunEventType.RUN_STARTED)

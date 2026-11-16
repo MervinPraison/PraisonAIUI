@@ -169,7 +169,7 @@ def test_read_sees_the_users_edit_and_the_agent_builds_on_it(store, channel):
     edited = TABLE_V1.replace("Bubble", "Bubble sort")
     store.put("s1", "sorting", {"kind": "table", "content": edited, "edited": True})
     assert canvas.read("sorting")["content"] == edited
-    assert "edited by the user" in canvas.canvas_read("sorting").splitlines()[0]
+    assert canvas.read("sorting")["edited"] is True
     # The agent's next version is numbered after the edit, like the canvas does.
     assert canvas.update("sorting", TABLE_V2)["version"] == 3
 
@@ -179,57 +179,6 @@ def test_a_stored_url_is_normalised_and_shown_as_stored(store, channel):
     assert channel.drain()[0]["url"] == "/files/c.png"
     with pytest.raises(canvas.CanvasError, match="scheme"):
         canvas.write("bad", url="javascript:alert(1)", kind="file")
-
-
-# ── agent tools ─────────────────────────────────────────────────────
-
-
-def test_tools_are_plain_functions_that_never_raise(store, channel):
-    assert [t.__name__ for t in canvas.tools()] == ["canvas_write", "canvas_update", "canvas_read", "canvas_list"]
-    assert canvas.canvas_list() == "The canvas is empty."
-    assert "no artifact named 'x'" in canvas.canvas_read("x")
-    assert canvas.canvas_write("sorting", TABLE_V1, title="Sorting").startswith(
-        "Saved 'sorting' to the canvas (table, version 1)"
-    )
-    assert canvas.canvas_write("t", "oops", kind="table").startswith("Error: table content")
-    assert "version 2" in canvas.canvas_update("sorting", TABLE_V2)
-    assert canvas.canvas_read("sorting") == (
-        "Artifact 'sorting' (table, version 2, written by the agent), titled 'Sorting'. "
-        "Its full content is everything after this line:\n" + TABLE_V2
-    )
-    assert canvas.canvas_list() == "- sorting (table, v2): Sorting"
-
-
-def test_attach_tools_only_with_a_canvas(no_store, monkeypatch, store):
-    class A:
-        def __init__(self):
-            def canvas_read(name: str) -> str:  # the app's own wins
-                return name
-
-            self.tools = [canvas_read]
-
-    a = A()
-    assert canvas.attach_tools(a) is True
-    assert [t.__name__ for t in a.tools] == ["canvas_read", "canvas_write", "canvas_update", "canvas_list"]
-    assert a.tools[0] is not canvas.canvas_read
-    from praisonaiui import features
-
-    monkeypatch.delitem(features._features, "artifacts")
-    b = A()
-    assert canvas.attach_tools(b) is False and len(b.tools) == 1
-
-
-def test_provider_attaches_tools_only_when_asked(monkeypatch, store):
-    from praisonaiui.providers import PraisonAIProvider
-
-    class Agent:
-        name = "A"
-        tools: List[Any] = []
-
-    agent = Agent()
-    PraisonAIProvider(agent=agent)  # default: untouched
-    p = PraisonAIProvider(agent=agent, canvas_tools=True)
-    assert p._canvas_tools is True and "canvas_tools" not in p._agent_kwargs
 
 
 # ── a WS run end to end ─────────────────────────────────────────────

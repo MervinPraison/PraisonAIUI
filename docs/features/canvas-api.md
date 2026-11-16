@@ -1,4 +1,4 @@
-# Canvas from Python and agent tools
+# Canvas from Python
 
 The [Chat and Canvas](layouts/chat-canvas.md) layout shows the tables, code and
 files a chat makes on a canvas beside it, with every version. Without help the
@@ -49,40 +49,6 @@ progress: the WebSocket chat binds the run's channel around the provider, and
 the provider's tasks, the `@aiui.reply` callback and the agent's tool threads
 inherit it. Outside a run, pass `session_id=` to read or to store without
 showing.
-
-## Agent tools
-
-`aiui.canvas.tools()` returns four plain functions an LLM agent can call. They
-have type hints and docstrings, so praisonaiagents (and most agent SDKs) build
-their schemas without `praisonaiui` importing the SDK:
-
-| Tool | Arguments | Returns |
-|---|---|---|
-| `canvas_write` | `name, content, kind="", language="", title=""` | "Saved 'name' to the canvas (table, version 2)…" or "Error: …" |
-| `canvas_update` | `name, content` | the same; keeps the kind and title |
-| `canvas_read` | `name` | "Artifact 'name' (table, version 2, edited by the user), titled '…'. Its full content is everything after this line:" and the raw content |
-| `canvas_list` | | one artifact per line, newest first |
-
-```python
-from praisonaiagents import Agent
-import praisonaiui as aiui
-
-agent = Agent(
-    name="Analyst",
-    instructions="Put tables and documents in the canvas with canvas_write.",
-    tools=aiui.canvas.tools(),
-)
-aiui.register_agent("Analyst", agent)
-```
-
-Asked for a table in the canvas, the agent calls `canvas_write`; asked to add a
-column, it calls `canvas_read` and then `canvas_update` with the whole new
-table. When the user refers to an artifact by name (`@sorting`), `canvas_read`
-gives the agent its latest content, including the user's edits.
-
-`PraisonAIProvider(canvas_tools=True)` adds the tools to every agent it runs
-while the server has a canvas (`aiui.canvas.attach_tools(agent)` does it for
-one agent). It is off by default.
 
 ## The protocol
 

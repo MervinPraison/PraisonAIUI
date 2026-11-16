@@ -11,8 +11,6 @@ instead of hoping the model repeats a file name or a table header::
     aiui.canvas.read("sorting")                   # the latest version, user edits included
     aiui.canvas.artifacts()                       # every artifact of the chat (no content)
 
-    Agent(..., tools=aiui.canvas.tools())         # canvas_write/update/read/list for an LLM
-
 The functions are plain (not ``async``) and safe from any thread, so a tool
 running in an agent's worker thread calls them as they are. They act on the
 chat run in progress: the WS chat binds a :class:`Channel` around every
@@ -45,7 +43,7 @@ from __future__ import annotations
 import collections
 import contextvars
 import re
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 __all__ = [
     "CanvasError",
@@ -53,15 +51,9 @@ __all__ = [
     "KINDS",
     "artifact_element",
     "artifacts",
-    "attach_tools",
     "available",
-    "canvas_list",
-    "canvas_read",
-    "canvas_update",
-    "canvas_write",
     "open",
     "read",
-    "tools",
     "update",
     "write",
 ]
@@ -375,114 +367,3 @@ def artifacts(*, session_id: Optional[str] = None) -> List[Dict[str, Any]]:
     if store is None:
         return []
     return list(store.index(sid, limit=500)["artifacts"])
-
-
-# ── agent tools ──────────────────────────────────────────────────────
-#
-# Plain functions with type hints and Google-style docstrings: praisonaiagents
-# (and most agent SDKs) turn them into tool schemas without this module
-# importing them. They return short strings for the model and never raise.
-
-
-def _done(saved: Dict[str, Any]) -> str:
-    v = saved.get("version")
-    where = f"version {v}" if v else "shown in the chat"
-    return f"Saved '{saved['key']}' to the canvas ({saved['kind']}, {where}). Do not repeat it in your reply."
-
-
-def canvas_write(name: str, content: str, kind: str = "", language: str = "", title: str = "") -> str:
-    """Put a table, document or code file in the canvas beside the chat, instead of writing it in your reply; the same name again saves a new version.
-
-    Use it for anything the user will look at or iterate on.
-
-    Args:
-        name: Stable name of the artifact, e.g. "sorting-comparison" or "app.py". Reuse it to change the artifact.
-        content: The full content: a markdown table (header row, then |---|) for a table, markdown for a document, source code for code.
-        kind: "table" (a markdown table), "markdown" (a document) or "code"; best left empty: it is inferred from the content.
-        language: The programming language of code, e.g. "python".
-        title: A short title for the canvas tab; defaults to the name.
-
-    Returns:
-        A confirmation with the version number, or an error.
-    """
-    try:
-        return _done(write(name, content, kind=kind or None, language=language or None, title=title or None))
-    except CanvasError as exc:
-        return f"Error: {exc}"
-
-
-def canvas_update(name: str, content: str) -> str:
-    """Save a new full version of an artifact already in the canvas, keeping its kind and title; call canvas_read first (the user may have edited it).
-
-    Args:
-        name: The artifact's name, as given to canvas_write.
-        content: The full new content (not a diff).
-
-    Returns:
-        A confirmation with the version number, or an error.
-    """
-    try:
-        return _done(update(name, content))
-    except CanvasError as exc:
-        return f"Error: {exc}"
-
-
-def canvas_read(name: str) -> str:
-    """Get the latest version of a canvas artifact (it may be the user's own edit), to change it or answer about it, e.g. when the user mentions @name.
-
-    Args:
-        name: The artifact's name (see canvas_list).
-
-    Returns:
-        One line naming the artifact (kind, version, who wrote it), then its full content; or an error.
-    """
-    a = read(name)
-    if a is None:
-        names = ", ".join(x["key"] for x in artifacts()[:20]) or "none"
-        return f"Error: no artifact named '{name}' in this chat's canvas. Artifacts: {names}."
-    # The content goes last and raw (JSON made models send it back with its
-    # newlines escaped); a sentence, not a separator, introduces it.
-    facts = [str(a.get("kind")), f"version {a.get('version')}"]
-    if a.get("language"):
-        facts.append(a["language"])
-    facts.append("edited by the user" if a.get("edited") else "written by the agent")
-    head = f"Artifact '{a['key']}' ({', '.join(facts)}), titled '{a.get('title')}'."
-    if a.get("content") is None:
-        return f"{head} Its URL: {a.get('url', '')}"
-    return f"{head} Its full content is everything after this line:\n{a['content']}"
-
-
-def canvas_list() -> str:
-    """List the artifacts in this chat's canvas: name, kind, title and latest version.
-
-    Returns:
-        One artifact per line, newest first, or "The canvas is empty."
-    """
-    rows = artifacts()
-    if not rows:
-        return "The canvas is empty."
-    return "\n".join(
-        f"- {a['key']} ({a.get('kind')}, v{a.get('version')}{', edited by the user' if a.get('edited') else ''}): {a.get('title')}"
-        for a in rows
-    )
-
-
-def tools() -> List[Callable[..., str]]:
-    """The canvas tools for an agent: canvas_write, canvas_update, canvas_read, canvas_list."""
-    return [canvas_write, canvas_update, canvas_read, canvas_list]
-
-
-def attach_tools(agent: Any) -> bool:
-    """Add the canvas tools to *agent* (``agent.tools``) when this server has a canvas.
-
-    Tools of the same name already there are kept. Returns True when the
-    agent has them afterwards.
-    """
-    if agent is None or not available() or not hasattr(agent, "tools"):
-        return False
-    current = list(getattr(agent, "tools", None) or [])
-    names = {getattr(t, "__name__", None) for t in current}
-    missing = [t for t in tools() if t.__name__ not in names]
-    if missing:
-        agent.tools = current + missing
-    return True
