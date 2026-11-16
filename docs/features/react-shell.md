@@ -1,3 +1,7 @@
+---
+nav_title: React app shell
+---
+
 # React App Shell (`style: app`)
 
 The app shell is a React interface for the PraisonAIUI dashboard: a sidebar,
@@ -92,7 +96,7 @@ seeds in the browser.
 
 ### Breaking change: bare HSL triples
 
-Listed in the [changelog](../../CHANGELOG.md) for the release that ships the
+Listed in the [changelog](https://github.com/MervinPraison/PraisonAIUI/blob/main/CHANGELOG.md) for the release that ships the
 app shell.
 
 shadcn variables used to hold bare HSL triples that the stylesheet wrapped in

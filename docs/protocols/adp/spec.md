@@ -1,3 +1,7 @@
+---
+nav_title: Specification
+---
+
 # Application Design Protocol (ADP) — Normative Specification
 
 **Version:** v1alpha1 (draft)  
@@ -311,4 +315,4 @@ An implementation is **ADP-conformant** if and only if it:
 - [JSON Schema: application](./schema/application.schema.json)
 - [JSON Schema: component catalog](./schema/component-catalog.schema.json)
 - [JSON Schema: theme](./schema/theme.schema.json)
-- [Examples](./examples/)
+- [Examples](https://github.com/MervinPraison/PraisonAIUI/tree/main/docs/protocols/adp/examples)
