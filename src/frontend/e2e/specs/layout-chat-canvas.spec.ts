@@ -99,6 +99,9 @@ async function unnamedIconButtons(page: Page): Promise<string[]> {
   })
 }
 
+/** The reply's table card; every mock reply also carries the tool's chart image as a card. */
+const TABLE_CARD = '[data-artifact-card^="table:"]'
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(installLeakProbe)
 })
@@ -153,7 +156,8 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     const reply = assistant(page).last()
     if (HAS_CANVAS) {
       // The table is an artifact: the reply shows its card, the canvas the table.
-      await expect(reply.locator('[data-artifact-card]')).toBeVisible()
+      // The tool's chart image is a second card, so name the table's.
+      await expect(reply.locator(TABLE_CARD)).toBeVisible()
       await expect(reply.locator('table')).toBeHidden()
     } else {
       await expect(reply.locator('table')).toBeVisible()
@@ -209,7 +213,7 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
 
     await expect(page.locator('[data-connection="open"]')).toBeVisible()
     await send(page, 'markdown phone')
-    await expect(assistant(page).last().locator(HAS_CANVAS ? '[data-artifact-card]' : 'table')).toBeVisible()
+    await expect(assistant(page).last().locator(HAS_CANVAS ? TABLE_CARD : 'table')).toBeVisible()
     await waitForRunEnd(page)
     await expect(title(page)).toContainText(/markdown phone/i)
 
@@ -220,7 +224,7 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
       await expect(page.getByRole('complementary', { name: 'Canvas' })).toBeVisible()
       await toggle.getByRole('button', { name: 'Chat', exact: true }).click()
       // A card takes the phone to the canvas side.
-      await assistant(page).last().locator('[data-artifact-card]').first().click()
+      await assistant(page).last().locator(TABLE_CARD).click()
       await expect(page.getByRole('complementary', { name: 'Canvas' })).toBeVisible()
       await expect(toggle).toHaveAttribute('data-tab', 'aside')
       await toggle.getByRole('button', { name: 'Chat', exact: true }).click()
