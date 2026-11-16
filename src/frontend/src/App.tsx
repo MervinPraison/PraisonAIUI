@@ -111,8 +111,8 @@ export default function App() {
 
     const findItem = (items: NavItem[], target: string): NavItem | null => {
       for (const item of items) {
-        const itemPath = normalizeDocPath(item.path ?? '')
-        if (itemPath === target) {
+        // A section (a YAML group in manual nav) has no path and is never a page.
+        if (item.path && normalizeDocPath(item.path) === target) {
           return item
         }
         if (item.children) {

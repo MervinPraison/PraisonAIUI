@@ -66,9 +66,14 @@ export function navItemBelongsToTab(item: NavItem, tab: NavTabConfig): boolean {
     return navItemTabGroupIndex(item, tab) >= 0
 }
 
-/** Pick the active tab index from the current URL path. */
+/** Pick the active tab index from the current URL path: the tab whose groups list the page, else the longest folder prefix. */
 export function detectActiveTabIndex(tabs: NavTabConfig[], path: string): number {
     const normalized = path.toLowerCase()
+    const docPath = normalized.replace(/\/+$/, '')
+    if (docPath && docPath !== '/') {
+        const listed = tabs.findIndex((tab) => tab.groups?.some((grp) => grp.pages?.some((page) => pathMatchesPage(docPath, page))))
+        if (listed >= 0) return listed
+    }
     let bestMatch = -1
     let bestMatchLen = 0
 

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { docSourcePath, pageRoute, prepareDocSource, resolveDocTarget, resolveDocUrls, stripFrontmatter, docPathAliases } from './docSource'
 import { docNeighbours, docPages, docSearchGroups, docSection } from './docNav'
 import { scoreDocMatch } from './searchRank'
-import { filterNavByTab, navItemTabGroupIndex } from './navTabs'
+import { detectActiveTabIndex, filterNavByTab, navItemTabGroupIndex } from './navTabs'
 import type { DocsNav } from '../types'
 
 test('frontmatter is metadata, never page text', () => {
@@ -144,4 +144,30 @@ test('a URL that names a page another way maps to its route', () => {
     assert.deepEqual(docPathAliases('/adr/0001-x'), ['/adr/x', '/docs/adr/0001-x', '/docs/adr/x'])
     assert.deepEqual(docPathAliases('/docs/getting-started/quickstart'), [])
     assert.deepEqual(docPathAliases('/'), [])
+})
+
+test('the active tab is the one whose groups list the page, before folder prefixes', () => {
+    const tabs = [
+        { tab: 'Guides', groups: [{ group: 'Guides', prefix: 'features', pages: ['features/layouts'] }] },
+        { tab: 'Reference', groups: [{ group: 'Reference', pages: ['api/cli', 'features/protocols'] }] },
+    ]
+    assert.equal(detectActiveTabIndex(tabs, '/docs/features/protocols'), 1)
+    assert.equal(detectActiveTabIndex(tabs, '/docs/api/cli/'), 1)
+    assert.equal(detectActiveTabIndex(tabs, '/docs/features/layouts'), 0)
+    // Not listed: the folder prefix decides, then the first tab.
+    assert.equal(detectActiveTabIndex(tabs, '/docs/features/other'), 0)
+    assert.equal(detectActiveTabIndex(tabs, '/'), 0)
+})
+
+test('manual nav sections (no path) group pages and name the section', () => {
+    const nav: DocsNav = {
+        items: [
+            { title: 'Guides', children: [{ title: 'Layouts', children: [{ title: 'Overview', path: '/docs/features/layouts' }] }] },
+            { title: 'Hidden', path: '/docs/notes' },
+        ],
+    }
+    assert.deepEqual(docPages(nav).map((p) => p.path), ['/docs/features/layouts', '/docs/notes'])
+    assert.equal(docSection(nav, '/docs/features/layouts'), 'Layouts')
+    const tab = { tab: 'Guides', groups: [{ group: 'Guides', pages: ['features/layouts'] }] }
+    assert.deepEqual(filterNavByTab(nav.items ?? [], tab).map((i) => i.title), ['Guides'])
 })

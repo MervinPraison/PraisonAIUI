@@ -266,7 +266,7 @@ class Compiler:
                                 "group": g.group,
                                 "icon": g.icon,
                                 "prefix": g.prefix,
-                                "pages": g.pages,
+                                "pages": g.page_slugs(),
                             }
                             for g in t.groups
                         ],
@@ -402,6 +402,10 @@ class Compiler:
         pages = scanner.scan()
 
         builder = NavBuilder(pages, base_path=self.config.site.route_base_docs)
+        nav_mode = docs_config.nav.mode if docs_config.nav else "auto"
+        if nav_mode == "manual" and self.config.navigation and self.config.navigation.tabs:
+            groups = [g for t in self.config.navigation.tabs for g in t.groups]
+            return builder.to_dict_grouped(groups, docs_dir=docs_dir)
         return builder.to_dict()
 
     def _generate_route_manifest(self) -> dict:

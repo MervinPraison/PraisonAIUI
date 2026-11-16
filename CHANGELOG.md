@@ -65,6 +65,12 @@
 
 ### New
 
+- Docs sites: `content.docs.nav.mode: manual` builds the sidebar from the YAML
+  tab groups, in the listed order, with nested groups and a frontmatter
+  `nav_title` for short sidebar titles; pages it does not list stay built and
+  searchable. The default (`auto`, one section per folder) is unchanged. See
+  [Navigation](docs/features/navigation.md#a-sidebar-you-list-mode-manual).
+
 - `style: app` (opt-in React shell); see
   [React app shell](docs/features/react-shell.md).
 - App shell: built-in sidebar icons and group order come from the manifest
