@@ -57,7 +57,8 @@ for (const type of ['message', 'tool', 'llm', 'error', 'approval', 'system', 'tr
 }
 if (h.inAppShell) {
   out.inAppShell = String(h.inAppShell());
-  out.glyph = h.glyph('🔍') + '|' + h.glyph('📡', 'radio') + '|' + h.glyph('🙂');
+  // Every emoji a view passes to emptyState() (approvals.js, run-recorder.js).
+  out.emptyIcons = ['📭', '🕳️', '🛫', '✅', '⚠️'].map((icon) => h.emptyState({ icon, title: 't' })).join('|');
 }
 console.log(JSON.stringify(out));
 """
@@ -83,7 +84,7 @@ def test_dashboard_mode_markup_is_unchanged(tmp_path):
     expected = json.loads(FIXTURE.read_text(encoding="utf-8"))
     got = _run(tmp_path, "dashboard")
     assert got.pop("inAppShell") == "false"
-    assert got.pop("glyph") == "🔍|📡|🙂", "glyph() must return the emoji itself in the dashboard"
+    assert got.pop("emptyIcons").count("<svg") == 0
     assert got == expected
 
 
@@ -100,7 +101,9 @@ def test_shell_mode_paints_no_emoji_and_no_hard_coded_colour(tmp_path):
     empty = got["emptyFull"]
     assert "<svg" in empty and "<h3" in empty and "No sessions" in empty
     assert "&lt;now&gt;" in empty and '<button type="button">Go</button>' in empty
-    assert got["glyph"].count("<svg") == 2 and got["glyph"].endswith("|")
+    icons = got["emptyIcons"].split("|")
+    assert all("<svg" in m for m in icons)
+    assert len(set(icons)) == 4, "each view emoji maps to its own icon (📭 and 🕳️ share inbox)"
 
 
 def test_the_shell_switch_lives_in_one_helper():

@@ -20,113 +20,33 @@ export function inAppShell() {
   }
 }
 
-// Lucide paths (24px grid, stroke currentColor), for shell-mode chrome.
+// Lucide paths (24px grid, stroke currentColor) for the shell-mode chrome below.
 const ICON_PATHS = {
-  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  alert: '<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/>',
   bot: '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/>',
-  book: '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
-  calendar: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
-  chart: '<path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
-  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
-  code: '<path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/>',
-  database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>',
-  dollar: '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
-  file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
-  flask: '<path d="M10 2v7.5L4.7 20.5a1 1 0 0 0 .9 1.5h12.8a1 1 0 0 0 .9-1.5L14 9.5V2M8.5 2h7M7 16h10"/>',
-  image: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3-3a2 2 0 0 0-3 0L6 21"/>',
   inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1Z"/>',
-  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
-  key: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
-  link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
-  list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
-  lock: '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   message: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
-  minus: '<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/>',
-  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
-  package: '<path d="m7.5 4.3 9 5.2M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7Z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/>',
   play: '<path d="M6 3l14 9-14 9Z"/>',
-  plug: '<path d="M12 22v-5M9 8V2M15 8V2M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
-  plus: '<path d="M5 12h14M12 5v14"/>',
-  radio: '<path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.1 19.1 19"/>',
-  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
-  send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
-  server: '<rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01M6 18h.01"/>',
-  shield: '<path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1Z"/>',
-  sparkles: '<path d="M9.9 15.5a2 2 0 0 0-1.4-1.4l-6.1-1.6a.5.5 0 0 1 0-1l6.1-1.6a2 2 0 0 0 1.4-1.4l1.6-6.1a.5.5 0 0 1 1 0l1.6 6.1a2 2 0 0 0 1.4 1.4l6.1 1.6a.5.5 0 0 1 0 1l-6.1 1.6a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0Z"/>',
-  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.1-17.1 1.4 1.4m11.3 11.3 1.4 1.4M2 12h2m16 0h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/>',
-  terminal: '<path d="m4 17 6-6-6-6M12 19h8"/>',
-  thumbsDown: '<path d="M17 14V2M9 18.1 10 14H4.2a2 2 0 0 1-1.9-2.6l2.3-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.8a2 2 0 0 0-1.8 1.1L12 22a3.1 3.1 0 0 1-3-3.9Z"/>',
-  thumbsUp: '<path d="M7 10v12M15 5.9 14 10h5.8a2 2 0 0 1 1.9 2.6l-2.3 8a2 2 0 0 1-1.9 1.4H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.8a2 2 0 0 0 1.8-1.1L12 2a3.1 3.1 0 0 1 3 3.9Z"/>',
-  trash: '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
-  unlock: '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
   user: '<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>',
   wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9Z"/>',
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
 };
 
-// Emoji the views paint in their chrome → the icon shown for it in the shell.
-const EMOJI_ICONS = {
-  '📭': 'inbox', '🛫': 'play', '🕳️': 'inbox', '📡': 'radio', '🤖': 'bot', '🔓': 'unlock', '🔑': 'key',
-  '🎫': 'file', '🔐': 'lock', '🖥️': 'server', '🔗': 'link', '🔧': 'wrench', '🧠': 'sparkles', '📦': 'package',
-  '🗑': 'trash', '🗑️': 'trash', '👍': 'thumbsUp', '👎': 'thumbsDown', '😐': 'minus', '🔍': 'search',
-  '➕': 'plus', '📄': 'file', '⏱️': 'clock', '⏰': 'clock', '📋': 'list', '💰': 'dollar', '📊': 'chart',
-  '📨': 'send', '📈': 'activity', '🌙': 'moon', '☀️': 'sun', '🧪': 'flask', '✅': 'check', '❌': 'x',
-  '🖼️': 'image', '💬': 'message', '⛔': 'x', '✋': 'user', '⚙️': 'wrench', '▶️': 'play', '🛡️': 'shield',
-  '🔒': 'lock',
-};
+// Emoji the views pass to emptyState() → the icon shown for it in the shell.
+const EMOJI_ICONS = { '📭': 'inbox', '🕳️': 'inbox', '🛫': 'play', '✅': 'check', '⚠️': 'alert' };
 
-/**
- * Shell button markup. variant: primary | outline | ghost. `attrs` is trusted
- * attribute markup from the caller (ids, data-*), never user text.
- */
-export function shellButton(label, attrs = '', variant = 'primary') {
-  const look = {
-    primary: 'border:1px solid var(--primary);background:var(--primary);color:var(--primary-foreground)',
-    outline: 'border:1px solid var(--input, var(--db-border));background:var(--card, transparent);color:var(--db-text)',
-    ghost: 'border:1px solid transparent;background:transparent;color:var(--db-text-dim)',
-  }[variant] || '';
-  return `<button type="button" ${attrs} style="display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;font:inherit;font-size:14px;font-weight:500;line-height:1;white-space:nowrap;cursor:pointer;${look}">${label}</button>`;
-}
-
-function _svg(name, size) {
-  return icon(name, size);
-}
-
-/** Inline lucide-style SVG (16px, stroke currentColor). '' for an unknown name. */
-export function icon(name, size = 16) {
+function _svg(name, size = 16) {
   const p = ICON_PATHS[name];
   if (!p) return '';
   return `<svg class="aiui-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;vertical-align:-0.15em">${p}</svg>`;
 }
 
-/**
- * An emoji in view chrome: the emoji itself in the dashboard, its icon (or
- * nothing) in the shell. `name` overrides the emoji's default icon.
- */
-export function glyph(emoji, name) {
-  if (!inAppShell()) return emoji;
-  return icon(name || EMOJI_ICONS[emoji] || EMOJI_ICONS[String(emoji).trim()] || '');
-}
-
-/** Status chip on theme colours (shell). tone: success|danger|warning|info|neutral. */
-export function statusChip(label, tone = 'neutral') {
-  const fg = { success: 'var(--db-success)', danger: 'var(--db-error)', warning: 'var(--db-warning)', info: 'var(--db-info)' }[tone] || 'var(--db-text-dim)';
-  const bg = { success: 'var(--db-success-bg)', danger: 'var(--db-error-bg)', warning: 'var(--db-warning-bg)', info: 'var(--db-info-bg)' }[tone] || 'var(--db-muted)';
+/** Status chip on theme colours (shell). tone: success | danger | neutral. */
+function _chip(label, tone) {
+  const fg = { success: 'var(--db-success)', danger: 'var(--db-error)' }[tone] || 'var(--db-text-dim)';
+  const bg = { success: 'var(--db-success-bg)', danger: 'var(--db-error-bg)' }[tone] || 'var(--db-muted)';
   return `<span class="aiui-chip" data-tone="${tone}" style="display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:500;line-height:1;white-space:nowrap;color:${fg};background:${bg}"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:currentColor"></span>${esc(label)}</span>`;
-}
-
-/** A neutral two-letter monogram tile for a name (shell avatars and tiles). */
-export function monogram(name, size = 32) {
-  const words = String(name || '?').replace(/[_-]+/g, ' ').trim().split(/\s+/);
-  const text = ((words[0] || '?')[0] + (words.length > 1 ? words[1][0] : (words[0][1] || ''))).toUpperCase();
-  return `<span class="aiui-monogram" aria-hidden="true" style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:${Math.round(size / 4)}px;background:var(--db-muted);color:var(--db-text-dim);font-size:${Math.round(size * 0.38)}px;font-weight:600;letter-spacing:0">${esc(text)}</span>`;
-}
-
-/** Turn an id (snake_case, kebab-case, camelCase) into a sentence-case label. */
-export function humanize(id) {
-  const s = String(id == null ? '' : id).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').trim().toLowerCase();
-  return s ? s[0].toUpperCase() + s.slice(1) : '';
 }
 
 /**
@@ -700,9 +620,9 @@ export function formatDuration(ms) {
  * @param {string} [opts.actionHtml] - Optional trailing action markup.
  * @returns {string}
  */
-export function emptyState({ icon = '', iconName = '', title, body = '', actionHtml = '' }) {
+export function emptyState({ icon = '', title, body = '', actionHtml = '' }) {
   if (inAppShell()) {
-    const svg = ICON_PATHS[iconName] ? iconName : EMOJI_ICONS[icon] || 'inbox';
+    const svg = EMOJI_ICONS[icon] || 'inbox';
     return `<section class="db-empty-state aiui-empty-state" style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:24px 20px;border:1px dashed var(--input, var(--db-border));border-radius:12px">
     <span aria-hidden="true" style="width:40px;height:40px;border-radius:10px;background:var(--db-muted);color:var(--db-text-dim);display:flex;align-items:center;justify-content:center">${_svg(svg, 18)}</span>
     <h3 style="margin:4px 0 0;font-size:14px;font-weight:600;color:var(--db-text)">${esc(title)}</h3>
@@ -727,8 +647,8 @@ export function emptyState({ icon = '', iconName = '', title, body = '', actionH
 export function traceStatusBadge(status) {
   const s = status || {};
   if (inAppShell()) {
-    if (s.gateway_connected === false) return statusChip('Gateway down', 'danger');
-    return (s.trace_available || s.obs_available) ? statusChip('Connected', 'success') : statusChip('Tracing off', 'neutral');
+    if (s.gateway_connected === false) return _chip('Gateway down', 'danger');
+    return (s.trace_available || s.obs_available) ? _chip('Connected', 'success') : _chip('Tracing off', 'neutral');
   }
   if (s.gateway_connected === false) {
     return '<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(239,68,68,.15);color:#ef4444">● Gateway down</span>';
