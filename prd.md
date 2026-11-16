@@ -44,7 +44,7 @@ PraisonAI-Tools, not here.
 | Surface | How to get it | State |
 |---|---|---|
 | Dashboard (vanilla JS) | default style `dashboard` | Default. Frozen output (ARCHITECTURE R6) |
-| React app shell | `style: app`, `aiui.set_style("app")`, `AIUI_SHELL=app`; kill switch `AIUI_SHELL=legacy` | Opt-in. React chat; other pages through the legacy host or block pages |
+| React app shell | `style: app`, `aiui.set_style("app")`, `AIUI_SHELL=app`; kill switch `AIUI_SHELL=legacy` | Opt-in for `create_app()` (default stays `dashboard`); the default of `aiui run` for a plain chat app, in the `chat` layout (`--style chat` keeps the classic chat). React chat; other pages through the legacy host or block pages |
 | Chat and agent styles | `style: chat`, `agents`, `playground`, `custom` | Older React App (`legacy-app-entry`), Streamdown markdown |
 | Docs | `style: docs`, `aiui build` / `aiui serve` | Supported |
 | Plugins | entry point `praisonaiui.plugins`, `aiui.register_plugin()`, browser `@aiui/sdk` | Supported; built-ins use the same model |

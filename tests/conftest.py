@@ -51,3 +51,9 @@ def _isolate_shell_env(monkeypatch):
     ignore a host ``AIUI_SHELL`` (it would turn style dashboard into app)."""
     monkeypatch.setenv("AIUI_DISABLE_PLUGIN_AUTOLOAD", "1")
     monkeypatch.delenv("AIUI_SHELL", raising=False)
+    yield
+    # `aiui run` sets a process-wide layout default; do not leak it into the
+    # next test's create_app().
+    from praisonaiui.layouts import set_run_default
+
+    set_run_default(None)
