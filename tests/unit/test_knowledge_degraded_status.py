@@ -63,7 +63,7 @@ def sdk(monkeypatch):
     kn.Knowledge = _SwallowingKnowledge
     calls = []
 
-    def embedding(text, model=None):
+    def embedding(text, model=None, **kwargs):
         calls.append(model)
         raise Exception(DENIED)
 
@@ -134,3 +134,10 @@ def test_file_ingest_is_refused_while_embeddings_are_down():
     mgr._embedding_unavailable, mgr._embedding_error = True, DENIED
     result = mgr.add_file("/tmp/notes.pdf")
     assert result["status"] == "error" and result["error"].startswith("Embeddings unavailable")
+
+
+def test_a_configured_embedder_is_not_probed_with_openai(sdk):
+    mgr = SDKKnowledgeManager(embedder={"provider": "ollama", "config": {"model": "nomic"}})
+    mgr._get_sdk_knowledge()
+    assert sdk == [], "the caller's embedder is used by the adapters, not OPENAI_EMBEDDING_MODEL"
+    assert mgr.health()["status"] == "ok"

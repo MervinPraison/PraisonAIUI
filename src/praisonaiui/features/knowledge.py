@@ -328,11 +328,19 @@ class SDKKnowledgeManager(KnowledgeProtocol):
     def _probe_embedding(self) -> None:
         """Embed one word, as the SDK's adapters do: they log a failed
         embedding and return no hits (search) or a failed result (store), so
-        the search probe above never sees it."""
+        the search probe above never sees it.
+
+        Skipped when the caller configured its own ``embedder``: the adapters
+        embed with that, not ``OPENAI_EMBEDDING_MODEL``, so probing OpenAI would
+        mark a working local embedder as down. A failed write still flags it.
+        """
+        if (self._config or {}).get("embedder"):
+            return
         try:
             from praisonaiagents.embedding import embedding
 
-            embedding("probe", model=_embedding_model())
+            # Bounded: this runs under the init lock on the first knowledge call.
+            embedding("probe", model=_embedding_model(), timeout=10.0)
         except ImportError:
             return
         except Exception as e:
