@@ -38,7 +38,7 @@ test('built-in names are unique, namespaced and each one owns a page or is a ser
 
 test('the built-in layouts and their picker ship in the list (otherwise Rollup drops them)', () => {
   const names = BUILTIN_PLUGINS.map((b) => b.name)
-  assert.deepEqual(names, ['builtin.chat', 'builtin.approvals', 'builtin.layouts', 'builtin.layout-guided', 'builtin.overview', 'builtin.sessions', 'builtin.agents', 'builtin.logs', 'builtin.config', 'builtin.artifacts'])
+  assert.deepEqual(names, ['builtin.chat', 'builtin.approvals', 'builtin.layouts', 'builtin.layout-guided', 'builtin.overview', 'builtin.sessions', 'builtin.agents', 'builtin.knowledge', 'builtin.logs', 'builtin.config', 'builtin.artifacts'])
 })
 
 const page = (id: string, extra: Partial<ShellPage> = {}): ShellPage => ({

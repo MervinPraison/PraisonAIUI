@@ -1,10 +1,11 @@
 /**
- * The app shell's React pages for five built-in pages (ProOverview,
- * ProList twice, ProLogs and ProSettings in the Pro tokens). Each is the
- * browser half of its Python record (builtin.overview, builtin.sessions,
- * builtin.agents, builtin.logs, builtin.config): it registers only when the manifest lists
- * the page, through the same `registerPage` a plugin uses, and its code is
- * a lazy chunk fetched when the page is opened.
+ * The app shell's React pages for six built-in pages (ProOverview,
+ * ProList three times, ProLogs and ProSettings in the Pro tokens). Each is
+ * the browser half of its Python record (builtin.overview, builtin.sessions,
+ * builtin.agents, builtin.knowledge, builtin.logs, builtin.config): it
+ * registers only when the manifest lists the page, through the same
+ * `registerPage` a plugin uses, and its code is a lazy chunk fetched when
+ * the page is opened.
  *
  * Inside a layout frame the React page renders; in the classic frame it
  * renders the legacy view as before (app-pages/shared inLayoutOnly). The
@@ -29,6 +30,7 @@ export const appPageBuiltins: readonly BuiltinPlugin[] = Object.freeze([
   pagePlugin('builtin.overview', 'overview', () => import('@/app-pages/overview/OverviewPage')),
   pagePlugin('builtin.sessions', 'sessions', () => import('@/app-pages/sessions/SessionsPage')),
   pagePlugin('builtin.agents', 'agents', () => import('@/app-pages/agents/AgentsPage')),
+  pagePlugin('builtin.knowledge', 'knowledge', () => import('@/app-pages/knowledge/KnowledgePage')),
   pagePlugin('builtin.logs', 'logs', () => import('@/app-pages/logs/LogsPage')),
   pagePlugin('builtin.config', 'config', () => import('@/app-pages/settings/SettingsPage')),
 ])

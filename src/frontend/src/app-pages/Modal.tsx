@@ -14,6 +14,7 @@ export function Modal({
   title,
   description,
   children,
+  onOpenAutoFocus,
 }: {
   open: boolean
   onOpenChange(open: boolean): void
@@ -21,12 +22,16 @@ export function Modal({
   description?: ReactNode
   /** The body and the actions row. */
   children?: ReactNode
+  /** Where focus goes on open (default: the first focusable control); call preventDefault and focus your own. */
+  onOpenAutoFocus?: (event: Event) => void
 }) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <DialogPrimitive.Content className="fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl border border-hairline bg-background p-6 shadow-lg outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg">
+        <DialogPrimitive.Content
+          onOpenAutoFocus={onOpenAutoFocus}
+          className="fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl border border-hairline bg-background p-6 shadow-lg outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg">
           <div className="flex flex-col gap-2">
             <DialogPrimitive.Title className="m-0 text-lg leading-none font-semibold">{title}</DialogPrimitive.Title>
             {description ? (
