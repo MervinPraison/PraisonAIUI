@@ -1,16 +1,27 @@
 # YAML Configuration
 
-Complete guide to the `aiui.template.yaml` configuration schema.
+The `aiui.template.yaml` schema: what `aiui validate` checks and `aiui build`
+compiles. The source of truth is
+[`schema/models.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/schema/models.py)
+(`Config`). The runtime state file of a running server is a different file; see
+[Runtime Persistence](#runtime-persistence-configyaml) below.
 
 ## Overview
 
-PraisonAIUI uses a single YAML file to configure your entire site. This file defines:
+| Key | What it sets | Page |
+|-----|--------------|------|
+| `schemaVersion` | Schema version (`1`) | below |
+| `site` | Title, description, theme, logo, custom CSS | below, [Theming](../features/theming.md) |
+| `style` | UI style (`docs` by default for a site) | [UI Styles](../features/styles.md) |
+| `content` | Where the Markdown lives | [Content Sources](../features/content-sources.md) |
+| `components`, `templates`, `routes` | Layout of each page | below, [Templates](templates.md), [Slots](slots.md) |
+| `navigation`, `navbar`, `footer`, `logo`, `search` | Docs site chrome | [Navigation](../features/navigation.md) |
+| `seo`, `i18n`, `a11y` | Meta tags, locales, accessibility switches | [SEO](../features/seo.md), [i18n](../features/i18n.md) |
+| `layout` | Chat position, and the app shell's layouts | [Layouts](../features/layouts.md) |
+| `chat`, `auth`, `dashboard`, `widgets`, `extensions` | Chat, sign-in, dashboard and plugin settings | [Deployment](../features/deployment.md), [Plugins](../features/plugins.md) |
+| `dependencies` | shadcn components to install at build time | below |
 
-- **Site metadata** - Title, description, theme
-- **Content sources** - Where to find your docs
-- **Components** - Reusable UI elements
-- **Templates** - Page layouts with slots
-- **Routes** - URL patterns to template mappings
+`aiui validate --strict` turns unknown keys into errors.
 
 ## Schema Version
 
@@ -48,7 +59,10 @@ dependencies:
     - dialog
 ```
 
-When you run `aiui build`, any missing components are automatically installed via `npx shadcn add`.
+When you run `aiui build`, missing components are installed with
+`npx shadcn@latest add <name>` into the frontend source (`src/frontend` in a
+repository checkout). This only matters when you build the frontend yourself;
+the bundled React app does not change.
 
 ## Content Sources
 
@@ -61,15 +75,10 @@ content:
       - "**/*.mdx"
     exclude:                         # Excluded patterns
       - "**/drafts/**"
-    indexFiles:
-      - "index.md"
-      - "README.md"
-    nav:
-      mode: "auto"                   # auto | manual
-      sort: "filesystem"             # filesystem | alpha | date
-      collapsible: true
-      maxDepth: 4
 ```
+
+`indexFiles` and `nav` (`mode`, `sort`, `collapsible`, `maxDepth`) are accepted
+but not read by the build yet; see [Navigation](../features/navigation.md).
 
 ## Components
 
@@ -137,7 +146,6 @@ templates:
     layout: "FlexibleLayout"
     zones:
       rightSidebar:
-        - type: "Toc"
         - type: "StatsCard"
           props:
             title: "Users"
@@ -150,31 +158,8 @@ templates:
             text: "© 2024"
 ```
 
-### Available Zones
-
-| Zone | Description |
-|------|-------------|
-| `header` | Top header |
-| `topNav` | Below header nav |
-| `hero` | Hero banners |
-| `leftSidebar` | Left column |
-| `main` | Main content |
-| `rightSidebar` | Right column |
-| `bottomNav` | Pagination area |
-| `footer` | Footer widgets |
-
-### Built-in Widgets
-
-| Widget | Description |
-|--------|-------------|
-| `StatsCard` | Metrics display |
-| `QuickLinks` | Navigation links |
-| `Newsletter` | Email signup |
-| `HeroBanner` | Hero section |
-| `SocialLinks` | Social icons |
-| `Copyright` | Copyright text |
-
-See [Widget Zones](../features/widget-zones.md) for full documentation.
+Zones, the widgets and which layouts render them:
+[Widget Zones](../features/widget-zones.md).
 
 ## Routes
 
@@ -182,18 +167,21 @@ Map URL patterns to templates:
 
 ```yaml
 routes:
-  - match: "/docs/**"
-    template: "docs"
-
   - match: "/docs/changelog"
     template: "docs"
     slots:
       right: null                      # Override: hide TOC
+
+  - match: "/docs/**"
+    template: "docs"
 ```
 
 Route matching uses glob patterns:
-- `*` - Single segment
-- `**` - Multiple segments
+- `*` - one path segment
+- `**` - any number of segments
+
+The first matching route wins, so list specific routes before broad ones.
+A route's `slots` override the template's slots for that route.
 
 ## Complete Example
 
@@ -247,7 +235,7 @@ routes:
 
 > **Single source of truth** for all runtime feature state.
 
-In addition to `aiui.template.yaml` (which drives static site generation), PraisonAIUI uses a **unified runtime config file** at `~/.praisonaiui/config.yaml`. This file stores all feature state — agents, channels, guardrails, schedules, and runtime settings — in a single YAML file that persists across server restarts.
+In addition to `aiui.template.yaml` (which drives static site generation), PraisonAIUI uses a **unified runtime config file**, `config.yaml` in the data directory (`AIUI_DATA_DIR`, default `~/.praisonaiui/`). This file stores all feature state — agents, channels, guardrails, schedules, and runtime settings — in a single YAML file that persists across server restarts.
 
 This is compatible with the `gateway.yaml` schema used by `praisonai gateway start --config`.
 
@@ -283,7 +271,7 @@ channels:
     name: "My Bot"
     platform: "telegram"
     config:
-      bot_token: "${TELEGRAM_BOT_TOKEN}"
+      bot_token: "env:TELEGRAM_BOT_TOKEN"
 
 # Runtime configuration (set via /api/config/runtime)
 runtime_config:
@@ -318,28 +306,17 @@ All CRUD operations (dashboard, REST API, CLI) **automatically write back** to t
 | Schedules | `schedules` | Add, remove, update |
 | Agents | `agents` | Create, update, delete |
 
-- **Atomic writes**: Uses `tempfile` + `os.rename()` to prevent corruption.
-- **Hot reload**: The [Config Hot-Reload](../features/config-hot-reload.md) feature watches this file for external changes.
-- **Environment variables**: Use `${ENV_VAR}` syntax for secrets (never stored in plaintext).
+- **Atomic writes**: a temp file and `os.replace()` prevent corruption.
+- **Hot reload**: the [Config Hot-Reload](../features/config-hot-reload.md) watcher, once started, reloads this file after external edits.
+- **Secrets**: channel secrets are written as `env:VAR_NAME` references (a `<key>_ref` key works too); the server refuses an inline token that looks like a secret and redacts secrets in API responses.
 
-#### Environment Variable vs Config File
-
-| | Env Variable | Config File |
-|---|---|---|
-| **Security** | ✅ Not in source control | ⚠️ Risk of committing secrets to git |
-| **12-Factor App** | ✅ Standard practice | ❌ Violates config-as-env principle |
-| **CI/CD** | ✅ Easy to inject per environment | ❌ Needs file management |
-| **Docker/K8s** | ✅ Native secret support | ❌ Requires volume mounts |
-| **Multiple envs** | ✅ Different key per env (dev/staging/prod) | ⚠️ Need separate config files |
-
-**Rule of thumb**: Secrets (API keys, tokens) → environment variables. Preferences (model, theme, branding) → config file.
-
-- **Custom path**: Set `PRAISONAIUI_CONFIG_PATH` to use a different file location.
+Rule of thumb: secrets (API keys, tokens) go in environment variables;
+preferences (model, theme, branding) in the config file.
 
 ### Relationship to `aiui.template.yaml`
 
 | File | Purpose | Used By |
 |------|---------|---------|
-| `aiui.template.yaml` | Static site layout, components, routes | `aiui build`, `aiui dev` |
-| `~/.praisonaiui/config.yaml` | Runtime feature state (agents, channels, config) | `aiui run`, dashboard API |
+| `aiui.template.yaml` | Static site layout, components, routes | `aiui build`, `aiui serve`, `aiui validate` |
+| `$AIUI_DATA_DIR/config.yaml` | Runtime feature state (agents, channels, config) | `aiui run`, dashboard API |
 | `gateway.yaml` | Subset of `config.yaml` (legacy compatibility) | `praisonai gateway start` |

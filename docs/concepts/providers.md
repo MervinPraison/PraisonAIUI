@@ -8,12 +8,12 @@ PraisonAIUI uses a **provider protocol** — a simple abstraction that lets you 
 graph TD
     subgraph "Frontend (React)"
         UI["Dashboard / Chat / Agents"]
-        SSE["SSE Stream Consumer"]
+        SSE["WebSocket or SSE stream"]
         API["REST API Client"]
     end
 
     subgraph "Server (server.py)"
-        Routes["/run, /agents, /sessions, /api/*"]
+        Routes["WS /api/chat/ws, /run, /sessions, /api/*"]
         Provider["get_provider()"]
     end
 
@@ -26,9 +26,7 @@ graph TD
 
     subgraph "Pluggable Backends"
         P1["PraisonAIProvider (default)"]
-        P2["OpenClawProvider"]
-        P3["LangChainProvider"]
-        P4["Custom Provider"]
+        P4["Your provider (aiui.set_provider)"]
     end
 
     UI --> API --> Routes --> Provider
@@ -36,22 +34,26 @@ graph TD
     Provider --> Run
     Provider --> List
     Provider --> Health
-    Run --> P1 & P2 & P3 & P4
+    Run --> P1 & P4
 ```
 
 The provider protocol is the **only contract** between the frontend and any AI backend. All dashboard pages (`/api/overview`, `/api/config`, `/api/logs`, etc.) are provider-agnostic — they always work regardless of which backend is active. The provider only handles agent execution (`run()`), agent listing (`list_agents()`), and health checks (`health()`).
 
 ## How It Works
 
-1. User sends a message → `POST /run`
-2. Server calls `provider.run(message)` on the active provider
-3. Provider yields `RunEvent` objects (start, content, tool calls, reasoning, completion)
-4. Server serialises each `RunEvent` to an SSE `data:` frame
-5. Frontend `useSSE.ts` parses events and renders components
+1. The user sends a message: a `chat` frame on the WebSocket `/api/chat/ws`
+   (the default for the chat page and the app shell), or `POST /run` (SSE)
+2. The server calls `provider.run(message)` on the active provider
+3. The provider yields `RunEvent` objects (start, content, tool calls, reasoning, completion)
+4. The server sends each event as a WebSocket message or an SSE `data:` frame
+   (`RunEvent.to_dict()`) and stores the finished turn in the datastore
+5. The frontend renders the events as they arrive
 
 ## Built-in Provider: PraisonAI
 
-PraisonAI is the default provider. It wraps the `@aiui.reply` callback system:
+`PraisonAIProvider` is the default. When the app registers a `@aiui.reply`
+callback, it runs the callback and turns its `aiui.say()`, `aiui.think()`,
+`aiui.image()` and other calls into `RunEvent`s:
 
 ```python
 import praisonaiui as aiui
@@ -62,7 +64,10 @@ async def on_message(message: str):
     await aiui.say("Hello!")
 ```
 
-No extra config needed — `PraisonAIProvider` is used automatically.
+Without a callback it runs a `praisonaiagents` `Agent` (install
+`aiui[praisonai]`): the agent named in the request when one is defined through
+the agents API or `config.yaml`, else a default assistant. Without
+`praisonaiagents` it echoes the message.
 
 ### Agent Tools and Reflection
 
@@ -79,9 +84,9 @@ The default provider resolves tools for agents using `ToolResolver` from the `pr
 # 4. Tool registry (programmatic)
 ```
 
-When no tools are configured, the provider gives agents sensible defaults (`internet_search`).
-
-Agents also support `reflection: true` (default) for self-reflection mode, where the agent evaluates its own response quality before returning.
+When an agent has no tools configured, the provider gives it the tools of the
+SDK's `autonomy` profile (file operations, command execution, web search). The
+default assistant runs with `reflection` off.
 
 ## Swapping Providers
 
@@ -131,8 +136,10 @@ Tool results from PraisonAI agents are also detected automatically when they
 match OpenAI image shapes (``{"data": [{"url": "..."}]}``) or explicit element
 dicts — no provider code required.
 
-Callback handlers can use ``Message.add_image()`` or ``await aiui.image(url)``
-and the default ``PraisonAIProvider`` maps those to ``MESSAGE_ELEMENT`` events.
+Callback handlers can use ``await aiui.image(url)`` (or dict entries in
+``Message.elements``) and the default ``PraisonAIProvider`` maps those to
+``MESSAGE_ELEMENT`` events. Typed elements from ``Message.add_image()`` are not
+forwarded yet; see [Message Elements](../features/message-elements.md).
 
 Full architecture, data flows, and tests: [Image Preview in Chat](../features/image-preview-chat.md).
 
@@ -180,12 +187,14 @@ Every event has a `type` field and optional payload fields:
 | `name` | `str` | `TOOL_CALL_*` |
 | `args` | `dict` | `TOOL_CALL_STARTED` |
 | `result` | `any` | `TOOL_CALL_COMPLETED` |
-| `step` | `str` | `REASONING_STEP` |
+| `tool_call_id` | `str` | `TOOL_CALL_*` (pairs start and completion) |
+| `step` | `str` | `REASONING_STEP` (also `action`, `confidence`, `next_action`) |
+| `query`, `references`, `time_ms` | `str`, `list`, `float` | `REFERENCES` (RAG sources) |
 | `error` | `str` | `RUN_ERROR` |
-| `agent_name` | `str` | Multi-agent events |
+| `agent_id`, `agent_name`, `team_id` | `str` | Multi-agent events |
 | `extra_data` | `dict` | Custom payload (includes `element` for `message_element`) |
 
-### Event Types (27 total)
+### Event Types (30 total)
 
 === "Agent Events"
 
@@ -198,6 +207,7 @@ Every event has a `type` field and optional payload fields:
     | `run_cancelled` | User cancelled |
     | `tool_call_started` | Tool invocation started |
     | `tool_call_completed` | Tool returned result |
+    | `llm_content` | Narrative text between tool calls |
     | `reasoning_started` | Thinking begun |
     | `reasoning_step` | Individual reasoning step |
     | `reasoning_completed` | Thinking finished |
@@ -206,6 +216,7 @@ Every event has a `type` field and optional payload fields:
     | `updating_memory` | Memory being updated |
     | `run_paused` | Run paused (e.g. waiting for user) |
     | `run_continued` | Run resumed |
+    | `references` | RAG source chunks for the answer |
     | `message_element` | Inline media element (image, video, file, etc.) — see [Image Preview in Chat](../features/image-preview-chat.md) |
 
 === "Team Events"
@@ -229,23 +240,25 @@ Every event has a `type` field and optional payload fields:
 
 ### `BaseProvider` (abstract)
 
-:   Subclass and implement `run()` to create a custom provider.
+Subclass and implement `run()` to create a custom provider.
 
-    | Method | Description |
-    |--------|-------------|
-    | `run(message, *, session_id, agent_name, **kw)` | **Required.** Async generator yielding `RunEvent` objects |
-    | `list_agents()` | Optional. Returns list of available agents |
-    | `health()` | Optional. Returns health check dict |
+| Method | Description |
+|--------|-------------|
+| `run(message, *, session_id, agent_name, **kw)` | **Required.** Async generator yielding `RunEvent` objects |
+| `list_agents()` | Optional. Returns list of available agents |
+| `run_team(...)` | Optional. Multi-agent run |
+| `health()` | Optional. Returns health check dict |
+| `message_element_event(element)` | Static helper: a `MESSAGE_ELEMENT` event for an element dict |
 
 ### `RunEvent` (dataclass)
 
-:   Structured event with `type: RunEventType` and optional payload fields (see table above).
-
-    - `to_dict()` → serialise to JSON-compatible dict matching the frontend `SSEEvent` interface
+Structured event with `type: RunEventType` and optional payload fields (see
+the table above). `to_dict()` serialises it to the JSON the frontend reads.
 
 ### `RunEventType` (enum)
 
-:   27 string values matching the frontend `types.ts` — see Agent Events and Team Events tabs above.
+30 string values matching the frontend `types.ts`; see the Agent Events and
+Team Events tabs above.
 
 ### Helper Functions
 
