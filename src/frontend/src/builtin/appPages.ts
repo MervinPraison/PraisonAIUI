@@ -1,8 +1,8 @@
 /**
- * The app shell's React pages for five built-in pages (ProOverview,
- * ProList twice, ProLogs and ProSettings in the Pro tokens). Each is the
+ * The app shell's React pages for six built-in pages (ProOverview,
+ * ProList three times, ProLogs and ProSettings in the Pro tokens). Each is the
  * browser half of its Python record (builtin.overview, builtin.sessions,
- * builtin.agents, builtin.logs, builtin.config): it registers only when the manifest lists
+ * builtin.agents, builtin.logs, builtin.config, builtin.cron): it registers only when the manifest lists
  * the page, through the same `registerPage` a plugin uses, and its code is
  * a lazy chunk fetched when the page is opened.
  *
@@ -49,4 +49,5 @@ export const appPageBuiltins: readonly BuiltinPlugin[] = Object.freeze([
   pagePlugin('builtin.agents', 'agents', () => import('@/app-pages/agents/AgentsPage')),
   pagePlugin('builtin.logs', 'logs', () => import('@/app-pages/logs/LogsPage')),
   pagePlugin('builtin.config', 'config', () => import('@/app-pages/settings/SettingsPage'), settingsCommand),
+  pagePlugin('builtin.cron', 'cron', () => import('@/app-pages/cron/CronPage')),
 ])

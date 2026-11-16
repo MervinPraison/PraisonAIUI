@@ -384,6 +384,7 @@ async def _execute_job(job_id: str, job) -> None:
     if isinstance(job, dict):
         job["last_run_at"] = started_at
         job["run_count"] = job.get("run_count", 0) + 1
+        job["last_status"] = status
         if hasattr(store, "update"):
             store.update(job)
     elif hasattr(job, "last_run_at"):
@@ -479,6 +480,23 @@ def _ensure_scheduler_started() -> None:
         _scheduler_task = loop.create_task(_scheduler_loop())
     except RuntimeError:
         pass  # no event loop — scheduler will start on first async call
+
+
+def _normalize_schedule(raw) -> Dict[str, Any]:
+    """A request's ``schedule`` (a dict, or a bare cron string) as the stored dict."""
+    if isinstance(raw, str):
+        raw = {"kind": "cron", "cron_expr": raw}
+    elif not isinstance(raw, dict):
+        raw = {"kind": "every", "every_seconds": 60}
+    fields = ("every_seconds", "cron_expr", "at")
+    return {"kind": raw.get("kind", "every"), **{k: raw.get(k) for k in fields}}
+
+
+def _cron_available() -> bool:
+    """Cron schedules run only when croniter is installed (``_is_job_due``)."""
+    import importlib.util
+
+    return importlib.util.find_spec("croniter") is not None
 
 
 def _create_schedule_job(job_dict: Dict[str, Any]):
@@ -713,18 +731,15 @@ class SchedulesFeature(BaseFeatureProtocol):
         store = _get_schedule_store()
         jobs_raw = store.list() if hasattr(store, "list") else []
         jobs = [_to_dict(j) for j in jobs_raw]
-        return JSONResponse({"schedules": jobs, "count": len(jobs)})
+        return JSONResponse(
+            {"schedules": jobs, "count": len(jobs), "cron_available": _cron_available()}
+        )
 
     async def _add(self, request: Request) -> JSONResponse:
         _ensure_scheduler_started()
         body = await request.json()
         job_id = uuid.uuid4().hex[:12]
-        schedule = body.get("schedule", {})
-        if isinstance(schedule, str):
-            # Frontend may send cron as a raw string — parse it
-            schedule = {"kind": "cron", "cron_expr": schedule}
-        elif not isinstance(schedule, dict):
-            schedule = {"kind": "every", "every_seconds": 60}
+        schedule = _normalize_schedule(body.get("schedule", {}))
         # Build delivery target dict (matches SDK gateway.yaml schema)
         delivery = None
         channel = body.get("channel", "")
@@ -739,12 +754,7 @@ class SchedulesFeature(BaseFeatureProtocol):
         job = {
             "id": job_id,
             "name": body.get("name", ""),
-            "schedule": {
-                "kind": schedule.get("kind", "every"),
-                "every_seconds": schedule.get("every_seconds"),
-                "cron_expr": schedule.get("cron_expr"),
-                "at": schedule.get("at"),
-            },
+            "schedule": schedule,
             "message": body.get("message", "") or body.get("action", ""),
             "agent_id": body.get("agent_id"),
             "agent_name": body.get("agent_name"),
@@ -758,7 +768,10 @@ class SchedulesFeature(BaseFeatureProtocol):
         }
         store = _get_schedule_store()
         if hasattr(store, "add"):
-            schedule_job = _create_schedule_job(job)
+            # The dict store keeps the job as sent: the SDK dataclass would drop
+            # agent_name and run_count on its way back to a dict.
+            dict_store = isinstance(store, _InMemoryScheduleStore)
+            schedule_job = job if dict_store else _create_schedule_job(job)
             try:
                 store.add(schedule_job)
             except Exception as e:
@@ -814,9 +827,6 @@ class SchedulesFeature(BaseFeatureProtocol):
             job.last_run_at = started_at
             if hasattr(store, "update"):
                 store.update(job)
-        elif isinstance(job, dict):
-            job["last_run_at"] = started_at
-            job["run_count"] = job.get("run_count", 0) + 1
 
         # Try to execute the action via a gateway-registered agent (DRY: uses shared helper)
         result = None
@@ -856,6 +866,11 @@ class SchedulesFeature(BaseFeatureProtocol):
             delivered = await _deliver_result(delivery_dict, str(result))
 
         duration = round(time.time() - started_at, 2)
+        if isinstance(job, dict):
+            # Persist the run on the job (the store reloads from disk on read).
+            runs = job.get("run_count", 0) + 1
+            job.update(last_run_at=started_at, run_count=runs, last_status=status)
+            store.update(job)
 
         # Store run in history
         history_entry = {
@@ -893,7 +908,10 @@ class SchedulesFeature(BaseFeatureProtocol):
             return JSONResponse({"error": "Job not found"}, status_code=404)
         body = await request.json()
         # Update simple fields on the job object
-        for key in ("name", "message", "agent_id", "session_target", "enabled"):
+        if "schedule" in body:
+            body["schedule"] = _normalize_schedule(body["schedule"])
+        editable = ("name", "message", "agent_id", "agent_name", "session_target", "enabled")
+        for key in (*editable, "schedule"):
             if key in body:
                 if hasattr(job, key):
                     setattr(job, key, body[key])

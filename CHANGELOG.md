@@ -65,6 +65,8 @@
 
 ### New
 
+- App shell: a React Cron page inside the layouts: schedules in words and as
+  cron, next and last run, an enabled switch, Run now, and a schedule builder.
 - `style: app` (opt-in React shell); see
   [React app shell](docs/features/react-shell.md).
 - App shell: built-in sidebar icons and group order come from the manifest
@@ -105,6 +107,8 @@
   reads each write's result: status `degraded` with a plain reason, `persisted:
   false` and a `warning` on the add, `search_mode: fallback`. See
   [Knowledge embeddings](docs/features/knowledge-embeddings.md).
+- Schedules: `PUT /api/schedules/{id}` now changes `schedule` and `agent_name`,
+  create keeps `agent_name`, and Run now records the run on the stored job.
 - The `chat` style (the default of `aiui run`) and the other React styles
   follow the OS colour scheme, live, when neither the app (`set_theme`, YAML
   `site.theme`) nor the viewer chose a mode. They used to read only the
