@@ -99,3 +99,15 @@ test('knowledge on a phone: the detail replaces the list, Back returns to it', a
   await expect(root.getByRole('table', { name: 'Knowledge' })).toBeVisible()
   expect(await hasHorizontalOverflow(page)).toBe(false)
 })
+
+test('knowledge: an add the store did not save warns instead of "Knowledge added"', async ({ page }) => {
+  const warning = 'Not saved to the vector store (offline). The entry is kept in memory and won\'t persist across restarts.'
+  await page.route('**/api/knowledge', (route) => (route.request().method() === 'POST' ? route.fulfill({ json: { id: 'k1', persisted: false, warning } }) : route.fallback()))
+  await open(page)
+  const dialog = await add(page, 'Add text')
+  await dialog.getByRole('textbox', { name: 'Text' }).fill('Support hours are Monday to Friday.')
+  await dialog.getByRole('button', { name: 'Add knowledge' }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByText(warning)).toBeVisible()
+  await expect(page.getByText('Knowledge added')).toHaveCount(0)
+})
