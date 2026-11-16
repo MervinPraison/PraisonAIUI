@@ -70,6 +70,32 @@ def _write_failure(result: Any) -> Optional[str]:
     return None
 
 
+def _sdk_items(results: Any) -> List[Dict[str, Any]]:
+    """Unpack what the SDK returns from ``search`` / ``get_all`` / ``get``.
+
+    The Chroma adapter returns a ``SearchResult`` whose ``.results`` are
+    ``SearchResultItem`` objects; mem0 returns a list or ``{"results": [...]}``
+    of dicts that name the text ``memory``.
+    """
+    items = getattr(results, "results", results)
+    if isinstance(items, dict):
+        items = items.get("results", [])
+    if not isinstance(items, list):
+        return []
+    out = []
+    for i, r in enumerate(items):
+        get = r.get if isinstance(r, dict) else lambda k, d=None, r=r: getattr(r, k, d)
+        out.append(
+            {
+                "id": str(get("id") or i),
+                "text": get("memory") or get("text") or "",
+                "metadata": get("metadata") or {},
+                "score": get("score", 1.0),
+            }
+        )
+    return out
+
+
 # ── Knowledge Protocol ───────────────────────────────────────────────
 
 
@@ -374,14 +400,20 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         failure: Optional[str] = "the vector store is not available"
         if sdk is not None:
             try:
-                failure = _write_failure(
-                    sdk.store(
-                        text,
-                        user_id=user_id or "praisonaiui",
-                        agent_id=agent_id,
-                        metadata=metadata or {},
-                    )
+                result = sdk.store(
+                    text,
+                    user_id=user_id or "praisonaiui",
+                    agent_id=agent_id,
+                    metadata=metadata or {},
                 )
+                failure = _write_failure(result)
+                # One ID for both copies: the vector store's document ID, so
+                # list/search hits, GET and DELETE all address the same entry.
+                sdk_id = (
+                    result.get("id") if isinstance(result, dict) else getattr(result, "id", None)
+                )
+                if failure is None and sdk_id:
+                    entry_id = entry["id"] = str(sdk_id)
             except Exception as e:
                 failure = str(e)
         entry["sdk_synced"] = entry["persisted"] = failure is None
@@ -425,18 +457,10 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         sdk = self._get_sdk_knowledge()
         if sdk is not None:
             try:
-                results = sdk.search(query, limit=limit, user_id="praisonaiui")
-                if isinstance(results, list) and results:
+                hits = _sdk_items(sdk.search(query, limit=limit, user_id="praisonaiui"))
+                if hits:
                     self._last_search_meta = {"mode": "vector", "error": None}
-                    return [
-                        {
-                            "id": str(r.get("id", i)),
-                            "text": r.get("memory", r.get("text", str(r))),
-                            "metadata": r.get("metadata", {}),
-                            "score": r.get("score", 1.0),
-                        }
-                        for i, r in enumerate(results[:limit])
-                    ]
+                    return hits[:limit]
             except BaseException as e:
                 err_msg = str(e)
                 logger.warning("SDK knowledge search failed: %s; falling back to local", e)
@@ -508,25 +532,12 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         sdk = self._get_sdk_knowledge()
         if sdk is not None:
             try:
-                all_items = sdk.get_all(user_id="praisonaiui")
-                # Handle dict response format: {'results': [...]}
-                if isinstance(all_items, dict):
-                    all_items = all_items.get("results", [])
-                if isinstance(all_items, list) and all_items:
-                    sdk_entries = [
-                        {
-                            "id": str(r.get("id", i)),
-                            "text": r.get("memory", r.get("text", str(r))),
-                            "metadata": r.get("metadata", {}),
-                        }
-                        for i, r in enumerate(all_items)
-                    ]
-                    # Merge with local index (local entries may have more metadata)
-                    seen_ids = {e["id"] for e in sdk_entries}
-                    for entry in self._local_index.values():
-                        if entry["id"] not in seen_ids:
-                            sdk_entries.append(entry)
-                    return sdk_entries
+                items = _sdk_items(sdk.get_all(user_id="praisonaiui"))
+                # Merge by ID; this session's local copy carries more fields.
+                entries = [self._local_index.get(e["id"], e) for e in items]
+                seen_ids = {e["id"] for e in entries}
+                entries.extend(e for e in self._local_index.values() if e["id"] not in seen_ids)
+                return entries
             except BaseException as e:
                 logger.warning("SDK get_all failed: %s; using local index", e)
         return list(self._local_index.values())
@@ -542,7 +553,8 @@ class SDKKnowledgeManager(KnowledgeProtocol):
             try:
                 result = sdk.get(entry_id)
                 if result:
-                    return {"id": entry_id, "text": str(result), "metadata": {}}
+                    items = _sdk_items([result])
+                    return {**items[0], "id": entry_id} if items else None
             except Exception:
                 pass
         return None

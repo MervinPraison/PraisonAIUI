@@ -105,6 +105,11 @@
   reads each write's result: status `degraded` with a plain reason, `persisted:
   false` and a `warning` on the add, `search_mode: fallback`. See
   [Knowledge embeddings](docs/features/knowledge-embeddings.md).
+- Knowledge with a working vector store lists and searches what the store
+  holds. `GET /api/knowledge` and `POST /api/knowledge/search` used to ignore
+  the Chroma adapter's `SearchResult` and show only this run's in-memory
+  copies, matched by keyword. A stored entry now takes the vector store's
+  document ID, so list, search, `GET` and `DELETE` address one entry (#398).
 - The `chat` style (the default of `aiui run`) and the other React styles
   follow the OS colour scheme, live, when neither the app (`set_theme`, YAML
   `site.theme`) nor the viewer chose a mode. They used to read only the
