@@ -332,34 +332,9 @@ class SessionsFeature(BaseFeatureProtocol):
         except Exception as e:
             logger.warning(f"datastore.list_sessions() failed: {e}")
 
-        seen_ids = {s["id"] for s in sessions}
-
-        # Merge gateway agent IDs as virtual sessions
-        try:
-            from ._gateway_ref import get_gateway
-
-            gw = get_gateway()
-            if gw is not None:
-                for aid in gw.list_agents():
-                    agent = gw.get_agent(aid)
-                    name = getattr(agent, "name", aid) if agent else aid
-                    vsid = f"agent:{name}"
-                    if vsid not in seen_ids:
-                        meta = _get_metadata(vsid)
-                        sessions.append(
-                            {
-                                "id": vsid,
-                                "session_id": vsid,
-                                "is_active": True,
-                                "message_count": 0,
-                                "labels": meta.get("_labels", []),
-                                "created_at": meta.get("_created_at"),
-                                "updated_at": meta.get("_updated_at"),
-                            }
-                        )
-        except (ImportError, Exception):
-            pass
-
+        # Conversations only: an agent registered with the gateway is not a
+        # session (the Agents page lists agents). Listing each as an empty
+        # "agent:<name>" placeholder put one into the chat sidebar per agent.
         return JSONResponse({"sessions": sessions, "count": len(sessions)})
 
     async def _search_sessions(self, request: Request) -> JSONResponse:
