@@ -15,8 +15,10 @@ import { ago, toMs } from './shared'
 import { filterRows, sessionRows, sortRows } from './sessions/model'
 import { logEntries, logsAsText } from './logs/model'
 import { changedPaths, getPath, matchField, sentenceCase, setPath, settingsSections, valueOf } from './settings/model'
+import { agentRows, draftError, draftOf, filterAgents, modelOptions, monogram, payloadOf, sortAgents, summaryOf } from './agents/model'
 import { attentionLabel, featureHealth, formatCost, greeting, providerLine, series, sparkPath, summary } from './overview/model'
 import SessionsPage from './sessions/SessionsPage'
+import AgentsPage from './agents/AgentsPage'
 import LogsPage from './logs/LogsPage'
 import SettingsPage, { providerNote } from './settings/SettingsPage'
 import OverviewPage from './overview/OverviewPage'
@@ -63,6 +65,50 @@ test('sessions: search, status chips, agent filter and column sort', () => {
   assert.deepEqual(f({ agent: 'Writer' }), ['b'])
   assert.deepEqual(sortRows(rows, { key: 'messages', dir: 'asc' }).map((r) => r.id), ['b', 'a'])
   assert.deepEqual(sortRows(rows, { key: 'updated', dir: 'desc' }).map((r) => r.id), ['a', 'b'])
+})
+
+// ── agents ──
+const AGENTS = {
+  agents: [
+    { id: 'a1', name: 'Research bot', description: '', instructions: 'Cite sources.\nBe brief.', model: 'gpt-4o', temperature: 0.2, tools: ['web_search', { name: 'calc' }, 3], created_at: 1763200000, updated_at: 1763203600 },
+    { id: 'gw', name: 'Router', description: 'Routes requests', model: 'gpt-4o-mini', source: 'gateway', created_at: 1763100000 },
+    { name: 'no id' },
+  ],
+  count: 3,
+}
+
+test('agents: rows from /api/agents/definitions, code-registered agents read-only, no id dropped', () => {
+  const rows = agentRows(AGENTS)
+  assert.deepEqual(rows.map((r) => [r.id, r.name, r.tools, r.fromCode, r.status]), [
+    ['a1', 'Research bot', ['web_search', 'calc'], false, 'active'],
+    ['gw', 'Router', [], true, 'active'],
+  ])
+  assert.equal(rows[1].temperature, 0.7, 'a missing temperature reads as the server default')
+  assert.equal(rows[1].updated, rows[1].created, 'updated falls back to created')
+  assert.equal(summaryOf(rows[0]), 'Cite sources.', 'no description: the first line of the instructions')
+  assert.deepEqual([monogram('Research bot'), monogram('writer'), monogram('code_reviewer')], ['RB', 'W', 'CR'])
+  assert.deepEqual(agentRows({}), [])
+})
+
+test('agents: search, model filter, sort and the model list', () => {
+  const rows = agentRows(AGENTS)
+  assert.deepEqual(filterAgents(rows, { query: 'route', model: null }).map((r) => r.id), ['gw'])
+  assert.deepEqual(filterAgents(rows, { query: 'cite', model: null }).map((r) => r.id), ['a1'])
+  assert.deepEqual(filterAgents(rows, { query: '', model: 'gpt-4o' }).map((r) => r.id), ['a1'])
+  assert.deepEqual(sortAgents(rows, { key: 'name', dir: 'desc' }).map((r) => r.id), ['gw', 'a1'])
+  assert.deepEqual(sortAgents(rows, { key: 'tools', dir: 'desc' }).map((r) => r.id), ['a1', 'gw'])
+  assert.deepEqual(modelOptions({ models: ['gpt-4o', 7] }, 'local-llama'), ['local-llama', 'gpt-4o'])
+})
+
+test('agents: the form draft, its checks and the request body', () => {
+  const blank = draftOf(null, 'gpt-4o-mini')
+  assert.equal(blank.model, 'gpt-4o-mini')
+  assert.equal(draftError(blank), 'Give the agent a name.')
+  assert.equal(draftError({ ...blank, name: 'A', temperature: '3' }), 'Temperature is a number from 0 to 2.')
+  assert.equal(draftError({ ...blank, name: 'A', temperature: '' }), 'Temperature is a number from 0 to 2.')
+  const row = agentRows(AGENTS)[0]
+  const body = { name: 'Researcher', description: '', model: 'gpt-4o', temperature: 0.2, instructions: 'Cite sources.\nBe brief.', system_prompt: '' }
+  assert.deepEqual(payloadOf({ ...draftOf(row, 'x'), name: ' Researcher ' }), body)
 })
 
 // ── logs ──
@@ -152,13 +198,14 @@ test('each page is the browser half of its record and registers only when listed
   assert.deepEqual(appPageBuiltins.map((b) => [b.name, b.pages[0]]), [
     ['builtin.overview', 'overview'],
     ['builtin.sessions', 'sessions'],
+    ['builtin.agents', 'agents'],
     ['builtin.logs', 'logs'],
     ['builtin.config', 'config'],
   ])
   const registered: string[] = []
   const sdk = { registerPage: (id: string) => registered.push(id) } as never
   appPageBuiltins[1].activate(sdk, { manifest: {} as never, pageIds: ['sessions'] })
-  appPageBuiltins[2].activate(sdk, { manifest: {} as never, pageIds: [] })
+  appPageBuiltins[3].activate(sdk, { manifest: {} as never, pageIds: [] })
   assert.deepEqual(registered, ['sessions'])
 })
 
@@ -168,7 +215,7 @@ afterEach(() => resetLayoutsForTests())
 const html = (C: ComponentType<{ page: ShellPage }>, id: string) => renderToStaticMarkup(createElement(C, { page: page(id) }))
 
 test('the classic frame keeps the legacy view (no layout on screen)', async () => {
-  for (const [C, id] of [[SessionsPage, 'sessions'], [LogsPage, 'logs'], [SettingsPage, 'config'], [OverviewPage, 'overview']] as const) {
+  for (const [C, id] of [[SessionsPage, 'sessions'], [AgentsPage, 'agents'], [LogsPage, 'logs'], [SettingsPage, 'config'], [OverviewPage, 'overview']] as const) {
     // The legacy host is the shell's own lazy chunk: render through Suspense.
     const { prelude } = await prerender(createElement(C, { page: page(id) }))
     const out = await new Response(prelude).text()
@@ -185,6 +232,10 @@ test('inside a layout each page draws its Pro template with no server data yet',
   assert.match(sessions, /data-aiui-template="list"/)
   assert.match(sessions, /Search sessions/)
   assert.match(sessions, /aria-pressed="true"[^>]*>All</)
+  const agents = html(AgentsPage, 'agents')
+  assert.match(agents, /data-aiui-app-page="agents"/)
+  assert.match(agents, /data-aiui-template="list"/)
+  assert.match(agents, /role="status" aria-label="Loading agents"/, 'a skeleton, not a bare Loading…')
   assert.match(html(LogsPage, 'logs'), /data-aiui-app-page="logs"[\s\S]*aria-label="Clear the log"/)
   assert.match(html(SettingsPage, 'config'), /Loading settings/)
   const overview = html(OverviewPage, 'overview')

@@ -26,6 +26,7 @@ never read or written.
 | `page-reload-dashboard`, `page-reload-app` | the `dashboard-legacy` and `app-shell` servers | `page-reload` |
 | `layouts-host` | `AIUI_SHELL=app` + the third-party layout plugin (`fixtures/layout-plugin/serve.py`) | `layouts-host`, `layout-<id>` |
 | `page-types` | the same server, its own instance (the layout suites' chats stay out of its baselines) | `page-types` |
+| `app-pages` | the same server, its own instance (the agents it creates stay out of other suites) | `agents-page` |
 | `legacy-baseline` | the v0.3.153 tree (only with `AIUI_E2E_BASELINE_SRC`) | `legacy-parity` |
 
 ## What each suite checks
@@ -68,6 +69,10 @@ never read or written.
   in the palette and Settings → Appearance and loads only when picked,
   switching leaks no socket, timer or listener, a frame that throws falls back
   to the classic frame, and the phone menu sheet.
+- **agents-page**: the React Agents page under the default layout: the empty
+  state with one New agent action, create, detail, edit, delete with a
+  confirmation, the loading skeleton and the error state with Try again, and
+  the phone drill-in at 390 px.
 - **plugins**: the example plugin's React page, blocks page, block type, tool
   renderer and the error toast when its module fails to load.
 - **page-reload**: in the default dashboard and in the app shell, opening and
@@ -108,7 +113,7 @@ To enforce the comparison in CI, run the same commands inside the CI image
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `AIUI_E2E_PORT` | `8720` | first of nine consecutive ports |
+| `AIUI_E2E_PORT` | `8720` | first of ten consecutive ports |
 | `AIUI_E2E_PYTHON` | `python3`, then `python` | interpreter (≥ 3.10) with the package's dependencies |
 | `AIUI_E2E_REUSE` | unset | `1` reuses servers already listening on the ports |
 | `AIUI_E2E_BASELINE_SRC` | unset | a v0.3.153 checkout; enables `legacy-baseline` |
