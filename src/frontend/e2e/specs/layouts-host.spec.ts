@@ -158,7 +158,8 @@ test('the app shell opens in the default layout and downloads only its chunks', 
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
   expect(layoutGroups(scripts)).toEqual(['layout-chat-canvas', 'layout-kit'])
   expect(scripts.filter((s) => s.startsWith('/_plugins/layoutfx/'))).toEqual([])
-  expect(featureGroups(scripts)).toEqual(OWN_FEATURES['chat-canvas'])
+  // The canvas starts collapsed on a new chat; its region still loads (hidden) to count artifacts.
+  await expect.poll(() => featureGroups(scripts)).toEqual(OWN_FEATURES['chat-canvas'])
 
   // A non-chat page renders in the same frame's outlet.
   await page.goto('/logs')

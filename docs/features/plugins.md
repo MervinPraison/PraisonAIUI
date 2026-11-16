@@ -323,7 +323,7 @@ Registration:
 | `registerBlock(type, Component, options?)` | Component receives `{ node, page }`; `node` is `{ type, props, children }`. It also overrides a core block type of the same name. `{ fallback: true }` registers a default that anything else overrides |
 | `registerToolRenderer(toolName, Component)` | Chat tool call UI; receives assistant-ui tool part props (`toolName`, `args`, `argsText`, `result`, `status`, …) |
 | `registerSlot(name, Component, options?)` | Add a component to a [slot](#slots) of the shell |
-| `registerCommand(command)` | Add an entry to the command palette. Returns a function that removes it |
+| `registerCommand(command)` | Add an entry to the command palette. Returns a function that removes it. Groups list before the pages, in registration order; the groups `Preferences`, `Layout` and `Theme` list after them |
 | `registerView(pageId, render, cleanup?)` | A vanilla view for a legacy page (same as `window.aiui.registerView` in custom.js) |
 | `registerSettingsSection(section)` | Add a section to the shell's settings dialog: `{ id, title, description?, order?, fields, load(), save(values) }`, fields as in [`settings()`](#settings-nav-groups-and-theme-presets). A `save` rejection whose error has `body.fields` shows those messages next to the fields. Returns a remover |
 | `registerNavGroup(name, { order, folded }?)` | Declare the sidebar group your pages use, like [`nav_groups()`](#settings-nav-groups-and-theme-presets). Returns a remover |

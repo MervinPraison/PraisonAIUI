@@ -56,10 +56,6 @@ const FIRST_VISIT_ALLOWANCE: Record<string, { allow: LeakDelta; reason: string }
       'the chat chunk loads once: its libraries register global pointer/mouse/touch/click listeners at module load, ' +
       "and react-textarea-autosize (the composer) keeps one hidden measuring <textarea> in <body>",
   },
-  'chat-canvas': {
-    allow: { windowListeners: 1 },
-    reason: 'a one-time DOMContentLoaded listener from the canvas view module, registered when it is first imported',
-  },
   'code-studio': {
     allow: { intervals: 1, windowListeners: 1, bodyChildren: 2 },
     reason:

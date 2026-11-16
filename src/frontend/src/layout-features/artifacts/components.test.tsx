@@ -144,7 +144,7 @@ test('ArtifactCards: one card per artifact a reply made; older versions say so; 
 
 test('ArtifactsPage (client only): the chats this tab opened, grouped, with links', () => {
   const out = html(createElement(ArtifactsPage, {}))
-  assert.match(out, /<h1[^>]*>Artifacts<\/h1>/)
+  assert.doesNotMatch(out, /<h1/, 'the frame header names the page; no second title')
   assert.match(out, /from the chats opened in this tab/)
   assert.match(out, /aria-label="Search artifacts"/)
   assert.match(out, /Comparison table/)

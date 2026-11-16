@@ -26,6 +26,8 @@ export interface AiuiStarter {
   title?: string
   label?: string
   prompt: string
+  /** The app's icon for the starter (usually one emoji), drawn small before the title. */
+  icon?: string
   /** The prompt is a template to finish: a click puts it in the composer instead of sending it. */
   fill?: boolean
 }

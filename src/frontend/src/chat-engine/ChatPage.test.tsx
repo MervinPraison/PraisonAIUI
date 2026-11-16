@@ -255,13 +255,25 @@ test('host.Aside: nothing without chat.aside; the panel labelled asideLabel, els
   assert.match(canvas, new RegExp(`data-test-canvas="${SID}"`))
 })
 
-test('aside on a desktop: an open, resizable panel with the region', async () => {
+test('aside on a desktop: an open, resizable panel with the region once it has something', async () => {
+  reportBadge(1)
+  try {
+    const out = await html(createElement(ChatAside, asideProps))
+    assert.match(out, /role="separator"[^>]*aria-label="Resize Canvas"/)
+    assert.match(out, /<aside[^>]*aria-label="Canvas"/)
+    assert.doesNotMatch(out, HIDDEN_ASIDE)
+    assert.match(out, new RegExp(`data-test-canvas="${SID}"`))
+    assert.doesNotMatch(out, /data-chat-aside-switch/)
+  } finally {
+    reportBadge(0)
+  }
+})
+
+test('aside on a desktop: collapsed while the region is empty, the region still mounted', async () => {
   const out = await html(createElement(ChatAside, asideProps))
-  assert.match(out, /role="separator"[^>]*aria-label="Resize Canvas"/)
-  assert.match(out, /<aside[^>]*aria-label="Canvas"/)
-  assert.doesNotMatch(out, HIDDEN_ASIDE)
+  assert.doesNotMatch(out, /role="separator"/)
+  assert.match(out, HIDDEN_ASIDE)
   assert.match(out, new RegExp(`data-test-canvas="${SID}"`))
-  assert.doesNotMatch(out, /data-chat-aside-switch/)
 })
 
 test('aside on a tablet: collapsed by default, the region still mounted', async () => {

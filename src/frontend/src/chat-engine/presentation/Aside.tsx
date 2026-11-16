@@ -1,7 +1,8 @@
 /**
  * The chat page's side panel for a layout's `meta.chat.aside` region (ADR
  * 0003 §1.3, §1.5):
- *   desktop  a resizable panel right of the thread, open by default
+ *   desktop  a resizable panel right of the thread, collapsed until the
+ *            region reports something (its badge), then open
  *   tablet   the same panel, collapsed by default
  *   phone    a "Chat | <label> (n)" switch above the page; the panel
  *            replaces the thread while its side is chosen (./aside.css)
@@ -11,6 +12,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent, type PointerEvent } from 'react'
 import { createPortal } from 'react-dom'
+import { PanelRightClose, PanelRightOpen } from 'lucide-react'
 import type { RegionLoader } from '@/sdk/layouts'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -52,8 +54,6 @@ function writeWidth(w: number) {
   }
 }
 
-const withBadge = (label: string, n: number) => (n > 0 ? `${label} (${n})` : label)
-
 function PhoneSwitch({ label, badge, tab, onTab }: { label: string; badge: number; tab: 'chat' | 'aside'; onTab(t: 'chat' | 'aside'): void }) {
   const item = (value: 'chat' | 'aside', text: string) => (
     <button
@@ -89,9 +89,11 @@ export default function ChatAside({ loader, label, sessionId, slot }: ChatAsideP
   const badge = useBadge()
   const phone = viewport === 'phone'
   const [tab, setTab] = useState<'chat' | 'aside'>('chat')
-  // null: the default for the viewport (open on a desktop, collapsed on a tablet).
+  // null: the default for the viewport. A desktop opens the panel once the
+  // region has something to show (an empty canvas would take a third of the
+  // page on a new chat); a tablet keeps it collapsed. The toggle always works.
   const [openChoice, setOpenChoice] = useState<boolean | null>(null)
-  const open = openChoice ?? viewport === 'desktop'
+  const open = openChoice ?? (viewport === 'desktop' && badge > 0)
   const [width, setWidth] = useState(readWidth)
   const drag = useRef<{ x: number; w: number } | null>(null)
 
@@ -136,8 +138,21 @@ export default function ChatAside({ loader, label, sessionId, slot }: ChatAsideP
     <>
       {phone && <PhoneSwitch label={label} badge={badge} tab={tab} onTab={setTab} />}
       {!phone && slot && createPortal(
-        <Button variant="ghost" size="sm" aria-pressed={open} onClick={() => setOpenChoice(!open)} data-chat-aside-toggle>
-          {withBadge(label, badge)}
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-pressed={open}
+          title={open ? `Hide the ${label.toLowerCase()}` : `Show the ${label.toLowerCase()}`}
+          onClick={() => setOpenChoice(!open)}
+          data-chat-aside-toggle
+        >
+          {open ? <PanelRightClose aria-hidden /> : <PanelRightOpen aria-hidden />}
+          {label}
+          {badge > 0 && (
+            <span className="text-xs text-tier-3 tabular-nums" aria-label={`${badge} items`}>
+              {badge}
+            </span>
+          )}
         </Button>,
         slot,
       )}

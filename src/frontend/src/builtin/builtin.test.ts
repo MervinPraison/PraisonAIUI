@@ -207,3 +207,12 @@ test('builtin.artifacts registers its page, lazily, only while the manifest list
   assert.equal(typeof mod.default, 'function', 'the loader resolves to ArtifactsPage')
   resetBuiltinsForTests()
 })
+
+test('"Chat + Canvas" (chat-canvas) is the React chat in the app shell, never its vanilla view', () => {
+  resetBuiltinsForTests()
+  resetServicesForTests()
+  const m = manifest([page('chat-canvas', { kind: 'legacy' })])
+  assert.ok(activateBuiltins(m).includes('builtin.chat'))
+  assert.ok(getPage('chat-canvas'), 'builtin.chat registered the React chat under chat-canvas')
+  assert.equal(getCommands().find((c) => c.id === 'chat.new'), undefined, '"New chat" comes with the chat page only')
+})

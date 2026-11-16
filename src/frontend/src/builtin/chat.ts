@@ -16,6 +16,12 @@ import { whenPageShown } from './page'
 import type { BuiltinPlugin, BuiltinSdk } from './types'
 
 const CHAT_PAGE = 'chat'
+/**
+ * The catalog's "Chat + Canvas" page (same record, builtin.chat). Its vanilla
+ * view is the dashboard's; in the app shell it is the React chat, which
+ * shows the canvas beside the thread wherever the layout provides one.
+ */
+const CHAT_CANVAS_PAGE = 'chat-canvas'
 
 /** Open chat on a fresh session: navigate, wait for the chat view to mount, then ask it to reset. */
 export function startNewChat(sdk: Pick<BuiltinSdk, 'navigate' | 'getPageId'>, pageId = CHAT_PAGE): void {
@@ -45,7 +51,7 @@ export function provideChatFeeds(sdk: Pick<BuiltinSdk, 'navigate' | 'getPageId' 
 
 export const chatBuiltin: BuiltinPlugin = {
   name: 'builtin.chat',
-  pages: [CHAT_PAGE],
+  pages: [CHAT_PAGE, CHAT_CANVAS_PAGE],
   activate(sdk, { pageIds }) {
     for (const id of pageIds) registerChatPage(id)
     if (pageIds.includes(CHAT_PAGE)) {
