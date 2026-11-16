@@ -235,7 +235,7 @@ export function SidebarNav({
   )
 }
 
-/** Logo + site title. */
+/** Logo + site title. No logo (the default) draws the PraisonAI glyph on the accent tile. */
 export function SidebarBrand({ manifest, className }: { manifest: ShellManifest; className?: string }) {
   const logo = siteLogo(manifest)
   return (
@@ -244,6 +244,14 @@ export function SidebarBrand({ manifest, className }: { manifest: ShellManifest;
       {logo?.kind === 'text' && (
         <span aria-hidden="true" className="shrink-0 text-base leading-none">
           {logo.value}
+        </span>
+      )}
+      {!logo && (
+        <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center rounded-[6px] bg-primary text-primary-foreground">
+          {/* The PraisonAI glyph (as in the layout kit's BrandTile; inlined so the shell keeps layout-kit out of its entry). */}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-[62%]">
+            <path d="M8 19V5h5a4.5 4.5 0 0 1 0 9H8M17.25 18.25h0" />
+          </svg>
         </span>
       )}
       <span className="truncate text-sm font-semibold text-foreground">{siteTitle(manifest)}</span>

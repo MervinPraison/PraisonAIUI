@@ -25,7 +25,7 @@ class TestResetState:
     def test_branding_reset_to_default(self):
         srv.set_branding(title="Custom", logo="X")
         srv.reset_state()
-        assert srv._branding == {"title": "PraisonAI", "logo": "🦞"}
+        assert srv._branding == {"title": "PraisonAI", "logo": ""}
 
     def test_provider_reset_to_none(self):
         srv._provider = "fake"

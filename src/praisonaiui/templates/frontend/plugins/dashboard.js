@@ -317,6 +317,39 @@ let sidebarConfig = {
   maxWidth: 360,
 };
 
+// The sidebar brand: the site title, then its mark. The mark is the
+// configured logo (an image URL/path, or a short text mark), else the
+// PraisonAI glyph on the accent tile (the same glyph the React shell draws,
+// app-layouts/kit/BrandTile.tsx).
+const PRAISON_GLYPH_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-brand-glyph=""><path d="M8 19V5h5a4.5 4.5 0 0 1 0 9H8M17.25 18.25h0"/></svg>';
+
+function brandTitleEl(title) {
+  const span = document.createElement('span');
+  span.textContent = title;
+  return span;
+}
+
+function brandLogoEl(logo) {
+  const v = typeof logo === 'string' ? logo.trim() : '';
+  if (/^(\/|https?:|data:image\/)/.test(v)) {
+    const img = document.createElement('img');
+    img.className = 'logo';
+    img.src = v;
+    img.alt = '';
+    return img;
+  }
+  const span = document.createElement('span');
+  span.className = 'logo';
+  span.setAttribute('aria-hidden', 'true');
+  if (v) {
+    span.textContent = v;
+  } else {
+    span.classList.add('db-brand-tile');
+    span.innerHTML = PRAISON_GLYPH_SVG;
+  }
+  return span;
+}
+
 const DASHBOARD_STYLE = `
   /* ── Dashboard layout ───────────────────────────────────── */
   :root {
@@ -387,6 +420,13 @@ const DASHBOARD_STYLE = `
     min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .db-sidebar-header .logo { font-size: 20px; flex-shrink: 0; }
+  .db-sidebar-header .logo.db-brand-tile {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 7px;
+    background: var(--db-accent); color: #fff;
+  }
+  .db-sidebar-header .logo.db-brand-tile svg { width: 62%; height: 62%; }
+  .db-sidebar-header img.logo { width: 24px; height: 24px; border-radius: 6px; object-fit: contain; }
   .db-sidebar-toggle {
     position: absolute;
     right: -12px;
@@ -2078,7 +2118,7 @@ function buildSidebar(pages) {
   // Header — branding from /ui-config.json (configurable via app.py or YAML)
   const header = document.createElement('div');
   header.className = 'db-sidebar-header';
-  header.innerHTML = '<span>PraisonAI</span> <span class="logo">🦞</span>';
+  header.append(brandTitleEl('PraisonAI'), brandLogoEl(''));
   sidebar.appendChild(header);
   
   // Toggle button (if collapsible)
@@ -2108,15 +2148,7 @@ function buildSidebar(pages) {
   // Update branding from config asynchronously
   fetch('/ui-config.json').then(r => r.json()).then(cfg => {
     const title = cfg.site?.title || 'PraisonAI';
-    const logo = cfg.site?.logo || '🦞';
-    header.innerHTML = '';
-    const titleSpan = document.createElement('span');
-    titleSpan.textContent = title;
-    header.appendChild(titleSpan);
-    const logoSpan = document.createElement('span');
-    logoSpan.className = 'logo';
-    logoSpan.textContent = logo;
-    header.appendChild(logoSpan);
+    header.replaceChildren(brandTitleEl(title), brandLogoEl(cfg.site?.logo));
     
     // Apply sidebar config from server
     if (cfg.dashboard) {

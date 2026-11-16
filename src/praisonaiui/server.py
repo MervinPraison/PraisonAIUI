@@ -99,8 +99,9 @@ _config_path: Optional[Path] = None
 _config_cache: Optional[dict] = None
 # Explicit style set via aiui.set_style() — None means "not set"
 _style: Optional[str] = None
-# Branding config set via aiui.set_branding() — overrides YAML/defaults
-_branding: dict[str, str] = {"title": "PraisonAI", "logo": "🦞"}
+# Branding config set via aiui.set_branding() — overrides YAML/defaults.
+# An empty logo means "no logo": every UI draws the PraisonAI brand glyph.
+_branding: dict[str, str] = {"title": "PraisonAI", "logo": ""}
 # Theme config set via aiui.set_theme() — overrides YAML site.theme
 _theme: Optional[dict[str, Any]] = None
 # Custom CSS set via aiui.set_custom_css()
@@ -146,7 +147,7 @@ def reset_state() -> None:
         }
     )
     _style = None
-    _branding = {"title": "PraisonAI", "logo": "🦞"}
+    _branding = {"title": "PraisonAI", "logo": ""}
     _theme = None
     _custom_css = None
     _custom_js = None
@@ -206,15 +207,17 @@ def set_style(style: str) -> None:
     _style = style
 
 
-def set_branding(title: str = "PraisonAI", logo: str = "🦞") -> None:
-    """Set the sidebar branding (title and logo emoji).
+def set_branding(title: str = "PraisonAI", logo: str = "") -> None:
+    """Set the sidebar branding (title and logo).
 
-    Configurable from ``app.py`` or ``config.yaml`` (under ``site.title``
-    and ``site.logo``).  Call before the server starts.
+    ``logo`` is an image URL or path (``/static/logo.svg``, ``https://…``,
+    ``data:image/…``) or a short text mark. Empty (the default) draws the
+    PraisonAI brand glyph. Configurable from ``app.py`` or ``config.yaml``
+    (under ``site.title`` and ``site.logo``).  Call before the server starts.
 
     Example::
 
-        aiui.set_branding(title="MyApp", logo="🚀")
+        aiui.set_branding(title="MyApp", logo="/static/logo.svg")
     """
     global _branding
     _branding = {"title": title, "logo": logo}

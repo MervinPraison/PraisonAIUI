@@ -254,7 +254,7 @@ test('the legacy runtime is preloaded only when a page (or custom.js) needs it',
 test('site title and logo', () => {
   assert.equal(siteTitle(manifest()), 'Acme AI')
   assert.equal(siteTitle(manifest({ site: {} })), 'PraisonAI')
-  assert.deepEqual(siteLogo(manifest({ site: { logo: '🦞' } })), { kind: 'text', value: '🦞' })
+  assert.deepEqual(siteLogo(manifest({ site: { logo: '🚀' } })), { kind: 'text', value: '🚀' })
   assert.deepEqual(siteLogo(manifest({ site: { logo: '/static/logo.svg' } })), { kind: 'img', value: '/static/logo.svg' })
   assert.equal(siteLogo(manifest({ site: { logo: 'javascript:alert(1)' } })), null)
 })

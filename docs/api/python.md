@@ -41,22 +41,26 @@ Use `aiui pages ids` to see all available page IDs.
 
 ### `aiui.set_branding(title, logo)`
 
-Configure the sidebar branding (title text and logo emoji).
+Configure the sidebar branding (title text and logo).
 
 | Parameter | Type | Default |
 |-----------|------|---------|
 | `title` | `str` | `"PraisonAI"` |
-| `logo` | `str` | `"🦞"` |
+| `logo` | `str` | `""` (no logo: the PraisonAI brand glyph) |
+
+`logo` is an image URL or path (`/static/logo.svg`, `https://…`, `data:image/…`)
+or a short text mark. Left empty, every UI draws the PraisonAI glyph on the
+accent tile.
 
 ```python
-aiui.set_branding(title="MyApp", logo="🚀")
+aiui.set_branding(title="MyApp", logo="/static/logo.svg")
 ```
 
 Also configurable via `config.yaml`:
 ```yaml
 site:
   title: MyApp
-  logo: 🚀
+  logo: /static/logo.svg
 ```
 
 ---
